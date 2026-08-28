@@ -27,6 +27,7 @@ function makeService(
     members?: { key: string; labelAr: string; labelEn: string }[];
     mirrorQuestionId?: string | null;
     syncChanged?: boolean;
+    mirroringQuestion?: { id: string; code: string; type: string } | null;
   } = {},
 ) {
   const written: Array<{
@@ -58,6 +59,10 @@ function makeService(
       },
     ),
     syncMirroredOptions,
+    findQuestion: async (id: string) =>
+      over.mirroringQuestion === undefined
+        ? { id, code: 'district_q', type: 'SINGLE_SELECT' }
+        : over.mirroringQuestion,
     groups: async () => [
       { id: 'g_1', code: 'about', titleAr: 'ع', titleEn: 'A', displayOrder: 1, isActive: true },
     ],
@@ -78,8 +83,10 @@ function makeService(
           'district',
           {
             key: 'district',
-            mirrorQuestionId:
-              over.mirrorQuestionId === undefined ? 'q_new' : over.mirrorQuestionId,
+            // NULL by default, because that is the only state a CREATE can find a list in.
+            // Defaulting it to a live link modelled the sync case and let a create test pass
+            // through the "one list, one mirroring question" refusal without meeting it.
+            mirrorQuestionId: over.mirrorQuestionId ?? null,
           },
         ],
       ]),
@@ -143,7 +150,9 @@ describe('creating a question from a registry list', () => {
 
 describe('re-syncing after the list changes', () => {
   it('rewrites the options and republishes', async () => {
-    const { service, syncMirroredOptions, publishVersion } = makeService();
+    const { service, syncMirroredOptions, publishVersion } = makeService({
+      mirrorQuestionId: 'q_new',
+    });
     const changed = await service.syncMirroredOptions('district', 'staff_1');
     expect(changed).toBe(true);
     expect(syncMirroredOptions).toHaveBeenCalledWith('q_new', [
@@ -156,7 +165,10 @@ describe('re-syncing after the list changes', () => {
   it('does NOT publish when nothing moved', async () => {
     // A publish that changes nothing is still a new ACTIVE version, and version history is
     // how an operator reads what they did.
-    const { service, publishVersion } = makeService({ syncChanged: false });
+    const { service, publishVersion } = makeService({
+      mirrorQuestionId: 'q_new',
+      syncChanged: false,
+    });
     expect(await service.syncMirroredOptions('district', 'staff_1')).toBe(false);
     expect(publishVersion).not.toHaveBeenCalled();
   });
@@ -171,8 +183,106 @@ describe('re-syncing after the list changes', () => {
   });
 
   it('is a no-op for a list the registry has never heard of', async () => {
-    const { service, publishVersion } = makeService();
+    const { service, publishVersion } = makeService({ mirrorQuestionId: 'q_new' });
     expect(await service.syncMirroredOptions('governorate', 'staff_1')).toBe(false);
     expect(publishVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe('refusing what optionsFromEnumerationType cannot deliver', () => {
+  // Every one of these used to succeed with a 201 and fail silently afterwards, because the
+  // link is stamped AFTER the question is created and `updateTypeDefinition`'s null return
+  // was discarded.
+  it('refuses a list the registry has never heard of, instead of minting a question that mirrors nothing', async () => {
+    const { service, updateTypeDefinition } = makeService();
+    await expect(
+      service.createQuestionWithOptions(
+        { ...MIRRORED, optionsFromEnumerationType: 'typo_list' } as CreateQuestionWithOptionsDto,
+        'staff_1',
+      ),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.VALIDATION_FAILED,
+      meta: { field: 'optionsFromEnumerationType', reason: 'unknown_type' },
+    });
+    expect(updateTypeDefinition).not.toHaveBeenCalled();
+  });
+
+  it('refuses a list already mirrored by another question, which would freeze that one forever', async () => {
+    const { service } = makeService({ mirrorQuestionId: 'q_existing' });
+    await expect(service.createQuestionWithOptions(MIRRORED, 'staff_1')).rejects.toMatchObject({
+      code: ERROR_CODES.VALIDATION_FAILED,
+      meta: { field: 'optionsFromEnumerationType', reason: 'already_mirrored' },
+    });
+  });
+
+  it('refuses a NUMERIC question, which has no options to mirror', async () => {
+    // Zero active options satisfies `value_types_must_have_no_options`, so this passed
+    // creation and the next VALUE write then wrote question_option rows onto a NUMERIC
+    // question and published them.
+    const { service } = makeService();
+    await expect(
+      service.createQuestionWithOptions(
+        {
+          ...MIRRORED,
+          type: 'NUMERIC',
+          numeric: { minValue: '0', maxValue: '10' },
+        } as CreateQuestionWithOptionsDto,
+        'staff_1',
+      ),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.VALIDATION_FAILED,
+      meta: { field: 'optionsFromEnumerationType', reason: 'type_not_choice' },
+    });
+  });
+});
+
+describe('a mirrored list must keep enough values to be a question', () => {
+  const THREE = [
+    ...DISTRICTS,
+    { type: 'district', key: 'nasr_city', labelAr: 'مدينة نصر', labelEn: 'Nasr City' },
+  ];
+
+  it('refuses the write that would leave one answer', async () => {
+    // The sync deactivates the option after the registry write has committed and re-checks
+    // nothing, so without this the operator published a live SINGLE_SELECT with one answer —
+    // and then, one value later, with none.
+    const { service } = makeService({ mirrorQuestionId: 'q_new' });
+    await expect(service.assertMirroredListSurvives('district', 'maadi')).rejects.toMatchObject({
+      code: ERROR_CODES.MIRRORED_LIST_MIN_VALUES,
+      meta: { type: 'district', key: 'maadi', questionCode: 'district_q', remaining: 1 },
+    });
+  });
+
+  it('allows it while two would remain', async () => {
+    const { service } = makeService({ mirrorQuestionId: 'q_new', members: THREE });
+    await expect(service.assertMirroredListSurvives('district', 'maadi')).resolves.toBeUndefined();
+  });
+
+  it('counts the value going away even when it is not in the list', async () => {
+    // A key that matches nothing removes nothing, so two values stay two.
+    const { service } = makeService({ mirrorQuestionId: 'q_new' });
+    await expect(
+      service.assertMirroredListSurvives('district', 'not_a_value'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('is silent for a list no question mirrors — every builtin and every Manage-values list', async () => {
+    const { service } = makeService({ mirrorQuestionId: null });
+    await expect(service.assertMirroredListSurvives('district', 'maadi')).resolves.toBeUndefined();
+  });
+
+  it('is silent when the link dangles, because a question that is gone blocks nothing', async () => {
+    // The FK is ON DELETE SET NULL, so this is reachable only mid-flight; it must not turn a
+    // legitimate retire into an untyped 500.
+    const { service } = makeService({ mirrorQuestionId: 'q_new', mirroringQuestion: null });
+    await expect(service.assertMirroredListSurvives('district', 'maadi')).resolves.toBeUndefined();
+  });
+
+  it('is silent for a value-type question, which has no answers to run short of', async () => {
+    const { service } = makeService({
+      mirrorQuestionId: 'q_new',
+      mirroringQuestion: { id: 'q_new', code: 'district_q', type: 'NUMERIC' },
+    });
+    await expect(service.assertMirroredListSurvives('district', 'maadi')).resolves.toBeUndefined();
   });
 });

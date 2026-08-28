@@ -14,6 +14,7 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
@@ -25,14 +26,14 @@ import {
   DeleteOutline,
 } from '@ant-design/icons-angular/icons';
 import { CanDirective } from '../../shared/can.directive';
-import { PageHeaderComponent } from '@shared/ui';
+import { PageHeaderComponent, openFormDrawer } from '@shared/ui';
 import { ErrorCodeService } from '../../core/errors/error-code.service';
 import { BanksApiService } from './banks.api.service';
 import {
-  BankFormDialog,
-  type BankFormDialogData,
-  type BankFormDialogResult,
-} from './bank-form.dialog';
+  BankFormDrawer,
+  type BankFormDrawerData,
+  type BankFormDrawerResult,
+} from './bank-form.drawer';
 import type { BankWithProgramCount } from './banks.types';
 
 @Component({
@@ -251,6 +252,7 @@ import type { BankWithProgramCount } from './banks.types';
 export class BanksListPage implements OnInit {
   private readonly api = inject(BanksApiService);
   private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
   private readonly message = inject(NzMessageService);
   private readonly router = inject(Router);
   private readonly errors = inject(ErrorCodeService);
@@ -302,34 +304,22 @@ export class BanksListPage implements OnInit {
   }
 
   openCreate(): void {
-    const ref = this.modal.create<
-      BankFormDialog,
-      BankFormDialogData,
-      BankFormDialogResult | undefined
-    >({
-      nzContent: BankFormDialog,
-      nzData: { mode: 'create' },
-      nzWidth: 560,
-      nzFooter: null,
-      nzAutofocus: null,
-    });
+    const ref = openFormDrawer<
+      BankFormDrawer,
+      BankFormDrawerData,
+      BankFormDrawerResult | undefined
+    >(this.drawer, { content: BankFormDrawer, data: { mode: 'create' } });
     ref.afterClose.subscribe((res) => {
       if (res?.saved) void this.reload();
     });
   }
 
   openEdit(b: BankWithProgramCount): void {
-    const ref = this.modal.create<
-      BankFormDialog,
-      BankFormDialogData,
-      BankFormDialogResult | undefined
-    >({
-      nzContent: BankFormDialog,
-      nzData: { mode: 'edit', bank: b },
-      nzWidth: 560,
-      nzFooter: null,
-      nzAutofocus: null,
-    });
+    const ref = openFormDrawer<
+      BankFormDrawer,
+      BankFormDrawerData,
+      BankFormDrawerResult | undefined
+    >(this.drawer, { content: BankFormDrawer, data: { mode: 'edit', bank: b } });
     ref.afterClose.subscribe((res) => {
       if (res?.saved) void this.reload();
     });

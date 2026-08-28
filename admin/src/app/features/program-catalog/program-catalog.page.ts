@@ -15,6 +15,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { RouterLink } from '@angular/router';
 import {
@@ -29,7 +30,12 @@ import {
   PoweroffOutline,
   WarningOutline,
 } from '@ant-design/icons-angular/icons';
-import { PageHeaderComponent, StatStripComponent, type StatStripItem } from '@shared/ui';
+import {
+  PageHeaderComponent,
+  StatStripComponent,
+  openFormDrawer,
+  type StatStripItem,
+} from '@shared/ui';
 import {
   LOAN_CATEGORIES,
   canonicalCategories,
@@ -39,9 +45,9 @@ import {
 import { incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
 import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
 import {
-  EnumerationEditDialogComponent,
-  type EnumerationEditDialogData,
-} from '@shared/lookups/enumeration-edit.dialog';
+  EnumerationEditDrawerComponent,
+  type EnumerationEditDrawerData,
+} from '@shared/lookups/enumeration-edit.drawer';
 
 const ENUM_TYPE = 'program_name';
 
@@ -907,6 +913,7 @@ type BasisFilter = 'all' | IncomeBasis;
 export class ProgramCatalogPage implements OnInit {
   private readonly api = inject(LookupsApiService);
   private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
   private readonly message = inject(NzMessageService);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
@@ -1095,11 +1102,11 @@ export class ProgramCatalogPage implements OnInit {
   }
 
   add(): void {
-    this.openDialog({ mode: 'create', type: ENUM_TYPE });
+    this.openDrawer({ mode: 'create', type: ENUM_TYPE });
   }
 
   edit(row: EnumerationRow): void {
-    this.openDialog({ mode: 'edit', type: ENUM_TYPE, row });
+    this.openDrawer({ mode: 'edit', type: ENUM_TYPE, row });
   }
 
   // --- Card meta ------------------------------------------------------------
@@ -1268,22 +1275,29 @@ export class ProgramCatalogPage implements OnInit {
     this.rows.update((list) => list.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
-  private openDialog(data: EnumerationEditDialogData): void {
-    const ref = this.modal.create<
-      EnumerationEditDialogComponent,
-      EnumerationEditDialogData,
-      boolean
-    >({
-      nzContent: EnumerationEditDialogComponent,
-      nzData: data,
-      nzTitle:
-        data.mode === 'create'
-          ? $localize`:@@program_catalog.dialog.add:Add program name`
-          : $localize`:@@program_catalog.dialog.edit:Edit program name`,
-      nzWidth: 'min(640px, calc(100vw - 48px))',
-      nzFooter: null,
-      nzMaskClosable: true,
-    });
+  /** Side sheet: the board keeps its counts on screen while a name is written. */
+  private openDrawer(data: EnumerationEditDrawerData): void {
+    const ref = openFormDrawer<EnumerationEditDrawerComponent, EnumerationEditDrawerData, boolean>(
+      this.drawer,
+      {
+        content: EnumerationEditDrawerComponent,
+        data: {
+          ...data,
+          title:
+            data.mode === 'create'
+              ? $localize`:@@program_catalog.dialog.add:Add program name`
+              : $localize`:@@program_catalog.dialog.edit:Edit program name`,
+          submitLabel:
+            data.mode === 'create'
+              ? $localize`:@@program_catalog.dialog.add_cta:Add program name`
+              : $localize`:@@lookups.dialog.save:Save`,
+          subtitle:
+            data.mode === 'create'
+              ? $localize`:@@program_catalog.dialog.add_sub:A catalog name banks file their programs under. It starts offered under no loan type — pick those on its own page.`
+              : $localize`:@@program_catalog.dialog.edit_sub:Renames the name everywhere banks already use it, and restates what it is sold against.`,
+        },
+      },
+    );
     ref.afterClose.subscribe((saved: boolean | undefined) => {
       if (saved) void this.reload({ silent: true });
     });

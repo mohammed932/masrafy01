@@ -1,7 +1,7 @@
 /**
  * Create or edit a KIND of list — the registry one level up from a value.
  *
- * A SEPARATE dialog from `EnumerationEditDialogComponent`, which edits a VALUE. The two look
+ * A SEPARATE dialog from `EnumerationEditDrawerComponent`, which edits a VALUE. The two look
  * alike and are not: this one asks for a key that becomes `platform_enumeration.type` and a
  * parent AXIS ("values of this kind are filed under a value of that kind"), while that one
  * asks for a key inside one type and a parent VALUE. Folding them together would mean one
@@ -24,9 +24,10 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { NzDrawerRef, NZ_DRAWER_DATA } from 'ng-zorro-antd/drawer';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { LoadingOutline } from '@ant-design/icons-angular/icons';
+import { LoadingOutline, UnorderedListOutline } from '@ant-design/icons-angular/icons';
+import { FormDrawerComponent } from '@shared/ui';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import {
@@ -35,7 +36,7 @@ import {
 } from '@features/lookups/lookups.api.service';
 import { EnumerationTypesService } from './enumeration-types.service';
 
-export type EnumerationTypeDialogData =
+export type EnumerationTypeDrawerData =
   | { mode: 'create' }
   | { mode: 'edit'; definition: EnumerationTypeDefinition };
 
@@ -43,105 +44,95 @@ export type EnumerationTypeDialogData =
 const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 @Component({
-  selector: 'app-enumeration-type-edit-dialog',
+  selector: 'app-enumeration-type-edit-drawer',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, NzIconModule],
-  providers: [provideNzIconsPatch([LoadingOutline])],
+  imports: [ReactiveFormsModule, NzIconModule, FormDrawerComponent],
+  providers: [provideNzIconsPatch([LoadingOutline, UnorderedListOutline])],
   template: `
-    <form class="form" [formGroup]="form" (ngSubmit)="submit()">
-      <h2 class="title">
-        @if (isCreate) {
-          <span i18n="@@lookups.type.dialog.createTitle">New list</span>
-        } @else {
-          <span i18n="@@lookups.type.dialog.editTitle">Edit list</span>
-        }
-      </h2>
-
-      <p class="lede" i18n="@@lookups.type.dialog.lede">
-        A list is a set of values an operator curates — compounds, employment types, a bank's own
-        tiers. Create one here, then add its values.
-      </p>
-
-      <label class="field">
-        <span class="label" i18n="@@lookups.type.field.key">Key</span>
-        <input
-          class="input mono"
-          formControlName="key"
-          [attr.aria-describedby]="isCreate ? 'key-hint' : 'key-locked'"
-          autocomplete="off"
-        />
-        @if (isCreate) {
-          <span class="hint" id="key-hint" i18n="@@lookups.type.field.key.hint">
-            Letters, numbers, underscore or hyphen. This is how the platform stores the list, and it
-            cannot be changed later.
-          </span>
-        } @else {
-          <span class="hint" id="key-locked" i18n="@@lookups.type.field.key.locked">
-            The key cannot be changed — every value in this list carries it.
-          </span>
-        }
-        @if (keyInvalid()) {
-          <span class="hint is-bad" role="alert" i18n="@@lookups.type.field.key.invalid">
-            Use letters, numbers, underscore or hyphen, starting with a letter or number.
-          </span>
-        }
-      </label>
-
-      <div class="row">
+    <app-form-drawer
+      [title]="drawerTitle"
+      [subtitle]="drawerSubtitle"
+      [submitLabel]="submitLabel"
+      [submitDisabled]="form.invalid"
+      [submitting]="submitting()"
+      (cancelled)="cancel()"
+      (submitted)="submit()"
+    >
+      <span drawerIcon nz-icon nzType="unordered-list" nzTheme="outline"></span>
+      <form class="form" [formGroup]="form" (ngSubmit)="submit()">
         <label class="field">
-          <span class="label" i18n="@@lookups.type.field.labelEn">English name</span>
-          <input class="input" formControlName="labelEn" autocomplete="off" />
-        </label>
-        <label class="field">
-          <span class="label" i18n="@@lookups.type.field.labelAr">Arabic name</span>
-          <input class="input" formControlName="labelAr" dir="rtl" autocomplete="off" />
-        </label>
-      </div>
-
-      <div class="row">
-        <label class="field">
-          <span class="label" i18n="@@lookups.type.field.descriptionEn"> English description </span>
-          <input class="input" formControlName="descriptionEn" autocomplete="off" />
-        </label>
-        <label class="field">
-          <span class="label" i18n="@@lookups.type.field.descriptionAr"> Arabic description </span>
-          <input class="input" formControlName="descriptionAr" dir="rtl" autocomplete="off" />
-        </label>
-      </div>
-
-      <label class="field">
-        <span class="label" i18n="@@lookups.type.field.parent">Filed under</span>
-        <select class="input" formControlName="parentTypeKey">
-          <option value="" i18n="@@lookups.type.field.parent.none">
-            Nothing — these values stand on their own
-          </option>
-          @for (candidate of parentCandidates(); track candidate.key) {
-            <option [value]="candidate.key">{{ label(candidate) }}</option>
+          <span class="label" i18n="@@lookups.type.field.key">Key</span>
+          <input
+            class="input mono"
+            formControlName="key"
+            [attr.aria-describedby]="isCreate ? 'key-hint' : 'key-locked'"
+            autocomplete="off"
+          />
+          @if (isCreate) {
+            <span class="hint" id="key-hint" i18n="@@lookups.type.field.key.hint">
+              Letters, numbers, underscore or hyphen. This is how the platform stores the list, and
+              it cannot be changed later.
+            </span>
+          } @else {
+            <span class="hint" id="key-locked" i18n="@@lookups.type.field.key.locked">
+              The key cannot be changed — every value in this list carries it.
+            </span>
           }
-        </select>
-        <span class="hint" i18n="@@lookups.type.field.parent.hint">
-          Pick a class list when a bank prices these values by group rather than one by one — the
-          way compounds are priced by their class. Every value will then have to name one.
-        </span>
-      </label>
-
-      @if (errorMessage(); as message) {
-        <p class="notice is-bad" role="alert">{{ message }}</p>
-      }
-
-      <div class="actions">
-        <button type="button" class="btn ghost" (click)="cancel()" i18n="@@common.cancel">
-          Cancel
-        </button>
-        <button type="submit" class="btn primary" [disabled]="submitting() || form.invalid">
-          @if (submitting()) {
-            <span nz-icon nzType="loading" nzTheme="outline" aria-hidden="true"></span>
+          @if (keyInvalid()) {
+            <span class="hint is-bad" role="alert" i18n="@@lookups.type.field.key.invalid">
+              Use letters, numbers, underscore or hyphen, starting with a letter or number.
+            </span>
           }
-          <span i18n="@@common.save">Save</span>
-        </button>
-      </div>
-    </form>
+        </label>
+
+        <div class="row">
+          <label class="field">
+            <span class="label" i18n="@@lookups.type.field.labelEn">English name</span>
+            <input class="input" formControlName="labelEn" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span class="label" i18n="@@lookups.type.field.labelAr">Arabic name</span>
+            <input class="input" formControlName="labelAr" dir="rtl" autocomplete="off" />
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="field">
+            <span class="label" i18n="@@lookups.type.field.descriptionEn">
+              English description
+            </span>
+            <input class="input" formControlName="descriptionEn" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span class="label" i18n="@@lookups.type.field.descriptionAr">
+              Arabic description
+            </span>
+            <input class="input" formControlName="descriptionAr" dir="rtl" autocomplete="off" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="label" i18n="@@lookups.type.field.parent">Filed under</span>
+          <select class="input" formControlName="parentTypeKey">
+            <option value="" i18n="@@lookups.type.field.parent.none">
+              Nothing — these values stand on their own
+            </option>
+            @for (candidate of parentCandidates(); track candidate.key) {
+              <option [value]="candidate.key">{{ label(candidate) }}</option>
+            }
+          </select>
+          <span class="hint" i18n="@@lookups.type.field.parent.hint">
+            Pick a class list when a bank prices these values by group rather than one by one — the
+            way compounds are priced by their class. Every value will then have to name one.
+          </span>
+        </label>
+
+        @if (errorMessage(); as message) {
+          <p class="notice is-bad" role="alert">{{ message }}</p>
+        }
+      </form>
+    </app-form-drawer>
   `,
   styles: [
     `
@@ -152,18 +143,6 @@ const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
-      }
-      .title {
-        margin: 0;
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-      .lede {
-        margin: 0;
-        color: var(--text-secondary);
-        font-size: 0.8125rem;
-        line-height: 1.5;
       }
       .row {
         display: grid;
@@ -215,52 +194,26 @@ const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
         font-size: 0.8125rem;
         line-height: 1.5;
       }
-      .actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: var(--space-2);
-      }
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        min-block-size: var(--size-field);
-        padding-inline: var(--space-4);
-        border-radius: var(--radius-field);
-        border: 1px solid transparent;
-        font: inherit;
-        cursor: pointer;
-      }
-      .btn.ghost {
-        border-color: var(--color-border-default);
-        background: transparent;
-        color: var(--text-secondary);
-      }
-      .btn.primary {
-        background: var(--accent);
-        color: var(--text-on-accent, #fff);
-      }
-      .btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .btn:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-      }
     `,
   ],
 })
-export class EnumerationTypeEditDialogComponent {
+export class EnumerationTypeEditDrawerComponent {
   private readonly api = inject(LookupsApiService);
   private readonly enumTypes = inject(EnumerationTypesService);
   private readonly errorCodes = inject(ErrorCodeService);
-  private readonly dialogRef = inject(NzModalRef<EnumerationTypeEditDialogComponent, boolean>);
-  private readonly data = inject<EnumerationTypeDialogData>(NZ_MODAL_DATA);
+  private readonly drawerRef = inject(NzDrawerRef<EnumerationTypeEditDrawerComponent, boolean>);
+  private readonly data = inject<EnumerationTypeDrawerData>(NZ_DRAWER_DATA);
   private readonly locale = inject(LOCALE_ID);
   private readonly isAr = this.locale.startsWith('ar');
 
   protected readonly isCreate = this.data.mode === 'create';
+  protected readonly drawerTitle = this.isCreate
+    ? $localize`:@@lookups.type.dialog.createTitle:New list`
+    : $localize`:@@lookups.type.dialog.editTitle:Edit list`;
+  protected readonly drawerSubtitle = $localize`:@@lookups.type.dialog.lede:A list is a set of values an operator curates — compounds, employment types, a bank's own tiers. Create one here, then add its values.`;
+  protected readonly submitLabel = this.isCreate
+    ? $localize`:@@lookups.type.dialog.createCta:Create list`
+    : $localize`:@@common.save:Save`;
   protected readonly submitting = signal(false);
   /** Localized through `ErrorCodeService` — no per-component message mapping (A22). */
   protected readonly errorMessage = signal<string | null>(null);
@@ -318,7 +271,7 @@ export class EnumerationTypeEditDialogComponent {
   }
 
   protected cancel(): void {
-    this.dialogRef.close(false);
+    this.drawerRef.close(false);
   }
 
   protected async submit(): Promise<void> {
@@ -350,7 +303,7 @@ export class EnumerationTypeEditDialogComponent {
         await this.api.updateType(this.data.definition.key, body);
       }
       await this.enumTypes.refresh();
-      this.dialogRef.close(true);
+      this.drawerRef.close(true);
     } catch (err) {
       // The refusal carries `meta` the strings interpolate — `{key}` for a duplicate,
       // `{parentTypeKey}` for a bad axis — so both are passed rather than dropped.

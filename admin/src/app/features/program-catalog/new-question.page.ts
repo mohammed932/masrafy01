@@ -2,8 +2,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   LOCALE_ID,
+  OnInit,
   computed,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -23,7 +25,7 @@ import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   ArrowDownOutline,
   ArrowUpOutline,
@@ -39,13 +41,21 @@ import {
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
-import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
+import {
+  LOAN_CATEGORIES,
+  categoryLabel,
+  isLoanCategory,
+  type LoanCategory,
+} from '@core/loan-category';
+import { FormPageComponent } from '@shared/ui';
+import { LookupsApiService } from '@features/lookups/lookups.api.service';
+import { ENUM_TYPE, absorbProgramNames } from './program-name-row';
 import {
   QuestionnaireApiService,
   type CreateQuestionWithOptionsBody,
   type GroupTreeRow,
   type QuestionType,
-} from '../../questionnaire/questionnaire.api.service';
+} from '@features/questionnaire/questionnaire.api.service';
 
 /**
  * Author a brand-new question WITHOUT leaving the catalog name you are configuring.
@@ -116,17 +126,6 @@ function uniqueSlug(label: string, existing: ReadonlySet<string>): string {
 /** A decimal string the backend's IsDecimalString({ scale: 2, min: 0 }) accepts. */
 const DECIMAL_RE = /^\d+(\.\d{1,2})?$/;
 
-export interface NewQuestionDialogData {
-  /** The catalog name being configured — only for wording; the tick is the page's job. */
-  nameLabel: string;
-  /** The open tab. Seeds the category set and names the template the tick lands in. */
-  category: LoanCategory;
-  /** Live pool codes, so the slug preview matches what the server will mint. */
-  existingCodes: readonly string[];
-  /** Prefill, when the dialog is opened from a search that found nothing. */
-  seedQuestionEn?: string;
-}
-
 export interface NewQuestionResult {
   /** The code the SERVER minted — not the preview. */
   code: string;
@@ -138,13 +137,21 @@ export interface NewQuestionResult {
   tick: boolean;
 }
 
+/**
+ * How the created question travels back to the catalog name's page: as router state,
+ * read once on arrival. The TICK is deliberately still the name page's write — it owns
+ * that template, holds the current pick set, and re-reads it before writing (a colleague
+ * may have changed it meanwhile).
+ */
+export const NEW_QUESTION_STATE_KEY = 'newQuestion';
+
 type OptionGroup = FormGroup<{
   labelEn: FormControl<string>;
   labelAr: FormControl<string>;
 }>;
 
 @Component({
-  selector: 'app-new-question-dialog',
+  selector: 'app-new-question-page',
   standalone: true,
   imports: [
     CommonModule,
@@ -160,6 +167,7 @@ type OptionGroup = FormGroup<{
     NzSelectModule,
     NzToolTipModule,
     MoneyInputDirective,
+    FormPageComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -177,418 +185,426 @@ type OptionGroup = FormGroup<{
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="dialog-body">
-      <div class="scroll">
-        <form [formGroup]="form" class="form" (ngSubmit)="save()">
-          <!-- TYPE first, not the wording: the choice below rewrites the rest of
+    <app-form-page
+      [eyebrow]="eyebrow"
+      [title]="pageTitle"
+      [subtitle]="nameLabel() ? subtitleFor(nameLabel()) : null"
+      [hint]="summary()"
+      [blockReason]="blockReason()"
+      [submitLabel]="submitLabel"
+      [submitting]="submitting()"
+      (cancelled)="cancel()"
+      (submitted)="save()"
+    >
+      <form [formGroup]="form" class="form" (ngSubmit)="save()">
+        <!-- TYPE first, not the wording: the choice below rewrites the rest of
                the form, and asking it after the text would move the ground under
                something already typed. -->
-          <section class="block">
-            <h3 class="block-title" id="nqd-type-h" i18n="@@pnq.type_h">
-              What kind of answer do you want back?
-            </h3>
-            <div class="types" role="radiogroup" aria-labelledby="nqd-type-h">
-              @for (t of types; track t) {
-                <button
-                  type="button"
-                  class="tile type"
-                  role="radio"
-                  [attr.data-type]="t"
-                  [attr.aria-checked]="type() === t"
-                  [class.is-on]="type() === t"
-                  [tabindex]="type() === t ? 0 : -1"
-                  (click)="pickType(t)"
-                  (keydown)="onTypeKey($event, t)"
-                >
-                  <span class="type-glyph" aria-hidden="true">
-                    @switch (t) {
-                      @case ('SINGLE_SELECT') {
-                        <span class="g-radio"></span>
-                      }
-                      @case ('MULTI_SELECT') {
-                        <span class="g-checks"><i></i><i></i></span>
-                      }
-                      @case ('NUMERIC') {
-                        <span class="g-num numeric">12</span>
-                      }
-                      @default {
-                        <span class="g-text"><i></i><i></i><i></i></span>
-                      }
-                    }
-                  </span>
-                  <span class="tile-text">
-                    <span class="tile-title">{{ typeLabel(t) }}</span>
-                    <span class="tile-hint">{{ typeHint(t) }}</span>
-                  </span>
-                </button>
-              }
-            </div>
-          </section>
-
-          <section class="block">
-            <h3 class="block-title" i18n="@@pnq.wording_h">How is it worded?</h3>
-            <div class="pair">
-              <label class="field">
-                <span class="field-label" i18n="@@pnq.q_en">Question — English</span>
-                <input
-                  nz-input
-                  dir="ltr"
-                  formControlName="questionEn"
-                  [attr.maxlength]="labelMax"
-                  placeholder="How old is the company?"
-                  i18n-placeholder="@@pnq.q_en_ph"
-                />
-              </label>
-              <label class="field">
-                <span class="field-label" i18n="@@pnq.q_ar">Question — Arabic</span>
-                <input
-                  nz-input
-                  dir="rtl"
-                  formControlName="questionAr"
-                  [attr.maxlength]="labelMax"
-                  placeholder="عمر الشركة؟"
-                  i18n-placeholder="@@pnq.q_ar_ph"
-                />
-              </label>
-            </div>
-            <div class="pair">
-              <label class="field">
-                <span class="field-label" i18n="@@pnq.help_en">Sub-label — English</span>
-                <input
-                  nz-input
-                  dir="ltr"
-                  formControlName="helperTextEn"
-                  [attr.maxlength]="labelMax"
-                />
-              </label>
-              <label class="field">
-                <span class="field-label" i18n="@@pnq.help_ar">Sub-label — Arabic</span>
-                <input
-                  nz-input
-                  dir="rtl"
-                  formControlName="helperTextAr"
-                  [attr.maxlength]="labelMax"
-                />
-              </label>
-            </div>
-            <!-- Kept visible rather than behind a disclosure: this is the line that
-                 stops a figure being read as the wrong figure, and a sub-label
-                 nobody sees is a sub-label nobody writes. -->
-            <p class="hint" i18n="@@pnq.help_hint">
-              Optional. Says what you want, when the question alone could be read two ways — “the
-              limit, not the balance”.
-            </p>
-            <p class="code-line">
-              <span class="code-key" i18n="@@pnq.code">code</span>
-              <code class="code-val" dir="ltr">{{ codePreview() }}</code>
-              <span class="code-hint" i18n="@@pnq.code_hint"
-                >made from the English wording, and permanent</span
-              >
-            </p>
-          </section>
-
-          @if (isChoice()) {
-            <section class="block">
-              <h3 class="block-title" i18n="@@pnq.answers_h">The answers to pick from</h3>
-              <ul class="opts" role="list" cdkDropList (cdkDropListDropped)="drop($event)">
-                @for (row of optionRows().controls; track row; let i = $index) {
-                  <li class="opt" cdkDrag [formGroup]="row">
-                    <span class="opt-grip" cdkDragHandle aria-hidden="true">
-                      <span nz-icon nzType="holder" nzTheme="outline"></span>
-                    </span>
-                    <span class="opt-n numeric" aria-hidden="true">{{ i + 1 }}</span>
-                    <input
-                      nz-input
-                      dir="ltr"
-                      class="opt-in"
-                      formControlName="labelEn"
-                      [attr.maxlength]="optionLabelMax"
-                      [attr.aria-label]="optionAria(i, 'en')"
-                      placeholder="English"
-                      i18n-placeholder="@@pnq.ans_en_ph"
-                      (keydown.alt.arrowup)="moveBy(i, -1); $event.preventDefault()"
-                      (keydown.alt.arrowdown)="moveBy(i, 1); $event.preventDefault()"
-                    />
-                    <input
-                      nz-input
-                      dir="rtl"
-                      class="opt-in"
-                      formControlName="labelAr"
-                      [attr.maxlength]="optionLabelMax"
-                      [attr.aria-label]="optionAria(i, 'ar')"
-                      placeholder="عربي"
-                      i18n-placeholder="@@pnq.ans_ar_ph"
-                      (keydown.enter)="addOption(); $event.preventDefault()"
-                      (keydown.alt.arrowup)="moveBy(i, -1); $event.preventDefault()"
-                      (keydown.alt.arrowdown)="moveBy(i, 1); $event.preventDefault()"
-                    />
-                    <code class="opt-code" dir="ltr">{{ optionCode(i) }}</code>
-                    <span class="opt-acts">
-                      <button
-                        type="button"
-                        class="ico"
-                        [disabled]="i === 0"
-                        [attr.aria-label]="moveUpAria"
-                        (click)="moveBy(i, -1)"
-                      >
-                        <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
-                      </button>
-                      <button
-                        type="button"
-                        class="ico"
-                        [disabled]="i === optionRows().length - 1"
-                        [attr.aria-label]="moveDownAria"
-                        (click)="moveBy(i, 1)"
-                      >
-                        <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
-                      </button>
-                      <!-- Rendered disabled at the floor rather than hidden: a control
-                           that appears and disappears as rows cross two reads as a
-                           rendering bug, and the tooltip says why it is off. -->
-                      <button
-                        type="button"
-                        class="ico danger"
-                        [disabled]="optionRows().length <= minOptions"
-                        nz-tooltip
-                        [nzTooltipTitle]="
-                          optionRows().length <= minOptions ? minOptionsTip : removeAria
-                        "
-                        [attr.aria-label]="removeAria"
-                        (click)="removeOption(i)"
-                      >
-                        <span nz-icon nzType="delete" nzTheme="outline"></span>
-                      </button>
-                    </span>
-                    <span class="opt-ghost" *cdkDragPlaceholder></span>
-                  </li>
-                }
-              </ul>
+        <section class="block">
+          <h3 class="block-title" id="nqd-type-h" i18n="@@pnq.type_h">
+            What kind of answer do you want back?
+          </h3>
+          <div class="types" role="radiogroup" aria-labelledby="nqd-type-h">
+            @for (t of types; track t) {
               <button
                 type="button"
-                class="add-opt"
-                [disabled]="optionRows().length >= maxOptions"
-                (click)="addOption()"
+                class="tile type"
+                role="radio"
+                [attr.data-type]="t"
+                [attr.aria-checked]="type() === t"
+                [class.is-on]="type() === t"
+                [tabindex]="type() === t ? 0 : -1"
+                (click)="pickType(t)"
+                (keydown)="onTypeKey($event, t)"
               >
-                <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                <span i18n="@@pnq.add_answer">Add an answer</span>
+                <span class="type-glyph" aria-hidden="true">
+                  @switch (t) {
+                    @case ('SINGLE_SELECT') {
+                      <span class="g-radio"></span>
+                    }
+                    @case ('MULTI_SELECT') {
+                      <span class="g-checks"><i></i><i></i></span>
+                    }
+                    @case ('NUMERIC') {
+                      <span class="g-num numeric">12</span>
+                    }
+                    @default {
+                      <span class="g-text"><i></i><i></i><i></i></span>
+                    }
+                  }
+                </span>
+                <span class="tile-text">
+                  <span class="tile-title">{{ typeLabel(t) }}</span>
+                  <span class="tile-hint">{{ typeHint(t) }}</span>
+                </span>
               </button>
-              <p class="hint" i18n="@@pnq.answers_hint">
-                Drag to reorder, or use the arrows. Enter in the Arabic box adds the next one.
-              </p>
-            </section>
-          } @else if (type() === 'NUMERIC') {
-            <section class="block">
-              <h3 class="block-title" i18n="@@pnq.number_h">What counts as a valid number?</h3>
-              <div class="trio">
-                <label class="field">
-                  <span class="field-label" i18n="@@pnq.num_min">Smallest allowed</span>
-                  <input nz-input appMoneyInput inputmode="decimal" formControlName="numericMin" />
-                </label>
-                <label class="field">
-                  <span class="field-label" i18n="@@pnq.num_max">Largest allowed</span>
-                  <input nz-input appMoneyInput inputmode="decimal" formControlName="numericMax" />
-                </label>
-                <label class="field">
-                  <span class="field-label" i18n="@@pnq.num_step">Step</span>
-                  <input nz-input appMoneyInput inputmode="decimal" formControlName="numericStep" />
-                </label>
-              </div>
-              <div class="pair">
-                <label class="field">
-                  <span class="field-label" i18n="@@pnq.unit_en">Unit — English</span>
+            }
+          </div>
+        </section>
+
+        <section class="block">
+          <h3 class="block-title" i18n="@@pnq.wording_h">How is it worded?</h3>
+          <div class="pair">
+            <label class="field">
+              <span class="field-label" i18n="@@pnq.q_en">Question — English</span>
+              <input
+                nz-input
+                dir="ltr"
+                formControlName="questionEn"
+                [attr.maxlength]="labelMax"
+                placeholder="How old is the company?"
+                i18n-placeholder="@@pnq.q_en_ph"
+              />
+            </label>
+            <label class="field">
+              <span class="field-label" i18n="@@pnq.q_ar">Question — Arabic</span>
+              <input
+                nz-input
+                dir="rtl"
+                formControlName="questionAr"
+                [attr.maxlength]="labelMax"
+                placeholder="عمر الشركة؟"
+                i18n-placeholder="@@pnq.q_ar_ph"
+              />
+            </label>
+          </div>
+          <div class="pair">
+            <label class="field">
+              <span class="field-label" i18n="@@pnq.help_en">Sub-label — English</span>
+              <input
+                nz-input
+                dir="ltr"
+                formControlName="helperTextEn"
+                [attr.maxlength]="labelMax"
+              />
+            </label>
+            <label class="field">
+              <span class="field-label" i18n="@@pnq.help_ar">Sub-label — Arabic</span>
+              <input
+                nz-input
+                dir="rtl"
+                formControlName="helperTextAr"
+                [attr.maxlength]="labelMax"
+              />
+            </label>
+          </div>
+          <!-- Kept visible rather than behind a disclosure: this is the line that
+                 stops a figure being read as the wrong figure, and a sub-label
+                 nobody sees is a sub-label nobody writes. -->
+          <p class="hint" i18n="@@pnq.help_hint">
+            Optional. Says what you want, when the question alone could be read two ways — “the
+            limit, not the balance”.
+          </p>
+          <p class="code-line">
+            <span class="code-key" i18n="@@pnq.code">code</span>
+            <code class="code-val" dir="ltr">{{ codePreview() }}</code>
+            <span class="code-hint" i18n="@@pnq.code_hint"
+              >made from the English wording, and permanent</span
+            >
+          </p>
+        </section>
+
+        @if (isChoice()) {
+          <section class="block">
+            <h3 class="block-title" i18n="@@pnq.answers_h">The answers to pick from</h3>
+            <ul class="opts" role="list" cdkDropList (cdkDropListDropped)="drop($event)">
+              @for (row of optionRows().controls; track row; let i = $index) {
+                <li class="opt" cdkDrag [formGroup]="row">
+                  <span class="opt-grip" cdkDragHandle aria-hidden="true">
+                    <span nz-icon nzType="holder" nzTheme="outline"></span>
+                  </span>
+                  <span class="opt-n numeric" aria-hidden="true">{{ i + 1 }}</span>
                   <input
                     nz-input
                     dir="ltr"
-                    formControlName="unitEn"
-                    [attr.maxlength]="unitMax"
-                    placeholder="EGP"
+                    class="opt-in"
+                    formControlName="labelEn"
+                    [attr.maxlength]="optionLabelMax"
+                    [attr.aria-label]="optionAria(i, 'en')"
+                    placeholder="English"
+                    i18n-placeholder="@@pnq.ans_en_ph"
+                    (keydown.alt.arrowup)="moveBy(i, -1); $event.preventDefault()"
+                    (keydown.alt.arrowdown)="moveBy(i, 1); $event.preventDefault()"
                   />
-                </label>
-                <label class="field">
-                  <span class="field-label" i18n="@@pnq.unit_ar">Unit — Arabic</span>
                   <input
                     nz-input
                     dir="rtl"
-                    formControlName="unitAr"
-                    [attr.maxlength]="unitMax"
-                    placeholder="جنيه"
+                    class="opt-in"
+                    formControlName="labelAr"
+                    [attr.maxlength]="optionLabelMax"
+                    [attr.aria-label]="optionAria(i, 'ar')"
+                    placeholder="عربي"
+                    i18n-placeholder="@@pnq.ans_ar_ph"
+                    (keydown.enter)="addOption(); $event.preventDefault()"
+                    (keydown.alt.arrowup)="moveBy(i, -1); $event.preventDefault()"
+                    (keydown.alt.arrowdown)="moveBy(i, 1); $event.preventDefault()"
                   />
-                </label>
-              </div>
-              <p class="hint" i18n="@@pnq.number_hint">
-                All optional. Leave them empty to accept any number.
-              </p>
-            </section>
-          } @else {
-            <section class="block">
-              <h3 class="block-title" i18n="@@pnq.text_h">How long can the answer be?</h3>
-              <!-- Paired for + nzId rather than nesting alone: an nz-* control is a
-                   component, so a wrapping label associates with nothing until the
-                   id lands on the real input inside it. -->
-              <label class="field len" for="nqd-text-len">
-                <span class="field-label" i18n="@@pnq.text_len">Longest answer, in characters</span>
-                <nz-input-number
-                  nzId="nqd-text-len"
-                  formControlName="textMaxLength"
-                  [nzMin]="1"
-                  [nzMax]="textCeiling"
-                  [nzStep]="50"
-                />
-              </label>
-              <p class="hint" i18n="@@pnq.text_hint">
-                Free text is scored on whether it was answered at all — never on what it says.
-              </p>
-            </section>
-          }
-
-          <section class="block">
-            <h3 class="block-title" id="nqd-cats-h" i18n="@@pnq.where_h">Who gets asked this?</h3>
-            <div class="tiles" role="group" aria-labelledby="nqd-cats-h">
-              @for (c of categories; track c) {
-                <label
-                  class="tile cat"
-                  [attr.data-cat]="c"
-                  [class.is-on]="hasCategory(c)"
-                  [style.--tile-accent]="'var(--color-cat-' + c + ')'"
-                >
-                  <input
-                    type="checkbox"
-                    class="sr-only"
-                    [checked]="hasCategory(c)"
-                    (change)="toggleCategory(c)"
-                  />
-                  <span class="tile-tick" aria-hidden="true">
-                    @if (hasCategory(c)) {
-                      <span nz-icon nzType="check" nzTheme="outline"></span>
-                    }
+                  <code class="opt-code" dir="ltr">{{ optionCode(i) }}</code>
+                  <span class="opt-acts">
+                    <button
+                      type="button"
+                      class="ico"
+                      [disabled]="i === 0"
+                      [attr.aria-label]="moveUpAria"
+                      (click)="moveBy(i, -1)"
+                    >
+                      <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="ico"
+                      [disabled]="i === optionRows().length - 1"
+                      [attr.aria-label]="moveDownAria"
+                      (click)="moveBy(i, 1)"
+                    >
+                      <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
+                    </button>
+                    <!-- Rendered disabled at the floor rather than hidden: a control
+                           that appears and disappears as rows cross two reads as a
+                           rendering bug, and the tooltip says why it is off. -->
+                    <button
+                      type="button"
+                      class="ico danger"
+                      [disabled]="optionRows().length <= minOptions"
+                      nz-tooltip
+                      [nzTooltipTitle]="
+                        optionRows().length <= minOptions ? minOptionsTip : removeAria
+                      "
+                      [attr.aria-label]="removeAria"
+                      (click)="removeOption(i)"
+                    >
+                      <span nz-icon nzType="delete" nzTheme="outline"></span>
+                    </button>
                   </span>
-                  <span class="tile-text">
-                    <span class="tile-title">{{ categoryName(c) }}</span>
-                  </span>
-                </label>
+                  <span class="opt-ghost" *cdkDragPlaceholder></span>
+                </li>
               }
-            </div>
-            <!-- The one sentence this dialog exists to stop people getting wrong.
-                 The question is GLOBAL; only the tick below is about this name. -->
-            <p class="consequence">
-              <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
-              <span>{{ consequence() }}</span>
-            </p>
-
-            <label class="tile row" [class.is-on]="tick()" [class.is-off]="!canTick()">
-              <input
-                type="checkbox"
-                class="sr-only"
-                [checked]="tick()"
-                [disabled]="!canTick()"
-                (change)="toggleTick()"
-              />
-              <span class="tile-tick" aria-hidden="true">
-                @if (tick()) {
-                  <span nz-icon nzType="check" nzTheme="outline"></span>
-                }
-              </span>
-              <span class="tile-text">
-                <span class="tile-title">{{ tickTitle }}</span>
-                <span class="tile-hint">
-                  @if (canTick()) {
-                    <ng-container i18n="@@pnq.tick_hint"
-                      >Adds it to this name's list here, so every bank program under it can weight
-                      it.</ng-container
-                    >
-                  } @else {
-                    <ng-container i18n="@@pnq.tick_off_hint"
-                      >Turn {{ openCategoryName() }} back on above — a name cannot score on a
-                      question its applicants are never asked.</ng-container
-                    >
-                  }
-                </span>
-              </span>
-            </label>
-
-            <label class="tile row" [class.is-on]="required()">
-              <input
-                type="checkbox"
-                class="sr-only"
-                [checked]="required()"
-                (change)="toggleRequired()"
-              />
-              <span class="tile-tick" aria-hidden="true">
-                @if (required()) {
-                  <span nz-icon nzType="check" nzTheme="outline"></span>
-                }
-              </span>
-              <span class="tile-text">
-                <span class="tile-title" i18n="@@pnq.required">Must be answered</span>
-                <span class="tile-hint" i18n="@@pnq.required_hint"
-                  >Applicants cannot move on without it.</span
-                >
-              </span>
-            </label>
-          </section>
-
-          <section class="block branch">
+            </ul>
             <button
               type="button"
-              class="disclose"
-              [attr.aria-expanded]="branchOpen()"
-              aria-controls="nqd-branch"
-              (click)="toggleBranch()"
+              class="add-opt"
+              [disabled]="optionRows().length >= maxOptions"
+              (click)="addOption()"
             >
-              <span nz-icon nzType="down" nzTheme="outline" class="chev" aria-hidden="true"></span>
-              <span i18n="@@pnq.branch_toggle">Ask this only sometimes</span>
+              <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@pnq.add_answer">Add an answer</span>
             </button>
-            @if (branchOpen()) {
-              <div class="branch-body" id="nqd-branch">
-                @if (branchLoading()) {
-                  <p class="hint" i18n="@@pnq.branch_loading">Loading the other questions…</p>
-                } @else if (branchSources().length === 0) {
-                  <p class="hint" i18n="@@pnq.branch_none">
-                    No earlier pick-one question to depend on yet, so this one is always asked.
-                  </p>
-                } @else {
-                  <div class="branch-row">
-                    <label class="field" for="nqd-branch-q">
-                      <span class="field-label" i18n="@@pnq.branch_q">Only when this question</span>
-                      <nz-select
-                        nzId="nqd-branch-q"
-                        formControlName="branchQuestionCode"
-                        nzPlaceHolder="Pick a question"
-                        i18n-nzPlaceHolder="@@pnq.branch_q_ph"
-                        (ngModelChange)="onBranchSourceChange()"
-                      >
-                        @for (s of branchSources(); track s.code) {
-                          <nz-option [nzValue]="s.code" [nzLabel]="s.label" />
-                        }
-                      </nz-select>
-                    </label>
-                    <label class="field narrow" for="nqd-branch-op">
-                      <span class="field-label" i18n="@@pnq.branch_op">was</span>
-                      <nz-select nzId="nqd-branch-op" formControlName="branchOperator">
-                        <nz-option [nzValue]="'equals'" [nzLabel]="opEquals" />
-                        <nz-option [nzValue]="'not_equals'" [nzLabel]="opNotEquals" />
-                      </nz-select>
-                    </label>
-                    <label class="field" for="nqd-branch-a">
-                      <span class="field-label" i18n="@@pnq.branch_a">this answer</span>
-                      <nz-select
-                        nzId="nqd-branch-a"
-                        formControlName="branchOptionCode"
-                        nzPlaceHolder="Pick an answer"
-                        i18n-nzPlaceHolder="@@pnq.branch_a_ph"
-                      >
-                        @for (o of branchOptions(); track o.code) {
-                          <nz-option [nzValue]="o.code" [nzLabel]="o.label" />
-                        }
-                      </nz-select>
-                    </label>
-                  </div>
-                }
-              </div>
-            }
+            <p class="hint" i18n="@@pnq.answers_hint">
+              Drag to reorder, or use the arrows. Enter in the Arabic box adds the next one.
+            </p>
           </section>
-        </form>
-      </div>
+        } @else if (type() === 'NUMERIC') {
+          <section class="block">
+            <h3 class="block-title" i18n="@@pnq.number_h">What counts as a valid number?</h3>
+            <div class="trio">
+              <label class="field">
+                <span class="field-label" i18n="@@pnq.num_min">Smallest allowed</span>
+                <input nz-input appMoneyInput inputmode="decimal" formControlName="numericMin" />
+              </label>
+              <label class="field">
+                <span class="field-label" i18n="@@pnq.num_max">Largest allowed</span>
+                <input nz-input appMoneyInput inputmode="decimal" formControlName="numericMax" />
+              </label>
+              <label class="field">
+                <span class="field-label" i18n="@@pnq.num_step">Step</span>
+                <input nz-input appMoneyInput inputmode="decimal" formControlName="numericStep" />
+              </label>
+            </div>
+            <div class="pair">
+              <label class="field">
+                <span class="field-label" i18n="@@pnq.unit_en">Unit — English</span>
+                <input
+                  nz-input
+                  dir="ltr"
+                  formControlName="unitEn"
+                  [attr.maxlength]="unitMax"
+                  placeholder="EGP"
+                />
+              </label>
+              <label class="field">
+                <span class="field-label" i18n="@@pnq.unit_ar">Unit — Arabic</span>
+                <input
+                  nz-input
+                  dir="rtl"
+                  formControlName="unitAr"
+                  [attr.maxlength]="unitMax"
+                  placeholder="جنيه"
+                />
+              </label>
+            </div>
+            <p class="hint" i18n="@@pnq.number_hint">
+              All optional. Leave them empty to accept any number.
+            </p>
+          </section>
+        } @else {
+          <section class="block">
+            <h3 class="block-title" i18n="@@pnq.text_h">How long can the answer be?</h3>
+            <!-- Paired for + nzId rather than nesting alone: an nz-* control is a
+                   component, so a wrapping label associates with nothing until the
+                   id lands on the real input inside it. -->
+            <label class="field len" for="nqd-text-len">
+              <span class="field-label" i18n="@@pnq.text_len">Longest answer, in characters</span>
+              <nz-input-number
+                nzId="nqd-text-len"
+                formControlName="textMaxLength"
+                [nzMin]="1"
+                [nzMax]="textCeiling"
+                [nzStep]="50"
+              />
+            </label>
+            <p class="hint" i18n="@@pnq.text_hint">
+              Free text is scored on whether it was answered at all — never on what it says.
+            </p>
+          </section>
+        }
+
+        <section class="block">
+          <h3 class="block-title" id="nqd-cats-h" i18n="@@pnq.where_h">Who gets asked this?</h3>
+          <div class="tiles" role="group" aria-labelledby="nqd-cats-h">
+            @for (c of categories; track c) {
+              <label
+                class="tile cat"
+                [attr.data-cat]="c"
+                [class.is-on]="hasCategory(c)"
+                [style.--tile-accent]="'var(--color-cat-' + c + ')'"
+              >
+                <input
+                  type="checkbox"
+                  class="sr-only"
+                  [checked]="hasCategory(c)"
+                  (change)="toggleCategory(c)"
+                />
+                <span class="tile-tick" aria-hidden="true">
+                  @if (hasCategory(c)) {
+                    <span nz-icon nzType="check" nzTheme="outline"></span>
+                  }
+                </span>
+                <span class="tile-text">
+                  <span class="tile-title">{{ categoryName(c) }}</span>
+                </span>
+              </label>
+            }
+          </div>
+          <!-- The one sentence this dialog exists to stop people getting wrong.
+                 The question is GLOBAL; only the tick below is about this name. -->
+          <p class="consequence">
+            <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
+            <span>{{ consequence() }}</span>
+          </p>
+
+          <label class="tile row" [class.is-on]="tick()" [class.is-off]="!canTick()">
+            <input
+              type="checkbox"
+              class="sr-only"
+              [checked]="tick()"
+              [disabled]="!canTick()"
+              (change)="toggleTick()"
+            />
+            <span class="tile-tick" aria-hidden="true">
+              @if (tick()) {
+                <span nz-icon nzType="check" nzTheme="outline"></span>
+              }
+            </span>
+            <span class="tile-text">
+              <span class="tile-title">{{ tickTitle() }}</span>
+              <span class="tile-hint">
+                @if (canTick()) {
+                  <ng-container i18n="@@pnq.tick_hint"
+                    >Adds it to this name's list here, so every bank program under it can weight
+                    it.</ng-container
+                  >
+                } @else {
+                  <ng-container i18n="@@pnq.tick_off_hint"
+                    >Turn {{ openCategoryName() }} back on above — a name cannot score on a question
+                    its applicants are never asked.</ng-container
+                  >
+                }
+              </span>
+            </span>
+          </label>
+
+          <label class="tile row" [class.is-on]="required()">
+            <input
+              type="checkbox"
+              class="sr-only"
+              [checked]="required()"
+              (change)="toggleRequired()"
+            />
+            <span class="tile-tick" aria-hidden="true">
+              @if (required()) {
+                <span nz-icon nzType="check" nzTheme="outline"></span>
+              }
+            </span>
+            <span class="tile-text">
+              <span class="tile-title" i18n="@@pnq.required">Must be answered</span>
+              <span class="tile-hint" i18n="@@pnq.required_hint"
+                >Applicants cannot move on without it.</span
+              >
+            </span>
+          </label>
+        </section>
+
+        <section class="block branch">
+          <button
+            type="button"
+            class="disclose"
+            [attr.aria-expanded]="branchOpen()"
+            aria-controls="nqd-branch"
+            (click)="toggleBranch()"
+          >
+            <span nz-icon nzType="down" nzTheme="outline" class="chev" aria-hidden="true"></span>
+            <span i18n="@@pnq.branch_toggle">Ask this only sometimes</span>
+          </button>
+          @if (branchOpen()) {
+            <div class="branch-body" id="nqd-branch">
+              @if (branchLoading()) {
+                <p class="hint" i18n="@@pnq.branch_loading">Loading the other questions…</p>
+              } @else if (branchSources().length === 0) {
+                <p class="hint" i18n="@@pnq.branch_none">
+                  No earlier pick-one question to depend on yet, so this one is always asked.
+                </p>
+              } @else {
+                <div class="branch-row">
+                  <label class="field" for="nqd-branch-q">
+                    <span class="field-label" i18n="@@pnq.branch_q">Only when this question</span>
+                    <nz-select
+                      nzId="nqd-branch-q"
+                      formControlName="branchQuestionCode"
+                      nzPlaceHolder="Pick a question"
+                      i18n-nzPlaceHolder="@@pnq.branch_q_ph"
+                      (ngModelChange)="onBranchSourceChange()"
+                    >
+                      @for (s of branchSources(); track s.code) {
+                        <nz-option [nzValue]="s.code" [nzLabel]="s.label" />
+                      }
+                    </nz-select>
+                  </label>
+                  <label class="field narrow" for="nqd-branch-op">
+                    <span class="field-label" i18n="@@pnq.branch_op">was</span>
+                    <nz-select nzId="nqd-branch-op" formControlName="branchOperator">
+                      <nz-option [nzValue]="'equals'" [nzLabel]="opEquals" />
+                      <nz-option [nzValue]="'not_equals'" [nzLabel]="opNotEquals" />
+                    </nz-select>
+                  </label>
+                  <label class="field" for="nqd-branch-a">
+                    <span class="field-label" i18n="@@pnq.branch_a">this answer</span>
+                    <nz-select
+                      nzId="nqd-branch-a"
+                      formControlName="branchOptionCode"
+                      nzPlaceHolder="Pick an answer"
+                      i18n-nzPlaceHolder="@@pnq.branch_a_ph"
+                    >
+                      @for (o of branchOptions(); track o.code) {
+                        <nz-option [nzValue]="o.code" [nzLabel]="o.label" />
+                      }
+                    </nz-select>
+                  </label>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      </form>
 
       <p class="sr-only" role="status" aria-live="polite">{{ live() }}</p>
 
@@ -598,62 +614,16 @@ type OptionGroup = FormGroup<{
           <span>{{ message }}</span>
         </p>
       }
-
-      <footer class="dialog-actions">
-        <!-- The outcome in one breath. Both axes are decided on this form and the
-             operator has no other place to see them stated together. -->
-        <p class="summary">
-          @if (blockReason(); as reason) {
-            <span class="blocked">
-              <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-              <span>{{ reason }}</span>
-            </span>
-          } @else {
-            <span>{{ summary() }}</span>
-          }
-        </p>
-        <span class="act-spacer"></span>
-        <button nz-button nzType="default" type="button" (click)="cancel()" i18n="@@pnq.cancel">
-          Cancel
-        </button>
-        <button
-          nz-button
-          nzType="primary"
-          type="button"
-          [disabled]="blockReason() !== null || submitting()"
-          [nzLoading]="submitting()"
-          (click)="save()"
-          i18n="@@pnq.save"
-        >
-          Create question
-        </button>
-      </footer>
-    </div>
+    </app-form-page>
   `,
   styles: [
     `
-      /* One accent for the whole dialog, taken from the tab it was opened on:
+      /* One accent for the whole screen, taken from the tab it was opened on:
          a question authored from the Business tab is green throughout. Context,
          not decoration — the tick it produces lands in that tab's template. */
       :host {
         display: block;
         --nqd-accent: var(--color-brand-primary);
-      }
-      .dialog-body {
-        display: grid;
-        grid-template-rows: minmax(0, 1fr) auto auto;
-        gap: var(--space-4);
-        /* Bounded so the FORM scrolls and the actions stay put. A sticky bar
-           instead would cover the last field at every offset but the bottom. */
-        max-block-size: min(72vh, 720px);
-      }
-      .scroll {
-        overflow-y: auto;
-        overflow-x: hidden;
-        /* Room for the focus ring on the last row, which an overflow container
-           would otherwise clip flush against its edge. */
-        padding-inline-end: var(--space-1);
-        margin-inline-end: calc(var(--space-1) * -1);
       }
       .form {
         display: grid;
@@ -1097,35 +1067,6 @@ type OptionGroup = FormGroup<{
         color: var(--color-error);
         font-size: var(--text-sm);
       }
-      .dialog-actions {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: var(--space-2);
-        padding-block-start: var(--space-4);
-        border-block-start: 1px solid var(--border-subtle);
-      }
-      .act-spacer {
-        flex: 1 1 auto;
-      }
-      /* A disabled primary with no stated reason is a dead end; the summary slot
-         carries the reason while it is blocked and the outcome once it is not. */
-      .summary {
-        margin: 0;
-        font-size: var(--text-xs);
-        line-height: var(--line-height-base);
-        color: var(--color-text-tertiary);
-        max-inline-size: 52ch;
-      }
-      .summary .blocked {
-        display: inline-flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        color: var(--color-warning);
-      }
-      .summary .blocked [nz-icon] {
-        margin-block-start: 2px;
-      }
 
       .sr-only {
         position: absolute;
@@ -1179,13 +1120,63 @@ type OptionGroup = FormGroup<{
     `,
   ],
 })
-export class NewQuestionDialogComponent {
+export class NewQuestionPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
+  private readonly lookups = inject(LookupsApiService);
   private readonly errorCodes = inject(ErrorCodeService);
-  private readonly dialogRef =
-    inject<NzModalRef<NewQuestionDialogComponent, NewQuestionResult | null>>(NzModalRef);
-  protected readonly data = inject<NewQuestionDialogData>(NZ_MODAL_DATA);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly locale = inject(LOCALE_ID);
+
+  /** The catalog name being configured, bound from the route. */
+  readonly key = input.required<string>();
+
+  /**
+   * The open tab, read from `?loan=` — the same query param the name's own page uses, so
+   * coming back lands on the tab the operator left. SYNCHRONOUS, because it seeds the
+   * category pick and the wording of half this form; an unknown value falls back to
+   * `personal` rather than leaving the form with no category picked at all.
+   */
+  protected readonly category: LoanCategory = (() => {
+    const raw = this.route.snapshot.queryParamMap.get('loan');
+    return isLoanCategory(raw) ? raw : 'personal';
+  })();
+  /** Prefill from the search dead end on the name's page (`?seed=`). */
+  private readonly seedQuestionEn = this.route.snapshot.queryParamMap.get('seed') ?? '';
+
+  /**
+   * Wording only, and async: the label is not on the URL. Until it arrives the subtitle
+   * and the tick line say what they can without naming the name — never a placeholder
+   * name, which would read as a real one.
+   */
+  protected readonly nameLabel = signal('');
+  /**
+   * Live pool codes, so the slug preview matches what the server will mint. Async too:
+   * the preview says "the code will be …" and re-derives the moment the pool lands.
+   */
+  private readonly existingCodes = signal<readonly string[]>([]);
+
+  protected readonly eyebrow = $localize`:@@pnq.eyebrow:Question pool`;
+  protected readonly pageTitle = $localize`:@@pnd.new_question_title:New question`;
+  protected readonly submitLabel = $localize`:@@pnq.save:Create question`;
+
+  async ngOnInit(): Promise<void> {
+    // The same two reads the name's own page makes, for the same two reasons: the row
+    // carries the label this form is worded with, the pool carries the codes the slug
+    // preview has to avoid colliding with.
+    const [rows, pool] = await Promise.all([
+      this.lookups.list(ENUM_TYPE),
+      this.lookups.catalogQuestions(),
+    ]);
+    const { rows: names } = absorbProgramNames(rows);
+    const name = names.find((n) => n.key === this.key());
+    if (name) this.nameLabel.set(this.locale.startsWith('ar') ? name.labelAr : name.labelEn);
+    this.existingCodes.set(pool.map((q) => q.code));
+  }
+
+  protected subtitleFor(label: string): string {
+    return $localize`:@@pnq.subtitle:Written into the one shared question pool, then offered to “${label}:name:” to score on.`;
+  }
 
   protected readonly types = TYPES;
   protected readonly categories = LOAN_CATEGORIES;
@@ -1202,12 +1193,16 @@ export class NewQuestionDialogComponent {
   protected readonly minOptionsTip = $localize`:@@pnq.min_answers_tip:A pick-one question needs at least two answers`;
   protected readonly opEquals = $localize`:@@pnq.op_equals:was answered`;
   protected readonly opNotEquals = $localize`:@@pnq.op_not_equals:was NOT answered`;
-  protected readonly tickTitle = $localize`:@@pnq.tick:Also score “${this.data.nameLabel}:name:” on it`;
+  protected readonly tickTitle = computed(() =>
+    this.nameLabel() === ''
+      ? $localize`:@@pnq.tick_unnamed:Also score this catalog name on it`
+      : $localize`:@@pnq.tick:Also score “${this.nameLabel()}:name:” on it`,
+  );
 
   protected readonly type = signal<QuestionType>('SINGLE_SELECT');
   protected readonly required = signal(true);
   protected readonly tick = signal(true);
-  protected readonly picked = signal<readonly LoanCategory[]>([this.data.category]);
+  protected readonly picked = signal<readonly LoanCategory[]>([this.category]);
   protected readonly branchOpen = signal(false);
   protected readonly branchLoading = signal(false);
   protected readonly submitting = signal(false);
@@ -1217,10 +1212,10 @@ export class NewQuestionDialogComponent {
   /** Loaded lazily, only when the branch disclosure is opened. */
   private readonly tree = signal<GroupTreeRow[] | null>(null);
 
-  private readonly existing = new Set(this.data.existingCodes);
+  private readonly existing = computed(() => new Set(this.existingCodes()));
 
   protected readonly form = new FormGroup({
-    questionEn: new FormControl(this.data.seedQuestionEn ?? '', {
+    questionEn: new FormControl(this.seedQuestionEn, {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(LABEL_MAX)],
     }),
@@ -1331,7 +1326,7 @@ export class NewQuestionDialogComponent {
   // ---- codes ----------------------------------------------------------------
   protected codePreview(): string {
     const en = this.value().questionEn.trim();
-    return en === '' ? '—' : uniqueSlug(en, this.existing);
+    return en === '' ? '—' : uniqueSlug(en, this.existing());
   }
 
   /** Option codes collide only with their own siblings, so they slug in order. */
@@ -1411,7 +1406,7 @@ export class NewQuestionDialogComponent {
   }
 
   protected openCategoryName(): string {
-    return categoryLabel(this.data.category);
+    return categoryLabel(this.category);
   }
 
   protected hasCategory(c: LoanCategory): boolean {
@@ -1434,7 +1429,7 @@ export class NewQuestionDialogComponent {
    * "not asked here", and offering to create one on purpose would be a trap.
    */
   protected canTick(): boolean {
-    return this.picked().includes(this.data.category);
+    return this.picked().includes(this.category);
   }
 
   protected toggleTick(): void {
@@ -1457,7 +1452,7 @@ export class NewQuestionDialogComponent {
       return $localize`:@@pnq.where_none:Pick at least one loan type — a question no one is asked is a question that does nothing.`;
     }
     const list = this.list(names);
-    return $localize`:@@pnq.where_note:Every ${list}:types: applicant will be asked this, in every program — not only “${this.data.nameLabel}:name:”. Questions are one shared pool.`;
+    return $localize`:@@pnq.where_note:Every ${list}:types: applicant will be asked this, in every program — not only “${this.nameLabel()}:name:”. Questions are one shared pool.`;
   }
 
   // ---- branch ---------------------------------------------------------------
@@ -1574,13 +1569,16 @@ export class NewQuestionDialogComponent {
     const kind = this.typeLabel(this.type()).toLocaleLowerCase(this.locale);
     const where = this.list(this.picked().map((c) => categoryLabel(c)));
     return this.tick()
-      ? $localize`:@@pnq.summary_ticked:A ${kind}:kind: question, asked of ${where}:types: applicants, and ticked into “${this.data.nameLabel}:name:”.`
+      ? $localize`:@@pnq.summary_ticked:A ${kind}:kind: question, asked of ${where}:types: applicants, and ticked into “${this.nameLabel()}:name:”.`
       : $localize`:@@pnq.summary_plain:A ${kind}:kind: question, asked of ${where}:types: applicants. Not ticked here.`;
   }
 
   // ---- save -----------------------------------------------------------------
+  /** Leaves without writing anything — back to the tab this was opened from. */
   protected cancel(): void {
-    this.dialogRef.close(null);
+    void this.router.navigate(['/program-catalog', this.key()], {
+      queryParams: { loan: this.category, step: 3 },
+    });
   }
 
   protected async save(): Promise<void> {
@@ -1589,12 +1587,20 @@ export class NewQuestionDialogComponent {
     this.submitting.set(true);
     try {
       const created = await this.api.createQuestionWithOptions(this.body());
-      this.dialogRef.close({
+      const result: NewQuestionResult = {
         code: created.code,
         label: created.questionEn,
         type: this.type(),
         categories: [...this.picked()],
         tick: this.tick(),
+      };
+      // The name's page finishes the job: it reloads the pool, ticks the question into
+      // this tab's template if that was asked for, and announces the outcome in its own
+      // live region. Handing it the result as router state keeps that logic where the
+      // template is written from.
+      void this.router.navigate(['/program-catalog', this.key()], {
+        queryParams: { loan: this.category, step: 3 },
+        state: { [NEW_QUESTION_STATE_KEY]: result },
       });
     } catch (err) {
       const code = (err as { error?: { code?: string } }).error?.code;

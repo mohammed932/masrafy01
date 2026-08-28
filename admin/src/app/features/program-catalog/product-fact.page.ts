@@ -2,7 +2,12 @@
  * Author ONE thing a surrogate product asks about — the list, the question and the fact, in
  * one pass.
  *
- * WHY IT IS ONE DIALOG AND NOT THREE SCREENS. What a no-payslip product reads is three rows in
+ * ITS OWN SCREEN, not a sheet. The form branches on the kind of answer, grows two FormArrays
+ * (the classes and the answers) and runs four writes; a sheet would give it a second scrollbar
+ * inside the page's own, and there would be no URL to come back to when a run stops halfway.
+ * The bounded forms in this app are sheets (`app-form-drawer`); this is the other case.
+ *
+ * WHY IT IS ONE SCREEN AND NOT THREE. What a no-payslip product reads is three rows in
  * three tables that are only correct together:
  *
  *   · a LIST     (`enumeration_type_def` + its `platform_enumeration` values) — the answers
@@ -31,7 +36,7 @@
  * the board; the board only MOVES what is already filed. The dialog therefore writes the class
  * list first and every value names its class.
  */
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -45,27 +50,16 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { DeleteOutline, PlusOutline } from '@ant-design/icons-angular/icons';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { Router } from '@angular/router';
 import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import { QuestionnaireApiService } from '@features/questionnaire/questionnaire.api.service';
-import { EnumerationTypesService } from './enumeration-types.service';
-import { uniqueSlug } from './slug';
-
-export interface ProductFactDialogData {
-  /** The product authoring this. Stamped on the list and on the fact as provenance. */
-  productKey: string;
-  productLabel: string;
-}
-
-export interface ProductFactResult {
-  /** The fact's key — the question code, since a fact and its question are one concept. */
-  factKey: string;
-  /** Every list this run created, so the caller can re-read the registry once. */
-  listTypes: string[];
-}
+import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
+import { uniqueSlug } from '@shared/lookups/slug';
+import { FormPageComponent } from '@shared/ui';
+import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 
 type LabelPair = FormGroup<{ labelEn: FormControl<string>; labelAr: FormControl<string> }>;
 type ValueRow = FormGroup<{
@@ -78,237 +72,257 @@ type ValueRow = FormGroup<{
 const FACT_TYPE = 'surrogate_fact';
 
 @Component({
-  selector: 'app-product-fact-dialog',
+  selector: 'app-product-fact-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, NzButtonModule, NzIconModule, NzInputModule, NzSelectModule],
+  imports: [
+    ReactiveFormsModule,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzSelectModule,
+    FormPageComponent,
+  ],
   providers: [provideNzIconsPatch([DeleteOutline, PlusOutline])],
   template: `
-    <form [formGroup]="form" class="wrap">
-      <fieldset class="block">
-        <legend i18n="@@pfd.kind.legend">What kind of answer is it?</legend>
-        <div class="kinds" role="radiogroup" [attr.aria-label]="kindAria">
-          <button
-            type="button"
-            class="kind"
-            role="radio"
-            [attr.aria-checked]="kind() === 'choice'"
-            [class.is-on]="kind() === 'choice'"
-            (click)="setKind('choice')"
-          >
-            <span class="kind-title" i18n="@@pfd.kind.choice">One of a list</span>
-            <span class="kind-note" i18n="@@pfd.kind.choice_note"
-              >The applicant picks a name. A bank prices one row per name — or per class, if you
-              group them.</span
+    <app-form-page
+      [eyebrow]="eyebrow"
+      [title]="pageTitle"
+      [subtitle]="productLabel() ? subtitleFor(productLabel()) : null"
+      [hint]="progress() ?? hint"
+      [submitLabel]="submitLabel"
+      [submitDisabled]="form.invalid"
+      [submitting]="submitting()"
+      (cancelled)="cancel()"
+      (submitted)="save()"
+    >
+      <form [formGroup]="form" class="wrap">
+        <fieldset class="block">
+          <legend i18n="@@pfd.kind.legend">What kind of answer is it?</legend>
+          <div class="kinds" role="radiogroup" [attr.aria-label]="kindAria">
+            <button
+              type="button"
+              class="kind"
+              role="radio"
+              [attr.aria-checked]="kind() === 'choice'"
+              [class.is-on]="kind() === 'choice'"
+              (click)="setKind('choice')"
             >
-          </button>
-          <button
-            type="button"
-            class="kind"
-            role="radio"
-            [attr.aria-checked]="kind() === 'number'"
-            [class.is-on]="kind() === 'number'"
-            (click)="setKind('number')"
-          >
-            <span class="kind-title" i18n="@@pfd.kind.number">A number</span>
-            <span class="kind-note" i18n="@@pfd.kind.number_note"
-              >The applicant types a figure. A bank prices it in bands.</span
+              <span class="kind-title" i18n="@@pfd.kind.choice">One of a list</span>
+              <span class="kind-note" i18n="@@pfd.kind.choice_note"
+                >The applicant picks a name. A bank prices one row per name — or per class, if you
+                group them.</span
+              >
+            </button>
+            <button
+              type="button"
+              class="kind"
+              role="radio"
+              [attr.aria-checked]="kind() === 'number'"
+              [class.is-on]="kind() === 'number'"
+              (click)="setKind('number')"
             >
-          </button>
-        </div>
-      </fieldset>
+              <span class="kind-title" i18n="@@pfd.kind.number">A number</span>
+              <span class="kind-note" i18n="@@pfd.kind.number_note"
+                >The applicant types a figure. A bank prices it in bands.</span
+              >
+            </button>
+          </div>
+        </fieldset>
 
-      <fieldset class="block">
-        <legend i18n="@@pfd.q.legend">What the applicant is asked</legend>
-        <label class="field">
-          <span class="lbl" i18n="@@pfd.q.en">Question (English)</span>
-          <input nz-input formControlName="questionEn" [placeholder]="qPlaceholderEn()" />
-        </label>
-        <label class="field">
-          <span class="lbl" i18n="@@pfd.q.ar">Question (Arabic)</span>
-          <input nz-input formControlName="questionAr" dir="rtl" [placeholder]="qPlaceholderAr()" />
-        </label>
-        <label class="field">
-          <span class="lbl" i18n="@@pfd.q.help_en"
-            >Hint under the question (English, optional)</span
-          >
-          <input nz-input formControlName="helperEn" />
-        </label>
-        <label class="field">
-          <span class="lbl" i18n="@@pfd.q.help_ar">Hint under the question (Arabic, optional)</span>
-          <input nz-input formControlName="helperAr" dir="rtl" />
-        </label>
+        <fieldset class="block">
+          <legend i18n="@@pfd.q.legend">What the applicant is asked</legend>
+          <label class="field">
+            <span class="lbl" i18n="@@pfd.q.en">Question (English)</span>
+            <input nz-input formControlName="questionEn" [placeholder]="qPlaceholderEn()" />
+          </label>
+          <label class="field">
+            <span class="lbl" i18n="@@pfd.q.ar">Question (Arabic)</span>
+            <input
+              nz-input
+              formControlName="questionAr"
+              dir="rtl"
+              [placeholder]="qPlaceholderAr()"
+            />
+          </label>
+          <label class="field">
+            <span class="lbl" i18n="@@pfd.q.help_en"
+              >Hint under the question (English, optional)</span
+            >
+            <input nz-input formControlName="helperEn" />
+          </label>
+          <label class="field">
+            <span class="lbl" i18n="@@pfd.q.help_ar"
+              >Hint under the question (Arabic, optional)</span
+            >
+            <input nz-input formControlName="helperAr" dir="rtl" />
+          </label>
 
-        <!-- A DIV, not a label: nz-select renders no form element a "for" can point at, so
+          <!-- A DIV, not a label: nz-select renders no form element a "for" can point at, so
              wrapping it in a label associates the text with nothing and a screen reader
              announces the control unnamed. aria-labelledby names it for real. -->
-        <div class="field">
-          <span class="lbl" id="pfd-cats" i18n="@@pfd.q.categories">Asked of applicants for</span>
-          <nz-select
-            formControlName="categories"
-            nzMode="multiple"
-            aria-labelledby="pfd-cats"
-            [nzPlaceHolder]="categoriesPlaceholder"
-          >
-            @for (c of allCategories; track c) {
-              <nz-option [nzValue]="c" [nzLabel]="categoryName(c)" />
-            }
-          </nz-select>
-        </div>
-        <p class="hint" i18n="@@pfd.q.categories_hint">
-          A question assigned to nothing is asked by nobody, so the product can never quote.
-        </p>
-
-        <label class="check">
-          <input type="checkbox" formControlName="isRequired" />
-          <span i18n="@@pfd.q.required">Everyone must answer it</span>
-        </label>
-        <p class="hint" i18n="@@pfd.q.required_hint">
-          Left off, an applicant who skips it sees this product listed with a stated reason and no
-          figures — which is usually kinder than blocking the whole application.
-        </p>
-      </fieldset>
-
-      @if (kind() === 'choice') {
-        <fieldset class="block">
-          <legend i18n="@@pfd.list.legend">The list of answers</legend>
-          <label class="field">
-            <span class="lbl" i18n="@@pfd.list.en">List name (English)</span>
-            <input nz-input formControlName="listEn" [placeholder]="listPlaceholderEn" />
-          </label>
-          <label class="field">
-            <span class="lbl" i18n="@@pfd.list.ar">List name (Arabic)</span>
-            <input nz-input formControlName="listAr" dir="rtl" />
-          </label>
-          <p class="hint" i18n="@@pfd.list.hint">
-            This list belongs to {{ data.productLabel }} and is edited on its page, not under Manage
-            values.
+          <div class="field">
+            <span class="lbl" id="pfd-cats" i18n="@@pfd.q.categories">Asked of applicants for</span>
+            <nz-select
+              formControlName="categories"
+              nzMode="multiple"
+              aria-labelledby="pfd-cats"
+              [nzPlaceHolder]="categoriesPlaceholder"
+            >
+              @for (c of allCategories; track c) {
+                <nz-option [nzValue]="c" [nzLabel]="categoryName(c)" />
+              }
+            </nz-select>
+          </div>
+          <p class="hint" i18n="@@pfd.q.categories_hint">
+            A question assigned to nothing is asked by nobody, so the product can never quote.
           </p>
 
           <label class="check">
-            <input type="checkbox" formControlName="grouped" (change)="onGroupedChange()" />
-            <span i18n="@@pfd.list.grouped">Group these into classes a bank prices by</span>
+            <input type="checkbox" formControlName="isRequired" />
+            <span i18n="@@pfd.q.required">Everyone must answer it</span>
           </label>
-          <p class="hint" i18n="@@pfd.list.grouped_hint">
-            Use this when there are more answers than any bank would price one by one. The bank
-            fills one figure per class; the applicant still picks a name.
+          <p class="hint" i18n="@@pfd.q.required_hint">
+            Left off, an applicant who skips it sees this product listed with a stated reason and no
+            figures — which is usually kinder than blocking the whole application.
           </p>
+        </fieldset>
 
-          @if (grouped()) {
-            <div class="rows" formArrayName="classes">
-              <p class="rows-title" i18n="@@pfd.class.title">The classes</p>
-              @for (row of classes.controls; track $index; let i = $index) {
+        @if (kind() === 'choice') {
+          <fieldset class="block">
+            <legend i18n="@@pfd.list.legend">The list of answers</legend>
+            <label class="field">
+              <span class="lbl" i18n="@@pfd.list.en">List name (English)</span>
+              <input nz-input formControlName="listEn" [placeholder]="listPlaceholderEn" />
+            </label>
+            <label class="field">
+              <span class="lbl" i18n="@@pfd.list.ar">List name (Arabic)</span>
+              <input nz-input formControlName="listAr" dir="rtl" />
+            </label>
+            <p class="hint" i18n="@@pfd.list.hint">
+              This list belongs to {{ productLabel() }} and is edited on its page, not under Manage
+              values.
+            </p>
+
+            <label class="check">
+              <input type="checkbox" formControlName="grouped" (change)="onGroupedChange()" />
+              <span i18n="@@pfd.list.grouped">Group these into classes a bank prices by</span>
+            </label>
+            <p class="hint" i18n="@@pfd.list.grouped_hint">
+              Use this when there are more answers than any bank would price one by one. The bank
+              fills one figure per class; the applicant still picks a name.
+            </p>
+
+            @if (grouped()) {
+              <div class="rows" formArrayName="classes">
+                <p class="rows-title" i18n="@@pfd.class.title">The classes</p>
+                @for (row of classes.controls; track $index; let i = $index) {
+                  <div class="row" [formGroupName]="i">
+                    <input nz-input formControlName="labelEn" [placeholder]="classPlaceholderEn" />
+                    <input
+                      nz-input
+                      formControlName="labelAr"
+                      dir="rtl"
+                      [placeholder]="arPlaceholder"
+                    />
+                    <button
+                      type="button"
+                      class="icon"
+                      [disabled]="classes.length <= 1"
+                      [attr.aria-label]="removeClassAria"
+                      (click)="removeClass(i)"
+                    >
+                      <span nz-icon nzType="delete" nzTheme="outline"></span>
+                    </button>
+                  </div>
+                }
+                <button type="button" class="linkish" (click)="addClass()">
+                  <span nz-icon nzType="plus" nzTheme="outline"></span>
+                  <span i18n="@@pfd.class.add">Add a class</span>
+                </button>
+              </div>
+            }
+
+            <div class="rows" formArrayName="values">
+              <p class="rows-title" i18n="@@pfd.value.title">The answers</p>
+              @for (row of values.controls; track $index; let i = $index) {
                 <div class="row" [formGroupName]="i">
-                  <input nz-input formControlName="labelEn" [placeholder]="classPlaceholderEn" />
+                  <input nz-input formControlName="labelEn" [placeholder]="valuePlaceholderEn" />
                   <input
                     nz-input
                     formControlName="labelAr"
                     dir="rtl"
                     [placeholder]="arPlaceholder"
                   />
+                  @if (grouped()) {
+                    <nz-select formControlName="classIndex" [nzPlaceHolder]="classPlaceholder">
+                      @for (c of classNames(); track c.index) {
+                        <nz-option [nzValue]="c.index" [nzLabel]="c.label" />
+                      }
+                    </nz-select>
+                  }
                   <button
                     type="button"
                     class="icon"
-                    [disabled]="classes.length <= 1"
-                    [attr.aria-label]="removeClassAria"
-                    (click)="removeClass(i)"
+                    [disabled]="values.length <= 2"
+                    [attr.aria-label]="removeValueAria"
+                    (click)="removeValue(i)"
                   >
                     <span nz-icon nzType="delete" nzTheme="outline"></span>
                   </button>
                 </div>
               }
-              <button type="button" class="linkish" (click)="addClass()">
+              <button type="button" class="linkish" (click)="addValue()">
                 <span nz-icon nzType="plus" nzTheme="outline"></span>
-                <span i18n="@@pfd.class.add">Add a class</span>
+                <span i18n="@@pfd.value.add">Add an answer</span>
               </button>
             </div>
-          }
+            <p class="hint" i18n="@@pfd.value.hint">
+              At least two. You can add more later on the product's page — they reach the
+              questionnaire straight away.
+            </p>
+          </fieldset>
+        } @else {
+          <fieldset class="block">
+            <legend i18n="@@pfd.num.legend">What the figure may be</legend>
+            <div class="row three">
+              <label class="field">
+                <span class="lbl" i18n="@@pfd.num.min">Lowest</span>
+                <input nz-input formControlName="minValue" inputmode="decimal" />
+              </label>
+              <label class="field">
+                <span class="lbl" i18n="@@pfd.num.max">Highest</span>
+                <input nz-input formControlName="maxValue" inputmode="decimal" />
+              </label>
+              <label class="field">
+                <span class="lbl" i18n="@@pfd.num.step">Steps of</span>
+                <input nz-input formControlName="step" inputmode="decimal" />
+              </label>
+            </div>
+            <div class="row">
+              <label class="field">
+                <span class="lbl" i18n="@@pfd.num.unit_en">Unit (English)</span>
+                <input nz-input formControlName="unitEn" [placeholder]="unitPlaceholder" />
+              </label>
+              <label class="field">
+                <span class="lbl" i18n="@@pfd.num.unit_ar">Unit (Arabic)</span>
+                <input nz-input formControlName="unitAr" dir="rtl" />
+              </label>
+            </div>
+          </fieldset>
+        }
 
-          <div class="rows" formArrayName="values">
-            <p class="rows-title" i18n="@@pfd.value.title">The answers</p>
-            @for (row of values.controls; track $index; let i = $index) {
-              <div class="row" [formGroupName]="i">
-                <input nz-input formControlName="labelEn" [placeholder]="valuePlaceholderEn" />
-                <input nz-input formControlName="labelAr" dir="rtl" [placeholder]="arPlaceholder" />
-                @if (grouped()) {
-                  <nz-select formControlName="classIndex" [nzPlaceHolder]="classPlaceholder">
-                    @for (c of classNames(); track c.index) {
-                      <nz-option [nzValue]="c.index" [nzLabel]="c.label" />
-                    }
-                  </nz-select>
-                }
-                <button
-                  type="button"
-                  class="icon"
-                  [disabled]="values.length <= 2"
-                  [attr.aria-label]="removeValueAria"
-                  (click)="removeValue(i)"
-                >
-                  <span nz-icon nzType="delete" nzTheme="outline"></span>
-                </button>
-              </div>
-            }
-            <button type="button" class="linkish" (click)="addValue()">
-              <span nz-icon nzType="plus" nzTheme="outline"></span>
-              <span i18n="@@pfd.value.add">Add an answer</span>
-            </button>
-          </div>
-          <p class="hint" i18n="@@pfd.value.hint">
-            At least two. You can add more later on the product's page — they reach the
-            questionnaire straight away.
-          </p>
-        </fieldset>
-      } @else {
-        <fieldset class="block">
-          <legend i18n="@@pfd.num.legend">What the figure may be</legend>
-          <div class="row three">
-            <label class="field">
-              <span class="lbl" i18n="@@pfd.num.min">Lowest</span>
-              <input nz-input formControlName="minValue" inputmode="decimal" />
-            </label>
-            <label class="field">
-              <span class="lbl" i18n="@@pfd.num.max">Highest</span>
-              <input nz-input formControlName="maxValue" inputmode="decimal" />
-            </label>
-            <label class="field">
-              <span class="lbl" i18n="@@pfd.num.step">Steps of</span>
-              <input nz-input formControlName="step" inputmode="decimal" />
-            </label>
-          </div>
-          <div class="row">
-            <label class="field">
-              <span class="lbl" i18n="@@pfd.num.unit_en">Unit (English)</span>
-              <input nz-input formControlName="unitEn" [placeholder]="unitPlaceholder" />
-            </label>
-            <label class="field">
-              <span class="lbl" i18n="@@pfd.num.unit_ar">Unit (Arabic)</span>
-              <input nz-input formControlName="unitAr" dir="rtl" />
-            </label>
-          </div>
-        </fieldset>
-      }
-
-      @if (progress(); as step) {
-        <p class="notice" role="status">{{ step }}</p>
-      }
-      @if (errorMessage(); as message) {
-        <p class="notice is-bad" role="alert">{{ message }}</p>
-      }
-
-      <footer class="foot">
-        <button nz-button type="button" (click)="cancel()" i18n="@@common.cancel">Cancel</button>
-        <button
-          nz-button
-          nzType="primary"
-          type="button"
-          [disabled]="form.invalid || submitting()"
-          [nzLoading]="submitting()"
-          (click)="save()"
-        >
-          <span i18n="@@pfd.save">Add it</span>
-        </button>
-      </footer>
-    </form>
+        <!-- The step line ALSO rides the action bar, where the eye is while Save runs;
+           it stays here because a four-write run that stops halfway is read next to
+           the fields it stopped on. -->
+        @if (progress(); as step) {
+          <p class="notice" role="status">{{ step }}</p>
+        }
+        @if (errorMessage(); as message) {
+          <p class="notice is-bad" role="alert">{{ message }}</p>
+        }
+      </form>
+    </app-form-page>
   `,
   styles: [
     `
@@ -431,17 +445,42 @@ const FACT_TYPE = 'surrogate_fact';
         background: color-mix(in srgb, var(--error) 10%, var(--bg-surface));
         color: var(--error);
       }
-      .foot {
-        display: flex;
-        justify-content: flex-end;
-        gap: var(--space-2);
-      }
     `,
   ],
 })
-export class ProductFactDialogComponent {
-  protected readonly data = inject<ProductFactDialogData>(NZ_MODAL_DATA);
-  private readonly modal = inject(NzModalRef<ProductFactDialogComponent, ProductFactResult>);
+export class ProductFactPage implements OnInit {
+  /**
+   * The product's key, bound from the route (`withComponentInputBinding`). It is the
+   * provenance stamped on every row this screen writes, so it is read from the URL
+   * rather than handed over by whoever opened the form — a pasted link works.
+   */
+  readonly key = input.required<string>();
+
+  private readonly router = inject(Router);
+  private readonly programs = inject(BankProgramsApiService);
+  /** Wording only — the writes key off `key()`. Empty until the product is read. */
+  protected readonly productLabel = signal('');
+
+  protected readonly eyebrow = $localize`:@@pfd.eyebrow:Surrogate product`;
+  protected readonly pageTitle = $localize`:@@spd.ask.add_title:Add something this product asks`;
+  protected readonly hint = $localize`:@@pfd.hint:Saves the list, its answers, the question and the fact — in that order.`;
+  protected readonly submitLabel = $localize`:@@pfd.save:Add it`;
+
+  async ngOnInit(): Promise<void> {
+    try {
+      const res = await this.programs.getSurrogateProduct(this.key());
+      const p = res.data;
+      this.productLabel.set(document.documentElement.lang.startsWith('ar') ? p.labelAr : p.labelEn);
+    } catch {
+      // The key is what every write is stamped with, so a failed read costs only the
+      // wording — never the writes. Falls back to the key rather than to a blank.
+      this.productLabel.set(this.key());
+    }
+  }
+
+  protected subtitleFor(label: string): string {
+    return $localize`:@@pfd.subtitle:One thing ${label}:product: asks the applicant, and the figure a bank prices off it.`;
+  }
   private readonly fb = inject(FormBuilder);
   private readonly lookups = inject(LookupsApiService);
   private readonly questions = inject(QuestionnaireApiService);
@@ -600,8 +639,26 @@ export class ProductFactDialogComponent {
   protected addClass(): void {
     this.classes.push(this.labelPair());
   }
+  /**
+   * Remove a class, and re-point every answer that named it or anything after it.
+   *
+   * `classIndex` is a POSITION, so a splice silently re-aims every row below the gap: an
+   * answer tagged for the class at 2 reads the one that used to be at 3, and the last one
+   * reads nothing at all. The silent half is the dangerous one — a value filed under the
+   * wrong class is quoted at the wrong ceiling and no screen says so.
+   *
+   * A row that named the removed class falls back to the FIRST class rather than to none:
+   * a value of a filed-under kind is born filed (`resolveParentKey` refuses a create with no
+   * parent), so "no class" is not a state this form can save.
+   */
   protected removeClass(index: number): void {
-    if (this.classes.length > 1) this.classes.removeAt(index);
+    if (this.classes.length <= 1) return;
+    this.classes.removeAt(index);
+    for (const row of this.values.controls) {
+      const at = row.controls.classIndex.value;
+      if (at === index) row.controls.classIndex.setValue(0);
+      else if (at > index) row.controls.classIndex.setValue(at - 1);
+    }
   }
   protected addValue(): void {
     this.values.push(this.valueRow());
@@ -610,8 +667,9 @@ export class ProductFactDialogComponent {
     if (this.values.length > 2) this.values.removeAt(index);
   }
 
+  /** Leaves without saving — back to the product, on the step that lists what it asks. */
   protected cancel(): void {
-    this.modal.close(undefined);
+    void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 2 } });
   }
 
   /**
@@ -630,6 +688,11 @@ export class ProductFactDialogComponent {
     }
     this.errorMessage.set(null);
     this.submitting.set(true);
+    // A retry after a partial failure re-mints every key. Left over, an entry from the
+    // previous run whose index the operator has since deleted would file an answer under a
+    // key belonging to a class list that is not this one's parent — refused by
+    // `resolveParentKey`, halfway through, stranding a second half-built list.
+    this.classKeyByIndex.clear();
     const created: string[] = [];
     try {
       const v = this.form.getRawValue();
@@ -649,7 +712,7 @@ export class ProductFactDialogComponent {
             labelEn: $localize`:@@pfd.class.list_name:${v.listEn}:list: classes`,
             labelAr: v.listAr,
             onValuesRail: false,
-            surrogateProductKey: this.data.productKey,
+            surrogateProductKey: this.key(),
           });
           created.push(parentType);
           const classKeys = new Set<string>();
@@ -669,12 +732,14 @@ export class ProductFactDialogComponent {
 
         this.progress.set($localize`:@@pfd.step.list:Creating the list…`);
         listType = uniqueSlug(v.listEn, taken);
+        // Claimed, so a later mint in this same run cannot hand back the same key.
+        taken.add(listType);
         await this.lookups.createType({
           key: listType,
           labelEn: v.listEn,
           labelAr: v.listAr,
           onValuesRail: false,
-          surrogateProductKey: this.data.productKey,
+          surrogateProductKey: this.key(),
           ...(parentType !== null ? { parentTypeKey: parentType } : {}),
         });
         created.push(listType);
@@ -729,12 +794,15 @@ export class ProductFactDialogComponent {
         key: question.code,
         labelEn: v.questionEn,
         labelAr: v.questionAr,
-        surrogateProductKey: this.data.productKey,
+        surrogateProductKey: this.key(),
       });
       await this.lookups.setBoundQuestion(fact.id, question.code);
 
       await this.enumTypes.refresh();
-      this.modal.close({ factKey: question.code, listTypes: created });
+      // The registry cache was just refreshed; the FACT list is a separate cache and the
+      // product itself may now resolve differently, so the product page re-reads both on
+      // entry. Navigating there IS the reload — the component is created fresh.
+      void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 2 } });
     } catch (error) {
       const code = (error as { code?: ErrorCode }).code ?? 'INTERNAL_ERROR';
       this.errorMessage.set(this.errors.toLocalizedMessage(code as ErrorCode));

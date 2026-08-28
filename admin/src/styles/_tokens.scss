@@ -14,23 +14,23 @@
 
 :root {
   // ===== NG-ZORRO theme overrides (var-mode) =================================
-  --ant-primary-color: #0869C3;
+  --ant-primary-color: #0869c3;
   --ant-primary-color-hover: #075596;
-  --ant-primary-color-active: #0A4373;
-  --ant-primary-color-outline: rgba(8, 105, 195, 0.20);
-  --ant-info-color: #3D5A80;
-  --ant-success-color: #2D5F3F;
-  --ant-success-color-hover: #3D7856;
-  --ant-success-color-active: #234A31;
-  --ant-success-color-outline: rgba(45, 95, 63, 0.20);
-  --ant-warning-color: #C8893D;
-  --ant-warning-color-hover: #D4A865;
-  --ant-warning-color-active: #B87738;
-  --ant-warning-color-outline: rgba(200, 137, 61, 0.20);
-  --ant-error-color: #C1666B;
-  --ant-error-color-hover: #D89BA0;
-  --ant-error-color-active: #A8484D;
-  --ant-error-color-outline: rgba(193, 102, 107, 0.20);
+  --ant-primary-color-active: #0a4373;
+  --ant-primary-color-outline: rgba(8, 105, 195, 0.2);
+  --ant-info-color: #3d5a80;
+  --ant-success-color: #2d5f3f;
+  --ant-success-color-hover: #3d7856;
+  --ant-success-color-active: #234a31;
+  --ant-success-color-outline: rgba(45, 95, 63, 0.2);
+  --ant-warning-color: #c8893d;
+  --ant-warning-color-hover: #d4a865;
+  --ant-warning-color-active: #b87738;
+  --ant-warning-color-outline: rgba(200, 137, 61, 0.2);
+  --ant-error-color: #c1666b;
+  --ant-error-color-hover: #d89ba0;
+  --ant-error-color-active: #a8484d;
+  --ant-error-color-outline: rgba(193, 102, 107, 0.2);
 
   // ===== Spacing (4px base) ==================================================
   // Below the base step: optical nudges only (chip padding, icon baselines).
@@ -60,13 +60,16 @@
   /* The height that pairs with it. Documented together in DESIGN_SYSTEM.md, so a
      component reaching for one and hardcoding the other drifts from the field beside it. */
   --size-field: 44px;
+  /* The two boxes in a form sheet's header — the medallion and the close button.
+     One value, so the title sits on a single optical line between them. */
+  --size-sheet-head-box: 40px;
 
   // ===== Motion ==============================================================
   --motion-duration-fast: 120ms;
   --motion-duration-base: 180ms;
   --motion-duration-slow: 280ms;
-  --motion-easing-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
-  --motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+  --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
   // Per-cell entrance offset when a grid stages itself in, and the loop length
   // for ambient shimmer/sweep.
   --motion-stagger: 40ms;
@@ -115,7 +118,7 @@
   // Two-layer elevation: tight contact edge + wide ambient bloom, tinted toward
   // the warm neutral so it doesn't read as a gray box on the warm canvas.
   --toast-shadow: 0 1px 2px rgba(43, 35, 32, 0.08), 0 14px 34px -10px rgba(43, 35, 32, 0.22);
-  --toast-shadow-hover: 0 1px 2px rgba(43, 35, 32, 0.10), 0 20px 46px -12px rgba(43, 35, 32, 0.30);
+  --toast-shadow-hover: 0 1px 2px rgba(43, 35, 32, 0.1), 0 20px 46px -12px rgba(43, 35, 32, 0.3);
   // One-shot light sweep on entry — makes the surface read as material. Kept low
   // enough to be a glint: any higher and the sweep washes the semantic tint out
   // for the third of a second it takes to cross the capsule.
@@ -140,7 +143,7 @@
   --color-surface-muted: var(--bg-muted);
   --color-surface-row-hover: var(--bg-subtle);
   --color-surface-inverse: var(--bg-inverse);
-  --color-overlay-backdrop: rgba(43, 35, 32, 0.50);
+  --color-overlay-backdrop: rgba(43, 35, 32, 0.5);
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
@@ -208,28 +211,28 @@
 
 [data-theme='dark'] {
   // NG-ZORRO variable-theme overrides — bright accents over dark canvas
-  --ant-primary-color: #5BA5E8;
-  --ant-primary-color-hover: #7DB8EE;
-  --ant-primary-color-active: #5BA5E8;
-  --ant-primary-color-outline: rgba(91, 165, 232, 0.40);
-  --ant-info-color: #6CABE0;
-  --ant-success-color: #4FBE7C;
-  --ant-success-color-hover: #6CD194;
-  --ant-success-color-active: #2D9659;
+  --ant-primary-color: #5ba5e8;
+  --ant-primary-color-hover: #7db8ee;
+  --ant-primary-color-active: #5ba5e8;
+  --ant-primary-color-outline: rgba(91, 165, 232, 0.4);
+  --ant-info-color: #6cabe0;
+  --ant-success-color: #4fbe7c;
+  --ant-success-color-hover: #6cd194;
+  --ant-success-color-active: #2d9659;
   --ant-success-color-outline: rgba(79, 190, 124, 0.36);
-  --ant-warning-color: #E7A340;
-  --ant-warning-color-hover: #F4BC65;
-  --ant-warning-color-active: #C8893D;
+  --ant-warning-color: #e7a340;
+  --ant-warning-color-hover: #f4bc65;
+  --ant-warning-color-active: #c8893d;
   --ant-warning-color-outline: rgba(231, 163, 64, 0.36);
-  --ant-error-color: #E66E76;
-  --ant-error-color-hover: #F08F95;
-  --ant-error-color-active: #C1666B;
+  --ant-error-color: #e66e76;
+  --ant-error-color-hover: #f08f95;
+  --ant-error-color-active: #c1666b;
   --ant-error-color-outline: rgba(230, 110, 118, 0.36);
 
-  --color-topbar-bg: #0A080C;
+  --color-topbar-bg: #0a080c;
   --color-topbar-text: var(--text-primary);
-  --shadow-focus-ring: 0 0 0 3px rgba(91, 165, 232, 0.40);
-  --focus-halo: 0 0 0 3px rgba(91, 165, 232, 0.40);
+  --shadow-focus-ring: 0 0 0 3px rgba(91, 165, 232, 0.4);
+  --focus-halo: 0 0 0 3px rgba(91, 165, 232, 0.4);
 
   // Toast capsule — not an inversion: a 7% tint that reads on the warm light
   // canvas is invisible on near-black, and a neutral-tinted shadow disappears.
@@ -238,7 +241,7 @@
   --toast-edge-strength: 44%;
   --toast-disc-strength: 24%;
   --toast-halo-strength: 62%;
-  --toast-shadow: 0 1px 2px rgba(0, 0, 0, 0.50), 0 18px 40px -12px rgba(0, 0, 0, 0.66);
+  --toast-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 18px 40px -12px rgba(0, 0, 0, 0.66);
   --toast-shadow-hover: 0 1px 2px rgba(0, 0, 0, 0.55), 0 24px 52px -14px rgba(0, 0, 0, 0.74);
-  --toast-sheen: rgba(255, 255, 255, 0.10);
+  --toast-sheen: rgba(255, 255, 255, 0.1);
 }

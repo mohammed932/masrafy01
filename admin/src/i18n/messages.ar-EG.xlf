@@ -522,7 +522,6 @@
 
       <trans-unit id="lookups.dialog.titleCreate" datatype="html"><source>Add new value</source><target>إضافة قيمة جديدة</target></trans-unit>
       <trans-unit id="lookups.dialog.titleEdit" datatype="html"><source>Edit value</source><target>تعديل القيمة</target></trans-unit>
-      <trans-unit id="lookups.dialog.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
       <trans-unit id="lookups.dialog.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
       <trans-unit id="lookups.field.labelEn" datatype="html"><source>Label (English)</source><target>التسمية (الإنجليزية)</target></trans-unit>
       <trans-unit id="lookups.field.labelAr" datatype="html"><source>Label (Arabic)</source><target>التسمية (العربية)</target></trans-unit>
@@ -1285,7 +1284,6 @@
 
       <trans-unit id="pnq.summary_ticked" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants, and ticked into “<x id="name" equiv-text="this.data.nameLabel"/>”.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>، ومُضاف إلى «<x id="name" equiv-text="this.data.nameLabel"/>».</target></trans-unit>
       <trans-unit id="pnq.summary_plain" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants. Not ticked here.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>. غير مُضاف هنا.</target></trans-unit>
-      <trans-unit id="pnq.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
       <trans-unit id="pnq.save" datatype="html"><source>Create question</source><target>أنشئ السؤال</target></trans-unit>
 
       <trans-unit id="bank_programs.form.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
@@ -2677,6 +2675,31 @@
       <trans-unit id="pfd.save" datatype="html"><source>Add it</source><target>أضِفه</target></trans-unit>
       <trans-unit id="spd.lists_shared" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ borrowedCount() }}"/> of these list(s) are shared with other products — editing one reaches every calculation that reads it. </source><target> <x id="INTERPOLATION" equiv-text="{{ borrowedCount() }}"/> من هذه القوائم مشتركة مع منتجات أخرى — وتعديل واحدة يصل إلى كل حساب يقرأها. </target></trans-unit>
       <trans-unit id="spd.list_owned_classes" datatype="html"><source>The classes a bank keys its table by. Each answer above is filed under one of these.</source><target>الفئات التي يبني عليها البنك جدوله. كل إجابة أعلاه مُدرجة تحت واحدة منها.</target></trans-unit>
+
+      <trans-unit id="fd.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="fd.close" datatype="html"><source>Close</source><target>إغلاق</target></trans-unit>
+      <trans-unit id="fp.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
+      <trans-unit id="lookups.drawer.create" datatype="html"><source>Add value</source><target>أضف القيمة</target></trans-unit>
+      <trans-unit id="lookups.drawer.subCreate" datatype="html"><source>Adds one option to this list, ready to be picked wherever the list is used.</source><target>يضيف خيارًا واحدًا إلى هذه القائمة، جاهزًا للاختيار في كل مكان تُستخدم فيه القائمة.</target></trans-unit>
+      <trans-unit id="lookups.drawer.subEdit" datatype="html"><source>Renames it everywhere it is already used. Its key never changes.</source><target>يعيد تسميته في كل مكان يُستخدم فيه بالفعل. أما مفتاحه فلا يتغير أبدًا.</target></trans-unit>
+      <trans-unit id="lookups.type.dialog.createCta" datatype="html"><source>Create list</source><target>أنشئ القائمة</target></trans-unit>
+      <trans-unit id="banks.form.titleCreate" datatype="html"><source>Add bank</source><target>إضافة بنك</target></trans-unit>
+      <trans-unit id="banks.form.titleEdit" datatype="html"><source>Edit bank</source><target>تعديل البنك</target></trans-unit>
+      <trans-unit id="banks.form.subCreate" datatype="html"><source>Registers the partner. Its loan programs are added afterwards, from the bank's own page.</source><target>يسجّل البنك الشريك. أما برامج التمويل فتُضاف بعد ذلك من صفحة البنك نفسه.</target></trans-unit>
+      <trans-unit id="banks.form.subEdit" datatype="html"><source>Updates the partner's details everywhere its programs and offers are shown.</source><target>يحدّث بيانات البنك في كل مكان تظهر فيه برامجه وعروضه.</target></trans-unit>
+      <trans-unit id="banks.form.create" datatype="html"><source>Create bank</source><target>أنشئ البنك</target></trans-unit>
+      <trans-unit id="program_catalog.dialog.add_sub" datatype="html"><source>A catalog name banks file their programs under. It starts offered under no loan type — pick those on its own page.</source><target>اسم في الكتالوج تُسجَّل تحته البنوك برامجها. يبدأ غير معروض تحت أي نوع تمويل — اختر الأنواع من صفحته.</target></trans-unit>
+      <trans-unit id="program_catalog.dialog.edit_sub" datatype="html"><source>Renames the name everywhere banks already use it, and restates what it is sold against.</source><target>يعيد تسمية الاسم في كل مكان تستخدمه فيه البنوك بالفعل، ويحدّد من جديد ما يُباع مقابله.</target></trans-unit>
+      <trans-unit id="sp.create_title" datatype="html"><source>New surrogate product</source><target>منتج بديل جديد</target></trans-unit>
+      <trans-unit id="sp.create_sub" datatype="html"><source>Names the calculation. It is born with no steps — the next screen is where you write them.</source><target>يسمّي طريقة الحساب. يُنشأ بلا خطوات — والشاشة التالية هي مكان كتابتها.</target></trans-unit>
+      <trans-unit id="pfd.eyebrow" datatype="html"><source>Surrogate product</source><target>منتج بديل</target></trans-unit>
+      <trans-unit id="pfd.hint" datatype="html"><source>Saves the list, its answers, the question and the fact — in that order.</source><target>يحفظ القائمة وقيمها والسؤال والحقيقة — بهذا الترتيب.</target></trans-unit>
+      <trans-unit id="pfd.subtitle" datatype="html"><source>One thing <x id="product" equiv-text="label"/> asks the applicant, and the figure a bank prices off it.</source><target>شيء واحد يسأله <x id="product" equiv-text="label"/> للمتقدّم، والرقم الذي يسعّر البنك على أساسه.</target></trans-unit>
+      <trans-unit id="pnq.eyebrow" datatype="html"><source>Question pool</source><target>بنك الأسئلة</target></trans-unit>
+      <trans-unit id="pnq.subtitle" datatype="html"><source>Written into the one shared question pool, then offered to “<x id="name" equiv-text="label"/>” to score on.</source><target>يُكتب في بنك الأسئلة المشترك الواحد، ثم يُعرض على «<x id="name" equiv-text="label"/>» ليُقيّم عليه.</target></trans-unit>
+      <trans-unit id="pnq.tick_unnamed" datatype="html"><source>Also score this catalog name on it</source><target>قيّم اسم الكتالوج هذا عليه أيضًا</target></trans-unit>
+      <trans-unit id="program_catalog.dialog.add_cta" datatype="html"><source>Add program name</source><target>أضف اسم البرنامج</target></trans-unit>
+      <trans-unit id="sp.create_cta" datatype="html"><source>Create product</source><target>أنشئ المنتج</target></trans-unit>
     </body>
   </file>
 </xliff>

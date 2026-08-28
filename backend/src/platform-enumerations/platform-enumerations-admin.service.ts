@@ -12,6 +12,7 @@ import {
   EnumerationParentNotApplicableException,
   EnumerationTypeDuplicateException,
   EnumerationTypeInUseException,
+  EnumerationTypeIsParentAxisException,
   EnumerationTypeNotFoundException,
   EnumerationTypeParentInvalidException,
   EnumerationTypeSystemOnlyException,
@@ -92,6 +93,20 @@ export interface AdminActor {
   sourceIp: string | null;
 }
 
+/**
+ * What a `systemOnly` kind refuses on a patch.
+ *
+ * Everything else — the two labels, the description, the icon, the example, the sort order —
+ * is what an operator READS, and a builtin owns none of that. These four change what the
+ * platform DOES with values a code path is already reading by name.
+ */
+const SYSTEM_ONLY_LOCKED_FIELDS = [
+  'parentTypeKey',
+  'deletable',
+  'onValuesRail',
+  'active',
+] as const satisfies readonly (keyof UpdateEnumerationTypeDto)[];
+
 @Injectable()
 export class PlatformEnumerationsAdminService {
   constructor(
@@ -128,6 +143,21 @@ export class PlatformEnumerationsAdminService {
     const defs = await this.repo.typeDefinitions();
     if (defs.get(type)?.mirrorQuestionId == null) return;
     await this.questionnaire.syncMirroredOptions(type, actor);
+  }
+
+  /**
+   * Refuse a write that would take a mirrored list below a choice question's minimum.
+   *
+   * The counterpart to `syncMirroredList`, which runs AFTER the write and re-checks nothing:
+   * a value going away deactivates the matching option, and nothing else stops that leaving
+   * a live `SINGLE_SELECT` with no answers. Guarded on the cached definitions first, so an
+   * unmirrored kind — every builtin, every list on the Manage-values rail — costs one map
+   * read.
+   */
+  private async assertMirroredListSurvives(type: string, key: string): Promise<void> {
+    const defs = await this.repo.typeDefinitions();
+    if (defs.get(type)?.mirrorQuestionId == null) return;
+    await this.questionnaire.assertMirroredListSurvives(type, key);
   }
 
   async listAll(filter?: { type?: string }): Promise<EnumerationRow[]> {
@@ -241,10 +271,17 @@ export class PlatformEnumerationsAdminService {
     const existing = defs.get(key);
     if (!existing) throw new EnumerationTypeNotFoundException({ key });
 
-    if (patch.parentTypeKey !== undefined) {
-      if (existing.systemOnly) {
-        throw new EnumerationTypeSystemOnlyException({ key, attempted: 'rename' });
+    if (existing.systemOnly) {
+      // Every settings field a builtin does not own, not just the axis. Guarding only
+      // `parentTypeKey` let `{"active": false}` retire a kind the platform reads by name and
+      // `{"deletable": true}` open the hard-delete gate on values `countGenericReferences`
+      // knows nothing about — both accepted, both contradicting this method's own contract.
+      const locked = SYSTEM_ONLY_LOCKED_FIELDS.filter((field) => patch[field] !== undefined);
+      if (locked.length > 0) {
+        throw new EnumerationTypeSystemOnlyException({ key, attempted: 'reconfigure', fields: locked });
       }
+    }
+    if (patch.parentTypeKey !== undefined) {
       this.assertParentTypeUsable(defs, key, patch.parentTypeKey);
     }
 
@@ -285,7 +322,11 @@ export class PlatformEnumerationsAdminService {
     // same damage as a missing parent on create — refused there, so refused here too.
     const children = childTypesOf(defs, key);
     if (children.length > 0) {
-      throw new EnumerationTypeInUseException({ key, values: children.length });
+      throw new EnumerationTypeIsParentAxisException({
+        key,
+        childTypes: children,
+        count: children.length,
+      });
     }
 
     await this.repo.deleteTypeDefinition(key);
@@ -298,7 +339,19 @@ export class PlatformEnumerationsAdminService {
     });
   }
 
-  /** A parent axis must name a kind that exists and must not be the kind itself. */
+  /**
+   * A parent axis must name a kind that exists, must not be the kind itself, and must not
+   * already have this kind somewhere above it.
+   *
+   * The walk is what `parentTypeKey === key` alone could not catch: file `b` under `a`, then
+   * `a` under `b`, and both refusals pass. Neither kind can then hold its first value —
+   * `resolveParentKey` demands a live parent value on create, and each waits on the other —
+   * and neither can be deleted, because each is the other's child. Unusable and unremovable
+   * through the API, from two individually legal writes.
+   *
+   * Bounded by the definition count, since a chain that revisits a kind ends at `key` or at
+   * a kind already seen.
+   */
   private assertParentTypeUsable(
     defs: EnumerationTypeDefinitions,
     key: string,
@@ -310,6 +363,16 @@ export class PlatformEnumerationsAdminService {
     }
     if (!defs.has(parentTypeKey)) {
       throw new EnumerationTypeParentInvalidException({ key, parentTypeKey, reason: 'missing' });
+    }
+
+    const seen = new Set<string>([key]);
+    let at: string | null = parentTypeKey;
+    while (at !== null) {
+      if (seen.has(at)) {
+        throw new EnumerationTypeParentInvalidException({ key, parentTypeKey, reason: 'cycle' });
+      }
+      seen.add(at);
+      at = defs.get(at)?.parentTypeKey ?? null;
     }
   }
 
@@ -713,6 +776,13 @@ export class PlatformEnumerationsAdminService {
       if (patch.active === false) eventType = AuditEventType.PLATFORM_ENUMERATION_DEACTIVATED;
     }
 
+    // Only when the row is actually leaving the live set. A relabel or a reorder of a
+    // mirrored value re-syncs the option and changes no count, so holding those to the
+    // minimum would refuse the edit that FIXES a short list.
+    if (repoPatch.deprecate === true || repoPatch.active === false) {
+      await this.assertMirroredListSurvives(existing.type, existing.key);
+    }
+
     const updated = await this.repo.updateById(id, repoPatch);
     // A parentKey move is felt by TWO cached types: the row's own, and `surrogate_fact`,
     // whose members carry the derived `parentOptions` list the bank's key-table editor is
@@ -788,6 +858,9 @@ export class PlatformEnumerationsAdminService {
         usedBy: usedBy.filter((r) => r.count > 0),
       });
     }
+
+    // Last, because the three guards above are cheaper and name a more specific blocker.
+    await this.assertMirroredListSurvives(existing.type, existing.key);
 
     await this.repo.deleteById(id);
     this.repo.invalidateCache(existing.type);

@@ -6,11 +6,9 @@
  * operator can then edit, and a seed that skips the check is how one gets written.
  * The context is the four reads that check needs.
  *
- * Extracted because there were already two byte-identical copies
- * (`seed-program-catalog.ts` and `seed-collateral-products.ts`) and the archetype
- * seed would have been a third. Three copies of a registry read is exactly the
- * drift A25 is about: the day `surrogateFacts` learns a new condition, two of them
- * find out.
+ * Extracted because there were byte-identical copies in three separate seeds. Three
+ * copies of a registry read is exactly the drift A25 is about: the day
+ * `surrogateFacts` learns a new condition, two of them find out.
  *
  * A factory rather than a const, because each seed owns its own `PrismaClient`.
  */

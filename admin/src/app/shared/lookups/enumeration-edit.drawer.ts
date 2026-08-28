@@ -5,8 +5,13 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
-import { CloseCircleOutline, InfoCircleOutline } from '@ant-design/icons-angular/icons';
+import { NzDrawerRef, NZ_DRAWER_DATA } from 'ng-zorro-antd/drawer';
+import {
+  CloseCircleOutline,
+  InfoCircleOutline,
+  TagsOutline,
+} from '@ant-design/icons-angular/icons';
+import { FormDrawerComponent } from '@shared/ui';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import {
@@ -51,14 +56,19 @@ const PROGRAM_NAME_TYPE = 'program_name';
 /** The archetype list a no-payslip catalog name links to. */
 const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
 
-export interface EnumerationEditDialogData {
+export interface EnumerationEditDrawerData {
   mode: 'create' | 'edit';
   type: string;
   row?: EnumerationRow;
+  /** Overrides the generic sheet title — a screen that edits ONE kind names it. */
+  title?: string;
+  subtitle?: string;
+  /** Same reason: "Add value" under a program-name list names the mechanism, not the thing. */
+  submitLabel?: string;
 }
 
 @Component({
-  selector: 'app-enumeration-edit-dialog',
+  selector: 'app-enumeration-edit-drawer',
   standalone: true,
   imports: [
     CommonModule,
@@ -68,11 +78,21 @@ export interface EnumerationEditDialogData {
     NzFormModule,
     NzIconModule,
     NzSelectModule,
+    FormDrawerComponent,
   ],
-  providers: [provideNzIconsPatch([CloseCircleOutline, InfoCircleOutline])],
+  providers: [provideNzIconsPatch([CloseCircleOutline, InfoCircleOutline, TagsOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="dialog-body">
+    <app-form-drawer
+      [title]="drawerTitle"
+      [subtitle]="drawerSubtitle"
+      [submitLabel]="submitLabel"
+      [submitDisabled]="!form.valid"
+      [submitting]="submitting()"
+      (cancelled)="cancel()"
+      (submitted)="save()"
+    >
+      <span drawerIcon nz-icon nzType="tags" nzTheme="outline"></span>
       <form nz-form nzLayout="vertical" [formGroup]="form" class="form">
         <!-- One name in two locales is ONE decision, so the pair sits on one row:
              stacked, they read as two unrelated fields and pushed the only real
@@ -280,40 +300,12 @@ export interface EnumerationEditDialogData {
           </p>
         }
       </form>
-
-      <div class="dialog-actions">
-        <button
-          nz-button
-          nzType="default"
-          type="button"
-          (click)="cancel()"
-          i18n="@@lookups.dialog.cancel"
-        >
-          Cancel
-        </button>
-        <button
-          nz-button
-          nzType="primary"
-          type="button"
-          (click)="save()"
-          [disabled]="!form.valid || submitting()"
-          [nzLoading]="submitting()"
-          i18n="@@lookups.dialog.save"
-        >
-          Save
-        </button>
-      </div>
-    </div>
+    </app-form-drawer>
   `,
   styles: [
     `
       :host {
         display: block;
-      }
-      .dialog-body {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-5);
       }
       /* ONE rhythm for the whole form. antd ships every nz-form-item with its own
          24px bottom margin, which stacked against the section margins and left a
@@ -537,25 +529,17 @@ export interface EnumerationEditDialogData {
         font-size: var(--text-sm);
         color: var(--text-muted);
       }
-
-      .dialog-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: var(--space-2);
-        padding-block-start: var(--space-4);
-        border-block-start: 1px solid var(--border-subtle);
-      }
     `,
   ],
 })
-export class EnumerationEditDialogComponent {
+export class EnumerationEditDrawerComponent {
   private readonly api = inject(LookupsApiService);
   // Declared BEFORE `parentType` and the form below: both read it in a field initialiser,
   // and field initialisers run in source order.
   private readonly enumTypes = inject(EnumerationTypesService);
   private readonly errorCodes = inject(ErrorCodeService);
-  private readonly dialogRef = inject(NzModalRef<EnumerationEditDialogComponent, boolean>);
-  protected readonly data = inject<EnumerationEditDialogData>(NZ_MODAL_DATA);
+  private readonly drawerRef = inject(NzDrawerRef<EnumerationEditDrawerComponent, boolean>);
+  protected readonly data = inject<EnumerationEditDrawerData>(NZ_DRAWER_DATA);
 
   private readonly isProgramName = this.data.type === PROGRAM_NAME_TYPE;
   /**
@@ -670,6 +654,28 @@ export class EnumerationEditDialogComponent {
   protected readonly labelArPlaceholder =
     this.enumTypes.example(this.data.type, true) ??
     $localize`:@@lookups.example.fallback.ar:مثال: موظف بمرتب`;
+
+  /**
+   * Sheet chrome. Defaults are generic because this form serves every registry list;
+   * a screen that edits exactly one kind ("Add program name") passes its own words —
+   * the title is the first thing read, and "Add new value" over a program-name list
+   * names the mechanism instead of the thing.
+   */
+  protected readonly drawerTitle =
+    this.data.title ??
+    (this.isEdit
+      ? $localize`:@@lookups.dialog.titleEdit:Edit value`
+      : $localize`:@@lookups.dialog.titleCreate:Add new value`);
+  protected readonly drawerSubtitle =
+    this.data.subtitle ??
+    (this.isEdit
+      ? $localize`:@@lookups.drawer.subEdit:Renames it everywhere it is already used. Its key never changes.`
+      : $localize`:@@lookups.drawer.subCreate:Adds one option to this list, ready to be picked wherever the list is used.`);
+  protected readonly submitLabel =
+    this.data.submitLabel ??
+    (this.isEdit
+      ? $localize`:@@lookups.dialog.save:Save`
+      : $localize`:@@lookups.drawer.create:Add value`);
 
   protected readonly submitting = signal(false);
   /** Localized failure text — mapping goes through ErrorCodeService (Principle III, A22). */
@@ -867,7 +873,7 @@ export class EnumerationEditDialogComponent {
   }
 
   cancel(): void {
-    this.dialogRef.close(false);
+    this.drawerRef.close(false);
   }
 
   async save(): Promise<void> {
@@ -934,7 +940,7 @@ export class EnumerationEditDialogComponent {
           sortOrder: v.sortOrder,
         });
       }
-      this.dialogRef.close(true);
+      this.drawerRef.close(true);
     } catch (err) {
       const code = (err as { error?: { code?: string } }).error?.code;
       this.fail(code ?? 'INTERNAL_ERROR');
@@ -966,5 +972,4 @@ export class EnumerationEditDialogComponent {
       return slugify(label);
     }
   }
-
 }

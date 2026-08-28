@@ -14,6 +14,8 @@ import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
+import { openFormDrawer } from '@shared/ui';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
@@ -50,10 +52,10 @@ import {
 } from '../bank-programs/delete/delete-program.dialog';
 import { BanksApiService } from './banks.api.service';
 import {
-  BankFormDialog,
-  type BankFormDialogData,
-  type BankFormDialogResult,
-} from './bank-form.dialog';
+  BankFormDrawer,
+  type BankFormDrawerData,
+  type BankFormDrawerResult,
+} from './bank-form.drawer';
 import type { BankProgramSummary, BankWithProgramCount } from './banks.types';
 
 /** One category accordion section on the bank-detail programs list. */
@@ -1258,6 +1260,7 @@ export class BankDetailPage implements OnInit {
   private readonly banksApi = inject(BanksApiService);
   private readonly programsApi = inject(BankProgramsApiService);
   private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
   private readonly message = inject(NzMessageService);
   private readonly errors = inject(ErrorCodeService);
 
@@ -1502,17 +1505,11 @@ export class BankDetailPage implements OnInit {
   }
 
   openEditBank(b: BankWithProgramCount): void {
-    const ref = this.modal.create<
-      BankFormDialog,
-      BankFormDialogData,
-      BankFormDialogResult | undefined
-    >({
-      nzContent: BankFormDialog,
-      nzData: { mode: 'edit', bank: b },
-      nzWidth: 560,
-      nzFooter: null,
-      nzAutofocus: null,
-    });
+    const ref = openFormDrawer<
+      BankFormDrawer,
+      BankFormDrawerData,
+      BankFormDrawerResult | undefined
+    >(this.drawer, { content: BankFormDrawer, data: { mode: 'edit', bank: b } });
     ref.afterClose.subscribe((res) => {
       if (res?.saved) void this.loadBank();
     });

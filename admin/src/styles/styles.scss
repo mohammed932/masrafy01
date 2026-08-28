@@ -1176,3 +1176,25 @@ textarea.ant-input {
   // Topbar user pill / select trigger
   .ant-select-selector { background: var(--bg-subtle) !important; }
 }
+
+// ============================================================================
+// Form sheets (app-form-drawer) — full-height content
+//
+// The sheet is three rows: header, scrolling body, pinned footer. It can only
+// pin the footer to the bottom edge if every box between antd's drawer body and
+// the shell is full height, and one of them is the form component itself
+// (`display: block`, automatic height) — a percentage height cannot see through
+// that. antd gives us no hook on it, so the wrap class does: it is set by
+// `openFormDrawer()` and nothing else uses it.
+// ============================================================================
+.app-form-drawer-wrap {
+  .ant-drawer-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ant-drawer-body > * {
+    flex: 1 1 auto;
+    min-block-size: 0;
+  }
+}

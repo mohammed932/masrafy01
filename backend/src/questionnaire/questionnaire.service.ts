@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { LoanCategory, Prisma, QuestionType } from '@prisma/client';
-import { DomainException } from '@/common/errors/domain.exceptions';
+import {
+  DomainException,
+  MirroredListMinValuesException,
+} from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
   ALL_LOAN_CATEGORIES,
@@ -26,6 +29,7 @@ import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform
 import { QuestionnaireRepository } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
 import {
+  MIN_CHOICE_OPTIONS,
   assertBranchSourceIsChoice,
   assertQuestionTypeRules,
   isChoiceType,
@@ -320,6 +324,36 @@ export class QuestionnaireService {
         reason: 'options_also_given',
       });
     }
+    if (mirroredType !== null) {
+      // Validated BEFORE the transaction, because every one of these fails silently
+      // afterwards. The link is stamped after the question is created, so a bad type key
+      // returned `null` from `updateTypeDefinition` and was discarded — a 201 for a question
+      // that mirrors nothing and will never re-sync.
+      const def = (await this.enums.typeDefinitions()).get(mirroredType);
+      if (def === undefined) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+          field: 'optionsFromEnumerationType',
+          reason: 'unknown_type',
+        });
+      }
+      if (!isChoiceType(type)) {
+        // A value type has no options to mirror. Left unchecked it passed creation (0 active
+        // values satisfies `value_types_must_have_no_options`) and the NEXT value write then
+        // created `question_option` rows on a NUMERIC question and published them.
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+          field: 'optionsFromEnumerationType',
+          reason: 'type_not_choice',
+        });
+      }
+      if (def.mirrorQuestionId !== null) {
+        // One list, one mirroring question. Re-pointing it silently froze the first
+        // question's options forever — live, with nothing on any screen saying so.
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+          field: 'optionsFromEnumerationType',
+          reason: 'already_mirrored',
+        });
+      }
+    }
     const mirrored = mirroredType === null ? null : await this.mirroredOptionRows(mirroredType);
     const options = dto.options ?? [];
     // The real count, unlike `createQuestion`. Both directions bite: a choice
@@ -414,6 +448,47 @@ export class QuestionnaireService {
     // how an operator reads what they did. Skipped when nothing moved.
     if (changed) await this.publish(actor);
     return changed;
+  }
+
+  /**
+   * Refuse a registry write that would leave a mirrored choice question short of answers.
+   *
+   * `syncMirroredOptions` runs AFTER the value write has committed and re-checks nothing, so
+   * without this an operator emptying a product-authored list one value at a time published a
+   * live `SINGLE_SELECT` with no options — unanswerable by the applicant, unkeyable by a
+   * bank's table, and refused outright had the same shape been asked for at create
+   * (`choice_types_need_at_least_two_active_options`). It is the same rule, checked at the
+   * only door that can still say no.
+   *
+   * Called BEFORE the write, from the registry service, with the key that is going. A value
+   * type mirroring a list is not a state this can reach — `assertQuestionTypeRules` refuses
+   * `activeOptionCount > 0` on one — but it is checked by type rather than assumed, since the
+   * mirror link can be pointed at any question.
+   *
+   * Silent for an unmirrored kind, which is every builtin and every list on the Manage-values
+   * rail.
+   */
+  async assertMirroredListSurvives(typeKey: string, removingKey: string): Promise<void> {
+    const defs = await this.enums.typeDefinitions();
+    const questionId = defs.get(typeKey)?.mirrorQuestionId ?? null;
+    if (questionId === null) return;
+
+    const question = await this.repo.findQuestion(questionId);
+    // A dangling link is not this write's problem: the FK is `ON DELETE SET NULL`, so a
+    // deleted question clears it, and a link pointing at nothing blocks nothing.
+    if (!question || !isChoiceType(question.type)) return;
+
+    const rows = await this.mirroredOptionRows(typeKey);
+    const remaining = rows.filter((row) => row.code !== removingKey).length;
+    if (remaining < MIN_CHOICE_OPTIONS) {
+      throw new MirroredListMinValuesException({
+        type: typeKey,
+        key: removingKey,
+        questionCode: question.code,
+        remaining,
+        minimum: MIN_CHOICE_OPTIONS,
+      });
+    }
   }
 
   /**

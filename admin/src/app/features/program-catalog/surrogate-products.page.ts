@@ -26,11 +26,11 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import {
-  EnumerationEditDialogComponent,
-  type EnumerationEditDialogData,
-} from '@shared/lookups/enumeration-edit.dialog';
+  EnumerationEditDrawerComponent,
+  type EnumerationEditDrawerData,
+} from '@shared/lookups/enumeration-edit.drawer';
 import {
   ArrowRightOutline,
   CheckCircleOutline,
@@ -39,7 +39,12 @@ import {
   InboxOutline,
   PlusOutline,
 } from '@ant-design/icons-angular/icons';
-import { PageHeaderComponent, SkeletonRowsComponent, StatStripComponent } from '@shared/ui';
+import {
+  PageHeaderComponent,
+  SkeletonRowsComponent,
+  StatStripComponent,
+  openFormDrawer,
+} from '@shared/ui';
 import type { StatStripItem } from '@shared/ui';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import {
@@ -318,7 +323,7 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
 export class SurrogateProductsPage {
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
-  private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
   private readonly router = inject(Router);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
@@ -331,18 +336,19 @@ export class SurrogateProductsPage {
    * thing the operator needs is step ① of the new product, not this list again.
    */
   protected createProduct(): void {
-    const ref = this.modal.create<
-      EnumerationEditDialogComponent,
-      EnumerationEditDialogData,
-      boolean
-    >({
-      nzContent: EnumerationEditDialogComponent,
-      nzData: { mode: 'create', type: 'surrogate_product' },
-      nzFooter: null,
-      nzWidth: 520,
-      nzCentered: true,
-      nzMaskClosable: false,
-    });
+    const ref = openFormDrawer<EnumerationEditDrawerComponent, EnumerationEditDrawerData, boolean>(
+      this.drawer,
+      {
+        content: EnumerationEditDrawerComponent,
+        data: {
+          mode: 'create',
+          type: 'surrogate_product',
+          title: $localize`:@@sp.create_title:New surrogate product`,
+          submitLabel: $localize`:@@sp.create_cta:Create product`,
+          subtitle: $localize`:@@sp.create_sub:Names the calculation. It is born with no steps — the next screen is where you write them.`,
+        },
+      },
+    );
     ref.afterClose.subscribe(async (saved: boolean | undefined) => {
       if (!saved) return;
       const before = new Set(this.products().map((p) => p.key));

@@ -58,6 +58,8 @@
   "ENUMERATION_PARENT_UNKNOWN": "هذا العنصر غير متاح. اختر عنصرًا لا يزال نشطًا.",
   "ENUMERATION_PARENT_NOT_APPLICABLE": "القيم من هذا النوع لا تُصنَّف تحت قائمة.",
   "ENUMERATION_HAS_CHILDREN": "لا يزال هناك {children} قيمة مُصنَّفة تحت هذه القيمة. انقلها أولًا ثم أوقفها.",
+  "MIRRORED_LIST_MIN_VALUES": "هذه القائمة هي إجابات سؤال، فيجب أن تحتفظ بقيمتين على الأقل. أضف قيمة أخرى أولًا ثم أوقف هذه.",
+  "ENUMERATION_TYPE_IS_PARENT_AXIS": "توجد قوائم أخرى مصنَّفة تحت “{key}”، فلا يمكن حذفها. وجّه هذه القوائم ({count}) إلى أصل آخر أولًا.",
   "ENUMERATION_TYPE_DUPLICATE": "توجد بالفعل قائمة باسم “{key}”. اختر اسمًا آخر.",
   "ENUMERATION_TYPE_NOT_FOUND": "هذه القائمة لم تعد موجودة، ربما تم حذفها.",
   "ENUMERATION_TYPE_IN_USE": "لا تزال هذه القائمة تحتوي على {values} قيمة. احذف القيم أولًا ثم احذف القائمة.",

@@ -13,6 +13,7 @@ import { firstValueFrom } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -27,7 +28,7 @@ import {
   CustomerServiceOutline,
 } from '@ant-design/icons-angular/icons';
 import { UsersService } from './users.service';
-import { UserFormDialog, type UserFormDialogData } from './user-form.dialog';
+import { UserFormDrawer, type UserFormDrawerData } from './user-form.drawer';
 import { ResetPasswordDialog } from './reset-password.dialog';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { EmptyStateComponent } from '@shared/empty-state.component';
@@ -36,6 +37,7 @@ import {
   SkeletonRowsComponent,
   StatStripComponent,
   StatusPillComponent,
+  openFormDrawer,
   type StatStripItem,
 } from '@shared/ui';
 import { PeopleDirectoryStore } from '../people/people-directory.store';
@@ -323,6 +325,7 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
 export class StaffRosterPage {
   private readonly api = inject(UsersService);
   private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
   private readonly message = inject(NzMessageService);
   private readonly errorCodes = inject(ErrorCodeService);
   protected readonly store = inject(PeopleDirectoryStore);
@@ -442,13 +445,13 @@ export class StaffRosterPage {
   }
 
   async openCreate(): Promise<void> {
-    const ref = this.modal.create<UserFormDialog, UserFormDialogData, StaffAccountSummary>({
-      nzContent: UserFormDialog,
-      nzData: { mode: 'create' },
-      nzFooter: null,
-      nzWidth: 560,
-      nzMaskClosable: true,
-    });
+    const ref = openFormDrawer<UserFormDrawer, UserFormDrawerData, StaffAccountSummary>(
+      this.drawer,
+      {
+        content: UserFormDrawer,
+        data: { mode: 'create' },
+      },
+    );
     const created = await firstValueFrom(ref.afterClose);
     if (created) {
       this.message.success($localize`:@@users.created:User created.`, { nzDuration: 4000 });
@@ -457,13 +460,13 @@ export class StaffRosterPage {
   }
 
   async openEdit(row: StaffAccountSummary): Promise<void> {
-    const ref = this.modal.create<UserFormDialog, UserFormDialogData, StaffAccountSummary>({
-      nzContent: UserFormDialog,
-      nzData: { mode: 'edit', row },
-      nzFooter: null,
-      nzWidth: 560,
-      nzMaskClosable: true,
-    });
+    const ref = openFormDrawer<UserFormDrawer, UserFormDrawerData, StaffAccountSummary>(
+      this.drawer,
+      {
+        content: UserFormDrawer,
+        data: { mode: 'edit', row },
+      },
+    );
     const updated = await firstValueFrom(ref.afterClose);
     if (updated) {
       this.message.success($localize`:@@users.updated:User updated.`, { nzDuration: 4000 });

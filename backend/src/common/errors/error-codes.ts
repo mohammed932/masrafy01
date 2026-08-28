@@ -144,6 +144,35 @@ export const ERROR_CODES = {
    */
   ENUMERATION_HAS_CHILDREN: 'ENUMERATION_HAS_CHILDREN',
   /**
+   * Retiring or deleting a list value was refused because the list IS a question's answers
+   * and the question would be left with fewer than two of them.
+   *
+   * A mirrored list (`enumeration_type_def.mirrorQuestionId`) is a question's option set:
+   * `syncMirroredOptions` deactivates the option when the value goes. `assertQuestionTypeRules`
+   * refuses a choice question with fewer than `MIN_CHOICE_OPTIONS` at CREATE, but the sync runs
+   * after the registry write has committed and re-checks nothing — so emptying the list one
+   * value at a time published a live SINGLE_SELECT with no answers, which an applicant cannot
+   * answer and a bank cannot key a table by.
+   *
+   * 409 for the reason `ENUMERATION_HAS_CHILDREN` is: the request is well-formed, the state
+   * refuses it, and it stops refusing as soon as another value is added. Separate from that
+   * code because the blocker is a QUESTION, not a filing relation — the operator's next move
+   * is to add a value or unpick the mirror, not to re-file a child.
+   */
+  MIRRORED_LIST_MIN_VALUES: 'MIRRORED_LIST_MIN_VALUES',
+  /**
+   * A KIND could not be deleted because other kinds are filed under it as their parent axis.
+   *
+   * Separate from `ENUMERATION_TYPE_IN_USE`, whose meta field is `values` and whose message
+   * says "this list still holds N value(s)": the blocker here is not a value, and an operator
+   * sent to look for one opens an empty list and learns nothing. Dropping the axis anyway
+   * would make every value of the CHILD kind uncreatable — `resolveParentKey` refuses a
+   * create with no parent — which is the same damage as a missing parent, refused there.
+   *
+   * 409: shape is fine, state refuses, and re-pointing the children lifts it.
+   */
+  ENUMERATION_TYPE_IS_PARENT_AXIS: 'ENUMERATION_TYPE_IS_PARENT_AXIS',
+  /**
    * A KIND of list was created with a key another kind already uses.
    *
    * Separate from `ENUMERATION_KEY_DUPLICATE`, which is about a VALUE inside one kind: the
@@ -648,6 +677,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_PARENT_NOT_APPLICABLE: 422,
   // 409 for the same reason `ENUMERATION_IN_USE` is: state, not shape.
   ENUMERATION_HAS_CHILDREN: 409,
+  // 409 for the same reason: state, not shape. Adding a value lifts it.
+  MIRRORED_LIST_MIN_VALUES: 409,
+  ENUMERATION_TYPE_IS_PARENT_AXIS: 409,
   ENUMERATION_TYPE_DUPLICATE: 409,
   ENUMERATION_TYPE_NOT_FOUND: 404,
   ENUMERATION_TYPE_IN_USE: 409,

@@ -21,3 +21,10 @@ export {
   seedScoreBands,
   type ScoreBandsError,
 } from './score-bands-editor.component';
+export {
+  FormDrawerComponent,
+  DrawerSectionComponent,
+  openFormDrawer,
+  type FormDrawerOptions,
+} from './form-drawer.component';
+export { FormPageComponent } from './form-page.component';

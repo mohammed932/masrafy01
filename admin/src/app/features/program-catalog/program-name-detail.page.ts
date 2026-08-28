@@ -67,11 +67,7 @@ import {
   type CatalogQuestionType,
 } from '../lookups/lookups.api.service';
 import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-name-row';
-import {
-  NewQuestionDialogComponent,
-  type NewQuestionDialogData,
-  type NewQuestionResult,
-} from './components/new-question.dialog';
+import { NEW_QUESTION_STATE_KEY, type NewQuestionResult } from './new-question.page';
 
 /** Long enough to read as a move, short enough not to queue behind a fast tapper. */
 const LAND_ANIMATION_MS = 260;
@@ -1759,7 +1755,7 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly activeCategory = signal<LoanCategory>(this.initialCategory());
 
   protected readonly searchCtrl = new FormControl<string>('', { nonNullable: true });
-  /** Protected: the search-dead-end CTA seeds the new-question dialog with it. */
+  /** Protected: the search-dead-end CTA seeds the new-question screen with it. */
   protected readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
 
   /**
@@ -2112,11 +2108,33 @@ export class ProgramNameDetailPage implements OnInit {
   });
 
   ngOnInit(): void {
-    void this.load();
+    // Read BEFORE the load starts: a question authored on the new-question screen arrives
+    // as router state, and it is taken (not just read) so a plain reload of this URL
+    // cannot re-tick a question that is already ticked.
+    const created = this.takeNewQuestion();
+    void (async (): Promise<void> => {
+      await this.load();
+      if (created) await this.absorbNewQuestion(created);
+    })();
     // A separate read, deliberately not awaited with the others: the income rule comes
     // from the bank-programs API and the rest from the lookups API, so a slow or failing
     // one must not hold up the other. Each surface reports its own state.
     void this.loadRule();
+  }
+
+  /**
+   * The created question handed over by `/program-catalog/:key/questions/new`, consumed
+   * once. `history.state` is where Angular puts navigation state, and clearing the key
+   * there is what makes this a hand-off rather than a standing instruction.
+   */
+  private takeNewQuestion(): NewQuestionResult | null {
+    const state = history.state as Record<string, unknown> | null;
+    const raw = state?.[NEW_QUESTION_STATE_KEY];
+    if (raw === undefined || raw === null) return null;
+    const rest = { ...state };
+    delete rest[NEW_QUESTION_STATE_KEY];
+    history.replaceState(rest, '');
+    return raw as NewQuestionResult;
   }
 
   // --- Display helpers -------------------------------------------------------
@@ -2322,42 +2340,27 @@ export class ProgramNameDetailPage implements OnInit {
   // --- Authoring a new question ----------------------------------------------
 
   /**
-   * Author a question in the GLOBAL pool without leaving this name, then tick it
-   * into the open tab's template.
+   * Author a brand-new question — on its OWN SCREEN, not in a dialog over this page.
    *
-   * The dialog owns the create (one request, one published version) and hands
-   * back what it made; the tick stays here because the template is a whole-set
-   * write this page already owns, and doing it here is what lets the new card
-   * arrive through the same landing animation and live region as a tap.
+   * The form branches on the answer type, grows a list of answers and can hold twenty
+   * fields; the sheet-sized forms in this app are the bounded ones. It needs a URL for
+   * the same reason: half-written work survives an interruption.
    *
-   * `seed` prefills the wording — used by the search dead end, where the
-   * operator has just typed the exact question they were looking for.
+   * `seed` prefills the wording — used by the search dead end, where the operator has
+   * just typed the exact question they were looking for. The tab travels as `?loan=` so
+   * coming back lands where they left, and the created question comes back as router
+   * state (see `absorbNewQuestion`): the TICK stays this page's write, because this page
+   * owns that template and re-reads the pick set before writing it.
    */
   protected openNewQuestion(seed?: string): void {
     const n = this.name();
     if (!n) return;
-    const data: NewQuestionDialogData = {
-      nameLabel: this.nameOf(n),
-      category: this.activeCategory(),
-      existingCodes: this.pool().map((q) => q.code),
-      ...(seed && seed.trim() !== '' ? { seedQuestionEn: seed.trim() } : {}),
-    };
-    const ref = this.modal.create<
-      NewQuestionDialogComponent,
-      NewQuestionDialogData,
-      NewQuestionResult | null
-    >({
-      nzContent: NewQuestionDialogComponent,
-      nzData: data,
-      nzTitle: $localize`:@@pnd.new_question_title:New question`,
-      nzWidth: 'min(880px, calc(100vw - 48px))',
-      nzFooter: null,
-      // Unlike the label dialog on the catalog list, this form can hold twenty
-      // fields and a list of answers — a stray click on the mask would bin it.
-      nzMaskClosable: false,
-    });
-    ref.afterClose.subscribe((result: NewQuestionResult | null | undefined) => {
-      if (result) void this.absorbNewQuestion(result);
+    const trimmed = seed?.trim() ?? '';
+    void this.router.navigate(['/program-catalog', n.key, 'questions', 'new'], {
+      queryParams: {
+        loan: this.activeCategory(),
+        ...(trimmed !== '' ? { seed: trimmed } : {}),
+      },
     });
   }
 
@@ -2370,12 +2373,12 @@ export class ProgramNameDetailPage implements OnInit {
    * tick it if that was asked for.
    *
    * The pick set is rebuilt from the CURRENT row rather than from anything the
-   * dialog captured when it opened — same discipline as `toggleQuestion`, since
-   * a colleague may have written the set in the meantime.
+   * authoring screen captured when it opened — same discipline as `toggleQuestion`,
+   * since a colleague may have written the set in the meantime. Called after the
+   * page's own load, so the row it reads is the one on screen.
    */
   private async absorbNewQuestion(result: NewQuestionResult): Promise<void> {
     this.tickFailed.set(null);
-    await this.load({ quiet: true });
     if (!result.tick) {
       this.status.set(
         $localize`:@@pnd.live_created:“${result.label}:question:” was added to the question pool`,

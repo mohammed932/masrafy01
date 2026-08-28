@@ -45,6 +45,12 @@ function def(
     systemOnly: true,
     active: true,
     sortOrder: 0,
+    // Both added by `20260827090000_surrogate_product_authoring`. Absent, they served
+    // `undefined` under a `EnumerationTypeDefinition` annotation — the file is excluded from
+    // `tsconfig`'s `rootDir` and Vitest transpiles without typechecking, so the comment above
+    // promising a new field would fail here was already false.
+    surrogateProductKey: null,
+    mirrorQuestionId: null,
     ...overrides,
   };
 }

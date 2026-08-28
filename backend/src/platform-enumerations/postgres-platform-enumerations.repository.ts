@@ -1024,10 +1024,18 @@ export class PostgresPlatformEnumerationsRepository
    *   2. the LINKS, not the names. A catalog name is what banks sell; the calculation it
    *      pointed at is a different object, and an operator retiring one usually re-points
    *      the names rather than losing them. Unlinked, each name reads as stating no rule;
-   *   3. the product row itself.
+   *   3. what the product AUTHORED — its `surrogate_fact` rows, then its lists' VALUES, then
+   *      the list definitions. These have no other door: an authored list is created off the
+   *      Manage-values rail and the only page that renders it is the product's own, so left
+   *      behind they were readable by every rule and removable by nobody;
+   *   4. the product row itself.
    *
-   * Reversed, step 3 would strand the links, and `programNameIncomeRules()` would resolve
+   * Reversed, step 4 would strand the links, and `programNameIncomeRules()` would resolve
    * each one to nothing — the exact dangling state migration `20260825090000` RAISEs on.
+   *
+   * NOT deleted, deliberately: the QUESTION a list mirrored. See step 3's note — its FK from
+   * `application_answer` is `RESTRICT`, so taking it would make a product any customer had
+   * answered permanently undeletable.
    *
    * The caller has already decided this is wanted: the endpoint refuses without an explicit
    * `cascade`, naming every row in this list first.
@@ -1047,6 +1055,32 @@ export class PostgresPlatformEnumerationsRepository
           data: { surrogateProductKey: null, updatedAt: new Date() },
         });
       }
+
+      // What the product AUTHORED goes with it. Left behind, these rows were unreachable and
+      // unremovable: an authored list is created with `onValuesRail: false`, so `railTypes()`
+      // skips it, the product page that lists it is gone with the product, and `deleteType`
+      // refuses a kind whose values survive. The facts had no screen at all — the
+      // Manage-values rail for `surrogate_fact` was removed in v16.3.0.
+      await tx.platformEnumeration.deleteMany({
+        where: { type: 'surrogate_fact', surrogateProductKey: key },
+      });
+      const ownedLists = await tx.enumerationTypeDef.findMany({
+        where: { surrogateProductKey: key },
+        select: { key: true },
+      });
+      if (ownedLists.length > 0) {
+        const listKeys = ownedLists.map((l) => l.key);
+        // Values first: `deleteType` refuses a kind that still holds any, and the same reason
+        // applies here — a value whose kind is gone is a row no screen can reach.
+        //
+        // The QUESTION a list mirrored is deliberately left alone. Its options are already
+        // written and stay answerable; it simply stops re-syncing, which is the state every
+        // hand-authored question is in. Deleting it would reach `application_answer`, whose FK
+        // is `RESTRICT`, so a product a single customer had answered would become undeletable.
+        await tx.platformEnumeration.deleteMany({ where: { type: { in: listKeys } } });
+        await tx.enumerationTypeDef.deleteMany({ where: { key: { in: listKeys } } });
+      }
+
       await tx.platformEnumeration.deleteMany({ where: { type: 'surrogate_product', key } });
     });
     // Every type, not just the two touched: a name losing its link changes what

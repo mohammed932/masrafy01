@@ -59,11 +59,6 @@ import type { WizardStepItem } from '@shared/ui';
 import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.component';
 import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.component';
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
-import {
-  ProductFactDialogComponent,
-  type ProductFactDialogData,
-  type ProductFactResult,
-} from '@shared/lookups/product-fact.dialog';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { ProductRuleBuilderComponent } from '@shared/income-rule/product-rule-builder.component';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
@@ -1259,32 +1254,14 @@ export class SurrogateProductDetailPage {
   /**
    * Author one more thing this product asks — list, question and fact in one pass.
    *
-   * `NzModalService`, not a hand-rolled panel: a `position: fixed` scrim inside `section.page`
-   * (which carries `app-page-rise`, a transform, and is therefore a containing block) dims the
-   * content and not the viewport — A34, the exact trap this repo has already fallen into once.
+   * ITS OWN SCREEN (`/surrogate-products/:key/asks/new`), not a dialog: the form branches
+   * on the kind of answer, grows two lists of rows and runs four writes, and a run that
+   * stops halfway needs a URL to come back to. The product page reloads on return because
+   * navigating back creates it fresh.
    */
   protected addAsk(): void {
-    const p = this.product();
-    if (!p) return;
-    const data: ProductFactDialogData = { productKey: this.key, productLabel: this.label(p) };
-    const ref = this.modals.create<
-      ProductFactDialogComponent,
-      ProductFactDialogData,
-      ProductFactResult | undefined
-    >({
-      nzTitle: this.addAskTitle,
-      nzContent: ProductFactDialogComponent,
-      nzData: data,
-      nzFooter: null,
-      nzWidth: 720,
-    });
-    void ref.afterClose.subscribe((result) => {
-      if (!result) return;
-      // The registry cache was refreshed by the dialog; the FACT list is a separate cache and
-      // the product itself may now resolve differently, so both are re-read.
-      void this.enums.refresh('surrogate_fact');
-      void this.load();
-    });
+    if (!this.product()) return;
+    void this.router.navigate(['/surrogate-products', this.key, 'asks', 'new']);
   }
 
   protected label(p: SurrogateProductDetail): string {

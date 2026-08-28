@@ -215,14 +215,58 @@ describe('patching a KIND', () => {
     expect(updated.labelEn).toBe('Governorates of Egypt');
   });
 
-  it('refuses to re-parent a builtin', async () => {
+  it('refuses to re-parent a builtin, and says so as a re-parent rather than as a rename', async () => {
+    // It reported `rename`, whose message tells the operator to relabel instead — right for a
+    // key change, meaningless for an axis move.
     const { service, repo } = makeService(makeRepo());
     await expect(
       service.updateType('governorate', { parentTypeKey: 'product_category' }, ACTOR),
     ).rejects.toSatisfy(
       (e: unknown) =>
         codeOf(e) === ERROR_CODES.ENUMERATION_TYPE_SYSTEM_ONLY &&
-        (e as DomainException).meta?.attempted === 'rename',
+        (e as DomainException).meta?.attempted === 'reconfigure',
+    );
+    expect(repo.updateTypeDefinition).not.toHaveBeenCalled();
+  });
+
+  it.each(['deletable', 'onValuesRail', 'active'] as const)(
+    'refuses to change a builtin’s %s, which the guard used to let straight through',
+    async (field) => {
+      // The guard only ever ran for `parentTypeKey`, so `{"active": false}` retired a kind
+      // the platform reads by name and `{"deletable": true}` opened the hard-delete gate on
+      // values `countGenericReferences` knows nothing about. Both returned 200.
+      const { service, repo } = makeService(makeRepo());
+      await expect(
+        service.updateType('governorate', { [field]: field === 'deletable' }, ACTOR),
+      ).rejects.toSatisfy(
+        (e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_TYPE_SYSTEM_ONLY,
+      );
+      expect(repo.updateTypeDefinition).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still lets a builtin be relabelled and reordered — the half it does own', async () => {
+    const { service, repo } = makeService(makeRepo());
+    await service.updateType('governorate', { labelEn: 'Governorates', sortOrder: 7 }, ACTOR);
+    expect(repo.updateTypeDefinition).toHaveBeenCalled();
+  });
+
+  it('refuses a parent axis that loops back, which two legal writes could otherwise build', async () => {
+    // `b` under `a`, then `a` under `b`: neither self-reference nor a missing key, and the
+    // pair is then uncreatable (each waits on the other's first value) AND undeletable (each
+    // is the other's child).
+    const { service, repo } = makeService(
+      makeRepo([
+        operatorTypeDefinition('brand_tier'),
+        operatorTypeDefinition('car_brand', { parentTypeKey: 'brand_tier' }),
+      ]),
+    );
+    await expect(
+      service.updateType('brand_tier', { parentTypeKey: 'car_brand' }, ACTOR),
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        codeOf(e) === ERROR_CODES.ENUMERATION_TYPE_PARENT_INVALID &&
+        (e as DomainException).meta?.reason === 'cycle',
     );
     expect(repo.updateTypeDefinition).not.toHaveBeenCalled();
   });
@@ -274,8 +318,14 @@ describe('deleting a KIND', () => {
         operatorTypeDefinition('car_brand', { parentTypeKey: 'brand_tier' }),
       ]),
     );
+    // Its OWN code, not `ENUMERATION_TYPE_IN_USE`: that one's meta field is `values` and its
+    // message says the list still holds some, so an operator sent to empty an already-empty
+    // list learns nothing about the two kinds actually blocking them.
     await expect(service.deleteType('brand_tier', ACTOR)).rejects.toSatisfy(
-      (e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_TYPE_IN_USE,
+      (e: unknown) =>
+        codeOf(e) === ERROR_CODES.ENUMERATION_TYPE_IS_PARENT_AXIS &&
+        (e as DomainException).meta?.count === 1 &&
+        Array.isArray((e as DomainException).meta?.childTypes),
     );
     expect(repo.deleteTypeDefinition).not.toHaveBeenCalled();
   });

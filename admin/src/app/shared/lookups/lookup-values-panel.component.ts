@@ -25,15 +25,15 @@ import {
 } from '@angular/core';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { PlusOutline } from '@ant-design/icons-angular/icons';
-import { SkeletonRowsComponent } from '@shared/ui';
+import { SkeletonRowsComponent, openFormDrawer } from '@shared/ui';
 import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookups.api.service';
 import { LookupValueListComponent, type LookupActiveToggle } from './lookup-value-list.component';
 import {
-  EnumerationEditDialogComponent,
-  type EnumerationEditDialogData,
-} from './enumeration-edit.dialog';
+  EnumerationEditDrawerComponent,
+  type EnumerationEditDrawerData,
+} from './enumeration-edit.drawer';
 import { EnumerationTypesService } from './enumeration-types.service';
 
 @Component({
@@ -115,7 +115,7 @@ import { EnumerationTypesService } from './enumeration-types.service';
 export class LookupValuesPanelComponent {
   private readonly api = inject(LookupsApiService);
   private readonly enumTypes = inject(EnumerationTypesService);
-  private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
 
   /** The enumeration type this panel renders. Changing it reloads. */
   readonly type = input.required<string>();
@@ -183,11 +183,11 @@ export class LookupValuesPanelComponent {
   }
 
   protected openCreate(): void {
-    this.openDialog({ mode: 'create', type: this.type() });
+    this.openDrawer({ mode: 'create', type: this.type() });
   }
 
   protected openEdit(row: EnumerationRow): void {
-    this.openDialog({ mode: 'edit', type: row.type, row });
+    this.openDrawer({ mode: 'edit', type: row.type, row });
   }
 
   /** Optimistic flip — the global error interceptor surfaces the toast on failure. */
@@ -228,23 +228,12 @@ export class LookupValuesPanelComponent {
     this.changed.emit();
   }
 
-  private openDialog(data: EnumerationEditDialogData): void {
-    const ref = this.modal.create<
-      EnumerationEditDialogComponent,
-      EnumerationEditDialogData,
-      boolean
-    >({
-      nzContent: EnumerationEditDialogComponent,
-      nzData: data,
-      // The dialog body carries no heading of its own — the modal chrome owns the title.
-      nzTitle:
-        data.mode === 'create'
-          ? $localize`:@@lookups.dialog.titleCreate:Add new value`
-          : $localize`:@@lookups.dialog.titleEdit:Edit value`,
-      nzWidth: 'min(640px, calc(100vw - 48px))',
-      nzFooter: null,
-      nzMaskClosable: true,
-    });
+  /** Side sheet, not a modal: the list this value joins stays on screen beside the form. */
+  private openDrawer(data: EnumerationEditDrawerData): void {
+    const ref = openFormDrawer<EnumerationEditDrawerComponent, EnumerationEditDrawerData, boolean>(
+      this.drawer,
+      { content: EnumerationEditDrawerComponent, data },
+    );
     ref.afterClose.subscribe((saved: boolean | undefined) => {
       if (saved) void this.afterMutation();
     });

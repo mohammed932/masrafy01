@@ -58,6 +58,8 @@
   "ENUMERATION_PARENT_UNKNOWN": "That list entry is not available. Pick one that is still active.",
   "ENUMERATION_PARENT_NOT_APPLICABLE": "Entries of this kind are not filed under a list.",
   "ENUMERATION_HAS_CHILDREN": "{children} value(s) are still filed under this one. Move them first, then retire it.",
+  "MIRRORED_LIST_MIN_VALUES": "This list is the answers to a question, so it must keep at least two values. Add another value first, then retire this one.",
+  "ENUMERATION_TYPE_IS_PARENT_AXIS": "Other lists are filed under “{key}”, so it cannot be deleted. Point those {count} list(s) at another parent first.",
   "ENUMERATION_TYPE_DUPLICATE": "A list called “{key}” already exists. Pick another name.",
   "ENUMERATION_TYPE_NOT_FOUND": "That list no longer exists. It may have been deleted.",
   "ENUMERATION_TYPE_IN_USE": "This list still holds {values} value(s). Delete them first, then delete the list.",

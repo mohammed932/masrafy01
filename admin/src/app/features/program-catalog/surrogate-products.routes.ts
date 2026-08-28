@@ -23,6 +23,14 @@ export const SURROGATE_PRODUCTS_ROUTES: Routes = [
     loadComponent: () => import('./surrogate-products.page').then((m) => m.SurrogateProductsPage),
   },
   {
+    // Declared BEFORE the single-segment `:key` on purpose. Angular matches leaf routes
+    // against the WHOLE remaining URL, so a three-segment path would fall through anyway
+    // — but the order also states the intent: this is a screen, not a product called
+    // "asks".
+    path: ':key/asks/new',
+    loadComponent: () => import('./product-fact.page').then((m) => m.ProductFactPage),
+  },
+  {
     path: ':key',
     loadComponent: () =>
       import('./surrogate-product-detail.page').then((m) => m.SurrogateProductDetailPage),

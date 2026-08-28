@@ -340,8 +340,11 @@ const YEARS_IN_PRACTICE_Q: SeedQuestion = {
 
 // ── COLLATERAL PRODUCTS — the gate, then the pack ─────────────────────────
 //
-// A collateral product (here: the loan against a car the applicant already owns) asks about a
-// thing the applicant OWNS, not about their salary. Two rules shape how:
+// A collateral product asks about a thing the applicant OWNS, not about their salary. No such
+// product is seeded here any more — every one is built by an operator on
+// `/surrogate-products/:key`, which writes its own list, question and fact — but the two rules
+// that shape one are worth stating, because the screen follows them and a hand-written seed
+// that broke them would publish a funnel nobody can walk:
 //
 //   1. **One cheap GATE in the funnel, required.** "Do you own a car?" is a single tap and it
 //      is what decides whether the heavy questions are ever shown — and later, whether the
@@ -357,13 +360,9 @@ const YEARS_IN_PRACTICE_Q: SeedQuestion = {
 // program listed with a stated reason and no figures (FR-020), which is the behaviour the
 // product asked for.
 //
-// Every pack question is bound to a `surrogate_fact` row by `seed-collateral-products.ts`,
-// so its answer reaches the engine in `ApplicantProfile.surrogateFacts` with no mapping
-// code on either client. The binding lives on the FACT, never on the question (A33).
-//
-// A product an OPERATOR builds gets all three pieces — the list, the question and the fact —
-// from its own screen (`/surrogate-products/:key`), with no edit here. This file seeds only
-// what ships in the box.
+// A pack question reaches the engine because a `surrogate_fact` row is BOUND to it, so its
+// answer lands in `ApplicantProfile.surrogateFacts` with no mapping code on either client.
+// The binding lives on the FACT, never on the question (A33).
 
 // Which banks the applicant already uses. ONE bank-agnostic question feeding a per-program
 // answer: several banks lend more to a customer they already have (a "top-up" or cross-sell
@@ -386,76 +385,19 @@ const EXISTING_BANK_RELATIONSHIPS_Q: SeedQuestion = {
   options: [],
 };
 
-// The car the applicant ALREADY owns — the collateral, not the car being financed. The
-// `vehicle_*` questions in CAR's own first group ask about the purchase; these three ask what
-// the applicant can borrow AGAINST, which is a different car and a different answer.
-const OWNS_CAR_Q: SeedQuestion = {
-  code: 'owns_car',
-  questionEn: 'Do you own a car outright?',
-  questionAr: 'هل تمتلك سيارة خالصة الثمن؟',
-  helperTextEn: 'Some banks lend against the car itself, with no payslip.',
-  helperTextAr: 'بعض البنوك تمنح تمويلًا بضمان السيارة نفسها بدون مفردات راتب.',
-  // REQUIRED: one tap, and it is what decides whether the two
-  // questions below are ever shown.
-  options: YESNO(),
-};
-
-const OWNED_CAR_GATED = {
-  questionCode: 'owns_car',
-  operator: 'equals' as const,
-  optionCode: 'yes',
-};
-
-const OWNED_CAR_VALUE_Q: SeedQuestion = {
-  code: 'owned_car_value',
-  type: 'NUMERIC',
-  questionEn: 'About how much is your car worth today?',
-  questionAr: 'سيارتك تساوي كام تقريبًا دلوقتي؟',
-  helperTextEn: 'What it would sell for now, not what you paid for it.',
-  helperTextAr: 'سعرها في السوق الآن، وليس السعر الذي اشتريتها به.',
-  isRequired: false,
-  enabledWhen: OWNED_CAR_GATED,
-  numeric: { minValue: '0', maxValue: '20000000', step: '10000', unitEn: 'EGP', unitAr: 'جنيه' },
-  options: [],
-};
-
-const OWNED_CAR_AGE_Q: SeedQuestion = {
-  code: 'owned_car_age',
-  questionEn: 'How old is the car?',
-  questionAr: 'عمر السيارة كام؟',
-  helperTextEn: 'Banks advance a smaller share of the value on an older car.',
-  helperTextAr: 'البنوك تمنح نسبة أقل من قيمة السيارة كلما زاد عمرها.',
-  isRequired: false,
-  enabledWhen: OWNED_CAR_GATED,
-  // Buckets, not a model year: a bank's advance table is keyed by age band, so an exact year
-  // would be a key no table has.
-  options: [
-    { code: 'up_to_3', labelEn: 'Up to 3 years', labelAr: 'حتى 3 سنوات' },
-    { code: '3_to_7', labelEn: '3 to 7 years', labelAr: 'من 3 إلى 7 سنوات' },
-    { code: 'over_7', labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
-  ],
-};
-/** The gates — cheap, required, and the only part every applicant sees. */
+/**
+ * The gates — cheap, and the only part every applicant sees.
+ *
+ * Named for the collateral packs it was built to front. It now carries one question that is
+ * not about collateral at all, and the code stays as it is on purpose: the code is what the
+ * stored group row and every archived snapshot are keyed by, so renaming it would orphan both
+ * to buy a better word.
+ */
 const COLLATERAL_GATES_GROUP: SeedGroup = {
   code: 'collateral_gates',
   titleEn: 'What you already own',
   titleAr: 'ما تملكه بالفعل',
   questions: [EXISTING_BANK_RELATIONSHIPS_Q],
-};
-
-/**
- * The owned-car pack — the gate AND its two questions in ONE group, deliberately.
- *
- * A product whose gate rides `COLLATERAL_GATES_GROUP` has to split them, because that group is
- * carried by two categories and its gate would be dragged into a category with no pack to show
- * for it. CAR carries that group in no category, so one group is enough — and it means a
- * non-owner sees a single question and no extra step.
- */
-const OWNED_CAR_GROUP: SeedGroup = {
-  code: 'owned_car_details',
-  titleEn: 'About the car you own',
-  titleAr: 'تفاصيل السيارة التي تمتلكها',
-  questions: [OWNS_CAR_Q, OWNED_CAR_VALUE_Q, OWNED_CAR_AGE_Q],
 };
 
 const EMPLOYER_APPROVED_Q: SeedQuestion = {
@@ -832,10 +774,9 @@ const PERSONAL: CategoryConfig = {
         YEARS_IN_PRACTICE_Q,
       ],
     },
-    // A collateral product is sold under `personal` and `mortgage`. The reference here IS
-    // the assignment (`question_loan_category`, A33) — nothing else in the codebase holds a
-    // list of which categories may sell one, so widening it is an admin action on the
-    // questionnaire screen, never a release.
+    // The reference here IS the assignment (`question_loan_category`, A33) — nothing else in
+    // the codebase holds a list of which categories ask this, so widening it is an admin
+    // action on the questionnaire screen, never a release.
     COLLATERAL_GATES_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
@@ -917,10 +858,9 @@ const MORTGAGE: CategoryConfig = {
         ACTIVE_ACCOUNT_Q,
       ],
     },
-    // A collateral product is sold under `personal` and `mortgage`. The reference here IS
-    // the assignment (`question_loan_category`, A33) — nothing else in the codebase holds a
-    // list of which categories may sell one, so widening it is an admin action on the
-    // questionnaire screen, never a release.
+    // The reference here IS the assignment (`question_loan_category`, A33) — nothing else in
+    // the codebase holds a list of which categories ask this, so widening it is an admin
+    // action on the questionnaire screen, never a release.
     COLLATERAL_GATES_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
@@ -999,10 +939,6 @@ const CAR: CategoryConfig = {
         YEARS_IN_PRACTICE_Q,
       ],
     },
-    // The car-ownership loan is sold under `car` only. The reference here IS the assignment
-    // (`question_loan_category`, A33), so widening it to `personal` is an admin action on the
-    // questionnaire screen, never a release.
-    OWNED_CAR_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],

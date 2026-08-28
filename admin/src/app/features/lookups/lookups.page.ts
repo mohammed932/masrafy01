@@ -28,15 +28,16 @@ import {
   PageHeaderComponent,
   SkeletonRowsComponent,
   StatStripComponent,
+  openFormDrawer,
   type StatStripItem,
 } from '@shared/ui';
 import type { EnumerationTypeSummary } from './lookups.api.service';
-import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
 import {
-  EnumerationTypeEditDialogComponent,
-  type EnumerationTypeDialogData,
-} from '@shared/lookups/enumeration-type-edit.dialog';
+  EnumerationTypeEditDrawerComponent,
+  type EnumerationTypeDrawerData,
+} from '@shared/lookups/enumeration-type-edit.drawer';
 import {
   LookupTypeRailComponent,
   type LookupTypeCard,
@@ -209,7 +210,7 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
 export class LookupsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
   private readonly enumTypes = inject(EnumerationTypesService);
   private readonly locale = inject(LOCALE_ID);
   private readonly isAr = String(this.locale).startsWith('ar');
@@ -297,32 +298,26 @@ export class LookupsPage implements OnInit {
   }
 
   protected openCreateType(): void {
-    this.openTypeDialog({ mode: 'create' });
+    this.openTypeDrawer({ mode: 'create' });
   }
 
   protected openEditType(type: string): void {
     const definition = this.enumTypes.definition(type);
-    if (definition) this.openTypeDialog({ mode: 'edit', definition });
+    if (definition) this.openTypeDrawer({ mode: 'edit', definition });
   }
 
   /**
-   * `NzModalService`, not a locally rendered scrim: a `position: fixed` backdrop inside
-   * `section.page` is trapped by that element's own `app-page-rise` animation, which dims
-   * the panel and not the viewport (A34).
+   * A side sheet (`NzDrawerService`), not a locally rendered panel: it is portaled to the
+   * body, so the scrim covers the viewport — a `position: fixed` backdrop inside
+   * `section.page` is trapped by that element's own `app-page-rise` animation and dims the
+   * panel only (A34). The rail of kinds stays readable beside the form.
    */
-  private openTypeDialog(data: EnumerationTypeDialogData): void {
-    const ref = this.modal.create<
-      EnumerationTypeEditDialogComponent,
-      EnumerationTypeDialogData,
+  private openTypeDrawer(data: EnumerationTypeDrawerData): void {
+    const ref = openFormDrawer<
+      EnumerationTypeEditDrawerComponent,
+      EnumerationTypeDrawerData,
       boolean
-    >({
-      nzContent: EnumerationTypeEditDialogComponent,
-      nzData: data,
-      nzFooter: null,
-      nzWidth: 520,
-      nzCentered: true,
-      nzMaskClosable: false,
-    });
+    >(this.drawer, { content: EnumerationTypeEditDrawerComponent, data });
     ref.afterClose.subscribe(async (saved: boolean | undefined) => {
       if (!saved) return;
       await this.reloadTypes({ silent: true });

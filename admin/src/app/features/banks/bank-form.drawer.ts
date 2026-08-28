@@ -10,22 +10,23 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { NZ_MODAL_DATA, NzModalRef } from 'ng-zorro-antd/modal';
-import { UploadOutline, CloseOutline } from '@ant-design/icons-angular/icons';
+import { NZ_DRAWER_DATA, NzDrawerRef } from 'ng-zorro-antd/drawer';
+import { UploadOutline, CloseOutline, BankOutline } from '@ant-design/icons-angular/icons';
+import { FormDrawerComponent } from '@shared/ui';
 import { ErrorCodeService } from '../../core/errors/error-code.service';
 import { BanksApiService } from './banks.api.service';
 import type { BankWithProgramCount } from './banks.types';
 
-export interface BankFormDialogData {
+export interface BankFormDrawerData {
   mode: 'create' | 'edit';
   bank?: BankWithProgramCount;
 }
-export interface BankFormDialogResult {
+export interface BankFormDrawerResult {
   saved: boolean;
 }
 
 @Component({
-  selector: 'app-bank-form-dialog',
+  selector: 'app-bank-form-drawer',
   standalone: true,
   imports: [
     CommonModule,
@@ -36,111 +37,108 @@ export interface BankFormDialogResult {
     NzIconModule,
     NzInputModule,
     NzInputNumberModule,
+    FormDrawerComponent,
   ],
-  providers: [provideNzIconsPatch([UploadOutline, CloseOutline])],
+  providers: [provideNzIconsPatch([UploadOutline, CloseOutline, BankOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <form [formGroup]="form" (ngSubmit)="submit()" class="form">
-      <h2 class="title">{{ data.mode === 'create' ? 'Add bank' : 'Edit bank' }}</h2>
-
-      <div class="row">
-        <nz-form-item>
-          <nz-form-label nzRequired i18n="@@banks.field.name_en">Name (English)</nz-form-label>
-          <nz-form-control [nzErrorTip]="nameEnErr">
-            <input nz-input formControlName="nameEnglish" />
-            <ng-template #nameEnErr i18n="@@banks.help.name_en"
-              >A bank with this English name already exists.</ng-template
-            >
-          </nz-form-control>
-        </nz-form-item>
-        <nz-form-item>
-          <nz-form-label nzRequired i18n="@@banks.field.name_ar">Name (Arabic)</nz-form-label>
-          <nz-form-control>
-            <input nz-input formControlName="nameArabic" dir="rtl" />
-          </nz-form-control>
-        </nz-form-item>
-      </div>
-
-      <nz-form-item>
-        <nz-form-label i18n="@@banks.field.website">Website</nz-form-label>
-        <nz-form-control>
-          <input nz-input formControlName="websiteUrl" placeholder="https://" />
-        </nz-form-control>
-      </nz-form-item>
-
-      <nz-form-item>
-        <nz-form-label i18n="@@banks.field.notes">Notes</nz-form-label>
-        <nz-form-control>
-          <textarea nz-input formControlName="notes" rows="2"></textarea>
-        </nz-form-control>
-      </nz-form-item>
-
-      <div class="row">
-        <nz-form-item>
-          <nz-form-label i18n="@@banks.field.display_order">Display order</nz-form-label>
-          <nz-form-control>
-            <nz-input-number
-              formControlName="displayOrder"
-              [nzMin]="0"
-              [nzStep]="1"
-              class="num-field"
-            ></nz-input-number>
-          </nz-form-control>
-        </nz-form-item>
-        <nz-form-item>
-          <nz-form-label i18n="@@banks.field.active">Active</nz-form-label>
-          <nz-form-control>
-            <label nz-checkbox formControlName="isActive" i18n="@@banks.field.active">Active</label>
-          </nz-form-control>
-        </nz-form-item>
-        <nz-form-item>
-          <nz-form-label i18n="@@banks.field.featured">Featured partner</nz-form-label>
-          <nz-form-control
-            i18n-nzExtra="@@banks.field.featured.help"
-            nzExtra="Boost this bank's offers in mobile ranking when ties exist"
-          >
-            <label nz-checkbox formControlName="isFeatured" i18n="@@banks.field.featured"
-              >Featured partner</label
-            >
-          </nz-form-control>
-        </nz-form-item>
-      </div>
-
-      @if (data.mode === 'edit') {
-        <div class="logo-row">
-          <label class="logo-label" i18n="@@banks.field.logo">Logo</label>
-          <input
-            type="file"
-            #fileInput
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            (change)="onPick(fileInput)"
-            hidden
-          />
-          <button nz-button type="button" (click)="fileInput.click()" [nzLoading]="uploading()">
-            <span nz-icon nzType="upload" nzTheme="outline" aria-hidden="true"></span>
-            <span>Upload logo</span>
-          </button>
-          @if (logoPreview()) {
-            <img [src]="logoPreview()" alt="" class="preview" />
-          }
+    <app-form-drawer
+      [title]="drawerTitle"
+      [subtitle]="drawerSubtitle"
+      [submitLabel]="submitLabel"
+      [submitDisabled]="form.invalid"
+      [submitting]="saving()"
+      (cancelled)="cancel()"
+      (submitted)="submit()"
+    >
+      <span drawerIcon nz-icon nzType="bank" nzTheme="outline"></span>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="form">
+        <div class="row">
+          <nz-form-item>
+            <nz-form-label nzRequired i18n="@@banks.field.name_en">Name (English)</nz-form-label>
+            <nz-form-control [nzErrorTip]="nameEnErr">
+              <input nz-input formControlName="nameEnglish" />
+              <ng-template #nameEnErr i18n="@@banks.help.name_en"
+                >A bank with this English name already exists.</ng-template
+              >
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label nzRequired i18n="@@banks.field.name_ar">Name (Arabic)</nz-form-label>
+            <nz-form-control>
+              <input nz-input formControlName="nameArabic" dir="rtl" />
+            </nz-form-control>
+          </nz-form-item>
         </div>
-      }
 
-      <footer class="footer">
-        <button nz-button type="button" (click)="cancel()" [disabled]="saving()">
-          <span i18n="@@banks.form.cancel">Cancel</span>
-        </button>
-        <button
-          nz-button
-          nzType="primary"
-          type="submit"
-          [disabled]="form.invalid || saving()"
-          [nzLoading]="saving()"
-        >
-          <span i18n="@@banks.form.save">{{ data.mode === 'create' ? 'Create' : 'Save' }}</span>
-        </button>
-      </footer>
-    </form>
+        <nz-form-item>
+          <nz-form-label i18n="@@banks.field.website">Website</nz-form-label>
+          <nz-form-control>
+            <input nz-input formControlName="websiteUrl" placeholder="https://" />
+          </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+          <nz-form-label i18n="@@banks.field.notes">Notes</nz-form-label>
+          <nz-form-control>
+            <textarea nz-input formControlName="notes" rows="2"></textarea>
+          </nz-form-control>
+        </nz-form-item>
+
+        <div class="row">
+          <nz-form-item>
+            <nz-form-label i18n="@@banks.field.display_order">Display order</nz-form-label>
+            <nz-form-control>
+              <nz-input-number
+                formControlName="displayOrder"
+                [nzMin]="0"
+                [nzStep]="1"
+                class="num-field"
+              ></nz-input-number>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label i18n="@@banks.field.active">Active</nz-form-label>
+            <nz-form-control>
+              <label nz-checkbox formControlName="isActive" i18n="@@banks.field.active"
+                >Active</label
+              >
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label i18n="@@banks.field.featured">Featured partner</nz-form-label>
+            <nz-form-control
+              i18n-nzExtra="@@banks.field.featured.help"
+              nzExtra="Boost this bank's offers in mobile ranking when ties exist"
+            >
+              <label nz-checkbox formControlName="isFeatured" i18n="@@banks.field.featured"
+                >Featured partner</label
+              >
+            </nz-form-control>
+          </nz-form-item>
+        </div>
+
+        @if (data.mode === 'edit') {
+          <div class="logo-row">
+            <label class="logo-label" i18n="@@banks.field.logo">Logo</label>
+            <input
+              type="file"
+              #fileInput
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              (change)="onPick(fileInput)"
+              hidden
+            />
+            <button nz-button type="button" (click)="fileInput.click()" [nzLoading]="uploading()">
+              <span nz-icon nzType="upload" nzTheme="outline" aria-hidden="true"></span>
+              <span>Upload logo</span>
+            </button>
+            @if (logoPreview()) {
+              <img [src]="logoPreview()" alt="" class="preview" />
+            }
+          </div>
+        }
+      </form>
+    </app-form-drawer>
   `,
   styles: [
     `
@@ -151,12 +149,6 @@ export interface BankFormDialogResult {
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
-      }
-      .title {
-        font-size: var(--text-lg);
-        font-weight: 700;
-        margin: 0 0 var(--space-2);
-        color: var(--text-primary);
       }
       .row {
         display: grid;
@@ -184,19 +176,28 @@ export interface BankFormDialogResult {
         border: 1px solid var(--border-default);
         border-radius: var(--radius-sm);
       }
-      .footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: var(--space-2);
-        margin-block-start: var(--space-3);
-      }
     `,
   ],
 })
-export class BankFormDialog {
-  protected readonly data = inject<BankFormDialogData>(NZ_MODAL_DATA);
+export class BankFormDrawer {
+  protected readonly data = inject<BankFormDrawerData>(NZ_DRAWER_DATA);
   private readonly ref =
-    inject<NzModalRef<BankFormDialog, BankFormDialogResult | undefined>>(NzModalRef);
+    inject<NzDrawerRef<BankFormDrawer, BankFormDrawerResult | undefined>>(NzDrawerRef);
+
+  // Was two hardcoded English strings in the template — the title read "Add bank"
+  // in the Arabic build too (A20).
+  protected readonly drawerTitle =
+    this.data.mode === 'create'
+      ? $localize`:@@banks.form.titleCreate:Add bank`
+      : $localize`:@@banks.form.titleEdit:Edit bank`;
+  protected readonly drawerSubtitle =
+    this.data.mode === 'create'
+      ? $localize`:@@banks.form.subCreate:Registers the partner. Its loan programs are added afterwards, from the bank's own page.`
+      : $localize`:@@banks.form.subEdit:Updates the partner's details everywhere its programs and offers are shown.`;
+  protected readonly submitLabel =
+    this.data.mode === 'create'
+      ? $localize`:@@banks.form.create:Create bank`
+      : $localize`:@@banks.form.save:Save`;
   private readonly api = inject(BanksApiService);
   private readonly message = inject(NzMessageService);
   private readonly errors = inject(ErrorCodeService);

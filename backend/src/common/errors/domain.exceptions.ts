@@ -480,6 +480,24 @@ export class EnumerationHasChildrenException extends DomainException {
   }
 }
 
+/**
+ * A value could not go because the list IS a question's answers and two must remain.
+ *
+ * `remaining` is the count AFTER the refused write, so the operator reads how far short
+ * they are rather than how many there are now.
+ */
+export class MirroredListMinValuesException extends DomainException {
+  constructor(meta: {
+    type: string;
+    key: string;
+    questionCode: string;
+    remaining: number;
+    minimum: number;
+  }) {
+    super(ERROR_CODES.MIRRORED_LIST_MIN_VALUES, meta);
+  }
+}
+
 /** A KIND of list was created with a key another kind already holds. */
 export class EnumerationTypeDuplicateException extends DomainException {
   constructor(meta: { key: string }) {
@@ -513,14 +531,35 @@ export class EnumerationTypeInUseException extends DomainException {
  * an alternative (relabel it, which IS allowed), a delete does not.
  */
 export class EnumerationTypeSystemOnlyException extends DomainException {
-  constructor(meta: { key: string; attempted: 'rename' | 'delete' }) {
+  constructor(meta: {
+    key: string;
+    /**
+     * `reconfigure` is every settings field a builtin does not own — the parent axis, the
+     * active flag, the delete gate, the rail. It was reported as `rename`, which told the
+     * operator to relabel instead: advice that is right for a key change and meaningless for
+     * a re-parent. `fields` names what was refused.
+     */
+    attempted: 'rename' | 'delete' | 'reconfigure';
+    fields?: readonly string[];
+  }) {
     super(ERROR_CODES.ENUMERATION_TYPE_SYSTEM_ONLY, meta);
+  }
+}
+
+/** A KIND could not be deleted because other kinds name it as their parent axis. */
+export class EnumerationTypeIsParentAxisException extends DomainException {
+  constructor(meta: { key: string; childTypes: readonly string[]; count: number }) {
+    super(ERROR_CODES.ENUMERATION_TYPE_IS_PARENT_AXIS, meta);
   }
 }
 
 /** A KIND was filed under a parent kind that does not exist, or under itself. */
 export class EnumerationTypeParentInvalidException extends DomainException {
-  constructor(meta: { key: string; parentTypeKey: string; reason: 'missing' | 'self' }) {
+  constructor(meta: {
+    key: string;
+    parentTypeKey: string;
+    reason: 'missing' | 'self' | 'cycle';
+  }) {
     super(ERROR_CODES.ENUMERATION_TYPE_PARENT_INVALID, meta);
   }
 }
