@@ -502,6 +502,46 @@ export const ERROR_CODES = {
    */
   PRODUCT_RULE_INVALID: 'PRODUCT_RULE_INVALID',
 
+  // --- The friendly form ---
+  // A surrogate product's calculation, authored by answering three plain questions instead
+  // of wiring steps by hand. The form is stored beside the rule it compiles to; these three
+  // are the only ways a save of it is refused.
+
+  /**
+   * The FORM is not one the compiler can turn into a rule — `meta.reason` says which of
+   * `TEMPLATE_INVALID_REASONS` applied, `meta.detail` names the offending value.
+   *
+   * Separate from `PRODUCT_RULE_INVALID`, and the split is not cosmetic: this one is about
+   * the answers the operator gave, which is what is on their screen, while that one is about
+   * the compiled steps, which on this path nobody typed. Reporting a step id to somebody who
+   * never saw a step list would name a thing they cannot find.
+   */
+  PRODUCT_TEMPLATE_INVALID: 'PRODUCT_TEMPLATE_INVALID',
+  /**
+   * Saving this form would throw away figures a bank has already typed.
+   *
+   * A bank's numbers live in `stepParams` keyed by STEP ID, and so do the estimated-value
+   * markers. Recompiling a changed form can stop emitting a step — removing one of the two
+   * ways of reaching the figure, or a column — and every number filed under it is then
+   * orphaned: the program still reads as configured and quotes nothing, or quotes off a
+   * different derivation entirely.
+   *
+   * So the save is REFUSED rather than reconciled. `meta.programCodes` names the programs
+   * that would lose figures and `meta.lostKeys` the boxes, so the operator can clear them
+   * deliberately instead of discovering it from a customer.
+   */
+  PRODUCT_TEMPLATE_ORPHANS_FIGURES: 'PRODUCT_TEMPLATE_ORPHANS_FIGURES',
+  /**
+   * This product's calculation was authored through the raw step editor, so there is no form
+   * to edit.
+   *
+   * Using Advanced is one-way BY DESIGN — a hand-edited step list has shapes the form cannot
+   * describe, and a form that half-describes a live calculation is worse than no form. The
+   * remedy is to start again from a shape, which creates a NEW product rather than silently
+   * replacing this one.
+   */
+  PRODUCT_TEMPLATE_NOT_EDITABLE: 'PRODUCT_TEMPLATE_NOT_EDITABLE',
+
   // --- One name, one income proof ---
   // A catalog program name states exactly ONE thing a bank works the income out from.
   // Every surrogate program filed under that name reads the same one; a bank wanting a
@@ -813,6 +853,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   INCOME_RULE_DBR_OVERRIDE_INVALID: 422,
   INCOME_RULE_FACT_UNAVAILABLE: 422,
   PRODUCT_RULE_INVALID: 422,
+  PRODUCT_TEMPLATE_INVALID: 422,
+  PRODUCT_TEMPLATE_ORPHANS_FIGURES: 409,
+  PRODUCT_TEMPLATE_NOT_EDITABLE: 409,
   PROGRAM_NAME_INCOME_PROOF_MISMATCH: 422,
   PROGRAM_NAME_INCOME_PROOF_MISSING: 422,
   INCOME_PROOF_IN_USE: 422,

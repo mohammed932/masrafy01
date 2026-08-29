@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BankProgramType, Prisma } from '@prisma/client';
+import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { LoanCategory, PlatformEnumeration, QuestionType } from '@prisma/client';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
@@ -661,6 +662,7 @@ export class PostgresPlatformEnumerationsRepository
     labelAr: true,
     labelEn: true,
     incomeRule: true,
+    templateSpec: true,
     valueSources: true,
     surrogateProductKey: true,
   } as const;
@@ -704,8 +706,48 @@ export class PostgresPlatformEnumerationsRepository
     rule: IncomeAssumptionConfig | null,
     valueSources: Record<string, 'team_estimated'>,
     updatedBy: string,
+    template?: ProductTemplate | null,
   ): Promise<ProgramNameIncomeRuleRow> {
-    return this.setRuleRow('surrogate_product', key, rule, valueSources, updatedBy);
+    return this.setRuleRow('surrogate_product', key, rule, valueSources, updatedBy, template);
+  }
+
+  /**
+   * The boxes each bank program under this product has typed a figure into.
+   *
+   * `programNameKey` is not an FK, so the two hops are two reads rather than a join. The
+   * name list is small (a product is read by a handful of names) and this runs only on a
+   * save, so one `IN` is enough.
+   */
+  async programFigureKeysUnderProduct(
+    productKey: string,
+  ): Promise<Array<{ programCode: string; keys: string[] }>> {
+    const names = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name', surrogateProductKey: productKey },
+      select: { key: true },
+    });
+    if (names.length === 0) return [];
+
+    const programs = await this.prisma.bankProgram.findMany({
+      where: {
+        programNameKey: { in: names.map((n) => n.key) },
+        programType: BankProgramType.income_surrogate,
+      },
+      select: { programCode: true, incomeAssumption: true },
+      orderBy: { programCode: 'asc' },
+    });
+
+    return programs.map((program) => {
+      const config = program.incomeAssumption as unknown as IncomeAssumptionConfig;
+      const params = config?.stepParams ?? {};
+      return {
+        programCode: program.programCode,
+        // Only boxes that HOLD something. An empty params entry is a box nobody filled in,
+        // and refusing an edit over one would block the operator on nothing.
+        keys: Object.entries(params)
+          .filter(([, figures]) => holdsAFigure(figures))
+          .map(([key]) => key),
+      };
+    });
   }
 
   private async setRuleRow(
@@ -714,6 +756,7 @@ export class PostgresPlatformEnumerationsRepository
     rule: IncomeAssumptionConfig | null,
     valueSources: Record<string, 'team_estimated'>,
     updatedBy: string,
+    template?: ProductTemplate | null,
   ): Promise<ProgramNameIncomeRuleRow> {
     const row = await this.prisma.platformEnumeration.update({
       where: { idx_platform_enumeration_type_key: { type, key } },
@@ -723,6 +766,17 @@ export class PostgresPlatformEnumerationsRepository
         // rule and would make `programNameIncomeRules` filter it out for a different
         // reason each time the column is touched.
         incomeRule: rule === null ? Prisma.DbNull : (rule as unknown as Prisma.InputJsonValue),
+        // ABSENT means "not touching the form", which is what a figures-only write is. The
+        // two present spellings are `null` (there is no form — this was authored by hand)
+        // and the form itself. `Prisma.DbNull` for the same reason `incomeRule` uses it:
+        // `JsonNull` would store the literal `null`, which reads back as a present-but-empty
+        // form and would make the screen offer to edit one that does not exist.
+        ...(template === undefined
+          ? {}
+          : {
+              templateSpec:
+                template === null ? Prisma.DbNull : (template as unknown as Prisma.InputJsonValue),
+            }),
         valueSources: valueSources as Prisma.InputJsonValue,
         updatedBy,
       },
@@ -1218,8 +1272,9 @@ export class PostgresPlatformEnumerationsRepository
       }),
     ]);
 
-    const countOf = (rows: Array<{ type: string; _count: { _all: number } }>): Map<string, number> =>
-      new Map(rows.map((r) => [r.type, r._count._all]));
+    const countOf = (
+      rows: Array<{ type: string; _count: { _all: number } }>,
+    ): Map<string, number> => new Map(rows.map((r) => [r.type, r._count._all]));
     const totalBy = countOf(totals);
     const activeBy = countOf(actives);
     const deprecatedBy = countOf(deprecateds);
@@ -1819,10 +1874,7 @@ export class PostgresPlatformEnumerationsRepository
    * same reason `countProgramNameUsage` does: bank-programs already depends on this
    * module, so importing back would close a cycle.
    */
-  async countReferences(
-    type: string,
-    key: string,
-  ): Promise<EnumerationReference[] | null> {
+  async countReferences(type: string, key: string): Promise<EnumerationReference[] | null> {
     // The gate, stated once. `countReferences` returning `null` is what refuses a delete, and
     // the switch below used to BE that list implicitly — so the admin rendered a Delete button
     // on every type and learned the answer from a 422. The gate is now the KIND's own
@@ -1972,12 +2024,43 @@ function readsAFactWithNoTable(rule: unknown): boolean {
  * column is only ever written by this repository, but a hand-run SQL fix is exactly
  * the case where "no rule" must not read as a rule.
  */
+/**
+ * Has a bank actually stated something under this step or gate id?
+ *
+ * `applies` counts even though it is not a number: on a choice gate it is the whole of what
+ * the bank said — "this condition is mine" — and losing it silently turns a refusal rule
+ * off. Every other key is a figure or a table of them.
+ */
+function holdsAFigure(figures: unknown): boolean {
+  if (figures === null || typeof figures !== 'object') return false;
+  const f = figures as {
+    valueEGP?: unknown;
+    keyTable?: unknown[];
+    bands?: unknown[];
+    scalar?: { value?: unknown };
+    minValue?: unknown;
+    maxValue?: unknown;
+    applies?: unknown;
+  };
+  const stated = (value: unknown): boolean => value !== undefined && value !== null && value !== '';
+  return (
+    stated(f.valueEGP) ||
+    (f.keyTable?.length ?? 0) > 0 ||
+    (f.bands?.length ?? 0) > 0 ||
+    stated(f.scalar?.value) ||
+    stated(f.minValue) ||
+    stated(f.maxValue) ||
+    f.applies === true
+  );
+}
+
 function toProgramNameIncomeRuleRow(row: {
   id: string;
   key: string;
   labelAr: string;
   labelEn: string;
   incomeRule: unknown;
+  templateSpec?: unknown;
   valueSources: unknown;
   surrogateProductKey?: string | null;
 }): ProgramNameIncomeRuleRow {
@@ -1990,6 +2073,12 @@ function toProgramNameIncomeRuleRow(row: {
       row.incomeRule === null || typeof row.incomeRule !== 'object'
         ? null
         : (row.incomeRule as IncomeAssumptionConfig),
+    templateSpec:
+      row.templateSpec === null ||
+      row.templateSpec === undefined ||
+      typeof row.templateSpec !== 'object'
+        ? null
+        : (row.templateSpec as ProductTemplate),
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
     surrogateProductKey: row.surrogateProductKey ?? null,
   };

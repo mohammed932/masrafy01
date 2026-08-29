@@ -61,12 +61,14 @@ import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.co
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { ProductRuleBuilderComponent } from '@shared/income-rule/product-rule-builder.component';
+import { productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import {
   LookupsApiService,
   type EnumerationTypeSummary,
 } from '@features/lookups/lookups.api.service';
+import { QuestionnaireApiService } from '@features/questionnaire/questionnaire.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
@@ -250,10 +252,35 @@ interface AskedThing {
                             >
                           }
                         </p>
-                        <p class="ask-key mono">{{ thing.factKey }}</p>
+                        <div class="ask-foot">
+                          <span class="ask-key mono">{{ thing.factKey }}</span>
+                          <span class="ask-acts">
+                            <a
+                              class="linkish"
+                              routerLink="/questionnaire/questions"
+                              i18n="@@spd.ask.edit"
+                              >Edit the wording</a
+                            >
+                            <button
+                              type="button"
+                              class="linkish is-danger"
+                              [disabled]="removing() === thing.factKey"
+                              (click)="removeAsk(thing)"
+                            >
+                              <span i18n="@@spd.ask.remove">Remove</span>
+                            </button>
+                          </span>
+                        </div>
                       </li>
                     }
                   </ul>
+                }
+
+                @if (askError(); as message) {
+                  <p class="notice is-bad" role="alert">
+                    <span nz-icon nzType="exclamation-circle" nzTheme="outline"></span>
+                    <span>{{ message }}</span>
+                  </p>
                 }
 
                 <div class="actions">
@@ -293,12 +320,53 @@ interface AskedThing {
             }
             @case (1) {
               <section class="panel" [attr.aria-label]="steps()[1]?.label ?? ''">
+                @if (hasTemplate()) {
+                  <!-- Authored through the form: say what it does in words, and offer the
+                       form. The steps stay reachable below, but they are not the door. -->
+                  <div class="from-form">
+                    <p class="from-form-lede">
+                      <span i18n="@@spd.form.lede"
+                        >This calculation was built from a form, so it can be changed by answering
+                        the same questions again.</span
+                      >
+                    </p>
+                    <a
+                      class="from-form-cta"
+                      [routerLink]="['/surrogate-products', key, 'calculation']"
+                      i18n="@@spd.form.edit"
+                      >Change how the income is worked out</a
+                    >
+                  </div>
+                } @else if (isPipeline()) {
+                  <p class="notice" role="status">
+                    <span i18n="@@spd.form.handbuilt"
+                      >This calculation was built step by step rather than from a form, so there is
+                      no form to open for it.</span
+                    >
+                    <a class="linkish" routerLink="/surrogate-products/new" i18n="@@spd.form.start"
+                      >Start a new product from a shape</a
+                    >
+                  </p>
+                }
+
                 @if (isPipeline()) {
                   <details class="structure" [open]="structureOpen()">
                     <summary (click)="toggleStructure($event)">
                       <span i18n="@@spd.structure.title">The steps this product runs</span>
                       <span class="structure-count">{{ ruleSteps().length }}</span>
                     </summary>
+                    @if (hasTemplate()) {
+                      <!-- Stated where the damage would happen, not in a modal after the
+                           fact: editing here is one-way, and the operator should know before
+                           they touch a control rather than after. -->
+                      <p class="warn-line" role="status">
+                        <span i18n="@@spd.structure.one_way"
+                          >Editing the steps by hand switches the form off for this product, for
+                          good. A calculation the form cannot describe is one it must not pretend
+                          to.</span
+                        >
+                      </p>
+                    }
                     <app-product-rule-builder
                       [steps]="builderSteps()"
                       (stepsChange)="onBuilderSteps($event)"
@@ -313,9 +381,15 @@ interface AskedThing {
                 } @else {
                   <p class="notice" role="status">
                     <span i18n="@@spd.structure.offer">
-                      This product works its income out from a single figure. If the bank needs
-                      several steps — a table, then a percentage, then a cap — build them here.
+                      This product works its income out from a single figure. Answer three questions
+                      and we will build the calculation, or write the steps yourself.
                     </span>
+                    <a
+                      class="linkish"
+                      [routerLink]="['/surrogate-products', key, 'calculation']"
+                      i18n="@@spd.structure.form"
+                      >Build it from a form</a
+                    >
                     <button type="button" class="linkish" (click)="startPipeline()">
                       <span i18n="@@spd.structure.start">Work it out step by step</span>
                     </button>
@@ -359,12 +433,22 @@ interface AskedThing {
                   }
                 </p>
 
+                @if (ruleBlocked()) {
+                  <p class="notice is-bad" role="alert">
+                    <span nz-icon nzType="exclamation-circle" nzTheme="outline"></span>
+                    <span i18n="@@spd.save_blocked"
+                      >Some steps have no figures yet, or a step offering several ways to reach the
+                      figure has none of them filled in. The save would be refused.</span
+                    >
+                  </p>
+                }
+
                 <div class="actions">
                   <button
                     nz-button
                     nzType="primary"
                     type="button"
-                    [disabled]="!dirty() || saving()"
+                    [disabled]="!dirty() || saving() || ruleBlocked()"
                     [nzLoading]="saving()"
                     (click)="save()"
                   >
@@ -568,6 +652,49 @@ interface AskedThing {
       .structure > summary:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 2px;
+      }
+      .from-form {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+      }
+      .from-form-lede {
+        margin: 0;
+        flex: 1 1 20rem;
+        min-inline-size: 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        line-height: var(--line-height-base);
+      }
+      .from-form-cta {
+        display: inline-flex;
+        align-items: center;
+        min-block-size: var(--size-field);
+        padding-inline: var(--space-4);
+        border-radius: var(--radius-field);
+        background: var(--primary);
+        color: var(--text-on-primary);
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        text-decoration: none;
+      }
+      .from-form-cta:hover {
+        background: var(--primary-hover);
+      }
+      .from-form-cta:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-halo);
+      }
+      .warn-line {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-sm);
+        color: var(--color-warning);
+        line-height: var(--line-height-base);
       }
       .structure-count {
         min-inline-size: 1.5rem;
@@ -791,6 +918,25 @@ interface AskedThing {
         gap: var(--space-2);
       }
 
+      .ask-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+      }
+      .ask-acts {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-4);
+      }
+      .linkish.is-danger {
+        color: var(--color-error);
+      }
+      .linkish[disabled] {
+        opacity: 0.55;
+        cursor: default;
+      }
       .ask-key {
         margin: 0;
         font-size: var(--text-xs);
@@ -837,13 +983,14 @@ export class SurrogateProductDetailPage {
   private readonly enumTypes = inject(EnumerationTypesService);
   private readonly modals = inject(NzModalService);
   private readonly lookups = inject(LookupsApiService);
+  private readonly questions = inject(QuestionnaireApiService);
   private readonly errors = inject(ErrorCodeService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  private readonly key = this.route.snapshot.paramMap.get('key') ?? '';
+  protected readonly key = this.route.snapshot.paramMap.get('key') ?? '';
 
   /** The route key, as a signal so the owned-list computeds can read it. */
   protected readonly productKey = signal(this.key);
@@ -924,6 +1071,34 @@ export class SurrogateProductDetailPage {
    */
   protected readonly structureDirty = signal(false);
   protected readonly structureOpen = signal(false);
+
+  /**
+   * Was this calculation built from the form?
+   *
+   * Read off the server's own answer rather than inferred from the steps: a hand-authored
+   * pipeline and a compiled one are the same shape by construction, so there is nothing in
+   * the steps to tell them apart — which is exactly why the form is stored.
+   */
+  /**
+   * Would the server refuse this pipeline?
+   *
+   * The shared client-side mirror of `unconfigured_step` and `coalesce_empty`. It was
+   * already written and already used by the bank-program wizard; this screen — which is
+   * where a pipeline is actually AUTHORED — had no gate at all, so an operator could press
+   * Save on a half-written rule and get back a token naming a step id.
+   *
+   * Advisory, never the authority: the server re-checks and its answer stands.
+   */
+  protected readonly ruleBlocked = computed(() => {
+    if (!this.isPipeline()) return false;
+    return productRuleHasError({
+      steps: this.builderSteps().length > 0 ? this.builderSteps() : this.ruleSteps(),
+      gates: this.builderGates().length > 0 ? this.builderGates() : this.ruleGates(),
+      figures: this.stepFigures(),
+    });
+  });
+
+  protected readonly hasTemplate = computed(() => this.product()?.template != null);
 
   protected readonly isPipeline = computed(
     () => this.builderSteps().length > 0 || this.ruleSteps().length > 0,
@@ -1121,6 +1296,63 @@ export class SurrogateProductDetailPage {
    * dialog closes. What the rule reads is step ②'s question, and the builder's picker offers
    * every fact regardless of who made it.
    */
+  protected readonly removing = signal<string | null>(null);
+  protected readonly askError = signal<string | null>(null);
+
+  /**
+   * Remove something the product asks.
+   *
+   * Adding an ask was create-only: there was no way to fix a mistake and no way to take one
+   * back, so a typo in a question was permanent and a fact bound to the wrong question stayed
+   * bound. This is the taking-back half.
+   *
+   * THE ORDER IS FORCED, not chosen:
+   *
+   *   unbind first   `platform_enumeration.boundQuestionId` points AT the question. Deleting
+   *                  the question first would leave the fact bound to nothing for as long as
+   *                  it took to notice, and `surrogateFactRegistry()` would drop it silently.
+   *   fact next      while a live rule still reads `fact:<key>`, `countReferences` refuses —
+   *                  which is the right answer, and the message says which rule.
+   *   question last  soft-deleted, so answers already given keep resolving. `QUESTION_IN_USE`
+   *                  refuses one another question branches on.
+   *
+   * No confirm dialog before the first call, for the reason the product delete gives: the
+   * refusal IS the confirmation, and a dialog asking "are you sure?" before the server has
+   * said what is at stake asks the operator to confirm something neither of them has seen.
+   */
+  protected async removeAsk(thing: AskedThing): Promise<void> {
+    if (this.removing() !== null) return;
+    this.removing.set(thing.factKey);
+    this.askError.set(null);
+    try {
+      const rows = await this.lookups.list('surrogate_fact');
+      const fact = rows.find((r) => r.key === thing.factKey);
+      if (fact) {
+        await this.lookups.setBoundQuestion(fact.id, null);
+        await this.lookups.remove(fact.id);
+      }
+
+      if (thing.questionCode) {
+        // The question's id is not on the fact registry — that projection carries the CODE,
+        // which is what every other surface speaks. One tree read to resolve it is cheap for
+        // an action taken this rarely, and avoids a second id on a hot projection.
+        const tree = await this.questions.tree();
+        const question = tree
+          .flatMap((group) => group.questions)
+          .find((q) => q.code === thing.questionCode);
+        if (question) await this.questions.deleteQuestion(question.id);
+      }
+
+      await this.enumTypes.refresh();
+      await this.enums.refresh('surrogate_fact');
+      await this.load({ silent: true });
+    } catch (err) {
+      this.askError.set(this.localizedError(err));
+    } finally {
+      this.removing.set(null);
+    }
+  }
+
   protected readonly askedThings = computed<AskedThing[]>(() => {
     const key = this.productKey();
     return this.facts()

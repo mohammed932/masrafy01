@@ -24,11 +24,11 @@ import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import { ToggleBankProgramDto } from './dto/toggle-bank-program.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
+import { IncomeRuleCheckDto, IncomeRuleDraftCheckDto } from './dto/income-rule-check.dto';
 import {
-  IncomeRuleCheckDto,
-  IncomeRuleDraftCheckDto,
-} from './dto/income-rule-check.dto';
-import { SetProgramNameIncomeRuleDto } from './dto/program-name-income-rule.dto';
+  SetProgramNameIncomeRuleDto,
+  SetSurrogateProductTemplateDto,
+} from './dto/program-name-income-rule.dto';
 import { BankProgramsService } from './bank-programs.service';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 
@@ -78,6 +78,63 @@ export class BankProgramsController {
   })
   async listSurrogateProducts() {
     return ok(await this.service.listSurrogateProducts());
+  }
+
+  /**
+   * The starter shapes an operator picks from when creating a product.
+   *
+   * SHAPES ONLY — no labels, no examples, no figures. The admin names them from its own
+   * dictionary in both locales; an English label on this response would be English on the
+   * wire (Principle III / A2).
+   *
+   * Declared before `surrogate-products/:key` for the reason the whole block is declared
+   * before `:programCode`: a single-segment param below it would swallow this path.
+   */
+  @Get('surrogate-product-templates')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({ summary: 'The starter shapes for a no-payslip product' })
+  listSurrogateProductTemplates() {
+    return ok(this.service.surrogateProductTemplateStarters());
+  }
+
+  @Get('surrogate-products/:key/template')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: 'The friendly form behind a product, and what it compiles to',
+    description:
+      'Returns `advanced: true` rather than an error when the calculation was authored ' +
+      'through the raw step editor: the screen has to SAY that, and a refusal on a read ' +
+      'would leave it with nothing to say it about.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  async getSurrogateProductTemplate(@Param('key') key: string) {
+    return ok(await this.service.getSurrogateProductTemplate(key));
+  }
+
+  @Put('surrogate-products/:key/template')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: 'Save the friendly form, and the calculation it compiles to',
+    description:
+      'The form and the compiled rule are written in one statement, so they cannot drift. ' +
+      'Refused when recompiling would orphan figures a bank has already typed — the ' +
+      'refusal names those programs.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({ status: 409, description: 'PRODUCT_TEMPLATE_ORPHANS_FIGURES' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'PRODUCT_TEMPLATE_INVALID — the form itself. Plus every rule code the raw path ' +
+      'raises, because the compiled rule goes through the same validation.',
+  })
+  async setSurrogateProductTemplate(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductTemplateDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.service.setSurrogateProductTemplate(key, body, this.actor(user, req)));
   }
 
   @Get('surrogate-products/:key')
@@ -202,11 +259,7 @@ export class BankProgramsController {
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ) {
-    const program = await this.service.update(
-      programCode,
-      body,
-      this.actor(user, req),
-    );
+    const program = await this.service.update(programCode, body, this.actor(user, req));
     return ok(program);
   }
 
@@ -234,7 +287,8 @@ export class BankProgramsController {
   @Put('program-names/:programNameKey/income-rule')
   @Roles('super_admin')
   @ApiOperation({
-    summary: 'Set what a catalog program name reads its income from, and the figures banks start from',
+    summary:
+      'Set what a catalog program name reads its income from, and the figures banks start from',
     description:
       'One name states ONE income proof; every surrogate program filed under it reads that one, ' +
       'and a bank may change only the AMOUNTS. `incomeRule: null` says the name states nothing ' +

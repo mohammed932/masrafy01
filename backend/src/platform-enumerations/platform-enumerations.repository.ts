@@ -12,6 +12,7 @@ import type {
   BindableQuestionType,
   SurrogateFactBinding,
 } from '@/matching/pipeline/surrogate-fact-registry';
+import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 
 export type EnumerationType =
@@ -662,13 +663,39 @@ export abstract class PlatformEnumerationsRepository {
   /** One surrogate product's own row, carrying the calculation every linked name quotes off. */
   abstract findSurrogateProduct(key: string): Promise<ProgramNameIncomeRuleRow | null>;
 
-  /** Write a surrogate product's calculation. Same contract as the catalog name's. */
+  /**
+   * Write a surrogate product's calculation, and — in the SAME statement — the form it was
+   * compiled from.
+   *
+   * `template` has three spellings and they are three different intentions:
+   *   `undefined`  leave the stored form alone (a figures-only write)
+   *   `null`       clear it — this calculation was authored by hand, so there is no form
+   *   an object    the form the operator just filled in
+   *
+   * One `update`, so the rule and the form it claims to be compiled from cannot land apart.
+   */
   abstract setSurrogateProductIncomeRule(
     key: string,
     rule: IncomeAssumptionConfig | null,
     valueSources: Record<string, 'team_estimated'>,
     updatedBy: string,
+    template?: ProductTemplate | null,
   ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Which `stepParams` boxes each bank program under this product has actually typed into.
+   *
+   * Backs the one refusal that protects live figures: recompiling a changed form can stop
+   * emitting a step, and every number filed under that id is then orphaned — the program
+   * still reads as configured and quotes nothing. Two hops, product -> names -> programs,
+   * because a product is read through the names linked to it.
+   *
+   * Only keys carrying a FIGURE count. An empty params entry is a box nobody filled in, and
+   * refusing a save over one would block the operator on nothing.
+   */
+  abstract programFigureKeysUnderProduct(
+    productKey: string,
+  ): Promise<Array<{ programCode: string; keys: string[] }>>;
 
   /**
    * Every surrogate product, active or not.
@@ -691,6 +718,13 @@ export interface ProgramNameIncomeRuleRow {
   labelAr: string;
   labelEn: string;
   incomeRule: IncomeAssumptionConfig | null;
+  /**
+   * `surrogate_product` only — the friendly form `incomeRule` was compiled from.
+   *
+   * `null` is the ADVANCED state, not an empty one: this calculation was authored through
+   * the raw step editor and there is no form that describes it.
+   */
+  templateSpec: ProductTemplate | null;
   valueSources: Record<string, 'team_estimated'>;
   /**
    * `program_name` only — the product this name takes its calculation from.

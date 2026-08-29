@@ -136,6 +136,11 @@ import { PageHeaderComponent } from './page-header.component';
       .fp__bar {
         max-inline-size: 60rem;
       }
+      /* Room for the sticky bar to float over. Without it the bar covers the foot of the
+         form permanently — the last field can be scrolled to but never out from under it. */
+      .fp__body {
+        padding-block-end: var(--space-7);
+      }
       .fp__bar {
         position: sticky;
         inset-block-end: 0;

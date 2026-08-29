@@ -23,6 +23,18 @@ export const SURROGATE_PRODUCTS_ROUTES: Routes = [
     loadComponent: () => import('./surrogate-products.page').then((m) => m.SurrogateProductsPage),
   },
   {
+    // The two template screens, declared before `:key` for the same reason `asks/new` is.
+    // `new` in particular MUST come first: below `:key` it resolves as a product called
+    // "new" and 404s.
+    path: 'new',
+    loadComponent: () =>
+      import('./product-template-picker.page').then((m) => m.ProductTemplatePickerPage),
+  },
+  {
+    path: ':key/calculation',
+    loadComponent: () => import('./product-template.page').then((m) => m.ProductTemplatePage),
+  },
+  {
     // Declared BEFORE the single-segment `:key` on purpose. Angular matches leaf routes
     // against the WHOLE remaining URL, so a three-segment path would fall through anyway
     // — but the order also states the intent: this is a screen, not a product called

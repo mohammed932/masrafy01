@@ -101,6 +101,7 @@ export const PRODUCT_RULE_INVALID_REASONS = [
   'bad_output_kind',
   'branches_empty',
   'branches_mismatch',
+  'optional_step_not_skippable',
 ] as const;
 
 export type ProductRuleInvalidReason = (typeof PRODUCT_RULE_INVALID_REASONS)[number];
@@ -318,7 +319,11 @@ async function validateProductRule(
   if (steps.length === 0) return { kind: 'productRuleInvalid', reason: 'no_steps' };
   if (!rule.output?.from) return { kind: 'productRuleInvalid', reason: 'no_output' };
   if (rule.output.kind !== 'monthlyIncome' && rule.output.kind !== 'maxAmount') {
-    return { kind: 'productRuleInvalid', reason: 'bad_output_kind', detail: String(rule.output.kind) };
+    return {
+      kind: 'productRuleInvalid',
+      reason: 'bad_output_kind',
+      detail: String(rule.output.kind),
+    };
   }
 
   const baseline = rule.output.baselineDbrPercent;
@@ -340,7 +345,11 @@ async function validateProductRule(
     (key) => !factByKey.has(key) && !isDerivedFactKey(key),
   );
   if (missingFact !== undefined) {
-    return { kind: 'factUnavailable', factKey: missingFact, availableFacts: registry.map((f) => f.key) };
+    return {
+      kind: 'factUnavailable',
+      factKey: missingFact,
+      availableFacts: registry.map((f) => f.key),
+    };
   }
 
   const params = rule.stepParams ?? {};
@@ -357,7 +366,12 @@ async function validateProductRule(
       return { kind: 'productRuleInvalid', reason: 'duplicate_step_id', stepId: step.id };
     }
     if (!isStepOp(step.op)) {
-      return { kind: 'productRuleInvalid', reason: 'unknown_op', stepId: step.id, detail: String(step.op) };
+      return {
+        kind: 'productRuleInvalid',
+        reason: 'unknown_op',
+        stepId: step.id,
+        detail: String(step.op),
+      };
     }
 
     const refProblem = validateRefs(refsOf(step.of), seenIds, step.id);
@@ -428,6 +442,18 @@ async function validateProductRule(
     return { kind: 'productRuleInvalid', reason: 'unknown_output_step', stepId: rule.output.from };
   }
 
+  // A step marked `optional` reads an ABSENT answer as "this bank stated nothing" instead of
+  // stopping the rule. That is exactly right for an adjustment the applicant may decline —
+  // the bureau score — and exactly wrong anywhere else: on a step the answer depends on it
+  // turns a required question into one whose omission silently changes the figure.
+  //
+  // So it is legal only where the skip can actually be absorbed: every path from the step to
+  // the answer must pass through a `coalesce` that offers something else. `pickByFact` does
+  // NOT count — it falls back to the first CONFIGURED column, which is a statement about the
+  // bank rather than a substitute for a missing answer.
+  const optionalProblem = validateOptionalSteps(steps, rule.output.from);
+  if (optionalProblem) return optionalProblem;
+
   for (const gate of rule.gates ?? []) {
     const figures = params[gate.id] ?? {};
     // A gate the bank did not turn on carries nothing to check. Its reason code is still
@@ -469,7 +495,12 @@ function validateRefs(
   for (const ref of refs) {
     if ('step' in ref) {
       if (ref.step === stepId) {
-        return { kind: 'productRuleInvalid', reason: 'forward_reference', stepId, detail: ref.step };
+        return {
+          kind: 'productRuleInvalid',
+          reason: 'forward_reference',
+          stepId,
+          detail: ref.step,
+        };
       }
       if (!earlierIds.has(ref.step)) {
         // Either it does not exist or it comes later. Both are one mistake to the
@@ -566,10 +597,13 @@ async function validateStepFigures(
       // rows behind those options, which is data this validator has no view of, and
       // refusing on a stale one would refuse a save that a lookup fix elsewhere makes
       // valid — the v16.4.1 lesson about a catalog tick blocking a legitimate program.
-      const questionCode = step.op === 'factChoiceTable' && step.fact
-        ? factByKey.get(step.fact)?.questionCode
-        : undefined;
-      const optionCodes = questionCode ? new Set(await ctx.questionOptionCodes(questionCode)) : null;
+      const questionCode =
+        step.op === 'factChoiceTable' && step.fact
+          ? factByKey.get(step.fact)?.questionCode
+          : undefined;
+      const optionCodes = questionCode
+        ? new Set(await ctx.questionOptionCodes(questionCode))
+        : null;
 
       const seen = new Set<string>();
       for (const row of table) {
@@ -753,7 +787,12 @@ async function validateGate(
     return { kind: 'productRuleInvalid', reason: 'gate_bounds_missing', gateId: gate.id };
   }
   if (min !== null && max !== null && min.greaterThan(max)) {
-    return { kind: 'productRuleInvalid', reason: 'gate_bounds_missing', gateId: gate.id, detail: 'min>max' };
+    return {
+      kind: 'productRuleInvalid',
+      reason: 'gate_bounds_missing',
+      gateId: gate.id,
+      detail: 'min>max',
+    };
   }
   return undefined;
 }
@@ -967,20 +1006,20 @@ export function collectIncomeRuleWarnings(args: {
 function hasMethodConfiguration(config: IncomeAssumptionConfig): boolean {
   return Boolean(
     config.keyTable?.length ||
-      config.bands?.length ||
-      config.scalar ||
-      // Legacy shapes count: a mis-typed program carrying one is exactly the case
-      // the "ignored, never deleted" rule exists for.
-      config.rankIncomeMap ||
-      config.gradeIncomeMap ||
-      config.incomeTable?.length ||
-      // A legacy SCALAR is configuration too. Omitting it let a blob whose only rule
-      // was `cdIncomePercent` read as "nothing configured", so the strip returned a
-      // bare `{ strategy }` and the bank's percentage was gone.
-      legacyScalarKeysFor(config.strategy).some((key) => {
-        const raw = config[key];
-        return typeof raw === 'string' && raw.trim() !== '';
-      }),
+    config.bands?.length ||
+    config.scalar ||
+    // Legacy shapes count: a mis-typed program carrying one is exactly the case
+    // the "ignored, never deleted" rule exists for.
+    config.rankIncomeMap ||
+    config.gradeIncomeMap ||
+    config.incomeTable?.length ||
+    // A legacy SCALAR is configuration too. Omitting it let a blob whose only rule
+    // was `cdIncomePercent` read as "nothing configured", so the strip returned a
+    // bare `{ strategy }` and the bank's percentage was gone.
+    legacyScalarKeysFor(config.strategy).some((key) => {
+      const raw = config[key];
+      return typeof raw === 'string' && raw.trim() !== '';
+    }),
   );
 }
 
@@ -1064,7 +1103,10 @@ export function stripForeignMethodConfig(
   // percentage on every unrelated save and handed the program to the resolver's
   // hardcoded default (3% instead of the bank's own figure), silently re-quoting
   // every applicant on it.
-  if (SCALAR_STRATEGY_SET.has(strategy) || (BAND_STRATEGY_SET.has(strategy) && !keep.bands?.length)) {
+  if (
+    SCALAR_STRATEGY_SET.has(strategy) ||
+    (BAND_STRATEGY_SET.has(strategy) && !keep.bands?.length)
+  ) {
     if (config.scalar) keep.scalar = config.scalar;
     // The strategy's OWN legacy key travels with it — never another method's, which
     // is what `legacyScalarKeysFor` exists to bound. Dropping it here was the second
@@ -1086,4 +1128,84 @@ export function stripForeignMethodConfig(
   if (!gotCanonical && hasMethodConfiguration(config)) return config;
 
   return keep;
+}
+
+/**
+ * Can a step's `optional` skip be absorbed?
+ *
+ * Yes exactly when every route from it to the answer runs through a `coalesce` that has
+ * another candidate to fall back on. `coalesce` is the ONLY absorber: it is the one op whose
+ * documented job is "the first input this bank configured", and the one the evaluator feeds
+ * from `unset`.
+ *
+ * Walks CONSUMERS rather than inputs, because the question is what happens downstream of the
+ * skip. Depth-capped like `neededStepIds`, for the same reason — a hand-edited blob must not
+ * be able to spin the validator.
+ */
+function validateOptionalSteps(
+  steps: readonly RuleStep[],
+  outputFrom: string,
+): IncomeRuleViolation | undefined {
+  const flagged = steps.filter((step) => step.optional === true);
+  if (flagged.length === 0) return undefined;
+
+  const consumers = new Map<string, RuleStep[]>();
+  for (const step of steps) {
+    for (const ref of refsOf(step.of)) {
+      if (!('step' in ref)) continue;
+      const list = consumers.get(ref.step);
+      if (list) list.push(step);
+      else consumers.set(ref.step, [step]);
+    }
+  }
+
+  for (const step of flagged) {
+    // Only the fact ops read an answer, so only they have an absence to downgrade. Anywhere
+    // else the flag does nothing at all, and a flag that does nothing is one the next
+    // operator will believe.
+    if (
+      step.op !== 'factNumber' &&
+      step.op !== 'factChoiceTable' &&
+      step.op !== 'factParentTable'
+    ) {
+      return {
+        kind: 'productRuleInvalid',
+        reason: 'optional_step_not_skippable',
+        stepId: step.id,
+        detail: step.op,
+      };
+    }
+    if (!absorbedByCoalesce(step.id, consumers, outputFrom, new Set())) {
+      return { kind: 'productRuleInvalid', reason: 'optional_step_not_skippable', stepId: step.id };
+    }
+  }
+  return undefined;
+}
+
+/** True when every consumer chain from `id` reaches a `coalesce` with an alternative. */
+function absorbedByCoalesce(
+  id: string,
+  consumers: ReadonlyMap<string, RuleStep[]>,
+  outputFrom: string,
+  seen: Set<string>,
+): boolean {
+  // A cycle is unreachable (refs may name earlier steps only) and the cap is a backstop.
+  if (seen.has(id) || seen.size > 32) return false;
+  seen.add(id);
+
+  // The answer itself, or a step nothing reads: the skip has nowhere to go, so declining the
+  // question would end the rule as `rule_unconfigured` rather than fall back to anything.
+  if (id === outputFrom) return false;
+  const readers = consumers.get(id) ?? [];
+  if (readers.length === 0) return false;
+
+  return readers.every((reader) => {
+    if (reader.op === 'coalesce') {
+      // The alternative has to be something the same absence cannot also take out. Another
+      // step reading the same answer would be unset too, so a literal or a fact is what
+      // makes the fallback unconditional.
+      return refsOf(reader.of).some((ref) => !('step' in ref));
+    }
+    return absorbedByCoalesce(reader.id, consumers, outputFrom, seen);
+  });
 }

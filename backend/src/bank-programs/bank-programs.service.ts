@@ -11,9 +11,11 @@ import {
 } from '../platform-enumerations/platform-enumerations.repository';
 import {
   SetProgramNameIncomeRuleDto,
+  SetSurrogateProductTemplateDto,
   type ProgramNameIncomeRuleResponseDto,
   type SurrogateProductDetailDto,
   type SurrogateProductSummaryDto,
+  type SurrogateProductTemplateResponseDto,
 } from './dto/program-name-income-rule.dto';
 import {
   BankProgramHasOffersException,
@@ -50,6 +52,9 @@ import {
   ValueSourceValueInvalidException,
   QualitativeReviewCeilingBelowBaseException,
   UnknownEnumerationKeyException,
+  ProductTemplateInvalidException,
+  ProductTemplateOrphansFiguresException,
+  ProductTemplateNotEditableException,
 } from '../common/errors/domain.exceptions';
 import { CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
@@ -98,6 +103,16 @@ import {
   stripInheritedAmounts,
   withStoredStructure,
 } from '@/matching/pipeline/income-rule-inherit';
+import {
+  compileTemplate,
+  validateTemplate,
+  type ProductTemplate,
+} from '@/matching/pipeline/product-template';
+import {
+  templateStarters,
+  type TemplateStarter,
+} from '@/matching/pipeline/product-template-starters';
+import { paramKeysOf } from '@/matching/pipeline/product-rule';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import { resolveAssumedIncome } from '@/matching/pipeline/income-resolver';
 import { toBankProgramSnapshot } from './bank-program-snapshot.mapper';
@@ -1408,6 +1423,7 @@ export class BankProgramsService {
       strategy: row.incomeRule?.strategy ?? null,
       usedBy: nameKeys,
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
+      template: row.templateSpec,
       valueSources: row.valueSources,
       names,
     };
@@ -1478,29 +1494,35 @@ export class BankProgramsService {
       throw new IncomeProofInUseException({ programNameKey: key, programCodes: affected });
     }
 
-    // Markers: absent means "not touching them", an explicit map replaces. Same contract
-    // as the catalog name's, and the same reason — this screen has no control that marks a
-    // figure, so a wholesale replace against `{}` would silently wipe every marker the
-    // first time anyone saved a table.
-    const stating = dto.valueSources !== undefined;
-    const submitted = dto.valueSources ?? row.valueSources ?? {};
-    const allowed = catalogIncomeRulePaths(rule);
-    const previously = catalogIncomeRulePaths(row.incomeRule);
-    for (const [path, value] of Object.entries(submitted)) {
-      if (value !== 'team_estimated') {
-        if (!stating) continue;
-        throw new ValueSourceValueInvalidException({ path, value: String(value) });
-      }
-      if (stating && !allowed.has(path) && !previously.has(path)) {
-        throw new ValueSourcePathUnknownException({ path });
-      }
-    }
-    const valueSources: Record<string, 'team_estimated'> = {};
-    for (const path of Object.keys(submitted)) {
-      if (allowed.has(path)) valueSources[path] = 'team_estimated';
-    }
+    const valueSources = this.resolveRuleValueSources(
+      dto.valueSources,
+      row.valueSources,
+      rule,
+      row.incomeRule,
+    );
 
-    await this.enums.setSurrogateProductIncomeRule(key, rule, valueSources, actor.id);
+    // ADVANCED IS ONE-WAY, and this is where it happens.
+    //
+    // A write that states `steps`/`gates`/`output` is an edit of the raw step list — the
+    // form did not produce it and cannot describe it. Keeping the stored form would leave
+    // the screen offering to edit a calculation that is no longer the one running, and the
+    // next save from that form would silently discard the hand edit.
+    //
+    // A FIGURES-ONLY write states none of the three (`withStoredStructure` overlays the
+    // stored ones), so editing a table on a form-authored product leaves its form intact.
+    const authoredByHand =
+      incoming !== null &&
+      (incoming.steps !== undefined ||
+        incoming.gates !== undefined ||
+        incoming.output !== undefined);
+
+    await this.enums.setSurrogateProductIncomeRule(
+      key,
+      rule,
+      valueSources,
+      actor.id,
+      authoredByHand ? null : undefined,
+    );
     await this.audit.create({
       actorId: actor.id,
       // A FK to STAFF_ACCOUNT — "the staff member this was done to", never the row it was
@@ -1525,6 +1547,233 @@ export class BankProgramsService {
     });
 
     return this.getSurrogateProduct(key);
+  }
+
+  // --- the friendly form ------------------------------------------------------
+
+  /** The starter shapes. Structure only — the admin supplies the words, in both locales. */
+  surrogateProductTemplateStarters(): readonly TemplateStarter[] {
+    return templateStarters();
+  }
+
+  /**
+   * The form behind a product, and what it currently compiles to.
+   *
+   * `advanced` rather than an error when there is no form: the screen needs to SAY that the
+   * calculation was authored by hand, and a 409 on a read would leave it with nothing to
+   * say it about. The refusal belongs on the write.
+   */
+  async getSurrogateProductTemplate(key: string): Promise<SurrogateProductTemplateResponseDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const template = row.templateSpec;
+    return {
+      key: row.key,
+      labelAr: row.labelAr,
+      labelEn: row.labelEn,
+      template,
+      // Recompiled rather than echoing the stored rule: if the two ever disagreed, the form
+      // is what the operator is about to edit and the compile is what a save would produce.
+      // Showing the stored blob would hide exactly that disagreement.
+      compiled:
+        template === null ? null : (compileTemplate(template) as unknown as IncomeAssumptionConfig),
+      advanced: template === null && row.incomeRule !== null,
+    };
+  }
+
+  /**
+   * Save the form, and the calculation it compiles to.
+   *
+   * Mirrors `setSurrogateProductIncomeRule` step for step, with ONE refusal it does not
+   * have and cannot: recompiling a changed form can stop emitting a step, and every figure a
+   * bank filed under that id is then orphaned — the program still reads as configured and
+   * quotes nothing. The raw path cannot hit that, because there the operator is looking at
+   * the step list they are editing; here they are looking at three plain questions and have
+   * no way to know that unticking one takes a table with it.
+   *
+   * So the orphan check runs BEFORE anything is written, and the refusal names the programs.
+   */
+  async setSurrogateProductTemplate(
+    key: string,
+    dto: SetSurrogateProductTemplateDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    // ADVANCED IS ONE-WAY, and this is the other half of it.
+    //
+    // A product whose calculation was written in the raw step editor holds no form, and a
+    // form cannot describe it — that is why using the editor cleared it. Accepting one here
+    // would let three plain answers silently REPLACE a hand-authored pipeline that some bank
+    // is quoting from, with nothing on either screen saying a shape had changed.
+    //
+    // A product that has never had a calculation at all is NOT this state: it has no rule to
+    // lose, and it is exactly the product the form is for.
+    if (row.templateSpec === null && row.incomeRule !== null) {
+      throw new ProductTemplateNotEditableException({ key });
+    }
+
+    const template = dto.template as unknown as ProductTemplate;
+    const shapeProblem = validateTemplate(template);
+    if (shapeProblem) {
+      throw new ProductTemplateInvalidException({
+        reason: shapeProblem.reason,
+        ...(shapeProblem.detail !== undefined ? { detail: shapeProblem.detail } : {}),
+      });
+    }
+
+    // The compile produces the SHAPE. The catalog's own default figures are carried across
+    // it, pruned to the ids the new shape still has.
+    //
+    // Without this every save of the form would blank them: `compileTemplate` returns steps
+    // and no `stepParams`, so storing its output verbatim throws away every default the
+    // product had. Pruned rather than kept whole, because a figure filed under a step the
+    // shape no longer emits is `unknown_param_key` on the very next validation.
+    //
+    // The BANKS' figures are protected differently — by refusing the save outright — because
+    // the operator can see and re-enter these, and cannot see theirs.
+    const compiledShape = compileTemplate(template);
+    const surviving = new Set(paramKeysOf(compiledShape));
+    const incomingFigures = (dto.stepParams ?? row.incomeRule?.stepParams ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const stepParams = Object.fromEntries(
+      Object.entries(incomingFigures).filter(([id]) => surviving.has(id)),
+    );
+
+    const compiled = {
+      ...compiledShape,
+      ...(Object.keys(stepParams).length > 0 ? { stepParams } : {}),
+    } as unknown as IncomeAssumptionConfig;
+
+    // The compiled rule goes through the SAME validation a hand-authored one does. A form
+    // that produced a rule the platform would refuse from the raw editor would be a second,
+    // laxer door into the same table.
+    const violation = await validateIncomeRule(compiled, this.incomeRuleContext(), {
+      figuresRequired: false,
+    });
+    if (violation) throw incomeRuleException(violation);
+
+    await this.assertNoOrphanedFigures(key, compiled);
+
+    // Same two-hop proof-change refusal as the raw path: a bank's stored table is keyed by
+    // the proof it was written against. A form always compiles to `steps`, so this only ever
+    // fires on a product moving off a single-fact rule onto one.
+    const affected = await this.programsReadingProduct(key);
+    const proofChanged = (row.incomeRule?.strategy ?? null) !== (compiled.strategy ?? null);
+    if (proofChanged && affected.length > 0) {
+      throw new IncomeProofInUseException({ programNameKey: key, programCodes: affected });
+    }
+
+    const valueSources = this.resolveRuleValueSources(
+      dto.valueSources,
+      row.valueSources,
+      compiled,
+      row.incomeRule,
+    );
+
+    await this.enums.setSurrogateProductIncomeRule(key, compiled, valueSources, actor.id, template);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        changes: {
+          template: {
+            // The strategy either side, so the audit trail reads the same whether the
+            // calculation was authored here or in the raw editor.
+            before: row.incomeRule?.strategy ?? null,
+            after: compiled.strategy ?? null,
+            fromAdvanced: row.templateSpec === null && row.incomeRule !== null,
+            figuresChanged: stableJson(row.templateSpec ?? null) !== stableJson(template),
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(key);
+  }
+
+  /**
+   * The estimate markers to store, for any write of a catalog-side rule.
+   *
+   * ABSENT means "not touching them"; an explicit map REPLACES. That asymmetry is
+   * load-bearing: neither the product screen nor the form has a control that marks a figure,
+   * so reading an omitted field as an empty set would wipe every marker the first time
+   * anybody saved a table.
+   *
+   * A marker is kept only when the new rule still has that path. One that survived the
+   * PREVIOUS rule is accepted without being kept, so a caller echoing back what it read is
+   * not refused for a path this write happens to remove.
+   */
+  private resolveRuleValueSources(
+    submittedRaw: Record<string, 'team_estimated'> | undefined,
+    stored: Record<string, 'team_estimated'> | null | undefined,
+    rule: IncomeAssumptionConfig | null,
+    previousRule: IncomeAssumptionConfig | null,
+  ): Record<string, 'team_estimated'> {
+    const stating = submittedRaw !== undefined;
+    const submitted = submittedRaw ?? stored ?? {};
+    const allowed = catalogIncomeRulePaths(rule);
+    const previously = catalogIncomeRulePaths(previousRule);
+
+    for (const [path, value] of Object.entries(submitted)) {
+      if (value !== 'team_estimated') {
+        if (!stating) continue;
+        throw new ValueSourceValueInvalidException({ path, value: String(value) });
+      }
+      if (stating && !allowed.has(path) && !previously.has(path)) {
+        throw new ValueSourcePathUnknownException({ path });
+      }
+    }
+
+    const valueSources: Record<string, 'team_estimated'> = {};
+    for (const path of Object.keys(submitted)) {
+      if (allowed.has(path)) valueSources[path] = 'team_estimated';
+    }
+    return valueSources;
+  }
+
+  /**
+   * Refuse a recompile that would throw away figures a bank has already typed.
+   *
+   * The single most dangerous thing about compiling a form: a bank's numbers and its
+   * estimated-value markers are keyed by STEP ID, so a step that stops being emitted takes
+   * them with it silently — the program still looks configured, and quotes nothing or quotes
+   * off a different derivation.
+   *
+   * Refused rather than reconciled. Moving the figures for the operator would be guessing
+   * which new box a number belonged in, and guessing wrong here is a wrong quote frozen onto
+   * an immutable offer (Principle I).
+   */
+  private async assertNoOrphanedFigures(
+    key: string,
+    compiled: IncomeAssumptionConfig,
+  ): Promise<void> {
+    const surviving = new Set(paramKeysOf(compiled));
+    const perProgram = await this.enums.programFigureKeysUnderProduct(key);
+
+    const programCodes: string[] = [];
+    const lostKeys = new Set<string>();
+    for (const program of perProgram) {
+      const lost = program.keys.filter((k) => !surviving.has(k));
+      if (lost.length === 0) continue;
+      programCodes.push(program.programCode);
+      for (const k of lost) lostKeys.add(k);
+    }
+    if (programCodes.length === 0) return;
+    throw new ProductTemplateOrphansFiguresException({
+      programCodes,
+      lostKeys: [...lostKeys].sort(),
+    });
   }
 
   /**
@@ -1642,9 +1891,7 @@ export class BankProgramsService {
    * of the registry VALUE, not of the calculation it holds, and the rule row is shared with
    * `program_name` where the flag means something different.
    */
-  private async surrogateProductMeta(
-    key: string | null,
-  ): Promise<{ active: boolean } | null> {
+  private async surrogateProductMeta(key: string | null): Promise<{ active: boolean } | null> {
     if (key === null) return null;
     const all = await this.enums.listSurrogateProducts();
     return all.find((p) => p.key === key) ?? null;

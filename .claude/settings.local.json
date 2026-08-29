@@ -4,7 +4,10 @@
       "Bash(kill -9 65688 94908)",
       "Bash(tail -25 /tmp/admin-serve.log 2>&1)",
       "Read(//private/tmp/**)",
-      "Bash(npx prisma *)"
+      "Bash(npx prisma *)",
+      "Bash(cp /Users/mfathy/.claude/plans/users-mfathy-downloads-teachers-income-mighty-hanrahan.md /Users/mfathy/Downloads/surrogate-programs-design.md)",
+      "Read(//Users/mfathy/Downloads/**)",
+      "Bash(cp /Users/mfathy/.claude/plans/users-mfathy-downloads-teachers-income-mighty-hanrahan.md /Users/mfathy/Downloads/surrogate-programs-design.md && wc -l /Users/mfathy/Downloads/surrogate-programs-design.md)"
     ]
   }
 }

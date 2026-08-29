@@ -1,0 +1,26 @@
+-- Surrogate products: the friendly form, saved beside the calculation it compiles to.
+--
+-- WHY A SECOND COLUMN AND NOT A REWRITE OF `incomeRule`.
+--
+-- `incomeRule` is read by `effectiveProgramNameRule`, `effectiveIncomeRule`, the
+-- snapshot mapper and the engine itself. It stays exactly what it is — the compiled
+-- artifact — so none of them learns that a template exists and none of them changes.
+-- `templateSpec` holds only what the operator ANSWERED, so the form can be reopened
+-- and edited instead of being a one-way generator whose output is then hand-patched.
+--
+-- The two are written in one transaction by one writer, so they cannot drift.
+--
+-- NULLABLE, and NULL is a real state rather than an empty one: it means this product's
+-- calculation was authored through the raw step editor. A write that states
+-- `steps`/`gates`/`output` sets this back to NULL on purpose — using Advanced is
+-- one-way, and the screen says so. Pretending otherwise is how a form ends up
+-- describing a calculation that is not the one running.
+--
+-- No backfill. Nothing in any database has a template, and there is no honest way to
+-- infer one: a near-miss reverse-engineering would describe a live product WRONGLY,
+-- which is worse than describing it not at all.
+--
+-- No FK, no index. It is read only by key, on a row already being fetched by
+-- (type, key) — which `idx_platform_enumeration_type_key` already serves.
+
+ALTER TABLE "platform_enumeration" ADD COLUMN "templateSpec" JSONB;

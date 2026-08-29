@@ -1502,6 +1502,43 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       [flatCapPercent]="dbrFlatCap()"
                     ></app-dbr-bands-editor>
                   </div>
+
+                  <!-- A cap that depends on WHO the applicant is rather than on what they
+                       earn — the "50% salaried / 40% self-employed" half the sheets state.
+                       It beats the band table when set, which is what the sheet means. -->
+                  <div class="dbr-bands" [class.is-muted]="skipDbr">
+                    <h3
+                      class="dbr-bands-title"
+                      i18n="@@bank_programs.eligibility.dbr_by_employment"
+                    >
+                      Caps by kind of applicant
+                    </h3>
+                    <p
+                      class="dbr-emp-note"
+                      i18n="@@bank_programs.eligibility.dbr_by_employment.note"
+                    >
+                      Leave a row blank to fall through to the bands above. A figure here wins for
+                      that kind of applicant whatever they earn.
+                    </p>
+                    <div class="dbr-emp">
+                      @for (bucket of employmentBuckets; track bucket) {
+                        <label class="dbr-emp-row">
+                          <span class="dbr-emp-label">{{ employmentBucketLabel(bucket) }}</span>
+                          <span class="dbr-emp-field">
+                            <input
+                              class="dbr-emp-input"
+                              type="text"
+                              inputmode="decimal"
+                              [value]="dbrByEmployment()[bucket] ?? ''"
+                              (input)="setDbrForEmployment(bucket, $any($event.target).value)"
+                              [attr.aria-label]="employmentBucketLabel(bucket)"
+                            />
+                            <span class="dbr-emp-unit" aria-hidden="true">%</span>
+                          </span>
+                        </label>
+                      }
+                    </div>
+                  </div>
                 </div>
               </section>
             }
@@ -1727,6 +1764,54 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       }
       .dbr-bands.is-muted {
         opacity: 0.55;
+      }
+      .dbr-emp {
+        display: grid;
+        gap: var(--space-3);
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+        max-inline-size: 44rem;
+      }
+      .dbr-emp-row {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .dbr-emp-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-secondary);
+      }
+      .dbr-emp-field {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .dbr-emp-input {
+        inline-size: 6rem;
+        min-block-size: var(--size-field);
+        padding-inline: var(--space-3);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-field);
+        background: var(--bg-subtle);
+        color: var(--color-text-primary);
+        font: inherit;
+        font-size: var(--text-sm);
+      }
+      .dbr-emp-input:focus-visible {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: var(--focus-halo);
+      }
+      .dbr-emp-unit {
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      .dbr-emp-note {
+        margin: 0 0 var(--space-3);
+        max-inline-size: 44rem;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        line-height: var(--line-height-base);
       }
       .dbr-bands-title {
         margin: 0 0 var(--space-3);
@@ -4344,6 +4429,36 @@ export class BankProgramFormPage implements OnInit {
   readonly dbrBands = signal<DbrBand[]>([]);
 
   /**
+   * A DBR cap per kind of applicant — "50% salaried / 40% self-employed".
+   *
+   * A signal rather than a form control, exactly like `dbrBands` beside it and for the same
+   * reason: it is a map, not a field, and the absorb / serialise pair has to be able to tell
+   * "the admin cleared it" from "the admin never touched it".
+   *
+   * The BUCKETS are the bank's vocabulary, never the questionnaire's — the engine folds a
+   * detailed answer (`business_owner_company_owner`) into one of these before it looks. Keys
+   * outside this list are refused by the DTO, because a cap the engine never looks up reads
+   * as configured on this screen and is dead at quote time.
+   */
+  readonly employmentBuckets = ['salaried', 'self_employed', 'retired'] as const;
+  readonly dbrByEmployment = signal<Record<string, string>>({});
+
+  protected employmentBucketLabel(bucket: string): string {
+    return EMPLOYMENT_BUCKET_LABELS[bucket]?.() ?? bucket;
+  }
+
+  /** Blank REMOVES the row — an empty string would be refused, and means "no cap here". */
+  protected setDbrForEmployment(bucket: string, raw: string): void {
+    const value = raw.trim();
+    this.dbrByEmployment.update((current) => {
+      const next = { ...current };
+      if (value === '') delete next[bucket];
+      else next[bucket] = value;
+      return next;
+    });
+  }
+
+  /**
    * Feature 011 — the two TABLE shapes of the income rule.
    *
    * Signals rather than `FormArray`s, mirroring `dbrBands` above. The band table's
@@ -5377,6 +5492,12 @@ export class BankProgramFormPage implements OnInit {
         // Omitted entirely when empty so a program that never used bands keeps
         // resolving against its flat cap exactly as before (FR-020).
         ...(this.dbrBands().length > 0 ? { dbrBands: this.dbrBands() } : {}),
+        // Absent when empty, never `{}`: the DTO treats an empty map as valid and storing
+        // one would say "this bank considered the question and set no caps", which is a
+        // different claim from "this bank has never been asked".
+        ...(Object.keys(this.dbrByEmployment()).length > 0
+          ? { dbrCapPercentByEmploymentType: this.dbrByEmployment() }
+          : {}),
         skipDbrCheck: el.skipDbrCheck,
         acceptedTransferTypes: el.acceptedTransferTypes,
         requiresCD: el.requiresCD,
@@ -5499,6 +5620,7 @@ export class BankProgramFormPage implements OnInit {
       minAssetsValueEGP: initial.eligibility.minAssetsValueEGP ?? null,
     });
     this.dbrBands.set(initial.eligibility.dbrBands ?? []);
+    this.dbrByEmployment.set({ ...(initial.eligibility.dbrCapPercentByEmploymentType ?? {}) });
     this.setArr('eligibility.acceptedEmploymentTypes', initial.eligibility.acceptedEmploymentTypes);
     this.setArr('eligibility.acceptedTransferTypes', initial.eligibility.acceptedTransferTypes);
 
@@ -5714,3 +5836,15 @@ function money(raw: string | null | undefined): string {
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return frac ? `${grouped}.${frac}` : grouped;
 }
+
+/**
+ * The underwriting buckets, in the operator's words.
+ *
+ * Thunks: `$localize` resolves at call time, so a map built at module load would freeze the
+ * first locale the bundle saw.
+ */
+const EMPLOYMENT_BUCKET_LABELS: Readonly<Record<string, () => string>> = {
+  salaried: () => $localize`:@@bank_programs.employment.salaried:Salaried`,
+  self_employed: () => $localize`:@@bank_programs.employment.self_employed:Self-employed`,
+  retired: () => $localize`:@@bank_programs.employment.retired:Retired`,
+};

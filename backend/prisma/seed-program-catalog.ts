@@ -441,7 +441,7 @@ export async function seedProgramCatalog(): Promise<void> {
       notes.push(
         `income rule for '${key}' NOT written — the name links to surrogate product ` +
           `'${row.surrogateProductKey}' and takes its calculation from there. Edit the ` +
-          `product (npm run seed:surrogate-products), or drop '${key}' from ` +
+          `product (build one at /surrogate-products/new), or drop '${key}' from ` +
           `CATALOG_INCOME_RULE in prisma/data/program-catalog-matrix.ts.`,
       );
       continue;

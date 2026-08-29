@@ -145,6 +145,15 @@ export class InMemoryPlatformEnumerationsRepository
   }
 
   /**
+   * Empty, not a throw: "which programs have typed figures under this product" has a true
+   * answer in a registry with no programs, and it backs a REFUSAL — a throw here would turn
+   * a safety check into an outage on the fallback path.
+   */
+  async programFigureKeysUnderProduct(): Promise<[]> {
+    return [];
+  }
+
+  /**
    * Empty, not a throw — unlike the two above. A LIST of products is a question with a
    * true answer here ("none"), whereas reading or writing a specific one is a request
    * this stub cannot honour and must not appear to.

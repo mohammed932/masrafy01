@@ -795,6 +795,26 @@ model PlatformEnumeration {
   /// a stale rule is a wrong income frozen onto a BankOffer that may never be
   /// rewritten (Principle I).
   incomeRule          Json?
+  /// `surrogate_product` ONLY — the friendly form the operator filled in, from which
+  /// `incomeRule` above was COMPILED. Shape: `ProductTemplate`
+  /// (`matching/pipeline/product-template.ts`), `version` pinned so a future shape
+  /// change is a migration rather than a silent re-read.
+  ///
+  /// TWO COLUMNS FOR ONE CALCULATION, and the split is the whole point. `incomeRule`
+  /// stays the single artifact everything downstream reads — `effectiveProgramNameRule`,
+  /// `effectiveIncomeRule`, the snapshot mapper, the engine — so NONE of them learns
+  /// that a template exists. This column exists only so the form can be REOPENED and
+  /// changed, instead of being a one-way generator whose output is then hand-edited.
+  ///
+  /// Both are written in ONE transaction. They cannot disagree, because the compile is
+  /// the only writer of `incomeRule` on this path.
+  ///
+  /// NULL means "no template", and it is the ADVANCED state, not an empty one: a rule
+  /// authored through the raw step editor sets this back to NULL, deliberately and
+  /// one-way (`setSurrogateProductIncomeRule`). Pretending the two stay in sync after a
+  /// hand edit is how a screen ends up describing a calculation that is not the one
+  /// running.
+  templateSpec        Json?
   /// `surrogate_product` and `program_name` — estimated-value markers for the
   /// figures in `incomeRule`,
   /// the same sparse map `bank_program.valueSources` carries and with the same

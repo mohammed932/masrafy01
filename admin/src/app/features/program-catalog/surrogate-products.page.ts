@@ -87,18 +87,18 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
       </app-page-header>
 
       <div class="head-actions">
-        <button type="button" class="new-product" (click)="createProduct()">
+        <a class="new-product" routerLink="new">
           <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@sp.new">New surrogate product</span>
-        </button>
+          <span i18n="@@sp.new2">New surrogate product</span>
+        </a>
       </div>
 
       @if (loading()) {
         <app-skeleton-rows [rows]="4" [cols]="[3, 1, 1]" [ariaLabel]="loadingLabel" />
       } @else if (products().length === 0) {
-        <p class="empty" i18n="@@sp.empty">
-          No surrogate products yet. Add one above, or run
-          <code>npm run seed:surrogate-products</code> to write the starter library.
+        <p class="empty" i18n="@@sp.empty2">
+          No surrogate products yet. Start from a shape and we will build the calculation from three
+          questions.
         </p>
       } @else {
         <ul class="grid" role="list">
@@ -269,6 +269,7 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
         justify-content: flex-end;
       }
       .new-product {
+        text-decoration: none;
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);

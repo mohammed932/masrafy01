@@ -13,9 +13,12 @@ import type {
   IncomeRuleDraftCheckPayload,
   IncomeRuleCheckResult,
   ListBankProgramsQuery,
+  ProductTemplate,
   ProgramNameIncomeRule,
   SurrogateProductDetail,
   SurrogateProductSummary,
+  SurrogateProductTemplateResponse,
+  TemplateStarter,
   ValueSourceMap,
 } from './bank-programs.types';
 
@@ -192,6 +195,58 @@ export class BankProgramsApiService {
     await firstValueFrom(
       this.http.delete<SuccessEnvelope<unknown>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}${suffix}`,
+      ),
+    );
+  }
+
+  /**
+   * The starter shapes. SHAPES ONLY — no labels and no figures come back; this bundle
+   * supplies the words, in both locales.
+   */
+  async listSurrogateProductTemplates(): Promise<SuccessEnvelope<TemplateStarter[]>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<TemplateStarter[]>>(`${this.base}/surrogate-product-templates`),
+    );
+  }
+
+  /**
+   * The friendly form behind a product, and what it compiles to.
+   *
+   * Returns `advanced: true` rather than failing when the calculation was authored by hand:
+   * the screen has to SAY that, and an error on the read would leave it with nothing to say
+   * it about.
+   */
+  async getSurrogateProductTemplate(
+    key: string,
+  ): Promise<SuccessEnvelope<SurrogateProductTemplateResponse>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<SurrogateProductTemplateResponse>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/template`,
+      ),
+    );
+  }
+
+  /**
+   * Save the form. The server compiles it, validates the result exactly as it validates a
+   * hand-authored rule, and refuses if recompiling would orphan figures a bank has typed.
+   */
+  async setSurrogateProductTemplate(
+    key: string,
+    payload: {
+      template: ProductTemplate;
+      /**
+       * The catalog's default figures, sent WITH the shape. Recompiling replaces the step
+       * list, so a separate figures call would be writing against a shape that no longer
+       * exists.
+       */
+      stepParams?: Record<string, unknown>;
+      valueSources?: ValueSourceMap;
+    },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/template`,
+        payload,
       ),
     );
   }

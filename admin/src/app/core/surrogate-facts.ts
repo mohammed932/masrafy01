@@ -13,6 +13,12 @@ import type { LoanCategory } from './loan-category';
  * loan type ask ANY income fact at all", where the four are the practical set, since no
  * admin screen creates a fifth any more (v16.3.0). The backend asserts each of the four
  * resolves to a live question (`test/unit/surrogate-binding-codes.spec.ts`).
+ *
+ * NOTE — these are QUESTION codes, and the near-identical `BUILTIN_FACT_KEYS` in
+ * `bank-programs.types.ts` holds FACT keys. They differ by one entry and it is not a typo:
+ * the fact is `credit_card_limit`, the question it is bound to is `credit_card_total_limit`.
+ * Two namespaces, joined by `platform_enumeration.boundQuestionId`. Neither list is the
+ * other's copy, and "fixing" one to match the other breaks the join.
  */
 export const BUILTIN_FACT_QUESTION_CODES: readonly string[] = [
   'military_grade',

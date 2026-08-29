@@ -170,6 +170,37 @@ export interface RuleStep {
    * to any bank. A bank states only the two columns' numbers.
    */
   branches?: string[];
+  /**
+   * The three fact ops only: an UNANSWERED fact reads as `rule_unconfigured` (skippable by
+   * an enclosing `coalesce`) instead of `fact_not_answered` (which stops the rule).
+   *
+   * ─── Why this exists, and why it is not the default ───────────────────────────
+   *
+   * The default is deliberate and stays: an unanswered unit type must NOT quietly fall
+   * through to another bank's derivation, so a missing answer stops the rule and reports
+   * itself. That is the guarantee the whole `coalesce` design rests on.
+   *
+   * But one real shape needs the opposite, and cannot express it any other way. An
+   * ADJUSTMENT the customer is asked about optionally — the bureau score, whose multiplier
+   * falls back to 100% when they decline to give it — reads a fact that legitimately has no
+   * answer. Written the obvious way (`factNumber → bandTable → coalesce [ band, {const} ]`)
+   * the `factNumber` returns `fact_not_answered` and the evaluator returns before the
+   * `coalesce` is ever reached: one skipped optional question, and every quote dies.
+   *
+   * `pickByFact` already solves exactly this for CHOICE facts — it reads the answer itself
+   * and falls back to the first configured column, and its own doc says why ("an unanswered
+   * segment is not a missing requirement"). This flag is that same reading, made available
+   * to a NUMERIC fact, which `pickByFact` cannot serve because it matches an option code.
+   *
+   * A FIELD, not a new op: the arithmetic is unchanged: what changes is which of two
+   * existing reasons an absent answer reports.
+   *
+   * Fenced at SAVE (`optional_step_not_skippable`): every path from an optional step to the
+   * answer must pass through a `coalesce` that offers another candidate. Without that fence
+   * the flag is a way to make a REQUIRED answer silently vanish, which is the exact damage
+   * the default exists to prevent.
+   */
+  optional?: boolean;
 }
 
 /** The figures half of one step — stated per bank (or inherited from the catalog). */
@@ -392,9 +423,9 @@ const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 const ONE_HUNDRED = new Decimal(100);
 
 /** One op's result: a figure, or the reason there is none. */
-type OpResult =
-  | { ok: true; value: Decimal; matchedRow?: StepTrace['matchedRow'] }
-  | { ok: false; reason: ProductRuleMissReason; factKey?: string };
+type OpMiss = { ok: false; reason: ProductRuleMissReason; factKey?: string };
+
+type OpResult = { ok: true; value: Decimal; matchedRow?: StepTrace['matchedRow'] } | OpMiss;
 
 interface OpEnv {
   step: RuleStep;
@@ -464,7 +495,10 @@ function firstRef(step: RuleStep, env: OpEnv): OpResult {
 }
 
 /** The picked option code for a choice fact. */
-function choiceFact(factKey: string | undefined, ctx: ProductRuleContext): 
+function choiceFact(
+  factKey: string | undefined,
+  ctx: ProductRuleContext,
+):
   | { ok: true; optionCode: string }
   | { ok: false; reason: ProductRuleMissReason; factKey?: string } {
   if (!factKey) return { ok: false, reason: 'rule_unconfigured' };
@@ -472,6 +506,19 @@ function choiceFact(factKey: string | undefined, ctx: ProductRuleContext):
   if (!answered) return { ok: false, reason: 'fact_not_answered', factKey };
   if (answered.kind !== 'choice') return { ok: false, reason: 'rule_unconfigured' };
   return { ok: true, optionCode: answered.optionCode };
+}
+
+/**
+ * "The applicant did not answer" read as "this bank stated nothing here", for a step the
+ * catalog marked `optional`.
+ *
+ * ONLY that one reason is downgraded. A key the table has no row for, a value outside every
+ * band, a fact answered in the wrong shape — all still stop the rule and report themselves,
+ * because none of them is the customer declining an optional question.
+ */
+function skipIfOptional<T extends { ok: true }>(step: RuleStep, result: T | OpMiss): T | OpMiss {
+  if (result.ok || result.reason !== 'fact_not_answered' || step.optional !== true) return result;
+  return { ok: false, reason: 'rule_unconfigured' };
 }
 
 /** A key table lookup. Fails CLOSED on a key the table has no row for (AS-1.9). */
@@ -501,7 +548,7 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
   factNumber: (env) =>
     env.step.fact === undefined
       ? { ok: false, reason: 'rule_unconfigured' }
-      : numericFact(env.step.fact, env.ctx),
+      : skipIfOptional(env.step, numericFact(env.step.fact, env.ctx)),
 
   factChoiceTable: (env) => {
     // CONFIGURATION FIRST, answer second. An unconfigured step must not demand an answer
@@ -509,14 +556,14 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
     // and reading the fact would report "you did not answer" about a question that is
     // irrelevant to it.
     if (!env.params.keyTable?.length) return { ok: false, reason: 'rule_unconfigured' };
-    const picked = choiceFact(env.step.fact, env.ctx);
+    const picked = skipIfOptional(env.step, choiceFact(env.step.fact, env.ctx));
     if (!picked.ok) return picked;
     return lookupKeyTable(picked.optionCode, env.params.keyTable);
   },
 
   factParentTable: (env) => {
     if (!env.params.keyTable?.length) return { ok: false, reason: 'rule_unconfigured' };
-    const picked = choiceFact(env.step.fact, env.ctx);
+    const picked = skipIfOptional(env.step, choiceFact(env.step.fact, env.ctx));
     if (!picked.ok) return picked;
     const parentKey = env.ctx.parentKeyByValue?.[picked.optionCode];
     // The picked value carries no parent: the registry row was never filed under one.
@@ -540,7 +587,10 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
     return {
       ok: true,
       value: found.incomeEGP,
-      matchedRow: { fromInclusive: found.band.fromInclusive, toExclusive: found.band.toExclusive ?? null },
+      matchedRow: {
+        fromInclusive: found.band.fromInclusive,
+        toExclusive: found.band.toExclusive ?? null,
+      },
     };
   },
 
@@ -563,7 +613,10 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
     if (!input.ok) return input;
     const pct = scalingFactor(env);
     if (!pct.ok) return pct;
-    return { ok: true, value: round2(input.value.mul(ONE_HUNDRED.plus(pct.value)).div(ONE_HUNDRED)) };
+    return {
+      ok: true,
+      value: round2(input.value.mul(ONE_HUNDRED.plus(pct.value)).div(ONE_HUNDRED)),
+    };
   },
 
   multiply: (env) => {
@@ -853,7 +906,13 @@ export function evaluateProductRule(
     if (!needed.has(step.id)) continue;
     const op = OPS[step.op];
     if (!op) {
-      return { ok: false, reason: 'rule_unconfigured', stepId: step.id, steps: trace, gates: gateTrace };
+      return {
+        ok: false,
+        reason: 'rule_unconfigured',
+        stepId: step.id,
+        steps: trace,
+        gates: gateTrace,
+      };
     }
     const result = op({ step, params: params[step.id] ?? {}, ctx, values, unset });
     if (!result.ok) {
@@ -922,7 +981,13 @@ export function evaluateProductRule(
 
   const answer = values.get(rule.output.from);
   if (answer === undefined) {
-    return { ok: false, reason: 'rule_unconfigured', stepId: rule.output.from, steps: trace, gates: gateTrace };
+    return {
+      ok: false,
+      reason: 'rule_unconfigured',
+      stepId: rule.output.from,
+      steps: trace,
+      gates: gateTrace,
+    };
   }
 
   const matchedRow = rows.get(rule.output.from);

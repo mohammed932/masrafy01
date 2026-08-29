@@ -16,6 +16,7 @@
  *    program gets those points scaled by a per-program multiplier so programs
  *    differ; the banking expert tunes them later in the admin editor.
  */
+import { I_SCORE_FACT_KEY } from '../src/matching/pipeline/product-template';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
 import { bankSlug } from '../src/matching/pipeline/bank-relationship';
 import {
@@ -498,6 +499,39 @@ const NEEDS_CONSULTANT_Q: SeedQuestion = {
 //
 // They are NUMERIC and therefore NOT scoreable (R9): only single choice carries
 // answer scores, so these are excluded from every program's weight set below.
+/**
+ * The credit-bureau score — asked of everyone, answered by whoever wants to.
+ *
+ * A NUMBER, not a named band, and that is a decision about the FUTURE rather than about the
+ * form: today the customer types it, and a real bureau feed will one day send it. Same
+ * question, same fact, same bank tables — only the source changes. Stored as a band, every
+ * one of those would have to be rewritten.
+ *
+ * OPTIONAL, and the whole I-Score mechanism is built around that being safe. A bank's
+ * multiplier table falls back to 100% when there is no answer, which the compiled rule gets
+ * from `RuleStep.optional` — without it one skipped question would stop every quote for the
+ * product. `product-template.ts#emitIScore` is where that is guaranteed.
+ *
+ * ALL FOUR CATEGORIES: a bureau score is a property of the person, not of the loan.
+ */
+const I_SCORE_QUESTION: { groupCode: string; question: SeedQuestion; categories: readonly Category[] } = {
+  groupCode: 'commitments',
+  categories: ['personal', 'mortgage', 'car', 'business'],
+  question: {
+    code: I_SCORE_FACT_KEY,
+    type: 'NUMERIC',
+    questionEn: 'Your I-Score, if you know it',
+    questionAr: 'درجة الآي سكور، إن كنت تعرفها',
+    helperTextEn: 'Leave it blank if you would rather not say. It will not count against you.',
+    helperTextAr: 'اتركها فارغة إن كنت تفضل عدم ذكرها. لن تُحسب ضدك.',
+    isRequired: false,
+    // The published Egyptian I-Score range. Bounds are CONTENT — what a person can
+    // legitimately type — never scoring (A33).
+    numeric: { minValue: '300', maxValue: '900', step: '1' },
+    options: [],
+  },
+};
+
 const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion; categories: readonly Category[] }> = [
   {
     groupCode: 'financing_info',
@@ -1155,6 +1189,34 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
     questionOrder.unshift(question.code);
   }
 
+  // ---- 1b-ii. The bureau score --------------------------------------------
+  // Registered the same way and for the same reason as 1b — a bound NUMERIC question the
+  // engine reads through a fact — but NOT `unshift`ed: it is the least important thing in
+  // its group and belongs at the end of it, not in front of what the customer came to
+  // answer.
+  {
+    const { groupCode, question, categories } = I_SCORE_QUESTION;
+    if (!groupByCode.has(groupCode)) {
+      throw new Error(
+        `seed-questionnaire: I-Score question targets unknown group '${groupCode}'`,
+      );
+    }
+    categoriesByQuestion[question.code] = new Set(categories);
+    questionByCode.set(question.code, {
+      code: question.code,
+      groupCode,
+      type: 'NUMERIC',
+      ...(question.numeric ? { numeric: question.numeric } : {}),
+      questionEn: question.questionEn,
+      questionAr: question.questionAr,
+      ...(question.helperTextEn ? { helperTextEn: question.helperTextEn } : {}),
+      ...(question.helperTextAr ? { helperTextAr: question.helperTextAr } : {}),
+      isRequired: false,
+      options: [],
+    });
+    questionOrder.push(question.code);
+  }
+
   // ---- 1c. Inject the itemised obligations block -----------------------------
   // Registered after 1b so `current_installments` already exists, then the whole
   // block is re-ordered as one unit below.
@@ -1313,6 +1375,9 @@ export async function seedQuestionnaire(): Promise<void> {
   await prisma.question.updateMany({ where: { code: { notIn: questionOrder } }, data: { isActive: false } });
   await prisma.questionGroup.updateMany({ where: { code: { notIn: groupOrder } }, data: { isActive: false } });
 
+  // ---- 2b. The bureau-score FACT --------------------------------------------
+  await upsertIScoreFact();
+
   // ---- 3. Publish ONE global snapshot ---------------------------------------
   await publishVersion();
 
@@ -1329,6 +1394,59 @@ export async function seedQuestionnaire(): Promise<void> {
     `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global), ${result.written} program weight sets.`,
   );
   reportWeightSetRun(result, 'seed-questionnaire');
+}
+
+/**
+ * The `surrogate_fact` row for the bureau score, bound to the question above.
+ *
+ * PLATFORM-OWNED — `surrogateProductKey` is deliberately null. Every other fact on that
+ * table was authored by one product and belongs to it; this one is a property of the
+ * APPLICANT, read by any product whose form ticks "adjust by I-Score". Filing it under
+ * whichever product happened to want it first would make it look like that product's, and
+ * retiring that product would then read as retiring the score.
+ *
+ * Idempotent, like the rest of the seed: re-running re-points the binding at whatever the
+ * question's id is now, which is what makes it survive a question being recreated.
+ */
+async function upsertIScoreFact(): Promise<void> {
+  const question = await prisma.question.findUnique({
+    where: { code: I_SCORE_FACT_KEY },
+    select: { id: true },
+  });
+  if (!question) {
+    // Not a throw: the question is written a few lines above, so a miss here means the seed
+    // itself is broken, and dying without saying which half would send the next person to
+    // the wrong file.
+    console.warn(`seed-questionnaire: no '${I_SCORE_FACT_KEY}' question — fact not bound.`);
+    return;
+  }
+
+  const existing = await prisma.platformEnumeration.findUnique({
+    where: { idx_platform_enumeration_type_key: { type: 'surrogate_fact', key: I_SCORE_FACT_KEY } },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.platformEnumeration.update({
+      where: { id: existing.id },
+      data: { boundQuestionId: question.id, active: true, deprecatedAt: null, updatedBy: SEED_ACTOR },
+    });
+    return;
+  }
+
+  await prisma.platformEnumeration.create({
+    data: {
+      type: 'surrogate_fact',
+      key: I_SCORE_FACT_KEY,
+      labelEn: 'I-Score',
+      labelAr: 'الآي سكور',
+      sortOrder: 100,
+      active: true,
+      boundQuestionId: question.id,
+      createdBy: SEED_ACTOR,
+      updatedBy: SEED_ACTOR,
+    },
+  });
 }
 
 /** Shared reporting for both entrypoints into `writeProgramWeightSets`. */

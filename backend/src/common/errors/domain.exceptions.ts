@@ -555,11 +555,7 @@ export class EnumerationTypeIsParentAxisException extends DomainException {
 
 /** A KIND was filed under a parent kind that does not exist, or under itself. */
 export class EnumerationTypeParentInvalidException extends DomainException {
-  constructor(meta: {
-    key: string;
-    parentTypeKey: string;
-    reason: 'missing' | 'self' | 'cycle';
-  }) {
+  constructor(meta: { key: string; parentTypeKey: string; reason: 'missing' | 'self' | 'cycle' }) {
     super(ERROR_CODES.ENUMERATION_TYPE_PARENT_INVALID, meta);
   }
 }
@@ -897,6 +893,38 @@ export class IncomeRuleFactUnavailableException extends DomainException {
 export class ProductRuleInvalidException extends DomainException {
   constructor(meta: { reason: string; stepId?: string; gateId?: string; detail?: string }) {
     super(ERROR_CODES.PRODUCT_RULE_INVALID, meta);
+  }
+}
+
+/**
+ * The friendly form itself is not compilable — about the ANSWERS the operator gave, not
+ * about the steps they never saw.
+ */
+export class ProductTemplateInvalidException extends DomainException {
+  constructor(meta: { reason: string; detail?: string }) {
+    super(ERROR_CODES.PRODUCT_TEMPLATE_INVALID, meta);
+  }
+}
+
+/**
+ * Recompiling this form would orphan figures a bank has already typed.
+ *
+ * `count` as well as the list, because the message reads as a count and interpolating an
+ * ARRAY into that slot renders `"ABK-1,CIB-2 bank program(s)"`.
+ */
+export class ProductTemplateOrphansFiguresException extends DomainException {
+  constructor(meta: { programCodes: readonly string[]; lostKeys: readonly string[] }) {
+    super(ERROR_CODES.PRODUCT_TEMPLATE_ORPHANS_FIGURES, {
+      ...meta,
+      count: meta.programCodes.length,
+    });
+  }
+}
+
+/** The calculation was authored by hand, so there is no form to open. */
+export class ProductTemplateNotEditableException extends DomainException {
+  constructor(meta: { key: string }) {
+    super(ERROR_CODES.PRODUCT_TEMPLATE_NOT_EDITABLE, meta);
   }
 }
 

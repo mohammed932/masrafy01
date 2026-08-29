@@ -667,9 +667,15 @@ export class ProductFactPage implements OnInit {
     if (this.values.length > 2) this.values.removeAt(index);
   }
 
-  /** Leaves without saving — back to the product, on the step that lists what it asks. */
+  /**
+   * Leaves without saving — back to the product, on the step that lists what it asks.
+   *
+   * `step` is 1-BASED on the wire (it is a human-facing number in the URL), so "What it
+   * asks" is 1. It read 2 here, which is "How the income is worked out" — the operator was
+   * returned to a different step from the one this comment named, on both exits.
+   */
   protected cancel(): void {
-    void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 2 } });
+    void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 1 } });
   }
 
   /**
@@ -802,7 +808,8 @@ export class ProductFactPage implements OnInit {
       // The registry cache was just refreshed; the FACT list is a separate cache and the
       // product itself may now resolve differently, so the product page re-reads both on
       // entry. Navigating there IS the reload — the component is created fresh.
-      void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 2 } });
+      // Step 1 — the list this ask was just added to. See `cancel()` on the 1-based index.
+      void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 1 } });
     } catch (error) {
       const code = (error as { code?: ErrorCode }).code ?? 'INTERNAL_ERROR';
       this.errorMessage.set(this.errors.toLocalizedMessage(code as ErrorCode));

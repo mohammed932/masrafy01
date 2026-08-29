@@ -79,6 +79,14 @@ export interface EligibilityConfig {
    * cap. Ordered, inclusive upper bounds, final band open-ended (`null`).
    */
   dbrBands?: DbrBand[];
+  /**
+   * A cap per underwriting bucket — `{ salaried: '50', self_employed: '40' }`.
+   *
+   * Beats the income bands when set: a bank stating both means "40% for the self-employed,
+   * whatever they earn". Keys are the COARSE buckets the engine folds a detailed employment
+   * answer into, never the questionnaire's own vocabulary.
+   */
+  dbrCapPercentByEmploymentType?: Record<string, string>;
   skipDbrCheck: boolean;
   acceptedTransferTypes: string[];
   requiresCD: boolean;
@@ -374,6 +382,11 @@ export function incomeMethodGroups(facts: readonly RegistryFact[] = []): IncomeM
  * `20260815130000_surrogate_fact_registry`. Their tokens stay `byMilitaryGrade` &c. on
  * stored programs, so the picker must not offer the same fact a second time as
  * `fact:military_grade`.
+ *
+ * FACT keys, not question codes — see `BUILTIN_FACT_QUESTION_CODES` in
+ * `core/surrogate-facts.ts`, which is the same four in the other namespace. The one entry
+ * that differs (`credit_card_limit` here, `credit_card_total_limit` there) is the pair as
+ * seeded, not a typo in either.
  */
 const BUILTIN_FACT_KEYS = new Set([
   'military_grade',
@@ -795,9 +808,90 @@ export interface SurrogateProductSummary {
   usedBy: string[];
 }
 
+// ---------------------------------------------------------------------------
+// The friendly form
+// ---------------------------------------------------------------------------
+//
+// Mirrors `backend/src/matching/pipeline/product-template.ts`. It is a MIRROR and not a
+// second authority: the compile happens on the server, the screen sends these answers and
+// renders the rule that comes back. Nothing here decides what a shape compiles to, so the
+// two cannot disagree about it.
+
+/** How the figure is worked out — the one question every product answers. */
+export type TemplateMechanismKind =
+  | 'choiceTable'
+  | 'classTable'
+  | 'numberBand'
+  | 'shareOf'
+  | 'multipleOf'
+  | 'flatAmount';
+
+export type TemplateMechanism =
+  | { kind: 'choiceTable'; fact: string }
+  | { kind: 'classTable'; fact: string }
+  | { kind: 'numberBand'; fact: string }
+  | { kind: 'shareOf'; fact: string }
+  | { kind: 'multipleOf'; fact: string }
+  | { kind: 'flatAmount' };
+
+export type ConditionMeasure = { of: 'fact'; fact: string } | { of: 'answer' };
+
+export type ConditionTest =
+  | { op: 'atLeast' }
+  | { op: 'atMost' }
+  | { op: 'between' }
+  | { op: 'oneOf'; expect: string[] }
+  | { op: 'atLeastShareOf'; fact: string }
+  | { op: 'atLeastPerAnswer'; keyedBy: string }
+  | { op: 'atMostPerAnswer'; keyedBy: string };
+
+export interface TemplateCondition {
+  id: string;
+  measure: ConditionMeasure;
+  test: ConditionTest;
+  reasonCode: GateReasonCode;
+}
+
+export interface ProductTemplate {
+  version: 1;
+  outputKind: 'monthlyIncome' | 'maxAmount';
+  baselineDbrPercent?: string;
+  primary: TemplateMechanism;
+  alternative?: TemplateMechanism;
+  combine?: 'lower' | 'higher';
+  secondColumn?: { fact: string; branches: string[] };
+  uplift?: { fact: string; whenOption: string; otherwiseOption: string };
+  iScore?: boolean;
+  conditions: TemplateCondition[];
+}
+
+/** One starter shape. SHAPE ONLY — the words are this bundle's, in both locales. */
+export interface TemplateStarter {
+  key: string;
+  outputKind: ProductTemplate['outputKind'];
+  mechanism: TemplateMechanismKind;
+}
+
+/** What the form screen reads on open. */
+export interface SurrogateProductTemplateResponse {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  template: ProductTemplate | null;
+  /** What the stored form compiles to right now — rendered, never re-posted. */
+  compiled: IncomeAssumptionConfig | null;
+  /** True when the calculation was authored by hand, so there is no form to open. */
+  advanced: boolean;
+}
+
+/** The bureau-score fact. One key for the whole platform — it is about the APPLICANT. */
+export const I_SCORE_FACT_KEY = 'i_score';
+
 /** A surrogate product's own workspace: the calculation, and everything reachable from it. */
 export interface SurrogateProductDetail extends SurrogateProductSummary {
   incomeRule: IncomeAssumptionConfig | null;
+  /** The form it was compiled from, or `null` when it was authored by hand. */
+  template: ProductTemplate | null;
   valueSources: ValueSourceMap;
   names: Array<{
     key: string;

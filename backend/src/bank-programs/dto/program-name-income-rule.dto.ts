@@ -14,6 +14,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsObject, IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { IncomeAssumptionConfig } from '@/matching/types';
+import type { ProductTemplate } from '@/matching/pipeline/product-template';
+import type { TemplateStarter } from '@/matching/pipeline/product-template-starters';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
 
 export class SetProgramNameIncomeRuleDto {
@@ -99,6 +101,15 @@ export interface SurrogateProductSummaryDto {
 /** A surrogate product's own page: the calculation, and who uses it. */
 export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
   incomeRule: IncomeAssumptionConfig | null;
+  /**
+   * The friendly form the calculation was compiled from, or `null` when it was authored
+   * through the raw step editor.
+   *
+   * The screen branches on exactly this: a form to reopen, or an honest line saying there
+   * isn't one. Sent alongside `incomeRule` rather than instead of it, because the compiled
+   * steps are still what the figures editor and the check panel read.
+   */
+  template: ProductTemplate | null;
   valueSources: Record<string, 'team_estimated'>;
   /**
    * Every bank program reachable through this product — the names that link to it, and
@@ -109,4 +120,66 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
     key: string;
     programs: Array<{ programCode: string; ownAmounts: boolean }>;
   }>;
+}
+
+/**
+ * A write of the friendly form.
+ *
+ * `template` is typed loosely on the wire and validated by `validateTemplate`, the same
+ * posture `IncomeAssumptionConfigDto` already takes with a product rule's `output`. The
+ * shape is a discriminated union several levels deep; `class-validator` can only express
+ * it as a pile of conditional decorators that would then be a SECOND statement of the
+ * rules, free to disagree with the compiler about what is buildable. One authority.
+ */
+export class SetSurrogateProductTemplateDto {
+  @ApiProperty({ type: Object, description: 'The friendly form. Compiled server-side.' })
+  @IsObject()
+  template!: Record<string, unknown>;
+
+  /**
+   * The catalog's default figures, keyed by step and gate id.
+   *
+   * Sent WITH the form, in one call, and that is not a convenience: recompiling replaces the
+   * step list, so a figures write landing a moment later would be writing against a shape
+   * that no longer exists. One statement, one shape, one set of numbers.
+   *
+   * ABSENT means "keep what is stored" — pruned to the keys the new shape still has. The
+   * form screen sends this only once the operator has touched a figure, so simply changing
+   * the shape never blanks the defaults.
+   */
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  stepParams?: Record<string, unknown>;
+
+  /**
+   * Estimate markers for the compiled figures, rooted at `incomeRule.` exactly as the raw
+   * path does — the compile changes who WROTE the steps, never where a figure lives.
+   */
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  valueSources?: Record<string, 'team_estimated'>;
+}
+
+/** The starter library — shapes only. The admin supplies the words, in both locales. */
+export type TemplateStarterDto = TemplateStarter;
+
+/** What the form screen reads on open. */
+export interface SurrogateProductTemplateResponseDto {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  template: ProductTemplate | null;
+  /**
+   * What the form compiles to right now, so the screen can render the calculation without
+   * a second round trip — and so the operator sees the steps their answers produced rather
+   * than being asked to trust that they produced any.
+   */
+  compiled: IncomeAssumptionConfig | null;
+  /**
+   * True when this calculation was authored by hand. The form cannot describe it, and
+   * saying so is the honest state — see `PRODUCT_TEMPLATE_NOT_EDITABLE`.
+   */
+  advanced: boolean;
 }

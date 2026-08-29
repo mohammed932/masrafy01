@@ -177,7 +177,8 @@ interface FlowLine {
  *
  * Neither variant lets an operator AUTHOR a pipeline — add a step, pick an op, wire a
  * reference. Adding a new PRODUCT is still an API or seed action
- * (`PUT admin/bank-programs/program-names/:key/income-rule`, `npm run seed:collateral`).
+ * (`PUT admin/bank-programs/surrogate-products/:key/template`, from the form at
+ * `/surrogate-products/:key/calculation`).
  * A graph editor is its own feature and would be a worse one built in a hurry beside this.
  *
  * FIGURES are a different matter and both variants edit them, through the same three
