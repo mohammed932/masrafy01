@@ -1367,7 +1367,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                           class="field-hint"
                           i18n="@@bank_programs.field.min_income.no_payslip_hint"
                         >
-                          Checked against the figure the rule above produces, not a payslip.
+                          Checked against the figure the rule above produces, not income proof.
                         </p>
                       }
                     </nz-form-control>
@@ -1394,7 +1394,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                           class="field-hint"
                           i18n="@@bank_programs.field.min_months_job.no_payslip_hint"
                         >
-                          Still asked — tenure is not the same thing as a payslip.
+                          Still asked — tenure is not the same thing as income proof.
                         </p>
                       }
                     </nz-form-control>
@@ -3964,8 +3964,8 @@ export class BankProgramFormPage implements OnInit {
         // are a single number, and `declared` is nothing at all, which seven seeded
         // business/professional programs use on purpose. Promising a table here
         // described one method in eleven, so it named the SETTING instead.
-        $localize`:@@bank_programs.income.effect.no_payslip:Pick this and the next step shows the program names that work without a payslip. On the Eligibility step you then set how the bank works the income out.`
-      : $localize`:@@bank_programs.income.effect.payslip:Pick this and the next step shows the program names that need a payslip.`;
+        $localize`:@@bank_programs.income.effect.no_payslip:Pick this and the next step shows the program names sold on a surrogate basis. On the Eligibility step you then set how the bank works the income out.`
+      : $localize`:@@bank_programs.income.effect.payslip:Pick this and the next step shows the program names that need income proof.`;
   }
 
   /**

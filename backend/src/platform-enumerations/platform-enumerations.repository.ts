@@ -795,6 +795,14 @@ export interface SurrogateProductListRow {
   active: boolean;
   sortOrder: number;
   incomeRule: IncomeAssumptionConfig | null;
+  /**
+   * The friendly form behind it, when there is one.
+   *
+   * Carried so the list can say what SHAPE each product is — every pipeline product reads as
+   * the same generic sentence otherwise, which is how two products that are really one read
+   * as duplicates of each other. `null` for a hand-built calculation, which has no form.
+   */
+  templateSpec: ProductTemplate | null;
   /** Catalog names taking their calculation from it. Empty = nothing sells it yet. */
   usedBy: string[];
 }

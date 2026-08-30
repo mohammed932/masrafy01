@@ -372,7 +372,7 @@ export class SurrogateProductsPage {
 
   protected readonly eyebrow = $localize`:@@sp.eyebrow:Program catalog`;
   protected readonly title = $localize`:@@sp.title:Surrogate products`;
-  protected readonly subtitle = $localize`:@@sp.subtitle:The pre-defined ways of working an income out when there is no payslip. A catalog program name sold without a payslip picks one of these, and every bank under that name quotes from it.`;
+  protected readonly subtitle = $localize`:@@sp.subtitle:The pre-defined ways of working an income out when there is no payslip. A catalog program name sold on a surrogate basis picks one of these, and every bank under that name quotes from it.`;
   protected readonly statsAria = $localize`:@@sp.stats_aria:Surrogate product totals`;
   protected readonly loadingLabel = $localize`:@@sp.loading:Loading surrogate products`;
 
@@ -417,9 +417,36 @@ export class SurrogateProductsPage {
     if (p.strategy === null) {
       return $localize`:@@sp.reads_none:No calculation stated yet`;
     }
+
+    // A pipeline product's generic label is the same sentence for every one of them, so a
+    // list of them says nothing about what tells them apart — which is how two products that
+    // are really one read as duplicates. What DOES tell them apart is what the calculation
+    // arrives at and how many ways it offers of getting there, so the card says that.
+    const ways = p.wayCount;
+    if (ways !== null && ways > 0 && p.outputKind !== null) {
+      return p.outputKind === 'maxAmount'
+        ? $localize`:@@sp.reads_ceiling:A borrowing ceiling, worked out ${this.waysWord(ways)}:ways:`
+        : $localize`:@@sp.reads_income:An assumed income, worked out ${this.waysWord(ways)}:ways:`;
+    }
+
     // The label is already a complete phrase, so it stands alone — "Reads By Academic rank"
     // reads as a typo.
     return incomeMethodLabel(p.strategy as IncomeAssumptionStrategy, this.facts());
+  }
+
+  /**
+   * "one way" / "two ways" / "4 ways".
+   *
+   * Spelled out to three because a numeral inside a sentence at that size reads as a figure
+   * the bank stated, and this is a count of shapes; past three the numeral is the clearer
+   * half. Arabic has its own plural rules and its own translation of each of these, which is
+   * why each is a separate message rather than a number substituted into one.
+   */
+  protected waysWord(count: number): string {
+    if (count === 1) return $localize`:@@sp.ways_1:one way`;
+    if (count === 2) return $localize`:@@sp.ways_2:two ways`;
+    if (count === 3) return $localize`:@@sp.ways_3:three ways`;
+    return $localize`:@@sp.ways_n:${count}:count: ways`;
   }
 
   private async load(): Promise<void> {

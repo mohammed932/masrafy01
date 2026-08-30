@@ -67,6 +67,14 @@ const MECHANISM_FACT_TYPE: Readonly<
   flatAmount: null,
 };
 
+/**
+ * How many FURTHER ways one product may offer.
+ *
+ * Mirrors the server's own cap (`MAX_WAYS`, six including the first). Stated here so the
+ * Add button can withhold itself rather than teach the operator that Add is broken.
+ */
+const MAX_ALTERNATIVES = 5;
+
 const MECHANISM_ORDER: readonly TemplateMechanismKind[] = [
   'choiceTable',
   'classTable',
@@ -227,57 +235,83 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
           <section class="block" [attr.aria-labelledby]="'spt-q2'">
             <h2 class="q" id="spt-q2" i18n="@@spt.q2">Does anything else apply?</h2>
 
-            <!-- another way -->
+            <!-- other ways -->
             <div class="addon">
               <label class="addon-head">
                 <input class="addon-tick" type="checkbox" formControlName="useAlternative" />
-                <span i18n="@@spt.addon.alt">Another way to reach the figure</span>
+                <span i18n="@@spt.addon.alt">Other ways to reach the figure</span>
               </label>
               <p class="addon-note" i18n="@@spt.addon.alt.note">
-                Each bank fills in only the way it uses. A bank that fills in both is handled by the
-                choice below.
+                One product, however many ways banks work its figure out. Each bank fills in only
+                the ways it uses; a bank that fills in more than one is handled by the choice below.
               </p>
               @if (form.controls.useAlternative.value) {
-                <div class="addon-body">
-                  <div class="picks">
-                    @for (kind of mechanisms; track kind) {
-                      <button
-                        type="button"
-                        class="pick is-stacked"
-                        role="radio"
-                        [class.is-on]="form.controls.altKind.value === kind"
-                        [attr.aria-checked]="form.controls.altKind.value === kind"
-                        (click)="setAlt(kind)"
-                      >
-                        <span class="pick-dot" aria-hidden="true"></span>
-                        <span class="pick-text">
-                          <span class="pick-name">{{ mechanismLabel(kind) }}</span>
-                          <span class="pick-eg">{{ mechanismExample(kind) }}</span>
-                        </span>
-                      </button>
-                    }
-                  </div>
-                  @if (altNeedsFact()) {
-                    <label class="field">
-                      <span class="label" i18n="@@spt.q1.fact">Which answer does it read?</span>
-                      <select class="control" formControlName="altFact">
-                        <option value="" i18n="@@spt.choose">Choose…</option>
-                        @for (fact of altFacts(); track fact.key) {
-                          <option [value]="fact.key">{{ fact.label }}</option>
+                <div class="addon-body" formArrayName="alternatives">
+                  @for (way of alternatives.controls; track $index) {
+                    <div class="way" [formGroupName]="$index">
+                      <div class="way-head">
+                        <span class="way-name">{{ wayLabel($index) }} </span>
+                        <button
+                          type="button"
+                          class="linkish is-danger"
+                          (click)="removeWay($index)"
+                          [attr.aria-label]="wayRemoveLabel($index)"
+                        >
+                          <span i18n="@@spt.addon.alt.remove">Remove</span>
+                        </button>
+                      </div>
+                      <div class="picks">
+                        @for (kind of mechanisms; track kind) {
+                          <button
+                            type="button"
+                            class="pick is-stacked"
+                            role="radio"
+                            [class.is-on]="way.controls.kind.value === kind"
+                            [attr.aria-checked]="way.controls.kind.value === kind"
+                            (click)="setWayKind($index, kind)"
+                          >
+                            <span class="pick-dot" aria-hidden="true"></span>
+                            <span class="pick-text">
+                              <span class="pick-name">{{ mechanismLabel(kind) }}</span>
+                              <span class="pick-eg">{{ mechanismExample(kind) }}</span>
+                            </span>
+                          </button>
                         }
-                      </select>
-                    </label>
+                      </div>
+                      @if (wayNeedsFact($index)) {
+                        <label class="field">
+                          <span class="label" i18n="@@spt.q1.fact">Which answer does it read?</span>
+                          <select class="control" formControlName="fact">
+                            <option value="" i18n="@@spt.choose">Choose…</option>
+                            @for (fact of wayFacts($index); track fact.key) {
+                              <option [value]="fact.key">{{ fact.label }}</option>
+                            }
+                          </select>
+                        </label>
+                      }
+                    </div>
                   }
+
+                  @if (canAddWay()) {
+                    <button type="button" class="way-add" (click)="addWay()">
+                      <span i18n="@@spt.addon.alt.add">Add another way</span>
+                    </button>
+                  } @else {
+                    <p class="addon-note" i18n="@@spt.addon.alt.full">
+                      That is as many ways as one product can offer.
+                    </p>
+                  }
+
                   <label class="field">
                     <span class="label" i18n="@@spt.addon.alt.both"
-                      >If a bank fills in both ways</span
+                      >If a bank fills in more than one way</span
                     >
                     <select class="control" formControlName="combine">
                       <option value="" i18n="@@spt.addon.alt.first">
                         Use whichever it filled in first
                       </option>
-                      <option value="lower" i18n="@@spt.addon.alt.lower">Take the lower</option>
-                      <option value="higher" i18n="@@spt.addon.alt.higher">Take the higher</option>
+                      <option value="lower" i18n="@@spt.addon.alt.lower">Take the lowest</option>
+                      <option value="higher" i18n="@@spt.addon.alt.higher">Take the highest</option>
                     </select>
                   </label>
                 </div>
@@ -730,6 +764,53 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         }
       }
 
+      /* One way among several. Set off by a rule rather than a card: the addon body already
+         sits inside a card, and a card inside a card reads as a second level of nesting the
+         content does not have. */
+      .way {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding-block-end: var(--space-4);
+        border-block-end: 1px solid var(--color-border-default);
+      }
+      .way:last-of-type {
+        padding-block-end: 0;
+        border-block-end: 0;
+      }
+      .way-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-3);
+      }
+      .way-name {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-secondary);
+      }
+      .way-add {
+        align-self: flex-start;
+        padding: var(--space-2) var(--space-4);
+        border: 1px dashed var(--color-border-strong);
+        border-radius: var(--radius-field);
+        background: none;
+        font: inherit;
+        font-size: var(--text-sm);
+        font-weight: var(--font-medium);
+        color: var(--color-text-primary);
+        cursor: pointer;
+        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .way-add:hover {
+        border-color: var(--primary);
+        border-style: solid;
+      }
+      .way-add:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+
       .ticks {
         display: flex;
         flex-wrap: wrap;
@@ -816,7 +897,8 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .pick {
+        .pick,
+        .way-add {
           transition: none;
         }
         .addon-body {
@@ -892,13 +974,7 @@ export class ProductTemplatePage implements OnInit {
     primaryKind: this.fb.nonNullable.control<TemplateMechanismKind>('choiceTable'),
     primaryFact: this.fb.nonNullable.control(''),
     useAlternative: this.fb.nonNullable.control(false),
-    // `flatAmount`, not `classTable`. The alternative section is closed on a fresh product
-    // and this is only the value it opens ON — but `classTable` now filters its picker to
-    // facts whose answers are filed under classes, so on a product with no such list it
-    // opened to an empty select with nothing saying why. `flatAmount` reads no fact at all,
-    // so it is the one kind that can never open empty.
-    altKind: this.fb.nonNullable.control<TemplateMechanismKind>('flatAmount'),
-    altFact: this.fb.nonNullable.control(''),
+    alternatives: this.fb.array<ReturnType<ProductTemplatePage['wayGroup']>>([]),
     combine: this.fb.nonNullable.control<'' | 'lower' | 'higher'>(''),
     useSecondColumn: this.fb.nonNullable.control(false),
     columnFact: this.fb.nonNullable.control(''),
@@ -915,10 +991,34 @@ export class ProductTemplatePage implements OnInit {
     return this.form.controls.conditions;
   }
 
+  get alternatives(): FormArray<ReturnType<ProductTemplatePage['wayGroup']>> {
+    return this.form.controls.alternatives;
+  }
+
+  /**
+   * One further way of reaching the figure.
+   *
+   * `flatAmount`, not `classTable`, is what a new row opens ON: `classTable` filters its
+   * picker to facts whose answers are filed under classes, so on a product with no such list
+   * it opened to an empty select with nothing saying why. `flatAmount` reads no fact at all,
+   * so it is the one kind that can never open empty.
+   */
+  private wayGroup(kind: TemplateMechanismKind = 'flatAmount', fact = '') {
+    return this.fb.nonNullable.group({
+      kind: this.fb.nonNullable.control<TemplateMechanismKind>(kind),
+      fact: this.fb.nonNullable.control(fact),
+    });
+  }
+
   ngOnInit(): void {
     this.key = this.route.snapshot.paramMap.get('key') ?? '';
     void this.enums.load('surrogate_fact');
     this.form.valueChanges.subscribe(() => this.dirty.set(true));
+    // Ticking the addon with nothing under it would say a second way exists and save none,
+    // so the tick opens on one empty row — the state it describes.
+    this.form.controls.useAlternative.valueChanges.subscribe((on) => {
+      if (on && this.alternatives.length === 0) this.alternatives.push(this.wayGroup());
+    });
     void this.load();
   }
 
@@ -953,12 +1053,25 @@ export class ProductTemplatePage implements OnInit {
     if (this.primaryNeedsFact() && !this.form.controls.primaryFact.value) {
       return $localize`:@@spt.form.block_fact:Choose which answer the calculation reads.`;
     }
-    if (
-      this.form.controls.useAlternative.value &&
-      this.altNeedsFact() &&
-      !this.form.controls.altFact.value
-    ) {
-      return $localize`:@@spt.form.block_alt_fact:Choose which answer the second way reads.`;
+    if (this.form.controls.useAlternative.value) {
+      const unnamed = this.alternatives.controls.findIndex(
+        (row, index) => this.wayNeedsFact(index) && !row.controls.fact.value,
+      );
+      if (unnamed !== -1) {
+        return $localize`:@@spt.form.block_alt_fact:Choose which answer way ${unnamed + 2}:index: reads.`;
+      }
+      const ways = this.alternatives.controls.map((row) => row.getRawValue());
+      const primary = this.form.getRawValue();
+      const identity = (kind: TemplateMechanismKind, fact: string): string =>
+        `${kind}|${MECHANISM_FACT_TYPE[kind] === null ? '' : fact}`;
+      const seen = new Set([identity(primary.primaryKind, primary.primaryFact)]);
+      for (const way of ways) {
+        const id = identity(way.kind, way.fact);
+        if (seen.has(id)) {
+          return $localize`:@@spt.form.block_alt_duplicate:Two ways read the same answer the same way. Remove one, or change what it reads.`;
+        }
+        seen.add(id);
+      }
     }
     if (
       this.form.controls.useSecondColumn.value &&
@@ -990,16 +1103,18 @@ export class ProductTemplatePage implements OnInit {
     return MECHANISM_FACT_TYPE[this.form.controls.primaryKind.value] !== null;
   }
 
-  protected altNeedsFact(): boolean {
-    return MECHANISM_FACT_TYPE[this.form.controls.altKind.value] !== null;
+  protected wayNeedsFact(index: number): boolean {
+    const kind = this.alternatives.at(index)?.controls.kind.value;
+    return kind !== undefined && MECHANISM_FACT_TYPE[kind] !== null;
   }
 
   protected primaryFacts(): RegistryFact[] {
     return this.factsFor(this.form.controls.primaryKind.value);
   }
 
-  protected altFacts(): RegistryFact[] {
-    return this.factsFor(this.form.controls.altKind.value);
+  protected wayFacts(index: number): RegistryFact[] {
+    const kind = this.alternatives.at(index)?.controls.kind.value;
+    return kind === undefined ? [] : this.factsFor(kind);
   }
 
   protected setPrimary(kind: TemplateMechanismKind): void {
@@ -1014,9 +1129,54 @@ export class ProductTemplatePage implements OnInit {
     this.form.controls.primaryFact.setValue('');
   }
 
-  protected setAlt(kind: TemplateMechanismKind): void {
-    this.form.controls.altKind.setValue(kind);
-    this.form.controls.altFact.setValue('');
+  protected setWayKind(index: number, kind: TemplateMechanismKind): void {
+    const row = this.alternatives.at(index);
+    if (!row || row.controls.kind.value === kind) return;
+    row.controls.kind.setValue(kind);
+    // The fact a table is keyed by and the fact a percentage reads are different KINDS of
+    // answer, so carrying the old pick across would leave a select showing a value that is
+    // no longer in its own list.
+    row.controls.fact.setValue('');
+  }
+
+  /**
+   * The ways may be ADDED to and REMOVED from, never reordered.
+   *
+   * The first two keep the slot ids they have always had (`primary`, `alt`) and every way
+   * after that is named by the fact it reads, so a bank's figures stay under the id they
+   * were typed against. Moving what is in the first row would rename `alt`, which is a
+   * number quietly becoming some other bank's — so there is no control that can.
+   */
+  protected addWay(): void {
+    if (!this.canAddWay()) return;
+    this.alternatives.push(this.wayGroup());
+    this.dirty.set(true);
+  }
+
+  protected removeWay(index: number): void {
+    this.alternatives.removeAt(index);
+    // The last way gone is the addon off: a ticked box over an empty list says a second way
+    // exists, and the save would state none.
+    if (this.alternatives.length === 0) this.form.controls.useAlternative.setValue(false);
+    this.dirty.set(true);
+  }
+
+  protected canAddWay(): boolean {
+    return this.alternatives.length < MAX_ALTERNATIVES;
+  }
+
+  /**
+   * Ways are numbered from the FIRST one, which is the section above this addon — so the
+   * first row here is way 2. Numbering these from one would put two "way 1"s on the screen.
+   */
+  protected wayLabel(index: number): string {
+    const n = index + 2;
+    return $localize`:@@spt.addon.alt.way:Way ${n}:index:`;
+  }
+
+  protected wayRemoveLabel(index: number): string {
+    const n = index + 2;
+    return $localize`:@@spt.addon.alt.remove_aria:Remove way ${n}:index:`;
   }
 
   protected setOutputKind(kind: 'monthlyIncome' | 'maxAmount'): void {
@@ -1205,8 +1365,10 @@ export class ProductTemplatePage implements OnInit {
         ? { baselineDbrPercent: v.baselineDbrPercent }
         : {}),
       primary: mechanism(v.primaryKind, v.primaryFact),
-      ...(v.useAlternative ? { alternative: mechanism(v.altKind, v.altFact) } : {}),
-      ...(v.useAlternative && v.combine ? { combine: v.combine } : {}),
+      ...(v.useAlternative && v.alternatives.length > 0
+        ? { alternatives: v.alternatives.map((way) => mechanism(way.kind, way.fact)) }
+        : {}),
+      ...(v.useAlternative && v.alternatives.length > 0 && v.combine ? { combine: v.combine } : {}),
       ...(v.useSecondColumn && v.columnBranches.length >= 2
         ? { secondColumn: { fact: v.columnFact, branches: [...v.columnBranches] } }
         : {}),
@@ -1269,6 +1431,15 @@ export class ProductTemplatePage implements OnInit {
 
     if (template === null) return;
 
+    // Both spellings of the ways list, read the one way the server reads them. `alternative`
+    // is what rows saved before the list existed carry, and it means a list of one.
+    const ways =
+      template.alternatives ?? (template.alternative === undefined ? [] : [template.alternative]);
+    this.alternatives.clear();
+    for (const way of ways) {
+      this.alternatives.push(this.wayGroup(way.kind, way.kind === 'flatAmount' ? '' : way.fact));
+    }
+
     this.conditions.clear();
     for (const condition of template.conditions ?? []) {
       this.conditions.push(
@@ -1292,12 +1463,7 @@ export class ProductTemplatePage implements OnInit {
       baselineDbrPercent: template.baselineDbrPercent ?? '',
       primaryKind: template.primary.kind,
       primaryFact: template.primary.kind === 'flatAmount' ? '' : template.primary.fact,
-      useAlternative: template.alternative !== undefined,
-      altKind: template.alternative?.kind ?? 'flatAmount',
-      altFact:
-        template.alternative && template.alternative.kind !== 'flatAmount'
-          ? template.alternative.fact
-          : '',
+      useAlternative: ways.length > 0,
       combine: template.combine ?? '',
       useSecondColumn: template.secondColumn !== undefined,
       columnFact: template.secondColumn?.fact ?? '',

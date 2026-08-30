@@ -804,6 +804,10 @@ export interface SurrogateProductSummary {
   active: boolean;
   /** The proof it reads. `null` = it states no calculation yet. */
   strategy: string | null;
+  /** What the calculation arrives at: an assumed income, or a borrowing ceiling. */
+  outputKind: 'monthlyIncome' | 'maxAmount' | null;
+  /** How many ways of reaching that figure it offers. `null` = built by hand, so no form. */
+  wayCount: number | null;
   /** Catalog names taking their calculation from it. Empty = nothing sells it yet. */
   usedBy: string[];
 }
@@ -857,7 +861,10 @@ export interface ProductTemplate {
   outputKind: 'monthlyIncome' | 'maxAmount';
   baselineDbrPercent?: string;
   primary: TemplateMechanism;
+  /** Superseded by `alternatives`; still read, so a row saved before it keeps working. */
   alternative?: TemplateMechanism;
+  /** Every other way to reach the figure. Each bank fills in the ones it sells. */
+  alternatives?: TemplateMechanism[];
   combine?: 'lower' | 'higher';
   secondColumn?: { fact: string; branches: string[] };
   uplift?: { fact: string; whenOption: string; otherwiseOption: string };

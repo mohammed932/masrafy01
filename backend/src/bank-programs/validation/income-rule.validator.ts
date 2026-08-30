@@ -102,6 +102,7 @@ export const PRODUCT_RULE_INVALID_REASONS = [
   'branches_empty',
   'branches_mismatch',
   'optional_step_not_skippable',
+  'skip_unset_not_applicable',
 ] as const;
 
 export type ProductRuleInvalidReason = (typeof PRODUCT_RULE_INVALID_REASONS)[number];
@@ -451,6 +452,21 @@ async function validateProductRule(
   // the answer must pass through a `coalesce` that offers something else. `pickByFact` does
   // NOT count — it falls back to the first CONFIGURED column, which is a statement about the
   // bank rather than a substitute for a missing answer.
+  // `skipUnset` changes what a comparison does with a blank member, so it means something
+  // only on a comparison. Anywhere else it is a flag that does nothing, which is worse than
+  // absent — the next operator reads it and believes it.
+  const straySkipUnset = steps.find(
+    (step) => step.skipUnset === true && step.op !== 'minOf' && step.op !== 'maxOf',
+  );
+  if (straySkipUnset) {
+    return {
+      kind: 'productRuleInvalid',
+      reason: 'skip_unset_not_applicable',
+      stepId: straySkipUnset.id,
+      detail: straySkipUnset.op,
+    };
+  }
+
   const optionalProblem = validateOptionalSteps(steps, rule.output.from);
   if (optionalProblem) return optionalProblem;
 

@@ -27,7 +27,10 @@
  * Three rules, all enforced here or by the caller:
  *
  *   1. Ids are SLOT NAMES derived from the shape, never indices and never generated.
- *      `primary`, `alt`, `basis`, `uplift`, `iscore_*`, `src__<fact>`, `cond__<id>`.
+ *      `primary`, `alt`, `alt__<fact>`, `basis`, `uplift`, `iscore_*`, `src__<fact>`,
+ *      `cond__<id>`. The first two ways keep the bare ids, so a THIRD way can be added to a
+ *      live product without moving a figure — which also means the ways may be added to and
+ *      removed from, never reordered.
  *   2. Turning a one-column table into two must not move the first column's figures, so
  *      the FIRST branch keeps the bare id (`primary`) and only the second and later take a
  *      suffix (`primary__<branch>`). Adding a column adds an id; it never renames one.
@@ -148,11 +151,27 @@ export interface ProductTemplate {
    */
   baselineDbrPercent?: string;
   primary: TemplateMechanism;
-  /** A second way to reach the figure. Each bank fills in the one it uses. */
+  /**
+   * A second way to reach the figure. Each bank fills in the one it uses.
+   *
+   * SUPERSEDED by `alternatives`, and still read: `alternative: X` and `alternatives: [X]`
+   * compile to byte-identical steps under identical slot ids, so this is one shape with two
+   * spellings rather than two shapes — which is why it needs no version bump and no
+   * recompile. Everything reads both through `waysOf`; carrying BOTH is refused.
+   */
   alternative?: TemplateMechanism;
   /**
-   * What to do when a bank filled in BOTH ways. Absent means "there is no bank that does" —
-   * the first configured one wins.
+   * Every other way to reach the figure, in order. Each bank fills in the ones it sells.
+   *
+   * More than one, because which figure a ceiling table is keyed by is a per-BANK choice:
+   * one bank keys it by the kind of unit, another by the class the compound is filed under,
+   * a third takes a share of what has been paid. One product, one frame, N ways — the
+   * alternative is a second product per bank, which is the same product duplicated.
+   */
+  alternatives?: TemplateMechanism[];
+  /**
+   * What to do when a bank filled in MORE THAN ONE way. Absent means "there is no bank that
+   * does" — the first configured one wins.
    */
   combine?: 'lower' | 'higher';
   /**
@@ -211,6 +230,45 @@ export function conditionSlot(id: string): string {
   return `cond__${id}`;
 }
 
+/**
+ * Every way this product offers, in order — the one accessor both spellings go through.
+ *
+ * One reader, so `alternative` and `alternatives` can never be understood differently by
+ * two callers. A template carrying both is refused by `validateTemplate` rather than
+ * merged here: merging would pick an order nobody wrote down, and the order decides slot
+ * ids.
+ */
+export function waysOf(template: ProductTemplate): TemplateMechanism[] {
+  const rest =
+    template.alternatives ?? (template.alternative === undefined ? [] : [template.alternative]);
+  return [template.primary, ...rest];
+}
+
+/**
+ * The slot one way's figures hang off.
+ *
+ * The first two keep the ids they have always had — `primary` and `alt` — so adding a THIRD
+ * way to a live product cannot move a number a bank already typed. Every way after that is
+ * named by the fact it reads, never by its index: an index would renumber the moment a way
+ * in front of it is removed, and a renumbered slot is a bank's figure that silently becomes
+ * some other bank's table.
+ *
+ * The direct consequence, and it is deliberate: the ways may be ADDED to and REMOVED from,
+ * never reordered. Moving what is in `alt` renames `alt`.
+ */
+export function waySlot(mechanism: TemplateMechanism, index: number): string {
+  if (index === 0) return SLOT.primary;
+  if (index === 1) return SLOT.alt;
+  return `${SLOT.alt}__${mechanism.kind === 'flatAmount' ? 'flat' : mechanism.fact}`;
+}
+
+/** The `pickByFact` that chooses between one way's columns. */
+export function wayPickSlot(mechanism: TemplateMechanism, index: number): string {
+  if (index === 0) return SLOT.primaryPick;
+  if (index === 1) return SLOT.altPick;
+  return `${waySlot(mechanism, index)}_pick`;
+}
+
 export function conditionBoundSlot(id: string): string {
   return `${conditionSlot(id)}__bound`;
 }
@@ -226,6 +284,9 @@ export const TEMPLATE_INVALID_REASONS = [
   'baseline_dbr_on_income',
   'unknown_mechanism',
   'mechanism_needs_fact',
+  'ways_double_spelled',
+  'duplicate_way',
+  'too_many_ways',
   'second_column_too_few_branches',
   'second_column_duplicate_branch',
   'uplift_same_option',
@@ -242,6 +303,14 @@ export interface TemplateViolation {
   reason: TemplateInvalidReason;
   detail?: string;
 }
+
+/**
+ * A bound on the ways list, so an unbounded array cannot arrive over the wire.
+ *
+ * Six rather than the four the compound frame needed when it was hand-written: a cap that
+ * exactly fits today's biggest product is a cap the next bank hits.
+ */
+export const MAX_WAYS = 6;
 
 /** Ids become `stepParams` keys and travel in dot-paths, so keep them boring. */
 const CONDITION_ID = /^[a-z0-9][a-z0-9_]{0,40}$/;
@@ -273,10 +342,33 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
     }
   }
 
-  for (const mechanism of [template.primary, template.alternative]) {
-    if (mechanism === undefined) continue;
+  // Two spellings of the same list, and no way to know which the operator meant. Refused
+  // rather than merged: the order decides slot ids, and a guessed order is a bank's figure
+  // landing in another bank's box.
+  if (template.alternative !== undefined && template.alternatives !== undefined) {
+    return { reason: 'ways_double_spelled' };
+  }
+
+  const ways = waysOf(template);
+  if (ways.length > MAX_WAYS) {
+    return { reason: 'too_many_ways', detail: String(ways.length) };
+  }
+  const slots = new Set<string>();
+  const seenWays = new Set<string>();
+  for (const [index, mechanism] of ways.entries()) {
     const bad = validateMechanism(mechanism);
     if (bad) return bad;
+    // Two readings of one refusal, and both are needed. The same mechanism reading the same
+    // fact twice is one way listed twice — two boxes for one table, and no bank can say
+    // which it meant. A repeated SLOT is the same damage arriving by a different route (a
+    // fact whose key happens to be `flat`), and it is the id that actually has to be unique.
+    const identity = `${mechanism.kind}|${mechanism.kind === 'flatAmount' ? '' : mechanism.fact}`;
+    if (seenWays.has(identity)) return { reason: 'duplicate_way', detail: identity };
+    seenWays.add(identity);
+
+    const slot = waySlot(mechanism, index);
+    if (slots.has(slot)) return { reason: 'duplicate_way', detail: slot };
+    slots.add(slot);
   }
 
   const column = template.secondColumn;
@@ -388,21 +480,19 @@ export function compileTemplate(template: ProductTemplate): ProductRule {
     out.steps.push({ id: sourceSlot(fact), op: 'factNumber', fact });
   }
 
-  // 2 + 3. The two ways of reaching the figure, each optionally split into columns.
-  const primaryHead = emitMechanism(
-    out,
-    template.primary,
-    SLOT.primary,
-    SLOT.primaryPick,
-    template,
+  // 2 + 3. Every way of reaching the figure, each optionally split into columns.
+  const heads = waysOf(template).map((mechanism, index) =>
+    emitMechanism(
+      out,
+      mechanism,
+      waySlot(mechanism, index),
+      wayPickSlot(mechanism, index),
+      template,
+    ),
   );
-  const altHead =
-    template.alternative === undefined
-      ? null
-      : emitMechanism(out, template.alternative, SLOT.alt, SLOT.altPick, template);
 
   // 4. How they combine.
-  let head = emitBasis(out, primaryHead, altHead, template.combine);
+  let head = emitBasis(out, heads, template.combine);
 
   // 5. The product's own adjustments.
   if (template.uplift !== undefined) head = emitUplift(out, head, template.uplift);
@@ -430,8 +520,8 @@ export function compileTemplate(template: ProductTemplate): ProductRule {
 
 /** Every fact read through a `factNumber` step, from any corner of the form. */
 function collectNumericFacts(template: ProductTemplate, into: Set<string>): void {
-  for (const mechanism of [template.primary, template.alternative]) {
-    if (mechanism === undefined || mechanism.kind === 'flatAmount') continue;
+  for (const mechanism of waysOf(template)) {
+    if (mechanism.kind === 'flatAmount') continue;
     if (
       mechanism.kind === 'numberBand' ||
       mechanism.kind === 'shareOf' ||
@@ -500,33 +590,41 @@ function mechanismStep(mechanism: TemplateMechanism, id: string): RuleStep {
 }
 
 /**
- * The two ways, joined.
+ * Every way, joined.
  *
- * `minOf` / `maxOf` alone cannot express "each bank fills one, and a bank that fills both
- * takes the lower": `reduceRefs` fails closed on a member the bank left blank, so a bank
- * using only one way would quote nothing. So the comparison is WRAPPED —
+ * `minOf` / `maxOf` alone cannot express "each bank fills the ways it sells, and a bank that
+ * fills more than one takes the lower": `reduceRefs` fails closed on a member the bank left
+ * blank, so a bank using one way would quote nothing. Two things close that —
  *
- *     basis_combine = minOf [primary, alt]          both filled: the lower one
- *     basis         = coalesce [basis_combine, primary, alt]
+ *     basis_combine = minOf [ ...ways ]  skipUnset   the lowest of the ways THIS bank filled
+ *     basis         = coalesce [ basis_combine, ...ways ]
  *
- * — and every case falls out: both filled, the comparison wins; one filled, the comparison
- * is unconfigured and the `coalesce` skips past it to the one that is; neither, and the
- * save is already refused (`coalesce_empty`).
+ * — and `skipUnset` is the half that has to be there at three ways or more. The wrapper
+ * alone was enough at two, because "one of two filled" leaves exactly one candidate and the
+ * `coalesce` finds it. At three it stops being true: a bank filling two of three leaves the
+ * comparison unconfigured, and the `coalesce` falls through to the FIRST way ALONE — the
+ * clamp the bank's other table was there to apply, silently gone.
+ *
+ * The `coalesce` still wraps it, for the case `skipUnset` deliberately does not absorb:
+ * every way blank. That ends as `rule_unconfigured`, which is what a bank that configured
+ * nothing should read as, and the save is already refused for it (`coalesce_empty`).
  */
 function emitBasis(
   out: Emission,
-  primaryHead: string,
-  altHead: string | null,
+  heads: readonly string[],
   combine: ProductTemplate['combine'],
 ): string {
-  if (altHead === null) return primaryHead;
+  const [first] = heads;
+  if (first === undefined) return SLOT.basis;
+  if (heads.length === 1) return first;
 
-  const members: ValueRef[] = [{ step: primaryHead }, { step: altHead }];
+  const members: ValueRef[] = heads.map((step) => ({ step }));
   if (combine === 'lower' || combine === 'higher') {
     out.steps.push({
       id: SLOT.basisCombine,
       op: combine === 'lower' ? 'minOf' : 'maxOf',
       of: members,
+      skipUnset: true,
     });
     out.steps.push({
       id: SLOT.basis,

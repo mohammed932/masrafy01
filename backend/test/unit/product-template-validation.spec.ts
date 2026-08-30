@@ -15,7 +15,12 @@ import {
   templateStarters,
   type TemplateStarter,
 } from '@/matching/pipeline/product-template-starters';
-import { compileTemplate, type ProductTemplate } from '@/matching/pipeline/product-template';
+import {
+  MAX_WAYS,
+  compileTemplate,
+  validateTemplate,
+  type ProductTemplate,
+} from '@/matching/pipeline/product-template';
 import { validateIncomeRule } from '@/bank-programs/validation/income-rule.validator';
 import type { IncomeRuleValidationContext } from '@/bank-programs/validation/income-rule.validator';
 import type { IncomeAssumptionConfig } from '@/matching/types';
@@ -176,6 +181,28 @@ describe('the fence on an optional answer', () => {
     );
     expect(violation).toBeUndefined();
   });
+
+  it('refuses `skipUnset` on an op that has no blank member to skip', async () => {
+    // The same reasoning as the `optional` fence: the flag changes what a COMPARISON does
+    // with an unconfigured member, so anywhere else it does nothing — and a flag that does
+    // nothing is one the next operator reads and believes.
+    const violation = await validateIncomeRule(
+      rule(
+        [
+          { id: 'a', op: 'factChoiceTable', fact: 'military_grade' },
+          { id: 'b', op: 'coalesce', of: [{ step: 'a' }, { const: '1' }], skipUnset: true },
+        ],
+        'b',
+      ),
+      ctx,
+      { figuresRequired: false },
+    );
+    expect(violation).toMatchObject({
+      reason: 'skip_unset_not_applicable',
+      stepId: 'b',
+      detail: 'coalesce',
+    });
+  });
 });
 
 describe('what a recompile keeps', () => {
@@ -218,5 +245,86 @@ describe('what a recompile keeps', () => {
     });
     expect(two.has('alt')).toBe(true);
     expect(one.has('alt')).toBe(false);
+  });
+});
+
+describe('the ways list', () => {
+  const base = (over: Partial<ProductTemplate>): ProductTemplate => ({
+    version: 1,
+    outputKind: 'monthlyIncome',
+    primary: { kind: 'choiceTable', fact: 'military_grade' },
+    conditions: [],
+    ...over,
+  });
+
+  it('refuses a template that spells its ways BOTH ways', () => {
+    // The order decides slot ids, and there is no order that reconciles two lists nobody
+    // wrote as one. Guessing here is a bank's figure landing in another bank's box.
+    expect(
+      validateTemplate(
+        base({
+          alternative: { kind: 'classTable', fact: 'compound_name' },
+          alternatives: [{ kind: 'numberBand', fact: 'years_in_practice' }],
+        }),
+      ),
+    ).toEqual({ reason: 'ways_double_spelled' });
+  });
+
+  it('refuses the same way listed twice', () => {
+    expect(
+      validateTemplate(
+        base({
+          alternatives: [
+            { kind: 'classTable', fact: 'compound_name' },
+            { kind: 'classTable', fact: 'compound_name' },
+          ],
+        }),
+      ),
+    ).toEqual({ reason: 'duplicate_way', detail: 'classTable|compound_name' });
+  });
+
+  it('refuses two DIFFERENT ways that would land on one slot', () => {
+    // Past the first two, a way is named by the fact it reads — so two ways reading one fact
+    // collide even though neither is the same mechanism as the other.
+    expect(
+      validateTemplate(
+        base({
+          alternatives: [
+            { kind: 'numberBand', fact: 'years_in_practice' },
+            { kind: 'classTable', fact: 'compound_name' },
+            { kind: 'choiceTable', fact: 'compound_name' },
+          ],
+        }),
+      ),
+    ).toEqual({ reason: 'duplicate_way', detail: 'alt__compound_name' });
+  });
+
+  it('refuses more ways than the cap', () => {
+    const tooMany = Array.from({ length: MAX_WAYS }, (_, i) => ({
+      kind: 'numberBand' as const,
+      fact: `fact_${i}`,
+    }));
+    expect(validateTemplate(base({ alternatives: tooMany }))).toEqual({
+      reason: 'too_many_ways',
+      detail: String(MAX_WAYS + 1),
+    });
+  });
+
+  it('accepts three ways, and they compile to a rule the save-time validation takes', async () => {
+    const template = base({
+      outputKind: 'maxAmount',
+      primary: { kind: 'shareOf', fact: 'amount_paid' },
+      alternatives: [
+        { kind: 'choiceTable', fact: 'military_grade' },
+        { kind: 'classTable', fact: 'compound_name' },
+      ],
+      combine: 'lower',
+    });
+    expect(validateTemplate(template)).toBeUndefined();
+    expect(
+      await validateIncomeRule(asConfig(compileTemplate(template)), ctx, {
+        figuresRequired: false,
+      }),
+    ).toBeUndefined();
   });
 });

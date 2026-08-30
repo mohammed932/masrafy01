@@ -148,6 +148,58 @@ describe('product rule — ops', () => {
     expect(mult.ok && mult.valueEGP.toString()).toBe('4000000');
   });
 
+  describe('minOf / maxOf with skipUnset', () => {
+    // Three ways of reaching one figure, of which this bank fills the ones it sells. Without
+    // the flag the comparison fails closed on the first blank member, so a bank selling two
+    // of three would quote nothing at all.
+    const ways = (params: ProductRule['stepParams'], skipUnset: boolean): ProductRule =>
+      income(
+        [
+          { id: 'a', op: 'constant' },
+          { id: 'b', op: 'constant' },
+          { id: 'c', op: 'constant' },
+          {
+            id: 'lo',
+            op: 'minOf',
+            of: [{ step: 'a' }, { step: 'b' }, { step: 'c' }],
+            ...(skipUnset ? { skipUnset: true } : {}),
+          },
+        ],
+        params,
+        'lo',
+      );
+
+    it('compares only the members this bank filled in', () => {
+      const out = evaluateProductRule(
+        ways({ a: { valueEGP: '900' }, c: { valueEGP: '400' } }, true),
+        ctx({}),
+      );
+      expect(out.ok && out.valueEGP.toString()).toBe('400');
+    });
+
+    it('passes a single filled member through', () => {
+      const out = evaluateProductRule(ways({ b: { valueEGP: '700' } }, true), ctx({}));
+      expect(out.ok && out.valueEGP.toString()).toBe('700');
+    });
+
+    it('reads every member blank as "this bank stated nothing", not as a figure', () => {
+      const out = evaluateProductRule(ways({}, true), ctx({}));
+      expect(out.ok).toBe(false);
+      expect(!out.ok && out.reason).toBe('rule_unconfigured');
+    });
+
+    it('leaves the default alone — without the flag one blank member still stops it', () => {
+      // The flag is opt-in for a reason: a hand-written `minOf` over figures the author knows
+      // are all present must keep failing closed, or a missing one reads as a real answer.
+      const out = evaluateProductRule(
+        ways({ a: { valueEGP: '900' }, c: { valueEGP: '400' } }, false),
+        ctx({}),
+      );
+      expect(out.ok).toBe(false);
+      expect(!out.ok && out.reason).toBe('rule_unconfigured');
+    });
+  });
+
   it('sum, subtract, minOf and maxOf', () => {
     const rule = income(
       [

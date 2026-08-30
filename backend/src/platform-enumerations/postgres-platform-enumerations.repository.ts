@@ -857,6 +857,7 @@ export class PostgresPlatformEnumerationsRepository
           active: true,
           sortOrder: true,
           incomeRule: true,
+          templateSpec: true,
         },
       }),
       this.prisma.platformEnumeration.findMany({
@@ -881,6 +882,7 @@ export class PostgresPlatformEnumerationsRepository
       active: r.active,
       sortOrder: r.sortOrder,
       incomeRule: asIncomeRule(r.incomeRule) ?? null,
+      templateSpec: asProductTemplate(r.templateSpec),
       usedBy: usedBy.get(r.key) ?? [],
     }));
   }
@@ -2194,15 +2196,17 @@ function toProgramNameIncomeRuleRow(row: {
       row.incomeRule === null || typeof row.incomeRule !== 'object'
         ? null
         : (row.incomeRule as IncomeAssumptionConfig),
-    templateSpec:
-      row.templateSpec === null ||
-      row.templateSpec === undefined ||
-      typeof row.templateSpec !== 'object'
-        ? null
-        : (row.templateSpec as ProductTemplate),
+    templateSpec: asProductTemplate(row.templateSpec),
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
     surrogateProductKey: row.surrogateProductKey ?? null,
   };
+}
+
+/** A stored `templateSpec` column as the form it holds, or null when there is no form. */
+function asProductTemplate(value: unknown): ProductTemplate | null {
+  return value === null || value === undefined || typeof value !== 'object'
+    ? null
+    : (value as ProductTemplate);
 }
 
 function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {

@@ -333,7 +333,7 @@ type BasisFilter = 'all' | IncomeBasis;
                        payslip, on a name the catalog says is payslip-only. One of the two
                        is wrong, and only a human knows which. -->
                   <span class="q-none" i18n="@@program_catalog.card.unmarked_no_payslip"
-                    >Banks sell this without a payslip, but the name is not marked for it</span
+                    >Banks sell this on a surrogate basis, but the name is not marked for it</span
                   >
                 }
               }
@@ -1068,7 +1068,7 @@ export class ProgramCatalogPage implements OnInit {
         value: all.reduce((n, r) => n + (r.usage?.noPayslipProgramsWithoutTable ?? 0), 0),
         tone: 'warning',
         icon: 'warning',
-        hint: $localize`:@@program_catalog.stat.no_table.hint:sold with no payslip, and no table entered`,
+        hint: $localize`:@@program_catalog.stat.no_table.hint:sold on a surrogate basis, and no table entered`,
       },
     ];
   });

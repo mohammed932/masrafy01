@@ -233,8 +233,8 @@ export interface EnumerationEditDrawerData {
                 <p class="product-hint">
                   @if (productOptions().length === 0) {
                     <span i18n="@@lookups.field.product.none"
-                      >No surrogate product exists yet, so this name cannot be sold without a
-                      payslip. Add one under Surrogate products first.</span
+                      >No surrogate product exists yet, so this name cannot be sold on a surrogate
+                      basis. Add one under Surrogate products first.</span
                     >
                   } @else {
                     <span i18n="@@lookups.field.product.hint"

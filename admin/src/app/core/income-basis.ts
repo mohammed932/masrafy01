@@ -8,11 +8,11 @@
  * program wizard, the bank detail board) and `core/` is the only place all three may
  * import from. `bank-programs.types.ts` re-exports it, so no call site had to change.
  *
- * `IncomeBasis` is what an admin sees. The wire words — `income_proof`,
- * `income_surrogate` — are never rendered: "Income-surrogate" is a schema noun, and the
- * operator picking it is answering "does this bank read a payslip, or work the income
- * out?". One file owns that translation so the two cannot drift apart across the six
- * screens that ask the question.
+ * `IncomeBasis` is what an admin sees, and since v20.1.1 the words are the wire words'
+ * own — "Income proof" and "Surrogate". They are still translated here rather than
+ * printed off the enum: the wire value is snake_case, the label is a locale string with
+ * an Arabic target, and one file owning the pair is what keeps the six screens that ask
+ * this question from drifting apart.
  *
  * Note what is NOT here: any list of loan categories. Whether a category can sell a
  * no-payslip program is derived from whether its applicants are asked one of the four
@@ -33,11 +33,23 @@ export function programTypeOf(basis: IncomeBasis): ProgramType {
   return basis === 'no_payslip' ? 'income_surrogate' : 'income_proof';
 }
 
-/** Short label — a chip, a tag, a table cell. */
+/**
+ * Short label — a chip, a tag, a table cell.
+ *
+ * The words are the two the platform names its income types by — "Income proof" and
+ * "Surrogate" — NOT a description of the document ("Reads a payslip" / "No payslip",
+ * which is what these read until v20.1.1). The two are the same distinction, but the
+ * old pair named one type by what it lacks, which reads as an exception rather than as
+ * one of two peers, and matched nothing else on the screens beside it (Surrogate
+ * products, the surrogate accent, `income_surrogate` on the wire).
+ *
+ * A payslip is still the right word in a SENTENCE that explains what a bank reads —
+ * see `incomeBasisHint` below, which deliberately keeps it.
+ */
 export function incomeBasisLabel(basis: IncomeBasis): string {
   return basis === 'no_payslip'
-    ? $localize`:@@income_basis.no_payslip:No payslip`
-    : $localize`:@@income_basis.payslip:Reads a payslip`;
+    ? $localize`:@@income_basis.no_payslip:Surrogate`
+    : $localize`:@@income_basis.payslip:Income proof`;
 }
 
 /**

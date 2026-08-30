@@ -132,6 +132,128 @@ describe('two ways of reaching the figure', () => {
   });
 });
 
+describe('three or more ways of reaching the figure', () => {
+  // One product, sold by banks that key their ceiling off different things: a share of what
+  // has been paid, a table by unit type, a table by the class the compound is filed under.
+  // Modelled as three products it is the same product three times, and the operator has to
+  // know which one their bank is on.
+  const template = base({
+    outputKind: 'maxAmount',
+    primary: { kind: 'shareOf', fact: 'amount_paid' },
+    alternatives: [
+      { kind: 'choiceTable', fact: 'unit_type' },
+      { kind: 'classTable', fact: 'compound_name' },
+    ],
+    combine: 'lower',
+  });
+  const rule = compileTemplate(template);
+  const classSlot = `${SLOT.alt}__compound_name`;
+  const facts = {
+    amount_paid: numeric('20000000'),
+    unit_type: choice('apartment'),
+    compound_name: choice('mivida'),
+  };
+  const parents = { mivida: 'class_a' };
+
+  it('gives the first two ways the ids they already had, and names the third by its fact', () => {
+    // The data-loss guard. A third way must not renumber the first two: their ids are what a
+    // bank's figures and its estimate markers are keyed by. An index would move `alt` the
+    // moment a way in front of it was removed.
+    const twoWays = templateParamKeys(
+      base({
+        outputKind: 'maxAmount',
+        primary: { kind: 'shareOf', fact: 'amount_paid' },
+        alternatives: [{ kind: 'choiceTable', fact: 'unit_type' }],
+        combine: 'lower',
+      }),
+    );
+    const threeWays = templateParamKeys(template);
+    expect(twoWays.every((key) => threeWays.includes(key))).toBe(true);
+    expect(threeWays).toContain(SLOT.primary);
+    expect(threeWays).toContain(SLOT.alt);
+    expect(threeWays).toContain(classSlot);
+  });
+
+  it('reads `alternative` and a one-entry `alternatives` as the same product', () => {
+    // Two spellings of one shape, which is the whole reason the new field needs no version
+    // bump and no recompile: an existing row compiles to what it always did.
+    const legacy = compileTemplate(
+      base({ alternative: { kind: 'classTable', fact: 'compound_name' } }),
+    );
+    const current = compileTemplate(
+      base({ alternatives: [{ kind: 'classTable', fact: 'compound_name' }] }),
+    );
+    expect(JSON.stringify(current)).toBe(JSON.stringify(legacy));
+  });
+
+  it('takes the lowest of the ways THIS bank filled in, ignoring the ones it left blank', () => {
+    // The regression `skipUnset` exists for. Wrapping `minOf` in a `coalesce` was enough at
+    // two ways; at three, a bank filling two of them leaves the comparison unconfigured and
+    // the coalesce falls through to the FIRST way alone — dropping the clamp the bank's
+    // other table was there to apply.
+    const out = evaluateProductRule(
+      withFigures(rule, {
+        primary: { scalar: { value: '15', unit: 'percent' } },
+        alt: { keyTable: [{ key: 'apartment', incomeEGP: '2000000' }] },
+      }),
+      { facts, parentKeyByValue: parents },
+    );
+    // 15% of 20,000,000 is 3,000,000; the unit-type ceiling is 2,000,000; the class table is
+    // this bank's blank, and must not turn the answer into 3,000,000.
+    expect(out.ok && out.valueEGP.toString()).toBe('2000000');
+  });
+
+  it('quotes the one way a bank filled in when the other two are blank', () => {
+    const out = evaluateProductRule(
+      withFigures(rule, { [classSlot]: { keyTable: [{ key: 'class_a', incomeEGP: '6000000' }] } }),
+      { facts, parentKeyByValue: parents },
+    );
+    expect(out.ok && out.valueEGP.toString()).toBe('6000000');
+  });
+
+  it('takes the lowest when a bank filled in all three', () => {
+    const out = evaluateProductRule(
+      withFigures(rule, {
+        primary: { scalar: { value: '15', unit: 'percent' } },
+        alt: { keyTable: [{ key: 'apartment', incomeEGP: '2000000' }] },
+        [classSlot]: { keyTable: [{ key: 'class_a', incomeEGP: '6000000' }] },
+      }),
+      { facts, parentKeyByValue: parents },
+    );
+    expect(out.ok && out.valueEGP.toString()).toBe('2000000');
+  });
+
+  it('does NOT demand the answer behind a way this bank declined', () => {
+    // The second regression. `src__amount_paid` is a bare `factNumber`, and an unanswered
+    // fact is FATAL rather than skippable — so a bank whose ceiling comes from the compound
+    // class used to lose every quote from an applicant who skipped an optional question that
+    // bank never reads.
+    const out = evaluateProductRule(
+      withFigures(rule, { [classSlot]: { keyTable: [{ key: 'class_a', incomeEGP: '6000000' }] } }),
+      {
+        facts: { compound_name: choice('mivida') },
+        parentKeyByValue: parents,
+      },
+    );
+    expect(out.ok && out.valueEGP.toString()).toBe('6000000');
+  });
+
+  it('still refuses when a way this bank DID fill in cannot resolve', () => {
+    // The line `skipUnset` must not cross: it absorbs "this bank stated nothing", never "the
+    // applicant did not answer". Falling through here would price the applicant off a
+    // derivation this bank does not sell.
+    const out = evaluateProductRule(
+      withFigures(rule, {
+        alt: { keyTable: [{ key: 'apartment', incomeEGP: '2000000' }] },
+        [classSlot]: { keyTable: [{ key: 'class_a', incomeEGP: '6000000' }] },
+      }),
+      { facts: { compound_name: choice('mivida') }, parentKeyByValue: parents },
+    );
+    expect(out.ok).toBe(false);
+    expect(!out.ok && out.reason).toBe('fact_not_answered');
+  });
+});
+
 describe('I-Score', () => {
   const rule = compileTemplate(base({ iScore: true }));
   const figures = {

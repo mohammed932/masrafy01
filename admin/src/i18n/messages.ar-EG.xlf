@@ -1180,13 +1180,13 @@
       <trans-unit id="bank_programs.form.created_inactive_title" datatype="html"><source>Program created switched off</source><target>تم إنشاء البرنامج متوقفًا</target></trans-unit>
       <trans-unit id="bank_programs.form.created_inactive_body" datatype="html"><source>It holds a number the team estimated. Switch it on once the bank has confirmed the figure.</source><target>يحتوي رقمًا قدّره الفريق. شغّله بعد أن يؤكد البنك الرقم.</target></trans-unit>
       <trans-unit id="bank_programs.value_source.estimated_short" datatype="html"><source>Estimate</source><target>تقدير</target></trans-unit>
-      <trans-unit id="program_catalog.card.unmarked_no_payslip" datatype="html"><source>Banks sell this without a payslip, but the name is not marked for it</source><target>البنوك تبيع هذا الاسم بدون إثبات راتب، لكن الاسم غير محدَّد لذلك</target></trans-unit>
+      <trans-unit id="program_catalog.card.unmarked_no_payslip" datatype="html"><source>Banks sell this on a surrogate basis, but the name is not marked for it</source><target>البنوك تبيع هذا الاسم بأساس بديل الدخل، لكن الاسم غير محدَّد لذلك</target></trans-unit>
       <trans-unit id="program_catalog.stat.no_table" datatype="html"><source>Programs with no table</source><target>برامج بدون جدول</target></trans-unit>
-      <trans-unit id="program_catalog.stat.no_table.hint" datatype="html"><source>sold with no payslip, and no table entered</source><target>تُباع بدون إثبات راتب، وبدون إدخال جدول</target></trans-unit>
+      <trans-unit id="program_catalog.stat.no_table.hint" datatype="html"><source>sold on a surrogate basis, and no table entered</source><target>تُباع بأساس بديل الدخل، وبدون إدخال جدول</target></trans-unit>
       <trans-unit id="pnd.count_drift" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="driftedCount()"/> kept from a change made elsewhere</source><target>+<x id="INTERPOLATION" equiv-text="driftedCount()"/> محفوظة من تغيير حدث في مكان آخر</target></trans-unit>
       <trans-unit id="program_catalog.card.no_table" datatype="html"><source><x id="COUNT" equiv-text="count"/> with no table yet</source><target><x id="COUNT" equiv-text="count"/> بدون جدول بعد</target></trans-unit>
-      <trans-unit id="income_basis.payslip" datatype="html"><source>Reads a payslip</source><target>يقرأ إثبات الراتب</target></trans-unit>
-      <trans-unit id="income_basis.no_payslip" datatype="html"><source>No payslip</source><target>بدون إثبات راتب</target></trans-unit>
+      <trans-unit id="income_basis.payslip" datatype="html"><source>Income proof</source><target>إثبات الدخل</target></trans-unit>
+      <trans-unit id="income_basis.no_payslip" datatype="html"><source>Surrogate</source><target>بديل الدخل</target></trans-unit>
       <trans-unit id="income_basis.payslip.hint" datatype="html"><source>The customer is paid a salary into a bank account. The bank lends against that salary.</source><target>العميل يتقاضى راتبًا يُحوَّل إلى حساب بنكي. ويُقرض البنك على أساس هذا الراتب.</target></trans-unit>
       <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The customer has no payslip. The bank works out what they earn from something else about them, such as their job grade or years of work.</source><target>العميل ليس لديه إثبات راتب. فيحسب البنك دخله من معلومة أخرى عنه، مثل درجته الوظيفية أو سنوات عمله.</target></trans-unit>
       <trans-unit id="program_catalog.basis.all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
@@ -1315,14 +1315,14 @@
       <trans-unit id="bank_programs.income.aria" datatype="html"><source>How the bank reads the income</source><target>كيف يقرأ البنك الدخل</target></trans-unit>
       <trans-unit id="bank_programs.form.income_step.title" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
       <trans-unit id="bank_programs.form.income_step.sub" datatype="html"><source> How does this bank check what the customer earns? Your answer decides which program names you can pick next. </source><target> كيف يتحقق هذا البنك مما يكسبه العميل؟ إجابتك تحدد أسماء البرامج التي يمكنك اختيارها بعد ذلك. </target></trans-unit>
-      <trans-unit id="bank_programs.income.effect.payslip" datatype="html"><source>Pick this and the next step shows the program names that need a payslip.</source><target>اختر هذا لتعرض الخطوة التالية أسماء البرامج التي تحتاج إثبات راتب.</target></trans-unit>
-      <trans-unit id="bank_programs.income.effect.no_payslip" datatype="html"><source>Pick this and the next step shows the program names that work without a payslip. On the Eligibility step you then set how the bank works the income out.</source><target>اختر هذا لتعرض الخطوة التالية أسماء البرامج التي تعمل بدون إثبات راتب. ثم تحدد في خطوة الأهلية كيف يحسب البنك الدخل.</target></trans-unit>
+      <trans-unit id="bank_programs.income.effect.payslip" datatype="html"><source>Pick this and the next step shows the program names that need income proof.</source><target>اختر هذا لتعرض الخطوة التالية أسماء البرامج التي تحتاج إثبات دخل.</target></trans-unit>
+      <trans-unit id="bank_programs.income.effect.no_payslip" datatype="html"><source>Pick this and the next step shows the program names sold on a surrogate basis. On the Eligibility step you then set how the bank works the income out.</source><target>اختر هذا لتعرض الخطوة التالية أسماء البرامج التي تُباع بأساس بديل الدخل. ثم تحدد في خطوة الأهلية كيف يحسب البنك الدخل.</target></trans-unit>
       <trans-unit id="bank_programs.step.issue_income" datatype="html"><source>Choose how the bank reads the income before you continue.</source><target>اختر كيف يقرأ البنك الدخل قبل المتابعة.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_ok" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are asked <x id="INTERPOLATION_1" equiv-text="x"/>.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> يُسألون <x id="INTERPOLATION_1" equiv-text="x"/>.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_missing" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are never asked <x id="INTERPOLATION_1" equiv-text="x"/>, so this rule will produce no income.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> لا يُسألون <x id="INTERPOLATION_1" equiv-text="x"/> أبدًا، لذا لن تنتج هذه القاعدة أي دخل.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_fix" datatype="html"><source>Ask it</source><target>أضف السؤال</target></trans-unit>
-      <trans-unit id="bank_programs.field.min_income.no_payslip_hint" datatype="html"><source>Checked against the figure the rule above produces, not a payslip.</source><target>يُقاس مقابل الرقم الذي تنتجه القاعدة أعلاه، لا مقابل إثبات راتب.</target></trans-unit>
-      <trans-unit id="bank_programs.field.min_months_job.no_payslip_hint" datatype="html"><source>Still asked — tenure is not the same thing as a payslip.</source><target>ما زال مطلوبًا — مدة العمل ليست نفس إثبات الراتب.</target></trans-unit>
+      <trans-unit id="bank_programs.field.min_income.no_payslip_hint" datatype="html"><source>Checked against the figure the rule above produces, not income proof.</source><target>يُقاس مقابل الرقم الذي تنتجه القاعدة أعلاه، لا مقابل إثبات الدخل.</target></trans-unit>
+      <trans-unit id="bank_programs.field.min_months_job.no_payslip_hint" datatype="html"><source>Still asked — tenure is not the same thing as income proof.</source><target>ما زال مطلوبًا — مدة العمل ليست نفس إثبات الدخل.</target></trans-unit>
       <trans-unit id="bank_programs.review.income_basis" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
       <trans-unit id="bank_programs.review.income_rule" datatype="html"><source>How the income is worked out</source><target>كيف يُحسب الدخل</target></trans-unit>
       <trans-unit id="bank_programs.review.income_rule_unbound" datatype="html"><source>fact not set up — no income</source><target>المعلومة غير مهيأة — لا دخل</target></trans-unit>
@@ -1363,9 +1363,9 @@
       <trans-unit id="bank_programs.review.income_rule_own" datatype="html"><source>this bank&apos;s own amounts</source><target>مبالغ هذا البنك وحده</target></trans-unit>
       <trans-unit id="pnd.rule_title" datatype="html"><source>How the income is worked out</source><target>كيف يُحتسب الدخل</target></trans-unit>
       <trans-unit id="pnd.rule_save" datatype="html"><source>Save the income rule</source><target>احفظ قاعدة الدخل</target></trans-unit>
-      <trans-unit id="pnd.rule_empty" datatype="html"><source>Nobody has said what this name reads its income from, so no bank can sell it without a payslip yet. Pick the figure below.</source><target>لم يحدد أحد ما يُحتسب منه دخل هذا الاسم، فلا يستطيع أي بنك بيعه بدون مفردات راتب بعد. اختر المعلومة بالأسفل.</target></trans-unit>
+      <trans-unit id="pnd.rule_empty" datatype="html"><source>Nobody has said what this name reads its income from, so no bank can sell it on a surrogate basis yet. Pick the figure below.</source><target>لم يحدد أحد ما يُحتسب منه دخل هذا الاسم، فلا يستطيع أي بنك بيعه بأساس بديل الدخل بعد. اختر المعلومة بالأسفل.</target></trans-unit>
       <trans-unit id="pnd.rule_readers" datatype="html"><source><x id="total" equiv-text="readers.length"/> bank program(s) read this figure · <x id="inherited" equiv-text="inherited"/> take these amounts · <x id="own" equiv-text="own"/> set their own</source><target><x id="total" equiv-text="readers.length"/> من برامج البنوك تقرأ هذه المعلومة · <x id="inherited" equiv-text="inherited"/> تأخذ هذه المبالغ · <x id="own" equiv-text="own"/> تحدد مبالغها</target></trans-unit>
-      <trans-unit id="pnd.rule_readers_none" datatype="html"><source>No bank sells this name without a payslip yet.</source><target>لا يبيع أي بنك هذا الاسم بدون مفردات راتب بعد.</target></trans-unit>
+      <trans-unit id="pnd.rule_readers_none" datatype="html"><source>No bank sells this name on a surrogate basis yet.</source><target>لا يبيع أي بنك هذا الاسم بأساس بديل الدخل بعد.</target></trans-unit>
       <trans-unit id="pnd.rule_invalid" datatype="html"><source>Check the amounts below before saving.</source><target>راجع المبالغ بالأسفل قبل الحفظ.</target></trans-unit>
       <trans-unit id="bank_programs.income.no_name" datatype="html"><source>Pick a program name on the Program step first — the name decides what the income is worked out from.</source><target>اختر اسم البرنامج في خطوة «البرنامج» أولاً — الاسم هو ما يحدد ما يُحتسب منه الدخل.</target></trans-unit>
       <trans-unit id="income_rule.scalar_title_catalog" datatype="html"><source>The figure banks start from</source><target>الرقم الذي تبدأ منه البنوك</target></trans-unit>
@@ -2038,8 +2038,8 @@
         </context-group>
       </trans-unit>
       <trans-unit id="pnd.step_income_cap" datatype="html">
-        <source>Set once for the name. Every bank selling it without a payslip reads this one figure.</source>
-        <target>يُضبط مرة واحدة للاسم. كل بنك يبيعه بدون كشف راتب يقرأ هذا الرقم نفسه.</target>
+        <source>Set once for the name. Every bank selling it on a surrogate basis reads this one figure.</source>
+        <target>يُضبط مرة واحدة للاسم. كل بنك يبيعه بأساس بديل الدخل يقرأ هذا الرقم نفسه.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
@@ -2081,7 +2081,7 @@
       </trans-unit>
       <trans-unit id="lookups.field.product" datatype="html"><source>Which surrogate product?</source><target>ما المنتج البديل الذي يُحتسب منه الدخل؟</target></trans-unit>
       <trans-unit id="lookups.field.product.hint" datatype="html"><source>The calculation every bank filing a program under this name will quote from. It can be changed later.</source><target>الحساب الذي سيقتبس منه كل بنك يسجل برنامجًا تحت هذا الاسم. يمكن تغييره لاحقًا.</target></trans-unit>
-      <trans-unit id="lookups.field.product.none" datatype="html"><source>No surrogate product exists yet, so this name cannot be sold without a payslip. Add one under Surrogate products first.</source><target>لا يوجد منتج بديل بعد، فلا يمكن بيع هذا الاسم بدون كشف مرتب. أضف منتجًا من «المنتجات البديلة» أولًا.</target></trans-unit>
+      <trans-unit id="lookups.field.product.none" datatype="html"><source>No surrogate product exists yet, so this name cannot be sold on a surrogate basis. Add one under Surrogate products first.</source><target>لا يوجد منتج بديل بعد، فلا يمكن بيع هذا الاسم بأساس بديل الدخل. أضف منتجًا من «المنتجات البديلة» أولًا.</target></trans-unit>
       <trans-unit id="lookups.field.product.placeholder" datatype="html"><source>Pick how the income is worked out</source><target>اختر كيف يُحتسب الدخل</target></trans-unit>
       <trans-unit id="pnd.rule_linked" datatype="html"><source>This name works its income out from the <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ productLabel() }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> surrogate product, so the calculation is edited there and every name using it stays in step.</source><target>هذا الاسم يحتسب دخله من المنتج البديل <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ productLabel() }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/>، فيُعدَّل الحساب هناك ويبقى كل اسم يستخدمه متسقًا.</target></trans-unit>
       <trans-unit id="pnd.rule_open_product" datatype="html"><source>Open the surrogate product</source><target>افتح المنتج البديل</target></trans-unit>
@@ -2095,7 +2095,7 @@
       <trans-unit id="sp.stat.total" datatype="html"><source>Products</source><target>المنتجات</target></trans-unit>
       <trans-unit id="sp.stat.unused" datatype="html"><source>Not sold yet</source><target>غير مباعة بعد</target></trans-unit>
       <trans-unit id="sp.stats_aria" datatype="html"><source>Surrogate product totals</source><target>إجماليات المنتجات البديلة</target></trans-unit>
-      <trans-unit id="sp.subtitle" datatype="html"><source>The pre-defined ways of working an income out when there is no payslip. A catalog program name sold without a payslip picks one of these, and every bank under that name quotes from it.</source><target>الطرق المعرَّفة مسبقًا لاحتساب الدخل حين لا يوجد كشف مرتب. اسم البرنامج الذي يُباع بدون كشف مرتب يختار واحدًا منها، وكل بنك تحت هذا الاسم يقتبس منه.</target></trans-unit>
+      <trans-unit id="sp.subtitle" datatype="html"><source>The pre-defined ways of working an income out when there is no payslip. A catalog program name sold on a surrogate basis picks one of these, and every bank under that name quotes from it.</source><target>الطرق المعرَّفة مسبقًا لاحتساب الدخل حين لا يوجد كشف مرتب. اسم البرنامج الذي يُباع بأساس بديل الدخل يختار واحدًا منها، وكل بنك تحت هذا الاسم يقتبس منه.</target></trans-unit>
       <trans-unit id="sp.title" datatype="html"><source>Surrogate products</source><target>المنتجات البديلة</target></trans-unit>
       <trans-unit id="sp.unused" datatype="html"><source>No catalog name sells this yet</source><target>لا يبيعه أي اسم في الكتالوج بعد</target></trans-unit>
       <trans-unit id="spd.back" datatype="html"><source>All surrogate products</source><target>كل المنتجات البديلة</target></trans-unit>
@@ -2768,12 +2768,24 @@
       <trans-unit id="spt.q1.baseline" datatype="html"><source>This ceiling was worked out at a DBR of</source><target>حُسب هذا الحد عند نسبة عبء دين قدرها</target></trans-unit>
       <trans-unit id="spt.q1.baseline.help" datatype="html"><source>The share of income the bank assumed when it decided that ceiling. Leave it blank to use the program's own cap.</source><target>نسبة الدخل التي افترضها البنك حين حدّد هذا الحد. اتركها فارغة لاستخدام حد البرنامج نفسه.</target></trans-unit>
       <trans-unit id="spt.q2" datatype="html"><source>Does anything else apply?</source><target>هل ينطبق شيء آخر؟</target></trans-unit>
-      <trans-unit id="spt.addon.alt" datatype="html"><source>Another way to reach the figure</source><target>طريقة أخرى للوصول إلى الرقم</target></trans-unit>
-      <trans-unit id="spt.addon.alt.note" datatype="html"><source>Each bank fills in only the way it uses. A bank that fills in both is handled by the choice below.</source><target>كل بنك يملأ الطريقة التي يستخدمها فقط. البنك الذي يملأ الطريقتين يعالجه الاختيار بالأسفل.</target></trans-unit>
-      <trans-unit id="spt.addon.alt.both" datatype="html"><source>If a bank fills in both ways</source><target>إذا ملأ البنك الطريقتين</target></trans-unit>
+      <trans-unit id="spt.addon.alt.way" datatype="html"><source>Way <x id="index" equiv-text="n"/></source><target>الطريقة <x id="index" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="spt.addon.alt.remove" datatype="html"><source>Remove</source><target>إزالة</target></trans-unit>
+      <trans-unit id="spt.addon.alt.remove_aria" datatype="html"><source>Remove way <x id="index" equiv-text="n"/></source><target>إزالة الطريقة <x id="index" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="spt.addon.alt.add" datatype="html"><source>Add another way</source><target>أضف طريقة أخرى</target></trans-unit>
+      <trans-unit id="spt.addon.alt.full" datatype="html"><source>That is as many ways as one product can offer.</source><target>هذا أقصى عدد من الطرق يمكن للمنتج الواحد أن يقدمه.</target></trans-unit>
+      <trans-unit id="spt.form.block_alt_duplicate" datatype="html"><source>Two ways read the same answer the same way. Remove one, or change what it reads.</source><target>طريقتان تقرآن الإجابة نفسها بالأسلوب نفسه. احذف إحداهما أو غيِّر ما تقرأه.</target></trans-unit>
+      <trans-unit id="sp.reads_ceiling" datatype="html"><source>A borrowing ceiling, worked out <x id="ways" equiv-text="this.waysWord(ways)"/></source><target>حد أقصى للاقتراض، يُحسب بـ<x id="ways" equiv-text="this.waysWord(ways)"/></target></trans-unit>
+      <trans-unit id="sp.reads_income" datatype="html"><source>An assumed income, worked out <x id="ways" equiv-text="this.waysWord(ways)"/></source><target>دخل مُقدَّر، يُحسب بـ<x id="ways" equiv-text="this.waysWord(ways)"/></target></trans-unit>
+      <trans-unit id="sp.ways_1" datatype="html"><source>one way</source><target>طريقة واحدة</target></trans-unit>
+      <trans-unit id="sp.ways_2" datatype="html"><source>two ways</source><target>طريقتين</target></trans-unit>
+      <trans-unit id="sp.ways_3" datatype="html"><source>three ways</source><target>ثلاث طرق</target></trans-unit>
+      <trans-unit id="sp.ways_n" datatype="html"><source><x id="count" equiv-text="count"/> ways</source><target><x id="count" equiv-text="count"/> طرق</target></trans-unit>
+      <trans-unit id="spt.addon.alt" datatype="html"><source>Other ways to reach the figure</source><target>طرق أخرى للوصول إلى الرقم</target></trans-unit>
+      <trans-unit id="spt.addon.alt.note" datatype="html"><source>One product, however many ways banks work its figure out. Each bank fills in only the ways it uses; a bank that fills in more than one is handled by the choice below.</source><target>منتج واحد، مهما تعددت طرق البنوك في حساب رقمه. كل بنك يملأ الطرق التي يستخدمها فقط؛ والبنك الذي يملأ أكثر من طريقة يعالجه الاختيار بالأسفل.</target></trans-unit>
+      <trans-unit id="spt.addon.alt.both" datatype="html"><source>If a bank fills in more than one way</source><target>إذا ملأ البنك أكثر من طريقة</target></trans-unit>
       <trans-unit id="spt.addon.alt.first" datatype="html"><source>Use whichever it filled in first</source><target>استخدم أول ما ملأه</target></trans-unit>
-      <trans-unit id="spt.addon.alt.lower" datatype="html"><source>Take the lower</source><target>خذ الأقل</target></trans-unit>
-      <trans-unit id="spt.addon.alt.higher" datatype="html"><source>Take the higher</source><target>خذ الأعلى</target></trans-unit>
+      <trans-unit id="spt.addon.alt.lower" datatype="html"><source>Take the lowest</source><target>خذ الأقل</target></trans-unit>
+      <trans-unit id="spt.addon.alt.higher" datatype="html"><source>Take the highest</source><target>خذ الأعلى</target></trans-unit>
       <trans-unit id="spt.addon.column" datatype="html"><source>A second column</source><target>عمود ثانٍ</target></trans-unit>
       <trans-unit id="spt.addon.column.note" datatype="html"><source>One table per kind of customer — new to the bank versus an existing customer, a city, an employment type. The first column stays where it is, so adding one does not disturb figures a bank has already entered.</source><target>جدول لكل نوع من العملاء — عميل جديد مقابل عميل حالي، أو مدينة، أو نوع عمل. العمود الأول يبقى مكانه، فإضافة عمود لا تمسّ أرقامًا أدخلها بنك بالفعل.</target></trans-unit>
       <trans-unit id="spt.addon.column.fact" datatype="html"><source>Which answer decides the column?</source><target>أي إجابة تحدد العمود؟</target></trans-unit>
@@ -2808,7 +2820,7 @@
       <trans-unit id="spt.form.next" datatype="html"><source>Saving rebuilds the calculation every bank under this product quotes from.</source><target>الحفظ يعيد بناء الحساب الذي تسعّر منه كل بنوك هذا المنتج.</target></trans-unit>
       <trans-unit id="spt.form.block_advanced" datatype="html"><source>This calculation was built by hand, so there is no form to save.</source><target>هذا الحساب مبني يدويًا، فلا يوجد نموذج لحفظه.</target></trans-unit>
       <trans-unit id="spt.form.block_fact" datatype="html"><source>Choose which answer the calculation reads.</source><target>اختر الإجابة التي يقرأها الحساب.</target></trans-unit>
-      <trans-unit id="spt.form.block_alt_fact" datatype="html"><source>Choose which answer the second way reads.</source><target>اختر الإجابة التي تقرأها الطريقة الثانية.</target></trans-unit>
+      <trans-unit id="spt.form.block_alt_fact" datatype="html"><source>Choose which answer way <x id="index" equiv-text="unnamed + 2"/> reads.</source><target>اختر الإجابة التي تقرأها الطريقة <x id="index" equiv-text="unnamed + 2"/>.</target></trans-unit>
       <trans-unit id="spt.form.block_columns" datatype="html"><source>A second column needs at least two answers picked.</source><target>العمود الثاني يحتاج اختيار إجابتين على الأقل.</target></trans-unit>
       <trans-unit id="spt.form.block_uplift" datatype="html"><source>Say which answer earns the bonus and which does not.</source><target>حدّد أي إجابة تستحق الإضافة وأيها لا.</target></trans-unit>
       <trans-unit id="spt.form.block_uplift_same" datatype="html"><source>The two bonus answers have to be different.</source><target>يجب أن تكون إجابتا الإضافة مختلفتين.</target></trans-unit>
@@ -2839,6 +2851,8 @@
       <trans-unit id="spd.form.start" datatype="html"><source>Start a new product from a shape</source><target>ابدأ منتجًا جديدًا من شكل</target></trans-unit>
       <trans-unit id="spd.structure.one_way" datatype="html"><source>Editing the steps by hand switches the form off for this product, for good. A calculation the form cannot describe is one it must not pretend to.</source><target>تعديل الخطوات يدويًا يوقف النموذج لهذا المنتج نهائيًا. الحساب الذي لا يستطيع النموذج وصفه يجب ألّا يتظاهر بوصفه.</target></trans-unit>
       <trans-unit id="spd.structure.form" datatype="html"><source>Build it from a form</source><target>ابنِه من نموذج</target></trans-unit>
+      <trans-unit id="spd.structure.hidden" datatype="html"><source>The steps behind this calculation are hidden. Change it from the form above — the list further down says what it works out, in words.</source><target>خطوات هذا الحساب مخفية. غيّره من النموذج فوق — والقائمة بالأسفل تقول ما يحسبه بالكلمات.</target></trans-unit>
+      <trans-unit id="spd.structure.reveal" datatype="html"><source>Show the raw steps</source><target>أظهِر الخطوات الخام</target></trans-unit>
       <trans-unit id="spd.save_blocked" datatype="html"><source>Some steps have no figures yet, or a step offering several ways to reach the figure has none of them filled in. The save would be refused.</source><target>بعض الخطوات بلا أرقام بعد، أو خطوة تقدّم عدة طرق للوصول إلى الرقم لم تُملأ أي منها. سيُرفض الحفظ.</target></trans-unit>
       <trans-unit id="sp.new2" datatype="html"><source>New surrogate product</source><target>منتج بديل جديد</target></trans-unit>
       <trans-unit id="sp.empty2" datatype="html"><source>No surrogate products yet. Start from a shape and we will build the calculation from three questions.</source><target>لا توجد منتجات بديلة بعد. ابدأ من شكل وسنبني الحساب من ثلاثة أسئلة.</target></trans-unit>

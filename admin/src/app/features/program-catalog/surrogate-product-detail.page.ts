@@ -350,34 +350,51 @@ interface AskedThing {
                 }
 
                 @if (isPipeline()) {
-                  <details class="structure" [open]="structureOpen()">
-                    <summary (click)="toggleStructure($event)">
-                      <span i18n="@@spd.structure.title">The steps this product runs</span>
-                      <span class="structure-count">{{ ruleSteps().length }}</span>
-                    </summary>
-                    @if (hasTemplate()) {
-                      <!-- Stated where the damage would happen, not in a modal after the
-                           fact: editing here is one-way, and the operator should know before
-                           they touch a control rather than after. -->
-                      <p class="warn-line" role="status">
-                        <span i18n="@@spd.structure.one_way"
-                          >Editing the steps by hand switches the form off for this product, for
-                          good. A calculation the form cannot describe is one it must not pretend
-                          to.</span
-                        >
-                      </p>
-                    }
-                    <app-product-rule-builder
-                      [steps]="builderSteps()"
-                      (stepsChange)="onBuilderSteps($event)"
-                      [gates]="builderGates()"
-                      (gatesChange)="onBuilderGates($event)"
-                      [output]="builderOutput()"
-                      (outputChange)="onBuilderOutput($event)"
-                      [facts]="facts()"
-                      (touched)="markStructureDirty()"
-                    />
-                  </details>
+                  @if (hasTemplate() && !rawStepsShown()) {
+                    <!-- A form-built product is changed BY the form, so the raw steps are not
+                         on stage. Read cold they are fourteen unexplained rows whose only
+                         offered action is one-way, while the plain-language flow further down
+                         already says what the calculation does. Withheld, never removed: a
+                         product that outgrows the seven shapes still has to have a door. -->
+                    <p class="notice" role="status">
+                      <span i18n="@@spd.structure.hidden"
+                        >The steps behind this calculation are hidden. Change it from the form above
+                        — the list further down says what it works out, in words.</span
+                      >
+                      <button type="button" class="linkish" (click)="revealRawSteps()">
+                        <span i18n="@@spd.structure.reveal">Show the raw steps</span>
+                      </button>
+                    </p>
+                  } @else {
+                    <details class="structure" [open]="structureOpen()">
+                      <summary (click)="toggleStructure($event)">
+                        <span i18n="@@spd.structure.title">The steps this product runs</span>
+                        <span class="structure-count">{{ ruleSteps().length }}</span>
+                      </summary>
+                      @if (hasTemplate()) {
+                        <!-- Stated where the damage would happen, not in a modal after the
+                             fact: editing here is one-way, and the operator should know before
+                             they touch a control rather than after. -->
+                        <p class="warn-line" role="status">
+                          <span i18n="@@spd.structure.one_way"
+                            >Editing the steps by hand switches the form off for this product, for
+                            good. A calculation the form cannot describe is one it must not pretend
+                            to.</span
+                          >
+                        </p>
+                      }
+                      <app-product-rule-builder
+                        [steps]="builderSteps()"
+                        (stepsChange)="onBuilderSteps($event)"
+                        [gates]="builderGates()"
+                        (gatesChange)="onBuilderGates($event)"
+                        [output]="builderOutput()"
+                        (outputChange)="onBuilderOutput($event)"
+                        [facts]="facts()"
+                        (touched)="markStructureDirty()"
+                      />
+                    </details>
+                  }
                 } @else {
                   <p class="notice" role="status">
                     <span i18n="@@spd.structure.offer">
@@ -1073,6 +1090,16 @@ export class SurrogateProductDetailPage {
   protected readonly structureOpen = signal(false);
 
   /**
+   * Has the operator asked for the raw step builder on a FORM-built product?
+   *
+   * Session-only and deliberately not persisted: the reveal is an escape hatch for the one
+   * product that has outgrown its shape, not a preference. A hand-built pipeline has no form
+   * to fall back on, so it never passes through this gate at all — hiding the builder there
+   * would leave its calculation uneditable in the browser.
+   */
+  protected readonly rawStepsShown = signal(false);
+
+  /**
    * Was this calculation built from the form?
    *
    * Read off the server's own answer rather than inferred from the steps: a hand-authored
@@ -1177,6 +1204,15 @@ export class SurrogateProductDetailPage {
   protected toggleStructure(event: Event): void {
     event.preventDefault();
     this.structureOpen.update((open) => !open);
+  }
+
+  /**
+   * Opens as well as reveals: an operator who asked for the steps asked to SEE them, and a
+   * collapsed `<details>` appearing where the link was reads as the click having failed.
+   */
+  protected revealRawSteps(): void {
+    this.rawStepsShown.set(true);
+    this.structureOpen.set(true);
   }
 
   /**

@@ -106,6 +106,7 @@ import {
 import {
   compileTemplate,
   validateTemplate,
+  waysOf,
   type ProductTemplate,
 } from '@/matching/pipeline/product-template';
 import {
@@ -1502,6 +1503,10 @@ export class BankProgramsService {
       labelEn: p.labelEn,
       active: p.active,
       strategy: p.incomeRule?.strategy ?? null,
+      outputKind: outputKindOf(p.incomeRule),
+      // `waysOf` rather than a second count: one accessor decides what a way IS, so the list
+      // and the form can never disagree about how many a product has.
+      wayCount: wayCountOf(p.templateSpec),
       usedBy: p.usedBy,
     }));
   }
@@ -1540,6 +1545,8 @@ export class BankProgramsService {
       labelEn: row.labelEn,
       active: summary.active,
       strategy: row.incomeRule?.strategy ?? null,
+      outputKind: outputKindOf(row.incomeRule),
+      wayCount: wayCountOf(row.templateSpec),
       usedBy: nameKeys,
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
       template: row.templateSpec,
@@ -2588,4 +2595,22 @@ function computeStructuralDiff(
     }
   }
   return entries;
+}
+
+/**
+ * What a compiled rule arrives at.
+ *
+ * Read off the rule rather than off the form, so a hand-built calculation answers it too —
+ * which is the half of the product list that must not go blank when a product has no form.
+ */
+/** How many ways a product offers, or null when it has no form to count them from. */
+function wayCountOf(template: ProductTemplate | null | undefined): number | null {
+  return template === null || template === undefined ? null : waysOf(template).length;
+}
+
+function outputKindOf(
+  rule: { output?: { kind?: string } } | null,
+): 'monthlyIncome' | 'maxAmount' | null {
+  const kind = rule?.output?.kind;
+  return kind === 'monthlyIncome' || kind === 'maxAmount' ? kind : null;
 }

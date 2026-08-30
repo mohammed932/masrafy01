@@ -94,6 +94,20 @@ export interface SurrogateProductSummaryDto {
   active: boolean;
   /** The proof it reads — `IncomeAssumptionConfig['strategy']`, or null when it states none. */
   strategy: string | null;
+  /**
+   * What the calculation ARRIVES at: an assumed monthly income, or a borrowing ceiling.
+   *
+   * Read off the compiled rule, so it is answerable for a hand-built calculation too.
+   */
+  outputKind: 'monthlyIncome' | 'maxAmount' | null;
+  /**
+   * How many ways of reaching that figure the product offers — the thing that makes one
+   * pipeline product different from another on a list.
+   *
+   * `null` for a hand-built calculation: it has no form, and counting the members of a
+   * `coalesce` in a graph somebody wrote by hand would be a guess wearing a number.
+   */
+  wayCount: number | null;
   /** Catalog names taking their calculation from it. Empty means nothing sells it yet. */
   usedBy: string[];
 }

@@ -201,6 +201,32 @@ export interface RuleStep {
    * the default exists to prevent.
    */
   optional?: boolean;
+  /**
+   * `minOf` / `maxOf` only: a member this bank left blank is SKIPPED instead of stopping the
+   * comparison.
+   *
+   * ─── Why this exists ──────────────────────────────────────────────────────────
+   *
+   * `reduceRefs` fails closed — the first member that cannot resolve is the answer — which is
+   * correct for a hand-written `minOf` over figures the rule author knows are all present.
+   * It is wrong for the one shape the template compiles: N ways of reaching the figure, of
+   * which each bank fills the ones it sells and leaves the rest blank.
+   *
+   * At N=2 the wrapper `coalesce [ minOf, a, b ]` covered it — both filled, the comparison
+   * wins; one filled, the comparison is unconfigured and the coalesce takes the one that is.
+   * At N=3 that stops being true: a bank filling two of three leaves the comparison
+   * unconfigured, and the coalesce falls through to the FIRST of the three alone — silently
+   * dropping the clamp the bank's second table was there to apply.
+   *
+   * With this flag the comparison means "the lowest of the ways THIS BANK filled", which is
+   * what the screen says it means, at any N.
+   *
+   * A FIELD, not a new op, and not the default: `rule_unconfigured` is the only reason it
+   * absorbs. An unanswered fact, a key with no row, a value outside every band all still
+   * stop the rule and report themselves — a bank that stated a table must not be quoted as
+   * though it had not.
+   */
+  skipUnset?: boolean;
 }
 
 /** The figures half of one step — stated per bank (or inherited from the catalog). */
@@ -744,12 +770,18 @@ function scalingFactor(env: OpEnv): OpResult {
 function reduceRefs(env: OpEnv, pick: (a: Decimal, b: Decimal) => Decimal): OpResult {
   const refs = refList(env.step);
   if (refs.length === 0) return { ok: false, reason: 'rule_unconfigured' };
+  const skipUnset = env.step.skipUnset === true;
   let acc: Decimal | null = null;
   for (const ref of refs) {
+    // Same test the `coalesce` applies, and for the same reason: only a STEP the bank left
+    // unconfigured may be skipped. A fact reference or a literal has nothing to leave blank.
+    if (skipUnset && 'step' in ref && env.unset.has(ref.step)) continue;
     const part = refValue(ref, env);
     if (!part.ok) return part;
     acc = acc === null ? part.value : pick(acc, part.value);
   }
+  // Every member skipped reads as "this bank stated none of them", which is skippable in
+  // turn — the enclosing `coalesce` is what decides whether that is a legal outcome.
   return acc === null ? { ok: false, reason: 'rule_unconfigured' } : { ok: true, value: acc };
 }
 
@@ -1096,14 +1128,47 @@ export function neededStepIds(rule: ProductRule): Set<string> {
     const step = byId.get(id);
     if (step === undefined) return;
     needed.add(id);
-    for (const ref of stepRefsOf(step)) if ('step' in ref) visit(ref.step, depth + 1);
+    for (const ref of reachableRefsOf(step, depth)) if ('step' in ref) visit(ref.step, depth + 1);
+  };
+
+  /**
+   * The refs of one step that this bank's configuration can actually reach.
+   *
+   * For everything except a choice between derivations that is every ref it declares. For a
+   * `coalesce`, a `pickByFact`, or a skip-blanks `minOf`/`maxOf` it is only the members that
+   * could produce a figure — because the others are the ways OTHER banks sell this product,
+   * and walking into one makes its fact a requirement of a bank that never reads it.
+   *
+   * That is not hypothetical: the compound frame's first way is `percentOf` over
+   * `src__how_much_have_you_paid_for_the_unit_so_far`, a bare `factNumber`. A bank whose
+   * ceiling comes from the compound CLASS states no percentage, so its way is unconfigured
+   * and skipped at evaluation — but the source step was still walked, and a `factNumber`
+   * checks nothing before reading, so an applicant who skipped that optional question
+   * answered `fact_not_answered`, which is FATAL. The bank's quote died on a question the
+   * bank does not ask.
+   *
+   * Falls back to every ref when NO member qualifies, so a rule that is broken rather than
+   * merely undersold still evaluates and ends as `rule_unconfigured` instead of silently
+   * skipping to an empty answer.
+   */
+  const reachableRefsOf = (step: RuleStep, depth: number): ReadonlyArray<ValueRef> => {
+    const refs = stepRefsOf(step);
+    if (!choosesBetweenWays(step) || refs.length === 0) return refs;
+    const usable = refs.filter((ref) => !('step' in ref) || couldProduce(ref.step, depth + 1));
+    return usable.length === 0 ? refs : usable;
   };
 
   const couldProduce = (id: string, depth = 0): boolean => {
     if (depth > 32) return true;
     const step = byId.get(id);
     if (step === undefined) return false;
-    if (step.op === 'coalesce' || step.op === 'pickByFact') {
+    if (
+      step.op === 'coalesce' ||
+      step.op === 'pickByFact' ||
+      ((step.op === 'minOf' || step.op === 'maxOf') && step.skipUnset === true)
+    ) {
+      // A skip-blanks comparison produces a figure exactly when one of its members does,
+      // which is the same question a `coalesce` asks of its own members.
       const refs = stepRefsOf(step);
       if (refs.some((ref) => !('step' in ref))) return true;
       return refs.some((ref) => 'step' in ref && couldProduce(ref.step, depth + 1));
@@ -1135,7 +1200,38 @@ export function neededStepIds(rule: ProductRule): Set<string> {
     if ('step' in gate.left) visit(gate.left.step);
   }
 
+  // The declined ways themselves — marked needed, but never walked INTO.
+  //
+  // Both halves are required, and for opposite reasons. Not walking into one is what keeps
+  // its fact from becoming a requirement of a bank that does not read it. Evaluating the
+  // step ITSELF is what puts it in `unset`, which is the only thing a `coalesce` (or a
+  // skip-blanks comparison) can act on: a step that is simply absent from `values` reads as
+  // a broken reference and STOPS the rule, so pruning it away entirely would refuse every
+  // bank that sells fewer than all the ways.
+  //
+  // Safe to evaluate with its inputs missing: every op that takes figures checks them
+  // first, and a ref to a step that never ran resolves as `rule_unconfigured`.
+  for (const id of [...needed]) {
+    const step = byId.get(id);
+    if (step === undefined || !choosesBetweenWays(step)) continue;
+    for (const ref of stepRefsOf(step)) {
+      if ('step' in ref && byId.has(ref.step)) needed.add(ref.step);
+    }
+  }
+
   return needed;
+}
+
+/**
+ * Steps whose members are WAYS a bank chooses between, rather than inputs it must all have.
+ *
+ * One reading, shared by the walk that decides what to evaluate, by the walk that decides
+ * what a bank may leave blank, and by the pruning between them — three places that must
+ * agree about which members are optional or a bank's figures go missing in one of them.
+ */
+function choosesBetweenWays(step: RuleStep): boolean {
+  if (step.op === 'coalesce' || step.op === 'pickByFact') return true;
+  return (step.op === 'minOf' || step.op === 'maxOf') && step.skipUnset === true;
 }
 
 /** A step's value refs, as a list whether it declares one, many, or none. */
@@ -1154,8 +1250,10 @@ export function optionalStepIds(rule: ProductRule): Set<string> {
   const ids = new Set<string>();
   for (const step of rule.steps ?? []) {
     // `pickByFact` for the same reason: a bank that sells only the standard column leaves
-    // the other one blank, and the op falls back to the column it did configure.
-    if (step.op !== 'coalesce' && step.op !== 'pickByFact') continue;
+    // the other one blank, and the op falls back to the column it did configure. A
+    // skip-blanks `minOf`/`maxOf` is the third: its members ARE the ways a bank chooses
+    // between, and leaving one out is how a bank declines it.
+    if (!choosesBetweenWays(step)) continue;
     const refs = step.of === undefined ? [] : Array.isArray(step.of) ? step.of : [step.of];
     for (const ref of refs) if ('step' in ref) ids.add(ref.step);
   }

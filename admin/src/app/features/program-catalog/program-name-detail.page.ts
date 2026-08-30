@@ -279,7 +279,7 @@ interface QuestionRow {
                      one line above the control rather than a card that replaces it. -->
                     <p class="rule-empty" i18n="@@pnd.rule_empty">
                       Nobody has said what this name reads its income from, so no bank can sell it
-                      without a payslip yet. Pick the figure below.
+                      on a surrogate basis yet. Pick the figure below.
                     </p>
                   }
 
@@ -306,7 +306,7 @@ interface QuestionRow {
                   <p class="rule-usage">
                     @if (ruleReaders().length === 0) {
                       <span i18n="@@pnd.rule_readers_none"
-                        >No bank sells this name without a payslip yet.</span
+                        >No bank sells this name on a surrogate basis yet.</span
                       >
                     } @else {
                       <span>{{ ruleReadersLabel() }}</span>
@@ -1898,7 +1898,7 @@ export class ProgramNameDetailPage implements OnInit {
       case 0:
         return this.linked()
           ? $localize`:@@pnd.step_income_cap_linked:Taken from a surrogate product, so every name using that product stays in step. Edited there, not here.`
-          : $localize`:@@pnd.step_income_cap:Set once for the name. Every bank selling it without a payslip reads this one figure.`;
+          : $localize`:@@pnd.step_income_cap:Set once for the name. Every bank selling it on a surrogate basis reads this one figure.`;
       case 1:
         return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
       default:
