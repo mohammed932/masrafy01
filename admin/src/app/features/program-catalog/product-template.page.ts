@@ -129,14 +129,17 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
               @for (kind of mechanisms; track kind) {
                 <button
                   type="button"
-                  class="pick"
+                  class="pick is-stacked"
                   role="radio"
                   [class.is-on]="form.controls.primaryKind.value === kind"
                   [attr.aria-checked]="form.controls.primaryKind.value === kind"
                   (click)="setPrimary(kind)"
                 >
                   <span class="pick-dot" aria-hidden="true"></span>
-                  <span>{{ mechanismLabel(kind) }}</span>
+                  <span class="pick-text">
+                    <span class="pick-name">{{ mechanismLabel(kind) }}</span>
+                    <span class="pick-eg">{{ mechanismExample(kind) }}</span>
+                  </span>
                 </button>
               }
             </div>
@@ -240,14 +243,17 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                     @for (kind of mechanisms; track kind) {
                       <button
                         type="button"
-                        class="pick"
+                        class="pick is-stacked"
                         role="radio"
                         [class.is-on]="form.controls.altKind.value === kind"
                         [attr.aria-checked]="form.controls.altKind.value === kind"
                         (click)="setAlt(kind)"
                       >
                         <span class="pick-dot" aria-hidden="true"></span>
-                        <span>{{ mechanismLabel(kind) }}</span>
+                        <span class="pick-text">
+                          <span class="pick-name">{{ mechanismLabel(kind) }}</span>
+                          <span class="pick-eg">{{ mechanismExample(kind) }}</span>
+                        </span>
                       </button>
                     }
                   </div>
@@ -509,7 +515,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                 [output]="compiledOutput()"
                 [figures]="figures()"
                 (figuresChange)="onFigures($event)"
-                (figuresTouched)="markDirty()"
+                (figuresTouched)="markFiguresDirty()"
                 [facts]="facts()"
               />
             }
@@ -588,6 +594,23 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         color: var(--color-text-primary);
         font-weight: var(--font-semibold);
       }
+      /* Name over example. The dot keeps its optical line with the NAME, not with the
+         centre of a two-line card, so a row of stacked cards still reads as one control. */
+      .pick.is-stacked {
+        align-items: flex-start;
+        padding-block: var(--space-2);
+        text-align: start;
+      }
+      .pick-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .pick-eg {
+        font-size: var(--text-xs);
+        font-weight: var(--font-normal);
+        color: var(--color-text-secondary);
+      }
       /* A circle, not a rounded square: a square teaches "as many as apply" before the
          first click, and only one of these can be picked. */
       .pick-dot {
@@ -595,6 +618,10 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         block-size: 14px;
         border-radius: var(--radius-pill);
         border: 1.5px solid var(--color-border-strong);
+      }
+      .pick.is-stacked .pick-dot {
+        flex: none;
+        margin-block-start: var(--space-1);
       }
       .pick.is-on .pick-dot {
         border-color: var(--primary);
@@ -820,7 +847,19 @@ export class ProductTemplatePage implements OnInit {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly advanced = signal(false);
+  /**
+   * The ANSWERS above are dirty — the tables below were compiled from an older shape.
+   *
+   * Deliberately NOT set by a figure edit. Section ③ is guarded on this signal, so a
+   * figure write that set it unmounted the editor the operator was typing into: one
+   * keystroke replaced the whole table with "save the answers above", and there was no
+   * way to give the product any figures at all from this screen.
+   */
   protected readonly dirty = signal(false);
+  /** A figure has been typed. Enables Save; never hides the editor it was typed into. */
+  protected readonly figuresDirty = signal(false);
+  /** Anything unsaved, of either kind — what the action bar's hint speaks about. */
+  protected readonly unsaved = computed(() => this.dirty() || this.figuresDirty());
   protected readonly saveError = signal<string | null>(null);
   protected readonly label = signal<string | null>(null);
   protected readonly figures = signal<Record<string, StepFigures>>({});
@@ -895,7 +934,7 @@ export class ProductTemplatePage implements OnInit {
 
   protected hint(): string | null {
     if (this.saving()) return null;
-    if (!this.dirty())
+    if (!this.unsaved())
       return $localize`:@@spt.form.clean:Nothing to save — this is what is stored.`;
     return $localize`:@@spt.form.next:Saving rebuilds the calculation every bank under this product quotes from.`;
   }
@@ -941,6 +980,10 @@ export class ProductTemplatePage implements OnInit {
 
   protected mechanismLabel(kind: TemplateMechanismKind): string {
     return MECHANISM_LABELS[kind]();
+  }
+
+  protected mechanismExample(kind: TemplateMechanismKind): string {
+    return MECHANISM_EXAMPLES[kind]();
   }
 
   protected primaryNeedsFact(): boolean {
@@ -1065,9 +1108,22 @@ export class ProductTemplatePage implements OnInit {
    * The same dictionary the mobile app renders it from, deliberately: the operator is
    * choosing the sentence somebody is going to be shown, so they should be choosing it by
    * that sentence and not by a code.
+   *
+   * `GATE_`-PREFIXED, because that is the key the sentence is filed under — the engine
+   * raises `GATE_CONTRACT_TOO_NEW`, not `CONTRACT_TOO_NEW`, and both dictionaries agree
+   * with it. Looked up bare, every one of the nine reasons missed and fell back to
+   * `INTERNAL_ERROR`, so the picker offered nine options all reading "Something went wrong
+   * on our side" and the operator could not tell which sentence they were choosing.
+   *
+   * `GATE_NOT_MET` is the exception and is filed bare: it is the only reason whose own
+   * name already carries the prefix, in the engine and in the Flutter mapper as well as
+   * here. Prefixing it unconditionally would leave exactly one option still wrong, which
+   * is worse than the bug it replaced — a single broken row reads as a real sentence
+   * nobody checked.
    */
   protected reasonLabel(code: GateReasonCode): string {
-    return this.errors.toLocalizedMessage(code as unknown as ErrorCode);
+    const key = code.startsWith('GATE_') ? code : `GATE_${code}`;
+    return this.errors.toLocalizedMessage(key as ErrorCode);
   }
 
   // --- ③ ---------------------------------------------------------------------
@@ -1076,8 +1132,8 @@ export class ProductTemplatePage implements OnInit {
     this.figures.set(figures);
   }
 
-  protected markDirty(): void {
-    this.dirty.set(true);
+  protected markFiguresDirty(): void {
+    this.figuresDirty.set(true);
   }
 
   // --- save / load -----------------------------------------------------------
@@ -1104,6 +1160,7 @@ export class ProductTemplatePage implements OnInit {
       });
       this.absorb(res.data.template, res.data.incomeRule);
       this.dirty.set(false);
+      this.figuresDirty.set(false);
     } catch (err) {
       const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })
         ?.error;
@@ -1182,6 +1239,7 @@ export class ProductTemplatePage implements OnInit {
         this.seedFromStarter(this.route.snapshot.queryParamMap.get('from'));
       }
       this.dirty.set(false);
+      this.figuresDirty.set(false);
     } finally {
       this.loading.set(false);
     }
@@ -1292,12 +1350,27 @@ export class ProductTemplatePage implements OnInit {
 
 /** Thunks — `$localize` resolves per call, so a frozen map would pin the first locale. */
 const MECHANISM_LABELS: Readonly<Record<TemplateMechanismKind, () => string>> = {
-  choiceTable: () => $localize`:@@spt.mech.choice:A table by what they picked`,
-  classTable: () => $localize`:@@spt.mech.class:A table by the class it is filed under`,
-  numberBand: () => $localize`:@@spt.mech.band:A table of ranges over a number`,
-  shareOf: () => $localize`:@@spt.mech.share:A share of a number they state`,
-  multipleOf: () => $localize`:@@spt.mech.multiple:A multiple of a number they state`,
-  flatAmount: () => $localize`:@@spt.mech.flat:One figure the bank states`,
+  choiceTable: () => $localize`:@@spt.mech.choice:One figure for each answer`,
+  classTable: () => $localize`:@@spt.mech.class:One figure for each class`,
+  numberBand: () => $localize`:@@spt.mech.band:One figure for each range of a number`,
+  shareOf: () => $localize`:@@spt.mech.share:A percentage of a number the customer states`,
+  multipleOf: () => $localize`:@@spt.mech.multiple:A multiple of a number the customer states`,
+  flatAmount: () => $localize`:@@spt.mech.flat:The same figure for everyone`,
+};
+
+/**
+ * One worked example per shape, in the same voice as the starter cards on
+ * `/surrogate-products/new` — a name says what the bank fills in, an example says what one
+ * filled-in row looks like, and the pair is what tells a share from a multiple.
+ */
+const MECHANISM_EXAMPLES: Readonly<Record<TemplateMechanismKind, () => string>> = {
+  choiceTable: () => $localize`:@@spt.mech.choice.eg:e.g. Colonel → 45,000 a month`,
+  classTable: () =>
+    $localize`:@@spt.mech.class.eg:e.g. Class AA → up to 6,000,000, whichever compound it is`,
+  numberBand: () => $localize`:@@spt.mech.band.eg:e.g. 8–12 years → 30,000 a month`,
+  shareOf: () => $localize`:@@spt.mech.share.eg:e.g. 30% of what they spend on their card`,
+  multipleOf: () => $localize`:@@spt.mech.multiple.eg:e.g. 3× their car instalment`,
+  flatAmount: () => $localize`:@@spt.mech.flat.eg:e.g. 15,000, nothing asked`,
 };
 
 const CONDITION_OP_LABELS: Readonly<Record<ConditionOp, () => string>> = {

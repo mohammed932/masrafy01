@@ -2749,7 +2749,7 @@
       <trans-unit id="spt.shape.multiple.eg" datatype="html"><source>e.g. 3× their existing car instalment</source><target>مثال: 3× قسط سيارته الحالي</target></trans-unit>
       <trans-unit id="spt.shape.class" datatype="html"><source>A ceiling from an asset's class</source><target>حد أقصى من فئة الأصل</target></trans-unit>
       <trans-unit id="spt.shape.class.detail" datatype="html"><source>The customer picks what they own by name, and the bank lends against the class it is filed under.</source><target>يختار العميل ما يملكه بالاسم، ويُقرض البنك على أساس الفئة المصنّف تحتها.</target></trans-unit>
-      <trans-unit id="spt.shape.class.eg" datatype="html"><source>e.g. Class A → lend up to 6,000,000</source><target>مثال: فئة A ← إقراض حتى 6,000,000</target></trans-unit>
+      <trans-unit id="spt.shape.class.eg" datatype="html"><source>e.g. Class AA → lend up to 6,000,000</source><target>مثال: فئة AA ← إقراض حتى 6,000,000</target></trans-unit>
       <trans-unit id="spt.shape.bracket" datatype="html"><source>A ceiling from an amount bracket</source><target>حد أقصى من شريحة مبلغ</target></trans-unit>
       <trans-unit id="spt.shape.bracket.detail" datatype="html"><source>The customer states an amount, and the bank has a lending ceiling for the bracket it falls in.</source><target>يذكر العميل مبلغًا، وللبنك حد إقراض لكل شريحة يقع فيها.</target></trans-unit>
       <trans-unit id="spt.shape.bracket.eg" datatype="html"><source>e.g. paid 1–2M → lend up to 3,000,000</source><target>مثال: سدّد 1–2 مليون ← إقراض حتى 3,000,000</target></trans-unit>
@@ -2812,12 +2812,18 @@
       <trans-unit id="spt.form.block_columns" datatype="html"><source>A second column needs at least two answers picked.</source><target>العمود الثاني يحتاج اختيار إجابتين على الأقل.</target></trans-unit>
       <trans-unit id="spt.form.block_uplift" datatype="html"><source>Say which answer earns the bonus and which does not.</source><target>حدّد أي إجابة تستحق الإضافة وأيها لا.</target></trans-unit>
       <trans-unit id="spt.form.block_uplift_same" datatype="html"><source>The two bonus answers have to be different.</source><target>يجب أن تكون إجابتا الإضافة مختلفتين.</target></trans-unit>
-      <trans-unit id="spt.mech.choice" datatype="html"><source>A table by what they picked</source><target>جدول حسب ما اختاره</target></trans-unit>
-      <trans-unit id="spt.mech.class" datatype="html"><source>A table by the class it is filed under</source><target>جدول حسب الفئة المصنّف تحتها</target></trans-unit>
-      <trans-unit id="spt.mech.band" datatype="html"><source>A table of ranges over a number</source><target>جدول مديات على رقم</target></trans-unit>
-      <trans-unit id="spt.mech.share" datatype="html"><source>A share of a number they state</source><target>نسبة من رقم يذكره</target></trans-unit>
-      <trans-unit id="spt.mech.multiple" datatype="html"><source>A multiple of a number they state</source><target>مضاعف لرقم يذكره</target></trans-unit>
-      <trans-unit id="spt.mech.flat" datatype="html"><source>One figure the bank states</source><target>رقم واحد يذكره البنك</target></trans-unit>
+      <trans-unit id="spt.mech.choice" datatype="html"><source>One figure for each answer</source><target>رقم لكل إجابة</target></trans-unit>
+      <trans-unit id="spt.mech.choice.eg" datatype="html"><source>e.g. Colonel → 45,000 a month</source><target>مثال: عقيد ← 45,000 شهريًا</target></trans-unit>
+      <trans-unit id="spt.mech.class" datatype="html"><source>One figure for each class</source><target>رقم لكل فئة</target></trans-unit>
+      <trans-unit id="spt.mech.class.eg" datatype="html"><source>e.g. Class AA → up to 6,000,000, whichever compound it is</source><target>مثال: فئة AA ← حتى 6,000,000 مهما كان الكمبوند</target></trans-unit>
+      <trans-unit id="spt.mech.band" datatype="html"><source>One figure for each range of a number</source><target>رقم لكل مدى من الأرقام</target></trans-unit>
+      <trans-unit id="spt.mech.band.eg" datatype="html"><source>e.g. 8–12 years → 30,000 a month</source><target>مثال: 8–12 سنة ← 30,000 شهريًا</target></trans-unit>
+      <trans-unit id="spt.mech.share" datatype="html"><source>A percentage of a number the customer states</source><target>نسبة مئوية من رقم يذكره العميل</target></trans-unit>
+      <trans-unit id="spt.mech.share.eg" datatype="html"><source>e.g. 30% of what they spend on their card</source><target>مثال: 30% مما ينفقه على بطاقته</target></trans-unit>
+      <trans-unit id="spt.mech.multiple" datatype="html"><source>A multiple of a number the customer states</source><target>مضاعف لرقم يذكره العميل</target></trans-unit>
+      <trans-unit id="spt.mech.multiple.eg" datatype="html"><source>e.g. 3× their car instalment</source><target>مثال: 3× قسط سيارته</target></trans-unit>
+      <trans-unit id="spt.mech.flat" datatype="html"><source>The same figure for everyone</source><target>نفس الرقم للجميع</target></trans-unit>
+      <trans-unit id="spt.mech.flat.eg" datatype="html"><source>e.g. 15,000, nothing asked</source><target>مثال: 15,000 دون أي سؤال</target></trans-unit>
       <trans-unit id="spt.op.atLeast" datatype="html"><source>At least what the bank states</source><target>على الأقل ما يذكره البنك</target></trans-unit>
       <trans-unit id="spt.op.atMost" datatype="html"><source>At most what the bank states</source><target>على الأكثر ما يذكره البنك</target></trans-unit>
       <trans-unit id="spt.op.between" datatype="html"><source>Between the bank's two figures</source><target>بين رقمَي البنك</target></trans-unit>

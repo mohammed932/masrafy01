@@ -432,7 +432,7 @@ const SHAPE_COPY: Readonly<Record<string, () => ShapeCopy>> = {
   ceiling_by_class: () => ({
     title: $localize`:@@spt.shape.class:A ceiling from an asset's class`,
     detail: $localize`:@@spt.shape.class.detail:The customer picks what they own by name, and the bank lends against the class it is filed under.`,
-    example: $localize`:@@spt.shape.class.eg:e.g. Class A → lend up to 6,000,000`,
+    example: $localize`:@@spt.shape.class.eg:e.g. Class AA → lend up to 6,000,000`,
     glyph: GLYPH.layers,
   }),
   ceiling_by_bracket: () => ({
