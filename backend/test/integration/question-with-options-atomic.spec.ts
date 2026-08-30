@@ -62,6 +62,8 @@ function makeService() {
     questions: async () => [],
     categoryAssignments: async () => new Map<string, string[]>(),
     optionsByQuestion: async () => [],
+    // `publish()` reads every question's options in ONE query now, not one per question.
+    optionsByQuestions: async () => new Map(),
     nextVersionNumber: async () => 12,
     publishVersion,
   };

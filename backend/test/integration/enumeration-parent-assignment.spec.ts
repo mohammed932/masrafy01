@@ -117,7 +117,13 @@ function makeRepo(rows: FakeRow[]) {
 }
 
 function makeService(repo: ReturnType<typeof makeRepo>) {
-  const audit = { write: vi.fn(async () => undefined) };
+  // `writeMany` because a board save is up to 500 moves and the service batches them into one
+  // statement. The EVENT SHAPE is unchanged — the assertions below read the same payload out
+  // of the array, so they still pin "one event per value that actually moved".
+  const audit = {
+    write: vi.fn(async () => undefined),
+    writeMany: vi.fn(async () => undefined),
+  };
   const service = new PlatformEnumerationsAdminService(audit as never, repo as never);
   return { service, audit };
 }
@@ -274,8 +280,9 @@ describe('bulk re-file', () => {
       ACTOR,
     );
     expect(result).toEqual({ moved: 1 });
-    expect(audit.write).toHaveBeenCalledTimes(1);
-    expect(audit.write.mock.calls[0]?.[0]).toMatchObject({
+    const written = audit.writeMany.mock.calls[0]?.[0] as unknown[] | undefined;
+    expect(written).toHaveLength(1);
+    expect(written?.[0]).toMatchObject({
       payload: { key: 'nasr_city', changes: { parentKey: { from: 'district_class_a', to: 'district_class_b' } } },
     });
   });
@@ -286,7 +293,7 @@ describe('bulk re-file', () => {
     const result = await service.setParentKeysBulk({ assignments: [{ id: 'c1', parentKey: null }] }, ACTOR);
     expect(result).toEqual({ moved: 1 });
     expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBeNull();
-    expect(audit.write.mock.calls[0]?.[0]).toMatchObject({
+    expect((audit.writeMany.mock.calls[0]?.[0] as unknown[])[0]).toMatchObject({
       payload: { key: 'maadi', changes: { parentKey: { from: 'district_class_a', to: null } } },
     });
   });
@@ -299,7 +306,7 @@ describe('bulk re-file', () => {
     const { service, audit } = makeService(repo);
     await service.setParentKeysBulk({ assignments: [{ id: 'c1', parentKey: 'district_class_b' }] }, ACTOR);
     expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBe('district_class_b');
-    expect(audit.write.mock.calls[0]?.[0]).toMatchObject({
+    expect((audit.writeMany.mock.calls[0]?.[0] as unknown[])[0]).toMatchObject({
       payload: { changes: { parentKey: { from: null, to: 'district_class_b' } } },
     });
   });
@@ -312,7 +319,9 @@ describe('bulk re-file', () => {
     const { service, audit } = makeService(repo);
     const result = await service.setParentKeysBulk({ assignments: [{ id: 'c1', parentKey: null }] }, ACTOR);
     expect(result).toEqual({ moved: 0 });
-    expect(audit.write).not.toHaveBeenCalled();
+    // `writeMany` is still CALLED, with an empty array — it returns early on one. What must
+    // not happen is an event for a row that did not move.
+    expect(audit.writeMany.mock.calls[0]?.[0]).toEqual([]);
   });
 
   it('still refuses an empty-string target — "no class" has one spelling', async () => {

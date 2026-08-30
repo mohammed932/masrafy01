@@ -139,6 +139,11 @@ export interface EnumerationTypeDefinition {
   exampleEn: string | null;
   /** The kind whose values these are filed under. `null` = no parent axis. */
   parentTypeKey: string | null;
+  /**
+   * Where a value of this kind goes when an operator UNFILES it, by key of the
+   * `parentTypeKey` list. `null` = none declared, and an unfile then stores `null`.
+   */
+  fallbackParentKey: string | null;
   deletable: boolean;
   /** Shown on the Manage-values rail. Off for kinds with a screen of their own. */
   onValuesRail: boolean;
@@ -165,6 +170,7 @@ export interface CreateEnumerationTypeRequest {
   exampleAr?: string;
   exampleEn?: string;
   parentTypeKey?: string | null;
+  fallbackParentKey?: string | null;
   deletable?: boolean;
   onValuesRail?: boolean;
   /** Sent by the product screen only — the product authoring this list. */
@@ -208,6 +214,52 @@ export interface UpdateEnumerationRequest {
    * re-points. `''` is refused by the server — "not linked" has one spelling.
    */
   surrogateProductKey?: string | null;
+}
+
+/**
+ * What `SetEnumerationParentKeysBulkDto` accepts in one request, mirrored so a caller can
+ * refuse in words instead of eating a silent `VALIDATION_FAILED`.
+ */
+export const PARENT_KEYS_BULK_MAX = 500;
+
+/** What `CreateEnumerationValuesBulkDto` accepts in one paste. Same reasoning. */
+export const ENUMERATION_BULK_MAX = 500;
+
+/** One pasted row on the wire. No `key` and no `sortOrder` — the server owns both. */
+export interface BulkCreateEnumerationValueRow {
+  labelEn: string;
+  labelAr: string;
+  /** Required when the list has a class axis; the server refuses a blank one per row. */
+  parentKey?: string;
+}
+
+export interface BulkCreateEnumerationValuesRequest {
+  type: string;
+  rows: readonly BulkCreateEnumerationValueRow[];
+  /** `skip` (default) leaves a key the list already holds alone; `fail` refuses the batch. */
+  onDuplicate?: 'skip' | 'fail';
+  /** Validate and report, write nothing. */
+  dryRun?: boolean;
+}
+
+export interface EnumerationBulkCreateResult {
+  type: string;
+  created: number;
+  skipped: number;
+  createdKeys: string[];
+  /** `index` is ZERO-BASED into the request rows. */
+  skippedRows: Array<{ index: number; key: string }>;
+  /** Whether the mirrored question moved and a new questionnaire version was published. */
+  republished: boolean;
+}
+
+/** One row the server could not accept. `index` is ZERO-BASED — the screen adds one. */
+export interface EnumerationBulkProblem {
+  index: number;
+  reason: string;
+  key?: string;
+  parentKey?: string;
+  firstIndex?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -336,10 +388,45 @@ export class LookupsApiService {
   async setParentKeysBulk(
     assignments: readonly { id: string; parentKey: string | null }[],
   ): Promise<{ moved: number }> {
+    // Checked HERE, before the request. `SetEnumerationParentKeysBulkDto` caps the array at
+    // `PARENT_KEYS_BULK_MAX`, and the refusal comes back as `VALIDATION_FAILED` — which is in
+    // `SILENT_CODES`, so the toast interceptor swallows it. On the class board that meant
+    // hundreds of cards flipping and flipping back with nothing on screen to explain it.
+    // A caller that can hit the cap must state the reason itself; see `moveAllListed`.
+    if (assignments.length === 0 || assignments.length > PARENT_KEYS_BULK_MAX) {
+      throw new RangeError(
+        `setParentKeysBulk: ${assignments.length} assignment(s); the server accepts 1..${PARENT_KEYS_BULK_MAX}`,
+      );
+    }
     const res = await firstValueFrom(
       this.http.post<SuccessEnvelope<{ moved: number }>>(`${this.base}/parent-keys`, {
         assignments,
       }),
+    );
+    return res.data;
+  }
+
+  /**
+   * Create many values of ONE list in ONE transaction — what a pasted sheet saves.
+   *
+   * ALL-OR-NOTHING. On refusal the server answers `ENUMERATION_BULK_INVALID` with every bad
+   * row named by `meta.problems[].index`, ZERO-BASED into `rows` — the screen adds one to
+   * name a line. A duplicate is NOT a problem: re-pasting the same sheet is the expected
+   * second use, and those come back in the success body as `skipped`.
+   *
+   * Capped here as well as on the server, for the reason `setParentKeysBulk` documents: the
+   * DTO's refusal is `VALIDATION_FAILED`, which the toast interceptor swallows.
+   */
+  async createValuesBulk(
+    body: BulkCreateEnumerationValuesRequest,
+  ): Promise<EnumerationBulkCreateResult> {
+    if (body.rows.length === 0 || body.rows.length > ENUMERATION_BULK_MAX) {
+      throw new RangeError(
+        `createValuesBulk: ${body.rows.length} row(s); the server accepts 1..${ENUMERATION_BULK_MAX}`,
+      );
+    }
+    const res = await firstValueFrom(
+      this.http.post<SuccessEnvelope<EnumerationBulkCreateResult>>(`${this.base}/values`, body),
     );
     return res.data;
   }

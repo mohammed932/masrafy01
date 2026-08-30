@@ -2592,7 +2592,14 @@
       <trans-unit id="clsb.filed_empty" datatype="html"><source>Nothing is priced here yet. Move one in from the list below — a class no value reaches is an amount the bank states and nobody can quote.</source><target>لا شيء مُسعَّر هنا بعد. انقل عنصرًا من القائمة أدناه — الفئة التي لا يصلها أي عنصر مبلغ يحدده البنك ولا يستطيع أحد الحصول عليه.</target></trans-unit>
       <trans-unit id="clsb.tag_off" datatype="html"><source>Off</source><target>موقوف</target></trans-unit>
       <trans-unit id="clsb.group_elsewhere" datatype="html"><source>Priced somewhere else</source><target>مُسعَّر في مكان آخر</target></trans-unit>
-      <trans-unit id="clsb.foot" datatype="html"><source>A value is priced in at most one class, so ticking it here takes it out of the one it was in. Unticking leaves it in no class at all — it is still offered to the customer, and any bank pricing off the class can then quote it nothing.</source><target>العنصر يُسعَّر في فئة واحدة على الأكثر، فتحديده هنا يخرجه من الفئة التي كان فيها. وإلغاء التحديد يتركه بلا فئة إطلاقًا — يظل معروضًا على العميل، وأي بنك يُسعِّر بالفئة لن يستطيع تسعيره.</target></trans-unit>
+      <trans-unit id="clsb.foot" datatype="html">
+        <source> A value is priced in at most one class, so ticking it here takes it out of the one it was in. Unticking sends it to <x id="INTERPOLATION" equiv-text="{{ fallbackLabel() }}"/> — it is still offered to the customer and still priced, at the <x id="INTERPOLATION" equiv-text="{{ fallbackLabel() }}"/> figure. </source>
+        <target> تُسعَّر القيمة في فئة واحدة على الأكثر، فتحديدها هنا يُخرجها من فئتها السابقة. إلغاء التحديد يرسلها إلى <x id="INTERPOLATION" equiv-text="{{ fallbackLabel() }}"/> — تظل معروضة على العميل ومُسعَّرة برقم <x id="INTERPOLATION" equiv-text="{{ fallbackLabel() }}"/>. </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">330,334</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="clsb.rail_aria" datatype="html"><source>Classes</source><target>الفئات</target></trans-unit>
       <trans-unit id="clsb.search_aria" datatype="html"><source>Search values by name</source><target>ابحث في العناصر بالاسم</target></trans-unit>
       <trans-unit id="clsb.search" datatype="html"><source>Search values</source><target>ابحث في العناصر</target></trans-unit>
@@ -2610,10 +2617,24 @@
       <trans-unit id="clsb.candidates_empty_search" datatype="html"><source>Every value matching your search is already priced in this class.</source><target>كل عنصر يطابق بحثك مُسعَّر بالفعل في هذه الفئة.</target></trans-unit>
       <trans-unit id="clsb.candidates_empty" datatype="html"><source>Every value is priced in this class. Nothing left to move.</source><target>كل العناصر مُسعَّرة في هذه الفئة. لم يتبق شيء لنقله.</target></trans-unit>
       <trans-unit id="clsb.where_none" datatype="html"><source>No class</source><target>بلا فئة</target></trans-unit>
-      <trans-unit id="clsb.aria_filed" datatype="html"><source>Take <x id="NAME" equiv-text="value.label"/> out of <x id="CLASS" equiv-text="this.activeClassLabel()"/>. It will then be in no class, and any bank pricing off the class can quote it nothing.</source><target>أخرج <x id="NAME" equiv-text="value.label"/> من <x id="CLASS" equiv-text="this.activeClassLabel()"/>. سيصبح بلا فئة، ولن يستطيع أي بنك يُسعِّر بالفئة تسعيره.</target></trans-unit>
+      <trans-unit id="clsb.aria_filed" datatype="html">
+        <source>Move <x id="NAME" equiv-text="value.label"/> out of <x id="CLASS" equiv-text="this.activeClassLabel()"/> and into <x id="FALLBACK" equiv-text="this.fallbackLabel()"/>. Any bank pricing off the class will then quote it the <x id="FALLBACK2" equiv-text="this.fallbackLabel()"/> figure.</source>
+        <target>انقل <x id="NAME" equiv-text="value.label"/> من <x id="CLASS" equiv-text="this.activeClassLabel()"/> إلى <x id="FALLBACK" equiv-text="this.fallbackLabel()"/>. عندها سيُسعّره أي بنك يُسعِّر بالفئة برقم <x id="FALLBACK2" equiv-text="this.fallbackLabel()"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1140</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="clsb.aria_move" datatype="html"><source>Move <x id="NAME" equiv-text="value.label"/> from <x id="FROM" equiv-text="this.whereLabel(value)"/> to <x id="TO" equiv-text="this.activeClassLabel()"/></source><target>انقل <x id="NAME" equiv-text="value.label"/> من <x id="FROM" equiv-text="this.whereLabel(value)"/> إلى <x id="TO" equiv-text="this.activeClassLabel()"/></target></trans-unit>
       <trans-unit id="clsb.moved_one" datatype="html"><source><x id="NAME" equiv-text="value.label"/> is now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="NAME" equiv-text="value.label"/> صار مُسعَّرًا في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
-      <trans-unit id="clsb.removed_one" datatype="html"><source><x id="NAME" equiv-text="value.label"/> is now in no class, so no bank can price it.</source><target><x id="NAME" equiv-text="value.label"/> صار بلا فئة، فلا يستطيع أي بنك تسعيره.</target></trans-unit>
+      <trans-unit id="clsb.removed_one" datatype="html">
+        <source><x id="NAME" equiv-text="value.label"/> is now in <x id="CLASS" equiv-text="this.fallbackLabel()"/> — the catch-all.</source>
+        <target>صار <x id="NAME" equiv-text="value.label"/> في <x id="CLASS" equiv-text="this.fallbackLabel()"/> — الفئة الاحتياطية.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1239</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="clsb.moved_many" datatype="html"><source><x id="COUNT" equiv-text="moved"/> values are now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="COUNT" equiv-text="moved"/> عنصر صارت مُسعَّرة في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
       <trans-unit id="pfd.kind.legend" datatype="html"><source>What kind of answer is it?</source><target>ما نوع الإجابة؟</target></trans-unit>
       <trans-unit id="pfd.kind.aria" datatype="html"><source>What kind of answer</source><target>نوع الإجابة</target></trans-unit>
@@ -2815,6 +2836,718 @@
       <trans-unit id="spd.save_blocked" datatype="html"><source>Some steps have no figures yet, or a step offering several ways to reach the figure has none of them filled in. The save would be refused.</source><target>بعض الخطوات بلا أرقام بعد، أو خطوة تقدّم عدة طرق للوصول إلى الرقم لم تُملأ أي منها. سيُرفض الحفظ.</target></trans-unit>
       <trans-unit id="sp.new2" datatype="html"><source>New surrogate product</source><target>منتج بديل جديد</target></trans-unit>
       <trans-unit id="sp.empty2" datatype="html"><source>No surrogate products yet. Start from a shape and we will build the calculation from three questions.</source><target>لا توجد منتجات بديلة بعد. ابدأ من شكل وسنبني الحساب من ثلاثة أسئلة.</target></trans-unit>
+          <trans-unit id="bank_programs.income.missing_rows_many" datatype="html">
+        <source><x id="COUNT" equiv-text="missing.length"/> rows are missing — <x id="NAMES" equiv-text="names"/>. Anyone whose answer falls in one of them gets no figures, not a zero.</source>
+        <target>تنقص <x id="COUNT" equiv-text="missing.length"/> صفوف — <x id="NAMES" equiv-text="names"/>. من تقع إجابته في أحدها لن يحصل على أرقام، وليس صفرًا.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/income-key-table.component.ts</context>
+          <context context-type="linenumber">556</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="bank_programs.income.missing_rows_more" datatype="html">
+        <source><x id="NAMES" equiv-text="shown"/> and <x id="COUNT" equiv-text="list.length - 3"/> more</source>
+        <target><x id="NAMES" equiv-text="shown"/> و<x id="COUNT" equiv-text="list.length - 3"/> غيرها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/income-key-table.component.ts</context>
+          <context context-type="linenumber">564</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="bank_programs.income.missing_rows_one" datatype="html">
+        <source>One row is missing — <x id="NAMES" equiv-text="names"/>. Anyone whose answer falls there gets no figures, not a zero.</source>
+        <target>ينقص صف واحد — <x id="NAMES" equiv-text="names"/>. من تقع إجابته هناك لن يحصل على أرقام، وليس صفرًا.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/income-key-table.component.ts</context>
+          <context context-type="linenumber">555</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.bulk_fallback_body" datatype="html">
+        <source><x id="CLASS" equiv-text="this.activeClassLabel()"/> is the catch-all. Every bank pricing off the class will quote all of them the same figure.</source>
+        <target><x id="CLASS" equiv-text="this.activeClassLabel()"/> هي الفئة الاحتياطية. كل بنك يُسعِّر بالفئة سيعطيها جميعًا الرقم نفسه.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1271</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.bulk_fallback_ok" datatype="html">
+        <source>Move them</source>
+        <target>انقلها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1272</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.bulk_fallback_title" datatype="html">
+        <source>Move <x id="COUNT" equiv-text="moving.length"/> values into <x id="CLASS" equiv-text="this.activeClassLabel()"/>?</source>
+        <target>نقل <x id="COUNT" equiv-text="moving.length"/> قيمة إلى <x id="CLASS" equiv-text="this.activeClassLabel()"/>؟</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1270</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.bulk_over_limit" datatype="html">
+        <source>Too many at once. Narrow the search to <x id="MAX" equiv-text="PARENT_KEYS_BULK_MAX"/> or fewer.</source>
+        <target>أكثر من اللازم دفعة واحدة. ضيّق البحث إلى <x id="MAX" equiv-text="PARENT_KEYS_BULK_MAX"/> أو أقل.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1034</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.capped" datatype="html">
+        <source>Showing the first <x id="SHOWN" equiv-text="CANDIDATE_CAP"/> of <x id="TOTAL" equiv-text="this.candidates().length"/>. Search to narrow it down.</source>
+        <target>يُعرض أول <x id="SHOWN" equiv-text="CANDIDATE_CAP"/> من <x id="TOTAL" equiv-text="this.candidates().length"/>. ابحث لتضييق النطاق.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1003</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.fallback_panel" datatype="html">
+        <source> These have no class of their own, so a bank prices them at the <x id="INTERPOLATION" equiv-text="{{ activeClassLabel() }}"/> figure. Tick one on another class&apos;s tab to price it there. </source>
+        <target> هذه بلا فئة خاصة بها، فيُسعّرها البنك برقم <x id="INTERPOLATION" equiv-text="{{ activeClassLabel() }}"/>. حدّدها في تبويب فئة أخرى لتسعيرها هناك. </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">254,256</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.in_fallback_many" datatype="html">
+        <source><x id="COUNT" equiv-text="count"/> values are in <x id="CLASS" equiv-text="cls"/>, the catch-all. Check that is intended.</source>
+        <target><x id="COUNT" equiv-text="count"/> قيمة في <x id="CLASS" equiv-text="cls"/>، الفئة الاحتياطية. تأكد أن هذا مقصود.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1042</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.in_fallback_one" datatype="html">
+        <source>1 value is in <x id="CLASS" equiv-text="cls"/>, the catch-all. Check that is intended.</source>
+        <target>قيمة واحدة في <x id="CLASS" equiv-text="cls"/>، الفئة الاحتياطية. تأكد أن هذا مقصود.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">1041</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.show_fallback" datatype="html">
+        <source>Show them</source>
+        <target>اعرضها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">171,173</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.retired.banner" datatype="html">
+        <source>This list is retired. Its values are not offered anywhere.</source>
+        <target>هذه القائمة متقاعدة. قيمها غير معروضة في أي مكان.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.page.ts</context>
+          <context context-type="linenumber">133,135</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.retired.pill" datatype="html">
+        <source>Retired</source>
+        <target>متقاعدة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/components/lookup-type-rail.component.ts</context>
+          <context context-type="linenumber">46,48</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.retired.toggle" datatype="html">
+        <source>Show retired lists (<x id="COUNT" equiv-text="this.retiredDefs().length"/>)</source>
+        <target>اعرض القوائم المتقاعدة (<x id="COUNT" equiv-text="this.retiredDefs().length"/>)</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.page.ts</context>
+          <context context-type="linenumber">345</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.retired.turn_on" datatype="html">
+        <source>Turn it back on</source>
+        <target>أعد تشغيلها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.page.ts</context>
+          <context context-type="linenumber">137,139</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.type.field.active" datatype="html">
+        <source>This list is in use</source>
+        <target>هذه القائمة قيد الاستخدام</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/enumeration-type-edit.drawer.ts</context>
+          <context context-type="linenumber">139,141</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.type.field.active.hint" datatype="html">
+        <source> Off, the list is retired: its values stay and everything already saved keeps working, but it cannot be picked anywhere new. </source>
+        <target> عند الإيقاف تُحال القائمة للتقاعد: تبقى قيمها ويستمر كل ما هو محفوظ في العمل، لكن لا يمكن اختيارها في أي مكان جديد. </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/enumeration-type-edit.drawer.ts</context>
+          <context context-type="linenumber">142,144</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.type.field.locked" datatype="html">
+        <source> A built-in list the platform reads by name, so this cannot be changed. </source>
+        <target> قائمة مدمجة تقرؤها المنصة بالاسم، فلا يمكن تغيير هذا. </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/enumeration-type-edit.drawer.ts</context>
+          <context context-type="linenumber">163,165</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.type.field.rail" datatype="html">
+        <source>Show it on Manage values</source>
+        <target>اعرضها في إدارة القيم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/enumeration-type-edit.drawer.ts</context>
+          <context context-type="linenumber">153,155</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.type.field.rail.hint" datatype="html">
+        <source> Off, the list still works — it just has a screen of its own instead of a tile here. </source>
+        <target> عند الإيقاف تظل القائمة تعمل — لكن لها شاشة خاصة بها بدل بطاقة هنا. </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/enumeration-type-edit.drawer.ts</context>
+          <context context-type="linenumber">156,158</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="lookups.window.more" datatype="html">
+        <source>Show the next <x id="COUNT" equiv-text="Math.min(VALUE_WINDOW, left)"/> (<x id="REMAINING" equiv-text="left"/> left)</source>
+        <target>اعرض الـ<x id="COUNT" equiv-text="Math.min(VALUE_WINDOW, left)"/> التالية (بقي <x id="REMAINING" equiv-text="left"/>)</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/lookup-value-list.component.ts</context>
+          <context context-type="linenumber">590</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pfd.step.values_bulk" datatype="html">
+        <source>Adding <x id="COUNT" equiv-text="this.values.length"/> answers…</source>
+        <target>جارٍ إضافة <x id="COUNT" equiv-text="this.values.length"/> إجابة…</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/program-catalog/product-fact.page.ts</context>
+          <context context-type="linenumber">758</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.block.limit" datatype="html">
+        <source>This is <x id="COUNT" equiv-text="n"/> lines. Paste at most <x id="MAX" equiv-text="ENUMERATION_BULK_MAX"/> at a time.</source>
+        <target>هذه <x id="COUNT" equiv-text="n"/> سطرًا. الصق <x id="MAX" equiv-text="ENUMERATION_BULK_MAX"/> على الأكثر في المرة الواحدة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">160</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.block.no_type" datatype="html">
+        <source>No list was named.</source>
+        <target>لم تُسمَّ أي قائمة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">157</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.block.none" datatype="html">
+        <source>Paste at least one line that can be added.</source>
+        <target>الصق سطرًا واحدًا على الأقل قابلًا للإضافة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">158</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.box.hint2" datatype="html">
+        <source>One line per value: English name, then Arabic name.</source>
+        <target>سطر واحد لكل قيمة: الاسم بالإنجليزية ثم الاسم بالعربية.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">631</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.box.hint3" datatype="html">
+        <source>One line per value: English name, Arabic name, class. Copy straight from a spreadsheet and the columns line up on their own.</source>
+        <target>سطر واحد لكل قيمة: الاسم بالإنجليزية، الاسم بالعربية، الفئة. انسخ مباشرة من جدول بيانات وتنضبط الأعمدة وحدها.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">630</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.box.label" datatype="html">
+        <source>Paste your list here</source>
+        <target>الصق قائمتك هنا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">105,107</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.ar_aria" datatype="html">
+        <source>Arabic name, line <x id="LINE" equiv-text="row.line"/></source>
+        <target>الاسم بالعربية، السطر <x id="LINE" equiv-text="row.line"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">750</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.class_aria" datatype="html">
+        <source>Class, line <x id="LINE" equiv-text="row.line"/></source>
+        <target>الفئة، السطر <x id="LINE" equiv-text="row.line"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">751</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.en_aria" datatype="html">
+        <source>English name, line <x id="LINE" equiv-text="row.line"/></source>
+        <target>الاسم بالإنجليزية، السطر <x id="LINE" equiv-text="row.line"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">749</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.count.duplicate" datatype="html">
+        <source>Repeated</source>
+        <target>مكررة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">681</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.count.error" datatype="html">
+        <source>To fix</source>
+        <target>تحتاج تصحيحًا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">663</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.count.existing" datatype="html">
+        <source>Already in the list</source>
+        <target>موجودة بالفعل في القائمة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">688</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.count.fallback" datatype="html">
+        <source>Going to the catch-all</source>
+        <target>ستذهب إلى الفئة الاحتياطية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">667</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.count.noArabic" datatype="html">
+        <source>No Arabic name</source>
+        <target>بلا اسم عربي</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">674</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.count.ready" datatype="html">
+        <source>Ready</source>
+        <target>جاهزة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">657</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.eyebrow" datatype="html">
+        <source>Manage values</source>
+        <target>إدارة القيم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">91</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.fail.other" datatype="html">
+        <source>Nothing was added. Try again.</source>
+        <target>لم يُضف شيء. أعد المحاولة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">240</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.filter.all" datatype="html">
+        <source>All</source>
+        <target>الكل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">699</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.filter.aria" datatype="html">
+        <source>Which lines to show</source>
+        <target>أي الأسطر تُعرض</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">528</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.filter.dupes" datatype="html">
+        <source>Repeated</source>
+        <target>المكررة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">714</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.filter.empty" datatype="html">
+        <source>No lines here.</source>
+        <target>لا أسطر هنا.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">650</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.filter.fallback" datatype="html">
+        <source>Going to the catch-all</source>
+        <target>ستذهب إلى الفئة الاحتياطية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">707</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.filter.problems" datatype="html">
+        <source>To fix</source>
+        <target>تحتاج تصحيحًا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">702</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.fix.done" datatype="html">
+        <source><x id="COUNT" equiv-text="fixed"/> line(s) moved to the class you picked.</source>
+        <target>نُقل <x id="COUNT" equiv-text="fixed"/> سطر إلى الفئة التي اخترتها.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">814</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.fix.pick" datatype="html">
+        <source>Pick the class</source>
+        <target>اختر الفئة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">529</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.fix.title" datatype="html">
+        <source> Names this list has no class for </source>
+        <target> أسماء لا تقابلها فئة في هذه القائمة </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">151,152</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.fix.token_lines" datatype="html">
+        <source>on <x id="COUNT" equiv-text="count"/> line(s)</source>
+        <target>في <x id="COUNT" equiv-text="count"/> سطر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">641</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.header_skipped" datatype="html">
+        <source>The first line looked like column headings, so it was skipped.</source>
+        <target>بدا السطر الأول كعناوين أعمدة، فتم تخطيه.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">140,143</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.hint" datatype="html">
+        <source>Adds <x id="COUNT" equiv-text="n"/> value(s) to <x id="LIST" equiv-text="this.typeLabel()"/>. Nothing is written until you press Add.</source>
+        <target>تضيف <x id="COUNT" equiv-text="n"/> قيمة إلى <x id="LIST" equiv-text="this.typeLabel()"/>. لا يُكتب شيء حتى تضغط أضف.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">152</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.open" datatype="html">
+        <source>Paste a list</source>
+        <target>الصق قائمة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/lookup-values-panel.component.ts</context>
+          <context context-type="linenumber">171</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.row.remove" datatype="html">
+        <source>Leave line <x id="LINE" equiv-text="row.line"/> out</source>
+        <target>استبعد السطر <x id="LINE" equiv-text="row.line"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">755</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.row.restore" datatype="html">
+        <source>Put line <x id="LINE" equiv-text="row.line"/> back</source>
+        <target>أعد السطر <x id="LINE" equiv-text="row.line"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">759</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.sep.auto" datatype="html">
+        <source>Work it out</source>
+        <target>اكتشفها تلقائيًا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">619</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.sep.comma" datatype="html">
+        <source>By comma</source>
+        <target>بفاصلة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">618</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.sep.label" datatype="html">
+        <source>How the columns are split</source>
+        <target>كيف تُفصل الأعمدة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">527</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.sep.read_comma" datatype="html">
+        <source>Read as comma-separated. A name may contain commas — the class is the last column and the Arabic name the one before it.</source>
+        <target>قُرئت كأعمدة مفصولة بفاصلة. يمكن أن يحتوي الاسم على فواصل — الفئة هي العمود الأخير والاسم العربي الذي قبله.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">625</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.sep.read_tab" datatype="html">
+        <source>Read as tab-separated, so commas inside a name are safe.</source>
+        <target>قُرئت كأعمدة مفصولة بعلامة جدولة، فالفواصل داخل الاسم آمنة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">624</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.sep.tab" datatype="html">
+        <source>By tab</source>
+        <target>بعلامة جدولة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">617</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.srv.duplicate_existing" datatype="html">
+        <source>Already in the list.</source>
+        <target>موجودة بالفعل في القائمة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">282</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.srv.duplicate_in_batch" datatype="html">
+        <source>Repeated earlier in this list.</source>
+        <target>مكررة سابقًا في هذه القائمة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">280</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.srv.label_unsluggable" datatype="html">
+        <source>The English name needs a latin letter or digit.</source>
+        <target>يحتاج الاسم بالإنجليزية إلى حرف لاتيني أو رقم.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">284</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.srv.other" datatype="html">
+        <source>This line was refused.</source>
+        <target>رُفض هذا السطر.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">286</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.srv.parent_not_applicable" datatype="html">
+        <source>This list has no classes.</source>
+        <target>هذه القائمة بلا فئات.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">278</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.srv.parent_required" datatype="html">
+        <source>No class named.</source>
+        <target>لم تُذكر فئة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">274</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.srv.parent_unknown" datatype="html">
+        <source>No class is called “<x id="TOKEN" equiv-text="problem.parentKey ?? &apos;&apos;"/>”.</source>
+        <target>لا توجد فئة اسمها ”<x id="TOKEN" equiv-text="problem.parentKey ?? &apos;&apos;"/>“.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">276</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.duplicate" datatype="html">
+        <source>Repeats line <x id="LINE" equiv-text="row.duplicateOf ?? 0"/></source>
+        <target>تكرار للسطر <x id="LINE" equiv-text="row.duplicateOf ?? 0"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">735</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.error" datatype="html">
+        <source>Cannot be added</source>
+        <target>لا يمكن إضافته</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">733</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.existing" datatype="html">
+        <source>Already in the list</source>
+        <target>موجودة بالفعل في القائمة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">738</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.fallback" datatype="html">
+        <source>To the catch-all</source>
+        <target>إلى الفئة الاحتياطية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">741</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.no_arabic" datatype="html">
+        <source>English name will be used</source>
+        <target>سيُستخدم الاسم بالإنجليزية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">743</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.no_name" datatype="html">
+        <source>No name</source>
+        <target>بلا اسم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">732</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.ready" datatype="html">
+        <source>Ready</source>
+        <target>جاهز</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">745</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.skipped" datatype="html">
+        <source>Left out</source>
+        <target>مستبعد</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">728</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.state.unknown_class" datatype="html">
+        <source>No class is called that</source>
+        <target>لا توجد فئة بهذا الاسم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">730</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.submit" datatype="html">
+        <source>Add <x id="COUNT" equiv-text="n"/> value(s)</source>
+        <target>أضف <x id="COUNT" equiv-text="n"/> قيمة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">167</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.subtitle" datatype="html">
+        <source>Every line becomes one value in <x id="LIST" equiv-text="list"/>.</source>
+        <target>كل سطر يصير قيمة واحدة في <x id="LIST" equiv-text="list"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">147</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.subtitle_classed" datatype="html">
+        <source>Every line becomes one value in <x id="LIST" equiv-text="list"/>, filed under a class.</source>
+        <target>كل سطر يصير قيمة واحدة في <x id="LIST" equiv-text="list"/>، مُدرجة تحت فئة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">146</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.title" datatype="html">
+        <source>Paste a list of values</source>
+        <target>الصق قائمة قيم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">92</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.window.more" datatype="html">
+        <source>Show the next <x id="COUNT" equiv-text="Math.min(WINDOW, left)"/> (<x id="REMAINING" equiv-text="left"/> left)</source>
+        <target>اعرض الـ<x id="COUNT" equiv-text="Math.min(WINDOW, left)"/> التالية (بقي <x id="REMAINING" equiv-text="left"/>)</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">646</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="spt.class.none_body" datatype="html">
+        <source>No answer list is filed under classes yet. This shape prices by the class an answer is filed under, so it needs a question whose answers each name one.</source>
+        <target>لا توجد قائمة إجابات مُدرجة تحت فئات بعد. هذا الشكل يُسعِّر بالفئة التي أُدرجت تحتها الإجابة، فيحتاج سؤالًا تحمل كل إجابة فيه اسم فئة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/program-catalog/product-template.page.ts</context>
+          <context context-type="linenumber">160,162</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.block.errors" datatype="html">
+        <source><x id="COUNT" equiv-text="blocked"/> line(s) still need fixing.</source>
+        <target>ما زال <x id="COUNT" equiv-text="blocked"/> سطر يحتاج تصحيحًا.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/paste-values.page.ts</context>
+          <context context-type="linenumber">163</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.line" datatype="html">
+        <source>#</source>
+        <target>#</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">204</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.en" datatype="html">
+        <source>English name</source>
+        <target>الاسم بالإنجليزية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">204,205</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.ar" datatype="html">
+        <source>Arabic name</source>
+        <target>الاسم بالعربية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">205,206</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.class" datatype="html">
+        <source>Class</source>
+        <target>الفئة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">207,209</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="pv.col.state" datatype="html">
+        <source>State</source>
+        <target>الحالة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/paste-values.form.ts</context>
+          <context context-type="linenumber">209,210</context>
+        </context-group>
+      </trans-unit>
     </body>
   </file>
 </xliff>

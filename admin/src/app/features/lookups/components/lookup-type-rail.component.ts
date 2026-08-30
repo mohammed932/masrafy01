@@ -6,6 +6,15 @@ import type { LookupType } from '../lookups.constants';
 export interface LookupTypeCard extends LookupType {
   readonly active: number;
   readonly deprecated: number;
+  /**
+   * Off the rail: retired, or living on a screen of its own.
+   *
+   * Rendered as PARKED, never as broken. A faded tile reads as a failed load, so a retired
+   * card keeps full text contrast and takes a muted ground plus a word — and keeps its value
+   * counts, because "this retired list holds 412 values" is the fact that decides whether
+   * turning it back on is what the operator wants.
+   */
+  readonly retired?: boolean;
 }
 
 /**
@@ -24,13 +33,19 @@ export interface LookupTypeCard extends LookupType {
           type="button"
           class="tile"
           [class.selected]="selected() === t.type"
+          [class.retired]="t.retired"
           [attr.aria-current]="selected() === t.type ? 'true' : null"
           (click)="select.emit(t.type)"
         >
           <span class="tile-icon" aria-hidden="true">
             <span nz-icon [nzType]="t.icon" nzTheme="outline"></span>
           </span>
-          <span class="tile-name">{{ t.label }}</span>
+          <span class="tile-name">
+            {{ t.label }}
+            @if (t.retired) {
+              <span class="tile-pill" i18n="@@lookups.retired.pill">Retired</span>
+            }
+          </span>
           <span class="tile-counts">
             <span class="count-active">{{ activeCountLabel(t.active) }}</span>
             @if (t.deprecated > 0) {
@@ -121,6 +136,23 @@ export interface LookupTypeCard extends LookupType {
       /* Wraps instead of truncating: "Salary categories" and "Required documents"
          are the whole point of the tile — an ellipsis hides the word that tells
          them apart. Two lines fit inside the 68px tile floor. */
+      /* Muted GROUND and a word, never opacity. A faded tile reads as a failed load; this has
+         to read as parked. Full text contrast, and the counts stay — they are what the
+         operator is deciding on. */
+      .tile.retired {
+        background: var(--color-surface-muted);
+        border-style: dashed;
+      }
+      .tile-pill {
+        margin-inline-start: var(--space-2);
+        padding: 0 var(--space-1);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-page);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-medium);
+      }
+
       .tile-name {
         min-inline-size: 0;
         font-size: var(--text-sm);

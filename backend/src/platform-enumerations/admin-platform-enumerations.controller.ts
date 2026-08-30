@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { LoanCategory } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -30,6 +31,8 @@ import {
   SetEnumerationBoundQuestionDto,
   SetEnumerationCategoriesBulkDto,
   SetEnumerationParentKeysBulkDto,
+  CreateEnumerationValuesBulkDto,
+  type EnumerationBulkCreateResult,
   SetEnumerationCategoriesDto,
   SetEnumerationIncomeBasisDto,
   SetEnumerationQuestionsDto,
@@ -61,6 +64,19 @@ const EMPTY_USAGE: ProgramNameUsage = {
 
 @ApiTags('Admin · Platform enumerations')
 @ApiBearerAuth()
+/**
+ * Exempt from the global 100-per-15-minutes throttle, matching both neighbours
+ * (`PlatformEnumerationsController`, `AdminQuestionnaireController`) — whose comment already
+ * claimed this controller carried the decorator, before it did.
+ *
+ * The limit is per IP and shared across the whole admin session, so an operator hits it by
+ * reloading a values screen six times: the class board alone opens with `GET types`, plus one
+ * read per list it shows. What actually constrains this surface is `JwtAuthGuard` +
+ * `RolesGuard` + `@Roles('super_admin')` — the narrowest role in the system — and, for the
+ * writes, the audit trail and the all-or-nothing transactions. A request ceiling does not
+ * meaningfully limit a compromised super-admin token; it only limits a working one.
+ */
+@SkipThrottle()
 @Controller('admin/enumerations')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('super_admin')
@@ -221,6 +237,31 @@ export class AdminPlatformEnumerationsController {
     @Ip() ip: string,
   ): Promise<{ success: true; data: { moved: number } }> {
     const data = await this.service.setParentKeysBulk(body, {
+      staffId: user.sub,
+      sourceIp: ip ?? null,
+    });
+    return { success: true, data };
+  }
+
+  // Third static segment, declared before the `:id` routes for the same reason as the two
+  // above: `values` would otherwise resolve as an id.
+  @Post('values')
+  @ApiOperation({
+    summary: 'Create many values of one list in one transaction',
+    description:
+      'What a pasted list saves. ALL-OR-NOTHING: every bad row is reported at once via ' +
+      '`meta.problems[].index` (ZERO-BASED into `rows`; the screen adds one to name a line), ' +
+      'and nothing is written. Keys are slugged from `labelEn` server-side, so re-pasting the ' +
+      'same sheet writes nothing and reports every row as skipped. A mirrored list is re-synced ' +
+      'and the questionnaire republished ONCE, after the commit — not once per row, which is ' +
+      'the whole reason this exists rather than a client loop.',
+  })
+  async createValuesBulk(
+    @Body() body: CreateEnumerationValuesBulkDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ): Promise<{ success: true; data: EnumerationBulkCreateResult }> {
+    const data = await this.service.createValuesBulk(body, {
       staffId: user.sub,
       sourceIp: ip ?? null,
     });

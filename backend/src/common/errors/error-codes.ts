@@ -216,6 +216,56 @@ export const ERROR_CODES = {
    */
   ENUMERATION_TYPE_PARENT_INVALID: 'ENUMERATION_TYPE_PARENT_INVALID',
   /**
+   * A KIND's declared FALLBACK class is unusable: the kind has no parent axis at all, or the
+   * key names no live member of the axis it does have. `meta.reason` separates the three.
+   *
+   * A separate code from `ENUMERATION_TYPE_PARENT_INVALID` rather than a reason on it: that
+   * code's locale strings interpolate `{parentTypeKey}` and describe filing the KIND under
+   * another kind, which is a different sentence from "where do this kind's unfiled VALUES
+   * go". Overloading it would put the wrong noun in front of the operator.
+   */
+  ENUMERATION_TYPE_FALLBACK_INVALID: 'ENUMERATION_TYPE_FALLBACK_INVALID',
+  /**
+   * Retiring a list value was refused because it is where some kind's UNFILED values are
+   * sent — its declared `fallbackParentKey`.
+   *
+   * Separate from `ENUMERATION_HAS_CHILDREN`, which refuses a parent that still holds
+   * children: this one can fire on a class holding NOTHING, and that is exactly the case
+   * worth refusing. Retire an empty fallback and the next untick on the class board files a
+   * value under a retired class — `factParentTable`'s parent walk filters the CHILD's active
+   * flag and never the parent's, so it goes on pricing while the operator believes the class
+   * is gone. `meta.childTypes` names the lists to re-point first.
+   *
+   * 409 for the reason its two siblings are: shape is fine, state refuses, and it stops
+   * refusing once the fallback is moved.
+   */
+  ENUMERATION_FALLBACK_IN_USE: 'ENUMERATION_FALLBACK_IN_USE',
+  /**
+   * A pasted list of values was refused. NOTHING was written.
+   *
+   * All-or-nothing, and every bad row is reported at once rather than only the first:
+   * `meta.problems[].index` is ZERO-BASED into the request's `rows`, and the screen adds one
+   * to name a line. Partial success looks kinder and is worse — it leaves the operator to
+   * reconstruct, row by row, which half of a four-hundred-line paste landed. The two existing
+   * bulk endpoints refuse it for the same reason.
+   *
+   * A DUPLICATE is not a problem and is not reported here: re-pasting the same sheet is the
+   * expected second use, and it comes back in the success body as `skipped`.
+   *
+   * `meta.problems` is capped at 200 with `meta.truncated`; a paste with more distinct
+   * problems than that is one the operator redoes, and a 200 KB error body helps nobody.
+   */
+  ENUMERATION_BULK_INVALID: 'ENUMERATION_BULK_INVALID',
+  /**
+   * Values of this KIND cannot be created from a pasted list.
+   *
+   * A paste has three columns. `program_name` carries loan categories and an income basis,
+   * `surrogate_product` a calculation, `surrogate_fact` a bound question — none of which a
+   * row can express, and each of which has a screen that asks for it. Creating one through
+   * this door produces a row the screen that owns it cannot render.
+   */
+  ENUMERATION_BULK_CREATE_NOT_APPLICABLE: 'ENUMERATION_BULK_CREATE_NOT_APPLICABLE',
+  /**
    * A catalog program name was set to the no-payslip basis without naming the surrogate
    * product it takes its calculation from.
    *
@@ -601,6 +651,22 @@ export const ERROR_CODES = {
    * publishing is never blocked, or a half-renamed binding would lock the pool.
    */
   SURROGATE_FACT_BINDING_MISSING: 'SURROGATE_FACT_BINDING_MISSING',
+  /**
+   * WARNING payload (never thrown): a `factParentTable` step's key table has no row for one
+   * or more live classes of the list its fact is filed under. `meta.missing` names them,
+   * `meta.have` / `meta.expected` count them.
+   *
+   * Warning and never a refusal, the same posture the income-rule validator takes on parent
+   * keys and for the same stated reason: refusing on a class list that moved would refuse a
+   * save that a lookup fix elsewhere makes valid, and the fix is on another screen. What it
+   * buys is that the operator hears it at all — an applicant filed under a missing class
+   * gets `no_matching_row`, which STOPS the rule, and until now nothing said so before a
+   * real customer hit it.
+   *
+   * Emitted on SAVE and again on READ, from one shared derivation, so leaving the screen
+   * does not lose it.
+   */
+  INCOME_RULE_CLASS_ROW_MISSING: 'INCOME_RULE_CLASS_ROW_MISSING',
   // Reason codes: returned inside a 200 payload, the program still listed and
   // still ranked (FR-022, FR-024). They exist as a PAIR because the two lead to
   // different admin actions — assign the question vs. add the table row.
@@ -725,6 +791,10 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_TYPE_IN_USE: 409,
   ENUMERATION_TYPE_SYSTEM_ONLY: 422,
   ENUMERATION_TYPE_PARENT_INVALID: 422,
+  ENUMERATION_TYPE_FALLBACK_INVALID: 422,
+  ENUMERATION_FALLBACK_IN_USE: 409,
+  ENUMERATION_BULK_INVALID: 422,
+  ENUMERATION_BULK_CREATE_NOT_APPLICABLE: 422,
   SURROGATE_PRODUCT_REQUIRED: 422,
   // 409, like the two above: state, not shape.
   SURROGATE_PRODUCT_IN_USE: 409,
@@ -863,6 +933,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   VALUE_SOURCE_VALUE_INVALID: 422,
   PROGRAM_HAS_ESTIMATED_VALUES: 409,
   SURROGATE_FACT_BINDING_MISSING: 422,
+  INCOME_RULE_CLASS_ROW_MISSING: 422,
   // Reason codes: only ever returned inside a 200 payload.
   SURROGATE_FACT_MISSING: 200,
   SURROGATE_NO_MATCHING_ROW: 200,

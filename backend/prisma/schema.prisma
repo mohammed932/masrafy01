@@ -899,6 +899,22 @@ model EnumerationTypeDef {
   /// The kind whose values these are filed under, by `key`. NULL = no parent axis, and a
   /// stray `parentKey` on a value of this kind is refused rather than force-nulled.
   parentTypeKey       String?  @db.VarChar(48)
+  /// Where a value of this kind goes when an operator UNFILES it — the answer to "not that
+  /// class", never a default for a class nobody named.
+  ///
+  /// Names a `key` in the `parentTypeKey` list, and carries NO FK for the reason the whole
+  /// table states above. NULL is the ordinary state and means today's behaviour exactly:
+  /// `POST parent-keys` with `null` stores `null`, the value is unfiled, and `factParentTable`
+  /// answers `no_matching_row` for whoever picked it.
+  ///
+  /// On the CHILD kind, not the parent: it answers "where do THIS kind's unfiled values go?",
+  /// and one parent list can be the axis of two child kinds that want different answers.
+  ///
+  /// Read by `resolveParentKey` under `allowUnfiled` and by nothing else. Deliberately NOT
+  /// read on CREATE: a blank class on a pasted row is a typo, not a decision, and the platform
+  /// choosing a price tier on the operator's behalf is what `ENUMERATION_PARENT_REQUIRED`
+  /// exists to refuse.
+  fallbackParentKey   String?  @db.VarChar(64)
   /// Whether a value of this kind may be hard-deleted. Replaces `DELETABLE_TYPES`.
   deletable           Boolean  @default(false)
   /// Whether this kind appears on the operator's Manage-values rail. Replaces `LOOKUP_TYPES`.

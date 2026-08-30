@@ -136,15 +136,9 @@ import { PageHeaderComponent } from './page-header.component';
       .fp__bar {
         max-inline-size: 60rem;
       }
-      /* Room for the sticky bar to float over. Without it the bar covers the foot of the
-         form permanently — the last field can be scrolled to but never out from under it. */
-      .fp__body {
-        padding-block-end: var(--space-7);
-      }
+      /* The bar sits at the end of the form, in flow. It scrolls away with the
+         content, so nothing reserves space for it and nothing covers the last field. */
       .fp__bar {
-        position: sticky;
-        inset-block-end: 0;
-        z-index: 1;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -154,9 +148,8 @@ import { PageHeaderComponent } from './page-header.component';
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
         background: var(--color-surface-default);
-        /* No shadow. Every shadow token in this theme casts DOWNWARD, and a bar
-           pinned to the bottom edge needs the lift above it — the border and the
-           opaque surface already separate it from the form scrolling underneath. */
+        /* No shadow. The bar is in flow at the foot of the form, so it needs no
+           lift off the page — the border and the opaque surface set it apart. */
       }
       /* Same reason as the sheet's hint: this sentence is the outcome of the form,
          so it takes secondary ink rather than tertiary. */

@@ -30,8 +30,46 @@ interface Row {
  * are served off one row table, keyed by what the call selects — the same rows the real
  * queries would return.
  */
-function repoOver(facts: Array<{ key: string; options: string[] }>, registry: Row[]) {
+function repoOver(
+  facts: Array<{ key: string; options: string[] }>,
+  registry: Row[],
+  /**
+   * Declared parent AXES, by child type. `{}` = no kind declares one, which is the state
+   * every case below the axis block exercises: provenance then falls back to the DATA walk
+   * over the parents the options actually reference.
+   */
+  axes: Record<string, string> = {},
+) {
+  const types = [...new Set(registry.map((r) => r.type))];
   const prisma = {
+    enumerationTypeDef: {
+      findMany: vi.fn(async () =>
+        types.map((key) => ({
+          id: key,
+          key,
+          labelAr: key,
+          labelEn: key,
+          descriptionAr: null,
+          descriptionEn: null,
+          icon: null,
+          exampleAr: null,
+          exampleEn: null,
+          parentTypeKey: axes[key] ?? null,
+          fallbackParentKey: null,
+          deletable: false,
+          onValuesRail: true,
+          systemOnly: false,
+          active: true,
+          sortOrder: 0,
+          surrogateProductKey: null,
+          mirrorQuestionId: null,
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+          createdBy: null,
+          updatedBy: null,
+        })),
+      ),
+    },
     platformEnumeration: {
       findMany: vi.fn(async (args: Record<string, never>) => {
         const a = args as unknown as {
@@ -71,7 +109,30 @@ function repoOver(facts: Array<{ key: string; options: string[] }>, registry: Ro
         if (a.where?.parentKey !== undefined) {
           return registry.filter((r) => r.parentKey != null).map((r) => ({ key: r.key, parentKey: r.parentKey }));
         }
-        // 3. the code -> {type,label} lookups (coverage, then parent labels)
+        // 3. every member of one list — what the AXIS pass reads once the child type
+        //    declares a `parentTypeKey`.
+        if (a.where?.type !== undefined && a.where.key === undefined) {
+          return registry
+            .filter((r) => r.type === a.where?.type)
+            .map((r) => ({
+              id: r.key,
+              type: r.type,
+              key: r.key,
+              labelAr: r.labelAr ?? r.key,
+              labelEn: r.labelEn ?? r.key,
+              active: true,
+              deprecatedAt: null,
+              systemOnly: false,
+              parentKey: r.parentKey ?? null,
+              surrogateProductKey: null,
+              sortOrder: 0,
+              createdAt: new Date(0),
+              updatedAt: new Date(0),
+              loanCategories: [],
+              boundQuestion: null,
+            }));
+        }
+        // 4. the code -> {type,label} lookups (coverage, then parent labels)
         const wanted = new Set(a.where?.key?.in ?? []);
         return registry
           .filter((r) => wanted.has(r.key))
@@ -93,8 +154,9 @@ async function provenanceOf(
   facts: Array<{ key: string; options: string[] }>,
   registry: Row[],
   key: string,
+  axes: Record<string, string> = {},
 ) {
-  const members = await repoOver(facts, registry).getActiveMembers('surrogate_fact' as never);
+  const members = await repoOver(facts, registry, axes).getActiveMembers('surrogate_fact' as never);
   return members.find((m) => m.key === key)?.boundQuestion;
 }
 
@@ -106,6 +168,61 @@ describe('option provenance', () => {
       'district_name',
     );
     expect(bound?.optionsEnumerationType).toBe('district');
+    expect(bound?.parentEnumerationType).toBe('district_class');
+  });
+
+  it('reads the AXIS when the list declares one, even with nothing filed under it', async () => {
+    // The state a product is authored IN: the classes exist, no value has been filed yet.
+    // The data walk answers "no classes" here, and a picker filtering on that would hide the
+    // class mechanism at exactly the moment the operator reached for it.
+    const bound = await provenanceOf(
+      [{ key: 'district_name', options: ['maadi', 'nasr_city'] }],
+      [
+        { key: 'district_class_a', type: 'district_class' },
+        { key: 'district_class_b', type: 'district_class' },
+        { key: 'maadi', type: 'district' },
+        { key: 'nasr_city', type: 'district' },
+      ],
+      'district_name',
+      { district: 'district_class' },
+    );
+    expect(bound?.parentAxisType).toBe('district_class');
+    expect(bound?.parentEnumerationType).toBe('district_class');
+    expect(bound?.parentOptions?.map((o) => o.code)).toEqual([
+      'district_class_a',
+      'district_class_b',
+    ]);
+  });
+
+  it('offers EVERY class of the axis, not only the ones something is filed under', async () => {
+    // Both values sit in class A. The bank must still be able to state a figure for B, and
+    // "one class has no row" must be reachable for exactly the class that needs it.
+    const bound = await provenanceOf(
+      [{ key: 'district_name', options: ['maadi', 'nasr_city'] }],
+      [
+        { key: 'district_class_a', type: 'district_class' },
+        { key: 'district_class_b', type: 'district_class' },
+        { key: 'maadi', type: 'district', parentKey: 'district_class_a' },
+        { key: 'nasr_city', type: 'district', parentKey: 'district_class_a' },
+      ],
+      'district_name',
+      { district: 'district_class' },
+    );
+    expect(bound?.parentOptions?.map((o) => o.code)).toEqual([
+      'district_class_a',
+      'district_class_b',
+    ]);
+  });
+
+  it('leaves parentAxisType unset for a list that declares none, and still walks the data', async () => {
+    // The unchanged branch, and the guarantee that adding the axis pass moved no live fact:
+    // `military_grade` and `professor_rank` declare no `parentTypeKey`.
+    const bound = await provenanceOf(
+      [{ key: 'district_name', options: ['maadi', 'nasr_city'] }],
+      DISTRICTS,
+      'district_name',
+    );
+    expect(bound?.parentAxisType).toBeUndefined();
     expect(bound?.parentEnumerationType).toBe('district_class');
   });
 

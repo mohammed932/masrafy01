@@ -7,6 +7,8 @@ import {
   EnumerationCategoryNotAssignedException,
   EnumerationDeleteNotSupportedException,
   EnumerationHasChildrenException,
+  EnumerationFallbackInUseException,
+  EnumerationTypeFallbackInvalidException,
   EnumerationInUseException,
   EnumerationKeyDuplicateException,
   EnumerationParentNotApplicableException,
@@ -27,8 +29,16 @@ import {
   SurrogateFactQuestionTypeInvalidException,
   EnumerationSystemOnlyException,
   NotFoundException,
+  EnumerationBulkCreateNotApplicableException,
+  EnumerationBulkInvalidException,
+  type EnumerationBulkProblem,
 } from '@/common/errors/domain.exceptions';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
+// ONE slug rule, not two. The key a pasted row mints must be the key the questionnaire's
+// options carry, because `question_option.code === platform_enumeration.key` is what makes
+// `factChoiceTable` and `factParentTable` find a bank's row at all. A second copy here would
+// be the copy that drifts. Pure function, no module involvement, so no DI cycle (A25).
+import { slugify } from '@/questionnaire/slug.util';
 import { dedupeCategories } from '@/common/loan-category.util';
 import { dedupeBases, type IncomeBasis } from '@/common/income-basis.util';
 import {
@@ -59,6 +69,8 @@ import {
 import type { SetEnumerationParentKeysBulkDto } from './dto/enumeration.dto';
 import type {
   CreateEnumerationDto,
+  CreateEnumerationValuesBulkDto,
+  EnumerationBulkCreateResult,
   CreateEnumerationTypeDto,
   UpdateEnumerationDto,
   UpdateEnumerationTypeDto,
@@ -97,15 +109,36 @@ export interface AdminActor {
  * What a `systemOnly` kind refuses on a patch.
  *
  * Everything else — the two labels, the description, the icon, the example, the sort order —
- * is what an operator READS, and a builtin owns none of that. These four change what the
- * platform DOES with values a code path is already reading by name.
+ * is what an operator READS, and a builtin owns none of that. These five change what the
+ * platform DOES with values a code path is already reading by name — `fallbackParentKey`
+ * among them, because it decides where an unfile lands and therefore what a bank quotes.
  */
 const SYSTEM_ONLY_LOCKED_FIELDS = [
   'parentTypeKey',
+  'fallbackParentKey',
   'deletable',
   'onValuesRail',
   'active',
 ] as const satisfies readonly (keyof UpdateEnumerationTypeDto)[];
+
+/**
+ * Kinds whose values a three-column paste cannot express, so the door is shut rather than
+ * left ajar.
+ *
+ * `program_name` carries loan-category assignments and an income basis, `surrogate_product` a
+ * calculation, `surrogate_fact` a bound question. Each has a screen that asks for it, and a
+ * row created through this door is one that screen cannot render. Every other kind — including
+ * a `systemOnly` builtin like `governorate` — is fair game: `systemOnly` is a fact about the
+ * KIND, not about whether its values may be loaded in bulk.
+ */
+const BULK_CREATE_FORBIDDEN_TYPES = new Set<string>([
+  'program_name',
+  'surrogate_product',
+  'surrogate_fact',
+]);
+
+/** How many bad rows a refusal names before it stops. See `EnumerationBulkInvalidException`. */
+const BULK_PROBLEM_REPORT_CAP = 200;
 
 @Injectable()
 export class PlatformEnumerationsAdminService {
@@ -139,10 +172,10 @@ export class PlatformEnumerationsAdminService {
    * which the product screen can force; unwinding a saved value because a republish failed
    * would be the more surprising of the two.
    */
-  private async syncMirroredList(type: string, actor: string): Promise<void> {
+  private async syncMirroredList(type: string, actor: string): Promise<boolean> {
     const defs = await this.repo.typeDefinitions();
-    if (defs.get(type)?.mirrorQuestionId == null) return;
-    await this.questionnaire.syncMirroredOptions(type, actor);
+    if (defs.get(type)?.mirrorQuestionId == null) return false;
+    return this.questionnaire.syncMirroredOptions(type, actor);
   }
 
   /**
@@ -216,6 +249,11 @@ export class PlatformEnumerationsAdminService {
       throw new EnumerationTypeDuplicateException({ key: input.key });
     }
     this.assertParentTypeUsable(defs, input.key, input.parentTypeKey ?? null);
+    await this.assertFallbackUsable(
+      input.key,
+      input.parentTypeKey ?? null,
+      input.fallbackParentKey ?? null,
+    );
 
     const created = await this.repo.insertTypeDefinition({
       key: input.key,
@@ -227,6 +265,7 @@ export class PlatformEnumerationsAdminService {
       exampleAr: input.exampleAr ?? null,
       exampleEn: input.exampleEn ?? null,
       parentTypeKey: input.parentTypeKey ?? null,
+      fallbackParentKey: input.fallbackParentKey ?? null,
       // A kind an operator invented IS deletable by default: nothing reads it by name, so
       // the only thing that can point at one of its values is a child value, which
       // `countGenericReferences` counts. Defaulting to false would recreate the trap this
@@ -283,6 +322,16 @@ export class PlatformEnumerationsAdminService {
     }
     if (patch.parentTypeKey !== undefined) {
       this.assertParentTypeUsable(defs, key, patch.parentTypeKey);
+    }
+    if (patch.fallbackParentKey !== undefined) {
+      // Against the axis this patch RESULTS in, not the one on disk: dropping the axis and
+      // naming a fallback in one request must be refused as a pair, and moving both at once
+      // must be judged against the new list rather than the old one.
+      await this.assertFallbackUsable(
+        key,
+        patch.parentTypeKey !== undefined ? patch.parentTypeKey : existing.parentTypeKey,
+        patch.fallbackParentKey,
+      );
     }
 
     const updated = await this.repo.updateTypeDefinition(key, patch);
@@ -376,6 +425,45 @@ export class PlatformEnumerationsAdminService {
     }
   }
 
+  /**
+   * A declared fallback must name a LIVE member of the axis the kind is filed under.
+   *
+   * Async where `assertParentTypeUsable` is sync, and unavoidably so: the axis is a fact
+   * about the KIND registry, which the caller already holds, while a fallback is a fact about
+   * a VALUE and needs the members read.
+   *
+   * Checked at SET time only. Not re-checked on use, deliberately — the same posture
+   * `programNameIncomeRules()` takes towards a linked product's active flag. If the class
+   * were somehow retired anyway (a migration, direct SQL), the unfile gesture must still land
+   * somewhere rather than start throwing at an operator mid-board; the retire guard in
+   * `update()` is what makes that path narrow.
+   */
+  private async assertFallbackUsable(
+    key: string,
+    parentTypeKey: string | null,
+    fallbackParentKey: string | null,
+  ): Promise<void> {
+    if (fallbackParentKey === null) return;
+    if (parentTypeKey === null) {
+      throw new EnumerationTypeFallbackInvalidException({
+        key,
+        fallbackParentKey,
+        reason: 'no_axis',
+      });
+    }
+    const members = await this.repo.getActiveMembers(parentTypeKey);
+    if (!members.some((m) => m.key === fallbackParentKey)) {
+      const parent = await this.repo.findByTypeAndKey(parentTypeKey, fallbackParentKey);
+      throw new EnumerationTypeFallbackInvalidException({
+        key,
+        fallbackParentKey,
+        reason: parent ? 'inactive' : 'unknown',
+        parentType: parentTypeKey,
+        activeKeys: members.map((m) => m.key),
+      });
+    }
+  }
+
   async create(input: CreateEnumerationDto, actor: AdminActor): Promise<EnumerationRow> {
     const existing = await this.repo.findByTypeAndKey(input.type, input.key);
     if (existing) {
@@ -452,6 +540,196 @@ export class PlatformEnumerationsAdminService {
   }
 
   /**
+   * Create many values of ONE kind from a pasted list — one transaction, one publish.
+   *
+   * The reason this is an endpoint and not a client loop is arithmetic, not tidiness. Four
+   * hundred single creates are four hundred requests against a 100-per-15-minutes throttle,
+   * four hundred audit round trips, and — for a MIRRORED list — four hundred questionnaire
+   * versions, each embedding every option of every question, so the JSON written grows as the
+   * square of the list. Here it is one insert, one `writeMany`, and one `syncMirroredList`.
+   *
+   * ALL-OR-NOTHING, with every bad row reported at once. Partial success reads as the kinder
+   * option and is worse: it hands the operator a textarea and asks them to work out which
+   * half of it landed against a list they cannot see. Reporting every problem together is
+   * what makes the retry a single edit, and the retry is free because the whole thing is
+   * IDEMPOTENT — keys are slugged from `labelEn`, so re-pasting the same sheet finds every
+   * key already there and writes nothing.
+   *
+   * That idempotency is also why this uses `slugify` and NOT `uniqueSlug`. `uniqueSlug`
+   * appends `_2` on collision, which on a list of place names mints two rows no picker and no
+   * bank table can tell apart, and turns a re-paste into a second full set of duplicates.
+   * A collision is a duplicate and is reported as one.
+   */
+  async createValuesBulk(
+    input: CreateEnumerationValuesBulkDto,
+    actor: AdminActor,
+  ): Promise<EnumerationBulkCreateResult> {
+    const defs = await this.repo.typeDefinitions();
+    const def = defs.get(input.type);
+    if (!def) throw new EnumerationTypeNotFoundException({ key: input.type });
+    if (BULK_CREATE_FORBIDDEN_TYPES.has(input.type)) {
+      throw new EnumerationBulkCreateNotApplicableException({ type: input.type });
+    }
+
+    const parentType = def.parentTypeKey;
+    // One read for the whole batch, never one per row — the de-duping `setParentKeysBulk`
+    // already does for its `(type, target)` pairs, for the same reason.
+    const activeParentKeys =
+      parentType === null
+        ? []
+        : (await this.repo.getActiveMembers(parentType)).map((m) => m.key);
+    const liveParents = new Set(activeParentKeys);
+
+    // EVERY key of the type, not just the active ones: a retired value still holds its
+    // `(type, key)` unique, so treating it as absent would produce a constraint error at
+    // insert time rather than a `duplicate_existing` the operator can read.
+    const existingKeys = new Set(
+      (await this.repo.findAllOrdered({ type: input.type })).map((r) => r.key),
+    );
+
+    const problems: EnumerationBulkProblem[] = [];
+    const minted = new Map<string, number>();
+    const toCreate: Array<{
+      key: string;
+      labelAr: string;
+      labelEn: string;
+      parentKey: string | null;
+    }> = [];
+    const skippedRows: Array<{ index: number; key: string }> = [];
+
+    input.rows.forEach((row, index) => {
+      const key = slugify(row.labelEn);
+      // `slugify` falls back to the literal `'item'` for a label with no Latin character.
+      // The DTO's `@Matches` should have caught that, so this is the belt to its braces —
+      // and it names the real problem rather than letting 400 rows collide on one key.
+      if (key === 'item' && !/[A-Za-z0-9]/.test(row.labelEn)) {
+        problems.push({ index, reason: 'label_unsluggable' });
+        return;
+      }
+
+      let parentKey: string | null = null;
+      if (parentType === null) {
+        if (row.parentKey !== undefined) {
+          problems.push({ index, reason: 'parent_not_applicable', key });
+          return;
+        }
+      } else if (row.parentKey === undefined) {
+        // NOT the kind's declared fallback. That answers an operator's UNFILE — a decision
+        // they made — while a blank column is a typo, and the platform answering a typo with
+        // a price tier is what `ENUMERATION_PARENT_REQUIRED` exists to refuse.
+        problems.push({ index, reason: 'parent_required', key });
+        return;
+      } else if (!liveParents.has(row.parentKey)) {
+        problems.push({ index, reason: 'parent_unknown', key, parentKey: row.parentKey });
+        return;
+      } else {
+        parentKey = row.parentKey;
+      }
+
+      const firstIndex = minted.get(key);
+      if (firstIndex !== undefined) {
+        problems.push({ index, reason: 'duplicate_in_batch', key, firstIndex });
+        return;
+      }
+      if (existingKeys.has(key)) {
+        // The EXPECTED second use of this screen. A problem only when the operator says so —
+        // a re-paste and a paste-into-the-wrong-list are different intentions and only they
+        // know which one they are having.
+        if (input.onDuplicate === 'fail') {
+          problems.push({ index, reason: 'duplicate_existing', key });
+        } else {
+          skippedRows.push({ index, key });
+        }
+        return;
+      }
+
+      minted.set(key, index);
+      toCreate.push({ key, labelAr: row.labelAr, labelEn: row.labelEn, parentKey });
+    });
+
+    if (problems.length > 0) {
+      // Capped: a paste with more than 200 distinct problems is one the operator redoes, and
+      // a 200 KB error body helps nobody read the first three.
+      const shown = problems.slice(0, BULK_PROBLEM_REPORT_CAP);
+      throw new EnumerationBulkInvalidException({
+        type: input.type,
+        rows: input.rows.length,
+        problemsTotal: problems.length,
+        truncated: problems.length > shown.length,
+        problems: shown,
+        ...(parentType !== null ? { activeParentKeys } : {}),
+      });
+    }
+
+    if (input.dryRun === true) {
+      return {
+        type: input.type,
+        created: toCreate.length,
+        skipped: skippedRows.length,
+        createdKeys: toCreate.map((r) => r.key),
+        skippedRows,
+        republished: false,
+      };
+    }
+
+    // Nothing to write — every row was a duplicate, which is what a RE-PASTE looks like.
+    // Returning here rather than falling through with an empty array is what makes the second
+    // paste of a sheet genuinely free: no transaction, no audit batch, and above all no
+    // mirror sync, so a screen the operator re-submitted by habit cannot mint a questionnaire
+    // version. (The sync would report no change and publish nothing anyway; this makes it not
+    // happen at all, and says so.)
+    if (toCreate.length === 0) {
+      return {
+        type: input.type,
+        created: 0,
+        skipped: skippedRows.length,
+        createdKeys: [],
+        skippedRows,
+        republished: false,
+      };
+    }
+
+    // Append after the current maximum. Not from zero: the mirrored question's `displayOrder`
+    // is a dense index over `[sortOrder asc, key asc]`, so rows that sort LAST leave every
+    // existing option's index untouched and the sync's update set empty.
+    const base = (await this.repo.maxSortOrder(input.type)) ?? 0;
+    const created = await this.repo.insertMany(
+      input.type,
+      toCreate.map((r, i) => ({ ...r, sortOrder: base + i + 1 })),
+      actor.staffId,
+    );
+
+    // EVERYTHING, not `invalidateCache(input.type)`. New children of a class list change what
+    // `surrogate_fact`'s derived `parentOptions` answers, which is the reasoning `update()`
+    // already writes out and which single-row `create()` gets wrong.
+    this.repo.invalidateCache();
+
+    const idByKey = new Map(created.map((r) => [r.key, r.id]));
+    await this.audit.writeMany(
+      toCreate.map((r) => ({
+        actorId: actor.staffId,
+        targetId: null,
+        eventType: AuditEventType.PLATFORM_ENUMERATION_CREATED,
+        sourceIp: actor.sourceIp,
+        payload: { type: input.type, key: r.key, id: idByKey.get(r.key) ?? null, bulk: true },
+      })),
+    );
+
+    // ONCE, after the write and after the invalidate — the order `create()` already gets
+    // right, and the single most important line in this method.
+    const republished = await this.syncMirroredList(input.type, actor.staffId);
+
+    return {
+      type: input.type,
+      created: toCreate.length,
+      skipped: skippedRows.length,
+      createdKeys: toCreate.map((r) => r.key),
+      skippedRows,
+      republished,
+    };
+  }
+
+  /**
    * What to STORE as a value's parent — the one place the parent axis is enforced.
    *
    * Four answers, and each is a decision rather than a fallback:
@@ -464,7 +742,10 @@ export class PlatformEnumerationsAdminService {
    *     and it is a different statement from "you forgot to say": the value stays a pickable
    *     answer, `factParentTable` then answers `no_matching_row`, and every bank keying its
    *     table by this axis quotes that applicant nothing. So only the endpoint built for
-   *     moves may ask for it — never create, and never a patch that came to change a label;
+   *     moves may ask for it — never create, and never a patch that came to change a label.
+   *     When the KIND declares a `fallbackParentKey`, that unfile is REDIRECTED there instead
+   *     and `null` becomes unreachable through the API — the operator has said "not that
+   *     class", and the kind has already said where that lands;
    *   · the type is filed under a list and the caller named something → it must be a LIVE
    *     member of that list. This validation existed nowhere before: `parentKey` is a bare
    *     string with no foreign key, so a typo saved 200 and surfaced as `no_matching_row` on
@@ -490,7 +771,20 @@ export class PlatformEnumerationsAdminService {
       }
       return null;
     }
-    if (parentKey === null && opts.allowUnfiled === true) return null;
+    if (parentKey === null && opts.allowUnfiled === true) {
+      // The KIND decides what "not that class" MEANS. A declared fallback makes an unfiled
+      // value unreachable through the API — which is the point: an unfiled value is a
+      // pickable answer that quotes nothing, because `factParentTable` answers
+      // `no_matching_row` and that reason is FATAL, not skippable. Undeclared, `null` stands
+      // exactly as v18.3.0 shipped it, so an operator-made axis with nothing to offer instead
+      // does not become un-unfileable.
+      //
+      // Read only HERE, and only under `allowUnfiled`. Never on create: a blank class on a
+      // pasted row is a typo, and the paragraph above says why the platform must not answer
+      // a typo with a price tier.
+      const defs = await this.repo.typeDefinitions();
+      return defs.get(type)?.fallbackParentKey ?? null;
+    }
     if (parentKey === undefined || parentKey === null || parentKey === '') {
       throw new EnumerationParentRequiredException({ type, parentType });
     }
@@ -619,31 +913,48 @@ export class PlatformEnumerationsAdminService {
     // Validate every (type, target) pair once, not once per row: a board save is N rows with
     // one target, and N identical refusals would be N identical registry reads.
     const typeDefs = await this.repo.typeDefinitions();
-    const seen = new Set<string>();
+    const resolved = new Map<string, string | null>();
     for (const assignment of dto.assignments) {
       const row = byId.get(assignment.id);
       if (!row) continue;
       const pair = `${row.type}\u0000${assignment.parentKey}`;
-      if (seen.has(pair)) continue;
-      seen.add(pair);
+      if (resolved.has(pair)) continue;
       if (parentTypeOf(typeDefs, row.type) === null) {
         throw new EnumerationParentNotApplicableException({ type: row.type });
       }
       // `allowUnfiled` ONLY here: this is the endpoint an operator uses to say where a value is
       // priced, and "nowhere" is one of the answers it may give. Create and patch keep their
       // refusal — a value of a filed-under type is born filed, and a label edit cannot unfile it.
-      await this.resolveParentKey(row.type, assignment.parentKey, { allowUnfiled: true });
+      //
+      // The ANSWER is kept, not just the refusal. `resolveParentKey` is where a kind's declared
+      // `fallbackParentKey` turns an unfile into a move, so discarding what it returns would
+      // validate one thing and write another — the redirect would never reach the database.
+      resolved.set(pair, await this.resolveParentKey(row.type, assignment.parentKey, { allowUnfiled: true }));
     }
 
-    const moves = await this.repo.setParentKeysBulk(dto.assignments);
+    const moves = await this.repo.setParentKeysBulk(
+      dto.assignments.map((assignment) => {
+        const row = byId.get(assignment.id);
+        const pair = row ? `${row.type}\u0000${assignment.parentKey}` : null;
+        return {
+          id: assignment.id,
+          parentKey:
+            pair !== null && resolved.has(pair)
+              ? (resolved.get(pair) as string | null)
+              : assignment.parentKey,
+        };
+      }),
+    );
     // A move changes no LABEL, so the question's options are unaffected — but the ORDER a
     // list is served in is `sortOrder`, not `parentKey`, so there is genuinely nothing to
     // re-sync here. Stated rather than left as a gap somebody has to re-derive.
     // Every type, for the reason `update()` states: a parentKey move is felt by the row's own
     // cached list AND by `surrogate_fact`'s derived `parentOptions`.
     this.repo.invalidateCache();
-    for (const move of moves) {
-      await this.audit.write({
+    // One statement, not one round trip per moved row. A board save is up to 500 moves and
+    // this loop was 500 sequential inserts inside a request the operator is waiting on.
+    await this.audit.writeMany(
+      moves.map((move) => ({
         actorId: actor.staffId,
         targetId: null,
         eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
@@ -656,8 +967,8 @@ export class PlatformEnumerationsAdminService {
           // reads identically whichever surface the operator used.
           changes: { parentKey: { from: move.from, to: move.to } },
         },
-      });
-    }
+      })),
+    );
     return { moved: moves.length };
   }
 
@@ -741,7 +1052,26 @@ export class PlatformEnumerationsAdminService {
     // from the list at the same moment. A 409 they read beats a quote that carries on.
     const retiring = patch.deprecate === true || patch.active === false;
     if (retiring) {
-      for (const childType of childTypesOf(await this.repo.typeDefinitions(), existing.type)) {
+      const defsNow = await this.repo.typeDefinitions();
+
+      // Retiring the class that some kind's UNFILED values are SENT to. Refused separately
+      // from the children check below, because this one fires on a class holding NOTHING —
+      // which is precisely the case that check cannot see, and the dangerous one. An empty
+      // retired fallback is where the very next untick on the class board lands, and the
+      // parent walk never looks at the parent's own active flag, so it prices on in silence.
+      const fallbackFor = [...defsNow.values()]
+        .filter((d) => d.parentTypeKey === existing.type && d.fallbackParentKey === existing.key)
+        .map((d) => d.key);
+      if (fallbackFor.length > 0) {
+        throw new EnumerationFallbackInUseException({
+          type: existing.type,
+          key: existing.key,
+          childTypes: fallbackFor,
+          count: fallbackFor.length,
+        });
+      }
+
+      for (const childType of childTypesOf(defsNow, existing.type)) {
         const children = await this.repo.countChildren(childType, existing.key);
         if (children > 0) {
           throw new EnumerationHasChildrenException({

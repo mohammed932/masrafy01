@@ -8,17 +8,16 @@
  * exist to exercise.
  *
  * The defaults mirror the registry as it stands after
- * `20260827090000_surrogate_product_authoring`: 12 live builtins plus the two compound kinds
- * it RETIRED, which are present and inactive rather than gone — the migration deactivates
- * them because values of them may survive and a kind cannot be deleted while they do.
+ * `20260829090000_compound_lookup_reactivation`: 14 live builtins, including the two compound
+ * kinds — retired by `20260827090000` when the hand-seeded demo went, and brought back by
+ * `20260829090000` as the list a real product is loaded into. `compound` carries the axis
+ * (`compound_category`) and the declared fallback (`compound_tier_other`), which is the one
+ * filed-under pair the platform now ships.
  *
- * They are here, inactive, precisely so a spec cannot come to believe an inactive kind loses
- * its parent axis: `typeDefinitions()` returns them deliberately, and `factParentTable` goes
- * on walking a surviving value's class.
- *
- * The axis a spec should EXERCISE is `operatorAxisDefinitions()`, which is the truthful shape
- * now — a filed-under pair is something a PRODUCT authors on its own screen, never something
- * the platform ships. A spec that needs a different shape passes `extra`.
+ * The axis a spec should EXERCISE is still `operatorAxisDefinitions()`: a filed-under pair is
+ * ordinarily something a PRODUCT authors on its own screen, and a spec pinned to the compound
+ * keys would break the next time the product moves. A spec that needs a different shape
+ * passes `extra`, which OVERWRITES a builtin of the same key.
  */
 import type {
   EnumerationTypeDefinition,
@@ -40,6 +39,7 @@ function def(
     exampleAr: null,
     exampleEn: null,
     parentTypeKey: null,
+    fallbackParentKey: null,
     deletable: false,
     onValuesRail: false,
     systemOnly: true,
@@ -66,8 +66,14 @@ const DELETABLE = new Set([
   'surrogate_fact',
 ]);
 
-/** Retired by `20260827090000` — present and inactive, never deleted. See above. */
-const RETIRED = new Set(['compound', 'compound_category']);
+/**
+ * Brought back live by `20260829090000`, with `compound` deletable and carrying a fallback.
+ *
+ * `deletable` because a several-hundred-row operator-managed list needs a delete for the
+ * inevitable typo, and nothing is filed UNDER a compound, so `countGenericReferences` answers
+ * correctly.
+ */
+const COMPOUND_LIVE = new Set(['compound', 'compound_category']);
 
 const BUILTIN_KEYS = [
   'transfer_type',
@@ -101,10 +107,11 @@ export function fakeTypeDefinitions(
       key,
       def(key, {
         deletable: DELETABLE.has(key),
-        ...(RETIRED.has(key)
-          ? { active: false, onValuesRail: false, systemOnly: false }
+        ...(COMPOUND_LIVE.has(key)
+          ? { active: true, onValuesRail: true, systemOnly: false, deletable: key === 'compound' }
           : {}),
         parentTypeKey: key === 'compound' ? 'compound_category' : null,
+        fallbackParentKey: key === 'compound' ? 'compound_tier_other' : null,
         sortOrder: (index + 1) * 10,
       }),
     );

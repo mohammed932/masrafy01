@@ -200,6 +200,7 @@ export class InMemoryPlatformEnumerationsRepository
         exampleAr: null,
         exampleEn: null,
         parentTypeKey: null,
+        fallbackParentKey: null,
         deletable: false,
         onValuesRail: true,
         surrogateProductKey: null,

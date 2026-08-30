@@ -151,10 +151,22 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                   }
                 </select>
                 @if (primaryFacts().length === 0) {
-                  <span class="help is-warn" i18n="@@spt.q1.no_facts"
-                    >This product does not ask anything of that kind yet. Add it on the product page
-                    first.</span
-                  >
+                  <!-- The class shape needs a DIFFERENT thing from the others: not just a
+                       single-select answer, but one whose answers are each filed under a
+                       class. Saying "add a question" would send the operator to build a
+                       second question they do not need. -->
+                  @if (form.controls.primaryKind.value === 'classTable') {
+                    <span class="help is-warn" i18n="@@spt.class.none_body"
+                      >No answer list is filed under classes yet. This shape prices by the class an
+                      answer is filed under, so it needs a question whose answers each name
+                      one.</span
+                    >
+                  } @else {
+                    <span class="help is-warn" i18n="@@spt.q1.no_facts"
+                      >This product does not ask anything of that kind yet. Add it on the product
+                      page first.</span
+                    >
+                  }
                 }
               </label>
             }
@@ -841,7 +853,12 @@ export class ProductTemplatePage implements OnInit {
     primaryKind: this.fb.nonNullable.control<TemplateMechanismKind>('choiceTable'),
     primaryFact: this.fb.nonNullable.control(''),
     useAlternative: this.fb.nonNullable.control(false),
-    altKind: this.fb.nonNullable.control<TemplateMechanismKind>('classTable'),
+    // `flatAmount`, not `classTable`. The alternative section is closed on a fresh product
+    // and this is only the value it opens ON — but `classTable` now filters its picker to
+    // facts whose answers are filed under classes, so on a product with no such list it
+    // opened to an empty select with nothing saying why. `flatAmount` reads no fact at all,
+    // so it is the one kind that can never open empty.
+    altKind: this.fb.nonNullable.control<TemplateMechanismKind>('flatAmount'),
     altFact: this.fb.nonNullable.control(''),
     combine: this.fb.nonNullable.control<'' | 'lower' | 'higher'>(''),
     useSecondColumn: this.fb.nonNullable.control(false),
@@ -935,11 +952,11 @@ export class ProductTemplatePage implements OnInit {
   }
 
   protected primaryFacts(): RegistryFact[] {
-    return this.factsOfType(MECHANISM_FACT_TYPE[this.form.controls.primaryKind.value]);
+    return this.factsFor(this.form.controls.primaryKind.value);
   }
 
   protected altFacts(): RegistryFact[] {
-    return this.factsOfType(MECHANISM_FACT_TYPE[this.form.controls.altKind.value]);
+    return this.factsFor(this.form.controls.altKind.value);
   }
 
   protected setPrimary(kind: TemplateMechanismKind): void {
@@ -1218,7 +1235,7 @@ export class ProductTemplatePage implements OnInit {
       primaryKind: template.primary.kind,
       primaryFact: template.primary.kind === 'flatAmount' ? '' : template.primary.fact,
       useAlternative: template.alternative !== undefined,
-      altKind: template.alternative?.kind ?? 'classTable',
+      altKind: template.alternative?.kind ?? 'flatAmount',
       altFact:
         template.alternative && template.alternative.kind !== 'flatAmount'
           ? template.alternative.fact
@@ -1237,9 +1254,33 @@ export class ProductTemplatePage implements OnInit {
 
   // --- shared -----------------------------------------------------------------
 
-  private factsOfType(type: 'SINGLE_SELECT' | 'NUMERIC' | null): RegistryFact[] {
+  /**
+   * The facts a mechanism can actually read.
+   *
+   * Keyed by the MECHANISM, not by the question type, and that is the load-bearing part:
+   * `choiceTable` and `classTable` are both SINGLE_SELECT, so a type alone cannot tell them
+   * apart. Before this, picking "a table by the class it is filed under" offered every
+   * single-select fact including ones whose answers are filed under nothing — the template
+   * compiled cleanly to `factParentTable` and then answered `no_matching_row` for every
+   * applicant, which is FATAL rather than skippable.
+   *
+   * The predicate is `parentOptions.length > 0` and NOT `parentEnumerationType !== undefined`,
+   * because it has to match the downstream consumer: `product-rule-editor.keyOptionsFor()`
+   * keys a `factParentTable` off `parentOptions` regardless of whether the parent TYPE
+   * resolved. A stricter predicate here would hide a fact whose table works; a looser one
+   * would let through a fact whose table renders "the keys cannot be listed".
+   *
+   * `parentOptions` is now the axis the list DECLARES rather than the classes some answer
+   * happens to sit in, so a freshly authored list with nothing filed yet still qualifies.
+   */
+  private factsFor(kind: TemplateMechanismKind): RegistryFact[] {
+    const type = MECHANISM_FACT_TYPE[kind];
     if (type === null) return [];
-    return this.allFacts().filter((f) => f.question?.type === type);
+    return this.allFacts().filter(
+      (f) =>
+        f.question?.type === type &&
+        (kind !== 'classTable' || (f.question?.parentOptions?.length ?? 0) > 0),
+    );
   }
 
   private optionsOf(

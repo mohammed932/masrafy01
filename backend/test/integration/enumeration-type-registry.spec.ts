@@ -79,22 +79,37 @@ function makeService(repo: ReturnType<typeof makeRepo>) {
 }
 
 describe('the parent axis is read from data, not from a constant', () => {
-  it('ships no LIVE kind with a parent axis', () => {
-    // Since `20260827090000` retired the compound pair there is none, and that is the point:
-    // a filed-under axis is something a PRODUCT authors on its own screen. A builtin growing
-    // one is a decision, not a detail, so it should fail here first.
+  it('ships exactly ONE live kind with a parent axis, and it carries a fallback', () => {
+    // `20260827090000` retired the compound pair with the hand-seeded demo; `20260829090000`
+    // brought it back as the list a real product is loaded into. That makes it the ONE
+    // filed-under pair the platform ships, and it is a decision rather than a detail — a
+    // SECOND builtin growing an axis should fail here first, because every filed-under axis
+    // after this one belongs on a product's own screen.
+    //
+    // The fallback is asserted alongside deliberately: a filed-under kind with no declared
+    // home for an unfiled value is one where the class board's untick stores `null`, and a
+    // null-parent compound is a pickable answer that quotes nothing.
     const defs = fakeTypeDefinitions();
     const live = [...defs.values()].filter((d) => d.active && d.parentTypeKey !== null);
-    expect(live).toEqual([]);
+    expect(live.map((d) => d.key)).toEqual(['compound']);
+    expect(defs.get('compound')?.parentTypeKey).toBe('compound_category');
+    expect(defs.get('compound')?.fallbackParentKey).toBe('compound_tier_other');
   });
 
   it('keeps the parent axis on a RETIRED kind, because a value of it may survive', () => {
     // `active` says whether a kind is OFFERED. Stripping the axis with it would silently
-    // disconnect an operator's own compound from the class table pricing it, and the only
-    // symptom would be a quote of nothing.
-    const defs = fakeTypeDefinitions();
-    expect(defs.get('compound')?.active).toBe(false);
-    expect(parentTypeOf(defs, 'compound')).toBe('compound_category');
+    // disconnect a value from the class table pricing it, and the only symptom would be a
+    // quote of nothing — `parentTypeOf` reads inactive definitions for exactly this reason.
+    //
+    // Exercised on an operator-made pair rather than on the compound one: the compound kinds
+    // are live again, and a spec pinned to whichever way they happen to be pointing today
+    // stops testing the property the moment they move.
+    const defs = fakeTypeDefinitions([
+      operatorTypeDefinition('brand_tier'),
+      operatorTypeDefinition('car_brand', { parentTypeKey: 'brand_tier', active: false }),
+    ]);
+    expect(defs.get('car_brand')?.active).toBe(false);
+    expect(parentTypeOf(defs, 'car_brand')).toBe('brand_tier');
   });
 
   it('has no axis for a kind that names no parent', () => {
@@ -133,6 +148,10 @@ describe('the parent axis is read from data, not from a constant', () => {
     const defs = fakeTypeDefinitions();
     const deletable = [...defs.values()].filter((d) => d.deletable).map((d) => d.key).sort();
     expect(deletable).toEqual([
+      // Added by `20260829090000`: a several-hundred-row operator-managed list needs a delete
+      // for the inevitable typo, and nothing is filed UNDER a compound, so the generic
+      // reference count answers it correctly.
+      'compound',
       'employment_type',
       'governorate',
       'product_category',

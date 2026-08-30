@@ -16,6 +16,30 @@ import type {
 import { PrismaService } from '@/infra/prisma/prisma.service';
 
 /**
+ * Rows per `UPDATE ... FROM (VALUES ...)` statement in the mirrored-option sync.
+ *
+ * Postgres caps bound parameters at 65 535 and this binds four per row, so the real ceiling
+ * is ~16 000. A thousand keeps the statement readable in a slow-query log and still turns any
+ * realistic list into one or two round trips.
+ */
+const MIRRORED_UPDATE_CHUNK = 1000;
+
+/**
+ * How many published versions the history endpoint returns.
+ *
+ * A bound rather than pagination: nothing pages this list and nobody scrolls a publication
+ * history past the recent past. If a screen ever needs the tail, that is a cursor, not a
+ * bigger number.
+ */
+const VERSION_HISTORY_LIMIT = 50;
+
+/** The version list without its snapshots — what `versionHistory` serves. See its doc. */
+export type QuestionnaireVersionSummary = Pick<
+  QuestionnaireVersion,
+  'id' | 'versionNumber' | 'isActive' | 'publishedAt' | 'publishedBy' | 'createdAt'
+>;
+
+/**
  * Questionnaire repository (Constitution Principle X). All Prisma access for the
  * admin-editable GLOBAL question pool + published version snapshots lives here.
  * Feature 010: questions carry no category — there is one global questionnaire.
@@ -320,6 +344,30 @@ export class QuestionnaireRepository {
     });
   }
 
+  /**
+   * Options for MANY questions in one query, grouped by question id.
+   *
+   * `publish()` walked every active question and issued one query each — ~60 round trips per
+   * publish, on the path of every write to a mirrored list. The ordering is the same
+   * `optionsByQuestion` promises, applied per group.
+   */
+  async optionsByQuestions(
+    questionIds: readonly string[],
+  ): Promise<Map<string, QuestionOption[]>> {
+    const out = new Map<string, QuestionOption[]>();
+    if (questionIds.length === 0) return out;
+    const rows = await this.prisma.questionOption.findMany({
+      where: { questionId: { in: [...questionIds] } },
+      orderBy: [{ questionId: 'asc' }, { displayOrder: 'asc' }],
+    });
+    for (const row of rows) {
+      const list = out.get(row.questionId);
+      if (list) list.push(row);
+      else out.set(row.questionId, [row]);
+    }
+    return out;
+  }
+
   optionCodes(questionId: string): Promise<{ code: string }[]> {
     return this.prisma.questionOption.findMany({ where: { questionId }, select: { code: true } });
   }
@@ -347,16 +395,34 @@ export class QuestionnaireRepository {
           data: { isActive: false },
         });
       }
-      for (const row of plan.update) {
-        await tx.questionOption.update({
-          where: { id: row.id },
-          data: {
-            isActive: true,
-            labelAr: row.labelAr,
-            labelEn: row.labelEn,
-            displayOrder: row.displayOrder,
-          },
-        });
+      // ONE statement per chunk, not one per row.
+      //
+      // `displayOrder` is a DENSE index over the registry's own order, which is correct and
+      // is what makes an unordered list read alphabetically — but it means inserting a value
+      // that sorts anywhere but last renumbers everything after it. On a several-hundred-row
+      // list that was several hundred sequential UPDATEs holding row locks inside one
+      // transaction. The plan is unchanged; only the write was slow.
+      //
+      // Two things that bite if they are dropped: `updatedAt` must be set EXPLICITLY, because
+      // Prisma's `@updatedAt` fires on ORM writes and not on raw SQL; and the chunk exists
+      // because Postgres caps bound parameters at 65 535 and this binds four per row.
+      for (let i = 0; i < plan.update.length; i += MIRRORED_UPDATE_CHUNK) {
+        const chunk = plan.update.slice(i, i + MIRRORED_UPDATE_CHUNK);
+        const values = Prisma.join(
+          chunk.map(
+            (row) =>
+              Prisma.sql`(${row.id}::text, ${row.labelAr}::text, ${row.labelEn}::text, ${row.displayOrder}::int)`,
+          ),
+        );
+        await tx.$executeRaw`
+          UPDATE "question_option" AS o
+             SET "isActive"     = true,
+                 "labelAr"      = v.label_ar,
+                 "labelEn"      = v.label_en,
+                 "displayOrder" = v.display_order,
+                 "updatedAt"    = now()
+            FROM (VALUES ${values}) AS v(id, label_ar, label_en, display_order)
+           WHERE o."id" = v.id`;
       }
       if (plan.create.length > 0) {
         await tx.questionOption.createMany({
@@ -376,8 +442,31 @@ export class QuestionnaireRepository {
     return this.prisma.questionnaireVersion.findUnique({ where: { id } });
   }
 
-  versionHistory(): Promise<QuestionnaireVersion[]> {
-    return this.prisma.questionnaireVersion.findMany({ orderBy: { versionNumber: 'desc' } });
+  /**
+   * The version list, WITHOUT the snapshots and bounded.
+   *
+   * `snapshot` is the whole questionnaire — every group, every question, every option — and
+   * this endpoint renders a list of version numbers. Selecting it returned the entire
+   * publication history of the platform on every page load; with a several-hundred-value
+   * mirrored list in each snapshot that is tens of megabytes for six scalar columns.
+   *
+   * Verified safe before narrowing: the admin's `QuestionnaireVersionRow` has no `snapshot`
+   * field and nothing in the questionnaire feature reads one off history. A version's
+   * snapshot is reachable by id through `versionById`, which rollback uses.
+   */
+  versionHistory(): Promise<QuestionnaireVersionSummary[]> {
+    return this.prisma.questionnaireVersion.findMany({
+      orderBy: { versionNumber: 'desc' },
+      take: VERSION_HISTORY_LIMIT,
+      select: {
+        id: true,
+        versionNumber: true,
+        isActive: true,
+        publishedAt: true,
+        publishedBy: true,
+        createdAt: true,
+      },
+    });
   }
 
   async nextVersionNumber(): Promise<number> {

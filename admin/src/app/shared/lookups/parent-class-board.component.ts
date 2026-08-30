@@ -11,12 +11,13 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { debounceTime, map } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import {
   CheckOutline,
   ExclamationCircleOutline,
@@ -25,6 +26,8 @@ import {
 import { RailTabsComponent, type RailTabItem } from '@shared/ui';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import type { EnumerationRow } from '@features/lookups/lookups.api.service';
+import { PARENT_KEYS_BULK_MAX } from '@features/lookups/lookups.api.service';
+import { slugify } from './slug';
 
 /** One value as this board renders it: the row, plus where it sits right now. */
 interface BoardValue {
@@ -75,6 +78,20 @@ interface BoardValue {
  * the registry's own `sortOrder`: the accent strength descends with rank, and the active class
  * says its position in words. A scale you can see beats a number that is only sometimes true.
  */
+/**
+ * How long the board waits before re-filtering. Long enough to skip the intermediate states of
+ * a typed word, short enough that the list still feels attached to the box.
+ */
+const SEARCH_DEBOUNCE_MS = 200;
+
+/**
+ * Candidate cards rendered at once.
+ *
+ * Honest rather than infinite: the footer says how many are hidden and what to do about it. A
+ * wall of five hundred cards is not a list anybody reads, and the search is right there.
+ */
+const CANDIDATE_CAP = 200;
+
 @Component({
   selector: 'app-parent-class-board',
   standalone: true,
@@ -143,6 +160,25 @@ interface BoardValue {
           </p>
         }
 
+        @if (inFallback().length > 0 && !onFallbackTab()) {
+          <!-- Quieter than the unfiled notice, and deliberately a different tone. An unfiled
+               value quotes NOTHING; a catch-all value quotes the catch-all figure, which is a
+               real answer that may or may not be the intended one. Info, not warn. -->
+          <p class="notice is-info" role="status">
+            <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
+            <span>{{ inFallbackLabel() }}</span>
+            <button
+              nz-button
+              nzType="default"
+              nzSize="small"
+              type="button"
+              (click)="showFallback()"
+            >
+              <span i18n="@@clsb.show_fallback">Show them</span>
+            </button>
+          </p>
+        }
+
         <app-rail-tabs
           [items]="tabs()"
           [activeId]="activeClassKey()"
@@ -187,16 +223,24 @@ interface BoardValue {
               <span class="matches">{{ matchesLabel() }}</span>
             }
             @if (candidates().length > 1) {
+              <!-- Visible and DISABLED above the cap, never hidden: a button that vanishes
+                   teaches nothing, and the operator's next move (narrow the search) is only
+                   obvious if the reason is on the control. -->
               <button
                 nz-button
                 nzType="default"
                 type="button"
                 class="bulk"
                 [nzLoading]="bulkSaving()"
+                [disabled]="bulkOverLimit()"
+                [attr.aria-describedby]="bulkOverLimit() ? 'ccb-bulk-why' : null"
                 (click)="moveAllListed()"
               >
                 {{ moveAllLabel() }}
               </button>
+              @if (bulkOverLimit()) {
+                <span class="bulk-why" id="ccb-bulk-why">{{ bulkOverLimitLabel() }}</span>
+              }
             }
           </div>
 
@@ -207,6 +251,31 @@ interface BoardValue {
               Nothing is priced here yet. Move one in from the list below — a class no value reaches
               is an amount the bank states and nobody can quote.
             </p>
+          } @else if (onFallbackTab()) {
+            <!-- The CATCH-ALL's own tab. These cards are chips, not checkboxes: there is
+                 genuinely no untick here — unticking sends a value to the catch-all and
+                 these are already in it. Rendering an inert checkbox would be a dead
+                 affordance to explain; removing it says the same thing in less. -->
+            <p class="note is-info" i18n="@@clsb.fallback_panel">
+              These have no class of their own, so a bank prices them at the
+              {{ activeClassLabel() }}
+              figure. Tick one on another class's tab to price it there.
+            </p>
+            <ul class="grid">
+              @for (c of filed(); track c.id) {
+                <li class="cell">
+                  <span class="card is-filed is-static">
+                    <span class="tick" aria-hidden="true">
+                      <span nz-icon nzType="check" nzTheme="outline"></span>
+                    </span>
+                    <span class="name">{{ c.label }}</span>
+                    @if (!c.active) {
+                      <span class="tag" i18n="@@clsb.tag_off">Off</span>
+                    }
+                  </span>
+                </li>
+              }
+            </ul>
           } @else {
             <ul class="grid" [class.is-stagger]="stagger()">
               @for (c of filed(); track c.id) {
@@ -219,7 +288,7 @@ interface BoardValue {
                     aria-checked="true"
                     [attr.aria-busy]="saving().has(c.id)"
                     [attr.aria-label]="filedAria(c)"
-                    (click)="unfile(c)"
+                    (click)="unfileToFallback(c)"
                   >
                     <span class="tick" aria-hidden="true">
                       <span nz-icon nzType="check" nzTheme="outline"></span>
@@ -240,12 +309,12 @@ interface BoardValue {
             <p class="empty">{{ candidatesEmpty() }}</p>
           } @else {
             <ul class="grid" [class.is-stagger]="stagger()">
-              @for (c of candidates(); track c.id) {
+              @for (c of shownCandidates(); track c.id) {
                 <li class="cell" [style.--i]="$index">
                   <button
                     type="button"
                     class="card"
-                    [class.is-unfiled]="isUnfiled(c)"
+                    [class.is-unfiled]="wantsAttention(c)"
                     role="checkbox"
                     aria-checked="false"
                     [attr.aria-busy]="saving().has(c.id)"
@@ -254,17 +323,20 @@ interface BoardValue {
                   >
                     <span class="tick is-empty" aria-hidden="true"></span>
                     <span class="name">{{ c.label }}</span>
-                    <span class="tag" [class.is-warn]="isUnfiled(c)">{{ whereLabel(c) }}</span>
+                    <span class="tag" [class.is-warn]="wantsAttention(c)">{{ whereLabel(c) }}</span>
                   </button>
                 </li>
               }
             </ul>
+            @if (candidatesCapped()) {
+              <p class="capped">{{ cappedLabel() }}</p>
+            }
           }
 
           <p class="foot" i18n="@@clsb.foot">
             A value is priced in at most one class, so ticking it here takes it out of the one it
-            was in. Unticking leaves it in no class at all — it is still offered to the customer,
-            and any bank pricing off the class can then quote it nothing.
+            was in. Unticking sends it to {{ fallbackLabel() }} — it is still offered to the
+            customer and still priced, at the {{ fallbackLabel() }} figure.
           </p>
         </section>
       }
@@ -351,6 +423,13 @@ interface BoardValue {
         border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
         background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface-default));
       }
+      /* Info, not warn, and the difference is the message: an unfiled value quotes NOTHING,
+         a catch-all value quotes the catch-all figure — a real answer that may not be the
+         intended one. Two tones because they are two different asks. */
+      .notice.is-info {
+        border-color: color-mix(in srgb, var(--color-info) 35%, transparent);
+        background: color-mix(in srgb, var(--color-info) 8%, var(--color-surface-default));
+      }
       .notice.is-bad {
         border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
         background: color-mix(in srgb, var(--color-error) 8%, var(--color-surface-default));
@@ -433,6 +512,31 @@ interface BoardValue {
       }
       .bulk {
         margin-inline-start: auto;
+      }
+      /* Secondary ink, not tertiary: this is read, not decoration, and tertiary sits under
+         4.5:1 at this size. */
+      .capped {
+        margin: var(--space-3) 0 0;
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        text-align: center;
+      }
+      .bulk-why {
+        flex-basis: 100%;
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        line-height: var(--leading-snug);
+      }
+
+      /* A card on the catch-all's own tab: the same object, with no gesture attached. It
+         keeps the tick and the full text contrast — it is FILED, not disabled. The cursor
+         stays default rather than not-allowed, which would read as a refusal. */
+      .card.is-static {
+        cursor: default;
+      }
+      .card.is-static:hover {
+        border-color: var(--color-border-default);
+        background: var(--color-surface-default);
       }
 
       .group {
@@ -669,6 +773,7 @@ interface BoardValue {
 })
 export class ParentClassBoardComponent {
   private readonly api = inject(LookupsApiService);
+  private readonly modal = inject(NzModalService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
@@ -691,6 +796,15 @@ export class ParentClassBoardComponent {
    */
   readonly childType = input.required<string>();
   readonly parentType = input.required<string>();
+  /**
+   * Where an untick sends a value, by class key. `null` = derive it.
+   *
+   * An input rather than a constant because the answer lives on the KIND
+   * (`enumeration_type_def.fallbackParentKey`) and the host is what reads the registry. When
+   * it is not supplied the board derives one, so a list authored before the column existed
+   * still behaves — see `fallbackKey`.
+   */
+  readonly fallbackParentKey = input<string | null>(null);
 
   /**
    * Raised after any move that changed a row.
@@ -708,6 +822,21 @@ export class ParentClassBoardComponent {
   protected readonly classRows = signal<readonly EnumerationRow[]>([]);
   protected readonly valueRows = signal<readonly EnumerationRow[]>([]);
   protected readonly query = signal('');
+
+  /**
+   * What the two lists are FILTERED by — the search box, 200ms behind.
+   *
+   * The box itself stays bound to `query`, so typing is instant. What is debounced is the
+   * work: on a several-hundred-value board one keystroke re-filters, re-sorts and hands every
+   * `@for` a fresh array identity, so up to five hundred cards re-diff per character.
+   *
+   * Through `toObservable`/`toSignal` rather than a `BehaviorSubject`, so state is a signal at
+   * both ends (Principle XVIII / A11). `toSignal` was already imported in this file.
+   */
+  private readonly appliedQuery = toSignal(
+    toObservable(this.query).pipe(debounceTime(SEARCH_DEBOUNCE_MS)),
+    { initialValue: '' },
+  );
   protected readonly saving = signal<ReadonlySet<string>>(new Set());
   protected readonly bulkSaving = signal(false);
   protected readonly justMoved = signal<ReadonlySet<string>>(new Set());
@@ -812,18 +941,28 @@ export class ParentClassBoardComponent {
     return row ? (this.isAr ? row.labelAr : row.labelEn) : '';
   });
 
+  /** One pass over the values, not one filter per class. Six classes × 500 values was 3 000. */
+  private readonly countByClass = computed(() => {
+    const counts = new Map<string, number>();
+    for (const value of this.boardValues()) {
+      if (value.parentKey === null) continue;
+      counts.set(value.parentKey, (counts.get(value.parentKey) ?? 0) + 1);
+    }
+    return counts;
+  });
+
   protected readonly tabs = computed<readonly RailTabItem[]>(() =>
     this.classes().map((row) => ({
       id: row.key,
       label: this.isAr ? row.labelAr : row.labelEn,
-      note: this.countNote(this.boardValues().filter((c) => c.parentKey === row.key).length),
+      note: this.countNote(this.countByClass().get(row.key) ?? 0),
     })),
   );
 
   // ── the two lists ──────────────────────────────────────────────────────────
 
   private readonly matching = computed<readonly BoardValue[]>(() => {
-    const needle = this.query().trim().toLowerCase();
+    const needle = this.appliedQuery().trim().toLowerCase();
     if (needle === '') return this.boardValues();
     return this.boardValues().filter(
       (c) => c.label.toLowerCase().includes(needle) || c.key.toLowerCase().includes(needle),
@@ -848,6 +987,96 @@ export class ParentClassBoardComponent {
       const ub = this.isUnfiled(b) ? 0 : 1;
       return ua - ub || a.label.localeCompare(b.label);
     });
+  });
+
+  /**
+   * The candidates actually RENDERED, capped.
+   *
+   * Unfiled-first ordering is what makes the cap safe: the rows that are actually broken are
+   * the ones that survive it. `filed()` is deliberately uncapped — that group is bounded by
+   * the class, and it is the one the operator came to read.
+   *
+   * `moveAllListed` still acts on the full `candidates()` set, not on what is on screen: the
+   * button names the real number, and capping the ACTION as well would make "move all listed"
+   * quietly mean "move the first two hundred".
+   */
+  protected readonly shownCandidates = computed(() => this.candidates().slice(0, CANDIDATE_CAP));
+
+  protected readonly candidatesCapped = computed(() => this.candidates().length > CANDIDATE_CAP);
+
+  protected cappedLabel(): string {
+    return $localize`:@@clsb.capped:Showing the first ${CANDIDATE_CAP}:SHOWN: of ${this.candidates().length}:TOTAL:. Search to narrow it down.`;
+  }
+
+  /**
+   * The catch-all class — where an untick lands.
+   *
+   * The input wins. Failing that, two derivations, first match wins, and BOTH are stated
+   * because a convention nobody can see is one that breaks silently:
+   *   1. an active class whose key slugs to `other`
+   *   2. failing that, the LAST class in registry order
+   *
+   * `null` only when there are no classes at all, and the tick then goes inert rather than
+   * writing a value into nowhere.
+   *
+   * Nothing on screen relies on this being invisible: every string that depends on it names
+   * the class by its LABEL, so an operator can see where a card went.
+   */
+  protected readonly fallbackKey = computed<string | null>(() => {
+    const declared = this.fallbackParentKey();
+    if (declared !== null && declared !== '') return declared;
+    const all = this.classes();
+    if (all.length === 0) return null;
+    const named = all.find((c) => c.active && slugify(c.key).endsWith('other'));
+    if (named) return named.key;
+    return all[all.length - 1]?.key ?? null;
+  });
+
+  /** Above the server's per-request cap, so "move all" would be refused before it started. */
+  protected readonly bulkOverLimit = computed(
+    () => this.candidates().length > PARENT_KEYS_BULK_MAX,
+  );
+
+  protected bulkOverLimitLabel(): string {
+    return $localize`:@@clsb.bulk_over_limit:Too many at once. Narrow the search to ${PARENT_KEYS_BULK_MAX}:MAX: or fewer.`;
+  }
+
+  protected inFallbackLabel(): string {
+    const count = this.inFallback().length;
+    const cls = this.fallbackLabel();
+    return count === 1
+      ? $localize`:@@clsb.in_fallback_one:1 value is in ${cls}:CLASS:, the catch-all. Check that is intended.`
+      : $localize`:@@clsb.in_fallback_many:${count}:COUNT: values are in ${cls}:CLASS:, the catch-all. Check that is intended.`;
+  }
+
+  protected showFallback(): void {
+    const key = this.fallbackKey();
+    if (key !== null) this.pickClass(key);
+  }
+
+  /**
+   * A card worth an amber tag: unfiled (quotes nothing) OR in the catch-all (quotes the
+   * catch-all figure, which may not be the intended one). Two different problems, one
+   * "look at this" — the tag itself names which, so nothing rides on the colour.
+   */
+  protected wantsAttention(value: BoardValue): boolean {
+    return this.isUnfiled(value) || value.parentKey === this.fallbackKey();
+  }
+
+  protected readonly fallbackLabel = computed(() => {
+    const key = this.fallbackKey();
+    return this.classes().find((c) => c.key === key)?.labelEn ?? '';
+  });
+
+  /** Whether the class currently on stage IS the catch-all. Changes what its cards can do. */
+  protected readonly onFallbackTab = computed(
+    () => this.fallbackKey() !== null && this.activeClassKey() === this.fallbackKey(),
+  );
+
+  /** Values sitting in the catch-all — a quieter warning than an unfiled one, but a warning. */
+  protected readonly inFallback = computed(() => {
+    const key = this.fallbackKey();
+    return key === null ? [] : this.boardValues().filter((c) => c.parentKey === key);
   });
 
   protected readonly unfiled = computed(() => this.boardValues().filter((c) => this.isUnfiled(c)));
@@ -913,7 +1142,9 @@ export class ParentClassBoardComponent {
   protected filedAria(value: BoardValue): string {
     // Names the consequence, not just the action: with no H1 in view a screen-reader user has
     // only this string to tell "untick" from "delete", and the two are a class apart.
-    return $localize`:@@clsb.aria_filed:Take ${value.label}:NAME: out of ${this.activeClassLabel()}:CLASS:. It will then be in no class, and any bank pricing off the class can quote it nothing.`;
+    // Names the CONSEQUENCE, not the gesture: a screen reader has no H1 in view here, and
+    // "untick" and "re-price at the catch-all figure" are the same click.
+    return $localize`:@@clsb.aria_filed:Move ${value.label}:NAME: out of ${this.activeClassLabel()}:CLASS: and into ${this.fallbackLabel()}:FALLBACK:. Any bank pricing off the class will then quote it the ${this.fallbackLabel()}:FALLBACK2: figure.`;
   }
 
   protected candidateAria(value: BoardValue): string {
@@ -992,19 +1223,27 @@ export class ParentClassBoardComponent {
    * warn notice fires the moment the count goes above zero, naming what it costs — which is a
    * louder and more useful signal than a modal the operator dismisses on the way through.
    */
-  protected async unfile(value: BoardValue): Promise<void> {
+  protected async unfileToFallback(value: BoardValue): Promise<void> {
     const previous = value.parentKey;
-    if (previous === null) return;
+    const target = this.fallbackKey();
+    // On the catch-all's own tab there is genuinely nowhere to go, which is why those cards
+    // are rendered as plain chips rather than as a checkbox that does nothing.
+    if (previous === null || target === null || previous === target) return;
 
     this.stagger.set(false);
     this.setSaving(value.id, true);
-    this.applyLocal(value.id, null);
+    this.applyLocal(value.id, target);
     try {
+      // `null` on the wire, not the key: the SERVER owns where an unfile lands
+      // (`resolveParentKey` reads the kind's declared `fallbackParentKey`), and sending the
+      // key from here would make the client a second authority on a pricing decision. The
+      // optimistic write above is a PREDICTION of the server's answer, corrected by the
+      // reload the host runs on `changed`.
       await this.api.setParentKeysBulk([{ id: value.id, parentKey: null }]);
       this.flashMoved(value.id);
       this.changed.emit();
       this.announcement.set(
-        $localize`:@@clsb.removed_one:${value.label}:NAME: is now in no class, so no bank can price it.`,
+        $localize`:@@clsb.removed_one:${value.label}:NAME: is now in ${this.fallbackLabel()}:CLASS: — the catch-all.`,
       );
     } catch {
       this.applyLocal(value.id, previous);
@@ -1023,6 +1262,27 @@ export class ParentClassBoardComponent {
     const target = this.activeClassKey();
     const moving = this.candidates();
     if (target === '' || moving.length === 0) return;
+    // Refuse, do not chunk. Chunking splits ONE bulk move into two transactions — exactly the
+    // half-applied state the endpoint's own doc says it exists to prevent. The button states
+    // the reason rather than vanishing; see `bulkOverLimit`.
+    if (moving.length > PARENT_KEYS_BULK_MAX) return;
+
+    // Moving everything into the CATCH-ALL is the one destructive direction: every bank
+    // pricing off the class then quotes all of them the same figure. Confirmed through
+    // `NzModalService` so the scrim covers the viewport (A34) rather than being trapped
+    // inside `section.page`'s own containing block.
+    if (this.onFallbackTab()) {
+      const ok = await new Promise<boolean>((resolve) => {
+        this.modal.confirm({
+          nzTitle: $localize`:@@clsb.bulk_fallback_title:Move ${moving.length}:COUNT: values into ${this.activeClassLabel()}:CLASS:?`,
+          nzContent: $localize`:@@clsb.bulk_fallback_body:${this.activeClassLabel()}:CLASS: is the catch-all. Every bank pricing off the class will quote all of them the same figure.`,
+          nzOkText: $localize`:@@clsb.bulk_fallback_ok:Move them`,
+          nzOnOk: () => resolve(true),
+          nzOnCancel: () => resolve(false),
+        });
+      });
+      if (!ok) return;
+    }
 
     const before = new Map(moving.map((c) => [c.id, c.parentKey]));
     this.stagger.set(false);

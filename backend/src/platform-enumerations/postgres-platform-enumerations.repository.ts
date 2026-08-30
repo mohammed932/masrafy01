@@ -47,6 +47,7 @@ function toTypeDefinition(row: EnumerationTypeDef): EnumerationTypeDefinition {
     exampleAr: row.exampleAr,
     exampleEn: row.exampleEn,
     parentTypeKey: row.parentTypeKey,
+    fallbackParentKey: row.fallbackParentKey,
     deletable: row.deletable,
     onValuesRail: row.onValuesRail,
     systemOnly: row.systemOnly,
@@ -444,9 +445,58 @@ export class PostgresPlatformEnumerationsRepository
 
     await this.attachOptionsEnumerationType(withOptions);
 
+    // ── The AXIS pass, before the data walk ──────────────────────────────────────────
+    //
+    // What the option list SAYS its values are filed under, whether or not any of them are
+    // filed yet. Read off the registry, which `typeDefinitions()` already has cached.
+    //
+    // This runs FIRST and, where it resolves, WINS — `parentOptions` becomes every live
+    // class of the axis rather than only the classes some option happens to reference.
+    // Both states the data walk gets wrong are states a screen must get right: a list with
+    // an axis and nothing filed yet (the moment a product is authored — the data walk says
+    // "no classes" and a picker filtering on it would hide the mechanism), and values
+    // sitting in four of six classes (the bank could never state a figure for the other
+    // two, and "two classes have no row" would be unreachable for the ones that need it).
+    const defs = await this.typeDefinitions();
+    const axisOf = new Map<EnumerationMember, string>();
+    const axisTypes = new Set<string>();
+    for (const m of withOptions) {
+      const bound = m.boundQuestion;
+      if (!bound?.optionsEnumerationType) continue;
+      const axis = defs.get(bound.optionsEnumerationType)?.parentTypeKey ?? null;
+      if (axis === null) continue;
+      bound.parentAxisType = axis;
+      axisOf.set(m, axis);
+      axisTypes.add(axis);
+    }
+    if (axisTypes.size > 0) {
+      // One read per distinct axis, and `getActiveMembers` is 60 s-cached, so a screen
+      // holding six facts off one list pays for one.
+      const membersByAxis = new Map<string, EnumerationMember[]>();
+      for (const axis of axisTypes) membersByAxis.set(axis, await this.getActiveMembers(axis));
+      for (const [m, axis] of axisOf) {
+        const bound = m.boundQuestion;
+        if (!bound) continue;
+        bound.parentOptions = (membersByAxis.get(axis) ?? []).map((r) => ({
+          code: r.key,
+          labelAr: r.labelAr,
+          labelEn: r.labelEn,
+        }));
+        bound.parentEnumerationType = axis;
+      }
+    }
+
+    // ── The data walk, unchanged, for every fact the axis pass did not answer ────────
+    //
+    // Still needed and still correct: a list with no declared axis whose options happen to
+    // carry a `parentKey`, and any question whose options belong to no recognised list at
+    // all. `military_grade` and `professor_rank` take this branch exactly as before.
+    const remaining = withOptions.filter((m) => !axisOf.has(m));
+    if (remaining.length === 0) return;
+
     const parentOf = await this.enumerationParentKeys();
     const wanted = new Set<string>();
-    for (const m of withOptions) {
+    for (const m of remaining) {
       for (const o of m.boundQuestion?.options ?? []) {
         const parent = parentOf[o.code];
         if (parent !== undefined) wanted.add(parent);
@@ -471,7 +521,7 @@ export class PostgresPlatformEnumerationsRepository
     const seen = new Set<string>();
     const ordered = rows.filter((r) => (seen.has(r.key) ? false : (seen.add(r.key), true)));
 
-    for (const m of withOptions) {
+    for (const m of remaining) {
       const mine = new Set<string>();
       for (const o of m.boundQuestion?.options ?? []) {
         const parent = parentOf[o.code];
@@ -1009,6 +1059,7 @@ export class PostgresPlatformEnumerationsRepository
         exampleAr: input.exampleAr,
         exampleEn: input.exampleEn,
         parentTypeKey: input.parentTypeKey,
+        fallbackParentKey: input.fallbackParentKey,
         deletable: input.deletable,
         onValuesRail: input.onValuesRail,
         // Never settable from a request: it means "a code path reads this type by name",
@@ -1042,6 +1093,9 @@ export class PostgresPlatformEnumerationsRepository
         ...(patch.exampleAr !== undefined ? { exampleAr: patch.exampleAr } : {}),
         ...(patch.exampleEn !== undefined ? { exampleEn: patch.exampleEn } : {}),
         ...(patch.parentTypeKey !== undefined ? { parentTypeKey: patch.parentTypeKey } : {}),
+        ...(patch.fallbackParentKey !== undefined
+          ? { fallbackParentKey: patch.fallbackParentKey }
+          : {}),
         ...(patch.deletable !== undefined ? { deletable: patch.deletable } : {}),
         ...(patch.onValuesRail !== undefined ? { onValuesRail: patch.onValuesRail } : {}),
         ...(patch.active !== undefined ? { active: patch.active } : {}),
@@ -1352,6 +1406,73 @@ export class PostgresPlatformEnumerationsRepository
       },
     });
     return toEnumerationRow(row);
+  }
+
+  /**
+   * The highest `sortOrder` any value of this type carries, or `null` for an empty list.
+   *
+   * Read so a bulk insert can APPEND rather than start at zero. Appending is what keeps a
+   * second paste from renumbering the first: the mirrored question's `displayOrder` is a
+   * dense index over `[sortOrder asc, key asc]`, so rows that sort LAST produce an empty
+   * update set instead of touching every option after the insertion point.
+   */
+  async maxSortOrder(type: string): Promise<number | null> {
+    const row = await this.prisma.platformEnumeration.aggregate({
+      where: { type },
+      _max: { sortOrder: true },
+    });
+    return row._max.sortOrder;
+  }
+
+  /**
+   * Insert many values of ONE type in one statement.
+   *
+   * Beside `insert` and deliberately NOT on the abstract, like `findAllOrdered` and
+   * `setCategoriesBulk`: the abstract is the consumer-facing READ contract and no consumer
+   * bulk-writes. The admin service injects this concrete class, so there is nothing to
+   * implement in the in-memory sibling and no half-stub that throws.
+   *
+   * `createMany` WITHOUT `skipDuplicates`: the caller has already checked every key against
+   * the live set, so a unique violation here means a concurrent single-create won the race —
+   * which must roll the batch back, not silently drop the losing rows and report success.
+   *
+   * No `loanCategories`, and that is the reason `program_name` is refused at the door: a
+   * pasted row cannot express an assignment, and a catalog name with none is offerable
+   * nowhere.
+   */
+  async insertMany(
+    type: string,
+    rows: readonly {
+      key: string;
+      labelAr: string;
+      labelEn: string;
+      parentKey: string | null;
+      sortOrder: number;
+    }[],
+    createdBy: string,
+  ): Promise<Array<{ id: string; key: string }>> {
+    if (rows.length === 0) return [];
+    await this.prisma.platformEnumeration.createMany({
+      data: rows.map((r) => ({
+        type,
+        key: r.key,
+        labelAr: r.labelAr,
+        labelEn: r.labelEn,
+        parentKey: r.parentKey,
+        sortOrder: r.sortOrder,
+        active: true,
+        systemOnly: false,
+        createdBy,
+        updatedBy: createdBy,
+      })),
+    });
+    // Re-read for the ids. `createMany` returns only a count, and the audit trail is the
+    // only surviving record that a key ever existed (`remove()`'s own doc says so), so an
+    // event without the row id it names would be the one gap worth avoiding. One query.
+    return this.prisma.platformEnumeration.findMany({
+      where: { type, key: { in: rows.map((r) => r.key) } },
+      select: { id: true, key: true },
+    });
   }
 
   // ---- Loan-category assignment -------------------------------------------

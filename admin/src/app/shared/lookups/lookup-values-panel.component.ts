@@ -26,7 +26,8 @@ import {
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzDrawerService } from 'ng-zorro-antd/drawer';
-import { PlusOutline } from '@ant-design/icons-angular/icons';
+import { PlusOutline, UnorderedListOutline } from '@ant-design/icons-angular/icons';
+import { Router } from '@angular/router';
 import { SkeletonRowsComponent, openFormDrawer } from '@shared/ui';
 import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookups.api.service';
 import { LookupValueListComponent, type LookupActiveToggle } from './lookup-value-list.component';
@@ -41,7 +42,7 @@ import { EnumerationTypesService } from './enumeration-types.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NzButtonModule, NzIconModule, SkeletonRowsComponent, LookupValueListComponent],
-  providers: [provideNzIconsPatch([PlusOutline])],
+  providers: [provideNzIconsPatch([PlusOutline, UnorderedListOutline])],
   template: `
     <section class="panel">
       <header class="head">
@@ -51,10 +52,21 @@ import { EnumerationTypesService } from './enumeration-types.service';
             <p>{{ text }}</p>
           }
         </div>
-        <button nz-button nzType="default" type="button" (click)="openCreate()">
-          <span nz-icon nzType="plus" nzTheme="outline"></span>
-          {{ addLabel }}
-        </button>
+        <div class="acts">
+          <!-- Two peers of equal weight is a hierarchy failure: side by side and identically
+               drawn, neither says which is the everyday case. Adding one value is; a paste is
+               the load, done once and then rarely. So the paste is drawn as a LINK and the add
+               keeps the button — one glance, one obvious default, and the rarer action still
+               one click away and named in full. -->
+          <button type="button" class="paste-link" (click)="openPaste()">
+            <span nz-icon nzType="unordered-list" nzTheme="outline" aria-hidden="true"></span>
+            {{ pasteLabel }}
+          </button>
+          <button nz-button nzType="default" type="button" (click)="openCreate()">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            {{ addLabel }}
+          </button>
+        </div>
       </header>
 
       @if (loading()) {
@@ -77,6 +89,38 @@ import { EnumerationTypesService } from './enumeration-types.service';
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
+      }
+
+      .acts {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .paste-link {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: var(--space-1) var(--space-2);
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--color-text-link);
+        font: inherit;
+        font-size: var(--text-sm);
+        cursor: pointer;
+        transition: color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .paste-link:hover {
+        color: var(--color-text-link-hover);
+      }
+      .paste-link:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .paste-link {
+          transition: none;
+        }
       }
 
       .head {
@@ -116,6 +160,7 @@ export class LookupValuesPanelComponent {
   private readonly api = inject(LookupsApiService);
   private readonly enumTypes = inject(EnumerationTypesService);
   private readonly drawer = inject(NzDrawerService);
+  private readonly router = inject(Router);
 
   /** The enumeration type this panel renders. Changing it reloads. */
   readonly type = input.required<string>();
@@ -152,6 +197,7 @@ export class LookupValuesPanelComponent {
   protected readonly loading = signal(true);
 
   protected readonly addLabel = $localize`:@@lookups.addValue:Add value`;
+  protected readonly pasteLabel = $localize`:@@pv.open:Paste a list`;
   protected readonly loadingLabel = $localize`:@@lookups.loading.values:Loading values`;
 
   constructor() {
@@ -180,6 +226,19 @@ export class LookupValuesPanelComponent {
     } finally {
       if (!opts.silent) this.loading.set(false);
     }
+  }
+
+  /**
+   * Off to the paste screen, carrying where to come back to.
+   *
+   * A navigation and not a drawer: see `PasteValuesPage` for the size argument. `from` is a
+   * fixed token rather than a return URL — an arbitrary path in a query parameter is an
+   * open-redirect surface for no gain.
+   */
+  protected openPaste(): void {
+    void this.router.navigate(['/lookups/paste'], {
+      queryParams: { type: this.type(), from: 'lookups' },
+    });
   }
 
   protected openCreate(): void {

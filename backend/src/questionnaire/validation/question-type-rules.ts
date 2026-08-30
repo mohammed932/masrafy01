@@ -30,6 +30,19 @@ export const SCOREABLE_TYPES: readonly QuestionType[] = [
   'TEXT',
 ];
 
+/**
+ * A choice question needs two answers. There is deliberately NO maximum.
+ *
+ * The asymmetry is intentional and is worth stating, because it looks like an oversight.
+ * `CreateQuestionWithOptionsDto.options` carries `@ArrayMaxSize(50)` — a bound on what a
+ * person types into a form. A MIRRORED list (`optionsFromEnumerationType`) bypasses it, and
+ * must: the options are the registry, an operator legitimately fills a registry with every
+ * residential compound in the country, and a cap here would be the questionnaire refusing a
+ * list the platform asked them to build, with "delete some values" as the only remedy.
+ *
+ * The real consequence of a very long option list is a very long picker on a phone. That is a
+ * mobile rendering decision, and it belongs there, not in a server-side refusal.
+ */
 export const MIN_CHOICE_OPTIONS = 2;
 export const TEXT_MAX_LENGTH_CEILING = 2000;
 

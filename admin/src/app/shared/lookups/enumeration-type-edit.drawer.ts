@@ -128,6 +128,43 @@ const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
           </span>
         </label>
 
+        @if (isEdit()) {
+          <!-- NESTED, not two flat switches. The rail shows a list when it is active AND on
+               independent booleans give four states of which two look identical on the rail:
+               the operator flips one, nothing happens, and nothing on screen says why. Nesting
+               the second inside the first makes those combinations unreachable. -->
+          <div class="field">
+            <label class="switch">
+              <input type="checkbox" formControlName="active" [attr.disabled]="lockedAttr()" />
+              <span i18n="@@lookups.type.field.active">This list is in use</span>
+            </label>
+            <span class="hint" i18n="@@lookups.type.field.active.hint">
+              Off, the list is retired: its values stay and everything already saved keeps working,
+              but it cannot be picked anywhere new.
+            </span>
+
+            @if (form.controls.active.value && !ownedByProduct()) {
+              <label class="switch is-nested">
+                <input
+                  type="checkbox"
+                  formControlName="onValuesRail"
+                  [attr.disabled]="lockedAttr()"
+                />
+                <span i18n="@@lookups.type.field.rail">Show it on Manage values</span>
+              </label>
+              <span class="hint is-nested" i18n="@@lookups.type.field.rail.hint">
+                Off, the list still works — it just has a screen of its own instead of a tile here.
+              </span>
+            }
+
+            @if (locked()) {
+              <span class="hint" i18n="@@lookups.type.field.locked">
+                A built-in list the platform reads by name, so this cannot be changed.
+              </span>
+            }
+          </div>
+        }
+
         @if (errorMessage(); as message) {
           <p class="notice is-bad" role="alert">{{ message }}</p>
         }
@@ -180,6 +217,29 @@ const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
       .mono {
         font-family: var(--font-mono, ui-monospace, monospace);
       }
+      /* Native checkboxes, not nz-switch. ng-zorro renders a switch as a bare button with no
+         role and no aria-checked, so a wrapping label associates with nothing and a screen
+         reader hears an unlabelled button — the defect v19.1.0 measured and fixed the same
+         way. A checkbox is also the honest control for a setting that is simply on or off. */
+      .switch {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+        cursor: pointer;
+      }
+      .switch.is-nested,
+      .hint.is-nested {
+        margin-inline-start: var(--space-5);
+      }
+      .switch input {
+        inline-size: 1rem;
+        block-size: 1rem;
+        accent-color: var(--color-brand-primary);
+        cursor: pointer;
+      }
+
       .hint {
         color: var(--text-tertiary);
         font-size: 0.75rem;
@@ -259,7 +319,40 @@ export class EnumerationTypeEditDrawerComponent {
       this.data.mode === 'edit' ? (this.data.definition.parentTypeKey ?? '') : '',
       { nonNullable: true },
     ),
+    active: new FormControl<boolean>(
+      this.data.mode === 'edit' ? this.data.definition.active : true,
+      { nonNullable: true },
+    ),
+    onValuesRail: new FormControl<boolean>(
+      this.data.mode === 'edit' ? this.data.definition.onValuesRail : true,
+      { nonNullable: true },
+    ),
   });
+
+  /**
+   * A builtin the code reads by name. `active` and `onValuesRail` are both in the server's
+   * `SYSTEM_ONLY_LOCKED_FIELDS`, so offering them here would be offering a refusal.
+   */
+  protected isEdit(): boolean {
+    return this.data.mode === 'edit';
+  }
+
+  protected locked(): boolean {
+    return this.data.mode === 'edit' && this.data.definition.systemOnly;
+  }
+
+  protected lockedAttr(): string | null {
+    return this.locked() ? '' : null;
+  }
+
+  /**
+   * A list a PRODUCT authored. Putting one on the global rail would show a duplicate values
+   * panel for a list that already lives on its product's own workspace — the state
+   * `20260826090000` deliberately created by shipping those kinds with the rail flag off.
+   */
+  protected ownedByProduct(): boolean {
+    return this.data.mode === 'edit' && this.data.definition.surrogateProductKey !== null;
+  }
 
   protected keyInvalid(): boolean {
     const control = this.form.controls.key;
@@ -295,6 +388,15 @@ export class EnumerationTypeEditDrawerComponent {
       descriptionEn: raw.descriptionEn.trim() || undefined,
       descriptionAr: raw.descriptionAr.trim() || undefined,
       parentTypeKey,
+      // Sent ONLY when they moved. Including `active: true` on every label edit turns
+      // "reactivated" into audit noise, and the audit is where an operator later looks to
+      // find out when a list came back.
+      ...(this.data.mode === 'edit' && raw.active !== this.data.definition.active
+        ? { active: raw.active }
+        : {}),
+      ...(this.data.mode === 'edit' && raw.onValuesRail !== this.data.definition.onValuesRail
+        ? { onValuesRail: raw.onValuesRail }
+        : {}),
     };
     try {
       if (this.data.mode === 'create') {

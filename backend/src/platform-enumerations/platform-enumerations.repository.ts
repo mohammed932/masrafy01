@@ -133,6 +133,14 @@ export interface EnumerationTypeDefinition {
   exampleEn: string | null;
   /** The kind whose values these are filed under, by key. `null` = no parent axis. */
   parentTypeKey: string | null;
+  /**
+   * Where a value of this kind goes when an operator UNFILES it, by key of the `parentTypeKey`
+   * list. `null` = no fallback declared, and `null` stays a reachable stored `parentKey`.
+   *
+   * Read by `resolveParentKey` under `allowUnfiled`, and by nothing else — never on create,
+   * where a blank class is a typo rather than a decision.
+   */
+  fallbackParentKey: string | null;
   deletable: boolean;
   /** Shown on the operator's Manage-values rail. Off for kinds with a screen of their own. */
   onValuesRail: boolean;
@@ -301,9 +309,15 @@ export interface BoundQuestion {
    * the option codes, find the rows they are, read the parents those rows point at, and
    * label them from whichever list actually holds those keys.
    *
-   * `undefined` when the walk finds nothing — options that are not enumeration rows, or
-   * rows filed under nothing. The editor then says the keys cannot be listed, rather than
-   * offering to seed a row per key over an empty list, which is a button that does nothing.
+   * TWO sources, in order. When the option list declares an axis (`parentAxisType`), this is
+   * EVERY live member of it — the full class list, including classes nothing is filed under
+   * yet, because that is the list a bank must state a figure for. Only when no axis is
+   * declared does it fall back to the walk described above, over the parents the options
+   * happen to reference.
+   *
+   * `undefined` when neither answers — options that are not enumeration rows, or rows filed
+   * under nothing. The editor then says the keys cannot be listed, rather than offering to
+   * seed a row per key over an empty list, which is a button that does nothing.
    */
   parentOptions?: Array<{ code: string; labelAr: string; labelEn: string }>;
   /**
@@ -334,6 +348,27 @@ export interface BoundQuestion {
    * reads" has to show both or the operator cannot file a new value.
    */
   parentEnumerationType?: string;
+  /**
+   * The parent AXIS declared by the list this question's options come from — read straight
+   * off `enumeration_type_def.parentTypeKey`, not walked from the values.
+   *
+   * Distinct from `parentEnumerationType`, and the distinction is load-bearing. That one is
+   * derived from DATA: the parents the options ACTUALLY reference. This one is derived from
+   * the AXIS: what the list SAYS its values are filed under, whether or not any of them are
+   * filed yet.
+   *
+   * Two states separate them, and both are states a screen must get right:
+   *   · a list with a declared axis and nothing filed yet — the moment a product is being
+   *     authored. Data-derived says "no classes", so a picker filtering on it would hide the
+   *     class mechanism at exactly the moment the operator reached for it.
+   *   · a list whose values sit in four of six classes. Data-derived says four, so the bank
+   *     could never state a figure for the other two and "two classes have no row" would be
+   *     unreachable for the classes that need it most.
+   *
+   * `undefined` when the options come from no recognised list, or from one filed under
+   * nothing.
+   */
+  parentAxisType?: string;
   /**
    * The loan categories whose applicants are ASKED this question — the questionnaire's
    * own answer, read straight off `question_loan_category`.

@@ -23,6 +23,33 @@ export interface CreateAuditInput {
 export class AuditEventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Insert many events in ONE statement.
+   *
+   * `createMany` returns no rows, which is why this answers a count rather than
+   * `AuditEvent[]` — no caller of the bulk path needs the rows back, and pretending
+   * otherwise would mean a second read purely to satisfy a signature.
+   *
+   * Exists because a bulk write's audit was N sequential round trips: `setParentKeysBulk`
+   * already had that shape at up to 500 rows, and the pasted-values endpoint would have
+   * copied it.
+   */
+  async createMany(inputs: readonly CreateAuditInput[], tx?: Prisma.TransactionClient): Promise<number> {
+    if (inputs.length === 0) return 0;
+    const client = tx ?? this.prisma;
+    const { count } = await client.auditEvent.createMany({
+      data: inputs.map((input) => ({
+        actorId: input.actorId,
+        targetId: input.targetId,
+        bankProgramId: input.bankProgramId ?? undefined,
+        eventType: toPrismaAuditEventType(input.eventType),
+        sourceIp: input.sourceIp ?? undefined,
+        payload: input.payload as Prisma.JsonObject,
+      })),
+    });
+    return count;
+  }
+
   async create(input: CreateAuditInput, tx?: Prisma.TransactionClient): Promise<AuditEvent> {
     const client = tx ?? this.prisma;
     return client.auditEvent.create({

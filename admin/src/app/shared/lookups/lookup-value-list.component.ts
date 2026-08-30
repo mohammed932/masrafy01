@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -26,6 +34,12 @@ export interface LookupActiveToggle {
  * Value list for one lookup type — presentational. Owns only its local filter;
  * every mutation is emitted upward so the page keeps the single source of truth.
  */
+/**
+ * Live rows rendered before the operator asks for more. See `shown` for why a window and not
+ * virtualization.
+ */
+const VALUE_WINDOW = 100;
+
 @Component({
   selector: 'app-lookup-value-list',
   standalone: true,
@@ -99,7 +113,7 @@ export interface LookupActiveToggle {
       </div>
     } @else {
       <ul class="values" role="list">
-        @for (r of view().live; track r.id) {
+        @for (r of windowed(); track r.id) {
           <li class="value" [class.inactive]="!r.active">
             <div class="value-main">
               <span class="labels">
@@ -234,6 +248,13 @@ export interface LookupActiveToggle {
           }
         }
       </ul>
+      @if (hasMore()) {
+        <div class="more">
+          <button nz-button nzType="default" nzSize="small" type="button" (click)="showMore()">
+            {{ moreLabel() }}
+          </button>
+        </div>
+      }
     }
   `,
   styles: [
@@ -274,6 +295,12 @@ export interface LookupActiveToggle {
         color: var(--color-text-tertiary);
         font-variant-numeric: tabular-nums lining-nums;
       }
+      .more {
+        display: flex;
+        justify-content: center;
+        padding-block: var(--space-3);
+      }
+
       .values {
         list-style: none;
         margin: 0;
@@ -525,6 +552,47 @@ export class LookupValueListComponent {
       inactive: live.filter((r) => !r.active).length,
     };
   });
+
+  /**
+   * How many live rows are RENDERED.
+   *
+   * Not virtualization, and the reason is measured rather than assumed. Each live row carries
+   * three `nz-tooltip` directives and one `nz-popconfirm`, so five hundred values is roughly
+   * two thousand overlay-capable directive instances on first paint — that is the cost, not
+   * the DOM nodes. A window cuts it by four-fifths in about fifteen lines.
+   *
+   * CDK virtual scroll was the tempting answer and is wrong here twice: these rows are
+   * variable height by documented design (a value's name wraps, because the name is the row's
+   * whole identity), `FixedSizeVirtualScrollStrategy` needs a real item size, and `autosize`
+   * lives in `@angular/cdk-experimental`, which is not installed.
+   *
+   * Resets whenever the filter moves — showing rows 1..100 of the PREVIOUS result set would
+   * be a silent lie about what is on screen.
+   */
+  private readonly shown = signal(VALUE_WINDOW);
+
+  protected readonly windowed = computed(() => this.view().live.slice(0, this.shown()));
+
+  constructor() {
+    // The reset that keeps the window honest. Without it, filtering a 500-row list down to
+    // three and back would leave the operator looking at the first hundred of the OLD set.
+    effect(() => {
+      this.query();
+      this.rows();
+      this.shown.set(VALUE_WINDOW);
+    });
+  }
+
+  protected readonly hasMore = computed(() => this.view().live.length > this.windowed().length);
+
+  protected moreLabel(): string {
+    const left = this.view().live.length - this.windowed().length;
+    return $localize`:@@lookups.window.more:Show the next ${Math.min(VALUE_WINDOW, left)}:COUNT: (${left}:REMAINING: left)`;
+  }
+
+  protected showMore(): void {
+    this.shown.update((n) => n + VALUE_WINDOW);
+  }
 
   protected readonly countsLabel = computed(() => {
     const v = this.view();

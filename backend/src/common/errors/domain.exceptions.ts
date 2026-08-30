@@ -561,6 +561,81 @@ export class EnumerationTypeParentInvalidException extends DomainException {
 }
 
 /**
+ * A KIND's declared FALLBACK class is unusable.
+ *
+ * `no_axis` — the kind files its values under nothing, so there is no list to fall back
+ * into. `unknown` / `inactive` — the key names no live member of the axis it does have.
+ * `activeKeys` says what would have worked, the same shape `EnumerationParentUnknownException`
+ * uses, because it is the same screen and the same fix.
+ */
+export class EnumerationTypeFallbackInvalidException extends DomainException {
+  constructor(meta: {
+    key: string;
+    fallbackParentKey: string;
+    reason: 'no_axis' | 'unknown' | 'inactive';
+    parentType?: string;
+    activeKeys?: string[];
+  }) {
+    super(ERROR_CODES.ENUMERATION_TYPE_FALLBACK_INVALID, meta);
+  }
+}
+
+/**
+ * Retiring a list value that is some kind's declared fallback.
+ *
+ * Distinct from `EnumerationHasChildrenException`: this fires on a class holding NOTHING,
+ * which is precisely the case that guard cannot see. An empty retired fallback is where the
+ * next untick sends a value, and the parent walk never checks the parent's own active flag.
+ */
+export class EnumerationFallbackInUseException extends DomainException {
+  constructor(meta: { type: string; key: string; childTypes: readonly string[]; count: number }) {
+    super(ERROR_CODES.ENUMERATION_FALLBACK_IN_USE, meta);
+  }
+}
+
+/** One pasted row the batch could not accept. `index` is ZERO-BASED into the request rows. */
+export interface EnumerationBulkProblem {
+  index: number;
+  reason:
+    | 'parent_required'
+    | 'parent_unknown'
+    | 'parent_not_applicable'
+    | 'duplicate_in_batch'
+    | 'duplicate_existing'
+    | 'label_unsluggable';
+  key?: string;
+  parentKey?: string;
+  /** For `duplicate_in_batch`: the earlier row this one collides with. Zero-based. */
+  firstIndex?: number;
+}
+
+/**
+ * A pasted list was refused in full. Every bad row is named, capped at 200.
+ *
+ * All-or-nothing: half a four-hundred-line paste leaves the operator diffing a textarea
+ * against a list they cannot see, which is worse than doing it again.
+ */
+export class EnumerationBulkInvalidException extends DomainException {
+  constructor(meta: {
+    type: string;
+    rows: number;
+    problemsTotal: number;
+    truncated: boolean;
+    problems: readonly EnumerationBulkProblem[];
+    activeParentKeys?: readonly string[];
+  }) {
+    super(ERROR_CODES.ENUMERATION_BULK_INVALID, meta);
+  }
+}
+
+/** Values of this KIND carry settings a three-column paste cannot express. */
+export class EnumerationBulkCreateNotApplicableException extends DomainException {
+  constructor(meta: { type: string }) {
+    super(ERROR_CODES.ENUMERATION_BULK_CREATE_NOT_APPLICABLE, meta);
+  }
+}
+
+/**
  * The template named question codes that match no question at all — not even a
  * soft-deleted one. Reports every offender so the board can say which rather
  * than just refusing the save.

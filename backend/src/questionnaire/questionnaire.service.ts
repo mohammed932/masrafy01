@@ -723,13 +723,16 @@ export class QuestionnaireService {
     // Frozen INTO the snapshot: the customer read filters on it, so a later
     // reassignment must not retroactively change what an older version asked.
     const assignments = await this.repo.categoryAssignments();
+    // ONE query for every question's options, not one per question. This runs on every write
+    // to a mirrored list, and the snapshot it builds is the largest object in the system.
+    const optionsOf = await this.repo.optionsByQuestions(questions.map((q) => q.id));
 
     const snapshotGroups = [];
     for (const g of groups) {
       const gQuestions = questions.filter((q) => q.groupId === g.id);
       const qOut = [];
       for (const q of gQuestions) {
-        const options = (await this.repo.optionsByQuestion(q.id)).filter((o) => o.isActive);
+        const options = (optionsOf.get(q.id) ?? []).filter((o) => o.isActive);
         const numeric = numericRulesOf(q);
         const text = textRulesOf(q);
         qOut.push({

@@ -23,6 +23,15 @@ import {
   SwapOutline,
   TagsOutline,
   UnorderedListOutline,
+  BankOutline,
+  HomeOutline,
+  GoldOutline,
+  SafetyOutline,
+  ReadOutline,
+  BuildOutline,
+  FunctionOutline,
+  CalculatorOutline,
+  HistoryOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -31,7 +40,7 @@ import {
   openFormDrawer,
   type StatStripItem,
 } from '@shared/ui';
-import type { EnumerationTypeSummary } from './lookups.api.service';
+import type { EnumerationTypeDefinition, EnumerationTypeSummary } from './lookups.api.service';
 import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
 import {
@@ -81,6 +90,24 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
       // icons order-dependent the moment a second host existed.
       PlusOutline,
       EditOutline,
+      // Every icon the KIND REGISTRY can name, not only the ones on the rail today.
+      //
+      // The rail draws `enumeration_type_def.icon`, which is data — so the set of glyphs this
+      // screen can be asked for is the registry's, and it changes without a release. Before
+      // this it was the five kinds that happened to be railed: turning a retired list back on
+      // asked for `gold`, ng-zorro threw, and the tile rendered as a console error rather than
+      // as the blank the schema's own comment promises. Registering the seeded set means the
+      // next reactivation cannot do it again.
+      BankOutline,
+      HomeOutline,
+      GoldOutline,
+      SafetyOutline,
+      ReadOutline,
+      BuildOutline,
+      FunctionOutline,
+      CalculatorOutline,
+      // The deprecated count on a tile, and the retired banner.
+      HistoryOutline,
     ]),
   ],
   template: `
@@ -96,10 +123,24 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
       } @else {
         <div class="rail-head">
           <p class="section-label" i18n="@@lookups.categoriesLabel">Categories</p>
-          <button type="button" class="new-type" (click)="openCreateType()">
-            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@lookups.type.new">New list</span>
-          </button>
+          <div class="rail-acts">
+            <!-- Hidden entirely at zero. A toggle over an empty set teaches the operator that
+                 the feature is broken. -->
+            @if (retiredDefs().length > 0) {
+              <label class="retired-toggle">
+                <input
+                  type="checkbox"
+                  [checked]="showRetired()"
+                  (change)="showRetired.set(!showRetired())"
+                />
+                <span>{{ retiredToggleLabel() }}</span>
+              </label>
+            }
+            <button type="button" class="new-type" (click)="openCreateType()">
+              <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@lookups.type.new">New list</span>
+            </button>
+          </div>
         </div>
         <app-lookup-type-rail
           [cards]="typeCards()"
@@ -109,6 +150,25 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
 
         @if (selectedType(); as type) {
           <section class="detail" [attr.aria-label]="label(type)">
+            @if (isRetired(type)) {
+              <p class="retired-banner" role="status">
+                <span nz-icon nzType="history" nzTheme="outline" aria-hidden="true"></span>
+                <span i18n="@@lookups.retired.banner"
+                  >This list is retired. Its values are not offered anywhere.</span
+                >
+                @if (!systemOnlyType(type)) {
+                  <button
+                    nz-button
+                    nzType="primary"
+                    nzSize="small"
+                    type="button"
+                    (click)="openEditType(type)"
+                  >
+                    <span i18n="@@lookups.retired.turn_on">Turn it back on</span>
+                  </button>
+                }
+              </p>
+            }
             @if (!systemOnlyType(type)) {
               <div class="type-actions">
                 <button type="button" class="type-edit" (click)="openEditType(type)">
@@ -141,6 +201,43 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
         inline-size: 100%;
         padding: var(--space-6);
       }
+      .retired-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin-block-end: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+      }
+      .retired-banner button {
+        margin-inline-start: auto;
+      }
+
+      .rail-acts {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .retired-toggle {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        cursor: pointer;
+      }
+      .retired-toggle input {
+        inline-size: 0.875rem;
+        block-size: 0.875rem;
+        accent-color: var(--color-brand-primary);
+        cursor: pointer;
+      }
+
       .rail-head {
         display: flex;
         align-items: baseline;
@@ -245,15 +342,40 @@ export class LookupsPage implements OnInit {
    */
   protected readonly typeCards = computed<LookupTypeCard[]>(() => {
     const byType = new Map(this.summaries().map((s) => [s.type, s]));
-    return this.enumTypes.railTypes().map((def) => ({
+    const card = (def: EnumerationTypeDefinition, retired: boolean): LookupTypeCard => ({
       type: def.key,
       label: this.isAr ? def.labelAr : def.labelEn,
       description: (this.isAr ? def.descriptionAr : def.descriptionEn) ?? '',
       icon: def.icon ?? 'unordered-list',
       active: byType.get(def.key)?.active ?? 0,
       deprecated: byType.get(def.key)?.deprecated ?? 0,
-    }));
+      ...(retired ? { retired: true } : {}),
+    });
+    const live = this.enumTypes.railTypes().map((def) => card(def, false));
+    // Appended, never mixed in: a retired list is a different kind of thing from a live one,
+    // and an operator scanning the rail for a list they use should not have to read past
+    // three retired ones to find it.
+    return this.showRetired()
+      ? [...live, ...this.retiredDefs().map((def) => card(def, true))]
+      : live;
   });
+
+  /**
+   * Lists that are off the rail: retired, or living on a screen of their own.
+   *
+   * Both, and deliberately: `railTypes()` is `active && onValuesRail`, so a list can be
+   * missing from the rail for either reason and the operator cannot tell which from outside.
+   * Showing both under one toggle is what makes the rail's absence explicable.
+   */
+  protected readonly retiredDefs = computed(() =>
+    this.enumTypes.definitions().filter((d) => !d.active || !d.onValuesRail),
+  );
+
+  protected readonly showRetired = signal(false);
+
+  protected retiredToggleLabel(): string {
+    return $localize`:@@lookups.retired.toggle:Show retired lists (${this.retiredDefs().length}:COUNT:)`;
+  }
 
   protected readonly statItems = computed<StatStripItem[]>(() => {
     const cards = this.typeCards();
@@ -336,8 +458,25 @@ export class LookupsPage implements OnInit {
     // than rendering an empty panel — the same behaviour `isLookupType` used to give, now
     // measured against the rail as it actually is rather than against a frozen array.
     const known = rail.some((d) => d.key === requested);
-    const target = known && requested ? requested : rail[0]?.key;
+    if (known && requested) {
+      this.selectType(requested);
+      return;
+    }
+    // A pasted link naming a RETIRED list used to fall silently to the first tile, which is
+    // the one case where the fallback is wrong: the list exists, the operator asked for it by
+    // name, and landing somewhere else reads as a broken link. Open the retired group and go.
+    const retired = this.retiredDefs().some((d) => d.key === requested);
+    if (retired && requested) {
+      this.showRetired.set(true);
+      this.selectType(requested);
+      return;
+    }
+    const target = rail[0]?.key;
     if (target) this.selectType(target);
+  }
+
+  protected isRetired(type: string): boolean {
+    return this.retiredDefs().some((d) => d.key === type);
   }
 
   protected selectType(type: string): void {

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
+import { json } from 'express';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { setupSwagger } from './common/swagger/swagger.config';
@@ -42,6 +43,11 @@ async function bootstrap(): Promise<void> {
     'Bootstrap',
   );
 
+  // Raised from Express's 100 KB default. A pasted list of 500 values is ~70 KB of JSON —
+  // under the default, but not comfortably, and Express answers an over-limit body with raw
+  // HTML rather than the `{ success, code }` envelope Principle XIV promises, so the operator
+  // would get an untyped failure on the one screen built for large input.
+  app.use(json({ limit: '1mb' }));
   app.use(cookieParser());
 
   app.useGlobalPipes(

@@ -193,7 +193,18 @@ export class BankProgramsService {
       throw new ProgramCodeAlreadyInUseException(programCode);
     }
 
-    const warnings = this.incomeRuleWarnings({ dto, persisted: persistedRule });
+    // The EFFECTIVE rule — the bank's figures under the catalog's structure — because a
+    // program on its own amounts stores no `steps` at all and the coverage walk would find
+    // nothing to check. Same merge the validator two blocks up already runs.
+    const warnings = await this.incomeRuleWarnings({
+      dto,
+      persisted: persistedRule,
+      effective: effectiveIncomeRule(
+        persistedRule,
+        await this.catalogIncomeRuleFor(dto.programNameKey),
+      ),
+      programCode,
+    });
 
     // Feature 011 — markers are validated on create too. A program created WITH an
     // estimate SAVES fine (FR-034) but must not be born LIVE: programs are created
@@ -706,6 +717,76 @@ export class BankProgramsService {
     }
   }
 
+  /**
+   * Which CLASSES a `factParentTable` step has no figure for — warning only, never a refusal.
+   *
+   * A `factParentTable` crosses from the value the customer picks (one of hundreds of
+   * compounds) to the short list the bank states figures against (six classes). An applicant
+   * whose class has no row gets `no_matching_row`, and that reason is FATAL — it stops the
+   * rule rather than skipping the step — so the program is listed and quotes nothing. Until
+   * now nothing said so before a real customer hit it: `incomeRuleReadWarnings` only ever
+   * looked at the LEGACY root-level `keyTable` keyed by `KEY_TABLE_REGISTRY`, which covers
+   * `byProfessorRank` and `byMilitaryGrade` and no product-template rule at all.
+   *
+   * Deliberately NOT in `income-rule.validator.ts`. Its comment on parent keys is right and
+   * unchanged: refusing on a class list that has moved would refuse a save that a lookup fix
+   * on another screen makes valid. This is the other half of that decision — say it, do not
+   * block on it.
+   *
+   * The denominator is `parentAxisType`, the axis the option list DECLARES, not the classes
+   * some option happens to be filed under. That distinction is the whole point: the classes
+   * with nothing in them yet are exactly the ones a bank has no reason to have noticed.
+   *
+   * Both registry reads are 60 s-cached, so a program with two such steps costs no query.
+   */
+  private async classCoverageWarnings(
+    rule: IncomeAssumptionConfig,
+    programCode: string,
+  ): Promise<Array<{ code: string; meta?: Record<string, unknown> }>> {
+    const steps = (rule.steps ?? []).filter((step) => step.op === 'factParentTable');
+    if (steps.length === 0) return [];
+
+    const out: Array<{ code: string; meta?: Record<string, unknown> }> = [];
+    const facts = await this.enums.getActiveMembers('surrogate_fact');
+    const params = rule.stepParams ?? {};
+
+    for (const step of steps) {
+      if (!step.fact) continue;
+      const bound = facts.find((f) => f.key === step.fact)?.boundQuestion;
+      const parentType = bound?.parentAxisType ?? bound?.parentEnumerationType;
+      if (!parentType) continue;
+
+      const table = params[step.id]?.keyTable ?? [];
+      // An UNCONFIGURED step is not a coverage problem: the bank has declined this
+      // derivation, `factParentTable` answers `rule_unconfigured`, and that reason IS
+      // skippable. Warning here would nag every bank about a step it never opted into.
+      if (table.length === 0) continue;
+
+      const stated = new Set(table.map((row) => row.key));
+      const expected = (
+        await this.enums.getActiveMembers(
+          parentType as Parameters<PlatformEnumerationsRepository['getActiveMembers']>[0],
+        )
+      ).map((m) => m.key);
+      const missing = expected.filter((key) => !stated.has(key));
+      if (missing.length === 0) continue;
+
+      out.push({
+        code: ERROR_CODES.INCOME_RULE_CLASS_ROW_MISSING,
+        meta: {
+          programCode,
+          stepId: step.id,
+          fact: step.fact,
+          parentType,
+          missing,
+          have: expected.length - missing.length,
+          expected: expected.length,
+        },
+      });
+    }
+    return out;
+  }
+
   /** One name's catalog rule, or `undefined` when the name states none. */
   private async catalogIncomeRuleFor(
     programNameKey: string,
@@ -769,18 +850,31 @@ export class BankProgramsService {
     return stripCatalogStructure(stripInheritedAmounts(normalizeIncomeAssumption(stripped)));
   }
 
-  /** FR-001 edge case + FR-013 — reported, never a rejection. */
-  private incomeRuleWarnings(args: {
+  /**
+   * FR-001 edge case + FR-013 — reported, never a rejection.
+   *
+   * Async since the class-coverage half needs the registry. It shares ONE derivation with
+   * `incomeRuleReadWarnings` so the operator hears the same sentence at the moment they save
+   * and again when they come back — leaving the screen must not lose it.
+   */
+  private async incomeRuleWarnings(args: {
     dto: CreateBankProgramDto | UpdateBankProgramDto;
     persisted: IncomeAssumptionConfig;
-  }): Array<{ code: string; meta?: Record<string, unknown> }> {
+    /** The rule as the ENGINE sees it — the bank's figures under the catalog's structure. */
+    effective?: IncomeAssumptionConfig;
+    programCode?: string;
+  }): Promise<Array<{ code: string; meta?: Record<string, unknown> }>> {
     const warnings = collectIncomeRuleWarnings({
       config: args.persisted,
       programType: args.dto.programType,
       productCategory: args.dto.productCategory,
       programRequiredDocuments: args.dto.requiredDocuments ?? [],
-    });
-    return warnings.map(toWarningPayload);
+    }).map(toWarningPayload);
+
+    if (args.effective && args.programCode) {
+      warnings.push(...(await this.classCoverageWarnings(args.effective, args.programCode)));
+    }
+    return warnings;
   }
 
   // --- Response mapping ---------------------------------------------------
@@ -927,6 +1021,23 @@ export class BankProgramsService {
       programRequiredDocuments: program.requiredDocuments,
     }).map(toWarningPayload);
 
+    // A product-template rule's figures live in `stepParams` and its STRUCTURE on the catalog
+    // name, so the stored blob alone has no `steps` to walk. Merged here exactly as the
+    // engine merges it.
+    warnings.push(
+      ...(await this.classCoverageWarnings(
+        effectiveIncomeRule(
+          rule,
+          // A legacy program with no catalog name has no structure to merge, and its rule
+          // cannot be a pipeline — the coverage walk then finds no steps and returns nothing.
+          program.programNameKey === null
+            ? undefined
+            : await this.catalogIncomeRuleFor(program.programNameKey),
+        ),
+        program.programCode,
+      )),
+    );
+
     const registry =
       KEY_TABLE_REGISTRY[rule.strategy as (typeof KEY_TABLE_STRATEGIES)[number]] ?? null;
     if (registry === null || !rule.keyTable?.length) return warnings;
@@ -991,7 +1102,15 @@ export class BankProgramsService {
         : {}),
     });
 
-    const warnings = this.incomeRuleWarnings({ dto, persisted: persistedRule });
+    const warnings = await this.incomeRuleWarnings({
+      dto,
+      persisted: persistedRule,
+      effective: effectiveIncomeRule(
+        persistedRule,
+        await this.catalogIncomeRuleFor(dto.programNameKey ?? existing.programNameKey),
+      ),
+      programCode: existing.programCode,
+    });
 
     // Feature 011 — the value-source markers (FR-032 … FR-035).
     //

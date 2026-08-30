@@ -730,7 +730,11 @@ export class ProductFactPage implements OnInit {
               key,
               labelEn: row.controls.labelEn.value,
               labelAr: row.controls.labelAr.value,
-              sortOrder: index,
+              // 1-based. `parent-class-board` renders a class's rank as its position PLUS ONE,
+              // so a 0-based store is the off-by-one that produces "why is the top class rank
+              // zero in the API". Safe on lists written before this: the board sorts by the
+              // ORDER of `sortOrder`, never by its value, so a mixed estate still reads right.
+              sortOrder: index + 1,
             });
             this.classKeyByIndex.set(index, key);
           }
@@ -750,24 +754,34 @@ export class ProductFactPage implements OnInit {
         });
         created.push(listType);
 
-        this.progress.set($localize`:@@pfd.step.values:Adding the answers…`);
-        const valueKeys = new Set<string>();
-        for (const [index, row] of this.values.controls.entries()) {
-          const key = uniqueSlug(row.controls.labelEn.value, valueKeys);
-          valueKeys.add(key);
-          const classKey =
-            parentType === null
-              ? null
-              : (this.classKeyByIndex.get(row.controls.classIndex.value) ?? null);
-          await this.lookups.create({
-            type: listType,
-            key,
-            labelEn: row.controls.labelEn.value,
-            labelAr: row.controls.labelAr.value,
-            sortOrder: index,
-            ...(classKey !== null ? { parentKey: classKey } : {}),
-          });
-        }
+        this.progress.set(
+          $localize`:@@pfd.step.values_bulk:Adding ${this.values.length}:COUNT: answers…`,
+        );
+        // ONE request, not one per row.
+        //
+        // This loop was a POST per answer against a controller under the global
+        // 100-per-15-minutes throttle, so a list of any real size died partway through with
+        // half of it written and no way back — the catch below says as much. It also meant
+        // one questionnaire republish per row once the list was mirrored, each snapshot
+        // carrying every option of every question.
+        //
+        // Keys are minted SERVER-side now, from the English label. That is the same rule this
+        // screen used, minus the `_2` suffixing: two answers that slug identically come back
+        // as a named refusal instead of two rows nothing can tell apart.
+        await this.lookups.createValuesBulk({
+          type: listType,
+          rows: this.values.controls.map((row) => {
+            const classKey =
+              parentType === null
+                ? null
+                : (this.classKeyByIndex.get(row.controls.classIndex.value) ?? null);
+            return {
+              labelEn: row.controls.labelEn.value,
+              labelAr: row.controls.labelAr.value,
+              ...(classKey !== null ? { parentKey: classKey } : {}),
+            };
+          }),
+        });
       }
 
       this.progress.set($localize`:@@pfd.step.question:Writing the question…`);

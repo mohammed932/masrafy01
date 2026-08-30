@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  LOCALE_ID,
+  model,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -193,6 +201,21 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
            permanent, so a dead control plus a line of prose explaining why it is dead
            read as an unfinished screen and invited "this lets me add a class". Nothing
            to add, nothing on screen; delete a row and it comes back. -->
+      <!-- Says it, never blocks it. Deliberately NOT fed into the error signal: the host form
+           gates Save on that, and nothing here is invalid — the table is incomplete, which is
+           a different thing with a different remedy. The server says the same sentence on the
+           program's own page (INCOME_RULE_CLASS_ROW_MISSING) so leaving this screen does not
+           lose it.
+
+           A status role, not an alert: it is true the whole time the table is short, and an
+           assertive announcement on every keystroke would be unusable. -->
+      @if (missingKeys().length > 0) {
+        <p class="ikt__missing" role="status">
+          <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+          <span>{{ missingLabel() }}</span>
+        </p>
+      }
+
       @if (unusedKeys().length > 0) {
         <div class="ikt__footer">
           <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addRow()">
@@ -334,6 +357,26 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
         opacity: 0.45;
       }
 
+      /* Warning, not error: nothing here is invalid. Sits on the warning bed so it reads as
+         the same class of thing as the unavailable-keys notice above it. */
+      .ikt__missing {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin-block-start: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+        border-radius: var(--radius-md);
+        background: var(--color-warning-bg);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        line-height: var(--leading-snug);
+      }
+      .ikt__missing [nz-icon] {
+        flex: none;
+        color: var(--color-warning);
+      }
+
       .ikt__footer {
         display: flex;
         flex-wrap: wrap;
@@ -362,6 +405,8 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
 })
 export class IncomeKeyTableComponent {
   readonly enums = inject(PlatformEnumerationsService);
+  /** Which label to print. The table renders names, and a name is read, not decoded. */
+  private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   /** Two-way bound table. `[]` is a real state the backend rejects on save. */
   readonly rows = model.required<IncomeKeyTableRow[]>();
@@ -481,6 +526,43 @@ export class IncomeKeyTableComponent {
     const used = new Set(this.rows().map((r) => r.key));
     return this.members().filter((m) => !used.has(m.key));
   });
+
+  /**
+   * Keys with no row an operator can SEE — what the warning counts.
+   *
+   * Separate from `unusedKeys`, which reads `rows()` alone. In a two-column slot a key
+   * present only in the SECOND column has a visible row (`displayRows` includes it) while
+   * `unusedKeys` still reports it, so warning off that would fire on a table that is fine.
+   * `unusedKeys` stays as it is: adding a primary row for such a key is still correct.
+   */
+  readonly missingKeys = computed(() => {
+    const shown = new Set(this.displayRows().map((r) => r.key));
+    return this.members().filter((m) => !shown.has(m.key));
+  });
+
+  /**
+   * The missing-row sentence.
+   *
+   * NOUN-FREE on purpose. This component serves professor ranks, military grades and compound
+   * classes, and injecting a noun into an English plural is a trap in one locale and a
+   * gender-agreement trap in the other. The names go in the LIST, which is where the operator
+   * needs them anyway, capped at three so a table missing twenty does not print twenty.
+   */
+  protected missingLabel(): string {
+    const missing = this.missingKeys();
+    const names = this.namesOf(missing);
+    return missing.length === 1
+      ? $localize`:@@bank_programs.income.missing_rows_one:One row is missing — ${names}:NAMES:. Anyone whose answer falls there gets no figures, not a zero.`
+      : $localize`:@@bank_programs.income.missing_rows_many:${missing.length}:COUNT: rows are missing — ${names}:NAMES:. Anyone whose answer falls in one of them gets no figures, not a zero.`;
+  }
+
+  private namesOf(list: ReadonlyArray<{ key: string; labelAr: string; labelEn: string }>): string {
+    const label = (m: { labelAr: string; labelEn: string }): string =>
+      this.isAr ? m.labelAr : m.labelEn;
+    if (list.length <= 3) return list.map(label).join('، ');
+    const shown = list.slice(0, 3).map(label).join('، ');
+    return $localize`:@@bank_programs.income.missing_rows_more:${shown}:NAMES: and ${list.length - 3}:COUNT: more`;
+  }
 
   /**
    * One row per registry key, in registry order, incomes blank.

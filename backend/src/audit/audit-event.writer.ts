@@ -52,6 +52,37 @@ export class AuditEventWriter {
     );
   }
 
+  /**
+   * Write many events in one statement, each payload redacted exactly as `write` redacts one.
+   *
+   * The redaction is per event and not skipped: a bulk path is not a reason to lower the bar
+   * Principle VI sets, and the cost is a loop over already-in-memory objects.
+   */
+  async writeMany(
+    events: readonly {
+      actorId: string | null;
+      targetId: string | null;
+      bankProgramId?: string | null;
+      eventType: AuditEventType;
+      sourceIp: string | null;
+      payload?: Record<string, unknown>;
+    }[],
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (events.length === 0) return;
+    await this.repo.createMany(
+      events.map((args) => ({
+        actorId: args.actorId,
+        targetId: args.targetId,
+        bankProgramId: args.bankProgramId ?? null,
+        eventType: args.eventType,
+        sourceIp: args.sourceIp,
+        payload: this.redact(args.payload ?? {}) as Prisma.JsonObject,
+      })),
+      tx,
+    );
+  }
+
   private redact(input: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(input)) {

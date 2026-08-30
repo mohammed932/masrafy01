@@ -282,6 +282,123 @@ export class SetEnumerationParentKeysBulkDto {
 }
 
 /**
+ * ONE pasted row.
+ *
+ * No `key` field, deliberately: the key is slugged from `labelEn` server-side, which is what
+ * makes re-pasting the same sheet a no-op instead of a second set of `_2` rows. A client that
+ * could name the key would be a second authority on codes — the trap
+ * `createQuestionWithOptions` refuses when it rejects `options` alongside
+ * `optionsFromEnumerationType`.
+ *
+ * No `sortOrder` either: the server appends after the type's current maximum, in array order.
+ * That is also why a second paste never renumbers the first — new rows sort last, so the
+ * mirrored question's dense `displayOrder` plan comes back with an empty update set.
+ */
+export class CreateEnumerationValueRowDto {
+  @ApiProperty({ minLength: 1, maxLength: 160 })
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 160)
+  labelAr!: string;
+
+  /**
+   * `@Matches(/[A-Za-z0-9]/)` because the KEY is slugged from this field. A label with no
+   * Latin character normalises to `''` and `slugify` falls back to the literal `'item'` — so
+   * four hundred rows pasted with the columns the wrong way round would every one of them
+   * mint the same key. Refused here, per row, with an index the pipe already supplies, rather
+   * than discovered as 399 duplicates.
+   */
+  @ApiProperty({ minLength: 1, maxLength: 160 })
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 160)
+  @Matches(/[A-Za-z0-9]/, { message: 'labelEn must contain a latin letter or digit' })
+  labelEn!: string;
+
+  /**
+   * The class this value is filed under. REQUIRED for a type with a parent axis, refused for
+   * one without — the same allow-list `resolveParentKey` enforces, reported per row.
+   *
+   * `null` is NOT accepted. A value of a filed-under kind is born filed, and the kind's
+   * declared `fallbackParentKey` answers an operator's UNFILE, never a blank column: a blank
+   * column is a typo, and the platform answering a typo with a price tier is exactly what
+   * `ENUMERATION_PARENT_REQUIRED` exists to refuse.
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source })
+  @ValidateIf((o: CreateEnumerationValueRowDto) => o.parentKey !== undefined)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
+  parentKey?: string;
+}
+
+/**
+ * Load many values of ONE kind in one transaction — what a pasted list saves.
+ *
+ * ALL-OR-NOTHING, and every bad row is reported at once (`meta.problems[].index`, ZERO-BASED
+ * into `rows`; the screen adds one to name a line). A half-applied paste leaves the operator
+ * reconstructing which half landed by diffing a textarea against a list they cannot see —
+ * the same reasoning `setCategoriesBulk` and `setParentKeysBulk` already state for their own
+ * refusal of partial writes.
+ *
+ * A DUPLICATE is not a problem: it is what a re-paste looks like, and it comes back in the
+ * SUCCESS body as `skipped`.
+ *
+ * The mirrored question is re-synced and the questionnaire republished ONCE, after the
+ * transaction commits — not once per row. That is the whole reason this endpoint exists
+ * rather than a client loop.
+ */
+export class CreateEnumerationValuesBulkDto {
+  @ApiProperty({ minLength: 1, maxLength: 48, pattern: KEY_PATTERN.source })
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 48)
+  @Matches(KEY_PATTERN)
+  type!: string;
+
+  /** 500, matching the two sibling bulk DTOs. A longer list is pasted in two goes. */
+  @ApiProperty({ type: [CreateEnumerationValueRowDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => CreateEnumerationValueRowDto)
+  rows!: CreateEnumerationValueRowDto[];
+
+  /**
+   * `skip` (default) — a key the list already holds is reported and left alone. `fail` — it
+   * becomes a problem and refuses the batch.
+   *
+   * Two spellings because a re-paste and a paste-into-the-wrong-list are different
+   * intentions, and only the operator knows which one they are having.
+   */
+  @ApiPropertyOptional({ enum: ['skip', 'fail'], default: 'skip' })
+  @IsOptional()
+  @IsIn(['skip', 'fail'])
+  onDuplicate?: 'skip' | 'fail';
+
+  /** Validate and report, write nothing and publish nothing. What a "check my list" posts. */
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
+}
+
+/** What a successful bulk create reports back. */
+export interface EnumerationBulkCreateResult {
+  type: string;
+  created: number;
+  skipped: number;
+  /** The keys the server minted, in row order — what identifies the rows on the class board. */
+  createdKeys: string[];
+  /** Rows left alone because the list already held that key. `index` is ZERO-BASED. */
+  skippedRows: Array<{ index: number; key: string }>;
+  /** Whether the mirrored question moved and a new questionnaire version was published. */
+  republished: boolean;
+}
+
+/**
  * NOTE: `categories` is deliberately absent here. Assignment has its own
  * endpoint so that "empty array = parked" cannot collide with PATCH's
  * "omitted = unchanged" — the two semantics are irreconcilable on one field.
@@ -582,6 +699,27 @@ export class CreateEnumerationTypeDto {
   @Matches(KEY_PATTERN)
   parentTypeKey?: string | null;
 
+  /**
+   * Where a value of this kind goes when an operator UNFILES it, by key of the
+   * `parentTypeKey` list. `null` (or absent) = no fallback, and an unfile then stores `null`
+   * exactly as it does today.
+   *
+   * Validated at set time against the axis this write RESULTS in: a fallback on a kind with
+   * no axis, or naming a class that is not a live member, is refused with
+   * `ENUMERATION_TYPE_FALLBACK_INVALID`. Never read on a value CREATE — a blank class on a
+   * pasted row is a typo, and the platform answering a typo with a price tier is what
+   * `ENUMERATION_PARENT_REQUIRED` exists to refuse.
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source, nullable: true })
+  @ValidateIf(
+    (o: CreateEnumerationTypeDto) => o.fallbackParentKey !== undefined && o.fallbackParentKey !== null,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
+  fallbackParentKey?: string | null;
+
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
@@ -677,6 +815,27 @@ export class UpdateEnumerationTypeDto {
   @Length(1, 48)
   @Matches(KEY_PATTERN)
   parentTypeKey?: string | null;
+
+  /**
+   * Where a value of this kind goes when an operator UNFILES it, by key of the
+   * `parentTypeKey` list. `null` (or absent) = no fallback, and an unfile then stores `null`
+   * exactly as it does today.
+   *
+   * Validated at set time against the axis this write RESULTS in: a fallback on a kind with
+   * no axis, or naming a class that is not a live member, is refused with
+   * `ENUMERATION_TYPE_FALLBACK_INVALID`. Never read on a value CREATE — a blank class on a
+   * pasted row is a typo, and the platform answering a typo with a price tier is what
+   * `ENUMERATION_PARENT_REQUIRED` exists to refuse.
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source, nullable: true })
+  @ValidateIf(
+    (o: UpdateEnumerationTypeDto) => o.fallbackParentKey !== undefined && o.fallbackParentKey !== null,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
+  fallbackParentKey?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
