@@ -34,6 +34,7 @@ import {
 import { PageHeaderComponent, SkeletonRowsComponent, openFormDrawer } from '@shared/ui';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import type { TemplateStarter } from '@features/bank-programs/bank-programs.types';
+import { PRODUCT_BASE, surrogateBoardLink } from './program-catalog.paths';
 
 /**
  * The words for each shape, keyed by the server's starter key.
@@ -68,7 +69,7 @@ const GLYPH = {
   imports: [RouterLink, NzButtonModule, PageHeaderComponent, SkeletonRowsComponent],
   template: `
     <section class="page">
-      <a class="back" routerLink="/surrogate-products">
+      <a class="back" [routerLink]="backLink.commands" [queryParams]="backLink.queryParams">
         <svg class="glyph mirror" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M19 12H5M11 18l-6-6 6-6" />
         </svg>
@@ -304,6 +305,9 @@ const GLYPH = {
   ],
 })
 export class ProductTemplatePickerPage {
+  /** Back to the board, with the Surrogate side already showing. */
+  protected readonly backLink = surrogateBoardLink();
+
   private readonly api = inject(BankProgramsApiService);
   private readonly drawer = inject(NzDrawerService);
   private readonly router = inject(Router);
@@ -377,10 +381,12 @@ export class ProductTemplatePickerPage {
         if (!created) {
           // Saved, but not findable. Sending the operator to a guessed key would open the
           // wrong product's form, so land them on the list where the new row is visible.
-          void this.router.navigate(['/surrogate-products']);
+          void this.router.navigate(this.backLink.commands, {
+            queryParams: this.backLink.queryParams,
+          });
           return;
         }
-        void this.router.navigate(['/surrogate-products', created.key, 'calculation'], {
+        void this.router.navigate([PRODUCT_BASE, created.key, 'calculation'], {
           queryParams: { from: shape },
         });
       } finally {

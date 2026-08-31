@@ -232,6 +232,18 @@ export interface EnumerationRow {
   deprecatedAt: Date | null;
   parentKey: string | null;
   surrogateProductKey: string | null;
+  /**
+   * `program_name` rows — does this name state a calculation of its OWN?
+   *
+   * The boolean, not the rule: nothing outside the engine reads a catalog rule from a LIST,
+   * and shipping the blob would put a bank's cap tables in a response the admin board only
+   * needs one bit from. `false` on every other type, which is true of them.
+   *
+   * Together with `surrogateProductKey` above it separates the two states an operator can
+   * act on for a name sold without a payslip: linked to a product, states its own, or —
+   * both null/false — quotes nothing at all.
+   */
+  hasOwnIncomeRule: boolean;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -2221,6 +2233,7 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
     deprecatedAt: row.deprecatedAt,
     parentKey: row.parentKey,
     surrogateProductKey: row.surrogateProductKey,
+    hasOwnIncomeRule: row.incomeRule !== null,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

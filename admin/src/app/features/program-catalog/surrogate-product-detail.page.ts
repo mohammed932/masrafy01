@@ -87,6 +87,7 @@ import {
   type StepFigures,
   type SurrogateProductDetail,
 } from '@features/bank-programs/bank-programs.types';
+import { PRODUCT_BASE, surrogateBoardLink } from './program-catalog.paths';
 
 /** One operator-managed list surfaced on step ①. */
 interface ReadList {
@@ -147,7 +148,7 @@ interface AskedThing {
   template: `
     <section class="page">
       <div class="chrome">
-        <a class="back" routerLink="/surrogate-products">
+        <a class="back" [routerLink]="backLink.commands" [queryParams]="backLink.queryParams">
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@spd.back">All surrogate products</span>
         </a>
@@ -332,7 +333,7 @@ interface AskedThing {
                     </p>
                     <a
                       class="from-form-cta"
-                      [routerLink]="['/surrogate-products', key, 'calculation']"
+                      [routerLink]="[productBase, key, 'calculation']"
                       i18n="@@spd.form.edit"
                       >Change how the income is worked out</a
                     >
@@ -343,7 +344,7 @@ interface AskedThing {
                       >This calculation was built step by step rather than from a form, so there is
                       no form to open for it.</span
                     >
-                    <a class="linkish" routerLink="/surrogate-products/new" i18n="@@spd.form.start"
+                    <a class="linkish" [routerLink]="newProductLink" i18n="@@spd.form.start"
                       >Start a new product from a shape</a
                     >
                   </p>
@@ -403,7 +404,7 @@ interface AskedThing {
                     </span>
                     <a
                       class="linkish"
-                      [routerLink]="['/surrogate-products', key, 'calculation']"
+                      [routerLink]="[productBase, key, 'calculation']"
                       i18n="@@spd.structure.form"
                       >Build it from a form</a
                     >
@@ -995,6 +996,11 @@ interface AskedThing {
   ],
 })
 export class SurrogateProductDetailPage {
+  /** Back to the board, with the Surrogate side already showing. */
+  protected readonly backLink = surrogateBoardLink();
+  protected readonly productBase = PRODUCT_BASE;
+  protected readonly newProductLink = `${PRODUCT_BASE}/new`;
+
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly enumTypes = inject(EnumerationTypesService);
@@ -1179,7 +1185,9 @@ export class SurrogateProductDetailPage {
     this.deleting.set(true);
     try {
       await this.api.deleteSurrogateProduct(this.key, { cascade });
-      void this.router.navigate(['/surrogate-products']);
+      void this.router.navigate(this.backLink.commands, {
+        queryParams: this.backLink.queryParams,
+      });
     } catch (err) {
       const body = (err as { error?: { code?: string; meta?: Record<string, unknown> } }).error;
       if (body?.code === 'SURROGATE_PRODUCT_IN_USE') {
@@ -1522,14 +1530,14 @@ export class SurrogateProductDetailPage {
   /**
    * Author one more thing this product asks — list, question and fact in one pass.
    *
-   * ITS OWN SCREEN (`/surrogate-products/:key/asks/new`), not a dialog: the form branches
+   * ITS OWN SCREEN (`/program-catalog/products/:key/asks/new`), not a dialog: the form branches
    * on the kind of answer, grows two lists of rows and runs four writes, and a run that
    * stops halfway needs a URL to come back to. The product page reloads on return because
    * navigating back creates it fresh.
    */
   protected addAsk(): void {
     if (!this.product()) return;
-    void this.router.navigate(['/surrogate-products', this.key, 'asks', 'new']);
+    void this.router.navigate([PRODUCT_BASE, this.key, 'asks', 'new']);
   }
 
   protected label(p: SurrogateProductDetail): string {

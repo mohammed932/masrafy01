@@ -54,6 +54,7 @@ import {
   type TemplateMechanism,
   type TemplateMechanismKind,
 } from '@features/bank-programs/bank-programs.types';
+import { PRODUCT_BASE } from './program-catalog.paths';
 
 /** Which kind of answer a mechanism can read. `null` = it reads none. */
 const MECHANISM_FACT_TYPE: Readonly<
@@ -123,7 +124,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
             >This product's calculation was built step by step, so there is no form for it. You can
             still edit the steps on the product page, or start a new product from a shape.</span
           >
-          <a class="linkish" routerLink="/surrogate-products/new" i18n="@@spt.advanced_new"
+          <a class="linkish" [routerLink]="newProductLink" i18n="@@spt.advanced_new"
             >Start from a shape</a
           >
         </p>
@@ -909,6 +910,8 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
   ],
 })
 export class ProductTemplatePage implements OnInit {
+  protected readonly newProductLink = `${PRODUCT_BASE}/new`;
+
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly errors = inject(ErrorCodeService);
@@ -1299,7 +1302,7 @@ export class ProductTemplatePage implements OnInit {
   // --- save / load -----------------------------------------------------------
 
   protected leave(): void {
-    void this.router.navigate(['/surrogate-products', this.key], { queryParams: { step: 2 } });
+    void this.router.navigate([PRODUCT_BASE, this.key], { queryParams: { step: 2 } });
   }
 
   /** Fire-and-forget for the template: Angular's parser has no `void` operator. */
@@ -1526,7 +1529,7 @@ const MECHANISM_LABELS: Readonly<Record<TemplateMechanismKind, () => string>> = 
 
 /**
  * One worked example per shape, in the same voice as the starter cards on
- * `/surrogate-products/new` — a name says what the bank fills in, an example says what one
+ * `/program-catalog/products/new` — a name says what the bank fills in, an example says what one
  * filled-in row looks like, and the pair is what tells a share from a multiple.
  */
 const MECHANISM_EXAMPLES: Readonly<Record<TemplateMechanismKind, () => string>> = {

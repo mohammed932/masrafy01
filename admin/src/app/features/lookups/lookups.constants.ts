@@ -21,7 +21,7 @@ export interface LookupType {
  * They are the lists ONE product's calculation reads, and they were three clicks from the
  * product that gives them meaning: an operator filing a compound under a class had no way
  * to see which product they had just changed the price of. They now live on that product's
- * own workspace (`/surrogate-products/compound_owner`), rendered by the same
+ * own workspace (`/program-catalog/products/compound_owner`), rendered by the same
  * components this screen uses.
  *
  * The consequence is accepted and stated: those values are reachable only through the

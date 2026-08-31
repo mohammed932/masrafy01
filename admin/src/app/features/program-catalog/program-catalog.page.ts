@@ -17,7 +17,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   PlusOutline,
   EditOutline,
@@ -29,6 +29,9 @@ import {
   CheckCircleOutline,
   PoweroffOutline,
   WarningOutline,
+  FunctionOutline,
+  ArrowRightOutline,
+  ExclamationCircleOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -42,20 +45,32 @@ import {
   categoryLabel,
   type LoanCategory,
 } from '@core/loan-category';
-import { incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
+import { incomeBasisLabel } from '@core/income-basis';
 import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
 import {
   EnumerationEditDrawerComponent,
   type EnumerationEditDrawerData,
 } from '@shared/lookups/enumeration-edit.drawer';
+import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
+import {
+  incomeMethodLabel,
+  registryFacts,
+  type IncomeAssumptionStrategy,
+  type SurrogateProductSummary,
+} from '@features/bank-programs/bank-programs.types';
+import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
+import {
+  buildBoard,
+  isNoPayslip as isNoPayslipName,
+  type BasisFilter,
+  type ProductCard,
+} from './catalog-board';
+import { CATALOG_BASE, PRODUCT_BASE } from './program-catalog.paths';
 
 const ENUM_TYPE = 'program_name';
 
 /** How many parked names the health panel names before it stops listing. */
 const PARKED_NAMES_SHOWN = 6;
-
-/** The board's income-basis facet. `all` is a filter value, never a basis. */
-type BasisFilter = 'all' | IncomeBasis;
 
 /**
  * Program catalog — the predefined loan program names that feed the bank-program
@@ -68,6 +83,18 @@ type BasisFilter = 'all' | IncomeBasis;
  * two per-category facts are configured together — which loan types may offer it,
  * and what each of those types scores on. The card shows the summary of both, so
  * the list answers "what is left to set up?" without opening anything.
+ *
+ * SURROGATE PRODUCTS ARE ON THIS BOARD, behind the Surrogate chip — they were their own
+ * top-level section, two clicks from the names they are sold under. A product is the
+ * CALCULATION a no-payslip name quotes off, so it is not a peer of a name and cannot share
+ * a grid with one: a name and its product frequently share a key (`compound_owner` is
+ * both), and one merged list prints that key twice. Products are containers here — a
+ * product card lists the names taking their calculation from it, each one a link.
+ *
+ * WHICH LEAVES A HOLE, and the third group closes it: a name may be sold surrogate and
+ * link to NO product. Rendered only inside product cards, those names would be reachable
+ * from nowhere. See `catalog-board.ts`, which owns every join on this screen and is where
+ * the cases that only fail silently are tested.
  *
  * The health panel is inherited from the assignment board this list replaced. It
  * watches the one failure the list cannot show per row: a loan CATEGORY with no
@@ -103,6 +130,9 @@ type BasisFilter = 'all' | IncomeBasis;
       CheckCircleOutline,
       PoweroffOutline,
       WarningOutline,
+      FunctionOutline,
+      ArrowRightOutline,
+      ExclamationCircleOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -175,10 +205,20 @@ type BasisFilter = 'all' | IncomeBasis;
           <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
         </ng-template>
         <span class="toolbar-spacer"></span>
-        <button nz-button nzType="primary" class="add-btn" (click)="add()">
-          <span nz-icon nzType="plus" nzTheme="outline"></span>
-          <span i18n="@@program_catalog.add">Add program</span>
-        </button>
+        <!-- The button matches the list under it. On the Surrogate side "Add program name"
+             would open a form for the OTHER kind of object on the screen, which is the one
+             mistake this merge could introduce. -->
+        @if (basisFilter() === 'no_payslip') {
+          <a nz-button nzType="primary" class="add-btn" [routerLink]="newProductLink">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            <span i18n="@@sp.new2">New surrogate product</span>
+          </a>
+        } @else {
+          <button nz-button nzType="primary" class="add-btn" (click)="add()">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            <span i18n="@@program_catalog.add">Add program</span>
+          </button>
+        }
       </div>
 
       @if (loading()) {
@@ -187,7 +227,7 @@ type BasisFilter = 'all' | IncomeBasis;
             <span class="sk sk-card"></span>
           }
         </div>
-      } @else if (live().length === 0 && deprecated().length === 0) {
+      } @else if (isEmpty()) {
         @if (search().trim()) {
           <div class="board-empty">
             <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
@@ -211,7 +251,7 @@ type BasisFilter = 'all' | IncomeBasis;
               class="basis-chip"
               [class.on]="basisFilter() === c.id"
               [attr.aria-pressed]="basisFilter() === c.id"
-              (click)="basisFilter.set(c.id)"
+              (click)="setBasis(c.id)"
             >
               <span class="basis-label">{{ c.label }}</span>
               <span class="basis-n">{{ c.n }}</span>
@@ -219,17 +259,95 @@ type BasisFilter = 'all' | IncomeBasis;
           }
         </div>
 
-        @if (visible().length > 0) {
-          <ul class="cards" role="list">
-            @for (r of visible(); track r.id) {
-              <ng-container [ngTemplateOutlet]="nameCard" [ngTemplateOutletContext]="{ r: r }" />
+        <!-- On All the two sides are headed, because they hold different objects and a
+             single unheaded run of mixed cards would read as one list that changes shape
+             halfway down. On a single chip the chip is the heading. -->
+        @if (showProof()) {
+          <section class="lane-group">
+            @if (grouped()) {
+              <h2 class="lane-head">
+                <span nz-icon nzType="appstore" nzTheme="outline" aria-hidden="true"></span>
+                <span>{{ proofHead }}</span>
+                <span class="lane-n">{{ proofNames().length }}</span>
+              </h2>
             }
-          </ul>
-        } @else {
-          <div class="board-empty">
-            <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
-            <p i18n="@@program_catalog.basis.empty">No program names match this filter yet.</p>
-          </div>
+            @if (proofNames().length > 0) {
+              <ul class="cards" role="list">
+                @for (r of proofNames(); track r.id) {
+                  <ng-container
+                    [ngTemplateOutlet]="nameCard"
+                    [ngTemplateOutletContext]="{ r: r }"
+                  />
+                }
+              </ul>
+            } @else {
+              <div class="board-empty">
+                <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
+                <p i18n="@@program_catalog.proof.empty">
+                  No name is sold against a payslip yet. Add a program name and it starts here.
+                </p>
+              </div>
+            }
+          </section>
+        }
+
+        @if (showSurrogate()) {
+          <section class="lane-group">
+            @if (grouped()) {
+              <h2 class="lane-head">
+                <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                <span>{{ surrogateHead }}</span>
+                <span class="lane-n">{{ products().length }}</span>
+              </h2>
+            }
+            @if (products().length > 0) {
+              <ul class="cards" role="list">
+                @for (c of products(); track c.product.key) {
+                  <ng-container
+                    [ngTemplateOutlet]="productCard"
+                    [ngTemplateOutletContext]="{ c: c }"
+                  />
+                }
+              </ul>
+            } @else {
+              <div class="board-empty">
+                <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                <p i18n="@@program_catalog.surrogate.empty">
+                  No calculation for a customer with no payslip yet. Start one from a shape and the
+                  questions it asks are built with it.
+                </p>
+              </div>
+            }
+          </section>
+
+          @if (unlinked().length > 0) {
+            <section class="lane-group">
+              <h2 class="lane-head">
+                <span
+                  nz-icon
+                  nzType="exclamation-circle"
+                  nzTheme="outline"
+                  aria-hidden="true"
+                ></span>
+                <span i18n="@@program_catalog.unlinked.head"
+                  >Not taking a product's calculation</span
+                >
+                <span class="lane-n">{{ unlinked().length }}</span>
+              </h2>
+              <p class="lane-note" i18n="@@program_catalog.unlinked.note">
+                Sold without a payslip, but not pointed at one of the calculations above. Open a
+                name to see how it works its income out.
+              </p>
+              <ul class="cards" role="list">
+                @for (u of unlinked(); track u.row.id) {
+                  <ng-container
+                    [ngTemplateOutlet]="nameCard"
+                    [ngTemplateOutletContext]="{ r: u.row, unlinked: u.state }"
+                  />
+                }
+              </ul>
+            </section>
+          }
         }
 
         @if (deprecated().length > 0) {
@@ -287,7 +405,7 @@ type BasisFilter = 'all' | IncomeBasis;
         }
       }
 
-      <ng-template #nameCard let-r="r">
+      <ng-template #nameCard let-r="r" let-unlinked="unlinked">
         <li class="card" [class.muted]="!r.active" [class.is-surrogate]="isNoPayslip(r)">
           <!-- The whole card opens the name: one anchor, stretched over the card by
                ::after, with the action row lifted above it. A row of small
@@ -358,6 +476,16 @@ type BasisFilter = 'all' | IncomeBasis;
             @if (missingTables(r) > 0) {
               <span class="tag warn">{{ missingTableLabel(r) }}</span>
             }
+            <!-- Only the half of this group that is actually broken. A name stating its own
+                 calculation quotes perfectly well, and badging those too put a tag on nine
+                 cards out of eleven — at which point the row of colour says nothing and the
+                 two that need a human are the hardest to find. Same rule the Inactive pill
+                 on this board already follows: only the exception is badged. -->
+            @if (unlinked === 'nothing') {
+              <span class="tag warn" i18n="@@program_catalog.card.no_calculation"
+                >Works out no income</span
+              >
+            }
             <!-- Only the EXCEPTION is badged. Nearly every name is active, so an
                  ACTIVE pill on all sixteen cards said nothing and cost a row of
                  colour; absence now means active. -->
@@ -406,6 +534,73 @@ type BasisFilter = 'all' | IncomeBasis;
                 <span nz-icon nzType="delete" nzTheme="outline"></span>
               </button>
             </div>
+          </div>
+        </li>
+      </ng-template>
+
+      <!-- NOT one big anchor. The names inside are links, and an <a> inside an <a> is
+           invalid HTML — the browser closes the outer one and the inner link silently
+           becomes the whole card's target. So the title is a stretched link and the name
+           chips are SIBLINGS lifted above its overlay, exactly how the action row escapes
+           the same overlay on the name card. -->
+      <ng-template #productCard let-c="c">
+        <li class="card is-product" [class.muted]="!c.product.active">
+          <a
+            class="open"
+            [routerLink]="[productBase, c.product.key]"
+            [attr.aria-label]="openProductLabel(c)"
+          >
+            <span class="card-head">
+              <span class="chip" data-tone="surrogate" aria-hidden="true">
+                <span nz-icon nzType="function" nzTheme="outline"></span>
+              </span>
+              <span class="name">{{ productName(c) }}</span>
+            </span>
+            <span class="config">
+              <span class="q-count">{{ reads(c.product) }}</span>
+            </span>
+          </a>
+
+          <div class="sold-as">
+            @if (c.names.length === 0) {
+              <!-- The actionable state, so a warn tag rather than the disabled-ink metadata
+                   line it shipped as: a calculation nothing sells quotes for nobody, and the
+                   disabled ink token sits under 4.5:1 for a sentence somebody must read. -->
+              <span class="tag warn" i18n="@@sp.unused">No catalog name sells this yet</span>
+            } @else {
+              <span class="sold-as-label" i18n="@@program_catalog.product.sold_as">Sold as</span>
+              @for (n of c.names; track n.id) {
+                <a class="name-chip" [routerLink]="[catalogBase, n.key]">{{ nameOf(n) }}</a>
+              }
+            }
+            <!-- A stored link with no name behind it. Rendering one chip fewer would hide
+                 exactly the case worth seeing. -->
+            @for (k of c.orphanNameKeys; track k) {
+              <span class="name-chip is-orphan" [attr.title]="orphanTitle">{{ k }}</span>
+            }
+          </div>
+
+          <div class="card-foot">
+            <span class="usage" [class.zero]="c.programs === 0">
+              @if (c.programs === 0) {
+                <!-- Not the name card's "Not offered yet": a product is not offered to
+                     anybody, it is what a bank program quotes FROM. Borrowing the name's
+                     wording here would have the card claim the wrong thing about itself. -->
+                <span i18n="@@program_catalog.product.unquoted">No bank quotes from it yet</span>
+              } @else {
+                {{ productUsageLabel(c) }}
+              }
+            </span>
+            @if (c.missingTables > 0) {
+              <span class="tag warn">{{ productMissingLabel(c) }}</span>
+            }
+            @if (!c.product.active) {
+              <span class="tag" i18n="@@sp.retired">Retired</span>
+            }
+            <span class="foot-spacer"></span>
+            <span class="go" aria-hidden="true">
+              <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
+            </span>
           </div>
         </li>
       </ng-template>
@@ -550,6 +745,85 @@ type BasisFilter = 'all' | IncomeBasis;
       }
       .basis-chip.on .basis-n {
         color: var(--color-brand-primary);
+      }
+
+      /* A note under a group heading, when the heading alone cannot say why the group
+         exists. Secondary, not tertiary: it is read, not decoration. */
+      .lane-note {
+        margin: 0;
+        max-inline-size: 62ch;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        line-height: var(--leading-relaxed, 1.6);
+      }
+
+      /* --- Surrogate product card ------------------------------------------ */
+      /* Shell tokens are the name card's, one for one — it IS a .card, and any divergence
+         between two grids ten pixels apart reads as two different products. What tells them
+         apart is the medallion's hue and the row of names, which is content. */
+      .chip[data-tone='surrogate'] {
+        background: color-mix(in srgb, var(--color-income-surrogate) 14%, transparent);
+        color: var(--color-income-surrogate);
+      }
+      .card.is-product {
+        border-inline-start: 3px solid
+          color-mix(in srgb, var(--color-income-surrogate) 70%, var(--color-surface-default));
+      }
+      /* Lifted above the stretched .open::after overlay, or every chip in here is
+         unclickable — it covers them. Same escape the action row uses. */
+      .sold-as {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1) var(--space-2);
+        min-inline-size: 0;
+      }
+      .sold-as-label {
+        font-size: var(--text-xs);
+        color: var(--color-text-tertiary);
+      }
+      /* A LINK, so it cannot ship on the .tag ink — tertiary sits under 4.5:1 at this
+         size, and this is text somebody is meant to read and click. */
+      .name-chip {
+        display: inline-flex;
+        align-items: center;
+        min-block-size: 24px;
+        padding-inline: var(--space-2);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-default);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        text-decoration: none;
+        white-space: nowrap;
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .name-chip:hover {
+        border-color: var(--color-brand-primary);
+        color: var(--color-text-primary);
+      }
+      .name-chip:focus-visible {
+        outline: 2px solid var(--color-brand-primary);
+        outline-offset: 2px;
+      }
+      /* A key with no name behind it: not a link, and not quietly dropped either. */
+      .name-chip.is-orphan {
+        border-style: dashed;
+        border-color: var(--color-warning);
+        color: var(--color-warning);
+        font-family: var(--font-family-mono, monospace);
+      }
+      /* The arrow points along the reading direction, so it mirrors in Arabic. */
+      .card.is-product .go {
+        color: var(--color-text-tertiary);
+        display: inline-flex;
+      }
+      :host-context([dir='rtl']) .card.is-product .go {
+        transform: scaleX(-1);
       }
 
       /* The no-payslip card's identity is a leading edge, not a fill: a tinted card
@@ -889,10 +1163,16 @@ type BasisFilter = 'all' | IncomeBasis;
           inline-size: 40px;
           block-size: 40px;
         }
+        /* Links, so they need a real target where there is no cursor to aim with. */
+        .name-chip {
+          min-block-size: 44px;
+          padding-inline: var(--space-3);
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .card,
-        .row-actions {
+        .row-actions,
+        .name-chip {
           transition: none;
         }
         .card:hover {
@@ -912,14 +1192,23 @@ type BasisFilter = 'all' | IncomeBasis;
 })
 export class ProgramCatalogPage implements OnInit {
   private readonly api = inject(LookupsApiService);
+  private readonly programs = inject(BankProgramsApiService);
+  private readonly enums = inject(PlatformEnumerationsService);
   private readonly modal = inject(NzModalService);
   private readonly drawer = inject(NzDrawerService);
   private readonly message = inject(NzMessageService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   protected readonly loading = signal(true);
   protected readonly healthOpen = signal(false);
   private readonly rows = signal<EnumerationRow[]>([]);
+  private readonly productRows = signal<readonly SurrogateProductSummary[]>([]);
+
+  protected readonly catalogBase = CATALOG_BASE;
+  protected readonly productBase = PRODUCT_BASE;
+  protected readonly newProductLink = `${PRODUCT_BASE}/new`;
 
   /** Fixed-length placeholders for the shape-matched loading skeleton. */
   protected readonly skeletonCards = [0, 1, 2, 3, 4, 5];
@@ -936,110 +1225,85 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly deleteLabel = $localize`:@@program_catalog.delete:Delete`;
   protected readonly basisFilterAria = $localize`:@@program_catalog.basis.aria:Filter by how the bank reads the income`;
 
-  /** Search-filtered rows — one flat list, since a name may serve several loan
-   *  types and so has no single lane. Deprecated names sit in their own tail
-   *  section. */
-  private readonly filtered = computed<EnumerationRow[]>(() => {
-    const q = this.search().trim().toLowerCase();
-    if (!q) return this.rows();
-    return this.rows().filter(
-      (r) =>
-        r.labelEn.toLowerCase().includes(q) ||
-        r.labelAr.toLowerCase().includes(q) ||
-        r.key.toLowerCase().includes(q),
-    );
-  });
+  /**
+   * Everything the grid renders, from the two lists this page loads.
+   *
+   * ONE derivation, in a pure module with its own spec — this used to be six computeds and
+   * two private methods on this class, none of which could be exercised, and the case that
+   * matters (a name reachable from no group at all) fails silently.
+   */
+  private readonly board = computed(() =>
+    buildBoard({
+      names: this.rows(),
+      products: this.productRows(),
+      search: this.search(),
+      isAr: this.isAr,
+    }),
+  );
 
-  protected readonly live = computed(() => this.filtered().filter((r) => !r.deprecatedAt));
+  protected readonly proofNames = computed(() => this.board().proofNames);
+  protected readonly products = computed(() => this.board().products);
+  protected readonly unlinked = computed(() => this.board().unlinked);
+  protected readonly deprecated = computed(() => this.board().deprecated);
 
   /**
-   * Income basis is a FACET, not a taxonomy — hence a filter over one grid rather than
-   * the two headed lanes this board used to carry.
+   * Income basis is a FACET, not a taxonomy — hence a filter over one board rather than the
+   * headed lanes this page used to carry per loan category.
    *
-   * The lanes were split on "is this loan type the no-payslip category", which stopped
-   * being a question the moment that category was deleted (v16.0.0). Every name now lives
-   * under an ordinary loan type, and the SAME name is legitimately sold both ways by
-   * different banks — so a lane split would have printed those names twice, in two
-   * places, each half-true. One card that states both facts is the honest shape.
+   * What the facet now switches is the KIND of object on screen: names sold against a
+   * payslip, or the calculations a no-payslip name quotes off. It lives in `?basis=` so a
+   * pasted link and a reload land where the operator was, and so `/program-catalog/products`
+   * has somewhere to redirect to. Same posture as `?step=` and `?loan=` on the two detail
+   * pages: the signal is the source of truth and the URL mirrors it with `replaceUrl`, so
+   * flipping a chip does not fill the back button with filter states.
    */
-  protected readonly basisFilter = signal<BasisFilter>('all');
+  protected readonly basisFilter = signal<BasisFilter>(this.initialBasis());
 
-  /**
-   * Marked as sellable without a payslip under at least one loan type it is offered
-   * under — the STORED basis, chosen when the name was added and edited per tab.
-   *
-   * Read from the same field the bank-program picker filters on and the API enforces,
-   * so a name that reads "No payslip" here is a name that can actually be picked
-   * there. It used to be inferred from the surrogate fact ticks, which answered a
-   * narrower question (which figure a table reads) and left a brand-new name silently
-   * unsellable that way.
-   */
+  protected setBasis(next: BasisFilter): void {
+    this.basisFilter.set(next);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      // `null` REMOVES the param, so the default view has a clean URL and a bookmark of it
+      // does not pin a filter that was never chosen.
+      queryParams: { basis: next === 'all' ? null : next },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  private initialBasis(): BasisFilter {
+    const raw = this.route.snapshot.queryParamMap.get('basis');
+    return raw === 'payslip' || raw === 'no_payslip' ? raw : 'all';
+  }
+
+  protected readonly grouped = computed(() => this.basisFilter() === 'all');
+  protected readonly showProof = computed(() => this.basisFilter() !== 'no_payslip');
+  protected readonly showSurrogate = computed(() => this.basisFilter() !== 'payslip');
+
+  /** Nothing loaded at all — distinct from "nothing matches the chip", which is per group. */
+  protected readonly isEmpty = computed(
+    () => this.rows().length === 0 && this.productRows().length === 0,
+  );
+
+  /** Still used by the name card's accent and by the health panel below. */
   protected isNoPayslip(row: EnumerationRow): boolean {
-    return this.basesOf(row).includes('no_payslip');
+    return isNoPayslipName(row);
   }
-
-  /** True when some offered loan type still sells this name against a payslip. */
-  protected isPayslip(row: EnumerationRow): boolean {
-    return this.basesOf(row).includes('payslip');
-  }
-
-  /** Every basis this name carries, across the loan types it is offered under. */
-  private basesOf(row: EnumerationRow): IncomeBasis[] {
-    const byCategory = row.incomeBasesByCategory;
-    const bases = byCategory ? this.categoriesOf(row).flatMap((c) => byCategory[c] ?? []) : [];
-    if (bases.length > 0) return [...new Set(bases)];
-
-    // Nothing STORED: the basis rides on the (name, loan type) assignment row, and a
-    // name offered under no loan type has none — which is every name on the day it is
-    // created, since a create now assigns no category. So the answer the operator gave
-    // on the create form is not readable here; falling back to `payslip` reported a
-    // no-payslip name under "Reads a payslip", i.e. the opposite of what they picked.
-    //
-    // The product LINK is where that answer survives, and it is the same thing the
-    // server infers from when the first assignment row is born (`bornBasisFlags`) — so
-    // the board now says what the name will BE, rather than contradicting it. Read from
-    // the link, not re-derived: one rule, two readers.
-    return [row.surrogateProductKey ? 'no_payslip' : 'payslip'];
-  }
-
-  protected readonly noPayslipCount = computed(
-    () => this.live().filter((r) => this.isNoPayslip(r)).length,
-  );
-  protected readonly payslipCount = computed(
-    () => this.live().filter((r) => this.isPayslip(r)).length,
-  );
-
-  /**
-   * What the grid renders — MEMBERSHIP, not an either/or split.
-   *
-   * A name sold both ways appears under both chips, which is why the two counts can
-   * add up to more than the board. That is the honest reading: filtering to "no
-   * payslip" asks "which names can I sell that way", and a name that also reads a
-   * payslip is still one of them. Complementary counting would have to pick a side
-   * for it and hide it from the other list.
-   */
-  protected readonly visible = computed(() => {
-    const basis = this.basisFilter();
-    if (basis === 'all') return this.live();
-    return this.live().filter((r) =>
-      basis === 'no_payslip' ? this.isNoPayslip(r) : this.isPayslip(r),
-    );
-  });
 
   protected readonly basisChips = computed<Array<{ id: BasisFilter; label: string; n: number }>>(
-    () => [
-      { id: 'all', label: $localize`:@@program_catalog.basis.all:All`, n: this.live().length },
-      { id: 'payslip', label: incomeBasisLabel('payslip'), n: this.payslipCount() },
-      { id: 'no_payslip', label: incomeBasisLabel('no_payslip'), n: this.noPayslipCount() },
-    ],
+    () => {
+      const c = this.board().counts;
+      return [
+        { id: 'all', label: $localize`:@@program_catalog.basis.all:All`, n: c.all },
+        { id: 'payslip', label: incomeBasisLabel('payslip'), n: c.payslip },
+        { id: 'no_payslip', label: incomeBasisLabel('no_payslip'), n: c.no_payslip },
+      ];
+    },
   );
-
-  protected readonly deprecated = computed(() => this.filtered().filter((r) => r.deprecatedAt));
 
   protected readonly stats = computed<StatStripItem[]>(() => {
     const all = this.rows();
     const active = all.filter((r) => r.active && !r.deprecatedAt).length;
-    const deprecated = all.filter((r) => r.deprecatedAt).length;
     return [
       {
         label: $localize`:@@program_catalog.stat.total:Programs`,
@@ -1053,11 +1317,15 @@ export class ProgramCatalogPage implements OnInit {
         tone: 'success',
         icon: 'check-circle',
       },
+      // The products, not the deprecated names: this board lists both kinds of object now,
+      // and a strip that counted only one of them under-reported the section by a third.
+      // Nothing is lost — the deprecated tail section carries its own count in its heading,
+      // which is where somebody looking for it already is.
       {
-        label: $localize`:@@program_catalog.stat.deprecated:Deprecated`,
-        value: deprecated,
-        tone: 'warning',
-        icon: 'history',
+        label: $localize`:@@program_catalog.stat.products:Surrogate calculations`,
+        value: this.productRows().length,
+        icon: 'function',
+        hint: $localize`:@@program_catalog.stat.products.hint:ways to work an income out with no payslip`,
       },
       // The only number on this strip an operator can ACT on today: a bank program
       // sold without a payslip whose income table was never entered gives the
@@ -1098,6 +1366,10 @@ export class ProgramCatalogPage implements OnInit {
   );
 
   ngOnInit(): void {
+    // The fact registry backs `reads()` for a `fact:<key>` product, so it names the fact
+    // rather than printing a raw key. Lazily cached — nothing fetches it unless a screen
+    // asks, and this is now one of them.
+    void this.enums.load('surrogate_fact');
     void this.reload();
   }
 
@@ -1307,9 +1579,95 @@ export class ProgramCatalogPage implements OnInit {
   private async reload(opts: { silent?: boolean } = {}): Promise<void> {
     if (!opts.silent) this.loading.set(true);
     try {
-      this.rows.set(await this.api.list(ENUM_TYPE));
+      // Concurrent: the two lists are independent, and the board cannot render either half
+      // correctly without both — a product card's names and counts are joined from the name
+      // rows, so showing the products first would print every card as "not offered yet".
+      const [names, products] = await Promise.all([
+        this.api.list(ENUM_TYPE),
+        this.programs.listSurrogateProducts(),
+      ]);
+      this.rows.set(names);
+      this.productRows.set(products.data);
     } finally {
       if (!opts.silent) this.loading.set(false);
     }
+  }
+
+  // --- Surrogate product cards ---------------------------------------------
+
+  protected readonly proofHead = $localize`:@@program_catalog.proof.head:Sold against a payslip`;
+  protected readonly surrogateHead = $localize`:@@program_catalog.surrogate.head:Worked out without a payslip`;
+  protected readonly orphanTitle = $localize`:@@program_catalog.product.orphan:A name points at this calculation, but that name is no longer on the board.`;
+
+  /**
+   * The fact registry, so a `fact:<key>` product names its fact rather than rendering the
+   * raw key.
+   */
+  private readonly facts = computed(() =>
+    registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
+  );
+
+  protected productName(c: ProductCard): string {
+    return this.isAr ? c.product.labelAr : c.product.labelEn;
+  }
+
+  /**
+   * What the calculation reads, in the operator's words.
+   *
+   * `incomeMethodLabel` is the same mapper the bank wizard and the name pages use, so a
+   * method is named identically wherever it appears — including `steps`, which reads as a
+   * multi-step product rather than as a blank.
+   */
+  protected reads(p: ProductCard['product']): string {
+    if (p.strategy === null) {
+      return $localize`:@@sp.reads_none:No calculation stated yet`;
+    }
+
+    // A pipeline product's generic label is the same sentence for every one of them, so a
+    // list of them says nothing about what tells them apart — which is how two products that
+    // are really one read as duplicates. What DOES tell them apart is what the calculation
+    // arrives at and how many ways it offers of getting there, so the card says that.
+    const ways = p.wayCount;
+    if (ways !== null && ways > 0 && p.outputKind !== null) {
+      return p.outputKind === 'maxAmount'
+        ? $localize`:@@sp.reads_ceiling:A borrowing ceiling, worked out ${this.waysWord(ways)}:ways:`
+        : $localize`:@@sp.reads_income:An assumed income, worked out ${this.waysWord(ways)}:ways:`;
+    }
+
+    // The label is already a complete phrase, so it stands alone — "Reads By Academic rank"
+    // reads as a typo.
+    return incomeMethodLabel(p.strategy as IncomeAssumptionStrategy, this.facts());
+  }
+
+  /**
+   * "one way" / "two ways" / "4 ways".
+   *
+   * Spelled out to three because a numeral inside a sentence at that size reads as a figure
+   * the bank stated, and this is a count of shapes; past three the numeral is the clearer
+   * half. Arabic has its own plural rules and its own translation of each of these, which is
+   * why each is a separate message rather than a number substituted into one.
+   */
+  protected waysWord(count: number): string {
+    if (count === 1) return $localize`:@@sp.ways_1:one way`;
+    if (count === 2) return $localize`:@@sp.ways_2:two ways`;
+    if (count === 3) return $localize`:@@sp.ways_3:three ways`;
+    return $localize`:@@sp.ways_n:${count}:count: ways`;
+  }
+
+  /**
+   * Programs only, never banks. A program is filed under a NAME and reaches the product
+   * through it, so the sum is exact; banks are not, because one bank selling two names under
+   * one product would be counted twice and there is no per-bank identity here to fold on.
+   */
+  protected productUsageLabel(c: ProductCard): string {
+    return $localize`:@@program_catalog.product.usage:${c.programs}:PROGRAMS: programs quote from this`;
+  }
+
+  protected productMissingLabel(c: ProductCard): string {
+    return $localize`:@@program_catalog.card.no_table:${c.missingTables}:COUNT: with no table yet`;
+  }
+
+  protected openProductLabel(c: ProductCard): string {
+    return $localize`:@@program_catalog.product.open:Set up ${this.productName(c)}:NAME:`;
   }
 }

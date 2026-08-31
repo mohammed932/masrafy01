@@ -43,6 +43,20 @@ export interface EnumerationRow {
    * on every row, and an absent field would read as the second when it might be the first.
    */
   surrogateProductKey: string | null;
+  /**
+   * `program_name` rows only — does this name state a calculation of its OWN?
+   *
+   * The bit, not the rule: nothing on a LIST reads a catalog rule, and shipping the blob
+   * would put a bank's cap tables in a response the board needs one boolean from.
+   *
+   * Read together with `surrogateProductKey` above, it separates the three states of a name
+   * sold without a payslip: it takes a product's calculation, it states its own (legacy, but
+   * it quotes), or neither — and that last one quotes nothing at all.
+   *
+   * Optional so the bundle still runs against a backend that predates the field; absent is
+   * read as "states its own", never as the broken state.
+   */
+  hasOwnIncomeRule?: boolean;
   /** `program_name` rows only — how many bank programs instantiate this archetype. */
   usage?: {
     programs: number;

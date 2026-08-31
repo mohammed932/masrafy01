@@ -60,6 +60,7 @@ import { EnumerationTypesService } from '@shared/lookups/enumeration-types.servi
 import { uniqueSlug } from '@shared/lookups/slug';
 import { FormPageComponent } from '@shared/ui';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
+import { PRODUCT_BASE } from './program-catalog.paths';
 
 type LabelPair = FormGroup<{ labelEn: FormControl<string>; labelAr: FormControl<string> }>;
 type ValueRow = FormGroup<{
@@ -675,7 +676,7 @@ export class ProductFactPage implements OnInit {
    * returned to a different step from the one this comment named, on both exits.
    */
   protected cancel(): void {
-    void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 1 } });
+    void this.router.navigate([PRODUCT_BASE, this.key()], { queryParams: { step: 1 } });
   }
 
   /**
@@ -823,7 +824,7 @@ export class ProductFactPage implements OnInit {
       // product itself may now resolve differently, so the product page re-reads both on
       // entry. Navigating there IS the reload — the component is created fresh.
       // Step 1 — the list this ask was just added to. See `cancel()` on the 1-based index.
-      void this.router.navigate(['/surrogate-products', this.key()], { queryParams: { step: 1 } });
+      void this.router.navigate([PRODUCT_BASE, this.key()], { queryParams: { step: 1 } });
     } catch (error) {
       const code = (error as { code?: ErrorCode }).code ?? 'INTERNAL_ERROR';
       this.errorMessage.set(this.errors.toLocalizedMessage(code as ErrorCode));

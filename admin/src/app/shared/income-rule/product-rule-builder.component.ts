@@ -8,7 +8,7 @@
  * WHAT the calculation is, that one fills in what each bank PAYS.
  *
  * WHY IT MATTERS: until now a no-payslip product's shape could only be written by a seed or
- * a raw API call, so `/surrogate-products` could show a calculation nobody could author and
+ * a raw API call, so `/program-catalog/products` could show a calculation nobody could author and
  * a newly created product could never become a pipeline at all — `'steps'` is absent from
  * the method picker on purpose (a pipeline is not a twelfth method), so there was no control
  * anywhere that turned one on.

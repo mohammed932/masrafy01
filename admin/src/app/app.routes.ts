@@ -42,6 +42,18 @@ export const APP_ROUTES: Routes = [
   // Legacy paths — the two rosters merged into the People directory.
   { path: 'users', pathMatch: 'full', redirectTo: 'people/staff' },
   { path: 'customers', pathMatch: 'full', redirectTo: 'people/customers' },
+  // Legacy paths — surrogate products were their own top-level section and are now the
+  // catalog's `products/` subtree. Every shape is listed rather than one wildcard: Angular
+  // cannot carry a `:key` through a `**` redirect, and a bookmark to one product's
+  // calculation is exactly the link worth keeping alive.
+  { path: 'surrogate-products', pathMatch: 'full', redirectTo: 'program-catalog/products' },
+  { path: 'surrogate-products/new', redirectTo: 'program-catalog/products/new' },
+  {
+    path: 'surrogate-products/:key/calculation',
+    redirectTo: 'program-catalog/products/:key/calculation',
+  },
+  { path: 'surrogate-products/:key/asks/new', redirectTo: 'program-catalog/products/:key/asks/new' },
+  { path: 'surrogate-products/:key', redirectTo: 'program-catalog/products/:key' },
   // Legacy paths — the flat program list is gone; programs live under their bank.
   // Bare list → registry; deep program links → the kept flat program pages.
   { path: 'bank-programs', pathMatch: 'full', redirectTo: 'banks' },
@@ -75,17 +87,6 @@ export const APP_ROUTES: Routes = [
     loadChildren: () =>
       import('./features/program-catalog/program-catalog.routes').then(
         (m) => m.PROGRAM_CATALOG_ROUTES,
-      ),
-  },
-  {
-    // Surrogate products — the pre-defined no-payslip calculations a catalog name links to.
-    // A PEER of the catalog, not a child: see the routes file for why the nesting was undone.
-    path: 'surrogate-products',
-    canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
-    loadChildren: () =>
-      import('./features/program-catalog/surrogate-products.routes').then(
-        (m) => m.SURROGATE_PRODUCTS_ROUTES,
       ),
   },
   {

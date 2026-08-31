@@ -16,6 +16,7 @@ import {
 } from './lookups.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
+import { PRODUCT_BASE } from '@features/program-catalog/program-catalog.paths';
 
 /**
  * Load a list from a pasted sheet.
@@ -198,7 +199,7 @@ export class PasteValuesPage {
 
   protected back(): void {
     if (this.from() === 'product' && this.productKey() !== '') {
-      void this.router.navigate(['/surrogate-products', this.productKey()]);
+      void this.router.navigate([PRODUCT_BASE, this.productKey()]);
       return;
     }
     void this.router.navigate(['/lookups'], { queryParams: { type: this.type() } });

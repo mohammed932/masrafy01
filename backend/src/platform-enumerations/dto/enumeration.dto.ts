@@ -501,6 +501,14 @@ export class EnumerationRowDto {
    */
   @ApiProperty({ nullable: true }) surrogateProductKey!: string | null;
   /**
+   * `program_name` only — does this name state a calculation of its OWN?
+   *
+   * The bit, not the rule. With `surrogateProductKey` above it, a board can tell the three
+   * states of a name sold without a payslip apart: it takes a product's calculation, it
+   * states its own (legacy, but it quotes), or it has neither and quotes nothing.
+   */
+  @ApiProperty() hasOwnIncomeRule!: boolean;
+  /**
    * How many bank programs instantiate this archetype, across how many banks.
    * Present on `program_name` rows only — other enumeration types are not
    * referenced by a dedicated column.

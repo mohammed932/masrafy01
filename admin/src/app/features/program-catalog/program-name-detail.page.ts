@@ -68,6 +68,7 @@ import {
 } from '../lookups/lookups.api.service';
 import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-name-row';
 import { NEW_QUESTION_STATE_KEY, type NewQuestionResult } from './new-question.page';
+import { PRODUCT_BASE } from './program-catalog.paths';
 
 /** Long enough to read as a move, short enough not to queue behind a fast tapper. */
 const LAND_ANIMATION_MS = 260;
@@ -268,7 +269,7 @@ interface QuestionRow {
                         >
                         <a
                           class="rule-linked-go"
-                          [routerLink]="['/surrogate-products', product]"
+                          [routerLink]="[productBase, product]"
                           i18n="@@pnd.rule_open_product"
                           >Open the surrogate product</a
                         >
@@ -1732,6 +1733,8 @@ interface QuestionRow {
   ],
 })
 export class ProgramNameDetailPage implements OnInit {
+  protected readonly productBase = PRODUCT_BASE;
+
   private readonly api = inject(LookupsApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);

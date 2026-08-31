@@ -20,7 +20,7 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { sortCategories } from '@/common/loan-category.util';
 import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
-import type { ProgramNameUsage } from './postgres-platform-enumerations.repository';
+import type { EnumerationRow, ProgramNameUsage } from './postgres-platform-enumerations.repository';
 import type { BoundQuestion } from './platform-enumerations.repository';
 import type { IncomeBasis } from '@/common/income-basis.util';
 import {
@@ -437,21 +437,10 @@ export class AdminPlatformEnumerationsController {
   }
 
   private project(
-    row: {
-      id: string;
-      type: string;
-      key: string;
-      labelAr: string;
-      labelEn: string;
-      active: boolean;
-      deprecatedAt: Date | null;
-      systemOnly: boolean;
-      parentKey: string | null;
-      surrogateProductKey: string | null;
-      sortOrder: number;
-      createdAt: Date;
-      updatedAt: Date;
-    },
+    // The repository's own row type, not a structural copy of it. The copy this replaces
+    // had to be edited in step with the interface, and a field added to one and not the
+    // other fails here rather than where it is read.
+    row: EnumerationRow,
     // One `extras` bag rather than a fourth positional — the catalog now
     // attaches three optional things and the next one would be unreadable.
     extras: {
@@ -475,6 +464,10 @@ export class AdminPlatformEnumerationsController {
       systemOnly: row.systemOnly,
       parentKey: row.parentKey,
       surrogateProductKey: row.surrogateProductKey,
+      // Unconditional, like the link above it and for the same reason: the board reads the
+      // two together, and a field that is sometimes absent reads as `false` — i.e. as the
+      // one state ("quotes nothing") the operator is meant to go and fix.
+      hasOwnIncomeRule: row.hasOwnIncomeRule,
       ...(usage ? { usage } : {}),
       // Spread conditionally, like `usage`: absent means "this type has no such
       // axis", while a present `[]` means parked. Collapsing the two would make
