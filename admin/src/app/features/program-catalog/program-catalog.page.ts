@@ -1327,17 +1327,6 @@ export class ProgramCatalogPage implements OnInit {
         icon: 'function',
         hint: $localize`:@@program_catalog.stat.products.hint:ways to work an income out with no payslip`,
       },
-      // The only number on this strip an operator can ACT on today: a bank program
-      // sold without a payslip whose income table was never entered gives the
-      // customer no figure at all, silently. Counted across names, because the work
-      // is one email per bank, not one visit per name.
-      {
-        label: $localize`:@@program_catalog.stat.no_table:Programs with no table`,
-        value: all.reduce((n, r) => n + (r.usage?.noPayslipProgramsWithoutTable ?? 0), 0),
-        tone: 'warning',
-        icon: 'warning',
-        hint: $localize`:@@program_catalog.stat.no_table.hint:sold on a surrogate basis, and no table entered`,
-      },
     ];
   });
 
