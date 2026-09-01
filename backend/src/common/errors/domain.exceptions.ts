@@ -938,6 +938,24 @@ export class IncomeRuleBandsInvalidException extends DomainException {
   }
 }
 
+/**
+ * The program's maximum-loan table keyed by an answer cannot be read.
+ *
+ * `reason` is the closed list `MaxLoanByFactReason` owns; `index` names the row when one
+ * row owns the problem, and `allowed` carries what could have been typed instead so the
+ * screen can offer it rather than making the operator guess.
+ */
+export class MaxLoanByFactInvalidException extends DomainException {
+  constructor(meta: {
+    reason: string;
+    index?: number;
+    detail?: string;
+    allowed?: readonly string[];
+  }) {
+    super(ERROR_CODES.MAX_LOAN_BY_FACT_INVALID, meta);
+  }
+}
+
 /** FR-012 — per-rule DBR override outside (0, 100]. */
 export class IncomeRuleDbrOverrideInvalidException extends DomainException {
   constructor(meta: { value: string }) {

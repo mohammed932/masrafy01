@@ -9,6 +9,13 @@ export {
   dbrBandsErrorFor,
   type DbrBandsError,
 } from './dbr-bands-editor.component';
+export {
+  MaxLoanByFactEditorComponent,
+  maxLoanByFactErrorFor,
+  type MaxLoanByFactConfig,
+  type MaxLoanByFactError,
+  type MaxLoanByFactRow,
+} from './max-loan-by-fact-editor.component';
 export { PercentFieldComponent } from './percent-field.component';
 export {
   WizardStepsComponent,
@@ -28,3 +35,4 @@ export {
   type FormDrawerOptions,
 } from './form-drawer.component';
 export { FormPageComponent } from './form-page.component';
+export { IncomeBasisCardsComponent } from './income-basis-cards.component';

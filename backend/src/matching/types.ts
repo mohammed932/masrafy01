@@ -20,6 +20,8 @@ import type {
   RuleStep,
   StepParams,
 } from './pipeline/product-rule';
+import type { MaxLoanByFactConfig } from './pipeline/max-loan-by-fact';
+import type { MaxLoanAdjustment } from './pipeline/max-loan-adjustments';
 
 // ---------------------------------------------------------------------------
 // Applicant Profile
@@ -151,6 +153,30 @@ export interface LoanLimitsConfig {
   maxByPropertyType?: Record<string, string>;
   maxByTransferType?: Record<string, string>;
   maxByEmploymentType?: Record<string, string>;
+  /**
+   * The program's maximum loan, keyed by an answer the applicant gave — the second table
+   * nine source sheets print under "Loan Amount — Maximum".
+   *
+   * The GENERAL form of `maxByPropertyType` / `maxByTransferType` / `maxByEmploymentType`
+   * above, which are three fixed axes and cannot reach a fourth: a city, a school type, a
+   * branch, a company coding, a unit-price bracket. Those three stay — they are configured
+   * on live programs and they resolve through the cascade — and this one is consulted
+   * AFTER the cascade has settled, so a program may carry both and the lower wins.
+   *
+   * See `pipeline/max-loan-by-fact.ts` for why this is a program setting and not a second
+   * path inside the income rule.
+   */
+  maxLoanByFact?: MaxLoanByFactConfig;
+  /**
+   * Adjustments that act on the CAP rather than on the income — "+10% for a second unit",
+   * "50% on joint ownership" — applied in declared order after the cap table and before the
+   * collateral ceiling.
+   *
+   * The counterpart of the income-side adjustments a product template compiles into the rule.
+   * Which of the two a sheet line means is the bank's answer and is never inferred: see
+   * `pipeline/max-loan-adjustments.ts` for the 300,000-EGP worked example.
+   */
+  maxLoanAdjustments?: MaxLoanAdjustment[];
   qualitativeReviewMaxEGP?: string;
 }
 
@@ -327,7 +353,9 @@ export function factKeyOf(strategy: string): string | null {
 }
 
 /** True for the built-in tokens — i.e. every method that predates the fact registry. */
-export function isBuiltinIncomeStrategy(strategy: string): strategy is BuiltinIncomeAssumptionStrategy {
+export function isBuiltinIncomeStrategy(
+  strategy: string,
+): strategy is BuiltinIncomeAssumptionStrategy {
   return (INCOME_ASSUMPTION_STRATEGIES as readonly string[]).includes(strategy);
 }
 
@@ -783,6 +811,14 @@ export const BINDING_CONSTRAINTS = [
    * more specific statement — the program would lend more, this unit will not carry more.
    */
   'collateral_ceiling',
+  /**
+   * The amount was capped by the program's own cap TABLE — the figure the bank states
+   * against this applicant's answer (`loanLimits.maxLoanByFact`), below the program's flat
+   * maximum. Ranked with `collateral_ceiling` for the same reason it outranks
+   * `program_max`: "this program would lend more, this row does not" is the more specific
+   * of the two statements, and it is the one an operator can act on.
+   */
+  'program_max_by_fact',
 ] as const;
 
 export type BindingConstraint = (typeof BINDING_CONSTRAINTS)[number];
@@ -820,6 +856,17 @@ export const FIGURES_UNAVAILABLE_REASONS = [
    * production path runs with `skipEligibility`.
    */
   'PRODUCT_RULE_GATE_FAILED',
+  /**
+   * The program states a maximum-loan table keyed by an answer, the applicant's answer has
+   * no row in it, and the bank set `onNoMatch: 'reject'` on that table.
+   *
+   * A "no figures" outcome and NOT a filter, exactly like `SURROGATE_NO_MATCHING_ROW`
+   * beside it: the program stays listed and stays ranked, and the reason names the admin
+   * action — add the missing row, or switch the table to `useProgramMax`. Distinct from
+   * `SURROGATE_NO_MATCHING_ROW` because that one is the INCOME rule's table and this one is
+   * the program's cap table; the two lead to edits on two different screens.
+   */
+  'NO_MAX_LOAN_FOR_ANSWER',
 ] as const;
 
 export type FiguresUnavailableReason = (typeof FIGURES_UNAVAILABLE_REASONS)[number];

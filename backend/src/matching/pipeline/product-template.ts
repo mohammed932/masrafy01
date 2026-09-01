@@ -49,7 +49,8 @@
  *   second column                      one step per column + pickByFact
  *   another way, bank fills one        coalesce
  *   take the lower / higher of two     minOf / maxOf, wrapped (see `emitBasis`)
- *   bonus % when true                  upliftPercent + pickByFact
+ *   bonus % when true, on the income   upliftPercent + pickByFact
+ *   bonus % when true, on the cap      NOTHING here — `loanLimits.maxLoanAdjustments`
  *   adjust by I-Score                  factNumber(optional) -> bandTable -> coalesce -> percentOf
  *   worked out at a DBR of X%          output.baselineDbrPercent
  *   condition: at least / at most      gate number gte / lte
@@ -106,6 +107,19 @@ export type TemplateMechanism =
   | { kind: 'multipleOf'; fact: string }
   /** One figure the bank states outright, the same for every applicant. */
   | { kind: 'flatAmount' };
+
+/**
+ * What an adjustment acts on.
+ *
+ * There is no third value and no default the platform picks. Two ABK lines read literally as
+ * lifting the CAP — "Program loan amounts can be increased by 10%…", "…will be eligible for
+ * Villas maximum loan amount" — and one FABMISR line lifts both sides at once. Whether an
+ * adjustment lifts the income, the cap, or both changes the answer whenever the other side
+ * binds; see `max-loan-adjustments.ts` for the worked figures.
+ */
+export const ADJUSTMENT_SCOPES = ['income', 'maxLoan'] as const;
+
+export type AdjustmentScope = (typeof ADJUSTMENT_SCOPES)[number];
 
 /** What a condition measures. */
 export type ConditionMeasure =
@@ -183,8 +197,25 @@ export interface ProductTemplate {
   /**
    * A bonus percentage when one answer is given. `otherwiseOption` is required and is what
    * makes a third answer, or no answer, mean "no bonus" rather than "bonus for everyone".
+   *
+   * `scope` says WHAT it lifts, and it is the difference between two answers 300,000 apart
+   * on one ABK applicant. `'income'` lifts the figure this rule produces and compiles to the
+   * two steps below; `'maxLoan'` lifts the bank program's own ceiling and compiles to
+   * NOTHING here — it is configured per bank on `loanLimits.maxLoanAdjustments`, because the
+   * cap is a bank setting and two banks selling one product cap differently.
+   *
+   * Absent means `'income'`, and that default is not a guess: every template stored before
+   * this field existed compiled to an in-rule uplift, so reading absence as `'income'` is
+   * what makes those templates recompile to byte-identical steps under identical slot ids
+   * (§5.4). A NEW template should always state it, and the admin form makes the operator
+   * choose.
    */
-  uplift?: { fact: string; whenOption: string; otherwiseOption: string };
+  uplift?: {
+    fact: string;
+    whenOption: string;
+    otherwiseOption: string;
+    scope?: AdjustmentScope;
+  };
   /** Multiply by the bank's bureau-score table. Unanswered or unstated both mean 100%. */
   iScore?: boolean;
   conditions: TemplateCondition[];
@@ -245,6 +276,16 @@ export function waysOf(template: ProductTemplate): TemplateMechanism[] {
 }
 
 /**
+ * What an uplift lifts. Absent reads as `'income'` — see `ProductTemplate.uplift`.
+ *
+ * One accessor, so the compiler, the key set and the admin can never disagree about what an
+ * older stored template meant.
+ */
+export function upliftScopeOf(uplift: NonNullable<ProductTemplate['uplift']>): AdjustmentScope {
+  return uplift.scope ?? 'income';
+}
+
+/**
  * The slot one way's figures hang off.
  *
  * The first two keep the ids they have always had — `primary` and `alt` — so adding a THIRD
@@ -290,6 +331,7 @@ export const TEMPLATE_INVALID_REASONS = [
   'second_column_too_few_branches',
   'second_column_duplicate_branch',
   'uplift_same_option',
+  'unknown_adjustment_scope',
   'condition_id_invalid',
   'condition_duplicate_id',
   'unknown_condition_test',
@@ -383,6 +425,13 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
     }
   }
 
+  if (
+    template.uplift !== undefined &&
+    template.uplift.scope !== undefined &&
+    !(ADJUSTMENT_SCOPES as readonly string[]).includes(template.uplift.scope)
+  ) {
+    return { reason: 'unknown_adjustment_scope', detail: String(template.uplift.scope) };
+  }
   if (
     template.uplift !== undefined &&
     template.uplift.whenOption === template.uplift.otherwiseOption
@@ -495,7 +544,12 @@ export function compileTemplate(template: ProductTemplate): ProductRule {
   let head = emitBasis(out, heads, template.combine);
 
   // 5. The product's own adjustments.
-  if (template.uplift !== undefined) head = emitUplift(out, head, template.uplift);
+  // A `maxLoan`-scoped uplift emits NOTHING: it lifts the bank program's ceiling, which is
+  // bank configuration (`loanLimits.maxLoanAdjustments`) and not part of guessing an income.
+  // Emitting it here as well would apply it twice on any bank that configured both.
+  if (template.uplift !== undefined && upliftScopeOf(template.uplift) === 'income') {
+    head = emitUplift(out, head, template.uplift);
+  }
 
   // 6. I-Score LAST — see the note on emission order above.
   if (template.iScore === true) head = emitIScore(out, head);

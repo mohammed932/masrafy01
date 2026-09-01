@@ -272,9 +272,7 @@ export class EngineService {
       // re-derived. Re-running the resolver here could reach a different answer, and
       // the offer is about to become immutable.
       incomeOrigin: quote.incomeResolution?.origin ?? null,
-      incomeSurrogateStrategy: quote.incomeResolution
-        ? quote.incomeResolution.strategy
-        : null,
+      incomeSurrogateStrategy: quote.incomeResolution ? quote.incomeResolution.strategy : null,
       // The ceiling, when the rule derived one. Same reasoning as the two above: it is the
       // output of a pipeline over a table, an uplift and the applicant's own answers, every
       // one of which can move after the offer is written.
@@ -357,6 +355,12 @@ function reasonToCheckCode(reason: FiguresUnavailableReason): string {
     // suggestion engine off proposing a guarantor for a unit-price floor.
     case 'PRODUCT_RULE_GATE_FAILED':
       return 'product_rule_gate';
+    // The bank's cap TABLE has no row for this applicant's answer and the bank chose to
+    // refuse rather than fall back. `loan_amount`, not `monthly_income`: nothing about the
+    // applicant's earnings was in question, and mapping it to income would send the
+    // suggestion engine off proposing a guarantor for a missing table row.
+    case 'NO_MAX_LOAN_FOR_ANSWER':
+      return 'loan_amount';
   }
 }
 

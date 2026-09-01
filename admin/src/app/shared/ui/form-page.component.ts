@@ -27,7 +27,7 @@ import { PageHeaderComponent } from './page-header.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NzButtonModule, PageHeaderComponent],
   template: `
-    <section class="page fp">
+    <section class="page fp" [class.fp--wide]="wide()">
       <button class="fp__back" type="button" (click)="cancelled.emit()">
         <svg
           class="fp__glyph fp__glyph--back"
@@ -35,9 +35,7 @@ import { PageHeaderComponent } from './page-header.component';
           fill="currentColor"
           aria-hidden="true"
         >
-          <path
-            d="M872 474H286.9l350.2-304c5.6-4.9 2.2-14-5.2-14h-88.5c-3.9 0-7.6 1.4-10.5 3.9L155 487.8a31.96 31.96 0 000 48.3L535.1 866c1.5 1.3 3.3 2 5.2 2h91.5c7.4 0 10.8-9.2 5.2-14L286.9 550H872c4.4 0 8-3.6 8-8v-60c0-4.4-3.6-8-8-8z"
-          />
+          <path [attr.d]="backPath" />
         </svg>
         <span>{{ backLabel() }}</span>
       </button>
@@ -53,6 +51,22 @@ import { PageHeaderComponent } from './page-header.component';
       <!-- Sticky, not fixed: fixed would need the sidebar's width hardcoded here,
            and would sit over the page on short forms that do not scroll at all. -->
       <footer class="fp__bar">
+        <!-- On a stepped bar the exit stands apart from the pair that MOVES through the
+             flow: Cancel leaves, Previous and Next travel, and three peers drawn side by
+             side read as three ways to step. Same button weight as before — the quiet
+             leave-link at the top of the page is the one that defers to it. -->
+        @if (stepped()) {
+          <button
+            nz-button
+            nzType="default"
+            type="button"
+            class="fp__leave"
+            [disabled]="submitting()"
+            (click)="cancelled.emit()"
+          >
+            {{ cancelLabel() }}
+          </button>
+        }
         <p class="fp__outcome">
           @if (blockReason(); as reason) {
             <span class="fp__blocked">
@@ -71,15 +85,39 @@ import { PageHeaderComponent } from './page-header.component';
           }
         </p>
         <div class="fp__acts">
-          <button
-            nz-button
-            nzType="default"
-            type="button"
-            [disabled]="submitting()"
-            (click)="cancelled.emit()"
-          >
-            {{ cancelLabel() }}
-          </button>
+          @if (!stepped()) {
+            <button
+              nz-button
+              nzType="default"
+              type="button"
+              [disabled]="submitting()"
+              (click)="cancelled.emit()"
+            >
+              {{ cancelLabel() }}
+            </button>
+          }
+          <!-- A step back, on the hosted form's say-so. The arrow says which way it goes:
+               once the exit has left this group a stepped bar ends on a direction pair,
+               and the glyph is what tells the two of them apart at a glance. -->
+          @if (showPrev()) {
+            <button
+              nz-button
+              nzType="default"
+              type="button"
+              [disabled]="submitting()"
+              (click)="prev.emit()"
+            >
+              <svg
+                class="fp__glyph fp__glyph--back fp__glyph--lead"
+                viewBox="64 64 896 896"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path [attr.d]="backPath" />
+              </svg>
+              {{ prevLabel() }}
+            </button>
+          }
           <button
             nz-button
             nzType="primary"
@@ -136,6 +174,15 @@ import { PageHeaderComponent } from './page-header.component';
       .fp__bar {
         max-inline-size: 60rem;
       }
+      /* Opt-in escape from the column. A form whose body is a card grid or a picker
+         board — not a stack of labelled fields — reads better across the whole page:
+         capped, its cards wrap into two per row with the rest of the screen empty.
+         The label/value argument above still holds for the fields INSIDE such a form,
+         so the hosted form caps its own text rows rather than the shell doing it. */
+      .fp--wide .fp__body,
+      .fp--wide .fp__bar {
+        max-inline-size: none;
+      }
       /* The bar sits at the end of the form, in flow. It scrolls away with the
          content, so nothing reserves space for it and nothing covers the last field. */
       .fp__bar {
@@ -165,6 +212,12 @@ import { PageHeaderComponent } from './page-header.component';
         gap: var(--space-2);
         color: var(--color-warning);
       }
+      /* An exit, not a step. It holds the start edge on its own — the bar's own
+         space-between plus the auto margin below keep the moving pair at the end —
+         and it never shrinks into the outcome line beside it. */
+      .fp__leave {
+        flex: 0 0 auto;
+      }
       .fp__acts {
         display: inline-flex;
         align-items: center;
@@ -179,6 +232,13 @@ import { PageHeaderComponent } from './page-header.component';
         block-size: 1em;
         flex: 0 0 auto;
       }
+      /* Inside an nz-button the glyph sits in an inline run, so it takes the same
+         optical lift and gap ng-zorro gives its own icons (see the ::ng-deep rule
+         above — that one keys off [nz-icon], which this deliberately is not). */
+      .fp__glyph--lead {
+        margin-inline-end: var(--space-1);
+        vertical-align: -0.125em;
+      }
       /* One arrow, mirrored by direction — the way back is the trailing edge in
          Arabic, and a second path would be the same glyph maintained twice. */
       :host-context([dir='rtl']) .fp__glyph--back {
@@ -188,6 +248,19 @@ import { PageHeaderComponent } from './page-header.component';
   ],
 })
 export class FormPageComponent {
+  /**
+   * One arrow, drawn twice: the leave-link at the top and the step-back button in the
+   * action bar. Held on the class rather than pasted into both templates — the same glyph
+   * maintained in two places is the same glyph diverging in two places.
+   */
+  protected readonly backPath =
+    'M872 474H286.9l350.2-304c5.6-4.9 2.2-14-5.2-14h-88.5c-3.9 0-7.6 1.4-10.5 3.9L155 487.8a31.96 31.96 0 000 48.3L535.1 866c1.5 1.3 3.3 2 5.2 2h91.5c7.4 0 10.8-9.2 5.2-14L286.9 550H872c4.4 0 8-3.6 8-8v-60c0-4.4-3.6-8-8-8z';
+
+  /**
+   * Let the body and the action bar run the full width of the page instead of the
+   * 60rem reading column. For forms whose stage is a grid of cards or a picker.
+   */
+  readonly wide = input(false, { transform: booleanAttribute });
   readonly eyebrow = input<string | null>(null);
   readonly title = input.required<string>();
   readonly subtitle = input<string | null>(null);
@@ -201,10 +274,32 @@ export class FormPageComponent {
   readonly blockReason = input<string | null>(null);
   readonly backLabel = input<string>($localize`:@@fp.back:Back`);
   readonly cancelLabel = input<string>($localize`:@@fd.cancel:Cancel`);
+  /**
+   * Show a step-back button before the primary. OFF by default: the shell hosts
+   * single-stage forms too, and a form with one stage has nothing to go back to.
+   *
+   * "Previous" and not "Back", the same reading the bank-program wizard's own footer
+   * states: the link at the top of the page already means "leave this form", and two
+   * Backs on one screen is one too many.
+   */
+  readonly showPrev = input(false, { transform: booleanAttribute });
+  readonly prevLabel = input<string>($localize`:@@fp.prev:Previous`);
+  /**
+   * The bar carries step NAVIGATION, so Cancel leaves the action group and pins to the
+   * start edge. Cancel is an exit from the flow; Previous and the primary are movement
+   * inside it — drawn as three peers in one cluster the exit reads as a third step.
+   *
+   * Its own input and not `showPrev()`: Previous is absent on the first step, and a
+   * Cancel that jumps across the bar between step 1 and step 2 is worse than either
+   * placement on its own. A stepped bar is stepped on every step.
+   */
+  readonly stepped = input(false, { transform: booleanAttribute });
   readonly submitLabel = input.required<string>();
   readonly submitDisabled = input(false, { transform: booleanAttribute });
   readonly submitting = input(false, { transform: booleanAttribute });
 
   readonly cancelled = output<void>();
+  /** A step back. The hosted form owns what a step IS, so it owns where this goes. */
+  readonly prev = output<void>();
   readonly submitted = output<void>();
 }

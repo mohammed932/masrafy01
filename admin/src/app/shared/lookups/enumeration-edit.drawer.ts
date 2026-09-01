@@ -32,12 +32,12 @@ import { slugify, uniqueSlug } from './slug';
  * staff, who had no way to judge what a key should read, and a key typed by hand
  * is immutable the moment it is saved — a typo there outlived the value itself.
  *
- * Program names carry two extras. A new one starts offerable under NO loan category —
- * turning them on is step 2 of the name's own page, which is where that decision is
- * visible and where an unset one reads as unset. And the INCOME BASIS is asked here, in BOTH
- * modes: what the catalog says the name is FOR, so a fresh name is not silently
- * described as payslip-only, and so an operator who got it wrong can fix it from
- * the screen labelled "Edit".
+ * Program names carry one extra, and this form EDITS them — it does not create them. The
+ * INCOME BASIS is asked here so an operator who got it wrong can fix it from the screen
+ * labelled "Edit". Creating a name moved to `/program-catalog/new`, because the basis decides
+ * whether a second question follows (which calculation the name quotes from, possibly a new
+ * one built from a shape), and a form that branches like that wants a screen and a URL rather
+ * than a 560px sheet with an inner scrollbar and nothing to return to.
  *
  * It states intent and nothing else (v16.4.1). It filters no picker and refuses no
  * save: the bank chooses the basis on its own program (step 1 of the wizard →
@@ -253,19 +253,6 @@ export interface EnumerationEditDrawerData {
                   >Applies to every loan type this name is offered under ({{
                     assignedCategoryNames
                   }}).</span
-                >
-              </p>
-            } @else {
-              <!-- "starts under" was true while a create assigned all four loan types.
-                   It assigns NONE now — which loan types a name reaches is the operator's
-                   decision, taken on the name's own page — so the note says both halves:
-                   this answer is kept and applied to whatever they turn on there, and
-                   nothing is offered until they do. -->
-              <p class="basis-note">
-                <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
-                <span i18n="@@lookups.field.incomeBasis.note"
-                  >This name starts offered under no loan type — pick them on its own page, and this
-                  answer applies to each one you turn on.</span
                 >
               </p>
             }
@@ -586,14 +573,18 @@ export class EnumerationEditDrawerComponent {
     this.categoriesKnown &&
     this.assignedCategories.length === 0;
   /**
-   * On CREATE one answer applies to every loan type the name starts under. On EDIT
-   * the same two rows read the stored per-loan-type map — which may disagree across
+   * EDIT only. The two rows read the stored per-loan-type map — which may disagree across
    * loan types — and resolve it to the ONE answer the group shows and writes.
+   *
+   * CREATING a program name is not this form's job any more: the basis decides whether a
+   * SECOND question follows (which calculation it quotes from, possibly a new one), and a
+   * form that branches like that belongs on a screen with a URL. See
+   * `/program-catalog/new`. Both doors into create — the board's button and this drawer's
+   * host panel — now point there, which is what makes the branch below unreachable rather
+   * than merely unused.
    */
   protected readonly asksBasis =
-    this.isProgramName && (!this.isEdit || (this.categoriesKnown && !this.isParkedName));
-  /** The CREATE-time single answer — the only mode where the form control is read. */
-  private readonly asksFlatBasis = this.asksBasis && !this.isEdit;
+    this.isProgramName && this.isEdit && this.categoriesKnown && !this.isParkedName;
   protected readonly incomeBases = INCOME_BASES;
   /** Names the loan types in the note, so "every loan type" is not an abstraction. */
   protected readonly assignedCategoryNames = this.assignedCategories
@@ -695,17 +686,6 @@ export class EnumerationEditDrawerComponent {
       validators: [Validators.min(0)],
     }),
     /**
-     * Defaults to "reads a payslip" — the ordinary case, and what every name meant
-     * before the basis was recorded, so an operator who does not touch this row
-     * creates the name they used to create. No validator: a radio group always holds
-     * exactly one, so there is no invalid state left to guard.
-     *
-     * Still an ARRAY, not a scalar. It is what the API takes and what a legacy row
-     * may hold two of — narrowing the type here would only move the widening to the
-     * call site.
-     */
-    incomeBases: new FormControl<IncomeBasis[]>(['payslip'], { nonNullable: true }),
-    /**
      * Which surrogate product a no-payslip name works its income out from.
      *
      * `''` = nothing picked, and the required-ness is applied dynamically in `pickBasis`
@@ -746,6 +726,12 @@ export class EnumerationEditDrawerComponent {
         .then((rows) => this.parentOptions.set(rows.filter((r) => r.active)))
         .catch(() => this.parentOptions.set([]));
     }
+
+    // Once, HERE, and not only from `pickBasis`. A name opened on the no-payslip basis
+    // renders the required product select immediately — but the validator was only ever
+    // attached by a click, so an operator who edited the label and saved got a raw 422 from
+    // the server for a field the form had reported as fine.
+    this.syncProductValidator();
   }
 
   protected basisLabel(basis: IncomeBasis): string {
@@ -756,12 +742,8 @@ export class EnumerationEditDrawerComponent {
     return incomeBasisHint(basis);
   }
 
-  /**
-   * Exactly one row is checked, always — on CREATE from the form control, on EDIT
-   * from the working map, which is flat by construction.
-   */
+  /** Exactly one row is checked, always — read from the working map, flat by construction. */
   protected basisPicked(basis: IncomeBasis): boolean {
-    if (!this.isEdit) return this.form.controls.incomeBases.value[0] === basis;
     const map = this.basisMap();
     return (
       this.assignedCategories.length > 0 &&
@@ -796,12 +778,6 @@ export class EnumerationEditDrawerComponent {
    * basis flat, which is what the note under the rows says.
    */
   protected pickBasis(basis: IncomeBasis): void {
-    if (!this.isEdit) {
-      this.form.controls.incomeBases.setValue([basis]);
-      this.form.controls.incomeBases.markAsTouched();
-      this.syncProductValidator();
-      return;
-    }
     this.basisMap.update((map) => {
       const next: Partial<Record<LoanCategory, IncomeBasis[]>> = { ...map };
       for (const category of this.assignedCategories) next[category] = [basis];
@@ -892,14 +868,8 @@ export class EnumerationEditDrawerComponent {
           key,
           labelEn: v.labelEn,
           labelAr: v.labelAr,
-          // Sent only where it means something. On the other ten enumeration types
-          // the server drops it, and sending it anyway would put a field in the
-          // request that the type has no axis for.
-          ...(this.asksFlatBasis ? { incomeBases: v.incomeBases } : {}),
-          // In the SAME create as the basis, deliberately: the server applies both inside
-          // one atomic insert, so a no-payslip name can never exist — even for one
-          // round-trip — with nothing saying how its income is worked out.
-          ...(v.surrogateProductKey !== '' ? { surrogateProductKey: v.surrogateProductKey } : {}),
+          // No income basis and no product link: the only type this form still CREATES
+          // that has either axis is `program_name`, and that moved to its own screen.
           // Sent only for a type that HAS a parent axis, and only when one was picked — an
           // empty string is "unfiled", not a key.
           ...(this.parentType !== null && v.parentKey !== '' ? { parentKey: v.parentKey } : {}),

@@ -29,3 +29,22 @@ export const PRODUCT_BASE = `${CATALOG_BASE}/products`;
 export function surrogateBoardLink(): { commands: string[]; queryParams: Params } {
   return { commands: [CATALOG_BASE], queryParams: { basis: 'no_payslip' } };
 }
+
+/**
+ * The one screen that adds a catalog name, whichever income basis it is sold on.
+ *
+ * A literal segment, so it MUST be declared before the single-segment `:key` in
+ * `program-catalog.routes.ts` — below it, `new` resolves as a catalog name of that key.
+ */
+export const CATALOG_NEW = `${CATALOG_BASE}/new`;
+
+/**
+ * Where a freshly created name lands: its own page, at "Where it is offered".
+ *
+ * Step 2 rather than step 1 because a new name is PARKED (`categories: []`), which is the
+ * only step of that rail reading `invalid` on a fresh row — so the flow ends on the next
+ * decision rather than on the list it was started from.
+ */
+export function newNameLanding(key: string): { commands: string[]; queryParams: Params } {
+  return { commands: [CATALOG_BASE, key], queryParams: { step: 2 } };
+}

@@ -524,13 +524,13 @@
       <trans-unit id="lookups.dialog.titleEdit" datatype="html"><source>Edit value</source><target>تعديل القيمة</target></trans-unit>
       <trans-unit id="lookups.dialog.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
       <trans-unit id="lookups.field.labelEn" datatype="html"><source>Label (English)</source><target>التسمية (الإنجليزية)</target></trans-unit>
+      <trans-unit id="lookups.field.labelEnglish" datatype="html"><source>English label</source><target>التسمية بالإنجليزية</target></trans-unit>
       <trans-unit id="lookups.field.labelAr" datatype="html"><source>Label (Arabic)</source><target>التسمية (العربية)</target></trans-unit>
       <trans-unit id="lookups.example.fallback.en" datatype="html"><source>e.g. Salaried employee</source><target>مثال: موظف براتب</target></trans-unit>
       <trans-unit id="lookups.example.fallback.ar" datatype="html"><source>مثال: موظف براتب</source><target>مثال: موظف براتب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrder" datatype="html"><source>Sort order</source><target>الترتيب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrderHint" datatype="html"><source>controls the order in dropdowns</source><target>يتحكم في ترتيب العناصر في القوائم المنسدلة</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis" datatype="html"><source>How do banks prove the income?</source><target>كيف تثبت البنوك الدخل؟</target></trans-unit>
-      <trans-unit id="lookups.field.incomeBasis.note" datatype="html"><source>This name starts offered under no loan type — pick them on its own page, and this answer applies to each one you turn on.</source><target>يبدأ هذا الاسم غير معروض تحت أي نوع تمويل — اخترها من صفحته الخاصة، وينطبق هذا الاختيار على كل نوع تُفعِّله.</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis.noteEdit" datatype="html"><source>Applies to every loan type this name is offered under (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>).</source><target>ينطبق على كل أنواع التمويل المعروض تحتها هذا الاسم (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>).</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis.parked" datatype="html"><source>This name isn’t offered under any loan type yet, so there’s nothing to sell it against. Pick its loan types on the name’s own page first.</source><target>هذا الاسم غير معروض تحت أي نوع تمويل بعد، فلا يوجد ما يُباع عليه. اختر أنواع التمويل من صفحة الاسم أولًا.</target></trans-unit>
       <trans-unit id="lookups.list.separator" datatype="html"><source>, </source><target>، </target></trans-unit>
@@ -825,7 +825,6 @@
       <trans-unit id="program_catalog.stat.total.hint" datatype="html"><source>across all loan types</source><target>في كل أنواع التمويل</target></trans-unit>
       <trans-unit id="program_catalog.stat.active" datatype="html"><source>Active</source><target>مفعّل</target></trans-unit>
       <trans-unit id="program_catalog.search" datatype="html"><source>Search program names…</source><target>ابحث في أسماء البرامج…</target></trans-unit>
-      <trans-unit id="program_catalog.add" datatype="html"><source>Add program</source><target>إضافة برنامج</target></trans-unit>
       <trans-unit id="program_catalog.no_matches" datatype="html"><source>No programs match “<x id="INTERPOLATION" equiv-text="search()"/>”.</source><target>لا توجد برامج مطابقة لـ «<x id="INTERPOLATION" equiv-text="search()"/>».</target></trans-unit>
       <trans-unit id="program_catalog.empty" datatype="html"><source>No programs here yet — add the first one.</source><target>لا توجد برامج هنا بعد — أضف أول برنامج.</target></trans-unit>
       <trans-unit id="program_catalog.status.inactive" datatype="html"><source>Inactive</source><target>غير مفعّل</target></trans-unit>
@@ -843,7 +842,7 @@
       <trans-unit id="program_catalog.delete.blocked.title" datatype="html"><source>This name is still in use</source><target>هذا الاسم ما زال مستخدمًا</target></trans-unit>
       <trans-unit id="program_catalog.delete.blocked.body" datatype="html"><source><x id="PROGRAMS" equiv-text="inUse"/> bank programs use <x id="NAME" equiv-text="this.nameOf(row)"/>, so it cannot be deleted. Switch it off instead — it leaves the picker and every saved program keeps working.</source><target>يستخدم <x id="PROGRAMS" equiv-text="inUse"/> برنامج بنكي الاسم <x id="NAME" equiv-text="this.nameOf(row)"/>، لذا لا يمكن حذفه. أوقف تفعيله بدلاً من ذلك — سيختفي من قائمة الاختيار وتظل كل البرامج المحفوظة تعمل.</target></trans-unit>
       <trans-unit id="program_catalog.delete.blocked.ok" datatype="html"><source>Got it</source><target>حسنًا</target></trans-unit>
-      <trans-unit id="program_catalog.dialog.add" datatype="html"><source>Add program name</source><target>إضافة اسم برنامج</target></trans-unit>
+      <trans-unit id="program_catalog.dialog.add" datatype="html"><source>Add program</source><target>إضافة برنامج</target></trans-unit>
       <trans-unit id="program_catalog.dialog.edit" datatype="html"><source>Edit program name</source><target>تعديل اسم برنامج</target></trans-unit>
 
       <!-- Program catalog — list card + health panel -->
@@ -2682,6 +2681,7 @@
       <trans-unit id="fd.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
       <trans-unit id="fd.close" datatype="html"><source>Close</source><target>إغلاق</target></trans-unit>
       <trans-unit id="fp.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
+      <trans-unit id="fp.prev" datatype="html"><source>Previous</source><target>السابق</target></trans-unit>
       <trans-unit id="lookups.drawer.create" datatype="html"><source>Add value</source><target>أضف القيمة</target></trans-unit>
       <trans-unit id="lookups.drawer.subCreate" datatype="html"><source>Adds one option to this list, ready to be picked wherever the list is used.</source><target>يضيف خيارًا واحدًا إلى هذه القائمة، جاهزًا للاختيار في كل مكان تُستخدم فيه القائمة.</target></trans-unit>
       <trans-unit id="lookups.drawer.subEdit" datatype="html"><source>Renames it everywhere it is already used. Its key never changes.</source><target>يعيد تسميته في كل مكان يُستخدم فيه بالفعل. أما مفتاحه فلا يتغير أبدًا.</target></trans-unit>
@@ -2691,7 +2691,6 @@
       <trans-unit id="banks.form.subCreate" datatype="html"><source>Registers the partner. Its loan programs are added afterwards, from the bank's own page.</source><target>يسجّل البنك الشريك. أما برامج التمويل فتُضاف بعد ذلك من صفحة البنك نفسه.</target></trans-unit>
       <trans-unit id="banks.form.subEdit" datatype="html"><source>Updates the partner's details everywhere its programs and offers are shown.</source><target>يحدّث بيانات البنك في كل مكان تظهر فيه برامجه وعروضه.</target></trans-unit>
       <trans-unit id="banks.form.create" datatype="html"><source>Create bank</source><target>أنشئ البنك</target></trans-unit>
-      <trans-unit id="program_catalog.dialog.add_sub" datatype="html"><source>A catalog name banks file their programs under. It starts offered under no loan type — pick those on its own page.</source><target>اسم في الكتالوج تُسجَّل تحته البنوك برامجها. يبدأ غير معروض تحت أي نوع تمويل — اختر الأنواع من صفحته.</target></trans-unit>
       <trans-unit id="program_catalog.dialog.edit_sub" datatype="html"><source>Renames the name everywhere banks already use it, and restates what it is sold against.</source><target>يعيد تسمية الاسم في كل مكان تستخدمه فيه البنوك بالفعل، ويحدّد من جديد ما يُباع مقابله.</target></trans-unit>
       <trans-unit id="pfd.eyebrow" datatype="html"><source>Surrogate product</source><target>منتج بديل</target></trans-unit>
       <trans-unit id="pfd.hint" datatype="html"><source>Saves the list, its answers, the question and the fact — in that order.</source><target>يحفظ القائمة وقيمها والسؤال والحقيقة — بهذا الترتيب.</target></trans-unit>
@@ -2699,7 +2698,7 @@
       <trans-unit id="pnq.eyebrow" datatype="html"><source>Question pool</source><target>بنك الأسئلة</target></trans-unit>
       <trans-unit id="pnq.subtitle" datatype="html"><source>Written into the one shared question pool, then offered to “<x id="name" equiv-text="label"/>” to score on.</source><target>يُكتب في بنك الأسئلة المشترك الواحد، ثم يُعرض على «<x id="name" equiv-text="label"/>» ليُقيّم عليه.</target></trans-unit>
       <trans-unit id="pnq.tick_unnamed" datatype="html"><source>Also score this catalog name on it</source><target>قيّم اسم الكتالوج هذا عليه أيضًا</target></trans-unit>
-      <trans-unit id="program_catalog.dialog.add_cta" datatype="html"><source>Add program name</source><target>أضف اسم البرنامج</target></trans-unit>
+      <trans-unit id="program_catalog.dialog.add_cta" datatype="html"><source>Add program</source><target>أضف برنامج</target></trans-unit>
     
       <!-- The friendly form for a no-payslip product: the shape picker, the three
            questions, and the product page's doors into them. -->
@@ -2710,8 +2709,6 @@
       <trans-unit id="bank_programs.employment.retired" datatype="html"><source>Retired</source><target>متقاعد</target></trans-unit>
       <trans-unit id="spt.back" datatype="html"><source>Surrogate products</source><target>المنتجات البديلة</target></trans-unit>
       <trans-unit id="spt.pick_first" datatype="html"><source>Pick how the income is worked out to carry on.</source><target>اختر طريقة حساب الدخل للمتابعة.</target></trans-unit>
-      <trans-unit id="spt.pick_next" datatype="html"><source>Next you will name the product. You can change the shape afterwards.</source><target>بعدها ستسمّي المنتج. يمكنك تغيير الشكل لاحقًا.</target></trans-unit>
-      <trans-unit id="spt.continue" datatype="html"><source>Name this product</source><target>سمِّ هذا المنتج</target></trans-unit>
       <trans-unit id="spt.eyebrow" datatype="html"><source>New surrogate product</source><target>منتج بديل جديد</target></trans-unit>
       <trans-unit id="spt.title" datatype="html"><source>How does the bank work the income out?</source><target>كيف يحسب البنك الدخل؟</target></trans-unit>
       <trans-unit id="spt.subtitle" datatype="html"><source>Pick the shape this product follows. Every bank selling it fills in its own figures later — the shape is what they have in common.</source><target>اختر الشكل الذي يتبعه هذا المنتج. كل بنك يبيعه يملأ أرقامه لاحقًا، والشكل هو ما يشتركون فيه.</target></trans-unit>
@@ -2838,7 +2835,6 @@
       <trans-unit id="spd.structure.hidden" datatype="html"><source>The steps behind this calculation are hidden. Change it from the form above — the list further down says what it works out, in words.</source><target>خطوات هذا الحساب مخفية. غيّره من النموذج فوق — والقائمة بالأسفل تقول ما يحسبه بالكلمات.</target></trans-unit>
       <trans-unit id="spd.structure.reveal" datatype="html"><source>Show the raw steps</source><target>أظهِر الخطوات الخام</target></trans-unit>
       <trans-unit id="spd.save_blocked" datatype="html"><source>Some steps have no figures yet, or a step offering several ways to reach the figure has none of them filled in. The save would be refused.</source><target>بعض الخطوات بلا أرقام بعد، أو خطوة تقدّم عدة طرق للوصول إلى الرقم لم تُملأ أي منها. سيُرفض الحفظ.</target></trans-unit>
-      <trans-unit id="sp.new2" datatype="html"><source>New surrogate product</source><target>منتج بديل جديد</target></trans-unit>
           <trans-unit id="bank_programs.income.missing_rows_many" datatype="html">
         <source><x id="COUNT" equiv-text="missing.length"/> rows are missing — <x id="NAMES" equiv-text="names"/>. Anyone whose answer falls in one of them gets no figures, not a zero.</source>
         <target>تنقص <x id="COUNT" equiv-text="missing.length"/> صفوف — <x id="NAMES" equiv-text="names"/>. من تقع إجابته في أحدها لن يحصل على أرقام، وليس صفرًا.</target>
@@ -3581,6 +3577,85 @@
       <trans-unit id="program_catalog.product.usage" datatype="html"><source><x id="PROGRAMS" equiv-text="c.programs"/> programs quote from this</source><target><x id="PROGRAMS" equiv-text="c.programs"/> برامج تُسعِّر من هذه</target></trans-unit>
       <trans-unit id="program_catalog.product.open" datatype="html"><source>Set up <x id="NAME" equiv-text="this.productName(c)"/></source><target>إعداد <x id="NAME" equiv-text="this.productName(c)"/></target></trans-unit>
       <trans-unit id="program_catalog.product.unquoted" datatype="html"><source>No bank quotes from it yet</source><target>لا يوجد بنك يُسعِّر منها بعد</target></trans-unit>
+
+      <!-- Add a program name — one create flow for both income bases -->
+      <trans-unit id="pcn.next" datatype="html"><source>Next</source><target>التالي</target></trans-unit>
+      <trans-unit id="pcn.next_hint" datatype="html"><source>Next: <x id="STEP" equiv-text="label"/></source><target>التالي: <x id="STEP" equiv-text="label"/></target></trans-unit>
+      <trans-unit id="pcn.eyebrow" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
+      <trans-unit id="pcn.subtitle" datatype="html"><source>A catalog name banks file their programs under. It starts offered under no loan type — you pick those next, on its own page.</source><target>اسم في الكتالوج تُدرِج البنوك برامجها تحته. يبدأ غير معروض تحت أي نوع تمويل — تختارها بعد ذلك من صفحته الخاصة.</target></trans-unit>
+      <trans-unit id="pcn.back" datatype="html"><source>Back to the catalog</source><target>العودة إلى الكتالوج</target></trans-unit>
+      <trans-unit id="pcn.steps_aria" datatype="html"><source>Adding a program name</source><target>إضافة اسم برنامج</target></trans-unit>
+      <trans-unit id="pcn.step_name" datatype="html"><source>What it is called</source><target>ما اسمه</target></trans-unit>
+      <trans-unit id="pcn.basis_read" datatype="html"><source>Program type</source><target>نوع البرنامج</target></trans-unit>
+      <trans-unit id="pcn.step_basis" datatype="html"><source>How the income is proved</source><target>كيف يُثبَت الدخل</target></trans-unit>
+      <trans-unit id="pcn.step_source" datatype="html"><source>Where the figure comes from</source><target>من أين يأتي الرقم</target></trans-unit>
+      <trans-unit id="pcn.cap_name" datatype="html"><source>Both languages. The customer app shows the one they read.</source><target>باللغتين. يعرض تطبيق العميل اللغة التي يقرأ بها.</target></trans-unit>
+      <trans-unit id="pcn.cap_basis" datatype="html"><source>It can be changed later, on the name’s own page.</source><target>يمكن تغييره لاحقًا من صفحة الاسم الخاصة.</target></trans-unit>
+      <trans-unit id="pcn.cap_source_payslip" datatype="html"><source>Nothing to set — the bank reads the salary it is paid.</source><target>لا شيء لضبطه — يقرأ البنك الراتب المُحوَّل إليه.</target></trans-unit>
+      <trans-unit id="pcn.cap_source_surrogate" datatype="html"><source>The calculation every bank filing under this name will quote from.</source><target>طريقة الحساب التي سيُسعِّر منها كل بنك يُدرِج برنامجه تحت هذا الاسم.</target></trans-unit>
+      <trans-unit id="pcn.name_h" datatype="html"><source>What is this program called?</source><target>ما اسم هذا البرنامج؟</target></trans-unit>
+      <trans-unit id="pcn.key_preview" datatype="html"><source>Filed under</source><target>مُدرَج تحت</target></trans-unit>
+      <trans-unit id="pcn.eg_en" datatype="html"><source>e.g. Doctors — Practice</source><target>مثال: أطباء — عيادة</target></trans-unit>
+      <trans-unit id="pcn.eg_ar" datatype="html"><source>مثال: أطباء — عيادة</source><target>مثال: أطباء — عيادة</target></trans-unit>
+      <trans-unit id="pcn.basis_h" datatype="html"><source>How does the bank prove the income?</source><target>كيف يُثبِت البنك الدخل؟</target></trans-unit>
+      <trans-unit id="pcn.basis_aria" datatype="html"><source>How the bank proves the income</source><target>كيف يُثبِت البنك الدخل</target></trans-unit>
+      <trans-unit id="pcn.effect_payslip" datatype="html"><source>Pick this and the name is sold against a salary the bank can see. Name it next, and the last step has nothing to set.</source><target>اختر هذا فيُباع الاسم مقابل راتب يراه البنك. سمِّه في الخطوة التالية، ولا شيء لضبطه في الخطوة الأخيرة.</target></trans-unit>
+      <trans-unit id="pcn.effect_no_payslip" datatype="html"><source>Pick this and the last step asks which calculation the name quotes from — one that exists, or a new one you start here.</source><target>اختر هذا فتسألك الخطوة الأخيرة عن طريقة الحساب التي يُسعِّر منها الاسم — طريقة موجودة، أو جديدة تبدأها هنا.</target></trans-unit>
+      <trans-unit id="pcn.src_payslip_h" datatype="html"><source>The payslip itself</source><target>كشف الراتب نفسه</target></trans-unit>
+      <trans-unit id="pcn.src_payslip_body" datatype="html"><source>Every bank filing a program under this name reads the salary paid into the account. There is nothing to set here.</source><target>كل بنك يُدرِج برنامجًا تحت هذا الاسم يقرأ الراتب المُحوَّل إلى الحساب. لا شيء لضبطه هنا.</target></trans-unit>
+      <trans-unit id="pcn.src_h" datatype="html"><source>Which calculation does it quote from?</source><target>من أي طريقة حساب يُسعِّر؟</target></trans-unit>
+      <trans-unit id="pcn.modes_aria" datatype="html"><source>Use an existing calculation or start a new one</source><target>استخدام طريقة حساب موجودة أو بدء طريقة جديدة</target></trans-unit>
+      <trans-unit id="pcn.picks_aria" datatype="html"><source>Calculations already on the platform</source><target>طرق الحساب الموجودة على المنصة</target></trans-unit>
+      <trans-unit id="pcn.src_mode_pick" datatype="html"><source>Use one that exists</source><target>استخدام طريقة موجودة</target></trans-unit>
+      <trans-unit id="pcn.src_mode_make" datatype="html"><source>Start a new one</source><target>بدء طريقة جديدة</target></trans-unit>
+      <trans-unit id="pcn.src_none" datatype="html"><source>No calculation exists yet — this is the first one.</source><target>لا توجد طريقة حساب بعد — هذه هي الأولى.</target></trans-unit>
+      <trans-unit id="pcn.product_unused" datatype="html"><source>No name sells this yet</source><target>لا يوجد اسم يبيع هذه بعد</target></trans-unit>
+      <trans-unit id="pcn.make_name_h" datatype="html"><source>What is the calculation called?</source><target>ما اسم طريقة الحساب؟</target></trans-unit>
+      <trans-unit id="pcn.make_name_sub" datatype="html"><source>Operators filing programs under this name will look for it by these words. Its figures come next.</source><target>سيبحث عنها المُشغِّلون الذين يُدرِجون برامج تحت هذا الاسم بهذه الكلمات. تأتي أرقامها بعد ذلك.</target></trans-unit>
+      <trans-unit id="pcn.block_name" datatype="html"><source>Give it a name in both languages.</source><target>اكتب له اسمًا باللغتين.</target></trans-unit>
+      <trans-unit id="pcn.block_name_latin" datatype="html"><source>The English name needs at least one letter or digit — it becomes the key.</source><target>يحتاج الاسم الإنجليزي إلى حرف أو رقم واحد على الأقل — فهو يصير المفتاح.</target></trans-unit>
+      <trans-unit id="pcn.block_basis" datatype="html"><source>Say how the income is proved.</source><target>حدِّد كيف يُثبَت الدخل.</target></trans-unit>
+      <trans-unit id="pcn.block_product" datatype="html"><source>Pick the calculation this name quotes from.</source><target>اختر طريقة الحساب التي يُسعِّر منها هذا الاسم.</target></trans-unit>
+      <trans-unit id="pcn.block_shape" datatype="html"><source>Pick a shape for the new calculation.</source><target>اختر شكل طريقة الحساب الجديدة.</target></trans-unit>
+      <trans-unit id="pcn.block_product_name" datatype="html"><source>Name the new calculation in both languages.</source><target>اكتب اسم طريقة الحساب الجديدة باللغتين.</target></trans-unit>
+      <trans-unit id="spt.back_name" datatype="html"><source>Back to the program name</source><target>العودة إلى اسم البرنامج</target></trans-unit>
+      <trans-unit id="spt.back_product" datatype="html"><source>Back to the product</source><target>العودة إلى المنتج</target></trans-unit>
+      <trans-unit id="spt.block_name" datatype="html"><source>Name it in both languages.</source><target>اكتب له اسمًا باللغتين.</target></trans-unit>
+      <trans-unit id="spt.hint_next" datatype="html"><source>Creates the product, then opens its figures to fill in.</source><target>يُنشئ المنتج ثم يفتح أرقامه لتعبئتها.</target></trans-unit>
+      <trans-unit id="pcn.recovered" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="{{ madeLabel() }}"/>” was already created. Saving again finishes the name — it will not be created twice.</source><target>«<x id="INTERPOLATION" equiv-text="{{ madeLabel() }}"/>» أُنشئت بالفعل. الحفظ مرة أخرى يُكمل الاسم — ولن تُنشأ مرتين.</target></trans-unit>
+      <trans-unit id="pcn.product_used_by" datatype="html"><source>Used by <x id="COUNT" equiv-text="row.usedBy.length"/> names</source><target>يستخدمها <x id="COUNT" equiv-text="row.usedBy.length"/> من الأسماء</target></trans-unit>
+      <trans-unit id="pcn.summary_payslip" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, sold against a payslip.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُباعًا مقابل كشف راتب.</target></trans-unit>
+      <trans-unit id="pcn.summary_link" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, quoting from “<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>”.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُسعِّرًا من «<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>».</target></trans-unit>
+      <trans-unit id="pcn.summary_make" datatype="html"><source>Creates “<x id="PRODUCT" equiv-text="plan.product.labelEn"/>”, then “<x id="NAME" equiv-text="name"/>” linked to it, and opens the calculation to fill in.</source><target>يُنشئ «<x id="PRODUCT" equiv-text="plan.product.labelEn"/>»، ثم «<x id="NAME" equiv-text="name"/>» مرتبطًا بها، ويفتح طريقة الحساب لتعبئتها.</target></trans-unit>
+      <trans-unit id="bank_programs.form.max_by_answer" datatype="html"><source> Maximum by answer </source><target>الحد الأقصى حسب الإجابة</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.enable" datatype="html"><source>Cap the maximum by an answer</source><target>تحديد الحد الأقصى حسب إجابة</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.enable_hint" datatype="html"><source> For a sheet that prints a second table under “Loan Amount — Maximum” — by property type, city, school, branch, or a down-payment bracket. </source><target>لورقة تطبع جدولًا ثانيًا تحت «مبلغ القرض — الحد الأقصى» — حسب نوع الوحدة أو المدينة أو المدرسة أو الفرع أو شريحة المقدَّم.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.keyed_by" datatype="html"><source>Keyed by</source><target>مبني على</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.second_column" datatype="html"><source>Second column</source><target>عمود ثانٍ</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.no_second_column" datatype="html"><source>One column</source><target>عمود واحد</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.band" datatype="html"><source>From … up to (not including)</source><target>من … حتى (غير شاملة)</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.answer" datatype="html"><source>Answer</source><target>الإجابة</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.column" datatype="html"><source>Column</source><target>العمود</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.max" datatype="html"><source>Maximum loan</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.open_ended" datatype="html"><source>and above</source><target>فأكثر</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.every_column" datatype="html"><source>Every column</source><target>كل الأعمدة</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.remove_row" datatype="html"><source>Remove this row</source><target>حذف هذا الصف</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.add_row" datatype="html"><source>Add a row</source><target>إضافة صف</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.remove_table" datatype="html"><source>Remove the table</source><target>حذف الجدول</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.half_open" datatype="html"><source> Bands are half-open: “from” counts, “up to” does not. Exactly 500,000 lands in the 500,000 → 1,000,000 row. </source><target>الشرائح نصف مفتوحة: «من» محسوبة و«حتى» غير محسوبة. الرقم 500,000 بالضبط يقع في صف 500,000 ← 1,000,000.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.no_match" datatype="html"><source>An answer with no row</source><target>إجابة بلا صف</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.use_program_max" datatype="html"><source>Falls back to this program’s maximum</source><target>ترجع إلى الحد الأقصى لهذا البرنامج</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.reject" datatype="html"><source>Gets no figures, with a stated reason</source><target>لا تظهر لها أرقام، مع ذكر السبب</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.no_match_hint" datatype="html"><source> There is no third option on purpose. “No cap” would quote above the bank’s policy and “cap zero” is a blank card, so one of these two has to be the bank’s answer. </source><target>لا يوجد خيار ثالث عن قصد. «بلا حد» سيعرض مبلغًا أعلى من سياسة البنك، و«حد صفر» يعني بطاقة فارغة، لذا لا بد أن يكون أحد هذين هو جواب البنك.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.bank_relationship" datatype="html"><source>Already banks here</source><target>يتعامل مع البنك بالفعل</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.ntb" datatype="html"><source>New to this bank</source><target>عميل جديد على هذا البنك</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.xsell" datatype="html"><source>Already banks here</source><target>يتعامل مع البنك بالفعل</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.err_no_rows" datatype="html"><source>This table has no rows, so it caps nobody. Add a row or remove the table.</source><target>هذا الجدول بلا صفوف، فلا يحدّ أحدًا. أضف صفًا أو احذف الجدول.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.err_row_missing_key" datatype="html"><source>One row states no answer, so nothing can match it.</source><target>أحد الصفوف بلا إجابة، فلا شيء يمكن أن يطابقه.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.err_duplicate" datatype="html"><source>Two rows state the same answer. The second one would never be read.</source><target>صفّان يذكران الإجابة نفسها. الصف الثاني لن يُقرأ أبدًا.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.err_amount" datatype="html"><source>Every row needs a maximum above zero. A zero would be a blank card, not a cap.</source><target>كل صف يحتاج حدًا أقصى أكبر من صفر. الصفر يعني بطاقة فارغة لا حدًا.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.err_gap" datatype="html"><source>There is a gap between two bands. An answer that falls in it matches no row.</source><target>توجد فجوة بين شريحتين. الإجابة التي تقع فيها لا تطابق أي صف.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.err_overlap" datatype="html"><source>Two bands overlap. The first one written would silently win.</source><target>شريحتان متداخلتان. الأولى المكتوبة ستفوز بصمت.</target></trans-unit>
     </body>
   </file>
 </xliff>

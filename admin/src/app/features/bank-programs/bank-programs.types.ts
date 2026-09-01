@@ -39,6 +39,26 @@ export interface LoanLimitsConfig {
   minDownPaymentPercent?: string;
   qualitativeReviewMaxEGP?: string;
   otherCitiesMaxEGP?: string;
+  /**
+   * The program's maximum loan keyed by an answer — the second table nine bank sheets print
+   * under "Loan Amount — Maximum". The general form of the three fixed `maxBy…` axes above,
+   * which cannot reach a city, a school type, a branch or a company coding.
+   *
+   * Shape mirrors the backend `MaxLoanByFactConfig`; the editor owns the type
+   * (`shared/ui/max-loan-by-fact-editor.component.ts`) and this is the wire echo of it.
+   */
+  maxLoanByFact?: {
+    factKey: string;
+    columnFactKey?: string;
+    rows: Array<{
+      rowKey?: string;
+      fromInclusive?: string;
+      toExclusive?: string | null;
+      columnKey?: string;
+      maxAmountEGP: string;
+    }>;
+    onNoMatch: 'useProgramMax' | 'reject';
+  };
 }
 
 export interface PricingConfig {

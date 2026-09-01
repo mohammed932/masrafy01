@@ -65,7 +65,7 @@ import {
   type BasisFilter,
   type ProductCard,
 } from './catalog-board';
-import { CATALOG_BASE, PRODUCT_BASE } from './program-catalog.paths';
+import { CATALOG_BASE, CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
 
 const ENUM_TYPE = 'program_name';
 
@@ -205,20 +205,28 @@ const PARKED_NAMES_SHOWN = 6;
           <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
         </ng-template>
         <span class="toolbar-spacer"></span>
-        <!-- The button matches the list under it. On the Surrogate side "Add program name"
-             would open a form for the OTHER kind of object on the screen, which is the one
-             mistake this merge could introduce. -->
-        @if (basisFilter() === 'no_payslip') {
-          <a nz-button nzType="primary" class="add-btn" [routerLink]="newProductLink">
-            <span nz-icon nzType="plus" nzTheme="outline"></span>
-            <span i18n="@@sp.new2">New surrogate product</span>
-          </a>
-        } @else {
-          <button nz-button nzType="primary" class="add-btn" (click)="add()">
-            <span nz-icon nzType="plus" nzTheme="outline"></span>
-            <span i18n="@@program_catalog.add">Add program</span>
-          </button>
-        }
+        <!-- ONE action, on every chip, and it names the errand rather than the object.
+             It used to change WHICH KIND OF OBJECT it made depending on the filter — a name
+             on two chips, a surrogate product on the third — so the same button in the same
+             place did two different things and neither was discoverable from the other. Then
+             both survived side by side, which only moved the choice earlier: the operator had
+             to know before clicking which of two internal words ("name" / "surrogate
+             product") described what they came to do.
+
+             Adding a program covers both bases now, and the chip only decides which answer
+             the flow opens on. A CALCULATION is not a second capability: step 3 of that flow
+             starts one from a shape, and the two product screens keep their own links to the
+             picker for the rarer errand of making one that no name sells yet. -->
+        <a
+          nz-button
+          nzType="primary"
+          class="add-btn"
+          [routerLink]="newNameLink().commands"
+          [queryParams]="newNameLink().queryParams"
+        >
+          <span nz-icon nzType="plus" nzTheme="outline"></span>
+          <span i18n="@@program_catalog.dialog.add">Add program</span>
+        </a>
       </div>
 
       @if (loading()) {
@@ -1208,7 +1216,20 @@ export class ProgramCatalogPage implements OnInit {
 
   protected readonly catalogBase = CATALOG_BASE;
   protected readonly productBase = PRODUCT_BASE;
-  protected readonly newProductLink = `${PRODUCT_BASE}/new`;
+
+  /**
+   * Add a program name, opening on the basis the operator is standing in front of.
+   *
+   * The chip seeds the answer rather than deciding it: `all` has no opinion and sends none,
+   * so the create screen asks. That is what lets ONE button serve both sides of the board.
+   */
+  protected readonly newNameLink = computed(() => {
+    const basis = this.basisFilter();
+    return {
+      commands: [CATALOG_NEW],
+      queryParams: basis === 'all' ? {} : { basis },
+    };
+  });
 
   /** Fixed-length placeholders for the shape-matched loading skeleton. */
   protected readonly skeletonCards = [0, 1, 2, 3, 4, 5];
@@ -1362,12 +1383,8 @@ export class ProgramCatalogPage implements OnInit {
     void this.reload();
   }
 
-  add(): void {
-    this.openDrawer({ mode: 'create', type: ENUM_TYPE });
-  }
-
   edit(row: EnumerationRow): void {
-    this.openDrawer({ mode: 'edit', type: ENUM_TYPE, row });
+    this.openDrawer(row);
   }
 
   // --- Card meta ------------------------------------------------------------
@@ -1536,26 +1553,26 @@ export class ProgramCatalogPage implements OnInit {
     this.rows.update((list) => list.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
-  /** Side sheet: the board keeps its counts on screen while a name is written. */
-  private openDrawer(data: EnumerationEditDrawerData): void {
+  /**
+   * EDIT only — the side sheet keeps the board's counts on screen while a name is renamed.
+   *
+   * Creating moved to a screen of its own (`/program-catalog/new`): the create form branches
+   * on the income basis and, on one branch, grows a seven-card shape picker and a second
+   * object's name, which is well past what a sheet holds. Editing did not move — it is a
+   * bounded set of fields, and the list it is edited against is worth keeping in view.
+   */
+  private openDrawer(row: EnumerationRow): void {
     const ref = openFormDrawer<EnumerationEditDrawerComponent, EnumerationEditDrawerData, boolean>(
       this.drawer,
       {
         content: EnumerationEditDrawerComponent,
         data: {
-          ...data,
-          title:
-            data.mode === 'create'
-              ? $localize`:@@program_catalog.dialog.add:Add program name`
-              : $localize`:@@program_catalog.dialog.edit:Edit program name`,
-          submitLabel:
-            data.mode === 'create'
-              ? $localize`:@@program_catalog.dialog.add_cta:Add program name`
-              : $localize`:@@lookups.dialog.save:Save`,
-          subtitle:
-            data.mode === 'create'
-              ? $localize`:@@program_catalog.dialog.add_sub:A catalog name banks file their programs under. It starts offered under no loan type — pick those on its own page.`
-              : $localize`:@@program_catalog.dialog.edit_sub:Renames the name everywhere banks already use it, and restates what it is sold against.`,
+          mode: 'edit',
+          type: ENUM_TYPE,
+          row,
+          title: $localize`:@@program_catalog.dialog.edit:Edit program name`,
+          submitLabel: $localize`:@@lookups.dialog.save:Save`,
+          subtitle: $localize`:@@program_catalog.dialog.edit_sub:Renames the name everywhere banks already use it, and restates what it is sold against.`,
         },
       },
     );

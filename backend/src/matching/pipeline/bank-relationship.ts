@@ -25,7 +25,7 @@
  * renamed in one place cannot quietly stop matching in the other.
  */
 
-import type { SurrogateFactValue } from '../types';
+import type { ApplicantProfile, SurrogateFactValue } from '../types';
 
 /** The fact key a rule names, and the question whose answer feeds it. */
 export const BANK_RELATIONSHIP_FACT_KEY = 'bank_relationship';
@@ -76,5 +76,32 @@ export function bankRelationshipFact(
   return {
     kind: 'choice',
     optionCode: chosenSlugs.includes(slug) ? BANK_RELATIONSHIP_EXISTING : BANK_RELATIONSHIP_NEW,
+  };
+}
+
+/**
+ * Every fact this program may read — the applicant's stored answers, plus the facts the
+ * platform derives per program.
+ *
+ * ONE builder, because two callers now need the same map: the income resolver, which runs a
+ * product rule against it, and `quoteProgram`, which reads it for the program's own cap
+ * table (`loanLimits.maxLoanByFact`). Two hand-built maps would be two chances for the same
+ * applicant to read one column in the income table and the other column in the cap table.
+ *
+ * Derived FIRST so a stored answer wins a collision. For a real applicant there can be no
+ * collision — `surrogateFactsFromAnswers` refuses to emit a derived key — and the one caller
+ * that supplies facts directly is the admin's rule-check panel, where the operator is
+ * deliberately naming the case they want to see.
+ */
+export function factsForProgram(args: {
+  profile: Pick<ApplicantProfile, 'surrogateFacts' | 'bankRelationshipSlugs'>;
+  programBankName?: string;
+}): Readonly<Record<string, SurrogateFactValue>> {
+  return {
+    [BANK_RELATIONSHIP_FACT_KEY]: bankRelationshipFact(
+      args.programBankName,
+      args.profile.bankRelationshipSlugs,
+    ),
+    ...(args.profile.surrogateFacts ?? {}),
   };
 }

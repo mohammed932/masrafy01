@@ -533,6 +533,15 @@ export const ERROR_CODES = {
   /** Per-rule DBR override outside (0, 100] (FR-012). */
   INCOME_RULE_DBR_OVERRIDE_INVALID: 'INCOME_RULE_DBR_OVERRIDE_INVALID',
   /**
+   * The program's maximum-loan table (`loanLimits.maxLoanByFact`) cannot be read — an
+   * unknown fact, rows keyed the wrong way for that fact's type, an option code the
+   * question does not offer, a repeated cell, or bands that gap or overlap.
+   *
+   * A refusal and not a warning: every one of those makes the table match nothing, so it
+   * would read as configured on the screen and cap nobody at runtime.
+   */
+  MAX_LOAN_BY_FACT_INVALID: 'MAX_LOAN_BY_FACT_INVALID',
+  /**
    * The rule reads a `fact:<key>` that the registry cannot serve — no such fact, it
    * was deactivated, or its question was deleted / deactivated / changed to a type no
    * table can be keyed by.
@@ -916,6 +925,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   INDICATIVE_ESTIMATE_NOT_AN_OFFER: 200,
 
   INCOME_RULE_EMPTY: 422,
+  MAX_LOAN_BY_FACT_INVALID: 422,
   INCOME_RULE_INCOME_INVALID: 422,
   INCOME_RULE_DUPLICATE_KEY: 422,
   INCOME_RULE_UNKNOWN_KEY: 422,

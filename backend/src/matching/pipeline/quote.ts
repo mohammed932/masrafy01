@@ -41,6 +41,9 @@ import { calculateFees } from './fees';
 import { calculateEffectiveLoanAmount, calculateMonthlyInstallment } from './pmt';
 import { calculateDbr, calculateMaxLoanFromDbr, resolveDbrCap } from './dbr';
 import { ceilingToIncome } from './product-rule-ceiling';
+import { factsForProgram } from './bank-relationship';
+import { resolveMaxLoanByFact } from './max-loan-by-fact';
+import { applyMaxLoanAdjustments } from './max-loan-adjustments';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -96,6 +99,12 @@ const BINDING_PRECEDENCE: Record<BindingConstraint, number> = {
   // specific of the two amount ceilings ("the program would lend more, this unit will
   // not carry more"), but if affordability then cut it further, that is the headline.
   collateral_ceiling: 5,
+  /**
+   * Beside `collateral_ceiling`, above `program_max`: both are the specific statement
+   * "the program would lend more, THIS row does not". Below the collateral ceiling only
+   * because a ceiling the applicant's own unit imposes is the more surprising of the two.
+   */
+  program_max_by_fact: 5,
   program_max: 4,
   age_at_maturity: 3,
   tenor_max: 2,
@@ -315,7 +324,62 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   //
   // The rate used is the CASCADE rate, not the fee-penalty-adjusted one: the ceiling is a
   // credit-policy figure the bank set before anyone elected to waive an admin fee.
-  let programMax = programMaxConfigured;
+  // ── 3b. The program's own CAP: the flat maximum, the table keyed by an answer,
+  //        and the adjustments that lift or share it ──────────────────────────
+  //
+  // Computed BEFORE the collateral ceiling below, and that order is the whole of §10.4:
+  // an adjustment declared on the CAP lifts the bank's own ceiling, never the ceiling the
+  // applicant's unit imposes. `min` is taken afterwards, so the three compose and the lowest
+  // wins whichever one it is.
+  //
+  // Nine of the source sheets print the table under "Loan Amount — Maximum" — by property
+  // type, city, CD tier, school type, branch, company coding, down-payment bracket. It reads
+  // as "two ways to reach the figure, take the lower" and it is not: see
+  // `max-loan-by-fact.ts`, including why capping the AMOUNT here gives the same figure to
+  // the piastre as capping the INCOME upstream would (the map is monotonic, so `min`
+  // commutes with it).
+  const programFacts = factsForProgram({
+    profile,
+    ...(program.bankName !== undefined ? { programBankName: program.bankName } : {}),
+  });
+
+  let programCap = programMaxConfigured;
+  let capCameFromTable = false;
+  const maxLoanByFact = program.loanLimits?.maxLoanByFact;
+  if (maxLoanByFact !== undefined) {
+    const capped = resolveMaxLoanByFact({ config: maxLoanByFact, facts: programFacts });
+    if (capped.matched) {
+      if (capped.maxAmountEGP.lessThan(programCap)) {
+        programCap = capped.maxAmountEGP;
+        capCameFromTable = true;
+      }
+    } else if (capped.action === 'reject') {
+      // The bank chose refusal over a fallback. A "no figures" outcome, not a filter: the
+      // program stays listed and stays ranked, and the reason names the admin action.
+      return { ok: false, unavailable: { reason: 'NO_MAX_LOAN_FOR_ANSWER' } };
+    }
+    // `useProgramMax` is the other branch and it is a no-op on purpose: the program's own
+    // maximum still applies, exactly as it did before a cap table was added. Never "no cap"
+    // and never zero — those are the two silent failures `onNoMatch` exists to prevent.
+  }
+
+  const capAdjustments = program.loanLimits?.maxLoanAdjustments;
+  if (capAdjustments !== undefined && capAdjustments.length > 0) {
+    const adjusted = applyMaxLoanAdjustments({
+      cap: programCap,
+      adjustments: capAdjustments,
+      facts: programFacts,
+    });
+    if (adjusted.applied.length > 0) {
+      programCap = adjusted.cap;
+      // An adjustment that CUT the cap (a joint-ownership 50%) is as much the binding
+      // ceiling as the table row was, so it reports the same way.
+      capCameFromTable = true;
+    }
+  }
+
+  let programMax = programCap;
+  if (capCameFromTable) noteConstraint('program_max_by_fact');
   if (ceilingAmountEGP !== null) {
     const converted = ceilingToIncome({
       ceilingEGP: ceilingAmountEGP,

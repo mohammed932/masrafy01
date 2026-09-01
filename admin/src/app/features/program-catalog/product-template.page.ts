@@ -54,7 +54,7 @@ import {
   type TemplateMechanism,
   type TemplateMechanismKind,
 } from '@features/bank-programs/bank-programs.types';
-import { PRODUCT_BASE } from './program-catalog.paths';
+import { CATALOG_BASE, PRODUCT_BASE } from './program-catalog.paths';
 
 /** Which kind of answer a mechanism can read. `null` = it reads none. */
 const MECHANISM_FACT_TYPE: Readonly<
@@ -108,6 +108,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
       [eyebrow]="eyebrow"
       [title]="title()"
       [subtitle]="subtitle()"
+      [backLabel]="backLabel()"
       [hint]="hint()"
       [blockReason]="blockReason()"
       [submitLabel]="submitLabel"
@@ -1301,7 +1302,37 @@ export class ProductTemplatePage implements OnInit {
 
   // --- save / load -----------------------------------------------------------
 
+  /**
+   * Where "back" goes.
+   *
+   * Normally the product's own page. But when a catalog name sent the operator here — it was
+   * created one write earlier and links to this product — leaving belongs to the NAME: the
+   * errand was "add a program name", and the calculation is the last thing it owed. `?then=`
+   * carries the name's key.
+   *
+   * A query param and not router state, for the same reason `?from=` is one: this screen is
+   * reloaded and pasted, and router state survives neither. It is a RETURN ADDRESS, applied
+   * to nothing — unlike the new-question screen's payload, which the receiving page writes.
+   */
+  /** Names where back actually goes, so the arrow is not a guess. */
+  protected backLabel(): string {
+    return this.returnToName() !== null
+      ? $localize`:@@spt.back_name:Back to the program name`
+      : $localize`:@@spt.back_product:Back to the product`;
+  }
+
+  /** The catalog name that sent the operator here, if one did. */
+  private returnToName(): string | null {
+    const then = this.route.snapshot.queryParamMap.get('then');
+    return then !== null && then !== '' ? then : null;
+  }
+
   protected leave(): void {
+    const then = this.returnToName();
+    if (then !== null) {
+      void this.router.navigate([CATALOG_BASE, then], { queryParams: { step: 2 } });
+      return;
+    }
     void this.router.navigate([PRODUCT_BASE, this.key], { queryParams: { step: 2 } });
   }
 

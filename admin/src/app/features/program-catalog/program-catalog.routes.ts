@@ -46,6 +46,18 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
     loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
   },
 
+  {
+    // ONE create flow for both income bases — see the screen's own header for why it is a
+    // screen and not the side sheet it replaces.
+    //
+    // `new` MUST come before the single-segment `:key` below, for the same reason
+    // `products/new` does: under it, it resolves as a catalog name whose key is "new". The
+    // mint is guarded too (`RESERVED_NAME_KEYS`), so a name LABELLED "New" cannot take the
+    // key either and become a row no URL can open.
+    path: 'new',
+    loadComponent: () => import('./new-program-name.page').then((m) => m.NewProgramNamePage),
+  },
+
   // --- Surrogate products -------------------------------------------------
   // Declared BEFORE the single-segment `:key` below: `products` is a literal segment and
   // would otherwise resolve as a catalog name of that key.

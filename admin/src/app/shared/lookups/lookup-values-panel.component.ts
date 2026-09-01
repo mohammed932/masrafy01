@@ -36,6 +36,10 @@ import {
   type EnumerationEditDrawerData,
 } from './enumeration-edit.drawer';
 import { EnumerationTypesService } from './enumeration-types.service';
+import { CATALOG_NEW } from '@features/program-catalog/program-catalog.paths';
+
+/** The catalog names' own type — created on their own screen, never in this panel. */
+const PROGRAM_NAME_TYPE = 'program_name';
 
 @Component({
   selector: 'app-lookup-values-panel',
@@ -242,6 +246,18 @@ export class LookupValuesPanelComponent {
   }
 
   protected openCreate(): void {
+    // A catalog program name is not a value with a label: it states how its income is proved
+    // and, on one of those two answers, which calculation it quotes from — which is a screen,
+    // not a sheet, and it is `/program-catalog/new`.
+    //
+    // This panel can genuinely reach `program_name`: it is off the values rail
+    // (`onValuesRail: false`), but `retiredDefs()` is deliberately "retired OR off the rail",
+    // so "Show retired lists" surfaces it. Without this branch that door opens a form with no
+    // basis question at all and silently mints a payslip name.
+    if (this.type() === PROGRAM_NAME_TYPE) {
+      void this.router.navigate([CATALOG_NEW]);
+      return;
+    }
     this.openDrawer({ mode: 'create', type: this.type() });
   }
 

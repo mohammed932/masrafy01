@@ -27,7 +27,7 @@ import {
   type IncomeUnresolvedReason,
   type SurrogateFactValue,
 } from '../types';
-import { BANK_RELATIONSHIP_FACT_KEY, bankRelationshipFact } from './bank-relationship';
+import { BANK_RELATIONSHIP_FACT_KEY, factsForProgram } from './bank-relationship';
 import { normalizeIncomeAssumption } from './income-rule-normalize';
 import {
   evaluateProductRule,
@@ -117,7 +117,12 @@ export function resolveAssumedIncome(args: ResolveIncomeArgs): IncomeResolution 
 
   const surrogate = resolveSurrogateIncome(profile, config);
 
-  const decided = decide({ declared, hasDeclared, surrogate, combinationRule: config.combinationRule });
+  const decided = decide({
+    declared,
+    hasDeclared,
+    surrogate,
+    combinationRule: config.combinationRule,
+  });
 
   // The override is read only when the income the quote will run on actually came
   // from the rule (FR-012). A `declared` outcome on a surrogate program is a
@@ -243,17 +248,10 @@ function resolveProductRule(args: {
   programBankName?: string;
 }): IncomeResolution {
   const { profile, config, eligibility, strategy } = args;
-  const facts: Readonly<Record<string, SurrogateFactValue>> = {
-    // Derived FIRST so a stored answer wins a collision. For a real applicant there can be
-    // no collision — `surrogateFactsFromAnswers` refuses to emit a derived key — and the
-    // one caller that supplies facts directly is the admin's rule-check panel, where the
-    // operator is deliberately naming the case they want to see.
-    [BANK_RELATIONSHIP_FACT_KEY]: bankRelationshipFact(
-      args.programBankName,
-      profile.bankRelationshipSlugs,
-    ),
-    ...(profile.surrogateFacts ?? {}),
-  };
+  const facts: Readonly<Record<string, SurrogateFactValue>> = factsForProgram({
+    profile,
+    ...(args.programBankName !== undefined ? { programBankName: args.programBankName } : {}),
+  });
   const ctx: ProductRuleContext = {
     facts,
     ...(args.parentKeyByValue !== undefined ? { parentKeyByValue: args.parentKeyByValue } : {}),
@@ -368,8 +366,7 @@ function resolveRuleDbrCap(args: {
   source: IncomeResolution['dbrCapSource'];
   bandIndex: number | null;
 } {
-  const surrogateDerived =
-    args.origin === 'surrogate' || args.origin === 'surrogate_over_declared';
+  const surrogateDerived = args.origin === 'surrogate' || args.origin === 'surrogate_over_declared';
   const resolution = resolveDbrCap(
     {
       // `?? '0'` only reshapes an absent value for the type: `toDecimalOrNull`
@@ -506,14 +503,16 @@ function resolveSurrogateIncome(
 
     case 'byCarInstallment': {
       const inst = profile.assets?.carInstallmentEGP;
-      if (!inst || inst.lessThanOrEqualTo(0)) return { resolved: false, reason: 'fact_not_answered' };
+      if (!inst || inst.lessThanOrEqualTo(0))
+        return { resolved: false, reason: 'fact_not_answered' };
       const mult = new Decimal(config.scalar?.value ?? config.carInstallmentMultiplier ?? '4');
       return { resolved: true, incomeEGP: inst.mul(mult).toDecimalPlaces(2, ROUND_BANKERS) };
     }
 
     case 'byCarLoanAmount': {
       const loan = profile.assets?.autoLoanAtOtherBankEGP ?? profile.assets?.autoLoanAtABKEGP;
-      if (!loan || loan.lessThanOrEqualTo(0)) return { resolved: false, reason: 'fact_not_answered' };
+      if (!loan || loan.lessThanOrEqualTo(0))
+        return { resolved: false, reason: 'fact_not_answered' };
       const percent = new Decimal(config.scalar?.value ?? config.carLoanAmountPercent ?? '5');
       return {
         resolved: true,
@@ -613,7 +612,10 @@ function lookupBands(
     };
   }
   if (result.reason === 'no_bands') {
-    return { resolved: false, reason: reportUnconfigured ? 'rule_unconfigured' : 'no_matching_band' };
+    return {
+      resolved: false,
+      reason: reportUnconfigured ? 'rule_unconfigured' : 'no_matching_band',
+    };
   }
   return { resolved: false, reason: 'no_matching_band' };
 }

@@ -64,14 +64,7 @@ import { MoneyInputDirective } from '../../../core/directives/money-input.direct
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
 import { categoryLabel, isLoanCategory, type LoanCategory } from '@core/loan-category';
-import {
-  INCOME_BASES,
-  basisOf,
-  incomeBasisHint,
-  incomeBasisLabel,
-  programTypeOf,
-  type IncomeBasis,
-} from '@core/income-basis';
+import { basisOf, incomeBasisLabel, programTypeOf, type IncomeBasis } from '@core/income-basis';
 import { SURROGATE_FACT_BY_METHOD } from '@core/surrogate-facts';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import type {
@@ -106,9 +99,13 @@ import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
   DbrBandsEditorComponent,
+  MaxLoanByFactEditorComponent,
   WizardStepsComponent,
   dbrBandsErrorFor,
+  maxLoanByFactErrorFor,
+  IncomeBasisCardsComponent,
   type DbrBandsError,
+  type MaxLoanByFactConfig,
   type WizardStepItem,
 } from '@shared/ui';
 
@@ -203,6 +200,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
     NzSelectModule,
     NzSwitchModule,
     DbrBandsEditorComponent,
+    MaxLoanByFactEditorComponent,
+    IncomeBasisCardsComponent,
     IncomeAssumptionSectionComponent,
     IncomeRuleCheckComponent,
     MoneyInputDirective,
@@ -405,49 +404,18 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   </div>
                 </header>
 
-                <div
-                  class="basis-cards"
-                  [class.is-unanswered]="!basisAnswered()"
-                  role="radiogroup"
-                  [attr.aria-label]="incomeStepAria"
-                >
-                  @for (b of incomeBases; track b) {
-                    <label
-                      class="basis-card"
-                      [class.is-on]="basisAnswered() === b"
-                      [attr.data-basis]="b"
-                    >
-                      <input
-                        type="radio"
-                        name="incomeBasis"
-                        class="sr-only"
-                        [checked]="basisAnswered() === b"
-                        (change)="pickBasis(b)"
-                      />
-                      <span class="basis-card-top">
-                        <!-- Identity leads, state trails. The glyph says WHICH answer
-                         this is — and is the mark the header chip carries for the
-                         remaining six steps — so it reads before the title; the dot on
-                         the trailing edge is the only thing that reports whether this
-                         is the one chosen. Drawn on BOTH cards from the start: an
-                         empty circle waiting to be filled is the only thing here that
-                         says an answer is still owed. -->
-                        <span class="basis-card-medallion" aria-hidden="true">
-                          <span
-                            class="basis-card-icon"
-                            nz-icon
-                            [nzType]="basisIconFor(b)"
-                            nzTheme="outline"
-                          ></span>
-                        </span>
-                        <span class="basis-card-dot" aria-hidden="true"></span>
-                      </span>
-                      <span class="basis-card-title">{{ basisLabel(b) }}</span>
-                      <span class="basis-card-hint">{{ basisHint(b) }}</span>
-                      <span class="basis-card-effect">{{ basisEffect(b) }}</span>
-                    </label>
-                  }
-                </div>
+                <!-- Shared with the catalog's own create screen: two copies of the one
+                     question the whole platform turns on is how two screens come to
+                     describe one decision in different words. What the answer COMMITS the
+                     operator to is still this wizard's own — it names THIS wizard's later
+                     steps — so it arrives as the effects input. -->
+                <app-income-basis-cards
+                  [value]="basisAnswered()"
+                  [ariaLabel]="incomeStepAria"
+                  [effects]="basisEffects()"
+                  groupName="incomeBasis"
+                  (picked)="pickBasis($event)"
+                />
               </section>
             }
 
@@ -678,6 +646,21 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       </nz-input-group>
                     </nz-form-control>
                   </nz-form-item>
+                </div>
+
+                <!-- The maximum above is this program's flat ceiling; the table below
+                 states it per ANSWER, which is how nine of the source sheets print it.
+                 Beside the flat field and not in an "advanced" panel, because on those
+                 programs the table IS the maximum and the flat one is only its backstop. -->
+                <div class="cap-table">
+                  <h3 class="cap-table-title" i18n="@@bank_programs.form.max_by_answer">
+                    Maximum by answer
+                  </h3>
+                  <app-max-loan-by-fact-editor
+                    [facts]="incomeFacts()"
+                    [config]="maxLoanByFact()"
+                    (configChange)="maxLoanByFact.set($event)"
+                  ></app-max-loan-by-fact-editor>
                 </div>
               </section>
 
@@ -1886,18 +1869,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         border-radius: var(--radius-sm);
       }
 
-      /* ── Income step (step 1) ─────────────────────────────────────
-         The one question on its own step, so it is asked as two full cards: there is
-         room to say what each answer COMMITS to, and the step exists precisely
-         because that commitment reaches two later steps. Radios stay real radios
-         (visually hidden input inside the label) so arrow-key group navigation and
-         form semantics come for free. */
-      .basis-cards {
-        display: grid;
-        gap: var(--space-4);
-        grid-template-columns: 1fr;
-      }
-
       /* --- Step 5: whose amounts ------------------------------------------- */
       /* is-bare, because the body is two choice cards and an editor that draws its own
          borders. A filled card around them was the third container for one decision. */
@@ -2093,260 +2064,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           align-items: stretch;
         }
       }
-      @media (min-width: 48rem) {
-        .basis-cards {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-      .basis-card {
-        --basis-accent: var(--color-brand-primary);
-        position: relative;
-        /* The bloom below paints at z-index -1: without a stacking context of its
-           own it would slide behind the card's own background and never be seen. */
-        isolation: isolate;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        margin: 0;
-        padding: var(--space-5);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        background: var(--color-surface-default);
-        cursor: pointer;
-        animation: basis-enter var(--motion-duration-base) var(--motion-easing-standard) both;
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          background-color var(--motion-duration-fast) var(--motion-easing-standard),
-          box-shadow var(--motion-duration-base) var(--motion-easing-standard),
-          transform var(--motion-duration-base) var(--motion-easing-standard);
-      }
-      /* The two answers settle after the panel, in reading order — the step's own
-         entry (step-enter, on the section) plays underneath. */
-      .basis-card:nth-child(1) {
-        animation-delay: var(--motion-stagger);
-      }
-      .basis-card:nth-child(2) {
-        animation-delay: calc(var(--motion-stagger) * 2);
-      }
-      @keyframes basis-enter {
-        from {
-          opacity: 0;
-          transform: translateY(6px);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
-      }
-      .basis-card[data-basis='no_payslip'] {
-        --basis-accent: var(--color-income-surrogate);
-      }
-      /* The card lights from behind its own glyph when it is the answer — the accent
-         arriving as light rather than as another border. Off-card by a third so what
-         lands inside is the falloff, not the disc. */
-      .basis-card::before {
-        content: '';
-        position: absolute;
-        z-index: -1;
-        inset-block-start: -35%;
-        inset-inline-end: -15%;
-        inline-size: 15rem;
-        block-size: 15rem;
-        border-radius: 50%;
-        background: radial-gradient(
-          circle at center,
-          color-mix(in srgb, var(--basis-accent) 20%, transparent),
-          transparent 70%
-        );
-        opacity: 0;
-        transform: scale(0.7);
-        pointer-events: none;
-        transition:
-          opacity var(--motion-duration-base) var(--motion-easing-standard),
-          transform var(--motion-duration-slow) var(--motion-easing-emphasized);
-      }
-      /* The commit mark: a spine on the leading edge that grows from the centre out
-         when the answer is taken. Inline-start, so it flips with the writing mode. */
-      .basis-card::after {
-        content: '';
-        position: absolute;
-        inset-block: 0;
-        inset-inline-start: 0;
-        inline-size: 3px;
-        background: var(--basis-accent);
-        transform: scaleY(0);
-        transition: transform var(--motion-duration-base) var(--motion-easing-emphasized);
-      }
-      .basis-card.is-on::after {
-        transform: scaleY(1);
-      }
-      /* Hover previews the card's OWN accent rather than a neutral darkening, so the
-         plum of the no-payslip answer is visible before it is committed to. */
-      .basis-card:hover:not(.is-on) {
-        border-color: color-mix(in srgb, var(--basis-accent) 45%, var(--color-border-default));
-        background: color-mix(in srgb, var(--basis-accent) 4%, var(--color-surface-default));
-        transform: translateY(-1px);
-      }
-      .basis-card:hover:not(.is-on)::before {
-        opacity: 0.5;
-        transform: scale(0.88);
-      }
-      .basis-card:active:not(.is-on) {
-        transform: none;
-      }
-      /* Same split as the pills: an always-on ring for engines without :has(), and
-         focus-visible only where it is available — otherwise clicking a card leaves a
-         ring on it for the session and selection and focus become one picture. */
-      .basis-card:focus-within {
-        outline: 2px solid var(--basis-accent);
-        outline-offset: 3px;
-      }
       @supports selector(:has(*)) {
-        .basis-card:focus-within {
-          outline: none;
-        }
-        .basis-card:has(:focus-visible) {
-          outline: 2px solid var(--basis-accent);
-          outline-offset: 3px;
-        }
-      }
-      .basis-cards.is-unanswered .basis-card {
-        border-color: color-mix(in srgb, var(--basis-accent) 28%, var(--color-border-default));
-      }
-      .basis-card.is-on {
-        border-color: color-mix(in srgb, var(--basis-accent) 60%, var(--color-border-default));
-        background: color-mix(in srgb, var(--basis-accent) 5%, var(--color-surface-default));
-        box-shadow: 0 6px 22px color-mix(in srgb, var(--basis-accent) 18%, transparent);
-        transform: translateY(-2px);
-      }
-      .basis-card.is-on::before {
-        opacity: 1;
-        transform: none;
-      }
-      .basis-card-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3);
-      }
-      /* The glyph gets a tile of its own instead of floating grey in a corner: at rest
-         it is the only colour on the card, which is what tells the two answers apart
-         before either label is read. */
-      .basis-card-medallion {
-        flex: none;
-        display: grid;
-        place-items: center;
-        inline-size: 2.5rem;
-        block-size: 2.5rem;
-        border-radius: var(--radius-md);
-        border: 1px solid color-mix(in srgb, var(--basis-accent) 18%, transparent);
-        background: color-mix(in srgb, var(--basis-accent) 9%, var(--color-surface-default));
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          background-color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .basis-card.is-on .basis-card-medallion {
-        border-color: color-mix(in srgb, var(--basis-accent) 40%, transparent);
-        background: color-mix(in srgb, var(--basis-accent) 16%, var(--color-surface-default));
-      }
-      /* The concept's own glyph, the pair the header chip uses — so the mark chosen
-         here is the mark carried in the chip for the remaining six steps. */
-      .basis-card-icon {
-        font-size: 20px;
-        line-height: 1;
-        color: color-mix(in srgb, var(--basis-accent) 70%, var(--color-text-secondary));
-        transition: color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .basis-card.is-on .basis-card-icon {
-        color: var(--basis-accent);
-      }
-      .basis-card-title {
-        font-size: var(--text-md);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .basis-card.is-on .basis-card-title {
-        color: color-mix(in srgb, var(--basis-accent) 82%, var(--color-text-primary));
-      }
-      .basis-card-hint {
-        font-size: var(--text-sm);
-        line-height: var(--line-height-base);
-        color: var(--color-text-secondary);
-      }
-      /* The dependency, said before it is committed to rather than discovered two
-         steps later. A tinted band across the foot of the card, not an indented
-         paragraph: it is a different KIND of sentence from the description above it.
-         margin-block-start:auto pins it to the bottom edge, so the two cards' bands
-         line up however unequal the two descriptions are — the hairline used to sit
-         at a different height on each card and left the shorter one ending in a hole.
-         Negative inline margins bleed it to the card's edges; they are logical, so
-         the band still reaches both edges in Arabic. */
-      .basis-card-effect {
-        margin-block-start: auto;
-        margin-inline: calc(var(--space-5) * -1);
-        margin-block-end: calc(var(--space-5) * -1);
-        padding: var(--space-3) var(--space-5);
-        border-block-start: 1px solid
-          color-mix(in srgb, var(--basis-accent) 18%, var(--color-border-default));
-        background: color-mix(in srgb, var(--basis-accent) 4%, transparent);
-        font-size: var(--text-xs);
-        line-height: var(--line-height-base);
-        font-weight: var(--font-weight-medium);
-        color: color-mix(in srgb, var(--basis-accent) 72%, var(--color-text-secondary));
-        transition:
-          background-color var(--motion-duration-fast) var(--motion-easing-standard),
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .basis-card.is-on .basis-card-effect {
-        border-block-start-color: color-mix(in srgb, var(--basis-accent) 30%, transparent);
-        background: color-mix(in srgb, var(--basis-accent) 9%, transparent);
-        color: color-mix(in srgb, var(--basis-accent) 82%, var(--color-text-primary));
-      }
-
-      /* The radio mark. Drawn on both cards at rest, because an empty circle is the
-         only thing here that says an answer is still owed — the fill, the icon and
-         the title describe the options, they do not report that one was chosen. */
-      .basis-card-dot {
-        flex: none;
-        display: grid;
-        place-items: center;
-        inline-size: 18px;
-        block-size: 18px;
-        border: 2px solid var(--color-border-strong);
-        border-radius: 50%;
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          box-shadow var(--motion-duration-base) var(--motion-easing-standard);
-      }
-      /* Scale-in rather than a swapped background — the dot is the smallest mark on
-         the step, and appearing instantly at 9px reads as a rendering glitch. */
-      .basis-card-dot::after {
-        content: '';
-        inline-size: 9px;
-        block-size: 9px;
-        border-radius: 50%;
-        background: var(--basis-accent);
-        transform: scale(0);
-        transition: transform 140ms cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .basis-card:hover:not(.is-on) .basis-card-dot {
-        border-color: color-mix(in srgb, var(--basis-accent) 60%, var(--color-border-strong));
-      }
-      /* Unanswered, both cards: the ring picks up the accent so the pair reads as one
-         live question rather than two grey outlines. */
-      .basis-cards.is-unanswered .basis-card-dot {
-        border-color: color-mix(in srgb, var(--basis-accent) 45%, var(--color-border-strong));
-      }
-      /* A halo, not a bigger dot: the ring spreads outward on the commit and the
-         mark itself keeps its size, so nothing on the row shifts. */
-      .basis-card.is-on .basis-card-dot {
-        border-color: var(--basis-accent);
-        box-shadow: 0 0 0 4px color-mix(in srgb, var(--basis-accent) 14%, transparent);
-      }
-      .basis-card.is-on .basis-card-dot::after {
-        transform: scale(1);
       }
 
       /* ── Fact-binding line (step 4) ───────────────────────────────
@@ -2368,38 +2086,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         font-weight: var(--font-weight-semibold);
         color: inherit;
         text-decoration: underline;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .basis-card,
-        .basis-card::before,
-        .basis-card::after,
-        .basis-card-medallion,
-        .basis-card-icon,
-        .basis-card-effect,
-        .basis-card-dot,
-        .basis-card-dot::after {
-          transition: none;
-        }
-        .basis-card {
-          animation: none;
-        }
-        /* The two decorative marks still SAY something — which card is the answer —
-           so they are switched, not removed: the spine sits at full height and the
-           bloom at full strength the moment the state is true. */
-        .basis-card::after {
-          transform: scaleY(1);
-          opacity: 0;
-        }
-        .basis-card.is-on::after {
-          opacity: 1;
-        }
-        .basis-card::before {
-          transform: none;
-        }
-        .basis-card:hover:not(.is-on),
-        .basis-card.is-on {
-          transform: none;
-        }
       }
 
       /* ── App-frame layout ────────────────────────────────────────
@@ -3302,6 +2988,10 @@ export class BankProgramFormPage implements OnInit {
     // to ask it directly — otherwise a broken table would sail past Continue and
     // only fail on the server (`DBR_BANDS_INVALID`).
     if (this.steps[index]?.id === 'eligibility' && this.dbrBandsError() !== null) return false;
+    // Same reason for the maximum-by-answer table, which is a signal on the `terms` step:
+    // a broken table would sail past Continue and only fail on the server
+    // (`MAX_LOAN_BY_FACT_INVALID`).
+    if (this.steps[index]?.id === 'terms' && this.maxLoanByFactError() !== null) return false;
     // Same reason: the name↔category verdict lives in a signal, so Continue
     // would sail past it and the save would fail on the server
     // (`PROGRAM_NAME_KEY_NOT_IN_CATEGORY`).
@@ -3847,8 +3537,6 @@ export class BankProgramFormPage implements OnInit {
    */
   readonly incomeBasis = computed<IncomeBasis>(() => basisOf(this.programTypeSignal()));
 
-  protected readonly incomeBases = INCOME_BASES;
-
   /**
    * Is the figure this program's chosen METHOD reads actually asked of this loan type?
    *
@@ -3957,7 +3645,13 @@ export class BankProgramFormPage implements OnInit {
    * that a payslip one does not. Discovering that two steps in reads as the wizard
    * changing under you; naming it here makes the dependency the point of the step.
    */
-  protected basisEffect(basis: IncomeBasis): string {
+  /** The two consequence lines, as the shared component's `effects` map. */
+  protected readonly basisEffects = computed<Partial<Record<IncomeBasis, string>>>(() => ({
+    payslip: this.basisEffect('payslip'),
+    no_payslip: this.basisEffect('no_payslip'),
+  }));
+
+  private basisEffect(basis: IncomeBasis): string {
     return basis === 'no_payslip'
       ? // NOT "you fill in the bank's table". Of the eleven methods only two
         // (`byProfessorRank`, `byMilitaryGrade`) are a key table — four are bands, four
@@ -4162,14 +3856,6 @@ export class BankProgramFormPage implements OnInit {
   /** A strategy token → the words the picker used, built-in or registry fact. */
   private incomeMethodLabelFor(strategy: IncomeAssumptionStrategy): string {
     return incomeMethodLabel(strategy, this.incomeFacts());
-  }
-
-  protected basisLabel(basis: IncomeBasis): string {
-    return incomeBasisLabel(basis);
-  }
-
-  protected basisHint(basis: IncomeBasis): string {
-    return incomeBasisHint(basis);
   }
 
   /** Reactive view of pricing.isVariableRate — decides which rate key ships. */
@@ -4427,6 +4113,32 @@ export class BankProgramFormPage implements OnInit {
    * save never silently wipes bands the admin did not touch.
    */
   readonly dbrBands = signal<DbrBand[]>([]);
+
+  /**
+   * The program's maximum loan keyed by an answer. `null` = this program states no such
+   * table, which is the common case and the one every existing program is in.
+   *
+   * A signal rather than a form control for the same reason `dbrBands` is one: it is a
+   * nested, variable-length shape, and a `FormArray` of `FormGroup`s whose CONTROLS change
+   * with the picked fact is a second source of truth for what the rows are keyed by.
+   */
+  readonly maxLoanByFact = signal<MaxLoanByFactConfig | null>(null);
+
+  /**
+   * Whether the picked fact is answered with a number, which decides whether the rows are
+   * option pickers or band edges. Computed here as well as inside the editor because the
+   * save gate has to know it while the editor is not rendered.
+   */
+  private readonly maxLoanByFactIsNumeric = computed(() => {
+    const key = this.maxLoanByFact()?.factKey;
+    if (key === undefined) return false;
+    return this.incomeFacts().find((f) => f.key === key)?.question?.type === 'NUMERIC';
+  });
+
+  /** The same verdict the editor shows inline, so Save is gated on it from any step. */
+  readonly maxLoanByFactError = computed(() =>
+    maxLoanByFactErrorFor(this.maxLoanByFact(), this.maxLoanByFactIsNumeric()),
+  );
 
   /**
    * A DBR cap per kind of applicant — "50% salaried / 40% self-employed".
@@ -5303,6 +5015,7 @@ export class BankProgramFormPage implements OnInit {
       this.form.invalid ||
       this.programNameMismatch() !== null ||
       this.dbrBandsError() !== null ||
+      this.maxLoanByFactError() !== null ||
       this.incomeRuleError()
     ) {
       revealErrors(this.form);
@@ -5470,6 +5183,9 @@ export class BankProgramFormPage implements OnInit {
         minAmountEGP: ll.minAmountEGP,
         maxAmountEGP: ll.maxAmountEGP,
         qualitativeReviewMaxEGP: ll.qualitativeReviewMaxEGP ?? undefined,
+        // Omitted rather than sent as `null` when there is no table: `forbidNonWhitelisted`
+        // accepts an absent optional field and the backend reads absence as "no cap table".
+        ...(this.maxLoanByFact() !== null ? { maxLoanByFact: this.maxLoanByFact()! } : {}),
       },
       pricing: {
         isVariableRate: pr.isVariableRate,
@@ -5577,6 +5293,17 @@ export class BankProgramFormPage implements OnInit {
     this.loanLimitsGroup.patchValue({
       qualitativeReviewMaxEGP: initial.loanLimits.qualitativeReviewMaxEGP ?? null,
     });
+    this.maxLoanByFact.set(
+      initial.loanLimits.maxLoanByFact === undefined
+        ? null
+        : {
+            ...initial.loanLimits.maxLoanByFact,
+            // Copied, not aliased: the editor replaces the object on every edit, and sharing
+            // the row array with `initial` would make a cancelled edit look saved on the
+            // review read-back.
+            rows: initial.loanLimits.maxLoanByFact.rows.map((row) => ({ ...row })),
+          },
+    );
 
     // Percent strings arrive as Prisma `Decimal(_, 4)` — `24.0000` for a flat 24%.
     // Trimmed for DISPLAY only, on the string, so the value the admin reads back is

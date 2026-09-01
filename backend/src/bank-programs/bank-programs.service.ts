@@ -25,6 +25,7 @@ import {
   DbrBandsInvalidException,
   DeprecatedEnumerationKeyException,
   DerivationArithmeticMismatchException,
+  MaxLoanByFactInvalidException,
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
   IncomeRuleDbrOverrideInvalidException,
@@ -43,7 +44,6 @@ import {
   ProgramNameIncomeProofMismatchException,
   ProgramNameIncomeProofMissingException,
   IncomeProofInUseException,
-  ProgramHasEstimatedValuesException,
   ProgramNameKeyUnknownException,
   ProgramNameRuleLinkedException,
   SurrogateProductInUseException,
@@ -95,6 +95,10 @@ import {
   type IncomeRuleViolation,
   type IncomeRuleWarning,
 } from './validation/income-rule.validator';
+import {
+  validateMaxLoanAdjustments,
+  validateMaxLoanByFact,
+} from './validation/max-loan-by-fact.validator';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
@@ -539,6 +543,33 @@ export class BankProgramsService {
       this.incomeRuleContext(),
     );
     if (ruleViolation) throw incomeRuleException(ruleViolation);
+
+    // §10.2 — the program's maximum-loan table keyed by an answer. Validated beside the
+    // income rule and through the SAME injected registry context: the two tables are keyed
+    // by facts from one registry, and asking twice invites the two answers to differ.
+    const capViolation = await validateMaxLoanByFact(
+      dto.loanLimits.maxLoanByFact,
+      this.incomeRuleContext(),
+    );
+    const adjustmentViolation = await validateMaxLoanAdjustments(
+      dto.loanLimits.maxLoanAdjustments,
+      this.incomeRuleContext(),
+    );
+    const capOrAdjustmentViolation = capViolation ?? adjustmentViolation;
+    if (capOrAdjustmentViolation) {
+      throw new MaxLoanByFactInvalidException({
+        reason: capOrAdjustmentViolation.reason,
+        ...(capOrAdjustmentViolation.index !== undefined
+          ? { index: capOrAdjustmentViolation.index }
+          : {}),
+        ...(capOrAdjustmentViolation.detail !== undefined
+          ? { detail: capOrAdjustmentViolation.detail }
+          : {}),
+        ...(capOrAdjustmentViolation.allowed !== undefined
+          ? { allowed: capOrAdjustmentViolation.allowed }
+          : {}),
+      });
+    }
 
     // FR-008s — derivation arithmetic.
     const mismatch = validateDerivationArithmetic(dto.pricing);
