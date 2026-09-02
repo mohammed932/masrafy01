@@ -22,7 +22,7 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { SurrogateFactValue } from '../types';
-import { BANK_RELATIONSHIP_QUESTION_CODE } from './bank-relationship';
+import { BANK_AXES } from './bank-relationship';
 import { isDerivedFactKey, type SurrogateFactBinding } from './surrogate-fact-registry';
 import {
   SURROGATE_FACT_KEYS,
@@ -57,12 +57,13 @@ export interface SurrogateFacts {
    */
   byKey: Record<string, SurrogateFactValue>;
   /**
-   * The banks the applicant already uses, from the one MULTI_SELECT answer that asks.
+   * Per derived axis, the banks the applicant named — keyed by the FACT the axis feeds.
    *
-   * Outside `byKey` on purpose: it is not a fact any rule reads. The fact a rule reads is
-   * `bank_relationship`, which the engine derives from this list per program.
+   * Outside `byKey` on purpose: none of these is a fact a rule reads. The facts a rule reads
+   * are `bank_relationship` / `loan_is_topup` / `holds_other_product`, which the engine
+   * derives from these lists per program (`bank-relationship.ts`).
    */
-  bankRelationshipSlugs?: readonly string[];
+  bankAxisSlugs?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface SurrogateFactAnswers {
@@ -160,8 +161,15 @@ export function surrogateFactsFromAnswers(
     if (value) facts.byKey[binding.key] = value;
   }
 
-  const banks = answers.multiByCode?.get(BANK_RELATIONSHIP_QUESTION_CODE);
-  if (banks && banks.length > 0) facts.bankRelationshipSlugs = [...banks];
+  // One pass over the axes rather than three hand-written reads: an axis added to
+  // `BANK_AXES` and forgotten here would be a column every applicant reads as standard,
+  // which looks exactly like a bank that sells no second column.
+  const axisSlugs: Record<string, readonly string[]> = {};
+  for (const axis of BANK_AXES) {
+    const named = answers.multiByCode?.get(axis.questionCode);
+    if (named && named.length > 0) axisSlugs[axis.factKey] = [...named];
+  }
+  if (Object.keys(axisSlugs).length > 0) facts.bankAxisSlugs = axisSlugs;
 
   return facts;
 }

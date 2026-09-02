@@ -40,8 +40,10 @@ import { resolveAssumedIncome } from './income-resolver';
 import { calculateFees } from './fees';
 import { calculateEffectiveLoanAmount, calculateMonthlyInstallment } from './pmt';
 import { calculateDbr, calculateMaxLoanFromDbr, resolveDbrCap } from './dbr';
+import { rateBasisOf } from './rate-basis';
 import { ceilingToIncome } from './product-rule-ceiling';
 import { factsForProgram } from './bank-relationship';
+import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
 import { applyMaxLoanAdjustments } from './max-loan-adjustments';
 
@@ -148,6 +150,11 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const problems: string[] = [];
 
   const ratePercent = toFiniteDecimal(cascade.pricing.effectiveRatePercent);
+  // How that rate is charged. Read ONCE here and passed to every formula below: a quote
+  // that prices the instalment one way and inverts it the other misstates the loan by
+  // 22–29% (`rate-basis.ts`). Absent reads as the reducing annuity, which is what every
+  // program configured before the field existed was priced by.
+  const rateBasis = rateBasisOf(program.pricing);
   if (ratePercent === null || ratePercent.lessThan(0)) {
     problems.push(
       program.pricing?.isVariableRate
@@ -266,6 +273,32 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   let recognisedIncomeEGP = incomeResolution
     ? incomeResolution.incomeEGP
     : (declaredIncomeEGP ?? new Decimal(0));
+
+  // ── 2b. Money earned beside the basic figure ────────────────────────────
+  //
+  // Rents at 50%, certificate returns at 75%, allowances at 100 / 75, and a ceiling on the
+  // total as a share of the basic — one live sheet states all five (spec §10.11).
+  //
+  // HERE, and the position is load-bearing in both directions. After the basic figure, so
+  // the cap is measured against what the rule actually produced (I-Score included — it is
+  // applied inside the rule). Before the debt-burden cap is chosen below, because `dbrBands`
+  // are keyed BY INCOME: adding income after the band was picked quotes this applicant on
+  // the band of somebody who earns less.
+  //
+  // A CEILING is skipped deliberately: it is what the collateral supports, not an opinion
+  // about what the applicant earns, and rental income does not make a unit bigger. Its own
+  // implied income is derived at step 3b and is not an income this can add to.
+  const additional =
+    ceilingAmountEGP === null
+      ? resolveAdditionalIncome({
+          config: program.incomeAssumption?.additionalIncome,
+          facts: profile.surrogateFacts ?? {},
+          basicIncomeEGP: recognisedIncomeEGP,
+        })
+      : null;
+  if (additional && additional.addedEGP.greaterThan(0)) {
+    recognisedIncomeEGP = recognisedIncomeEGP.plus(additional.addedEGP);
+  }
   // A ceiling resolution carries `incomeEGP: 0` by construction, so its guard moves to
   // step 3b, after the conversion. Every other path is unchanged.
   if (ceilingAmountEGP === null && recognisedIncomeEGP.lessThanOrEqualTo(0)) {
@@ -385,6 +418,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       ceilingEGP: ceilingAmountEGP,
       annualRatePercent: ratePercent,
       tenorMonths,
+      rateBasis,
       // A rule that states no baseline was calibrated against the bank's own cap, which
       // makes the haircut ratio exactly 1 and changes nothing.
       baselineDbrPercent:
@@ -457,6 +491,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       booked,
       fees.effectiveRateAfterPenaltiesPercent,
       tenorMonths,
+      rateBasis,
     );
     return { fees, booked, installment };
   };
@@ -477,8 +512,24 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // income edge. Now that the implied income exists, the bands are searched with the only
   // figure they were ever meant to take. The rule's own override still applies — a ceiling
   // IS rule-derived — which is why it is passed through.
+  //
+  // A figure the ADDITIONAL income moved re-resolves for the same reason a ceiling does: the
+  // resolver picked its band against the basic figure, and the band the quote must run on is
+  // the one the total falls in. Without this an applicant whose rent carries them over a band
+  // edge is capped as the person they were before their rent was counted.
+  //
+  // WHICH override travels is not the same question in the two cases. A ceiling IS
+  // rule-derived, so the rule's own cap applies. An income the additional-income policy
+  // merely topped up may have come from a payslip, and the rule override must not attach to
+  // a declared salary (FR-012) — so the RESOLVER's own answer is carried rather than
+  // re-decided here, and only the band is picked again.
+  const reResolveForAdditional = additional !== null && additional.addedEGP.greaterThan(0);
+  const overrideForCap =
+    ceilingAmountEGP !== null || incomeResolution?.dbrCapSource === 'rule_override'
+      ? program.incomeAssumption?.dbrCapPercentOverride
+      : undefined;
   const capResolution =
-    ceilingAmountEGP !== null
+    ceilingAmountEGP !== null || reResolveForAdditional
       ? resolveDbrCap(
           {
             dbrCapPercent: program.eligibility.dbrCapPercent,
@@ -488,7 +539,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
               : {}),
           },
           recognisedIncomeEGP,
-          program.incomeAssumption?.dbrCapPercentOverride,
+          overrideForCap,
           profile.employment?.employmentType,
         )
       : null;
@@ -540,6 +591,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     annualRatePercent: priced.fees.effectiveRateAfterPenaltiesPercent,
     tenorMonths,
     amountStepEGP,
+    rateBasis,
   });
   const maxAffordableAmountEGP = uncappedMax.greaterThan(programMax)
     ? round2(programMax)
@@ -583,6 +635,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       tenorMonths,
       applicantRequestedEGP: cash,
       amountStepEGP,
+      rateBasis,
     });
 
     for (let pass = 0; ; pass++) {
@@ -632,6 +685,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       monthlyInstallmentEGP,
       effectiveTenorMonths: tenorMonths,
       effectiveRatePercent: priced.fees.effectiveRateAfterPenaltiesPercent,
+      rateBasis,
       totalPayableEGP,
       totalCostOfCreditEGP: round2(totalPayableEGP.minus(cashToCustomerEGP)),
       // Derived from the FINAL installment, so a DBR-adjusted quote reports the

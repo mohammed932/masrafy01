@@ -8,7 +8,7 @@ import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { DeleteOutline, PlusOutline, WarningOutline } from '@ant-design/icons-angular/icons';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
-import { BANK_RELATIONSHIP_FACT_KEY, BANK_RELATIONSHIP_OPTION_CODES } from '@core/surrogate-facts';
+import { DERIVED_FACTS, derivedFactByKey } from '@core/surrogate-facts';
 import type { RegistryFact } from '../../features/bank-programs/bank-programs.types';
 
 /** One cell of the table. Mirrors the backend `MaxLoanByFactRow` exactly. */
@@ -424,24 +424,14 @@ export class MaxLoanByFactEditorComponent {
   readonly config = model<MaxLoanByFactConfig | null>(null);
 
   /**
-   * The derived `bank_relationship`, as a fact-shaped row.
+   * The derived per-bank axes, as fact-shaped rows: known here · topping up a loan here ·
+   * holds a card or deposit here.
    *
-   * It has no registry row and no bound question, so every screen that offers "the facts a
-   * rule may read" has to supply the two things a registry row would have carried — its
-   * label and the answers it takes. Column-only: a cap keyed by it alone would be a table
-   * with two rows and no subject.
+   * None has a registry row or a bound question, so this screen reads their labels and
+   * columns from the one place that carries them (`@core/surrogate-facts`). Column-only: a
+   * cap keyed by one of them alone would be a table with two rows and no subject.
    */
-  private readonly relationshipFact = computed(() => ({
-    key: BANK_RELATIONSHIP_FACT_KEY,
-    label: $localize`:@@max_loan_by_fact.bank_relationship:Already banks here`,
-    options: BANK_RELATIONSHIP_OPTION_CODES.map((code) => ({
-      code,
-      label:
-        code === 'xsell'
-          ? $localize`:@@max_loan_by_fact.xsell:Already banks here`
-          : $localize`:@@max_loan_by_fact.ntb:New to this bank`,
-    })),
-  }));
+  private readonly derivedFacts = DERIVED_FACTS;
 
   /** Facts a ROW may be keyed by — anything bound to an answerable question. */
   protected readonly keyableFacts = computed(() =>
@@ -452,7 +442,7 @@ export class MaxLoanByFactEditorComponent {
 
   /** Facts a COLUMN may be keyed by — choice answers only; a number has no branches. */
   protected readonly columnFacts = computed(() => [
-    { key: this.relationshipFact().key, label: this.relationshipFact().label },
+    ...this.derivedFacts.map((f) => ({ key: f.key, label: f.label })),
     ...this.facts()
       .filter((f) => f.question?.type === 'SINGLE_SELECT')
       .map((f) => ({ key: f.key, label: f.label })),
@@ -474,7 +464,8 @@ export class MaxLoanByFactEditorComponent {
 
   private optionsFor(key: string | undefined): Array<{ code: string; label: string }> {
     if (key === undefined) return [];
-    if (key === BANK_RELATIONSHIP_FACT_KEY) return this.relationshipFact().options;
+    const derived = derivedFactByKey(key);
+    if (derived) return derived.options.map((o) => ({ code: o.code, label: o.label }));
     const question = this.facts().find((f) => f.key === key)?.question;
     return (question?.options ?? []).map((o) => ({
       code: o.code,

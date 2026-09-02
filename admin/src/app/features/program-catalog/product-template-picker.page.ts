@@ -4,8 +4,9 @@
  * WHY IT EXISTS. Until the shapes existed, a product was born empty and the only way to give
  * it a calculation was the raw step editor: pick an operation, wire inputs between steps, and
  * know that step 3 has to point back at steps 1 and 2. That is programming. Nine banks across
- * five products all fit one of the seven shapes, so the question the operator is actually
- * answering is "how does this bank work the income out" — which is one pick.
+ * five products all fit one of the shapes, so the question the operator is actually answering
+ * is "how does this bank work the income out" — one pick, or several when the banks selling
+ * the product reach the same figure in different ways.
  *
  * WHY IT STILL EXISTS NOW THAT `/program-catalog/new` CAN MAKE ONE. A product with no catalog
  * name is a legitimate row — the board renders it, saying no bank quotes from it yet — and
@@ -13,7 +14,8 @@
  * the SECONDARY errand, and the board draws it as a link rather than a second button.
  *
  * The cards themselves live in `product-shape-picker.component.ts`, shared with the name flow:
- * two copies of seven shapes is two places for one to go stale.
+ * two copies of the shapes is two places for one to go stale. They are MULTI-select — see
+ * that file's header — so what travels to the calculation screen is a LIST.
  *
  * NAMING HAPPENS HERE, not in a sheet over the top. It used to open the generic enumeration
  * drawer, which reports only that it saved — so this page had to read the product list before
@@ -57,13 +59,13 @@ const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
         <app-product-shape-picker
           [value]="picked()"
           [ariaLabel]="title"
-          (picked)="picked.set($event)"
+          (toggled)="toggle($event)"
         />
 
         <!-- Revealed by the pick rather than shown alongside it: the shape is the question
              this screen asks, and two live questions at once would make the grid read as
              optional. -->
-        @if (picked() !== null) {
+        @if (picked().length > 0) {
           <section class="naming">
             <h2 class="h" i18n="@@spt.create_title">Name this product</h2>
             <p class="lede" i18n="@@spt.create_sub">
@@ -175,7 +177,8 @@ export class ProductTemplatePickerPage {
   /** A product answers to no column of its own, unlike a program name's 120. */
   protected readonly labelMax = 160;
 
-  protected readonly picked = signal<string | null>(null);
+  /** Every way this product offers, in the order it was picked — the order decides slot ids. */
+  protected readonly picked = signal<readonly string[]>([]);
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
@@ -189,13 +192,13 @@ export class ProductTemplatePickerPage {
 
   protected readonly eyebrow = $localize`:@@spt.eyebrow:New surrogate product`;
   protected readonly title = $localize`:@@spt.title:How does the bank work the income out?`;
-  protected readonly subtitle = $localize`:@@spt.subtitle:Pick the shape this product follows. Every bank selling it fills in its own figures later — the shape is what they have in common.`;
+  protected readonly subtitle = $localize`:@@spt.subtitle:Pick every way banks work this product's figure out. Each of them fills in its own figures later — the shapes are what they have in common.`;
   protected readonly backLabel = $localize`:@@spt.back:Surrogate products`;
   protected readonly submitLabel = $localize`:@@spt.create_cta:Create product`;
 
   protected readonly blockText = computed<string | null>(() => {
-    if (this.picked() === null) {
-      return $localize`:@@spt.pick_first:Pick how the income is worked out to carry on.`;
+    if (this.picked().length === 0) {
+      return $localize`:@@spt.pick_first:Pick at least one way the income is worked out to carry on.`;
     }
     const v = this.formValue();
     if ((v.labelEn ?? '').trim() === '' || (v.labelAr ?? '').trim() === '') {
@@ -213,6 +216,19 @@ export class ProductTemplatePickerPage {
       : null,
   );
 
+  /**
+   * Tick or untick one way, keeping pick ORDER.
+   *
+   * Appended, never sorted: the first way becomes `primary` and the second `alt`, and those
+   * slot ids are what a bank's figures are keyed by (`waySlot`). Re-sorting the list would
+   * rename a slot the operator can see no reason to have moved.
+   */
+  protected toggle(key: string): void {
+    this.picked.update((keys) =>
+      keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key],
+    );
+  }
+
   protected leave(): void {
     void this.router.navigate(this.backTo.commands, { queryParams: this.backTo.queryParams });
   }
@@ -223,8 +239,8 @@ export class ProductTemplatePickerPage {
   }
 
   private async doCreate(): Promise<void> {
-    const shape = this.picked();
-    if (this.submitting() || shape === null || this.blockText() !== null) return;
+    const shapes = this.picked();
+    if (this.submitting() || shapes.length === 0 || this.blockText() !== null) return;
     this.submitting.set(true);
     this.errorMessage.set(null);
     try {
@@ -235,13 +251,14 @@ export class ProductTemplatePickerPage {
         labelEn: v.labelEn,
         labelAr: v.labelAr,
       });
-      // The shape travels on the URL rather than in a service: a reload on the calculation
-      // screen has to land on the same shape, and so does a link somebody pastes.
+      // The shapes travel on the URL rather than in a service: a reload on the calculation
+      // screen has to land on the same ones, and so does a link somebody pastes. Comma-joined
+      // in pick order, which is the order the slots are named in.
       //
       // No `then`: nothing sent the operator here from a name, so the calculation screen's
       // own product is where leaving belongs.
       void this.router.navigate([PRODUCT_BASE, created.key, 'calculation'], {
-        queryParams: { from: shape },
+        queryParams: { from: shapes.join(',') },
       });
     } catch (err) {
       const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })

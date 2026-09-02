@@ -1,5 +1,6 @@
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
 import { DecimalRange } from '../../../common/decorators/decimal-range.decorator';
+import { RATE_BASES, type RateBasis } from '../../../matching/pipeline/rate-basis';
 
 /**
  * Spec anchors: FR-004, FR-008b (frozen cascade order), FR-008o + FR-008o.1 (down-payment band floor-≤),
@@ -25,6 +26,20 @@ export class PricingConfigDto {
   @IsOptional()
   @IsString()
   variableRateNote?: string;
+
+  /**
+   * How the rate is charged: `reducing` (interest on the outstanding balance) or `flat`
+   * (interest on the original principal for the whole tenor).
+   *
+   * Omit it and the program is priced on the reducing annuity — what every program
+   * configured before this field existed was priced by, so an untouched program quotes
+   * the same figure it quoted yesterday. The same rate over the same tenor buys 22–29%
+   * more loan reducing than flat, so an UNKNOWN value is refused here rather than read as
+   * a default: at the wire boundary a typo is still fixable by the person who made it.
+   */
+  @IsOptional()
+  @IsIn(RATE_BASES)
+  rateBasis?: RateBasis;
 
   @IsOptional()
   @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })

@@ -28,6 +28,7 @@ import {
   MaxLoanByFactInvalidException,
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
+  AdditionalIncomeInvalidException,
   IncomeRuleDbrOverrideInvalidException,
   IncomeRuleFactUnavailableException,
   ProductRuleInvalidException,
@@ -2504,6 +2505,12 @@ function incomeRuleException(violation: IncomeRuleViolation): Error {
       });
     case 'dbrOverrideInvalid':
       return new IncomeRuleDbrOverrideInvalidException({ value: violation.value });
+    case 'additionalIncomeInvalid':
+      return new AdditionalIncomeInvalidException({
+        reason: violation.reason,
+        ...(violation.factKey !== undefined ? { factKey: violation.factKey } : {}),
+        ...(violation.value !== undefined ? { value: violation.value } : {}),
+      });
     case 'factUnavailable':
       return new IncomeRuleFactUnavailableException({
         factKey: violation.factKey,

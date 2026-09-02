@@ -43,6 +43,7 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import { calculateMonthlyInstallment, monthlyInstallmentRaw } from './pmt';
+import { DEFAULT_RATE_BASIS, type RateBasis } from './rate-basis';
 
 export interface CeilingConversionInput {
   ceilingEGP: Decimal;
@@ -55,6 +56,14 @@ export interface CeilingConversionInput {
    * which yields a ratio of 1 and changes nothing.
    */
   baselineDbrPercent: Decimal;
+  /**
+   * How the program charges its rate. Omitted reads as the reducing annuity.
+   *
+   * Load-bearing: the instalment worked out here is inverted by `calculateMaxLoanFromDbr`,
+   * so the two must run the same formula or the ceiling comes back as a different amount
+   * from the one the bank's table states.
+   */
+  rateBasis?: RateBasis;
 }
 
 export interface CeilingConversion {
@@ -75,6 +84,7 @@ const ONE_HUNDRED = new Decimal(100);
  */
 export function ceilingToIncome(input: CeilingConversionInput): CeilingConversion | null {
   const { ceilingEGP, annualRatePercent, tenorMonths, baselineDbrPercent } = input;
+  const basis = input.rateBasis ?? DEFAULT_RATE_BASIS;
 
   if (!ceilingEGP.isFinite() || ceilingEGP.lessThanOrEqualTo(0)) return null;
   if (!Number.isFinite(tenorMonths) || tenorMonths < 1) return null;
@@ -91,12 +101,17 @@ export function ceilingToIncome(input: CeilingConversionInput): CeilingConversio
   // rounding to piastres here loses the round trip and shows the customer a ceiling a
   // few piastres under the figure the bank's own table states. The rounded instalment
   // is reported alongside, for the surfaces that display it.
-  const raw = monthlyInstallmentRaw(ceilingEGP, annualRatePercent, tenorMonths);
+  const raw = monthlyInstallmentRaw(ceilingEGP, annualRatePercent, tenorMonths, basis);
   if (raw.lessThanOrEqualTo(0)) return null;
 
   return {
     recognisedIncomeEGP: raw.mul(ONE_HUNDRED).div(baselineDbrPercent),
-    installmentAtCeilingEGP: calculateMonthlyInstallment(ceilingEGP, annualRatePercent, tenorMonths),
+    installmentAtCeilingEGP: calculateMonthlyInstallment(
+      ceilingEGP,
+      annualRatePercent,
+      tenorMonths,
+      basis,
+    ),
     baselineDbrPercent,
   };
 }

@@ -14,6 +14,8 @@
 import { Decimal } from '@prisma/client/runtime/library';
 import type { DbrBand, DbrSetting } from '../types';
 import { coarseEmploymentType } from './employment-type';
+import { maxPrincipalRaw } from './pmt';
+import { DEFAULT_RATE_BASIS, type RateBasis } from './rate-basis';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -171,6 +173,14 @@ export function calculateMaxLoanFromDbr(args: {
    */
   applicantRequestedEGP?: Decimal;
   amountStepEGP?: Decimal;
+  /**
+   * How this program charges its rate. Omitted reads as the reducing annuity, which is
+   * what every program predating the field was priced by (`rate-basis.ts`).
+   *
+   * It must be the SAME basis the instalment was worked out under: this function inverts
+   * `pmt.ts`, and inverting the other formula misstates the loan by 22–29%.
+   */
+  rateBasis?: RateBasis;
 }): Decimal {
   const maxEmi = args.monthlyIncomeEGP
     .mul(args.dbrCapPercent)
@@ -179,16 +189,12 @@ export function calculateMaxLoanFromDbr(args: {
 
   if (maxEmi.lessThanOrEqualTo(0)) return new Decimal(0);
 
-  const monthlyRate = args.annualRatePercent.div(100).div(12);
-
-  let maxPrincipal: Decimal;
-  if (monthlyRate.isZero()) {
-    maxPrincipal = maxEmi.mul(args.tenorMonths);
-  } else {
-    const one = new Decimal(1);
-    const factor = one.plus(monthlyRate).pow(args.tenorMonths);
-    maxPrincipal = maxEmi.mul(factor.minus(one)).div(monthlyRate.mul(factor));
-  }
+  let maxPrincipal = maxPrincipalRaw(
+    maxEmi,
+    args.annualRatePercent,
+    args.tenorMonths,
+    args.rateBasis ?? DEFAULT_RATE_BASIS,
+  );
 
   // Floor to ≤ applicant-requested amount (FR-008o.1), when one was supplied.
   if (args.applicantRequestedEGP && maxPrincipal.greaterThan(args.applicantRequestedEGP)) {

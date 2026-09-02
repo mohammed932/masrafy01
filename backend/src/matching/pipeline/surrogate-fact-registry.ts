@@ -12,7 +12,7 @@
  * every caller passes the answer in.
  */
 
-import { BANK_RELATIONSHIP_CODES, BANK_RELATIONSHIP_FACT_KEY } from './bank-relationship';
+import { BANK_AXES, bankAxisByFactKey } from './bank-relationship';
 
 /**
  * The question types a fact may be bound to, and what each one makes the bank's table.
@@ -68,12 +68,12 @@ export interface SurrogateFactBinding {
  *   · `surrogateFactsFromAnswers` must never emit one, or an operator who registered a
  *     fact under the same key would let a customer answer overwrite a computed value.
  */
-export const DERIVED_FACT_KEYS = [BANK_RELATIONSHIP_FACT_KEY] as const;
+export const DERIVED_FACT_KEYS: readonly string[] = BANK_AXES.map((axis) => axis.factKey);
 
-export type DerivedFactKey = (typeof DERIVED_FACT_KEYS)[number];
+export type DerivedFactKey = string;
 
-export function isDerivedFactKey(key: string): key is DerivedFactKey {
-  return (DERIVED_FACT_KEYS as readonly string[]).includes(key);
+export function isDerivedFactKey(key: string): boolean {
+  return DERIVED_FACT_KEYS.includes(key);
 }
 
 /**
@@ -81,5 +81,6 @@ export function isDerivedFactKey(key: string): key is DerivedFactKey {
  * `pickByFact` step that reads it. `null` for a derived fact that is not a choice.
  */
 export function derivedFactOptionCodes(key: string): readonly string[] | null {
-  return key === BANK_RELATIONSHIP_FACT_KEY ? BANK_RELATIONSHIP_CODES : null;
+  const axis = bankAxisByFactKey(key);
+  return axis ? [axis.standard, axis.matched] : null;
 }

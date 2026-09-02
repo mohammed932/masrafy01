@@ -37,10 +37,15 @@ export const RESERVED_NAME_KEYS: ReadonlySet<string> = new Set(['new', 'products
 export type ProductChoice =
   /** One that already exists, picked from the list. */
   | { readonly kind: 'existing'; readonly key: string }
-  /** One to be made here: a shape, and the two labels it will be filed under. */
+  /** One to be made here: the ways it reaches its figure, and the two labels it will be filed under. */
   | {
       readonly kind: 'new';
-      readonly shape: string;
+      /**
+       * One per way, in PICK order. More than one is the normal case for a product several
+       * banks sell off different derivations of the same figure; the order is load-bearing
+       * because the first way becomes the `primary` slot and the second `alt`.
+       */
+      readonly shapes: readonly string[];
       readonly labelEn: string;
       readonly labelAr: string;
     };
@@ -151,7 +156,7 @@ export function productSettled(draft: NewNameDraft): boolean {
   const choice = draft.product;
   if (choice === null) return false;
   if (choice.kind === 'existing') return choice.key !== '';
-  return choice.shape !== '' && choice.labelEn.trim() !== '' && choice.labelAr.trim() !== '';
+  return choice.shapes.length > 0 && choice.labelEn.trim() !== '' && choice.labelAr.trim() !== '';
 }
 
 /**
@@ -207,14 +212,15 @@ export interface SavePlan {
   readonly incomeBases: readonly IncomeBasis[];
   readonly link: PlannedLink;
   /**
-   * The shape to seed the calculation screen with, when a product is being made.
+   * The shapes to seed the calculation screen with, when a product is being made — empty when
+   * none is owed.
    *
-   * It travels as a query param and NOT as a written template: `blankTemplate()` leaves
+   * They travel as a query param and NOT as a written template: `blankTemplate()` leaves
    * `fact: ''` on purpose so `validateTemplate` reports `mechanism_needs_fact`, so a write
    * here would be refused. The product is born with no calculation and the operator is put
    * in front of the form for it.
    */
-  readonly shape: string | null;
+  readonly shapes: readonly string[];
 }
 
 /**
@@ -231,7 +237,7 @@ export interface SavePlan {
  */
 export function savePlan(draft: NewNameDraft): SavePlan {
   if (draft.basis !== 'no_payslip') {
-    return { product: null, incomeBases: ['payslip'], link: { kind: 'none' }, shape: null };
+    return { product: null, incomeBases: ['payslip'], link: { kind: 'none' }, shapes: [] };
   }
   // A product this flow already wrote wins over the form above it: the operator is retrying
   // after a half-applied attempt, and re-reading the form would mint a second product under
@@ -241,7 +247,7 @@ export function savePlan(draft: NewNameDraft): SavePlan {
       product: null,
       incomeBases: ['no_payslip'],
       link: { kind: 'existing', key: draft.madeProductKey },
-      shape: draft.product?.kind === 'new' ? draft.product.shape : null,
+      shapes: draft.product?.kind === 'new' ? draft.product.shapes : [],
     };
   }
   const choice = draft.product;
@@ -250,7 +256,7 @@ export function savePlan(draft: NewNameDraft): SavePlan {
       product: { labelEn: choice.labelEn, labelAr: choice.labelAr },
       incomeBases: ['no_payslip'],
       link: { kind: 'made' },
-      shape: choice.shape,
+      shapes: choice.shapes,
     };
   }
   return {
@@ -259,6 +265,6 @@ export function savePlan(draft: NewNameDraft): SavePlan {
     // `blockReason` refuses an unsettled draft before this is ever reached, so the empty
     // key is unreachable rather than a silent default.
     link: { kind: 'existing', key: choice?.kind === 'existing' ? choice.key : '' },
-    shape: null,
+    shapes: [],
   };
 }

@@ -55,7 +55,7 @@ import {
  * changeable, instead of opening on a settled question that reads as a step to skip.
  *
  * A SCREEN AND NOT A SHEET, by the shell's own rule: a form that branches on a type choice
- * needs the viewport and a URL to come back to. This one branches into a seven-card shape
+ * needs the viewport and a URL to come back to. This one branches into a multi-pick shape
  * picker and a second object's name, which is well past what a 560px sheet holds, and an
  * operator interrupted halfway would have had nothing to return to.
  *
@@ -271,12 +271,12 @@ const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
                       </p>
                     }
                     <app-product-shape-picker
-                      [value]="shape()"
+                      [value]="shapes()"
                       [ariaLabel]="shapesAria"
-                      (picked)="shape.set($event)"
+                      (toggled)="toggleShape($event)"
                     />
 
-                    @if (shape() !== null) {
+                    @if (shapes().length > 0) {
                       <div class="make-name">
                         <h3 class="step-h sub" i18n="@@pcn.make_name_h">
                           What is the calculation called?
@@ -627,7 +627,14 @@ export class NewProgramNamePage {
   protected readonly basis = signal<IncomeBasis | null>(this.initialBasis());
   protected readonly productMode = signal<'pick' | 'make'>('pick');
   protected readonly pickedProductKey = signal<string | null>(null);
-  protected readonly shape = signal<string | null>(null);
+  /**
+   * Every way the new calculation reaches its figure, in PICK order.
+   *
+   * A list rather than one value because a product several banks sell is normally reached
+   * more than one way, and the order is what names the slots a bank's figures hang off
+   * (`waySlot`: first is `primary`, second is `alt`) — so it is appended to, never sorted.
+   */
+  protected readonly shapes = signal<readonly string[]>([]);
   /**
    * A product this flow already wrote, on an attempt whose second write failed.
    *
@@ -680,12 +687,12 @@ export class NewProgramNamePage {
       const key = this.pickedProductKey();
       return key === null ? null : { kind: 'existing', key };
     }
-    const shape = this.shape();
-    if (shape === null) return null;
+    const shapes = this.shapes();
+    if (shapes.length === 0) return null;
     const v = this.formValue();
     return {
       kind: 'new',
-      shape,
+      shapes,
       labelEn: v.productLabelEn ?? '',
       labelAr: v.productLabelAr ?? '',
     };
@@ -793,8 +800,8 @@ export class NewProgramNamePage {
       case 'product':
         return this.mode() === 'pick'
           ? $localize`:@@pcn.block_product:Pick the calculation this name quotes from.`
-          : this.shape() === null
-            ? $localize`:@@pcn.block_shape:Pick a shape for the new calculation.`
+          : this.shapes().length === 0
+            ? $localize`:@@pcn.block_shape:Pick at least one way the new calculation reaches its figure.`
             : $localize`:@@pcn.block_product_name:Name the new calculation in both languages.`;
       default:
         return null;
@@ -815,7 +822,12 @@ export class NewProgramNamePage {
     const name = this.formValue().labelEn ?? '';
     const plan = savePlan(this.draft());
     if (plan.product !== null) {
-      return $localize`:@@pcn.summary_make:Creates “${plan.product.labelEn}:PRODUCT:”, then “${name}:NAME:” linked to it, and opens the calculation to fill in.`;
+      // Says how many ways it will open with, because that is the half of the plan the
+      // operator cannot re-read from the fields above: the ticks are a few hundred pixels up
+      // and the count is what tells them the second one registered.
+      return plan.shapes.length > 1
+        ? $localize`:@@pcn.summary_make_ways:Creates “${plan.product.labelEn}:PRODUCT:” with ${plan.shapes.length}:COUNT: ways to reach its figure, then “${name}:NAME:” linked to it, and opens the calculation to fill in.`
+        : $localize`:@@pcn.summary_make:Creates “${plan.product.labelEn}:PRODUCT:”, then “${name}:NAME:” linked to it, and opens the calculation to fill in.`;
     }
     if (plan.link.kind === 'existing') {
       return $localize`:@@pcn.summary_link:Creates “${name}:NAME:”, quoting from “${this.linkedLabel(plan.link.key)}:PRODUCT:”.`;
@@ -857,6 +869,19 @@ export class NewProgramNamePage {
 
   protected pickBasis(basis: IncomeBasis): void {
     this.basis.set(basis);
+  }
+
+  /**
+   * Tick or untick one way of reaching the figure.
+   *
+   * Appended rather than inserted in the picker's own order: the first way picked becomes the
+   * `primary` slot and the second `alt`, and those ids are what a bank's figures are keyed by.
+   * Re-sorting the list would move a figure for a reason the operator cannot see.
+   */
+  protected toggleShape(key: string): void {
+    this.shapes.update((keys) =>
+      keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key],
+    );
   }
 
   /**
@@ -951,10 +976,11 @@ export class NewProgramNamePage {
 
       // A shape means a calculation is still owed, whether it was made on this attempt or a
       // previous one — so the operator is put in front of the form for it, and `then` brings
-      // them back to the name they were making.
-      if (plan.shape !== null && link !== null) {
+      // them back to the name they were making. Comma-joined in pick order: the calculation
+      // screen seeds the first as the primary way and the rest as the others.
+      if (plan.shapes.length > 0 && link !== null) {
         void this.router.navigate([PRODUCT_BASE, link, 'calculation'], {
-          queryParams: { from: plan.shape, then: name.key },
+          queryParams: { from: plan.shapes.join(','), then: name.key },
         });
         return;
       }

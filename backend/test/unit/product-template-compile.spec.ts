@@ -132,6 +132,68 @@ describe('two ways of reaching the figure', () => {
   });
 });
 
+describe('two CEILING tables, keyed by two different answers', () => {
+  /**
+   * The compound guarantee as the operator picks it from the create screen: a ceiling from the
+   * KIND of unit (apartment / villa / standalone) and a ceiling from the CLASS the compound is
+   * filed under (AA / AB / A / B / C). Both are a loan amount in EGP — the same unit — which is
+   * the one condition the design spec keeps `minOf` for; a ceiling that caps a real income is a
+   * program setting instead (`loanLimits.maxLoanByFact`).
+   */
+  const template = base({
+    outputKind: 'maxAmount',
+    baselineDbrPercent: '50',
+    primary: { kind: 'choiceTable', fact: 'unit_type' },
+    alternatives: [{ kind: 'classTable', fact: 'compound_name' }],
+    combine: 'lower',
+  });
+  const rule = compileTemplate(template);
+  const facts = { unit_type: choice('villa'), compound_name: choice('mivida') };
+  const parents = { mivida: 'class_aa' };
+
+  it('emits the two table slots plus the wrapped comparison, and nothing else', () => {
+    expect(rule.steps?.map((s) => s.id)).toEqual([
+      SLOT.primary,
+      SLOT.alt,
+      SLOT.basisCombine,
+      SLOT.basis,
+    ]);
+    const combine = rule.steps?.find((s) => s.id === SLOT.basisCombine);
+    expect(combine?.op).toBe('minOf');
+    expect(combine?.skipUnset).toBe(true);
+    expect(rule.output).toEqual({
+      kind: 'maxAmount',
+      from: SLOT.basis,
+      baselineDbrPercent: '50',
+    });
+  });
+
+  it('quotes the lower of the two ceilings when a bank states both', () => {
+    const out = evaluateProductRule(
+      withFigures(rule, {
+        primary: { keyTable: [{ key: 'villa', incomeEGP: '3000000' }] },
+        alt: { keyTable: [{ key: 'class_aa', incomeEGP: '6000000' }] },
+      }),
+      { facts, parentKeyByValue: parents },
+    );
+    expect(out.ok && out.valueEGP.toString()).toBe('3000000');
+  });
+
+  it('adding the class table does not move the unit-type figures', () => {
+    // The reason a live product can be given a second way at all: `primary` keeps its id, so
+    // every bank's unit-type table stays exactly where it was typed.
+    const oneWay = templateParamKeys(
+      base({
+        outputKind: 'maxAmount',
+        baselineDbrPercent: '50',
+        primary: { kind: 'choiceTable', fact: 'unit_type' },
+      }),
+    );
+    expect(oneWay).toContain(SLOT.primary);
+    expect(templateParamKeys(template)).toContain(SLOT.primary);
+  });
+});
+
 describe('three or more ways of reaching the figure', () => {
   // One product, sold by banks that key their ceiling off different things: a share of what
   // has been paid, a table by unit type, a table by the class the compound is filed under.

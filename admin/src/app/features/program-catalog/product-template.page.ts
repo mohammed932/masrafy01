@@ -248,51 +248,60 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                 the ways it uses; a bank that fills in more than one is handled by the choice below.
               </p>
               @if (form.controls.useAlternative.value) {
-                <div class="addon-body" formArrayName="alternatives">
-                  @for (way of alternatives.controls; track $index) {
-                    <div class="way" [formGroupName]="$index">
-                      <div class="way-head">
-                        <span class="way-name">{{ wayLabel($index) }} </span>
-                        <button
-                          type="button"
-                          class="linkish is-danger"
-                          (click)="removeWay($index)"
-                          [attr.aria-label]="wayRemoveLabel($index)"
-                        >
-                          <span i18n="@@spt.addon.alt.remove">Remove</span>
-                        </button>
-                      </div>
-                      <div class="picks">
-                        @for (kind of mechanisms; track kind) {
+                <div class="addon-body">
+                  <!-- The ways are the only thing inside the formArrayName container. The
+                       combine select used to sit in here too, which resolved it against the
+                       ARRAY: Angular threw "Cannot find control with path:
+                       'alternatives -> combine'" and the select was never bound, so "take the
+                       lowest" could not be chosen at all. -->
+                  <div class="ways" formArrayName="alternatives">
+                    @for (way of alternatives.controls; track $index) {
+                      <div class="way" [formGroupName]="$index">
+                        <div class="way-head">
+                          <span class="way-name">{{ wayLabel($index) }} </span>
                           <button
                             type="button"
-                            class="pick is-stacked"
-                            role="radio"
-                            [class.is-on]="way.controls.kind.value === kind"
-                            [attr.aria-checked]="way.controls.kind.value === kind"
-                            (click)="setWayKind($index, kind)"
+                            class="linkish is-danger"
+                            (click)="removeWay($index)"
+                            [attr.aria-label]="wayRemoveLabel($index)"
                           >
-                            <span class="pick-dot" aria-hidden="true"></span>
-                            <span class="pick-text">
-                              <span class="pick-name">{{ mechanismLabel(kind) }}</span>
-                              <span class="pick-eg">{{ mechanismExample(kind) }}</span>
-                            </span>
+                            <span i18n="@@spt.addon.alt.remove">Remove</span>
                           </button>
+                        </div>
+                        <div class="picks">
+                          @for (kind of mechanisms; track kind) {
+                            <button
+                              type="button"
+                              class="pick is-stacked"
+                              role="radio"
+                              [class.is-on]="way.controls.kind.value === kind"
+                              [attr.aria-checked]="way.controls.kind.value === kind"
+                              (click)="setWayKind($index, kind)"
+                            >
+                              <span class="pick-dot" aria-hidden="true"></span>
+                              <span class="pick-text">
+                                <span class="pick-name">{{ mechanismLabel(kind) }}</span>
+                                <span class="pick-eg">{{ mechanismExample(kind) }}</span>
+                              </span>
+                            </button>
+                          }
+                        </div>
+                        @if (wayNeedsFact($index)) {
+                          <label class="field">
+                            <span class="label" i18n="@@spt.q1.fact"
+                              >Which answer does it read?</span
+                            >
+                            <select class="control" formControlName="fact">
+                              <option value="" i18n="@@spt.choose">Choose…</option>
+                              @for (fact of wayFacts($index); track fact.key) {
+                                <option [value]="fact.key">{{ fact.label }}</option>
+                              }
+                            </select>
+                          </label>
                         }
                       </div>
-                      @if (wayNeedsFact($index)) {
-                        <label class="field">
-                          <span class="label" i18n="@@spt.q1.fact">Which answer does it read?</span>
-                          <select class="control" formControlName="fact">
-                            <option value="" i18n="@@spt.choose">Choose…</option>
-                            @for (fact of wayFacts($index); track fact.key) {
-                              <option [value]="fact.key">{{ fact.label }}</option>
-                            }
-                          </select>
-                        </label>
-                      }
-                    </div>
-                  }
+                    }
+                  </div>
 
                   @if (canAddWay()) {
                     <button type="button" class="way-add" (click)="addWay()">
@@ -749,6 +758,13 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
         line-height: var(--line-height-base);
+      }
+      /* The ways stack exactly as they did when they were direct children of .addon-body —
+         the container they moved into is a wrapper for the FormArray, not a layout change. */
+      .ways {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
       }
       .addon-body {
         display: flex;
@@ -1428,11 +1444,11 @@ export class ProductTemplatePage implements OnInit {
       this.advanced.set(res.data.advanced);
       this.absorb(res.data.template, res.data.compiled);
 
-      // A brand-new product arrives with no form. `?from=` is the shape the operator picked
-      // on the previous screen — carried on the URL rather than in a service so a reload, and
-      // a link pasted to a colleague, both land on the same one.
+      // A brand-new product arrives with no form. `?from=` is the shape (or shapes) the
+      // operator picked on the previous screen — carried on the URL rather than in a service
+      // so a reload, and a link pasted to a colleague, both land on the same ones.
       if (res.data.template === null && !res.data.advanced) {
-        this.seedFromStarter(this.route.snapshot.queryParamMap.get('from'));
+        this.seedFromStarters(this.route.snapshot.queryParamMap.get('from'));
       }
       this.dirty.set(false);
       this.figuresDirty.set(false);
@@ -1441,10 +1457,47 @@ export class ProductTemplatePage implements OnInit {
     }
   }
 
-  private seedFromStarter(starterKey: string | null): void {
-    const seed = STARTER_SEED[starterKey ?? ''];
-    if (!seed) return;
-    this.form.patchValue({ primaryKind: seed.mechanism, outputKind: seed.outputKind });
+  /**
+   * Open a blank form on the ways the operator ticked on the screen before this one.
+   *
+   * A COMMA-SEPARATED list, and a single value is the same thing with one member — so every
+   * link written before the picker went multi-select still lands on exactly one way, with no
+   * combine, which is what it always did.
+   *
+   * Two rules that only matter when the URL is wrong, either because it was hand-edited or
+   * because a future card changed:
+   *
+   *   An unknown key is DROPPED, not defaulted. Guessing a mechanism would seed a shape the
+   *   operator never picked, and the form would look answered.
+   *
+   *   A key whose output kind disagrees with the FIRST one is dropped too. A product carries
+   *   one `outputKind`, so an income way beside a ceiling way is unrepresentable — the picker
+   *   makes it unclickable, and this is the same rule stated where the URL is read.
+   *
+   * `combine` is seeded as `lower` for more than one way, per the design spec (§4 Q2 — "take
+   * the lower of the two", and every sheet reading that way takes the lower). The operator
+   * can change it on the control two sections down; what they cannot do is end up with a
+   * multi-way product that silently quotes whichever way happened to be filled in first.
+   */
+  private seedFromStarters(raw: string | null): void {
+    const keys = (raw ?? '')
+      .split(',')
+      .map((key) => key.trim())
+      .filter((key) => key !== '');
+    const seeds = keys.map((key) => STARTER_SEED[key]).filter((seed) => seed !== undefined);
+    const [primary, ...rest] = seeds;
+    if (primary === undefined) return;
+
+    const sameKind = rest.filter((seed) => seed.outputKind === primary.outputKind);
+    this.alternatives.clear();
+    for (const seed of sameKind) this.alternatives.push(this.wayGroup(seed.mechanism));
+
+    this.form.patchValue({
+      primaryKind: primary.mechanism,
+      outputKind: primary.outputKind,
+      useAlternative: sameKind.length > 0,
+      combine: sameKind.length > 0 ? 'lower' : '',
+    });
   }
 
   private absorb(
@@ -1602,4 +1655,5 @@ const STARTER_SEED: Readonly<
   ceiling_by_class: { mechanism: 'classTable', outputKind: 'maxAmount' },
   ceiling_by_bracket: { mechanism: 'numberBand', outputKind: 'maxAmount' },
   ceiling_share_of_paid: { mechanism: 'shareOf', outputKind: 'maxAmount' },
+  ceiling_by_choice: { mechanism: 'choiceTable', outputKind: 'maxAmount' },
 };

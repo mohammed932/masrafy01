@@ -26,7 +26,11 @@ import {
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzDrawerService } from 'ng-zorro-antd/drawer';
-import { PlusOutline, UnorderedListOutline } from '@ant-design/icons-angular/icons';
+import {
+  DownloadOutline,
+  PlusOutline,
+  UnorderedListOutline,
+} from '@ant-design/icons-angular/icons';
 import { Router } from '@angular/router';
 import { SkeletonRowsComponent, openFormDrawer } from '@shared/ui';
 import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookups.api.service';
@@ -46,7 +50,7 @@ const PROGRAM_NAME_TYPE = 'program_name';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NzButtonModule, NzIconModule, SkeletonRowsComponent, LookupValueListComponent],
-  providers: [provideNzIconsPatch([PlusOutline, UnorderedListOutline])],
+  providers: [provideNzIconsPatch([DownloadOutline, PlusOutline, UnorderedListOutline])],
   template: `
     <section class="panel">
       <header class="head">
@@ -66,6 +70,17 @@ const PROGRAM_NAME_TYPE = 'program_name';
             <span nz-icon nzType="unordered-list" nzTheme="outline" aria-hidden="true"></span>
             {{ pasteLabel }}
           </button>
+          <!-- The other half of the round trip, and drawn at the same weight as the paste it
+               feeds: what comes out opens straight back into the paste screen, so an operator
+               can fix a hundred Arabic labels in a sheet instead of a hundred drawers. Hidden
+               while the list is empty — an export of nothing is a file that teaches the
+               operator the button is broken. -->
+          @if (rows().length > 0) {
+            <button type="button" class="paste-link" (click)="exportCsv()">
+              <span nz-icon nzType="download" nzTheme="outline" aria-hidden="true"></span>
+              {{ exportLabel }}
+            </button>
+          }
           <button nz-button nzType="default" type="button" (click)="openCreate()">
             <span nz-icon nzType="plus" nzTheme="outline"></span>
             {{ addLabel }}
@@ -202,6 +217,7 @@ export class LookupValuesPanelComponent {
 
   protected readonly addLabel = $localize`:@@lookups.addValue:Add value`;
   protected readonly pasteLabel = $localize`:@@pv.open:Paste a list`;
+  protected readonly exportLabel = $localize`:@@pv.export:Download as CSV`;
   protected readonly loadingLabel = $localize`:@@lookups.loading.values:Loading values`;
 
   constructor() {
@@ -243,6 +259,47 @@ export class LookupValuesPanelComponent {
     void this.router.navigate(['/lookups/paste'], {
       queryParams: { type: this.type(), from: 'lookups' },
     });
+  }
+
+  /**
+   * Write the list out in the shape the paste screen reads back: `labelEn,labelAr,class`.
+   *
+   * NOT quoted, and that is the round trip rather than a shortcut: `parse-pasted-values.ts`
+   * deliberately ships no CSV quoter and splits from the END, so `Mivida, Phase 2,ميفيدا,AA`
+   * already parses correctly while a quoted `"Mivida, Phase 2"` would come back WITH its
+   * quotes as part of the name. Writing what the reader reads is the whole point; a quoter
+   * here would need one there, which is the rule that file exists to avoid.
+   *
+   * The class column carries the class's own LABEL rather than its key, because the parser
+   * matches either and a label is what an operator can check in a spreadsheet. A row with no
+   * class writes an empty third column, which reads back as the catch-all — the same answer
+   * the server gives it.
+   *
+   * The BOM is what makes Excel open Arabic labels as Arabic rather than mojibake.
+   */
+  protected exportCsv(): void {
+    const parents = new Map(this.parentRows().map((p) => [p.key, p]));
+    // A separator inside the Arabic label or the class name WOULD mis-split on the way back,
+    // because only the English head may hold one. Replaced with a space rather than quoted:
+    // an operator can see a changed label in the preview, and cannot see a quoting rule.
+    const cell = (value: string): string => value.replace(/,/g, ' ').trim();
+    const lines = this.rows().map((row) => {
+      const parent = row.parentKey ? parents.get(row.parentKey) : undefined;
+      const className = parent ? parent.labelEn : (row.parentKey ?? '');
+      return [row.labelEn.trim(), cell(row.labelAr), cell(className)].join(',');
+    });
+
+    const blob = new Blob(['\uFEFF' + lines.join('\n') + '\n'], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${this.type()}.csv`;
+    link.click();
+    // Revoked on the next frame rather than immediately: Safari has not started the download
+    // when `click()` returns, and revoking first hands it an empty file.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   protected openCreate(): void {

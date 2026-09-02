@@ -119,6 +119,8 @@ type PersistedOfferRow = {
   maxLoanAvailableEGP: Decimal | null;
   dbrPercent: Decimal | null;
   dbrCapPercent: Decimal | null;
+  /** How the rate was charged. `null` on offers predating the column — not `flat`. */
+  rateBasis?: string | null;
   /** Feature 011 — frozen provenance. `null` on offers predating the columns. */
   incomeOrigin?: string | null;
   incomeSurrogateStrategy?: string | null;
@@ -717,6 +719,9 @@ export class ApplicationsService {
       isShariaCompliant: offer.isShariaCompliant,
       programFriendlyName: offer.programFriendlyName,
       effectiveRatePercent: new Decimal(offer.effectiveRatePercent.toString()),
+      // Frozen with the rate it qualifies: a program re-priced onto the other basis later
+      // must not rewrite what this offer meant (Principle I / A6).
+      rateBasis: offer.rateBasis,
       monthlyInstallmentEGP: new Decimal(offer.monthlyInstallmentEGP.toString()),
       requestedLoanAmountEGP: new Decimal(offer.requestedLoanAmountEGP.toString()),
       effectiveLoanAmountEGP: new Decimal(offer.effectiveLoanAmountEGP.toString()),
@@ -806,6 +811,11 @@ export class ApplicationsService {
       isShariaCompliant: o.isShariaCompliant,
       programFriendlyName: o.programFriendlyName,
       effectiveRatePercent: o.effectiveRatePercent.toFixed(4),
+      // Read straight off the frozen column. `?? null` rather than a default: an offer
+      // written before this column existed named no basis, and answering `reducing` here
+      // would put a statement on the record that nobody made — even though that is what
+      // the engine priced it at.
+      rateBasis: o.rateBasis ?? null,
       monthlyInstallmentEGP: o.monthlyInstallmentEGP.toFixed(2),
       requestedLoanAmountEGP: o.requestedLoanAmountEGP.toFixed(2),
       effectiveLoanAmountEGP: o.effectiveLoanAmountEGP.toFixed(2),
@@ -1033,9 +1043,9 @@ export class ApplicationsService {
       // there is no legacy caller whose figures could be stripped by leaving it out —
       // and adding one would let a client state a fact the questionnaire never asked.
       surrogateFacts: surrogateFacts.byKey,
-      // Not a fact: the input the engine derives `bank_relationship` from, per program.
-      ...(surrogateFacts.bankRelationshipSlugs !== undefined
-        ? { bankRelationshipSlugs: surrogateFacts.bankRelationshipSlugs }
+      // Not facts: the inputs the engine derives the per-bank columns from, per program.
+      ...(surrogateFacts.bankAxisSlugs !== undefined
+        ? { bankAxisSlugs: surrogateFacts.bankAxisSlugs }
         : {}),
     };
   }

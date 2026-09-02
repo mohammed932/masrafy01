@@ -16,6 +16,12 @@ export {
   type MaxLoanByFactError,
   type MaxLoanByFactRow,
 } from './max-loan-by-fact-editor.component';
+export {
+  AdditionalIncomeEditorComponent,
+  type AdditionalIncomeConfig,
+  type AdditionalIncomeOption,
+  type AdditionalIncomeSource,
+} from './additional-income-editor.component';
 export { PercentFieldComponent } from './percent-field.component';
 export {
   WizardStepsComponent,

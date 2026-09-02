@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -2130,6 +2131,8 @@ type TypeFilter = QuestionType | 'ALL';
 })
 export class QuestionnaireEditorPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly message = inject(NzMessageService);
   private readonly modal = inject(NzModalService);
   private readonly errorCodes = inject(ErrorCodeService);
@@ -2284,6 +2287,36 @@ export class QuestionnaireEditorPage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.loadAll();
+    this.openFromUrl();
+  }
+
+  /**
+   * Open one question named on the URL — `?q=<code>`.
+   *
+   * The product screen lists what a product asks and, until now, its "Edit the wording" link
+   * landed on this page's FIRST page with every question in the pool, leaving the operator to
+   * find the row they had just been looking at. A code and not an id: an id is this
+   * database's, and the link is pasted into a message as often as it is clicked.
+   *
+   * Read ONCE, after the rows are in hand — a question that is not in the pool is left alone
+   * rather than reported, because a stale link is a link, not a fault the operator can fix
+   * from here. The parameter is then cleared from the URL so a reload does not re-open a form
+   * the operator deliberately closed.
+   */
+  private openFromUrl(): void {
+    const code = this.route.snapshot.queryParamMap.get('q');
+    if (!code) return;
+    const row = this.rows().find((q) => q.code === code);
+    if (!row) return;
+    this.clearFilters();
+    this.revealQuestion(row.id);
+    this.openRow(row);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { q: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   // ---- Display helpers -----------------------------------------------------

@@ -123,6 +123,29 @@ const WINDOW = 100;
         <span class="pv__help">{{ boxHint() }}</span>
       </label>
 
+      <!-- Opening a file FILLS THE BOX rather than taking a second route into the server:
+           one parser, so the preview, the class fixer, the refusals and the transaction
+           behave identically whether the rows were pasted or opened. A sheet exported from
+           Excel in an Arabic locale starts with a BOM, which would otherwise become part of
+           the first row's English label and slug. -->
+      <p class="pv__open">
+        <label class="pv__open-btn">
+          <input
+            type="file"
+            accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"
+            (change)="openFile($event)"
+          />
+          <span>{{ openLabel }}</span>
+        </label>
+        <span class="pv__open-note">{{ openNote }}</span>
+      </p>
+      @if (fileError(); as problem) {
+        <p class="pv__note is-bad" role="alert">
+          <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+          {{ problem }}
+        </p>
+      }
+
       <div class="pv__sep" role="radiogroup" [attr.aria-label]="sepAria">
         @for (option of separators; track option) {
           <button
@@ -338,6 +361,49 @@ const WINDOW = 100;
         line-height: var(--leading-snug);
       }
 
+      /* A file is the OTHER way in, not the main one: most lists arrive as a paste out of a
+         sheet already open. Drawn as a link-weight control beside the box rather than a
+         second primary button. */
+      .pv__open {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: var(--space-2) 0 0;
+      }
+      .pv__open-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-sm);
+        color: var(--color-accent-strong);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .pv__open-btn:hover {
+        background: var(--color-accent-subtle);
+      }
+      /* The native input stays in the layout and is made invisible rather than
+         display:none input is not focusable, and this is the only control that
+         opens a file. The ring is drawn on the label, which is what the eye sees. */
+      .pv__open-btn input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        width: 100%;
+        cursor: pointer;
+      }
+      .pv__open-btn:has(input:focus-visible) {
+        outline: 2px solid var(--color-accent-strong);
+        outline-offset: 2px;
+      }
+      .pv__open-note {
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+      }
       .pv__sep {
         display: inline-flex;
         gap: var(--space-0-5);
@@ -609,12 +675,23 @@ export class PasteValuesFormComponent {
   readonly draft = output<PasteValuesDraft>();
 
   protected readonly text = signal('');
+  protected readonly fileError = signal<string | null>(null);
   protected readonly separator = signal<PasteSeparator>('auto');
   protected readonly filter = signal<PreviewFilter>('all');
   protected readonly announcement = signal('');
   protected readonly shown = signal(WINDOW);
 
   protected readonly separators: readonly PasteSeparator[] = ['auto', 'tab', 'comma'];
+  protected readonly openLabel = $localize`:@@pv.file.open:Open a CSV file`;
+  protected readonly openNote = $localize`:@@pv.file.note:The file fills the box below, so you can fix a line before saving.`;
+
+  /**
+   * A cap, so a wrong file cannot lock the tab up parsing itself.
+   *
+   * Three columns of text at the server's own row cap comes to a few hundred kilobytes; two
+   * megabytes is far above any real list and far below what freezes a browser.
+   */
+  private static readonly MAX_FILE_BYTES = 2 * 1024 * 1024;
   protected readonly sepAria = $localize`:@@pv.sep.label:How the columns are split`;
   protected readonly filterAria = $localize`:@@pv.filter.aria:Which lines to show`;
   protected readonly pickClassLabel = $localize`:@@pv.fix.pick:Pick the class`;
@@ -877,6 +954,58 @@ export class PasteValuesFormComponent {
 
   protected hasState(row: PasteRow, state: PasteRow['states'][number]): boolean {
     return row.states.includes(state);
+  }
+
+  /**
+   * Read a file into the box.
+   *
+   * Read as text and handed to the same signal a paste writes, so nothing downstream can
+   * tell the two apart. Three things are stripped or normalised first, each because a real
+   * export produces it: the UTF-8 BOM Excel writes in Arabic locales (otherwise part of the
+   * first label, and of the key slugged from it), CR line endings from a Windows sheet, and
+   * a trailing newline that would otherwise read as one empty row.
+   *
+   * The input is cleared afterwards so opening the SAME file twice fires `change` twice —
+   * without it, correcting the file and reopening it looks like nothing happened.
+   */
+  protected openFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    if (file.size > PasteValuesFormComponent.MAX_FILE_BYTES) {
+      this.fileError.set(
+        $localize`:@@pv.file.too_big:That file is too large to open here. Split it, or paste the rows in batches.`,
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => {
+      this.fileError.set($localize`:@@pv.file.unreadable:That file could not be read.`);
+    };
+    reader.onload = () => {
+      const raw = typeof reader.result === 'string' ? reader.result : '';
+      const text = raw
+        .replace(/^\uFEFF/, '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/\n+$/, '');
+      if (text.trim() === '') {
+        this.fileError.set($localize`:@@pv.file.empty:That file has no rows in it.`);
+        return;
+      }
+      this.fileError.set(null);
+      // A fresh source: the inline fixes and removals belong to the text they were made
+      // against, and carrying them onto another file would silently edit rows nobody saw.
+      this.overlay.set(new Map());
+      this.removed.set(new Set());
+      this.text.set(text);
+      this.announcement.set(
+        $localize`:@@pv.file.loaded:Opened ${file.name}:name:. Check the preview before saving.`,
+      );
+    };
+    reader.readAsText(file, 'utf-8');
   }
 
   protected setFilter(id: string): void {

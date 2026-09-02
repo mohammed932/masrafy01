@@ -533,6 +533,18 @@ export const ERROR_CODES = {
   /** Per-rule DBR override outside (0, 100] (FR-012). */
   INCOME_RULE_DBR_OVERRIDE_INVALID: 'INCOME_RULE_DBR_OVERRIDE_INVALID',
   /**
+   * The additional-income policy cannot be read — a source naming a fact the registry does
+   * not serve or one that is not a number, a weight outside (0, 100], the same source listed
+   * twice, or a cap outside (0, 100].
+   *
+   * A refusal, not a warning, and for the same reason `MAX_LOAN_BY_FACT_INVALID` is: each of
+   * those makes the policy contribute NOTHING at quote time while reading as configured on
+   * the screen — a rent counted at 50% on the sheet and at nothing in the offer.
+   *
+   * `meta.reason` says which, and `meta.factKey` names the row to fix.
+   */
+  ADDITIONAL_INCOME_INVALID: 'ADDITIONAL_INCOME_INVALID',
+  /**
    * The program's maximum-loan table (`loanLimits.maxLoanByFact`) cannot be read — an
    * unknown fact, rows keyed the wrong way for that fact's type, an option code the
    * question does not offer, a repeated cell, or bands that gap or overlap.
@@ -931,6 +943,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   INCOME_RULE_UNKNOWN_KEY: 422,
   INCOME_RULE_BANDS_INVALID: 422,
   INCOME_RULE_DBR_OVERRIDE_INVALID: 422,
+  ADDITIONAL_INCOME_INVALID: 422,
   INCOME_RULE_FACT_UNAVAILABLE: 422,
   PRODUCT_RULE_INVALID: 422,
   PRODUCT_TEMPLATE_INVALID: 422,

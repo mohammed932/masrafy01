@@ -495,6 +495,17 @@ model BankOffer {
   /// is immutable): a program later re-flagged must not rewrite past offers.
   isShariaCompliant          Boolean      @default(false)
   effectiveRatePercent       Decimal      @db.Decimal(7, 4)
+  /// How that rate was charged — `reducing` (interest on the outstanding balance) or
+  /// `flat` (interest on the original principal for the whole tenor).
+  ///
+  /// Frozen for the same reason `isShariaCompliant` is: a program re-priced onto the other
+  /// basis later must not rewrite what this offer meant (Principle I / A6). The same rate
+  /// over the same tenor buys 22-29% more loan reducing than flat, so the rate alone does
+  /// not say what was quoted.
+  ///
+  /// `null` on every offer written before this column. Absent is NOT "flat": those offers
+  /// were all priced by the reducing annuity, which is what `rateBasisOf` answers.
+  rateBasis                  String?      @db.VarChar(16)
   monthlyInstallmentEGP      Decimal      @db.Decimal(13, 2)
   requestedLoanAmountEGP     Decimal      @db.Decimal(13, 2)
   effectiveLoanAmountEGP     Decimal      @db.Decimal(13, 2)

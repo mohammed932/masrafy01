@@ -1,0 +1,12 @@
+-- Freeze the rate BASIS on the offer.
+--
+-- `bank_offer.effectiveRatePercent` has always been stored; what was never stored is how
+-- that percentage is charged. Every figure the engine has quoted was an annuity over a
+-- reducing balance. A FLAT program charges interest on the original principal for the whole
+-- tenor, and the same instalment then buys 22-29% less loan -- so the rate on its own does
+-- not say what was quoted.
+--
+-- Nullable and with no backfill, deliberately. Every existing row was priced by the reducing
+-- annuity, and `rateBasisOf` reads absence as exactly that; writing 'reducing' onto history
+-- would claim a decision nobody made. New offers carry the basis their program states.
+ALTER TABLE "bank_offer" ADD COLUMN "rateBasis" VARCHAR(16);

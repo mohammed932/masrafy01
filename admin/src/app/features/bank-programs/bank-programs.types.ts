@@ -61,8 +61,17 @@ export interface LoanLimitsConfig {
   };
 }
 
+/**
+ * How a rate is charged. `reducing` charges interest on what is still owed; `flat` charges
+ * it on the original amount for the whole tenor, which buys the customer 22-29% less loan
+ * from the same instalment. Absent reads as `reducing` on the server, which is what every
+ * program configured before the field existed was priced by.
+ */
+export type RateBasis = 'reducing' | 'flat';
+
 export interface PricingConfig {
   isVariableRate: boolean;
+  rateBasis?: RateBasis;
   baseRatePercent?: string;
   currentEffectiveRatePercent?: string;
   variableRateNote?: string;
@@ -926,8 +935,23 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
   }>;
 }
 
+/** Mirrors the server DTO — see `matching/pipeline/additional-income.ts`. */
+export interface AdditionalIncomeConfig {
+  sources: { factKey: string; percent: string }[];
+  capPercentOfBasic?: string;
+}
+
 export interface IncomeAssumptionConfig {
   strategy: IncomeAssumptionStrategy;
+
+  /**
+   * Money the applicant earns beside the basic figure, counted at this bank's weight per
+   * source and optionally capped as a share of the basic figure.
+   *
+   * A BANK policy, so it rides on both `amounts: 'own'` and `amounts: 'catalog'` — the
+   * catalog states the calculation, not what a bank does with somebody's rent.
+   */
+  additionalIncome?: AdditionalIncomeConfig;
 
   /**
    * Whose figures the tables below are.

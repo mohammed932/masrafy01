@@ -104,6 +104,47 @@ export class IncomeScalarDto {
   unit!: 'percent' | 'multiplier';
 }
 
+/** One source of additional income, and the share of it a bank counts. */
+export class AdditionalIncomeSourceDto {
+  @ApiProperty({ example: 'rental_income_monthly' })
+  @IsString()
+  @Matches(/^[a-z0-9][a-z0-9_]{0,63}$/, { message: 'factKey must be a registry fact key' })
+  factKey!: string;
+
+  /**
+   * `(0, 100]`, checked in the validator rather than here.
+   *
+   * Zero is refused there rather than read as "do not count it": a source the bank does not
+   * count is a source it does not list, and a zero row reads on the screen as configured
+   * while contributing nothing.
+   */
+  @ApiProperty({ example: '50' })
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'percent must be a decimal string' })
+  percent!: string;
+}
+
+export class AdditionalIncomeConfigDto {
+  @ApiProperty({ type: [AdditionalIncomeSourceDto] })
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => AdditionalIncomeSourceDto)
+  sources!: AdditionalIncomeSourceDto[];
+
+  /**
+   * The ceiling on the TOTAL, as a percentage of the basic figure. Absent = no ceiling.
+   *
+   * One live sheet states 100%, i.e. the extra may equal but not exceed the basic. Absent is
+   * NOT 100: a bank that stated no ceiling has not stated that one.
+   */
+  @ApiPropertyOptional({ example: '100' })
+  @IsOptional()
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'capPercentOfBasic must be a decimal string' })
+  capPercentOfBasic?: string;
+}
+
 export class IncomeAssumptionConfigDto {
   /**
    * A built-in method token, or `fact:<key>` naming a row of the operator-managed fact
@@ -245,6 +286,19 @@ export class IncomeAssumptionConfigDto {
   @IsString()
   @Matches(DECIMAL_STRING, { message: 'dbrCapPercentOverride must be a decimal string' })
   dbrCapPercentOverride?: string;
+
+  /**
+   * Money the applicant earns beside the basic figure, counted at this bank's weight per
+   * source and optionally capped as a share of the basic figure (spec §10.11).
+   *
+   * Shape only here. That every named fact exists, is numeric and is actually ASKED is
+   * decided in `validation/income-rule.validator.ts`, which holds the registry.
+   */
+  @ApiPropertyOptional({ type: () => AdditionalIncomeConfigDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AdditionalIncomeConfigDto)
+  additionalIncome?: AdditionalIncomeConfigDto;
 
   /** FR-013 — `required_document` registry keys. Mismatch is a warning, never a rejection. */
   @ApiPropertyOptional({ type: [String], example: ['military_id'] })

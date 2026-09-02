@@ -256,9 +256,13 @@ interface AskedThing {
                         <div class="ask-foot">
                           <span class="ask-key mono">{{ thing.factKey }}</span>
                           <span class="ask-acts">
+                            <!-- Straight to THIS question, not to the pool. The whole list
+                                 is forty rows on its own filters, and an operator who has
+                                 just read a typo here should not have to find it again. -->
                             <a
                               class="linkish"
                               routerLink="/questionnaire/questions"
+                              [queryParams]="{ q: thing.questionCode }"
                               i18n="@@spd.ask.edit"
                               >Edit the wording</a
                             >

@@ -96,15 +96,74 @@ export function categoryAsksAnySurrogateFact(
 /**
  * The DERIVED facts — computed by the engine per quote rather than registered by an operator.
  *
- * `bank_relationship` is the only one: whether the applicant already banks with the bank being
- * quoted. It has no registry row and no bound question (the question behind it is bank-agnostic
- * and multi-pick), so every screen that lists "the facts this rule reads" has to know the two
- * things a registry row would otherwise have told it — its label, and the answers it can take.
+ * THREE of them, one per per-bank axis: whether the applicant is KNOWN to the bank being
+ * quoted, whether this loan is a TOP-UP of one they already have there, and whether they HOLD
+ * ANOTHER PRODUCT there. The sheets label all three "NTB / something", and they are not the
+ * same question — a customer with a card but no loan is existing, not a top-up, and a
+ * cross-sell, all at once (spec §10.3).
+ *
+ * None has a registry row or a bound question (each question is bank-agnostic and multi-pick),
+ * so every screen that lists "the facts this rule reads" has to know the two things a registry
+ * row would otherwise have told it — the label, and the answers it can take. That is what
+ * `DERIVED_FACTS` below carries, in ONE place, so a screen cannot offer an axis whose columns
+ * another screen spells differently.
  */
 export const BANK_RELATIONSHIP_FACT_KEY = 'bank_relationship';
+export const LOAN_TOPUP_FACT_KEY = 'loan_is_topup';
+export const OTHER_PRODUCT_FACT_KEY = 'holds_other_product';
 
+export interface DerivedFactOption {
+  code: string;
+  label: string;
+}
+
+export interface DerivedFact {
+  key: string;
+  label: string;
+  /** The standard column first — it is what an unanswered question falls to. */
+  options: readonly DerivedFactOption[];
+}
+
+export const DERIVED_FACTS: readonly DerivedFact[] = [
+  {
+    key: BANK_RELATIONSHIP_FACT_KEY,
+    label: $localize`:@@derived_fact.bank_relationship:Already banks here`,
+    options: [
+      { code: 'ntb', label: $localize`:@@derived_fact.ntb:New to this bank` },
+      { code: 'xsell', label: $localize`:@@derived_fact.xsell:Already banks here` },
+    ],
+  },
+  {
+    key: LOAN_TOPUP_FACT_KEY,
+    label: $localize`:@@derived_fact.loan_is_topup:Topping up a loan from this bank`,
+    options: [
+      { code: 'new_loan', label: $localize`:@@derived_fact.new_loan:A new loan` },
+      { code: 'top_up', label: $localize`:@@derived_fact.top_up:A top-up of a loan here` },
+    ],
+  },
+  {
+    key: OTHER_PRODUCT_FACT_KEY,
+    label: $localize`:@@derived_fact.holds_other_product:Holds a card or deposit here`,
+    options: [
+      {
+        code: 'other_product_none',
+        label: $localize`:@@derived_fact.other_product_none:Holds nothing else here`,
+      },
+      {
+        code: 'other_product_held',
+        label: $localize`:@@derived_fact.other_product_held:Holds a card or deposit here`,
+      },
+    ],
+  },
+];
+
+/** The old single-axis export, kept so nothing that reads it has to change shape. */
 export const BANK_RELATIONSHIP_OPTION_CODES: readonly string[] = ['ntb', 'xsell'];
 
+export function derivedFactByKey(key: string): DerivedFact | undefined {
+  return DERIVED_FACTS.find((fact) => fact.key === key);
+}
+
 export function isDerivedFactKey(key: string): boolean {
-  return key === BANK_RELATIONSHIP_FACT_KEY;
+  return DERIVED_FACTS.some((fact) => fact.key === key);
 }

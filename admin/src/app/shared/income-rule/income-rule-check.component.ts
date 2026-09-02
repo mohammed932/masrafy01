@@ -24,7 +24,7 @@ import {
   type RuleGate,
   type RuleStep,
 } from '@features/bank-programs/bank-programs.types';
-import { BANK_RELATIONSHIP_FACT_KEY } from '@core/surrogate-facts';
+import { derivedFactByKey } from '@core/surrogate-facts';
 
 /**
  * "Check this rule before anyone else sees it" (FR-026 – FR-031).
@@ -525,23 +525,19 @@ export class IncomeRuleCheckComponent {
       // platform also supplies the label and the two answers it can take. Without this the
       // panel would draw a free-text box for a closed two-option answer and the operator
       // would have to know the codes.
-      if (fact === undefined && key === BANK_RELATIONSHIP_FACT_KEY) {
+      const derived = fact === undefined ? derivedFactByKey(key) : undefined;
+      if (derived) {
         return {
           key,
-          label: $localize`:@@income_rule_check.fact.bank_relationship:Already a customer of this bank`,
+          label: derived.label,
           numeric: false,
-          options: [
-            {
-              code: 'ntb',
-              labelEn: 'No — new to this bank',
-              labelAr: $localize`:@@income_rule_check.fact.bank_relationship_ntb:No — new to this bank`,
-            },
-            {
-              code: 'xsell',
-              labelEn: 'Yes — an existing customer',
-              labelAr: $localize`:@@income_rule_check.fact.bank_relationship_xsell:Yes — an existing customer`,
-            },
-          ],
+          // Both label fields carry the localized string: the panel picks by document
+          // language, and a derived fact has one label per build rather than a stored pair.
+          options: derived.options.map((o) => ({
+            code: o.code,
+            labelEn: o.label,
+            labelAr: o.label,
+          })),
         };
       }
       return {

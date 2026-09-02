@@ -56,6 +56,12 @@ export interface CreateBankOfferInput {
   isShariaCompliant: boolean;
   programFriendlyName: string;
   effectiveRatePercent: Decimal;
+  /**
+   * How that rate is charged — `reducing` or `flat`. Written once with the offer and
+   * never updated (Principle I / A6): the rate alone does not say what was quoted, since
+   * the same percentage over the same tenor buys 22-29% more loan reducing than flat.
+   */
+  rateBasis: string;
   monthlyInstallmentEGP: Decimal;
   requestedLoanAmountEGP: Decimal;
   effectiveLoanAmountEGP: Decimal;

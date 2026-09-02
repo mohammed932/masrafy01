@@ -230,6 +230,21 @@ import { basisOf, incomeBasisLabel } from '@core/income-basis';
                   <dd class="numeric">{{ p.pricing.currentEffectiveRatePercent }}%</dd>
                 </div>
               }
+              <!-- Always shown, including on a program that states nothing: absence reads as
+               the declining annuity on the server, so leaving the row out would let the
+               operator read a flat program as declining and never know a basis existed. -->
+              <div class="row">
+                <dt i18n="@@bank_programs.field.rate_basis">How the interest is charged</dt>
+                <dd>
+                  @if (p.pricing.rateBasis === 'flat') {
+                    <span i18n="@@bank_programs.review.rate_basis_flat">The full amount (flat)</span>
+                  } @else {
+                    <span i18n="@@bank_programs.review.rate_basis_reducing"
+                      >What is still owed (declining)</span
+                    >
+                  }
+                </dd>
+              </div>
               @if (p.pricing.variableRateNote) {
                 <div class="row">
                   <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>

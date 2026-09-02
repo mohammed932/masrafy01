@@ -964,6 +964,19 @@ export class IncomeRuleDbrOverrideInvalidException extends DomainException {
 }
 
 /**
+ * The additional-income policy names something the engine cannot read, or a percentage that
+ * would make it count nothing.
+ *
+ * `reason` is what the form points at: `unknown_fact` · `not_numeric` · `duplicate_source` ·
+ * `percent_out_of_range` · `cap_out_of_range` · `no_sources`.
+ */
+export class AdditionalIncomeInvalidException extends DomainException {
+  constructor(meta: { reason: string; factKey?: string; value?: string }) {
+    super(ERROR_CODES.ADDITIONAL_INCOME_INVALID, meta);
+  }
+}
+
+/**
  * The rule reads a registry fact the registry cannot serve — unknown, deactivated, or
  * bound to a question that is gone, inactive, or of a type no table can be keyed by.
  *

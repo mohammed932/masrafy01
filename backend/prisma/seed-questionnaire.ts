@@ -386,6 +386,36 @@ const EXISTING_BANK_RELATIONSHIPS_Q: SeedQuestion = {
   options: [],
 };
 
+// The other two per-bank axes (spec §10.3). Same shape, same mechanism, DIFFERENT question:
+// a customer who holds a card at a bank but has no loan there is an existing customer, is
+// NOT a top-up, and IS a cross-sell — three answers one question cannot give.
+//
+// Both are optional and both fall to the bank's standard column when skipped, so adding them
+// asks more of nobody: an applicant who answers neither is quoted exactly as before.
+const EXISTING_BANK_LOANS_Q: SeedQuestion = {
+  code: 'existing_bank_loans',
+  type: 'MULTI_SELECT',
+  questionEn: 'Do you already have a loan with any of these banks?',
+  questionAr: 'هل لديك قرض قائم في أي من هذه البنوك؟',
+  helperTextEn: 'Some banks lend more when they are topping up a loan they already gave you.',
+  helperTextAr: 'بعض البنوك تمنح مبلغًا أكبر عند زيادة قرض سبق أن منحته لك.',
+  isRequired: false,
+  optionsFromBanks: true,
+  options: [],
+};
+
+const EXISTING_BANK_PRODUCTS_Q: SeedQuestion = {
+  code: 'existing_bank_products',
+  type: 'MULTI_SELECT',
+  questionEn: 'Do you hold a card or a deposit with any of these banks?',
+  questionAr: 'هل لديك بطاقة أو وديعة في أي من هذه البنوك؟',
+  helperTextEn: 'A bank may offer more to someone who already holds another product with it.',
+  helperTextAr: 'قد يمنح البنك مبلغًا أكبر لمن لديه منتج آخر لديه بالفعل.',
+  isRequired: false,
+  optionsFromBanks: true,
+  options: [],
+};
+
 /**
  * The gates — cheap, and the only part every applicant sees.
  *
@@ -398,7 +428,7 @@ const COLLATERAL_GATES_GROUP: SeedGroup = {
   code: 'collateral_gates',
   titleEn: 'What you already own',
   titleAr: 'ما تملكه بالفعل',
-  questions: [EXISTING_BANK_RELATIONSHIPS_Q],
+  questions: [EXISTING_BANK_RELATIONSHIPS_Q, EXISTING_BANK_LOANS_Q, EXISTING_BANK_PRODUCTS_Q],
 };
 
 const EMPLOYER_APPROVED_Q: SeedQuestion = {
@@ -531,6 +561,86 @@ const I_SCORE_QUESTION: { groupCode: string; question: SeedQuestion; categories:
     options: [],
   },
 };
+
+/**
+ * The sources of income a bank may count BESIDE the basic figure, each as its own amount.
+ *
+ * Four questions and not one, because the bank weighs them differently: one live sheet counts
+ * rent at 50%, certificate returns at 75%, fixed allowances at 100% and variable ones at 75%.
+ * A single "other income" amount cannot carry four weights, and asking for the weighted total
+ * would ask the customer to apply a policy they have never seen.
+ *
+ * All four are OPTIONAL and gated on the existing yes/no `additional_income`, so an applicant
+ * who has none is asked nothing more than they are today. An unanswered source contributes
+ * zero and never a refusal (`additional-income.ts`).
+ *
+ * ALL FOUR CATEGORIES, like the bureau score: rent is a property of the person, not the loan.
+ */
+const ADDITIONAL_INCOME_SOURCES: ReadonlyArray<{ key: string; question: SeedQuestion }> = [
+  {
+    key: 'rental_income_monthly',
+    question: {
+      code: 'rental_income_monthly',
+      type: 'NUMERIC',
+      questionEn: 'How much rent do you collect each month?',
+      questionAr: 'كم إيجارًا تحصّل شهريًا؟',
+      helperTextEn: 'From property you own and rent out.',
+      helperTextAr: 'من عقار تملكه وتؤجّره.',
+      isRequired: false,
+      enabledWhen: { questionCode: 'additional_income', operator: 'equals', optionCode: 'yes' },
+      numeric: { minValue: '0', maxValue: '5000000', step: '100', unitEn: 'EGP', unitAr: 'جنيه' },
+      options: [],
+    },
+  },
+  {
+    key: 'cd_returns_monthly',
+    question: {
+      code: 'cd_returns_monthly',
+      type: 'NUMERIC',
+      questionEn: 'How much do your certificates or deposits pay you each month?',
+      questionAr: 'كم تدرّ عليك الشهادات أو الودائع شهريًا؟',
+      isRequired: false,
+      enabledWhen: { questionCode: 'additional_income', operator: 'equals', optionCode: 'yes' },
+      numeric: { minValue: '0', maxValue: '5000000', step: '100', unitEn: 'EGP', unitAr: 'جنيه' },
+      options: [],
+    },
+  },
+  {
+    key: 'fixed_allowances_monthly',
+    question: {
+      code: 'fixed_allowances_monthly',
+      type: 'NUMERIC',
+      questionEn: 'How much do you get in fixed allowances each month?',
+      questionAr: 'كم تتقاضى من بدلات ثابتة شهريًا؟',
+      helperTextEn: 'Allowances that are the same every month.',
+      helperTextAr: 'البدلات التي لا يتغير مقدارها شهريًا.',
+      isRequired: false,
+      enabledWhen: { questionCode: 'additional_income', operator: 'equals', optionCode: 'yes' },
+      numeric: { minValue: '0', maxValue: '5000000', step: '100', unitEn: 'EGP', unitAr: 'جنيه' },
+      options: [],
+    },
+  },
+  {
+    key: 'variable_allowances_monthly',
+    question: {
+      code: 'variable_allowances_monthly',
+      type: 'NUMERIC',
+      questionEn: 'How much do you get in allowances that change month to month?',
+      questionAr: 'كم تتقاضى من بدلات متغيرة شهريًا؟',
+      helperTextEn: 'Overtime, commission, and anything else that varies. Give a typical month.',
+      helperTextAr: 'العمل الإضافي والعمولات وما يتغير. اذكر متوسط شهر معتاد.',
+      isRequired: false,
+      enabledWhen: { questionCode: 'additional_income', operator: 'equals', optionCode: 'yes' },
+      numeric: { minValue: '0', maxValue: '5000000', step: '100', unitEn: 'EGP', unitAr: 'جنيه' },
+      options: [],
+    },
+  },
+];
+
+const ADDITIONAL_INCOME_CATEGORIES: readonly Category[] = ['personal', 'mortgage', 'car', 'business'];
+
+/** The group that already asks whether there IS other money — the amounts follow it. */
+const ADDITIONAL_INCOME_Q_GROUP = 'employment_income';
 
 const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion; categories: readonly Category[] }> = [
   {
@@ -1217,6 +1327,43 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
     questionOrder.push(question.code);
   }
 
+  // ---- 1b-iii. The sources of additional income ---------------------------
+  // Same registration as the bureau score, and pushed rather than unshifted for the same
+  // reason: they sit behind a yes/no the applicant has already answered, and belong after
+  // what the customer came to say. They live in the group that already asks whether there
+  // IS other money, so the amounts follow the question that reveals them.
+  for (const { question } of ADDITIONAL_INCOME_SOURCES) {
+    const groupCode = ADDITIONAL_INCOME_Q_GROUP;
+    if (!groupByCode.has(groupCode)) {
+      throw new Error(
+        `seed-questionnaire: additional-income question '${question.code}' targets unknown group '${groupCode}'`,
+      );
+    }
+    // Narrowed to the categories that ask the branch source, exactly like the obligation
+    // amounts below: a gated question published where its source is never asked can never
+    // become visible, and shows up as a dangling branch in the admin's matrix.
+    const sourceCategories = categoriesByQuestion[ADDITIONAL_INCOME_Q.code];
+    categoriesByQuestion[question.code] = new Set(
+      sourceCategories
+        ? ADDITIONAL_INCOME_CATEGORIES.filter((c) => sourceCategories.has(c))
+        : ADDITIONAL_INCOME_CATEGORIES,
+    );
+    questionByCode.set(question.code, {
+      code: question.code,
+      groupCode,
+      type: 'NUMERIC',
+      ...(question.numeric ? { numeric: question.numeric } : {}),
+      ...(question.enabledWhen ? { enabledWhen: question.enabledWhen } : {}),
+      questionEn: question.questionEn,
+      questionAr: question.questionAr,
+      ...(question.helperTextEn ? { helperTextEn: question.helperTextEn } : {}),
+      ...(question.helperTextAr ? { helperTextAr: question.helperTextAr } : {}),
+      isRequired: false,
+      options: [],
+    });
+    questionOrder.push(question.code);
+  }
+
   // ---- 1c. Inject the itemised obligations block -----------------------------
   // Registered after 1b so `current_installments` already exists, then the whole
   // block is re-ordered as one unit below.
@@ -1377,6 +1524,7 @@ export async function seedQuestionnaire(): Promise<void> {
 
   // ---- 2b. The bureau-score FACT --------------------------------------------
   await upsertIScoreFact();
+  await upsertAdditionalIncomeFacts();
 
   // ---- 3. Publish ONE global snapshot ---------------------------------------
   await publishVersion();
@@ -1448,6 +1596,68 @@ async function upsertIScoreFact(): Promise<void> {
     },
   });
 }
+
+/**
+ * The `surrogate_fact` rows for the additional-income sources, bound to the questions above.
+ *
+ * PLATFORM-OWNED, like the bureau score and for the same reason: rent is a property of the
+ * applicant, read by any bank whose sheet counts it. What is per-BANK is the WEIGHT, and that
+ * lives on the bank program (`incomeAssumption.additionalIncome`).
+ *
+ * Registered as facts rather than read straight off the answers so that one mechanism serves
+ * both: the same registry the income rule reads, the same check panel, the same refusal when
+ * a bank names a source the questionnaire stopped asking.
+ */
+async function upsertAdditionalIncomeFacts(): Promise<void> {
+  for (const { key, question } of ADDITIONAL_INCOME_SOURCES) {
+    const row = await prisma.question.findUnique({
+      where: { code: question.code },
+      select: { id: true },
+    });
+    if (!row) {
+      // Not a throw, for the reason `upsertIScoreFact` states: the question is written a few
+      // hundred lines above, so a miss means the seed itself is broken and dying here would
+      // send the next person to the wrong file.
+      console.warn(`seed-questionnaire: no '${question.code}' question — fact not bound.`);
+      continue;
+    }
+
+    const existing = await prisma.platformEnumeration.findUnique({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_fact', key } },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.platformEnumeration.update({
+        where: { id: existing.id },
+        data: { boundQuestionId: row.id, active: true, deprecatedAt: null, updatedBy: SEED_ACTOR },
+      });
+      continue;
+    }
+
+    await prisma.platformEnumeration.create({
+      data: {
+        type: 'surrogate_fact',
+        key,
+        labelEn: ADDITIONAL_INCOME_FACT_LABELS[key]?.en ?? key,
+        labelAr: ADDITIONAL_INCOME_FACT_LABELS[key]?.ar ?? key,
+        sortOrder: 110,
+        active: true,
+        boundQuestionId: row.id,
+        createdBy: SEED_ACTOR,
+        updatedBy: SEED_ACTOR,
+      },
+    });
+  }
+}
+
+/** Operator-facing names, in both locales — the fact rows carry a label, not a question. */
+const ADDITIONAL_INCOME_FACT_LABELS: Record<string, { en: string; ar: string }> = {
+  rental_income_monthly: { en: 'Rental income', ar: 'دخل الإيجار' },
+  cd_returns_monthly: { en: 'Certificate or deposit returns', ar: 'عائد الشهادات أو الودائع' },
+  fixed_allowances_monthly: { en: 'Fixed allowances', ar: 'البدلات الثابتة' },
+  variable_allowances_monthly: { en: 'Variable allowances', ar: 'البدلات المتغيرة' },
+};
 
 /** Shared reporting for both entrypoints into `writeProgramWeightSets`. */
 export function reportWeightSetRun(

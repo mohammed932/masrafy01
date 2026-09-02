@@ -1,5 +1,13 @@
 /**
- * The applicant's existing relationship with the bank being quoted — a DERIVED fact.
+ * The applicant's existing relationships with the bank being quoted — DERIVED facts.
+ *
+ * THREE of them, not one. The sheets label their second column differently and the labels
+ * are not synonyms: ABK's is NTB / Top-up (is this a NEW LOAN or a top-up of one they
+ * already have), FABMISR's is NTB / X-SELL (do they HOLD ANOTHER PRODUCT there), EGBank's
+ * is New / Existing customer (are they KNOWN to the bank at all). A customer who holds a
+ * card but has no loan is X-SELL at FABMISR, existing at EGBank and NTB at ABK — one shared
+ * axis reads the wrong row at two banks out of three, so each is its own question and its
+ * own fact (spec §10.3).
  *
  * Several banks price a compound-ownership guarantee off two columns: one for a customer
  * they do not have yet, a higher one for a customer they already do ("top-up", "X-SELL").
@@ -69,13 +77,91 @@ export function bankRelationshipFact(
   bankName: string | undefined,
   chosenSlugs: readonly string[] | undefined,
 ): SurrogateFactValue {
+  return bankAxisFact(BANK_RELATIONSHIP_AXIS, bankName, chosenSlugs);
+}
+
+/**
+ * One derived axis: the fact a rule names, the question whose answer feeds it, and the two
+ * columns it can pick.
+ *
+ * The codes differ per axis on purpose. Three axes all spelling their columns `ntb` /
+ * `xsell` would let a template keyed on one of them be re-pointed at another with its stored
+ * branches still validating — and a bank's top-up figure would silently become its
+ * holds-a-card figure.
+ */
+export interface BankAxis {
+  factKey: string;
+  questionCode: string;
+  /** The column every applicant can read — what an unanswered question falls to. */
+  standard: string;
+  /** The column an applicant reads when this bank is among the ones they named. */
+  matched: string;
+}
+
+export const BANK_RELATIONSHIP_AXIS: BankAxis = {
+  factKey: BANK_RELATIONSHIP_FACT_KEY,
+  questionCode: BANK_RELATIONSHIP_QUESTION_CODE,
+  standard: BANK_RELATIONSHIP_NEW,
+  matched: BANK_RELATIONSHIP_EXISTING,
+};
+
+/** Is this a NEW loan, or a top-up of a loan the applicant already has at this bank? */
+export const LOAN_TOPUP_FACT_KEY = 'loan_is_topup';
+export const LOAN_TOPUP_QUESTION_CODE = 'existing_bank_loans';
+export const LOAN_TOPUP_NEW = 'new_loan';
+export const LOAN_TOPUP_YES = 'top_up';
+
+export const LOAN_TOPUP_AXIS: BankAxis = {
+  factKey: LOAN_TOPUP_FACT_KEY,
+  questionCode: LOAN_TOPUP_QUESTION_CODE,
+  standard: LOAN_TOPUP_NEW,
+  matched: LOAN_TOPUP_YES,
+};
+
+/** Does the applicant hold another product — a card, a deposit — at this bank? */
+export const OTHER_PRODUCT_FACT_KEY = 'holds_other_product';
+export const OTHER_PRODUCT_QUESTION_CODE = 'existing_bank_products';
+export const OTHER_PRODUCT_NONE = 'other_product_none';
+export const OTHER_PRODUCT_HELD = 'other_product_held';
+
+export const OTHER_PRODUCT_AXIS: BankAxis = {
+  factKey: OTHER_PRODUCT_FACT_KEY,
+  questionCode: OTHER_PRODUCT_QUESTION_CODE,
+  standard: OTHER_PRODUCT_NONE,
+  matched: OTHER_PRODUCT_HELD,
+};
+
+/** Every derived per-bank axis, in the order a picker should offer them. */
+export const BANK_AXES: readonly BankAxis[] = [
+  BANK_RELATIONSHIP_AXIS,
+  LOAN_TOPUP_AXIS,
+  OTHER_PRODUCT_AXIS,
+];
+
+export function bankAxisByFactKey(factKey: string): BankAxis | undefined {
+  return BANK_AXES.find((axis) => axis.factKey === factKey);
+}
+
+/**
+ * Which column this applicant reads at this bank, on one axis.
+ *
+ * Always an answer, never "not answered": every one of these questions is optional, and a
+ * customer who skipped one is quoted on the bank's standard column rather than refused.
+ * Saying `fact_not_answered` here would turn an optional question into a requirement for
+ * every program that carries a second column.
+ */
+export function bankAxisFact(
+  axis: BankAxis,
+  bankName: string | undefined,
+  chosenSlugs: readonly string[] | undefined,
+): SurrogateFactValue {
   if (!bankName || !chosenSlugs || chosenSlugs.length === 0) {
-    return { kind: 'choice', optionCode: BANK_RELATIONSHIP_NEW };
+    return { kind: 'choice', optionCode: axis.standard };
   }
   const slug = bankSlug(bankName);
   return {
     kind: 'choice',
-    optionCode: chosenSlugs.includes(slug) ? BANK_RELATIONSHIP_EXISTING : BANK_RELATIONSHIP_NEW,
+    optionCode: chosenSlugs.includes(slug) ? axis.matched : axis.standard,
   };
 }
 
@@ -94,14 +180,16 @@ export function bankRelationshipFact(
  * deliberately naming the case they want to see.
  */
 export function factsForProgram(args: {
-  profile: Pick<ApplicantProfile, 'surrogateFacts' | 'bankRelationshipSlugs'>;
+  profile: Pick<ApplicantProfile, 'surrogateFacts' | 'bankAxisSlugs'>;
   programBankName?: string;
 }): Readonly<Record<string, SurrogateFactValue>> {
-  return {
-    [BANK_RELATIONSHIP_FACT_KEY]: bankRelationshipFact(
+  const derived: Record<string, SurrogateFactValue> = {};
+  for (const axis of BANK_AXES) {
+    derived[axis.factKey] = bankAxisFact(
+      axis,
       args.programBankName,
-      args.profile.bankRelationshipSlugs,
-    ),
-    ...(args.profile.surrogateFacts ?? {}),
-  };
+      args.profile.bankAxisSlugs?.[axis.factKey],
+    );
+  }
+  return { ...derived, ...(args.profile.surrogateFacts ?? {}) };
 }

@@ -22,6 +22,8 @@ import type {
 } from './pipeline/product-rule';
 import type { MaxLoanByFactConfig } from './pipeline/max-loan-by-fact';
 import type { MaxLoanAdjustment } from './pipeline/max-loan-adjustments';
+import type { RateBasis } from './pipeline/rate-basis';
+import type { AdditionalIncomeConfig } from './pipeline/additional-income';
 
 // ---------------------------------------------------------------------------
 // Applicant Profile
@@ -104,14 +106,19 @@ export interface ApplicantProfile {
    */
   surrogateFacts?: Readonly<Record<string, SurrogateFactValue>>;
   /**
-   * The banks the applicant says they already use, as bank slugs (`bankSlug()`).
+   * Per derived axis, the banks the applicant named — as bank slugs (`bankSlug()`), keyed
+   * by the FACT the axis feeds (`bank_relationship`, `loan_is_topup`, `holds_other_product`).
    *
-   * Not a surrogate fact, because a fact is one value and this is the input to a value
-   * that differs per program: the engine derives `bank_relationship` from this list and
-   * the bank of the program it is quoting. Absent or empty reads as "new to every bank",
-   * which is the standard column — never a refusal (see `bank-relationship.ts`).
+   * Not surrogate facts, because a fact is one value and each of these is the input to a
+   * value that differs per program: the engine derives the column from the list and the bank
+   * of the program it is quoting. Absent or empty reads as the standard column at every
+   * bank — never a refusal (see `bank-relationship.ts`).
+   *
+   * THREE axes rather than one, because "top-up of a loan here", "holds another product
+   * here" and "known here at all" are three different questions and a customer can answer
+   * them differently at the same bank (spec §10.3).
    */
-  bankRelationshipSlugs?: readonly string[];
+  bankAxisSlugs?: Readonly<Record<string, readonly string[]>>;
 }
 
 /**
@@ -134,6 +141,16 @@ export type RateBandMap = Record<string, RateBandValue>;
 
 export interface PricingConfig {
   isVariableRate: boolean;
+  /**
+   * How the quoted rate is charged — `'reducing'` (interest on the outstanding balance) or
+   * `'flat'` (interest on the original principal for the whole tenor).
+   *
+   * Absent reads as `'reducing'`, which is what every program configured before this field
+   * existed was priced by. Read it through `rateBasisOf` and never off this field directly,
+   * so the engine, the offer and the admin cannot disagree about a stored row
+   * (`pipeline/rate-basis.ts`).
+   */
+  rateBasis?: RateBasis;
   baseRatePercent?: string;
   currentEffectiveRatePercent?: string;
   rateByEmploymentType?: RateBandMap;
@@ -430,6 +447,17 @@ export interface IncomeAssumptionConfig {
   strategy: IncomeAssumptionStrategy;
 
   /**
+   * Money the applicant earns beside the basic figure, counted at the weight this bank gives
+   * each source, and optionally capped as a share of the basic figure.
+   *
+   * A bank POLICY and never a catalog default: two banks selling one product weigh rent
+   * differently, and inheriting a weight would count somebody's rent at a percentage their
+   * bank never stated. Absent means the bank counts none of it, which is what every program
+   * written before this field existed does (`additional-income.ts`).
+   */
+  additionalIncome?: AdditionalIncomeConfig;
+
+  /**
    * WHERE the figures below come from. Program rules only — a catalog name's own
    * rule is the source, so it never carries this.
    *
@@ -706,6 +734,11 @@ export interface Offer {
   programCode: string;
   programVersion: number;
   effectiveRatePercent: Decimal;
+  /**
+   * Frozen with the offer, for the reason `isShariaCompliant` is: a program re-priced onto
+   * the other basis later must not rewrite what an immutable offer meant (Principle I / A6).
+   */
+  rateBasis: RateBasis;
   monthlyInstallmentEGP: Decimal;
   requestedLoanAmountEGP: Decimal;
   effectiveLoanAmountEGP: Decimal;
@@ -889,6 +922,12 @@ export interface Quote {
   effectiveTenorMonths: number;
   /** After fee / insurance waiver penalties. */
   effectiveRatePercent: Decimal;
+  /**
+   * The basis that rate was charged on. Reported so the figure can never be read as the
+   * other basis — the same rate over the same tenor buys 22–29% more loan on a reducing
+   * balance than flat.
+   */
+  rateBasis: RateBasis;
   /** installment × effectiveTenorMonths. */
   totalPayableEGP: Decimal;
   /** totalPayable − cashToCustomer. */

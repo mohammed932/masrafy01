@@ -19,6 +19,23 @@
  * Not a seed, either. A starter is picked at create time and compiled into that product's
  * own rule; nothing writes these to the database. The previous library WAS a seed, and
  * `seed-program-catalog.ts` wrote `incomeRule` back over live rows because of it.
+ *
+ * ─── Why a CEILING may be keyed by a plain choice (`ceiling_by_choice`) ───────
+ *
+ * The design spec lists seven shapes and none of them is "a ceiling from what the customer
+ * picked" — the only choice-keyed shape it lists produces an income. Its §10.2 explains
+ * why: on nine of the source sheets the choice-keyed ceiling (property type, school type,
+ * branch, company coding) is printed under the heading *Loan Amount — Maximum*, which makes
+ * it the BANK PROGRAM's cap and not part of guessing the income. That reading stands, and
+ * `loanLimits.maxLoanByFact` is where it is configured — three of those sheets have no
+ * surrogate rule to hang a second path on at all.
+ *
+ * This starter is the other case, and it is a real one: the product whose WHOLE calculation
+ * is a ceiling read off what the customer owns — EGBank's compound guarantee keys its
+ * ceiling by the compound, and a bank keying the same product by the kind of unit is the
+ * same mechanism with a different list. Both sides are a ceiling in EGP, so they are the
+ * same unit, which is the one condition §10.2 keeps `minOf` for. Nothing here weakens that
+ * boundary: a ceiling that caps a real income still belongs on the program.
  */
 
 import type { ProductTemplate, TemplateMechanism } from './product-template';
@@ -36,6 +53,7 @@ export const TEMPLATE_STARTERS = [
   'ceiling_by_class',
   'ceiling_by_bracket',
   'ceiling_share_of_paid',
+  'ceiling_by_choice',
 ] as const;
 
 export type TemplateStarterKey = (typeof TEMPLATE_STARTERS)[number];
@@ -58,6 +76,7 @@ const STARTERS: readonly TemplateStarter[] = Object.freeze([
   { key: 'ceiling_by_class', outputKind: 'maxAmount', mechanism: 'classTable' },
   { key: 'ceiling_by_bracket', outputKind: 'maxAmount', mechanism: 'numberBand' },
   { key: 'ceiling_share_of_paid', outputKind: 'maxAmount', mechanism: 'shareOf' },
+  { key: 'ceiling_by_choice', outputKind: 'maxAmount', mechanism: 'choiceTable' },
 ]);
 
 export function templateStarters(): readonly TemplateStarter[] {

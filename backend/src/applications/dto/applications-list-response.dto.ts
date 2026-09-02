@@ -40,6 +40,15 @@ export interface ApplicationOfferDto {
   dbrPercent?: string;
   dbrCapPercent?: string;
   /**
+   * How the rate on this offer was charged: `reducing` (interest on the outstanding
+   * balance) or `flat` (interest on the original principal for the whole tenor).
+   *
+   * `null` on an offer written before the column existed. Absent is NOT `flat`: those
+   * offers were priced by the reducing annuity, and the reader should render the absence
+   * rather than name a basis nobody recorded.
+   */
+  rateBasis?: string | null;
+  /**
    * Feature 011 — which income this offer was priced on:
    * `declared` · `surrogate` · `declared_over_surrogate` · `surrogate_over_declared`,
    * and the surrogate method that produced it.

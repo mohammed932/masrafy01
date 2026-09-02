@@ -61,6 +61,13 @@ export type IncomeRuleViolation =
       stepId?: string;
     }
   | { kind: 'dbrOverrideInvalid'; value: string }
+  /** The additional-income policy names an unreadable source or an unusable percentage. */
+  | {
+      kind: 'additionalIncomeInvalid';
+      reason: AdditionalIncomeInvalidReason;
+      factKey?: string;
+      value?: string;
+    }
   /** The rule reads a registry fact the registry cannot serve (see the error code). */
   | { kind: 'factUnavailable'; factKey: string; availableFacts: string[] }
   /**
@@ -78,6 +85,24 @@ export type IncomeRuleViolation =
       gateId?: string;
       detail?: string;
     };
+
+/**
+ * Why an additional-income policy is refused.
+ *
+ * Every one of these makes the policy contribute NOTHING at quote time while reading as
+ * configured on the screen, which is the failure the refusal exists to prevent — a bank's
+ * sheet says rent counts at 50% and the offer counts none of it.
+ */
+export const ADDITIONAL_INCOME_INVALID_REASONS = [
+  'no_sources',
+  'unknown_fact',
+  'not_numeric',
+  'duplicate_source',
+  'percent_out_of_range',
+  'cap_out_of_range',
+] as const;
+
+export type AdditionalIncomeInvalidReason = (typeof ADDITIONAL_INCOME_INVALID_REASONS)[number];
 
 export const PRODUCT_RULE_INVALID_REASONS = [
   'no_steps',
@@ -197,6 +222,12 @@ export async function validateIncomeRule(
   // would send the admin to the wrong control.
   const overrideViolation = validateDbrOverride(config.dbrCapPercentOverride);
   if (overrideViolation) return overrideViolation;
+
+  // Checked before the method's own shape, for the reason the override is: the policy is a
+  // statement about the applicant's other income and is wrong or right independently of
+  // which table the basic figure comes from.
+  const additionalViolation = await validateAdditionalIncome(config.additionalIncome, ctx);
+  if (additionalViolation) return additionalViolation;
 
   // A registry fact, checked before the built-in sets: `fact:` names the registry
   // whatever else the key spells, and the table's SHAPE follows the bound question
@@ -824,6 +855,79 @@ function validateDbrOverride(raw: string | undefined): IncomeRuleViolation | und
   return undefined;
 }
 
+/**
+ * The additional-income policy (spec §10.11).
+ *
+ * Every check here answers the same question: would this row contribute the figure the bank
+ * wrote on its sheet? A source the registry cannot serve, one bound to a question that is not
+ * a NUMBER, a weight of zero or above a hundred — each of those contributes nothing while the
+ * screen shows a configured policy, which is exactly the silent failure
+ * `INCOME_RULE_FACT_UNAVAILABLE` was introduced for.
+ *
+ * The cap is (0, 100] like every other percentage the platform stores. A cap of zero is
+ * refused rather than read as "count nothing": a bank that counts nothing lists no sources,
+ * and a zero cap makes every weighted row on the screen a lie.
+ */
+async function validateAdditionalIncome(
+  config: IncomeAssumptionConfig['additionalIncome'],
+  ctx: IncomeRuleValidationContext,
+): Promise<IncomeRuleViolation | undefined> {
+  if (config === undefined) return undefined;
+
+  const sources = config.sources ?? [];
+  // An empty policy is refused rather than ignored: it is reached only by a screen that
+  // wrote the object, and silently dropping it would tell the operator it saved.
+  if (sources.length === 0) return { kind: 'additionalIncomeInvalid', reason: 'no_sources' };
+
+  const registry = await ctx.surrogateFacts();
+  const byKey = new Map(registry.map((fact) => [fact.key, fact]));
+  const seen = new Set<string>();
+
+  for (const source of sources) {
+    if (seen.has(source.factKey)) {
+      return {
+        kind: 'additionalIncomeInvalid',
+        reason: 'duplicate_source',
+        factKey: source.factKey,
+      };
+    }
+    seen.add(source.factKey);
+
+    const fact = byKey.get(source.factKey);
+    if (fact === undefined) {
+      return { kind: 'additionalIncomeInvalid', reason: 'unknown_fact', factKey: source.factKey };
+    }
+    // An AMOUNT, never an option code: `resolveAdditionalIncome` reads a numeric answer and
+    // ignores a choice, so a source bound to a select would count nothing forever.
+    if (fact.type !== 'NUMERIC') {
+      return { kind: 'additionalIncomeInvalid', reason: 'not_numeric', factKey: source.factKey };
+    }
+
+    const percent = toDecimalOrNull(source.percent);
+    if (percent === null || percent.lessThanOrEqualTo(ZERO) || percent.greaterThan(HUNDRED)) {
+      return {
+        kind: 'additionalIncomeInvalid',
+        reason: 'percent_out_of_range',
+        factKey: source.factKey,
+        value: source.percent,
+      };
+    }
+  }
+
+  if (config.capPercentOfBasic !== undefined) {
+    const cap = toDecimalOrNull(config.capPercentOfBasic);
+    if (cap === null || cap.lessThanOrEqualTo(ZERO) || cap.greaterThan(HUNDRED)) {
+      return {
+        kind: 'additionalIncomeInvalid',
+        reason: 'cap_out_of_range',
+        value: config.capPercentOfBasic,
+      };
+    }
+  }
+
+  return undefined;
+}
+
 async function validateKeyTable(
   config: IncomeAssumptionConfig,
   strategy: IncomeAssumptionStrategy,
@@ -1077,6 +1181,12 @@ export function stripForeignMethodConfig(
       ? { requiredDocuments: config.requiredDocuments }
       : {}),
     ...(config.combinationRule !== undefined ? { combinationRule: config.combinationRule } : {}),
+    // NOT method configuration either, and it must survive for the same reason `amounts`
+    // does: what other money a bank counts is a policy, not a table belonging to whichever
+    // method is selected. Dropped here it was silently discarded on every save — the request
+    // succeeded, the screen showed the weights the operator had typed, and the stored program
+    // counted none of them. Found by saving one, not by reading this.
+    ...(config.additionalIncome !== undefined ? { additionalIncome: config.additionalIncome } : {}),
   };
 
   // A STEP PIPELINE keeps BOTH halves here, and the split is made one step later.

@@ -69,7 +69,7 @@ describe('blockReason', () => {
   it('holds a half-filled new product', () => {
     const half = draft({
       basis: 'no_payslip',
-      product: { kind: 'new', shape: 'income_by_rank', labelEn: 'Ranks', labelAr: '' },
+      product: { kind: 'new', shapes: ['income_by_rank'], labelEn: 'Ranks', labelAr: '' },
     });
     expect(blockReason(half)).toBe('product');
     expect(
@@ -140,11 +140,32 @@ describe('barBlock', () => {
 });
 
 describe('productSettled', () => {
-  it('refuses a shape with no shape and an existing pick with no key', () => {
+  it('refuses a new product with no way picked, and an existing pick with no key', () => {
     expect(productSettled(draft({ product: { kind: 'existing', key: '' } }))).toBe(false);
     expect(
-      productSettled(draft({ product: { kind: 'new', shape: '', labelEn: 'a', labelAr: 'ا' } })),
+      productSettled(draft({ product: { kind: 'new', shapes: [], labelEn: 'a', labelAr: 'ا' } })),
     ).toBe(false);
+  });
+
+  it('settles on the FIRST way, and stays settled as more are ticked', () => {
+    // A second way is not a second requirement: the product is authorable the moment one way
+    // and both labels are answered.
+    const one = draft({
+      product: { kind: 'new', shapes: ['ceiling_by_choice'], labelEn: 'a', labelAr: 'ا' },
+    });
+    expect(productSettled(one)).toBe(true);
+    expect(
+      productSettled(
+        draft({
+          product: {
+            kind: 'new',
+            shapes: ['ceiling_by_choice', 'ceiling_by_class'],
+            labelEn: 'a',
+            labelAr: 'ا',
+          },
+        }),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -188,7 +209,7 @@ describe('savePlan', () => {
     expect(plan.product).toBeNull();
     expect(plan.incomeBases).toEqual(['payslip']);
     expect(plan.link).toEqual({ kind: 'none' });
-    expect(plan.shape).toBeNull();
+    expect(plan.shapes).toEqual([]);
   });
 
   it('an unanswered basis plans the payslip write, never a surrogate one', () => {
@@ -205,7 +226,7 @@ describe('savePlan', () => {
     expect(plan.link).toEqual({ kind: 'existing', key: 'car_owner' });
   });
 
-  it('surrogate + new: the PRODUCT is written first, and the shape rides along', () => {
+  it('surrogate + new: the PRODUCT is written first, and the shapes ride along', () => {
     // Order is the server's, not a preference: a no-payslip name is refused while nothing
     // says how its income is worked out, and the link must name a LIVE product row.
     const plan = savePlan(
@@ -213,7 +234,7 @@ describe('savePlan', () => {
         basis: 'no_payslip',
         product: {
           kind: 'new',
-          shape: 'ceiling_by_class',
+          shapes: ['ceiling_by_class'],
           labelEn: 'Compounds',
           labelAr: 'كمبوندات',
         },
@@ -221,7 +242,24 @@ describe('savePlan', () => {
     );
     expect(plan.product).toEqual({ labelEn: 'Compounds', labelAr: 'كمبوندات' });
     expect(plan.link).toEqual({ kind: 'made' });
-    expect(plan.shape).toBe('ceiling_by_class');
+    expect(plan.shapes).toEqual(['ceiling_by_class']);
+  });
+
+  it('carries EVERY way, in pick order', () => {
+    // The order is what names the slots the banks' figures hang off — first is `primary`,
+    // second is `alt` — so it must survive the plan exactly as picked.
+    const plan = savePlan(
+      draft({
+        basis: 'no_payslip',
+        product: {
+          kind: 'new',
+          shapes: ['ceiling_by_choice', 'ceiling_by_class'],
+          labelEn: 'Compounds',
+          labelAr: 'كمبوندات',
+        },
+      }),
+    );
+    expect(plan.shapes).toEqual(['ceiling_by_choice', 'ceiling_by_class']);
   });
 
   it('a retry after the product landed writes the NAME only — never a second product', () => {
@@ -231,7 +269,7 @@ describe('savePlan', () => {
         // The form still says "make a new one"; the product from the failed attempt exists.
         product: {
           kind: 'new',
-          shape: 'ceiling_by_class',
+          shapes: ['ceiling_by_choice', 'ceiling_by_class'],
           labelEn: 'Compounds',
           labelAr: 'كمبوندات',
         },
@@ -240,8 +278,9 @@ describe('savePlan', () => {
     );
     expect(plan.product).toBeNull();
     expect(plan.link).toEqual({ kind: 'existing', key: 'compounds' });
-    // The shape survives the retry: it is what seeds the calculation screen afterwards.
-    expect(plan.shape).toBe('ceiling_by_class');
+    // The WHOLE list survives the retry: it is what seeds the calculation screen afterwards,
+    // and a retry that dropped the second way would silently make a one-way product.
+    expect(plan.shapes).toEqual(['ceiling_by_choice', 'ceiling_by_class']);
   });
 });
 

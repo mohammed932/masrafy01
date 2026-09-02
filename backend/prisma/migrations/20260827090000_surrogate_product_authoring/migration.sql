@@ -43,12 +43,19 @@ ALTER TABLE "enumeration_type_def"
 -- 2. Retire the compound-ownership demo's two list KINDS
 -- ---------------------------------------------------------------------------
 --
--- The demo product itself (its rule, its five bank programs, its questions and
--- its values) is retired by `seed-collateral-products.ts#pruneRetiredDemoProducts`,
--- which is where every other retired demo has been undone and which knows the FK
--- order that `application_answer.questionId ON DELETE RESTRICT` imposes. Only the
--- two `enumeration_type_def` rows are retired HERE, because that table has no
--- seed-side writer other than the migration that created it.
+-- The demo product itself (its rule, its five bank programs, its questions and its
+-- values) was to be retired by `seed-collateral-products.ts#pruneRetiredDemoProducts`.
+-- CORRECTION, written in after the fact: that file was deleted in `ad6d6d0` before it
+-- ever ran, so this migration delegated to nothing and the demo rows survived on every
+-- database that had seeded them. The work now lives in
+-- `scripts/purge-handbuilt-surrogate-products.ts` (`npm run purge:handbuilt`), which is
+-- a SCRIPT and not a migration for the reason its own header states: a migration runs on
+-- every deploy with nobody present, and this deletes bank programs. It knows the FK order
+-- that `application_answer.questionId ON DELETE RESTRICT` imposes.
+--
+-- Only the two `enumeration_type_def` rows are retired HERE, because that table has no
+-- seed-side writer other than the migration that created it. This comment is corrected
+-- rather than the SQL changed: the statements below already ran everywhere.
 --
 -- DEACTIVATED, NOT DELETED, and the first draft of this migration got that wrong.
 -- Three reasons, each on its own sufficient:

@@ -64,6 +64,27 @@ function filled(starter: TemplateStarter): ProductTemplate {
 const asConfig = (rule: ProductRule): IncomeAssumptionConfig =>
   rule as unknown as IncomeAssumptionConfig;
 
+describe('the starter list', () => {
+  it('offers a CEILING keyed by a plain choice, blank of any fact', () => {
+    // The compound guarantee's first table is "villa lends more than an apartment": a choice
+    // answer producing a loan amount. Without this starter it was authorable only by hand on
+    // the calculation screen, which is the discoverability failure the shape cards exist to
+    // close. See the starters file header on why it does not contradict spec §10.2.
+    const starter = templateStarters().find((s) => s.key === 'ceiling_by_choice');
+    expect(starter).toEqual({
+      key: 'ceiling_by_choice',
+      outputKind: 'maxAmount',
+      mechanism: 'choiceTable',
+    });
+    const blank = blankTemplate(starter!);
+    expect(blank.outputKind).toBe('maxAmount');
+    // Blank on purpose: `mechanism_needs_fact` until the operator names the question, rather
+    // than a plausible default nobody chose.
+    expect(blank.primary).toEqual({ kind: 'choiceTable', fact: '' });
+    expect(validateTemplate(blank)?.reason).toBe('mechanism_needs_fact');
+  });
+});
+
 describe('every starter compiles to a rule the existing validation accepts', () => {
   it.each(templateStarters().map((s) => [s.key, s] as const))('%s', async (_key, starter) => {
     const rule = compileTemplate(filled(starter));

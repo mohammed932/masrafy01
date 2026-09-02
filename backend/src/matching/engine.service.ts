@@ -245,6 +245,7 @@ export class EngineService {
       programCode: args.program.programCode,
       programVersion: args.program.version,
       effectiveRatePercent: quote.effectiveRatePercent,
+      rateBasis: quote.rateBasis,
       monthlyInstallmentEGP: quote.monthlyInstallmentEGP,
       // `requestedLoanAmountEGP` is the cash the customer receives; the booked
       // principal (cash + financed fees) is `effectiveLoanAmountEGP`.

@@ -60,6 +60,8 @@ export interface PreviewFigures {
   monthlyInstallmentEGP: string;
   effectiveTenorMonths: number;
   effectiveRatePercent: string;
+  /** How that rate is charged: `reducing` or `flat` (`pipeline/rate-basis.ts`). */
+  rateBasis: string;
   totalPayableEGP: string;
   totalCostOfCreditEGP: string;
   dbrPercent: string;
@@ -497,8 +499,8 @@ export class MatchingPreviewService {
       // The operator-defined facts, keyed — the same map apply builds, from the same
       // mapper, so a `fact:` rule prices identically before and after apply (A33).
       surrogateFacts: surrogateFacts.byKey,
-      ...(surrogateFacts.bankRelationshipSlugs !== undefined
-        ? { bankRelationshipSlugs: surrogateFacts.bankRelationshipSlugs }
+      ...(surrogateFacts.bankAxisSlugs !== undefined
+        ? { bankAxisSlugs: surrogateFacts.bankAxisSlugs }
         : {}),
     };
   }
@@ -512,6 +514,9 @@ function toPreviewFigures(q: Quote): PreviewFigures {
     monthlyInstallmentEGP: q.monthlyInstallmentEGP.toFixed(2),
     effectiveTenorMonths: q.effectiveTenorMonths,
     effectiveRatePercent: q.effectiveRatePercent.toFixed(4),
+    // The rate and the basis travel together: the operator comparing two programs in the
+    // simulator cannot read one figure without the other (`rate-basis.ts`).
+    rateBasis: q.rateBasis,
     totalPayableEGP: q.totalPayableEGP.toFixed(2),
     totalCostOfCreditEGP: q.totalCostOfCreditEGP.toFixed(2),
     dbrPercent: q.dbrPercent.toFixed(2),

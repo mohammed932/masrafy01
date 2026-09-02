@@ -1679,34 +1679,6 @@
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="product_rule.fact.bank_relationship" datatype="html">
-        <source>whether they already bank here</source>
-        <target>ما إذا كان عميلًا حاليًا في هذا البنك</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="income_rule_check.fact.bank_relationship" datatype="html">
-        <source>Already a customer of this bank</source>
-        <target>عميل حالي في هذا البنك</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/income-rule/income-rule-check.component.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="income_rule_check.fact.bank_relationship_ntb" datatype="html">
-        <source>No — new to this bank</source>
-        <target>لا — عميل جديد على البنك</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/income-rule/income-rule-check.component.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="income_rule_check.fact.bank_relationship_xsell" datatype="html">
-        <source>Yes — an existing customer</source>
-        <target>نعم — عميل حالي</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/income-rule/income-rule-check.component.ts</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="bank_programs.strategy.steps" datatype="html">
         <source>Worked out step by step from what the customer owns</source>
         <target>يُحسب خطوة بخطوة من الأصول التي يملكها العميل</target>
@@ -1906,20 +1878,6 @@
       <trans-unit id="product_rule.group.count" datatype="html">
         <source><x id="set" equiv-text="set"/> of <x id="total" equiv-text="total"/> set</source>
         <target><x id="set" equiv-text="set"/> من <x id="total" equiv-text="total"/> مُحدَّد</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="product_rule.branch.ntb" datatype="html">
-        <source>Everyone else</source>
-        <target>بقية العملاء</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="product_rule.branch.xsell" datatype="html">
-        <source>Already banks here</source>
-        <target>لديه تعامل مع البنك</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
         </context-group>
@@ -2708,10 +2666,15 @@
       <trans-unit id="bank_programs.employment.self_employed" datatype="html"><source>Self-employed</source><target>يعمل لحسابه</target></trans-unit>
       <trans-unit id="bank_programs.employment.retired" datatype="html"><source>Retired</source><target>متقاعد</target></trans-unit>
       <trans-unit id="spt.back" datatype="html"><source>Surrogate products</source><target>المنتجات البديلة</target></trans-unit>
-      <trans-unit id="spt.pick_first" datatype="html"><source>Pick how the income is worked out to carry on.</source><target>اختر طريقة حساب الدخل للمتابعة.</target></trans-unit>
+      <trans-unit id="spt.pick_first" datatype="html"><source>Pick at least one way the income is worked out to carry on.</source><target>اختر طريقة واحدة على الأقل لحساب الدخل للمتابعة.</target></trans-unit>
       <trans-unit id="spt.eyebrow" datatype="html"><source>New surrogate product</source><target>منتج بديل جديد</target></trans-unit>
       <trans-unit id="spt.title" datatype="html"><source>How does the bank work the income out?</source><target>كيف يحسب البنك الدخل؟</target></trans-unit>
-      <trans-unit id="spt.subtitle" datatype="html"><source>Pick the shape this product follows. Every bank selling it fills in its own figures later — the shape is what they have in common.</source><target>اختر الشكل الذي يتبعه هذا المنتج. كل بنك يبيعه يملأ أرقامه لاحقًا، والشكل هو ما يشتركون فيه.</target></trans-unit>
+      <trans-unit id="spt.subtitle" datatype="html"><source>Pick every way banks work this product's figure out. Each of them fills in its own figures later — the shapes are what they have in common.</source><target>اختر كل الطرق التي تحسب بها البنوك رقم هذا المنتج. كل بنك يملأ أرقامه لاحقًا، والأشكال هي ما تشترك فيه.</target></trans-unit>
+      <trans-unit id="spt.group.income" datatype="html"><source>Works out a monthly income</source><target>يحسب دخلًا شهريًا</target></trans-unit>
+      <trans-unit id="spt.group.ceiling" datatype="html"><source>Works out the most they can borrow</source><target>يحسب أقصى مبلغ يمكن اقتراضه</target></trans-unit>
+      <trans-unit id="spt.group.locked" datatype="html"><source>A product either works out an income or works out a ceiling, never both. Untick the other ways to use these.</source><target>المنتج إما يحسب دخلًا أو يحسب حدًا أقصى، وليس الاثنين. أزِل تحديد الطرق الأخرى لاستخدام هذه.</target></trans-unit>
+      <trans-unit id="spt.multi_note" datatype="html"><source>More than one way. When a bank fills in more than one of them, the lower figure is the one used — you can change that on the next screen.</source><target>أكثر من طريقة. إذا ملأ البنك أكثر من واحدة منها، فالرقم الأقل هو المستخدم — ويمكنك تغيير ذلك في الشاشة التالية.</target></trans-unit>
+      <trans-unit id="spt.cap_note" datatype="html"><source>That is as many ways as one product can offer. When a bank fills in more than one, the lower figure is used.</source><target>هذا أقصى عدد من الطرق يمكن للمنتج الواحد أن يقدمه. وإذا ملأ البنك أكثر من واحدة، يُستخدم الرقم الأقل.</target></trans-unit>
       <trans-unit id="spt.loading" datatype="html"><source>Loading the shapes</source><target>جارٍ تحميل الأشكال</target></trans-unit>
       <trans-unit id="spt.create_title" datatype="html"><source>Name this product</source><target>سمِّ هذا المنتج</target></trans-unit>
       <trans-unit id="spt.create_cta" datatype="html"><source>Create product</source><target>أنشئ المنتج</target></trans-unit>
@@ -2734,6 +2697,9 @@
       <trans-unit id="spt.shape.bracket" datatype="html"><source>A ceiling from an amount bracket</source><target>حد أقصى من شريحة مبلغ</target></trans-unit>
       <trans-unit id="spt.shape.bracket.detail" datatype="html"><source>The customer states an amount, and the bank has a lending ceiling for the bracket it falls in.</source><target>يذكر العميل مبلغًا، وللبنك حد إقراض لكل شريحة يقع فيها.</target></trans-unit>
       <trans-unit id="spt.shape.bracket.eg" datatype="html"><source>e.g. paid 1–2M → lend up to 3,000,000</source><target>مثال: سدّد 1–2 مليون ← إقراض حتى 3,000,000</target></trans-unit>
+      <trans-unit id="spt.shape.kind" datatype="html"><source>A ceiling from the kind of thing they own</source><target>حد أقصى من نوع ما يملكه</target></trans-unit>
+      <trans-unit id="spt.shape.kind.detail" datatype="html"><source>The customer says what kind of unit it is, and the bank lends against that kind.</source><target>يذكر العميل نوع الوحدة، ويُقرض البنك على أساس هذا النوع.</target></trans-unit>
+      <trans-unit id="spt.shape.kind.eg" datatype="html"><source>e.g. Villa → lend up to 4,000,000</source><target>مثال: فيلا ← إقراض حتى 4,000,000</target></trans-unit>
       <trans-unit id="spt.shape.paid" datatype="html"><source>A ceiling that is a share of what has been paid</source><target>حد أقصى كنسبة مما تم سداده</target></trans-unit>
       <trans-unit id="spt.shape.paid.detail" datatype="html"><source>The bank lends a percentage of what the customer has already put into the asset.</source><target>يقرض البنك نسبة مما دفعه العميل بالفعل في الأصل.</target></trans-unit>
       <trans-unit id="spt.shape.paid.eg" datatype="html"><source>e.g. 15% of everything paid so far</source><target>مثال: 15% من كل ما سُدّد حتى الآن</target></trans-unit>
@@ -3616,7 +3582,7 @@
       <trans-unit id="pcn.block_name_latin" datatype="html"><source>The English name needs at least one letter or digit — it becomes the key.</source><target>يحتاج الاسم الإنجليزي إلى حرف أو رقم واحد على الأقل — فهو يصير المفتاح.</target></trans-unit>
       <trans-unit id="pcn.block_basis" datatype="html"><source>Say how the income is proved.</source><target>حدِّد كيف يُثبَت الدخل.</target></trans-unit>
       <trans-unit id="pcn.block_product" datatype="html"><source>Pick the calculation this name quotes from.</source><target>اختر طريقة الحساب التي يُسعِّر منها هذا الاسم.</target></trans-unit>
-      <trans-unit id="pcn.block_shape" datatype="html"><source>Pick a shape for the new calculation.</source><target>اختر شكل طريقة الحساب الجديدة.</target></trans-unit>
+      <trans-unit id="pcn.block_shape" datatype="html"><source>Pick at least one way the new calculation reaches its figure.</source><target>اختر طريقة واحدة على الأقل تصل بها طريقة الحساب الجديدة إلى رقمها.</target></trans-unit>
       <trans-unit id="pcn.block_product_name" datatype="html"><source>Name the new calculation in both languages.</source><target>اكتب اسم طريقة الحساب الجديدة باللغتين.</target></trans-unit>
       <trans-unit id="spt.back_name" datatype="html"><source>Back to the program name</source><target>العودة إلى اسم البرنامج</target></trans-unit>
       <trans-unit id="spt.back_product" datatype="html"><source>Back to the product</source><target>العودة إلى المنتج</target></trans-unit>
@@ -3626,6 +3592,7 @@
       <trans-unit id="pcn.product_used_by" datatype="html"><source>Used by <x id="COUNT" equiv-text="row.usedBy.length"/> names</source><target>يستخدمها <x id="COUNT" equiv-text="row.usedBy.length"/> من الأسماء</target></trans-unit>
       <trans-unit id="pcn.summary_payslip" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, sold against a payslip.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُباعًا مقابل كشف راتب.</target></trans-unit>
       <trans-unit id="pcn.summary_link" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, quoting from “<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>”.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُسعِّرًا من «<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>».</target></trans-unit>
+      <trans-unit id="pcn.summary_make_ways" datatype="html"><source>Creates “<x id="PRODUCT" equiv-text="plan.product.labelEn"/>” with <x id="COUNT" equiv-text="plan.shapes.length"/> ways to reach its figure, then “<x id="NAME" equiv-text="name"/>” linked to it, and opens the calculation to fill in.</source><target>يُنشئ «<x id="PRODUCT" equiv-text="plan.product.labelEn"/>» بعدد <x id="COUNT" equiv-text="plan.shapes.length"/> من الطرق للوصول إلى رقمه، ثم «<x id="NAME" equiv-text="name"/>» مرتبطًا بها، ويفتح طريقة الحساب لتعبئتها.</target></trans-unit>
       <trans-unit id="pcn.summary_make" datatype="html"><source>Creates “<x id="PRODUCT" equiv-text="plan.product.labelEn"/>”, then “<x id="NAME" equiv-text="name"/>” linked to it, and opens the calculation to fill in.</source><target>يُنشئ «<x id="PRODUCT" equiv-text="plan.product.labelEn"/>»، ثم «<x id="NAME" equiv-text="name"/>» مرتبطًا بها، ويفتح طريقة الحساب لتعبئتها.</target></trans-unit>
       <trans-unit id="bank_programs.form.max_by_answer" datatype="html"><source> Maximum by answer </source><target>الحد الأقصى حسب الإجابة</target></trans-unit>
       <trans-unit id="max_loan_by_fact.enable" datatype="html"><source>Cap the maximum by an answer</source><target>تحديد الحد الأقصى حسب إجابة</target></trans-unit>
@@ -3647,15 +3614,44 @@
       <trans-unit id="max_loan_by_fact.use_program_max" datatype="html"><source>Falls back to this program’s maximum</source><target>ترجع إلى الحد الأقصى لهذا البرنامج</target></trans-unit>
       <trans-unit id="max_loan_by_fact.reject" datatype="html"><source>Gets no figures, with a stated reason</source><target>لا تظهر لها أرقام، مع ذكر السبب</target></trans-unit>
       <trans-unit id="max_loan_by_fact.no_match_hint" datatype="html"><source> There is no third option on purpose. “No cap” would quote above the bank’s policy and “cap zero” is a blank card, so one of these two has to be the bank’s answer. </source><target>لا يوجد خيار ثالث عن قصد. «بلا حد» سيعرض مبلغًا أعلى من سياسة البنك، و«حد صفر» يعني بطاقة فارغة، لذا لا بد أن يكون أحد هذين هو جواب البنك.</target></trans-unit>
-      <trans-unit id="max_loan_by_fact.bank_relationship" datatype="html"><source>Already banks here</source><target>يتعامل مع البنك بالفعل</target></trans-unit>
-      <trans-unit id="max_loan_by_fact.ntb" datatype="html"><source>New to this bank</source><target>عميل جديد على هذا البنك</target></trans-unit>
-      <trans-unit id="max_loan_by_fact.xsell" datatype="html"><source>Already banks here</source><target>يتعامل مع البنك بالفعل</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_no_rows" datatype="html"><source>This table has no rows, so it caps nobody. Add a row or remove the table.</source><target>هذا الجدول بلا صفوف، فلا يحدّ أحدًا. أضف صفًا أو احذف الجدول.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_row_missing_key" datatype="html"><source>One row states no answer, so nothing can match it.</source><target>أحد الصفوف بلا إجابة، فلا شيء يمكن أن يطابقه.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_duplicate" datatype="html"><source>Two rows state the same answer. The second one would never be read.</source><target>صفّان يذكران الإجابة نفسها. الصف الثاني لن يُقرأ أبدًا.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_amount" datatype="html"><source>Every row needs a maximum above zero. A zero would be a blank card, not a cap.</source><target>كل صف يحتاج حدًا أقصى أكبر من صفر. الصفر يعني بطاقة فارغة لا حدًا.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_gap" datatype="html"><source>There is a gap between two bands. An answer that falls in it matches no row.</source><target>توجد فجوة بين شريحتين. الإجابة التي تقع فيها لا تطابق أي صف.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_overlap" datatype="html"><source>Two bands overlap. The first one written would silently win.</source><target>شريحتان متداخلتان. الأولى المكتوبة ستفوز بصمت.</target></trans-unit>
+      <trans-unit id="bank_programs.field.rate_basis" datatype="html"><source>How the interest is charged</source><target>طريقة احتساب الفائدة</target></trans-unit>
+      <trans-unit id="bank_programs.rate_basis.aria" datatype="html"><source>How the interest is charged</source><target>طريقة احتساب الفائدة</target></trans-unit>
+      <trans-unit id="bank_programs.rate_basis.reducing" datatype="html"><source>On what is still owed</source><target>على المتبقي من المديونية</target></trans-unit>
+      <trans-unit id="bank_programs.rate_basis.reducing_note" datatype="html"><source>Declining balance. The interest falls as the loan is paid down.</source><target>رصيد متناقص. تقل الفائدة كلما سُدِّد القرض.</target></trans-unit>
+      <trans-unit id="bank_programs.rate_basis.flat" datatype="html"><source>On the full amount</source><target>على المبلغ كاملًا</target></trans-unit>
+      <trans-unit id="bank_programs.rate_basis.flat_note" datatype="html"><source>Flat. The same interest every month, so this rate buys the customer a smaller loan.</source><target>فائدة ثابتة. نفس الفائدة كل شهر، فيمنح هذا المعدل العميل قرضًا أصغر.</target></trans-unit>
+      <trans-unit id="bank_programs.review.rate_basis" datatype="html"><source>Charged on</source><target>تُحتسب على</target></trans-unit>
+      <trans-unit id="bank_programs.review.rate_basis_flat" datatype="html"><source>The full amount (flat)</source><target>المبلغ كاملًا (فائدة ثابتة)</target></trans-unit>
+      <trans-unit id="bank_programs.review.rate_basis_reducing" datatype="html"><source>What is still owed (declining)</source><target>المتبقي من المديونية (رصيد متناقص)</target></trans-unit>
+      <trans-unit id="derived_fact.bank_relationship" datatype="html"><source>Already banks here</source><target>يتعامل مع هذا البنك بالفعل</target></trans-unit>
+      <trans-unit id="derived_fact.ntb" datatype="html"><source>New to this bank</source><target>جديد على هذا البنك</target></trans-unit>
+      <trans-unit id="derived_fact.xsell" datatype="html"><source>Already banks here</source><target>يتعامل مع هذا البنك بالفعل</target></trans-unit>
+      <trans-unit id="derived_fact.loan_is_topup" datatype="html"><source>Topping up a loan from this bank</source><target>زيادة قرض قائم من هذا البنك</target></trans-unit>
+      <trans-unit id="derived_fact.new_loan" datatype="html"><source>A new loan</source><target>قرض جديد</target></trans-unit>
+      <trans-unit id="derived_fact.top_up" datatype="html"><source>A top-up of a loan here</source><target>زيادة قرض قائم هنا</target></trans-unit>
+      <trans-unit id="derived_fact.holds_other_product" datatype="html"><source>Holds a card or deposit here</source><target>لديه بطاقة أو وديعة هنا</target></trans-unit>
+      <trans-unit id="derived_fact.other_product_none" datatype="html"><source>Holds nothing else here</source><target>ليس لديه منتج آخر هنا</target></trans-unit>
+      <trans-unit id="derived_fact.other_product_held" datatype="html"><source>Holds a card or deposit here</source><target>لديه بطاقة أو وديعة هنا</target></trans-unit>
+      <trans-unit id="pv.file.open" datatype="html"><source>Open a CSV file</source><target>افتح ملف CSV</target></trans-unit>
+      <trans-unit id="pv.file.note" datatype="html"><source>The file fills the box below, so you can fix a line before saving.</source><target>يملأ الملف الصندوق بالأسفل، فيمكنك تصحيح أي سطر قبل الحفظ.</target></trans-unit>
+      <trans-unit id="pv.file.too_big" datatype="html"><source>That file is too large to open here. Split it, or paste the rows in batches.</source><target>هذا الملف أكبر من أن يُفتح هنا. قسّمه أو الصق الصفوف على دفعات.</target></trans-unit>
+      <trans-unit id="pv.file.unreadable" datatype="html"><source>That file could not be read.</source><target>تعذّرت قراءة هذا الملف.</target></trans-unit>
+      <trans-unit id="pv.file.empty" datatype="html"><source>That file has no rows in it.</source><target>لا يحتوي هذا الملف على أي صفوف.</target></trans-unit>
+      <trans-unit id="pv.export" datatype="html"><source>Download as CSV</source><target>تنزيل كملف CSV</target></trans-unit>
+      <trans-unit id="pv.file.loaded" datatype="html"><source>Opened <x id="name" equiv-text="file.name"/>. Check the preview before saving.</source><target>تم فتح <x id="name" equiv-text="file.name"/>. راجع المعاينة قبل الحفظ.</target></trans-unit>
+      <trans-unit id="bank_programs.income.additional" datatype="html"><source>Other money the bank counts</source><target>دخل آخر يحتسبه البنك</target></trans-unit>
+      <trans-unit id="additional_income.no_sources" datatype="html"><source>The questionnaire is not asking about any other income yet, so there is nothing to weigh here.</source><target>الاستبيان لا يسأل عن أي دخل آخر بعد، فلا يوجد ما يُحتسب هنا.</target></trans-unit>
+      <trans-unit id="additional_income.col_source" datatype="html"><source>Source</source><target>المصدر</target></trans-unit>
+      <trans-unit id="additional_income.col_counted" datatype="html"><source>Counted at</source><target>يُحتسب بنسبة</target></trans-unit>
+      <trans-unit id="additional_income.cap" datatype="html"><source>All of it together may not exceed</source><target>ألا يتجاوز مجموعها</target></trans-unit>
+      <trans-unit id="additional_income.cap_tail" datatype="html"><source>of the basic income</source><target>من الدخل الأساسي</target></trans-unit>
+      <trans-unit id="additional_income.hint" datatype="html"><source>Leave a row blank to count none of that source. Leave the limit blank if the bank states none — blank is not the same as 100%.</source><target>اترك الصف فارغًا لعدم احتساب هذا المصدر. واترك الحد فارغًا إن لم يذكره البنك — الفراغ لا يعني ١٠٠٪.</target></trans-unit>
     </body>
   </file>
 </xliff>

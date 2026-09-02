@@ -80,6 +80,7 @@ import type {
   ProgramNameIncomeRule,
   ProgramType,
   RateBandMap,
+  RateBasis,
 } from '../bank-programs.types';
 import {
   factKeyOf,
@@ -98,12 +99,15 @@ import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/inc
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
+  AdditionalIncomeEditorComponent,
   DbrBandsEditorComponent,
   MaxLoanByFactEditorComponent,
   WizardStepsComponent,
   dbrBandsErrorFor,
   maxLoanByFactErrorFor,
   IncomeBasisCardsComponent,
+  type AdditionalIncomeConfig,
+  type AdditionalIncomeOption,
   type DbrBandsError,
   type MaxLoanByFactConfig,
   type WizardStepItem,
@@ -200,6 +204,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
     NzSelectModule,
     NzSwitchModule,
     DbrBandsEditorComponent,
+    AdditionalIncomeEditorComponent,
     MaxLoanByFactEditorComponent,
     IncomeBasisCardsComponent,
     IncomeAssumptionSectionComponent,
@@ -765,6 +770,44 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       </nz-form-control>
                     </nz-form-item>
                   }
+                  <!-- The basis, beside the rate it qualifies. A percentage on its own does
+                   not say what the customer pays: the same rate over the same tenor buys
+                   22-29% more loan on a declining balance than flat, so this is a radio
+                   pair with the consequence written out, not a checkbox someone can leave
+                   half-read. -->
+                  <nz-form-item class="span-2">
+                    <nz-form-label i18n="@@bank_programs.field.rate_basis"
+                      >How the interest is charged</nz-form-label
+                    >
+                    <nz-form-control>
+                      <div class="rate-basis" role="radiogroup" [attr.aria-label]="rateBasisAria">
+                        <label class="rate-basis-opt">
+                          <input type="radio" formControlName="rateBasis" value="reducing" />
+                          <span class="rate-basis-body">
+                            <span class="rate-basis-title" i18n="@@bank_programs.rate_basis.reducing"
+                              >On what is still owed</span
+                            >
+                            <span class="rate-basis-note" i18n="@@bank_programs.rate_basis.reducing_note"
+                              >Declining balance. The interest falls as the loan is paid
+                              down.</span
+                            >
+                          </span>
+                        </label>
+                        <label class="rate-basis-opt">
+                          <input type="radio" formControlName="rateBasis" value="flat" />
+                          <span class="rate-basis-body">
+                            <span class="rate-basis-title" i18n="@@bank_programs.rate_basis.flat"
+                              >On the full amount</span
+                            >
+                            <span class="rate-basis-note" i18n="@@bank_programs.rate_basis.flat_note"
+                              >Flat. The same interest every month, so this rate buys the
+                              customer a smaller loan.</span
+                            >
+                          </span>
+                        </label>
+                      </div>
+                    </nz-form-control>
+                  </nz-form-item>
                   <nz-form-item class="span-2">
                     <label
                       nz-checkbox
@@ -1262,6 +1305,23 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       (stepFiguresChange)="onStepFiguresEdit($event)"
                       (stepFiguresTouched)="markIncomeRuleDirty()"
                     ></app-income-assumption-section>
+
+                    <!-- Money the applicant earns BESIDE whatever the rule or the payslip
+                         says — rent, certificate returns, allowances — each counted at this
+                         bank's own weight. Here rather than under Eligibility because it is
+                         part of what income this bank recognises, and the operator is already
+                         looking at the rest of that answer. -->
+                    @if (additionalIncomeOptions().length > 0) {
+                      <div class="dbr-bands">
+                        <h3 class="dbr-bands-title" i18n="@@bank_programs.income.additional">
+                          Other money the bank counts
+                        </h3>
+                        <app-additional-income-editor
+                          [options]="additionalIncomeOptions()"
+                          [(config)]="additionalIncome"
+                        />
+                      </div>
+                    }
 
                     <app-income-rule-check
                       [programCode]="editingProgramCode()"
@@ -2397,6 +2457,65 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       .rate-group {
         max-inline-size: 11rem;
       }
+      /* Two peers, side by side: the choice is between two descriptions of one rate, and
+         stacking them puts the second under the fold of a long form. Each carries its own
+         consequence line, because "flat" and "declining" are the two words an operator is
+         most likely to read past. */
+      .rate-basis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: var(--space-3);
+        max-inline-size: 42rem;
+      }
+      .rate-basis-opt {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-field);
+        background: var(--color-surface-default);
+        cursor: pointer;
+        transition:
+          border-color var(--motion-fast) var(--ease-standard),
+          background var(--motion-fast) var(--ease-standard);
+      }
+      .rate-basis-opt:hover {
+        border-color: var(--color-accent-strong);
+      }
+      .rate-basis-opt:has(input:checked) {
+        border-color: var(--color-accent-strong);
+        background: var(--color-accent-subtle);
+      }
+      /* The ring goes on the label, not the 13px dot: the label IS the target. */
+      .rate-basis-opt:has(input:focus-visible) {
+        outline: 2px solid var(--color-accent-strong);
+        outline-offset: 2px;
+      }
+      .rate-basis-opt input {
+        margin-block-start: 0.15rem;
+        accent-color: var(--color-accent-strong);
+      }
+      .rate-basis-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+      .rate-basis-title {
+        font-weight: 600;
+        color: var(--color-text-primary);
+      }
+      /* Secondary, not tertiary: this is a sentence somebody has to read to choose. */
+      .rate-basis-note {
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        color: var(--color-text-secondary);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rate-basis-opt {
+          transition: none;
+        }
+      }
       nz-input-number.num-field {
         inline-size: 9rem;
       }
@@ -2854,6 +2973,26 @@ export class BankProgramFormPage implements OnInit {
       document.documentElement.lang.startsWith('ar'),
     ),
   );
+  /**
+   * This program's additional-income policy. `null` = it counts none, which is every program
+   * written before the field existed.
+   */
+  readonly additionalIncome = signal<AdditionalIncomeConfig | null>(null);
+
+  /**
+   * The sources the operator may weigh — every registry fact bound to a NUMBER question.
+   *
+   * Derived from the registry rather than listed here, so a fifth source added to the
+   * questionnaire reaches this screen with no release. Numeric only: the resolver reads an
+   * amount, and a source bound to a select would count nothing forever (the server refuses
+   * it, but offering it at all is what makes that refusal a surprise).
+   */
+  protected readonly additionalIncomeOptions = computed<AdditionalIncomeOption[]>(() =>
+    this.incomeFacts()
+      .filter((fact) => fact.question?.type === 'NUMERIC')
+      .map((fact) => ({ key: fact.key, label: fact.label })),
+  );
+
   private readonly banksApi = inject(BanksApiService);
   private readonly localeIsAr = inject(LOCALE_ID).toLowerCase().startsWith('ar');
 
@@ -3339,6 +3478,10 @@ export class BankProgramFormPage implements OnInit {
     }),
     pricing: this.fb.nonNullable.group({
       isVariableRate: new FormControl(false, { nonNullable: true }),
+      // Declining unless the sheet says otherwise: it is what every program in the book is
+      // priced at, and a new program that copies an existing one must not change basis by
+      // arriving on a screen.
+      rateBasis: new FormControl<RateBasis>('reducing', { nonNullable: true }),
       baseRatePercent: new FormControl<string | null>('24.0'),
       currentEffectiveRatePercent: new FormControl<string | null>(null),
       variableRateNote: new FormControl<string | null>(null),
@@ -3636,6 +3779,8 @@ export class BankProgramFormPage implements OnInit {
   }
 
   protected readonly incomeStepAria = $localize`:@@bank_programs.income.aria:How the bank reads the income`;
+  /** Named for a screen reader, which has no card heading in view when it reaches the pair. */
+  protected readonly rateBasisAria = $localize`:@@bank_programs.rate_basis.aria:How the interest is charged`;
 
   /**
    * What the answer COMMITS the operator to, said on the card before it is picked.
@@ -3894,6 +4039,15 @@ export class BankProgramFormPage implements OnInit {
             value: pct(v.pricing.baseRatePercent),
           },
         ];
+    // The basis rides WITH the rate, never on its own line elsewhere: a review that shows
+    // "24%" and leaves the basis to another screen is the misread §10.6 is about.
+    rateRows.push({
+      label: $localize`:@@bank_programs.review.rate_basis:Charged on`,
+      value:
+        v.pricing.rateBasis === 'flat'
+          ? $localize`:@@bank_programs.review.rate_basis_flat:The full amount (flat)`
+          : $localize`:@@bank_programs.review.rate_basis_reducing:What is still owed (declining)`,
+    });
     if (this.toggles.tieredRates() && this.rateBandsArray.length > 0) {
       rateRows.push({
         label: $localize`:@@bank_programs.review.rate_bands:Rate bands`,
@@ -5126,6 +5280,9 @@ export class BankProgramFormPage implements OnInit {
           ? { requiredDocuments: ia.requiredDocuments }
           : {}),
         ...(shape !== 'none' && ia.combinationRule ? { combinationRule: ia.combinationRule } : {}),
+        // Carried on BOTH branches: what other money a bank counts is its own policy, not a
+        // figure it inherited, so a program on the catalog's amounts still states it.
+        ...(this.additionalIncome() ? { additionalIncome: this.additionalIncome()! } : {}),
       };
     }
 
@@ -5153,6 +5310,7 @@ export class BankProgramFormPage implements OnInit {
         ? { requiredDocuments: ia.requiredDocuments }
         : {}),
       ...(shape !== 'none' && ia.combinationRule ? { combinationRule: ia.combinationRule } : {}),
+      ...(this.additionalIncome() ? { additionalIncome: this.additionalIncome()! } : {}),
     };
   }
 
@@ -5189,6 +5347,7 @@ export class BankProgramFormPage implements OnInit {
       },
       pricing: {
         isVariableRate: pr.isVariableRate,
+        rateBasis: pr.rateBasis,
         baseRatePercent: pr.isVariableRate ? undefined : (pr.baseRatePercent ?? undefined),
         currentEffectiveRatePercent: pr.isVariableRate
           ? (pr.currentEffectiveRatePercent ?? undefined)
@@ -5310,6 +5469,10 @@ export class BankProgramFormPage implements OnInit {
     // the one they typed and no digit is ever parsed through a float.
     this.pricingGroup.patchValue({
       isVariableRate: initial.pricing.isVariableRate,
+      // Absent on every program saved before the field existed, and those were all priced
+      // on the declining annuity — so the form shows the basis the engine actually used
+      // rather than an empty pair of radios (`rate-basis.ts`).
+      rateBasis: initial.pricing.rateBasis ?? 'reducing',
       baseRatePercent: trimZeros(initial.pricing.baseRatePercent) ?? null,
       currentEffectiveRatePercent: trimZeros(initial.pricing.currentEffectiveRatePercent) ?? null,
       variableRateNote: initial.pricing.variableRateNote ?? null,
@@ -5369,6 +5532,9 @@ export class BankProgramFormPage implements OnInit {
     });
     this.incomeKeyTable.set(initial.incomeAssumption.keyTable ?? []);
     this.incomeBands.set(initial.incomeAssumption.bands ?? []);
+    // Absent = this program counts no other money. `null` rather than an empty policy, so a
+    // program that states none sends none rather than an object the server refuses.
+    this.additionalIncome.set(initial.incomeAssumption.additionalIncome ?? null);
     // A product rule's figures. Cloned per step rather than assigned: the editor patches one
     // step at a time, and sharing the response's own objects would mutate the loaded snapshot
     // the review step reads back.

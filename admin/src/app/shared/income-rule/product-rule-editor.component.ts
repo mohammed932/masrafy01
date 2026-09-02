@@ -29,7 +29,7 @@ import {
   type StepFigures,
   type ValueRef,
 } from '@features/bank-programs/bank-programs.types';
-import { BANK_RELATIONSHIP_FACT_KEY } from '@core/surrogate-facts';
+import { derivedFactByKey } from '@core/surrogate-facts';
 import { FigureFieldComponent } from './figure-field.component';
 import { IncomeBandsEditorComponent } from './income-bands-editor.component';
 import { IncomeKeyTableComponent } from './income-key-table.component';
@@ -1869,9 +1869,8 @@ export class ProductRuleEditorComponent {
     if (fact?.label) return fact.label;
     // A DERIVED fact has no registry row and so no operator-authored label — the platform
     // computes it, so the platform names it.
-    if (key === BANK_RELATIONSHIP_FACT_KEY) {
-      return $localize`:@@product_rule.fact.bank_relationship:whether they already bank here`;
-    }
+    const derived = derivedFactByKey(key);
+    if (derived) return derived.label;
     return key;
   }
 
@@ -1890,11 +1889,10 @@ export class ProductRuleEditorComponent {
     // `labelEn` unconditionally put English headings over the pipeline's only two-column
     // table in the Arabic build (Principle IV / A20), with the Arabic label already in hand.
     if (option) return this.isAr ? option.labelAr : option.labelEn;
-    if (step.fact === BANK_RELATIONSHIP_FACT_KEY) {
-      return code === 'xsell'
-        ? $localize`:@@product_rule.branch.xsell:Already banks here`
-        : $localize`:@@product_rule.branch.ntb:Everyone else`;
-    }
+    // A derived axis names its own columns — the three of them spell their branches
+    // differently on purpose, so a heading can never be read off the wrong axis.
+    const derivedOption = derivedFactByKey(step.fact ?? '')?.options.find((o) => o.code === code);
+    if (derivedOption) return derivedOption.label;
     return code;
   }
 

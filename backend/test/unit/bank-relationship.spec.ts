@@ -8,10 +8,15 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  BANK_AXES,
   BANK_RELATIONSHIP_EXISTING,
+  BANK_RELATIONSHIP_FACT_KEY,
   BANK_RELATIONSHIP_NEW,
   bankRelationshipFact,
   bankSlug,
+  factsForProgram,
+  LOAN_TOPUP_FACT_KEY,
+  OTHER_PRODUCT_FACT_KEY,
 } from '../../src/matching/pipeline/bank-relationship';
 import {
   DERIVED_FACT_KEYS,
@@ -74,5 +79,75 @@ describe('the derived-fact registry', () => {
   it('states the branches a rule may key off, so a typo is refused at save', () => {
     expect(derivedFactOptionCodes('bank_relationship')).toEqual(['ntb', 'xsell']);
     expect(derivedFactOptionCodes('compound_unit_type')).toBeNull();
+  });
+});
+
+/**
+ * The other two axes (spec §10.3).
+ *
+ * The case that matters is the one sentence in the spec: a customer who holds a card at a
+ * bank but has no loan there is X-SELL to FABMISR, existing to EGBank and NTB to ABK. If
+ * these three ever collapse back into one question, that applicant reads the wrong row at
+ * two banks out of three — so it is pinned as one test with one applicant.
+ */
+describe('the three per-bank axes', () => {
+  const cardHolderAtAbk = {
+    surrogateFacts: {},
+    bankAxisSlugs: {
+      bank_relationship: ['abk_egypt'],
+      // No loan anywhere, a card at ABK.
+      loan_is_topup: [],
+      holds_other_product: ['abk_egypt'],
+    },
+  };
+
+  it('reads three different columns at one bank for one applicant', () => {
+    const facts = factsForProgram({ profile: cardHolderAtAbk, programBankName: 'ABK Egypt' });
+    expect(facts[BANK_RELATIONSHIP_FACT_KEY]).toEqual({ kind: 'choice', optionCode: 'xsell' });
+    expect(facts[LOAN_TOPUP_FACT_KEY]).toEqual({ kind: 'choice', optionCode: 'new_loan' });
+    expect(facts[OTHER_PRODUCT_FACT_KEY]).toEqual({
+      kind: 'choice',
+      optionCode: 'other_product_held',
+    });
+  });
+
+  it('reads the standard column of every axis at a bank the applicant never named', () => {
+    const facts = factsForProgram({ profile: cardHolderAtAbk, programBankName: 'EG Bank' });
+    expect(facts[BANK_RELATIONSHIP_FACT_KEY]).toEqual({ kind: 'choice', optionCode: 'ntb' });
+    expect(facts[LOAN_TOPUP_FACT_KEY]).toEqual({ kind: 'choice', optionCode: 'new_loan' });
+    expect(facts[OTHER_PRODUCT_FACT_KEY]).toEqual({
+      kind: 'choice',
+      optionCode: 'other_product_none',
+    });
+  });
+
+  it('answers every axis for an applicant who answered none', () => {
+    const facts = factsForProgram({ profile: { surrogateFacts: {} }, programBankName: 'ABK Egypt' });
+    for (const axis of BANK_AXES) {
+      expect(facts[axis.factKey]).toEqual({ kind: 'choice', optionCode: axis.standard });
+    }
+  });
+
+  it('spells each axis its own columns, so one cannot be re-pointed at another', () => {
+    const codes = BANK_AXES.flatMap((axis) => [axis.standard, axis.matched]);
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it('registers all three, so a rule may key off any of them with no registry row', () => {
+    for (const axis of BANK_AXES) {
+      expect(isDerivedFactKey(axis.factKey)).toBe(true);
+      expect(derivedFactOptionCodes(axis.factKey)).toEqual([axis.standard, axis.matched]);
+    }
+  });
+
+  it('lets a stored answer win a collision, as it always did', () => {
+    const facts = factsForProgram({
+      profile: {
+        surrogateFacts: { [LOAN_TOPUP_FACT_KEY]: { kind: 'choice', optionCode: 'top_up' } },
+        bankAxisSlugs: { loan_is_topup: [] },
+      },
+      programBankName: 'ABK Egypt',
+    });
+    expect(facts[LOAN_TOPUP_FACT_KEY]).toEqual({ kind: 'choice', optionCode: 'top_up' });
   });
 });
