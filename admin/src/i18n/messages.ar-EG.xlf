@@ -2222,8 +2222,8 @@
         <target>وهو</target>
       </trans-unit>
       <trans-unit id="prb.output.kind.income" datatype="html">
-        <source> A monthly income </source>
-        <target>دخل شهري</target>
+        <source> Assumed income </source>
+        <target>دخل مفترض</target>
       </trans-unit>
       <trans-unit id="prb.output.kind.ceiling" datatype="html">
         <source> The most the customer can borrow </source>
@@ -2670,7 +2670,7 @@
       <trans-unit id="spt.eyebrow" datatype="html"><source>New surrogate product</source><target>منتج بديل جديد</target></trans-unit>
       <trans-unit id="spt.title" datatype="html"><source>How does the bank work the income out?</source><target>كيف يحسب البنك الدخل؟</target></trans-unit>
       <trans-unit id="spt.subtitle" datatype="html"><source>Pick every way banks work this product's figure out. Each of them fills in its own figures later — the shapes are what they have in common.</source><target>اختر كل الطرق التي تحسب بها البنوك رقم هذا المنتج. كل بنك يملأ أرقامه لاحقًا، والأشكال هي ما تشترك فيه.</target></trans-unit>
-      <trans-unit id="spt.group.income" datatype="html"><source>Works out a monthly income</source><target>يحسب دخلًا شهريًا</target></trans-unit>
+      <trans-unit id="spt.group.income" datatype="html"><source>Works out an assumed income</source><target>يحسب دخلًا مفترضًا</target></trans-unit>
       <trans-unit id="spt.group.ceiling" datatype="html"><source>Works out the most they can borrow</source><target>يحسب أقصى مبلغ يمكن اقتراضه</target></trans-unit>
       <trans-unit id="spt.group.locked" datatype="html"><source>A product either works out an income or works out a ceiling, never both. Untick the other ways to use these.</source><target>المنتج إما يحسب دخلًا أو يحسب حدًا أقصى، وليس الاثنين. أزِل تحديد الطرق الأخرى لاستخدام هذه.</target></trans-unit>
       <trans-unit id="spt.multi_note" datatype="html"><source>More than one way. When a bank fills in more than one of them, the lower figure is the one used — you can change that on the next screen.</source><target>أكثر من طريقة. إذا ملأ البنك أكثر من واحدة منها، فالرقم الأقل هو المستخدم — ويمكنك تغيير ذلك في الشاشة التالية.</target></trans-unit>
@@ -2686,7 +2686,7 @@
       <trans-unit id="spt.shape.years.detail" datatype="html"><source>The customer states a number, and the bank has a row for the range it falls in.</source><target>يذكر العميل رقمًا، وللبنك صف لكل مدى يقع فيه.</target></trans-unit>
       <trans-unit id="spt.shape.years.eg" datatype="html"><source>e.g. 8–12 years → 30,000 a month</source><target>مثال: 8–12 سنة ← 30,000 شهريًا</target></trans-unit>
       <trans-unit id="spt.shape.share" datatype="html"><source>A share of a figure the customer tells you</source><target>نسبة من رقم يذكره العميل</target></trans-unit>
-      <trans-unit id="spt.shape.share.detail" datatype="html"><source>The bank treats a percentage of something the customer states as their monthly income.</source><target>يعتبر البنك نسبة من رقم يذكره العميل دخلًا شهريًا له.</target></trans-unit>
+      <trans-unit id="spt.shape.share.detail" datatype="html"><source>The bank treats a percentage of something the customer states as their assumed income.</source><target>يعتبر البنك نسبة من رقم يذكره العميل دخلًا مفترضًا له.</target></trans-unit>
       <trans-unit id="spt.shape.share.eg" datatype="html"><source>e.g. 30% of what they spend on their card</source><target>مثال: 30% مما ينفقه على بطاقته</target></trans-unit>
       <trans-unit id="spt.shape.multiple" datatype="html"><source>A multiple of a figure the customer tells you</source><target>مضاعف لرقم يذكره العميل</target></trans-unit>
       <trans-unit id="spt.shape.multiple.detail" datatype="html"><source>The same idea, but the bank multiplies rather than takes a share.</source><target>الفكرة نفسها، لكن البنك يضرب بدل أن يأخذ نسبة.</target></trans-unit>
@@ -2705,12 +2705,20 @@
       <trans-unit id="spt.shape.paid.eg" datatype="html"><source>e.g. 15% of everything paid so far</source><target>مثال: 15% من كل ما سُدّد حتى الآن</target></trans-unit>
       <trans-unit id="spt.advanced" datatype="html"><source>This product's calculation was built step by step, so there is no form for it. You can still edit the steps on the product page, or start a new product from a shape.</source><target>حساب هذا المنتج مبني خطوة بخطوة، فلا يوجد نموذج له. لا يزال بإمكانك تعديل الخطوات في صفحة المنتج، أو بدء منتج جديد من شكل.</target></trans-unit>
       <trans-unit id="spt.advanced_new" datatype="html"><source>Start from a shape</source><target>ابدأ من شكل</target></trans-unit>
-      <trans-unit id="spt.q1" datatype="html"><source>How does this bank work out the income?</source><target>كيف يحسب هذا البنك الدخل؟</target></trans-unit>
+      <trans-unit id="spt.q1.how" datatype="html"><source>How the bank gets to it</source><target>كيف يصل البنك إليه</target></trans-unit>
+      <trans-unit id="spt.q2.lede" datatype="html"><source>All of these are optional. Leave them alone and the calculation is the one answer above.</source><target>كل هذه اختيارية. اتركها كما هي ويكون الحساب هو الإجابة الواحدة بالأعلى.</target></trans-unit>
+      <trans-unit id="spt.addon.alt.how" datatype="html"><source>How</source><target>الطريقة</target></trans-unit>
+      <trans-unit id="spt.step.1" datatype="html"><source>The calculation</source><target>الحساب</target></trans-unit>
+      <trans-unit id="spt.step.2" datatype="html"><source>Extras</source><target>إضافات</target></trans-unit>
+      <trans-unit id="spt.step.3" datatype="html"><source>The numbers</source><target>الأرقام</target></trans-unit>
+      <trans-unit id="spt.rail.aria" datatype="html"><source>The calculation, in three steps</source><target>الحساب في ثلاث خطوات</target></trans-unit>
+      <trans-unit id="spt.rail.caption" datatype="html"><source>Everything saves together, so move between the steps in any order.</source><target>كل شيء يُحفظ معًا، فتنقّل بين الخطوات بأي ترتيب.</target></trans-unit>
+      <trans-unit id="spt.q1" datatype="html"><source>How does the bank work the figure out?</source><target>كيف يحسب البنك الرقم؟</target></trans-unit>
       <trans-unit id="spt.q1.fact" datatype="html"><source>Which answer does it read?</source><target>أي إجابة يقرأها؟</target></trans-unit>
       <trans-unit id="spt.choose" datatype="html"><source>Choose…</source><target>اختر…</target></trans-unit>
       <trans-unit id="spt.q1.no_facts" datatype="html"><source>This product does not ask anything of that kind yet. Add it on the product page first.</source><target>هذا المنتج لا يسأل شيئًا من هذا النوع بعد. أضِفه من صفحة المنتج أولًا.</target></trans-unit>
-      <trans-unit id="spt.q1.output" datatype="html"><source>What does that figure mean?</source><target>ماذا يعني هذا الرقم؟</target></trans-unit>
-      <trans-unit id="spt.out.income" datatype="html"><source>A monthly income</source><target>دخل شهري</target></trans-unit>
+      <trans-unit id="spt.q1.output" datatype="html"><source>What the figure is</source><target>ما هو هذا الرقم</target></trans-unit>
+      <trans-unit id="spt.out.income" datatype="html"><source>Assumed income</source><target>دخل مفترض</target></trans-unit>
       <trans-unit id="spt.out.ceiling" datatype="html"><source>The most the customer may borrow</source><target>أقصى ما يمكن للعميل اقتراضه</target></trans-unit>
       <trans-unit id="spt.q1.baseline" datatype="html"><source>This ceiling was worked out at a DBR of</source><target>حُسب هذا الحد عند نسبة عبء دين قدرها</target></trans-unit>
       <trans-unit id="spt.q1.baseline.help" datatype="html"><source>The share of income the bank assumed when it decided that ceiling. Leave it blank to use the program's own cap.</source><target>نسبة الدخل التي افترضها البنك حين حدّد هذا الحد. اتركها فارغة لاستخدام حد البرنامج نفسه.</target></trans-unit>
@@ -2728,26 +2736,26 @@
       <trans-unit id="sp.ways_3" datatype="html"><source>three ways</source><target>ثلاث طرق</target></trans-unit>
       <trans-unit id="sp.ways_n" datatype="html"><source><x id="count" equiv-text="count"/> ways</source><target><x id="count" equiv-text="count"/> طرق</target></trans-unit>
       <trans-unit id="spt.addon.alt" datatype="html"><source>Other ways to reach the figure</source><target>طرق أخرى للوصول إلى الرقم</target></trans-unit>
-      <trans-unit id="spt.addon.alt.note" datatype="html"><source>One product, however many ways banks work its figure out. Each bank fills in only the ways it uses; a bank that fills in more than one is handled by the choice below.</source><target>منتج واحد، مهما تعددت طرق البنوك في حساب رقمه. كل بنك يملأ الطرق التي يستخدمها فقط؛ والبنك الذي يملأ أكثر من طريقة يعالجه الاختيار بالأسفل.</target></trans-unit>
+      <trans-unit id="spt.addon.alt.note" datatype="html"><source>Each bank fills in only the ways it uses.</source><target>كل بنك يملأ الطرق التي يستخدمها فقط.</target></trans-unit>
       <trans-unit id="spt.addon.alt.both" datatype="html"><source>If a bank fills in more than one way</source><target>إذا ملأ البنك أكثر من طريقة</target></trans-unit>
       <trans-unit id="spt.addon.alt.first" datatype="html"><source>Use whichever it filled in first</source><target>استخدم أول ما ملأه</target></trans-unit>
       <trans-unit id="spt.addon.alt.lower" datatype="html"><source>Take the lowest</source><target>خذ الأقل</target></trans-unit>
       <trans-unit id="spt.addon.alt.higher" datatype="html"><source>Take the highest</source><target>خذ الأعلى</target></trans-unit>
       <trans-unit id="spt.addon.column" datatype="html"><source>A second column</source><target>عمود ثانٍ</target></trans-unit>
-      <trans-unit id="spt.addon.column.note" datatype="html"><source>One table per kind of customer — new to the bank versus an existing customer, a city, an employment type. The first column stays where it is, so adding one does not disturb figures a bank has already entered.</source><target>جدول لكل نوع من العملاء — عميل جديد مقابل عميل حالي، أو مدينة، أو نوع عمل. العمود الأول يبقى مكانه، فإضافة عمود لا تمسّ أرقامًا أدخلها بنك بالفعل.</target></trans-unit>
+      <trans-unit id="spt.addon.column.note" datatype="html"><source>One table per kind of customer — new to the bank, a city, an employment type.</source><target>جدول لكل نوع من العملاء — عميل جديد، أو مدينة، أو نوع عمل.</target></trans-unit>
       <trans-unit id="spt.addon.column.fact" datatype="html"><source>Which answer decides the column?</source><target>أي إجابة تحدد العمود؟</target></trans-unit>
       <trans-unit id="spt.addon.column.branches" datatype="html"><source>Which answers get their own column?</source><target>أي الإجابات لها عمود خاص؟</target></trans-unit>
       <trans-unit id="spt.addon.column.branches.help" datatype="html"><source>Pick at least two. The first one you pick is the standard column — the one a bank quotes when it sells no others.</source><target>اختر اثنتين على الأقل. أول ما تختاره هو العمود الأساسي، وهو ما يسعّر به البنك حين لا يبيع غيره.</target></trans-unit>
       <trans-unit id="spt.addon.uplift" datatype="html"><source>A bonus percentage when something is true</source><target>نسبة إضافية عند تحقق شرط</target></trans-unit>
-      <trans-unit id="spt.addon.uplift.note" datatype="html"><source>Each bank states its own bonus. A customer who answers anything else, or nothing at all, gets no bonus.</source><target>كل بنك يذكر نسبته الإضافية. العميل الذي يجيب بغير ذلك، أو لا يجيب أصلًا، لا يحصل على إضافة.</target></trans-unit>
+      <trans-unit id="spt.addon.uplift.note" datatype="html"><source>Each bank states its own bonus. Any other answer earns none.</source><target>كل بنك يذكر نسبته الإضافية. وأي إجابة أخرى لا تستحق شيئًا.</target></trans-unit>
       <trans-unit id="spt.addon.uplift.fact" datatype="html"><source>Which answer?</source><target>أي إجابة؟</target></trans-unit>
       <trans-unit id="spt.addon.uplift.when" datatype="html"><source>Earns the bonus</source><target>تستحق الإضافة</target></trans-unit>
       <trans-unit id="spt.addon.uplift.else" datatype="html"><source>Does not</source><target>لا تستحقها</target></trans-unit>
       <trans-unit id="spt.addon.iscore" datatype="html"><source>Adjust by I-Score</source><target>تعديل حسب الآي سكور</target></trans-unit>
-      <trans-unit id="spt.addon.iscore.note" datatype="html"><source>Each bank types its own multiplier per score band. We ask the customer their score and it is optional — if they do not answer, the multiplier is 100% and nothing about their quote changes.</source><target>كل بنك يكتب مضاعفه لكل شريحة درجة. نسأل العميل عن درجته وهي اختيارية — إن لم يجب فالمضاعف 100% ولا يتغير شيء في عرضه.</target></trans-unit>
+      <trans-unit id="spt.addon.iscore.note" datatype="html"><source>Each bank types its own multiplier per score band. Optional for the customer.</source><target>كل بنك يكتب مضاعفه لكل شريحة درجة. وهي اختيارية بالنسبة للعميل.</target></trans-unit>
       <trans-unit id="spt.addon.conditions" datatype="html"><source>Conditions the customer must meet</source><target>شروط يجب أن يستوفيها العميل</target></trans-unit>
       <trans-unit id="spt.addon.conditions.add" datatype="html"><source>Add a condition</source><target>أضف شرطًا</target></trans-unit>
-      <trans-unit id="spt.addon.conditions.note" datatype="html"><source>Each bank turns on the ones it applies and states its own limit. A customer who fails one is still shown the program, with the reason and no figures.</source><target>كل بنك يفعّل ما ينطبق عليه ويذكر حده. العميل الذي لا يستوفي شرطًا يظل يرى البرنامج، مع السبب وبدون أرقام.</target></trans-unit>
+      <trans-unit id="spt.addon.conditions.note" datatype="html"><source>Each bank turns on the ones it applies. A customer who fails one still sees the program, with the reason.</source><target>كل بنك يفعّل ما ينطبق عليه. والعميل الذي لا يستوفي شرطًا يظل يرى البرنامج مع السبب.</target></trans-unit>
       <trans-unit id="spt.cond.measure" datatype="html"><source>What is measured</source><target>ما الذي يُقاس</target></trans-unit>
       <trans-unit id="spt.cond.measure.answer" datatype="html"><source>The figure this calculation arrives at</source><target>الرقم الذي يصل إليه هذا الحساب</target></trans-unit>
       <trans-unit id="spt.cond.test" datatype="html"><source>Must be</source><target>يجب أن يكون</target></trans-unit>

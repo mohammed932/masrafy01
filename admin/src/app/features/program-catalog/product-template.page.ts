@@ -34,7 +34,7 @@ import {
 } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormPageComponent } from '@shared/ui';
+import { FormPageComponent, WizardStepsComponent, type WizardStepItem } from '@shared/ui';
 import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
@@ -102,7 +102,13 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
   selector: 'app-product-template-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, FormPageComponent, ProductRuleEditorComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    FormPageComponent,
+    WizardStepsComponent,
+    ProductRuleEditorComponent,
+  ],
   template: `
     <app-form-page
       [eyebrow]="eyebrow"
@@ -130,441 +136,486 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
           >
         </p>
       } @else {
+        <!-- The rail is NAVIGATION, not a flow: every step is reachable at any time and there
+             is one Save for all three, because this is a settings screen and the three
+             questions are not a sequence anybody completes once. What it buys is that a
+             refusal raised by a field two steps away shows up as "Needs attention" ON that
+             step, instead of as a sentence beside a button with nothing on screen to fix. -->
+        <app-wizard-steps
+          variant="plain"
+          [steps]="railSteps()"
+          [activeIndex]="step()"
+          [ariaLabel]="railAria"
+          [caption]="railCaption"
+          (stepSelect)="goStep($event)"
+        />
+
         <form [formGroup]="form" class="stack">
-          <!-- ① ------------------------------------------------------------ -->
-          <section class="block" [attr.aria-labelledby]="'spt-q1'">
-            <h2 class="q" id="spt-q1" i18n="@@spt.q1">How does this bank work out the income?</h2>
+          @switch (step()) {
+            <!-- ① ---------------------------------------------------------- -->
+            @case (0) {
+              <section class="block">
+                <h2 class="q" i18n="@@spt.q1">How does the bank work the figure out?</h2>
 
-            <div class="picks" role="radiogroup" [attr.aria-labelledby]="'spt-q1'">
-              @for (kind of mechanisms; track kind) {
-                <button
-                  type="button"
-                  class="pick is-stacked"
-                  role="radio"
-                  [class.is-on]="form.controls.primaryKind.value === kind"
-                  [attr.aria-checked]="form.controls.primaryKind.value === kind"
-                  (click)="setPrimary(kind)"
-                >
-                  <span class="pick-dot" aria-hidden="true"></span>
-                  <span class="pick-text">
-                    <span class="pick-name">{{ mechanismLabel(kind) }}</span>
-                    <span class="pick-eg">{{ mechanismExample(kind) }}</span>
-                  </span>
-                </button>
-              }
-            </div>
-
-            @if (primaryNeedsFact()) {
-              <label class="field">
-                <span class="label" i18n="@@spt.q1.fact">Which answer does it read?</span>
-                <select class="control" formControlName="primaryFact">
-                  <option value="" i18n="@@spt.choose">Choose…</option>
-                  @for (fact of primaryFacts(); track fact.key) {
-                    <option [value]="fact.key">{{ fact.label }}</option>
-                  }
-                </select>
-                @if (primaryFacts().length === 0) {
-                  <!-- The class shape needs a DIFFERENT thing from the others: not just a
-                       single-select answer, but one whose answers are each filed under a
-                       class. Saying "add a question" would send the operator to build a
-                       second question they do not need. -->
-                  @if (form.controls.primaryKind.value === 'classTable') {
-                    <span class="help is-warn" i18n="@@spt.class.none_body"
-                      >No answer list is filed under classes yet. This shape prices by the class an
-                      answer is filed under, so it needs a question whose answers each name
-                      one.</span
+                <!-- Asked FIRST because it decides which shapes make sense — the picker
+                     screen groups its cards by exactly this, so asking it after the shape
+                     would reverse the order the operator already answered it in. -->
+                <div class="field">
+                  <span class="label" id="spt-out" i18n="@@spt.q1.output">What the figure is</span>
+                  <div class="picks" role="radiogroup" aria-labelledby="spt-out">
+                    <button
+                      type="button"
+                      class="pick"
+                      role="radio"
+                      [class.is-on]="form.controls.outputKind.value === 'monthlyIncome'"
+                      [attr.aria-checked]="form.controls.outputKind.value === 'monthlyIncome'"
+                      (click)="setOutputKind('monthlyIncome')"
                     >
-                  } @else {
-                    <span class="help is-warn" i18n="@@spt.q1.no_facts"
-                      >This product does not ask anything of that kind yet. Add it on the product
-                      page first.</span
+                      <span class="pick-dot" aria-hidden="true"></span>
+                      <span i18n="@@spt.out.income">Assumed income</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="pick"
+                      role="radio"
+                      [class.is-on]="form.controls.outputKind.value === 'maxAmount'"
+                      [attr.aria-checked]="form.controls.outputKind.value === 'maxAmount'"
+                      (click)="setOutputKind('maxAmount')"
                     >
-                  }
-                }
-              </label>
-            }
+                      <span class="pick-dot" aria-hidden="true"></span>
+                      <span i18n="@@spt.out.ceiling">The most the customer may borrow</span>
+                    </button>
+                  </div>
+                </div>
 
-            <div class="field">
-              <span class="label" i18n="@@spt.q1.output">What does that figure mean?</span>
-              <div class="picks" role="radiogroup">
-                <button
-                  type="button"
-                  class="pick"
-                  role="radio"
-                  [class.is-on]="form.controls.outputKind.value === 'monthlyIncome'"
-                  [attr.aria-checked]="form.controls.outputKind.value === 'monthlyIncome'"
-                  (click)="setOutputKind('monthlyIncome')"
-                >
-                  <span class="pick-dot" aria-hidden="true"></span>
-                  <span i18n="@@spt.out.income">A monthly income</span>
-                </button>
-                <button
-                  type="button"
-                  class="pick"
-                  role="radio"
-                  [class.is-on]="form.controls.outputKind.value === 'maxAmount'"
-                  [attr.aria-checked]="form.controls.outputKind.value === 'maxAmount'"
-                  (click)="setOutputKind('maxAmount')"
-                >
-                  <span class="pick-dot" aria-hidden="true"></span>
-                  <span i18n="@@spt.out.ceiling">The most the customer may borrow</span>
-                </button>
-              </div>
-            </div>
-
-            @if (form.controls.outputKind.value === 'maxAmount') {
-              <label class="field is-inset">
-                <span class="label" i18n="@@spt.q1.baseline"
-                  >This ceiling was worked out at a DBR of</span
-                >
-                <span class="affix">
-                  <input
-                    class="control is-narrow"
-                    type="text"
-                    formControlName="baselineDbrPercent"
-                  />
-                  <span class="unit" aria-hidden="true">%</span>
-                </span>
-                <span class="help" i18n="@@spt.q1.baseline.help"
-                  >The share of income the bank assumed when it decided that ceiling. Leave it blank
-                  to use the program's own cap.</span
-                >
-              </label>
-            }
-          </section>
-
-          <!-- ② ------------------------------------------------------------ -->
-          <section class="block" [attr.aria-labelledby]="'spt-q2'">
-            <h2 class="q" id="spt-q2" i18n="@@spt.q2">Does anything else apply?</h2>
-
-            <!-- other ways -->
-            <div class="addon">
-              <label class="addon-head">
-                <input class="addon-tick" type="checkbox" formControlName="useAlternative" />
-                <span i18n="@@spt.addon.alt">Other ways to reach the figure</span>
-              </label>
-              <p class="addon-note" i18n="@@spt.addon.alt.note">
-                One product, however many ways banks work its figure out. Each bank fills in only
-                the ways it uses; a bank that fills in more than one is handled by the choice below.
-              </p>
-              @if (form.controls.useAlternative.value) {
-                <div class="addon-body">
-                  <!-- The ways are the only thing inside the formArrayName container. The
-                       combine select used to sit in here too, which resolved it against the
-                       ARRAY: Angular threw "Cannot find control with path:
-                       'alternatives -> combine'" and the select was never bound, so "take the
-                       lowest" could not be chosen at all. -->
-                  <div class="ways" formArrayName="alternatives">
-                    @for (way of alternatives.controls; track $index) {
-                      <div class="way" [formGroupName]="$index">
-                        <div class="way-head">
-                          <span class="way-name">{{ wayLabel($index) }} </span>
-                          <button
-                            type="button"
-                            class="linkish is-danger"
-                            (click)="removeWay($index)"
-                            [attr.aria-label]="wayRemoveLabel($index)"
-                          >
-                            <span i18n="@@spt.addon.alt.remove">Remove</span>
-                          </button>
-                        </div>
-                        <div class="picks">
-                          @for (kind of mechanisms; track kind) {
-                            <button
-                              type="button"
-                              class="pick is-stacked"
-                              role="radio"
-                              [class.is-on]="way.controls.kind.value === kind"
-                              [attr.aria-checked]="way.controls.kind.value === kind"
-                              (click)="setWayKind($index, kind)"
-                            >
-                              <span class="pick-dot" aria-hidden="true"></span>
-                              <span class="pick-text">
-                                <span class="pick-name">{{ mechanismLabel(kind) }}</span>
-                                <span class="pick-eg">{{ mechanismExample(kind) }}</span>
-                              </span>
-                            </button>
-                          }
-                        </div>
-                        @if (wayNeedsFact($index)) {
-                          <label class="field">
-                            <span class="label" i18n="@@spt.q1.fact"
-                              >Which answer does it read?</span
-                            >
-                            <select class="control" formControlName="fact">
-                              <option value="" i18n="@@spt.choose">Choose…</option>
-                              @for (fact of wayFacts($index); track fact.key) {
-                                <option [value]="fact.key">{{ fact.label }}</option>
-                              }
-                            </select>
-                          </label>
-                        }
-                      </div>
+                <div class="field is-wide">
+                  <span class="label" id="spt-how" i18n="@@spt.q1.how"
+                    >How the bank gets to it</span
+                  >
+                  <div class="cards" role="radiogroup" aria-labelledby="spt-how">
+                    @for (kind of mechanisms; track kind) {
+                      <button
+                        type="button"
+                        class="card"
+                        role="radio"
+                        [class.is-on]="form.controls.primaryKind.value === kind"
+                        [attr.aria-checked]="form.controls.primaryKind.value === kind"
+                        (click)="setPrimary(kind)"
+                      >
+                        <span class="pick-dot" aria-hidden="true"></span>
+                        <span class="card-text">
+                          <span class="card-name">{{ mechanismLabel(kind) }}</span>
+                          <span class="card-eg">{{ mechanismExample(kind) }}</span>
+                        </span>
+                      </button>
                     }
                   </div>
-
-                  @if (canAddWay()) {
-                    <button type="button" class="way-add" (click)="addWay()">
-                      <span i18n="@@spt.addon.alt.add">Add another way</span>
-                    </button>
-                  } @else {
-                    <p class="addon-note" i18n="@@spt.addon.alt.full">
-                      That is as many ways as one product can offer.
-                    </p>
-                  }
-
-                  <label class="field">
-                    <span class="label" i18n="@@spt.addon.alt.both"
-                      >If a bank fills in more than one way</span
-                    >
-                    <select class="control" formControlName="combine">
-                      <option value="" i18n="@@spt.addon.alt.first">
-                        Use whichever it filled in first
-                      </option>
-                      <option value="lower" i18n="@@spt.addon.alt.lower">Take the lowest</option>
-                      <option value="higher" i18n="@@spt.addon.alt.higher">Take the highest</option>
-                    </select>
-                  </label>
                 </div>
-              }
-            </div>
 
-            <!-- second column -->
-            <div class="addon">
-              <label class="addon-head">
-                <input class="addon-tick" type="checkbox" formControlName="useSecondColumn" />
-                <span i18n="@@spt.addon.column">A second column</span>
-              </label>
-              <p class="addon-note" i18n="@@spt.addon.column.note">
-                One table per kind of customer — new to the bank versus an existing customer, a
-                city, an employment type. The first column stays where it is, so adding one does not
-                disturb figures a bank has already entered.
-              </p>
-              @if (form.controls.useSecondColumn.value) {
-                <div class="addon-body">
+                @if (primaryNeedsFact()) {
                   <label class="field">
-                    <span class="label" i18n="@@spt.addon.column.fact"
-                      >Which answer decides the column?</span
-                    >
-                    <select class="control" formControlName="columnFact">
+                    <span class="label" i18n="@@spt.q1.fact">Which answer does it read?</span>
+                    <select class="control" formControlName="primaryFact">
                       <option value="" i18n="@@spt.choose">Choose…</option>
-                      @for (fact of choiceFacts(); track fact.key) {
+                      @for (fact of primaryFacts(); track fact.key) {
                         <option [value]="fact.key">{{ fact.label }}</option>
                       }
                     </select>
+                    @if (primaryFacts().length === 0) {
+                      <!-- The class shape needs a DIFFERENT thing from the others: not just a
+                           single-select answer, but one whose answers are each filed under a
+                           class. Saying "add a question" would send the operator to build a
+                           second question they do not need. -->
+                      @if (form.controls.primaryKind.value === 'classTable') {
+                        <span class="help is-warn" i18n="@@spt.class.none_body"
+                          >No answer list is filed under classes yet. This shape prices by the class
+                          an answer is filed under, so it needs a question whose answers each name
+                          one.</span
+                        >
+                      } @else {
+                        <span class="help is-warn" i18n="@@spt.q1.no_facts"
+                          >This product does not ask anything of that kind yet. Add it on the
+                          product page first.</span
+                        >
+                      }
+                    }
                   </label>
-                  @if (columnOptions().length > 0) {
-                    <fieldset class="field">
-                      <legend class="label" i18n="@@spt.addon.column.branches">
-                        Which answers get their own column?
-                      </legend>
-                      <div class="ticks">
-                        @for (option of columnOptions(); track option.code) {
-                          <label class="tick">
-                            <input
-                              type="checkbox"
-                              [checked]="branchOn(option.code)"
-                              (change)="toggleBranch(option.code)"
-                            />
-                            <span>{{ optionLabel(option) }}</span>
-                          </label>
+                }
+
+                @if (form.controls.outputKind.value === 'maxAmount') {
+                  <label class="field is-inset">
+                    <span class="label" i18n="@@spt.q1.baseline"
+                      >This ceiling was worked out at a DBR of</span
+                    >
+                    <span class="affix">
+                      <input
+                        class="control is-narrow"
+                        type="text"
+                        formControlName="baselineDbrPercent"
+                      />
+                      <span class="unit" aria-hidden="true">%</span>
+                    </span>
+                    <span class="help" i18n="@@spt.q1.baseline.help"
+                      >The share of income the bank assumed when it decided that ceiling. Leave it
+                      blank to use the program's own cap.</span
+                    >
+                  </label>
+                }
+              </section>
+            }
+
+            <!-- ② ---------------------------------------------------------- -->
+            @case (1) {
+              <section class="block">
+                <h2 class="q" i18n="@@spt.q2">Does anything else apply?</h2>
+                <p class="lede" i18n="@@spt.q2.lede">
+                  All of these are optional. Leave them alone and the calculation is the one answer
+                  above.
+                </p>
+
+                <!-- other ways -->
+                <div class="addon">
+                  <label class="addon-head">
+                    <input class="addon-tick" type="checkbox" formControlName="useAlternative" />
+                    <span class="addon-text">
+                      <span class="addon-name" i18n="@@spt.addon.alt"
+                        >Other ways to reach the figure</span
+                      >
+                      <span class="addon-note" i18n="@@spt.addon.alt.note"
+                        >Each bank fills in only the ways it uses.</span
+                      >
+                    </span>
+                  </label>
+                  @if (form.controls.useAlternative.value) {
+                    <div class="addon-body">
+                      <!-- The ways are the only thing inside the formArrayName container. The
+                           combine select used to sit in here too, which resolved it against the
+                           ARRAY: Angular threw "Cannot find control with path:
+                           'alternatives -> combine'" and the select was never bound, so "take
+                           the lowest" could not be chosen at all. -->
+                      <div class="ways" formArrayName="alternatives">
+                        @for (way of alternatives.controls; track $index) {
+                          <!-- A ROW, not a second copy of the card grid. The cards on step 1 are
+                               where a shape is learned; repeating all six per way put the same
+                               control on screen twice and cost ~450px each. -->
+                          <div class="way" [formGroupName]="$index">
+                            <span class="way-n">{{ wayLabel($index) }}</span>
+                            <label class="way-f">
+                              <span class="label" i18n="@@spt.addon.alt.how">How</span>
+                              <select class="control" formControlName="kind">
+                                @for (kind of mechanisms; track kind) {
+                                  <option [value]="kind">{{ mechanismLabel(kind) }}</option>
+                                }
+                              </select>
+                            </label>
+                            @if (wayNeedsFact($index)) {
+                              <label class="way-f">
+                                <span class="label" i18n="@@spt.q1.fact"
+                                  >Which answer does it read?</span
+                                >
+                                <select class="control" formControlName="fact">
+                                  <option value="" i18n="@@spt.choose">Choose…</option>
+                                  @for (fact of wayFacts($index); track fact.key) {
+                                    <option [value]="fact.key">{{ fact.label }}</option>
+                                  }
+                                </select>
+                              </label>
+                            }
+                            <button
+                              type="button"
+                              class="linkish is-danger way-x"
+                              (click)="removeWay($index)"
+                              [attr.aria-label]="wayRemoveLabel($index)"
+                            >
+                              <span i18n="@@spt.addon.alt.remove">Remove</span>
+                            </button>
+                          </div>
                         }
                       </div>
-                      <span class="help" i18n="@@spt.addon.column.branches.help"
-                        >Pick at least two. The first one you pick is the standard column — the one
-                        a bank quotes when it sells no others.</span
-                      >
-                    </fieldset>
-                  }
-                </div>
-              }
-            </div>
 
-            <!-- bonus -->
-            <div class="addon">
-              <label class="addon-head">
-                <input class="addon-tick" type="checkbox" formControlName="useUplift" />
-                <span i18n="@@spt.addon.uplift">A bonus percentage when something is true</span>
-              </label>
-              <p class="addon-note" i18n="@@spt.addon.uplift.note">
-                Each bank states its own bonus. A customer who answers anything else, or nothing at
-                all, gets no bonus.
-              </p>
-              @if (form.controls.useUplift.value) {
-                <div class="addon-body">
-                  <label class="field">
-                    <span class="label" i18n="@@spt.addon.uplift.fact">Which answer?</span>
-                    <select class="control" formControlName="upliftFact">
-                      <option value="" i18n="@@spt.choose">Choose…</option>
-                      @for (fact of choiceFacts(); track fact.key) {
-                        <option [value]="fact.key">{{ fact.label }}</option>
+                      @if (canAddWay()) {
+                        <button type="button" class="way-add" (click)="addWay()">
+                          <span i18n="@@spt.addon.alt.add">Add another way</span>
+                        </button>
+                      } @else {
+                        <span class="help" i18n="@@spt.addon.alt.full"
+                          >That is as many ways as one product can offer.</span
+                        >
                       }
-                    </select>
-                  </label>
-                  @if (upliftOptions().length > 0) {
-                    <div class="pair">
+
                       <label class="field">
-                        <span class="label" i18n="@@spt.addon.uplift.when">Earns the bonus</span>
-                        <select class="control" formControlName="upliftWhen">
-                          <option value="" i18n="@@spt.choose">Choose…</option>
-                          @for (option of upliftOptions(); track option.code) {
-                            <option [value]="option.code">{{ optionLabel(option) }}</option>
-                          }
-                        </select>
-                      </label>
-                      <label class="field">
-                        <span class="label" i18n="@@spt.addon.uplift.else">Does not</span>
-                        <select class="control" formControlName="upliftOtherwise">
-                          <option value="" i18n="@@spt.choose">Choose…</option>
-                          @for (option of upliftOptions(); track option.code) {
-                            <option [value]="option.code">{{ optionLabel(option) }}</option>
-                          }
+                        <span class="label" i18n="@@spt.addon.alt.both"
+                          >If a bank fills in more than one way</span
+                        >
+                        <select class="control" formControlName="combine">
+                          <option value="" i18n="@@spt.addon.alt.first">
+                            Use whichever it filled in first
+                          </option>
+                          <option value="lower" i18n="@@spt.addon.alt.lower">
+                            Take the lowest
+                          </option>
+                          <option value="higher" i18n="@@spt.addon.alt.higher">
+                            Take the highest
+                          </option>
                         </select>
                       </label>
                     </div>
                   }
                 </div>
-              }
-            </div>
 
-            <!-- I-Score -->
-            <div class="addon">
-              <label class="addon-head">
-                <input class="addon-tick" type="checkbox" formControlName="iScore" />
-                <span i18n="@@spt.addon.iscore">Adjust by I-Score</span>
-              </label>
-              <p class="addon-note" i18n="@@spt.addon.iscore.note">
-                Each bank types its own multiplier per score band. We ask the customer their score
-                and it is optional — if they do not answer, the multiplier is 100% and nothing about
-                their quote changes.
-              </p>
-            </div>
-
-            <!-- conditions -->
-            <div class="addon">
-              <div class="addon-head is-static">
-                <span i18n="@@spt.addon.conditions">Conditions the customer must meet</span>
-                <button type="button" class="linkish" (click)="addCondition()">
-                  <span i18n="@@spt.addon.conditions.add">Add a condition</span>
-                </button>
-              </div>
-              <p class="addon-note" i18n="@@spt.addon.conditions.note">
-                Each bank turns on the ones it applies and states its own limit. A customer who
-                fails one is still shown the program, with the reason and no figures.
-              </p>
-
-              @if (conditions.length > 0) {
-                <ul class="conditions" role="list" formArrayName="conditions">
-                  @for (row of conditions.controls; track row.value.id; let i = $index) {
-                    <li class="condition" [formGroupName]="i">
-                      <div class="pair">
-                        <label class="field">
-                          <span class="label" i18n="@@spt.cond.measure">What is measured</span>
-                          <select class="control" formControlName="measure">
-                            <option value="__answer__" i18n="@@spt.cond.measure.answer">
-                              The figure this calculation arrives at
-                            </option>
-                            @for (fact of allFacts(); track fact.key) {
-                              <option [value]="fact.key">{{ fact.label }}</option>
-                            }
-                          </select>
-                        </label>
-                        <label class="field">
-                          <span class="label" i18n="@@spt.cond.test">Must be</span>
-                          <select class="control" formControlName="op">
-                            @for (op of conditionOps; track op) {
-                              <option [value]="op">{{ conditionOpLabel(op) }}</option>
-                            }
-                          </select>
-                        </label>
-                      </div>
-
-                      @if (row.value.op === 'atLeastShareOf') {
-                        <label class="field">
-                          <span class="label" i18n="@@spt.cond.share_of">A share of</span>
-                          <select class="control" formControlName="otherFact">
-                            <option value="" i18n="@@spt.choose">Choose…</option>
-                            @for (fact of numericFacts(); track fact.key) {
-                              <option [value]="fact.key">{{ fact.label }}</option>
-                            }
-                          </select>
-                        </label>
-                      }
-                      @if (
-                        row.value.op === 'atLeastPerAnswer' || row.value.op === 'atMostPerAnswer'
-                      ) {
-                        <label class="field">
-                          <span class="label" i18n="@@spt.cond.keyed_by">The limit depends on</span>
-                          <select class="control" formControlName="otherFact">
-                            <option value="" i18n="@@spt.choose">Choose…</option>
-                            @for (fact of choiceFacts(); track fact.key) {
-                              <option [value]="fact.key">{{ fact.label }}</option>
-                            }
-                          </select>
-                        </label>
-                      }
-
+                <!-- second column -->
+                <div class="addon">
+                  <label class="addon-head">
+                    <input class="addon-tick" type="checkbox" formControlName="useSecondColumn" />
+                    <span class="addon-text">
+                      <span class="addon-name" i18n="@@spt.addon.column">A second column</span>
+                      <span class="addon-note" i18n="@@spt.addon.column.note"
+                        >One table per kind of customer — new to the bank, a city, an employment
+                        type.</span
+                      >
+                    </span>
+                  </label>
+                  @if (form.controls.useSecondColumn.value) {
+                    <div class="addon-body">
                       <label class="field">
-                        <span class="label" i18n="@@spt.cond.reason"
-                          >What the customer is told when they do not meet it</span
+                        <span class="label" i18n="@@spt.addon.column.fact"
+                          >Which answer decides the column?</span
                         >
-                        <select class="control" formControlName="reasonCode">
-                          @for (code of reasonCodes; track code) {
-                            <option [value]="code">{{ reasonLabel(code) }}</option>
+                        <select class="control" formControlName="columnFact">
+                          <option value="" i18n="@@spt.choose">Choose…</option>
+                          @for (fact of choiceFacts(); track fact.key) {
+                            <option [value]="fact.key">{{ fact.label }}</option>
                           }
                         </select>
                       </label>
-
-                      <div class="condition-foot">
-                        <span class="mono">{{ row.value.id }}</span>
-                        <button
-                          type="button"
-                          class="linkish is-danger"
-                          (click)="removeCondition(i)"
-                        >
-                          <span i18n="@@spt.cond.remove">Remove</span>
-                        </button>
-                      </div>
-                    </li>
+                      @if (columnOptions().length > 0) {
+                        <fieldset class="field">
+                          <legend class="label" i18n="@@spt.addon.column.branches">
+                            Which answers get their own column?
+                          </legend>
+                          <div class="ticks">
+                            @for (option of columnOptions(); track option.code) {
+                              <label class="tick">
+                                <input
+                                  type="checkbox"
+                                  [checked]="branchOn(option.code)"
+                                  (change)="toggleBranch(option.code)"
+                                />
+                                <span>{{ optionLabel(option) }}</span>
+                              </label>
+                            }
+                          </div>
+                          <span class="help" i18n="@@spt.addon.column.branches.help"
+                            >Pick at least two. The first one you pick is the standard column — the
+                            one a bank quotes when it sells no others.</span
+                          >
+                        </fieldset>
+                      }
+                    </div>
                   }
-                </ul>
-              }
-            </div>
-          </section>
+                </div>
 
-          <!-- ③ ------------------------------------------------------------ -->
-          <section class="block" [attr.aria-labelledby]="'spt-q3'">
-            <h2 class="q" id="spt-q3" i18n="@@spt.q3">What are the numbers?</h2>
-            <p class="lede" i18n="@@spt.q3.lede">
-              These are the figures every bank starts from. A bank that types its own replaces them;
-              a bank that does not, quotes from here.
-            </p>
+                <!-- bonus -->
+                <div class="addon">
+                  <label class="addon-head">
+                    <input class="addon-tick" type="checkbox" formControlName="useUplift" />
+                    <span class="addon-text">
+                      <span class="addon-name" i18n="@@spt.addon.uplift"
+                        >A bonus percentage when something is true</span
+                      >
+                      <span class="addon-note" i18n="@@spt.addon.uplift.note"
+                        >Each bank states its own bonus. Any other answer earns none.</span
+                      >
+                    </span>
+                  </label>
+                  @if (form.controls.useUplift.value) {
+                    <div class="addon-body">
+                      <label class="field">
+                        <span class="label" i18n="@@spt.addon.uplift.fact">Which answer?</span>
+                        <select class="control" formControlName="upliftFact">
+                          <option value="" i18n="@@spt.choose">Choose…</option>
+                          @for (fact of choiceFacts(); track fact.key) {
+                            <option [value]="fact.key">{{ fact.label }}</option>
+                          }
+                        </select>
+                      </label>
+                      @if (upliftOptions().length > 0) {
+                        <div class="pair">
+                          <label class="field">
+                            <span class="label" i18n="@@spt.addon.uplift.when"
+                              >Earns the bonus</span
+                            >
+                            <select class="control" formControlName="upliftWhen">
+                              <option value="" i18n="@@spt.choose">Choose…</option>
+                              @for (option of upliftOptions(); track option.code) {
+                                <option [value]="option.code">{{ optionLabel(option) }}</option>
+                              }
+                            </select>
+                          </label>
+                          <label class="field">
+                            <span class="label" i18n="@@spt.addon.uplift.else">Does not</span>
+                            <select class="control" formControlName="upliftOtherwise">
+                              <option value="" i18n="@@spt.choose">Choose…</option>
+                              @for (option of upliftOptions(); track option.code) {
+                                <option [value]="option.code">{{ optionLabel(option) }}</option>
+                              }
+                            </select>
+                          </label>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
 
-            @if (dirty()) {
-              <p class="notice" role="status">
-                <span i18n="@@spt.q3.stale"
-                  >Save the answers above to see the tables that go with them.</span
-                >
-              </p>
-            } @else if (compiledSteps().length === 0) {
-              <p class="notice" role="status">
-                <span i18n="@@spt.q3.none"
-                  >Nothing to fill in yet — answer the first question and save.</span
-                >
-              </p>
-            } @else {
-              <app-product-rule-editor
-                variant="catalog"
-                [steps]="compiledSteps()"
-                [gates]="compiledGates()"
-                [output]="compiledOutput()"
-                [figures]="figures()"
-                (figuresChange)="onFigures($event)"
-                (figuresTouched)="markFiguresDirty()"
-                [facts]="facts()"
-              />
+                <!-- I-Score -->
+                <div class="addon">
+                  <label class="addon-head">
+                    <input class="addon-tick" type="checkbox" formControlName="iScore" />
+                    <span class="addon-text">
+                      <span class="addon-name" i18n="@@spt.addon.iscore">Adjust by I-Score</span>
+                      <span class="addon-note" i18n="@@spt.addon.iscore.note"
+                        >Each bank types its own multiplier per score band. Optional for the
+                        customer.</span
+                      >
+                    </span>
+                  </label>
+                </div>
+
+                <!-- conditions -->
+                <div class="addon">
+                  <div class="addon-head is-static">
+                    <span class="addon-text">
+                      <span class="addon-name" i18n="@@spt.addon.conditions"
+                        >Conditions the customer must meet</span
+                      >
+                      <span class="addon-note" i18n="@@spt.addon.conditions.note"
+                        >Each bank turns on the ones it applies. A customer who fails one still sees
+                        the program, with the reason.</span
+                      >
+                    </span>
+                    <button type="button" class="linkish" (click)="addCondition()">
+                      <span i18n="@@spt.addon.conditions.add">Add a condition</span>
+                    </button>
+                  </div>
+
+                  @if (conditions.length > 0) {
+                    <ul class="conditions" role="list" formArrayName="conditions">
+                      @for (row of conditions.controls; track row.value.id; let i = $index) {
+                        <li class="condition" [formGroupName]="i">
+                          <div class="pair">
+                            <label class="field">
+                              <span class="label" i18n="@@spt.cond.measure">What is measured</span>
+                              <select class="control" formControlName="measure">
+                                <option value="__answer__" i18n="@@spt.cond.measure.answer">
+                                  The figure this calculation arrives at
+                                </option>
+                                @for (fact of allFacts(); track fact.key) {
+                                  <option [value]="fact.key">{{ fact.label }}</option>
+                                }
+                              </select>
+                            </label>
+                            <label class="field">
+                              <span class="label" i18n="@@spt.cond.test">Must be</span>
+                              <select class="control" formControlName="op">
+                                @for (op of conditionOps; track op) {
+                                  <option [value]="op">{{ conditionOpLabel(op) }}</option>
+                                }
+                              </select>
+                            </label>
+                          </div>
+
+                          @if (row.value.op === 'atLeastShareOf') {
+                            <label class="field">
+                              <span class="label" i18n="@@spt.cond.share_of">A share of</span>
+                              <select class="control" formControlName="otherFact">
+                                <option value="" i18n="@@spt.choose">Choose…</option>
+                                @for (fact of numericFacts(); track fact.key) {
+                                  <option [value]="fact.key">{{ fact.label }}</option>
+                                }
+                              </select>
+                            </label>
+                          }
+                          @if (
+                            row.value.op === 'atLeastPerAnswer' || row.value.op === 'atMostPerAnswer'
+                          ) {
+                            <label class="field">
+                              <span class="label" i18n="@@spt.cond.keyed_by"
+                                >The limit depends on</span
+                              >
+                              <select class="control" formControlName="otherFact">
+                                <option value="" i18n="@@spt.choose">Choose…</option>
+                                @for (fact of choiceFacts(); track fact.key) {
+                                  <option [value]="fact.key">{{ fact.label }}</option>
+                                }
+                              </select>
+                            </label>
+                          }
+
+                          <label class="field">
+                            <span class="label" i18n="@@spt.cond.reason"
+                              >What the customer is told when they do not meet it</span
+                            >
+                            <select class="control" formControlName="reasonCode">
+                              @for (code of reasonCodes; track code) {
+                                <option [value]="code">{{ reasonLabel(code) }}</option>
+                              }
+                            </select>
+                          </label>
+
+                          <div class="condition-foot">
+                            <span class="mono">{{ row.value.id }}</span>
+                            <button
+                              type="button"
+                              class="linkish is-danger"
+                              (click)="removeCondition(i)"
+                            >
+                              <span i18n="@@spt.cond.remove">Remove</span>
+                            </button>
+                          </div>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </div>
+              </section>
             }
-          </section>
+
+            <!-- ③ ---------------------------------------------------------- -->
+            @default {
+              <section class="block">
+                <h2 class="q" i18n="@@spt.q3">What are the numbers?</h2>
+                <p class="lede" i18n="@@spt.q3.lede">
+                  These are the figures every bank starts from. A bank that types its own replaces
+                  them; a bank that does not, quotes from here.
+                </p>
+
+                @if (dirty()) {
+                  <p class="notice" role="status">
+                    <span i18n="@@spt.q3.stale"
+                      >Save the answers above to see the tables that go with them.</span
+                    >
+                  </p>
+                } @else if (compiledSteps().length === 0) {
+                  <p class="notice" role="status">
+                    <span i18n="@@spt.q3.none"
+                      >Nothing to fill in yet — answer the first question and save.</span
+                    >
+                  </p>
+                } @else {
+                  <app-product-rule-editor
+                    variant="catalog"
+                    [steps]="compiledSteps()"
+                    [gates]="compiledGates()"
+                    [output]="compiledOutput()"
+                    [figures]="figures()"
+                    (figuresChange)="onFigures($event)"
+                    (figuresTouched)="markFiguresDirty()"
+                    [facts]="facts()"
+                  />
+                }
+              </section>
+            }
+          }
         </form>
       }
     </app-form-page>
@@ -573,6 +624,14 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
     `
       :host {
         display: block;
+      }
+      /* The rail is the first thing on the page body, and it is chrome — a step's worth of
+         air below it, not the section gap the three questions use between themselves. */
+      app-wizard-steps {
+        display: block;
+        margin-block-end: var(--space-7);
+        padding-block-end: var(--space-5);
+        border-block-end: 1px solid var(--color-border-default);
       }
       .stack {
         display: flex;
@@ -585,7 +644,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
       .block {
         display: flex;
         flex-direction: column;
-        gap: var(--space-4);
+        gap: var(--space-5);
       }
       .q {
         margin: 0;
@@ -595,13 +654,14 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         color: var(--color-text-primary);
       }
       .lede {
-        margin: 0;
+        margin: calc(var(--space-4) * -1) 0 0;
         max-inline-size: 52rem;
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
         line-height: var(--line-height-base);
       }
 
+      /* ── picks: a short row of plain choices ───────────────────────────── */
       .picks {
         display: flex;
         flex-wrap: wrap;
@@ -639,45 +699,93 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         color: var(--color-text-primary);
         font-weight: var(--font-semibold);
       }
-      /* Name over example. The dot keeps its optical line with the NAME, not with the
-         centre of a two-line card, so a row of stacked cards still reads as one control. */
-      .pick.is-stacked {
-        align-items: flex-start;
-        padding-block: var(--space-2);
-        text-align: start;
+
+      /* ── cards: the shape pick, the one real decision on step 1 ─────────── */
+      /* A GRID and not a wrapping flex row: as flex the six cards took their own content
+         widths, so the rows were ragged and the six examples never lined up with each
+         other — which is what they are there to be compared by. */
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+        gap: var(--space-3);
       }
-      .pick-text {
+      .card {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+        text-align: start;
+        font: inherit;
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          background-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .card:hover {
+        border-color: var(--color-border-strong);
+      }
+      .card:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-halo);
+        border-color: var(--primary);
+      }
+      .card:active {
+        background: var(--bg-subtle);
+      }
+      .card.is-on {
+        border-color: var(--primary);
+        background: var(--primary-subtle);
+      }
+      .card-text {
         display: flex;
         flex-direction: column;
         gap: var(--space-1);
+        min-inline-size: 0;
       }
-      .pick-eg {
+      .card-name {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
+        line-height: var(--line-height-base);
+      }
+      .card-eg {
         font-size: var(--text-xs);
-        font-weight: var(--font-normal);
         color: var(--color-text-secondary);
+        line-height: var(--line-height-base);
       }
       /* A circle, not a rounded square: a square teaches "as many as apply" before the
          first click, and only one of these can be picked. */
       .pick-dot {
+        flex: none;
         inline-size: 14px;
         block-size: 14px;
         border-radius: var(--radius-pill);
         border: 1.5px solid var(--color-border-strong);
       }
-      .pick.is-stacked .pick-dot {
-        flex: none;
-        margin-block-start: var(--space-1);
+      /* Held on the NAME's optical line, not on the centre of a two-line card. */
+      .card .pick-dot {
+        margin-block-start: 3px;
       }
+      .card.is-on .pick-dot,
       .pick.is-on .pick-dot {
         border-color: var(--primary);
         box-shadow: inset 0 0 0 3px var(--primary);
       }
 
+      /* ── fields ────────────────────────────────────────────────────────── */
       .field {
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
         max-inline-size: 34rem;
+      }
+      /* The card grid needs the body's whole width to hold three columns; the 34rem
+         reading measure is for a control, not for a set of choices. */
+      .field.is-wide {
+        max-inline-size: none;
       }
       .field.is-inset {
         padding-inline-start: var(--space-4);
@@ -724,6 +832,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         color: var(--color-warning);
       }
 
+      /* ── add-ons ───────────────────────────────────────────────────────── */
       .addon {
         display: flex;
         flex-direction: column;
@@ -731,49 +840,62 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         padding-block: var(--space-4);
         border-block-start: 1px solid var(--color-border-default);
       }
+      /* Tick and text, with the note indented under the NAME rather than starting back at
+         the checkbox — five add-ons whose second line began further out than their first
+         made the whole section read as unaligned prose. */
       .addon-head {
-        cursor: pointer;
-        display: flex;
-        align-items: center;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
         gap: var(--space-3);
-        font-size: var(--text-base);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-primary);
         cursor: pointer;
       }
       .addon-tick {
         inline-size: 18px;
         block-size: 18px;
-        flex: 0 0 auto;
+        margin-block-start: 2px;
         accent-color: var(--primary);
         cursor: pointer;
       }
       .addon-head.is-static {
         cursor: default;
-        justify-content: space-between;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: baseline;
+      }
+      .addon-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-inline-size: 0;
+      }
+      .addon-name {
+        font-size: var(--text-base);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
+        line-height: var(--line-height-tight);
       }
       .addon-note {
-        margin: 0;
         max-inline-size: 52rem;
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
         line-height: var(--line-height-base);
       }
-      /* The ways stack exactly as they did when they were direct children of .addon-body —
-         the container they moved into is a wrapper for the FormArray, not a layout change. */
-      .ways {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-4);
-      }
       .addon-body {
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
+        align-items: flex-start;
         margin-block-start: var(--space-3);
+        /* Aligned with the add-on's own text column, so the body reads as belonging to the
+           line above it rather than to the section. */
+        margin-inline-start: calc(18px + var(--space-3));
         padding-inline-start: var(--space-4);
         border-inline-start: var(--rule-width-accent) solid var(--primary-subtle);
         animation: spt-reveal var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .addon-body > .field,
+      .addon-body > .ways {
+        inline-size: 100%;
       }
       @keyframes spt-reveal {
         from {
@@ -782,30 +904,54 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         }
       }
 
-      /* One way among several. Set off by a rule rather than a card: the addon body already
-         sits inside a card, and a card inside a card reads as a second level of nesting the
-         content does not have. */
-      .way {
+      /* ── ways ──────────────────────────────────────────────────────────── */
+      .ways {
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
-        padding-block-end: var(--space-4);
+      }
+      /* One line per way. The label sits on the controls' own baseline row, and Remove is
+         pushed to the end so the two selects stay adjacent — they are read together. */
+      .way {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: end;
+        gap: var(--space-3);
+        padding-block-end: var(--space-3);
         border-block-end: 1px solid var(--color-border-default);
       }
       .way:last-of-type {
         padding-block-end: 0;
         border-block-end: 0;
       }
-      .way-head {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: var(--space-3);
-      }
-      .way-name {
-        font-size: var(--text-sm);
+      .way-n {
+        padding-block-end: var(--space-2-5);
+        font-size: var(--text-xs);
         font-weight: var(--font-semibold);
-        color: var(--color-text-secondary);
+        color: var(--color-text-tertiary);
+        white-space: nowrap;
+      }
+      .way-f {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-inline-size: 0;
+      }
+      .way-x {
+        padding-block-end: var(--space-2-5);
+      }
+      @media (max-width: 40rem) {
+        .way {
+          grid-template-columns: minmax(0, 1fr);
+          align-items: stretch;
+        }
+        .way-n,
+        .way-x {
+          padding-block-end: 0;
+        }
+        .way-x {
+          justify-self: start;
+        }
       }
       .way-add {
         align-self: flex-start;
@@ -916,6 +1062,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
 
       @media (prefers-reduced-motion: reduce) {
         .pick,
+        .card,
         .way-add {
           transition: none;
         }
@@ -948,6 +1095,15 @@ export class ProductTemplatePage implements OnInit {
 
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
+  /**
+   * Which of the three questions is on stage.
+   *
+   * The signal is the truth and the URL mirrors it (`?step=`, `replaceUrl`) — the same
+   * convention `?loan=` and `?basis=` already follow on the catalog screens, so a reload and
+   * a pasted link both land where the operator was, and moving between steps does not fill
+   * the back button with navigation states.
+   */
+  protected readonly step = signal(0);
   protected readonly advanced = signal(false);
   /**
    * The ANSWERS above are dirty — the tables below were compiled from an older shape.
@@ -1024,14 +1180,25 @@ export class ProductTemplatePage implements OnInit {
    * so it is the one kind that can never open empty.
    */
   private wayGroup(kind: TemplateMechanismKind = 'flatAmount', fact = '') {
-    return this.fb.nonNullable.group({
+    const group = this.fb.nonNullable.group({
       kind: this.fb.nonNullable.control<TemplateMechanismKind>(kind),
       fact: this.fb.nonNullable.control(fact),
     });
+    // The fact a table is keyed by and the fact a percentage reads are different KINDS of
+    // answer, so carrying the old pick across would leave a select showing a value that is
+    // no longer in its own list. Wired HERE rather than in a click handler because the shape
+    // is a bound `<select>` now: the row is seeded with both values before it is pushed, so
+    // this fires only on an operator's own change.
+    group.controls.kind.valueChanges.subscribe(() => group.controls.fact.setValue(''));
+    return group;
   }
 
   ngOnInit(): void {
     this.key = this.route.snapshot.paramMap.get('key') ?? '';
+    // Read once from the snapshot, like `?loan=` and `?basis=`: the signal is the truth from
+    // here on, and re-reading a param this screen itself writes would fight its own mirror.
+    const step = Number(this.route.snapshot.queryParamMap.get('step'));
+    if (Number.isInteger(step) && step >= 0 && step <= 2) this.step.set(step);
     void this.enums.load('surrogate_fact');
     this.form.valueChanges.subscribe(() => this.dirty.set(true));
     // Ticking the addon with nothing under it would say a second way exists and save none,
@@ -1040,6 +1207,57 @@ export class ProductTemplatePage implements OnInit {
       if (on && this.alternatives.length === 0) this.alternatives.push(this.wayGroup());
     });
     void this.load();
+  }
+
+  // --- the rail --------------------------------------------------------------
+
+  protected readonly railAria = $localize`:@@spt.rail.aria:The calculation, in three steps`;
+  protected readonly railCaption = $localize`:@@spt.rail.caption:Everything saves together, so move between the steps in any order.`;
+
+  /**
+   * The three steps, with the status each is actually IN.
+   *
+   * Step 1 reads `done` the moment nothing on it is refused, because there is exactly one
+   * thing it can be missing. Step 2 is `done` only when something on it is switched on:
+   * every add-on is optional, and a green tick on an untouched section would say a decision
+   * was made where none was. Step 3 never reports either way — the figures are a bank's to
+   * fill in, so "no numbers here" is a normal, finished state for a catalog product.
+   */
+  protected railSteps(): readonly WizardStepItem[] {
+    const s1 = this.step1Block();
+    const s2 = this.step2Block();
+    return [
+      {
+        id: 'calc',
+        label: $localize`:@@spt.step.1:The calculation`,
+        status: s1 !== null ? 'invalid' : 'done',
+      },
+      {
+        id: 'extras',
+        label: $localize`:@@spt.step.2:Extras`,
+        status: s2 !== null ? 'invalid' : this.hasExtras() ? 'done' : 'todo',
+      },
+      { id: 'figures', label: $localize`:@@spt.step.3:The numbers` },
+    ];
+  }
+
+  protected goStep(index: number): void {
+    if (index === this.step()) return;
+    this.step.set(index);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { step: index },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** Whether step 2 states anything at all — what tells its `done` from its `todo`. */
+  private hasExtras(): boolean {
+    const v = this.form.getRawValue();
+    return (
+      v.useAlternative || v.useSecondColumn || v.useUplift || v.iScore || this.conditions.length > 0
+    );
   }
 
   // --- what the shell renders ------------------------------------------------
@@ -1070,9 +1288,19 @@ export class ProductTemplatePage implements OnInit {
     if (this.saveError()) return this.saveError();
     if (this.advanced())
       return $localize`:@@spt.form.block_advanced:This calculation was built by hand, so there is no form to save.`;
+    return this.step1Block() ?? this.step2Block();
+  }
+
+  /** What step 1 refuses, or `null`. Named per step so the rail can point at the right one. */
+  private step1Block(): string | null {
     if (this.primaryNeedsFact() && !this.form.controls.primaryFact.value) {
       return $localize`:@@spt.form.block_fact:Choose which answer the calculation reads.`;
     }
+    return null;
+  }
+
+  /** What step 2 refuses, or `null`. */
+  private step2Block(): string | null {
     if (this.form.controls.useAlternative.value) {
       const unnamed = this.alternatives.controls.findIndex(
         (row, index) => this.wayNeedsFact(index) && !row.controls.fact.value,
@@ -1142,21 +1370,9 @@ export class ProductTemplatePage implements OnInit {
     this.form.controls.primaryKind.setValue(kind);
     // The fact a table is keyed by and the fact a percentage reads are different KINDS of
     // answer, so carrying the old pick across would leave a select showing a value that is
-    // no longer in its own list.
-    if (MECHANISM_FACT_TYPE[kind] !== MECHANISM_FACT_TYPE[this.form.controls.primaryKind.value]) {
-      this.form.controls.primaryFact.setValue('');
-    }
+    // no longer in its own list. Cleared unconditionally: the guard that used to sit here
+    // compared the new kind against the control it had just written, so it was never true.
     this.form.controls.primaryFact.setValue('');
-  }
-
-  protected setWayKind(index: number, kind: TemplateMechanismKind): void {
-    const row = this.alternatives.at(index);
-    if (!row || row.controls.kind.value === kind) return;
-    row.controls.kind.setValue(kind);
-    // The fact a table is keyed by and the fact a percentage reads are different KINDS of
-    // answer, so carrying the old pick across would leave a select showing a value that is
-    // no longer in its own list.
-    row.controls.fact.setValue('');
   }
 
   /**

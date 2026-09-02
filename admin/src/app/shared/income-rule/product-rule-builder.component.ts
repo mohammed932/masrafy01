@@ -321,7 +321,7 @@ const GATE_CHOICE_OPS = ['eq', 'neq', 'in'] as const;
               (ngModelChange)="setOutputKind($event)"
             >
               <option value="monthlyIncome" i18n="@@prb.output.kind.income">
-                A monthly income
+                Assumed income
               </option>
               <option value="maxAmount" i18n="@@prb.output.kind.ceiling">
                 The most the customer can borrow

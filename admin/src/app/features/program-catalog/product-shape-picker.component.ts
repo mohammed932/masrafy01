@@ -103,7 +103,7 @@ const SHAPE_COPY: Readonly<Record<string, () => ShapeCopy>> = {
   }),
   income_share_of_figure: () => ({
     title: $localize`:@@spt.shape.share:A share of a figure the customer tells you`,
-    detail: $localize`:@@spt.shape.share.detail:The bank treats a percentage of something the customer states as their monthly income.`,
+    detail: $localize`:@@spt.shape.share.detail:The bank treats a percentage of something the customer states as their assumed income.`,
     example: $localize`:@@spt.shape.share.eg:e.g. 30% of what they spend on their card`,
     glyph: GLYPH.percent,
   }),
@@ -164,7 +164,7 @@ const GROUP_ORDER: readonly TemplateStarter['outputKind'][] = ['monthlyIncome', 
  * word for it and the operator's word is the sentence.
  */
 const GROUP_TITLE: Readonly<Record<TemplateStarter['outputKind'], () => string>> = {
-  monthlyIncome: () => $localize`:@@spt.group.income:Works out a monthly income`,
+  monthlyIncome: () => $localize`:@@spt.group.income:Works out an assumed income`,
   maxAmount: () => $localize`:@@spt.group.ceiling:Works out the most they can borrow`,
 };
 
