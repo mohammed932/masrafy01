@@ -60,7 +60,7 @@ import {
   type TemplateMechanismKind,
 } from '@features/bank-programs/bank-programs.types';
 import { blueprintCopy } from './blueprint-copy';
-import { CATALOG_BASE, PRODUCT_BASE } from './program-catalog.paths';
+import { PRODUCT_BASE } from './program-catalog.paths';
 
 /** Which kind of answer a mechanism can read. `null` = it reads none. */
 const MECHANISM_FACT_TYPE: Readonly<
@@ -135,10 +135,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         <p class="notice" role="status">
           <span i18n="@@spt.advanced"
             >This product's calculation was built step by step, so there is no form for it. You can
-            still edit the steps on the product page, or start a new product from a shape.</span
-          >
-          <a class="linkish" [routerLink]="newProductLink" i18n="@@spt.advanced_new"
-            >Start from a shape</a
+            still edit the steps on the product page.</span
           >
         </p>
       } @else {
@@ -1188,8 +1185,6 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
   ],
 })
 export class ProductTemplatePage implements OnInit {
-  protected readonly newProductLink = `${PRODUCT_BASE}/new`;
-
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly errors = inject(ErrorCodeService);
@@ -1713,36 +1708,18 @@ export class ProductTemplatePage implements OnInit {
   // --- save / load -----------------------------------------------------------
 
   /**
-   * Where "back" goes.
+   * Where "back" goes: the product's own page, always.
    *
-   * Normally the product's own page. But when a catalog name sent the operator here — it was
-   * created one write earlier and links to this product — leaving belongs to the NAME: the
-   * errand was "add a program name", and the calculation is the last thing it owed. `?then=`
-   * carries the name's key.
-   *
-   * A query param and not router state, for the same reason `?from=` is one: this screen is
-   * reloaded and pasted, and router state survives neither. It is a RETURN ADDRESS, applied
-   * to nothing — unlike the new-question screen's payload, which the receiving page writes.
+   * It used to branch on a `?then=` return address, written by the Add-program-name flow when
+   * it had just created a PRODUCT and the calculation was the last thing it owed. That flow
+   * cannot create a product any more — the predefined ones are seeded — so nothing writes the
+   * param, and a branch on a param no caller sets is a second answer waiting to go wrong.
    */
-  /** Names where back actually goes, so the arrow is not a guess. */
   protected backLabel(): string {
-    return this.returnToName() !== null
-      ? $localize`:@@spt.back_name:Back to the program name`
-      : $localize`:@@spt.back_product:Back to the product`;
-  }
-
-  /** The catalog name that sent the operator here, if one did. */
-  private returnToName(): string | null {
-    const then = this.route.snapshot.queryParamMap.get('then');
-    return then !== null && then !== '' ? then : null;
+    return $localize`:@@spt.back_product:Back to the product`;
   }
 
   protected leave(): void {
-    const then = this.returnToName();
-    if (then !== null) {
-      void this.router.navigate([CATALOG_BASE, then], { queryParams: { step: 2 } });
-      return;
-    }
     void this.router.navigate([PRODUCT_BASE, this.key], { queryParams: { step: 2 } });
   }
 
@@ -1879,12 +1856,10 @@ export class ProductTemplatePage implements OnInit {
       this.advanced.set(res.data.advanced);
       this.absorb(res.data.template, res.data.compiled);
 
-      // A brand-new product arrives with no form. `?from=` is the shape (or shapes) the
-      // operator picked on the previous screen — carried on the URL rather than in a service
-      // so a reload, and a link pasted to a colleague, both land on the same ones.
-      if (res.data.template === null && !res.data.advanced) {
-        this.seedFromStarters(this.route.snapshot.queryParamMap.get('from'));
-      }
+      // A product with no form opens a BLANK one, and that is all it can do now. It used to
+      // be seeded from `?from=` — the shapes ticked on a screen that created the product a
+      // moment earlier — and nothing creates a product from the admin any more, so nothing
+      // writes that param. A legacy product that predates the form still opens it empty.
       const fromLibrary = res.data.template?.blueprintKey;
       if (fromLibrary !== undefined) {
         void this.loadBlueprint(fromLibrary);
@@ -1899,49 +1874,6 @@ export class ProductTemplatePage implements OnInit {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  /**
-   * Open a blank form on the ways the operator ticked on the screen before this one.
-   *
-   * A COMMA-SEPARATED list, and a single value is the same thing with one member — so every
-   * link written before the picker went multi-select still lands on exactly one way, with no
-   * combine, which is what it always did.
-   *
-   * Two rules that only matter when the URL is wrong, either because it was hand-edited or
-   * because a future card changed:
-   *
-   *   An unknown key is DROPPED, not defaulted. Guessing a mechanism would seed a shape the
-   *   operator never picked, and the form would look answered.
-   *
-   *   A key whose output kind disagrees with the FIRST one is dropped too. A product carries
-   *   one `outputKind`, so an income way beside a ceiling way is unrepresentable — the picker
-   *   makes it unclickable, and this is the same rule stated where the URL is read.
-   *
-   * `combine` is seeded as `lower` for more than one way, per the design spec (§4 Q2 — "take
-   * the lower of the two", and every sheet reading that way takes the lower). The operator
-   * can change it on the control two sections down; what they cannot do is end up with a
-   * multi-way product that silently quotes whichever way happened to be filled in first.
-   */
-  private seedFromStarters(raw: string | null): void {
-    const keys = (raw ?? '')
-      .split(',')
-      .map((key) => key.trim())
-      .filter((key) => key !== '');
-    const seeds = keys.map((key) => STARTER_SEED[key]).filter((seed) => seed !== undefined);
-    const [primary, ...rest] = seeds;
-    if (primary === undefined) return;
-
-    const sameKind = rest.filter((seed) => seed.outputKind === primary.outputKind);
-    this.alternatives.clear();
-    for (const seed of sameKind) this.alternatives.push(this.wayGroup(seed.mechanism));
-
-    this.form.patchValue({
-      primaryKind: primary.mechanism,
-      outputKind: primary.outputKind,
-      useAlternative: sameKind.length > 0,
-      combine: sameKind.length > 0 ? 'lower' : '',
-    });
   }
 
   private absorb(
@@ -2095,24 +2027,4 @@ const CONDITION_OP_LABELS: Readonly<Record<ConditionOp, () => string>> = {
     $localize`:@@spt.op.perAnswerMin:At least a figure that depends on another answer`,
   atMostPerAnswer: () =>
     $localize`:@@spt.op.perAnswerMax:At most a figure that depends on another answer`,
-};
-
-/**
- * The shape the picker screen sent, as the two fields it seeds.
- *
- * Duplicated from the server's own starter list on purpose and kept to the two fields a
- * blank form needs — the server remains the authority on what a shape COMPILES to, which is
- * the half that could be wrong in a way nobody sees.
- */
-const STARTER_SEED: Readonly<
-  Record<string, { mechanism: TemplateMechanismKind; outputKind: 'monthlyIncome' | 'maxAmount' }>
-> = {
-  income_by_rank: { mechanism: 'choiceTable', outputKind: 'monthlyIncome' },
-  income_by_years: { mechanism: 'numberBand', outputKind: 'monthlyIncome' },
-  income_share_of_figure: { mechanism: 'shareOf', outputKind: 'monthlyIncome' },
-  income_multiple_of_figure: { mechanism: 'multipleOf', outputKind: 'monthlyIncome' },
-  ceiling_by_class: { mechanism: 'classTable', outputKind: 'maxAmount' },
-  ceiling_by_bracket: { mechanism: 'numberBand', outputKind: 'maxAmount' },
-  ceiling_share_of_paid: { mechanism: 'shareOf', outputKind: 'maxAmount' },
-  ceiling_by_choice: { mechanism: 'choiceTable', outputKind: 'maxAmount' },
 };

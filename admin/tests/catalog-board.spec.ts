@@ -247,4 +247,46 @@ describe('buildBoard — search', () => {
     });
     expect(b.counts).toEqual({ all: 1, payslip: 1, no_payslip: 0 });
   });
+
+  // --- a product switched OFF -------------------------------------------------
+  //
+  // Switching a product off is the operator's one lifecycle action on one now, and the board
+  // is where it happens. What the board must NOT do is quietly stop describing the product:
+  // the names that sell it are still linked, still live, and quoting nothing.
+
+  it('keeps an inactive product’s names and program count, so the warning is renderable', () => {
+    // Read from `usedBy` regardless of the active flag, deliberately. If this ever came back
+    // with no names, the card would go quiet at exactly the moment it has something to say.
+    const b = board({
+      names: [
+        name({
+          key: 'compound_owner_4',
+          usage: { programs: 3, banks: 1, noPayslipPrograms: 3, noPayslipProgramsWithoutTable: 0 },
+        } as never),
+      ],
+      products: [product({ key: 'compound', active: false, usedBy: ['compound_owner_4'] })],
+    });
+    const card = b.products[0]!;
+    expect(card.product.active).toBe(false);
+    expect(card.names.map((n) => n.key)).toEqual(['compound_owner_4']);
+    expect(card.programs).toBe(3);
+  });
+
+  it('does not push a name out of a switched-off product’s card', () => {
+    // It would then render twice — once inside the card and once as an unlinked name — or,
+    // worse, appear to state a calculation of its own.
+    const b = board({
+      names: [name({ key: 'compound_owner_4' })],
+      products: [product({ key: 'compound', active: false, usedBy: ['compound_owner_4'] })],
+    });
+    expect(b.unlinked).toHaveLength(0);
+  });
+
+  it('counts a switched-off product under the Surrogate chip', () => {
+    // The chip is what the operator clicks to FIND it and switch it back on. A count that
+    // shrank when a product went off would hide the row that needs the next decision.
+    const b = board({ products: [product({ key: 'off', active: false })] });
+    expect(b.counts.no_payslip).toBe(1);
+    expect(b.products).toHaveLength(1);
+  });
 });

@@ -145,6 +145,21 @@ export function shouldConsultIncomeRule(
 export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const { profile, program } = input;
 
+  // ── 0. The platform is withholding the calculation ───────────────────────
+  //
+  // FIRST, and deliberately so. Two reasons: `input.incomeResolution` can be supplied
+  // by the caller further down, so a check placed after the resolution would be skipped
+  // for exactly those callers; and there is no point running the pricing cascade to
+  // produce a figure nobody will read.
+  //
+  // Its own outcome rather than a missing rule, because a missing rule is not inert: on
+  // a single-fact product the resolver falls through to the declared salary, and this
+  // program would quietly start pricing off a payslip instead of reporting that the
+  // product it quotes from is switched off.
+  if (program.incomeRuleWithheld !== undefined) {
+    return { ok: false, unavailable: { reason: 'SURROGATE_PRODUCT_RETIRED' } };
+  }
+
   // ── 1. Misconfiguration — collect every offending path, don't fail fast ──
   const cascade = runCascade(program, profile);
   const problems: string[] = [];

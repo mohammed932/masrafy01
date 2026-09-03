@@ -720,3 +720,45 @@ export function sharedBlueprintFactKeys(): ReadonlySet<string> {
 export function productBlueprint(key: string): ProductBlueprint | undefined {
   return BLUEPRINTS.find((blueprint) => blueprint.key === key);
 }
+
+/**
+ * True when a `surrogate_product` of this key guesses no income at all — it asks its
+ * question, and each bank states the MAXIMUM it will lend against the answer on its own
+ * program (`loanLimits.maxLoanByFact`).
+ *
+ * A product row exists for these so an operator has one card and one switch per product,
+ * but it holds no calculation and never will, so a catalog program name must not be
+ * linked to one: the name would be sold with no payslip and work out no income. That
+ * refusal (`SURROGATE_PRODUCT_CAP_ONLY`) is the only reader of this function.
+ *
+ * The KEY is the marker, and it can be, because a key is immutable in this registry by
+ * construction — the whole reason `createFromBlueprint` refuses a taken key rather than
+ * minting `_2`. The alternative, a `capOnly` column, would be a migration for a fact the
+ * blueprint already states, and a second place for it to disagree.
+ */
+export function isCapOnlyProductKey(key: string): boolean {
+  return productBlueprint(key)?.group === 'cap';
+}
+
+/**
+ * The facts a cap-only product's switch may turn off with it — the ones it asks for and
+ * nobody else does.
+ *
+ * Read from the BLUEPRINT rather than from `platform_enumeration.surrogateProductKey`,
+ * because that column answers a different question. A cap blueprint creates no product row
+ * for the planner to file its fact under, so its facts are filed under nothing at all — and
+ * on the live database every one of them is, which is why an ownership-keyed flip did
+ * nothing and the switch was inert. Measured, not assumed.
+ *
+ * SHARED facts are excluded, and this is the load-bearing half: `school_type` is read by
+ * `school_stage_ceiling` as a ceiling's column AND by `school_type_cap` as a cap of its own.
+ * Turning off the cap product must not stop the ceiling product reading the answer, so a
+ * fact more than one blueprint asks for is never taken away by one of them. That is the same
+ * rule, and the same function, `sharedBlueprintFactKeys` already states for deletion.
+ */
+export function exclusiveFactKeysOf(productKey: string): readonly string[] {
+  const blueprint = productBlueprint(productKey);
+  if (!blueprint) return [];
+  const shared = sharedBlueprintFactKeys();
+  return [...new Set(blueprint.asks.map((ask) => ask.factKey))].filter((key) => !shared.has(key));
+}

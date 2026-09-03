@@ -10,6 +10,7 @@ import {
   EnumerationFallbackInUseException,
   EnumerationTypeFallbackInvalidException,
   EnumerationInUseException,
+  EnumerationCreateNotApplicableException,
   EnumerationKeyDuplicateException,
   EnumerationParentNotApplicableException,
   EnumerationTypeDuplicateException,
@@ -19,7 +20,7 @@ import {
   EnumerationTypeParentInvalidException,
   EnumerationTypeSystemOnlyException,
   ProgramNameHasOwnRuleException,
-  SurrogateProductInUseException,
+  SurrogateProductCapOnlyException,
   SurrogateProductRequiredException,
   EnumerationParentRequiredException,
   EnumerationParentUnknownException,
@@ -33,6 +34,11 @@ import {
   EnumerationBulkInvalidException,
   type EnumerationBulkProblem,
 } from '@/common/errors/domain.exceptions';
+// Frozen platform data — no Nest, no Prisma, and it imports nothing from this module, so
+// the dependency is one-way at the file level as well as at runtime. The blueprint library
+// is what DEFINES which products guess no income, so reading the answer from anywhere else
+// would be a second statement of it.
+import { isCapOnlyProductKey } from '@/bank-programs/blueprints/product-blueprints';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 // ONE slug rule, not two. The key a pasted row mints must be the key the questionnaire's
 // options carry, because `question_option.code === platform_enumeration.key` is what makes
@@ -100,6 +106,17 @@ function sameCodeSet(a: readonly string[], b: readonly string[]): boolean {
   return b.every((code) => seen.has(code));
 }
 
+/**
+ * Who is asking, when that changes what is allowed.
+ *
+ * Exactly one caller sets it — the predefined-product library, which creates the two kinds
+ * `SEEDED_ONLY_TYPES` closes to everyone else. A named option rather than a boolean because
+ * the next reason to bypass a door will not be this one.
+ */
+export interface CreateEnumerationOptions {
+  source: 'blueprint';
+}
+
 export interface AdminActor {
   staffId: string;
   sourceIp: string | null;
@@ -136,6 +153,22 @@ const BULK_CREATE_FORBIDDEN_TYPES = new Set<string>([
   'surrogate_product',
   'surrogate_fact',
 ]);
+
+/**
+ * Kinds an operator may not create a value of AT ALL — only the predefined-product library
+ * may, and it does so through this same method with an explicit `source`.
+ *
+ * A no-payslip PRODUCT and the FACTS it reads are platform structure, not operator data:
+ * the eleven products are put in by `npm run seed:blueprints` and the operator's decision
+ * is which of them this platform sells. Before this, three admin screens minted products
+ * and facts of their own — a blank product from an anonymous shape, one on the way through
+ * the Add-program-name flow, and a hand-built ask — and each produced a row nothing seeded
+ * and no blueprint described.
+ *
+ * `program_name` is deliberately NOT here: hand-created catalog names are the point of the
+ * catalog. `surrogate_product` and `surrogate_fact` are the two kinds a blueprint owns.
+ */
+const SEEDED_ONLY_TYPES = new Set<string>(['surrogate_product', 'surrogate_fact']);
 
 /** How many bad rows a refusal names before it stops. See `EnumerationBulkInvalidException`. */
 const BULK_PROBLEM_REPORT_CAP = 200;
@@ -195,6 +228,42 @@ export class PlatformEnumerationsAdminService {
 
   async listAll(filter?: { type?: string }): Promise<EnumerationRow[]> {
     return this.repo.findAllOrdered(filter);
+  }
+
+  /**
+   * Switch named FACTS on or off — what a cap-only product's switch does.
+   *
+   * For a cap-only product this is the whole of "off". Such a product guesses no income — it
+   * asks its question and each bank states the maximum for the answer on its own program —
+   * so there is no calculation to withhold. Deactivating the fact is what stops the answer
+   * being read: it leaves `surrogateFactRegistry` (which filters `active` for exactly this
+   * reason), and the bank's cap table then takes the `onNoMatch` branch the bank itself
+   * chose, rather than the platform inventing "no cap" or "cap zero".
+   *
+   * TAKES THE KEYS rather than a product, because the caller is the only one that knows
+   * which facts belong to one exclusively — a cap blueprint creates no product row for its
+   * facts to be filed under, and a fact two blueprints read must never be taken away by one
+   * of them (`exclusiveFactKeysOf`).
+   *
+   * Goes through `update()` per row rather than one bulk write: each flip is an audited
+   * decision, the cache invalidation is already there, and it is one or two facts. Rows
+   * already in the wanted state are skipped, so a no-op switch writes no audit events.
+   *
+   * Returns the keys it actually moved, so an operator can be told that switching a product
+   * off also stopped a question being read.
+   */
+  async setFactsActive(
+    factKeys: readonly string[],
+    active: boolean,
+    actor: AdminActor,
+  ): Promise<string[]> {
+    if (factKeys.length === 0) return [];
+    const wanted = new Set(factKeys);
+    const facts = (await this.repo.findAllOrdered({ type: FACT_TYPE })).filter(
+      (row) => wanted.has(row.key) && row.active !== active,
+    );
+    for (const fact of facts) await this.update(fact.id, { active }, actor);
+    return facts.map((f) => f.key);
   }
 
   /**
@@ -436,11 +505,12 @@ export class PlatformEnumerationsAdminService {
    * about the KIND registry, which the caller already holds, while a fallback is a fact about
    * a VALUE and needs the members read.
    *
-   * Checked at SET time only. Not re-checked on use, deliberately — the same posture
-   * `programNameIncomeRules()` takes towards a linked product's active flag. If the class
-   * were somehow retired anyway (a migration, direct SQL), the unfile gesture must still land
-   * somewhere rather than start throwing at an operator mid-board; the retire guard in
-   * `update()` is what makes that path narrow.
+   * Checked at SET time only, on its own reasoning: if the class were somehow retired anyway
+   * (a migration, direct SQL), the unfile gesture must still land somewhere rather than start
+   * throwing at an operator mid-board, and the fallback-in-use refusal in `update()` is what
+   * keeps that path narrow. It used to cite `programNameIncomeRules()`'s indifference to a
+   * linked product's active flag as the precedent; that posture is gone — a switched-off
+   * product now withholds its calculation — so the analogy went with it.
    */
   private async assertFallbackUsable(
     key: string,
@@ -468,7 +538,18 @@ export class PlatformEnumerationsAdminService {
     }
   }
 
-  async create(input: CreateEnumerationDto, actor: AdminActor): Promise<EnumerationRow> {
+  async create(
+    input: CreateEnumerationDto,
+    actor: AdminActor,
+    opts?: CreateEnumerationOptions,
+  ): Promise<EnumerationRow> {
+    // THIRD and POSITIONAL, so no wire field can ever reach it: the controller passes a
+    // validated body and an actor, and there is no third thing it could pass. The only
+    // caller that supplies it is `BlueprintService`, building a predefined product.
+    if (opts?.source !== 'blueprint' && SEEDED_ONLY_TYPES.has(input.type)) {
+      throw new EnumerationCreateNotApplicableException({ type: input.type });
+    }
+
     const existing = await this.repo.findByTypeAndKey(input.type, input.key);
     if (existing) {
       throw new EnumerationKeyDuplicateException({ type: input.type, key: input.key });
@@ -816,6 +897,19 @@ export class PlatformEnumerationsAdminService {
   }
 
   /**
+   * The products a catalog program name may actually take its calculation from: live, and
+   * not cap-only.
+   *
+   * One derivation, used by both refusals that offer the operator a list of what would
+   * have worked — two copies is how the "pick one of these" list comes to name a product
+   * the very next refusal rejects.
+   */
+  private async linkableProductKeys(): Promise<string[]> {
+    const active = await this.repo.getActiveMembers(SURROGATE_PRODUCT_TYPE);
+    return active.map((m) => m.key).filter((key) => !isCapOnlyProductKey(key));
+  }
+
+  /**
    * What to STORE as a row's surrogate product — the one place the link is enforced, and the
    * mirror of `resolveParentKey` above.
    *
@@ -866,6 +960,22 @@ export class PlatformEnumerationsAdminService {
         activeKeys: activeProducts,
       });
     }
+    // A cap-only product works out no income at all — it asks its question and each bank
+    // states the maximum for the answer on its own program. So a NAME may not take its
+    // calculation from one; the name would be sold with no payslip and quote nothing,
+    // silently, until a customer saw a blank card.
+    //
+    // Names only. A cap-only product's own FACT is filed under it and must stay filable,
+    // which is the whole reason this refusal is keyed on the type rather than on the
+    // product.
+    if (type === PROGRAM_NAME_TYPE && isCapOnlyProductKey(productKey)) {
+      throw new SurrogateProductCapOnlyException({
+        type,
+        key: productKey,
+        surrogateProductKey: productKey,
+        linkableProducts: await this.linkableProductKeys(),
+      });
+    }
     return productKey;
   }
 
@@ -892,9 +1002,7 @@ export class PlatformEnumerationsAdminService {
     if (!bases.includes('no_payslip')) return;
     if (linkedTo !== null || statesOwnRule) return;
 
-    const activeProducts = (await this.repo.getActiveMembers(SURROGATE_PRODUCT_TYPE)).map(
-      (m) => m.key,
-    );
+    const activeProducts = await this.linkableProductKeys();
     throw new SurrogateProductRequiredException({
       type: row.type,
       key: row.key,
@@ -1099,19 +1207,16 @@ export class PlatformEnumerationsAdminService {
         }
       }
 
-      // Retiring a PRODUCT while catalog names still take their calculation from it. Same
-      // shape of refusal, different axis — and load-bearing for the same reason:
-      // `programNameIncomeRules()` resolves a link without checking the product's active
-      // flag, deliberately, so that retiring one cannot blank the income of names already
-      // on it mid-flight. That is only safe because this stops the retire happening while
-      // anyone is still linked. A separate code from HAS_CHILDREN: its meta and its Arabic
-      // both describe a filing relation, and this is a product/consumer one.
-      if (existing.type === SURROGATE_PRODUCT_TYPE) {
-        const names = await this.repo.programNamesLinkedTo(existing.key);
-        if (names.length > 0) {
-          throw new SurrogateProductInUseException({ key: existing.key, names });
-        }
-      }
+      // NO REFUSAL for a PRODUCT that catalog names still take their calculation from, and
+      // its absence is the deliberate half. Switching a product off is now the operator's
+      // one lifecycle action on it, and stopping the names already linked from quoting is
+      // exactly what they are asking for — so `programNameIncomeRules()` withholds the
+      // calculation and every affected program comes back LISTED, carrying
+      // `SURROGATE_PRODUCT_RETIRED` instead of figures. Refusing here would leave a product
+      // that can never be switched off, since a linked name is the normal state.
+      //
+      // The consequence is stated to the operator BEFORE they confirm, on the screen that
+      // holds the list of affected names and program codes, rather than as a 409 afterwards.
     }
 
     if (patch.deprecate === true && existing.deprecatedAt === null) {

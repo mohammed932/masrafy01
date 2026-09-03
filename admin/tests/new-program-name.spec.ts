@@ -26,7 +26,6 @@ function draft(over: Partial<NewNameDraft> = {}): NewNameDraft {
     labelAr: 'أطباء',
     basis: 'payslip',
     product: null,
-    madeProductKey: null,
     ...over,
   };
 }
@@ -66,22 +65,14 @@ describe('blockReason', () => {
     ).toBeNull();
   });
 
-  it('holds a half-filled new product', () => {
-    const half = draft({
-      basis: 'no_payslip',
-      product: { kind: 'new', shapes: ['income_by_rank'], labelEn: 'Ranks', labelAr: '' },
-    });
-    expect(blockReason(half)).toBe('product');
+  it('holds a surrogate name whose picker is open with nothing chosen', () => {
+    // `{key:''}` is the picker on screen, untouched. Settled, it would be refused by the
+    // server after the click (`SURROGATE_PRODUCT_REQUIRED`) rather than before it.
+    const open = draft({ basis: 'no_payslip', product: { kind: 'existing', key: '' } });
+    expect(blockReason(open)).toBe('product');
     expect(
-      blockReason(
-        draft({ ...half, product: { ...half.product!, labelAr: 'رتب' } } as NewNameDraft),
-      ),
+      blockReason(draft({ ...open, product: { kind: 'existing', key: 'car_owner' } })),
     ).toBeNull();
-  });
-
-  it('treats a product this flow already created as an answer', () => {
-    // The form above may still read "make a new one" — what matters is that one exists.
-    expect(blockReason(draft({ basis: 'no_payslip', madeProductKey: 'ranks' }))).toBeNull();
   });
 });
 
@@ -140,32 +131,12 @@ describe('barBlock', () => {
 });
 
 describe('productSettled', () => {
-  it('refuses a new product with no way picked, and an existing pick with no key', () => {
+  it('separates unanswered from open-with-nothing-chosen, and settles on a real key', () => {
+    // Three states, and the middle one is why this is a wrapper object rather than a bare
+    // string: `null` is "not asked yet", `{key:''}` is "asked, nothing picked".
+    expect(productSettled(draft({ product: null }))).toBe(false);
     expect(productSettled(draft({ product: { kind: 'existing', key: '' } }))).toBe(false);
-    expect(
-      productSettled(draft({ product: { kind: 'new', shapes: [], labelEn: 'a', labelAr: 'ا' } })),
-    ).toBe(false);
-  });
-
-  it('settles on the FIRST way, and stays settled as more are ticked', () => {
-    // A second way is not a second requirement: the product is authorable the moment one way
-    // and both labels are answered.
-    const one = draft({
-      product: { kind: 'new', shapes: ['ceiling_by_choice'], labelEn: 'a', labelAr: 'ا' },
-    });
-    expect(productSettled(one)).toBe(true);
-    expect(
-      productSettled(
-        draft({
-          product: {
-            kind: 'new',
-            shapes: ['ceiling_by_choice', 'ceiling_by_class'],
-            labelEn: 'a',
-            labelAr: 'ا',
-          },
-        }),
-      ),
-    ).toBe(true);
+    expect(productSettled(draft({ product: { kind: 'existing', key: 'car_owner' } }))).toBe(true);
   });
 });
 
@@ -204,83 +175,37 @@ describe('stepStatuses', () => {
 });
 
 describe('savePlan', () => {
-  it('payslip: one write, no product, and no link at all', () => {
+  // ONE write now. This flow used to be able to create a PRODUCT first and the name second,
+  // which is where the ordering and the retry rule lived; a product is not created here any
+  // more. What survives is the rule that only ever failed silently: a payslip name must send
+  // `surrogateProductKey` ABSENT, never `''` (refused by the DTO) and never `null` (which
+  // means UNLINK on a patch).
+  it('payslip: no link at all — not an empty one', () => {
     const plan = savePlan(draft());
-    expect(plan.product).toBeNull();
     expect(plan.incomeBases).toEqual(['payslip']);
     expect(plan.link).toEqual({ kind: 'none' });
-    expect(plan.shapes).toEqual([]);
   });
 
   it('an unanswered basis plans the payslip write, never a surrogate one', () => {
     // Unreachable past blockReason, but the fallthrough must not invent a surrogate name.
     expect(savePlan(draft({ basis: null })).incomeBases).toEqual(['payslip']);
+    expect(savePlan(draft({ basis: null })).link).toEqual({ kind: 'none' });
   });
 
-  it('surrogate + existing: one write, carrying the link', () => {
+  it('surrogate: one write, carrying the link', () => {
     const plan = savePlan(
       draft({ basis: 'no_payslip', product: { kind: 'existing', key: 'car_owner' } }),
     );
-    expect(plan.product).toBeNull();
     expect(plan.incomeBases).toEqual(['no_payslip']);
     expect(plan.link).toEqual({ kind: 'existing', key: 'car_owner' });
   });
 
-  it('surrogate + new: the PRODUCT is written first, and the shapes ride along', () => {
-    // Order is the server's, not a preference: a no-payslip name is refused while nothing
-    // says how its income is worked out, and the link must name a LIVE product row.
-    const plan = savePlan(
-      draft({
-        basis: 'no_payslip',
-        product: {
-          kind: 'new',
-          shapes: ['ceiling_by_class'],
-          labelEn: 'Compounds',
-          labelAr: 'كمبوندات',
-        },
-      }),
-    );
-    expect(plan.product).toEqual({ labelEn: 'Compounds', labelAr: 'كمبوندات' });
-    expect(plan.link).toEqual({ kind: 'made' });
-    expect(plan.shapes).toEqual(['ceiling_by_class']);
-  });
-
-  it('carries EVERY way, in pick order', () => {
-    // The order is what names the slots the banks' figures hang off — first is `primary`,
-    // second is `alt` — so it must survive the plan exactly as picked.
-    const plan = savePlan(
-      draft({
-        basis: 'no_payslip',
-        product: {
-          kind: 'new',
-          shapes: ['ceiling_by_choice', 'ceiling_by_class'],
-          labelEn: 'Compounds',
-          labelAr: 'كمبوندات',
-        },
-      }),
-    );
-    expect(plan.shapes).toEqual(['ceiling_by_choice', 'ceiling_by_class']);
-  });
-
-  it('a retry after the product landed writes the NAME only — never a second product', () => {
-    const plan = savePlan(
-      draft({
-        basis: 'no_payslip',
-        // The form still says "make a new one"; the product from the failed attempt exists.
-        product: {
-          kind: 'new',
-          shapes: ['ceiling_by_choice', 'ceiling_by_class'],
-          labelEn: 'Compounds',
-          labelAr: 'كمبوندات',
-        },
-        madeProductKey: 'compounds',
-      }),
-    );
-    expect(plan.product).toBeNull();
-    expect(plan.link).toEqual({ kind: 'existing', key: 'compounds' });
-    // The WHOLE list survives the retry: it is what seeds the calculation screen afterwards,
-    // and a retry that dropped the second way would silently make a one-way product.
-    expect(plan.shapes).toEqual(['ceiling_by_choice', 'ceiling_by_class']);
+  it('sends the no-payslip basis even though a create with no categories stores none of it', () => {
+    // It is what `SURROGATE_PRODUCT_REQUIRED` reads on the way in. Dropping it would turn the
+    // server's one guard against a name that quotes nothing into a no-op.
+    expect(
+      savePlan(draft({ basis: 'no_payslip', product: { kind: 'existing', key: 'x' } })).incomeBases,
+    ).toEqual(['no_payslip']);
   });
 });
 

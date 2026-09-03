@@ -33,22 +33,18 @@ export const RESERVED_NAME_KEYS: ReadonlySet<string> = new Set(['new', 'products
  * opening on a question that is already answered, which reads as a step to skip.
  */
 
-/** Which product a surrogate name takes its calculation from, as the operator answered it. */
-export type ProductChoice =
-  /** One that already exists, picked from the list. */
-  | { readonly kind: 'existing'; readonly key: string }
-  /** One to be made here: the ways it reaches its figure, and the two labels it will be filed under. */
-  | {
-      readonly kind: 'new';
-      /**
-       * One per way, in PICK order. More than one is the normal case for a product several
-       * banks sell off different derivations of the same figure; the order is load-bearing
-       * because the first way becomes the `primary` slot and the second `alt`.
-       */
-      readonly shapes: readonly string[];
-      readonly labelEn: string;
-      readonly labelAr: string;
-    };
+/**
+ * Which product a surrogate name takes its calculation from.
+ *
+ * ONE VARIANT, because there is one answer: a product that exists. This screen used to be
+ * able to MAKE one on the way through — a `{kind:'new'}` carrying the ways and two more
+ * labels — and that door is closed: the eleven predefined products are put in by
+ * `npm run seed:blueprints`, and an operator's decision about a product is whether it is
+ * switched on. A wrapper object rather than a bare string, kept deliberately: `null` is
+ * "unanswered" and `{key:''}` is "the picker is open with nothing chosen", and collapsing
+ * the two is how an unanswered step comes to read as answered.
+ */
+export type ProductChoice = { readonly kind: 'existing'; readonly key: string };
 
 export interface NewNameDraft {
   readonly labelEn: string;
@@ -60,14 +56,6 @@ export interface NewNameDraft {
    */
   readonly basis: IncomeBasis | null;
   readonly product: ProductChoice | null;
-  /**
-   * A product this flow ALREADY created, on an attempt whose second write failed.
-   *
-   * Carried so a retry cannot mint a second one. It is not the same thing as
-   * `product: {kind:'existing'}` — that is a choice the operator made, this is a fact about
-   * what has already been written — but it collapses to the same plan, which is the point.
-   */
-  readonly madeProductKey: string | null;
 }
 
 /**
@@ -150,13 +138,15 @@ export function barBlock(draft: NewNameDraft, step: number): NewNameBlock {
   return step + 1 >= LAST_STEP && draft.basis === null ? 'basis' : null;
 }
 
-/** Whether step 3's surrogate branch has an answer the server would accept. */
+/**
+ * Whether step 3's surrogate branch has an answer the server would accept.
+ *
+ * `{key:''}` is NOT settled: the picker is on screen with nothing chosen, and the server
+ * would refuse it (`SURROGATE_PRODUCT_REQUIRED`) after the click rather than before it.
+ */
 export function productSettled(draft: NewNameDraft): boolean {
-  if (draft.madeProductKey !== null) return true;
   const choice = draft.product;
-  if (choice === null) return false;
-  if (choice.kind === 'existing') return choice.key !== '';
-  return choice.shapes.length > 0 && choice.labelEn.trim() !== '' && choice.labelAr.trim() !== '';
+  return choice !== null && choice.key !== '';
 }
 
 /**
@@ -196,38 +186,21 @@ export function stepStatuses(
 /** How the name links to a calculation, once the draft is settled. */
 export type PlannedLink =
   /** Payslip: the bank reads the payslip and the name states no calculation. */
-  | { readonly kind: 'none' }
-  | { readonly kind: 'existing'; readonly key: string }
-  /** The product this same plan creates one write earlier. */
-  | { readonly kind: 'made' };
+  { readonly kind: 'none' } | { readonly kind: 'existing'; readonly key: string };
 
 export interface SavePlan {
-  /**
-   * Written FIRST when present. The order is forced by the server, not chosen here:
-   * `assertSurrogateProductForBases` refuses a no-payslip name while nothing says how its
-   * income is worked out, and `resolveSurrogateProductKey` requires a LIVE product row — so
-   * the product has to exist before the name that points at it.
-   */
-  readonly product: { readonly labelEn: string; readonly labelAr: string } | null;
   readonly incomeBases: readonly IncomeBasis[];
   readonly link: PlannedLink;
-  /**
-   * The shapes to seed the calculation screen with, when a product is being made — empty when
-   * none is owed.
-   *
-   * They travel as a query param and NOT as a written template: `blankTemplate()` leaves
-   * `fact: ''` on purpose so `validateTemplate` reports `mechanism_needs_fact`, so a write
-   * here would be refused. The product is born with no calculation and the operator is put
-   * in front of the form for it.
-   */
-  readonly shapes: readonly string[];
 }
 
 /**
- * What to write, in order.
+ * What to write. ONE write now, where it used to be up to two.
  *
- * Returns a plan rather than performing it so the ordering and the retry rule can be read
- * — and tested — without a network. Callers must not reorder it.
+ * Still a plan rather than a call, and still worth its own module for one rule that only
+ * fails silently: a PAYSLIP name must send `surrogateProductKey` ABSENT — never `''` and
+ * never `null`. `''` is refused by the DTO and `null` means UNLINK on a patch, so a screen
+ * that sent either would either fail on a name that is fine or quietly unlink one that is
+ * not. `link: {kind:'none'}` is what carries that, and the page omits the field on it.
  *
  * `incomeBases` is sent on every plan even though a create with no `categories` stores none
  * of it: it is what `SURROGATE_PRODUCT_REQUIRED` reads on the way in, and dropping it would
@@ -237,34 +210,12 @@ export interface SavePlan {
  */
 export function savePlan(draft: NewNameDraft): SavePlan {
   if (draft.basis !== 'no_payslip') {
-    return { product: null, incomeBases: ['payslip'], link: { kind: 'none' }, shapes: [] };
-  }
-  // A product this flow already wrote wins over the form above it: the operator is retrying
-  // after a half-applied attempt, and re-reading the form would mint a second product under
-  // the same name.
-  if (draft.madeProductKey !== null) {
-    return {
-      product: null,
-      incomeBases: ['no_payslip'],
-      link: { kind: 'existing', key: draft.madeProductKey },
-      shapes: draft.product?.kind === 'new' ? draft.product.shapes : [],
-    };
-  }
-  const choice = draft.product;
-  if (choice !== null && choice.kind === 'new') {
-    return {
-      product: { labelEn: choice.labelEn, labelAr: choice.labelAr },
-      incomeBases: ['no_payslip'],
-      link: { kind: 'made' },
-      shapes: choice.shapes,
-    };
+    return { incomeBases: ['payslip'], link: { kind: 'none' } };
   }
   return {
-    product: null,
     incomeBases: ['no_payslip'],
     // `blockReason` refuses an unsettled draft before this is ever reached, so the empty
     // key is unreachable rather than a silent default.
-    link: { kind: 'existing', key: choice?.kind === 'existing' ? choice.key : '' },
-    shapes: [],
+    link: { kind: 'existing', key: draft.product?.key ?? '' },
   };
 }

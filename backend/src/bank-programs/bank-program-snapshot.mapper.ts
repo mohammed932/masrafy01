@@ -9,7 +9,8 @@
 import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
-import { effectiveIncomeRule } from '@/matching/pipeline/income-rule-inherit';
+import { catalogRuleOf, effectiveIncomeRule } from '@/matching/pipeline/income-rule-inherit';
+import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 
 /** The row plus the optional joined bank, as `findAllActive` returns it. */
 export type BankProgramRow = BankProgram & { bank?: { isFeatured: boolean } | null };
@@ -23,13 +24,22 @@ export type BankProgramRow = BankProgram & { bank?: { isFeatured: boolean } | nu
  * mapped without the map keeps its (stripped) tables, which is no table, and the
  * resolver reports `rule_unconfigured` rather than quoting a figure. The two callers
  * that legitimately omit it are the ones whose programs cannot inherit — see each.
+ *
+ * An entry is a RESOLUTION, not a rule: it is either the finished catalog rule or a
+ * statement that the platform is withholding it (the linked product is switched off).
+ * Re-exported from the pipeline module that owns both halves of the link.
  */
-export type CatalogIncomeRules = ReadonlyMap<string, IncomeAssumptionConfig>;
+export type { CatalogIncomeRules };
 
 export function toBankProgramSnapshot(
   p: BankProgramRow,
   catalogRules?: CatalogIncomeRules,
 ): BankProgramSnapshot {
+  // The catalog name's resolution, taken apart once. The figures are merged either way —
+  // a switched-off product keeps its calculation, and what changes is that the snapshot
+  // carries the marker below, which `quoteProgram` refuses on before pricing anything.
+  const catalog = p.programNameKey === null ? undefined : catalogRules?.get(p.programNameKey);
+  const catalogRule = catalogRuleOf(catalog);
   return {
     id: p.id,
     programCode: p.programCode,
@@ -57,11 +67,11 @@ export function toBankProgramSnapshot(
     // carry a legacy figure shape, and normalizing the program first would leave
     // those keys to be upgraded by nobody.
     incomeAssumption: normalizeIncomeAssumption(
-      effectiveIncomeRule(
-        p.incomeAssumption as unknown as IncomeAssumptionConfig,
-        p.programNameKey === null ? undefined : catalogRules?.get(p.programNameKey),
-      ),
+      effectiveIncomeRule(p.incomeAssumption as unknown as IncomeAssumptionConfig, catalogRule),
     ) as unknown as BankProgramSnapshot['incomeAssumption'],
+    ...(catalog !== undefined && 'withheld' in catalog
+      ? { incomeRuleWithheld: catalog.withheld }
+      : {}),
     fees: p.fees as unknown as BankProgramSnapshot['fees'],
     performanceCriteria: p.performanceCriteria as unknown as
       | BankProgramSnapshot['performanceCriteria']

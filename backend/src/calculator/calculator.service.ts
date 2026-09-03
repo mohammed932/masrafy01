@@ -153,9 +153,15 @@ export class CalculatorService {
       const u = outcome.unavailable;
       if (u.maxAffordableAmountEGP === undefined) {
         throw new DomainException(
+          // Two platform states are reported as themselves rather than as
+          // `CALCULATOR_INPUT_INVALID`: nothing the caller sent is wrong, and telling
+          // them to fix their input for a switched-off product sends them looking in the
+          // one place the answer is not.
           u.reason === 'PROGRAM_MISCONFIGURED'
             ? ERROR_CODES.PROGRAM_MISCONFIGURED
-            : ERROR_CODES.CALCULATOR_INPUT_INVALID,
+            : u.reason === 'SURROGATE_PRODUCT_RETIRED'
+              ? ERROR_CODES.SURROGATE_PRODUCT_RETIRED
+              : ERROR_CODES.CALCULATOR_INPUT_INVALID,
           { reason: u.reason, ...(u.missing ? { missing: u.missing } : {}) },
         );
       }

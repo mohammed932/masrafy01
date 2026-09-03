@@ -18,9 +18,7 @@ import type {
   SurrogateProductDetail,
   SurrogateProductSummary,
   SurrogateProductTemplateResponse,
-  TemplateStarter,
   ProductBlueprint,
-  CreateFromBlueprintResult,
   ValueSourceMap,
 } from './bank-programs.types';
 
@@ -185,63 +183,45 @@ export class BankProgramsApiService {
    * row that no longer exists.
    */
   /**
-   * Delete a surrogate product.
+   * Switch a surrogate product on or off — the operator's ONE lifecycle action on a product.
    *
-   * `cascade` is a deliberate SECOND call. Without it the server refuses with
-   * `SURROGATE_PRODUCT_IN_USE` carrying the exact `names` and `programCodes` that would be
-   * destroyed, so the screen confirms against a list rather than against a count. A product
-   * nothing points at deletes on the first call.
+   * There is no create and no delete on this service any more. The eleven predefined products
+   * are put in by `npm run seed:blueprints`; what an operator decides is which of them this
+   * platform sells.
+   *
+   * OFF stops the product being used ANYWHERE, including by catalog names already linked to
+   * it: every bank program under those names comes back listed with
+   * `SURROGATE_PRODUCT_RETIRED` instead of figures. It takes effect on the next quote, and
+   * issued offers keep their own frozen figures. Nothing is deleted, and it is reversible.
+   *
+   * Keyed by `key`, like every other product route — the registry id is on no product DTO.
    */
-  async deleteSurrogateProduct(key: string, opts: { cascade?: boolean } = {}): Promise<void> {
-    const suffix = opts.cascade ? '?cascade=true' : '';
-    await firstValueFrom(
-      this.http.delete<SuccessEnvelope<unknown>>(
-        `${this.base}/surrogate-products/${encodeURIComponent(key)}${suffix}`,
+  async setSurrogateProductActive(
+    key: string,
+    active: boolean,
+  ): Promise<SuccessEnvelope<{ key: string; active: boolean; factsChanged: string[] }>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<{ key: string; active: boolean; factsChanged: string[] }>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/active`,
+        { active },
       ),
     );
   }
 
   /**
-   * The starter shapes. SHAPES ONLY — no labels and no figures come back; this bundle
-   * supplies the words, in both locales.
-   */
-  async listSurrogateProductTemplates(): Promise<SuccessEnvelope<TemplateStarter[]>> {
-    return firstValueFrom(
-      this.http.get<SuccessEnvelope<TemplateStarter[]>>(`${this.base}/surrogate-product-templates`),
-    );
-  }
-
-  /**
-   * The predefined products, with what each one still has to CREATE.
+   * The predefined products and what each one asks.
    *
-   * Structure and existence only — the product names that come back are the DEFAULT for the
-   * name box, and every other word an operator reads is this bundle's, keyed by the blueprint
-   * key, exactly as the starter shapes' words already are.
+   * Read by the CALCULATION screen, for the brackets a published sheet prints
+   * (`suggestedBands`) and the sentence that states the product's mechanism. It was also the
+   * library's list of things to create; nothing creates a product from the admin now, so what
+   * is left is the half the form uses.
+   *
+   * Structure and existence only — every word an operator reads is this bundle's, keyed by
+   * the blueprint key.
    */
   async listProductBlueprints(): Promise<SuccessEnvelope<ProductBlueprint[]>> {
     return firstValueFrom(
       this.http.get<SuccessEnvelope<ProductBlueprint[]>>(`${this.base}/product-blueprints`),
-    );
-  }
-
-  /**
-   * Build one: its lists, its values, its questions, its facts, its calculation, in one call.
-   *
-   * Idempotent by key on the server, so a retry after a refusal writes what is missing rather
-   * than a second copy of everything. A cap-only product takes no name — it creates the
-   * question and the list and no product — and answers with the fact key its cap is keyed by.
-   */
-  async createFromBlueprint(payload: {
-    blueprintKey: string;
-    key?: string;
-    labelEn?: string;
-    labelAr?: string;
-  }): Promise<SuccessEnvelope<CreateFromBlueprintResult>> {
-    return firstValueFrom(
-      this.http.post<SuccessEnvelope<CreateFromBlueprintResult>>(
-        `${this.base}/surrogate-products/from-blueprint`,
-        payload,
-      ),
     );
   }
 

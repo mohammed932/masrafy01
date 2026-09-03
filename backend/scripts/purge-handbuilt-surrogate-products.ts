@@ -30,6 +30,9 @@
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
+// Pure frozen data, no Nest and no Prisma — the same import the enumerations service takes,
+// and the blueprint library is what DEFINES which products guess no income.
+import { isCapOnlyProductKey } from '../src/bank-programs/blueprints/product-blueprints';
 
 const prisma = new PrismaClient();
 
@@ -60,6 +63,13 @@ async function collect(): Promise<Doomed[]> {
 
   const out: Doomed[] = [];
   for (const product of products) {
+    // A CAP-ONLY product matches the query above and must never be swept. It has no form
+    // and no rule PERMANENTLY, by design — it guesses no income, so it asks its question
+    // and each bank states the maximum for the answer on its own program — and it is put
+    // there by `npm run seed:blueprints`, not by hand. Without this the purge would delete
+    // three seeded products along with their questions and lists, and the next seed run
+    // would put them straight back, which is how a purge comes to look broken.
+    if (isCapOnlyProductKey(product.key)) continue;
     const names = await prisma.platformEnumeration.findMany({
       where: { type: 'program_name', surrogateProductKey: product.key },
       select: { key: true },

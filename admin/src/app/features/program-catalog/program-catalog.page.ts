@@ -602,10 +602,34 @@ const PARKED_NAMES_SHOWN = 6;
             @if (c.missingTables > 0) {
               <span class="tag warn">{{ productMissingLabel(c) }}</span>
             }
+            <!-- The SAME word the name cards use for the same state. "Retired" implied
+                 permanence, and one board with two vocabularies for one gesture is worse
+                 than either word. -->
             @if (!c.product.active) {
-              <span class="tag" i18n="@@sp.retired">Retired</span>
+              <span class="tag">{{ inactiveLabel }}</span>
+            }
+            <!-- Switched off while names still sell it: three live names quoting nothing, on
+                 a board that otherwise looks complete. This is the one state the merge could
+                 hide, because the names stay INSIDE the (muted) card. -->
+            @if (!c.product.active && c.names.length > 0) {
+              <span class="tag warn">{{ productStoppedLabel(c) }}</span>
             }
             <span class="foot-spacer"></span>
+            <!-- Lifted above the stretched link's overlay, the same escape the name card's
+                 action row uses: an <a> inside an <a> is invalid and the browser closes the
+                 outer one. -->
+            <div class="row-actions">
+              <button
+                class="icon-action"
+                type="button"
+                (click)="toggleProduct(c)"
+                nz-tooltip
+                [nzTooltipTitle]="c.product.active ? deactivateLabel : activateLabel"
+                [attr.aria-label]="productPowerLabel(c)"
+              >
+                <span nz-icon nzType="poweroff" nzTheme="outline"></span>
+              </button>
+            </div>
             <span class="go" aria-hidden="true">
               <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
             </span>
@@ -1096,16 +1120,35 @@ const PARKED_NAMES_SHOWN = 6;
         padding-block: 1px;
         border-radius: var(--radius-pill);
         background: var(--color-surface-muted);
-        color: var(--color-text-tertiary);
+        /* SECONDARY, not tertiary. A chip darkens the ground under its own text, and
+           measured on this one tertiary ink lands at 3.28:1 in LIGHT mode (4.44:1 in dark,
+           which is why a light-only failure survives a dark-mode review). Secondary is
+           5.29:1 light / 7.56:1 dark. It matters more now: this is the chip that carries a
+           product's switched-off state, which is a word somebody has to read. */
+        color: var(--color-text-secondary);
         /* Matches .usage — the two share the foot row and any size gap between
            them reads as a mistake at this scale. */
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
         white-space: nowrap;
       }
+      /* Warning ink on its own 14% warning wash measures 2.53:1 in light mode — a sentence
+         nobody can read is not a warning. The state is carried by the WASH and a dot, and
+         the words keep live ink (14.35:1 light, 13.4:1 dark). */
       .tag.warn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
         background: color-mix(in srgb, var(--color-warning) 14%, transparent);
-        color: var(--color-warning);
+        color: var(--color-text-primary);
+      }
+      .tag.warn::before {
+        content: '';
+        flex: none;
+        inline-size: 6px;
+        block-size: 6px;
+        border-radius: var(--radius-pill);
+        background: var(--color-warning);
       }
       /* Lifted above the stretched open-link, or the buttons would be unclickable
          — the overlay covers them. */
@@ -1498,6 +1541,57 @@ export class ProgramCatalogPage implements OnInit {
   }
 
   /**
+   * Switch a surrogate product on or off — the operator's ONE lifecycle action on a product.
+   *
+   * A product is not created or deleted from the admin: the eleven predefined ones are put in
+   * by the blueprint seed, and what this board decides is which of them the platform sells.
+   *
+   * CONFIRMED ONLY WHEN IT COSTS SOMETHING. Off with names on it stops every bank program
+   * under them from matching, so the operator reads that first — as a statement of what
+   * happens, not as "are you sure". Off with nothing on it changes no quote, so it flips
+   * immediately and the tag is the feedback; a dialog there teaches operators to click
+   * through dialogs. On NEVER confirms: it restores service and can destroy nothing.
+   */
+  toggleProduct(card: ProductCard): void {
+    if (!card.product.active || card.names.length === 0) {
+      void this.setProductActive(card, !card.product.active);
+      return;
+    }
+    this.modal.confirm({
+      nzTitle: $localize`:@@sp.power.off_title:Switch “${this.productName(card)}:PRODUCT:” off?`,
+      nzContent:
+        card.programs > 0
+          ? $localize`:@@sp.power.off_body:The ${card.names.length}:NAMES: catalog name(s) that take their calculation from it work out no income while it is off, so the ${card.programs}:PROGRAMS: bank program(s) under them stop matching anybody. Offers already issued keep their own figures. Nothing is deleted.`
+          : $localize`:@@sp.power.off_body_names:The ${card.names.length}:NAMES: catalog name(s) that take their calculation from it work out no income while it is off. No bank quotes from it yet. Nothing is deleted.`,
+      nzOkText: $localize`:@@sp.power.off_ok:Switch it off`,
+      nzCancelText: $localize`:@@sp.power.off_cancel:Keep it on`,
+      nzOkDanger: true,
+      nzOnOk: () => this.setProductActive(card, false),
+    });
+  }
+
+  /**
+   * Optimistic flip, rolled back on refusal — the pattern the name toggle above and the
+   * shared lookup panel both use. The global interceptor already explains the failure, so
+   * the card returning to its previous state is the whole of the local handling.
+   *
+   * Patched BY KEY: no product DTO carries the registry id.
+   */
+  private async setProductActive(card: ProductCard, next: boolean): Promise<void> {
+    const key = card.product.key;
+    this.patchProduct(key, next);
+    try {
+      await this.programs.setSurrogateProductActive(key, next);
+    } catch {
+      this.patchProduct(key, !next);
+    }
+  }
+
+  private patchProduct(key: string, active: boolean): void {
+    this.productRows.update((list) => list.map((p) => (p.key === key ? { ...p, active } : p)));
+  }
+
+  /**
    * Delete, behind a confirmation popup — the one irreversible action on this
    * board.
    *
@@ -1671,6 +1765,29 @@ export class ProgramCatalogPage implements OnInit {
 
   protected productMissingLabel(c: ProductCard): string {
     return $localize`:@@program_catalog.card.no_table:${c.missingTables}:COUNT: with no table yet`;
+  }
+
+  /**
+   * A product that is off while names still sell it — the state the merge could hide.
+   *
+   * `catalog-board.ts` joins names to a product regardless of its active flag, deliberately,
+   * so those names stay INSIDE the muted card. Without this tag they would be live names
+   * quoting nothing on a board that reads as complete.
+   */
+  protected productStoppedLabel(c: ProductCard): string {
+    return $localize`:@@program_catalog.product.off_in_use:${c.names.length}:COUNT: name(s) sell this and quote nothing while it is off`;
+  }
+
+  /**
+   * The power button's accessible name.
+   *
+   * Names the PRODUCT, not just the verb: a screen reader on this board hears one of a dozen
+   * identical "Deactivate" buttons otherwise, with no card heading in view to tell them apart.
+   */
+  protected productPowerLabel(c: ProductCard): string {
+    return c.product.active
+      ? $localize`:@@sp.power.off_aria:Switch ${this.productName(c)}:PRODUCT: off`
+      : $localize`:@@sp.power.on_aria:Switch ${this.productName(c)}:PRODUCT: back on`;
   }
 
   protected openProductLabel(c: ProductCard): string {

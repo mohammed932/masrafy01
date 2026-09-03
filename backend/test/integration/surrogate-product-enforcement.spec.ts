@@ -13,11 +13,17 @@
  *                                foreign key (the reachable unique is `(type, key)`), so
  *                                without this a typo saves 200 and surfaces as
  *                                `rule_unconfigured` on a customer.
- *  - SURROGATE_PRODUCT_IN_USE    retiring a product names still link to. Load-bearing:
- *                                the read path resolves a link WITHOUT checking the
- *                                product's active flag, deliberately, so retiring one
- *                                cannot blank the income of names already on it. That is
- *                                only safe because this stops the retire.
+ *  - SURROGATE_PRODUCT_CAP_ONLY  a link to a product that guesses no income at all. Its
+ *                                own code rather than PARENT_UNKNOWN: that one says "pick
+ *                                one that is still active", and a cap-only product IS
+ *                                active — the operator has to pick a different KIND.
+ *
+ * Switching a product OFF while names still link to it is pinned as ALLOWED, and that is
+ * the third refusal inverted: it used to be `SURROGATE_PRODUCT_IN_USE` on the reasoning
+ * that the read path ignored the active flag. It no longer does — a switched-off product
+ * withholds its calculation and every affected program comes back listed with
+ * `SURROGATE_PRODUCT_RETIRED` — so refusing here would leave a product that can never be
+ * switched off, a linked name being the normal state.
  *
  * GRANDFATHERING is pinned too, and it is not a loophole: a legacy no-payslip name that
  * states its own rule must stay savable, or the edit that would link it is the edit being
@@ -72,6 +78,10 @@ function fixture(): FakeRow[] {
     row({ id: 'p1', type: 'surrogate_product', key: 'compound_owner' }),
     row({ id: 'p2', type: 'surrogate_product', key: 'declared_income' }),
     row({ id: 'p3', type: 'surrogate_product', key: 'retired_one', active: false }),
+    // A CAP-ONLY product, keyed by a real blueprint key so the test exercises the real
+    // predicate. It is live and holds no calculation, and never will: it asks its question
+    // and each bank states the maximum for the answer on its own program.
+    row({ id: 'p4', type: 'surrogate_product', key: 'club_branch_cap' }),
     // Linked: takes its calculation from `compound_owner`, holds none of its own.
     row({ id: 'n1', type: 'program_name', key: 'compound_owner', surrogateProductKey: 'compound_owner' }),
     // Legacy: no link, but states its own rule. Must stay savable.
@@ -270,33 +280,122 @@ describe('moving a name to the no-payslip basis', () => {
   });
 });
 
-describe('retiring a surrogate product', () => {
-  it('refuses while catalog names still link to it', async () => {
+describe('linking a name to a CAP-ONLY product', () => {
+  it('refuses, because the name would work out no income', async () => {
     const { service } = makeService(makeRepo(fixture()));
-    await expect(service.update('p1', { active: false } as never, ACTOR)).rejects.toSatisfy(
-      (e: unknown) => codeOf(e) === ERROR_CODES.SURROGATE_PRODUCT_IN_USE,
+    await expect(
+      service.update('n4', { surrogateProductKey: 'club_branch_cap' } as never, ACTOR),
+    ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.SURROGATE_PRODUCT_CAP_ONLY);
+  });
+
+  it('refuses on CREATE by the same route', async () => {
+    const { service } = makeService(makeRepo(fixture()));
+    await expect(
+      service.create(
+        {
+          type: 'program_name',
+          key: 'new_name',
+          labelAr: 'x',
+          labelEn: 'x',
+          surrogateProductKey: 'club_branch_cap',
+        } as never,
+        ACTOR,
+      ),
+    ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.SURROGATE_PRODUCT_CAP_ONLY);
+  });
+
+  it('offers only the LINKABLE products back, never the cap-only one it just refused', async () => {
+    // The list is what the operator picks from next. Naming a product the very next save
+    // rejects is the loop this shared derivation exists to prevent.
+    const { service } = makeService(makeRepo(fixture()));
+    const error = await service
+      .update('n4', { surrogateProductKey: 'club_branch_cap' } as never, ACTOR)
+      .catch((e: unknown) => e);
+    const meta = (error as DomainException).meta as { linkableProducts: string[] };
+    expect(meta.linkableProducts).not.toContain('club_branch_cap');
+    expect(meta.linkableProducts).toContain('compound_owner');
+  });
+
+  it('still lets a cap-only product own its own FACT', async () => {
+    // The refusal is keyed on the type, not on the product: a cap-only product's question
+    // and fact are exactly what it does create, and they are filed under it. Only the
+    // library may create a fact at all, hence the source.
+    const { service } = makeService(makeRepo(fixture()));
+    await expect(
+      service.create(
+        {
+          type: 'surrogate_fact',
+          key: 'club_branch',
+          labelAr: 'x',
+          labelEn: 'x',
+          surrogateProductKey: 'club_branch_cap',
+        } as never,
+        ACTOR,
+        { source: 'blueprint' },
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  it('refuses that same fact when it does NOT come from the library', async () => {
+    // The door the deleted "Add an ask" screen used. Without the source this is an operator
+    // hand-building structure the seed owns.
+    const { service } = makeService(makeRepo(fixture()));
+    await expect(
+      service.create(
+        { type: 'surrogate_fact', key: 'club_branch', labelAr: 'x', labelEn: 'x' } as never,
+        ACTOR,
+      ),
+    ).rejects.toSatisfy(
+      (e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_CREATE_NOT_APPLICABLE,
     );
   });
 
-  it('names which names to move, because they are on another screen', async () => {
+  it('refuses a hand-made PRODUCT, which is what the shape picker did', async () => {
     const { service } = makeService(makeRepo(fixture()));
-    const error = await service.update('p1', { active: false } as never, ACTOR).catch((e: unknown) => e);
-    expect((error as DomainException).meta).toMatchObject({
-      key: 'compound_owner',
-      names: ['compound_owner'],
-    });
+    await expect(
+      service.create(
+        { type: 'surrogate_product', key: 'my_product', labelAr: 'x', labelEn: 'x' } as never,
+        ACTOR,
+      ),
+    ).rejects.toSatisfy(
+      (e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_CREATE_NOT_APPLICABLE,
+    );
   });
 
-  it('allows retiring one nothing links to', async () => {
+  it('leaves a hand-made catalog NAME alone — that is the point of the catalog', async () => {
+    const { service } = makeService(makeRepo(fixture()));
+    await expect(
+      service.create(
+        {
+          type: 'program_name',
+          key: 'brand_new',
+          labelAr: 'x',
+          labelEn: 'x',
+          surrogateProductKey: 'compound_owner',
+        } as never,
+        ACTOR,
+      ),
+    ).resolves.toBeDefined();
+  });
+});
+
+describe('switching a surrogate product off', () => {
+  it('ALLOWS it while catalog names still link to it', async () => {
+    // The gesture's whole point. It used to be refused with SURROGATE_PRODUCT_IN_USE on
+    // the reasoning that the read path ignored the flag; it withholds the calculation
+    // now, so refusing here would make a linked product un-switchable-off forever.
+    const { service } = makeService(makeRepo(fixture()));
+    await expect(service.update('p1', { active: false } as never, ACTOR)).resolves.toBeDefined();
+  });
+
+  it('allows switching off one nothing links to', async () => {
     const { service } = makeService(makeRepo(fixture()));
     await expect(service.update('p2', { active: false } as never, ACTOR)).resolves.toBeDefined();
   });
 
-  it('refuses a deprecate for the same reason as a deactivate', async () => {
+  it('allows a deprecate for the same reason as a deactivate', async () => {
     const { service } = makeService(makeRepo(fixture()));
-    await expect(service.update('p1', { deprecate: true } as never, ACTOR)).rejects.toSatisfy(
-      (e: unknown) => codeOf(e) === ERROR_CODES.SURROGATE_PRODUCT_IN_USE,
-    );
+    await expect(service.update('p1', { deprecate: true } as never, ACTOR)).resolves.toBeDefined();
   });
 });
 

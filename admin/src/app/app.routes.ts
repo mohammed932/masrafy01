@@ -52,7 +52,9 @@ export const APP_ROUTES: Routes = [
     path: 'surrogate-products/:key/calculation',
     redirectTo: 'program-catalog/products/:key/calculation',
   },
-  { path: 'surrogate-products/:key/asks/new', redirectTo: 'program-catalog/products/:key/asks/new' },
+  // The by-hand "add an ask" screen is gone; the product's own page is where its asks are
+  // read now, so an old bookmark lands there rather than nowhere.
+  { path: 'surrogate-products/:key/asks/new', redirectTo: 'program-catalog/products/:key' },
   { path: 'surrogate-products/:key', redirectTo: 'program-catalog/products/:key' },
   // Legacy paths — the flat program list is gone; programs live under their bank.
   // Bare list → registry; deep program links → the kept flat program pages.

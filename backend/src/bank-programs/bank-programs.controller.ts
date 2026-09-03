@@ -27,9 +27,9 @@ import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { IncomeRuleCheckDto, IncomeRuleDraftCheckDto } from './dto/income-rule-check.dto';
 import {
   SetProgramNameIncomeRuleDto,
+  SetSurrogateProductActiveDto,
   SetSurrogateProductTemplateDto,
 } from './dto/program-name-income-rule.dto';
-import { CreateFromBlueprintDto } from './dto/product-blueprint.dto';
 import { BankProgramsService } from './bank-programs.service';
 import { BlueprintService } from './blueprints/blueprint.service';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
@@ -121,38 +121,6 @@ export class BankProgramsController {
     return ok(await this.blueprints.list());
   }
 
-  /**
-   * Build one: its lists, its values, its questions, its facts, its calculation.
-   *
-   * Idempotent by key — every object is looked up and reused — so a retry after a failure
-   * writes exactly what is missing rather than a second copy of everything.
-   */
-  @Post('surrogate-products/from-blueprint')
-  @Roles('super_admin')
-  @ApiOperation({
-    summary: 'Create a predefined product, with everything it asks',
-    description:
-      'One call: the lists and their classes, the questions mirroring them, the facts that ' +
-      'read them, the loan categories they have to be asked in, and the calculation — then ' +
-      'ONE questionnaire publish. A cap-only product builds its question and its list and ' +
-      'no product, and answers with the fact key its cap table is keyed by.',
-  })
-  @ApiResponse({ status: 422, description: 'PRODUCT_BLUEPRINT_UNKNOWN / VALIDATION_FAILED' })
-  @ApiResponse({ status: 409, description: 'ENUMERATION_KEY_DUPLICATE — the key is taken' })
-  async createFromBlueprint(
-    @Body() body: CreateFromBlueprintDto,
-    @CurrentUser() user: JwtPayload,
-    @Req() req: Request,
-  ) {
-    const actor = this.actor(user, req);
-    return ok(
-      await this.blueprints.createFromBlueprint(body, {
-        staffId: actor.id,
-        sourceIp: actor.sourceIp,
-      }),
-    );
-  }
-
   @Get('surrogate-products/:key/template')
   @Roles('super_admin', 'sales_manager')
   @ApiOperation({
@@ -236,44 +204,63 @@ export class BankProgramsController {
   }
 
   /**
-   * Delete a surrogate product, and on `?cascade=true` everything under it.
+   * Switch a surrogate product ON or OFF — the operator's ONE lifecycle action on a product.
    *
-   * TWO CALLS BY DESIGN. Without `cascade` this refuses with `SURROGATE_PRODUCT_IN_USE`
-   * carrying the exact `names` and `programCodes` that would be destroyed, so the screen
-   * confirms against a list rather than against a count the operator has to trust. A
-   * product nothing points at deletes on the first call.
+   * Products are not created or deleted from the admin any more: the eleven predefined ones
+   * are put in by `npm run seed:blueprints`, and what an operator decides is which of them
+   * this platform sells.
    *
-   * Declared with the other `surrogate-products` routes, BEFORE `@Get(':programCode')` —
-   * the trap this controller already documents at the top.
+   * OFF STOPS IT BEING USED ANYWHERE, including by catalog names already linked to it. Every
+   * bank program reachable through those names comes back LISTED, carrying
+   * `SURROGATE_PRODUCT_RETIRED` instead of figures — a stated reason, never a program
+   * silently dropped from the shortlist (A33). It takes effect on the very next quote:
+   * `programNameIncomeRules()` is uncached by contract.
    *
-   * A separate door from `DELETE admin/enumerations/:id`, which still refuses for this type
-   * (`surrogate_product` stays out of the deletable kinds): one destructive path, not two,
-   * and only this one knows what a product drags with it.
+   * The consequence is stated on the screen BEFORE the operator confirms, against the list
+   * of affected names and program codes this controller's `GET :key` already returns. There
+   * is no 409 to hit — the refusal that used to block this (`SURROGATE_PRODUCT_IN_USE`) is
+   * gone, because a linked name is the normal state and a product that can never be switched
+   * off would be the result.
+   *
+   * DELEGATES to `PlatformEnumerationsAdminService.update`, so the audit event, the cache
+   * invalidation and the remaining retire guards stay one implementation.
+   *
+   * `active` ONLY, never `deprecate`: `updateById` clears `deprecatedAt` on neither, so a
+   * deprecated product could never be switched back on. Deprecation stays where it is, on
+   * the generic enumerations endpoint.
+   *
+   * Two consequences worth knowing, both stated rather than papered over:
+   *   · while a product is off, RE-SENDING `surrogateProductKey` for an already-linked name
+   *     is refused (a link may only be made to a live product). The stored link is untouched
+   *     and `setIncomeBases` never re-resolves it, so a linked name stays otherwise savable;
+   *   · a cap-only product's QUESTION stops being read, because its fact is deactivated with
+   *     it — so each bank's own cap table falls back to whatever that bank chose for an
+   *     answer it has no row for (`onNoMatch`). For every other product the questions keep
+   *     being asked: deactivating one republishes the questionnaire and cannot un-ask an
+   *     answered question, and an unused question costs a screen where a withheld
+   *     calculation costs a wrong loan amount.
+   *
+   * Declared with the other `surrogate-products` routes, BEFORE `@Get(':programCode')` — the
+   * trap this controller documents at the top.
    */
-  @Delete('surrogate-products/:key')
+  @Put('surrogate-products/:key/active')
   @Roles('super_admin')
   @ApiOperation({
-    summary: 'Delete a surrogate product',
+    summary: 'Switch a surrogate product on or off',
     description:
-      'Refuses while catalog names link to it unless `cascade=true`, and names exactly ' +
-      'what would go. With cascade: deletes the bank programs under every linked name, ' +
-      'unlinks the names (which survive), then deletes the product. Issued bank offers ' +
-      'are untouched — they carry their own frozen figures and reference programs by code.',
+      'OFF withholds the calculation from every catalog name linked to it, so their bank ' +
+      'programs stop matching and report `SURROGATE_PRODUCT_RETIRED`. Issued offers are ' +
+      'untouched — they carry their own frozen figures. Nothing is deleted.',
   })
   @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
-  @ApiResponse({ status: 409, description: 'SURROGATE_PRODUCT_IN_USE — retry with cascade=true' })
-  async deleteSurrogateProduct(
+  async setSurrogateProductActive(
     @Param('key') key: string,
-    @Query('cascade') cascade: string | undefined,
+    @Body() body: SetSurrogateProductActiveDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ) {
     return ok(
-      await this.service.deleteSurrogateProduct(
-        key,
-        { cascade: cascade === 'true' },
-        this.actor(user, req),
-      ),
+      await this.service.setSurrogateProductActive(key, body.active, this.actor(user, req)),
     );
   }
 

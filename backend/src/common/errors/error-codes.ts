@@ -266,6 +266,20 @@ export const ERROR_CODES = {
    */
   ENUMERATION_BULK_CREATE_NOT_APPLICABLE: 'ENUMERATION_BULK_CREATE_NOT_APPLICABLE',
   /**
+   * A value was created of a kind only the predefined-product library may create — a
+   * no-payslip PRODUCT, or one of the FACTS a product reads.
+   *
+   * Those are platform structure, not operator data: the products are put in by
+   * `npm run seed:blueprints` and what an operator decides is which of them this platform
+   * sells. Three admin screens used to mint them — a blank product from an anonymous shape,
+   * one made on the way through the Add-program-name flow, and a hand-built ask — and each
+   * produced a row nothing seeded and no blueprint described.
+   *
+   * 422 rather than 403: the caller is allowed to write here, the kind is what is refused.
+   * `meta.type` names it, so the screen can say which.
+   */
+  ENUMERATION_CREATE_NOT_APPLICABLE: 'ENUMERATION_CREATE_NOT_APPLICABLE',
+  /**
    * A catalog program name was set to the no-payslip basis without naming the surrogate
    * product it takes its calculation from.
    *
@@ -279,17 +293,17 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_REQUIRED: 'SURROGATE_PRODUCT_REQUIRED',
   /**
-   * Retiring a surrogate product was refused because catalog names still link to it.
+   * RETIRED BUT RETAINED — nothing throws this any more, and nothing should.
    *
-   * 409 for the same reason `ENUMERATION_HAS_CHILDREN` is: shape is fine, state refuses,
-   * and it stops refusing once the last name is moved off. A separate code rather than
-   * reusing that one — its `meta` and its Arabic both describe a parent/child filing
-   * relation, and this is a product/consumer one. `meta.names` says which to move.
+   * It refused two things, and both are now allowed on purpose. Switching a product off
+   * while catalog names still link to it is the operator's one lifecycle action on a
+   * product, and its whole point is that those names stop quoting: the calculation is
+   * withheld and every affected program comes back listed with
+   * `SURROGATE_PRODUCT_RETIRED`. Deleting a product is no longer an admin action at all.
    *
-   * Load-bearing in the same way: `programNameIncomeRules()` resolves a link without
-   * checking the product's active flag, deliberately, so that retiring one does not blank
-   * the income of every name already on it mid-flight. That is only safe because THIS
-   * refusal stops the retire happening while anyone is still linked.
+   * Kept rather than deleted because it has SHIPPED: a client on an older bundle would
+   * render a raw code, and the parity check is bidirectional, so removing it would force a
+   * same-commit frontend and translation change for no gain.
    */
   SURROGATE_PRODUCT_IN_USE: 'SURROGATE_PRODUCT_IN_USE',
   /**
@@ -315,6 +329,21 @@ export const ERROR_CODES = {
    * product's own URL when this fires.
    */
   SURROGATE_PRODUCT_NOT_FOUND: 'SURROGATE_PRODUCT_NOT_FOUND',
+  /**
+   * A catalog program name was linked to a product that guesses NO income — one of the
+   * cap-only products, which ask their question and leave the maximum to each bank's own
+   * program (`loanLimits.maxLoanByFact`).
+   *
+   * A product row exists for these so an operator gets one card and one switch per
+   * product, but it holds no calculation and never will. Linking a no-payslip name to one
+   * would produce a name that is sold without a payslip and works out no income — live,
+   * and silent until a customer got a blank card.
+   *
+   * Its own code rather than `ENUMERATION_PARENT_UNKNOWN`: that one says "pick one that is
+   * still active", and this product IS active. The operator has to pick a DIFFERENT KIND
+   * of product, and the sentence has to say so.
+   */
+  SURROGATE_PRODUCT_CAP_ONLY: 'SURROGATE_PRODUCT_CAP_ONLY',
   /**
    * A catalog name that states its OWN income rule was linked to a surrogate product.
    *
@@ -704,6 +733,26 @@ export const ERROR_CODES = {
   /** The fact was answered, but no key matched / the value fell in no band. */
   SURROGATE_NO_MATCHING_ROW: 'SURROGATE_NO_MATCHING_ROW',
   /**
+   * The no-payslip PRODUCT this program's catalog name takes its calculation from is
+   * switched OFF, so the platform is withholding the calculation. The program stays
+   * LISTED and stays RANKED; only the figures are withheld.
+   *
+   * Its own reason rather than `SURROGATE_FACT_MISSING`, because the admin action is
+   * neither of that pair's: nothing is missing from the questionnaire and no table row is
+   * absent — somebody switched a product off, and the fix is to switch it back on or move
+   * the name onto a live one.
+   *
+   * It also cannot be spelled as an absent rule. On a single-fact product the resolver
+   * falls through to the applicant's declared salary, and `monthly_income` is a required
+   * question — so an omission would quietly re-price the program off a payslip the bank
+   * never agreed to lend against, and freeze that figure onto an offer.
+   *
+   * Also thrown as a 200-status DomainException by the CALCULATOR, which has no shortlist
+   * to list the program in: `CALCULATOR_INPUT_INVALID` would blame the caller's input for
+   * a state only an operator can change.
+   */
+  SURROGATE_PRODUCT_RETIRED: 'SURROGATE_PRODUCT_RETIRED',
+  /**
    * A COLLATERAL product's own condition refused this applicant — the share paid is short,
    * the ownership contract is outside the bank's window, the strongest unit was not
    * confirmed. The program stays LISTED and stays RANKED; only the figures are withheld.
@@ -824,11 +873,13 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_FALLBACK_IN_USE: 409,
   ENUMERATION_BULK_INVALID: 422,
   ENUMERATION_BULK_CREATE_NOT_APPLICABLE: 422,
+  ENUMERATION_CREATE_NOT_APPLICABLE: 422,
   SURROGATE_PRODUCT_REQUIRED: 422,
   // 409, like the two above: state, not shape.
   SURROGATE_PRODUCT_IN_USE: 409,
   PROGRAM_NAME_RULE_LINKED: 422,
   SURROGATE_PRODUCT_NOT_FOUND: 404,
+  SURROGATE_PRODUCT_CAP_ONLY: 422,
   PROGRAM_NAME_HAS_OWN_RULE: 422,
 
   BANK_NOT_FOUND: 404,
@@ -969,6 +1020,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // Reason codes: only ever returned inside a 200 payload.
   SURROGATE_FACT_MISSING: 200,
   SURROGATE_NO_MATCHING_ROW: 200,
+  SURROGATE_PRODUCT_RETIRED: 200,
   PRODUCT_RULE_GATE_FAILED: 200,
   GATE_DOWN_PAYMENT_BELOW_MIN: 200,
   GATE_UNIT_PRICE_BELOW_MIN: 200,

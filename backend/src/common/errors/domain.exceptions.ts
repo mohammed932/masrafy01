@@ -256,6 +256,31 @@ export class SurrogateProductNotFoundException extends DomainException {
   }
 }
 
+/**
+ * A catalog program name was linked to a product that works out no income.
+ *
+ * `linkableProducts` is what WOULD have worked — the live products that hold a
+ * calculation — the same shape `SurrogateProductRequiredException` carries, because it is
+ * the same select on the same drawer and the same fix.
+ */
+/** A value of a kind only the predefined-product library may create. */
+export class EnumerationCreateNotApplicableException extends DomainException {
+  constructor(meta: { type: string }) {
+    super(ERROR_CODES.ENUMERATION_CREATE_NOT_APPLICABLE, meta);
+  }
+}
+
+export class SurrogateProductCapOnlyException extends DomainException {
+  constructor(meta: {
+    type: string;
+    key: string;
+    surrogateProductKey: string;
+    linkableProducts: readonly string[];
+  }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_CAP_ONLY, meta);
+  }
+}
+
 export class EnumerationRegistryUnavailableException extends DomainException {
   constructor() {
     super(ERROR_CODES.ENUMERATION_REGISTRY_UNAVAILABLE);

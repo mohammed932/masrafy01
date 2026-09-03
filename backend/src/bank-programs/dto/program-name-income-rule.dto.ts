@@ -11,7 +11,7 @@
  */
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsObject, IsOptional, ValidateNested } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
@@ -196,4 +196,22 @@ export interface SurrogateProductTemplateResponseDto {
    * saying so is the honest state — see `PRODUCT_TEMPLATE_NOT_EDITABLE`.
    */
   advanced: boolean;
+}
+
+/**
+ * Switch a surrogate product on or off — the whole body, because it is the whole decision.
+ *
+ * REQUIRED, not optional: absent would have to mean either "leave it" (a no-op request) or
+ * "off" (a destructive default), and neither is a thing a caller should be able to say by
+ * omission.
+ *
+ * No `deprecate` here, deliberately. `updateById` sets `deprecatedAt` on a deprecate and
+ * clears it on nothing, so a product deprecated through this door could never be switched
+ * back on. Deprecation stays on the generic enumerations endpoint, where an operator asking
+ * for it is asking for something else.
+ */
+export class SetSurrogateProductActiveDto {
+  @ApiProperty({ description: 'True to make the product quotable again; false to stop it.' })
+  @IsBoolean()
+  active!: boolean;
 }

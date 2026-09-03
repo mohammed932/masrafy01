@@ -9,6 +9,8 @@ import {
   type ProgramNameIncomeRuleRow,
   type ProgramUnderName,
 } from '../platform-enumerations/platform-enumerations.repository';
+import { PlatformEnumerationsAdminService } from '../platform-enumerations/platform-enumerations-admin.service';
+import { exclusiveFactKeysOf, isCapOnlyProductKey } from './blueprints/product-blueprints';
 import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductTemplateDto,
@@ -47,7 +49,6 @@ import {
   IncomeProofInUseException,
   ProgramNameKeyUnknownException,
   ProgramNameRuleLinkedException,
-  SurrogateProductInUseException,
   SurrogateProductNotFoundException,
   ValueSourcePathUnknownException,
   ValueSourceValueInvalidException,
@@ -103,6 +104,7 @@ import {
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
+  catalogRuleOf,
   effectiveIncomeRule,
   stripCatalogStructure,
   stripInheritedAmounts,
@@ -167,6 +169,11 @@ export class BankProgramsService {
     private readonly repo: BankProgramRepository,
     private readonly audit: AuditEventRepository,
     private readonly enums: PlatformEnumerationsRepository,
+    // The ADMIN service, alongside the repository, for one reason: switching a product on
+    // or off must write through the same path an operator's own edit does, so the audit
+    // event, the cache invalidation and the retire guards stay one implementation. Every
+    // read below still goes through the repository.
+    private readonly enumsAdmin: PlatformEnumerationsAdminService,
   ) {}
 
   // --- CREATE (US1) --------------------------------------------------------
@@ -824,7 +831,7 @@ export class BankProgramsService {
   private async catalogIncomeRuleFor(
     programNameKey: string,
   ): Promise<IncomeAssumptionConfig | undefined> {
-    return (await this.enums.programNameIncomeRules()).get(programNameKey);
+    return catalogRuleOf((await this.enums.programNameIncomeRules()).get(programNameKey));
   }
 
   // --- Feature 011 — income-rule plumbing ---------------------------------
@@ -1939,53 +1946,54 @@ export class BankProgramsService {
    * programs. The set a proof change would break.
    */
   /**
-   * Delete a surrogate product and everything that only exists because of it.
+   * Switch a surrogate product ON or OFF — the operator's one lifecycle action on a product.
    *
-   * DESTRUCTIVE AND CONFIRMED, not destructive and silent: without `cascade` this refuses
-   * with `SURROGATE_PRODUCT_IN_USE` carrying the exact names and program codes that would
-   * be destroyed, so the operator confirms against a list rather than against a count they
-   * have to take on trust.
+   * DELEGATES to the enumerations admin service rather than writing the row here, so the
+   * audit event, the cache invalidation and the remaining retire guards stay one
+   * implementation. This method exists for the KEY: every other product route is keyed, the
+   * registry id is not on any product DTO, and leaking it into the screens would be a second
+   * way to address the same object.
    *
-   * WHAT IS DELETED, in FK order: every bank program filed under every name that links to
-   * the product, then the LINKS (the names survive, unlinked), then the product row. The
-   * names are kept deliberately — a catalog name is what banks SELL, and the operator's
-   * next move after retiring a calculation is usually to point those names at another one.
+   * NO REFUSAL when catalog names still link to it. That is the gesture: the calculation is
+   * withheld and every program reachable through those names comes back LISTED with
+   * `SURROGATE_PRODUCT_RETIRED`. The consequence is stated on the screen beforehand, against
+   * the same names-and-program-codes walk `getSurrogateProduct` returns.
    *
-   * WHAT SURVIVES, and why this is safe: `bank_offer` carries `programCode` as a plain
-   * column with NO foreign key, and holds its own frozen copy of every figure it quoted
-   * (Principle I / A6). A customer's issued offer therefore keeps reading exactly what it
-   * read the day it was made. What is lost is traceability — the calculation behind those
-   * numbers is gone — and that is the accepted cost of a hard delete.
+   * A CAP-ONLY product has no calculation to withhold — it asks its question and each bank
+   * states the maximum for the answer on its own program — so switching one off deactivates
+   * the FACTS only it asks for. The applicant's answer stops being emitted, and the bank's
+   * cap table then takes the `onNoMatch` branch the bank itself chose. Read from the
+   * blueprint, not from `surrogateProductKey`: a cap blueprint creates no product row for
+   * its facts to be filed under, so on a real database they are filed under nothing and an
+   * ownership-keyed flip is inert — measured. Shared facts are excluded, so turning off the
+   * school-type CAP cannot stop the school-stage CEILING reading the same answer.
+   *
+   * A rule product's facts are deliberately NOT touched. Its rule is withheld instead, and
+   * flipping its facts as well would overwrite a per-fact state an operator may have set by
+   * hand — two authorities for one switch.
    */
-  async deleteSurrogateProduct(
+  async setSurrogateProductActive(
     key: string,
-    opts: { cascade: boolean },
+    active: boolean,
     actor: { id: string; sourceIp: string | null },
-  ): Promise<{ key: string; deletedNames: string[]; deletedPrograms: string[] }> {
+  ): Promise<{ key: string; active: boolean; factsChanged: string[] }> {
     const row = await this.enums.findSurrogateProduct(key);
     if (!row) throw await this.surrogateProductNotFound(key);
 
-    const names = await this.enums.programNamesLinkedTo(key);
-    const perName = await Promise.all(names.map((n) => this.enums.programsUnderName(n)));
-    const programCodes = perName.flat().map((p) => p.programCode);
+    await this.enumsAdmin.update(
+      row.id,
+      { active },
+      { staffId: actor.id, sourceIp: actor.sourceIp },
+    );
 
-    if (!opts.cascade && (names.length > 0 || programCodes.length > 0)) {
-      throw new SurrogateProductInUseException({ key, names, programCodes });
-    }
+    const factsChanged = isCapOnlyProductKey(key)
+      ? await this.enumsAdmin.setFactsActive(exclusiveFactKeysOf(key), active, {
+          staffId: actor.id,
+          sourceIp: actor.sourceIp,
+        })
+      : [];
 
-    await this.enums.deleteSurrogateProductCascade(key, names, programCodes);
-
-    await this.audit.create({
-      actorId: actor.id,
-      // A FK to STAFF_ACCOUNT, never the row this was about — the same note
-      // `setSurrogateProductIncomeRule` carries. The product's key travels in the payload.
-      targetId: null,
-      bankProgramId: null,
-      eventType: AuditEventType.PLATFORM_ENUMERATION_DELETED,
-      sourceIp: actor.sourceIp,
-      payload: { type: 'surrogate_product', key, id: row.id, names, programCodes },
-    });
-    return { key, deletedNames: names, deletedPrograms: programCodes };
+    return { key, active, factsChanged };
   }
 
   private async programsReadingProduct(key: string): Promise<string[]> {
@@ -2142,7 +2150,9 @@ export class BankProgramsService {
     const draft = normalizeIncomeAssumption(
       effectiveIncomeRule(
         dto.incomeAssumption as unknown as IncomeAssumptionConfig,
-        program.programNameKey === null ? undefined : catalogRules.get(program.programNameKey),
+        program.programNameKey === null
+          ? undefined
+          : catalogRuleOf(catalogRules.get(program.programNameKey)),
       ),
     );
     // The SAME validator the save path runs. A rule that could not be saved must not

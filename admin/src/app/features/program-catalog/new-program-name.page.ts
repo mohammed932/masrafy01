@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
@@ -19,9 +19,8 @@ import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import { slugify, uniqueSlug } from '@shared/lookups/slug';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import type { SurrogateProductSummary } from '@features/bank-programs/bank-programs.types';
-import { ProductShapePickerComponent } from './product-shape-picker.component';
 import { ENUM_TYPE } from './program-name-row';
-import { CATALOG_BASE, PRODUCT_BASE, newNameLanding } from './program-catalog.paths';
+import { CATALOG_BASE, newNameLanding, surrogateBoardLink } from './program-catalog.paths';
 import {
   LAST_STEP,
   RESERVED_NAME_KEYS,
@@ -34,58 +33,17 @@ import {
   type ProductChoice,
 } from './new-program-name';
 
-/**
- * Add a catalog program name — ONE flow, whichever way the income is proved.
- *
- * WHY IT EXISTS. Adding a name used to be three experiences wearing one button. On the
- * payslip side of the board the button opened a side sheet that saved and dropped you back
- * on the list. On the surrogate side the SAME button position opened a different object
- * entirely (a product). And picking "Surrogate" inside the sheet needed a product to already
- * exist — with no product, the form refused to save and told you to go to another screen,
- * which had its own three-screen flow of its own. Three splits: a different entry, a
- * different container, a different ending.
- *
- * Now: one button on every chip, one screen, three steps, and both bases end on the thing
- * that was just made at the next unanswered question.
- *
- * THE BASIS IS STEP 1. Everything step 3 shows branches on it, so asking it second meant an
- * operator arriving from the board's `All` chip typed two labels and a sort order before
- * anything on screen said which KIND of program was being made. It also makes the chip a real
- * shortcut: it answers step 1, so the screen opens on step 2 with that answer behind it and
- * changeable, instead of opening on a settled question that reads as a step to skip.
- *
- * A SCREEN AND NOT A SHEET, by the shell's own rule: a form that branches on a type choice
- * needs the viewport and a URL to come back to. This one branches into a multi-pick shape
- * picker and a second object's name, which is well past what a 560px sheet holds, and an
- * operator interrupted halfway would have had nothing to return to.
- *
- * STEP 3 IS A REAL STEP ON THE PAYSLIP PATH. It is not hidden and not disabled: a hidden
- * step makes the two paths different LENGTHS, which is the inconsistency this screen exists
- * to remove. The payslip answer is "the bank reads the payslip, there is nothing to set up"
- * — an answer, stated, and the step is where what Save will create is read back.
- *
- * WHAT THIS SCREEN DELIBERATELY DOES NOT ASK: which loan types the name is offered under. A
- * new name is born parked, on purpose (`create()` assigns none), because an undecided
- * decision must read as undecided — and step 2 of the name's own page is where it is decided
- * and where an unset one is visible. That is also why every path lands there.
- *
- * THE RULES LIVE IN `new-program-name.ts`, not here: the write ORDER and what a RETRY does
- * after a half-applied attempt are the two things that fail silently, and neither is
- * exercisable through a form.
- */
-const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
-
 @Component({
   selector: 'app-new-program-name-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     NzInputModule,
     FormPageComponent,
     WizardStepsComponent,
     IncomeBasisCardsComponent,
-    ProductShapePickerComponent,
   ],
   template: `
     <app-form-page
@@ -209,109 +167,40 @@ const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
               } @else {
                 <h2 class="step-h" i18n="@@pcn.src_h">Which calculation does it quote from?</h2>
 
-                @if (madeProductKey(); as made) {
-                  <!-- The retry state. The product landed on a previous attempt and the name
-                       did not, so saying "make a new one" again would mint a second product
-                       under the same words. -->
+                @if (products().length === 0) {
+                  <!-- Not a dead end and not a hidden control: every calculation on the
+                       platform is switched off, so there is genuinely nothing to quote from,
+                       and the operator is told where the switch is. -->
                   <p class="notice" role="status">
-                    <span i18n="@@pcn.recovered"
-                      >“{{ madeLabel() }}” was already created. Saving again finishes the name — it
-                      will not be created twice.</span
+                    <span i18n="@@pcn.src_all_off"
+                      >Every calculation is switched off, so there is nothing for a no-payslip name
+                      to quote from. Turn one back on in the catalog, then come back.</span
                     >
                   </p>
                   <p class="key">
-                    <code>{{ made }}</code>
+                    <a
+                      [routerLink]="surrogateBoard.commands"
+                      [queryParams]="surrogateBoard.queryParams"
+                      i18n="@@pcn.src_all_off_link"
+                      >Open the calculations</a
+                    >
                   </p>
                 } @else {
-                  <div class="modes" role="group" [attr.aria-label]="modesAria">
-                    <button
-                      type="button"
-                      class="mode"
-                      [class.on]="mode() === 'pick'"
-                      [attr.aria-pressed]="mode() === 'pick'"
-                      [disabled]="products().length === 0"
-                      (click)="productMode.set('pick')"
-                    >
-                      <span i18n="@@pcn.src_mode_pick">Use one that exists</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="mode"
-                      [class.on]="mode() === 'make'"
-                      [attr.aria-pressed]="mode() === 'make'"
-                      (click)="productMode.set('make')"
-                    >
-                      <span i18n="@@pcn.src_mode_make">Start a new one</span>
-                    </button>
+                  <div class="picks" role="radiogroup" [attr.aria-label]="picksAria">
+                    @for (p of products(); track p.key) {
+                      <button
+                        type="button"
+                        class="pick"
+                        role="radio"
+                        [class.on]="pickedProductKey() === p.key"
+                        [attr.aria-checked]="pickedProductKey() === p.key"
+                        (click)="pickedProductKey.set(p.key)"
+                      >
+                        <span class="pick-name">{{ productLabel(p) }}</span>
+                        <span class="pick-meta">{{ productReads(p) }}</span>
+                      </button>
+                    }
                   </div>
-
-                  @if (mode() === 'pick') {
-                    <div class="picks" role="radiogroup" [attr.aria-label]="picksAria">
-                      @for (p of products(); track p.key) {
-                        <button
-                          type="button"
-                          class="pick"
-                          role="radio"
-                          [class.on]="pickedProductKey() === p.key"
-                          [attr.aria-checked]="pickedProductKey() === p.key"
-                          (click)="pickedProductKey.set(p.key)"
-                        >
-                          <span class="pick-name">{{ productLabel(p) }}</span>
-                          <span class="pick-meta">{{ usedByLabel(p) }}</span>
-                        </button>
-                      }
-                    </div>
-                  } @else {
-                    <!-- No dead end. This is the whole point of the merge: with no product on
-                         the platform the old form refused to save and sent the operator to
-                         another screen. The shapes are simply here. -->
-                    @if (products().length === 0) {
-                      <p class="lede" i18n="@@pcn.src_none">
-                        No calculation exists yet — this is the first one.
-                      </p>
-                    }
-                    <app-product-shape-picker
-                      [value]="shapes()"
-                      [ariaLabel]="shapesAria"
-                      (toggled)="toggleShape($event)"
-                    />
-
-                    @if (shapes().length > 0) {
-                      <div class="make-name">
-                        <h3 class="step-h sub" i18n="@@pcn.make_name_h">
-                          What is the calculation called?
-                        </h3>
-                        <p class="lede" i18n="@@pcn.make_name_sub">
-                          Operators filing programs under this name will look for it by these words.
-                          Its figures come next.
-                        </p>
-                        <div class="pair">
-                          <label class="field">
-                            <span class="field-label" i18n="@@lookups.field.labelEnglish"
-                              >English label</span
-                            >
-                            <input
-                              nz-input
-                              formControlName="productLabelEn"
-                              dir="ltr"
-                              [attr.maxlength]="productMax"
-                            />
-                          </label>
-                          <label class="field">
-                            <span class="field-label" i18n="@@lookups.field.labelAr"
-                              >Arabic label</span
-                            >
-                            <input
-                              nz-input
-                              formControlName="productLabelAr"
-                              dir="rtl"
-                              [attr.maxlength]="productMax"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    }
-                  }
                 }
               }
             </section>
@@ -596,16 +485,13 @@ export class NewProgramNamePage {
   private readonly route = inject(ActivatedRoute);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  /** Program names must fit `bank_program.friendlyName`; a product answers to nothing. */
+  /** Program names must fit `bank_program.friendlyName`. */
   protected readonly nameMax = 120;
-  protected readonly productMax = 160;
 
   protected readonly form = new FormGroup({
     labelEn: new FormControl<string>('', { nonNullable: true }),
     labelAr: new FormControl<string>('', { nonNullable: true }),
     sortOrder: new FormControl<number>(0, { nonNullable: true }),
-    productLabelEn: new FormControl<string>('', { nonNullable: true }),
-    productLabelAr: new FormControl<string>('', { nonNullable: true }),
   });
 
   /**
@@ -625,24 +511,16 @@ export class NewProgramNamePage {
    * `all`, absent or junk all read as "no opinion", never as payslip.
    */
   protected readonly basis = signal<IncomeBasis | null>(this.initialBasis());
-  protected readonly productMode = signal<'pick' | 'make'>('pick');
   protected readonly pickedProductKey = signal<string | null>(null);
   /**
-   * Every way the new calculation reaches its figure, in PICK order.
+   * The calculations this name could quote from — LIVE ones only, and cap-only products
+   * excluded.
    *
-   * A list rather than one value because a product several banks sell is normally reached
-   * more than one way, and the order is what names the slots a bank's figures hang off
-   * (`waySlot`: first is `primary`, second is `alt`) — so it is appended to, never sorted.
+   * Both filters mirror a server refusal, so the picker never offers something the save
+   * would reject: `resolveSurrogateProductKey` refuses a link to a switched-off product
+   * (`reason: 'inactive'`), and a cap-only product works out no income at all
+   * (`SURROGATE_PRODUCT_CAP_ONLY`).
    */
-  protected readonly shapes = signal<readonly string[]>([]);
-  /**
-   * A product this flow already wrote, on an attempt whose second write failed.
-   *
-   * Deliberately NOT cleared in the `finally`: it is what stops a retry minting a second
-   * product under the same words. A compensating DELETE would be worse — fired on a timeout
-   * that actually succeeded, it destroys a real object.
-   */
-  protected readonly madeProductKey = signal<string | null>(null);
   protected readonly products = signal<readonly SurrogateProductSummary[]>([]);
 
   protected readonly submitting = signal(false);
@@ -657,9 +535,9 @@ export class NewProgramNamePage {
   protected readonly nextLabel = $localize`:@@pcn.next:Next`;
   protected readonly stepsAria = $localize`:@@pcn.steps_aria:Adding a program name`;
   protected readonly basisAria = $localize`:@@pcn.basis_aria:How the bank proves the income`;
-  protected readonly modesAria = $localize`:@@pcn.modes_aria:Use an existing calculation or start a new one`;
   protected readonly picksAria = $localize`:@@pcn.picks_aria:Calculations already on the platform`;
-  protected readonly shapesAria = $localize`:@@spt.title:How does the bank work the income out?`;
+  /** Where a name whose product is switched off gets un-blocked. */
+  protected readonly surrogateBoard = surrogateBoardLink();
   protected readonly labelEnPlaceholder = $localize`:@@pcn.eg_en:e.g. Doctors — Practice`;
   protected readonly labelArPlaceholder = $localize`:@@pcn.eg_ar:مثال: أطباء — عيادة`;
 
@@ -671,7 +549,7 @@ export class NewProgramNamePage {
    */
   protected readonly basisEffects: Partial<Record<IncomeBasis, string>> = {
     payslip: $localize`:@@pcn.effect_payslip:Pick this and the name is sold against a salary the bank can see. Name it next, and the last step has nothing to set.`,
-    no_payslip: $localize`:@@pcn.effect_no_payslip:Pick this and the last step asks which calculation the name quotes from — one that exists, or a new one you start here.`,
+    no_payslip: $localize`:@@pcn.effect_no_payslip:Pick this and the last step asks which of the platform's calculations the name quotes from.`,
   };
 
   constructor() {
@@ -683,19 +561,8 @@ export class NewProgramNamePage {
   /** Which product a surrogate name takes its calculation from, as answered so far. */
   private readonly productChoice = computed<ProductChoice | null>(() => {
     if (this.basis() !== 'no_payslip') return null;
-    if (this.mode() === 'pick') {
-      const key = this.pickedProductKey();
-      return key === null ? null : { kind: 'existing', key };
-    }
-    const shapes = this.shapes();
-    if (shapes.length === 0) return null;
-    const v = this.formValue();
-    return {
-      kind: 'new',
-      shapes,
-      labelEn: v.productLabelEn ?? '',
-      labelAr: v.productLabelAr ?? '',
-    };
+    const key = this.pickedProductKey();
+    return key === null ? null : { kind: 'existing', key };
   });
 
   protected readonly draft = computed<NewNameDraft>(() => {
@@ -705,20 +572,8 @@ export class NewProgramNamePage {
       labelAr: v.labelAr ?? '',
       basis: this.basis(),
       product: this.productChoice(),
-      madeProductKey: this.madeProductKey(),
     };
   });
-
-  /**
-   * The mode actually in force.
-   *
-   * Derived rather than defaulted by an effect: with nothing on the platform "use one that
-   * exists" is not a choice, and a mode the operator has to switch out of before the screen
-   * shows them anything is the dead end this flow was built to remove.
-   */
-  protected readonly mode = computed<'pick' | 'make'>(() =>
-    this.products().length === 0 ? 'make' : this.productMode(),
-  );
 
   protected readonly keyPreview = computed<string | null>(() => {
     const key = slugify(this.formValue().labelEn ?? '');
@@ -798,11 +653,11 @@ export class NewProgramNamePage {
       case 'basis':
         return $localize`:@@pcn.block_basis:Say how the income is proved.`;
       case 'product':
-        return this.mode() === 'pick'
-          ? $localize`:@@pcn.block_product:Pick the calculation this name quotes from.`
-          : this.shapes().length === 0
-            ? $localize`:@@pcn.block_shape:Pick at least one way the new calculation reaches its figure.`
-            : $localize`:@@pcn.block_product_name:Name the new calculation in both languages.`;
+        // Two different sentences, because they are two different problems and only one of
+        // them is the operator's to fix here: nothing PICKED, versus nothing to pick.
+        return this.products().length === 0
+          ? $localize`:@@pcn.block_no_products:No calculation is switched on, so this name cannot quote from one yet.`
+          : $localize`:@@pcn.block_product:Pick the calculation this name quotes from.`;
       default:
         return null;
     }
@@ -821,14 +676,6 @@ export class NewProgramNamePage {
     }
     const name = this.formValue().labelEn ?? '';
     const plan = savePlan(this.draft());
-    if (plan.product !== null) {
-      // Says how many ways it will open with, because that is the half of the plan the
-      // operator cannot re-read from the fields above: the ticks are a few hundred pixels up
-      // and the count is what tells them the second one registered.
-      return plan.shapes.length > 1
-        ? $localize`:@@pcn.summary_make_ways:Creates “${plan.product.labelEn}:PRODUCT:” with ${plan.shapes.length}:COUNT: ways to reach its figure, then “${name}:NAME:” linked to it, and opens the calculation to fill in.`
-        : $localize`:@@pcn.summary_make:Creates “${plan.product.labelEn}:PRODUCT:”, then “${name}:NAME:” linked to it, and opens the calculation to fill in.`;
-    }
     if (plan.link.kind === 'existing') {
       return $localize`:@@pcn.summary_link:Creates “${name}:NAME:”, quoting from “${this.linkedLabel(plan.link.key)}:PRODUCT:”.`;
     }
@@ -848,16 +695,21 @@ export class NewProgramNamePage {
     return this.isAr ? row.labelAr : row.labelEn;
   }
 
-  protected usedByLabel(row: SurrogateProductSummary): string {
-    return row.usedBy.length === 0
-      ? $localize`:@@pcn.product_unused:No name sells this yet`
-      : $localize`:@@pcn.product_used_by:Used by ${row.usedBy.length}:COUNT: names`;
-  }
-
-  protected madeLabel(): string {
-    const key = this.madeProductKey();
-    const known = this.products().find((p) => p.key === key);
-    return known ? this.productLabel(known) : (this.formValue().productLabelEn ?? key ?? '');
+  /**
+   * What this calculation works the income out from, at the point of choosing it.
+   *
+   * The count of names that already sell it — which is what this line used to say — answers a
+   * question nobody has while picking: two products called "Doctors" and "Professionals" are
+   * told apart by what they READ, not by how popular they are.
+   */
+  protected productReads(row: SurrogateProductSummary): string {
+    const ways =
+      (row.wayCount ?? 1) > 1
+        ? $localize`:@@pcn.product_ways:${row.wayCount ?? 1}:COUNT: ways`
+        : $localize`:@@pcn.product_one_way:one way`;
+    return row.outputKind === 'maxAmount'
+      ? $localize`:@@pcn.product_reads_ceiling:A borrowing ceiling, ${ways}:WAYS:`
+      : $localize`:@@pcn.product_reads_income:An assumed income, ${ways}:WAYS:`;
   }
 
   private linkedLabel(key: string): string {
@@ -869,19 +721,6 @@ export class NewProgramNamePage {
 
   protected pickBasis(basis: IncomeBasis): void {
     this.basis.set(basis);
-  }
-
-  /**
-   * Tick or untick one way of reaching the figure.
-   *
-   * Appended rather than inserted in the picker's own order: the first way picked becomes the
-   * `primary` slot and the second `alt`, and those ids are what a bank's figures are keyed by.
-   * Re-sorting the list would move a figure for a reason the operator cannot see.
-   */
-  protected toggleShape(key: string): void {
-    this.shapes.update((keys) =>
-      keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key],
-    );
   }
 
   /**
@@ -936,33 +775,21 @@ export class NewProgramNamePage {
   }
 
   private async doSave(): Promise<void> {
-    // The shell disables the button, but the two-write path guards re-entry itself.
     if (this.submitting() || blockReason(this.draft()) !== null) return;
     this.submitting.set(true);
     this.errorMessage.set(null);
     try {
       const plan = savePlan(this.draft());
       const v = this.form.getRawValue();
-      let link = plan.link.kind === 'existing' ? plan.link.key : null;
-
-      // The product FIRST when one is being made. The order is the server's, not a
-      // preference: a no-payslip name is refused while nothing says how its income is
-      // worked out, and the link has to name a live product row.
-      if (plan.product !== null) {
-        const created = await this.lookups.create({
-          type: SURROGATE_PRODUCT_TYPE,
-          key: await this.uniqueKey(SURROGATE_PRODUCT_TYPE, plan.product.labelEn),
-          labelEn: plan.product.labelEn,
-          labelAr: plan.product.labelAr,
-        });
-        // Recorded BEFORE the next write can fail, which is the whole point of the signal.
-        this.madeProductKey.set(created.key);
-        link = created.key;
-      }
+      // ONE write. This flow used to be able to create a PRODUCT first and then the name
+      // linked to it, which needed a recorded key so a retry could not mint a second
+      // product. A product is not created here any more, so the two-write ordering, the
+      // recovery signal and the reason both existed are gone with it.
+      const link = plan.link.kind === 'existing' ? plan.link.key : null;
 
       const name = await this.lookups.create({
         type: ENUM_TYPE,
-        key: await this.uniqueKey(ENUM_TYPE, v.labelEn),
+        key: await this.uniqueKey(v.labelEn),
         labelEn: v.labelEn,
         labelAr: v.labelAr,
         sortOrder: v.sortOrder,
@@ -974,16 +801,6 @@ export class NewProgramNamePage {
         ...(link !== null ? { surrogateProductKey: link } : {}),
       });
 
-      // A shape means a calculation is still owed, whether it was made on this attempt or a
-      // previous one — so the operator is put in front of the form for it, and `then` brings
-      // them back to the name they were making. Comma-joined in pick order: the calculation
-      // screen seeds the first as the primary way and the rest as the others.
-      if (plan.shapes.length > 0 && link !== null) {
-        void this.router.navigate([PRODUCT_BASE, link, 'calculation'], {
-          queryParams: { from: plan.shapes.join(','), then: name.key },
-        });
-        return;
-      }
       const landing = newNameLanding(name.key);
       void this.router.navigate(landing.commands, { queryParams: landing.queryParams });
     } catch (err) {
@@ -1020,24 +837,34 @@ export class NewProgramNamePage {
    * `/program-catalog/products` are literal segments declared before the single-segment
    * `:key`, so a name keyed `new` would be saved, listed, and impossible to open.
    */
-  private async uniqueKey(type: string, label: string): Promise<string> {
-    const reserved = type === ENUM_TYPE ? RESERVED_NAME_KEYS : new Set<string>();
+  /**
+   * The key for the NAME, avoiding both the taken ones and the two the router would eat.
+   *
+   * One type now, where it took a `type` parameter and served two: this flow no longer
+   * creates a product, so the only key it mints is a catalog name's — and the reserved set
+   * applied to that one alone.
+   */
+  private async uniqueKey(label: string): Promise<string> {
     try {
-      const rows = await this.lookups.list(type);
-      return uniqueSlug(label, new Set([...rows.map((r) => r.key), ...reserved]));
+      const rows = await this.lookups.list(ENUM_TYPE);
+      return uniqueSlug(label, new Set([...rows.map((r) => r.key), ...RESERVED_NAME_KEYS]));
     } catch {
       // The list read is a courtesy — the server enforces the unique either way, and refusing
       // to save because a GET failed would be the worse answer.
-      return uniqueSlug(label, reserved);
+      return uniqueSlug(label, RESERVED_NAME_KEYS);
     }
   }
 
   private async loadProducts(): Promise<void> {
     try {
       const res = await this.programs.listSurrogateProducts();
-      // ACTIVE only: this is a point of CHOICE, and offering a retired product would be
-      // offering a save the server refuses.
-      this.products.set(res.data.filter((p) => p.active));
+      // TWO filters, and each mirrors a refusal the server would raise AFTER the click:
+      // a switched-off product cannot be linked to (`reason: 'inactive'`), and a cap-only
+      // product works out no income at all (`SURROGATE_PRODUCT_CAP_ONLY`) — it asks its
+      // question and each bank states the maximum for the answer on its own program. A
+      // cap-only product states no `outputKind`, which is how it is known here without the
+      // admin carrying its own copy of the blueprint library.
+      this.products.set(res.data.filter((p) => p.active && p.outputKind !== null));
     } catch {
       this.products.set([]);
     }

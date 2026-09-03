@@ -61,6 +61,12 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
   // --- Surrogate products -------------------------------------------------
   // Declared BEFORE the single-segment `:key` below: `products` is a literal segment and
   // would otherwise resolve as a catalog name of that key.
+  //
+  // A no-payslip product is not CREATED here any more. The eleven predefined ones are put in
+  // by `npm run seed:blueprints`, and the operator's one lifecycle decision about a product
+  // is whether it is switched on — which is made on the board, beside the names that sell
+  // it. So the library, the anonymous shape picker and the by-hand "add an ask" screen are
+  // gone, and every path that used to reach one redirects.
   {
     path: 'products',
     pathMatch: 'full',
@@ -71,28 +77,38 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
     loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
   },
   {
-    // `new` MUST come before `products/:key`: below it, it resolves as a product called
-    // "new" and 404s.
+    // The library's old URL. A REDIRECT rather than a deletion because it has bookmarks and
+    // two legacy `/surrogate-products/*` aliases pointing at it — and without a route here
+    // Angular falls through to `**` and lands the operator on the DASHBOARD, which reads as
+    // the app losing their place rather than as a screen that moved.
     //
-    // The LIBRARY is what this path opens now — one card per real product, each of which
-    // builds everything it asks. The eight anonymous shapes are still reachable one link
-    // down, at `products/shapes`, because a product outside the library must stay buildable.
+    // Still declared before `products/:key`, or it resolves as a product called "new".
     path: 'products/new',
-    loadComponent: () => import('./product-library.page').then((m) => m.ProductLibraryPage),
+    pathMatch: 'full',
+    canMatch: [surrogateBoardMatchFn],
+    loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
   },
   {
-    // Also before `products/:key`, and for the same reason.
+    // The anonymous shape picker's old URL. It needs a redirect for a reason deleting it did
+    // not make obvious: with no route here it does NOT fall through to `**` — it matches
+    // `products/:key` below with the key "shapes" and renders a product-detail page for a
+    // product nobody has. Measured in a browser, not predicted.
     path: 'products/shapes',
-    loadComponent: () =>
-      import('./product-template-picker.page').then((m) => m.ProductTemplatePickerPage),
+    pathMatch: 'full',
+    canMatch: [surrogateBoardMatchFn],
+    loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
   },
   {
     path: 'products/:key/calculation',
     loadComponent: () => import('./product-template.page').then((m) => m.ProductTemplatePage),
   },
   {
+    // The by-hand "add an ask" screen is gone: what a product asks is structure the seed
+    // owns, and adding a question to a seeded product by hand produced a row no blueprint
+    // described. A plain `redirectTo` works here where `products` needed a guard — `:key`
+    // substitutes and there is no query param to carry.
     path: 'products/:key/asks/new',
-    loadComponent: () => import('./product-fact.page').then((m) => m.ProductFactPage),
+    redirectTo: 'products/:key',
   },
   {
     path: 'products/:key',

@@ -7,16 +7,17 @@
  * on the wire (Principle III / A2), and a bank's figure here would become a default that
  * quietly turned into somebody's live table.
  *
- * The bilingual product NAME is the one exception, and it is not a label: it is the default
- * value of an input box, which the operator may overwrite before saving, and the DEFAULT has
- * to be the same on every screen in both locales or two operators create the same product
- * under two names.
+ * The bilingual product NAME is the one exception, and it is not a label: it is the name the
+ * seed writes onto the product row, so it has to be the same in both locales wherever the
+ * library is built from.
+ *
+ * READ-ONLY on the wire now. The request DTOs went with the create endpoint: products are
+ * built by `npm run seed:blueprints`, and an operator's one decision about one is whether it
+ * is switched on. What is left here is what the screens READ — the library's structure, and
+ * what a build would have to create — which is also what the seed's `--dry` reports.
  */
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
 import type { LoanCategory } from '@prisma/client';
-import { BLUEPRINT_GROUPS } from '../blueprints/product-blueprint.types';
 import type { BlueprintGroup } from '../blueprints/product-blueprint.types';
 
 /** One thing a product asks, and whether the platform can already ask it. */
@@ -88,48 +89,6 @@ export interface ProductBlueprintDto {
   }>;
 }
 
-export class CreateFromBlueprintDto {
-  @ApiProperty({ description: 'Which predefined product to build.' })
-  @IsString()
-  @Length(1, 64)
-  blueprintKey!: string;
-
-  /**
-   * The product's key, or omitted to take it from the English name.
-   *
-   * Immutable once written — it is what a catalog name points at
-   * (`program_name.surrogateProductKey`) — so it is worth being able to state.
-   */
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @Length(1, 64)
-  @Matches(/^[a-z0-9][a-z0-9_-]*$/, {
-    message: 'key must be lower-case alphanumeric / underscore / hyphen',
-  })
-  key?: string;
-
-  /**
-   * The product's name, in both locales.
-   *
-   * Optional on the wire and required by the SERVICE for a product — a cap-only blueprint
-   * creates no product, so demanding a name would make the screen invent one for a thing
-   * that never gets it. Which of the two applies is a property of the blueprint, so the
-   * refusal belongs where the blueprint is known.
-   */
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @Length(1, 200)
-  labelEn?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @Length(1, 200)
-  labelAr?: string;
-}
-
 /** What was written, and what was already there. */
 export interface CreateFromBlueprintResultDto {
   blueprintKey: string;
@@ -157,12 +116,4 @@ export interface CreateFromBlueprintResultDto {
   };
   reused: { typeKeys: string[]; questionCodes: string[]; factKeys: string[]; valueKeys: string[] };
   publishedQuestionnaire: boolean;
-}
-
-/** Kept beside the DTOs so a group that is not one of the three cannot be requested. */
-export class BlueprintGroupQuery {
-  @ApiPropertyOptional({ enum: BLUEPRINT_GROUPS })
-  @IsOptional()
-  @IsIn(BLUEPRINT_GROUPS as readonly string[])
-  group?: BlueprintGroup;
 }

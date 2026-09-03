@@ -108,18 +108,93 @@ export function inheritsCatalogAmounts(config: IncomeAssumptionConfig): boolean 
  *                                predates the archetypes. Unchanged behaviour.
  *   own null       → product     the linked case
  *   both present   → product     see above; should be unreachable
+ *   product OFF    → withheld    the product is switched off, so the platform states
+ *                                that there is no calculation — see below
  *
  * `undefined` and not `null` on the empty case: the caller is building a Map that the
  * bank-level merge reads with `.get()`, and `effectiveIncomeRule` already spells "no
  * catalog rule" as `undefined`. Two spellings of one absence is how a rule gets quoted
  * that nobody wrote.
+ *
+ * A SWITCHED-OFF product is `withheld`, never an omission, and never a merge with the
+ * name's own rule. Two reasons, both load-bearing:
+ *
+ *   · omitting it would let a single-fact product fall through to the resolver's
+ *     "a declared salary still carries the quote" branch, re-pricing the program off a
+ *     payslip the bank never agreed to lend against. The withholding has to be a fact
+ *     the quote can refuse on, not a gap it can fill;
+ *   · it wins over the name's own rule for the same reason STRICT REPLACE wins above —
+ *     the product is the thing the operator was looking at when they switched it off,
+ *     and reviving a name's grandfathered rule underneath would quote a table nobody
+ *     chose in that moment.
+ *
+ * A DANGLING link (a `surrogateProductKey` naming no row) stays `own` and is NOT
+ * withheld: the causes differ — one is an operator's decision, the other is a broken
+ * reference — and the dangling case is pinned as an omission by its own test.
+ *
+ * The withheld variant still CARRIES the rule it is withholding, and that is deliberate.
+ * Switching a product off is a decision about what QUOTES, not about what is configured:
+ * the row keeps its calculation, the product screen still renders it, and the admin save
+ * path still merges the catalog's figures so a bank program under a linked name validates
+ * exactly as it did before. Only the quote reads the marker, and it refuses on it before
+ * any figure is priced. Dropping the rule here would make switching a product off silently
+ * change what an operator is allowed to SAVE, which nobody asked for.
  */
+export type CatalogRuleResolution =
+  | { readonly rule: IncomeAssumptionConfig }
+  | {
+      readonly withheld: 'surrogate_product_retired';
+      readonly productKey: string;
+      /** Absent when the switched-off product holds no calculation at all. */
+      readonly rule?: IncomeAssumptionConfig;
+    };
+
+/**
+ * The rule a resolution holds, whether or not the platform is withholding it.
+ *
+ * The ONE way to read a resolution's figures, so no caller has to know that a `withheld`
+ * entry still carries them. Every admin path (save validation, the catalog merge, the
+ * read-back surfaces) wants this; the quote wants the marker instead.
+ */
+export function catalogRuleOf(
+  resolution: CatalogRuleResolution | undefined,
+): IncomeAssumptionConfig | undefined {
+  return resolution?.rule;
+}
+
+/**
+ * Every catalog program name's resolution, keyed by `programNameKey`.
+ *
+ * Declared here rather than in the snapshot mapper because the repository that BUILDS it
+ * may not import from a feature module (Principle IX), and the mapper that consumes it
+ * re-exports this name so its callers are unchanged.
+ */
+export type CatalogIncomeRules = ReadonlyMap<string, CatalogRuleResolution>;
+
+/** The product row as this module needs to read it: its rule, and whether it is live. */
+export interface LinkedProduct {
+  readonly key: string;
+  readonly active: boolean;
+  readonly deprecatedAt: Date | null;
+  readonly rule: IncomeAssumptionConfig | undefined;
+}
+
 export function effectiveProgramNameRule(
   own: IncomeAssumptionConfig | null | undefined,
-  product: IncomeAssumptionConfig | undefined,
-): IncomeAssumptionConfig | undefined {
-  if (product !== undefined) return product;
-  return own ?? undefined;
+  product: LinkedProduct | undefined,
+): CatalogRuleResolution | undefined {
+  if (product !== undefined) {
+    if (!product.active || product.deprecatedAt !== null) {
+      return {
+        withheld: 'surrogate_product_retired',
+        productKey: product.key,
+        ...(product.rule !== undefined ? { rule: product.rule } : {}),
+      };
+    }
+    if (product.rule !== undefined) return { rule: product.rule };
+  }
+  const rule = own ?? undefined;
+  return rule === undefined ? undefined : { rule };
 }
 
 /**

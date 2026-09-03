@@ -26,6 +26,7 @@
     "seed:support:demo": "tsx prisma/seed-demo-support.ts",
     "seed:programs": "tsx prisma/seed-bank-programs.ts",
     "seed:questionnaire": "tsx prisma/seed-questionnaire.ts",
+    "seed:blueprints": "node dist/bank-programs/blueprints/blueprint-seed.command.js",
     "seed:catalog": "tsx prisma/seed-program-catalog.ts",
     "seed:customers": "tsx prisma/seed-customers.ts",
     "seed:weights": "tsx prisma/seed-scoring-weights.ts",

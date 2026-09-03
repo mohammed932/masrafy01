@@ -48,6 +48,8 @@ import type {
 } from '../dto/product-blueprint.dto';
 
 const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
+/** Named once, so both create calls below say the same thing. */
+const BLUEPRINT_SOURCE = { source: 'blueprint' } as const;
 const SURROGATE_FACT_TYPE = 'surrogate_fact';
 
 @Injectable()
@@ -77,9 +79,17 @@ export class BlueprintService {
   /**
    * Build one, in the order the foreign keys allow.
    *
-   * The name is the operator's. `key` follows from it if they did not state one, and it is
-   * the one thing here that is immutable afterwards — it is what a bank's program row points
-   * at (`program_name.surrogateProductKey`).
+   * ITS ONE CALLER is now `npm run seed:blueprints` (`blueprint-seed.command.ts`): there is
+   * no HTTP door onto this, because a no-payslip product is not something an operator
+   * creates — the eleven predefined ones are seeded and the decision left is which of them
+   * this platform sells. Kept as a service rather than folded into the command precisely so
+   * a seeded product is written by the same code, with the same refusals and the same single
+   * questionnaire publish, that an operator's clicks used to go through.
+   *
+   * The name and `key` come from the BLUEPRINT. `key` follows from the name if the caller
+   * states none, and it is the one thing here that is immutable afterwards — it is what a
+   * bank's program row points at (`program_name.surrogateProductKey`), which is why the seed
+   * states it explicitly rather than letting it be slugged.
    */
   async createFromBlueprint(
     input: { blueprintKey: string; key?: string; labelEn?: string; labelAr?: string },
@@ -187,6 +197,9 @@ export class BlueprintService {
               labelAr: step.labelAr,
             },
             actor,
+            // The library is the ONLY thing allowed to create a product or a fact
+            // (`SEEDED_ONLY_TYPES`). Positional and third, so no request body can claim it.
+            BLUEPRINT_SOURCE,
           );
           break;
 
@@ -321,6 +334,7 @@ export class BlueprintService {
                 : {}),
             },
             actor,
+            BLUEPRINT_SOURCE,
           );
           // The binding is what makes the row a FACT rather than a label: it is the join the
           // engine reads an answer through. Two writes because the create endpoint has no

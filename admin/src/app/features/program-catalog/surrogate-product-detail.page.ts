@@ -46,13 +46,11 @@ import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzModalService } from 'ng-zorro-antd/modal';
 import {
   ArrowLeftOutline,
-  DeleteOutline,
   ExclamationCircleOutline,
   InfoCircleOutline,
-  PlusOutline,
+  PoweroffOutline,
 } from '@ant-design/icons-angular/icons';
 import { SkeletonRowsComponent, WizardStepsComponent } from '@shared/ui';
 import type { WizardStepItem } from '@shared/ui';
@@ -67,7 +65,6 @@ import {
   LookupsApiService,
   type EnumerationTypeSummary,
 } from '@features/lookups/lookups.api.service';
-import { QuestionnaireApiService } from '@features/questionnaire/questionnaire.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
@@ -137,10 +134,9 @@ interface AskedThing {
   providers: [
     provideNzIconsPatch([
       ArrowLeftOutline,
-      DeleteOutline,
       ExclamationCircleOutline,
       InfoCircleOutline,
-      PlusOutline,
+      PoweroffOutline,
     ]),
   ],
   template: `
@@ -150,46 +146,82 @@ interface AskedThing {
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@spd.back">All surrogate products</span>
         </a>
-        @if (product()) {
-          <button type="button" class="danger-action" (click)="confirmDelete()">
-            <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@spd.delete">Delete this product</span>
+        @if (product(); as p) {
+          <!-- Where Delete used to sit, one for one: the same position and the same weight
+               class, because switching a product off is now the consequential decision on
+               this screen. Nothing here deletes anything. -->
+          <button
+            type="button"
+            [class.danger-action]="p.active"
+            [class.ghost-action]="!p.active"
+            [disabled]="saving()"
+            (click)="p.active ? confirmOff() : setActive(true)"
+          >
+            <span nz-icon nzType="poweroff" nzTheme="outline" aria-hidden="true"></span>
+            @if (p.active) {
+              <span i18n="@@spd.power.off">Switch this calculation off</span>
+            } @else {
+              <span i18n="@@spd.power.on">Switch it back on</span>
+            }
           </button>
         }
       </div>
 
-      @if (deleteBlocked(); as blocked) {
+      @if (offPending(); as pending) {
+        <!-- STATES THE CONSEQUENCE, rather than asking "are you sure". The program codes are
+             already on this screen, which is why the confirmation lives here and not in a
+             dialog: the operator reads what stops quoting against the list of what quotes. -->
         <div class="notice is-bad" role="alert">
-          <p class="notice-title" i18n="@@spd.delete.blocked.title">
-            This product is being sold. Deleting it destroys more than the calculation.
+          <p class="notice-title" i18n="@@spd.power.off_title">
+            While this is off, nothing quotes from it.
           </p>
-          <p i18n="@@spd.delete.blocked.body">
-            {{ blocked.names.length }} catalog name(s) would be unlinked and
-            {{ blocked.programCodes.length }} bank program(s) would be deleted outright. Customer
-            offers already issued keep their own figures and are not touched.
-          </p>
-          <ul class="blocked-list">
-            @for (code of blocked.programCodes; track code) {
-              <li class="mono">{{ code }}</li>
-            }
-          </ul>
+          @if (pending.programCodes.length > 0) {
+            <p i18n="@@spd.power.off_body">
+              {{ pending.names.length }} catalog name(s) take their calculation from this, so the
+              {{ pending.programCodes.length }} bank program(s) below stop matching anybody. Offers
+              already issued keep their own figures. Nothing is deleted, and you can switch it back
+              on at any time.
+            </p>
+            <ul class="blocked-list">
+              @for (code of pending.programCodes; track code) {
+                <li class="mono">{{ code }}</li>
+              }
+            </ul>
+          } @else if (pending.names.length > 0) {
+            <p i18n="@@spd.power.off_body_names">
+              {{ pending.names.length }} catalog name(s) take their calculation from this and will
+              work out no income while it is off. No bank quotes from it yet. Nothing is deleted,
+              and you can switch it back on at any time.
+            </p>
+          } @else {
+            <p i18n="@@spd.power.off_body_free">
+              No catalog name takes its calculation from this yet, so nothing stops quoting. Nothing
+              is deleted, and you can switch it back on at any time.
+            </p>
+          }
+          @if (pending.factsAffected.length > 0) {
+            <p i18n="@@spd.power.off_body_facts">
+              The question it asks stops being read, so each bank's own maximum for that answer
+              falls back to whatever the bank chose for an answer it has no row for.
+            </p>
+          }
           <div class="notice-actions">
             <button
               type="button"
               class="ghost-action"
-              (click)="cancelDelete()"
-              i18n="@@common.cancel"
+              (click)="cancelOff()"
+              i18n="@@spd.power.keep"
             >
-              Cancel
+              Keep it on
             </button>
             <button
               type="button"
               class="danger-action solid"
-              [disabled]="deleting()"
-              (click)="doDelete(true)"
-              i18n="@@spd.delete.confirm"
+              [disabled]="saving()"
+              (click)="setActive(false)"
+              i18n="@@spd.power.off_confirm"
             >
-              Delete it and everything listed
+              Switch it off
             </button>
           </div>
         </div>
@@ -264,14 +296,6 @@ interface AskedThing {
                               i18n="@@spd.ask.edit"
                               >Edit the wording</a
                             >
-                            <button
-                              type="button"
-                              class="linkish is-danger"
-                              [disabled]="removing() === thing.factKey"
-                              (click)="removeAsk(thing)"
-                            >
-                              <span i18n="@@spd.ask.remove">Remove</span>
-                            </button>
                           </span>
                         </div>
                       </li>
@@ -279,19 +303,17 @@ interface AskedThing {
                   </ul>
                 }
 
-                @if (askError(); as message) {
-                  <p class="notice is-bad" role="alert">
-                    <span nz-icon nzType="exclamation-circle" nzTheme="outline"></span>
-                    <span>{{ message }}</span>
-                  </p>
-                }
-
-                <div class="actions">
-                  <button nz-button nzType="default" type="button" (click)="addAsk()">
-                    <span nz-icon nzType="plus" nzTheme="outline"></span>
-                    <span i18n="@@spd.ask.add">Add something it asks</span>
-                  </button>
-                </div>
+                <!-- READ-ONLY, deliberately. What a product asks is structure the predefined
+                     library owns: it is created by the blueprint seed and described by a
+                     blueprint. Adding one by hand produced a question no blueprint knew
+                     about, and removing one deleted the question outright — with the add
+                     screen gone there was no way to put it back, on a product an operator
+                     cannot recreate either. Curating the ANSWERS below stays editable, because
+                     a governorate or a compound is data. -->
+                <p class="hint" i18n="@@spd.ask.fixed">
+                  What this product asks comes with the product. The answers it offers are yours to
+                  curate below.
+                </p>
 
                 @if (readLists().length > 0) {
                   <h2 class="sub" i18n="@@spd.lists_title">The answers they pick from</h2>
@@ -345,9 +367,6 @@ interface AskedThing {
                     <span i18n="@@spd.form.handbuilt"
                       >This calculation was built step by step rather than from a form, so there is
                       no form to open for it.</span
-                    >
-                    <a class="linkish" [routerLink]="newProductLink" i18n="@@spd.form.start"
-                      >Build a new product from the library</a
                     >
                   </p>
                 }
@@ -952,14 +971,11 @@ export class SurrogateProductDetailPage {
   /** Back to the board, with the Surrogate side already showing. */
   protected readonly backLink = surrogateBoardLink();
   protected readonly productBase = PRODUCT_BASE;
-  protected readonly newProductLink = `${PRODUCT_BASE}/new`;
 
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly enumTypes = inject(EnumerationTypesService);
-  private readonly modals = inject(NzModalService);
   private readonly lookups = inject(LookupsApiService);
-  private readonly questions = inject(QuestionnaireApiService);
   private readonly errors = inject(ErrorCodeService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -985,7 +1001,6 @@ export class SurrogateProductDetailPage {
   protected readonly dirty = signal(false);
 
   protected readonly stepsAria = $localize`:@@spd.steps_aria:Surrogate product setup`;
-  protected readonly addAskTitle = $localize`:@@spd.ask.add_title:Add something this product asks`;
   protected readonly loadingLabel = $localize`:@@spd.loading:Loading the surrogate product`;
 
   // --- the calculation form (same shape the catalog name's page uses) --------
@@ -1061,58 +1076,65 @@ export class SurrogateProductDetailPage {
 
   protected readonly isPipeline = computed(() => this.ruleSteps().length > 0);
 
-  // --- deleting the product ---------------------------------------------------
+  // --- switching the product on and off ---------------------------------------
 
-  protected readonly deleting = signal(false);
   /**
-   * What the refusal said would be destroyed, or `null` when nothing is pending.
+   * The consequence the operator is being shown, or `null` when nothing is pending.
    *
-   * Held as the SERVER'S answer rather than derived from `product()!.names`, which the page
-   * already has: the two can disagree if someone linked a name in another tab, and the list
-   * an operator confirms against must be the one the delete will actually act on.
+   * Derived from `product()`, which this page already fetched: the names that take their
+   * calculation from this product and the bank programs under them are exactly what the
+   * reachability walk on the server returned, and they are already rendered further down the
+   * screen. So the confirmation and the list it refers to cannot disagree.
    */
-  protected readonly deleteBlocked = signal<{
+  protected readonly offPending = signal<{
     names: readonly string[];
     programCodes: readonly string[];
+    factsAffected: readonly string[];
   } | null>(null);
 
   /**
-   * First call without cascade. A product nothing points at dies here; one that is being
-   * sold comes back refused, and the refusal is what the confirmation renders.
+   * Ask before switching OFF, never before switching on.
    *
-   * No `nzModal.confirm` for the first step: the refusal already IS the confirmation, and a
-   * dialog asking "are you sure?" before the server has said what is at stake would be
-   * asking the operator to confirm something neither of them has seen yet.
+   * On restores service and can destroy nothing. Off stops every program under every linked
+   * name from quoting — reversibly, and with nothing deleted, which is why the confirmation
+   * STATES that rather than asking whether the operator is sure.
    */
-  protected confirmDelete(): void {
-    void this.doDelete(false);
+  protected confirmOff(): void {
+    const p = this.product();
+    if (!p) return;
+    this.offPending.set({
+      names: p.names.map((n) => n.key),
+      programCodes: p.names.flatMap((n) => n.programs.map((prog) => prog.programCode)),
+      // A cap-only product's question stops being read with it. Known from the DTO rather
+      // than from a copy of the blueprint library: a product that works out no income states
+      // no output kind at all.
+      factsAffected: p.outputKind === null ? this.askedThings().map((a) => a.factKey) : [],
+    });
   }
 
-  protected cancelDelete(): void {
-    this.deleteBlocked.set(null);
+  protected cancelOff(): void {
+    this.offPending.set(null);
   }
 
-  protected async doDelete(cascade: boolean): Promise<void> {
-    if (this.deleting()) return;
-    this.deleting.set(true);
+  protected setActive(active: boolean): void {
+    void this.doSetActive(active);
+  }
+
+  private async doSetActive(active: boolean): Promise<void> {
+    if (this.saving()) return;
+    this.saving.set(true);
     try {
-      await this.api.deleteSurrogateProduct(this.key, { cascade });
-      void this.router.navigate(this.backLink.commands, {
-        queryParams: this.backLink.queryParams,
-      });
-    } catch (err) {
-      const body = (err as { error?: { code?: string; meta?: Record<string, unknown> } }).error;
-      if (body?.code === 'SURROGATE_PRODUCT_IN_USE') {
-        this.deleteBlocked.set({
-          names: (body.meta?.['names'] as string[] | undefined) ?? [],
-          programCodes: (body.meta?.['programCodes'] as string[] | undefined) ?? [],
-        });
-        return;
-      }
-      // Anything else is already a toast from the global interceptor; re-stating it inline
-      // would say the same thing twice.
+      await this.api.setSurrogateProductActive(this.key, active);
+      this.offPending.set(null);
+      // Re-read rather than patch the signal: switching a cap-only product off also moves its
+      // facts, and this screen renders those. Patching one field would leave the rest of the
+      // page describing the state before the click.
+      await this.load();
+    } catch {
+      // Already a toast from the global interceptor; re-stating it inline would say the same
+      // thing twice, and the switch simply did not happen.
     } finally {
-      this.deleting.set(false);
+      this.saving.set(false);
     }
   }
 
@@ -1212,67 +1234,13 @@ export class SurrogateProductDetailPage {
    * What this product asks the applicant — its OWN facts, whatever the rule does with them.
    *
    * Owned, not derived: a fact this product authored belongs on its page from the moment it
-   * exists, and a rule that does not read it yet is the normal state five minutes after the
-   * dialog closes. What the rule reads is step ②'s question, and the builder's picker offers
-   * every fact regardless of who made it.
+   * exists, and a rule that does not read it yet is the normal state. What the rule reads is
+   * step ②'s question, and the builder's picker offers every fact regardless of who made it.
+   *
+   * READ-ONLY now: what a product asks is structure the predefined library owns, so there is
+   * no add and no remove here. Removing one used to delete the QUESTION outright, which — with
+   * the add screen gone — was a one-way door on a product an operator cannot recreate either.
    */
-  protected readonly removing = signal<string | null>(null);
-  protected readonly askError = signal<string | null>(null);
-
-  /**
-   * Remove something the product asks.
-   *
-   * Adding an ask was create-only: there was no way to fix a mistake and no way to take one
-   * back, so a typo in a question was permanent and a fact bound to the wrong question stayed
-   * bound. This is the taking-back half.
-   *
-   * THE ORDER IS FORCED, not chosen:
-   *
-   *   unbind first   `platform_enumeration.boundQuestionId` points AT the question. Deleting
-   *                  the question first would leave the fact bound to nothing for as long as
-   *                  it took to notice, and `surrogateFactRegistry()` would drop it silently.
-   *   fact next      while a live rule still reads `fact:<key>`, `countReferences` refuses —
-   *                  which is the right answer, and the message says which rule.
-   *   question last  soft-deleted, so answers already given keep resolving. `QUESTION_IN_USE`
-   *                  refuses one another question branches on.
-   *
-   * No confirm dialog before the first call, for the reason the product delete gives: the
-   * refusal IS the confirmation, and a dialog asking "are you sure?" before the server has
-   * said what is at stake asks the operator to confirm something neither of them has seen.
-   */
-  protected async removeAsk(thing: AskedThing): Promise<void> {
-    if (this.removing() !== null) return;
-    this.removing.set(thing.factKey);
-    this.askError.set(null);
-    try {
-      const rows = await this.lookups.list('surrogate_fact');
-      const fact = rows.find((r) => r.key === thing.factKey);
-      if (fact) {
-        await this.lookups.setBoundQuestion(fact.id, null);
-        await this.lookups.remove(fact.id);
-      }
-
-      if (thing.questionCode) {
-        // The question's id is not on the fact registry — that projection carries the CODE,
-        // which is what every other surface speaks. One tree read to resolve it is cheap for
-        // an action taken this rarely, and avoids a second id on a hot projection.
-        const tree = await this.questions.tree();
-        const question = tree
-          .flatMap((group) => group.questions)
-          .find((q) => q.code === thing.questionCode);
-        if (question) await this.questions.deleteQuestion(question.id);
-      }
-
-      await this.enumTypes.refresh();
-      await this.enums.refresh('surrogate_fact');
-      await this.load({ silent: true });
-    } catch (err) {
-      this.askError.set(this.localizedError(err));
-    } finally {
-      this.removing.set(null);
-    }
-  }
-
   protected readonly askedThings = computed<AskedThing[]>(() => {
     const key = this.productKey();
     return this.facts()
@@ -1401,19 +1369,6 @@ export class SurrogateProductDetailPage {
 
   protected askedInLabel(cats: readonly LoanCategory[]): string {
     return cats.map((c) => categoryLabel(c)).join(' · ');
-  }
-
-  /**
-   * Author one more thing this product asks — list, question and fact in one pass.
-   *
-   * ITS OWN SCREEN (`/program-catalog/products/:key/asks/new`), not a dialog: the form branches
-   * on the kind of answer, grows two lists of rows and runs four writes, and a run that
-   * stops halfway needs a URL to come back to. The product page reloads on return because
-   * navigating back creates it fresh.
-   */
-  protected addAsk(): void {
-    if (!this.product()) return;
-    void this.router.navigate([PRODUCT_BASE, this.key, 'asks', 'new']);
   }
 
   protected label(p: SurrogateProductDetail): string {

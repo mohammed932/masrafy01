@@ -979,32 +979,6 @@ export interface ProductBlueprint {
   }>;
 }
 
-/** What creating one wrote, and what was already there. */
-export interface CreateFromBlueprintResult {
-  blueprintKey: string;
-  /** `null` for a cap-only product: it builds the question and the list and no product. */
-  productKey: string | null;
-  /** The fact a cap-only product's table is keyed by — where the operator goes next. */
-  capFactKey: string | null;
-  created: {
-    lists: string[];
-    values: number;
-    questions: string[];
-    facts: string[];
-    widened: string[];
-    revived: string[];
-  };
-  reused: { typeKeys: string[]; questionCodes: string[]; factKeys: string[]; valueKeys: string[] };
-  publishedQuestionnaire: boolean;
-}
-
-/** One starter shape. SHAPE ONLY — the words are this bundle's, in both locales. */
-export interface TemplateStarter {
-  key: string;
-  outputKind: ProductTemplate['outputKind'];
-  mechanism: TemplateMechanismKind;
-}
-
 /** What the form screen reads on open. */
 export interface SurrogateProductTemplateResponse {
   key: string;

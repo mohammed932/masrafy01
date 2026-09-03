@@ -29,7 +29,11 @@ import type { IncomeAssumptionConfig } from '@/matching/types';
 function makeGuard(catalog: Record<string, IncomeAssumptionConfig>) {
   const enums = {
     isAvailable: async () => true,
-    programNameIncomeRules: async () => new Map(Object.entries(catalog)),
+    // The map holds RESOLUTIONS, not rules: an entry is either the finished catalog rule
+    // or a statement that the platform is withholding it. Every case here is a live
+    // product or a name's own rule, so every entry is the plain `{ rule }` variant.
+    programNameIncomeRules: async () =>
+      new Map(Object.entries(catalog).map(([key, rule]) => [key, { rule }])),
   };
   const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never);
   return (args: {
@@ -49,7 +53,11 @@ function makeGuard(catalog: Record<string, IncomeAssumptionConfig>) {
 function makeActivationGuard(catalog: Record<string, IncomeAssumptionConfig>) {
   const enums = {
     isAvailable: async () => true,
-    programNameIncomeRules: async () => new Map(Object.entries(catalog)),
+    // The map holds RESOLUTIONS, not rules: an entry is either the finished catalog rule
+    // or a statement that the platform is withholding it. Every case here is a live
+    // product or a name's own rule, so every entry is the plain `{ rule }` variant.
+    programNameIncomeRules: async () =>
+      new Map(Object.entries(catalog).map(([key, rule]) => [key, { rule }])),
   };
   const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never);
   return (existing: {

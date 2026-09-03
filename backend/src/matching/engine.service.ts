@@ -331,8 +331,13 @@ export class EngineService {
 /**
  * Map a quote-unavailable reason onto the legacy failed-check vocabulary, so
  * `generateSuggestions` and `pickPrimaryReason` keep working unchanged.
+ *
+ * Exported for its own test. The switch is exhaustive, so TypeScript already forces a case
+ * for every new reason; what a test can add is that the case is the RIGHT one — mapping a
+ * platform state onto `monthly_income` compiles perfectly and sends the suggestion engine
+ * off proposing a guarantor for something no applicant can change.
  */
-function reasonToCheckCode(reason: FiguresUnavailableReason): string {
+export function reasonToCheckCode(reason: FiguresUnavailableReason): string {
   switch (reason) {
     case 'OBLIGATIONS_EXCEED_ALLOWANCE':
     case 'BELOW_PROGRAM_MIN_AMOUNT':
@@ -362,6 +367,12 @@ function reasonToCheckCode(reason: FiguresUnavailableReason): string {
     // suggestion engine off proposing a guarantor for a missing table row.
     case 'NO_MAX_LOAN_FOR_ANSWER':
       return 'loan_amount';
+    // The no-payslip product this program quotes from is switched off. Its own check code
+    // for the same reason as the two above: nothing about this applicant is in question,
+    // and mapping a platform switch to `monthly_income` would have the suggestion engine
+    // proposing a guarantor for something only an operator can undo.
+    case 'SURROGATE_PRODUCT_RETIRED':
+      return 'program_misconfigured';
   }
 }
 

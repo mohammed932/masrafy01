@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
-import type { IncomeAssumptionConfig } from '@/matching/types';
+import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import {
   EnumerationMember,
   EnumerationType,
@@ -97,9 +97,10 @@ export class InMemoryPlatformEnumerationsRepository
    *
    * Nothing to resolve, so no product link is walked here. If this stub ever seeds a
    * catalog name, it must resolve `surrogateProductKey` the way the Postgres repository
-   * does, or a linked name will silently read as ruleless.
+   * does — including the switched-off case, which resolves to a `withheld` marker rather
+   * than to an absent rule — or a linked name will silently read as ruleless.
    */
-  async programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>> {
+  async programNameIncomeRules(): Promise<CatalogIncomeRules> {
     return new Map();
   }
 
@@ -222,11 +223,6 @@ export class InMemoryPlatformEnumerationsRepository
   }
 
   async deleteTypeDefinition(): Promise<never> {
-    throw new Error('in-memory enumeration registry is read-only');
-  }
-
-  /** Read-only stub — there are no products to delete, and no bank programs to cascade to. */
-  async deleteSurrogateProductCascade(): Promise<never> {
     throw new Error('in-memory enumeration registry is read-only');
   }
 

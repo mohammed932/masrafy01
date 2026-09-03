@@ -13,6 +13,7 @@ import type {
   SurrogateFactBinding,
 } from '@/matching/pipeline/surrogate-fact-registry';
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
+import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 
 export type EnumerationType =
@@ -501,19 +502,6 @@ export abstract class PlatformEnumerationsRepository {
   /** How many `platform_enumeration` rows carry this type — the delete gate for a KIND. */
   abstract countRowsOfType(type: string): Promise<number>;
 
-  /**
-   * Hard-delete a surrogate product with the bank programs and links that only exist
-   * because of it. One transaction, FK order; see the Postgres implementation.
-   *
-   * The caller has already confirmed: the endpoint refuses without an explicit `cascade`
-   * and names every row that would go.
-   */
-  abstract deleteSurrogateProductCascade(
-    key: string,
-    nameKeys: readonly string[],
-    programCodes: readonly string[],
-  ): Promise<void>;
-
   /** True when key is BOTH present AND active for the given enumeration type. */
   abstract isActiveMember(type: string, key: string): Promise<boolean>;
 
@@ -603,11 +591,17 @@ export abstract class PlatformEnumerationsRepository {
    * has decided" and "an operator decided `declared`" are different answers, and the
    * second one is a stored `{"strategy":"declared"}` that must come back as such.
    *
+   * An entry is a RESOLUTION and not a rule, because one of the answers is "the platform
+   * is withholding it": a name whose linked surrogate product is switched off resolves to
+   * a `withheld` marker, which the quote refuses on. Spelling that as an absent rule
+   * instead would let a single-fact product quote off the applicant's declared payslip.
+   *
    * Uncached by contract, like `surrogateFactRegistry`: it feeds a quote. A 60s window
    * in which an edited table still quotes the old figure is a wrong loan amount, not a
-   * stale picker.
+   * stale picker. It is also what makes switching a product off take effect on the very
+   * next quote rather than up to a minute later.
    */
-  abstract programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>>;
+  abstract programNameIncomeRules(): Promise<CatalogIncomeRules>;
 
   /**
    * Every ACTIVE registry value that is filed under a parent, as `key → parentKey`.

@@ -695,6 +695,16 @@ export interface BankProgramSnapshot {
   incomeAssumption: IncomeAssumptionConfig;
   fees: FeesConfig;
 
+  /**
+   * Set when the platform is withholding the calculation rather than the bank having
+   * misconfigured one — today, only because the surrogate product the program's catalog
+   * name links to is switched off.
+   *
+   * A string union rather than a boolean, so a second withholding cause never needs a
+   * second field. Absent on every program that quotes, which is nearly all of them.
+   */
+  incomeRuleWithheld?: 'surrogate_product_retired';
+
   deprecatedKeys?: DeprecatedKeyWarning[];
 }
 
@@ -900,6 +910,22 @@ export const FIGURES_UNAVAILABLE_REASONS = [
    * the program's cap table; the two lead to edits on two different screens.
    */
   'NO_MAX_LOAN_FOR_ANSWER',
+  /**
+   * The no-payslip product this program's catalog name takes its calculation from is
+   * switched OFF, so the platform is withholding the calculation.
+   *
+   * A "no figures" outcome and NOT a filter: the program stays listed and stays ranked,
+   * and the reason names the admin action — turn the product back on, or move the name
+   * onto one that is live. Reintroducing it as an eligibility filter is forbidden (A33).
+   *
+   * It has to be its OWN reason rather than an absent rule. A single-fact product
+   * (`byGrade`, `byProfessorRank`) whose rule merely went missing reaches
+   * `income-resolver.ts`'s "no surrogate figure, a declared salary still carries the
+   * quote" branch — and `monthly_income` is a required question, so essentially every
+   * applicant has one. Omitting the rule would silently re-price the program off a
+   * payslip the bank never agreed to lend against.
+   */
+  'SURROGATE_PRODUCT_RETIRED',
 ] as const;
 
 export type FiguresUnavailableReason = (typeof FIGURES_UNAVAILABLE_REASONS)[number];
