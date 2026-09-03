@@ -24,8 +24,15 @@ import type { IncomeBasis } from '@core/income-basis';
 import type { EnumerationRow } from '@features/lookups/lookups.api.service';
 import type { SurrogateProductSummary } from '@features/bank-programs/bank-programs.types';
 
-/** The board's facet. `all` is a filter value, never a basis. */
-export type BasisFilter = 'all' | IncomeBasis;
+/**
+ * The board's facet — one of the two bases, and nothing else.
+ *
+ * There is no `all`. The two chips hold DIFFERENT OBJECTS (catalog names on one side,
+ * the calculations a no-payslip name quotes off on the other), so an "all" view was one
+ * unheaded run of mixed cards that changed shape halfway down and needed its own pair of
+ * headings to be readable at all. Two states, one control, one kind of card on stage.
+ */
+export type BasisFilter = IncomeBasis;
 
 /** One surrogate product, with the names that sell it resolved. */
 export interface ProductCard {
@@ -69,9 +76,8 @@ export interface CatalogBoard {
    * what makes "Surrogate 0" readable as "nothing here matches" rather than as "there are
    * none".
    *
-   * `all` is the sum of the two, and the two may overlap in NAMES but never in CARDS: a
-   * name sold both ways is one proof card plus one chip inside somebody's product card, so
-   * nothing is counted twice.
+   * The two may overlap in NAMES but never in CARDS: a name sold both ways is one proof
+   * card plus one chip inside somebody's product card, so nothing is counted twice.
    */
   readonly counts: Readonly<Record<BasisFilter, number>>;
 }
@@ -197,6 +203,6 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
     products,
     unlinked,
     deprecated,
-    counts: { all: payslip + noPayslip, payslip, no_payslip: noPayslip },
+    counts: { payslip, no_payslip: noPayslip },
   };
 }

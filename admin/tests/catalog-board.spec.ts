@@ -152,7 +152,7 @@ describe('buildBoard — a name sold both ways', () => {
     expect(b.products[0]?.names.map((r) => r.key)).toEqual(['doctor']);
     expect(b.unlinked).toHaveLength(0);
     // One card each side: the counts add up, and neither side is short.
-    expect(b.counts).toEqual({ all: 2, payslip: 1, no_payslip: 1 });
+    expect(b.counts).toEqual({ payslip: 1, no_payslip: 1 });
   });
 });
 
@@ -245,7 +245,7 @@ describe('buildBoard — search', () => {
       products: [product({ key: 'p' })],
       search: 'doctor',
     });
-    expect(b.counts).toEqual({ all: 1, payslip: 1, no_payslip: 0 });
+    expect(b.counts).toEqual({ payslip: 1, no_payslip: 0 });
   });
 
   // --- a product switched OFF -------------------------------------------------

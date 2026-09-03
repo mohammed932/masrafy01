@@ -212,7 +212,7 @@ export interface RegistryFact {
   question: {
     code: string;
     label: string;
-    type: 'SINGLE_SELECT' | 'NUMERIC';
+    type: AskQuestionType;
     active: boolean;
     options: Array<{ code: string; labelAr: string; labelEn: string }>;
     /**
@@ -485,7 +485,10 @@ export function incomeMethodShape(
   if (factKey !== null) {
     const question = facts.find((f) => f.key === factKey)?.question;
     if (!question) return 'none';
-    return question.type === 'SINGLE_SELECT' ? 'keyTable' : 'bands';
+    // Only a NUMBER is banded. Every other answer is looked up by a KEY — one option code,
+    // several (a multi-pick, read by the bank's own row order), or the reserved presence key
+    // a text answer offers. Mirrors `resolveRegistryFact`, so the two sides cannot disagree.
+    return question.type === 'NUMERIC' ? 'bands' : 'keyTable';
   }
   if (strategy === PRODUCT_RULE_STRATEGY) return 'steps';
   return INCOME_METHOD_SHAPE[strategy as BuiltinIncomeStrategy] ?? 'none';
@@ -773,7 +776,42 @@ export function factKeyOptions(
   const factKey = factKeyOf(strategy);
   if (factKey === null) return [];
   const question = facts.find((f) => f.key === factKey)?.question;
-  return question?.type === 'SINGLE_SELECT' ? question.options : [];
+  if (!question) return [];
+  // A TEXT answer is read for PRESENCE only, so the one row a bank can state a figure
+  // against is the reserved key. Offered as a row rather than left empty: an empty list
+  // reads as "this fact cannot be configured", and it can — with exactly one figure.
+  if (question.type === 'TEXT') return [PRESENCE_FACT_OPTION];
+  // SINGLE_SELECT and MULTI_SELECT share one list: a multi-pick is keyed by the SAME option
+  // codes, several at a time, and the bank's row order decides which pick is read.
+  return question.type === 'NUMERIC' ? [] : question.options;
+}
+
+/**
+ * The key a TEXT-bound fact's table is keyed by, and its label.
+ *
+ * Mirrors `PRESENCE_FACT_LOOKUP_KEY` in `backend/src/matching/pipeline/fact-value.ts`. A
+ * literal here rather than a fetched value because it is a CONTRACT, not data: the engine
+ * looks this key up and the label is the operator's words for it.
+ */
+export const PRESENCE_FACT_LOOKUP_KEY = 'answered';
+
+/**
+ * Both label fields carry the SAME localized string on purpose: every consumer picks one
+ * of the two by the running locale, and this row is not a registry value with a label per
+ * language — it is the platform's own words for "the question was answered".
+ */
+const PRESENCE_FACT_OPTION = {
+  code: PRESENCE_FACT_LOOKUP_KEY,
+  get labelAr(): string {
+    return presenceLabel();
+  },
+  get labelEn(): string {
+    return presenceLabel();
+  },
+};
+
+function presenceLabel(): string {
+  return $localize`:@@income_rule.fact.presence_key:They answered the question`;
 }
 
 /** One row of a key table: a registry member and the income the bank assigns it. */
@@ -1013,7 +1051,12 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
  * for both writes, so the screen absorbs a whole board per click rather than re-reading
  * three things that can disagree about what one tick did.
  */
-export type ProductAskDetachReason = 'blueprint_owned' | 'read_by_own_rule' | 'fact_still_read';
+/**
+ * Why an untick is refused. No `blueprint_owned` — an ask that came with the product IS
+ * removable; the server tombstones its row instead of deleting it so the seed cannot put it
+ * back. Where the ask came from is `ProductAsk.source`, which is provenance, not a gate.
+ */
+export type ProductAskDetachReason = 'read_by_own_rule' | 'fact_still_read';
 
 /**
  * The four question types, as the ask board's wire shape carries them.
@@ -1029,7 +1072,7 @@ export type AskQuestionType = 'SINGLE_SELECT' | 'MULTI_SELECT' | 'NUMERIC' | 'TE
 /** One thing this product reads: a fact, the question behind it, and where it is asked. */
 export interface ProductAsk {
   factKey: string;
-  /** `blueprint` came with the predefined product and cannot be removed here. */
+  /** `blueprint` came with the predefined product. Rendered as provenance; still removable. */
   source: 'blueprint' | 'operator';
   /** `null` when the fact reads no question — broken, and rendered as broken. */
   questionCode: string | null;
@@ -1047,14 +1090,16 @@ export interface ProductAsk {
   detach: { ok: boolean; reason?: ProductAskDetachReason; meta?: Record<string, unknown> };
 }
 
-/** Why a pool question cannot be a fact. Served, never derived here — one authority. */
-export type AskIneligibleReason =
-  | 'text'
-  | 'multi_select'
-  | 'money_binding'
-  | 'obligation_item'
-  | 'bank_axis'
-  | 'debt_types';
+/**
+ * Why a pool question cannot be a fact. Served, never derived here — one authority.
+ *
+ * One value left. Every question type is readable now (a key table over option codes, a
+ * band table over a number, the presence of a text answer) and the six domain refusals —
+ * the declared salary, the loan being asked for, one itemised debt, the derived bank axes —
+ * are gone: what a fact MEANS is the operator's decision on this board. What remains can
+ * only appear if the schema grows a type the platform has no reader for.
+ */
+export type AskIneligibleReason = 'unsupported_type';
 
 /** One pool question as the grid renders it. EVERY active question is listed. */
 export interface AskPoolQuestion {

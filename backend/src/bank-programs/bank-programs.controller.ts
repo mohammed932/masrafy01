@@ -319,7 +319,7 @@ export class BankProgramsController {
     status: 422,
     description:
       'SURROGATE_FACT_QUESTION_INACTIVE | SURROGATE_FACT_QUESTION_TYPE_INVALID | ' +
-      'SURROGATE_FACT_QUESTION_NOT_ELIGIBLE | SURROGATE_FACT_WIDEN_REQUIRED | ' +
+      'SURROGATE_FACT_WIDEN_REQUIRED | ' +
       'SURROGATE_FACT_KEY_RESERVED',
   })
   async attachProductAsk(

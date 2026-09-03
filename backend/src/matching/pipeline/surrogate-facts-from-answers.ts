@@ -79,11 +79,20 @@ export interface SurrogateFactAnswers {
   /**
    * Every MULTI_SELECT answer by question code — all the codes picked.
    *
-   * No surrogate fact is a multi-pick and none may become one (`BINDABLE_QUESTION_TYPES`),
-   * so this feeds exactly one thing: the bank-relationship list, whose answer is a SET by
-   * nature ("which of these banks do you use?") and is never looked up as a key.
+   * Two readers now. The bank-relationship lists, whose answer is a SET by nature ("which
+   * of these banks do you use?") and is never looked up as a key; and any registry fact
+   * bound to a multi-pick question, which IS looked up as a key — by the bank's row order,
+   * over all the codes at once (`fact-value.ts`).
    */
   readonly multiByCode?: ReadonlyMap<string, readonly string[]>;
+  /**
+   * Every TEXT answer by question code, trimmed.
+   *
+   * Only its PRESENCE reaches a fact: the value is read for "was this answered at all" and
+   * discarded. Carried as the text rather than as a boolean so this map stays the same
+   * shape as the other three and one builder fills all four the same way.
+   */
+  readonly textByCode?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -191,6 +200,24 @@ function registryFactValue(
     const picked = answers.optionByCode.get(binding.questionCode);
     if (picked === undefined || picked === '') return undefined;
     return { kind: 'choice', optionCode: picked };
+  }
+
+  if (binding.type === 'MULTI_SELECT') {
+    const picked = answers.multiByCode?.get(binding.questionCode);
+    // An empty pick list is not an answer, for the same reason a blank single pick is not:
+    // the resolver must say `fact_not_answered` ("we never asked / you skipped") rather
+    // than `no_matching_row` ("your answer isn't in this bank's table").
+    if (picked === undefined || picked.length === 0) return undefined;
+    return { kind: 'choices', optionCodes: [...picked] };
+  }
+
+  if (binding.type === 'TEXT') {
+    const text = answers.textByCode?.get(binding.questionCode);
+    if (text === undefined || text.trim() === '') return undefined;
+    // PRESENCE, and nothing about the words. The value is deliberately dropped here rather
+    // than carried and ignored downstream: a reader holding the prose would eventually
+    // match on it, which is exactly the keyword scoring A33 forbids.
+    return { kind: 'presence' };
   }
 
   const raw = answers.numericByCode.get(binding.questionCode);

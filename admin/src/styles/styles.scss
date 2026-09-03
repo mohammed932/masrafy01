@@ -130,6 +130,60 @@ section.dashboard {
 }
 
 // ============================================================================
+// NG-ZORRO pagination — the ink antd hardcodes.
+//
+// `.ant-pagination-item a` ships `rgba(0, 0, 0, 0.85)` as a LITERAL, so in dark
+// mode every page number except the current one is black ink on a near-black
+// ground: measured at 1.11:1, which is invisible, on every screen that pages —
+// the question pool, a product's asks, and now a lookup type's values. The
+// current page fares little better at 2.63:1, under even the 3:1 a UI component
+// needs. Fixed with TOKENS rather than a `[data-theme='dark']` patch: the token
+// flips with the theme, while a second literal would leave the same defect one
+// theme away.
+// ============================================================================
+.ant-pagination-item a {
+  color: var(--color-text-secondary);
+}
+.ant-pagination-item:hover a,
+.ant-pagination-item-active a {
+  color: var(--primary-visible);
+}
+.ant-pagination-item-active {
+  background: transparent;
+  border-color: var(--primary-visible);
+}
+.ant-pagination-prev button,
+.ant-pagination-next button,
+.ant-pagination-item-link {
+  color: var(--color-text-secondary);
+}
+// A disabled arrow still has to read as an arrow — muted, not absent.
+.ant-pagination-disabled .ant-pagination-item-link,
+.ant-pagination-disabled button {
+  color: var(--color-text-disabled);
+}
+
+// Fingers, not cursors. antd's compact pager is a 24px box, which is half the
+// 44px a touch target needs; only where there is no hover, so the desktop
+// rhythm the three paged screens share is untouched.
+@media (hover: none) {
+  // Matched against antd's OWN selector, class for class. `ant-pagination-mini`
+  // states `min-width: 24px` at three classes, so a bare `.ant-pagination-item`
+  // bought the height and not the width — measured at 24x44, which is the half
+  // of a tap target that does not help.
+  .ant-pagination.ant-pagination-mini .ant-pagination-item,
+  .ant-pagination.ant-pagination-mini .ant-pagination-prev,
+  .ant-pagination.ant-pagination-mini .ant-pagination-next,
+  .ant-pagination .ant-pagination-item,
+  .ant-pagination .ant-pagination-prev,
+  .ant-pagination .ant-pagination-next {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+    line-height: 44px;
+  }
+}
+
+// ============================================================================
 // NG-ZORRO input override — pilot100-aligned design system
 // Tactile pill input: subtle bg, 10px radius, generous padding, accent focus
 // ============================================================================

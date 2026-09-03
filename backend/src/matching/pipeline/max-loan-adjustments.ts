@@ -40,6 +40,7 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { SurrogateFactValue } from '../types';
+import { factAnswerHasKey } from './fact-value';
 
 export const MAX_LOAN_ADJUSTMENT_KINDS = ['upliftPercent', 'sharePercent'] as const;
 
@@ -101,8 +102,11 @@ export function applyMaxLoanAdjustments(args: {
 
   for (const adjustment of args.adjustments) {
     const answer = args.facts[adjustment.whenFactKey];
-    if (answer === undefined || answer.kind !== 'choice') continue;
-    if (answer.optionCode !== adjustment.whenOptionCode) continue;
+    if (answer === undefined) continue;
+    // Key-shaped answers only: an adjustment names ONE option code, and a number has no
+    // code to compare. A multi-pick applies when the named code is among the picks, which is
+    // the only reading that does not silently ignore an answer the applicant gave.
+    if (!factAnswerHasKey(answer, adjustment.whenOptionCode)) continue;
 
     const percent = toDecimal(adjustment.percent);
     // An unreadable or non-positive percentage is treated as NOT CONFIGURED rather than as a

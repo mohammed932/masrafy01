@@ -35,8 +35,10 @@ import {
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
+  RailTabsComponent,
   StatStripComponent,
   openFormDrawer,
+  type RailTabItem,
   type StatStripItem,
 } from '@shared/ui';
 import {
@@ -116,6 +118,7 @@ const PARKED_NAMES_SHOWN = 6;
     NzToolTipModule,
     NgTemplateOutlet,
     PageHeaderComponent,
+    RailTabsComponent,
     StatStripComponent,
   ],
   providers: [
@@ -217,16 +220,21 @@ const PARKED_NAMES_SHOWN = 6;
              the flow opens on. A CALCULATION is not a second capability: step 3 of that flow
              starts one from a shape, and the two product screens keep their own links to the
              picker for the rarer errand of making one that no name sells yet. -->
-        <a
-          nz-button
-          nzType="primary"
-          class="add-btn"
-          [routerLink]="newNameLink().commands"
-          [queryParams]="newNameLink().queryParams"
-        >
-          <span nz-icon nzType="plus" nzTheme="outline"></span>
-          <span i18n="@@program_catalog.dialog.add">Add program</span>
-        </a>
+        <!-- Withheld on the Surrogate chip: a no-payslip PRODUCT is seeded, never created
+             (v22.0.0 — seed:blueprints), so the only thing this button could add
+             while that chip is on is a catalog NAME, which is not what the chip lists. -->
+        @if (basisFilter() !== 'no_payslip') {
+          <a
+            nz-button
+            nzType="primary"
+            class="add-btn"
+            [routerLink]="newNameLink().commands"
+            [queryParams]="newNameLink().queryParams"
+          >
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            <span i18n="@@program_catalog.dialog.add">Add program</span>
+          </a>
+        }
       </div>
 
       @if (loading()) {
@@ -248,37 +256,38 @@ const PARKED_NAMES_SHOWN = 6;
           </div>
         }
       } @else {
-        <!-- ONE grid. Income basis is a facet of a name, not a class of name: the same
-             "Doctors — Practice" is sold against a payslip by one bank and against a
-             years-in-practice table by another, so a lane split printed it twice and
-             each copy told half the truth. The chips filter; the card states both. -->
-        <div class="basis-bar" role="group" [attr.aria-label]="basisFilterAria">
-          @for (c of basisChips(); track c.id) {
-            <button
-              type="button"
-              class="basis-chip"
-              [class.on]="basisFilter() === c.id"
-              [attr.aria-pressed]="basisFilter() === c.id"
-              (click)="setBasis(c.id)"
-            >
-              <span class="basis-label">{{ c.label }}</span>
-              <span class="basis-n">{{ c.n }}</span>
-            </button>
-          }
-        </div>
+        <!-- TWO states, and they are a real tablist. Income basis is a facet of a NAME —
+             the same "Doctors — Practice" is sold against a payslip by one bank and against
+             a years-in-practice table by another, so a lane split printed it twice and each
+             copy told half the truth. But the two sides hold different OBJECTS (names on one,
+             the calculations a no-payslip name quotes off on the other), so what the control
+             switches is the panel, not a filter over one grid — which is what the deleted
+             "All" chip could never be: one unheaded run of mixed cards that changed shape
+             halfway down and needed its own pair of headings to be readable.
 
-        <!-- On All the two sides are headed, because they hold different objects and a
-             single unheaded run of mixed cards would read as one list that changes shape
-             halfway down. On a single chip the chip is the heading. -->
+             The shared segmented rail, not three bespoke chips: one inset track, one raised
+             segment, one kind of card on stage — and the keyboard contract (roving tabindex,
+             arrows mirrored in RTL) comes with it rather than being copied wrong here. -->
+        <app-rail-tabs
+          appearance="segmented"
+          uniform
+          idPrefix="basis"
+          [items]="basisChips()"
+          [activeId]="basisFilter()"
+          [ariaLabel]="basisFilterAria"
+          (select)="setBasis(asBasis($event))"
+        />
+
+        <!-- The live segment IS the heading: it carries the label, the note that says what
+             the panel holds, and the count. A second heading repeating it inside the panel
+             is the same words twice, one gap apart. -->
         @if (showProof()) {
-          <section class="lane-group">
-            @if (grouped()) {
-              <h2 class="lane-head">
-                <span nz-icon nzType="appstore" nzTheme="outline" aria-hidden="true"></span>
-                <span>{{ proofHead }}</span>
-                <span class="lane-n">{{ proofNames().length }}</span>
-              </h2>
-            }
+          <section
+            class="basis-panel lane-group"
+            role="tabpanel"
+            id="basis-panel-payslip"
+            aria-labelledby="basis-tab-payslip"
+          >
             @if (proofNames().length > 0) {
               <ul class="cards" role="list">
                 @for (r of proofNames(); track r.id) {
@@ -300,62 +309,62 @@ const PARKED_NAMES_SHOWN = 6;
         }
 
         @if (showSurrogate()) {
-          <section class="lane-group">
-            @if (grouped()) {
-              <h2 class="lane-head">
-                <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
-                <span>{{ surrogateHead }}</span>
-                <span class="lane-n">{{ products().length }}</span>
-              </h2>
-            }
-            @if (products().length > 0) {
-              <ul class="cards" role="list">
-                @for (c of products(); track c.product.key) {
-                  <ng-container
-                    [ngTemplateOutlet]="productCard"
-                    [ngTemplateOutletContext]="{ c: c }"
-                  />
-                }
-              </ul>
-            } @else {
-              <div class="board-empty">
-                <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
-                <p i18n="@@program_catalog.surrogate.empty">
-                  No calculation for a customer with no payslip yet. Start one from a shape and the
-                  questions it asks are built with it.
-                </p>
-              </div>
-            }
-          </section>
-
-          @if (unlinked().length > 0) {
+          <div
+            class="basis-panel"
+            role="tabpanel"
+            id="basis-panel-no_payslip"
+            aria-labelledby="basis-tab-no_payslip"
+          >
             <section class="lane-group">
-              <h2 class="lane-head">
-                <span
-                  nz-icon
-                  nzType="exclamation-circle"
-                  nzTheme="outline"
-                  aria-hidden="true"
-                ></span>
-                <span i18n="@@program_catalog.unlinked.head"
-                  >Not taking a product's calculation</span
-                >
-                <span class="lane-n">{{ unlinked().length }}</span>
-              </h2>
-              <p class="lane-note" i18n="@@program_catalog.unlinked.note">
-                Sold without a payslip, but not pointed at one of the calculations above. Open a
-                name to see how it works its income out.
-              </p>
-              <ul class="cards" role="list">
-                @for (u of unlinked(); track u.row.id) {
-                  <ng-container
-                    [ngTemplateOutlet]="nameCard"
-                    [ngTemplateOutletContext]="{ r: u.row, unlinked: u.state }"
-                  />
-                }
-              </ul>
+              @if (products().length > 0) {
+                <ul class="cards" role="list">
+                  @for (c of products(); track c.product.key) {
+                    <ng-container
+                      [ngTemplateOutlet]="productCard"
+                      [ngTemplateOutletContext]="{ c: c }"
+                    />
+                  }
+                </ul>
+              } @else {
+                <div class="board-empty">
+                  <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                  <p i18n="@@program_catalog.surrogate.empty">
+                    No calculation for a customer with no payslip yet. Start one from a shape and
+                    the questions it asks are built with it.
+                  </p>
+                </div>
+              }
             </section>
-          }
+
+            @if (unlinked().length > 0) {
+              <section class="lane-group">
+                <h2 class="lane-head">
+                  <span
+                    nz-icon
+                    nzType="exclamation-circle"
+                    nzTheme="outline"
+                    aria-hidden="true"
+                  ></span>
+                  <span i18n="@@program_catalog.unlinked.head"
+                    >Not taking a product's calculation</span
+                  >
+                  <span class="lane-n">{{ unlinked().length }}</span>
+                </h2>
+                <p class="lane-note" i18n="@@program_catalog.unlinked.note">
+                  Sold without a payslip, but not pointed at one of the calculations above. Open a
+                  name to see how it works its income out.
+                </p>
+                <ul class="cards" role="list">
+                  @for (u of unlinked(); track u.row.id) {
+                    <ng-container
+                      [ngTemplateOutlet]="nameCard"
+                      [ngTemplateOutletContext]="{ r: u.row, unlinked: u.state }"
+                    />
+                  }
+                </ul>
+              </section>
+            }
+          </div>
         }
 
         @if (deprecated().length > 0) {
@@ -729,54 +738,27 @@ const PARKED_NAMES_SHOWN = 6;
         letter-spacing: 0;
         color: var(--color-text-tertiary);
       }
-      /* --- Income-basis filter ---------------------------------------------- */
-      /* Toggle buttons with aria-pressed, NOT a tablist: one grid is being filtered,
-         not swapped for another panel, and a role the widget does not honour is worse
-         for a screen reader than the plain button it really is. Tab order is the
-         reading order, so no roving tabindex is needed either. */
-      .basis-bar {
+      /* --- Income-basis panels ---------------------------------------------- */
+      /* The control itself is the shared segmented rail; only the PANEL is styled here.
+         It enters rather than cutting: the two panels hold different objects, so a swap
+         with no transition reads as the page having reloaded under the pointer. Short and
+         downward-settling, the house entry, and gone entirely under reduced motion. */
+      .basis-panel {
         display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
+        flex-direction: column;
+        gap: var(--space-5);
+        animation: basis-panel-in var(--motion-duration-base) var(--motion-easing-standard) both;
       }
-      .basis-chip {
-        display: inline-flex;
-        align-items: baseline;
-        gap: var(--space-2);
-        padding: var(--space-1) var(--space-3);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-pill);
-        background: var(--color-surface-default);
-        color: var(--color-text-secondary);
-        font: inherit;
-        font-size: var(--text-xs);
-        cursor: pointer;
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          background-color var(--motion-duration-fast) var(--motion-easing-standard),
-          color var(--motion-duration-fast) var(--motion-easing-standard);
+      @keyframes basis-panel-in {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
       }
-      .basis-chip:hover {
-        border-color: var(--color-border-strong);
-        color: var(--color-text-primary);
-      }
-      .basis-chip:focus-visible {
-        outline: 2px solid var(--color-brand-primary);
-        outline-offset: 2px;
-      }
-      .basis-chip.on {
-        border-color: var(--color-brand-primary);
-        background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
-        color: var(--color-text-primary);
-        font-weight: var(--font-weight-semibold);
-      }
-      .basis-n {
-        font-family: var(--font-family-numeric);
-        font-feature-settings: var(--font-feature-tabular);
-        color: var(--color-text-tertiary);
-      }
-      .basis-chip.on .basis-n {
-        color: var(--color-brand-primary);
+      @media (prefers-reduced-motion: reduce) {
+        .basis-panel {
+          animation: none;
+        }
       }
 
       /* A note under a group heading, when the heading alone cannot say why the group
@@ -1263,16 +1245,14 @@ export class ProgramCatalogPage implements OnInit {
   /**
    * Add a program name, opening on the basis the operator is standing in front of.
    *
-   * The chip seeds the answer rather than deciding it: `all` has no opinion and sends none,
-   * so the create screen asks. That is what lets ONE button serve both sides of the board.
+   * The panel seeds the answer, and now always states one — there is no third, opinionless
+   * state left to send nothing from. The create screen can still change it; this only saves
+   * re-answering the question the tab they are standing on has already answered.
    */
-  protected readonly newNameLink = computed(() => {
-    const basis = this.basisFilter();
-    return {
-      commands: [CATALOG_NEW],
-      queryParams: basis === 'all' ? {} : { basis },
-    };
-  });
+  protected readonly newNameLink = computed(() => ({
+    commands: [CATALOG_NEW],
+    queryParams: { basis: this.basisFilter() },
+  }));
 
   /** Fixed-length placeholders for the shape-matched loading skeleton. */
   protected readonly skeletonCards = [0, 1, 2, 3, 4, 5];
@@ -1287,7 +1267,7 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly activateLabel = $localize`:@@program_catalog.activate:Activate`;
   protected readonly deactivateLabel = $localize`:@@program_catalog.deactivate:Deactivate`;
   protected readonly deleteLabel = $localize`:@@program_catalog.delete:Delete`;
-  protected readonly basisFilterAria = $localize`:@@program_catalog.basis.aria:Filter by how the bank reads the income`;
+  protected readonly basisFilterAria = $localize`:@@program_catalog.basis.aria:How the bank reads the income`;
 
   /**
    * Everything the grid renders, from the two lists this page loads.
@@ -1314,12 +1294,15 @@ export class ProgramCatalogPage implements OnInit {
    * Income basis is a FACET, not a taxonomy — hence a filter over one board rather than the
    * headed lanes this page used to carry per loan category.
    *
-   * What the facet now switches is the KIND of object on screen: names sold against a
-   * payslip, or the calculations a no-payslip name quotes off. It lives in `?basis=` so a
-   * pasted link and a reload land where the operator was, and so `/program-catalog/products`
-   * has somewhere to redirect to. Same posture as `?step=` and `?loan=` on the two detail
-   * pages: the signal is the source of truth and the URL mirrors it with `replaceUrl`, so
-   * flipping a chip does not fill the back button with filter states.
+   * What the facet switches is the KIND of object on screen: names sold against a payslip,
+   * or the calculations a no-payslip name quotes off. It lives in `?basis=` so a pasted link
+   * and a reload land where the operator was, and so `/program-catalog/products` has
+   * somewhere to redirect to. Same posture as `?step=` and `?loan=` on the two detail pages:
+   * the signal is the source of truth and the URL mirrors it with `replaceUrl`, so flipping
+   * a tab does not fill the back button with filter states.
+   *
+   * `payslip` is the landing state — the ordinary product, and the side the Add button
+   * serves — so an operator who followed a plain link is not asked to pick before reading.
    */
   protected readonly basisFilter = signal<BasisFilter>(this.initialBasis());
 
@@ -1327,22 +1310,23 @@ export class ProgramCatalogPage implements OnInit {
     this.basisFilter.set(next);
     void this.router.navigate([], {
       relativeTo: this.route,
-      // `null` REMOVES the param, so the default view has a clean URL and a bookmark of it
-      // does not pin a filter that was never chosen.
-      queryParams: { basis: next === 'all' ? null : next },
+      queryParams: { basis: next },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
   }
 
-  private initialBasis(): BasisFilter {
-    const raw = this.route.snapshot.queryParamMap.get('basis');
-    return raw === 'payslip' || raw === 'no_payslip' ? raw : 'all';
+  /** The rail speaks ids as strings; this is the one place they become the union again. */
+  protected asBasis(id: string): BasisFilter {
+    return id === 'no_payslip' ? 'no_payslip' : 'payslip';
   }
 
-  protected readonly grouped = computed(() => this.basisFilter() === 'all');
-  protected readonly showProof = computed(() => this.basisFilter() !== 'no_payslip');
-  protected readonly showSurrogate = computed(() => this.basisFilter() !== 'payslip');
+  private initialBasis(): BasisFilter {
+    return this.asBasis(this.route.snapshot.queryParamMap.get('basis') ?? '');
+  }
+
+  protected readonly showProof = computed(() => this.basisFilter() === 'payslip');
+  protected readonly showSurrogate = computed(() => this.basisFilter() === 'no_payslip');
 
   /** Nothing loaded at all — distinct from "nothing matches the chip", which is per group. */
   protected readonly isEmpty = computed(
@@ -1354,16 +1338,35 @@ export class ProgramCatalogPage implements OnInit {
     return isNoPayslipName(row);
   }
 
-  protected readonly basisChips = computed<Array<{ id: BasisFilter; label: string; n: number }>>(
-    () => {
-      const c = this.board().counts;
-      return [
-        { id: 'all', label: $localize`:@@program_catalog.basis.all:All`, n: c.all },
-        { id: 'payslip', label: incomeBasisLabel('payslip'), n: c.payslip },
-        { id: 'no_payslip', label: incomeBasisLabel('no_payslip'), n: c.no_payslip },
-      ];
-    },
-  );
+  /**
+   * The two segments. The NOTE is what an "All" view needed a pair of section headings to
+   * say — which kind of object is on stage — and it belongs on the control that switches
+   * them rather than repeated inside the panel one gap below.
+   */
+  protected readonly basisChips = computed<RailTabItem[]>(() => {
+    const c = this.board().counts;
+    return [
+      // The accent is the one the panel's own cards wear — azure for a name, plum for a
+      // surrogate calculation — so the live segment's edge and count name the hue of what
+      // it just put on stage rather than painting both sides one brand colour.
+      {
+        id: 'payslip',
+        label: incomeBasisLabel('payslip'),
+        note: this.proofHead,
+        count: c.payslip,
+        countLabel: this.proofCountLabel,
+        accent: 'var(--color-brand-primary)',
+      },
+      {
+        id: 'no_payslip',
+        label: incomeBasisLabel('no_payslip'),
+        note: this.surrogateHead,
+        count: c.no_payslip,
+        countLabel: this.surrogateCountLabel,
+        accent: 'var(--color-income-surrogate)',
+      },
+    ];
+  });
 
   protected readonly stats = computed<StatStripItem[]>(() => {
     const all = this.rows();
@@ -1697,6 +1700,9 @@ export class ProgramCatalogPage implements OnInit {
 
   protected readonly proofHead = $localize`:@@program_catalog.proof.head:Sold against a payslip`;
   protected readonly surrogateHead = $localize`:@@program_catalog.surrogate.head:Worked out without a payslip`;
+  // A bare number on a tab is announced as part of its name with no unit — "Income proof 10".
+  protected readonly proofCountLabel = $localize`:@@program_catalog.proof.count:program names`;
+  protected readonly surrogateCountLabel = $localize`:@@program_catalog.surrogate.count:calculations and names`;
   protected readonly orphanTitle = $localize`:@@program_catalog.product.orphan:A name points at this calculation, but that name is no longer on the board.`;
 
   /**

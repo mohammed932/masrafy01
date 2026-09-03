@@ -237,3 +237,75 @@ describe('listFigureState', () => {
     });
   });
 });
+
+/**
+ * THE DOCTORS' PRODUCT. Each column is a band table keyed by years in practice — a NUMBER,
+ * so no list of its own — while which column is read comes from the city tier the
+ * governorate is filed under. So the figures are one table per TIER, and a screen that only
+ * ever looked at a column's own keys reported "no amount is keyed by these" over the three
+ * tables an operator has to fill in.
+ */
+const BAND_STEPS: RuleStep[] = [
+  { id: 'src__years_in_practice', op: 'factNumber', fact: 'years_in_practice' },
+  { id: 'primary', op: 'bandTable', of: { step: 'src__years_in_practice' } },
+  { id: 'primary__city_tier_secondary', op: 'bandTable', of: { step: 'src__years_in_practice' } },
+  { id: 'primary__city_tier_other', op: 'bandTable', of: { step: 'src__years_in_practice' } },
+  {
+    id: 'primary_pick',
+    op: 'pickByFact',
+    fact: 'property_governorate',
+    branchOn: 'parentClass',
+    branches: ['city_tier_major', 'city_tier_secondary', 'city_tier_other'],
+    of: [
+      { step: 'primary' },
+      { step: 'primary__city_tier_secondary' },
+      { step: 'primary__city_tier_other' },
+    ],
+  },
+];
+
+const BAND_FACTS: RegistryFact[] = [
+  fact('property_governorate', {
+    optionsEnumerationType: 'governorate',
+    parentEnumerationType: 'city_tier',
+  }),
+  fact('years_in_practice', { type: 'NUMERIC' }),
+];
+
+describe('a pick whose columns are keyed by no list of their own', () => {
+  it('hangs one slot per branch on the class list it branches by', () => {
+    const slots = slotsKeyedByList(BAND_STEPS, [], BAND_FACTS, 'city_tier');
+    expect(slots.map((s) => s.id)).toEqual([
+      'primary',
+      'primary__city_tier_secondary',
+      'primary__city_tier_other',
+    ]);
+    expect(slots.every((s) => s.axis === 'class' && s.rowId === 'primary_pick')).toBe(true);
+    expect(listFigureState(BAND_STEPS, [], BAND_FACTS, 'city_tier').state).toBe('keyed');
+  });
+
+  it('leaves the governorates themselves priced by their class', () => {
+    expect(listFigureState(BAND_STEPS, [], BAND_FACTS, 'governorate').state).toBe('byClass');
+  });
+
+  it('hangs on the ANSWER list when the pick branches by answer', () => {
+    const steps = BAND_STEPS.map((step) =>
+      step.id === 'primary_pick'
+        ? { ...step, branchOn: 'answer' as const, branches: ['gov_cairo', 'gov_giza', 'gov_other'] }
+        : step,
+    );
+    const slots = slotsKeyedByList(steps, [], BAND_FACTS, 'governorate');
+    expect(slots.map((s) => s.axis)).toEqual(['answer', 'answer', 'answer']);
+    expect(listFigureState(steps, [], BAND_FACTS, 'city_tier').state).toBe('unpriced');
+  });
+
+  it('still attaches a pick’s KEY-TABLE columns by their own keys, not by the branch list', () => {
+    // The compound product, unchanged: a column that states its own key set is the finer
+    // statement of where its figures go, so the branch fallback must never reach it.
+    expect(slotsKeyedByList(STEPS, [], FACTS, 'compound_category').map((s) => s.id)).toEqual([
+      'primary',
+    ]);
+    const relationship = [...FACTS, fact('bank_relationship', { optionsEnumerationType: 'rel' })];
+    expect(slotsKeyedByList(STEPS, [], relationship, 'rel')).toEqual([]);
+  });
+});

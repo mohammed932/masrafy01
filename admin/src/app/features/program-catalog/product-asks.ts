@@ -43,6 +43,16 @@ export interface AskCard {
   type: AskQuestionType | null;
   /** True when this product reads the answer. */
   read: boolean;
+  /**
+   * WHO PUT THE ASK ON — provenance, never a permission.
+   *
+   * `blueprint` came with the predefined product, `operator` was picked on this screen, and
+   * `null` means the product does not read it at all. Either kind can be unticked: a
+   * blueprint ask is tombstoned server-side rather than deleted, so `seed:blueprints` cannot
+   * put it back. The card still SAYS which it is, because "this is one of the library's own"
+   * is what tells an operator whether they are undoing a decision somebody else made.
+   */
+  source: 'blueprint' | 'operator' | null;
   /** True when the loan type on the rail asks the question. */
   askedHere: boolean;
   /** The loan types that ask the question at all. Empty = asked of nobody. */
@@ -116,6 +126,7 @@ function poolCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
       label: label(question, input.isAr),
       type: question.type,
       read,
+      source: ask?.source ?? null,
       askedHere: question.categories.includes(input.category),
       askedIn: question.categories,
       // A pool question is active by construction — the pool is the ACTIVE pool. Only an ask
@@ -156,6 +167,7 @@ function orphanCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
           : label({ labelAr: ask.questionLabelAr, labelEn: ask.questionLabelEn }, input.isAr),
       type: ask.questionType,
       read: true,
+      source: ask.source,
       askedHere: ask.askedIn.includes(input.category),
       askedIn: ask.askedIn,
       questionInactive: true,
@@ -174,23 +186,35 @@ export function askCards(input: AskBoardInput): AskCard[] {
 }
 
 /**
- * The three sections, after the search.
+ * The three sections, with the search narrowing ONLY the last one.
+ *
+ * The box sits on "Not read yet" and belongs to it: that section is the POOL an operator
+ * picks from — 59 cards on a real database — and it is the only one a word is typed to walk.
+ * The two READ sections are what this product holds; hiding a card there because somebody
+ * typed a word to find something else would make a configured product read as empty, which
+ * is the one thing this board exists to state.
  *
  * `asked` is emitted even when empty, so the board says "nothing yet" rather than dropping
- * the heading and reading as though the product were finished. The other two vanish when
- * they have nothing in them.
+ * the heading and reading as though the product were finished. `rest` is emitted while a
+ * query stands even when nothing matches — the search box lives in its heading, and a
+ * section that vanished on the keystroke that emptied it would take the box out from under
+ * the caret. `unasked` vanishes when it has nothing in it.
  */
 export function askSections(input: AskBoardInput): AskSection[] {
-  const cards = askCards(input).filter((card) => matches(card, input.search));
+  const cards = askCards(input);
   const asked = cards.filter((card) => card.read && card.askedHere);
   const unasked = cards.filter((card) => card.read && !card.askedHere);
-  const rest = cards.filter((card) => !card.read);
+  const rest = cards.filter((card) => !card.read && matches(card, input.search));
+  const searching = input.search.trim() !== '';
   const sections: AskSection[] = [
     { key: 'asked', cards: asked },
     { key: 'unasked', cards: unasked },
     { key: 'rest', cards: rest },
   ];
-  return sections.filter((section) => section.key === 'asked' || section.cards.length > 0);
+  return sections.filter(
+    (section) =>
+      section.key === 'asked' || section.cards.length > 0 || (section.key === 'rest' && searching),
+  );
 }
 
 /**
@@ -238,4 +262,88 @@ export function askStepStatus(
   if (board === null || board.asks.length === 0) return 'todo';
   const broken = board.asks.some((ask) => ask.askedIn.length === 0 || !ask.questionActive);
   return broken ? 'invalid' : 'done';
+}
+
+/**
+ * Cards per page. EIGHT, and it is the grid rather than the list it once matched: these are
+ * four-column cards, so ten leaves a ragged half-row of two under two full rows — eight fills
+ * exactly two rows at the widest breakpoint and stays even at two columns.
+ */
+export const ASK_PAGE_SIZE = 8;
+
+/** One section, narrowed to the page on stage. */
+export interface AskSectionPage {
+  key: AskSectionKey;
+  /** The cards on THIS page. */
+  cards: AskCard[];
+  /** 1-based, already clamped into range. */
+  page: number;
+  pages: number;
+  /** Cards in the whole section — what the heading counts, never the page's length. */
+  total: number;
+  /** 1-based range of the page; 0–0 on an empty section. */
+  from: number;
+  to: number;
+}
+
+/**
+ * A section's page.
+ *
+ * The requested page is CLAMPED rather than trusted, so narrowing the search (or unticking
+ * the last card on page 6) lands on the last page that exists instead of on an empty grid
+ * with a pager saying 6 of 3 — the state a stored page index reaches on its own, with
+ * nothing on screen saying why the section looks empty.
+ *
+ * `total` stays the whole section: the heading's count is a fact about the product, and a
+ * count that shrank to 10 because a pager appeared would read as cards having gone away.
+ */
+export function askSectionPage(
+  section: AskSection,
+  requested: number,
+  size: number = ASK_PAGE_SIZE,
+): AskSectionPage {
+  const total = section.cards.length;
+  const pages = Math.max(1, Math.ceil(total / size));
+  const page = Math.min(Math.max(1, Math.floor(requested) || 1), pages);
+  const offset = (page - 1) * size;
+  const cards = section.cards.slice(offset, offset + size);
+  return {
+    key: section.key,
+    cards,
+    page,
+    pages,
+    total,
+    from: total === 0 ? 0 : offset + 1,
+    to: offset + cards.length,
+  };
+}
+
+/**
+ * Every section, each on its own page.
+ *
+ * Per SECTION and not per board: the three hold unlike things and are read one at a time —
+ * paging the whole board would put "not read yet" cards on a page whose heading says
+ * "read, and asked here".
+ */
+export function askPagedSections(
+  sections: readonly AskSection[],
+  pages: Partial<Record<AskSectionKey, number>>,
+  size: number = ASK_PAGE_SIZE,
+): AskSectionPage[] {
+  return sections.map((section) => askSectionPage(section, pages[section.key] ?? 1, size));
+}
+
+/**
+ * How many cards survived the search — the "not read yet" section, and only that one.
+ *
+ * The search narrows nothing else, so a total across all three would report the read cards
+ * as matches and announce "66 questions match" on a word that found seven. Zero here, with
+ * a query in the box, is a DIFFERENT fact from zero with an empty one: one says the product
+ * already reads every question in the pool, the other says the operator's word matched
+ * nothing. Same pixels, opposite fixes.
+ */
+export function askMatchCount(sections: readonly AskSection[]): number {
+  return sections
+    .filter((section) => section.key === 'rest')
+    .reduce((total, section) => total + section.cards.length, 0);
 }

@@ -11,7 +11,10 @@
  * - `factChoiceTable`, and a `numberByKey` gate, are keyed by the ANSWERS the applicant
  *   picks (`fact.question.optionsEnumerationType`);
  * - `factParentTable` is keyed by the CLASSES those answers are filed under
- *   (`fact.question.parentEnumerationType`).
+ *   (`fact.question.parentEnumerationType`);
+ * - a `pickByFact` whose columns are keyed by no list of their own (a band table keyed by a
+ *   number) hangs on its own BRANCH set — the answers it splits by, or the classes those
+ *   answers are filed under when it branches on `parentClass`. One figure table per branch.
  *
  * So a compound's price is stated once per CLASS, and the figures belong beside the class
  * list rather than beside the three hundred compound names. A screen that keyed off the
@@ -125,9 +128,32 @@ export function keyedSlots(steps: readonly RuleStep[], gates: readonly RuleGate[
         continue;
       }
 
-      for (const column of columns) {
+      const perColumn = columns.flatMap((column) => {
         const slot = slotOf(column, step.id, null);
-        if (slot) out.push(slot);
+        return slot === null ? [] : [slot];
+      });
+      if (perColumn.length > 0) {
+        out.push(...perColumn);
+        continue;
+      }
+
+      // THE COLUMNS THEMSELVES ARE KEYED BY NO LIST, and the list is the pick's own BRANCH
+      // set. The doctors' product is the case: each column is a band table keyed by years in
+      // practice — a number, so no list — while WHICH column is read comes from the city
+      // tier the governorate is filed under. One figure set per tier, keyed by the tier list,
+      // and a screen that only ever looked at a column's own keys reported "no amount is
+      // keyed by these" over the three tables an operator has to fill in.
+      //
+      // Reached only when NO column produced a slot of its own: a pick whose columns are key
+      // tables (the compound and bank-axis products) attaches by those keys exactly as
+      // before, because a column's own keys are the finer statement of where its figures go.
+      if (step.fact !== undefined) {
+        const axis = step.branchOn === 'parentClass' ? 'class' : 'answer';
+        for (const column of columns) {
+          // A column that states no figure at all has nothing to key — it renders read-only.
+          if (STEP_OP_SHAPE[column.op] === 'none') continue;
+          out.push({ id: column.id, secondId: null, rowId: step.id, factKey: step.fact, axis });
+        }
       }
       continue;
     }

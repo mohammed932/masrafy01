@@ -393,16 +393,16 @@ export const ERROR_CODES = {
    */
   SURROGATE_FACT_QUESTION_INACTIVE: 'SURROGATE_FACT_QUESTION_INACTIVE',
   /**
-   * The ticked question is the right TYPE and still cannot be a fact.
+   * RETIRED, RETAINED — thrown by nothing.
    *
-   * `meta.reason` says which door: `money_binding` (the amount asked for, the tenor, the
-   * declared salary, the stated obligations — the first of those would let a no-payslip
-   * rule read the payslip), `obligation_item` (one of the itemised debts, meaningful only
-   * as a total), `bank_axis` or `debt_types` (a multi-pick read per bank, whose fact the
-   * platform derives).
+   * It refused a tick on a question that was the right TYPE and, in the platform's
+   * judgement, held the wrong FIGURE: the declared salary and the other three money-field
+   * bindings, one itemised debt, a per-bank axis, the debt-types multi-pick. Every one of
+   * those is now an operator's decision to make on the product's own ask board, so the
+   * door is open and nothing raises this.
    *
-   * Separate from `SURROGATE_FACT_QUESTION_TYPE_INVALID`, which is about the shape of the
-   * answer. These are the right shape and the wrong figure.
+   * Kept, not deleted: it has shipped, and the code lives in both locale dictionaries which
+   * `check:codes` compares in both directions.
    */
   SURROGATE_FACT_QUESTION_NOT_ELIGIBLE: 'SURROGATE_FACT_QUESTION_NOT_ELIGIBLE',
   /**

@@ -39,6 +39,7 @@ import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormPageComponent, WizardStepsComponent, type WizardStepItem } from '@shared/ui';
 import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
+import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
@@ -1355,31 +1356,7 @@ export class ProductTemplatePage implements OnInit {
   protected readonly suggestedBands = computed<Record<string, IncomeBand[]>>(() => {
     const blueprint = this.blueprint();
     if (blueprint === null) return {};
-    const out: Record<string, IncomeBand[]> = {};
-    for (const suggestion of blueprint.suggestedBands) {
-      const edges = suggestion.edges.map((edge) => ({
-        fromInclusive: edge.fromInclusive,
-        toExclusive: edge.toExclusive,
-        // Blank on purpose. The edges are the shape of the table; the figure beside each is
-        // the bank's, and a band carrying one would be a number nobody authored.
-        incomeEGP: '',
-      }));
-      // The way's own box, AND every column of it. A second column re-prints the same
-      // brackets with different figures — that is what a column IS — so offering them only on
-      // the first would leave the operator retyping six edges per tier off a photograph,
-      // which is where an edge gets mistyped.
-      //
-      // Which boxes exist is read off the COMPILED steps rather than assembled from the
-      // form's branch list: the compile is what named them, and a column slug worked out here
-      // would be a second statement of that naming.
-      for (const step of this.compiledSteps()) {
-        if (step.op !== 'bandTable') continue;
-        if (step.id === suggestion.slotId || step.id.startsWith(`${suggestion.slotId}__`)) {
-          out[step.id] = edges.map((edge) => ({ ...edge }));
-        }
-      }
-    }
-    return out;
+    return suggestedBandsBySlot(blueprint.suggestedBands, this.compiledSteps());
   });
 
   // --- the rail --------------------------------------------------------------

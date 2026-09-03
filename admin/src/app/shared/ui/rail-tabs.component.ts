@@ -160,6 +160,21 @@ export interface RailTabItem {
         inline-size: 100%;
       }
       .tab {
+        /* The item's accent, floored against the ground it is drawn on.
+           --color-cat-business resolves to #4A3D35 in the dark palette and
+           --color-cat-mortgage to #8B7355 — dark, low-chroma tokens that are read
+           straight off a chart series, where they sit on a light ground. Used raw
+           as an edge on the dark theme's near-black surface, the live pill loses
+           its border and reads as unselected: the one thing this control exists to
+           say. Mixing toward the body ink always moves AWAY from the surface (near
+           -black in light, near-white in dark), so the edge stays visible in both
+           themes and keeps the item's hue rather than falling back to brand azure,
+           which would delete the identity the accent was passed for. */
+        --rail-item-ink: color-mix(
+          in srgb,
+          var(--rail-item-accent, var(--rail-accent)) 72%,
+          var(--color-text-primary)
+        );
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
@@ -177,6 +192,7 @@ export interface RailTabItem {
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
           background var(--motion-duration-fast) var(--motion-easing-standard),
           box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
+          transform var(--motion-duration-fast) var(--motion-easing-standard),
           color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .rail.vertical .tab {
@@ -185,9 +201,23 @@ export interface RailTabItem {
         padding-inline: var(--space-3);
         border-radius: var(--radius-md);
       }
+      /* Hover tints toward the item's OWN accent rather than going a shade darker,
+         so a rail of four categories previews the identity the click lands on. The
+         1px lift is horizontal pills only: a vertical rail is a list, and a list
+         whose rows rise under the pointer reads as jumpy rather than as alive. */
       .tab:hover {
         color: var(--color-text-primary);
-        border-color: var(--rail-line-strong);
+        border-color: color-mix(in srgb, var(--rail-item-ink) 32%, var(--rail-line-strong));
+        background: color-mix(in srgb, var(--rail-item-ink) 5%, var(--rail-surface));
+      }
+      .rail:not(.vertical):not(.segmented) .tab:hover {
+        transform: translateY(-1px);
+      }
+      /* The fourth state. Without it the pill lifts on hover and then stays lifted
+         through the press, so the click has no moment of its own. */
+      .tab:active {
+        transform: none;
+        background: color-mix(in srgb, var(--rail-item-ink) 12%, var(--rail-surface));
       }
       .tab:focus-visible {
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
@@ -199,13 +229,27 @@ export interface RailTabItem {
          and the border already says which item is live. */
       .tab.on {
         color: var(--color-text-primary);
-        border-color: var(--rail-item-accent, var(--rail-accent));
-        background: color-mix(
-          in srgb,
-          var(--rail-item-accent, var(--rail-accent)) 8%,
-          var(--rail-surface)
-        );
+        border-color: var(--rail-item-ink);
+        background: color-mix(in srgb, var(--rail-item-ink) 8%, var(--rail-surface));
       }
+      /* The live pill is LIFTED, and the lift is drawn in the item's own hue rather
+         than in --shadow-sm: that token is a black rgba, i.e. invisible on the dark
+         theme's near-black ground, which is the same reason the segmented track draws
+         its hairline. Top-lit, so the wash runs a shade deeper at the crown — one hue,
+         two stops, which is a surface catching light and not a gradient. */
+      .rail:not(.segmented) .tab.on {
+        background: linear-gradient(
+          to bottom,
+          color-mix(in srgb, var(--rail-item-ink) 14%, var(--rail-surface)),
+          color-mix(in srgb, var(--rail-item-ink) 6%, var(--rail-surface))
+        );
+        box-shadow: 0 1px 2px color-mix(in srgb, var(--rail-item-ink) 24%, transparent);
+      }
+      /* Deliberately NO amber edge on a flagged tab. Tried, and measured against this
+         rail: the car category's accent IS bronze, so a flagged tab and the live tab
+         wore near enough the same hue — one colour carrying two meanings, on the one
+         control where colour has to say which item is on stage. The warning stays in
+         the marker, which is shaped, washed and edged and says it in one place. */
       /* SEGMENTED — one inset track, one raised segment.
          For a rail of a few PEER groups inside a card: as free-standing pills they read as
          three unrelated buttons with a stray number each, rather than as one control with
@@ -224,6 +268,17 @@ export interface RailTabItem {
         border-radius: var(--radius-lg);
         background: var(--color-surface-page);
       }
+      /* UNIFORM inside the track: equal cells. A closed pair of peers whose labels and
+         notes are different lengths gives two segments of two widths, and their trailing
+         counts land at two different x — which reads as two buttons that happen to touch
+         rather than as one control with one thing on stage. An inline grid keeps the track
+         hugging its content, so equal never becomes full-bleed; auto-flow rather than a
+         fixed template because the item count is data. */
+      .rail.segmented.uniform {
+        display: inline-grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+      }
       .rail.segmented .tab {
         padding-inline: var(--space-3);
         padding-block: var(--space-2);
@@ -233,15 +288,15 @@ export interface RailTabItem {
       }
       .rail.segmented .tab:hover {
         border-color: transparent;
-        background: color-mix(in srgb, var(--rail-item-accent, var(--rail-accent)) 8%, transparent);
+        background: color-mix(in srgb, var(--rail-item-ink) 8%, transparent);
       }
+      /* The live segment's edge is the one thing separating it from the track it sits in,
+         so it is held to the 3:1 a non-text state cue needs: at 32% ink it measured 2.22:1
+         in light against the segment's own surface (2.95:1 dark — a light-only failure, the
+         kind a dark-mode review passes). 55% clears it in both and keeps the item's hue. */
       .rail.segmented .tab.on {
         background: var(--rail-surface);
-        border-color: color-mix(
-          in srgb,
-          var(--rail-item-accent, var(--rail-accent)) 32%,
-          var(--rail-line-strong)
-        );
+        border-color: color-mix(in srgb, var(--rail-item-ink) 55%, var(--rail-line-strong));
         box-shadow: var(--shadow-sm);
       }
       .rail.segmented .tab.on .tab-note {
@@ -272,18 +327,38 @@ export interface RailTabItem {
         font-weight: var(--font-weight-regular);
         color: var(--color-text-secondary);
       }
+      /* A CHIP, not a bare number. Set loose on the trailing edge the figure reads as
+         a stray digit spliced onto the label — which is exactly what the segmented rail
+         deleted its count to escape. A ground of its own gives it a container to be a
+         quantity in, and matches the warn marker's shape language one gap over.
+         min-inline-size keeps a 1-digit and a 3-digit count the same silhouette. */
       .tab-count {
         flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: 1.375rem;
+        padding-inline: var(--space-1);
+        padding-block: var(--space-0-5);
+        border-radius: var(--radius-pill);
+        background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
         font-family: var(--font-family-numeric);
         font-feature-settings: var(--font-feature-tabular);
         font-size: var(--text-xxs);
+        line-height: 1;
         color: var(--color-text-secondary);
       }
       /* The live item takes the label's own ink, so the count follows the label
          rather than staying a step behind it on the one chip that is on stage. */
       .tab.on .tab-count {
+        background: color-mix(in srgb, var(--rail-item-ink) 18%, transparent);
         color: var(--color-text-primary);
       }
+      /* Amber ON the amber wash measures 2.79:1 in LIGHT mode (#C8893D on #FDF8F0) —
+         under AA, and passing in dark, which is how a light-only failure survives a
+         dark-mode review. Same defect the house warn tag was fixed for, and the same
+         fix: the ink goes primary and the warning is carried by the wash plus an amber
+         edge, which is the pair that reads as a warning at 16px anyway. */
       .warn-mark {
         flex: none;
         display: inline-flex;
@@ -291,9 +366,10 @@ export interface RailTabItem {
         justify-content: center;
         inline-size: 16px;
         block-size: 16px;
+        border: 1px solid color-mix(in srgb, var(--color-warning) 55%, transparent);
         border-radius: var(--radius-pill);
         background: var(--color-warning-bg);
-        color: var(--color-warning);
+        color: var(--color-text-primary);
         font-size: var(--text-xxs);
         font-weight: var(--font-weight-semibold);
         line-height: 1;
@@ -309,8 +385,10 @@ export interface RailTabItem {
         white-space: nowrap;
       }
       @media (prefers-reduced-motion: reduce) {
-        .tab {
+        .tab,
+        .rail:not(.vertical):not(.segmented) .tab:hover {
           transition: none;
+          transform: none;
         }
       }
     `,

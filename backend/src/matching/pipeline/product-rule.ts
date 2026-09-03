@@ -46,6 +46,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { PRODUCT_RULE_STRATEGY } from '../types';
 import type { IncomeBand, IncomeKeyTableRow, SurrogateFactValue } from '../types';
 import { bandFor } from './income-rule-bands';
+import { factLookupKeys } from './fact-value';
 
 /**
  * The token lives in `matching/types.ts` — re-exported here so a reader of this module
@@ -546,18 +547,26 @@ function firstRef(step: RuleStep, env: OpEnv): OpResult {
   return refValue(ref, env);
 }
 
-/** The picked option code for a choice fact. */
+/**
+ * The keys a key-shaped fact can be looked up by — one for a single pick, several for a
+ * multi-pick, one reserved key for the presence of a text answer.
+ *
+ * A NUMERIC answer offers none and reads as `rule_unconfigured`: a step keyed by a table
+ * cannot read a number, and that is a mismatch between the rule and the question rather
+ * than anything the applicant did.
+ */
 function choiceFact(
   factKey: string | undefined,
   ctx: ProductRuleContext,
 ):
-  | { ok: true; optionCode: string }
+  | { ok: true; keys: readonly string[] }
   | { ok: false; reason: ProductRuleMissReason; factKey?: string } {
   if (!factKey) return { ok: false, reason: 'rule_unconfigured' };
   const answered = ctx.facts[factKey];
   if (!answered) return { ok: false, reason: 'fact_not_answered', factKey };
-  if (answered.kind !== 'choice') return { ok: false, reason: 'rule_unconfigured' };
-  return { ok: true, optionCode: answered.optionCode };
+  const keys = factLookupKeys(answered);
+  if (keys.length === 0) return { ok: false, reason: 'rule_unconfigured' };
+  return { ok: true, keys };
 }
 
 /**
@@ -573,14 +582,21 @@ function skipIfOptional<T extends { ok: true }>(step: RuleStep, result: T | OpMi
   return { ok: false, reason: 'rule_unconfigured' };
 }
 
-/** A key table lookup. Fails CLOSED on a key the table has no row for (AS-1.9). */
-function lookupKeyTable(key: string, table: IncomeKeyTableRow[] | undefined): OpResult {
+/**
+ * A key table lookup. Fails CLOSED on a key the table has no row for (AS-1.9).
+ *
+ * Takes the CANDIDATE keys, not one key, and reads the first row the table itself lists
+ * among them — so a multi-pick answer resolves by the bank's own row order, the rule
+ * `fact-value.ts` states once for every reader.
+ */
+function lookupKeyTable(keys: readonly string[], table: IncomeKeyTableRow[] | undefined): OpResult {
   if (!table || table.length === 0) return { ok: false, reason: 'rule_unconfigured' };
-  const row = table.find((r) => r.key === key);
+  if (keys.length === 0) return { ok: false, reason: 'rule_unconfigured' };
+  const row = table.find((r) => keys.includes(r.key));
   if (!row) return { ok: false, reason: 'no_matching_row' };
   const value = toDecimalOrNull(row.incomeEGP);
   if (value === null) return { ok: false, reason: 'rule_unconfigured' };
-  return { ok: true, value, matchedRow: { key } };
+  return { ok: true, value, matchedRow: { key: row.key } };
 }
 
 /**
@@ -610,19 +626,23 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
     if (!env.params.keyTable?.length) return { ok: false, reason: 'rule_unconfigured' };
     const picked = skipIfOptional(env.step, choiceFact(env.step.fact, env.ctx));
     if (!picked.ok) return picked;
-    return lookupKeyTable(picked.optionCode, env.params.keyTable);
+    return lookupKeyTable(picked.keys, env.params.keyTable);
   },
 
   factParentTable: (env) => {
     if (!env.params.keyTable?.length) return { ok: false, reason: 'rule_unconfigured' };
     const picked = skipIfOptional(env.step, choiceFact(env.step.fact, env.ctx));
     if (!picked.ok) return picked;
-    const parentKey = env.ctx.parentKeyByValue?.[picked.optionCode];
+    // The first picked value that IS filed under a class. A single pick has one candidate,
+    // so this is unchanged for every product that predates multi-pick facts.
+    const parentKeys = picked.keys
+      .map((key) => env.ctx.parentKeyByValue?.[key])
+      .filter((key): key is string => key !== undefined);
     // The picked value carries no parent: the registry row was never filed under one.
     // `no_matching_row` rather than `rule_unconfigured` — the bank's table is fine, it
     // is this one value that cannot be placed, and the admin fix is on the value.
-    if (parentKey === undefined) return { ok: false, reason: 'no_matching_row' };
-    return lookupKeyTable(parentKey, env.params.keyTable);
+    if (parentKeys.length === 0) return { ok: false, reason: 'no_matching_row' };
+    return lookupKeyTable(parentKeys, env.params.keyTable);
   },
 
   bandTable: (env) => {
@@ -757,15 +777,19 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
     const usable = (ref: ValueRef): boolean => !('step' in ref) || !env.unset.has(ref.step);
 
     const answered = env.step.fact === undefined ? undefined : env.ctx.facts[env.step.fact];
-    if (answered?.kind === 'choice') {
-      // The code the branches are compared against: the answer itself, or the class it is
-      // filed under. An unfiled value yields `undefined` and falls through to the first
-      // configured input below, exactly as an unanswered question does.
-      const code =
+    if (answered !== undefined && answered.kind !== 'numeric') {
+      // The codes the branches are compared against: the answers themselves, or the classes
+      // they are filed under. An unfiled value contributes nothing and falls through to the
+      // first configured input below, exactly as an unanswered question does.
+      const codes = (
         env.step.branchOn === 'parentClass'
-          ? env.ctx.parentKeyByValue?.[answered.optionCode]
-          : answered.optionCode;
-      const index = code === undefined ? -1 : (env.step.branches ?? []).indexOf(code);
+          ? factLookupKeys(answered).map((key) => env.ctx.parentKeyByValue?.[key])
+          : factLookupKeys(answered)
+      ).filter((code): code is string => code !== undefined);
+      // BRANCH order decides, not pick order: `branches` is the catalog's positional list
+      // against `of`, so the earliest branch the applicant matches is the column read.
+      const branches = env.step.branches ?? [];
+      const index = branches.findIndex((branch) => codes.includes(branch));
       const chosen = index === -1 ? undefined : refs[index];
       if (chosen !== undefined && usable(chosen)) return refValue(chosen, env);
     }
@@ -833,7 +857,9 @@ function evaluateGate(
   if (gate.kind === 'choice') {
     const picked = choiceFact(gate.fact, env.ctx);
     if (!picked.ok) return picked;
-    const listed = gate.expect.includes(picked.optionCode);
+    // Passes when ANY answer the applicant gave is listed. `expect` is an allow-list, so
+    // one matching pick is the answer being present in it.
+    const listed = picked.keys.some((key) => gate.expect.includes(key));
     return { ok: true, passed: gate.op === 'neq' ? !listed : listed };
   }
 
@@ -853,7 +879,7 @@ function evaluateGate(
   if (gate.kind === 'numberByKey') {
     const picked = choiceFact(gate.keyedBy, env.ctx);
     if (!picked.ok) return picked;
-    const bound = lookupKeyTable(picked.optionCode, env.params.keyTable);
+    const bound = lookupKeyTable(picked.keys, env.params.keyTable);
     if (!bound.ok) return bound;
     return {
       ok: true,

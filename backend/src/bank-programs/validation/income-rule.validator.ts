@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { PRESENCE_FACT_LOOKUP_KEY } from '@/matching/pipeline/fact-value';
 import {
   BAND_STRATEGIES,
   KEY_TABLE_REGISTRY,
@@ -268,6 +269,26 @@ export async function validateIncomeRule(
  *      whole point of binding a question: the two lists are one list by construction,
  *      so a renamed option cannot leave a table pointing at a key nobody can answer.
  */
+/**
+ * The keys a fact's key table may be keyed by, or `null` when nothing can be checked.
+ *
+ * One statement of it, because four sites ask the same question and a fifth would drift:
+ *   TEXT  → exactly one key, the reserved presence key. A bank cannot enumerate prose, so
+ *           what it states a figure against is "they answered".
+ *   other → the BOUND QUESTION'S option codes, which is what makes the bank's table and
+ *           the customer's answers one list by construction (SINGLE_SELECT and MULTI_SELECT
+ *           share this: a multi-pick is looked up by the same codes, several at a time).
+ *   NUMERIC never reaches here — a number is checked as bands.
+ */
+async function legalTableKeys(
+  fact: { questionCode?: string; type?: string } | undefined,
+  ctx: IncomeRuleValidationContext,
+): Promise<Set<string> | null> {
+  if (fact?.type === 'TEXT') return new Set([PRESENCE_FACT_LOOKUP_KEY]);
+  if (!fact?.questionCode) return null;
+  return new Set(await ctx.questionOptionCodes(fact.questionCode));
+}
+
 async function validateFactRule(
   config: IncomeAssumptionConfig,
   factKey: string,
@@ -289,7 +310,7 @@ async function validateFactRule(
   const table = config.keyTable;
   if (!table || table.length === 0) return { kind: 'empty', strategy: config.strategy };
 
-  const optionCodes = new Set(await ctx.questionOptionCodes(fact.questionCode));
+  const optionCodes = (await legalTableKeys(fact, ctx)) ?? new Set<string>();
   const seen = new Set<string>();
   for (const row of table) {
     if (seen.has(row.key)) return { kind: 'duplicateKey', key: row.key };
@@ -670,13 +691,10 @@ async function validateStepFigures(
       // rows behind those options, which is data this validator has no view of, and
       // refusing on a stale one would refuse a save that a lookup fix elsewhere makes
       // valid — the v16.4.1 lesson about a catalog tick blocking a legitimate program.
-      const questionCode =
-        step.op === 'factChoiceTable' && step.fact
-          ? factByKey.get(step.fact)?.questionCode
-          : undefined;
-      const optionCodes = questionCode
-        ? new Set(await ctx.questionOptionCodes(questionCode))
-        : null;
+      const boundFact =
+        step.op === 'factChoiceTable' && step.fact ? factByKey.get(step.fact) : undefined;
+      const questionCode = boundFact?.questionCode;
+      const optionCodes = await legalTableKeys(boundFact, ctx);
 
       const seen = new Set<string>();
       for (const row of table) {
@@ -754,11 +772,11 @@ async function validateStepFigures(
       // instead, where the fix is.
       if (step.branchOn === 'parentClass') return undefined;
       const derived = step.fact ? derivedFactOptionCodes(step.fact) : null;
-      const questionCode = step.fact ? factByKey.get(step.fact)?.questionCode : undefined;
-      if (derived === null && !questionCode) return undefined;
-      const optionCodes = new Set(
-        derived ?? (await ctx.questionOptionCodes(questionCode as string)),
-      );
+      const boundFact = step.fact ? factByKey.get(step.fact) : undefined;
+      const questionCode = boundFact?.questionCode;
+      const legal = derived === null ? await legalTableKeys(boundFact, ctx) : null;
+      if (derived === null && legal === null) return undefined;
+      const optionCodes = derived === null ? (legal as Set<string>) : new Set(derived);
       for (const branch of step.branches ?? []) {
         if (!optionCodes.has(branch)) {
           return {
@@ -801,7 +819,7 @@ async function validateGate(
   gate: RuleGate,
   figures: NonNullable<IncomeAssumptionConfig['stepParams']>[string],
   stepIds: ReadonlySet<string>,
-  factByKey: ReadonlyMap<string, { questionCode?: string }>,
+  factByKey: ReadonlyMap<string, { questionCode?: string; type?: string }>,
   ctx: IncomeRuleValidationContext,
 ): Promise<IncomeRuleViolation | undefined> {
   const reasonProblem = validateGateReasonCode(gate);
@@ -824,8 +842,9 @@ async function validateGate(
     // and for the same reason. Left out, a typo saved 200 and then answered `no_matching_row`
     // at the gate for every applicant who picked that option: the one place in this product
     // where a wrong key was discovered on a customer rather than at save.
-    const questionCode = factByKey.get(gate.keyedBy)?.questionCode;
-    const optionCodes = questionCode ? new Set(await ctx.questionOptionCodes(questionCode)) : null;
+    const boundFact = factByKey.get(gate.keyedBy);
+    const questionCode = boundFact?.questionCode;
+    const optionCodes = await legalTableKeys(boundFact, ctx);
     const seen = new Set<string>();
     for (const row of table) {
       if (seen.has(row.key)) return { kind: 'duplicateKey', key: row.key, stepId: gate.id };

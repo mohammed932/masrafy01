@@ -914,7 +914,7 @@
       <trans-unit id="pnd.qtype_single" datatype="html"><source>One answer</source><target>إجابة واحدة</target></trans-unit>
       <trans-unit id="pnd.qtype_multi" datatype="html"><source>Several answers</source><target>عدة إجابات</target></trans-unit>
       <trans-unit id="pnd.qtype_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
-      <trans-unit id="pnd.qtype_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="pnd.qtype_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
       <trans-unit id="pnd.cell_aria" datatype="html"><source>Score <x id="category" equiv-text="this.categoryName()"/> applicants on "<x id="question" equiv-text="q.label"/>"</source><target>قيّم متقدمي <x id="category" equiv-text="this.categoryName()"/> على «<x id="question" equiv-text="q.label"/>»</target></trans-unit>
       <trans-unit id="pnd.live_added" datatype="html"><source><x id="count" equiv-text="count"/> questions added for <x id="category" equiv-text="category"/></source><target>أُضيف <x id="count" equiv-text="count"/> من الأسئلة لـ <x id="category" equiv-text="category"/></target></trans-unit>
       <trans-unit id="pnd.live_removed" datatype="html"><source><x id="count" equiv-text="count"/> questions removed for <x id="category" equiv-text="category"/></source><target>أُزيل <x id="count" equiv-text="count"/> من الأسئلة من <x id="category" equiv-text="category"/></target></trans-unit>
@@ -993,7 +993,7 @@
       <trans-unit id="scoring.editor.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
       <trans-unit id="scoring.editor.type_multi" datatype="html"><source>Pick several</source><target>اختيار متعدد</target></trans-unit>
       <trans-unit id="scoring.editor.type_numeric" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
-      <trans-unit id="scoring.editor.type_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="scoring.editor.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
       <trans-unit id="scoring.editor.scored_by_bands" datatype="html"><source>scored by number range</source><target>يُقيَّم حسب نطاق الرقم</target></trans-unit>
       <trans-unit id="scoring.editor.scored_by_presence" datatype="html"><source>scored on being answered</source><target>يُقيَّم على مجرد الإجابة</target></trans-unit>
       <trans-unit id="scoring.editor.scored_by_answers" datatype="html"><source><x id="COUNT" equiv-text="q.options.length"/> answers</source><target><x id="COUNT" equiv-text="q.options.length"/> إجابة</target></trans-unit>
@@ -1185,8 +1185,7 @@
       <trans-unit id="income_basis.no_payslip" datatype="html"><source>Surrogate</source><target>بديل الدخل</target></trans-unit>
       <trans-unit id="income_basis.payslip.hint" datatype="html"><source>The customer is paid a salary into a bank account. The bank lends against that salary.</source><target>العميل يتقاضى راتبًا يُحوَّل إلى حساب بنكي. ويُقرض البنك على أساس هذا الراتب.</target></trans-unit>
       <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The customer has no payslip. The bank works out what they earn from something else about them, such as their job grade or years of work.</source><target>العميل ليس لديه إثبات راتب. فيحسب البنك دخله من معلومة أخرى عنه، مثل درجته الوظيفية أو سنوات عمله.</target></trans-unit>
-      <trans-unit id="program_catalog.basis.all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
-      <trans-unit id="program_catalog.basis.aria" datatype="html"><source>Filter by how the bank reads the income</source><target>تصفية حسب طريقة قراءة البنك للدخل</target></trans-unit>
+      <trans-unit id="program_catalog.basis.aria" datatype="html"><source>How the bank reads the income</source><target>طريقة قراءة البنك للدخل</target></trans-unit>
 
       <trans-unit id="pnd.new_question" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
       <trans-unit id="pnd.new_question_title" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
@@ -1204,7 +1203,7 @@
       <trans-unit id="pnq.type_multi_hint" datatype="html"><source>Any number of answers from your list.</source><target>أي عدد من الإجابات من قائمتك.</target></trans-unit>
       <trans-unit id="pnq.type_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
       <trans-unit id="pnq.type_number_hint" datatype="html"><source>A figure — salary, rent, years.</source><target>قيمة — راتب أو إيجار أو عدد سنوات.</target></trans-unit>
-      <trans-unit id="pnq.type_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="pnq.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
       <trans-unit id="pnq.type_text_hint" datatype="html"><source>Typed in freely. Scored on being answered.</source><target>يُكتب بحرية. يُقيَّم على الإجابة نفسها لا على محتواها.</target></trans-unit>
 
       <trans-unit id="pnq.wording_h" datatype="html"><source>How is it worded?</source><target>كيف يُصاغ السؤال؟</target></trans-unit>
@@ -2250,40 +2249,41 @@
       <trans-unit id="spd.step_asks" datatype="html"><source>What it asks</source><target>ما الذي يسأل عنه</target></trans-unit>
       <trans-unit id="spd.cap_asks" datatype="html"><source>The questions this product puts to the applicant, the answers they pick from, the classes a bank keys its table by, and the amount each one carries.</source><target>الأسئلة التي يطرحها هذا المنتج على العميل، والإجابات التي يختار منها، والفئات التي يبني عليها البنك جدوله، والمبلغ الذي تحمله كل منها.</target></trans-unit>
       <trans-unit id="spd.ask.lede" datatype="html"><source> Tick a question and this product reads its answer. It also starts being asked of <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants, so they have an answer to give. </source><target>اختر سؤالًا ليقرأ هذا المنتج إجابته. سيبدأ أيضًا طرحه على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/>، حتى تكون لديهم إجابة يقدمونها.</target></trans-unit>
-      <trans-unit id="spd.ask.tag_fixed" datatype="html"><source>comes with the product</source><target>يأتي مع المنتج</target></trans-unit>
-      <trans-unit id="spd.ask.tag_in_rule" datatype="html"><source>the calculation reads it</source><target>الحساب يقرأه</target></trans-unit>
-      <trans-unit id="spd.ask.tag_in_use" datatype="html"><source>a bank reads it</source><target>أحد البنوك يقرأه</target></trans-unit>
-      <trans-unit id="spd.ask.fixed_note" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> of these come with the product and cannot be removed here — switch the whole product off instead if it should not be sold. </source><target> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> منها تأتي مع المنتج ولا يمكن إزالتها من هنا — أطفئ المنتج بالكامل إن كان يجب التوقف عن بيعه. </target></trans-unit>
+      <trans-unit id="spd.ask.fixed_note" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> of these come with the product. You can still untick one, and it stays unticked — the predefined library will not put it back. </source><target> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> منها تأتي مع المنتج. يمكنك مع ذلك إلغاء اختيار أي منها، وسيظل ملغى — لن تعيده المكتبة الجاهزة مرة أخرى. </target></trans-unit>
       <trans-unit id="spd.ask.unpublished" datatype="html"><source>The question is attached, but the questionnaire was not published, so nobody is being asked it yet. Tick it again to retry.</source><target>تم ربط السؤال، لكن الاستبيان لم يُنشر، فلا أحد يُسأل عنه بعد. اضغط عليه مرة أخرى لإعادة المحاولة.</target></trans-unit>
       <trans-unit id="spd.ask.dismiss" datatype="html"><source> Dismiss </source><target>إخفاء</target></trans-unit>
       <trans-unit id="spd.ask.search_ph" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
-      <trans-unit id="spd.ask.clear" datatype="html"><source> Clear </source><target>إلغاء البحث</target></trans-unit>
+      <trans-unit id="spd.ask.clear_aria" datatype="html"><source>Clear the search</source><target>إلغاء البحث</target></trans-unit>
+      <trans-unit id="spd.ask.load_failed_title" datatype="html"><source> The question list did not load. </source><target>تعذّر تحميل قائمة الأسئلة.</target></trans-unit>
+      <trans-unit id="spd.ask.load_failed" datatype="html"><source> Nothing has changed — what this product asks could not be read just now, so none of it can be shown or ticked. </source><target>لم يتغيّر شيء — تعذّرت قراءة ما يسأله هذا المنتج الآن، فلا يمكن عرض أي منه أو تحديده.</target></trans-unit>
+      <trans-unit id="spd.ask.retry" datatype="html"><source> Try again </source><target>حاول مرة أخرى</target></trans-unit>
       <trans-unit id="spd.ask.sec_asked" datatype="html"><source>Read, and asked here</source><target>يقرأها، وتُطرح هنا</target></trans-unit>
       <trans-unit id="spd.ask.sec_unasked" datatype="html"><source>Read, but not asked of <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants</source><target>يقرأها، لكنها لا تُطرح على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/></target></trans-unit>
       <trans-unit id="spd.ask.sec_rest" datatype="html"><source>Not read yet</source><target>لا يقرأها بعد</target></trans-unit>
+      <trans-unit id="spd.ask.nomatch" datatype="html"><source>No question matches “<x id="INTERPOLATION" equiv-text="{{ askQuery() }}"/>”. Try a shorter word, or clear the search to see the whole pool.</source><target>لا يوجد سؤال يطابق «<x id="INTERPOLATION" equiv-text="{{ askQuery() }}"/>». جرّب كلمة أقصر، أو ألغِ البحث لعرض كل الأسئلة.</target></trans-unit>
+      <trans-unit id="spd.ask.clear2" datatype="html"><source> Clear the search </source><target>إلغاء البحث</target></trans-unit>
+      <trans-unit id="spd.ask.status_none" datatype="html"><source>No question matches <x id="QUERY" equiv-text="q"/></source><target>لا يوجد سؤال يطابق <x id="QUERY" equiv-text="q"/></target></trans-unit>
+      <trans-unit id="spd.ask.status_some" datatype="html"><source><x id="COUNT" equiv-text="n"/> questions match <x id="QUERY" equiv-text="q"/></source><target><x id="COUNT" equiv-text="n"/> سؤالاً يطابق <x id="QUERY" equiv-text="q"/></target></trans-unit>
       <trans-unit id="spd.ask.none_read" datatype="html"><source> Nothing yet — tap a question below and this product reads its answer. </source><target>لا شيء بعد — اضغط على سؤال بالأسفل ليقرأ هذا المنتج إجابته.</target></trans-unit>
       <trans-unit id="spd.ask.unasked_note" datatype="html"><source> This product reads these, but nobody applying for this loan type is asked them, so it gets no answer from them. </source><target>هذا المنتج يقرأ هذه الإجابات، لكن لا أحد من المتقدمين لهذا النوع من التمويل يُسأل عنها، فلا يحصل منها على إجابة.</target></trans-unit>
       <trans-unit id="spd.ask.nobody" datatype="html"><source>Asked of nobody</source><target>لا يُسأل لأحد</target></trans-unit>
       <trans-unit id="spd.ask.ask_here" datatype="html"><source> Ask it here </source><target>اطرحه هنا</target></trans-unit>
       <trans-unit id="spd.ask.stop" datatype="html"><source> Stop reading this </source><target>أوقف قراءته</target></trans-unit>
       <trans-unit id="spd.ask.off" datatype="html"><source>The question is switched off</source><target>السؤال موقوف</target></trans-unit>
-      <trans-unit id="spd.ask.in_calc" datatype="html"><source>In the calculation</source><target>داخل الحساب</target></trans-unit>
-      <trans-unit id="spd.ask.t_one" datatype="html"><source>One of a list</source><target>اختيار من قائمة</target></trans-unit>
-      <trans-unit id="spd.ask.t_number" datatype="html"><source>A number they type</source><target>رقم يكتبه العميل</target></trans-unit>
-      <trans-unit id="spd.ask.t_many" datatype="html"><source>Several answers</source><target>أكثر من إجابة</target></trans-unit>
-      <trans-unit id="spd.ask.t_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="spd.ask.t_one" datatype="html"><source>Single select</source><target>اختيار واحد</target></trans-unit>
+      <trans-unit id="spd.ask.t_number" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
+      <trans-unit id="spd.ask.t_many" datatype="html"><source>Multi select</source><target>اختيار متعدد</target></trans-unit>
+      <trans-unit id="spd.ask.t_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
       <trans-unit id="spd.ask.t_unknown" datatype="html"><source>Unknown</source><target>غير معروف</target></trans-unit>
       <trans-unit id="spd.ask.rail_aria" datatype="html"><source>Loan type</source><target>نوع التمويل</target></trans-unit>
       <trans-unit id="spd.ask.search_aria" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
+      <trans-unit id="spd.ask.pager_aria" datatype="html"><source>Question pages</source><target>صفحات الأسئلة</target></trans-unit>
+      <trans-unit id="spd.ask.page_range" datatype="html"><source> Showing <x id="INTERPOLATION" equiv-text="{{ section.from }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ section.to }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ section.total }}"/> </source><target>عرض <x id="INTERPOLATION" equiv-text="{{ section.from }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ section.to }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ section.total }}"/></target></trans-unit>
       <trans-unit id="spd.ask.tab_count" datatype="html"><source>answers read</source><target>إجابة يقرأها</target></trans-unit>
       <trans-unit id="spd.ask.tab_warn" datatype="html"><source><x id="COUNT" equiv-text="tab.unasked"/> read but not asked here</source><target><x id="COUNT" equiv-text="tab.unasked"/> يقرأها ولا تُطرح هنا</target></trans-unit>
       <trans-unit id="spd.ask.also" datatype="html"><source><x id="COUNT" equiv-text="products.length"/> other products read this too</source><target><x id="COUNT" equiv-text="products.length"/> منتجات أخرى تقرأ هذه الإجابة</target></trans-unit>
-      <trans-unit id="spd.ask.why_text" datatype="html"><source>Free text — a bank cannot key a table by an answer nobody can list in advance.</source><target>نص حر — لا يستطيع البنك بناء جدول على إجابة لا يمكن حصرها مسبقًا.</target></trans-unit>
-      <trans-unit id="spd.ask.why_multi" datatype="html"><source>More than one answer — there is no single value to look a figure up against.</source><target>أكثر من إجابة — ليست هناك قيمة واحدة يُبحث عنها في الجدول.</target></trans-unit>
-      <trans-unit id="spd.ask.why_money" datatype="html"><source>This is part of what the customer is asking for, or the salary they declared — not something about them a bank can price without a payslip.</source><target>هذا جزء من طلب العميل أو من الراتب الذي أعلنه، وليس معلومة عنه يستطيع البنك التسعير على أساسها بدون كشف راتب.</target></trans-unit>
-      <trans-unit id="spd.ask.why_obligation" datatype="html"><source>One of the customer&apos;s existing debts. Debt only means something as a total, so a bank cannot work an income out from one of them.</source><target>أحد التزامات العميل القائمة. الالتزامات لا تعني شيئًا إلا كإجمالي، فلا يستطيع البنك حساب دخل من واحد منها.</target></trans-unit>
-      <trans-unit id="spd.ask.why_axis" datatype="html"><source>The platform works this one out per bank, so a product cannot read it as an answer.</source><target>المنصة تحسب هذه القيمة لكل بنك على حدة، فلا يمكن لمنتج أن يقرأها كإجابة.</target></trans-unit>
-      <trans-unit id="spd.ask.why_blueprint" datatype="html"><source>This question comes with the product, so it cannot be removed here. Switch the whole product off instead if it should not be sold.</source><target>هذا السؤال يأتي مع المنتج، فلا يمكن إزالته من هنا. أطفئ المنتج بالكامل إن كان يجب التوقف عن بيعه.</target></trans-unit>
+      <trans-unit id="income_rule.fact.presence_key" datatype="html"><source>They answered the question</source><target>أجاب على السؤال</target></trans-unit>
+      <trans-unit id="spd.ask.why_unsupported" datatype="html"><source>This kind of answer has no reader yet, so a bank could not look a figure up against it.</source><target>هذا النوع من الإجابات ليس له قارئ بعد، فلا يستطيع البنك البحث عن رقم مقابله.</target></trans-unit>
       <trans-unit id="spd.ask.why_in_rule" datatype="html"><source>The calculation on the next step still reads this answer. Take it out of the calculation first.</source><target>الحساب في الخطوة التالية ما زال يقرأ هذه الإجابة. أزِلها من الحساب أولًا.</target></trans-unit>
       <trans-unit id="spd.ask.why_in_use" datatype="html"><source>A bank program still reads this answer, so it cannot be removed yet.</source><target>ما زال أحد برامج البنوك يقرأ هذه الإجابة، فلا يمكن إزالتها بعد.</target></trans-unit>
       <trans-unit id="spd.ask.aria_read" datatype="html"><source>Read <x id="NAME" equiv-text="name"/> and ask it of <x id="TYPE" equiv-text="this.askCategoryLabel()"/> applicants</source><target>اقرأ <x id="NAME" equiv-text="name"/> واطرحه على عملاء <x id="TYPE" equiv-text="this.askCategoryLabel()"/></target></trans-unit>
@@ -2546,12 +2546,28 @@
           <context context-type="linenumber">1034</context>
         </context-group>
       </trans-unit>
-          <trans-unit id="clsb.capped" datatype="html">
-        <source>Showing the first <x id="SHOWN" equiv-text="CANDIDATE_CAP"/> of <x id="TOTAL" equiv-text="this.candidates().length"/>. Search to narrow it down.</source>
-        <target>يُعرض أول <x id="SHOWN" equiv-text="CANDIDATE_CAP"/> من <x id="TOTAL" equiv-text="this.candidates().length"/>. ابحث لتضييق النطاق.</target>
+          <trans-unit id="clsb.page_range" datatype="html">
+        <source>Showing <x id="FROM" equiv-text="page.from"/>–<x id="TO" equiv-text="page.to"/> of <x id="TOTAL" equiv-text="page.total"/></source>
+        <target>يُعرض <x id="FROM" equiv-text="page.from"/>–<x id="TO" equiv-text="page.to"/> من <x id="TOTAL" equiv-text="page.total"/></target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
-          <context context-type="linenumber">1003</context>
+          <context context-type="linenumber">1058</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.pager_filed" datatype="html">
+        <source>Pages of values priced in this class</source>
+        <target>صفحات القيم المُسعَّرة في هذه الفئة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">920</context>
+        </context-group>
+      </trans-unit>
+          <trans-unit id="clsb.pager_elsewhere" datatype="html">
+        <source>Pages of values priced somewhere else</source>
+        <target>صفحات القيم المُسعَّرة في مكان آخر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/lookups/parent-class-board.component.ts</context>
+          <context context-type="linenumber">921</context>
         </context-group>
       </trans-unit>
           <trans-unit id="clsb.fallback_panel" datatype="html">
@@ -2658,13 +2674,57 @@
           <context context-type="linenumber">156,158</context>
         </context-group>
       </trans-unit>
-          <trans-unit id="lookups.window.more" datatype="html">
-        <source>Show the next <x id="COUNT" equiv-text="Math.min(VALUE_WINDOW, left)"/> (<x id="REMAINING" equiv-text="left"/> left)</source>
-        <target>اعرض الـ<x id="COUNT" equiv-text="Math.min(VALUE_WINDOW, left)"/> التالية (بقي <x id="REMAINING" equiv-text="left"/>)</target>
+      <trans-unit id="lookups.tab.all" datatype="html">
+        <source>All</source>
+        <target>الكل</target>
+      </trans-unit>
+      <trans-unit id="lookups.tabs.aria" datatype="html">
+        <source>Show the values one class at a time</source>
+        <target>عرض القيم فئة واحدة في كل مرة</target>
+      </trans-unit>
+      <trans-unit id="lookups.tab.count" datatype="html">
+        <source>values</source>
+        <target>قيمة</target>
+      </trans-unit>
+      <trans-unit id="lookups.tab.warn" datatype="html">
+        <source>No bank can price these</source>
+        <target>لا يستطيع أي بنك تسعيرها</target>
+      </trans-unit>
+      <trans-unit id="lookups.pager.aria" datatype="html">
+        <source>Pages of values</source>
+        <target>صفحات القيم</target>
+      </trans-unit>
+      <trans-unit id="lookups.page_range" datatype="html">
+        <source> Showing <x id="INTERPOLATION" equiv-text="{{ page().from }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ page().to }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ page().total }}"/> </source>
+        <target> عرض <x id="INTERPOLATION" equiv-text="{{ page().from }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ page().to }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ page().total }}"/> </target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/lookups/lookup-value-list.component.ts</context>
-          <context context-type="linenumber">590</context>
+          <context context-type="linenumber">261,263</context>
         </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.group.unfiled" datatype="html">
+        <source>In no class</source>
+        <target>بدون فئة</target>
+      </trans-unit>
+      <trans-unit id="lookups.group.deprecated" datatype="html">
+        <source>Deprecated</source>
+        <target>ملغى</target>
+      </trans-unit>
+      <trans-unit id="lookups.edit.aria" datatype="html">
+        <source>Edit <x id="VALUE" equiv-text="this.labelOf(row)"/></source>
+        <target>تعديل <x id="VALUE" equiv-text="this.labelOf(row)"/></target>
+      </trans-unit>
+      <trans-unit id="lookups.activate.aria" datatype="html">
+        <source>Activate <x id="VALUE" equiv-text="name"/></source>
+        <target>تفعيل <x id="VALUE" equiv-text="name"/></target>
+      </trans-unit>
+      <trans-unit id="lookups.deactivate.aria" datatype="html">
+        <source>Deactivate <x id="VALUE" equiv-text="name"/></source>
+        <target>إيقاف <x id="VALUE" equiv-text="name"/></target>
+      </trans-unit>
+      <trans-unit id="lookups.delete.aria" datatype="html">
+        <source>Delete <x id="VALUE" equiv-text="this.labelOf(row)"/></source>
+        <target>حذف <x id="VALUE" equiv-text="this.labelOf(row)"/></target>
       </trans-unit>
           <trans-unit id="pv.block.limit" datatype="html">
         <source>This is <x id="COUNT" equiv-text="n"/> lines. Paste at most <x id="MAX" equiv-text="ENUMERATION_BULK_MAX"/> at a time.</source>
@@ -3196,6 +3256,8 @@
       </trans-unit>
       <trans-unit id="program_catalog.proof.head" datatype="html"><source>Sold against a payslip</source><target>تُباع مقابل كشف راتب</target></trans-unit>
       <trans-unit id="program_catalog.surrogate.head" datatype="html"><source>Worked out without a payslip</source><target>تُحسب بدون كشف راتب</target></trans-unit>
+      <trans-unit id="program_catalog.proof.count" datatype="html"><source>program names</source><target>أسماء برامج</target></trans-unit>
+      <trans-unit id="program_catalog.surrogate.count" datatype="html"><source>calculations and names</source><target>حسابات وأسماء</target></trans-unit>
       <trans-unit id="program_catalog.proof.empty" datatype="html"><source>
                   No name is sold against a payslip yet. Add a program name and it starts here.
                 </source><target>
@@ -3317,37 +3379,37 @@
       <trans-unit id="additional_income.cap" datatype="html"><source>All of it together may not exceed</source><target>ألا يتجاوز مجموعها</target></trans-unit>
       <trans-unit id="additional_income.cap_tail" datatype="html"><source>of the basic income</source><target>من الدخل الأساسي</target></trans-unit>
       <trans-unit id="additional_income.hint" datatype="html"><source>Leave a row blank to count none of that source. Leave the limit blank if the bank states none — blank is not the same as 100%.</source><target>اترك الصف فارغًا لعدم احتساب هذا المصدر. واترك الحد فارغًا إن لم يذكره البنك — الفراغ لا يعني ١٠٠٪.</target></trans-unit>
-      <trans-unit id="bpl.armed.title" datatype="html"><source>Armed forces, by grade</source><target>القوات المسلحة، حسب الرتبة</target></trans-unit>
+      <trans-unit id="bpl.armed.title" datatype="html"><source>Egyptian Armed Forces</source><target>القوات المسلحة المصرية</target></trans-unit>
       <trans-unit id="bpl.armed.mech" datatype="html"><source>The customer states their grade, and the bank assumes that grade earns a set amount every month.</source><target>يذكر العميل رتبته، ويفترض البنك أن هذه الرتبة تكسب مبلغًا محددًا كل شهر.</target></trans-unit>
       <trans-unit id="bpl.armed.eg" datatype="html"><source>One sheet pays 75,000 for a Major General down to 18,000 for a First Lieutenant.</source><target>إحدى النشرات تدفع ٧٥٠٠٠ للواء وتنزل إلى ١٨٠٠٠ لملازم أول.</target></trans-unit>
-      <trans-unit id="bpl.rank.title" datatype="html"><source>University staff, by academic rank</source><target>أعضاء الجامعة، حسب الدرجة العلمية</target></trans-unit>
+      <trans-unit id="bpl.rank.title" datatype="html"><source>University Professors</source><target>أساتذة الجامعات</target></trans-unit>
       <trans-unit id="bpl.rank.mech" datatype="html"><source>A table by rank, and a second column for a private university where a bank prices those differently.</source><target>جدول حسب الدرجة، وعمود ثانٍ للجامعة الخاصة عند البنك الذي يسعّرها بشكل مختلف.</target></trans-unit>
       <trans-unit id="bpl.rank.eg" datatype="html"><source>One sheet pays a Dean 100,000 and a teaching assistant 12,000; another pays 300,000 and 20,000 at private universities.</source><target>إحدى النشرات تدفع للعميد ١٠٠٠٠٠ وللمعيد ١٢٠٠٠؛ وأخرى تدفع ٣٠٠٠٠٠ و٢٠٠٠٠ في الجامعات الخاصة.</target></trans-unit>
-      <trans-unit id="bpl.years.title" datatype="html"><source>Professionals, by years in practice</source><target>أصحاب المهن، حسب سنوات الممارسة</target></trans-unit>
+      <trans-unit id="bpl.years.title" datatype="html"><source>Doctors (In Practice)</source><target>الأطباء الممارسون</target></trans-unit>
       <trans-unit id="bpl.years.mech" datatype="html"><source>The customer states how many years they have practised, and the bank has a row for the bracket it falls in — by city tier where it prices those apart.</source><target>يذكر العميل عدد سنوات ممارسته، وللبنك صف للشريحة التي يقع فيها — وحسب فئة المحافظة عند البنك الذي يفرّق بينها.</target></trans-unit>
       <trans-unit id="bpl.years.eg" datatype="html"><source>One sheet pays 30,000 at 3–5 years and 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere.</source><target>إحدى النشرات تدفع ٣٠٠٠٠ عند ٣–٥ سنوات و٣٠٠٠٠٠ فوق ٢٠، وتحدّ التمويل بـ١٥٠٠٠٠٠ في القاهرة مقابل ٥٠٠٠٠٠ في غيرها.</target></trans-unit>
-      <trans-unit id="bpl.card.title" datatype="html"><source>A share of a credit-card limit</source><target>نسبة من حد بطاقة ائتمان</target></trans-unit>
+      <trans-unit id="bpl.card.title" datatype="html"><source>PL Cross Sell to Credit Card</source><target>التمويل الشخصي مقابل بطاقة ائتمان</target></trans-unit>
       <trans-unit id="bpl.card.mech" datatype="html"><source>The bank treats a percentage of the limit on a card the customer holds elsewhere as their monthly income.</source><target>يعتبر البنك نسبةً من حد بطاقة يحملها العميل في بنك آخر دخلًا شهريًا له.</target></trans-unit>
       <trans-unit id="bpl.card.eg" datatype="html"><source>One sheet takes half: a 60,000 limit reads as 30,000 a month.</source><target>إحدى النشرات تأخذ النصف: حد ٦٠٠٠٠ يُقرأ ٣٠٠٠٠ شهريًا.</target></trans-unit>
-      <trans-unit id="bpl.auto.title" datatype="html"><source>An existing car loan</source><target>قرض سيارة قائم</target></trans-unit>
+      <trans-unit id="bpl.auto.title" datatype="html"><source>PL Cross Sell to Auto Loan</source><target>التمويل الشخصي مقابل قرض سيارة</target></trans-unit>
       <trans-unit id="bpl.auto.mech" datatype="html"><source>Two ways at once — a multiple of the instalment they already pay, or a share of what the car loan was — and the lower of the two.</source><target>طريقتان في وقت واحد — مضاعف للقسط الذي يسدده بالفعل، أو نسبة من مبلغ قرض السيارة — ويؤخذ الأقل.</target></trans-unit>
       <trans-unit id="bpl.auto.eg" datatype="html"><source>One sheet takes 3× the instalment or 10% of the loan, whichever is less.</source><target>إحدى النشرات تأخذ ٣× القسط أو ١٠٪ من القرض، أيهما أقل.</target></trans-unit>
-      <trans-unit id="bpl.pledged.title" datatype="html"><source>Savings the customer will pledge</source><target>مدخرات يرهنها العميل</target></trans-unit>
+      <trans-unit id="bpl.pledged.title" datatype="html"><source>Liabilities Cross Sell (CDs Holder)</source><target>التمويل مقابل شهادات ادخار مرهونة</target></trans-unit>
       <trans-unit id="bpl.pledged.mech" datatype="html"><source>A share of a certificate or deposit they put up as collateral, with a cap by how large it is and a condition on how long they have held it.</source><target>نسبة من شهادة أو وديعة يقدّمها كضمان، مع حدٍّ أقصى حسب قيمتها وشرط على مدة حيازتها.</target></trans-unit>
       <trans-unit id="bpl.pledged.eg" datatype="html"><source>One sheet takes 30% of the free amount and caps the loan at 500,000 under 2M, rising to 2,000,000 at 10M and above.</source><target>إحدى النشرات تأخذ ٣٠٪ من المبلغ الحر وتحدّ التمويل بـ٥٠٠٠٠٠ تحت ٢ مليون، وترتفع إلى ٢٠٠٠٠٠٠ عند ١٠ ملايين وأكثر.</target></trans-unit>
-      <trans-unit id="bpl.compound.title" datatype="html"><source>A compound unit the customer owns</source><target>وحدة في كومباوند يملكها العميل</target></trans-unit>
+      <trans-unit id="bpl.compound.title" datatype="html"><source>Compound Owner</source><target>مالك وحدة في كومباوند</target></trans-unit>
       <trans-unit id="bpl.compound.mech" datatype="html"><source>Four ways to the same ceiling — the class the compound is filed under, the bracket of what they have paid, a share of what they have paid, or the kind of unit — and the lower of whichever ones a bank fills.</source><target>أربع طرق للوصول إلى الحد الأقصى نفسه — فئة الكومباوند، أو شريحة ما دفعه، أو نسبة من ما دفعه، أو نوع الوحدة — ويؤخذ الأقل من الطرق التي يملأها البنك.</target></trans-unit>
       <trans-unit id="bpl.compound.eg" datatype="html"><source>One sheet lends 15% of everything paid; another 6,000,000 against a Class AA compound; a third 4,000,000 against a villa.</source><target>إحدى النشرات تمنح ١٥٪ من إجمالي المدفوع؛ وأخرى ٦٠٠٠٠٠٠ لكومباوند من الفئة AA؛ وثالثة ٤٠٠٠٠٠٠ لفيلا.</target></trans-unit>
-      <trans-unit id="bpl.stage.title" datatype="html"><source>Teachers, by the stage they teach</source><target>المعلمون، حسب المرحلة التي يدرّسونها</target></trans-unit>
+      <trans-unit id="bpl.stage.title" datatype="html"><source>Teachers — Predefined Limit</source><target>المعلمون — حد محدد مسبقًا</target></trans-unit>
       <trans-unit id="bpl.stage.mech" datatype="html"><source>A ceiling by stage, with a second column for an international school.</source><target>حد أقصى حسب المرحلة، وعمود ثانٍ للمدرسة الدولية.</target></trans-unit>
       <trans-unit id="bpl.stage.eg" datatype="html"><source>One sheet lends 200,000 for primary and 600,000 for secondary at an international school; half that at a national one.</source><target>إحدى النشرات تمنح ٢٠٠٠٠٠ للابتدائي و٦٠٠٠٠٠ للثانوي في مدرسة دولية؛ ونصف ذلك في الوطنية.</target></trans-unit>
-      <trans-unit id="bpl.coding.title" datatype="html"><source>How the employer is coded</source><target>تصنيف جهة العمل في البنك</target></trans-unit>
+      <trans-unit id="bpl.coding.title" datatype="html"><source>Salaried — Company Coding</source><target>أصحاب الرواتب — تصنيف جهة العمل</target></trans-unit>
       <trans-unit id="bpl.coding.mech" datatype="html"><source>No income is worked out — the customer has a payslip. This only caps what the bank will lend, by the code it files their employer under.</source><target>لا يُحتسب دخل — فالعميل لديه مفردات راتب. هذا يحدّ فقط ما يمنحه البنك، حسب التصنيف الذي يضع جهة عمله تحته.</target></trans-unit>
       <trans-unit id="bpl.coding.eg" datatype="html"><source>One sheet caps CAT A at 6,000,000, CAT B at 1,000,000 and CAT C at 500,000.</source><target>إحدى النشرات تحدّ الفئة A بـ٦٠٠٠٠٠٠، والفئة B بـ١٠٠٠٠٠٠، والفئة C بـ٥٠٠٠٠٠.</target></trans-unit>
-      <trans-unit id="bpl.schooltype.title" datatype="html"><source>The kind of school a teacher works at</source><target>نوع المدرسة التي يعمل بها المعلم</target></trans-unit>
+      <trans-unit id="bpl.schooltype.title" datatype="html"><source>Teachers — Standard</source><target>المعلمون — البرنامج القياسي</target></trans-unit>
       <trans-unit id="bpl.schooltype.mech" datatype="html"><source>A cap on top of a real payslip — the bank checks the income the normal way and will not lend past the ceiling for that kind of school.</source><target>حدٌّ أقصى فوق راتب حقيقي — يفحص البنك الدخل بالطريقة المعتادة ولا يمنح أكثر من سقف هذا النوع من المدارس.</target></trans-unit>
       <trans-unit id="bpl.schooltype.eg" datatype="html"><source>One sheet caps a national school at 500,000 and an international one at 750,000.</source><target>إحدى النشرات تحدّ المدرسة الوطنية بـ٥٠٠٠٠٠ والدولية بـ٧٥٠٠٠٠.</target></trans-unit>
-      <trans-unit id="bpl.club.title" datatype="html"><source>A club membership, by branch</source><target>عضوية نادٍ، حسب الفرع</target></trans-unit>
+      <trans-unit id="bpl.club.title" datatype="html"><source>Club Membership</source><target>عضوية النادي</target></trans-unit>
       <trans-unit id="bpl.club.mech" datatype="html"><source>A cap on top of a real payslip, by the branch the membership is at. Adding a branch later is more rows, not more code.</source><target>حدٌّ أقصى فوق راتب حقيقي، حسب فرع العضوية. وإضافة فرع لاحقًا صفوف أكثر، وليست كودًا أكثر.</target></trans-unit>
       <trans-unit id="bpl.club.eg" datatype="html"><source>One sheet caps New Cairo at 750,000, Sheikh Zayed at 510,000 and the main branch at 160,000.</source><target>إحدى النشرات تحدّ القاهرة الجديدة بـ٧٥٠٠٠٠، والشيخ زايد بـ٥١٠٠٠٠، والفرع الرئيسي بـ١٦٠٠٠٠.</target></trans-unit>
       <trans-unit id="spt.addon.uplift.scope" datatype="html"><source>What does the bonus lift?</source><target>ماذا ترفع المكافأة؟</target></trans-unit>

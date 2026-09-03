@@ -7,6 +7,12 @@
  * on/off switch already follows. A second, quieter write path would be a second set of
  * rules, free to disagree with the first about what is allowed.
  *
+ * DETACHED ROWS ARE NOT ASKS. Every read below filters `detachedAt: null`, so nothing
+ * outside this file has to remember the tombstone exists — a detached row is simply absent
+ * from the product's ask set. The one caller that must NOT filter is the blueprint seed,
+ * and it does not read: it inserts, idempotently by primary key, which is precisely how a
+ * tombstone survives `npm run seed:blueprints`.
+ *
  * Keys in, keys out. The table is keyed by `platform_enumeration.id` (both ends address the
  * primary key, which is what makes real foreign keys possible here), but no caller outside
  * this file knows an id: the service resolves `(type, key)` and passes ids down, and no DTO
@@ -35,7 +41,7 @@ export class ProductAsksRepository {
    */
   async asksFor(productKey: string): Promise<ProductAskRow[]> {
     const rows = await this.prisma.surrogateProductAsk.findMany({
-      where: { product: { type: 'surrogate_product', key: productKey } },
+      where: { product: { type: 'surrogate_product', key: productKey }, detachedAt: null },
       select: { source: true, fact: { select: { key: true } } },
       orderBy: { fact: { key: 'asc' } },
     });
@@ -51,7 +57,7 @@ export class ProductAsksRepository {
    */
   async productsAsking(factKey: string): Promise<string[]> {
     const rows = await this.prisma.surrogateProductAsk.findMany({
-      where: { fact: { type: 'surrogate_fact', key: factKey } },
+      where: { fact: { type: 'surrogate_fact', key: factKey }, detachedAt: null },
       select: { product: { select: { key: true } } },
       orderBy: { product: { key: 'asc' } },
     });
@@ -62,7 +68,7 @@ export class ProductAsksRepository {
   async asksForFacts(factKeys: readonly string[]): Promise<Map<string, string[]>> {
     if (factKeys.length === 0) return new Map();
     const rows = await this.prisma.surrogateProductAsk.findMany({
-      where: { fact: { type: 'surrogate_fact', key: { in: [...factKeys] } } },
+      where: { fact: { type: 'surrogate_fact', key: { in: [...factKeys] } }, detachedAt: null },
       select: { fact: { select: { key: true } }, product: { select: { key: true } } },
       orderBy: [{ fact: { key: 'asc' } }, { product: { key: 'asc' } }],
     });
@@ -79,15 +85,24 @@ export class ProductAsksRepository {
    * Record that a product reads a fact. Idempotent: a double-click writes once.
    *
    * `skipDuplicates` rather than a read-then-insert, because the read and the insert are two
-   * statements and a four-tab screen is exactly where two of them interleave. Returns
-   * whether the row is NEW, which is what decides whether anything is audited.
+   * statements and a four-tab screen is exactly where two of them interleave.
+   *
+   * `revive` is the whole tombstone contract, in one flag, passed explicitly rather than
+   * inferred from `source` — the two happen to line up today (the operator's tick revives,
+   * the seed's insert does not) and a reader should not have to know that to see which way
+   * this goes. With it false, a detached row is left detached and the caller is told
+   * `'already'`: that is what stops `npm run seed:blueprints` reviving an ask an operator
+   * removed. With it true, the row comes back and keeps its stored `source` — provenance is
+   * who AUTHORED the ask, and re-ticking a blueprint's ask does not make the operator its
+   * author.
    */
   async addAsk(args: {
     productId: string;
     factId: string;
     source: SurrogateAskSource;
     createdBy: string | null;
-  }): Promise<boolean> {
+    revive: boolean;
+  }): Promise<'added' | 'revived' | 'already'> {
     const result = await this.prisma.surrogateProductAsk.createMany({
       data: [
         {
@@ -99,7 +114,13 @@ export class ProductAsksRepository {
       ],
       skipDuplicates: true,
     });
-    return result.count > 0;
+    if (result.count > 0) return 'added';
+    if (!args.revive) return 'already';
+    const revived = await this.prisma.surrogateProductAsk.updateMany({
+      where: { productId: args.productId, factId: args.factId, detachedAt: { not: null } },
+      data: { detachedAt: null, detachedBy: null },
+    });
+    return revived.count > 0 ? 'revived' : 'already';
   }
 
   /**
@@ -115,7 +136,9 @@ export class ProductAsksRepository {
     factKey: string;
     source: SurrogateAskSource;
     createdBy: string | null;
-  }): Promise<'added' | 'already' | 'missing'> {
+    /** See `addAsk`. The seed passes `false`; the operator's tick passes `true`. */
+    revive: boolean;
+  }): Promise<'added' | 'revived' | 'already' | 'missing'> {
     const [product, fact] = await Promise.all([
       this.prisma.platformEnumeration.findUnique({
         where: {
@@ -131,17 +154,57 @@ export class ProductAsksRepository {
       }),
     ]);
     if (!product || !fact) return 'missing';
-    const added = await this.addAsk({
+    return this.addAsk({
       productId: product.id,
       factId: fact.id,
       source: args.source,
       createdBy: args.createdBy,
+      revive: args.revive,
     });
-    return added ? 'added' : 'already';
   }
 
   /** Drop one product's ask, addressed by keys. Returns whether a row was actually there. */
   async removeAskByKeys(productKey: string, factKey: string): Promise<boolean> {
+    const ids = await this.askIds(productKey, factKey);
+    if (ids === null) return false;
+    return this.removeAsk(ids.productId, ids.factId);
+  }
+
+  /** Drop one product's ask. Returns whether a row was actually there. */
+  async removeAsk(productId: string, factId: string): Promise<boolean> {
+    const result = await this.prisma.surrogateProductAsk.deleteMany({
+      where: { productId, factId },
+    });
+    return result.count > 0;
+  }
+
+  /**
+   * Mark one product's ask removed without deleting the row, addressed by keys.
+   *
+   * The untick of a `blueprint` ask. The row has to survive or `npm run seed:blueprints`
+   * finds nothing to collide with and re-inserts the ask on the next deploy — which is the
+   * behaviour the untick refusal used to exist to prevent. Returns whether a LIVE row was
+   * there to detach, so a double-click is not reported as a change.
+   */
+  async tombstoneAskByKeys(args: {
+    productKey: string;
+    factKey: string;
+    detachedBy: string | null;
+  }): Promise<boolean> {
+    const ids = await this.askIds(args.productKey, args.factKey);
+    if (ids === null) return false;
+    const result = await this.prisma.surrogateProductAsk.updateMany({
+      where: { productId: ids.productId, factId: ids.factId, detachedAt: null },
+      data: { detachedAt: new Date(), detachedBy: args.detachedBy },
+    });
+    return result.count > 0;
+  }
+
+  /** Both ends of one ask row, resolved through the registry's `(type, key)` unique. */
+  private async askIds(
+    productKey: string,
+    factKey: string,
+  ): Promise<{ productId: string; factId: string } | null> {
     const [product, fact] = await Promise.all([
       this.prisma.platformEnumeration.findUnique({
         where: {
@@ -156,16 +219,8 @@ export class ProductAsksRepository {
         select: { id: true },
       }),
     ]);
-    if (!product || !fact) return false;
-    return this.removeAsk(product.id, fact.id);
-  }
-
-  /** Drop one product's ask. Returns whether a row was actually there. */
-  async removeAsk(productId: string, factId: string): Promise<boolean> {
-    const result = await this.prisma.surrogateProductAsk.deleteMany({
-      where: { productId, factId },
-    });
-    return result.count > 0;
+    if (!product || !fact) return null;
+    return { productId: product.id, factId: fact.id };
   }
 
   /**
@@ -176,7 +231,7 @@ export class ProductAsksRepository {
    */
   async asksByProduct(): Promise<Map<string, ProductAskRow[]>> {
     const rows = await this.prisma.surrogateProductAsk.findMany({
-      where: { product: { type: 'surrogate_product' } },
+      where: { product: { type: 'surrogate_product' }, detachedAt: null },
       select: {
         source: true,
         fact: { select: { key: true } },

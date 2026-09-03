@@ -18,6 +18,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import {
   CheckOutline,
   ExclamationCircleOutline,
@@ -28,6 +29,7 @@ import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import type { EnumerationRow } from '@features/lookups/lookups.api.service';
 import { PARENT_KEYS_BULK_MAX } from '@features/lookups/lookups.api.service';
 import { slugify } from './slug';
+import { pageSlice, type ValuePage } from './value-groups';
 
 /** One value as this board renders it: the row, plus where it sits right now. */
 interface BoardValue {
@@ -97,17 +99,31 @@ export interface BoardAttention {
 const SEARCH_DEBOUNCE_MS = 200;
 
 /**
- * Candidate cards rendered at once.
+ * Cards on one page of either group.
  *
- * Honest rather than infinite: the footer says how many are hidden and what to do about it. A
- * wall of five hundred cards is not a list anybody reads, and the search is right there.
+ * PAGED rather than capped: the previous version rendered the first two hundred candidates and
+ * told the operator to search for the rest, which is only an answer when they know what they
+ * are looking for — filing seventy compounds means walking the whole list, and a name is
+ * unreachable until you can spell it. Sixteen fills the three-column grid just over five rows
+ * deep, so a page is one screen with the pager in view rather than one scroll.
+ *
+ * `pageSlice` is the shared clamp the values list and the ask grid already use, so a page
+ * index that goes out of range (a move empties the group, a search narrows it) lands on the
+ * last page that exists instead of an empty grid under a pager reading "4 of 2".
  */
-const CANDIDATE_CAP = 200;
+const CARD_PAGE_SIZE = 16;
 
 @Component({
   selector: 'app-parent-class-board',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzIconModule, NzInputModule, RailTabsComponent],
+  imports: [
+    FormsModule,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzPaginationModule,
+    RailTabsComponent,
+  ],
   providers: [provideNzIconsPatch([CheckOutline, ExclamationCircleOutline, SearchOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -224,7 +240,7 @@ const CANDIDATE_CAP = 200;
                 [attr.aria-label]="searchAria"
                 [placeholder]="searchPlaceholder"
                 [ngModel]="query()"
-                (ngModelChange)="query.set($event)"
+                (ngModelChange)="onQuery($event)"
                 [ngModelOptions]="{ standalone: true }"
               />
             </nz-input-group>
@@ -274,7 +290,7 @@ const CANDIDATE_CAP = 200;
               figure. Tick one on another class's tab to price it there.
             </p>
             <ul class="grid">
-              @for (c of filed(); track c.id) {
+              @for (c of filedPage().rows; track c.id) {
                 <li class="cell">
                   <span class="card is-filed is-static">
                     <span class="tick" aria-hidden="true">
@@ -290,7 +306,7 @@ const CANDIDATE_CAP = 200;
             </ul>
           } @else {
             <ul class="grid" [class.is-stagger]="stagger()">
-              @for (c of filed(); track c.id) {
+              @for (c of filedPage().rows; track c.id) {
                 <li class="cell" [style.--i]="$index">
                   <button
                     type="button"
@@ -314,6 +330,20 @@ const CANDIDATE_CAP = 200;
               }
             </ul>
           }
+          @if (filedPage().pages > 1) {
+            <!-- Only past one page: a pager whose only state is "1 of 1" is chrome, not
+                 navigation. -->
+            <nav class="pager" [attr.aria-label]="pagerFiledAria">
+              <p class="pager-range">{{ rangeLabel(filedPage()) }}</p>
+              <nz-pagination
+                [nzPageIndex]="filedPage().page"
+                [nzPageSize]="CARD_PAGE_SIZE"
+                [nzTotal]="filedPage().total"
+                nzSize="small"
+                (nzPageIndexChange)="setFiledPage($event)"
+              />
+            </nav>
+          }
 
           <!-- EVERYWHERE ELSE -->
           <h3 class="group" i18n="@@clsb.group_elsewhere">Priced somewhere else</h3>
@@ -321,7 +351,7 @@ const CANDIDATE_CAP = 200;
             <p class="empty">{{ candidatesEmpty() }}</p>
           } @else {
             <ul class="grid" [class.is-stagger]="stagger()">
-              @for (c of shownCandidates(); track c.id) {
+              @for (c of candidatePage().rows; track c.id) {
                 <li class="cell" [style.--i]="$index">
                   <button
                     type="button"
@@ -340,8 +370,17 @@ const CANDIDATE_CAP = 200;
                 </li>
               }
             </ul>
-            @if (candidatesCapped()) {
-              <p class="capped">{{ cappedLabel() }}</p>
+            @if (candidatePage().pages > 1) {
+              <nav class="pager" [attr.aria-label]="pagerElsewhereAria">
+                <p class="pager-range">{{ rangeLabel(candidatePage()) }}</p>
+                <nz-pagination
+                  [nzPageIndex]="candidatePage().page"
+                  [nzPageSize]="CARD_PAGE_SIZE"
+                  [nzTotal]="candidatePage().total"
+                  nzSize="small"
+                  (nzPageIndexChange)="setCandidatePage($event)"
+                />
+              </nav>
             }
           }
 
@@ -527,11 +566,20 @@ const CANDIDATE_CAP = 200;
       }
       /* Secondary ink, not tertiary: this is read, not decoration, and tertiary sits under
          4.5:1 at this size. */
-      .capped {
+      /* The pager sits UNDER its own grid and inside the group it pages, so two of them on
+         one panel never read as one control for both lists. */
+      .pager {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        flex-wrap: wrap;
         margin: var(--space-3) 0 0;
+      }
+      .pager-range {
+        margin: 0;
         color: var(--color-text-secondary);
         font-size: var(--text-xs);
-        text-align: center;
       }
       .bulk-why {
         flex-basis: 100%;
@@ -871,6 +919,8 @@ export class ParentClassBoardComponent {
   protected readonly railAria = $localize`:@@clsb.rail_aria:Classes`;
   protected readonly searchAria = $localize`:@@clsb.search_aria:Search values by name`;
   protected readonly searchPlaceholder = $localize`:@@clsb.search:Search values`;
+  protected readonly pagerFiledAria = $localize`:@@clsb.pager_filed:Pages of values priced in this class`;
+  protected readonly pagerElsewhereAria = $localize`:@@clsb.pager_elsewhere:Pages of values priced somewhere else`;
 
   /** `?class=` — so a pasted link and a reload both land on the class being worked on. */
   private readonly classParam = toSignal(
@@ -891,7 +941,7 @@ export class ParentClassBoardComponent {
       () => {
         const pair = `${this.childType()}\u0000${this.parentType()}`;
         void pair;
-        void this.load();
+        void this.reload();
       },
       { allowSignalWrites: true },
     );
@@ -909,8 +959,18 @@ export class ParentClassBoardComponent {
 
   // ── data ───────────────────────────────────────────────────────────────────
 
-  private async load(): Promise<void> {
-    this.loading.set(true);
+  /**
+   * Re-read classes and values.
+   *
+   * PUBLIC, because the board is not the only thing on a product's screen reading this list:
+   * the values panel directly above it adds and retires the very rows this board files, and
+   * neither can see the other's write. The host wires both directions on `changed`.
+   *
+   * `silent` keeps the rows on screen while re-reading — a host-driven refresh after somebody
+   * else's write must not blank a board the operator is working in.
+   */
+  async reload(opts: { silent?: boolean } = {}): Promise<void> {
+    if (!opts.silent) this.loading.set(true);
     this.loadError.set(false);
     try {
       const [classes, values] = await Promise.all([
@@ -1024,22 +1084,54 @@ export class ParentClassBoardComponent {
   });
 
   /**
-   * The candidates actually RENDERED, capped.
+   * The page each group is on, and the page each group RENDERS.
    *
-   * Unfiled-first ordering is what makes the cap safe: the rows that are actually broken are
-   * the ones that survive it. `filed()` is deliberately uncapped — that group is bounded by
-   * the class, and it is the one the operator came to read.
+   * Two indexes, because the two groups are read for different reasons and page apart: an
+   * operator checking what is priced here does not want the candidate list to jump.
    *
-   * `moveAllListed` still acts on the full `candidates()` set, not on what is on screen: the
-   * button names the real number, and capping the ACTION as well would make "move all listed"
-   * quietly mean "move the first two hundred".
+   * The requested index is a plain signal reset by the two things that change what is in the
+   * list — picking a class and typing in the search box — and both are event handlers, never
+   * an `effect`, because a signal written from an effect is the NG0600 this file's sibling
+   * shipped (v22.1.0). Everything else that moves the list (a move, a bulk move, a reload)
+   * needs no reset at all: `pageSlice` clamps, so the operator lands on the last page that
+   * exists rather than on an empty grid.
+   *
+   * `moveAllListed` still acts on the full `candidates()` set, not on the page: the button
+   * names the real number, and paging the ACTION would make "move all listed" quietly mean
+   * "move the twenty-four on screen".
    */
-  protected readonly shownCandidates = computed(() => this.candidates().slice(0, CANDIDATE_CAP));
+  private readonly filedPageRequest = signal(1);
+  private readonly candidatePageRequest = signal(1);
 
-  protected readonly candidatesCapped = computed(() => this.candidates().length > CANDIDATE_CAP);
+  protected readonly filedPage = computed(() =>
+    pageSlice<BoardValue>(this.filed(), this.filedPageRequest(), CARD_PAGE_SIZE),
+  );
+  protected readonly candidatePage = computed(() =>
+    pageSlice<BoardValue>(this.candidates(), this.candidatePageRequest(), CARD_PAGE_SIZE),
+  );
 
-  protected cappedLabel(): string {
-    return $localize`:@@clsb.capped:Showing the first ${CANDIDATE_CAP}:SHOWN: of ${this.candidates().length}:TOTAL:. Search to narrow it down.`;
+  protected readonly CARD_PAGE_SIZE = CARD_PAGE_SIZE;
+
+  protected setFiledPage(page: number): void {
+    // Paging is not a move: the stagger would re-animate every card on arrival.
+    this.stagger.set(false);
+    this.filedPageRequest.set(page);
+  }
+
+  protected setCandidatePage(page: number): void {
+    this.stagger.set(false);
+    this.candidatePageRequest.set(page);
+  }
+
+  protected onQuery(value: string): void {
+    this.query.set(value);
+    this.filedPageRequest.set(1);
+    this.candidatePageRequest.set(1);
+  }
+
+  /** The range, in TS so both pagers share ONE message instead of two ids saying the same. */
+  protected rangeLabel(page: ValuePage<BoardValue>): string {
+    return $localize`:@@clsb.page_range:Showing ${page.from}:FROM:–${page.to}:TO: of ${page.total}:TOTAL:`;
   }
 
   /**
@@ -1202,6 +1294,8 @@ export class ParentClassBoardComponent {
 
   protected pickClass(key: string): void {
     this.stagger.set(true);
+    this.filedPageRequest.set(1);
+    this.candidatePageRequest.set(1);
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { class: key },
@@ -1213,7 +1307,7 @@ export class ParentClassBoardComponent {
   protected showOnlyUnfiled(): void {
     // Not a filter chip: the unfiled set has no shared name to search for. Clearing the query
     // and letting the unfiled-first ordering do the work is the honest version of "show them".
-    this.query.set('');
+    this.onQuery('');
     this.announcement.set(this.unfiledLabel());
   }
 

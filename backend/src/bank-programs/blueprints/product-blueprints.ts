@@ -63,8 +63,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'armed_forces_grades',
     group: 'income',
-    labelEn: 'Income by armed-forces grade',
-    labelAr: 'الدخل حسب الرتبة العسكرية',
+    labelEn: 'Egyptian Armed Forces',
+    labelAr: 'القوات المسلحة المصرية',
     asks: [
       {
         kind: 'platformFact',
@@ -101,8 +101,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'academic_rank_table',
     group: 'income',
-    labelEn: 'Income by academic rank',
-    labelAr: 'الدخل حسب الدرجة العلمية',
+    labelEn: 'University Professors',
+    labelAr: 'أساتذة الجامعات',
     asks: [
       {
         kind: 'platformFact',
@@ -172,8 +172,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'years_in_practice_bands',
     group: 'income',
-    labelEn: 'Income by years in practice',
-    labelAr: 'الدخل حسب سنوات الممارسة',
+    labelEn: 'Doctors (In Practice)',
+    labelAr: 'الأطباء الممارسون',
     asks: [
       { kind: 'platformFact', factKey: 'years_in_practice' },
       {
@@ -227,8 +227,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'card_limit_share',
     group: 'income',
-    labelEn: 'Income as a share of a card limit',
-    labelAr: 'الدخل كنسبة من حد البطاقة',
+    labelEn: 'PL Cross Sell to Credit Card',
+    labelAr: 'التمويل الشخصي مقابل بطاقة ائتمان',
     asks: [
       // Already asked, in every category, as part of the obligations block — and asking it
       // again would be two answers to one question, free to disagree.
@@ -245,8 +245,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'auto_loan_crosssell',
     group: 'income',
-    labelEn: 'Income from an existing car loan',
-    labelAr: 'الدخل من قرض سيارة قائم',
+    labelEn: 'PL Cross Sell to Auto Loan',
+    labelAr: 'التمويل الشخصي مقابل قرض سيارة',
     asks: [
       {
         kind: 'bindQuestion',
@@ -282,8 +282,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'pledged_collateral_share',
     group: 'income',
-    labelEn: 'Income as a share of pledged savings',
-    labelAr: 'الدخل كنسبة من مدخرات مرهونة',
+    labelEn: 'Liabilities Cross Sell (CDs Holder)',
+    labelAr: 'التمويل مقابل شهادات ادخار مرهونة',
     asks: [
       {
         kind: 'number',
@@ -336,8 +336,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'compound_owner',
     group: 'ceiling',
-    labelEn: 'Ceiling from a compound unit the customer owns',
-    labelAr: 'الحد الأقصى من وحدة يملكها العميل في كومباوند',
+    labelEn: 'Compound Owner',
+    labelAr: 'مالك وحدة في كومباوند',
     asks: [
       {
         kind: 'choice',
@@ -534,8 +534,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'school_stage_ceiling',
     group: 'ceiling',
-    labelEn: 'Ceiling by the stage a teacher teaches',
-    labelAr: 'الحد الأقصى حسب المرحلة التي يدرّسها المعلم',
+    labelEn: 'Teachers — Predefined Limit',
+    labelAr: 'المعلمون — حد محدد مسبقًا',
     asks: [
       {
         kind: 'choice',
@@ -591,8 +591,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'company_coding_cap',
     group: 'cap',
-    labelEn: 'Cap by how the employer is coded',
-    labelAr: 'الحد الأقصى حسب تصنيف جهة العمل',
+    labelEn: 'Salaried — Company Coding',
+    labelAr: 'أصحاب الرواتب — تصنيف جهة العمل',
     asks: [
       {
         kind: 'choice',
@@ -625,8 +625,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'school_type_cap',
     group: 'cap',
-    labelEn: 'Cap by the kind of school',
-    labelAr: 'الحد الأقصى حسب نوع المدرسة',
+    labelEn: 'Teachers — Standard',
+    labelAr: 'المعلمون — البرنامج القياسي',
     asks: [
       {
         kind: 'choice',
@@ -659,8 +659,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'club_branch_cap',
     group: 'cap',
-    labelEn: 'Cap by club branch',
-    labelAr: 'الحد الأقصى حسب فرع النادي',
+    labelEn: 'Club Membership',
+    labelAr: 'عضوية النادي',
     asks: [
       {
         kind: 'choice',

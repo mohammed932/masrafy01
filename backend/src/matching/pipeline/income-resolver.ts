@@ -36,6 +36,7 @@ import {
   type ProductRuleContext,
 } from './product-rule';
 import { bandFor } from './income-rule-bands';
+import { factLookupKeys } from './fact-value';
 import { resolveDbrCap } from './dbr';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
@@ -566,20 +567,35 @@ function resolveRegistryFact(
   // fix is found from the program's own rule either way.
   if (!answered) return { resolved: false, reason: 'fact_not_answered' };
 
-  if (answered.kind === 'choice') return lookupKey(answered.optionCode, config);
-  // `reportUnconfigured: true` — an empty band table means the BANK never entered one,
-  // which is a different fix from "your number is outside our table". Reporting
-  // `no_matching_band` there would send the admin to add a row to a table that does
-  // not exist yet.
-  return lookupBands(answered.value, config, true);
+  if (answered.kind === 'numeric') {
+    // `reportUnconfigured: true` — an empty band table means the BANK never entered one,
+    // which is a different fix from "your number is outside our table". Reporting
+    // `no_matching_band` there would send the admin to add a row to a table that does
+    // not exist yet.
+    return lookupBands(answered.value, config, true);
+  }
+  // Every other shape is key-shaped — one picked option, several, or the presence of a text
+  // answer — and `factLookupKeys` is the one place that decides which keys each offers.
+  return lookupKeys(factLookupKeys(answered), config);
 }
 
 /** Key-table lookup: fail CLOSED on a key the table does not carry (AS-1.9). */
 function lookupKey(key: string | undefined, config: IncomeAssumptionConfig): SurrogateOutcome {
   if (!key) return { resolved: false, reason: 'fact_not_answered' };
+  return lookupKeys([key], config);
+}
+
+/**
+ * The same lookup for a fact that offers SEVERAL candidate keys (a multi-pick answer).
+ *
+ * First matching row in TABLE order, per the rule `fact-value.ts` states: the bank's own
+ * ordering is what decides which of the applicant's picks is read.
+ */
+function lookupKeys(keys: readonly string[], config: IncomeAssumptionConfig): SurrogateOutcome {
+  if (keys.length === 0) return { resolved: false, reason: 'fact_not_answered' };
   const table = config.keyTable;
   if (!table?.length) return { resolved: false, reason: 'rule_unconfigured' };
-  const row = table.find((r) => r.key === key);
+  const row = table.find((r) => keys.includes(r.key));
   // The applicant answered and the bank's table has no row for that answer — a
   // different problem from an unanswered question, and a different admin fix.
   if (!row) return { resolved: false, reason: 'no_matching_row' };

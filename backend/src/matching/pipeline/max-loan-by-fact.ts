@@ -43,6 +43,7 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { SurrogateFactValue } from '../types';
+import { factAnswerHasKey, factLookupKeys } from './fact-value';
 
 /**
  * What happens to an applicant whose answer this table has no row for.
@@ -136,8 +137,10 @@ function toDecimal(raw: string | null | undefined): Decimal | null {
  * whatever figure happened to sit beside it.
  */
 function rowMatches(row: MaxLoanByFactRow, answer: SurrogateFactValue): boolean {
-  if (answer.kind === 'choice') {
-    return row.rowKey !== undefined && row.rowKey === answer.optionCode;
+  if (answer.kind !== 'numeric') {
+    // One key, several (a multi-pick), or the presence of a text answer — all decided by
+    // `factLookupKeys`, so this axis and the income table read a multi-pick the same way.
+    return row.rowKey !== undefined && factAnswerHasKey(answer, row.rowKey);
   }
   const from = toDecimal(row.fromInclusive);
   const to = toDecimal(row.toExclusive);
@@ -162,11 +165,15 @@ function viaClass(
 ): SurrogateFactValue | undefined {
   if (answer === undefined) return undefined;
   if (via !== 'parentClass') return answer;
-  // Only a choice has a class. A numeric axis keyed by class is refused at save, so this is
-  // belt-and-braces rather than a reachable shape.
-  if (answer.kind !== 'choice') return undefined;
-  const parentKey = parentKeyByValue?.[answer.optionCode];
-  return parentKey === undefined ? undefined : { kind: 'choice', optionCode: parentKey };
+  // Only a key-shaped answer has a class. A numeric axis keyed by class is refused at save,
+  // so that half is belt-and-braces rather than a reachable shape. A multi-pick offers
+  // several keys: the FIRST one that is filed under a class is the class read, in the order
+  // `factLookupKeys` states, so an applicant whose second pick is unfiled is still priced.
+  for (const key of factLookupKeys(answer)) {
+    const parentKey = parentKeyByValue?.[key];
+    if (parentKey !== undefined) return { kind: 'choice', optionCode: parentKey };
+  }
+  return undefined;
 }
 
 /**
@@ -201,16 +208,16 @@ export function resolveMaxLoanByFact(args: {
 
   const rawColumn = config.columnFactKey === undefined ? undefined : facts[config.columnFactKey];
   const columnAnswer = viaClass(rawColumn, config.columnVia, parentKeyByValue);
-  const columnCode =
-    columnAnswer !== undefined && columnAnswer.kind === 'choice'
-      ? columnAnswer.optionCode
-      : undefined;
+  // The column keys the applicant's answer can name. Several for a multi-pick, and the
+  // first one the bank actually states a column for wins — the same table-order rule the
+  // rows follow, applied one axis over.
+  const columnKeys = columnAnswer === undefined ? [] : factLookupKeys(columnAnswer);
 
   const passes: Array<(row: MaxLoanByFactRow) => boolean> =
     config.columnFactKey === undefined
       ? [(row) => row.columnKey === undefined]
       : [
-          (row) => columnCode !== undefined && row.columnKey === columnCode,
+          (row) => row.columnKey !== undefined && columnKeys.includes(row.columnKey),
           (row) => row.columnKey === undefined,
         ];
 

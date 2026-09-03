@@ -256,6 +256,8 @@ export class MatchingPreviewService {
     const optionByCode = new Map<string, string>();
     /** Multi-picks by question code — the bank-relationship answer is a set, not a key. */
     const multiByCode = new Map<string, readonly string[]>();
+    /** Text answers by question code — read for PRESENCE only by a TEXT-bound fact. */
+    const textByCode = new Map<string, string>();
     /** The debt-type picks, once validated — the basis for the obligations sum. */
     let pickedDebtTypes: readonly string[] | undefined;
     for (const ans of answers) {
@@ -289,6 +291,9 @@ export class MatchingPreviewService {
       if (picked !== undefined) optionByCode.set(q.code, picked);
       if (q.type === 'MULTI_SELECT' && normalised && normalised.selectedOptionCodes.length > 0) {
         multiByCode.set(q.code, normalised.selectedOptionCodes);
+      }
+      if (normalised?.textValue != null && normalised.textValue.trim().length > 0) {
+        textByCode.set(q.code, normalised.textValue);
       }
       if (q.code === DEBT_TYPES_QUESTION_CODE && normalised) {
         pickedDebtTypes = normalised.selectedOptionCodes;
@@ -327,7 +332,7 @@ export class MatchingPreviewService {
       // deriving the same engine input differently is a review block (A33), and this
       // is the input an income rule looks its table up by.
       surrogateFacts: surrogateFactsFromAnswers(
-        { optionByCode, numericByCode: numeric, multiByCode },
+        { optionByCode, numericByCode: numeric, multiByCode, textByCode },
         // Read here, not at construction: a fact an operator adds or repoints must
         // move the next preview, and this service is a singleton that would otherwise
         // hold the registry it booted with until the process restarted.

@@ -44,12 +44,16 @@ export class AttachProductAskDto {
 export interface ProductAskDetachabilityDto {
   ok: boolean;
   /**
-   * `blueprint_owned` — it came with the predefined product; the lever is the product's
-   * own on/off switch. `read_by_own_rule` — this product's calculation still reads it.
-   * `fact_still_read` — nothing else asks it and something outside still reads it, so the
-   * row cannot go; naming them is what stops the operator hunting.
+   * `read_by_own_rule` — this product's calculation still reads it, so unticking it would
+   * leave step ② reading an answer step ① no longer asks for. `fact_still_read` — nothing
+   * else asks it and something outside still reads it, so the row cannot go; naming them is
+   * what stops the operator hunting.
+   *
+   * There is deliberately no `blueprint_owned` any more. An ask that came with the product
+   * is removable: the untick tombstones its row instead of deleting it, so the seed cannot
+   * put it back. `ProductAskDto.source` still says where the ask came from.
    */
-  reason?: 'blueprint_owned' | 'read_by_own_rule' | 'fact_still_read';
+  reason?: 'read_by_own_rule' | 'fact_still_read';
   meta?: Record<string, unknown>;
 }
 
@@ -97,16 +101,15 @@ export interface AskPoolQuestionDto {
    */
   eligible: boolean;
   /**
-   * Why not. `text` / `multi_select` are the shape of the answer; the other four are the
-   * right shape and the wrong figure.
+   * Why not.
+   *
+   * One value left. The shape refusals are gone — a key table reads one option code or
+   * several, a band table reads a number, and a text answer is read for its presence — and
+   * so are the six domain refusals, which named questions that were the right shape and
+   * (in somebody's judgement) the wrong figure. What remains is a question type the
+   * platform has no reader for at all, which can only appear if the schema grows one.
    */
-  ineligibleReason?:
-    | 'text'
-    | 'multi_select'
-    | 'money_binding'
-    | 'obligation_item'
-    | 'bank_axis'
-    | 'debt_types';
+  ineligibleReason?: 'unsupported_type';
   /** The fact already reading this question, if any — what a tick would JOIN. */
   factKey: string | null;
   askedByThisProduct: boolean;

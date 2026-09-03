@@ -467,8 +467,11 @@ export class SurrogateFactQuestionInactiveException extends DomainException {
 }
 
 /**
- * The ticked question is the right shape and the wrong figure — the declared salary, the
- * amount being asked for, one itemised debt, or a per-bank axis the platform derives.
+ * RETIRED, RETAINED. Thrown by nothing since every pool question became tickable: the six
+ * domain refusals this carried (the declared salary and the other money bindings, the
+ * itemised debts, the derived bank axes, the debt-types multi-pick) were removed on the
+ * operator's call. Kept because it has shipped and the code is still in both locale
+ * dictionaries, which a parity check reads in both directions.
  */
 export class SurrogateFactQuestionNotEligibleException extends DomainException {
   constructor(meta: { questionCode: string; reason: string }) {
@@ -487,8 +490,11 @@ export class SurrogateFactWidenRequiredException extends DomainException {
 }
 
 /**
- * An ask the predefined library owns cannot be removed here — the next seed run would put
- * it back. `productKey` is what the message points the operator at: the product's switch.
+ * RETIRED BUT RETAINED. An ask the predefined library owns used to be unremovable here, on
+ * the reasoning that `npm run seed:blueprints` would put it back. The removal is durable
+ * now — `surrogate_product_ask.detachedAt` is the tombstone the seed's insert collides with
+ * — so nothing throws this. The code has shipped and the backend/dictionary parity check is
+ * bidirectional, so it stays declared and translated.
  */
 export class ProductAskBlueprintOwnedException extends DomainException {
   constructor(meta: { productKey: string; factKey: string }) {

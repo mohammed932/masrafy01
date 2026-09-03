@@ -33,6 +33,7 @@ import type {
   MaxLoanByFactRow,
 } from '../../matching/pipeline/max-loan-by-fact';
 import type { MaxLoanAdjustment } from '../../matching/pipeline/max-loan-adjustments';
+import { PRESENCE_FACT_LOOKUP_KEY } from '@/matching/pipeline/fact-value';
 import {
   DERIVED_FACT_KEYS,
   derivedFactOptionCodes,
@@ -93,9 +94,14 @@ async function optionCodesFor(
   factKey: string,
   questionCode: string | undefined,
   ctx: IncomeRuleValidationContext,
+  factType?: string,
 ): Promise<readonly string[]> {
   const derived = derivedFactOptionCodes(factKey);
   if (derived !== null) return derived;
+  // A TEXT-bound fact is read for PRESENCE only, so the one key it can ever be looked up by
+  // is the reserved one. Checked like any other list, so a bank that typed a real option
+  // code against a text question is refused at save rather than at a customer.
+  if (factType === 'TEXT') return [PRESENCE_FACT_LOOKUP_KEY];
   if (questionCode === undefined) return [];
   return ctx.questionOptionCodes(questionCode);
 }
@@ -188,7 +194,9 @@ export async function validateMaxLoanByFact(
       };
     }
     const columnBinding = byKey.get(config.columnFactKey);
-    if (columnBinding !== undefined && columnBinding.type !== 'SINGLE_SELECT') {
+    // KEY-SHAPED, which is every type but NUMERIC: a column is matched by a key, and a
+    // multi-pick or a text presence offers one (`fact-value.ts`) while a number does not.
+    if (columnBinding !== undefined && columnBinding.type === 'NUMERIC') {
       return { reason: 'column_fact_not_choice', detail: config.columnFactKey };
     }
   }
@@ -200,7 +208,7 @@ export async function validateMaxLoanByFact(
   const rowCodes =
     isNumericFact || config.rowVia === 'parentClass'
       ? []
-      : await optionCodesFor(config.factKey, binding?.questionCode, ctx);
+      : await optionCodesFor(config.factKey, binding?.questionCode, ctx, binding?.type);
   const columnCodes =
     config.columnFactKey === undefined || config.columnVia === 'parentClass'
       ? []
@@ -208,6 +216,7 @@ export async function validateMaxLoanByFact(
           config.columnFactKey,
           byKey.get(config.columnFactKey)?.questionCode,
           ctx,
+          byKey.get(config.columnFactKey)?.type,
         );
 
   const seen = new Set<string>();
@@ -298,11 +307,16 @@ export async function validateMaxLoanAdjustments(
         allowed: knownKeys,
       };
     }
-    if (binding !== undefined && binding.type !== 'SINGLE_SELECT') {
+    if (binding !== undefined && binding.type === 'NUMERIC') {
       return { reason: 'adjustment_fact_not_choice', index, detail: adjustment.whenFactKey };
     }
 
-    const codes = await optionCodesFor(adjustment.whenFactKey, binding?.questionCode, ctx);
+    const codes = await optionCodesFor(
+      adjustment.whenFactKey,
+      binding?.questionCode,
+      ctx,
+      binding?.type,
+    );
     if (codes.length > 0 && !codes.includes(adjustment.whenOptionCode)) {
       return {
         reason: 'adjustment_unknown_option',

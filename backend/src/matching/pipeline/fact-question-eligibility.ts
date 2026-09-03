@@ -1,96 +1,35 @@
 /**
- * WHICH POOL QUESTION MAY BECOME A SURROGATE FACT — and, for every refusal, the reason an
- * operator reads on the card rather than a 422 they have to interpret.
+ * WHICH FACT KEY MAY BE MINTED — and nothing about which QUESTION may become a fact.
  *
- * `BINDABLE_QUESTION_TYPES` already answers the mechanical half: a fact is looked up either
- * by an option code (`SINGLE_SELECT`) or by a number falling in a band (`NUMERIC`), and
- * TEXT and MULTI_SELECT are neither. That check is enforced in four places already and is
- * not restated here.
+ * This file used to hold a second list: questions that were the right TYPE and still
+ * refused — the declared salary and the three other money-field bindings, the itemised
+ * debts, the per-bank relationship axes, the debt-types multi-pick. That list is GONE, on
+ * the operator's explicit call: every question in the pool is now tickable on a product's
+ * ask board, so the board no longer shows an operator a card they may not use.
  *
- * This file is the DOMAIN half, and every entry is a question that passes the type check
- * and must still be refused. They are all NUMERIC, so nothing else catches them:
+ * What replaced each refusal, so none of them is silently lost:
  *
- *   `money_binding`  — the four questions the money fields are bound to. `monthly_income`
- *                      is the load-bearing one: binding it as a fact would let a no-payslip
- *                      rule read the applicant's DECLARED PAYSLIP, which is the exact
- *                      figure the withheld rule of a switched-off product exists to keep
- *                      out of a quote ("a figure no bank agreed to lend against"). The
- *                      other three are the loan being asked for, not a property of the
- *                      applicant: keying an income off the amount requested is circular.
+ *   the four money bindings — a fact bound to `monthly_income` reads the DECLARED payslip,
+ *     and a no-payslip rule that reads it is quoting off a figure no bank agreed to lend
+ *     against. Nothing in the engine stops that any more; it is a decision the operator
+ *     makes per product, and the product's own screen is where it is visible.
  *
- *   `obligation_item` — the itemised debt questions. The scoring editor already hides these
- *                      for the stated reason that debt burden is only meaningful as a
- *                      total; a bank pricing an income off ONE of the applicant's debts is
- *                      the same error with money on it. `credit_card_total_limit` is the
- *                      deliberate exception and is NOT refused: it already IS the platform
- *                      fact `credit_card_limit`, seeded `systemOnly`, and refusing it would
- *                      refuse a fact the platform ships.
+ *   the itemised debts — a bank pricing an income off ONE of the applicant's debts is
+ *     still a strange rule, and it is now a rule an operator may write.
  *
- *   `bank_axis`      — the three per-bank relationship questions. Caught by the type check
- *                      too (all MULTI_SELECT), but named here so the card can say WHY: the
- *                      answer is a set read once per bank and the fact is DERIVED, so a
- *                      registry row under one of those keys would be created, bound,
- *                      audited, rendered — and never emitted, because
- *                      `surrogateFactsFromAnswers` skips derived keys.
+ *   the bank axes and `current_loans` — MULTI_SELECT, which is bindable since the ask board
+ *     opened: the fact is keyed by the SAME option codes, several at a time, and read by
+ *     the bank's own row order (`fact-value.ts`). A registry fact under the axis QUESTION is
+ *     not the platform's derived `bank_relationship` fact — different keys, different
+ *     readers — so the two do not collide.
  *
- *   `debt_types`     — the multi-pick that unlocks the obligation items. Same story.
- *
- * The two RESERVED KEY families are checked separately, against the derived key rather than
- * against the question: `DERIVED_FACT_KEYS` for the reason just given, and `i_score`, which
- * is one platform-wide fact compiled into every rule that uses it.
+ * The two RESERVED KEY families below are a different rule and they STAY. They are checked
+ * against the derived KEY rather than against the question, and a row under either would be
+ * created, bound, audited, rendered — and never carry an answer, because the mapper that
+ * fills the applicant profile skips those keys by contract.
  */
-import { BANK_AXES } from './bank-relationship';
-import {
-  CREDIT_CARD_LIMIT_QUESTION_CODE,
-  DEBT_TYPES_QUESTION_CODE,
-  MONEY_FIELD_BINDINGS,
-  OBLIGATION_ITEM_QUESTION_CODES,
-} from './money-field-bindings';
 import { DERIVED_FACT_KEYS } from './surrogate-fact-registry';
 import { I_SCORE_FACT_KEY } from './product-template';
-
-/** Why a question that is otherwise the right TYPE still cannot be a fact. */
-export type FactQuestionIneligibleReason =
-  | 'money_binding'
-  | 'obligation_item'
-  | 'bank_axis'
-  | 'debt_types';
-
-const MONEY_BINDING_CODES: readonly string[] = Object.values(MONEY_FIELD_BINDINGS);
-
-/**
- * The itemised debt questions, less the credit-card limit.
- *
- * Filtered rather than listed, so adding a debt type adds its question here for free —
- * the alternative is a hand-copied list that silently stops covering the fifth one.
- */
-const OBLIGATION_CODES: readonly string[] = OBLIGATION_ITEM_QUESTION_CODES.filter(
-  (code) => code !== CREDIT_CARD_LIMIT_QUESTION_CODE,
-);
-
-const BANK_AXIS_CODES: readonly string[] = BANK_AXES.map((axis) => axis.questionCode);
-
-/**
- * `undefined` when the question may be bound (subject to the type check, which is
- * elsewhere), otherwise the reason it may not.
- */
-export function factQuestionIneligibleReason(
-  questionCode: string,
-): FactQuestionIneligibleReason | undefined {
-  if (MONEY_BINDING_CODES.includes(questionCode)) return 'money_binding';
-  if (OBLIGATION_CODES.includes(questionCode)) return 'obligation_item';
-  if (BANK_AXIS_CODES.includes(questionCode)) return 'bank_axis';
-  if (questionCode === DEBT_TYPES_QUESTION_CODE) return 'debt_types';
-  return undefined;
-}
-
-/** Every code the door is shut on, for a refusal's `meta` and for the tests. */
-export const FACT_INELIGIBLE_QUESTION_CODES: readonly string[] = [
-  ...MONEY_BINDING_CODES,
-  ...OBLIGATION_CODES,
-  ...BANK_AXIS_CODES,
-  DEBT_TYPES_QUESTION_CODE,
-];
 
 /**
  * Fact keys nothing may be created under.

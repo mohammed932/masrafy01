@@ -944,6 +944,7 @@ export class ApplicationsService {
     const optionByCode = new Map<string, string>();
     const numericByCode = new Map<string, string>();
     const multiByCode = new Map<string, readonly string[]>();
+    const textByCode = new Map<string, string>();
     for (const a of questionnaire.resolved) {
       // The SAME predicate preview applies. Testing `selectedOptionCode !== null`
       // here accepted picks preview would have dropped, so the two paths could bind a
@@ -956,13 +957,21 @@ export class ApplicationsService {
       if (a.type === 'MULTI_SELECT' && a.selectedOptionCodes.length > 0) {
         multiByCode.set(a.questionCode, a.selectedOptionCodes);
       }
+      // Text answers, for a fact bound to a TEXT question: only their PRESENCE is read
+      // (`registryFactValue`), and the mapper trims before deciding.
+      if (a.textValue !== null && a.textValue.trim().length > 0) {
+        textByCode.set(a.questionCode, a.textValue);
+      }
     }
     // The registry is read per apply, uncached. A quote priced off a fact the operator
     // repointed an hour ago would be wrong in the one direction that matters — the
     // offer freezes it (Principle I) — and one indexed read per application is not a
     // budget worth defending against that.
     const registry = await this.enumerations.surrogateFactRegistry();
-    return surrogateFactsFromAnswers({ optionByCode, numericByCode, multiByCode }, registry);
+    return surrogateFactsFromAnswers(
+      { optionByCode, numericByCode, multiByCode, textByCode },
+      registry,
+    );
   }
 
   private buildProfile(

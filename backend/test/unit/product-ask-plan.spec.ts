@@ -101,9 +101,7 @@ describe('planAttach — the fact key', () => {
   it('refuses a key held by a fact bound to a DIFFERENT question', () => {
     // Never resolved by minting `<key>_2`. A suffixed twin is permanent, and every bank
     // figure filed under it points at a key nobody meant.
-    expect(
-      attach({ facts: [fact({ boundQuestionCode: 'something_else' })] }),
-    ).toEqual({
+    expect(attach({ facts: [fact({ boundQuestionCode: 'something_else' })] })).toEqual({
       kind: 'refuse',
       refusal: {
         code: 'keyTaken',
@@ -162,38 +160,43 @@ describe('planAttach — the fact key', () => {
 });
 
 describe('planAttach — which questions may be ticked', () => {
-  it('refuses a shape no table can be keyed by', () => {
-    for (const type of ['TEXT', 'MULTI_SELECT'] as const) {
-      expect(attach({ question: choice({ type }) })).toMatchObject({
-        kind: 'refuse',
-        refusal: { code: 'questionTypeInvalid', type },
-      });
+  it('allows EVERY question type, including a multi-pick and free text', () => {
+    // A key table is read by one option code or by several (the bank's row order decides,
+    // `fact-value.ts`), a band table by a number, and a text answer by its presence. None
+    // of the four is refused on shape any more.
+    for (const type of ['SINGLE_SELECT', 'MULTI_SELECT', 'NUMERIC', 'TEXT'] as const) {
+      expect(attach({ question: choice({ type }) }).kind).toBe('proceed');
     }
   });
 
-  it('refuses the declared payslip and the loan being asked for', () => {
+  it('refuses only a type the platform has no reader for', () => {
+    // Not reachable from today's schema — every `QuestionType` is bindable — so this pins
+    // the guard that keeps a type ADDED later from being tickable before it can be read.
+    expect(attach({ question: choice({ type: 'SIGNATURE' as never }) })).toMatchObject({
+      kind: 'refuse',
+      refusal: { code: 'questionTypeInvalid' },
+    });
+  });
+
+  it('allows the declared payslip and the loan being asked for', () => {
+    // These four were refused until the ask board opened every pool question. Kept as a
+    // test rather than deleted: it is the regression guard for that decision, and the one
+    // that matters is `monthly_income` — a no-payslip rule may now read the declared
+    // salary, which is a choice the operator makes per product and no longer a refusal.
     for (const code of [
       'monthly_income',
       'amount_requested',
       'repayment_period_months',
       'current_installments',
     ]) {
-      expect(attach({ question: choice({ code, type: 'NUMERIC' }) })).toMatchObject({
-        kind: 'refuse',
-        refusal: { code: 'questionNotEligible', reason: 'money_binding' },
-      });
+      expect(attach({ question: choice({ code, type: 'NUMERIC' }) }).kind).toBe('proceed');
     }
   });
 
-  it('refuses one itemised debt but ALLOWS the credit-card limit', () => {
-    expect(attach({ question: choice({ code: 'obligation_mortgage', type: 'NUMERIC' }) })).toMatchObject(
-      { kind: 'refuse', refusal: { reason: 'obligation_item' } },
-    );
-    // The deliberate exception: it already IS the platform fact `credit_card_limit`, so
-    // excluding the whole block would refuse a fact the platform ships.
-    expect(
-      attach({ question: choice({ code: 'credit_card_total_limit', type: 'NUMERIC' }) }).kind,
-    ).toBe('proceed');
+  it('allows one itemised debt, as well as the credit-card limit', () => {
+    for (const code of ['obligation_mortgage', 'credit_card_total_limit']) {
+      expect(attach({ question: choice({ code, type: 'NUMERIC' }) }).kind).toBe('proceed');
+    }
   });
 
   it('refuses a question with no code at all', () => {
@@ -288,15 +291,43 @@ describe('planDetach', () => {
     expect(detach({ ask: undefined })).toEqual({ kind: 'noop' });
   });
 
-  it("refuses to remove the library's own ask", () => {
-    // Not a permission. The seed re-asserts its own asks, so an untick would come back on
-    // the next release with nothing saying why.
+  it("TOMBSTONES the library's own ask rather than deleting the row", () => {
+    // The row has to survive: `npm run seed:blueprints` re-asserts every blueprint ask with
+    // an insert that is idempotent by primary key, so a row that is still there — detached —
+    // is a row it writes nothing over. Deleting it would hand the seed a clean slate and the
+    // untick would come back on the next release with nothing saying why.
     expect(detach({ ask: { source: 'blueprint' } })).toEqual({
+      kind: 'proceed',
+      steps: [{ op: 'tombstoneAsk', factKey: 'owned_unit_type' }],
+    });
+  });
+
+  it("never proposes deleting the fact row behind the library's own ask", () => {
+    // Even with every delete test satisfied — nobody else asks it, nothing else reads it,
+    // this product authored it. The blueprint re-declares that fact on the next run whatever
+    // this screen does, so there is no delete decision to make.
+    expect(
+      detach({
+        ask: { source: 'blueprint' },
+        productsAsking: ['compound_owner'],
+        readBy: [],
+      }),
+    ).toEqual({
+      kind: 'proceed',
+      steps: [{ op: 'tombstoneAsk', factKey: 'owned_unit_type' }],
+    });
+  });
+
+  it("still refuses the library's own ask while the product's OWN calculation reads it", () => {
+    // The order matters: the incoherence guard is checked BEFORE the source, so a blueprint
+    // ask its own rule reads is refused rather than quietly tombstoned.
+    expect(detach({ ask: { source: 'blueprint' }, ownRuleStepIds: ['primary'] })).toEqual({
       kind: 'refuse',
       refusal: {
-        code: 'blueprintOwnsAsk',
+        code: 'readByOwnRule',
         productKey: 'compound_owner',
         factKey: 'owned_unit_type',
+        stepIds: ['primary'],
       },
     });
   });

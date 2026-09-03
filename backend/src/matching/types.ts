@@ -122,16 +122,28 @@ export interface ApplicantProfile {
 }
 
 /**
- * One answered fact — a picked option code, or a number. Never both.
+ * One answered fact — one of the four shapes a bindable question can answer in.
  *
- * Mirrors the two bindable question types: a SINGLE_SELECT answer is a key into the
- * bank's key table, a NUMERIC answer is a value the bank's bands are searched with.
- * A union rather than two optional fields, so "answered as a choice" and "answered as
- * a number" cannot both be true and leave the resolver picking one.
+ * Mirrors `BINDABLE_QUESTION_TYPES` one-for-one:
+ *   SINGLE_SELECT → `choice`   — one option code, a key into the bank's key table.
+ *   NUMERIC       → `numeric`  — a value the bank's bands are searched with.
+ *   MULTI_SELECT  → `choices`  — every code picked, in the order the applicant gave them.
+ *                                Read as a key by `factLookupKeys`, which hands the table
+ *                                all of them and lets ROW ORDER decide which one is read.
+ *   TEXT          → `presence` — that a free-text question was answered, and nothing about
+ *                                what it says. Keyed by the single reserved key
+ *                                `PRESENCE_FACT_LOOKUP_KEY`, the same presence-only reading
+ *                                Principle V already gives text in scoring; a bank cannot
+ *                                enumerate prose in advance and A33 forbids keyword rules.
+ *
+ * A union rather than parallel optional fields, so two shapes cannot both be true and leave
+ * a reader picking one.
  */
 export type SurrogateFactValue =
   | { kind: 'choice'; optionCode: string }
-  | { kind: 'numeric'; value: Decimal };
+  | { kind: 'numeric'; value: Decimal }
+  | { kind: 'choices'; optionCodes: readonly string[] }
+  | { kind: 'presence' };
 
 // ---------------------------------------------------------------------------
 // Bank Program snapshot (read-only input from feature 002 JSONB)

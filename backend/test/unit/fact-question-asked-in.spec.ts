@@ -104,10 +104,10 @@ describe('surrogate_fact member — boundQuestion.askedIn', () => {
     expect(members[0]?.boundQuestion).toBeNull();
   });
 
-  it('reports a fact bound to an UNBINDABLE question type as unbound', async () => {
-    // A TEXT answer keys no table, so the fact is exactly as unpriceable as one bound to
-    // nothing — and the engine's own registry read drops it for the same reason. Mapping
-    // it would offer the wizard a method that can never resolve.
+  it('reports a fact bound to a TEXT question as BOUND', async () => {
+    // Text is bindable since the ask board opened every pool question: the bank states one
+    // figure against the reserved presence key and the fact resolves to "they answered".
+    // It used to map to `null` here, on the reasoning that a text answer keys no table.
     const members = await repoWith([
       factRow({
         key: 'notes',
@@ -115,7 +115,7 @@ describe('surrogate_fact member — boundQuestion.askedIn', () => {
       }),
     ]).getActiveMembers('surrogate_fact');
 
-    expect(members[0]?.boundQuestion).toBeNull();
+    expect(members[0]?.boundQuestion).toMatchObject({ code: 'notes', type: 'TEXT' });
   });
 
   it('keeps a binding whose question is INACTIVE, so the form can say why', async () => {

@@ -21,7 +21,6 @@ import {
 } from '@/matching/pipeline/surrogate-fact-registry';
 import {
   RESERVED_FACT_KEYS,
-  factQuestionIneligibleReason,
   isReservedFactKey,
 } from '@/matching/pipeline/fact-question-eligibility';
 
@@ -69,13 +68,11 @@ export interface AttachPlanInput {
 export type AskRefusal =
   | { code: 'questionInactive'; questionCode: string }
   | { code: 'questionTypeInvalid'; questionCode: string; type: string; allowed: string[] }
-  | { code: 'questionNotEligible'; questionCode: string; reason: string }
   | { code: 'widenRequired'; questionCode: string; categories: LoanCategory[] }
   | { code: 'ambiguousFact'; questionCode: string; factKeys: string[] }
   | { code: 'keyTaken'; questionCode: string; factKey: string; boundQuestionCode: string | null }
   | { code: 'keyReserved'; questionCode: string; factKey: string; reservedKeys: string[] }
   | { code: 'blueprintOwnsKey'; questionCode: string; factKey: string; blueprintKeys: string[] }
-  | { code: 'blueprintOwnsAsk'; productKey: string; factKey: string }
   | { code: 'readByOwnRule'; productKey: string; factKey: string; stepIds: string[] }
   | { code: 'factInUse'; factKey: string; readBy: readonly { source: string; ref: string }[] };
 
@@ -131,8 +128,10 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
     return { kind: 'refuse', refusal: { code: 'questionInactive', questionCode: '' } };
   }
 
-  // 1. The shape of the answer. A fact is looked up by an option code or by a number
-  //    falling in a band, and TEXT and MULTI_SELECT are neither.
+  // 1. The shape of the answer. All four question types are bindable — a key table over
+  //    option codes (one pick or several), a band table over a number, or the presence of a
+  //    text answer — so this refuses only a type the platform does not know how to read at
+  //    all, which is a type added to the schema without a reader.
   if (!isBindableQuestionType(question.type)) {
     return {
       kind: 'refuse',
@@ -145,17 +144,7 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
     };
   }
 
-  // 2. The right shape, the wrong figure — the declared salary, the amount being asked
-  //    for, one itemised debt, a per-bank axis the platform derives.
-  const ineligible = factQuestionIneligibleReason(question.code);
-  if (ineligible !== undefined) {
-    return {
-      kind: 'refuse',
-      refusal: { code: 'questionNotEligible', questionCode: question.code, reason: ineligible },
-    };
-  }
-
-  // 3. Which loan types this tick would START asking. Computed before the fact decision
+  // 2. Which loan types this tick would START asking. Computed before the fact decision
   //    because the required-question refusal turns on it and nothing should be minted for
   //    a tick that is about to be refused.
   const asked = new Set(question.categories);
@@ -167,7 +156,7 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
     };
   }
 
-  // 4. REUSE FIRST. Any fact already bound to this question IS the fact.
+  // 3. REUSE FIRST. Any fact already bound to this question IS the fact.
   const bound = input.facts.filter((fact) => fact.boundQuestionCode === question.code);
   if (bound.length > 1) {
     return {
@@ -189,7 +178,7 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
   } else {
     factKey = derivedFactKey(question);
 
-    // 5a. Keys the platform computes for itself. A row under one is created, bound,
+    // 4a. Keys the platform computes for itself. A row under one is created, bound,
     //     audited and rendered — and never carries an answer, because the mapper that
     //     fills the applicant profile skips it by contract.
     if (isReservedFactKey(factKey)) {
@@ -283,7 +272,14 @@ export interface DetachPlanInput {
 }
 
 export type DetachStep =
+  /** The ask row goes. An `operator` ask: nothing re-asserts it. */
   | { op: 'removeAsk'; factKey: string }
+  /**
+   * The ask row STAYS, marked detached. A `blueprint` ask: the seed re-asserts its own asks
+   * on every deploy, and its insert is idempotent by primary key, so the surviving row is
+   * what makes the removal durable. Deleting it would hand the seed a clean slate.
+   */
+  | { op: 'tombstoneAsk'; factKey: string }
   | { op: 'deleteFact'; factKey: string };
 
 export type DetachPlan =
@@ -295,20 +291,7 @@ export type DetachPlan =
 export function planDetach(input: DetachPlanInput): DetachPlan {
   if (input.ask === undefined) return { kind: 'noop' };
 
-  // 1. An ask the library owns. Not a permission — the seed re-asserts its own asks, so an
-  //    untick would come back on the next release with nothing saying why.
-  if (input.ask.source === 'blueprint') {
-    return {
-      kind: 'refuse',
-      refusal: {
-        code: 'blueprintOwnsAsk',
-        productKey: input.productKey,
-        factKey: input.factKey,
-      },
-    };
-  }
-
-  // 2. This product's own calculation still reads it. Refused whatever the delete decision
+  // 1. This product's own calculation still reads it. Refused whatever the delete decision
   //    would have been: step ① claiming the product does not ask what step ② reads is an
   //    incoherence, and the fix is one click away on the same screen.
   if (input.ownRuleStepIds.length > 0) {
@@ -321,6 +304,16 @@ export function planDetach(input: DetachPlanInput): DetachPlan {
         stepIds: [...input.ownRuleStepIds],
       },
     };
+  }
+
+  // 2. An ask the library owns comes off as a TOMBSTONE, and its fact row is never touched.
+  //    The row survives so `npm run seed:blueprints` collides with it instead of re-inserting
+  //    the ask; the fact is the library's own — it will be re-declared by the blueprint on
+  //    the next run whatever this screen does, and every other blueprint that names it goes
+  //    on reading it. So there is no delete decision to make and the four tests below are
+  //    skipped rather than answered.
+  if (input.ask.source === 'blueprint') {
+    return { kind: 'proceed', steps: [{ op: 'tombstoneAsk', factKey: input.factKey }] };
   }
 
   const steps: DetachStep[] = [{ op: 'removeAsk', factKey: input.factKey }];

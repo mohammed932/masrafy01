@@ -19,13 +19,29 @@ import { BANK_AXES, bankAxisByFactKey } from './bank-relationship';
  *
  * SINGLE_SELECT → a key table, one row per option ("Colonel → 45 000").
  * NUMERIC       → a band table, `[from, to)` over the answer ("8–12 years → 30 000").
+ * MULTI_SELECT  → a key table over the SAME option codes. The applicant may pick several,
+ *                 so the bank's ROW ORDER decides which pick is read: first row whose key
+ *                 was picked wins (`fact-value.ts` states this once, for every reader).
+ *                 Deliberately not the first code the applicant tapped — pick order is an
+ *                 artefact of the client, so it would make the figure depend on something
+ *                 nobody decided.
+ * TEXT          → a key table with exactly one legal key, `PRESENCE_FACT_LOOKUP_KEY`.
+ *                 Presence only: a bank states one figure for "they answered", and nothing
+ *                 reads what the text SAYS. That keeps A33's ban on keyword/regex scoring
+ *                 intact — it is the same presence-only reading Principle V gives text in
+ *                 the scoring engine — while still letting an operator make any question in
+ *                 the pool a fact.
  *
- * TEXT and MULTI_SELECT are excluded and must stay excluded. A free-text answer is not
- * a key any bank can enumerate in advance (A33 already forbids scoring text by keyword
- * for the same reason), and a multi-pick answer has no single value to look up — taking
- * the first would invent an answer the applicant did not give.
+ * All four are here because the ask board offers every pool question: a type that could be
+ * ticked and then never carry an answer is the silent misconfiguration the board exists to
+ * remove.
  */
-export const BINDABLE_QUESTION_TYPES = ['SINGLE_SELECT', 'NUMERIC'] as const;
+export const BINDABLE_QUESTION_TYPES = [
+  'SINGLE_SELECT',
+  'NUMERIC',
+  'MULTI_SELECT',
+  'TEXT',
+] as const;
 
 export type BindableQuestionType = (typeof BINDABLE_QUESTION_TYPES)[number];
 

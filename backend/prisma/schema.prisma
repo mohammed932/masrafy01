@@ -1125,10 +1125,18 @@ model PlatformEnumerationQuestion {
 /// is available here and is taken: an allowed fact delete takes its ask rows with it
 /// instead of leaving the ghost rows A26 forbids.
 ///
-/// `source` is STORED, not derived, and it is load-bearing twice. The blueprint seed must
-/// be able to re-assert its own ask on every deploy without claiming an operator made it;
-/// and the untick refusal reads it, because a blueprint's ask is the product's floor —
-/// removing one would be undone by the next seed run, silently.
+/// `source` is STORED, not derived. The blueprint seed must be able to re-assert its own
+/// ask on every deploy without claiming an operator made it, and the card renders it as
+/// provenance — "comes with the product" — beside the question's own label.
+///
+/// `detachedAt` is the TOMBSTONE, and it is what makes an operator's untick of a
+/// blueprint-owned ask survive a deploy. The seed's insert is idempotent by primary key,
+/// so a row that is still here — detached — is a row the seed writes nothing over: the
+/// removal stands until somebody ticks the card again, which clears the column. Deleting
+/// the row instead would leave the seed nothing to collide with and the ask would silently
+/// come back on the next `npm run seed:blueprints`, which is the whole reason the untick
+/// used to be refused. An `operator` ask carries no tombstone — nothing re-asserts it, so
+/// its untick is a plain delete.
 ///
 /// NOT keyed by loan category. What a product READS is one decision; which loan types
 /// ASK the question behind it is `question_loan_category`, which is global to the question
@@ -1143,6 +1151,11 @@ model SurrogateProductAsk {
   source    SurrogateAskSource
   createdAt DateTime           @default(now()) @db.Timestamptz(6)
   createdBy String?            @db.VarChar(30)
+  /// Set when an operator unticked a `blueprint` ask. NULL = the product reads the fact.
+  /// Every read of the ask set filters on it; the blueprint seed does not, which is what
+  /// stops a re-seed reviving what an operator removed.
+  detachedAt DateTime?         @db.Timestamptz(6)
+  detachedBy String?           @db.VarChar(30)
 
   product PlatformEnumeration @relation("SurrogateProductAsks", fields: [productId], references: [id], onDelete: Cascade)
   fact    PlatformEnumeration @relation("SurrogateFactAskedBy", fields: [factId], references: [id], onDelete: Cascade)
@@ -1157,7 +1170,8 @@ model SurrogateProductAsk {
 
 /// Who put an ask on a product. `blueprint` is the predefined library's own statement of
 /// what its product reads and is re-asserted by `npm run seed:blueprints`; `operator` is
-/// a pick made on the product's screen. Only an `operator` ask can be removed there.
+/// a pick made on the product's screen. Either can be removed there — a `blueprint` ask
+/// is tombstoned rather than deleted, so the seed cannot put it back.
 enum SurrogateAskSource {
   blueprint
   operator

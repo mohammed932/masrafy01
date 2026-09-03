@@ -41,18 +41,15 @@ import { factsReadByIncomeRule } from '@/matching/pipeline/fact-readers';
 import { factsReadBy } from '@/matching/pipeline/product-rule';
 import type { ProductRule } from '@/matching/pipeline/product-rule';
 import { isBindableQuestionType } from '@/matching/pipeline/surrogate-fact-registry';
-import { factQuestionIneligibleReason } from '@/matching/pipeline/fact-question-eligibility';
 import { sortCategories } from '@/common/loan-category.util';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
   DomainException,
-  ProductAskBlueprintOwnedException,
   ProductAskReadByOwnRuleException,
   SurrogateFactAmbiguousForQuestionException,
   SurrogateFactKeyReservedException,
   SurrogateFactKeyTakenException,
   SurrogateFactQuestionInactiveException,
-  SurrogateFactQuestionNotEligibleException,
   SurrogateFactQuestionTypeInvalidException,
   SurrogateFactWidenRequiredException,
   SurrogateProductNotFoundException,
@@ -198,7 +195,7 @@ export class ProductAsksService {
 
     const poolDtos: AskPoolQuestionDto[] = pool.map((q) => {
       const factKey = factKeyByQuestion.get(q.code) ?? null;
-      const ineligible = this.poolIneligibleReason(q.type, q.code);
+      const ineligible = this.poolIneligibleReason(q.type);
       const readers = factKey === null ? [] : (productsByFact.get(factKey) ?? []);
       return {
         code: q.code,
@@ -359,6 +356,12 @@ export class ProductAsksService {
       for (const step of plan.steps) {
         if (step.op === 'removeAsk') {
           changed.askRemoved = await this.asks.removeAskByKeys(productKey, step.factKey);
+        } else if (step.op === 'tombstoneAsk') {
+          changed.askRemoved = await this.asks.tombstoneAskByKeys({
+            productKey,
+            factKey: step.factKey,
+            detachedBy: actor.id,
+          });
         } else if (factRow) {
           // The EXISTING delete, so its three guards, its audit event (which carries both
           // labels — once the row is gone that event is the only record the key existed)
@@ -407,13 +410,18 @@ export class ProductAsksService {
       case 'addAsk': {
         // Both ends resolved by KEY inside the repository, so this path and the seed's own
         // ask pass share one lookup rather than each holding a copy of it.
+        //
+        // `revive: true` — re-ticking a card an operator had unticked clears the tombstone.
+        // The row keeps its stored `source`: provenance is who AUTHORED the ask, and putting
+        // a blueprint's own ask back does not make the operator its author.
         const outcome = await this.asks.addAskByKeys({
           productKey,
           factKey: step.factKey,
           source: ASK_SOURCE.operator,
           createdBy: actor.id,
+          revive: true,
         });
-        changed.askAdded = outcome === 'added';
+        changed.askAdded = outcome === 'added' || outcome === 'revived';
         return;
       }
       case 'addCategories': {
@@ -451,20 +459,19 @@ export class ProductAsksService {
   }
 
   /**
-   * Why the answers to a question cannot be a fact — the shape of the answer first, then
-   * the figure it holds.
+   * Why the answers to a question cannot be a fact.
    *
-   * The same two functions the server refuses on, so the card's reason and the 422 are one
-   * statement rather than two that can drift.
+   * Every question type is readable as a fact now — a key table over option codes, a band
+   * table over a number, or the presence of a text answer — and no question is refused on
+   * what its figure MEANS any more, so in practice this answers `undefined` for every card
+   * on the board. It is kept, and served, because it is the SAME function the attach path
+   * refuses on: a type the schema grows without a reader must show on the card as blocked
+   * rather than as a tick that 422s.
    */
   private poolIneligibleReason(
     type: AskPoolQuestionDto['type'],
-    code: string,
   ): AskPoolQuestionDto['ineligibleReason'] | undefined {
-    if (!isBindableQuestionType(type)) {
-      return type === 'TEXT' ? 'text' : 'multi_select';
-    }
-    return factQuestionIneligibleReason(code);
+    return isBindableQuestionType(type) ? undefined : 'unsupported_type';
   }
 
   /** Step and gate ids in one stored rule that read a fact. */
@@ -497,9 +504,9 @@ export class ProductAsksService {
     ownRuleStepIds: readonly string[];
     readers: readonly { source: string; ref: string }[];
   }): ProductAskDto['detach'] {
-    if (args.ask.source === ASK_SOURCE.blueprint) {
-      return { ok: false, reason: 'blueprint_owned', meta: { productKey: args.productKey } };
-    }
+    // A `blueprint` ask is removable: the untick tombstones its row rather than deleting it,
+    // so the seed collides with what is already there and cannot put the ask back. What the
+    // card still says about it is PROVENANCE ("comes with the product"), read off `source`.
     if (args.ownRuleStepIds.length > 0) {
       return { ok: false, reason: 'read_by_own_rule', meta: { stepIds: [...args.ownRuleStepIds] } };
     }
@@ -539,11 +546,6 @@ export class ProductAsksService {
           type: refusal.type,
           allowed: refusal.allowed,
         });
-      case 'questionNotEligible':
-        return new SurrogateFactQuestionNotEligibleException({
-          questionCode: refusal.questionCode,
-          reason: refusal.reason,
-        });
       case 'widenRequired':
         return new SurrogateFactWidenRequiredException({
           questionCode: refusal.questionCode,
@@ -574,11 +576,6 @@ export class ProductAsksService {
           questionCode: refusal.questionCode,
           factKey: refusal.factKey,
           boundQuestionCode: null,
-        });
-      case 'blueprintOwnsAsk':
-        return new ProductAskBlueprintOwnedException({
-          productKey: refusal.productKey,
-          factKey: refusal.factKey,
         });
       case 'readByOwnRule':
         return new ProductAskReadByOwnRuleException({

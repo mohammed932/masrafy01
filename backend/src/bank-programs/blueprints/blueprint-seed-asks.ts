@@ -21,6 +21,11 @@
  * operator has been working in: an ask row is the library's own statement about its product,
  * an insert can never remove an operator's pick, and `addAsk` is idempotent by primary key,
  * so a second run writes nothing.
+ *
+ * That idempotency is also what carries an operator's UNTICK across a deploy. Removing a
+ * blueprint ask on the product's screen tombstones the row (`detachedAt`) rather than
+ * deleting it, so the insert below collides with a row that is still there and writes
+ * nothing — `revive: false` is the half that says so out loud.
  */
 import { ASK_SOURCE, type ProductAsksRepository } from '../asks/product-asks.repository';
 import type { ProductBlueprint } from './product-blueprint.types';
@@ -78,6 +83,11 @@ export async function ensureBlueprintAsks(args: {
       factKey,
       source: ASK_SOURCE.blueprint,
       createdBy: args.actorStaffId,
+      // NEVER revive. An operator may untick a blueprint ask on the product's screen, which
+      // tombstones the row rather than deleting it — precisely so this insert collides with
+      // something and the removal stands. Reviving here would undo their decision on the
+      // next deploy, silently, which is the failure the untick refusal used to prevent.
+      revive: false,
     });
     // `missing` covers both halves: a fact nothing created, and a cap product whose row is
     // minted by the command after this runs on its very first pass. Both are reported and
