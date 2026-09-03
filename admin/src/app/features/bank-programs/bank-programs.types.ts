@@ -1006,6 +1006,110 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
   }>;
 }
 
+/**
+ * WHAT A PRODUCT ASKS THE APPLICANT — the wire shape of step ①'s board.
+ *
+ * Mirrors `backend/src/bank-programs/dto/product-asks.dto.ts`. One response for the read and
+ * for both writes, so the screen absorbs a whole board per click rather than re-reading
+ * three things that can disagree about what one tick did.
+ */
+export type ProductAskDetachReason = 'blueprint_owned' | 'read_by_own_rule' | 'fact_still_read';
+
+/**
+ * The four question types, as the ask board's wire shape carries them.
+ *
+ * Declared here rather than imported from `features/lookups`: a feature bundle must not
+ * reach into another feature's service for a type (the reach this repo has been undoing),
+ * and the four values are the Prisma enum — they are the contract, not a copy of a decision
+ * made somewhere else. Only two of them can ever be a FACT; the other two are listed on the
+ * board precisely so the grid can say why they cannot.
+ */
+export type AskQuestionType = 'SINGLE_SELECT' | 'MULTI_SELECT' | 'NUMERIC' | 'TEXT';
+
+/** One thing this product reads: a fact, the question behind it, and where it is asked. */
+export interface ProductAsk {
+  factKey: string;
+  /** `blueprint` came with the predefined product and cannot be removed here. */
+  source: 'blueprint' | 'operator';
+  /** `null` when the fact reads no question — broken, and rendered as broken. */
+  questionCode: string | null;
+  questionLabelAr: string;
+  questionLabelEn: string;
+  questionType: AskQuestionType | null;
+  questionActive: boolean;
+  /** The loan categories that ASK the question. Empty = asked of nobody. */
+  askedIn: LoanCategory[];
+  /** The registry list its options came from, when they came from one. Derived server-side. */
+  listType: string | null;
+  parentListType: string | null;
+  /** Other products reading the same fact — what makes an untick's consequence visible. */
+  alsoAskedBy: string[];
+  detach: { ok: boolean; reason?: ProductAskDetachReason; meta?: Record<string, unknown> };
+}
+
+/** Why a pool question cannot be a fact. Served, never derived here — one authority. */
+export type AskIneligibleReason =
+  | 'text'
+  | 'multi_select'
+  | 'money_binding'
+  | 'obligation_item'
+  | 'bank_axis'
+  | 'debt_types';
+
+/** One pool question as the grid renders it. EVERY active question is listed. */
+export interface AskPoolQuestion {
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  type: AskQuestionType;
+  isRequired: boolean;
+  categories: LoanCategory[];
+  eligible: boolean;
+  ineligibleReason?: AskIneligibleReason;
+  /** The fact already reading this question — what a tick would JOIN rather than mint. */
+  factKey: string | null;
+  askedByThisProduct: boolean;
+  askedByOtherProducts: string[];
+}
+
+export interface ProductAsksBoard {
+  productKey: string;
+  labelAr: string;
+  labelEn: string;
+  active: boolean;
+  capOnly: boolean;
+  asks: ProductAsk[];
+  pool: AskPoolQuestion[];
+  /**
+   * Fact keys the product's own calculation reads.
+   *
+   * The half the ask set cannot answer: a rule may read a fact nobody filed, and an ask may
+   * exist that the calculation does not read yet. Both are legitimate.
+   */
+  factsReadByRule: string[];
+}
+
+export interface AskWriteResult {
+  changed: {
+    factKey: string;
+    factCreated: boolean;
+    factBound: boolean;
+    askAdded: boolean;
+    askRemoved: boolean;
+    factDeleted: boolean;
+    /** Loan types this write STARTED asking the question in. Never a narrowing. */
+    widened: LoanCategory[];
+    /**
+     * Whether a questionnaire version was cut.
+     *
+     * `false` with a non-empty `widened` is the one outcome a toast would lie about: the
+     * assignment landed and no applicant is being served it yet.
+     */
+    published: boolean;
+  };
+  state: ProductAsksBoard;
+}
+
 /** Mirrors the server DTO — see `matching/pipeline/additional-income.ts`. */
 export interface AdditionalIncomeConfig {
   sources: { factKey: string; percent: string }[];

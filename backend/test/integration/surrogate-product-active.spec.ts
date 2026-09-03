@@ -16,7 +16,7 @@
  *    A rule product's facts are deliberately left alone — its rule is withheld instead,
  *    and flipping the facts too would overwrite a state an operator may have set by hand.
  *
- * `club_branch_cap` and `compound_owner_ceiling` are real blueprint keys, so the cap-only
+ * `club_branch_cap` and `compound_owner` are real blueprint keys, so the cap-only
  * split is exercised through the real predicate rather than a stub of it.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -42,7 +42,7 @@ function makeService(opts: { exists?: boolean } = {}) {
         : { id: `id_${key}`, key, labelAr: key, labelEn: key, incomeRule: STEPS },
     ),
     listSurrogateProducts: vi.fn(async () => [
-      { key: 'compound_owner_ceiling', labelAr: 'c', labelEn: 'c', active: true, sortOrder: 0, usedBy: [] },
+      { key: 'compound_owner', labelAr: 'c', labelEn: 'c', active: true, sortOrder: 0, usedBy: [] },
     ]),
   };
   const enumsAdmin = {
@@ -63,20 +63,20 @@ function makeService(opts: { exists?: boolean } = {}) {
 describe('switching a surrogate product off', () => {
   it('writes through the admin service, by the row it resolved from the key', async () => {
     const { service, enumsAdmin } = makeService();
-    const result = await service.setSurrogateProductActive('compound_owner_ceiling', false, ACTOR);
+    const result = await service.setSurrogateProductActive('compound_owner', false, ACTOR);
     expect(enumsAdmin.update).toHaveBeenCalledWith(
-      'id_compound_owner_ceiling',
+      'id_compound_owner',
       { active: false },
       { staffId: 'staff_1', sourceIp: null },
     );
-    expect(result).toMatchObject({ key: 'compound_owner_ceiling', active: false });
+    expect(result).toMatchObject({ key: 'compound_owner', active: false });
   });
 
   it('never sends `deprecate`, so the product can always be switched back on', async () => {
     // `updateById` sets `deprecatedAt` on a deprecate and clears it on nothing, so a
     // deprecate issued here would be one-way.
     const { service, enumsAdmin } = makeService();
-    await service.setSurrogateProductActive('compound_owner_ceiling', false, ACTOR);
+    await service.setSurrogateProductActive('compound_owner', false, ACTOR);
     const patch = enumsAdmin.update.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(patch).not.toHaveProperty('deprecate');
     expect(Object.keys(patch)).toEqual(['active']);
@@ -86,7 +86,7 @@ describe('switching a surrogate product off', () => {
     // Its rule is withheld at the engine seam instead. Two mechanisms for one switch would
     // mean the second one overwriting a per-fact state an operator set by hand.
     const { service, enumsAdmin } = makeService();
-    const result = await service.setSurrogateProductActive('compound_owner_ceiling', false, ACTOR);
+    const result = await service.setSurrogateProductActive('compound_owner', false, ACTOR);
     expect(enumsAdmin.setFactsActive).not.toHaveBeenCalled();
     expect(result.factsChanged).toEqual([]);
   });

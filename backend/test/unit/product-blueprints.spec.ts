@@ -300,7 +300,7 @@ describe('the slot ids are golden', () => {
     // directly (`left: { fact }`), so only a way that BANDS or SCALES a number needs a
     // `factNumber` step of its own.
     pledged_collateral_share: ['cond__heldlongenough', 'primary', 'src__pledged_free_amount'],
-    compound_owner_ceiling: [
+    compound_owner: [
       'alt',
       'alt__owned_unit_type',
       'alt__owned_unit_type__top_up',

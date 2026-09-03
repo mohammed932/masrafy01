@@ -52,6 +52,8 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { productBlueprints } from './product-blueprints';
 import { planSeedAction } from './blueprint-seed-plan';
+import { ensureBlueprintAsks } from './blueprint-seed-asks';
+import { ProductAsksRepository } from '../asks/product-asks.repository';
 import type { ProductBlueprint } from './product-blueprint.types';
 
 const TAG = '[seed-blueprints]';
@@ -63,6 +65,8 @@ interface Tally {
   caps: string[];
   refused: string[];
   publishes: number;
+  /** `<product>/<fact>` pairs whose ask row this run recorded. Empty on a second run. */
+  asksAdded: string[];
 }
 
 async function main(): Promise<void> {
@@ -79,6 +83,7 @@ async function main(): Promise<void> {
     const blueprints = app.get(BlueprintService);
     const enums = app.get(PlatformEnumerationsRepository);
     const enumsAdmin = app.get(PlatformEnumerationsAdminService);
+    const productAsks = app.get(ProductAsksRepository);
 
     // A real staff id: `platform_enumeration.createdBy` is written from it and
     // `audit_event.actorId` is a foreign key onto `staff_account`.
@@ -104,9 +109,24 @@ async function main(): Promise<void> {
       caps: [],
       refused: [],
       publishes: 0,
+      asksAdded: [],
+    };
+
+    /** The ask pass for the blueprint currently in hand, as a tuple `recordAsks` spreads. */
+    let current: ProductBlueprint | null = null;
+    const ensureBlueprintAsksFor = async (productKey: string): Promise<[string[], string[]]> => {
+      if (current === null) return [[], []];
+      const asked = await ensureBlueprintAsks({
+        blueprint: current,
+        productKey,
+        asks: productAsks,
+        actorStaffId: actor.staffId,
+      });
+      return [asked.added, asked.missingFacts];
     };
 
     for (const blueprint of productBlueprints()) {
+      current = blueprint;
       const row = await enums.findSurrogateProduct(blueprint.key);
       const action = planSeedAction(
         blueprint,
@@ -118,6 +138,19 @@ async function main(): Promise<void> {
         console.log(
           `${TAG} skip    ${pad(action.productKey)} already has a calculation — untouched`,
         );
+        // ONE write a `skip` still performs, and it is safe: an ask row is the library's own
+        // statement of what its product reads, not the operator's work, so an insert can
+        // never take a pick away — and a product holding a calculation still needs its list
+        // rendered on step ①. Idempotent by primary key, so a second run adds nothing.
+        if (!dry) {
+          const asked = await ensureBlueprintAsks({
+            blueprint,
+            productKey: action.productKey,
+            asks: productAsks,
+            actorStaffId: actor.staffId,
+          });
+          recordAsks(tally, action.productKey, asked.added, asked.missingFacts);
+        }
         continue;
       }
 
@@ -162,9 +195,18 @@ async function main(): Promise<void> {
             `${TAG} cap     ${pad(action.productKey)} question + list + row, no calculation` +
               (result.capFactKey ? ` (fact: ${result.capFactKey})` : ''),
           );
+          // AFTER the row is minted, which is why this is a pass here rather than a plan
+          // step: a cap blueprint returns no product, so inside `createFromBlueprint` there
+          // is nothing for an ask row to point at on a first run.
+          recordAsks(
+            tally,
+            action.productKey,
+            ...(await ensureBlueprintAsksFor(action.productKey)),
+          );
           continue;
         }
 
+        recordAsks(tally, action.productKey, ...(await ensureBlueprintAsksFor(action.productKey)));
         (action.kind === 'resume' ? tally.resumed : tally.created).push(action.productKey);
         console.log(
           `${TAG} ${action.kind === 'resume' ? 'resume' : 'create'}  ${pad(action.productKey)} ` +
@@ -214,7 +256,8 @@ async function main(): Promise<void> {
     console.log(
       `${TAG} ${tally.created.length} created · ${tally.resumed.length} resumed · ` +
         `${tally.unchanged.length} unchanged · ${tally.caps.length} cap-only · ` +
-        `${tally.refused.length} REFUSED · questionnaire published ${tally.publishes}×`,
+        `${tally.refused.length} REFUSED · asks recorded ${tally.asksAdded.length} · ` +
+        `questionnaire published ${tally.publishes}×`,
     );
     if (tally.refused.length > 0) process.exitCode = 1;
   } finally {
@@ -222,6 +265,28 @@ async function main(): Promise<void> {
     // rather than `process.exit()` everywhere above, for the same reason: stdout has to
     // flush and this has to run.
     await app.close();
+  }
+}
+
+/**
+ * Record what the ask pass did, and print the drift it could not close.
+ *
+ * A missing FACT is reported rather than skipped in silence, in the same spirit as the
+ * command's own drift block: a blueprint naming a fact nothing created is a real gap, and an
+ * ask row cannot point at a row that is not there.
+ */
+function recordAsks(
+  tally: Tally,
+  productKey: string,
+  added: readonly string[],
+  missingFacts: readonly string[],
+): void {
+  for (const factKey of added) tally.asksAdded.push(`${productKey}/${factKey}`);
+  if (added.length > 0) {
+    console.log(`${TAG} asks    ${pad(productKey)} reads ${added.join(', ')}`);
+  }
+  for (const factKey of missingFacts) {
+    console.log(`${TAG} drift   ${pad(productKey)} ${factKey}: no fact row to read`);
   }
 }
 

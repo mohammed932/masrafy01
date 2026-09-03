@@ -334,7 +334,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   // Works out a borrowing ceiling
   // -------------------------------------------------------------------------
   {
-    key: 'compound_owner_ceiling',
+    key: 'compound_owner',
     group: 'ceiling',
     labelEn: 'Ceiling from a compound unit the customer owns',
     labelAr: 'الحد الأقصى من وحدة يملكها العميل في كومباوند',
@@ -719,6 +719,39 @@ export function sharedBlueprintFactKeys(): ReadonlySet<string> {
 
 export function productBlueprint(key: string): ProductBlueprint | undefined {
   return BLUEPRINTS.find((blueprint) => blueprint.key === key);
+}
+
+/**
+ * Every blueprint that asks for this fact key, and the question each one declares for it.
+ *
+ * Read by the operator-facing ask door on a product's step ①, for two refusals that are
+ * about the same thing from opposite ends:
+ *
+ *   - a tick whose derived key a blueprint declares against a DIFFERENT question would
+ *     silently repoint that blueprint's product at the operator's question, with no plan
+ *     step, no log line and no refusal — the seed treats an existing bound key as reuse;
+ *   - an untick of a blueprint's own ask would be undone by the next seed run, so it is
+ *     refused rather than allowed and quietly reverted.
+ *
+ * `questionCode` is `undefined` for the ask kinds that declare none: a `choice` or `number`
+ * ask MINTS its question (the code is slugged from the English wording and is not knowable
+ * here), while `bindQuestion`, `platformFact` and `derivedFact` name an existing one.
+ */
+export function blueprintKeysAsking(
+  factKey: string,
+): readonly { blueprintKey: string; questionCode?: string }[] {
+  const found: { blueprintKey: string; questionCode?: string }[] = [];
+  for (const blueprint of BLUEPRINTS) {
+    for (const ask of blueprint.asks) {
+      if (ask.factKey !== factKey) continue;
+      found.push({
+        blueprintKey: blueprint.key,
+        questionCode: 'questionCode' in ask ? ask.questionCode : undefined,
+      });
+      break;
+    }
+  }
+  return found;
 }
 
 /**

@@ -105,7 +105,7 @@ describe('planning against an empty database', () => {
   it('creates the product row FIRST, and writes the calculation LAST', () => {
     // The row first, because a fact filed under a product names it. The calculation last,
     // because the validator checks every fact it reads.
-    const steps = plan('compound_owner_ceiling').steps.map((step) => step.op);
+    const steps = plan('compound_owner').steps.map((step) => step.op);
     expect(steps[0]).toBe('createProductRow');
     expect(steps.at(-1)).toBe('setProductTemplate');
   });
@@ -113,7 +113,7 @@ describe('planning against an empty database', () => {
   it('creates a class list before the list filed under it', () => {
     // `resolveParentKey` refuses to create a filed-under value with no parent: a compound is
     // born filed. Planning them the other way round is a run that fails half-way.
-    const steps = plan('compound_owner_ceiling').steps;
+    const steps = plan('compound_owner').steps;
     const classType = steps.findIndex(
       (step) => step.op === 'createType' && step.typeKey === 'compound_category',
     );
@@ -133,7 +133,7 @@ describe('planning against an empty database', () => {
   });
 
   it('files the child list under its class, with a catch-all to land in', () => {
-    const step = plan('compound_owner_ceiling').steps.find(
+    const step = plan('compound_owner').steps.find(
       (s) => s.op === 'createType' && s.typeKey === 'compound',
     );
     expect(step).toMatchObject({
@@ -173,7 +173,7 @@ describe('planning against an empty database', () => {
   });
 
   it('files a new fact under the product that authored it', () => {
-    const step = plan('compound_owner_ceiling').steps.find(
+    const step = plan('compound_owner').steps.find(
       (s) => s.op === 'createFact' && s.factKey === 'unit_paid_to_date',
     );
     expect(step).toMatchObject({ surrogateProductKey: 'my_product' });

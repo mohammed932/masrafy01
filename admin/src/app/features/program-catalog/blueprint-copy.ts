@@ -86,7 +86,7 @@ const COPY: Readonly<Record<string, () => BlueprintCopy>> = {
     example: $localize`:@@bpl.pledged.eg:One sheet takes 30% of the free amount and caps the loan at 500,000 under 2M, rising to 2,000,000 at 10M and above.`,
     glyph: GLYPH.vault,
   }),
-  compound_owner_ceiling: () => ({
+  compound_owner: () => ({
     title: $localize`:@@bpl.compound.title:A compound unit the customer owns`,
     mechanism: $localize`:@@bpl.compound.mech:Four ways to the same ceiling — the class the compound is filed under, the bracket of what they have paid, a share of what they have paid, or the kind of unit — and the lower of whichever ones a bank fills.`,
     example: $localize`:@@bpl.compound.eg:One sheet lends 15% of everything paid; another 6,000,000 against a Class AA compound; a third 4,000,000 against a villa.`,

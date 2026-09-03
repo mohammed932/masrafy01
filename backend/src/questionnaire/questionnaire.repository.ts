@@ -1,9 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  mirroredOptionPlan,
-  planIsEmpty,
-  type MirroredValue,
-} from './mirrored-options';
+import { mirroredOptionPlan, planIsEmpty, type MirroredValue } from './mirrored-options';
 import { Prisma } from '@prisma/client';
 import type {
   LoanCategory,
@@ -185,14 +181,7 @@ export class QuestionnaireRepository {
       },
     });
     return rows.map(
-      ({
-        id: _id,
-        loanCategories,
-        numericMinValue,
-        numericMaxValue,
-        numericStep,
-        ...q
-      }) => ({
+      ({ id: _id, loanCategories, numericMinValue, numericMaxValue, numericStep, ...q }) => ({
         ...q,
         categories: loanCategories.map((c) => c.category),
         // Decimal → string at the repository edge: money never crosses a service
@@ -313,6 +302,51 @@ export class QuestionnaireRepository {
     });
   }
 
+  /**
+   * ADD categories to a question's set, leaving everything already there alone.
+   *
+   * NOT `setCategories` with a union computed by the caller, and the difference is a lost
+   * update. `setCategories` replaces the whole set, so a read-modify-write is the shape of
+   * every whole-set caller — and a product's step ① is a FOUR-TAB screen, which invites two
+   * tabs (or two operators) to tick the same question in different loan types at the same
+   * moment. Both read `[car]`, one writes `[car, personal]`, the other writes
+   * `[car, mortgage]`, last write wins, and the losing tick is gone with the losing UI
+   * still showing it ticked and nothing anywhere recording that it was dropped.
+   *
+   * The primary key is `(questionId, category)`, so an additive write is free and
+   * idempotent: `skipDuplicates` makes a re-tick a no-op rather than a conflict, which is
+   * also what lets the service publish only when something actually moved.
+   *
+   * Returns the categories it INSERTED — not the resulting set. The caller needs to know
+   * whether to publish, and "nothing moved" has to be distinguishable from "nothing was
+   * asked for".
+   */
+  async addCategories(
+    questionId: string,
+    categories: readonly LoanCategory[],
+  ): Promise<LoanCategory[]> {
+    if (categories.length === 0) return [];
+    const existing = new Set(
+      (
+        await this.prisma.questionLoanCategory.findMany({
+          where: { questionId },
+          select: { category: true },
+        })
+      ).map((row) => row.category),
+    );
+    const missing = categories.filter((category) => !existing.has(category));
+    if (missing.length === 0) return [];
+    await this.prisma.questionLoanCategory.createMany({
+      data: missing.map((category) => ({ questionId, category })),
+      skipDuplicates: true,
+    });
+    // The pre-read set, not a re-read. A concurrent tick of the SAME category makes this a
+    // superset by exactly the raced row, whose only cost is a questionnaire publish that
+    // the other tick was performing anyway — where a re-read would report categories that
+    // were already there as newly added, which is what the audit event must not say.
+    return missing;
+  }
+
   /** Same as `setCategories`, for many questions in ONE transaction (column actions). */
   setCategoriesBulk(
     assignments: ReadonlyArray<{ questionId: string; categories: readonly LoanCategory[] }>,
@@ -351,9 +385,7 @@ export class QuestionnaireRepository {
    * publish, on the path of every write to a mirrored list. The ordering is the same
    * `optionsByQuestion` promises, applied per group.
    */
-  async optionsByQuestions(
-    questionIds: readonly string[],
-  ): Promise<Map<string, QuestionOption[]>> {
+  async optionsByQuestions(questionIds: readonly string[]): Promise<Map<string, QuestionOption[]>> {
     const out = new Map<string, QuestionOption[]>();
     if (questionIds.length === 0) return out;
     const rows = await this.prisma.questionOption.findMany({
@@ -383,7 +415,10 @@ export class QuestionnaireRepository {
    * Returns whether anything moved, so the caller can skip a republish that would mint a
    * version identical to the live one.
    */
-  async syncMirroredOptions(questionId: string, values: readonly MirroredValue[]): Promise<boolean> {
+  async syncMirroredOptions(
+    questionId: string,
+    values: readonly MirroredValue[],
+  ): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.questionOption.findMany({ where: { questionId } });
       const plan = mirroredOptionPlan(existing, values);

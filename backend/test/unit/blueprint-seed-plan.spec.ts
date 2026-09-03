@@ -11,7 +11,7 @@ import { planSeedAction, seedProductKey } from '@/bank-programs/blueprints/bluep
 import { productBlueprint } from '@/bank-programs/blueprints/product-blueprints';
 
 const income = productBlueprint('armed_forces_grades')!;
-const ceiling = productBlueprint('compound_owner_ceiling')!;
+const ceiling = productBlueprint('compound_owner')!;
 const cap = productBlueprint('club_branch_cap')!;
 
 describe('planSeedAction', () => {
@@ -32,9 +32,9 @@ describe('planSeedAction', () => {
   });
 
   it('SKIPS a product that already holds a calculation — the operator’s work', () => {
-    expect(planSeedAction(ceiling, { key: 'compound_owner_ceiling', hasRule: true })).toEqual({
+    expect(planSeedAction(ceiling, { key: 'compound_owner', hasRule: true })).toEqual({
       kind: 'skip',
-      productKey: 'compound_owner_ceiling',
+      productKey: 'compound_owner',
     });
   });
 

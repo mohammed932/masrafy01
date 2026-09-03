@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { LoanCategory } from '@core/loan-category';
 import { environment } from '../../../environments/environment';
 import type {
   BankProgramCreatePayload,
@@ -15,6 +16,8 @@ import type {
   ListBankProgramsQuery,
   ProductTemplate,
   ProgramNameIncomeRule,
+  AskWriteResult,
+  ProductAsksBoard,
   SurrogateProductDetail,
   SurrogateProductSummary,
   SurrogateProductTemplateResponse,
@@ -204,6 +207,62 @@ export class BankProgramsApiService {
       this.http.put<SuccessEnvelope<{ key: string; active: boolean; factsChanged: string[] }>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/active`,
         { active },
+      ),
+    );
+  }
+
+  /**
+   * WHAT THIS PRODUCT ASKS — the board step ① renders, in one response.
+   *
+   * Its ask set, the whole active question pool, and per ask both who else reads it and
+   * whether it can be removed here. ONE read, and not to save round trips: the three
+   * existing reads cannot be composed. The question pool sits behind a stricter role, the
+   * fact registry reaches this bundle through a per-session cache a tick cannot invalidate,
+   * and "which other products read this fact" is answerable only from the ask table.
+   */
+  async getProductAsks(key: string): Promise<SuccessEnvelope<ProductAsksBoard>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<ProductAsksBoard>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/asks`,
+      ),
+    );
+  }
+
+  /**
+   * Tick a pool question: this product starts reading its answer.
+   *
+   * Addressed by the QUESTION, because that is what the operator picked and the fact may not
+   * exist yet. `askIn` is ADDITIVE — it says which loan types should start asking the
+   * question and never narrows the set, which is shared with every other product reading it.
+   *
+   * Returns the whole recomputed board, so the screen absorbs one object per click instead
+   * of re-reading three things that can disagree about what the click did.
+   */
+  async attachProductAsk(
+    key: string,
+    questionCode: string,
+    askIn: readonly LoanCategory[],
+  ): Promise<SuccessEnvelope<AskWriteResult>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<AskWriteResult>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/asks/` +
+          encodeURIComponent(questionCode),
+        { askIn: [...askIn] },
+      ),
+    );
+  }
+
+  /**
+   * Untick: this product stops reading the answer.
+   *
+   * Addressed by the FACT, because that is what exists and what the screen renders. The
+   * question stays in the pool and the loan types that ask it are untouched.
+   */
+  async detachProductAsk(key: string, factKey: string): Promise<SuccessEnvelope<AskWriteResult>> {
+    return firstValueFrom(
+      this.http.delete<SuccessEnvelope<AskWriteResult>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/asks/` +
+          encodeURIComponent(factKey),
       ),
     );
   }

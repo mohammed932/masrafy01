@@ -850,9 +850,15 @@ model PlatformEnumeration {
   createdBy           String?   @db.VarChar(30)
   updatedBy           String?   @db.VarChar(30)
 
-  loanCategories PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
-  questions      PlatformEnumerationQuestion[]     @relation("PlatformEnumerationQuestions")
-  boundQuestion  Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
+  loanCategories  PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
+  questions       PlatformEnumerationQuestion[]     @relation("PlatformEnumerationQuestions")
+  boundQuestion   Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
+  /// `surrogate_product` side of the ask set — which facts this product reads.
+  asks            SurrogateProductAsk[]             @relation("SurrogateProductAsks")
+  /// `surrogate_fact` side of the same rows — which products read this fact. This is
+  /// the direction `surrogateProductKey` cannot express: it is one column, and a fact
+  /// is legitimately read by several products.
+  askedByProducts SurrogateProductAsk[]             @relation("SurrogateFactAskedBy")
 
   @@unique([type, key], name: "idx_platform_enumeration_type_key")
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
@@ -1095,6 +1101,66 @@ model PlatformEnumerationQuestion {
   @@id([enumerationId, category, questionId], name: "pk_platform_enumeration_question")
   @@index([questionId], name: "idx_platform_enumeration_question_question")
   @@map("platform_enumeration_question")
+}
+
+/// WHICH FACTS A NO-PAYSLIP PRODUCT READS — the product's ask set, first class.
+///
+/// WHY A TABLE AND NOT `platform_enumeration.surrogateProductKey`. That column is one
+/// column and it means AUTHORSHIP ("provenance, never a constraint", see its own comment
+/// above). Membership is many-to-many and the planner withholds the column in two cases
+/// on purpose (`blueprint-plan.ts`): for a fact several blueprints share, because a
+/// cascade would kill one product's axis when another product went away, and for every
+/// cap-only blueprint, which builds no product row for a fact to be filed under. Both
+/// were measured, and both had the same visible consequence — `club_branch_cap`, a
+/// product whose entire content is one ask, rendered "asks the applicant nothing yet",
+/// and `school_type`, read by three blueprints, appeared on nobody's list.
+///
+/// So authorship and membership are two relations and they get two homes. This one is
+/// authoritative for what step ① of a product's screen lists; the column keeps saying
+/// who made the row.
+///
+/// IDs WITH REAL FOREIGN KEYS on both ends, unlike `surrogateProductKey`, whose
+/// reachable unique is the composite `(type, key)` that a self-FK cannot name. Both ends
+/// address `platform_enumeration.id`, which IS the primary key, so referential integrity
+/// is available here and is taken: an allowed fact delete takes its ask rows with it
+/// instead of leaving the ghost rows A26 forbids.
+///
+/// `source` is STORED, not derived, and it is load-bearing twice. The blueprint seed must
+/// be able to re-assert its own ask on every deploy without claiming an operator made it;
+/// and the untick refusal reads it, because a blueprint's ask is the product's floor —
+/// removing one would be undone by the next seed run, silently.
+///
+/// NOT keyed by loan category. What a product READS is one decision; which loan types
+/// ASK the question behind it is `question_loan_category`, which is global to the question
+/// and shared with every other reader of it. A per-category ask set would be a second,
+/// quieter statement of the same thing, free to disagree with the questionnaire about
+/// what an applicant is actually asked.
+model SurrogateProductAsk {
+  /// `platform_enumeration.id` of the `surrogate_product` row.
+  productId String             @db.VarChar(30)
+  /// `platform_enumeration.id` of the `surrogate_fact` row.
+  factId    String             @db.VarChar(30)
+  source    SurrogateAskSource
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  createdBy String?            @db.VarChar(30)
+
+  product PlatformEnumeration @relation("SurrogateProductAsks", fields: [productId], references: [id], onDelete: Cascade)
+  fact    PlatformEnumeration @relation("SurrogateFactAskedBy", fields: [factId], references: [id], onDelete: Cascade)
+
+  /// `productId` leads so a product's own board (its whole ask set) is a prefix scan;
+  /// the reverse index carries "who else reads this fact", which is what the untick
+  /// refusal and the shared-fact notice on the card both read.
+  @@id([productId, factId], name: "pk_surrogate_product_ask")
+  @@index([factId], name: "idx_surrogate_product_ask_fact")
+  @@map("surrogate_product_ask")
+}
+
+/// Who put an ask on a product. `blueprint` is the predefined library's own statement of
+/// what its product reads and is re-asserted by `npm run seed:blueprints`; `operator` is
+/// a pick made on the product's screen. Only an `operator` ask can be removed there.
+enum SurrogateAskSource {
+  blueprint
+  operator
 }
 
 // -----------------------------------------------------------------------------

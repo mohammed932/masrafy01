@@ -59,6 +59,15 @@ import { ProgramNameScopeService } from './program-name-scope.service';
     PlatformEnumerationsRepository,
     PlatformEnumerationsAdminService,
     ProgramNameScopeService,
+    // The CONCRETE repository, for the same reason the admin service injects it rather than
+    // the abstract: a handful of admin-only reads are deliberately not on the abstract,
+    // because the in-memory stub exists to serve the ENGINE and would have to grow a fake
+    // implementation of each one to satisfy a contract no quote path uses
+    // (`boundQuestions`, `findByTypeAndKey`, the fact-reader scan, the ask board's question
+    // pool). Read-only consumers only: every WRITE still goes through the admin service
+    // above, so the audit event, the cache invalidation and the guards stay one
+    // implementation.
+    PostgresPlatformEnumerationsRepository,
   ],
 })
 export class PlatformEnumerationsModule {}

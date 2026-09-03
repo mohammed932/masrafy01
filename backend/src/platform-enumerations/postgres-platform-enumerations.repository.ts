@@ -14,8 +14,9 @@ import type {
 } from '@/matching/pipeline/income-rule-inherit';
 import { asLoanCategory, sortCategories } from '@/common/loan-category.util';
 import { basesOfFlags, flagsOfBases, type IncomeBasis } from '@/common/income-basis.util';
-import { factKeyOf, factStrategy, type IncomeAssumptionConfig } from '@/matching/types';
+import { factKeyOf, type IncomeAssumptionConfig } from '@/matching/types';
 import { SURROGATE_FACTS_BY_STRATEGY } from '@/matching/pipeline/surrogate-fact-bindings';
+import { factReaders, type FactReader } from '@/matching/pipeline/fact-readers';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
   EnumerationMember,
@@ -103,6 +104,28 @@ export interface CatalogQuestionRow {
   labelAr: string;
   labelEn: string;
   type: QuestionType;
+  /** The loan categories that ASK this question. Empty = parked. */
+  categories: LoanCategory[];
+}
+
+/**
+ * One active pool question, as the ask board on a product's step ① needs it.
+ *
+ * A SIBLING of `CatalogQuestionRow` rather than two fields added to it, because that row IS
+ * the body of `GET admin/enumerations/questions` — it is returned to the client unprojected,
+ * so a field added for a server-side decision would ship on an endpoint that never asked
+ * for it. This one carries the two the ask door decides on and the pool row has no use for:
+ * `id`, to write the loan-category assignment, and `isRequired`, because starting to ask a
+ * REQUIRED question of a new loan type refuses every application in it until the next
+ * publish lands.
+ */
+export interface FactCandidateQuestionRow {
+  id: string;
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  type: QuestionType;
+  isRequired: boolean;
   /** The loan categories that ASK this question. Empty = parked. */
   categories: LoanCategory[];
 }
@@ -652,6 +675,48 @@ export class PostgresPlatformEnumerationsRepository
       if (!q || !isBindableQuestionType(q.type)) return [];
       return [{ key: row.key, questionCode: q.code, type: q.type }];
     });
+  }
+
+  /**
+   * Everything that reads one fact key, across every surface a fact key can live in.
+   *
+   * ONE answer to that question, shared by two callers who must never disagree:
+   * `countReferences` (which decides whether the generic hard delete is refused) and the
+   * untick on a product's step ① (which decides whether the fact row goes away with the
+   * ask). Two implementations would diverge exactly once — on the op somebody added and
+   * only taught one of the walks about.
+   *
+   * TWO SCANS AND A PURE WALK, rather than a JSON path filter per surface. Postgres cannot
+   * index into a JSON array by path, so `steps[].fact` is not expressible as a `JsonFilter`
+   * at all — which is precisely how the original single-token count came to miss every
+   * pipeline. Both scans are narrowed to rows that carry a blob worth reading, and the
+   * decision itself is `factsReadBy`, the function the rule validator already calls.
+   *
+   * Affordable at this scale (tens of programs, tens of stored rules) and it buys the
+   * property that matters: a new op that names a fact is covered the day it is added.
+   */
+  async surrogateFactReaders(key: string): Promise<FactReader[]> {
+    const [programs, rules] = await Promise.all([
+      this.prisma.bankProgram.findMany({
+        where: {
+          OR: [
+            { NOT: { incomeAssumption: { equals: Prisma.DbNull } } },
+            { NOT: { loanLimits: { equals: Prisma.DbNull } } },
+          ],
+        },
+        select: { programCode: true, incomeAssumption: true, loanLimits: true },
+      }),
+      this.prisma.platformEnumeration.findMany({
+        where: {
+          // Both rule-bearing kinds: a product's own calculation, and a catalog name's
+          // grandfathered one. Literals, matching `programNameIncomeRules` above.
+          type: { in: ['program_name', 'surrogate_product'] },
+          NOT: { incomeRule: { equals: Prisma.DbNull } },
+        },
+        select: { type: true, key: true, incomeRule: true },
+      }),
+    ]);
+    return factReaders(key, { programs, rules });
   }
 
   /**
@@ -1689,6 +1754,40 @@ export class PostgresPlatformEnumerationsRepository
   }
 
   /**
+   * The active questions a surrogate product's ask board offers, with the two extra fields
+   * that board decides on. See `FactCandidateQuestionRow`.
+   *
+   * ACTIVE ONLY, deliberately, and it is the pool that makes the refusal possible: a fact
+   * bound to a parked question is dropped by `surrogateFactRegistry` and answers
+   * `fact_not_answered` for every applicant, so "not in here" is what
+   * `SURROGATE_FACT_QUESTION_INACTIVE` means.
+   */
+  async factCandidateQuestions(): Promise<FactCandidateQuestionRow[]> {
+    const rows = await this.prisma.question.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        code: true,
+        questionAr: true,
+        questionEn: true,
+        type: true,
+        isRequired: true,
+        loanCategories: { select: { category: true } },
+      },
+      orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
+    });
+    return rows.map((q) => ({
+      id: q.id,
+      code: q.code,
+      labelAr: q.questionAr,
+      labelEn: q.questionEn,
+      type: q.type,
+      isRequired: q.isRequired,
+      categories: sortCategories(q.loanCategories.map((c) => c.category)),
+    }));
+  }
+
+  /**
    * Replace one entry's suggested set FOR ONE CATEGORY, atomically. Takes CODES;
    * resolves them to ids inside the transaction. Delete-then-insert rather than
    * diffing, so the written set is exactly the submitted set.
@@ -2048,17 +2147,23 @@ export class PostgresPlatformEnumerationsRepository
         return [{ source: 'bank_program', count: programs }];
       }
       case 'surrogate_fact': {
-        // A fact is named by the income rule's STRATEGY TOKEN, not by a column:
-        // `fact:<key>` is how a bank's table says which figure it reads.
-        const programs = await this.prisma.bankProgram.count({
-          where: {
-            incomeAssumption: {
-              path: ['strategy'],
-              equals: factStrategy(key),
-            } as Prisma.JsonFilter,
-          },
-        });
-        return [{ source: 'bank_program', count: programs }];
+        // WAS a single `count` on `incomeAssumption.strategy = 'fact:<key>'`, and that was
+        // wrong for every product this platform actually sells: a predefined product
+        // compiles to a PIPELINE, whose strategy is the constant `'steps'` and whose fact
+        // keys live inside `steps[]` and `gates[]`. So the count was 0 and the delete guard
+        // was decoration — recorded in CLAUDE.md as "Found, not fixed" since v18.4.0, by
+        // which point the uncounted surfaces had grown to three.
+        //
+        // `surrogateFactReaders` is now the ONE answer to "what reads this fact", shared
+        // with the untick guard on a product's step ① and built on the same `factsReadBy`
+        // the rule validator uses. Counted per SURFACE, because the two program surfaces
+        // are edited on different steps of the program's own form.
+        const readers = await this.surrogateFactReaders(key);
+        const bySource = new Map<string, number>();
+        for (const reader of readers) {
+          bySource.set(reader.source, (bySource.get(reader.source) ?? 0) + 1);
+        }
+        return [...bySource].map(([source, count]) => ({ source, count }));
       }
       default:
         return null;

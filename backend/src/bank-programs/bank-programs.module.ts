@@ -16,6 +16,8 @@ import { SeedService } from './seeds/seed.service';
 import { SeedAbkController } from './seeds/seed-abk.controller';
 import { SeedCompetitorController } from './seeds/seed-competitor.controller';
 import { BlueprintService } from './blueprints/blueprint.service';
+import { ProductAsksService } from './asks/product-asks.service';
+import { ProductAsksRepository } from './asks/product-asks.repository';
 
 @Module({
   // `QuestionnaireModule` because building a predefined product creates the questions it
@@ -46,6 +48,12 @@ import { BlueprintService } from './blueprints/blueprint.service';
     ProgramOptionsService,
     SeedService,
     BlueprintService,
+    // The ask door on a product's step ①. Its own provider rather than methods on
+    // `BankProgramsService`, which deliberately injects no `QuestionnaireService` — a tick
+    // publishes the questionnaire, and that service's positional constructor is pinned by
+    // tests.
+    ProductAsksService,
+    ProductAsksRepository,
   ],
   exports: [BankProgramsService, BankProgramRepository],
 })

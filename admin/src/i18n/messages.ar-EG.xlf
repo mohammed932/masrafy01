@@ -2249,11 +2249,47 @@
       </trans-unit>
       <trans-unit id="spd.step_asks" datatype="html"><source>What it asks</source><target>ما الذي يسأل عنه</target></trans-unit>
       <trans-unit id="spd.cap_asks" datatype="html"><source>The questions this product puts to the applicant, the answers they pick from, the classes a bank keys its table by, and the amount each one carries.</source><target>الأسئلة التي يطرحها هذا المنتج على العميل، والإجابات التي يختار منها، والفئات التي يبني عليها البنك جدوله، والمبلغ الذي تحمله كل منها.</target></trans-unit>
-      <trans-unit id="spd.asks_none" datatype="html"><source>This product asks the applicant nothing yet, so there is no answer for it to work an income out from. Add the first thing it reads.</source><target>هذا المنتج لا يسأل العميل عن شيء بعد، فليست هناك إجابة يحسب منها الدخل. أضف أول شيء يقرأه.</target></trans-unit>
-      <trans-unit id="spd.ask.number" datatype="html"><source>A number they type</source><target>رقم يكتبه العميل</target></trans-unit>
-      <trans-unit id="spd.ask.choice" datatype="html"><source>One of a list</source><target>اختيار من قائمة</target></trans-unit>
-      <trans-unit id="spd.ask.unasked" datatype="html"><source>Asked of nobody</source><target>لا يُسأل لأحد</target></trans-unit>
-      <trans-unit id="spd.ask.inactive" datatype="html"><source>The question is switched off</source><target>السؤال موقوف</target></trans-unit>
+      <trans-unit id="spd.ask.lede" datatype="html"><source> Tick a question and this product reads its answer. It also starts being asked of <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants, so they have an answer to give. </source><target>اختر سؤالًا ليقرأ هذا المنتج إجابته. سيبدأ أيضًا طرحه على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/>، حتى تكون لديهم إجابة يقدمونها.</target></trans-unit>
+      <trans-unit id="spd.ask.tag_fixed" datatype="html"><source>comes with the product</source><target>يأتي مع المنتج</target></trans-unit>
+      <trans-unit id="spd.ask.tag_in_rule" datatype="html"><source>the calculation reads it</source><target>الحساب يقرأه</target></trans-unit>
+      <trans-unit id="spd.ask.tag_in_use" datatype="html"><source>a bank reads it</source><target>أحد البنوك يقرأه</target></trans-unit>
+      <trans-unit id="spd.ask.fixed_note" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> of these come with the product and cannot be removed here — switch the whole product off instead if it should not be sold. </source><target> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> منها تأتي مع المنتج ولا يمكن إزالتها من هنا — أطفئ المنتج بالكامل إن كان يجب التوقف عن بيعه. </target></trans-unit>
+      <trans-unit id="spd.ask.unpublished" datatype="html"><source>The question is attached, but the questionnaire was not published, so nobody is being asked it yet. Tick it again to retry.</source><target>تم ربط السؤال، لكن الاستبيان لم يُنشر، فلا أحد يُسأل عنه بعد. اضغط عليه مرة أخرى لإعادة المحاولة.</target></trans-unit>
+      <trans-unit id="spd.ask.dismiss" datatype="html"><source> Dismiss </source><target>إخفاء</target></trans-unit>
+      <trans-unit id="spd.ask.search_ph" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
+      <trans-unit id="spd.ask.clear" datatype="html"><source> Clear </source><target>إلغاء البحث</target></trans-unit>
+      <trans-unit id="spd.ask.sec_asked" datatype="html"><source>Read, and asked here</source><target>يقرأها، وتُطرح هنا</target></trans-unit>
+      <trans-unit id="spd.ask.sec_unasked" datatype="html"><source>Read, but not asked of <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants</source><target>يقرأها، لكنها لا تُطرح على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/></target></trans-unit>
+      <trans-unit id="spd.ask.sec_rest" datatype="html"><source>Not read yet</source><target>لا يقرأها بعد</target></trans-unit>
+      <trans-unit id="spd.ask.none_read" datatype="html"><source> Nothing yet — tap a question below and this product reads its answer. </source><target>لا شيء بعد — اضغط على سؤال بالأسفل ليقرأ هذا المنتج إجابته.</target></trans-unit>
+      <trans-unit id="spd.ask.unasked_note" datatype="html"><source> This product reads these, but nobody applying for this loan type is asked them, so it gets no answer from them. </source><target>هذا المنتج يقرأ هذه الإجابات، لكن لا أحد من المتقدمين لهذا النوع من التمويل يُسأل عنها، فلا يحصل منها على إجابة.</target></trans-unit>
+      <trans-unit id="spd.ask.nobody" datatype="html"><source>Asked of nobody</source><target>لا يُسأل لأحد</target></trans-unit>
+      <trans-unit id="spd.ask.ask_here" datatype="html"><source> Ask it here </source><target>اطرحه هنا</target></trans-unit>
+      <trans-unit id="spd.ask.stop" datatype="html"><source> Stop reading this </source><target>أوقف قراءته</target></trans-unit>
+      <trans-unit id="spd.ask.off" datatype="html"><source>The question is switched off</source><target>السؤال موقوف</target></trans-unit>
+      <trans-unit id="spd.ask.in_calc" datatype="html"><source>In the calculation</source><target>داخل الحساب</target></trans-unit>
+      <trans-unit id="spd.ask.t_one" datatype="html"><source>One of a list</source><target>اختيار من قائمة</target></trans-unit>
+      <trans-unit id="spd.ask.t_number" datatype="html"><source>A number they type</source><target>رقم يكتبه العميل</target></trans-unit>
+      <trans-unit id="spd.ask.t_many" datatype="html"><source>Several answers</source><target>أكثر من إجابة</target></trans-unit>
+      <trans-unit id="spd.ask.t_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="spd.ask.t_unknown" datatype="html"><source>Unknown</source><target>غير معروف</target></trans-unit>
+      <trans-unit id="spd.ask.rail_aria" datatype="html"><source>Loan type</source><target>نوع التمويل</target></trans-unit>
+      <trans-unit id="spd.ask.search_aria" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
+      <trans-unit id="spd.ask.tab_count" datatype="html"><source>answers read</source><target>إجابة يقرأها</target></trans-unit>
+      <trans-unit id="spd.ask.tab_warn" datatype="html"><source><x id="COUNT" equiv-text="tab.unasked"/> read but not asked here</source><target><x id="COUNT" equiv-text="tab.unasked"/> يقرأها ولا تُطرح هنا</target></trans-unit>
+      <trans-unit id="spd.ask.also" datatype="html"><source><x id="COUNT" equiv-text="products.length"/> other products read this too</source><target><x id="COUNT" equiv-text="products.length"/> منتجات أخرى تقرأ هذه الإجابة</target></trans-unit>
+      <trans-unit id="spd.ask.why_text" datatype="html"><source>Free text — a bank cannot key a table by an answer nobody can list in advance.</source><target>نص حر — لا يستطيع البنك بناء جدول على إجابة لا يمكن حصرها مسبقًا.</target></trans-unit>
+      <trans-unit id="spd.ask.why_multi" datatype="html"><source>More than one answer — there is no single value to look a figure up against.</source><target>أكثر من إجابة — ليست هناك قيمة واحدة يُبحث عنها في الجدول.</target></trans-unit>
+      <trans-unit id="spd.ask.why_money" datatype="html"><source>This is part of what the customer is asking for, or the salary they declared — not something about them a bank can price without a payslip.</source><target>هذا جزء من طلب العميل أو من الراتب الذي أعلنه، وليس معلومة عنه يستطيع البنك التسعير على أساسها بدون كشف راتب.</target></trans-unit>
+      <trans-unit id="spd.ask.why_obligation" datatype="html"><source>One of the customer&apos;s existing debts. Debt only means something as a total, so a bank cannot work an income out from one of them.</source><target>أحد التزامات العميل القائمة. الالتزامات لا تعني شيئًا إلا كإجمالي، فلا يستطيع البنك حساب دخل من واحد منها.</target></trans-unit>
+      <trans-unit id="spd.ask.why_axis" datatype="html"><source>The platform works this one out per bank, so a product cannot read it as an answer.</source><target>المنصة تحسب هذه القيمة لكل بنك على حدة، فلا يمكن لمنتج أن يقرأها كإجابة.</target></trans-unit>
+      <trans-unit id="spd.ask.why_blueprint" datatype="html"><source>This question comes with the product, so it cannot be removed here. Switch the whole product off instead if it should not be sold.</source><target>هذا السؤال يأتي مع المنتج، فلا يمكن إزالته من هنا. أطفئ المنتج بالكامل إن كان يجب التوقف عن بيعه.</target></trans-unit>
+      <trans-unit id="spd.ask.why_in_rule" datatype="html"><source>The calculation on the next step still reads this answer. Take it out of the calculation first.</source><target>الحساب في الخطوة التالية ما زال يقرأ هذه الإجابة. أزِلها من الحساب أولًا.</target></trans-unit>
+      <trans-unit id="spd.ask.why_in_use" datatype="html"><source>A bank program still reads this answer, so it cannot be removed yet.</source><target>ما زال أحد برامج البنوك يقرأ هذه الإجابة، فلا يمكن إزالتها بعد.</target></trans-unit>
+      <trans-unit id="spd.ask.aria_read" datatype="html"><source>Read <x id="NAME" equiv-text="name"/> and ask it of <x id="TYPE" equiv-text="this.askCategoryLabel()"/> applicants</source><target>اقرأ <x id="NAME" equiv-text="name"/> واطرحه على عملاء <x id="TYPE" equiv-text="this.askCategoryLabel()"/></target></trans-unit>
+      <trans-unit id="spd.ask.aria_stop" datatype="html"><source>Stop reading <x id="NAME" equiv-text="name"/></source><target>أوقف قراءة <x id="NAME" equiv-text="name"/></target></trans-unit>
+      <trans-unit id="spd.ask.said_read" datatype="html"><source><x id="NAME" equiv-text="card.label"/> is now read by this product</source><target><x id="NAME" equiv-text="card.label"/> يقرأه هذا المنتج الآن</target></trans-unit>
+      <trans-unit id="spd.ask.said_stopped" datatype="html"><source><x id="NAME" equiv-text="card.label"/> is no longer read by this product</source><target><x id="NAME" equiv-text="card.label"/> لم يعد هذا المنتج يقرأه</target></trans-unit>
       <trans-unit id="spd.lists_title" datatype="html"><source>The answers they pick from</source><target>الإجابات التي يختار منها</target></trans-unit>
       <trans-unit id="spd.list_owned" datatype="html"><source>The answers to one of the questions above.</source><target>إجابات أحد الأسئلة أعلاه.</target></trans-unit>
       <trans-unit id="spd.def.title" datatype="html"><source>The amount each answer carries</source><target>المبلغ الذي تحمله كل إجابة</target></trans-unit>
@@ -2321,7 +2357,12 @@
       </trans-unit>
       <trans-unit id="clsb.moved_many" datatype="html"><source><x id="COUNT" equiv-text="moved"/> values are now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="COUNT" equiv-text="moved"/> عنصر صارت مُسعَّرة في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
       <trans-unit id="pfd.step.values" datatype="html"><source>Adding the answers…</source><target>جارٍ إضافة الإجابات…</target></trans-unit>
-      <trans-unit id="spd.lists_shared" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ borrowedCount() }}"/> of these list(s) are shared with other products — editing one reaches every calculation that reads it. </source><target> <x id="INTERPOLATION" equiv-text="{{ borrowedCount() }}"/> من هذه القوائم مشتركة مع منتجات أخرى — وتعديل واحدة يصل إلى كل حساب يقرأها. </target></trans-unit>
+      <trans-unit id="spd.board_fold" datatype="html"><source>Move values between classes</source><target>نقل العناصر بين الفئات</target></trans-unit>
+      <trans-unit id="spd.board_unfiled" datatype="html"><source>with no class</source><target>بلا فئة</target></trans-unit>
+      <trans-unit id="spd.board_catchall" datatype="html"><source>in the catch-all</source><target>في فئة المتبقّي</target></trans-unit>
+      <trans-unit id="spd.lists_aria" datatype="html"><source>The answers they pick from</source><target>الإجابات التي يختارون منها</target></trans-unit>
+      <trans-unit id="spd.list_tab_shared" datatype="html"><source>Shared</source><target>مشتركة</target></trans-unit>
+      <trans-unit id="spd.list_shared_one" datatype="html"><source> This list is shared with other products — editing it reaches every calculation that reads it. </source><target> هذه القائمة مشتركة مع منتجات أخرى — وتعديلها يصل إلى كل حساب يقرأها. </target></trans-unit>
       <trans-unit id="spd.list_owned_classes" datatype="html"><source>The classes a bank keys its table by. Each answer above is filed under one of these.</source><target>الفئات التي يبني عليها البنك جدوله. كل إجابة أعلاه مُدرجة تحت واحدة منها.</target></trans-unit>
 
       <trans-unit id="fd.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
@@ -2444,7 +2485,6 @@
       <trans-unit id="spt.op.oneOf" datatype="html"><source>One of the answers the bank accepts</source><target>إحدى الإجابات التي يقبلها البنك</target></trans-unit>
       <trans-unit id="spt.op.perAnswerMin" datatype="html"><source>At least a figure that depends on another answer</source><target>على الأقل رقم يعتمد على إجابة أخرى</target></trans-unit>
       <trans-unit id="spt.op.perAnswerMax" datatype="html"><source>At most a figure that depends on another answer</source><target>على الأكثر رقم يعتمد على إجابة أخرى</target></trans-unit>
-      <trans-unit id="spd.ask.edit" datatype="html"><source>Edit the wording</source><target>عدّل الصياغة</target></trans-unit>
       <trans-unit id="spd.form.lede" datatype="html"><source>This calculation was built from a form, so it can be changed by answering the same questions again.</source><target>بُني هذا الحساب من نموذج، فيمكن تغييره بالإجابة عن الأسئلة نفسها مرة أخرى.</target></trans-unit>
       <trans-unit id="spd.form.edit" datatype="html"><source>Change how the income is worked out</source><target>غيّر طريقة حساب الدخل</target></trans-unit>
       <trans-unit id="spd.form.handbuilt" datatype="html"><source>This calculation was built step by step rather than from a form, so there is no form to open for it.</source><target>بُني هذا الحساب خطوة بخطوة لا من نموذج، فلا يوجد نموذج لفتحه له.</target></trans-unit>
@@ -3570,7 +3610,6 @@
       <trans-unit id="sp.power.off_ok" datatype="html"><source>Switch it off</source><target>أوقفها</target></trans-unit>
       <trans-unit id="sp.power.off_title" datatype="html"><source>Switch “<x id="PRODUCT" equiv-text="this.productName(card)"/>” off?</source><target>إيقاف «<x id="PRODUCT" equiv-text="this.productName(card)"/>»؟</target></trans-unit>
       <trans-unit id="sp.power.on_aria" datatype="html"><source>Switch <x id="PRODUCT" equiv-text="this.productName(c)"/> back on</source><target>إعادة تشغيل <x id="PRODUCT" equiv-text="this.productName(c)"/></target></trans-unit>
-      <trans-unit id="spd.ask.fixed" datatype="html"><source>What this product asks comes with the product. The answers it offers are yours to curate below, and so is the amount each one carries — what every bank starts from until it types its own.</source><target>ما يطرحه هذا المنتج يأتي مع المنتج. أما الإجابات التي يعرضها فأنت من يديرها أدناه، وكذلك المبلغ الذي تحمله كل إجابة — وهو ما يبدأ منه كل بنك حتى يكتب مبالغه.</target></trans-unit>
       <trans-unit id="spd.power.keep" datatype="html"><source>Keep it on</source><target>اتركها مُشغّلة</target></trans-unit>
       <trans-unit id="spd.power.off" datatype="html"><source>Switch this calculation off</source><target>أوقف طريقة الحساب هذه</target></trans-unit>
       <trans-unit id="spd.power.off_body" datatype="html"><source><x id="INTERPOLATION" equiv-text="pending.names.length"/> catalog name(s) take their calculation from this, so the <x id="INTERPOLATION_1" equiv-text="pending.programCodes.length"/> bank program(s) below stop matching anybody. Offers already issued keep their own figures. Nothing is deleted, and you can switch it back on at any time.</source><target><x id="INTERPOLATION" equiv-text="pending.names.length"/> اسم/أسماء في الكتالوج تأخذ حسابها من هذه، لذا سيتوقف الـ <x id="INTERPOLATION_1" equiv-text="pending.programCodes.length"/> برنامج/برامج بنكية أدناه عن مطابقة أي أحد. العروض الصادرة بالفعل تحتفظ بأرقامها. لا يُحذف شيء، ويمكنك إعادة تشغيلها في أي وقت.</target></trans-unit>

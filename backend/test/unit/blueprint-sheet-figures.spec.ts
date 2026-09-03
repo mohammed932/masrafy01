@@ -281,7 +281,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
     // §13.8: pick Mivida → class AA → 6,000,000, off a table of six rows however many
     // compounds the list holds.
     expect(
-      quote('compound_owner_ceiling', BY_CLASS, { compound_name: choice('mivida') }, CLASSES),
+      quote('compound_owner', BY_CLASS, { compound_name: choice('mivida') }, CLASSES),
     ).toBe('6000000');
   });
 
@@ -290,7 +290,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
     // customer gets 3,000,000.
     expect(
       quote(
-        'compound_owner_ceiling',
+        'compound_owner',
         { ...BY_PAID, ...BY_UNIT_TYPE },
         {
           unit_paid_to_date: number('20000000'),
@@ -304,7 +304,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
     // A bank that only prices by class must not be refused because the applicant did not
     // state what they have paid.
     expect(
-      quote('compound_owner_ceiling', BY_CLASS, { compound_name: choice('al_rehab') }, CLASSES),
+      quote('compound_owner', BY_CLASS, { compound_name: choice('al_rehab') }, CLASSES),
     ).toBe('2000000');
   });
 
@@ -313,11 +313,11 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
       ...BY_PAID,
       [SLOT.shareOn]: { scalar: { value: '50', unit: 'percent' as const } },
     };
-    const sole = quote('compound_owner_ceiling', figures, {
+    const sole = quote('compound_owner', figures, {
       unit_paid_to_date: number('20000000'),
       unit_joint_ownership: choice('joint_sole'),
     });
-    const shared = quote('compound_owner_ceiling', figures, {
+    const shared = quote('compound_owner', figures, {
       unit_paid_to_date: number('20000000'),
       unit_joint_ownership: choice('joint_shared'),
     });
@@ -326,7 +326,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
   });
 
   it('refuses an applicant who has not owned the unit long enough, naming why', () => {
-    const rule = compileTemplate(productBlueprint('compound_owner_ceiling')!.template!);
+    const rule = compileTemplate(productBlueprint('compound_owner')!.template!);
     const outcome = evaluateProductRule(
       {
         ...rule,
@@ -350,7 +350,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
     // A gate applies only when the bank filled its figure — so one sheet's 18-month rule is
     // not silently applied to the three banks that publish no such condition.
     expect(
-      quote('compound_owner_ceiling', BY_PAID, {
+      quote('compound_owner', BY_PAID, {
         unit_paid_to_date: number('20000000'),
         unit_months_owned: number('6'),
       }),
@@ -360,7 +360,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
 
 describe('§13.10 — a ceiling by down-payment bracket, two columns', () => {
   it('quotes the bracket and the column the customer falls in', () => {
-    const edges = productBlueprint('compound_owner_ceiling')!.suggestedBands!.find(
+    const edges = productBlueprint('compound_owner')!.suggestedBands!.find(
       (suggestion) => suggestion.wayIndex === 1,
     )!.edges;
     const rows = (amounts: string[]) => ({
@@ -370,11 +370,11 @@ describe('§13.10 — a ceiling by down-payment bracket, two columns', () => {
       alt: rows(['750000', '1000000', '1250000', '1500000']),
       alt__top_up: rows(['1250000', '1500000', '1750000', '2000000']),
     };
-    const ntb = quote('compound_owner_ceiling', figures, {
+    const ntb = quote('compound_owner', figures, {
       unit_paid_to_date: number('1200000'),
       loan_is_topup: choice('new_loan'),
     });
-    const xsell = quote('compound_owner_ceiling', figures, {
+    const xsell = quote('compound_owner', figures, {
       unit_paid_to_date: number('1200000'),
       loan_is_topup: choice('top_up'),
     });

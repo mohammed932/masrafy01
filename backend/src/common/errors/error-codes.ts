@@ -345,6 +345,99 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_CAP_ONLY: 'SURROGATE_PRODUCT_CAP_ONLY',
   /**
+   * The question an operator ticked on a product's step ① is already answered by MORE THAN
+   * ONE surrogate fact.
+   *
+   * A legal legacy state — nothing has ever forbidden two facts over one question — and
+   * there is no honest way to choose which of them the product's rule should name, because
+   * each is a key some bank may already have filed figures under. The same posture
+   * `attachOptionProvenance` takes when a list's provenance is ambiguous: exactly one, or
+   * nothing.
+   *
+   * `meta.factKeys` names them all, so the operator can retire the one nobody reads.
+   */
+  SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 'SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION',
+  /**
+   * The fact key a tick would mint — the question's own immutable `code` — already belongs
+   * to a fact bound to a DIFFERENT question.
+   *
+   * Never resolved by minting `<key>_2`. A fact key is what a stored rule names as
+   * `fact:<key>` and what every bank's figures are filed under, so a suffixed twin is a
+   * permanent second name for one answer and the next person to read a sheet has to guess
+   * which was meant. `createFromBlueprint` refuses a taken key on exactly this reasoning.
+   *
+   * `meta.boundQuestionCode` names the question that has it, which is the row an operator
+   * would have to look at to decide.
+   */
+  SURROGATE_FACT_KEY_TAKEN: 'SURROGATE_FACT_KEY_TAKEN',
+  /**
+   * The fact key a tick would mint is one the platform computes for itself.
+   *
+   * Two families: the per-bank DERIVED facts (a relationship axis is a set read once per
+   * bank, and `surrogateFactsFromAnswers` skips those keys by contract), and `i_score`,
+   * which is one fact for the whole platform. A registry row under either would be created,
+   * bound, audited and rendered as configured — and would never carry an answer, because
+   * the mapper that fills the profile refuses to emit it. Silence is the failure mode this
+   * refusal exists to prevent.
+   */
+  SURROGATE_FACT_KEY_RESERVED: 'SURROGATE_FACT_KEY_RESERVED',
+  /**
+   * The ticked question is not in the ACTIVE pool — retired, or parked.
+   *
+   * Refused rather than accepted, and `setBoundQuestion` deliberately does accept an
+   * inactive question (a fact may be bound before its question is switched on). The
+   * difference is who is asking: that path is a repair tool, this one is an operator
+   * picking from a grid. A fact bound to a parked question is dropped by the engine's own
+   * registry read, so it would read as configured on the product's screen and answer
+   * `fact_not_answered` for every applicant.
+   */
+  SURROGATE_FACT_QUESTION_INACTIVE: 'SURROGATE_FACT_QUESTION_INACTIVE',
+  /**
+   * The ticked question is the right TYPE and still cannot be a fact.
+   *
+   * `meta.reason` says which door: `money_binding` (the amount asked for, the tenor, the
+   * declared salary, the stated obligations — the first of those would let a no-payslip
+   * rule read the payslip), `obligation_item` (one of the itemised debts, meaningful only
+   * as a total), `bank_axis` or `debt_types` (a multi-pick read per bank, whose fact the
+   * platform derives).
+   *
+   * Separate from `SURROGATE_FACT_QUESTION_TYPE_INVALID`, which is about the shape of the
+   * answer. These are the right shape and the wrong figure.
+   */
+  SURROGATE_FACT_QUESTION_NOT_ELIGIBLE: 'SURROGATE_FACT_QUESTION_NOT_ELIGIBLE',
+  /**
+   * Ticking would start asking a REQUIRED question of a loan type that is not asked it yet.
+   *
+   * The apply path reads live category assignments while the customer is served a frozen
+   * snapshot, so between the assignment and the publish — and permanently if the publish
+   * fails — every application in that loan type is refused for not answering a question
+   * its questionnaire never contained. A required question the loan type ALREADY asks is
+   * fine: nothing is widened, and the tick goes through.
+   *
+   * The fix is not on this screen: make the question optional, or ask it there deliberately
+   * on `/questionnaire/categories`, where widening is the whole point of the surface.
+   */
+  SURROGATE_FACT_WIDEN_REQUIRED: 'SURROGATE_FACT_WIDEN_REQUIRED',
+  /**
+   * An ask that came with the predefined product cannot be removed on the product's screen.
+   *
+   * Not a permission: the seed re-asserts its own asks on every deploy, so an untick would
+   * be undone by the next release with nothing saying why it came back — the mirror image
+   * of the property that makes `seed:blueprints` safe to run twice. What a predefined
+   * product reads is the library's statement about that product; the lever for "stop
+   * selling this" is the product's own on/off switch, which `meta` points at.
+   */
+  PRODUCT_ASK_BLUEPRINT_OWNED: 'PRODUCT_ASK_BLUEPRINT_OWNED',
+  /**
+   * The product's own calculation reads the fact being unticked.
+   *
+   * Refused whatever the delete decision would have been, because step ① claiming the
+   * product does not ask something step ② reads is an incoherence the screen would then
+   * render as two contradictory panels. `meta.stepIds` names where, and the fix is one
+   * click away on the same screen.
+   */
+  PRODUCT_ASK_READ_BY_OWN_RULE: 'PRODUCT_ASK_READ_BY_OWN_RULE',
+  /**
    * A catalog name that states its OWN income rule was linked to a surrogate product.
    *
    * Refused rather than absorbed, and the first attempt did absorb — clearing the name's
@@ -880,6 +973,17 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   PROGRAM_NAME_RULE_LINKED: 422,
   SURROGATE_PRODUCT_NOT_FOUND: 404,
   SURROGATE_PRODUCT_CAP_ONLY: 422,
+  // 409: the request is well-formed and the rows exist — the platform's own data is in a
+  // shape that has no single right answer, and only an operator can pick one.
+  SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,
+  SURROGATE_FACT_KEY_TAKEN: 409,
+  SURROGATE_FACT_KEY_RESERVED: 422,
+  SURROGATE_FACT_QUESTION_INACTIVE: 422,
+  SURROGATE_FACT_QUESTION_NOT_ELIGIBLE: 422,
+  SURROGATE_FACT_WIDEN_REQUIRED: 422,
+  PRODUCT_ASK_BLUEPRINT_OWNED: 422,
+  // 409, like `ENUMERATION_IN_USE`: state, not shape.
+  PRODUCT_ASK_READ_BY_OWN_RULE: 409,
   PROGRAM_NAME_HAS_OWN_RULE: 422,
 
   BANK_NOT_FOUND: 404,

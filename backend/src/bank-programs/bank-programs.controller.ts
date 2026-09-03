@@ -32,6 +32,8 @@ import {
 } from './dto/program-name-income-rule.dto';
 import { BankProgramsService } from './bank-programs.service';
 import { BlueprintService } from './blueprints/blueprint.service';
+import { ProductAsksService } from './asks/product-asks.service';
+import { AttachProductAskDto } from './dto/product-asks.dto';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 
 interface ActorCtx {
@@ -46,6 +48,7 @@ export class BankProgramsController {
   constructor(
     private readonly service: BankProgramsService,
     private readonly blueprints: BlueprintService,
+    private readonly asks: ProductAsksService,
   ) {}
 
   @Get()
@@ -262,6 +265,104 @@ export class BankProgramsController {
     return ok(
       await this.service.setSurrogateProductActive(key, body.active, this.actor(user, req)),
     );
+  }
+
+  /**
+   * WHAT THIS PRODUCT ASKS THE APPLICANT — the board step ① renders, in one response.
+   *
+   * The product's ask set, the WHOLE active question pool, and per ask both who else reads
+   * it and whether it can be removed here. One read rather than three, and not because it
+   * is fewer round trips: the three existing reads cannot be composed. The question pool
+   * sits on a controller scoped to `super_admin` alone, the fact registry reaches the admin
+   * through a per-session client cache that a tick cannot invalidate, and "which other
+   * products read this fact" is answerable only from the ask table. Three answers that can
+   * disagree about the state one click produced is exactly what this avoids.
+   *
+   * Declared with the rest of the `surrogate-products` block and before `:programCode`.
+   */
+  @Get('surrogate-products/:key/asks')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: 'What a surrogate product asks, and every pool question it could ask',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  async getProductAsks(@Param('key') key: string) {
+    return ok(await this.asks.board(key));
+  }
+
+  /**
+   * Tick a pool question: this product starts reading its answer.
+   *
+   * ADDRESSED BY THE QUESTION, because that is what the operator picked and the fact may
+   * not exist yet — the detach below is addressed by the FACT, because that is what exists
+   * and what the screen already renders. One address for both would force one of them to
+   * name something that is not there.
+   *
+   * ONE COMPOSITE CALL. The server creates or joins the fact, binds it, records the ask,
+   * adds the loan types the tick asks for, and publishes the questionnaire once — and only
+   * if a loan type actually moved. `askIn` is ADDITIVE and never narrows: the assignment is
+   * global to the question and shared with every other product that reads it.
+   *
+   * REUSE FIRST. A question already answered by a fact joins THAT fact rather than minting
+   * a second key over one answer, which is what makes ticking a platform fact or one a
+   * blueprint already asks for a safe, non-destructive act.
+   */
+  @Put('surrogate-products/:key/asks/:questionCode')
+  @Roles('super_admin')
+  @ApiOperation({ summary: "Make a surrogate product read a pool question's answer" })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description: 'SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION | SURROGATE_FACT_KEY_TAKEN',
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'SURROGATE_FACT_QUESTION_INACTIVE | SURROGATE_FACT_QUESTION_TYPE_INVALID | ' +
+      'SURROGATE_FACT_QUESTION_NOT_ELIGIBLE | SURROGATE_FACT_WIDEN_REQUIRED | ' +
+      'SURROGATE_FACT_KEY_RESERVED',
+  })
+  async attachProductAsk(
+    @Param('key') key: string,
+    @Param('questionCode') questionCode: string,
+    @Body() body: AttachProductAskDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.asks.attach(key, questionCode, body, this.actor(user, req)));
+  }
+
+  /**
+   * Untick: this product stops reading the answer.
+   *
+   * DETACHES ONLY. The question stays in the pool and the loan types that ask it are
+   * untouched — narrowing that set belongs on `/questionnaire/categories`, where it is the
+   * whole point of the surface, and doing it from here would silently stop asking a question
+   * some other product reads. Nothing is published.
+   *
+   * The FACT ROW goes too only when nothing is left of it: no other product asks it, nothing
+   * anywhere reads it, this product authored it, and it is not one of the platform's own.
+   * Otherwise the row survives and only this product's ask goes.
+   *
+   * Idempotent: unticking an ask that is not there returns the unchanged board, because a
+   * double-click must not be a 404.
+   */
+  @Delete('surrogate-products/:key/asks/:factKey')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Stop a surrogate product reading a fact' })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description: 'PRODUCT_ASK_READ_BY_OWN_RULE | ENUMERATION_IN_USE',
+  })
+  @ApiResponse({ status: 422, description: 'PRODUCT_ASK_BLUEPRINT_OWNED' })
+  async detachProductAsk(
+    @Param('key') key: string,
+    @Param('factKey') factKey: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.asks.detach(key, factKey, this.actor(user, req)));
   }
 
   @Get(':programCode')

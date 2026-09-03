@@ -109,12 +109,20 @@ function sameCodeSet(a: readonly string[], b: readonly string[]): boolean {
 /**
  * Who is asking, when that changes what is allowed.
  *
- * Exactly one caller sets it — the predefined-product library, which creates the two kinds
- * `SEEDED_ONLY_TYPES` closes to everyone else. A named option rather than a boolean because
- * the next reason to bypass a door will not be this one.
+ * Two callers set it, and each names ITSELF rather than borrowing the other's word:
+ *
+ *   `blueprint`   — the predefined-product library, which creates the two kinds
+ *                   `SEEDED_ONLY_TYPES` closes to everyone else.
+ *   `product_ask` — an operator ticking a pool question on one product's step ①. It may
+ *                   create a `surrogate_fact` and NOTHING ELSE (`assertCreatableBy`): a
+ *                   product is still seeded, never made by hand.
+ *
+ * A named option rather than a boolean because the next reason to bypass a door will not
+ * be this one — which is what this second value is. Reusing `'blueprint'` for an operator's
+ * pick would file their row, and its audit event, as the library's own work.
  */
 export interface CreateEnumerationOptions {
-  source: 'blueprint';
+  source: 'blueprint' | 'product_ask';
 }
 
 export interface AdminActor {
@@ -169,6 +177,31 @@ const BULK_CREATE_FORBIDDEN_TYPES = new Set<string>([
  * catalog. `surrogate_product` and `surrogate_fact` are the two kinds a blueprint owns.
  */
 const SEEDED_ONLY_TYPES = new Set<string>(['surrogate_product', 'surrogate_fact']);
+
+/**
+ * Which of the closed kinds each named source may create.
+ *
+ * `product_ask` reaches `surrogate_fact` and NOT `surrogate_product`, and that asymmetry is
+ * the whole of v22.0.0's decision that survives here: an operator picks WHICH of the seeded
+ * products this platform sells and what one of them reads, and never mints a product of
+ * their own. A product row created by hand is one no blueprint describes and no seed run
+ * can resume — the state the three deleted admin screens used to produce.
+ */
+const CREATABLE_BY_SOURCE: Readonly<
+  Record<NonNullable<CreateEnumerationOptions['source']>, readonly string[]>
+> = {
+  blueprint: ['surrogate_product', 'surrogate_fact'],
+  product_ask: ['surrogate_fact'],
+};
+
+function isCreatableBySource(
+  type: string,
+  source: CreateEnumerationOptions['source'] | undefined,
+): boolean {
+  if (!SEEDED_ONLY_TYPES.has(type)) return true;
+  if (source === undefined) return false;
+  return CREATABLE_BY_SOURCE[source].includes(type);
+}
 
 /** How many bad rows a refusal names before it stops. See `EnumerationBulkInvalidException`. */
 const BULK_PROBLEM_REPORT_CAP = 200;
@@ -544,9 +577,11 @@ export class PlatformEnumerationsAdminService {
     opts?: CreateEnumerationOptions,
   ): Promise<EnumerationRow> {
     // THIRD and POSITIONAL, so no wire field can ever reach it: the controller passes a
-    // validated body and an actor, and there is no third thing it could pass. The only
-    // caller that supplies it is `BlueprintService`, building a predefined product.
-    if (opts?.source !== 'blueprint' && SEEDED_ONLY_TYPES.has(input.type)) {
+    // validated body and an actor, and there is no third thing it could pass. The two
+    // callers that supply it are `BlueprintService`, building a predefined product, and
+    // `ProductAsksService`, attaching a pool question to one — and the second may reach
+    // exactly one of the two closed kinds.
+    if (!isCreatableBySource(input.type, opts?.source)) {
       throw new EnumerationCreateNotApplicableException({ type: input.type });
     }
 

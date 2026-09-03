@@ -49,21 +49,28 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
   ArrowLeftOutline,
+  CheckOutline,
   ExclamationCircleOutline,
   InfoCircleOutline,
   PoweroffOutline,
+  SearchOutline,
 } from '@ant-design/icons-angular/icons';
-import { SkeletonRowsComponent, WizardStepsComponent } from '@shared/ui';
-import type { WizardStepItem } from '@shared/ui';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { RailTabsComponent, SkeletonRowsComponent, WizardStepsComponent } from '@shared/ui';
+import type { RailTabItem, WizardStepItem } from '@shared/ui';
 import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.component';
-import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.component';
+import {
+  ParentClassBoardComponent,
+  type BoardAttention,
+} from '@shared/lookups/parent-class-board.component';
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
 import { listFigureState, type ListFigureState } from '@shared/income-rule/figure-slots';
 import { incomeKeyTableErrorFor, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
-import { categoryLabel, type LoanCategory } from '@core/loan-category';
+import { categoryLabel, isLoanCategory, type LoanCategory } from '@core/loan-category';
 import {
   LookupsApiService,
   type EnumerationTypeSummary,
@@ -84,9 +91,13 @@ import {
   type RuleGate,
   type RuleStep,
   type StepFigures,
+  type AskQuestionType,
+  type AskWriteResult,
+  type ProductAsksBoard,
   type SurrogateProductDetail,
 } from '@features/bank-programs/bank-programs.types';
 import { PRODUCT_BASE, surrogateBoardLink } from './program-catalog.paths';
+import { askInFor, askSections, askStepStatus, askTabs, type AskCard } from './product-asks';
 
 /** One operator-managed list surfaced on step ①. */
 interface ReadList {
@@ -114,20 +125,6 @@ interface ReadList {
   readonly figures: ListFigureState;
 }
 
-/** One thing this product asks the applicant: a question, its fact, and the list behind it. */
-interface AskedThing {
-  readonly factKey: string;
-  readonly questionLabel: string;
-  readonly questionCode: string;
-  /** `true` for a figure the applicant types, `false` for a pick from a list. */
-  readonly numeric: boolean;
-  /** Empty when the question is asked of nobody — the product can never quote. */
-  readonly askedIn: readonly LoanCategory[];
-  readonly listType: string | null;
-  /** The question is bound but inactive: it exists and is asked of no one. */
-  readonly inactive: boolean;
-}
-
 @Component({
   selector: 'app-surrogate-product-detail-page',
   standalone: true,
@@ -138,8 +135,10 @@ interface AskedThing {
     ReactiveFormsModule,
     NzButtonModule,
     NzIconModule,
+    NzInputModule,
     SkeletonRowsComponent,
     WizardStepsComponent,
+    RailTabsComponent,
     LookupValuesPanelComponent,
     ParentClassBoardComponent,
     IncomeAssumptionSectionComponent,
@@ -148,9 +147,11 @@ interface AskedThing {
   providers: [
     provideNzIconsPatch([
       ArrowLeftOutline,
+      CheckOutline,
       ExclamationCircleOutline,
       InfoCircleOutline,
       PoweroffOutline,
+      SearchOutline,
     ]),
   ],
   template: `
@@ -262,162 +263,434 @@ interface AskedThing {
           @switch (stepIndex()) {
             @case (0) {
               <section class="panel" [attr.aria-label]="steps()[0]?.label ?? ''">
-                @if (askedThings().length === 0) {
-                  <!-- Stated, never an empty section. This is also the one empty state on
-                     the screen that is a real problem: a no-payslip product that asks
-                     nothing has no answer to work an income out from. -->
-                  <p class="notice is-warn" role="status">
-                    <span nz-icon nzType="info-circle" nzTheme="outline"></span>
-                    <span i18n="@@spd.asks_none"
-                      >This product asks the applicant nothing yet, so there is no answer for it to
-                      work an income out from. Add the first thing it reads.</span
-                    >
+                <!-- WHICH LOAN TYPE, first. A tick here does two things — this product starts
+                     reading the answer, and the loan type on this rail starts asking the
+                     question — so the rail is above the grid rather than beside it: the
+                     second half of the sentence is decided before the click, not after. -->
+                <app-rail-tabs
+                  [uniform]="true"
+                  idPrefix="spd-asks"
+                  [items]="askTabItems()"
+                  [activeId]="askCategory()"
+                  [ariaLabel]="asksAria"
+                  (select)="pickAskCategory($event)"
+                />
+
+                <div
+                  class="ask-stage"
+                  [id]="'spd-asks-panel-' + askCategory()"
+                  role="tabpanel"
+                  [attr.aria-labelledby]="'spd-asks-tab-' + askCategory()"
+                >
+                  <p class="hint hint-lede" i18n="@@spd.ask.lede">
+                    Tick a question and this product reads its answer. It also starts being asked of
+                    {{ askCategoryLabel() }} applicants, so they have an answer to give.
                   </p>
-                } @else {
-                  <ul class="asks" role="list">
-                    @for (thing of askedThings(); track thing.factKey) {
-                      <li class="ask">
-                        <p class="ask-q">{{ thing.questionLabel }}</p>
-                        <p class="ask-meta">
-                          @if (thing.numeric) {
-                            <span class="tag" i18n="@@spd.ask.number">A number they type</span>
-                          } @else {
-                            <span class="tag" i18n="@@spd.ask.choice">One of a list</span>
-                          }
-                          @if (thing.askedIn.length === 0) {
-                            <span class="tag is-warn" i18n="@@spd.ask.unasked"
-                              >Asked of nobody</span
-                            >
-                          } @else {
-                            <span class="muted">{{ askedInLabel(thing.askedIn) }}</span>
-                          }
-                          @if (thing.inactive) {
-                            <span class="tag is-warn" i18n="@@spd.ask.inactive"
-                              >The question is switched off</span
-                            >
-                          }
-                        </p>
-                        <div class="ask-foot">
-                          <span class="ask-key mono">{{ thing.factKey }}</span>
-                          <span class="ask-acts">
-                            <!-- Straight to THIS question, not to the pool. The whole list
-                                 is forty rows on its own filters, and an operator who has
-                                 just read a typo here should not have to find it again. -->
-                            <a
-                              class="linkish"
-                              routerLink="/questionnaire/questions"
-                              [queryParams]="{ q: thing.questionCode }"
-                              i18n="@@spd.ask.edit"
-                              >Edit the wording</a
-                            >
-                          </span>
-                        </div>
-                      </li>
-                    }
-                  </ul>
-                }
 
-                <!-- READ-ONLY, deliberately. What a product asks is structure the predefined
-                     library owns: it is created by the blueprint seed and described by a
-                     blueprint. Adding one by hand produced a question no blueprint knew
-                     about, and removing one deleted the question outright — with the add
-                     screen gone there was no way to put it back, on a product an operator
-                     cannot recreate either. Curating the ANSWERS below stays editable, because
-                     a governorate or a compound is data. -->
-                <p class="hint" i18n="@@spd.ask.fixed">
-                  What this product asks comes with the product. The answers it offers are yours to
-                  curate below, and so is the amount each one carries — what every bank starts from
-                  until it types its own.
-                </p>
-
-                @if (readLists().length > 0) {
-                  <h2 class="sub" i18n="@@spd.lists_title">The answers they pick from</h2>
-                  @if (borrowedCount() > 0) {
-                    <p class="hint" i18n="@@spd.lists_shared">
-                      {{ borrowedCount() }} of these list(s) are shared with other products —
-                      editing one reaches every calculation that reads it.
+                  @if (askUnpublished()) {
+                    <!-- The one outcome a toast would lie about: the tick DID land and the
+                         questionnaire version did not, so no applicant is being served the
+                         question yet. Stated persistently, because it needs an action. -->
+                    <p class="ask-alert" role="alert">
+                      <span
+                        nz-icon
+                        nzType="exclamation-circle"
+                        nzTheme="outline"
+                        aria-hidden="true"
+                      ></span>
+                      <span i18n="@@spd.ask.unpublished"
+                        >The question is attached, but the questionnaire was not published, so
+                        nobody is being asked it yet. Tick it again to retry.</span
+                      >
+                      <button
+                        type="button"
+                        class="linkish"
+                        (click)="dismissAskAlert()"
+                        i18n="@@spd.ask.dismiss"
+                      >
+                        Dismiss
+                      </button>
                     </p>
                   }
-                  @for (list of readLists(); track list.type) {
-                    <app-lookup-values-panel
-                      [type]="list.type"
-                      [title]="list.title"
-                      [description]="list.description"
-                      [deletable]="deletableType(list.type)"
-                      (changed)="onListChanged()"
-                    />
 
-                    <!-- The amounts keyed by that list, under the list itself.
-                         SAME STORE as step ②, and the same editor: a figure belongs to a
-                         step, not to a value, so a second editor that knew how to name one
-                         would be a second authority on what it means. What changes here is
-                         only which slots are on screen. -->
-                    <section class="defaults">
-                      @switch (list.figures) {
-                        @case ('keyed') {
-                          <h4 class="defaults-title">
-                            @if (isClassList(list)) {
-                              <span i18n="@@spd.def.title_classes"
-                                >The amount each class carries</span
-                              >
-                            } @else {
-                              <span i18n="@@spd.def.title">The amount each answer carries</span>
-                            }
-                          </h4>
-                          <p class="defaults-lede">
-                            <span i18n="@@spd.def.lede"
-                              >Every bank filing under this product starts from these. A bank that
-                              types its own keeps its own copy instead.</span
+                  <div class="ask-controls">
+                    <nz-input-group [nzPrefix]="askSearchIcon" class="ask-search">
+                      <input
+                        nz-input
+                        [formControl]="askSearch"
+                        placeholder="Search questions"
+                        i18n-placeholder="@@spd.ask.search_ph"
+                        [attr.aria-label]="askSearchAria"
+                      />
+                    </nz-input-group>
+                    <ng-template #askSearchIcon>
+                      <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
+                    </ng-template>
+                    @if (askSearch.value) {
+                      <button
+                        type="button"
+                        class="linkish"
+                        (click)="askSearch.setValue('')"
+                        i18n="@@spd.ask.clear"
+                      >
+                        Clear
+                      </button>
+                    }
+                  </div>
+
+                  <p class="sr-only" role="status" aria-live="polite">{{ askStatus() }}</p>
+
+                  @for (section of askSections(); track section.key) {
+                    <section class="ask-sec">
+                      <h3 class="ask-sec-title">
+                        @switch (section.key) {
+                          @case ('asked') {
+                            <span i18n="@@spd.ask.sec_asked">Read, and asked here</span>
+                          }
+                          @case ('unasked') {
+                            <span i18n="@@spd.ask.sec_unasked"
+                              >Read, but not asked of {{ askCategoryLabel() }} applicants</span
                             >
-                            @if (!list.owned) {
-                              <span i18n="@@spd.def.lede_shared"
-                                >The list is shared with other products; these amounts are this
-                                product's alone.</span
-                              >
-                            }
-                          </p>
-                          <app-product-rule-editor
-                            layout="inline"
-                            variant="catalog"
-                            [onlyKeyedBy]="list.type"
-                            [steps]="ruleSteps()"
-                            [gates]="ruleGates()"
-                            [output]="ruleOutput()"
-                            [facts]="facts()"
-                            [figures]="stepFigures()"
-                            (figuresChange)="onStepFigures($event)"
-                            (figuresTouched)="markDirty()"
-                          />
-                        }
-                        @case ('byClass') {
-                          <p class="defaults-note" i18n="@@spd.def.priced_by_class">
-                            These answers are not priced one by one. Each carries the amount of the
-                            class it is filed under, and that is where the figures are set.
-                          </p>
-                        }
-                        @default {
-                          @if (p.outputKind === null) {
-                            <p class="defaults-note" i18n="@@spd.def.cap_only">
-                              This product works out no amount of its own. Each bank states its own
-                              maximum for these answers on its own program.
-                            </p>
-                          } @else {
-                            <p class="defaults-note" i18n="@@spd.def.no_slot">
-                              No amount is keyed by these answers. They steer the calculation rather
-                              than carry a figure.
-                            </p>
+                          }
+                          @default {
+                            <span i18n="@@spd.ask.sec_rest">Not read yet</span>
                           }
                         }
+                        <span class="ask-sec-count">{{ section.cards.length }}</span>
+                      </h3>
+
+                      @if (section.cards.length === 0) {
+                        <p class="ask-sec-empty" i18n="@@spd.ask.none_read">
+                          Nothing yet — tap a question below and this product reads its answer.
+                        </p>
+                      } @else {
+                        @if (section.key === 'unasked') {
+                          <p class="ask-sec-note" i18n="@@spd.ask.unasked_note">
+                            This product reads these, but nobody applying for this loan type is
+                            asked them, so it gets no answer from them.
+                          </p>
+                        }
+                        @if (section.key === 'asked' && fixedAskCount() > 0) {
+                          <!-- Once, for the section, rather than on every card: on a seeded
+                               product this is the state of all of them. -->
+                          <p class="ask-sec-note" i18n="@@spd.ask.fixed_note">
+                            {{ fixedAskCount() }} of these come with the product and cannot be
+                            removed here — switch the whole product off instead if it should not be
+                            sold.
+                          </p>
+                        }
+                        <ul class="ask-grid" role="list">
+                          @for (card of section.cards; track card.code || card.factKey) {
+                            <li>
+                              @if (section.key === 'unasked') {
+                                <!-- NOT a checkbox: this row offers two different acts —
+                                     start asking it here, or stop reading it — and nesting a
+                                     second control inside a role="checkbox" button is invalid
+                                     markup that a screen reader reads as one thing. -->
+                                <div class="ask-card is-partial">
+                                  <span class="ask-card-head">
+                                    <span class="ask-tick is-warn" aria-hidden="true">
+                                      <span
+                                        nz-icon
+                                        nzType="exclamation-circle"
+                                        nzTheme="outline"
+                                      ></span>
+                                    </span>
+                                    <span class="ask-label">{{ card.label }}</span>
+                                  </span>
+                                  <span class="ask-meta">
+                                    <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
+                                    @if (card.askedIn.length === 0) {
+                                      <span class="tag is-warn" i18n="@@spd.ask.nobody"
+                                        >Asked of nobody</span
+                                      >
+                                    } @else {
+                                      <span class="muted">{{ askedInLabel(card.askedIn) }}</span>
+                                    }
+                                  </span>
+                                  <span class="ask-acts">
+                                    <button
+                                      nz-button
+                                      nzSize="small"
+                                      type="button"
+                                      [disabled]="card.saving || askBusy()"
+                                      (click)="askHere(card)"
+                                      i18n="@@spd.ask.ask_here"
+                                    >
+                                      Ask it here
+                                    </button>
+                                    @if (card.detachBlocked) {
+                                      <span class="ask-why">{{ detachWhy(card) }}</span>
+                                    } @else {
+                                      <button
+                                        type="button"
+                                        class="linkish"
+                                        [disabled]="card.saving || askBusy()"
+                                        (click)="stopReading(card)"
+                                        i18n="@@spd.ask.stop"
+                                      >
+                                        Stop reading this
+                                      </button>
+                                    }
+                                  </span>
+                                </div>
+                              } @else {
+                                <button
+                                  type="button"
+                                  class="ask-card"
+                                  role="checkbox"
+                                  [class.on]="card.read"
+                                  [class.is-blocked]="!!card.blocked || !!card.detachBlocked"
+                                  [attr.aria-checked]="card.read"
+                                  [attr.aria-disabled]="!!card.blocked || !!card.detachBlocked"
+                                  [attr.aria-describedby]="
+                                    card.blocked || card.detachBlocked
+                                      ? 'spd-why-' + card.code
+                                      : null
+                                  "
+                                  [attr.aria-label]="askCardAria(card)"
+                                  [attr.aria-busy]="card.saving || askBusy()"
+                                  (click)="toggleAsk(card)"
+                                >
+                                  <span class="ask-card-head">
+                                    <span class="ask-tick" aria-hidden="true">
+                                      @if (card.read) {
+                                        <span nz-icon nzType="check" nzTheme="outline"></span>
+                                      }
+                                    </span>
+                                    <span class="ask-label">{{ card.label }}</span>
+                                  </span>
+                                  <span class="ask-meta">
+                                    <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
+                                    @if (card.questionInactive) {
+                                      <span class="tag is-warn" i18n="@@spd.ask.off"
+                                        >The question is switched off</span
+                                      >
+                                    }
+                                    @if (card.readByRule) {
+                                      <span class="tag" i18n="@@spd.ask.in_calc"
+                                        >In the calculation</span
+                                      >
+                                    }
+                                    @if (card.detachBlocked) {
+                                      <span class="tag" [id]="'spd-why-' + card.code">{{
+                                        detachTag(card)
+                                      }}</span>
+                                    }
+                                    @if (card.alsoAskedBy.length > 0) {
+                                      <span class="muted">{{
+                                        alsoAskedLabel(card.alsoAskedBy)
+                                      }}</span>
+                                    }
+                                  </span>
+                                  <!-- The REASON A TICK WOULD DO NOTHING, in full: it is the
+                                       whole information such a card carries, each reason has
+                                       a different fix, and the operator is reading it because
+                                       they just tried. Visible and inked at full contrast —
+                                       an opacity low enough to read as unavailable puts it
+                                       under 4.5:1, so what recedes is the affordance.
+
+                                       The reason an UNTICK is refused is a TAG instead, above:
+                                       on a seeded product that is every card, and the same
+                                       three lines repeated down a grid stops being read at
+                                       the second one. The sentence is stated once for the
+                                       section. -->
+                                  @if (card.blocked) {
+                                    <span class="ask-why" [id]="'spd-why-' + card.code">{{
+                                      blockedWhy(card)
+                                    }}</span>
+                                  }
+                                </button>
+                              }
+                            </li>
+                          }
+                        </ul>
                       }
                     </section>
                   }
+                </div>
 
-                  @if (boardList(); as board) {
-                    <app-parent-class-board
-                      [childType]="board.type"
-                      [parentType]="board.parentType"
-                      (changed)="onListChanged()"
+                @if (readLists().length > 0) {
+                  <h2 class="sub" i18n="@@spd.lists_title">The answers they pick from</h2>
+
+                  <!-- ONE LIST ON STAGE, not all of them stacked.
+                       Measured before this rail existed: step ① was 10 187px on the compound
+                       product — four value panels, four amount editors and the filing board,
+                       thirteen sibling blocks with nothing grouping them, and the one Save
+                       button 9 000px below the first box it saves.
+
+                       A rail and not a nested stepper, for the reason the catalog name's own
+                       screen already states: these lists have no ORDER (the operator opens the
+                       one they came to edit and leaves), a second Back/Next pair a few hundred
+                       pixels from the first doubles "where am I?", and the group count is DATA —
+                       a product with one list would get a one-step stepper apologising for
+                       itself. The rail shows every list's state at once, which is the half a
+                       stepper hides, and disappears below two lists. -->
+                  @if (listTabs().length > 1) {
+                    <app-rail-tabs
+                      appearance="segmented"
+                      idPrefix="spd-lists"
+                      [items]="listTabs()"
+                      [activeId]="activeListType()"
+                      [ariaLabel]="listsAria"
+                      (select)="listTab.set($event)"
                     />
+                  }
+
+                  @if (activeList(); as list) {
+                    <div
+                      class="stage"
+                      [id]="'spd-lists-panel-' + list.type"
+                      [attr.role]="listTabs().length > 1 ? 'tabpanel' : null"
+                      [attr.aria-labelledby]="
+                        listTabs().length > 1 ? 'spd-lists-tab-' + list.type : null
+                      "
+                    >
+                      @if (!list.owned) {
+                        <!-- On the LIST it is about, not as a count in a header sentence
+                             covering all four: the consequence is this list's, and an operator
+                             reads it at the moment they are about to type into it. -->
+                        <p class="hint" i18n="@@spd.list_shared_one">
+                          This list is shared with other products — editing it reaches every
+                          calculation that reads it.
+                        </p>
+                      }
+
+                      <app-lookup-values-panel
+                        [type]="list.type"
+                        [title]="list.title"
+                        [description]="list.description"
+                        [deletable]="deletableType(list.type)"
+                        (changed)="onListChanged()"
+                      />
+
+                      <!-- The amounts keyed by that list, under the list itself.
+                           SAME STORE as step ②, and the same editor: a figure belongs to a
+                           step, not to a value, so a second editor that knew how to name one
+                           would be a second authority on what it means. What changes here is
+                           only which slots are on screen. -->
+                      <section class="defaults">
+                        @switch (list.figures) {
+                          @case ('keyed') {
+                            <h4 class="defaults-title">
+                              @if (isClassList(list)) {
+                                <span i18n="@@spd.def.title_classes"
+                                  >The amount each class carries</span
+                                >
+                              } @else {
+                                <span i18n="@@spd.def.title">The amount each answer carries</span>
+                              }
+                            </h4>
+                            <p class="defaults-lede">
+                              <span i18n="@@spd.def.lede"
+                                >Every bank filing under this product starts from these. A bank that
+                                types its own keeps its own copy instead.</span
+                              >
+                              @if (!list.owned) {
+                                <span i18n="@@spd.def.lede_shared"
+                                  >The list is shared with other products; these amounts are this
+                                  product's alone.</span
+                                >
+                              }
+                            </p>
+                            <app-product-rule-editor
+                              layout="inline"
+                              variant="catalog"
+                              [onlyKeyedBy]="list.type"
+                              [steps]="ruleSteps()"
+                              [gates]="ruleGates()"
+                              [output]="ruleOutput()"
+                              [facts]="facts()"
+                              [figures]="stepFigures()"
+                              (figuresChange)="onStepFigures($event)"
+                              (figuresTouched)="markDirty()"
+                            />
+                          }
+                          @case ('byClass') {
+                            <p class="defaults-note" i18n="@@spd.def.priced_by_class">
+                              These answers are not priced one by one. Each carries the amount of
+                              the class it is filed under, and that is where the figures are set.
+                            </p>
+                          }
+                          @default {
+                            @if (p.outputKind === null) {
+                              <p class="defaults-note" i18n="@@spd.def.cap_only">
+                                This product works out no amount of its own. Each bank states its
+                                own maximum for these answers on its own program.
+                              </p>
+                            } @else {
+                              <p class="defaults-note" i18n="@@spd.def.no_slot">
+                                No amount is keyed by these answers. They steer the calculation
+                                rather than carry a figure.
+                              </p>
+                            }
+                          }
+                        }
+                      </section>
+
+                      <!-- THE BOARD BELONGS TO THE LIST IT FILES, and this is the half the old
+                           stacked layout got wrong rather than merely made long: the compounds
+                           panel and the board that files those same compounds were 6 000px
+                           apart, so the list and the only screen that can change a value's class
+                           were never visible together. It renders only in that list's own tab. -->
+                      @if (boardFor(list.type); as board) {
+                        <!-- FOLDED, because it is a SECOND full-length view of the list
+                             directly above it: three hundred compounds rendered as rows, then
+                             the same three hundred rendered again as cards under their
+                             classes. Open, that tab measured 7 794px. A value's class is also
+                             editable per row in the panel above; this is the bulk tool for it,
+                             and a bulk tool is something you go to, not something you scroll
+                             through on the way to the Save button. -->
+                        <details class="structure" [open]="boardNeedsAttention()">
+                          <!-- The summary names the ACTION, never the board's own title: the
+                               board draws that title as an h2 forty pixels below, and the two
+                               together read as the same words said twice at two sizes. -->
+                          <summary>
+                            <!-- Inline SVG, not nz-icon: a projected icon resolves the
+                                 NEAREST NzIconPatchService, so a glyph patched here can be
+                                 shadowed by whichever shell it renders inside (v19.1.0). -->
+                            <svg
+                              class="chev"
+                              viewBox="0 0 16 16"
+                              width="12"
+                              height="12"
+                              aria-hidden="true"
+                              focusable="false"
+                            >
+                              <path
+                                d="M6 3.5 10.5 8 6 12.5"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.6"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                              />
+                            </svg>
+                            <span i18n="@@spd.board_fold">Move values between classes</span>
+                            @if (boardAttention(); as a) {
+                              @if (a.unfiled > 0) {
+                                <span class="tag is-warn"
+                                  >{{ a.unfiled }}
+                                  <span i18n="@@spd.board_unfiled">with no class</span></span
+                                >
+                              }
+                              @if (a.inFallback > 0) {
+                                <span class="tag is-warn"
+                                  >{{ a.inFallback }}
+                                  <span i18n="@@spd.board_catchall">in the catch-all</span></span
+                                >
+                              }
+                            }
+                          </summary>
+                          <app-parent-class-board
+                            [childType]="board.type"
+                            [parentType]="board.parentType"
+                            (changed)="onListChanged()"
+                            (attention)="boardAttention.set($event)"
+                          />
+                        </details>
+                      }
+                    </div>
                   }
                 }
 
@@ -708,13 +981,12 @@ interface AskedThing {
         }
       }
 
-      /* The structure builder, folded away by default: on the compound product it is
-         twenty steps, and an operator arriving to change one figure should not have to
-         scroll past the whole calculation to reach it. */
+      /* A disclosure inside the stage, folded by default. Its one caller is the filing
+         board, whose own header supplies the title and counts once opened — the summary is a
+         trigger, not a second heading. */
       .structure {
         border-inline-start: 2px solid var(--border-subtle);
         padding-inline-start: var(--space-4);
-        margin-block-end: var(--space-5);
       }
       .structure > summary {
         display: flex;
@@ -730,6 +1002,28 @@ interface AskedThing {
       }
       .structure > summary::-webkit-details-marker {
         display: none;
+      }
+      /* The only affordance this row has: with the native marker suppressed and no border of
+         its own, a summary is a line of text that happens to be clickable. It mirrors in RTL
+         because it points along the reading direction, and rotates rather than swapping to a
+         second glyph so the two states are one object moving. */
+      .structure > summary .chev {
+        flex: none;
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      :host-context([dir='rtl']) .structure > summary .chev {
+        transform: scaleX(-1);
+      }
+      .structure[open] > summary .chev {
+        transform: rotate(90deg);
+      }
+      :host-context([dir='rtl']) .structure[open] > summary .chev {
+        transform: scaleX(-1) rotate(90deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .structure > summary .chev {
+          transition: none;
+        }
       }
       .structure > summary:hover {
         background: var(--bg-subtle);
@@ -775,22 +1069,6 @@ interface AskedThing {
       .from-form-cta:focus-visible {
         outline: none;
         box-shadow: var(--focus-halo);
-      }
-      .warn-line {
-        margin: 0 0 var(--space-3);
-        font-size: var(--text-sm);
-        color: var(--color-warning);
-        line-height: var(--line-height-base);
-      }
-      .structure-count {
-        min-inline-size: 1.5rem;
-        padding-inline: var(--space-2);
-        border-radius: 999px;
-        background: var(--bg-subtle);
-        color: var(--text-tertiary);
-        font-variant-numeric: tabular-nums;
-        text-align: center;
-        font-weight: 500;
       }
       .structure[open] > summary {
         margin-block-end: var(--space-4);
@@ -888,12 +1166,26 @@ interface AskedThing {
         color: var(--text-tertiary);
       }
 
+      /* IN FLOW at the end of the step, never pinned — and the first cut of this change got
+         that wrong, which is worth writing down because the pin looks obviously right. Made
+         sticky against the shell scrollport it rendered over the asks list at scroll 0: an
+         opaque bar with a rule above it, cutting between two questions, reading as a row of
+         the list rather than as the panel's footer. The bank wizard removed its own footer
+         pin for the same reason.
+
+         What makes it unnecessary is the rail above: a tab is 1 200–1 800px where the figures
+         actually are, so the Save is one scroll from the box. The one long tab is the compound
+         NAMES list, and nothing on that tab is saveable — its answers are priced by class.
+
+         The hairline stays: it is what separates the footer from the stage. */
       .actions {
         display: flex;
         align-items: baseline;
         justify-content: flex-end;
         gap: var(--space-4);
         flex-wrap: wrap;
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--border-subtle);
       }
 
       .save-hint {
@@ -981,32 +1273,45 @@ interface AskedThing {
         color: var(--text-primary);
       }
 
+      /* A LIST OF ROWS, not a stack of cards. Six asks as bordered cards inside the panel's
+         own card is a box in a box, and it cost 849px to report six read-only lines — the
+         fact key and its "Edit the wording" link each took a row of their own under a
+         question they sit beside. Rows on a hairline, question and provenance in the reading
+         column, key and action pinned to the trailing edge. */
       .asks {
         list-style: none;
         margin: 0;
         padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
       }
 
       .ask {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        padding: var(--space-4);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        background: var(--bg-surface);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        column-gap: var(--space-4);
+        row-gap: var(--space-1);
+        padding-block: var(--space-3);
+        border-block-end: 1px solid var(--border-subtle);
+      }
+
+      .ask:last-child {
+        border-block-end: 0;
+        padding-block-end: 0;
+      }
+
+      .ask:first-child {
+        padding-block-start: 0;
       }
 
       .ask-q {
+        grid-column: 1;
         margin: 0;
         font-weight: var(--font-semibold);
         color: var(--text-primary);
       }
 
       .ask-meta {
+        grid-column: 1;
         margin: 0;
         display: flex;
         flex-wrap: wrap;
@@ -1014,12 +1319,34 @@ interface AskedThing {
         gap: var(--space-2);
       }
 
+      /* Trailing edge, spanning both rows of the reading column: the key NAMES the question
+         beside it and the link acts on it, so neither earns a line of its own. */
       .ask-foot {
+        grid-column: 2;
+        grid-row: 1 / span 2;
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3);
+        flex-direction: column;
+        align-items: flex-end;
+        gap: var(--space-1);
+        text-align: end;
+      }
+
+      /* One column below the reading measure — the trailing block would otherwise squeeze the
+         question it belongs to into two or three words per line. */
+      @media (max-width: 720px) {
+        .ask {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .ask-foot {
+          grid-column: 1;
+          grid-row: auto;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--space-3);
+          inline-size: 100%;
+        }
       }
       .ask-acts {
         display: inline-flex;
@@ -1059,10 +1386,19 @@ interface AskedThing {
         color: var(--text-primary);
       }
 
+      /* The rail's panel. No border and no ground of its own — the rail is directly above it
+         and the panel's card is already the frame; a third box would be the card-in-card the
+         defaults rule below exists to avoid. */
+      .stage {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+
       /* A region set off by a hairline, not a card: this already sits inside the panel's
          card, and a box in a box reads as two unrelated things. */
       .defaults {
-        margin-block: var(--space-4) var(--space-6);
+        margin-block: 0;
         padding-inline-start: var(--space-4);
         border-inline-start: 1px solid var(--color-border-default);
       }
@@ -1093,6 +1429,277 @@ interface AskedThing {
         margin: 0;
         font-size: var(--text-sm);
         color: var(--text-tertiary);
+      }
+
+      /* --- the ask board -----------------------------------------------------
+         Same vocabulary as the catalog name's scoring grid, deliberately: the two
+         screens ask the operator for the same GESTURE, and a second look for it
+         would read as a second kind of act. */
+
+      .ask-stage {
+        margin-block-start: var(--space-4);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+
+      .hint-lede {
+        max-inline-size: 72ch;
+        /* Secondary, not tertiary: this sentence states the SECOND half of what a tick
+           does, and tertiary ink on this ground measures under 4.5:1 in light mode. */
+        color: var(--color-text-secondary);
+        line-height: var(--leading-relaxed);
+      }
+
+      .ask-alert {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
+        border-radius: var(--radius-md);
+        /* Inked at primary on a wash, never warning-on-warning: the accent colour on its
+           own 14% tint measures 2.5:1, which this repo has measured twice. */
+        background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface-default));
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+      }
+
+      .ask-controls {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
+      .ask-search {
+        max-inline-size: 24rem;
+      }
+
+      .ask-sec {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .ask-sec-title {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+
+      .ask-sec-count {
+        font-size: var(--text-sm);
+        font-weight: 700;
+        letter-spacing: normal;
+        color: var(--color-text-primary);
+      }
+
+      .ask-sec-empty,
+      .ask-sec-note {
+        margin: 0;
+        max-inline-size: 72ch;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+
+      .ask-grid {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: var(--space-3);
+      }
+
+      .ask-card {
+        inline-size: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-default);
+        text-align: start;
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+
+      /* Hover lifts the EDGE and never repaints the fill: the fill is the read/not-read
+         signal, and a hover that changes it makes the card read as already ticked. */
+      .ask-card:hover:not(.is-blocked) {
+        border-color: var(--color-border-strong);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .ask-card:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+
+      /* The fourth state. A card with hover, focus and a resting look but no PRESSED look
+         gives no feedback in the moment between the click and the response — which on this
+         grid is a network round trip. Not on a card that refuses the click. */
+      .ask-card:active:not(.is-blocked) {
+        transform: translateY(1px);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ask-card:active:not(.is-blocked) {
+          transform: none;
+        }
+      }
+
+      .ask-card.on {
+        border-color: color-mix(
+          in srgb,
+          var(--color-brand-primary) 40%,
+          var(--color-border-default)
+        );
+        background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-surface-default));
+      }
+
+      /* After the .on rule, which would otherwise win and leave a ticked card with no
+         feedback at all. */
+      .ask-card.on:hover {
+        border-color: var(--color-brand-primary);
+      }
+
+      /* What recedes on a card that cannot be ticked is the AFFORDANCE — a dashed edge and a
+         hollow tick box — never the words. An opacity low enough to read as unavailable puts
+         the reason under 4.5:1, and a sentence nobody can read is not information. */
+      .ask-card.is-blocked {
+        border-style: dashed;
+        background: var(--color-surface-muted);
+        cursor: default;
+      }
+
+      /* READ and fixed at once — the dashed edge says fixed, the tint says read. The muted
+         fill alone would drop the one signal the operator came for. */
+      .ask-card.on.is-blocked {
+        background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-surface-default));
+        border-color: color-mix(
+          in srgb,
+          var(--color-brand-primary) 40%,
+          var(--color-border-default)
+        );
+      }
+
+      .ask-card[aria-busy='true'] {
+        opacity: 0.65;
+      }
+
+      .ask-card.is-partial {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border-default));
+        border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-default));
+      }
+
+      .ask-card-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+
+      /* On the TITLE's line, not the card's vertical centre: centred, it sits beside the
+         third line of the reason text and reads as a tick on the sentence. */
+      .ask-tick {
+        flex: none;
+        inline-size: 18px;
+        block-size: 18px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--color-border-strong);
+        border-radius: var(--radius-sm);
+        /* --color-text-inverse is defined by NO palette in this theme, and a var() with no
+           fallback is invalid at computed-value time — the check glyph would inherit the
+           body ink and sit dark-on-azure. Same defect class v19.0.0 found six of. */
+        color: var(--text-inverse, #fff);
+        font-size: 12px;
+      }
+
+      .ask-card.on .ask-tick {
+        border-color: var(--color-brand-primary);
+        background: var(--color-brand-primary);
+      }
+
+      .ask-card.is-blocked .ask-tick {
+        border-style: dashed;
+      }
+
+      .ask-tick.is-warn {
+        border-color: var(--color-warning);
+        color: var(--color-warning);
+      }
+
+      .ask-label {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--color-text-primary);
+      }
+
+      .ask-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+
+      .ask-type {
+        color: var(--color-text-secondary);
+      }
+
+      /* The house .tag class is bare tertiary text, which measures 3.83:1 on a card in light
+         mode — under 4.5:1 — and reads as a run-on word rather than a chip. Scoped to this
+         grid rather than changed globally: the same class is a plain label elsewhere. */
+      .ask-meta .tag {
+        padding: var(--space-0-5) var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+      }
+
+      .ask-why {
+        font-size: var(--text-xs);
+        line-height: var(--leading-relaxed);
+        /* Live ink, measured: this is the whole information the card carries. */
+        color: var(--color-text-secondary);
+      }
+
+      .ask-acts {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
+      /* A link and a button in the same row need a real target under the finger. */
+      @media (hover: none) {
+        .ask-acts .linkish {
+          min-block-size: 44px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ask-card {
+          transition: none;
+        }
       }
 
       .stepnav {
@@ -1253,10 +1860,14 @@ export class SurrogateProductDetailPage {
     this.offPending.set({
       names: p.names.map((n) => n.key),
       programCodes: p.names.flatMap((n) => n.programs.map((prog) => prog.programCode)),
-      // A cap-only product's question stops being read with it. Known from the DTO rather
-      // than from a copy of the blueprint library: a product that works out no income states
-      // no output kind at all.
-      factsAffected: p.outputKind === null ? this.askedThings().map((a) => a.factKey) : [],
+      // NO fact keys, deliberately, and this is a correction. It used to list the facts
+      // filed under this product (`platform_enumeration.surrogateProductKey`) while the
+      // server flips the ones the BLUEPRINT declares — two different sets. It happened to
+      // UNDER-state, because a cap blueprint files its facts under nothing; now that an
+      // operator can attach a fact of their own it would start OVER-stating, promising that
+      // answers stop being read which the server will not touch. The consequence is stated
+      // in words instead, and `doSetActive` reports the `factsChanged` the response carries.
+      factsAffected: [],
     });
   }
 
@@ -1283,6 +1894,290 @@ export class SurrogateProductDetailPage {
       // thing twice, and the switch simply did not happen.
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  // --- what this product asks (step ①) ---------------------------------------
+
+  /**
+   * The whole board, absorbed from one response after every click.
+   *
+   * Not three signals fed by three reads. The question pool sits behind a stricter role, the
+   * fact registry arrives through a per-session cache a tick cannot invalidate, and "who else
+   * reads this fact" is answerable only server-side — three answers that can disagree about
+   * what one tick did.
+   */
+  protected readonly asksBoard = signal<ProductAsksBoard | null>(null);
+
+  /** Which loan type's tab is open. Decides what a tick will start asking. */
+  protected readonly askCategory = signal<LoanCategory>('personal');
+
+  protected readonly askSearch = new FormControl<string>('', { nonNullable: true });
+  private readonly askQuery = toSignal(this.askSearch.valueChanges, { initialValue: '' });
+
+  /**
+   * The in-flight overlay, in both directions, keyed by what each write is addressed by.
+   *
+   * An overlay rather than a patched copy of the board, because the truth here lives in a
+   * response this page does not own: there is no second copy to roll back wrong. The tick
+   * flips instantly; on failure the overlay is dropped and the derived truth reappears.
+   */
+  private readonly attaching = signal<ReadonlySet<string>>(new Set());
+  private readonly detaching = signal<ReadonlySet<string>>(new Set());
+  protected readonly askBusy = signal(false);
+  /** Set when a tick landed and the questionnaire publish did not. */
+  protected readonly askUnpublished = signal(false);
+  protected readonly askStatus = signal('');
+
+  protected readonly asksAria = $localize`:@@spd.ask.rail_aria:Loan type`;
+  protected readonly askSearchAria = $localize`:@@spd.ask.search_aria:Search questions`;
+
+  private askInput() {
+    return {
+      board: this.asksBoard(),
+      category: this.askCategory(),
+      search: this.askQuery(),
+      isAr: this.isAr,
+      attaching: this.attaching(),
+      detaching: this.detaching(),
+    };
+  }
+
+  protected readonly askSections = computed(() => askSections(this.askInput()));
+
+  protected readonly askTabItems = computed<RailTabItem[]>(() =>
+    askTabs(this.asksBoard()).map((tab) => ({
+      id: tab.id,
+      label: categoryLabel(tab.id),
+      count: tab.reads,
+      countLabel: $localize`:@@spd.ask.tab_count:answers read`,
+      // The warn accent is for the state that makes the product quote nothing HERE: it reads
+      // a fact this loan type never asks. A loan type that reads nothing at all is not
+      // warned about — a product not sold as a mortgage is the normal case.
+      warn: tab.unasked > 0 && tab.reads > 0,
+      warnLabel:
+        tab.unasked > 0 && tab.reads > 0
+          ? $localize`:@@spd.ask.tab_warn:${tab.unasked}:COUNT: read but not asked here`
+          : undefined,
+    })),
+  );
+
+  protected readonly askCategoryLabel = computed(() => categoryLabel(this.askCategory()));
+
+  protected pickAskCategory(id: string): void {
+    if (!isLoanCategory(id)) return;
+    this.askCategory.set(id);
+    // Mirrored onto the URL beside `?step=`, so a pasted link and a reload land on the loan
+    // type the operator was looking at. `replaceUrl`, or flipping tabs fills the back button
+    // with filter states.
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { loan: id },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  protected askTypeLabel(type: AskQuestionType | null): string {
+    switch (type) {
+      case 'SINGLE_SELECT':
+        return $localize`:@@spd.ask.t_one:One of a list`;
+      case 'NUMERIC':
+        return $localize`:@@spd.ask.t_number:A number they type`;
+      case 'MULTI_SELECT':
+        return $localize`:@@spd.ask.t_many:Several answers`;
+      case 'TEXT':
+        return $localize`:@@spd.ask.t_text:Free text`;
+      default:
+        return $localize`:@@spd.ask.t_unknown:Unknown`;
+    }
+  }
+
+  /**
+   * Why a question cannot be read as an answer.
+   *
+   * One sentence per reason, because the FIXES differ — a free-text answer is not a key any
+   * bank can list in advance, while the declared salary is the very figure a no-payslip
+   * product exists not to read. A single "this one won't work" would tell the operator
+   * nothing to act on.
+   */
+  protected blockedWhy(card: AskCard): string {
+    switch (card.blocked) {
+      case 'text':
+        return $localize`:@@spd.ask.why_text:Free text — a bank cannot key a table by an answer nobody can list in advance.`;
+      case 'multi_select':
+        return $localize`:@@spd.ask.why_multi:More than one answer — there is no single value to look a figure up against.`;
+      case 'money_binding':
+        return $localize`:@@spd.ask.why_money:This is part of what the customer is asking for, or the salary they declared — not something about them a bank can price without a payslip.`;
+      case 'obligation_item':
+        return $localize`:@@spd.ask.why_obligation:One of the customer's existing debts. Debt only means something as a total, so a bank cannot work an income out from one of them.`;
+      case 'bank_axis':
+      case 'debt_types':
+        return $localize`:@@spd.ask.why_axis:The platform works this one out per bank, so a product cannot read it as an answer.`;
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * The untick state, as a chip.
+   *
+   * Two or three words, not the sentence: on a seeded product every ask is the library's, so
+   * the sentence would repeat down the whole grid — three identical lines per card, which
+   * stops being read at the second one. The sentence is stated once, for the section.
+   */
+  protected detachTag(card: AskCard): string {
+    switch (card.detachBlocked) {
+      case 'blueprint_owned':
+        return $localize`:@@spd.ask.tag_fixed:comes with the product`;
+      case 'read_by_own_rule':
+        return $localize`:@@spd.ask.tag_in_rule:the calculation reads it`;
+      case 'fact_still_read':
+        return $localize`:@@spd.ask.tag_in_use:a bank reads it`;
+      default:
+        return '';
+    }
+  }
+
+  /** How many of the asks on stage came with the product. Drives the section's one note. */
+  protected readonly fixedAskCount = computed(
+    () =>
+      this.askSections()
+        .find((section) => section.key === 'asked')
+        ?.cards.filter((card) => card.detachBlocked === 'blueprint_owned').length ?? 0,
+  );
+
+  /** Why an untick is refused, and what to do instead. */
+  protected detachWhy(card: AskCard): string {
+    switch (card.detachBlocked) {
+      case 'blueprint_owned':
+        return $localize`:@@spd.ask.why_blueprint:This question comes with the product, so it cannot be removed here. Switch the whole product off instead if it should not be sold.`;
+      case 'read_by_own_rule':
+        return $localize`:@@spd.ask.why_in_rule:The calculation on the next step still reads this answer. Take it out of the calculation first.`;
+      case 'fact_still_read':
+        return $localize`:@@spd.ask.why_in_use:A bank program still reads this answer, so it cannot be removed yet.`;
+      default:
+        return '';
+    }
+  }
+
+  protected alsoAskedLabel(products: readonly string[]): string {
+    return $localize`:@@spd.ask.also:${products.length}:COUNT: other products read this too`;
+  }
+
+  protected askCardAria(card: AskCard): string {
+    const name = card.label;
+    if (card.blocked) return `${name} — ${this.blockedWhy(card)}`;
+    if (card.detachBlocked) return `${name} — ${this.detachWhy(card)}`;
+    return card.read
+      ? $localize`:@@spd.ask.aria_stop:Stop reading ${name}:NAME:`
+      : $localize`:@@spd.ask.aria_read:Read ${name}:NAME: and ask it of ${this.askCategoryLabel()}:TYPE: applicants`;
+  }
+
+  /**
+   * The tick.
+   *
+   * An early return rather than `[disabled]`, the rule this page's sibling states: a disabled
+   * button leaves the tab order mid-keyboard-pass, and the reason bound to it by
+   * `aria-describedby` is then announced to nobody.
+   */
+  protected toggleAsk(card: AskCard): void {
+    if (card.blocked || card.detachBlocked || card.saving || this.askBusy()) return;
+    if (card.read) void this.runDetach(card);
+    else void this.runAttach(card, askInFor(this.askCategory()));
+  }
+
+  /** Start asking a question this product already reads of the loan type on the rail. */
+  protected askHere(card: AskCard): void {
+    if (card.saving || this.askBusy()) return;
+    void this.runAttach(card, askInFor(this.askCategory()));
+  }
+
+  protected stopReading(card: AskCard): void {
+    if (card.detachBlocked || card.saving || this.askBusy()) return;
+    void this.runDetach(card);
+  }
+
+  protected dismissAskAlert(): void {
+    this.askUnpublished.set(false);
+  }
+
+  private async runAttach(card: AskCard, askIn: readonly LoanCategory[]): Promise<void> {
+    if (card.code === '') return;
+    this.markAttaching(card.code, true);
+    this.askBusy.set(true);
+    try {
+      const res = await this.api.attachProductAsk(this.key, card.code, askIn);
+      this.absorbAskWrite(res.data);
+      this.askStatus.set(
+        $localize`:@@spd.ask.said_read:${card.label}:NAME: is now read by this product`,
+      );
+    } catch {
+      // The interceptor has already said why (A22). Dropping the overlay restores the
+      // derived truth, so there is nothing to roll back.
+      this.askUnpublished.set(false);
+    } finally {
+      this.markAttaching(card.code, false);
+      this.askBusy.set(false);
+    }
+  }
+
+  private async runDetach(card: AskCard): Promise<void> {
+    if (card.factKey === '') return;
+    this.markDetaching(card.factKey, true);
+    this.askBusy.set(true);
+    try {
+      const res = await this.api.detachProductAsk(this.key, card.factKey);
+      this.absorbAskWrite(res.data);
+      this.askStatus.set(
+        $localize`:@@spd.ask.said_stopped:${card.label}:NAME: is no longer read by this product`,
+      );
+    } catch {
+      // Same posture as the attach.
+    } finally {
+      this.markDetaching(card.factKey, false);
+      this.askBusy.set(false);
+    }
+  }
+
+  /**
+   * Absorb one write's board, and re-read what depends on it.
+   *
+   * `refresh`, never `load`, on the fact cache: `load()` returns whatever is cached, so
+   * without this the new fact would be invisible to step ②'s method picker for the rest of
+   * the session — the exact bug v19.0.0 recorded. And the product itself is re-read because
+   * a new fact can bring a LIST on stage below the grid, with `keepEdits` so an unsaved
+   * figure survives it.
+   */
+  private absorbAskWrite(result: AskWriteResult): void {
+    this.asksBoard.set(result.state);
+    this.askUnpublished.set(result.changed.widened.length > 0 && !result.changed.published);
+    void this.enums.refresh('surrogate_fact');
+    void this.enumTypes.refresh();
+    void this.load({ silent: true, keepEdits: true });
+  }
+
+  private markAttaching(code: string, on: boolean): void {
+    const next = new Set(this.attaching());
+    if (on) next.add(code);
+    else next.delete(code);
+    this.attaching.set(next);
+  }
+
+  private markDetaching(factKey: string, on: boolean): void {
+    const next = new Set(this.detaching());
+    if (on) next.add(factKey);
+    else next.delete(factKey);
+    this.detaching.set(next);
+  }
+
+  private async loadAsks(): Promise<void> {
+    try {
+      const res = await this.api.getProductAsks(this.key);
+      this.asksBoard.set(res.data);
+    } catch {
+      // The board stays null and step ① renders its empty state; the toast has said why.
+      this.asksBoard.set(null);
     }
   }
 
@@ -1386,36 +2281,75 @@ export class SurrogateProductDetailPage {
     return out;
   });
 
+  // --- step ①'s inner rail: one list on stage -------------------------------
+
+  protected readonly listsAria = $localize`:@@spd.lists_aria:The answers they pick from`;
+
   /**
-   * What this product asks the applicant — its OWN facts, whatever the rule does with them.
-   *
-   * Owned, not derived: a fact this product authored belongs on its page from the moment it
-   * exists, and a rule that does not read it yet is the normal state. What the rule reads is
-   * step ②'s question, and the builder's picker offers every fact regardless of who made it.
-   *
-   * READ-ONLY now: what a product asks is structure the predefined library owns, so there is
-   * no add and no remove here. Removing one used to delete the QUESTION outright, which — with
-   * the add screen gone — was a one-way door on a product an operator cannot recreate either.
+   * Which list is on stage. NOT on the URL, deliberately, and this is the one place this
+   * screen's own `?step=` convention does not extend: `?step=` survives a reload because an
+   * operator pastes a link to a STEP, and the rail's items are DATA — a tab id is a list key
+   * that a shared list can lose the moment another product stops reading it, and a stale one
+   * on the wire would land on an empty stage rather than on the list somebody meant.
+   * `activeListType()` resolves it against what is actually there instead.
    */
-  protected readonly askedThings = computed<AskedThing[]>(() => {
-    const key = this.productKey();
-    return this.facts()
-      .filter((f) => f.ownedBy === key)
-      .map((f) => ({
-        factKey: f.key,
-        questionLabel: f.question?.label ?? f.label,
-        questionCode: f.question?.code ?? '',
-        numeric: f.question?.type === 'NUMERIC',
-        askedIn: f.question?.askedIn ?? [],
-        listType: f.question?.optionsEnumerationType ?? null,
-        inactive: f.question?.active === false,
-      }));
+  protected readonly listTab = signal<string | null>(null);
+
+  /**
+   * The rail. A count is deliberately absent: the values panel fetches its own rows, so a
+   * number here would either be a second fetch of every list on the step — four requests to
+   * label four chips — or a figure that disagrees with the panel one click later.
+   */
+  protected readonly listTabs = computed<RailTabItem[]>(() =>
+    this.readLists().map((l) => ({
+      id: l.type,
+      label: l.title,
+      // Provenance, on the chip, because it changes what an edit COSTS. `note` and not a
+      // warn marker: a shared list is normal, not a defect.
+      note: l.owned ? undefined : $localize`:@@spd.list_tab_shared:Shared`,
+    })),
+  );
+
+  /**
+   * Resolved against the lists that exist right now. `readLists()` is derived from the rule
+   * and the registry, so it changes under the rail — adding a value to a mirrored list
+   * reloads the product — and a tab id held from before that must not strand the stage.
+   */
+  protected readonly activeListType = computed(() => {
+    const lists = this.readLists();
+    const want = this.listTab();
+    if (want && lists.some((l) => l.type === want)) return want;
+    return lists[0]?.type ?? '';
   });
 
-  /** The lists the calculation reads that this product did NOT author. */
-  protected readonly borrowedCount = computed(
-    () => this.readLists().filter((l) => !l.owned).length,
+  protected readonly activeList = computed<ReadList | null>(
+    () => this.readLists().find((l) => l.type === this.activeListType()) ?? null,
   );
+
+  /**
+   * What the filing board says needs a human — `null` until it has loaded.
+   *
+   * The board owns the answer (it is the only thing that has fetched both lists), so this is
+   * reported rather than re-derived: a second count taken from a different fetch would
+   * disagree with the notices inside the board the moment somebody moved a value.
+   */
+  protected readonly boardAttention = signal<BoardAttention | null>(null);
+
+  /**
+   * The fold opens itself only when something is WRONG — an unfiled value quotes nothing, a
+   * catch-all value may be quoting a figure nobody chose. A board with nothing to report
+   * stays shut, which is what keeps the closed state meaningful: it opening IS the signal.
+   */
+  protected readonly boardNeedsAttention = computed(() => {
+    const a = this.boardAttention();
+    return a !== null && (a.unfiled > 0 || a.inFallback > 0);
+  });
+
+  /** The filing board, if the list on stage is the one it files. */
+  protected boardFor(type: string): { type: string; parentType: string } | null {
+    const board = this.boardList();
+    return board && board.type === type ? board : null;
+  }
 
   /** The child/parent pair the assignment board is about, when there is one. */
   protected readonly boardList = computed<{ type: string; parentType: string } | null>(() => {
@@ -1464,7 +2398,9 @@ export class SurrogateProductDetailPage {
         // Step ① carries the amounts keyed by each list, so an unsaved edit is as much this
         // step's as step ②'s — it is one object, saved by one button on both.
         label: this.stepLabels[0] ?? '',
-        status: this.dirty() ? 'invalid' : this.askedThings().length > 0 ? 'done' : 'todo',
+        // `invalid` is reachable here now, and it is a strict improvement: a product whose
+        // only fact is asked in NO loan type used to read `done` and could never quote.
+        status: askStepStatus(this.asksBoard(), this.dirty()),
       },
       {
         id: 'rule',
@@ -1517,6 +2453,9 @@ export class SurrogateProductDetailPage {
       // as it was rather than vanishing because a summary call failed.
       .catch(() => this.typeSummaries.set([]));
     void this.load();
+    void this.loadAsks();
+    // In the constructor, because `takeUntilDestroyed` needs an injection context.
+    this.watchAskCategory();
   }
 
   /**
@@ -1559,6 +2498,28 @@ export class SurrogateProductDetailPage {
   private initialStep(): number {
     const raw = Number(this.route.snapshot.queryParamMap.get('step'));
     return Number.isInteger(raw) && raw >= 1 && raw <= 3 ? raw - 1 : 0;
+  }
+
+  /**
+   * The loan type step ①'s rail opens on, from `?loan=`.
+   *
+   * The signal is the truth and the URL is a copy of it (mirrored with `replaceUrl`, so
+   * flipping tabs does not fill the back button with filter states) — the same posture
+   * `?step=` takes here and on the catalog name's page. An unknown value falls back rather
+   * than throwing: it is a URL somebody typed.
+   *
+   * SUBSCRIBED, not read once from the snapshot, and that is not a nicety. Angular REUSES
+   * this component when only the query string changes, so a constructor-time read leaves the
+   * rail on `personal` while the URL says `business` — measured in a browser, where the tab
+   * strip said "6 read but not asked here" and the grid below it, still on the old category,
+   * showed all seven as asked. Two halves of one screen disagreeing about which loan type is
+   * open. This also makes the back button work.
+   */
+  private watchAskCategory(): void {
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      const raw = params.get('loan');
+      this.askCategory.set(raw !== null && isLoanCategory(raw) ? raw : 'personal');
+    });
   }
 
   protected markDirty(): void {

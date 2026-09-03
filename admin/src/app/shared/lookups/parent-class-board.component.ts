@@ -39,6 +39,18 @@ interface BoardValue {
 }
 
 /**
+ * What on the board needs a human — reported to the host so a FOLDED board can still say so.
+ *
+ * Two counts and not one, because the two are different failures: an unfiled value quotes
+ * nothing at all, a catch-all value quotes the catch-all's figure. Collapsing them into
+ * "N problems" would let the survivable one hide the fatal one.
+ */
+export interface BoardAttention {
+  readonly unfiled: number;
+  readonly inFallback: number;
+}
+
+/**
  * Where each value is priced — the class board.
  *
  * ─── The problem it exists to solve ───────────────────────────────────────────
@@ -817,6 +829,18 @@ export class ParentClassBoardComponent {
    */
   readonly changed = output<void>();
 
+  /**
+   * What on this board needs a human, reported to the host on every load and after every
+   * move: values with no live class (they quote NOTHING) and values sitting in the catch-all
+   * (they quote the catch-all's figure, which may or may not be the intended one).
+   *
+   * It exists because a host may legitimately keep the board FOLDED — the product page does,
+   * since the board is a second full-length view of the list directly above it — and a
+   * warning only visible once you open the thing that carries it is a warning nobody reads.
+   * The board keeps drawing its own notices; this is the same facts, for a closed summary.
+   */
+  readonly attention = output<BoardAttention>();
+
   protected readonly loading = signal(true);
   protected readonly loadError = signal(false);
   protected readonly classRows = signal<readonly EnumerationRow[]>([]);
@@ -871,6 +895,16 @@ export class ParentClassBoardComponent {
       },
       { allowSignalWrites: true },
     );
+
+    // Reports what it can SEE. While loading or after a failure it says nothing rather than
+    // zero — "no values need attention" and "we do not know yet" must not render the same.
+    effect(() => {
+      if (this.loading() || this.loadError()) return;
+      this.attention.emit({
+        unfiled: this.unfiled().length,
+        inFallback: this.inFallback().length,
+      });
+    });
   }
 
   // ── data ───────────────────────────────────────────────────────────────────

@@ -418,8 +418,88 @@ export class EnumerationQuestionBindingNotApplicableException extends DomainExce
  * be keyed by. `allowed` rides along so the screen can say what would work.
  */
 export class SurrogateFactQuestionTypeInvalidException extends DomainException {
-  constructor(meta: { key: string; questionCode: string; type: string; allowed: string[] }) {
+  /**
+   * `key` is OPTIONAL because the other caller has no fact key to name: an operator
+   * ticking a question on a product's step ① is refused BEFORE any row is minted, and a
+   * fabricated key in the meta would be worse than an absent one — it would name a row
+   * that does not exist and never will.
+   */
+  constructor(meta: { key?: string; questionCode: string; type: string; allowed: string[] }) {
     super(ERROR_CODES.SURROGATE_FACT_QUESTION_TYPE_INVALID, meta);
+  }
+}
+
+/**
+ * Two facts already answer the ticked question, so which key the product's rule should
+ * name has no single answer. `factKeys` names them so the operator can retire the spare.
+ */
+export class SurrogateFactAmbiguousForQuestionException extends DomainException {
+  constructor(meta: { questionCode: string; factKeys: string[] }) {
+    super(ERROR_CODES.SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION, meta);
+  }
+}
+
+/**
+ * The key a tick would mint is held by a fact bound to another question. Never suffixed
+ * into `<key>_2`: stored rules name a fact key, and bank figures are filed under it.
+ */
+export class SurrogateFactKeyTakenException extends DomainException {
+  constructor(meta: { questionCode: string; factKey: string; boundQuestionCode: string | null }) {
+    super(ERROR_CODES.SURROGATE_FACT_KEY_TAKEN, meta);
+  }
+}
+
+/**
+ * The key a tick would mint belongs to a fact the platform computes for itself — a derived
+ * per-bank axis, or `i_score`. A row under one would read as configured and carry nothing.
+ */
+export class SurrogateFactKeyReservedException extends DomainException {
+  constructor(meta: { factKey: string; questionCode: string; reservedKeys: string[] }) {
+    super(ERROR_CODES.SURROGATE_FACT_KEY_RESERVED, meta);
+  }
+}
+
+/** The ticked question is retired or parked, so a fact bound to it would answer nobody. */
+export class SurrogateFactQuestionInactiveException extends DomainException {
+  constructor(meta: { questionCode: string }) {
+    super(ERROR_CODES.SURROGATE_FACT_QUESTION_INACTIVE, meta);
+  }
+}
+
+/**
+ * The ticked question is the right shape and the wrong figure — the declared salary, the
+ * amount being asked for, one itemised debt, or a per-bank axis the platform derives.
+ */
+export class SurrogateFactQuestionNotEligibleException extends DomainException {
+  constructor(meta: { questionCode: string; reason: string }) {
+    super(ERROR_CODES.SURROGATE_FACT_QUESTION_NOT_ELIGIBLE, meta);
+  }
+}
+
+/**
+ * Ticking would start asking a REQUIRED question of a loan type that does not ask it yet,
+ * which refuses every application in that loan type until the new snapshot is published.
+ */
+export class SurrogateFactWidenRequiredException extends DomainException {
+  constructor(meta: { questionCode: string; categories: string[] }) {
+    super(ERROR_CODES.SURROGATE_FACT_WIDEN_REQUIRED, meta);
+  }
+}
+
+/**
+ * An ask the predefined library owns cannot be removed here — the next seed run would put
+ * it back. `productKey` is what the message points the operator at: the product's switch.
+ */
+export class ProductAskBlueprintOwnedException extends DomainException {
+  constructor(meta: { productKey: string; factKey: string }) {
+    super(ERROR_CODES.PRODUCT_ASK_BLUEPRINT_OWNED, meta);
+  }
+}
+
+/** The product's own calculation still reads the fact being unticked. */
+export class ProductAskReadByOwnRuleException extends DomainException {
+  constructor(meta: { productKey: string; factKey: string; stepIds: string[] }) {
+    super(ERROR_CODES.PRODUCT_ASK_READ_BY_OWN_RULE, meta);
   }
 }
 

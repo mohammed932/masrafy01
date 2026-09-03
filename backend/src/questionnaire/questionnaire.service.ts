@@ -563,6 +563,41 @@ export class QuestionnaireService {
     return this.draftTree();
   }
 
+  /**
+   * ADD loan categories to a question, never remove any, and publish only if something
+   * actually moved.
+   *
+   * The in-process door for "this no-payslip product needs its question asked here":
+   * a product's step ① ticks a question inside one loan type's tab, and the fact it reads
+   * is worth nothing until an applicant of that loan type is actually asked it.
+   *
+   * ADDITIVE, and the two reasons are separate. One is the lost update `addCategories`
+   * documents. The other is ownership: `question_loan_category` is GLOBAL to the question
+   * and shared with every other product and catalog name that reads it, so narrowing it
+   * from a product's screen would silently stop asking somebody else's question. Narrowing
+   * lives on `/questionnaire/categories`, where it is the whole point of the surface.
+   *
+   * PUBLISHES ONLY ON A REAL CHANGE, unlike `setQuestionCategories`, which publishes
+   * unconditionally. A questionnaire version is a full copy of the pool and version history
+   * is how an operator reads what they did, so a byte-identical snapshot is noise — the
+   * same gate `syncMirroredOptions` already applies via `planIsEmpty`. Returns what it
+   * added so the caller can report it and audit it.
+   */
+  async addQuestionCategories(
+    id: string,
+    categories: readonly LoanCategory[],
+    actor: string,
+    opts: { publish?: boolean } = {},
+  ): Promise<{ added: LoanCategory[]; published: boolean }> {
+    const question = await this.repo.findQuestion(id);
+    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId: id });
+    const added = await this.repo.addCategories(id, dedupeCategories([...categories]));
+    if (added.length === 0) return { added: [], published: false };
+    if (opts.publish === false) return { added, published: false };
+    await this.publish(actor);
+    return { added, published: true };
+  }
+
   async updateQuestion(
     id: string,
     dto: UpdateQuestionDto,
@@ -1140,9 +1175,7 @@ interface QuestionRuleColumns {
   textMaxLength: number | null;
 }
 
-export function numericRulesOf(
-  q: QuestionRuleColumns,
-): {
+export function numericRulesOf(q: QuestionRuleColumns): {
   minValue: string | null;
   maxValue: string | null;
   step: string | null;
