@@ -576,11 +576,18 @@ export class LookupValueListComponent {
   constructor() {
     // The reset that keeps the window honest. Without it, filtering a 500-row list down to
     // three and back would leave the operator looking at the first hundred of the OLD set.
-    effect(() => {
-      this.query();
-      this.rows();
-      this.shown.set(VALUE_WINDOW);
-    });
+    // Writing a signal from an effect needs saying so out loud. Without the flag this threw
+    // NG0600 on every screen that renders a values panel — twice on the surrogate product,
+    // which renders one panel per list — so the window never reset on a new filter and an
+    // uncaught error was logged instead.
+    effect(
+      () => {
+        this.query();
+        this.rows();
+        this.shown.set(VALUE_WINDOW);
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   protected readonly hasMore = computed(() => this.view().live.length > this.windowed().length);

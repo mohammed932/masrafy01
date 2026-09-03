@@ -29,6 +29,7 @@ import {
   type StepFigures,
   type ValueRef,
 } from '@features/bank-programs/bank-programs.types';
+import { slotsKeyedByList } from './figure-slots';
 import { derivedFactByKey } from '@core/surrogate-facts';
 import { FigureFieldComponent } from './figure-field.component';
 import { IncomeBandsEditorComponent } from './income-bands-editor.component';
@@ -202,25 +203,29 @@ interface FlowLine {
   providers: [provideNzIconsPatch([CheckCircleOutline, CheckOutline, DownOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="rule">
-      <!-- What the rule produces. Said first, because every figure below is in service of it. -->
-      <p class="lede">
-        @if (output()?.kind === 'maxAmount') {
-          <span i18n="@@product_rule.output.max_amount"
-            >This product works out the most the customer's property or membership can support.
-            Their salary is not read.</span
-          >
-        } @else {
-          <span i18n="@@product_rule.output.monthly_income"
-            >This product works out an assumed monthly income from the answers below.</span
-          >
-        }
-      </p>
+    <div class="rule" [class.is-inline]="layout() === 'inline'">
+      <!-- What the rule produces. Said first, because every figure below is in service of it.
+           Inline it is withheld: the same sentence over every list on the page would be four
+           copies of one idea before the first box. -->
+      @if (layout() === 'full') {
+        <p class="lede">
+          @if (output()?.kind === 'maxAmount') {
+            <span i18n="@@product_rule.output.max_amount"
+              >This product works out the most the customer's property or membership can support.
+              Their salary is not read.</span
+            >
+          } @else {
+            <span i18n="@@product_rule.output.monthly_income"
+              >This product works out an assumed monthly income from the answers below.</span
+            >
+          }
+        </p>
+      }
 
       <!-- The questions the whole pipeline turns on, in one line. The operator's first
            question about an unfamiliar product is "what does it ask the customer?", and
            until now the only answer was to read twenty step titles. -->
-      @if (readsFacts().length > 0) {
+      @if (layout() === 'full' && readsFacts().length > 0) {
         <p class="reads">
           <span class="reads-label" i18n="@@product_rule.reads">Reads the answers</span>
           @for (f of shownFacts(); track f) {
@@ -236,7 +241,7 @@ interface FlowLine {
         </p>
       }
 
-      @if (variant() === 'program' && activeDerivation(); as active) {
+      @if (layout() === 'full' && variant() === 'program' && activeDerivation(); as active) {
         <p class="live">
           <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@product_rule.active_derivation"
@@ -251,7 +256,7 @@ interface FlowLine {
            operator usually touches one row and leaves. A rail also shows every group's
            count at once, which is the thing a stepper hides, and it degrades to nothing
            when a product has one group (the car rule) instead of to a one-step rail. -->
-      @if (groupTabs().length > 1) {
+      @if (showsRail()) {
         <app-rail-tabs
           [items]="groupTabs()"
           [activeId]="activeGroup()"
@@ -268,17 +273,17 @@ interface FlowLine {
              outside the tab semantics entirely. -->
         <section
           class="grp"
-          [id]="groupTabs().length > 1 ? 'rule-grp-panel-' + group.key : null"
-          [attr.role]="groupTabs().length > 1 ? 'tabpanel' : null"
-          [attr.aria-labelledby]="groupTabs().length > 1 ? 'rule-grp-tab-' + group.key : null"
+          [id]="showsRail() ? 'rule-grp-panel-' + group.key : null"
+          [attr.role]="showsRail() ? 'tabpanel' : null"
+          [attr.aria-labelledby]="showsRail() ? 'rule-grp-tab-' + group.key : null"
         >
-          @if (groupTabs().length <= 1) {
+          @if (showsGroupHeads()) {
             <header class="grp-head">
               <h5 class="grp-title">{{ group.title }}</h5>
               <span class="grp-count">{{ group.count }}</span>
             </header>
           }
-          @if (group.hint) {
+          @if (group.hint && layout() === 'full') {
             <p class="grp-hint">{{ group.hint }}</p>
           }
 
@@ -442,7 +447,7 @@ interface FlowLine {
            the ordinals it reads. A bare list of op titles did not: the compound rule says
            "A table of ranges" three times and "A percentage of an earlier figure" four, and
            rows 5 and 6 were the same eight words back to back. -->
-      @if (flow().length > 0) {
+      @if (layout() === 'full' && flow().length > 0) {
         <details class="flow">
           <summary>
             <span nz-icon nzType="down" nzTheme="outline" aria-hidden="true"></span>
@@ -484,7 +489,9 @@ interface FlowLine {
         </details>
       }
 
-      @if (variant() === 'catalog') {
+      <!-- Withheld inline: the block above each list says the same thing in fewer words, and
+           this note would otherwise repeat once per list on the page. -->
+      @if (layout() === 'full' && variant() === 'catalog') {
         <p class="note" i18n="@@product_rule.catalog_note">
           These are the steps every bank selling this name runs, and the amounts each one starts
           from. A bank can keep these or type its own on its own program.
@@ -503,6 +510,12 @@ interface FlowLine {
         display: flex;
         flex-direction: column;
         gap: var(--space-5);
+      }
+
+      /* Nested under a list panel that already frames and names it, so the gap closes and
+         the rows sit flush — the surrounding block draws the hairline. */
+      .rule.is-inline {
+        gap: var(--space-3);
       }
 
       .lede,
@@ -1025,6 +1038,43 @@ export class ProductRuleEditorComponent {
 
   readonly variant = input<'program' | 'catalog'>('program');
 
+  /**
+   * Render only the figures keyed by ONE value list, or every figure when `null`.
+   *
+   * The product page mounts this editor a second time under each list of answers, so the
+   * operator types "an apartment supports 400,000" beside the word Apartment rather than
+   * two screens away under a step id. Same component, same store, same Save — a second
+   * editor that knew how to name a figure would be a second authority on what it means.
+   *
+   * Filtered by SLOT, never by row: a pick whose two columns read different facts is one
+   * row with two list homes, and filtering by row would print both columns under both lists.
+   */
+  readonly onlyKeyedBy = input<string | null>(null);
+
+  /**
+   * `inline` drops the frame — the rail, the group hints, the lede, the fact chips and the
+   * read-only flow — and keeps the figures.
+   *
+   * Everything it removes is said by the panel this is nested inside, and a box in a box in
+   * a box is what the row layout below already exists to avoid.
+   */
+  readonly layout = input<'full' | 'inline'>('full');
+
+  /**
+   * The slots one list keys, or `null` for "every slot" — which is every caller but the
+   * product page's per-list mounts, so their behaviour is unchanged by construction.
+   */
+  private readonly shownSlotIds = computed<ReadonlySet<string> | null>(() => {
+    const type = this.onlyKeyedBy();
+    if (type === null) return null;
+    const ids = new Set<string>();
+    for (const slot of slotsKeyedByList(this.steps(), this.gates(), this.facts(), type)) {
+      ids.add(slot.id);
+      if (slot.secondId !== null) ids.add(slot.secondId);
+    }
+    return ids;
+  });
+
   /** The fact registry, so a step can be titled by the question it reads. */
   readonly facts = input<readonly RegistryFact[]>([]);
 
@@ -1064,6 +1114,10 @@ export class ProductRuleEditorComponent {
   }
 
   protected isOpen(row: EditorRow): boolean {
+    // Inline, every row is open: a blank optional row folds behind "No default set", which
+    // is right on a screen listing a whole calculation and wrong under the list of answers
+    // the operator opened in order to type into it.
+    if (this.layout() === 'inline') return true;
     return !row.collapsible || this.opened().has(row.id);
   }
 
@@ -1125,10 +1179,23 @@ export class ProductRuleEditorComponent {
   /** The one group the rail has on stage — or all of them when there is no rail. */
   protected readonly shownGroups = computed(() => {
     const groups = this.groups();
+    // Inline there is no rail to switch with, so every surviving group renders. Filtering to
+    // one would hide figures the list keys with nothing on screen saying so.
+    if (this.layout() === 'inline') return groups;
     if (groups.length <= 1) return groups;
     const active = this.activeGroup();
     return groups.filter((g) => g.key === active);
   });
+
+  /** The rail, and the frame it belongs to, exist only in the full layout. */
+  protected readonly showsRail = computed(
+    () => this.layout() === 'full' && this.groupTabs().length > 1,
+  );
+
+  /** A group names itself when no rail does — and inline, only when there is more than one. */
+  protected readonly showsGroupHeads = computed(() =>
+    this.layout() === 'inline' ? this.shownGroups().length > 1 : this.groupTabs().length <= 1,
+  );
 
   private readonly factByKey = computed(() => new Map(this.facts().map((f) => [f.key, f])));
 
@@ -1316,6 +1383,7 @@ export class ProductRuleEditorComponent {
     const { alternatives, adjustments } = this.coalesceMembers();
     const gateInputs = this.gateInputIds();
     const columns = this.columnHeads();
+    const shown = this.shownSlotIds();
 
     const chain: EditorRow[] = [];
     const alts: EditorRow[] = [];
@@ -1329,13 +1397,16 @@ export class ProductRuleEditorComponent {
       if (columns.has(step.id)) continue;
       if (gateInputs.has(step.id)) continue;
 
-      const row = this.stepRow(step);
+      const row = this.narrow(this.stepRow(step), shown);
+      if (row === null) continue;
       if (alternatives.has(step.id)) alts.push(row);
       else if (adjustments.has(step.id)) adjs.push(row);
       else chain.push(row);
     }
 
-    const conditions = this.gates().map((gate) => this.gateRow(gate));
+    const conditions = this.gates()
+      .map((gate) => this.narrow(this.gateRow(gate), shown))
+      .filter((row): row is EditorRow => row !== null);
 
     const groups: RowGroup[] = [];
     if (chain.length > 0) {
@@ -1385,6 +1456,27 @@ export class ProductRuleEditorComponent {
     }
     return groups;
   });
+
+  /**
+   * A row with only the slots this mount renders, or `null` when none survive.
+   *
+   * `configured` and the state line are recomputed from what is left: a row saying "no
+   * default set" because of a figure it is not showing would be reporting on somebody
+   * else's list.
+   */
+  private narrow(row: EditorRow, shown: ReadonlySet<string> | null): EditorRow | null {
+    if (shown === null) return row;
+    const slots = row.slots.filter((slot) => shown.has(slot.id));
+    if (slots.length === 0) return null;
+    const configured = slots.some((slot) => slot.configured);
+    return {
+      ...row,
+      slots,
+      configured,
+      state: this.stateFor(row.optional, configured),
+      owed: !row.optional && !configured && this.variant() === 'program',
+    };
+  }
 
   private countLabel(rows: readonly EditorRow[]): string {
     const set = rows.filter((row) => row.configured).length;

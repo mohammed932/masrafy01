@@ -122,7 +122,10 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
               [attr.aria-label]="keyAriaLabel"
             >
               @for (m of members(); track m.key) {
-                <nz-option [nzValue]="m.key" [nzLabel]="m.labelEn"></nz-option>
+                <!-- The operator's own locale, like every other label on the screen. Fixed
+                     at the same time as the table moved next to the Arabic value list it is
+                     keyed by, where an English option name reads as a different list. -->
+                <nz-option [nzValue]="m.key" [nzLabel]="memberLabel(m)"></nz-option>
               }
             </nz-select>
 
@@ -407,6 +410,11 @@ export class IncomeKeyTableComponent {
   readonly enums = inject(PlatformEnumerationsService);
   /** Which label to print. The table renders names, and a name is read, not decoded. */
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
+
+  /** A registry member's label in the operator's locale. */
+  protected memberLabel(m: { labelAr: string; labelEn: string }): string {
+    return this.isAr ? m.labelAr : m.labelEn;
+  }
 
   /** Two-way bound table. `[]` is a real state the backend rejects on save. */
   readonly rows = model.required<IncomeKeyTableRow[]>();

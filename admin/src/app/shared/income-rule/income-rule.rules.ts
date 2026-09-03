@@ -196,10 +196,37 @@ export function productRuleHasError(args: {
     if (!ok && !optional.has(step.id)) return true;
   }
 
+  const byId = new Map(steps.map((step) => [step.id, step]));
+
+  // Does a candidate resolve to anything? Mirrors `validateProductRule` on the server,
+  // including both of the corrections that file already carries.
+  //
+  // (1) A MIXED list is never empty: the literal always resolves, and it IS the "this bank
+  // states no policy" answer — an I-Score band left blank falls back to `{const:'100'}`.
+  // Every blueprint-built product carries that shape, so a check counting only step refs
+  // refused the Save on all of them, on rules the engine quotes correctly.
+  //
+  // (2) Recursive, because a candidate may need no figures of its OWN: `pickByFact` is
+  // arithmetic over two columns, so it reads as configured unconditionally, and one of the
+  // compound rule's candidates is a pick.
+  const reaches = (id: string, depth = 0): boolean => {
+    if (depth > 8) return true;
+    const candidate = byId.get(id);
+    if (candidate === undefined) return false;
+    if (candidate.op === 'pickByFact' || candidate.op === 'coalesce') {
+      const inner = stepRefs(candidate);
+      if (inner.some((ref) => !('step' in ref))) return true;
+      return inner.some((ref) => 'step' in ref && reaches(ref.step, depth + 1));
+    }
+    return configured.has(id);
+  };
+
   for (const step of steps) {
     if (step.op !== 'coalesce') continue;
-    const candidates = stepRefs(step).flatMap((ref) => ('step' in ref ? [ref.step] : []));
-    if (candidates.length > 0 && !candidates.some((id) => configured.has(id))) return true;
+    const refs = stepRefs(step);
+    const candidates = refs.flatMap((ref) => ('step' in ref ? [ref.step] : []));
+    if (candidates.length !== refs.length) continue;
+    if (candidates.length > 0 && !candidates.some((id) => reaches(id))) return true;
   }
 
   return false;

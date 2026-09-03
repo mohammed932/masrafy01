@@ -41,6 +41,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -58,7 +59,9 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
 import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.component';
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
-import { productRuleHasError } from '@shared/income-rule/income-rule.rules';
+import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
+import { listFigureState, type ListFigureState } from '@shared/income-rule/figure-slots';
+import { incomeKeyTableErrorFor, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import {
@@ -100,6 +103,15 @@ interface ReadList {
    * know the change reaches every other product reading the same list.
    */
   readonly owned: boolean;
+  /**
+   * What this list carries: a figure per value, a figure stated on the class each value is
+   * filed under, or none at all.
+   *
+   * DERIVED from the rule, never stored — which is what lets the same screen serve every
+   * product. A list of three hundred compound names is `byClass`, and saying "no default
+   * set" against each of them would invent a defect where there is none.
+   */
+  readonly figures: ListFigureState;
 }
 
 /** One thing this product asks the applicant: a question, its fact, and the list behind it. */
@@ -121,6 +133,7 @@ interface AskedThing {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    NgTemplateOutlet,
     RouterLink,
     ReactiveFormsModule,
     NzButtonModule,
@@ -130,6 +143,7 @@ interface AskedThing {
     LookupValuesPanelComponent,
     ParentClassBoardComponent,
     IncomeAssumptionSectionComponent,
+    ProductRuleEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -312,7 +326,8 @@ interface AskedThing {
                      a governorate or a compound is data. -->
                 <p class="hint" i18n="@@spd.ask.fixed">
                   What this product asks comes with the product. The answers it offers are yours to
-                  curate below.
+                  curate below, and so is the amount each one carries — what every bank starts from
+                  until it types its own.
                 </p>
 
                 @if (readLists().length > 0) {
@@ -331,6 +346,70 @@ interface AskedThing {
                       [deletable]="deletableType(list.type)"
                       (changed)="onListChanged()"
                     />
+
+                    <!-- The amounts keyed by that list, under the list itself.
+                         SAME STORE as step ②, and the same editor: a figure belongs to a
+                         step, not to a value, so a second editor that knew how to name one
+                         would be a second authority on what it means. What changes here is
+                         only which slots are on screen. -->
+                    <section class="defaults">
+                      @switch (list.figures) {
+                        @case ('keyed') {
+                          <h4 class="defaults-title">
+                            @if (isClassList(list)) {
+                              <span i18n="@@spd.def.title_classes"
+                                >The amount each class carries</span
+                              >
+                            } @else {
+                              <span i18n="@@spd.def.title">The amount each answer carries</span>
+                            }
+                          </h4>
+                          <p class="defaults-lede">
+                            <span i18n="@@spd.def.lede"
+                              >Every bank filing under this product starts from these. A bank that
+                              types its own keeps its own copy instead.</span
+                            >
+                            @if (!list.owned) {
+                              <span i18n="@@spd.def.lede_shared"
+                                >The list is shared with other products; these amounts are this
+                                product's alone.</span
+                              >
+                            }
+                          </p>
+                          <app-product-rule-editor
+                            layout="inline"
+                            variant="catalog"
+                            [onlyKeyedBy]="list.type"
+                            [steps]="ruleSteps()"
+                            [gates]="ruleGates()"
+                            [output]="ruleOutput()"
+                            [facts]="facts()"
+                            [figures]="stepFigures()"
+                            (figuresChange)="onStepFigures($event)"
+                            (figuresTouched)="markDirty()"
+                          />
+                        }
+                        @case ('byClass') {
+                          <p class="defaults-note" i18n="@@spd.def.priced_by_class">
+                            These answers are not priced one by one. Each carries the amount of the
+                            class it is filed under, and that is where the figures are set.
+                          </p>
+                        }
+                        @default {
+                          @if (p.outputKind === null) {
+                            <p class="defaults-note" i18n="@@spd.def.cap_only">
+                              This product works out no amount of its own. Each bank states its own
+                              maximum for these answers on its own program.
+                            </p>
+                          } @else {
+                            <p class="defaults-note" i18n="@@spd.def.no_slot">
+                              No amount is keyed by these answers. They steer the calculation rather
+                              than carry a figure.
+                            </p>
+                          }
+                        }
+                      }
+                    </section>
                   }
 
                   @if (boardList(); as board) {
@@ -340,6 +419,13 @@ interface AskedThing {
                       (changed)="onListChanged()"
                     />
                   }
+                }
+
+                <!-- The same Save as step ②, because the amounts typed above are the same
+                     unsaved object. Withheld on a product with no pipeline: nothing on this
+                     step edits a figure there, so the button would never have anything to do. -->
+                @if (isPipeline()) {
+                  <ng-container [ngTemplateOutlet]="ruleActions"></ng-container>
                 }
               </section>
             }
@@ -403,13 +489,6 @@ interface AskedThing {
                   ></app-income-assumption-section>
                 </form>
 
-                @if (saveError(); as message) {
-                  <p class="notice is-bad" role="alert">
-                    <span nz-icon nzType="exclamation-circle" nzTheme="outline"></span>
-                    <span>{{ message }}</span>
-                  </p>
-                }
-
                 <p class="reach">
                   @if (p.usedBy.length === 0) {
                     <span i18n="@@spd.reach_none"
@@ -423,28 +502,7 @@ interface AskedThing {
                   }
                 </p>
 
-                @if (ruleBlocked()) {
-                  <p class="notice is-bad" role="alert">
-                    <span nz-icon nzType="exclamation-circle" nzTheme="outline"></span>
-                    <span i18n="@@spd.save_blocked"
-                      >Some steps have no figures yet, or a step offering several ways to reach the
-                      figure has none of them filled in. The save would be refused.</span
-                    >
-                  </p>
-                }
-
-                <div class="actions">
-                  <button
-                    nz-button
-                    nzType="primary"
-                    type="button"
-                    [disabled]="!dirty() || saving() || ruleBlocked()"
-                    [nzLoading]="saving()"
-                    (click)="save()"
-                  >
-                    <span i18n="@@spd.save">Save the calculation</span>
-                  </button>
-                </div>
+                <ng-container [ngTemplateOutlet]="ruleActions"></ng-container>
               </section>
             }
 
@@ -520,6 +578,44 @@ interface AskedThing {
         }
       }
     </section>
+
+    <!-- ONE Save for the whole product. The figures on step ① and the figures on step ② are
+         two viewports on one unsaved object, so two buttons would be two writes racing over
+         one JSON blob, and the write posts the entire figure set either way. -->
+    <ng-template #ruleActions>
+      @if (saveError(); as message) {
+        <p class="notice is-bad" role="alert">
+          <span nz-icon nzType="exclamation-circle" nzTheme="outline"></span>
+          <span>{{ message }}</span>
+        </p>
+      }
+
+      @if (ruleBlocked()) {
+        <p class="notice is-bad" role="alert">
+          <span nz-icon nzType="exclamation-circle" nzTheme="outline"></span>
+          <span i18n="@@spd.save_blocked"
+            >Some steps have no figures yet, or a step offering several ways to reach the figure has
+            none of them filled in. The save would be refused.</span
+          >
+        </p>
+      }
+
+      <div class="actions">
+        <p class="save-hint" i18n="@@spd.save_hint">
+          One Save covers every amount on this product, on both steps.
+        </p>
+        <button
+          nz-button
+          nzType="primary"
+          type="button"
+          [disabled]="!dirty() || saving() || ruleBlocked()"
+          [nzLoading]="saving()"
+          (click)="save()"
+        >
+          <span i18n="@@spd.save">Save the calculation</span>
+        </button>
+      </div>
+    </ng-template>
   `,
   styles: [
     `
@@ -794,7 +890,17 @@ interface AskedThing {
 
       .actions {
         display: flex;
+        align-items: baseline;
         justify-content: flex-end;
+        gap: var(--space-4);
+        flex-wrap: wrap;
+      }
+
+      .save-hint {
+        margin: 0;
+        margin-inline-end: auto;
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
       }
 
       .names {
@@ -953,6 +1059,36 @@ interface AskedThing {
         color: var(--text-primary);
       }
 
+      /* A region set off by a hairline, not a card: this already sits inside the panel's
+         card, and a box in a box reads as two unrelated things. */
+      .defaults {
+        margin-block: var(--space-4) var(--space-6);
+        padding-inline-start: var(--space-4);
+        border-inline-start: 1px solid var(--color-border-default);
+      }
+
+      .defaults-title {
+        margin: 0 0 var(--space-1);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--color-text-primary);
+      }
+
+      .defaults-lede,
+      .defaults-note {
+        margin: 0 0 var(--space-3);
+        max-inline-size: 72ch;
+        /* Secondary, never tertiary: these are sentences somebody reads, and tertiary ink
+           on this ground measures under 4.5:1 in light mode. */
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        line-height: var(--leading-relaxed);
+      }
+
+      .defaults-note {
+        margin-block-end: 0;
+      }
+
       .hint {
         margin: 0;
         font-size: var(--text-sm);
@@ -1065,10 +1201,22 @@ export class SurrogateProductDetailPage {
    */
   protected readonly ruleBlocked = computed(() => {
     if (!this.isPipeline()) return false;
-    return productRuleHasError({
-      steps: this.ruleSteps(),
-      gates: this.ruleGates(),
-      figures: this.stepFigures(),
+    if (
+      productRuleHasError({
+        steps: this.ruleSteps(),
+        gates: this.ruleGates(),
+        figures: this.stepFigures(),
+      })
+    ) {
+      return true;
+    }
+    // A row with a key and no amount reads as CONFIGURED to the check above — the table has
+    // rows — and is refused by the server as `incomeInvalid`, naming a step id. An EMPTY
+    // table is skipped: that is a way the product offers and this bank declines, which the
+    // check above already judges.
+    return Object.values(this.stepFigures()).some((figures) => {
+      const rows = figures.keyTable;
+      return rows !== undefined && rows.length > 0 && incomeKeyTableErrorFor(rows) !== null;
     });
   });
 
@@ -1168,6 +1316,10 @@ export class SurrogateProductDetailPage {
     const seen = new Set<string>();
     const out: ReadList[] = [];
 
+    const steps = this.ruleSteps();
+    const gates = this.ruleGates();
+    const facts = this.facts();
+
     const push = (type: string, description: string, hasBoard: boolean): void => {
       if (seen.has(type)) return;
       seen.add(type);
@@ -1177,6 +1329,10 @@ export class SurrogateProductDetailPage {
         description,
         hasBoard,
         owned: owned.has(type),
+        // One join, stated in a pure module and shared with the editor that renders the
+        // boxes — derived twice, the two would disagree the first time a pick carried two
+        // columns keyed by different facts, and disagree silently.
+        figures: listFigureState(steps, gates, facts, type).state,
       });
     };
 
@@ -1295,16 +1451,20 @@ export class SurrogateProductDetailPage {
    *
    * Step ① is WRONG when the product asks nothing — a no-payslip product that reads no answer
    * has nothing to work an income out from, and every quote under it stops at
-   * `fact_not_answered`. Step ② is wrong on an unsaved edit. Step ③ is a report, and a product
-   * nothing sells yet is a legitimate state rather than an error.
+   * `fact_not_answered` — and on an unsaved edit, because the amounts keyed by each list are
+   * typed there too. Step ② is wrong on the same unsaved edit: it is one object with one
+   * Save, so it would be dishonest for only one of the two to say so. Step ③ is a report, and
+   * a product nothing sells yet is a legitimate state rather than an error.
    */
   protected readonly steps = computed<WizardStepItem[]>(() => {
     const p = this.product();
     return [
       {
         id: 'asks',
+        // Step ① carries the amounts keyed by each list, so an unsaved edit is as much this
+        // step's as step ②'s — it is one object, saved by one button on both.
         label: this.stepLabels[0] ?? '',
-        status: this.askedThings().length > 0 ? 'done' : 'todo',
+        status: this.dirty() ? 'invalid' : this.askedThings().length > 0 ? 'done' : 'todo',
       },
       {
         id: 'rule',
@@ -1322,7 +1482,7 @@ export class SurrogateProductDetailPage {
   protected readonly stepCaption = computed(() => {
     switch (this.stepIndex()) {
       case 0:
-        return $localize`:@@spd.cap_asks:The questions this product puts to the applicant, the answers they pick from, and the classes a bank keys its table by.`;
+        return $localize`:@@spd.cap_asks:The questions this product puts to the applicant, the answers they pick from, the classes a bank keys its table by, and the amount each one carries.`;
       case 1:
         return $localize`:@@spd.cap_rule:What the bank reads instead of a payslip, and the figures every bank filing under this product starts from.`;
       default:
@@ -1363,6 +1523,16 @@ export class SurrogateProductDetailPage {
    * Whether the server will entertain a delete for a type. Absent = not loaded, so the
    * button stays as it was rather than disappearing on an old backend.
    */
+  /**
+   * A list of CLASSES rather than of answers — it has children filed under it.
+   *
+   * The axis says which it is, not the name: `hasBoard` marks the child list (the one with
+   * a parent), so reading it here would have called the class list "the answers".
+   */
+  protected isClassList(list: ReadList): boolean {
+    return this.enumTypes.childTypesOf(list.type).length > 0;
+  }
+
   protected deletableType(type: string): boolean {
     return this.typeSummaries().find((s) => s.type === type)?.deletable ?? true;
   }
@@ -1414,9 +1584,22 @@ export class SurrogateProductDetailPage {
   /**
    * A value the board or a panel changed can move what the calculation resolves to, so the
    * product is re-read rather than assumed unchanged.
+   *
+   * TWO things this has to get right now that the figures are typed on this step.
+   *
+   * (1) UNSAVED FIGURES SURVIVE. The re-read used to overwrite them and clear `dirty`, so
+   * adding a compound after typing three amounts discarded all three silently. Adding a
+   * value cannot change the rule's STRUCTURE — only the option list behind it — so keeping
+   * the edits is safe by construction.
+   *
+   * (2) THE FACT CACHE IS REFETCHED. `load()` on the enumerations service returns the cache
+   * when it has one, so a newly added value never reached `facts()`, never reached the key
+   * table's option list, and the row for it could not be added until a hard reload. The
+   * server has already re-mirrored the option; the admin is the half that goes stale.
    */
   protected onListChanged(): void {
-    void this.load({ silent: true });
+    void this.enums.refresh('surrogate_fact');
+    void this.load({ silent: true, keepEdits: true });
   }
 
   protected async save(): Promise<void> {
@@ -1469,11 +1652,11 @@ export class SurrogateProductDetailPage {
     };
   }
 
-  private async load(opts: { silent?: boolean } = {}): Promise<void> {
+  private async load(opts: { silent?: boolean; keepEdits?: boolean } = {}): Promise<void> {
     if (!opts.silent) this.loading.set(true);
     try {
       const res = await this.api.getSurrogateProduct(this.key);
-      this.absorb(res.data);
+      this.absorb(res.data, opts.keepEdits === true);
     } catch {
       // The toast interceptor has already said why; the template renders the not-found
       // state off `product() === null`.
@@ -1483,8 +1666,11 @@ export class SurrogateProductDetailPage {
     }
   }
 
-  private absorb(data: SurrogateProductDetail): void {
+  private absorb(data: SurrogateProductDetail, keepEdits = false): void {
     this.product.set(data);
+    // The row is refreshed either way — the lists, the names and the structure all follow
+    // the write — but an unsaved figure is the operator's, not the server's.
+    if (keepEdits && this.dirty()) return;
     const rule = data.incomeRule;
     this.ruleGroup.reset(
       {

@@ -784,12 +784,15 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                         <label class="rate-basis-opt">
                           <input type="radio" formControlName="rateBasis" value="reducing" />
                           <span class="rate-basis-body">
-                            <span class="rate-basis-title" i18n="@@bank_programs.rate_basis.reducing"
+                            <span
+                              class="rate-basis-title"
+                              i18n="@@bank_programs.rate_basis.reducing"
                               >On what is still owed</span
                             >
-                            <span class="rate-basis-note" i18n="@@bank_programs.rate_basis.reducing_note"
-                              >Declining balance. The interest falls as the loan is paid
-                              down.</span
+                            <span
+                              class="rate-basis-note"
+                              i18n="@@bank_programs.rate_basis.reducing_note"
+                              >Declining balance. The interest falls as the loan is paid down.</span
                             >
                           </span>
                         </label>
@@ -799,9 +802,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                             <span class="rate-basis-title" i18n="@@bank_programs.rate_basis.flat"
                               >On the full amount</span
                             >
-                            <span class="rate-basis-note" i18n="@@bank_programs.rate_basis.flat_note"
-                              >Flat. The same interest every month, so this rate buys the
-                              customer a smaller loan.</span
+                            <span
+                              class="rate-basis-note"
+                              i18n="@@bank_programs.rate_basis.flat_note"
+                              >Flat. The same interest every month, so this rate buys the customer a
+                              smaller loan.</span
                             >
                           </span>
                         </label>
@@ -1205,21 +1210,32 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                     <p
                       class="income-source"
                       [class.is-own]="amountsValue() === 'own'"
+                      [class.is-empty]="catalogStatesNothing()"
                       [class.just-detached]="justDetached()"
                       role="status"
                     >
                       <span class="income-source-medallion" aria-hidden="true">
-                        <span
-                          nz-icon
-                          [nzType]="amountsValue() === 'own' ? 'edit' : 'database'"
-                          nzTheme="outline"
-                        ></span>
+                        <span nz-icon [nzType]="sourceIcon()" nzTheme="outline"></span>
                       </span>
                       <span class="income-source-body">
                         @if (amountsValue() === 'own') {
                           <span class="income-source-line" i18n="@@bank_programs.income.src_own"
                             >This bank uses its own numbers. Changes on the catalog no longer reach
                             it.</span
+                          >
+                        } @else if (catalogStatesNothing()) {
+                          <!-- The state the two-branch strip could not say, and the one every
+                               product starts in: the name states a proof and the catalog
+                               states no amounts, so the grid below is empty, the save
+                               succeeds, and every applicant is quoted nothing. Advisory, not
+                               a gate — the fix is on a screen this operator may not own. -->
+                          <span
+                            class="income-source-line"
+                            i18n="@@bank_programs.income.src_catalog_empty"
+                            >{{ programNameLabel() }} states no amounts on the catalog yet, so this
+                            program would quote nobody. Type them below to make them this bank's, or
+                            set them once on the product so every bank starts from the same
+                            table.</span
                           >
                         } @else {
                           <span class="income-source-line" i18n="@@bank_programs.income.src_catalog"
@@ -2018,6 +2034,12 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       }
       .income-source.is-own {
         --source-accent: var(--color-tonal-accent);
+      }
+      /* The catalog has nothing to inherit — a state to act on, not a fault in this form,
+         so it is a warning accent and a wash rather than an error. */
+      .income-source.is-empty {
+        --source-accent: var(--color-warning);
+        background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface-elevated));
       }
       /* Sized off the type, not a fixed pixel box, so it stays centred on the first line
          at every text scale. */
@@ -4552,6 +4574,23 @@ export class BankProgramFormPage implements OnInit {
       rule.scalar ||
       (rule.stepParams && Object.keys(rule.stepParams).length > 0),
     );
+  });
+
+  /**
+   * Following the catalog, and the catalog holds no figures.
+   *
+   * The state every product starts in, and the one the two-branch strip could not name: the
+   * grid renders empty, the wizard's own gate is off for catalog amounts by design, the save
+   * succeeds, and the resolver then answers every applicant with `rule_unconfigured`.
+   */
+  protected readonly catalogStatesNothing = computed<boolean>(
+    () => this.amountsValue() === 'catalog' && !this.catalogHasFigures(),
+  );
+
+  /** The strip's medallion: what the numbers ARE, or that there are none. */
+  protected readonly sourceIcon = computed<string>(() => {
+    if (this.amountsValue() === 'own') return 'edit';
+    return this.catalogStatesNothing() ? 'exclamation-circle' : 'database';
   });
 
   /**
