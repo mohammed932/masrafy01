@@ -1,15 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { LoanCategory, Prisma, QuestionType } from '@prisma/client';
-import {
-  DomainException,
-  MirroredListMinValuesException,
-} from '@/common/errors/domain.exceptions';
+import { DomainException, MirroredListMinValuesException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
-import {
-  ALL_LOAN_CATEGORIES,
-  dedupeCategories,
-  sortCategories,
-} from '@/common/loan-category.util';
+import { ALL_LOAN_CATEGORIES, dedupeCategories, sortCategories } from '@/common/loan-category.util';
 import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
@@ -266,7 +259,9 @@ export class QuestionnaireService {
       helperTextEn: dto.helperTextEn ?? null,
       isRequired: dto.isRequired ?? true,
       displayOrder,
-      enabledWhen: dto.enabledWhen ? (dto.enabledWhen as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+      enabledWhen: dto.enabledWhen
+        ? (dto.enabledWhen as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
       ...numericColumns(type, dto.numeric ?? null),
       ...textColumns(type, dto.text ?? null),
     });
@@ -303,7 +298,19 @@ export class QuestionnaireService {
    * (`EnumerationTypeDef.mirrorQuestionId`) so a value added later re-syncs rather than
    * becoming an answer nobody can pick.
    */
-  async createQuestionWithOptions(dto: CreateQuestionWithOptionsDto, actor: string) {
+  /**
+   * `opts.publish: false` writes the question and does NOT cut a version.
+   *
+   * For the one caller that creates SEVERAL questions in a row — building a predefined
+   * product, which may add six — where a publish each would cut six versions of a
+   * questionnaire nobody served in between, and version history is how an operator reads
+   * what they did. That caller publishes once when it is finished.
+   */
+  async createQuestionWithOptions(
+    dto: CreateQuestionWithOptionsDto,
+    actor: string,
+    opts: { publish?: boolean } = {},
+  ) {
     const groupId = dto.groupId ?? (await this.resolveDefaultGroupId());
     const group = await this.repo.findGroup(groupId);
     if (!group) {
@@ -410,7 +417,7 @@ export class QuestionnaireService {
       // screen offers.
       await this.enums.updateTypeDefinition(mirroredType, { mirrorQuestionId: created.id });
     }
-    await this.publish(actor);
+    if (opts.publish !== false) await this.publish(actor);
     return {
       ...created,
       categories,
@@ -437,7 +444,11 @@ export class QuestionnaireService {
    * with the next write to that list putting them right. Holding a questionnaire publish
    * inside a registry transaction would be the more expensive kind of wrong.
    */
-  async syncMirroredOptions(typeKey: string, actor: string): Promise<boolean> {
+  async syncMirroredOptions(
+    typeKey: string,
+    actor: string,
+    opts: { publish?: boolean } = {},
+  ): Promise<boolean> {
     const defs = await this.enums.typeDefinitions();
     const questionId = defs.get(typeKey)?.mirrorQuestionId ?? null;
     if (questionId === null) return false;
@@ -445,8 +456,9 @@ export class QuestionnaireService {
     const rows = await this.mirroredOptionRows(typeKey);
     const changed = await this.repo.syncMirroredOptions(questionId, rows);
     // A publish that changes nothing is still a new ACTIVE version, and version history is
-    // how an operator reads what they did. Skipped when nothing moved.
-    if (changed) await this.publish(actor);
+    // how an operator reads what they did. Skipped when nothing moved — and deferred
+    // entirely when the caller is going to publish once for several lists.
+    if (changed && opts.publish !== false) await this.publish(actor);
     return changed;
   }
 
@@ -533,6 +545,7 @@ export class QuestionnaireService {
   async setQuestionCategoriesBulk(
     assignments: ReadonlyArray<{ questionId: string; categories: LoanCategory[] }>,
     actor: string,
+    opts: { publish?: boolean } = {},
   ) {
     const known = new Set((await this.repo.questions()).map((q) => q.id));
     for (const a of assignments) {
@@ -546,11 +559,16 @@ export class QuestionnaireService {
         categories: dedupeCategories(a.categories),
       })),
     );
-    await this.publish(actor);
+    if (opts.publish !== false) await this.publish(actor);
     return this.draftTree();
   }
 
-  async updateQuestion(id: string, dto: UpdateQuestionDto, actor: string) {
+  async updateQuestion(
+    id: string,
+    dto: UpdateQuestionDto,
+    actor: string,
+    opts: { publish?: boolean } = {},
+  ) {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     if (dto.enabledWhen) {
@@ -600,7 +618,7 @@ export class QuestionnaireService {
     }
     // `code` is immutable post-creation (A33).
     const updated = await this.repo.updateQuestion(id, data);
-    await this.publish(actor);
+    if (opts.publish !== false) await this.publish(actor);
     return updated;
   }
 
@@ -803,6 +821,45 @@ export class QuestionnaireService {
    * condition, not an event, so the editor renders this as a persistent banner
    * instead (FR-048 / FR-049).
    */
+  /**
+   * Every question in the pool with the loan categories it is asked in.
+   *
+   * One read for the predefined-product library, which has to know before it writes anything
+   * whether a question it needs already exists and whether it is asked where this product
+   * will be sold. A question assigned to nothing is asked by nobody, so a product whose
+   * column reads it would quote the standard column for every applicant — silently.
+   */
+  async questionAssignments(): Promise<
+    Array<{
+      id: string;
+      code: string;
+      type: string;
+      isActive: boolean;
+      categories: LoanCategory[];
+    }>
+  > {
+    const [questions, assignments] = await Promise.all([
+      this.repo.questions(),
+      this.repo.categoryAssignments(),
+    ]);
+    return questions.map((question) => ({
+      id: question.id,
+      code: question.code,
+      type: String(question.type),
+      // Carried, not filtered on. A soft-deleted question still holds its code — the unique
+      // is global and immutable — so a caller that treated it as absent would try to create
+      // a second question with the same wording and get `..._2`: two questions asking one
+      // thing, one of them dead. It has to be told apart from a live one, not hidden.
+      isActive: question.isActive,
+      categories: assignments.get(question.id) ?? [],
+    }));
+  }
+
+  /** Cut a version now. The library's one publish, after all its writes have landed. */
+  async publishNow(actor: string): Promise<void> {
+    await this.publish(actor);
+  }
+
   async bindingWarnings(): Promise<PublishWarning[]> {
     const active = (await this.repo.questions()).filter((q) => q.isActive);
     const debtTypes = active.find((q) => q.code === DEBT_TYPES_QUESTION_CODE);
@@ -1085,7 +1142,13 @@ interface QuestionRuleColumns {
 
 export function numericRulesOf(
   q: QuestionRuleColumns,
-): { minValue: string | null; maxValue: string | null; step: string | null; unitAr: string | null; unitEn: string | null } | null {
+): {
+  minValue: string | null;
+  maxValue: string | null;
+  step: string | null;
+  unitAr: string | null;
+  unitEn: string | null;
+} | null {
   if (
     q.numericMinValue === null &&
     q.numericMaxValue === null &&
@@ -1111,7 +1174,16 @@ export function textRulesOf(q: QuestionRuleColumns): { maxLength: number } | nul
 /** Only the owning type keeps its rule columns; everything else is nulled out. */
 function numericColumns(
   type: QuestionType,
-  numeric: NumericRulesDto | { minValue?: string | null; maxValue?: string | null; step?: string | null; unitAr?: string | null; unitEn?: string | null } | null,
+  numeric:
+    | NumericRulesDto
+    | {
+        minValue?: string | null;
+        maxValue?: string | null;
+        step?: string | null;
+        unitAr?: string | null;
+        unitEn?: string | null;
+      }
+    | null,
 ): Pick<
   Prisma.QuestionUncheckedCreateInput,
   'numericMinValue' | 'numericMaxValue' | 'numericStep' | 'numericUnitAr' | 'numericUnitEn'
@@ -1524,7 +1596,8 @@ function formatDecimalString(value: string): string {
   const negative = rawInt.startsWith('-');
   const digits = negative ? rawInt.slice(1) : rawInt;
   const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const fraction = rawFraction && /[1-9]/.test(rawFraction) ? `.${rawFraction.replace(/0+$/, '')}` : '';
+  const fraction =
+    rawFraction && /[1-9]/.test(rawFraction) ? `.${rawFraction.replace(/0+$/, '')}` : '';
   return `${negative ? '-' : ''}${grouped}${fraction}`;
 }
 

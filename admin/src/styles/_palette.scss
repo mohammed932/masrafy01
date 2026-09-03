@@ -32,6 +32,17 @@
   --primary-hover: #075596;
   --primary-active: #0A4373;
   --primary-subtle: #DAEAF8;
+  /**
+   * The azure that stays legible on a TINTED ground — `--primary-subtle` in light, the dark
+   * theme's raised surfaces in dark, where the base azure goes muddy and this lifts to #7DB8EE.
+   *
+   * Defined here because it was defined ONLY in the dark block, and four components reach for
+   * it. In light mode `var(--primary-visible)` was therefore invalid at computed-value time:
+   * a `color` fell back to the inherited ink and nobody noticed, but an SVG `stroke` resolved
+   * to `none` and the glyph rendered as an empty box. Measured, not read — the same class of
+   * defect as the six undefined tokens v18.1.2 removed.
+   */
+  --primary-visible: #0869C3;
 
   // ─── Bronze (accent / selection) ──────────────────────────────────────────
   --bronze-50: #FAF8F5;

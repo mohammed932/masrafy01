@@ -171,6 +171,32 @@ export interface RuleStep {
    */
   branches?: string[];
   /**
+   * `pickByFact`: whether `branches` name the ANSWER's own option codes (the default) or
+   * the CLASS each answer is filed under.
+   *
+   * ─── Why this exists ──────────────────────────────────────────────────────────
+   *
+   * A column is picked by matching an option code, so a column per CLASS was inexpressible:
+   * one bank tiers cities as Cairo & Alex against everything else, another tiers eight
+   * governorates against everything else, and the platform's answer to that is one list of
+   * 27 governorates filed under three tiers (`city_tier`). Keyed by the answer, that column
+   * would need all 27 codes spelled into `branches` — and the next governorate added to the
+   * list would silently read the standard column at every bank.
+   *
+   * `factParentTable` already walks a value up to its class, and this is the same walk for
+   * the same reason, on the axis instead of the row.
+   *
+   * A FIELD, not a new op: the arithmetic is unchanged; what changes is which code the
+   * branch list is compared against. Absent reads as `'answer'`, so every stored rule
+   * compiles and evaluates exactly as before.
+   *
+   * A value filed under NO class falls back to the first configured input, like an
+   * unanswered question — a column is not a requirement, and the standard column can price
+   * that applicant. (`factParentTable` answers `no_matching_row` in the same situation,
+   * correctly: there the class IS the row being read, and there is nothing to fall back to.)
+   */
+  branchOn?: 'answer' | 'parentClass';
+  /**
    * The three fact ops only: an UNANSWERED fact reads as `rule_unconfigured` (skippable by
    * an enclosing `coalesce`) instead of `fact_not_answered` (which stops the rule).
    *
@@ -732,7 +758,14 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
 
     const answered = env.step.fact === undefined ? undefined : env.ctx.facts[env.step.fact];
     if (answered?.kind === 'choice') {
-      const index = (env.step.branches ?? []).indexOf(answered.optionCode);
+      // The code the branches are compared against: the answer itself, or the class it is
+      // filed under. An unfiled value yields `undefined` and falls through to the first
+      // configured input below, exactly as an unanswered question does.
+      const code =
+        env.step.branchOn === 'parentClass'
+          ? env.ctx.parentKeyByValue?.[answered.optionCode]
+          : answered.optionCode;
+      const index = code === undefined ? -1 : (env.step.branches ?? []).indexOf(code);
       const chosen = index === -1 ? undefined : refs[index];
       if (chosen !== undefined && usable(chosen)) return refValue(chosen, env);
     }

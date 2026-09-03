@@ -73,7 +73,16 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
   {
     // `new` MUST come before `products/:key`: below it, it resolves as a product called
     // "new" and 404s.
+    //
+    // The LIBRARY is what this path opens now — one card per real product, each of which
+    // builds everything it asks. The eight anonymous shapes are still reachable one link
+    // down, at `products/shapes`, because a product outside the library must stay buildable.
     path: 'products/new',
+    loadComponent: () => import('./product-library.page').then((m) => m.ProductLibraryPage),
+  },
+  {
+    // Also before `products/:key`, and for the same reason.
+    path: 'products/shapes',
     loadComponent: () =>
       import('./product-template-picker.page').then((m) => m.ProductTemplatePickerPage),
   },

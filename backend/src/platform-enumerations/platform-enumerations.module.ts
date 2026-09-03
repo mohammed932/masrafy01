@@ -51,6 +51,14 @@ import { ProgramNameScopeService } from './program-name-scope.service';
     PlatformEnumerationsAdminService,
     ProgramNameScopeService,
   ],
-  exports: [PlatformEnumerationsRepository, ProgramNameScopeService],
+  // `PlatformEnumerationsAdminService` is exported so the predefined-product library can
+  // create its lists, values and facts through the SAME service an operator's clicks go
+  // through — every refusal, every audit event, every cache invalidation included. A
+  // second, quieter write path would be a second set of rules free to disagree.
+  exports: [
+    PlatformEnumerationsRepository,
+    PlatformEnumerationsAdminService,
+    ProgramNameScopeService,
+  ],
 })
 export class PlatformEnumerationsModule {}

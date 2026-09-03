@@ -1,12 +1,15 @@
 /**
  * The friendly form — a no-payslip product's calculation, as three plain questions.
  *
- * WHAT THIS REPLACES. The same calculation could already be authored, in
- * `app-product-rule-builder`: add a step, choose an operation, wire input A to step 1 and
- * input B to step 2, then declare which step is the answer. It works and it is powerful, and
- * it asks a bank-operations person to think in `ValueRef{step|fact|const}` and op arity.
+ * WHAT THIS REPLACED, and what has since been DELETED. The same calculation used to be
+ * authored in a raw step builder: add a step, choose an operation, wire input A to step 1 and
+ * input B to step 2, then declare which step is the answer. It worked and it was powerful,
+ * and it asked a bank-operations person to think in `ValueRef{step|fact|const}` and op arity.
  * Nine banks across five products all fit one frame with three switches, so the form asks
- * about the frame and compiles the rest.
+ * about the frame and compiles the rest — and the builder is gone, along with the one-way
+ * escape hatch it was reached through. A calculation is shaped from the predefined library or
+ * from this form; a product that predates both keeps quoting and says plainly that there is
+ * no form for it.
  *
  * THE COMPILER IS ON THE SERVER, deliberately. This screen sends the answers and renders the
  * rule that comes back. A second compiler here would be a second authority on what a shape
@@ -44,6 +47,8 @@ import {
   GATE_REASON_CODES,
   registryFacts,
   type GateReasonCode,
+  type IncomeBand,
+  type ProductBlueprint,
   type ProductTemplate,
   type RegistryFact,
   type RuleGate,
@@ -54,6 +59,7 @@ import {
   type TemplateMechanism,
   type TemplateMechanismKind,
 } from '@features/bank-programs/bank-programs.types';
+import { blueprintCopy } from './blueprint-copy';
 import { CATALOG_BASE, PRODUCT_BASE } from './program-catalog.paths';
 
 /** Which kind of answer a mechanism can read. `null` = it reads none. */
@@ -439,6 +445,28 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                           }
                         </select>
                       </label>
+                      <fieldset class="scope">
+                        <legend class="label" i18n="@@spt.addon.uplift.scope">
+                          What does the bonus lift?
+                        </legend>
+                        <label class="radio">
+                          <input type="radio" formControlName="upliftScope" value="income" />
+                          <span i18n="@@spt.addon.uplift.scope.income"
+                            >The figure this calculation works out</span
+                          >
+                        </label>
+                        <label class="radio">
+                          <input type="radio" formControlName="upliftScope" value="maxLoan" />
+                          <span i18n="@@spt.addon.uplift.scope.max"
+                            >The most the bank will lend</span
+                          >
+                        </label>
+                        <p class="scope-note" i18n="@@spt.addon.uplift.scope.note">
+                          Read the sheet again if you are unsure: it is worth 300,000 on one
+                          applicant. A bonus on the loan amount is configured per bank, on the
+                          program's own ceiling — nothing is added to this calculation.
+                        </p>
+                      </fieldset>
                       @if (upliftOptions().length > 0) {
                         <div class="pair">
                           <label class="field">
@@ -536,7 +564,8 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                             </label>
                           }
                           @if (
-                            row.value.op === 'atLeastPerAnswer' || row.value.op === 'atMostPerAnswer'
+                            row.value.op === 'atLeastPerAnswer' ||
+                            row.value.op === 'atMostPerAnswer'
                           ) {
                             <label class="field">
                               <span class="label" i18n="@@spt.cond.keyed_by"
@@ -584,10 +613,33 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
             @default {
               <section class="block">
                 <h2 class="q" i18n="@@spt.q3">What are the numbers?</h2>
-                <p class="lede" i18n="@@spt.q3.lede">
-                  These are the figures every bank starts from. A bank that types its own replaces
-                  them; a bank that does not, quotes from here.
-                </p>
+                <!-- The generic lede is withheld when this product has its OWN sentence to
+                     say. Four prose blocks stacked before the first control, one of them
+                     repeating the group heading below it ("Amounts every bank starts from"),
+                     is a page an operator scrolls past rather than reads. -->
+                @if (sheetNote() === null) {
+                  <p class="lede" i18n="@@spt.q3.lede">
+                    These are the figures every bank starts from. A bank that types its own replaces
+                    them; a bank that does not, quotes from here.
+                  </p>
+                }
+
+                <!-- What the operator is filling in, said once at the top rather than beside
+                     every box: this product's mechanism, and what a published sheet puts here.
+                     The figures are an EXAMPLE and are never written — a default in the
+                     template layer becomes somebody's live table the first time nobody
+                     overwrites it. -->
+                @if (sheetNote(); as note) {
+                  <aside class="sheet">
+                    <p class="sheet-mech">{{ note.mechanism }}</p>
+                    @if (note.example) {
+                      <p class="sheet-eg">
+                        <span class="sheet-eg-label" i18n="@@spt.sheet.eg">On a real sheet</span>
+                        {{ note.example }}
+                      </p>
+                    }
+                  </aside>
+                }
 
                 @if (dirty()) {
                   <p class="notice" role="status">
@@ -611,6 +663,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                     (figuresChange)="onFigures($event)"
                     (figuresTouched)="markFiguresDirty()"
                     [facts]="facts()"
+                    [suggestedBands]="suggestedBands()"
                   />
                 }
               </section>
@@ -989,6 +1042,67 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         cursor: pointer;
       }
 
+      /* The scope of an adjustment is a DECISION worth 300,000 on one applicant, so it reads
+         as a question with two answers rather than as a checkbox that defaults itself. */
+      .scope {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      .radio {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+        cursor: pointer;
+      }
+      .scope-note {
+        margin: 0;
+        margin-block-start: var(--space-1);
+        font-size: var(--text-xs);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+      }
+
+      .sheet {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-4);
+        background: var(--bg-subtle);
+        border-radius: var(--radius-md);
+        /* --primary, not --primary-subtle: the pale tint measured all but invisible against
+           this panel's own ground, and a rule nobody can see is a rule that is not there. */
+        border-inline-start: var(--rule-width-accent) solid var(--primary);
+      }
+      .sheet-mech {
+        margin: 0;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-primary);
+      }
+      .sheet-eg {
+        margin: 0;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+      }
+      /* Secondary for the same measured reason as the card's worked example: tertiary is
+         3.54:1 on this ground in light mode. A micro-label is small AND uppercase, which is
+         the worst case for it — and this one names where the figures beside it came from. */
+      .sheet-eg-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-inline-end: var(--space-2);
+      }
+
       .pair {
         display: grid;
         gap: var(--space-4);
@@ -1159,6 +1273,7 @@ export class ProductTemplatePage implements OnInit {
     upliftFact: this.fb.nonNullable.control(''),
     upliftWhen: this.fb.nonNullable.control(''),
     upliftOtherwise: this.fb.nonNullable.control(''),
+    upliftScope: this.fb.nonNullable.control<'income' | 'maxLoan'>('income'),
     iScore: this.fb.nonNullable.control(false),
     conditions: this.fb.array<ReturnType<ProductTemplatePage['conditionGroup']>>([]),
   });
@@ -1208,6 +1323,69 @@ export class ProductTemplatePage implements OnInit {
     });
     void this.load();
   }
+
+  /**
+   * The blueprint behind this product, fetched only when there IS one.
+   *
+   * One extra read on a screen that already makes one, and only for a product created from
+   * the library: a hand-shaped product pays nothing for a list it would not use.
+   */
+  private async loadBlueprint(key: string): Promise<void> {
+    try {
+      const res = await this.api.listProductBlueprints();
+      this.blueprint.set(res.data.find((blueprint) => blueprint.key === key) ?? null);
+    } catch {
+      // The figures step works without it — it loses one grey sentence and the offer of a
+      // bracket list. Not worth a refusal on a screen whose job is the numbers.
+      this.blueprint.set(null);
+    }
+  }
+
+  /** This product's mechanism and its worked example, when it came from the library. */
+  protected readonly sheetNote = computed(() => {
+    const blueprint = this.blueprint();
+    if (blueprint === null) return null;
+    const copy = blueprintCopy(blueprint.key, blueprint.labelEn);
+    if (copy.mechanism === '' && copy.example === '') return null;
+    return { mechanism: copy.mechanism, example: copy.example };
+  });
+
+  /**
+   * The brackets a published sheet prints, keyed by the box they belong in.
+   *
+   * The SLOT comes from the server, which owns slot naming: a slot this screen worked out for
+   * itself would be a second statement of the rule that decides where a bank's figures live,
+   * and it would disagree the day a way is added to the product.
+   */
+  protected readonly suggestedBands = computed<Record<string, IncomeBand[]>>(() => {
+    const blueprint = this.blueprint();
+    if (blueprint === null) return {};
+    const out: Record<string, IncomeBand[]> = {};
+    for (const suggestion of blueprint.suggestedBands) {
+      const edges = suggestion.edges.map((edge) => ({
+        fromInclusive: edge.fromInclusive,
+        toExclusive: edge.toExclusive,
+        // Blank on purpose. The edges are the shape of the table; the figure beside each is
+        // the bank's, and a band carrying one would be a number nobody authored.
+        incomeEGP: '',
+      }));
+      // The way's own box, AND every column of it. A second column re-prints the same
+      // brackets with different figures — that is what a column IS — so offering them only on
+      // the first would leave the operator retyping six edges per tier off a photograph,
+      // which is where an edge gets mistyped.
+      //
+      // Which boxes exist is read off the COMPILED steps rather than assembled from the
+      // form's branch list: the compile is what named them, and a column slug worked out here
+      // would be a second statement of that naming.
+      for (const step of this.compiledSteps()) {
+        if (step.op !== 'bandTable') continue;
+        if (step.id === suggestion.slotId || step.id.startsWith(`${suggestion.slotId}__`)) {
+          out[step.id] = edges.map((edge) => ({ ...edge }));
+        }
+      }
+    }
+    return out;
+  });
 
   // --- the rail --------------------------------------------------------------
 
@@ -1601,9 +1779,36 @@ export class ProductTemplatePage implements OnInit {
     }
   }
 
+  /**
+   * Fields of the stored form this screen does NOT ask about, carried across a save.
+   *
+   * Written out because dropping them is silent and expensive. `blueprintKey` is what makes
+   * the form reopen as this product's own; `secondColumn.branchOn` is what makes a column read
+   * a CLASS rather than an answer; `share` is the joint-ownership halving. None of the three
+   * has a control here yet, and a save that re-emitted only what it can see would delete them
+   * while reporting success — the same failure `withStoredStructure` exists to prevent one
+   * level down, on the same object.
+   */
+  /**
+   * The predefined product this form came from, when it came from one.
+   *
+   * Read for two things and nothing else: the sentence at the top of the figures step that
+   * says what a published sheet puts in these boxes, and the brackets it offers to a band
+   * table. It never changes what is saved — `blueprintKey` is carried by `storedExtras` — so
+   * a product whose blueprint this bundle has no words for still saves exactly as it reads.
+   */
+  protected readonly blueprint = signal<ProductBlueprint | null>(null);
+
+  private readonly storedExtras = signal<{
+    blueprintKey?: string;
+    branchOn?: 'answer' | 'parentClass';
+    share?: NonNullable<ProductTemplate['share']>;
+  }>({});
+
   /** The form, as the shape the server compiles. */
   private toTemplate(): ProductTemplate {
     const v = this.form.getRawValue();
+    const extras = this.storedExtras();
     const mechanism = (kind: TemplateMechanismKind, fact: string): TemplateMechanism =>
       kind === 'flatAmount' ? { kind } : ({ kind, fact } as TemplateMechanism);
 
@@ -1636,7 +1841,16 @@ export class ProductTemplatePage implements OnInit {
         : {}),
       ...(v.useAlternative && v.alternatives.length > 0 && v.combine ? { combine: v.combine } : {}),
       ...(v.useSecondColumn && v.columnBranches.length >= 2
-        ? { secondColumn: { fact: v.columnFact, branches: [...v.columnBranches] } }
+        ? {
+            secondColumn: {
+              fact: v.columnFact,
+              branches: [...v.columnBranches],
+              // Carried, not asked about: which of the two a stored column reads is a
+              // property of the product, and re-emitting it as "the answer" would silently
+              // repoint a tier column at twenty-seven governorate codes it has no rows for.
+              ...(extras.branchOn !== undefined ? { branchOn: extras.branchOn } : {}),
+            },
+          }
         : {}),
       ...(v.useUplift && v.upliftWhen && v.upliftOtherwise
         ? {
@@ -1644,10 +1858,15 @@ export class ProductTemplatePage implements OnInit {
               fact: v.upliftFact,
               whenOption: v.upliftWhen,
               otherwiseOption: v.upliftOtherwise,
+              // The difference between two answers 300,000 apart on one applicant, so it is
+              // STATED on every save rather than left to the compiler's default.
+              scope: v.upliftScope,
             },
           }
         : {}),
+      ...(extras.share !== undefined ? { share: extras.share } : {}),
       ...(v.iScore ? { iScore: true } : {}),
+      ...(extras.blueprintKey !== undefined ? { blueprintKey: extras.blueprintKey } : {}),
       conditions,
     };
   }
@@ -1665,6 +1884,15 @@ export class ProductTemplatePage implements OnInit {
       // so a reload, and a link pasted to a colleague, both land on the same ones.
       if (res.data.template === null && !res.data.advanced) {
         this.seedFromStarters(this.route.snapshot.queryParamMap.get('from'));
+      }
+      const fromLibrary = res.data.template?.blueprintKey;
+      if (fromLibrary !== undefined) {
+        void this.loadBlueprint(fromLibrary);
+        // Open on the FIGURES, and only when the operator has not asked for a step. Every
+        // question above is already answered — the library answered them — so landing on the
+        // first one would ask them to re-read three screens of decisions they did not make
+        // and cannot improve. The rail still walks back to all of them.
+        if (this.route.snapshot.queryParamMap.get('step') === null) this.step.set(2);
       }
       this.dirty.set(false);
       this.figuresDirty.set(false);
@@ -1732,7 +1960,19 @@ export class ProductTemplatePage implements OnInit {
     });
     this.figures.set({ ...(rule?.stepParams ?? {}) });
 
-    if (template === null) return;
+    if (template === null) {
+      this.storedExtras.set({});
+      this.blueprint.set(null);
+      return;
+    }
+
+    this.storedExtras.set({
+      ...(template.blueprintKey !== undefined ? { blueprintKey: template.blueprintKey } : {}),
+      ...(template.secondColumn?.branchOn !== undefined
+        ? { branchOn: template.secondColumn.branchOn }
+        : {}),
+      ...(template.share !== undefined ? { share: template.share } : {}),
+    });
 
     // Both spellings of the ways list, read the one way the server reads them. `alternative`
     // is what rows saved before the list existed carry, and it means a list of one.
@@ -1775,6 +2015,9 @@ export class ProductTemplatePage implements OnInit {
       upliftFact: template.uplift?.fact ?? '',
       upliftWhen: template.uplift?.whenOption ?? '',
       upliftOtherwise: template.uplift?.otherwiseOption ?? '',
+      // Absent reads as `income`, which is what every form stored before the field existed
+      // compiled to — so an old product recompiles to byte-identical steps.
+      upliftScope: template.uplift?.scope ?? 'income',
       iScore: template.iScore === true,
     });
   }

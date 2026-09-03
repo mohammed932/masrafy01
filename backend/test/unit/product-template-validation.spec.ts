@@ -121,7 +121,9 @@ describe('every starter compiles to a rule the existing validation accepts', () 
         },
       ],
     });
-    expect(await validateIncomeRule(asConfig(rule), ctx, { figuresRequired: false })).toBeUndefined();
+    expect(
+      await validateIncomeRule(asConfig(rule), ctx, { figuresRequired: false }),
+    ).toBeUndefined();
   });
 });
 
@@ -346,6 +348,93 @@ describe('the ways list', () => {
       await validateIncomeRule(asConfig(compileTemplate(template)), ctx, {
         figuresRequired: false,
       }),
+    ).toBeUndefined();
+  });
+});
+
+describe('the fence on a class-keyed branch', () => {
+  /**
+   * `branchOn` says the branch list holds CLASS keys rather than answers. It is read by one
+   * op, so anywhere else it is a flag that changes nothing — and the next operator reads it
+   * and believes it. On a DERIVED fact it is worse than inert: the platform computes those
+   * answers, so there is no class to walk, and a table left legal would match no branch and
+   * quietly read the standard column for every applicant.
+   */
+  const withStep = (step: Record<string, unknown>): IncomeAssumptionConfig =>
+    asConfig({
+      strategy: 'steps',
+      steps: [
+        { id: 'primary', op: 'factChoiceTable', fact: 'military_grade' },
+        { id: 'other', op: 'factChoiceTable', fact: 'compound_name' },
+        { id: 'pick', ...step } as never,
+      ],
+      gates: [],
+      output: { kind: 'monthlyIncome', from: 'pick' },
+      stepParams: {
+        primary: { keyTable: [{ key: 'a', incomeEGP: '1' }] },
+        other: { keyTable: [{ key: 'b', incomeEGP: '2' }] },
+      },
+    } as unknown as ProductRule);
+
+  it('accepts a class-keyed column on a registry fact, keys unchecked', async () => {
+    expect(
+      await validateIncomeRule(
+        withStep({
+          op: 'pickByFact',
+          fact: 'compound_name',
+          of: [{ step: 'primary' }, { step: 'other' }],
+          branches: ['class_a', 'class_b'],
+          branchOn: 'parentClass',
+        }),
+        ctx,
+        { figuresRequired: false },
+      ),
+    ).toBeUndefined();
+  });
+
+  it('refuses it on an op that reads no branch list', async () => {
+    const violation = await validateIncomeRule(
+      withStep({
+        op: 'coalesce',
+        of: [{ step: 'primary' }, { step: 'other' }],
+        branchOn: 'parentClass',
+      }),
+      ctx,
+      { figuresRequired: false },
+    );
+    expect(violation).toMatchObject({ reason: 'branch_on_not_applicable', detail: 'coalesce' });
+  });
+
+  it('refuses it on a derived fact, whose answers have no class', async () => {
+    const violation = await validateIncomeRule(
+      withStep({
+        op: 'pickByFact',
+        fact: 'bank_relationship',
+        of: [{ step: 'primary' }, { step: 'other' }],
+        branches: ['ntb', 'xsell'],
+        branchOn: 'parentClass',
+      }),
+      ctx,
+      { figuresRequired: false },
+    );
+    expect(violation).toMatchObject({
+      reason: 'branch_on_not_applicable',
+      detail: 'bank_relationship',
+    });
+  });
+
+  it('still accepts a derived fact keyed by the ANSWER', async () => {
+    expect(
+      await validateIncomeRule(
+        withStep({
+          op: 'pickByFact',
+          fact: 'bank_relationship',
+          of: [{ step: 'primary' }, { step: 'other' }],
+          branches: ['ntb', 'xsell'],
+        }),
+        ctx,
+        { figuresRequired: false },
+      ),
     ).toBeUndefined();
   });
 });

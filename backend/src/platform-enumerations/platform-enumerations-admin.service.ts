@@ -317,7 +317,11 @@ export class PlatformEnumerationsAdminService {
       // knows nothing about — both accepted, both contradicting this method's own contract.
       const locked = SYSTEM_ONLY_LOCKED_FIELDS.filter((field) => patch[field] !== undefined);
       if (locked.length > 0) {
-        throw new EnumerationTypeSystemOnlyException({ key, attempted: 'reconfigure', fields: locked });
+        throw new EnumerationTypeSystemOnlyException({
+          key,
+          attempted: 'reconfigure',
+          fields: locked,
+        });
       }
     }
     if (patch.parentTypeKey !== undefined) {
@@ -575,9 +579,7 @@ export class PlatformEnumerationsAdminService {
     // One read for the whole batch, never one per row — the de-duping `setParentKeysBulk`
     // already does for its `(type, target)` pairs, for the same reason.
     const activeParentKeys =
-      parentType === null
-        ? []
-        : (await this.repo.getActiveMembers(parentType)).map((m) => m.key);
+      parentType === null ? [] : (await this.repo.getActiveMembers(parentType)).map((m) => m.key);
     const liveParents = new Set(activeParentKeys);
 
     // EVERY key of the type, not just the active ones: a retired value still holds its
@@ -598,11 +600,14 @@ export class PlatformEnumerationsAdminService {
     const skippedRows: Array<{ index: number; key: string }> = [];
 
     input.rows.forEach((row, index) => {
-      const key = slugify(row.labelEn);
+      // A stated key wins. Only a programmatic caller states one, and when it does the key is
+      // the point: it is what a bank's figures are filed under, and slugging a label would
+      // put them somewhere no rule reads.
+      const key = row.key ?? slugify(row.labelEn);
       // `slugify` falls back to the literal `'item'` for a label with no Latin character.
       // The DTO's `@Matches` should have caught that, so this is the belt to its braces —
       // and it names the real problem rather than letting 400 rows collide on one key.
-      if (key === 'item' && !/[A-Za-z0-9]/.test(row.labelEn)) {
+      if (row.key === undefined && key === 'item' && !/[A-Za-z0-9]/.test(row.labelEn)) {
         problems.push({ index, reason: 'label_unsluggable' });
         return;
       }
@@ -717,7 +722,15 @@ export class PlatformEnumerationsAdminService {
 
     // ONCE, after the write and after the invalidate — the order `create()` already gets
     // right, and the single most important line in this method.
-    const republished = await this.syncMirroredList(input.type, actor.staffId);
+    //
+    // Deferred only for an in-process caller that is about to write to another list too and
+    // will sync every one of them, then publish once. Left to default for every HTTP caller:
+    // a screen that skipped the sync would leave the questionnaire behind the registry with
+    // nothing scheduled to catch it up.
+    const republished =
+      input.deferMirrorSync === true
+        ? false
+        : await this.syncMirroredList(input.type, actor.staffId);
 
     return {
       type: input.type,
@@ -929,7 +942,10 @@ export class PlatformEnumerationsAdminService {
       // The ANSWER is kept, not just the refusal. `resolveParentKey` is where a kind's declared
       // `fallbackParentKey` turns an unfile into a move, so discarding what it returns would
       // validate one thing and write another — the redirect would never reach the database.
-      resolved.set(pair, await this.resolveParentKey(row.type, assignment.parentKey, { allowUnfiled: true }));
+      resolved.set(
+        pair,
+        await this.resolveParentKey(row.type, assignment.parentKey, { allowUnfiled: true }),
+      );
     }
 
     const moves = await this.repo.setParentKeysBulk(
@@ -1477,6 +1493,50 @@ export class PlatformEnumerationsAdminService {
    * but which question answers "military grade" is exactly the operational choice this
    * feature exists to hand over.
    */
+  /**
+   * Point a LIST at the question whose options are that list.
+   *
+   * Needed because two seeded lists were copied into their questions once and never linked:
+   * `military_grade` and `professor_rank` hold three values each where the sheets publish
+   * seven, and a value added to either reached the registry and never the question — a grade
+   * no applicant could pick and no bank's table could be keyed by. Adopting the link is safe
+   * for exactly those two because the seed created their options with `code` equal to the
+   * value key, which is what `syncMirroredOptions` matches on.
+   *
+   * Idempotent, and silent when the link is already there: the caller is a create that may
+   * run twice.
+   */
+  async linkMirrorQuestion(
+    typeKey: string,
+    questionCode: string,
+    actor: AdminActor,
+  ): Promise<void> {
+    const defs = await this.repo.typeDefinitions();
+    const def = defs.get(typeKey);
+    if (!def) throw new EnumerationTypeNotFoundException({ key: typeKey });
+    const question = await this.repo.findBindableQuestion(questionCode);
+    if (!question) {
+      throw new EnumerationQuestionUnknownException({
+        type: typeKey,
+        key: typeKey,
+        unknownCodes: [questionCode],
+      });
+    }
+    if (def.mirrorQuestionId === question.id) return;
+    await this.repo.updateTypeDefinition(typeKey, { mirrorQuestionId: question.id });
+    this.repo.invalidateCache();
+    await this.audit.write({
+      actorId: actor.staffId,
+      targetId: null,
+      eventType: AuditEventType.ENUMERATION_TYPE_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        key: typeKey,
+        changes: { mirrorQuestion: { from: def.mirrorQuestionId, to: question.id } },
+      },
+    });
+  }
+
   async setBoundQuestion(
     id: string,
     questionCode: string | null,

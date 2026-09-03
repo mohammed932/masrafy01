@@ -156,6 +156,16 @@ export interface TemplateCondition {
 
 export interface ProductTemplate {
   version: typeof TEMPLATE_VERSION;
+  /**
+   * The predefined product this form was started from, when it was.
+   *
+   * Provenance and nothing else: it is what lets the screen reopen the form the operator
+   * actually filled — its rows, its worked examples, its sentence about the mechanism —
+   * instead of the generic three questions. It is NOT read by `compileTemplate`, does not
+   * appear in a slot id, and a template that loses it compiles to byte-identical steps, so
+   * a product created before the library existed reads exactly as it always did.
+   */
+  blueprintKey?: string;
   /** Whether the answer is an assumed monthly income or a borrowing CEILING. */
   outputKind: 'monthlyIncome' | 'maxAmount';
   /**
@@ -193,7 +203,7 @@ export interface ProductTemplate {
    * the default one and keeps the bare step id, so turning this on never moves a figure
    * that is already there.
    */
-  secondColumn?: { fact: string; branches: string[] };
+  secondColumn?: { fact: string; branches: string[]; branchOn?: 'answer' | 'parentClass' };
   /**
    * A bonus percentage when one answer is given. `otherwiseOption` is required and is what
    * makes a third answer, or no answer, mean "no bonus" rather than "bonus for everyone".
@@ -211,6 +221,29 @@ export interface ProductTemplate {
    * choose.
    */
   uplift?: {
+    fact: string;
+    whenOption: string;
+    otherwiseOption: string;
+    scope?: AdjustmentScope;
+  };
+  /**
+   * A SHARE of the figure when one answer is given — the joint-ownership halving that two
+   * sheets state and that had no representation until now.
+   *
+   * Shaped exactly like `uplift` and for the same reasons, down to the no-adjustment column
+   * being first. What differs is the arithmetic: `uplift` adds a bonus to the figure
+   * (`upliftPercent`), this takes a portion of it (`percentOf`). A bank that does not halve
+   * anything simply leaves its percentage blank and the standard column is read.
+   *
+   * A SECOND field rather than turning `uplift` into an array of adjustments, because an
+   * array would renumber its members' slot ids the moment one was removed — the failure this
+   * layer exists to prevent (§5.4). Two fields, two fixed slots, and the emission order
+   * below is fixed with them.
+   *
+   * `scope: 'maxLoan'` compiles to NOTHING here, exactly as the uplift's does: halving the
+   * ceiling is a bank setting, configured on `loanLimits.maxLoanAdjustments`.
+   */
+  share?: {
     fact: string;
     whenOption: string;
     otherwiseOption: string;
@@ -241,6 +274,8 @@ export const SLOT = {
   basisCombine: 'basis_combine',
   uplift: 'uplift',
   upliftOn: 'uplift_on',
+  share: 'share',
+  shareOn: 'share_on',
   iScoreSrc: 'iscore_src',
   iScoreBand: 'iscore_band',
   iScoreFactor: 'iscore_factor',
@@ -283,6 +318,16 @@ export function waysOf(template: ProductTemplate): TemplateMechanism[] {
  */
 export function upliftScopeOf(uplift: NonNullable<ProductTemplate['uplift']>): AdjustmentScope {
   return uplift.scope ?? 'income';
+}
+
+/**
+ * What a share adjustment acts on.
+ *
+ * `'income'` by default for symmetry with the uplift, and safely: the field is new, so
+ * there is no stored template whose meaning this default could change.
+ */
+export function shareScopeOf(share: NonNullable<ProductTemplate['share']>): AdjustmentScope {
+  return share.scope ?? 'income';
 }
 
 /**
@@ -331,7 +376,9 @@ export const TEMPLATE_INVALID_REASONS = [
   'second_column_too_few_branches',
   'second_column_duplicate_branch',
   'uplift_same_option',
+  'share_same_option',
   'unknown_adjustment_scope',
+  'second_column_branch_on_invalid',
   'condition_id_invalid',
   'condition_duplicate_id',
   'unknown_condition_test',
@@ -423,6 +470,13 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
     if (new Set(column.branches).size !== column.branches.length) {
       return { reason: 'second_column_duplicate_branch' };
     }
+    if (
+      column.branchOn !== undefined &&
+      column.branchOn !== 'answer' &&
+      column.branchOn !== 'parentClass'
+    ) {
+      return { reason: 'second_column_branch_on_invalid', detail: String(column.branchOn) };
+    }
   }
 
   if (
@@ -437,6 +491,20 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
     template.uplift.whenOption === template.uplift.otherwiseOption
   ) {
     return { reason: 'uplift_same_option', detail: template.uplift.whenOption };
+  }
+
+  if (
+    template.share !== undefined &&
+    template.share.scope !== undefined &&
+    !(ADJUSTMENT_SCOPES as readonly string[]).includes(template.share.scope)
+  ) {
+    return { reason: 'unknown_adjustment_scope', detail: String(template.share.scope) };
+  }
+  if (
+    template.share !== undefined &&
+    template.share.whenOption === template.share.otherwiseOption
+  ) {
+    return { reason: 'share_same_option', detail: template.share.whenOption };
   }
 
   const seen = new Set<string>();
@@ -551,10 +619,17 @@ export function compileTemplate(template: ProductTemplate): ProductRule {
     head = emitUplift(out, head, template.uplift);
   }
 
-  // 6. I-Score LAST — see the note on emission order above.
+  // 6. The share, after the uplift. FIXED, and the reason is the rounding: `percentOf`
+  //    rounds to two decimals at every step, so +10% then halve and halve then +10% differ
+  //    by piastres. One declared order means the same form always produces the same number.
+  if (template.share !== undefined && shareScopeOf(template.share) === 'income') {
+    head = emitShare(out, head, template.share);
+  }
+
+  // 7. I-Score LAST — see the note on emission order above.
   if (template.iScore === true) head = emitIScore(out, head);
 
-  // 7. Conditions, plus any figure a condition needs to compare against.
+  // 8. Conditions, plus any figure a condition needs to compare against.
   for (const condition of template.conditions ?? []) emitCondition(out, condition, head);
 
   const baseline = template.baselineDbrPercent;
@@ -621,6 +696,9 @@ function emitMechanism(
     fact: column.fact,
     of: ids.map((id) => ({ step: id })),
     branches: [...column.branches],
+    // Absent means the branches are answers, which is what every stored template meant, so
+    // omitting the field rather than writing `'answer'` keeps those recompiling byte-identically.
+    ...(column.branchOn === 'parentClass' ? { branchOn: 'parentClass' as const } : {}),
   });
   return pickId;
 }
@@ -714,6 +792,28 @@ function emitUplift(
     branches: [uplift.otherwiseOption, uplift.whenOption],
   });
   return SLOT.uplift;
+}
+
+/**
+ * A share of the figure when one answer is given — half of it, on the sheets that say so.
+ *
+ * Same column ordering as the uplift and for the same three reasons: no answer, no matching
+ * branch and a bank that stated no percentage must all mean "the figure as it stands".
+ */
+function emitShare(
+  out: Emission,
+  head: string,
+  share: NonNullable<ProductTemplate['share']>,
+): string {
+  out.steps.push({ id: SLOT.shareOn, op: 'percentOf', of: { step: head } });
+  out.steps.push({
+    id: SLOT.share,
+    op: 'pickByFact',
+    fact: share.fact,
+    of: [{ step: head }, { step: SLOT.shareOn }],
+    branches: [share.otherwiseOption, share.whenOption],
+  });
+  return SLOT.share;
 }
 
 /**

@@ -195,6 +195,7 @@
   "SURROGATE_FACT_MISSING": "This program needs a detail we haven't asked you for yet, so no figures can be shown.",
   "SURROGATE_NO_MATCHING_ROW": "This bank's table doesn't cover your answer, so no figures can be shown.",
   "PRODUCT_RULE_INVALID": "This product's calculation steps are not complete: {reason}",
+  "PRODUCT_BLUEPRINT_UNKNOWN": "There is no ready-made product by that name. Reload the page and try again.",
   "PRODUCT_TEMPLATE_INVALID": "This form can't be turned into a calculation yet: {reason}",
   "PRODUCT_TEMPLATE_ORPHANS_FIGURES": "Saving this would throw away figures {count} bank program(s) have already entered. Clear them first, or leave this part of the calculation in place.",
   "PRODUCT_TEMPLATE_NOT_EDITABLE": "This product's calculation was built step by step, so there is no form to edit. Start again from a shape to get one.",

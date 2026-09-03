@@ -128,6 +128,7 @@ export const PRODUCT_RULE_INVALID_REASONS = [
   'branches_mismatch',
   'optional_step_not_skippable',
   'skip_unset_not_applicable',
+  'branch_on_not_applicable',
 ] as const;
 
 export type ProductRuleInvalidReason = (typeof PRODUCT_RULE_INVALID_REASONS)[number];
@@ -498,6 +499,31 @@ async function validateProductRule(
     };
   }
 
+  // `branchOn: 'parentClass'` says the branch list holds CLASS keys rather than answers, so
+  // it means something only where a branch list is read at all. Elsewhere it is a flag that
+  // changes nothing, which is worse than absent — the next operator reads it and believes it.
+  //
+  // And never on a DERIVED fact: the platform computes those answers, so there are no
+  // registry rows and no `parentKey` to walk. Left legal it would not fail — it would match
+  // no branch and quietly read the standard column for every applicant, which is the silent
+  // fall-through this whole axis exists to prevent.
+  const strayBranchOn = steps.find(
+    (step) =>
+      step.branchOn !== undefined &&
+      (step.op !== 'pickByFact' ||
+        (step.branchOn === 'parentClass' &&
+          step.fact !== undefined &&
+          derivedFactOptionCodes(step.fact) !== null)),
+  );
+  if (strayBranchOn) {
+    return {
+      kind: 'productRuleInvalid',
+      reason: 'branch_on_not_applicable',
+      stepId: strayBranchOn.id,
+      detail: strayBranchOn.op === 'pickByFact' ? (strayBranchOn.fact ?? '') : strayBranchOn.op,
+    };
+  }
+
   const optionalProblem = validateOptionalSteps(steps, rule.output.from);
   if (optionalProblem) return optionalProblem;
 
@@ -720,6 +746,13 @@ async function validateStepFigures(
       //
       // A DERIVED fact has no bound question (the platform computes it, so there are no
       // option rows to read); its branch codes are the engine's own, checked by its type.
+      //
+      // A PARENT-CLASS column is deliberately NOT checked, for the same reason a
+      // `factParentTable`'s keys are not: a branch names a class, classes live in another
+      // list an operator moves values between, and a stale one would block the save that a
+      // lookup fix elsewhere makes correct. It surfaces as a warning on the product screen
+      // instead, where the fix is.
+      if (step.branchOn === 'parentClass') return undefined;
       const derived = step.fact ? derivedFactOptionCodes(step.fact) : null;
       const questionCode = step.fact ? factByKey.get(step.fact)?.questionCode : undefined;
       if (derived === null && !questionCode) return undefined;

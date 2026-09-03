@@ -50,6 +50,7 @@ export const MAX_LOAN_BY_FACT_REASONS = [
   'unknown_column_fact',
   'column_fact_not_choice',
   'row_key_on_numeric_fact',
+  'via_not_applicable',
   'band_on_choice_fact',
   'row_missing_key',
   'unknown_row_key',
@@ -162,6 +163,22 @@ export async function validateMaxLoanByFact(
   // whose codes `derivedFactOptionCodes` owns.
   const isNumericFact = binding !== undefined && binding.type === 'NUMERIC';
 
+  // A class-keyed axis walks the answer up to the class it is filed under, so it means
+  // something only where the answer IS a filed list value. On a numeric axis there is
+  // nothing to walk, and on a derived fact the platform computes the answer, so there is no
+  // registry row and no class. Left legal, neither fails: they match no row and land on
+  // `onNoMatch` for every applicant, which reads as a bank policy nobody chose.
+  if (config.rowVia === 'parentClass' && (isNumericFact || isDerivedFactKey(config.factKey))) {
+    return { reason: 'via_not_applicable', detail: config.factKey };
+  }
+  if (
+    config.columnVia === 'parentClass' &&
+    config.columnFactKey !== undefined &&
+    isDerivedFactKey(config.columnFactKey)
+  ) {
+    return { reason: 'via_not_applicable', detail: config.columnFactKey };
+  }
+
   if (config.columnFactKey !== undefined) {
     if (!isKnown(config.columnFactKey)) {
       return {
@@ -176,11 +193,16 @@ export async function validateMaxLoanByFact(
     }
   }
 
-  const rowCodes = isNumericFact
-    ? []
-    : await optionCodesFor(config.factKey, binding?.questionCode, ctx);
+  // A class-keyed axis's keys are CLASSES, and they are deliberately NOT checked here — the
+  // same posture `validateStepFigures` takes with a `factParentTable`'s keys. Classes live in
+  // another list that an operator moves values between, so a stale key would block the save
+  // that a lookup fix elsewhere makes correct. It surfaces as a warning on the screen instead.
+  const rowCodes =
+    isNumericFact || config.rowVia === 'parentClass'
+      ? []
+      : await optionCodesFor(config.factKey, binding?.questionCode, ctx);
   const columnCodes =
-    config.columnFactKey === undefined
+    config.columnFactKey === undefined || config.columnVia === 'parentClass'
       ? []
       : await optionCodesFor(
           config.columnFactKey,

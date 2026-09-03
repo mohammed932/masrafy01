@@ -29,7 +29,9 @@ import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductTemplateDto,
 } from './dto/program-name-income-rule.dto';
+import { CreateFromBlueprintDto } from './dto/product-blueprint.dto';
 import { BankProgramsService } from './bank-programs.service';
+import { BlueprintService } from './blueprints/blueprint.service';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 
 interface ActorCtx {
@@ -41,7 +43,10 @@ interface ActorCtx {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/bank-programs')
 export class BankProgramsController {
-  constructor(private readonly service: BankProgramsService) {}
+  constructor(
+    private readonly service: BankProgramsService,
+    private readonly blueprints: BlueprintService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List bank programs (paginated, filterable, searchable)' })
@@ -95,6 +100,57 @@ export class BankProgramsController {
   @ApiOperation({ summary: 'The starter shapes for a no-payslip product' })
   listSurrogateProductTemplates() {
     return ok(this.service.surrogateProductTemplateStarters());
+  }
+
+  /**
+   * The predefined products — one entry per product, with what each would have to CREATE.
+   *
+   * Declared with the rest of the `surrogate-product*` block and before
+   * `surrogate-products/:key`, for the reason that block states: a single-segment param
+   * below would swallow this path.
+   */
+  @Get('product-blueprints')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: 'The predefined no-payslip products, and what each one still needs set up',
+    description:
+      'Structure and existence only. The product names are the DEFAULT for the name box; ' +
+      "every other word an operator reads is the admin bundle's, keyed by these keys.",
+  })
+  async listProductBlueprints() {
+    return ok(await this.blueprints.list());
+  }
+
+  /**
+   * Build one: its lists, its values, its questions, its facts, its calculation.
+   *
+   * Idempotent by key — every object is looked up and reused — so a retry after a failure
+   * writes exactly what is missing rather than a second copy of everything.
+   */
+  @Post('surrogate-products/from-blueprint')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: 'Create a predefined product, with everything it asks',
+    description:
+      'One call: the lists and their classes, the questions mirroring them, the facts that ' +
+      'read them, the loan categories they have to be asked in, and the calculation — then ' +
+      'ONE questionnaire publish. A cap-only product builds its question and its list and ' +
+      'no product, and answers with the fact key its cap table is keyed by.',
+  })
+  @ApiResponse({ status: 422, description: 'PRODUCT_BLUEPRINT_UNKNOWN / VALIDATION_FAILED' })
+  @ApiResponse({ status: 409, description: 'ENUMERATION_KEY_DUPLICATE — the key is taken' })
+  async createFromBlueprint(
+    @Body() body: CreateFromBlueprintDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    const actor = this.actor(user, req);
+    return ok(
+      await this.blueprints.createFromBlueprint(body, {
+        staffId: actor.id,
+        sourceIp: actor.sourceIp,
+      }),
+    );
   }
 
   @Get('surrogate-products/:key/template')

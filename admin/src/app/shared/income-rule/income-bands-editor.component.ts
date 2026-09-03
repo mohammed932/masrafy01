@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
-import { DeleteOutline, PlusOutline } from '@ant-design/icons-angular/icons';
+import { DeleteOutline, ImportOutline, PlusOutline } from '@ant-design/icons-angular/icons';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import type { IncomeBand } from '@features/bank-programs/bank-programs.types';
 import { incomeBandsErrorFor, type IncomeBandsError } from './income-rule.rules';
@@ -34,7 +34,12 @@ export { incomeBandsErrorFor, type IncomeBandsError };
   selector: 'app-income-bands-editor',
   standalone: true,
   imports: [FormsModule, NzButtonModule, NzIconModule, NzInputModule, MoneyInputDirective],
-  providers: [provideNzIconsPatch([PlusOutline, DeleteOutline])],
+  // Every glyph this template names, patched here. `NzIconDirective` patches only the
+  // NEAREST patch service's set, so an icon a host happens to have registered is an icon that
+  // renders by luck — and ng-zorro THROWS on an unregistered name rather than rendering the
+  // blank the schema promises. Found by driving the screen: the first spelling of the button
+  // below used `download`, which nothing had registered.
+  providers: [provideNzIconsPatch([PlusOutline, DeleteOutline, ImportOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (bands().length === 0) {
@@ -43,10 +48,29 @@ export { incomeBandsErrorFor, type IncomeBandsError };
           This method reads a number and looks up the band it falls in. Enter the edges — a band's
           end is the next band's start, so no gap or overlap is possible.
         </p>
-        <button nz-button nzType="default" type="button" (click)="seed()">
-          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.income.bands_seed">Start with three bands</span>
-        </button>
+        <div class="ib__emptyActions">
+          <!-- The sheet's own brackets, when a predefined product knows them: the brackets
+               are the SHAPE of the table (which ranges exist), and typing six of them by hand
+               off a photograph is where an edge gets mistyped. The figure beside each stays
+               empty — that one is the bank's. -->
+          @if (suggested().length > 0) {
+            <button nz-button nzType="primary" type="button" (click)="useSuggested()">
+              <span nz-icon nzType="import" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@bank_programs.income.bands_sheet"
+                >Use the {{ suggested().length }} brackets from the sheet</span
+              >
+            </button>
+          }
+          <button
+            nz-button
+            [nzType]="suggested().length > 0 ? 'default' : 'primary'"
+            type="button"
+            (click)="seed()"
+          >
+            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.income.bands_seed">Start with three bands</span>
+          </button>
+        </div>
       </div>
     } @else {
       <div class="ib__head" aria-hidden="true">
@@ -193,6 +217,13 @@ export { incomeBandsErrorFor, type IncomeBandsError };
         display: block;
       }
 
+      .ib__emptyActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        justify-content: center;
+      }
+
       .ib__empty {
         display: flex;
         flex-wrap: wrap;
@@ -334,6 +365,16 @@ export class IncomeBandsEditorComponent {
   readonly unit = input<string | null>(null);
 
   /**
+   * Brackets a published sheet prints for this box, offered while the table is empty.
+   *
+   * Edges only, and never written on their own: a band row with no figure beside it is
+   * refused by the save-time validator, so these reach the form and are stored only once an
+   * operator has typed each figure. Empty for every caller that has none, which is all of
+   * them but a product created from the library.
+   */
+  readonly suggested = input<readonly IncomeBand[]>([]);
+
+  /**
    * What the value column holds, when it is not an assumed monthly income.
    *
    * A product rule's bands hold a borrowing ceiling, a required percentage, a number of
@@ -359,6 +400,13 @@ export class IncomeBandsEditorComponent {
    * the admin to decode. Edges are left for the admin to type: guessing a bank's
    * years-vs-EGP thresholds would be inventing policy.
    */
+  /** Take the sheet's brackets, figures left blank. Replaces nothing — the table is empty. */
+  useSuggested(): void {
+    const rows = this.suggested();
+    if (rows.length === 0) return;
+    this.bands.set(rows.map((row) => ({ ...row, incomeEGP: '' })));
+  }
+
   seed(): void {
     this.bands.set([
       { fromInclusive: '0', toExclusive: '', incomeEGP: '' },

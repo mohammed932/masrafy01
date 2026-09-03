@@ -361,6 +361,7 @@ interface FlowLine {
                               (bandsChange)="setBands(slot.id, $event)"
                               [unit]="slot.unit"
                               [valueLabel]="slot.valueLabel"
+                              [suggested]="suggestedFor(slot.id)"
                             ></app-income-bands-editor>
                           }
                           @case ('scalar') {
@@ -530,18 +531,23 @@ interface FlowLine {
         margin: 0;
       }
 
+      /* Secondary, not tertiary: measured at 3.83:1 on this surface in light mode, and a
+         12px uppercase micro-label is the worst case for it. */
       .reads-label {
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
         font-size: var(--text-xs);
         font-weight: var(--font-semibold);
         letter-spacing: var(--tracking-wide);
         text-transform: uppercase;
       }
 
+      /* --bg-muted, not --color-surface-elevated: that token resolves to --bg-subtle, which
+         IS this panel's own ground — so the chips had no chip, and the row read as one
+         run-on line of words rather than as a list of the answers the product turns on. */
       .chip {
         padding: var(--space-0-5) var(--space-2);
         border-radius: var(--radius-pill);
-        background: var(--color-surface-elevated);
+        background: var(--bg-muted);
         color: var(--color-text-secondary);
         font-size: var(--text-xs);
         white-space: nowrap;
@@ -1024,6 +1030,21 @@ export class ProductRuleEditorComponent {
 
   /** Raised whenever a figure changes, so the host can mark the form dirty. */
   readonly figuresTouched = output<void>();
+
+  /**
+   * Brackets a published sheet prints, keyed by the STEP ID they belong in.
+   *
+   * Keyed by slot and matched by string equality, because the slot is what the server named
+   * when it compiled the product — a mapping worked out here would be a second statement of
+   * the rule that decides where a bank's figures live. Empty for every caller but a product
+   * created from the predefined library.
+   */
+  readonly suggestedBands = input<Readonly<Record<string, IncomeBand[]>>>({});
+
+  /** The brackets offered for one box, or none. */
+  protected suggestedFor(stepId: string): readonly IncomeBand[] {
+    return this.suggestedBands()[stepId] ?? [];
+  }
 
   /**
    * Which blank-and-optional rows the operator has opened.
@@ -1775,7 +1796,12 @@ export class ProductRuleEditorComponent {
 
   private hintFor(step: RuleStep): string {
     if (step.op === 'pickByFact') {
-      return $localize`:@@product_rule.step.pick_by_fact_hint:Fill in the first table for everyone. Fill in the second only if this bank lends more to customers it already has — left empty, everyone reads the first.`;
+      // Worded for the AXIS in general, not for one of them. The first spelling said "only if
+      // this bank lends more to customers it already has" — true of a new-customer column and
+      // simply false of a city tier, a school type or a university type, which is what this
+      // shape is now keyed by more often than not. What holds for every axis is the mechanic:
+      // the first column is everyone's, and a column left empty falls back to it.
+      return $localize`:@@product_rule.step.pick_by_fact_hint:Fill in the first column for everyone. Fill in another only where this bank prices that group differently — left empty, it reads the first.`;
     }
     return '';
   }
@@ -1884,6 +1910,18 @@ export class ProductRuleEditorComponent {
   private branchLabel(step: RuleStep, index: number): string {
     const code = step.branches?.[index];
     if (code === undefined) return '';
+    // A CLASS-keyed column's branches are the keys of the list the answers are FILED UNDER,
+    // not the answers themselves — so the answer list cannot name them and the heading
+    // rendered as a raw slug (`city_tier_major`) over the table an operator is typing
+    // figures into. The class list is already on the fact (`parentOptions`, derived
+    // server-side by coverage), which is where the words are.
+    if (step.branchOn === 'parentClass') {
+      const parent = this.factByKey()
+        .get(step.fact ?? '')
+        ?.question?.parentOptions.find((o) => o.code === code);
+      if (parent) return this.isAr ? parent.labelAr : parent.labelEn;
+      return code;
+    }
     const option = this.factOptionsFor(step.fact ?? '')?.find((o) => o.key === code);
     // This string is a visible COLUMN HEADING, so it follows the document's locale. Reading
     // `labelEn` unconditionally put English headings over the pipeline's only two-column

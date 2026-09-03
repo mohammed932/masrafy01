@@ -1004,13 +1004,16 @@ export class PostgresPlatformEnumerationsRepository
 
   /** One question by code, as the fact-binding validation needs to judge it. */
   async findBindableQuestion(code: string): Promise<{
+    id: string;
     code: string;
     type: string;
     isActive: boolean;
   } | null> {
+    // The `id` is carried for `linkMirrorQuestion`: `EnumerationTypeDef.mirrorQuestionId` is
+    // a foreign key, and the code is what every other reader speaks.
     return this.prisma.question.findUnique({
       where: { code },
-      select: { code: true, type: true, isActive: true },
+      select: { id: true, code: true, type: true, isActive: true },
     });
   }
 

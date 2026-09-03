@@ -19,6 +19,8 @@ import type {
   SurrogateProductSummary,
   SurrogateProductTemplateResponse,
   TemplateStarter,
+  ProductBlueprint,
+  CreateFromBlueprintResult,
   ValueSourceMap,
 } from './bank-programs.types';
 
@@ -206,6 +208,40 @@ export class BankProgramsApiService {
   async listSurrogateProductTemplates(): Promise<SuccessEnvelope<TemplateStarter[]>> {
     return firstValueFrom(
       this.http.get<SuccessEnvelope<TemplateStarter[]>>(`${this.base}/surrogate-product-templates`),
+    );
+  }
+
+  /**
+   * The predefined products, with what each one still has to CREATE.
+   *
+   * Structure and existence only — the product names that come back are the DEFAULT for the
+   * name box, and every other word an operator reads is this bundle's, keyed by the blueprint
+   * key, exactly as the starter shapes' words already are.
+   */
+  async listProductBlueprints(): Promise<SuccessEnvelope<ProductBlueprint[]>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<ProductBlueprint[]>>(`${this.base}/product-blueprints`),
+    );
+  }
+
+  /**
+   * Build one: its lists, its values, its questions, its facts, its calculation, in one call.
+   *
+   * Idempotent by key on the server, so a retry after a refusal writes what is missing rather
+   * than a second copy of everything. A cap-only product takes no name — it creates the
+   * question and the list and no product — and answers with the fact key its cap is keyed by.
+   */
+  async createFromBlueprint(payload: {
+    blueprintKey: string;
+    key?: string;
+    labelEn?: string;
+    labelAr?: string;
+  }): Promise<SuccessEnvelope<CreateFromBlueprintResult>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<CreateFromBlueprintResult>>(
+        `${this.base}/surrogate-products/from-blueprint`,
+        payload,
+      ),
     );
   }
 

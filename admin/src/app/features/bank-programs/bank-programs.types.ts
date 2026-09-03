@@ -535,6 +535,15 @@ export interface RuleStep {
   of?: ValueRef | ValueRef[];
   /** `pickByFact`: which answer each entry of `of` belongs to, positionally. */
   branches?: string[];
+  /**
+   * `pickByFact`: whether `branches` name the ANSWER's own option codes (absent, the default)
+   * or the CLASS each answer is filed under.
+   *
+   * Read here for one reason — a column heading. The branches of a class-keyed column are
+   * keys of the list the answers are filed under, so the answer list cannot name them, and
+   * the heading renders as a raw slug unless the class list is consulted instead.
+   */
+  branchOn?: 'answer' | 'parentClass';
 }
 
 export interface ProductRuleOutput {
@@ -887,6 +896,15 @@ export interface TemplateCondition {
 
 export interface ProductTemplate {
   version: 1;
+  /**
+   * The predefined product this form was started from, when it was.
+   *
+   * Provenance for the SCREEN — it is what lets the form reopen with this product's own rows,
+   * worked examples and mechanism sentence instead of the generic three questions. The
+   * compiler ignores it, so a product that predates the library reads exactly as it always
+   * did.
+   */
+  blueprintKey?: string;
   outputKind: 'monthlyIncome' | 'maxAmount';
   baselineDbrPercent?: string;
   primary: TemplateMechanism;
@@ -895,10 +913,89 @@ export interface ProductTemplate {
   /** Every other way to reach the figure. Each bank fills in the ones it sells. */
   alternatives?: TemplateMechanism[];
   combine?: 'lower' | 'higher';
-  secondColumn?: { fact: string; branches: string[] };
-  uplift?: { fact: string; whenOption: string; otherwiseOption: string };
+  secondColumn?: { fact: string; branches: string[]; branchOn?: 'answer' | 'parentClass' };
+  uplift?: {
+    fact: string;
+    whenOption: string;
+    otherwiseOption: string;
+    /** What it lifts. `'income'` when unstated, which is what every stored form meant. */
+    scope?: 'income' | 'maxLoan';
+  };
+  /** A SHARE of the figure for one answer — halving it on joint ownership. */
+  share?: {
+    fact: string;
+    whenOption: string;
+    otherwiseOption: string;
+    scope?: 'income' | 'maxLoan';
+  };
   iScore?: boolean;
   conditions: TemplateCondition[];
+}
+
+/** Which of the three shelves of the library a product sits on. */
+export type BlueprintGroup = 'income' | 'ceiling' | 'cap';
+
+/** One thing a predefined product asks, and whether the platform can already ask it. */
+export interface ProductBlueprintAsk {
+  factKey: string;
+  kind: 'choice' | 'number' | 'bindQuestion' | 'platformFact' | 'derivedFact';
+  questionCode?: string;
+  listTypeKey?: string;
+  factExists: boolean;
+  questionExists: boolean;
+  listExists: boolean;
+  /**
+   * Loan categories the question is not asked in yet.
+   *
+   * The half of "is this set up?" that is invisible on every other screen: a question can
+   * exist and be assigned to no category, in which case it is asked of nobody and the product
+   * reading it quotes its standard column for every applicant, silently.
+   */
+  missingCategories: LoanCategory[];
+}
+
+/** One predefined product. Structure and existence — the words are this bundle's. */
+export interface ProductBlueprint {
+  key: string;
+  group: BlueprintGroup;
+  /** The DEFAULT product name, which the operator may overwrite before saving. */
+  labelEn: string;
+  labelAr: string;
+  outputKind: ProductTemplate['outputKind'] | null;
+  wayCount: number;
+  hasSecondColumn: boolean;
+  conditionCount: number;
+  hasCap: boolean;
+  /** A question only a bank can answer, which changes every figure the product quotes. */
+  openQuestion?: string;
+  asks: ProductBlueprintAsk[];
+  creates: { lists: number; values: number; questions: number; facts: number; widens: number };
+  /** The brackets a published sheet prints, offered to the figures form. Edges, never amounts. */
+  suggestedBands: Array<{
+    wayIndex: number;
+    /** The step id those brackets belong in, resolved by the server, which owns slot naming. */
+    slotId: string;
+    edges: Array<{ fromInclusive: string; toExclusive: string | null }>;
+  }>;
+}
+
+/** What creating one wrote, and what was already there. */
+export interface CreateFromBlueprintResult {
+  blueprintKey: string;
+  /** `null` for a cap-only product: it builds the question and the list and no product. */
+  productKey: string | null;
+  /** The fact a cap-only product's table is keyed by — where the operator goes next. */
+  capFactKey: string | null;
+  created: {
+    lists: string[];
+    values: number;
+    questions: string[];
+    facts: string[];
+    widened: string[];
+    revived: string[];
+  };
+  reused: { typeKeys: string[]; questionCodes: string[]; factKeys: string[]; valueKeys: string[] };
+  publishedQuestionnaire: boolean;
 }
 
 /** One starter shape. SHAPE ONLY — the words are this bundle's, in both locales. */

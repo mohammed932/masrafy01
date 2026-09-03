@@ -589,6 +589,14 @@ export const ERROR_CODES = {
    */
   PRODUCT_TEMPLATE_INVALID: 'PRODUCT_TEMPLATE_INVALID',
   /**
+   * No predefined product goes by that key.
+   *
+   * `meta.available` lists the keys that do. A 422 rather than a 404: the library is a fixed
+   * list in code, so an unknown key is a request naming something that has never existed —
+   * usually a screen built against an older bundle — not a row somebody deleted.
+   */
+  PRODUCT_BLUEPRINT_UNKNOWN: 'PRODUCT_BLUEPRINT_UNKNOWN',
+  /**
    * Saving this form would throw away figures a bank has already typed.
    *
    * A bank's numbers live in `stepParams` keyed by STEP ID, and so do the estimated-value
@@ -947,6 +955,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   INCOME_RULE_FACT_UNAVAILABLE: 422,
   PRODUCT_RULE_INVALID: 422,
   PRODUCT_TEMPLATE_INVALID: 422,
+  PRODUCT_BLUEPRINT_UNKNOWN: 422,
   PRODUCT_TEMPLATE_ORPHANS_FIGURES: 409,
   PRODUCT_TEMPLATE_NOT_EDITABLE: 409,
   PROGRAM_NAME_INCOME_PROOF_MISMATCH: 422,

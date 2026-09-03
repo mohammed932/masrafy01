@@ -60,7 +60,6 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
 import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.component';
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
-import { ProductRuleBuilderComponent } from '@shared/income-rule/product-rule-builder.component';
 import { productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
@@ -125,7 +124,6 @@ interface AskedThing {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ProductRuleBuilderComponent,
     RouterLink,
     ReactiveFormsModule,
     NzButtonModule,
@@ -349,62 +347,16 @@ interface AskedThing {
                       no form to open for it.</span
                     >
                     <a class="linkish" [routerLink]="newProductLink" i18n="@@spd.form.start"
-                      >Start a new product from a shape</a
+                      >Build a new product from the library</a
                     >
                   </p>
                 }
 
-                @if (isPipeline()) {
-                  @if (hasTemplate() && !rawStepsShown()) {
-                    <!-- A form-built product is changed BY the form, so the raw steps are not
-                         on stage. Read cold they are fourteen unexplained rows whose only
-                         offered action is one-way, while the plain-language flow further down
-                         already says what the calculation does. Withheld, never removed: a
-                         product that outgrows the seven shapes still has to have a door. -->
-                    <p class="notice" role="status">
-                      <span i18n="@@spd.structure.hidden"
-                        >The steps behind this calculation are hidden. Change it from the form above
-                        — the list further down says what it works out, in words.</span
-                      >
-                      <button type="button" class="linkish" (click)="revealRawSteps()">
-                        <span i18n="@@spd.structure.reveal">Show the raw steps</span>
-                      </button>
-                    </p>
-                  } @else {
-                    <details class="structure" [open]="structureOpen()">
-                      <summary (click)="toggleStructure($event)">
-                        <span i18n="@@spd.structure.title">The steps this product runs</span>
-                        <span class="structure-count">{{ ruleSteps().length }}</span>
-                      </summary>
-                      @if (hasTemplate()) {
-                        <!-- Stated where the damage would happen, not in a modal after the
-                             fact: editing here is one-way, and the operator should know before
-                             they touch a control rather than after. -->
-                        <p class="warn-line" role="status">
-                          <span i18n="@@spd.structure.one_way"
-                            >Editing the steps by hand switches the form off for this product, for
-                            good. A calculation the form cannot describe is one it must not pretend
-                            to.</span
-                          >
-                        </p>
-                      }
-                      <app-product-rule-builder
-                        [steps]="builderSteps()"
-                        (stepsChange)="onBuilderSteps($event)"
-                        [gates]="builderGates()"
-                        (gatesChange)="onBuilderGates($event)"
-                        [output]="builderOutput()"
-                        (outputChange)="onBuilderOutput($event)"
-                        [facts]="facts()"
-                        (touched)="markStructureDirty()"
-                      />
-                    </details>
-                  }
-                } @else {
+                @if (!isPipeline()) {
                   <p class="notice" role="status">
                     <span i18n="@@spd.structure.offer">
                       This product works its income out from a single figure. Answer three questions
-                      and we will build the calculation, or write the steps yourself.
+                      and we will build the calculation for you.
                     </span>
                     <a
                       class="linkish"
@@ -412,9 +364,6 @@ interface AskedThing {
                       i18n="@@spd.structure.form"
                       >Build it from a form</a
                     >
-                    <button type="button" class="linkish" (click)="startPipeline()">
-                      <span i18n="@@spd.structure.start">Work it out step by step</span>
-                    </button>
                   </p>
                 }
 
@@ -1077,45 +1026,18 @@ export class SurrogateProductDetailPage {
       null,
   );
 
-  // --- authoring the structure -----------------------------------------------
+  // --- the calculation, as the server last agreed to it -----------------------
   //
-  // A DRAFT held apart from `ruleSteps()` / `ruleGates()` / `ruleOutput()`, which are read
-  // straight off the last server response. Editing those computeds is not possible and
-  // should not be: the rendered structure is what the server last agreed to, and the draft
-  // is what the operator is proposing. `absorb()` re-seeds the draft from the response, so a
-  // reload discards an unsaved edit exactly as it discards an unsaved figure.
+  // Read straight off the last response, and no longer editable here. The raw step builder
+  // is GONE: a calculation is shaped by the predefined library or by the form it compiles to,
+  // and a graph editor asking an operator to wire step 3 back at steps 1 and 2 was
+  // programming with a mouse. What remains is the FIGURES — which is what an operator on this
+  // screen came to change — and the read-only flow further down, which says what the
+  // calculation does in words.
+  //
+  // A product the form cannot describe keeps quoting exactly as it did; what it no longer has
+  // is a door to be hand-edited through, and the screen says so rather than implying one.
 
-  protected readonly builderSteps = signal<RuleStep[]>([]);
-  protected readonly builderGates = signal<RuleGate[]>([]);
-  protected readonly builderOutput = signal<ProductRuleOutput | null>(null);
-
-  /**
-   * Whether the structure was EDITED, not whether it exists.
-   *
-   * This is the flag that decides whether the save carries `steps`/`gates`/`output` at all.
-   * Untouched, the write stays figures-only and the server keeps the stored structure — the
-   * property that stops a stale tab replacing a product it merely rendered.
-   */
-  protected readonly structureDirty = signal(false);
-  protected readonly structureOpen = signal(false);
-
-  /**
-   * Has the operator asked for the raw step builder on a FORM-built product?
-   *
-   * Session-only and deliberately not persisted: the reveal is an escape hatch for the one
-   * product that has outgrown its shape, not a preference. A hand-built pipeline has no form
-   * to fall back on, so it never passes through this gate at all — hiding the builder there
-   * would leave its calculation uneditable in the browser.
-   */
-  protected readonly rawStepsShown = signal(false);
-
-  /**
-   * Was this calculation built from the form?
-   *
-   * Read off the server's own answer rather than inferred from the steps: a hand-authored
-   * pipeline and a compiled one are the same shape by construction, so there is nothing in
-   * the steps to tell them apart — which is exactly why the form is stored.
-   */
   /**
    * Would the server refuse this pipeline?
    *
@@ -1129,29 +1051,15 @@ export class SurrogateProductDetailPage {
   protected readonly ruleBlocked = computed(() => {
     if (!this.isPipeline()) return false;
     return productRuleHasError({
-      steps: this.builderSteps().length > 0 ? this.builderSteps() : this.ruleSteps(),
-      gates: this.builderGates().length > 0 ? this.builderGates() : this.ruleGates(),
+      steps: this.ruleSteps(),
+      gates: this.ruleGates(),
       figures: this.stepFigures(),
     });
   });
 
   protected readonly hasTemplate = computed(() => this.product()?.template != null);
 
-  protected readonly isPipeline = computed(
-    () => this.builderSteps().length > 0 || this.ruleSteps().length > 0,
-  );
-
-  protected onBuilderSteps(steps: RuleStep[]): void {
-    this.builderSteps.set(steps);
-  }
-
-  protected onBuilderGates(gates: RuleGate[]): void {
-    this.builderGates.set(gates);
-  }
-
-  protected onBuilderOutput(output: ProductRuleOutput | null): void {
-    this.builderOutput.set(output);
-  }
+  protected readonly isPipeline = computed(() => this.ruleSteps().length > 0);
 
   // --- deleting the product ---------------------------------------------------
 
@@ -1206,42 +1114,6 @@ export class SurrogateProductDetailPage {
     } finally {
       this.deleting.set(false);
     }
-  }
-
-  protected markStructureDirty(): void {
-    this.structureDirty.set(true);
-    this.markDirty();
-  }
-
-  protected toggleStructure(event: Event): void {
-    event.preventDefault();
-    this.structureOpen.update((open) => !open);
-  }
-
-  /**
-   * Opens as well as reveals: an operator who asked for the steps asked to SEE them, and a
-   * collapsed `<details>` appearing where the link was reads as the click having failed.
-   */
-  protected revealRawSteps(): void {
-    this.rawStepsShown.set(true);
-    this.structureOpen.set(true);
-  }
-
-  /**
-   * Turn a single-figure product into a pipeline.
-   *
-   * Needed as its own control because `'steps'` is deliberately absent from the method
-   * picker — a pipeline is not a twelfth income method — so without this a freshly created
-   * product could never become one from the browser at all. Opens with one step and the
-   * answer pointing at it, which is the smallest rule that validates.
-   */
-  protected startPipeline(): void {
-    this.builderSteps.set([{ id: 'step_1', op: 'constant' }]);
-    this.builderGates.set([]);
-    this.builderOutput.set({ kind: 'monthlyIncome', from: 'step_1' });
-    this.ruleGroup.controls.strategy.setValue('steps');
-    this.structureOpen.set(true);
-    this.markStructureDirty();
   }
 
   // --- the lists this calculation reads --------------------------------------
@@ -1632,15 +1504,12 @@ export class SurrogateProductDetailPage {
       ...(shape === 'scalar' && scalar.value
         ? { scalar: { value: scalar.value, unit: scalar.unit } }
         : {}),
+      // FIGURES only. Nothing on this screen edits the shape any more, and a write that
+      // omits `steps`/`gates`/`output` is exactly what makes the server keep the stored
+      // structure (`withStoredStructure`) — the property that stops a stale tab replacing a
+      // product it merely rendered.
       ...(shape === 'steps' && Object.keys(this.stepFigures()).length > 0
         ? { stepParams: this.stepFigures() }
-        : {}),
-      ...(this.structureDirty()
-        ? {
-            steps: this.builderSteps(),
-            gates: this.builderGates(),
-            output: this.builderOutput() ?? undefined,
-          }
         : {}),
     };
   }
@@ -1662,18 +1531,6 @@ export class SurrogateProductDetailPage {
   private absorb(data: SurrogateProductDetail): void {
     this.product.set(data);
     const rule = data.incomeRule;
-    // Re-seed the draft from what the server agreed to, and clear the dirty flag with it:
-    // a reload discards an unsaved structural edit exactly as it discards an unsaved figure.
-    // Cloned one level so the builder's own `update` calls cannot mutate the response object
-    // the read-only panels below are still rendering from.
-    const structural = rule as
-      | { steps?: RuleStep[]; gates?: RuleGate[]; output?: ProductRuleOutput }
-      | null
-      | undefined;
-    this.builderSteps.set((structural?.steps ?? []).map((step) => ({ ...step })));
-    this.builderGates.set((structural?.gates ?? []).map((gate) => ({ ...gate })));
-    this.builderOutput.set(structural?.output ? { ...structural.output } : null);
-    this.structureDirty.set(false);
     this.ruleGroup.reset(
       {
         strategy: rule?.strategy ?? 'declared',

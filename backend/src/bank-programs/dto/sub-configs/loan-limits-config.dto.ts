@@ -130,6 +130,26 @@ export class MaxLoanByFactDto {
   @Matches(FACT_KEY)
   columnFactKey?: string;
 
+  /**
+   * Whether a row key is the answer's own option code (`answer`, the default and what every
+   * stored table means) or the class it is filed under (`parentClass`).
+   *
+   * `parentClass` is how one granular list serves banks that group it differently: 27
+   * governorates under three city tiers, so a sheet capping "Cairo & Alexandria" fills two
+   * class rows instead of spelling out every governorate — and the next one added to the
+   * list is capped without touching any bank's table.
+   */
+  @ApiPropertyOptional({ enum: ['answer', 'parentClass'] })
+  @IsOptional()
+  @IsIn(['answer', 'parentClass'])
+  rowVia?: 'answer' | 'parentClass';
+
+  /** The same choice for the second axis. */
+  @ApiPropertyOptional({ enum: ['answer', 'parentClass'] })
+  @IsOptional()
+  @IsIn(['answer', 'parentClass'])
+  columnVia?: 'answer' | 'parentClass';
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(200)

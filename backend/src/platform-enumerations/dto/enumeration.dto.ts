@@ -295,6 +295,26 @@ export class SetEnumerationParentKeysBulkDto {
  * mirrored question's dense `displayOrder` plan comes back with an empty update set.
  */
 export class CreateEnumerationValueRowDto {
+  /**
+   * The key to store, or omitted to slug it from the English label.
+   *
+   * A pasted sheet omits it, and must: slugging is what makes re-pasting the same sheet
+   * write nothing, and a hand-typed key per row in a four-hundred-row paste is four hundred
+   * chances to file a figure under something no rule reads.
+   *
+   * A PROGRAMMATIC caller states it, and must: a predefined product's row keys are what a
+   * bank's table is filed under and what a stored answer holds, so they are declared with
+   * the mechanism rather than derived from wording somebody may reword. Same field the
+   * single-row create has always taken — this is the batched spelling of it, not a new
+   * liberty.
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source })
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
+  key?: string;
+
   @ApiProperty({ minLength: 1, maxLength: 160 })
   @IsString()
   @IsNotEmpty()
@@ -383,6 +403,21 @@ export class CreateEnumerationValuesBulkDto {
   @IsOptional()
   @IsBoolean()
   dryRun?: boolean;
+
+  /**
+   * Write the rows and DO NOT re-sync the mirrored question — the caller will.
+   *
+   * For the one caller that writes to several lists in a row: building a predefined product
+   * may add to three, and a sync each cuts a questionnaire version each, which is the
+   * per-write publish this endpoint exists to avoid. That caller syncs every list it touched
+   * and publishes once at the end.
+   *
+   * NOT on the HTTP surface — a screen posting this would leave the questionnaire behind the
+   * registry with nothing scheduled to catch it up. `deferMirrorSync` is stripped from the
+   * wire by `forbidNonWhitelisted` precisely because it is not declared here as an API field
+   * but passed in-process, which is the distinction that keeps it safe.
+   */
+  deferMirrorSync?: boolean;
 }
 
 /** What a successful bulk create reports back. */
@@ -700,7 +735,9 @@ export class CreateEnumerationTypeDto {
    * must still be shape-checked rather than reaching Prisma unvalidated.
    */
   @ApiPropertyOptional({ maxLength: 48, pattern: KEY_PATTERN.source })
-  @ValidateIf((o: CreateEnumerationTypeDto) => o.parentTypeKey !== undefined && o.parentTypeKey !== null)
+  @ValidateIf(
+    (o: CreateEnumerationTypeDto) => o.parentTypeKey !== undefined && o.parentTypeKey !== null,
+  )
   @IsString()
   @IsNotEmpty()
   @Length(1, 48)
@@ -720,7 +757,8 @@ export class CreateEnumerationTypeDto {
    */
   @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source, nullable: true })
   @ValidateIf(
-    (o: CreateEnumerationTypeDto) => o.fallbackParentKey !== undefined && o.fallbackParentKey !== null,
+    (o: CreateEnumerationTypeDto) =>
+      o.fallbackParentKey !== undefined && o.fallbackParentKey !== null,
   )
   @IsString()
   @IsNotEmpty()
@@ -786,13 +824,17 @@ export class UpdateEnumerationTypeDto {
   labelEn?: string;
 
   @ApiPropertyOptional({ maxLength: 400, nullable: true })
-  @ValidateIf((o: UpdateEnumerationTypeDto) => o.descriptionAr !== undefined && o.descriptionAr !== null)
+  @ValidateIf(
+    (o: UpdateEnumerationTypeDto) => o.descriptionAr !== undefined && o.descriptionAr !== null,
+  )
   @IsString()
   @MaxLength(400)
   descriptionAr?: string | null;
 
   @ApiPropertyOptional({ maxLength: 400, nullable: true })
-  @ValidateIf((o: UpdateEnumerationTypeDto) => o.descriptionEn !== undefined && o.descriptionEn !== null)
+  @ValidateIf(
+    (o: UpdateEnumerationTypeDto) => o.descriptionEn !== undefined && o.descriptionEn !== null,
+  )
   @IsString()
   @MaxLength(400)
   descriptionEn?: string | null;
@@ -817,7 +859,9 @@ export class UpdateEnumerationTypeDto {
 
   /** `null` REMOVES the parent axis; absent leaves it. */
   @ApiPropertyOptional({ maxLength: 48, pattern: KEY_PATTERN.source, nullable: true })
-  @ValidateIf((o: UpdateEnumerationTypeDto) => o.parentTypeKey !== undefined && o.parentTypeKey !== null)
+  @ValidateIf(
+    (o: UpdateEnumerationTypeDto) => o.parentTypeKey !== undefined && o.parentTypeKey !== null,
+  )
   @IsString()
   @IsNotEmpty()
   @Length(1, 48)
@@ -837,7 +881,8 @@ export class UpdateEnumerationTypeDto {
    */
   @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source, nullable: true })
   @ValidateIf(
-    (o: UpdateEnumerationTypeDto) => o.fallbackParentKey !== undefined && o.fallbackParentKey !== null,
+    (o: UpdateEnumerationTypeDto) =>
+      o.fallbackParentKey !== undefined && o.fallbackParentKey !== null,
   )
   @IsString()
   @IsNotEmpty()

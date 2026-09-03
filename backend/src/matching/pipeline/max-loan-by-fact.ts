@@ -88,6 +88,21 @@ export interface MaxLoanByFactRow {
 export interface MaxLoanByFactConfig {
   factKey: string;
   columnFactKey?: string;
+  /**
+   * Whether a row (or a column) is keyed by the ANSWER's own option code — the default, and
+   * what every stored table means — or by the CLASS the answer is filed under.
+   *
+   * The platform's answer to "every bank tiers the same list differently" is one granular
+   * list filed under classes: 27 governorates under three city tiers, hundreds of compounds
+   * under six classes. A cap keyed by the answer cannot read that: one sheet caps Cairo &
+   * Alexandria together against everywhere else, and spelling all 27 codes into the table
+   * would leave the next governorate added silently uncapped.
+   *
+   * An answer filed under NO class yields no key and therefore no row, which lands on
+   * `onNoMatch` — the bank's own stated choice — rather than on a silent "no cap".
+   */
+  rowVia?: 'answer' | 'parentClass';
+  columnVia?: 'answer' | 'parentClass';
   rows: MaxLoanByFactRow[];
   onNoMatch: MaxLoanNoMatchAction;
 }
@@ -133,6 +148,28 @@ function rowMatches(row: MaxLoanByFactRow, answer: SurrogateFactValue): boolean 
 }
 
 /**
+ * One answer as the axis reads it: itself, or the class it is filed under.
+ *
+ * `undefined` out means "this axis cannot be read for this applicant" — either there was no
+ * answer, or there was one and it is filed under nothing. The caller decides which of those
+ * matters; for the ROW axis both end at `onNoMatch`, and for the COLUMN axis both fall
+ * through to the column-agnostic rows, exactly as an unanswered second axis already did.
+ */
+function viaClass(
+  answer: SurrogateFactValue | undefined,
+  via: 'answer' | 'parentClass' | undefined,
+  parentKeyByValue: Readonly<Record<string, string>> | undefined,
+): SurrogateFactValue | undefined {
+  if (answer === undefined) return undefined;
+  if (via !== 'parentClass') return answer;
+  // Only a choice has a class. A numeric axis keyed by class is refused at save, so this is
+  // belt-and-braces rather than a reachable shape.
+  if (answer.kind !== 'choice') return undefined;
+  const parentKey = parentKeyByValue?.[answer.optionCode];
+  return parentKey === undefined ? undefined : { kind: 'choice', optionCode: parentKey };
+}
+
+/**
  * The bank's cap for this applicant, or why there is none.
  *
  * Two passes, and the order is the whole of the second-axis rule: a row that names THIS
@@ -146,14 +183,24 @@ function rowMatches(row: MaxLoanByFactRow, answer: SurrogateFactValue): boolean 
 export function resolveMaxLoanByFact(args: {
   config: MaxLoanByFactConfig;
   facts: Readonly<Record<string, SurrogateFactValue>>;
+  /** The class each list value is filed under. Only read when an axis says `parentClass`. */
+  parentKeyByValue?: Readonly<Record<string, string>>;
 }): MaxLoanByFactResolution {
-  const { config, facts } = args;
-  const answer = facts[config.factKey];
-  if (answer === undefined) {
+  const { config, facts, parentKeyByValue } = args;
+  const rawAnswer = facts[config.factKey];
+  if (rawAnswer === undefined) {
     return { matched: false, action: config.onNoMatch, reason: 'fact_not_answered' };
   }
+  // A class-keyed axis reads the class, so the answer is REPLACED by it before any row is
+  // compared. An unfiled value has no class: no row can match, and `onNoMatch` decides —
+  // which is the same reading `factParentTable` takes, where the class is also the key.
+  const answer = viaClass(rawAnswer, config.rowVia, parentKeyByValue);
+  if (answer === undefined) {
+    return { matched: false, action: config.onNoMatch, reason: 'no_matching_row' };
+  }
 
-  const columnAnswer = config.columnFactKey === undefined ? undefined : facts[config.columnFactKey];
+  const rawColumn = config.columnFactKey === undefined ? undefined : facts[config.columnFactKey];
+  const columnAnswer = viaClass(rawColumn, config.columnVia, parentKeyByValue);
   const columnCode =
     columnAnswer !== undefined && columnAnswer.kind === 'choice'
       ? columnAnswer.optionCode

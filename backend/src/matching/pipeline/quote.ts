@@ -380,7 +380,11 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   let capCameFromTable = false;
   const maxLoanByFact = program.loanLimits?.maxLoanByFact;
   if (maxLoanByFact !== undefined) {
-    const capped = resolveMaxLoanByFact({ config: maxLoanByFact, facts: programFacts });
+    const capped = resolveMaxLoanByFact({
+      config: maxLoanByFact,
+      facts: programFacts,
+      ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+    });
     if (capped.matched) {
       if (capped.maxAmountEGP.lessThan(programCap)) {
         programCap = capped.maxAmountEGP;
