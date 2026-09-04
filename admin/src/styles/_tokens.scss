@@ -137,6 +137,10 @@
   --color-tonal-accent: var(--accent);
   --color-tonal-accent-hover: var(--accent-hover);
   --color-tonal-accent-bg: var(--accent-subtle);
+  // Bronze as INK. See `--accent-visible` in _palette.scss for the measurement:
+  // `--color-tonal-accent` is 3.51:1 on the page ground in light mode, which fails AA
+  // for the eyebrow every page header sets in it. Fills and rules keep the plain accent.
+  --color-tonal-accent-ink: var(--accent-visible);
 
   --color-surface-page: var(--bg-base);
   --color-surface-default: var(--bg-surface);

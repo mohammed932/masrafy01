@@ -123,6 +123,7 @@ function serviceFor(storedRule: unknown): BankProgramsService {
     repo as never,
     { create: explode } as never,
     enums as never,
+    { asksByProduct: async () => new Map() } as never,
   );
 }
 

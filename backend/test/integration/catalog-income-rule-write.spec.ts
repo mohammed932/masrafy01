@@ -80,6 +80,7 @@ function makeService(state: CatalogState) {
     {} as never,
     audit as never,
     enums as never,
+    { asksByProduct: async () => new Map() } as never,
   );
   return {
     write: (dto: SetProgramNameIncomeRuleDto) =>

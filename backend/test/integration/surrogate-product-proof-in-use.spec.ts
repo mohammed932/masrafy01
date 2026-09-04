@@ -63,9 +63,14 @@ function makeService(opts: { names: string[]; programs: string[]; rule?: unknown
   // than silently handing the service the wrong collaborator.
   const service = new BankProgramsService(
     {} as never,
-    {} as never,
+    // The program repository, stubbed down to the one read the detail projection makes:
+    // every write here returns that projection, and it now reports which programs cap by
+    // one of the product's answers.
+    { capFactsByProgram: async () => [] } as never,
     audit as never,
     enums as never,
+    {} as never,
+    { asksByProduct: async () => new Map() } as never,
   );
   return { service, enums };
 }

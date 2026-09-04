@@ -234,7 +234,81 @@ describe('listFigureState', () => {
     expect(listFigureState([], [], FACTS, 'property_type')).toEqual({
       state: 'unpriced',
       slots: [],
+      pricedOn: null,
     });
+  });
+
+  it('names the class list the figures are on', () => {
+    expect(listFigureState(STEPS, [], FACTS, 'compound').pricedOn).toBe('compound_category');
+  });
+});
+
+/**
+ * THE TEACHERS' PRODUCT. Three stages against two school types: one key table per school
+ * type, both keyed by the STAGE, picked by the type. So every school type does carry
+ * figures — three each — and every one of them is entered on the stages list as a second
+ * column. Reported as `unpriced`, the school types tab said "no amount is keyed by these
+ * answers" over the axis that doubles the ceiling.
+ */
+const COLUMN_STEPS: RuleStep[] = [
+  { id: 'primary', op: 'factChoiceTable', fact: 'school_stage' },
+  { id: 'primary__school_international', op: 'factChoiceTable', fact: 'school_stage' },
+  {
+    id: 'primary_pick',
+    op: 'pickByFact',
+    fact: 'school_type',
+    branches: ['school_national', 'school_international'],
+    of: [{ step: 'primary' }, { step: 'primary__school_international' }],
+  },
+];
+
+const COLUMN_FACTS: RegistryFact[] = [
+  fact('school_stage', { optionsEnumerationType: 'school_stage' }),
+  fact('school_type', { optionsEnumerationType: 'school_type' }),
+];
+
+describe('a list that names a column of somebody else’s table', () => {
+  it('keys the merged pair by the stages, as one slot with two columns', () => {
+    const slots = slotsKeyedByList(COLUMN_STEPS, [], COLUMN_FACTS, 'school_stage');
+    expect(slots.map((s) => s.id)).toEqual(['primary']);
+    expect(slots[0]?.secondId).toBe('primary__school_international');
+    expect(listFigureState(COLUMN_STEPS, [], COLUMN_FACTS, 'school_stage').state).toBe('keyed');
+  });
+
+  it('says the school types are a column, and names where their figures are', () => {
+    const state = listFigureState(COLUMN_STEPS, [], COLUMN_FACTS, 'school_type');
+    expect(state.state).toBe('asColumn');
+    expect(state.pricedOn).toBe('school_stage');
+    expect(state.slots).toEqual([]);
+  });
+
+  it('withholds the home when the pick’s columns read two different lists', () => {
+    const steps: RuleStep[] = [
+      { id: 'a', op: 'factChoiceTable', fact: 'school_stage' },
+      { id: 'b', op: 'factChoiceTable', fact: 'owned_unit_type' },
+      {
+        id: 'pick',
+        op: 'pickByFact',
+        fact: 'school_type',
+        branches: ['school_national', 'school_international'],
+        of: [{ step: 'a' }, { step: 'b' }],
+      },
+    ];
+    const facts = [...COLUMN_FACTS, fact('owned_unit_type', { optionsEnumerationType: 'property_type' })];
+    const state = listFigureState(steps, [], facts, 'school_type');
+    expect(state.state).toBe('asColumn');
+    expect(state.pricedOn).toBeNull();
+  });
+
+  it('leaves a list nothing reads unpriced, pick or no pick', () => {
+    const facts = [...COLUMN_FACTS, fact('multi_unit', { optionsEnumerationType: 'yes_no' })];
+    expect(listFigureState(COLUMN_STEPS, [], facts, 'yes_no').state).toBe('unpriced');
+  });
+
+  it('still reports the branch list as keyed when the columns key nothing of their own', () => {
+    // The doctors' product, unchanged: the branch list IS where the figures go, so the
+    // column fallback must answer `keyed` and never `asColumn`.
+    expect(listFigureState(BAND_STEPS, [], BAND_FACTS, 'city_tier').state).toBe('keyed');
   });
 });
 

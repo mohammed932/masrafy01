@@ -110,6 +110,16 @@ export interface SurrogateProductSummaryDto {
   wayCount: number | null;
   /** Catalog names taking their calculation from it. Empty means nothing sells it yet. */
   usedBy: string[];
+  /**
+   * Programs that cap their maximum by an answer THIS product asks for.
+   *
+   * A second measure of usage, and the only one that finds a cap-only product: it guesses no
+   * income, so it is sold through no catalog name (`SURROGATE_PRODUCT_CAP_ONLY` refuses the
+   * link), and `usedBy` is therefore empty for it however many banks quote a cap from it. Read
+   * off `loanLimits`, so a program that caps by the answer counts whether or not it also runs
+   * a calculation.
+   */
+  capPrograms: string[];
 }
 
 /** A surrogate product's own page: the calculation, and who uses it. */

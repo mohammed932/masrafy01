@@ -66,13 +66,37 @@ import { CommonModule } from '@angular/common';
         min-inline-size: 0;
         max-inline-size: 100%;
       }
+      /* INK, not the plain accent. --color-tonal-accent is the 500-weight bronze, and at
+         12px semibold uppercase on the page ground it measures 3.42:1 in LIGHT mode —
+         under AA, on a label that sits at the top of every screen in the product. Dark
+         passes at 12.46:1 because the bronze ramp inverts there (bronze-500 lifts to
+         #E8D4B8), which is why the failure survived every dark-mode review. Measured in a
+         browser after the swap: 4.53:1 light, 12.46:1 dark.
+
+         The RULE below deliberately keeps the plain accent, and still measures 3.42:1 —
+         which is both above the 3:1 a non-text graphic needs and a live reminder of what
+         the ink used to be. */
       .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
         margin: 0;
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--color-tonal-accent);
+        color: var(--color-tonal-accent-ink);
+      }
+      /* The block had no anchor: an uppercase line floating over a large title reads as
+         a stray label rather than as the head of a section. A short accent rule gives the
+         hero a start edge for the eye to return to, and costs no markup and no string. */
+      .eyebrow::before {
+        content: '';
+        flex: none;
+        inline-size: var(--rule-width-accent);
+        block-size: 0.85em;
+        border-radius: var(--radius-pill);
+        background: var(--color-tonal-accent);
       }
       .title {
         margin: 0;
@@ -81,6 +105,9 @@ import { CommonModule } from '@angular/common';
         color: var(--color-text-primary);
         letter-spacing: -0.015em;
         line-height: var(--line-height-tight);
+        /* Two-line titles break evenly instead of leaving one orphaned word; ignored
+           where unsupported, so it degrades to what shipped. */
+        text-wrap: balance;
       }
       .subtitle {
         margin: var(--space-2) 0 0;
@@ -88,9 +115,55 @@ import { CommonModule } from '@angular/common';
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
         line-height: var(--line-height-loose);
+        text-wrap: pretty;
       }
       .aside:empty {
         display: none;
+      }
+
+      /* --- Entrance ---------------------------------------------------------
+         section.page already rises as a whole (styles.scss). This is a short
+         SECOND-order stagger inside it, so the header assembles top-down rather
+         than arriving as one slab — the difference between a page that loaded and
+         a page that came together.
+
+         backwards, never forwards: the fill has to hold the FROM state during
+         the delay, and holding a to frame would leave a computed transform on the
+         element after the animation. That is the containing-block trap app-page-rise
+         documents at length — a persisting non-none transform captures any
+         position: fixed descendant (A34). Ending on backwards lets transform
+         revert to none the moment the animation is done. */
+      .eyebrow,
+      .title,
+      .subtitle,
+      .aside {
+        animation: ph-line-in var(--motion-duration-base) var(--motion-easing-standard) backwards;
+      }
+      .eyebrow {
+        animation-delay: 0ms;
+      }
+      .title {
+        animation-delay: var(--motion-stagger);
+      }
+      .subtitle {
+        animation-delay: calc(var(--motion-stagger) * 2);
+      }
+      .aside {
+        animation-delay: calc(var(--motion-stagger) * 3);
+      }
+      @keyframes ph-line-in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .eyebrow,
+        .title,
+        .subtitle,
+        .aside {
+          animation: none;
+        }
       }
     `,
   ],

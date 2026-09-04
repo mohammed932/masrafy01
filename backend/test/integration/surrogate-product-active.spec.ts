@@ -56,6 +56,7 @@ function makeService(opts: { exists?: boolean } = {}) {
     {} as never,
     enums as never,
     enumsAdmin as never,
+    { asksByProduct: async () => new Map() } as never,
   );
   return { service, enums, enumsAdmin };
 }

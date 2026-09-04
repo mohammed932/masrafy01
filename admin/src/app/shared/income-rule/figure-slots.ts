@@ -64,6 +64,16 @@ export type ListFigureState =
   | 'keyed'
   /** The values are answers, but the amount is stated per class they are filed under. */
   | 'byClass'
+  /**
+   * The values name a COLUMN of a table keyed by another list.
+   *
+   * The teachers' product is the case: three stages against two school types, so every
+   * school type does carry an amount — six of them — and every one of those figures is
+   * entered on the STAGES list as a second column. Reported as `unpriced` (the state this
+   * one was carved out of) the screen said "no amount is keyed by these answers" over a
+   * product whose whole ceiling moves with them, which reads as a missing figure.
+   */
+  | 'asColumn'
   /** No figure is keyed by these values at all — they steer the calculation, not the money. */
   | 'unpriced';
 
@@ -218,25 +228,67 @@ export function slotsKeyedByList(
 }
 
 /**
+ * The list a `pickByFact` splits its columns by, or `null`.
+ *
+ * The same two-line resolution `keyedSlots` uses for the branch fallback, and it must stay
+ * the same one: which list a pick branches by is what decides both where a column-keyed
+ * figure hangs and, here, which list is merely naming the column.
+ */
+function branchListOf(step: RuleStep, facts: readonly RegistryFact[]): string | null {
+  if (step.op !== 'pickByFact' || step.fact === undefined) return null;
+  const question = facts.find((f) => f.key === step.fact)?.question;
+  if (!question) return null;
+  return (
+    (step.branchOn === 'parentClass'
+      ? question.parentEnumerationType
+      : question.optionsEnumerationType) ?? null
+  );
+}
+
+/**
  * What a list carries, and the slots it keys — one pass, for the panel that renders it.
  *
- * `byClass` is the case a naive implementation reports as "nothing set": the values ARE read,
- * and the amount for each of them is stated one level up, on the list they are filed under.
+ * `byClass` and `asColumn` are the two cases a naive implementation reports as "nothing
+ * set". In both the values ARE priced; what differs is where the boxes are. Under a class,
+ * the amount is stated one level up on the list they are filed under; as a column, it is
+ * stated one axis over, on the list the table's ROWS come from.
+ *
+ * `pricedOn` names that other list when there is exactly one, so the screen can send the
+ * operator to it. Two of them (a pick whose columns read different facts) leaves it `null`
+ * and the copy stays general rather than naming one of two homes and hiding the other.
  */
 export function listFigureState(
   steps: readonly RuleStep[],
   gates: readonly RuleGate[],
   facts: readonly RegistryFact[],
   listType: string,
-): { state: ListFigureState; slots: KeyedSlot[] } {
+): { state: ListFigureState; slots: KeyedSlot[]; pricedOn: string | null } {
   const all = keyedSlots(steps, gates);
   const slots = all.filter((slot) => listTypeOf(slot, facts) === listType);
-  if (slots.length > 0) return { state: 'keyed', slots };
+  if (slots.length > 0) return { state: 'keyed', slots, pricedOn: null };
 
-  const pricedByClass = all.some((slot) => {
+  const byClass = all.find((slot) => {
     if (slot.axis !== 'class') return false;
     const question = facts.find((f) => f.key === slot.factKey)?.question;
     return question?.optionsEnumerationType === listType;
   });
-  return { state: pricedByClass ? 'byClass' : 'unpriced', slots: [] };
+  if (byClass) return { state: 'byClass', slots: [], pricedOn: listTypeOf(byClass, facts) };
+
+  // A COLUMN OF SOMEBODY ELSE'S TABLE. Reached only after `keyed`, so a pick whose columns
+  // are keyed by no list of their own — the doctors' product, where the branch list IS where
+  // the figures go — has already been answered and never lands here.
+  for (const step of steps) {
+    if (branchListOf(step, facts) !== listType) continue;
+    const homes = new Set(
+      all
+        .filter((slot) => slot.rowId === step.id)
+        .map((slot) => listTypeOf(slot, facts))
+        .filter((type): type is string => type !== null),
+    );
+    if (homes.size === 0) continue;
+    const [only] = [...homes];
+    return { state: 'asColumn', slots: [], pricedOn: homes.size === 1 ? (only ?? null) : null };
+  }
+
+  return { state: 'unpriced', slots: [], pricedOn: null };
 }

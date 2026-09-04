@@ -290,3 +290,29 @@ describe('buildBoard — search', () => {
     expect(b.products).toHaveLength(1);
   });
 });
+describe('a product no catalog name can sell', () => {
+  it('counts the programs that cap by one of its answers, so it does not read as unused', () => {
+    // Three of the eleven predefined products work out no income: each bank states the
+    // maximum it lends against one answer. No catalog name may link to one
+    // (`SURROGATE_PRODUCT_CAP_ONLY`), so `programs` is structurally zero and the card used to
+    // say "No bank quotes from it yet" while three banks quoted a cap from it.
+    const board = buildBoard({
+      names: [],
+      products: [product({ key: 'club_branch_cap', usedBy: [], capPrograms: ['FAB-PER-CLUB'] })],
+      search: '',
+    });
+    expect(board.products[0]?.programs).toBe(0);
+    expect(board.products[0]?.capPrograms).toBe(1);
+  });
+
+  it('reads an absent field as none known, never as zero', () => {
+    // The field is optional on the wire so this bundle still runs against a backend that
+    // predates it. Absent must not become a claim.
+    const board = buildBoard({
+      names: [],
+      products: [product({ key: 'club_branch_cap', usedBy: [] })],
+      search: '',
+    });
+    expect(board.products[0]?.capPrograms).toBe(0);
+  });
+});

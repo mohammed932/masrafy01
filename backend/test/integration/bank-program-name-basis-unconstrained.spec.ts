@@ -40,7 +40,9 @@ function makeService(state: CatalogState) {
     getActiveMembers: async () => state.active.map((key) => ({ key })),
     memberCategories: async (_type: string, key: string) => state.categories[key] ?? [],
   };
-  const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never);
+  const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never,
+      { asksByProduct: async () => new Map() } as never,
+    );
   return (key: string, category: string, opts: AssertOpts = {}): Promise<void> =>
     (
       service as unknown as {

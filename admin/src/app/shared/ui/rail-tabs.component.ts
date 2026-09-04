@@ -67,7 +67,23 @@ export interface RailTabItem {
       role="tablist"
       [attr.aria-orientation]="orientation()"
       [attr.aria-label]="ariaLabel()"
+      [style.--rail-n]="items().length"
+      [style.--rail-i]="activeIndex()"
+      [style.--rail-active-accent]="activeAccent()"
     >
+      <!-- The live segment, drawn ONCE and moved, rather than a background that appears on
+           one button as it disappears from another. Two peers swapping fills read as two
+           unrelated buttons blinking; one surface that travels reads as a control with a
+           position — which is the whole thing a segmented control is for.
+
+           Presentational, and deliberately outside the tablist semantics: it carries no
+           text and no role, the buttons keep every state a screen reader is told about.
+           Rendered only when the track is UNIFORM, because the slide is expressed as a
+           multiple of one column's width and content-sized segments have no such column;
+           without it the non-uniform track keeps painting the fill on the live button. -->
+      @if (showThumb()) {
+        <span class="thumb" aria-hidden="true"></span>
+      }
       @for (item of items(); track item.id) {
         <button
           type="button"
@@ -260,6 +276,7 @@ export interface RailTabItem {
          hairline is load-bearing for the same reason: --shadow-sm is a black rgba, i.e.
          invisible on a near-black surface, so the lift has to be DRAWN as well as cast. */
       .rail.segmented {
+        position: relative;
         display: inline-flex;
         max-inline-size: 100%;
         gap: var(--space-1);
@@ -280,27 +297,104 @@ export interface RailTabItem {
         grid-auto-columns: minmax(0, 1fr);
       }
       .rail.segmented .tab {
+        /* Above the thumb, which is a sibling painted at z-index 0. */
+        position: relative;
+        z-index: 1;
         padding-inline: var(--space-3);
         padding-block: var(--space-2);
         border-color: transparent;
         border-radius: calc(var(--radius-lg) - var(--space-1));
         background: transparent;
       }
-      .rail.segmented .tab:hover {
+      /* :not(.on) — a hover wash laid over the live surface is one surface darkening
+         another, which reads as a press that never resolves. The live segment is already
+         the answer; there is nothing for hover to preview. */
+      .rail.segmented .tab:not(.on):hover {
         border-color: transparent;
         background: color-mix(in srgb, var(--rail-item-ink) 8%, transparent);
       }
-      /* The live segment's edge is the one thing separating it from the track it sits in,
-         so it is held to the 3:1 a non-text state cue needs: at 32% ink it measured 2.22:1
-         in light against the segment's own surface (2.95:1 dark — a light-only failure, the
-         kind a dark-mode review passes). 55% clears it in both and keeps the item's hue. */
-      .rail.segmented .tab.on {
-        background: var(--rail-surface);
-        border-color: color-mix(in srgb, var(--rail-item-ink) 55%, var(--rail-line-strong));
-        box-shadow: var(--shadow-sm);
+      /* The live segment where there is no thumb to travel — a rail whose length is data
+         (lookup kinds, rule groups) is not uniform, so there is no column to move by. It
+         wears the SAME surface as the thumb below, written once for both: one appearance
+         behind one appearance input, differing only in whether it slides. */
+      .rail.segmented:not(.uniform) .tab.on {
+        --live-ink: var(--rail-item-ink);
       }
       .rail.segmented .tab.on .tab-note {
         color: var(--color-text-secondary);
+      }
+      /* The live LABEL takes the item's own ink on this variant, and only here. The pill
+         rail deliberately keeps every label at primary — four brand colours as running
+         text is four contrast ratios to defend, and its border already says which is on.
+         A segmented track holds two or three peers whose DIFFERENCE is the point (a name
+         sold against a payslip vs the calculation one is quoted from), the accent is the
+         same hue those two answers wear on the basis cards, and the ink is the accent
+         mixed 72% toward the body ink — measured in a browser on the live segment's own
+         surface at 7.43:1 (azure) and 8.48:1 (plum) in light, 9.20:1 / 9.18:1 in dark, so
+         it clears AA as body text with room to spare. */
+      .rail.segmented .tab.on .tab-label {
+        color: var(--rail-item-ink);
+      }
+
+      /* --- The travelling segment ------------------------------------------- */
+      /* One surface, moved. Sized as a share of the track rather than measured off the
+         DOM, so it needs no ResizeObserver and stays correct through a font swap, a
+         locale change and a container resize: the track is an equal-column grid, so a
+         column is (track − padding − gaps) ÷ n by construction, and a step is one column
+         plus one gap.
+
+         RTL is a sign flip on the same expression, not a second rule: inset-inline-start
+         already puts the origin on the leading edge, and translateX past it is physical. */
+      .thumb {
+        --live-ink: color-mix(
+          in srgb,
+          var(--rail-active-accent, var(--rail-accent)) 72%,
+          var(--color-text-primary)
+        );
+        position: absolute;
+        z-index: 0;
+        inset-block: var(--space-1);
+        inset-inline-start: var(--space-1);
+        inline-size: calc(
+          (100% - var(--space-1) * 2 - var(--space-1) * (var(--rail-n) - 1)) / var(--rail-n)
+        );
+        pointer-events: none;
+        transform: translateX(
+          calc(var(--rail-i, 0) * (100% + var(--space-1)) * var(--rail-dir, 1))
+        );
+        transition:
+          transform var(--motion-duration-base) var(--motion-easing-emphasized),
+          border-color var(--motion-duration-base) var(--motion-easing-standard),
+          background var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      :host-context([dir='rtl']) .thumb {
+        --rail-dir: -1;
+      }
+      /* The live surface itself, written once for the thumb and for the fixed segment.
+
+         Its EDGE is the one thing separating it from the track it sits in, so it is held to
+         the 3:1 a non-text state cue needs: at 32% ink it measured 2.22:1 in light against
+         the segment's own surface (2.95:1 dark — a light-only failure, the kind a dark-mode
+         review passes). 55% clears it in both and keeps the item's hue — measured on this
+         rail at 3.10:1 (azure) and 3.19:1 (plum) in light, 4.87:1 in dark. */
+      .thumb,
+      .rail.segmented:not(.uniform) .tab.on {
+        border: 1px solid color-mix(in srgb, var(--live-ink) 55%, var(--rail-line-strong));
+        border-radius: calc(var(--radius-lg) - var(--space-1));
+        /* FLAT, and deliberately untinted. The track is --color-surface-page and this is
+           --color-surface-default, a pair that is directional in both themes, so the lift
+           is already said by the surface step, the hairline and the shadow. A tinted
+           two-stop wash on top of that read as a smear rather than as a lit surface —
+           the accent belongs in the EDGE and the LABEL, where it is one flat hue at a
+           contrast ratio that can be measured, not a ramp that is a different colour at
+           every y. */
+        background: var(--rail-surface);
+        /* Two shadows because one cannot serve both themes: --shadow-sm is a black rgba,
+           i.e. invisible on the dark theme's near-black track, so the lift is also DRAWN
+           in the accent's own hue. Same reasoning as the track's hairline. */
+        box-shadow:
+          var(--shadow-sm),
+          0 1px 2px color-mix(in srgb, var(--live-ink) 22%, transparent);
       }
 
       .tab-main {
@@ -390,6 +484,12 @@ export interface RailTabItem {
           transition: none;
           transform: none;
         }
+        /* The thumb keeps its transform — that is its POSITION, not an entrance — and
+           loses only the travel between positions. Killing the transform outright would
+           park the live segment permanently over the first item. */
+        .thumb {
+          transition: none;
+        }
       }
     `,
   ],
@@ -426,6 +526,35 @@ export class RailTabsComponent {
    * it. See the placeholder in the template for why.
    */
   protected readonly hasNotes = computed(() => this.items().some((i) => i.note !== undefined));
+
+  /**
+   * Where the travelling segment sits, as a column index. `-1` when `activeId` names no
+   * item — a real state on a rail whose selection comes from a URL, and one the thumb has
+   * no honest position for, so it is not drawn at all rather than parked on the first
+   * column claiming a selection nobody made.
+   */
+  protected readonly activeIndex = computed(() =>
+    this.items().findIndex((i) => i.id === this.activeId()),
+  );
+
+  /**
+   * Drawn only on a UNIFORM segmented track. The slide is one column's width plus one
+   * gap, and content-sized segments have no such column — there the fill stays painted on
+   * the live button (see `.rail.segmented:not(.uniform) .tab.on`).
+   */
+  protected readonly showThumb = computed(
+    () => this.appearance() === 'segmented' && this.uniform() && this.activeIndex() >= 0,
+  );
+
+  /**
+   * The live item's accent, lifted onto the rail so the thumb can wear it. The thumb is a
+   * sibling of the buttons, so it cannot inherit `--rail-item-accent` from the one that
+   * is on — and a thumb painted brand azure under a plum segment would say the wrong
+   * thing on exactly the control whose job is to say which of two answers is live.
+   */
+  protected readonly activeAccent = computed(
+    () => this.items()[this.activeIndex()]?.accent ?? null,
+  );
 
   /**
    * Arrow / Home / End over the rail. See the class docblock for why the RTL

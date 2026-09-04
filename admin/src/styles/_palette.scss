@@ -60,6 +60,21 @@
   --accent-hover: #8C6847;
   --accent-subtle: #F4EDE5;
   --selection: #A17C5B;
+  /**
+   * The bronze that is legible as TEXT on the page ground — the same job
+   * `--primary-visible` does for azure, and defined for the same measured reason.
+   *
+   * `--accent` is a 500-weight bronze picked to sit as a fill and a rule; used as ink it
+   * measures 3.42:1 on `--bg-base`, which fails AA for the 12px semibold uppercase eyebrow
+   * every page header sets in it. Dark mode passes at 12.46:1 because the bronze ramp
+   * INVERTS there (bronze-500 lifts to #E8D4B8) — which is exactly why a light-only
+   * failure survives a dark-mode review. This one measures 4.53:1 light / 12.46:1 dark
+   * in a browser, on the ground the eyebrow actually sits on.
+   *
+   * For ink only. A fill, a rule or a medallion still takes `--accent`: darkening those
+   * would drift the brand bronze everywhere it is used decoratively.
+   */
+  --accent-visible: #8C6847;
 
   // ─── Neutrals (warm) ──────────────────────────────────────────────────────
   --neutral-50: #F5F3F0;
@@ -110,6 +125,11 @@
   --error-500: #A8484D;
   --error-600: #8B3338;
   --error: #C1666B;
+  // Ink/fill strength for destructive controls. `--error` itself is a STATE colour tuned
+  // for washes and dots: as text on a surface it measures 3.81:1 in light, and under
+  // white ink as a solid fill it measures the same — both under AA. This is the pair that
+  // carries a label either way (7.80:1 both directions in light, 5.57 / 6.76 in dark).
+  --error-strong: var(--error-600);
 
   // ─── Semantic — warning ───────────────────────────────────────────────────
   --warning-50: #FDF8F0;
@@ -217,6 +237,10 @@
   --accent-hover: #F0E4D0;
   --accent-subtle: #4A3D35;
   --selection: #E8D4B8;
+  // Already legible as ink here (13.84:1) — the ramp inverts, so the accent IS the
+  // visible one. Restated rather than left to cascade: a token defined in only one
+  // theme is the defect `--primary-visible` was added to close.
+  --accent-visible: #E8D4B8;
 
   --neutral-50: #13101A;
   --neutral-100: #1F1A22;
@@ -254,6 +278,7 @@
   --error-400: #ef4444;
   --error-500: #f87171;
   --error: #ef4444;
+  --error-strong: var(--error-500);
 
   --warning-50: #f59e0b15;
   --warning-500: #f59e0b;

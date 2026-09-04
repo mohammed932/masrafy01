@@ -51,6 +51,20 @@ export interface ProductCard {
   readonly programs: number;
   /** Of those, how many are sold surrogate with no table entered — the actionable count. */
   readonly missingTables: number;
+  /**
+   * Programs that cap their maximum by an answer this product asks for.
+   *
+   * A SECOND way in, and the only one that reaches a cap-only product. Three of the eleven
+   * predefined products guess no income at all — each bank states the maximum it lends
+   * against one answer — so no catalog name may link to them and `programs` above is
+   * structurally zero for them. Counting only that read three live products as used by
+   * nobody while three banks quoted a cap from them.
+   *
+   * Kept SEPARATE from `programs` rather than added into it: the two answer different
+   * questions ("what quotes off this calculation?" and "what caps by this answer?"), one
+   * program can legitimately be both, and a single total would say which of the two neither.
+   */
+  readonly capPrograms: number;
 }
 
 /** Why a surrogate name is on the board on its own rather than inside a product card. */
@@ -170,6 +184,7 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
       // this payload to de-duplicate against.
       programs: names.reduce((n, r) => n + (r.usage?.programs ?? 0), 0),
       missingTables: names.reduce((n, r) => n + (r.usage?.noPayslipProgramsWithoutTable ?? 0), 0),
+      capPrograms: product.capPrograms?.length ?? 0,
     };
   });
 

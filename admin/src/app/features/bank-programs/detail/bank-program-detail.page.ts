@@ -207,6 +207,39 @@ import { basisOf, incomeBasisLabel } from '@core/income-basis';
                   <dd class="numeric">{{ qr }}</dd>
                 </div>
               }
+              <!-- The second table nine bank sheets print under "Loan Amount — Maximum".
+                   Rendered here because this page is where an operator checks what a program
+                   holds, and a cap that only appears inside the wizard reads as absent. -->
+              @if (capRows(p).length > 0) {
+                <div class="row">
+                  <dt i18n="@@bank_programs.detail.max_by_fact">Maximum by answer</dt>
+                  <dd class="chips">
+                    @for (r of capRows(p); track r.label) {
+                      <span class="enum-chip">{{ r.label }} → {{ r.amount }}</span>
+                    }
+                  </dd>
+                </div>
+                <div class="row">
+                  <dt i18n="@@bank_programs.detail.max_no_match">An answer with no row</dt>
+                  @if (p.loanLimits.maxLoanByFact?.onNoMatch === 'reject') {
+                    <dd i18n="@@max_loan_by_fact.reject">Gets no figures, with a stated reason</dd>
+                  } @else {
+                    <dd i18n="@@max_loan_by_fact.use_program_max">
+                      Falls back to this program’s maximum
+                    </dd>
+                  }
+                </div>
+              }
+              @if (capAdjustmentRows(p).length > 0) {
+                <div class="row">
+                  <dt i18n="@@bank_programs.detail.max_adjustments">Adjustments to that maximum</dt>
+                  <dd class="chips">
+                    @for (r of capAdjustmentRows(p); track r) {
+                      <span class="enum-chip">{{ r }}</span>
+                    }
+                  </dd>
+                </div>
+              }
             </dl>
           </section>
 
@@ -237,7 +270,9 @@ import { basisOf, incomeBasisLabel } from '@core/income-basis';
                 <dt i18n="@@bank_programs.field.rate_basis">How the interest is charged</dt>
                 <dd>
                   @if (p.pricing.rateBasis === 'flat') {
-                    <span i18n="@@bank_programs.review.rate_basis_flat">The full amount (flat)</span>
+                    <span i18n="@@bank_programs.review.rate_basis_flat"
+                      >The full amount (flat)</span
+                    >
                   } @else {
                     <span i18n="@@bank_programs.review.rate_basis_reducing"
                       >What is still owed (declining)</span
@@ -754,6 +789,41 @@ export class BankProgramDetailPage {
    * Each row carries whether its number was team-ESTIMATED, because an estimate blocks
    * activation and must not read as an equal of a bank-stated figure.
    */
+  /**
+   * The program's maximum-loan table, flattened one row per cell.
+   *
+   * The label carries the column when there is one: the same row key appears twice in a
+   * two-column table (a villa on a new loan and a villa on a top-up), and a bare row key
+   * could not tell the two figures apart — the same reason `pipelineRows` puts the step id
+   * in its own labels.
+   */
+  protected capRows(p: BankProgramResponse): Array<{ label: string; amount: string }> {
+    const table = p.loanLimits.maxLoanByFact;
+    if (!table) return [];
+    return table.rows.map((row) => {
+      // A numeric fact keys its rows by a half-open band, a choice fact by an option code.
+      // An open-ended last band is the normal case, not a missing value.
+      const key =
+        row.rowKey ??
+        (row.toExclusive === null || row.toExclusive === undefined
+          ? `${row.fromInclusive ?? '0'}+`
+          : `${row.fromInclusive ?? '0'}–${row.toExclusive}`);
+      return {
+        label: row.columnKey === undefined ? key : `${key} · ${row.columnKey}`,
+        amount: row.maxAmountEGP,
+      };
+    });
+  }
+
+  /** `+10% when they own more than one unit` — kind, figure, and the answer that switches it on. */
+  protected capAdjustmentRows(p: BankProgramResponse): string[] {
+    return (p.loanLimits.maxLoanAdjustments ?? []).map(
+      (adjustment) =>
+        `${adjustment.kind === 'upliftPercent' ? '+' : ''}${adjustment.percent}% · ` +
+        `${adjustment.whenFactKey} = ${adjustment.whenOptionCode}`,
+    );
+  }
+
   protected incomeRows(
     p: BankProgramResponse,
   ): Array<{ label: string; income: string; estimated: boolean }> {

@@ -4300,6 +4300,11 @@ export class BankProgramFormPage implements OnInit {
    */
   readonly maxLoanByFact = signal<MaxLoanByFactConfig | null>(null);
 
+  /** Carried, never edited — see `LoanLimitsConfig.maxLoanAdjustments`. */
+  private readonly maxLoanAdjustments = signal<NonNullable<
+    BankProgramResponse['loanLimits']['maxLoanAdjustments']
+  > | null>(null);
+
   /**
    * Whether the picked fact is answered with a number, which decides whether the rows are
    * option pickers or band edges. Computed here as well as inside the editor because the
@@ -5383,6 +5388,12 @@ export class BankProgramFormPage implements OnInit {
         // Omitted rather than sent as `null` when there is no table: `forbidNonWhitelisted`
         // accepts an absent optional field and the backend reads absence as "no cap table".
         ...(this.maxLoanByFact() !== null ? { maxLoanByFact: this.maxLoanByFact()! } : {}),
+        // Read and sent back unchanged. There is no editor for it: what this form does not
+        // send, a full-replacement PUT deletes, so carrying it is what keeps an adjustment
+        // authored by a seed or the API alive through an unrelated edit.
+        ...(this.maxLoanAdjustments() !== null
+          ? { maxLoanAdjustments: this.maxLoanAdjustments()! }
+          : {}),
       },
       pricing: {
         isVariableRate: pr.isVariableRate,
@@ -5501,6 +5512,11 @@ export class BankProgramFormPage implements OnInit {
             // review read-back.
             rows: initial.loanLimits.maxLoanByFact.rows.map((row) => ({ ...row })),
           },
+    );
+    this.maxLoanAdjustments.set(
+      initial.loanLimits.maxLoanAdjustments === undefined
+        ? null
+        : initial.loanLimits.maxLoanAdjustments.map((adjustment) => ({ ...adjustment })),
     );
 
     // Percent strings arrive as Prisma `Decimal(_, 4)` — `24.0000` for a flat 24%.

@@ -59,6 +59,23 @@ export interface LoanLimitsConfig {
     }>;
     onNoMatch: 'useProgramMax' | 'reject';
   };
+  /**
+   * Adjustments that act on the CAP rather than on the income — "+10% for a second
+   * residential unit", "50% of the loan amount on a jointly owned one".
+   *
+   * Carried here with NO editor behind it, deliberately and for one reason: a save is a
+   * full-replacement PUT built from this form, so a field the form does not read is a field
+   * the next save DELETES. The wizard therefore reads this and sends it back unchanged, which
+   * keeps a seeded or API-authored adjustment alive through an edit of something else. The
+   * scope (`income` vs `maxLoan`) is what makes an adjustment worth 300,000 on one applicant,
+   * so losing one silently is not a cosmetic bug.
+   */
+  maxLoanAdjustments?: Array<{
+    kind: 'upliftPercent' | 'sharePercent';
+    percent: string;
+    whenFactKey: string;
+    whenOptionCode: string;
+  }>;
 }
 
 /**
@@ -886,6 +903,17 @@ export interface SurrogateProductSummary {
   wayCount: number | null;
   /** Catalog names taking their calculation from it. Empty = nothing sells it yet. */
   usedBy: string[];
+  /**
+   * Programs capping their maximum by an answer this product asks for.
+   *
+   * The only measure of usage that finds a CAP-ONLY product: it works out no income, so no
+   * catalog name may link to it and `usedBy` is empty however many banks quote a cap from it.
+   *
+   * Optional on the wire so this bundle still runs against a backend that predates it, and
+   * absent reads as "none known" rather than as zero — the same posture `hasOwnIncomeRule`
+   * takes, and for the same reason: a card must not invent a claim from a field nobody sent.
+   */
+  capPrograms?: string[];
 }
 
 // ---------------------------------------------------------------------------

@@ -846,10 +846,6 @@
       <trans-unit id="program_catalog.dialog.edit" datatype="html"><source>Edit program name</source><target>تعديل اسم برنامج</target></trans-unit>
 
       <!-- Program catalog — list card + health panel -->
-      <trans-unit id="program_catalog.health" datatype="html"><source><x id="INTERPOLATION" equiv-text="gaps().length + parked().length"/> to look at</source><target><x id="INTERPOLATION" equiv-text="gaps().length + parked().length"/> بحاجة إلى مراجعة</target></trans-unit>
-      <trans-unit id="program_catalog.health.gaps" datatype="html"><source>No name is offered under <x id="INTERPOLATION" equiv-text="labels(gaps())"/>, so the bank-program builder has nothing to pick there. Open a name and turn that loan type on.</source><target>لا يوجد اسم مطروح تحت <x id="INTERPOLATION" equiv-text="labels(gaps())"/>، لذا لا يجد منشئ البرامج البنكية ما يختاره هناك. افتح أحد الأسماء وفعّل نوع التمويل هذا.</target></trans-unit>
-      <trans-unit id="program_catalog.health.parked" datatype="html"><source>Offered under no loan type, so nobody can pick them: <x id="INTERPOLATION" equiv-text="names(parked())"/>.</source><target>غير مطروحة تحت أي نوع تمويل، فلا يمكن لأحد اختيارها: <x id="INTERPOLATION" equiv-text="names(parked())"/>.</target></trans-unit>
-      <trans-unit id="program_catalog.health.more" datatype="html"><source><x id="NAMES" equiv-text="list"/> and <x id="REST" equiv-text="rest"/> more</source><target><x id="NAMES" equiv-text="list"/> و<x id="REST" equiv-text="rest"/> غيرها</target></trans-unit>
       <trans-unit id="program_catalog.card.parked" datatype="html"><source>No loan types yet</source><target>لا توجد أنواع تمويل بعد</target></trans-unit>
       <trans-unit id="program_catalog.card.no_questions" datatype="html"><source>No questions picked</source><target>لم تُختر أسئلة</target></trans-unit>
       <trans-unit id="program_catalog.card.questions" datatype="html"><source><x id="COUNT" equiv-text="count"/> questions scored</source><target><x id="COUNT" equiv-text="count"/> سؤالاً مُقيَّماً</target></trans-unit>
@@ -2299,6 +2295,9 @@
       <trans-unit id="spd.def.priced_by_class" datatype="html"><source>These answers are not priced one by one. Each carries the amount of the class it is filed under, and that is where the figures are set.</source><target>هذه الإجابات لا تُسعَّر واحدة واحدة. كل إجابة تحمل مبلغ الفئة المُدرجة تحتها، وهناك تُحدَّد المبالغ.</target></trans-unit>
       <trans-unit id="spd.def.cap_only" datatype="html"><source>This product works out no amount of its own. Each bank states its own maximum for these answers on its own program.</source><target>هذا المنتج لا يحسب مبلغًا خاصًا به. كل بنك يحدد الحد الأقصى لهذه الإجابات في برنامجه.</target></trans-unit>
       <trans-unit id="spd.def.no_slot" datatype="html"><source>No amount is keyed by these answers. They steer the calculation rather than carry a figure.</source><target>لا يرتبط بهذه الإجابات أي مبلغ. هي توجّه الحساب ولا تحمل رقمًا.</target></trans-unit>
+      <trans-unit id="spd.def.as_column" datatype="html"><source>These answers carry no amount of their own. They pick which column of the amounts on <x id="INTERPOLATION" equiv-text="{{ home }}"/> is read — so each of them does have a figure, one for every value on that list.</source><target>هذه الإجابات لا تحمل مبلغًا خاصًا بها. هي تحدّد أي عمود من مبالغ <x id="INTERPOLATION" equiv-text="{{ home }}"/> يُقرأ — فلكل إجابة منها مبلغ، واحد لكل عنصر في تلك القائمة.</target></trans-unit>
+      <trans-unit id="spd.def.as_column_plain" datatype="html"><source>These answers carry no amount of their own. They pick which column of another list&apos;s amounts is read.</source><target>هذه الإجابات لا تحمل مبلغًا خاصًا بها. هي تحدّد أي عمود من مبالغ قائمة أخرى يُقرأ.</target></trans-unit>
+      <trans-unit id="spd.def.go_figures" datatype="html"><source>Open <x id="INTERPOLATION" equiv-text="{{ home }}"/></source><target>افتح <x id="INTERPOLATION" equiv-text="{{ home }}"/></target></trans-unit>
       <trans-unit id="spd.save_hint" datatype="html"><source>One Save covers every amount on this product, on both steps.</source><target>حفظ واحد يشمل كل مبالغ هذا المنتج، في الخطوتين معًا.</target></trans-unit>
       <trans-unit id="spd.list_owned_filed" datatype="html"><source>The answers to one of the questions above, each filed under a class.</source><target>إجابات أحد الأسئلة أعلاه، كل إجابة مُدرجة تحت فئة.</target></trans-unit>
       <trans-unit id="clsb.title" datatype="html"><source>Where each value is priced</source><target>في أي فئة يُسعَّر كل عنصر</target></trans-unit>
@@ -3279,10 +3278,10 @@
                 لترى كيف يحسب الدخل.
               </target></trans-unit>
       <trans-unit id="program_catalog.card.no_calculation" datatype="html"><source>Works out no income</source><target>لا يحسب أي دخل</target></trans-unit>
-      <trans-unit id="program_catalog.product.sold_as" datatype="html"><source>Sold as</source><target>يُباع باسم</target></trans-unit>
       <trans-unit id="program_catalog.stat.products" datatype="html"><source>Surrogate calculations</source><target>طرق الحساب البديلة</target></trans-unit>
       <trans-unit id="program_catalog.stat.products.hint" datatype="html"><source>ways to work an income out with no payslip</source><target>طرق حساب الدخل بدون كشف راتب</target></trans-unit>
       <trans-unit id="program_catalog.product.orphan" datatype="html"><source>A name points at this calculation, but that name is no longer on the board.</source><target>هناك اسم يشير إلى طريقة الحساب هذه، لكن ذلك الاسم لم يعد على اللوحة.</target></trans-unit>
+      <trans-unit id="program_catalog.product.cap_usage" datatype="html"><source><x id="PROGRAMS" equiv-text="c.capPrograms"/> programs cap a loan by this answer</source><target><x id="PROGRAMS" equiv-text="c.capPrograms"/> برنامج يحدّ التمويل حسب هذه الإجابة</target></trans-unit>
       <trans-unit id="program_catalog.product.usage" datatype="html"><source><x id="PROGRAMS" equiv-text="c.programs"/> programs quote from this</source><target><x id="PROGRAMS" equiv-text="c.programs"/> برامج تُسعِّر من هذه</target></trans-unit>
       <trans-unit id="program_catalog.product.open" datatype="html"><source>Set up <x id="NAME" equiv-text="this.productName(c)"/></source><target>إعداد <x id="NAME" equiv-text="this.productName(c)"/></target></trans-unit>
       <trans-unit id="program_catalog.product.unquoted" datatype="html"><source>No bank quotes from it yet</source><target>لا يوجد بنك يُسعِّر منها بعد</target></trans-unit>
@@ -3339,6 +3338,9 @@
       <trans-unit id="max_loan_by_fact.half_open" datatype="html"><source> Bands are half-open: “from” counts, “up to” does not. Exactly 500,000 lands in the 500,000 → 1,000,000 row. </source><target>الشرائح نصف مفتوحة: «من» محسوبة و«حتى» غير محسوبة. الرقم 500,000 بالضبط يقع في صف 500,000 ← 1,000,000.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.no_match" datatype="html"><source>An answer with no row</source><target>إجابة بلا صف</target></trans-unit>
       <trans-unit id="max_loan_by_fact.use_program_max" datatype="html"><source>Falls back to this program’s maximum</source><target>ترجع إلى الحد الأقصى لهذا البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.detail.max_by_fact" datatype="html"><source>Maximum by answer</source><target>الحد الأقصى حسب الإجابة</target></trans-unit>
+      <trans-unit id="bank_programs.detail.max_no_match" datatype="html"><source>An answer with no row</source><target>إجابة بلا صف في الجدول</target></trans-unit>
+      <trans-unit id="bank_programs.detail.max_adjustments" datatype="html"><source>Adjustments to that maximum</source><target>تعديلات على هذا الحد الأقصى</target></trans-unit>
       <trans-unit id="max_loan_by_fact.reject" datatype="html"><source>Gets no figures, with a stated reason</source><target>لا تظهر لها أرقام، مع ذكر السبب</target></trans-unit>
       <trans-unit id="max_loan_by_fact.no_match_hint" datatype="html"><source> There is no third option on purpose. “No cap” would quote above the bank’s policy and “cap zero” is a blank card, so one of these two has to be the bank’s answer. </source><target>لا يوجد خيار ثالث عن قصد. «بلا حد» سيعرض مبلغًا أعلى من سياسة البنك، و«حد صفر» يعني بطاقة فارغة، لذا لا بد أن يكون أحد هذين هو جواب البنك.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_no_rows" datatype="html"><source>This table has no rows, so it caps nobody. Add a row or remove the table.</source><target>هذا الجدول بلا صفوف، فلا يحدّ أحدًا. أضف صفًا أو احذف الجدول.</target></trans-unit>

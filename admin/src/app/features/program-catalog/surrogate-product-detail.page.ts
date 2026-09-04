@@ -139,6 +139,15 @@ interface ReadList {
    * set" against each of them would invent a defect where there is none.
    */
   readonly figures: ListFigureState;
+  /**
+   * The list the figures are actually on, when they are not on this one — and `null`
+   * whenever they are, or whenever there is more than one home to name.
+   *
+   * A rail id, so the note can offer the trip rather than describe it: the operator's next
+   * move after reading "the amounts are on the school stages" is to go there, and the tab
+   * that holds them is one click away on the rail directly above.
+   */
+  readonly pricedOn: string | null;
 }
 
 @Component({
@@ -205,41 +214,48 @@ interface ReadList {
         <!-- STATES THE CONSEQUENCE, rather than asking "are you sure". The program codes are
              already on this screen, which is why the confirmation lives here and not in a
              dialog: the operator reads what stops quoting against the list of what quotes. -->
-        <div class="notice is-bad" role="alert">
-          <p class="notice-title" i18n="@@spd.power.off_title">
-            While this is off, nothing quotes from it.
+        <div class="confirm" role="alert">
+          <p class="confirm-title">
+            <span
+              class="confirm-glyph"
+              nz-icon
+              nzType="poweroff"
+              nzTheme="outline"
+              aria-hidden="true"
+            ></span>
+            <span i18n="@@spd.power.off_title">While this is off, nothing quotes from it.</span>
           </p>
           @if (pending.programCodes.length > 0) {
-            <p i18n="@@spd.power.off_body">
+            <p class="confirm-body" i18n="@@spd.power.off_body">
               {{ pending.names.length }} catalog name(s) take their calculation from this, so the
               {{ pending.programCodes.length }} bank program(s) below stop matching anybody. Offers
               already issued keep their own figures. Nothing is deleted, and you can switch it back
               on at any time.
             </p>
-            <ul class="blocked-list">
+            <ul class="code-chips">
               @for (code of pending.programCodes; track code) {
-                <li class="mono">{{ code }}</li>
+                <li>{{ code }}</li>
               }
             </ul>
           } @else if (pending.names.length > 0) {
-            <p i18n="@@spd.power.off_body_names">
+            <p class="confirm-body" i18n="@@spd.power.off_body_names">
               {{ pending.names.length }} catalog name(s) take their calculation from this and will
               work out no income while it is off. No bank quotes from it yet. Nothing is deleted,
               and you can switch it back on at any time.
             </p>
           } @else {
-            <p i18n="@@spd.power.off_body_free">
+            <p class="confirm-body" i18n="@@spd.power.off_body_free">
               No catalog name takes its calculation from this yet, so nothing stops quoting. Nothing
               is deleted, and you can switch it back on at any time.
             </p>
           }
           @if (pending.factsAffected.length > 0) {
-            <p i18n="@@spd.power.off_body_facts">
+            <p class="confirm-body" i18n="@@spd.power.off_body_facts">
               The question it asks stops being read, so each bank's own maximum for that answer
               falls back to whatever the bank chose for an answer it has no row for.
             </p>
           }
-          <div class="notice-actions">
+          <div class="confirm-actions">
             <button
               type="button"
               class="ghost-action"
@@ -293,15 +309,24 @@ interface ReadList {
                 } @else if (asksState() === 'error') {
                   <!-- Says the READ failed. Never "no questions": the empty board and the
                        broken one look identical once the interceptor's toast has gone. -->
-                  <div class="notice is-bad" role="alert">
-                    <p class="notice-title" i18n="@@spd.ask.load_failed_title">
-                      The question list did not load.
+                  <div class="confirm" role="alert">
+                    <p class="confirm-title">
+                      <span
+                        class="confirm-glyph"
+                        nz-icon
+                        nzType="exclamation-circle"
+                        nzTheme="outline"
+                        aria-hidden="true"
+                      ></span>
+                      <span i18n="@@spd.ask.load_failed_title"
+                        >The question list did not load.</span
+                      >
                     </p>
-                    <p i18n="@@spd.ask.load_failed">
+                    <p class="confirm-body" i18n="@@spd.ask.load_failed">
                       Nothing has changed — what this product asks could not be read just now, so
                       none of it can be shown or ticked.
                     </p>
-                    <div class="notice-actions">
+                    <div class="confirm-actions">
                       <button
                         type="button"
                         class="ghost-action"
@@ -764,9 +789,41 @@ interface ReadList {
                             />
                           }
                           @case ('byClass') {
-                            <p class="defaults-note" i18n="@@spd.def.priced_by_class">
-                              These answers are not priced one by one. Each carries the amount of
-                              the class it is filed under, and that is where the figures are set.
+                            <p class="defaults-note">
+                              <span i18n="@@spd.def.priced_by_class"
+                                >These answers are not priced one by one. Each carries the amount of
+                                the class it is filed under, and that is where the figures are
+                                set.</span
+                              >
+                              <ng-container
+                                [ngTemplateOutlet]="goToFigures"
+                                [ngTemplateOutletContext]="{ $implicit: list.pricedOn }"
+                              />
+                            </p>
+                          }
+                          <!-- A COLUMN OF SOMEBODY ELSE'S TABLE, and the state this screen
+                               used to report as "no amount is keyed by these answers": the
+                               teachers' product prices three stages against two school types,
+                               so a school type moves every figure it has — six of them, all
+                               entered one axis over, on the stages. -->
+                          @case ('asColumn') {
+                            <p class="defaults-note">
+                              @if (listTitle(list.pricedOn); as home) {
+                                <span i18n="@@spd.def.as_column"
+                                  >These answers carry no amount of their own. They pick which
+                                  column of the amounts on {{ home }} is read — so each of them does
+                                  have a figure, one for every value on that list.</span
+                                >
+                              } @else {
+                                <span i18n="@@spd.def.as_column_plain"
+                                  >These answers carry no amount of their own. They pick which
+                                  column of another list's amounts is read.</span
+                                >
+                              }
+                              <ng-container
+                                [ngTemplateOutlet]="goToFigures"
+                                [ngTemplateOutletContext]="{ $implicit: list.pricedOn }"
+                              />
                             </p>
                           }
                           @default {
@@ -1046,6 +1103,19 @@ interface ReadList {
         </button>
       </div>
     </ng-template>
+
+    <!-- THE TRIP, not a description of it. A list whose figures live on another list has
+         one useful next move, and that list is a tab on the rail directly above — so the
+         note ends in the click rather than in the name of a place to go looking for.
+         Withheld when the figures have more than one home (a pick whose two columns read
+         different facts): naming one would hide the other. -->
+    <ng-template #goToFigures let-target>
+      @if (listTitle(target); as home) {
+        <button class="linkish" type="button" (click)="listTab.set(target)">
+          <span i18n="@@spd.def.go_figures">Open {{ home }}</span>
+        </button>
+      }
+    </ng-template>
   `,
   styles: [
     `
@@ -1257,31 +1327,59 @@ interface ReadList {
         gap: var(--space-3);
         flex-wrap: wrap;
       }
+      /* All four states on both buttons — the ghost had only a focus ring, so the
+         everyday pointer gesture landed on a control that never acknowledged it. */
       .danger-action,
       .ghost-action {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: var(--space-2);
         min-block-size: var(--size-field);
-        padding-inline: var(--space-3);
+        padding-inline: var(--space-4);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-field);
         background: var(--bg-surface);
         color: var(--text-secondary);
         font: inherit;
         font-size: var(--text-sm);
+        font-weight: 500;
         cursor: pointer;
+        transition:
+          background-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
+          border-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
+          color 120ms cubic-bezier(0.4, 0, 0.2, 1);
       }
+      .ghost-action:hover:not(:disabled) {
+        border-color: var(--border-strong);
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+      /* --error is a wash-and-dot colour: as a label on the page surface it measures
+         3.81:1 in light, and under white ink as a fill it measures the same. Both under
+         AA, both fixed by the strong pair — 7.80:1 in light, 6.76 / 5.57 in dark. */
       .danger-action:hover:not(:disabled) {
-        border-color: var(--error);
-        color: var(--error);
+        border-color: var(--error-strong);
+        background: color-mix(in srgb, var(--error) 8%, var(--bg-surface));
+        color: var(--error-strong);
       }
       .danger-action.solid {
-        background: var(--error);
-        border-color: var(--error);
-        color: var(--text-on-accent, #fff);
+        background: var(--error-strong);
+        border-color: var(--error-strong);
+        color: var(--text-on-accent);
+        font-weight: 600;
       }
-      .danger-action:disabled {
+      .danger-action.solid:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--error-strong) 88%, var(--text-primary));
+        border-color: color-mix(in srgb, var(--error-strong) 88%, var(--text-primary));
+        color: var(--text-on-accent);
+      }
+      .danger-action:active:not(:disabled),
+      .ghost-action:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .danger-action:disabled,
+      .ghost-action:disabled {
         opacity: 0.6;
         cursor: not-allowed;
       }
@@ -1290,19 +1388,85 @@ interface ReadList {
         outline: 2px solid var(--accent);
         outline-offset: 2px;
       }
-      .notice-title {
+
+      /* A CONFIRMATION, not a notice. The .notice rule is a flex ROW built for one glyph beside
+         one sentence; these blocks carry a title, a paragraph, a list of program codes and
+         two buttons, and as row children they laid out side by side — the consequence, the
+         evidence and the decision reading as three unrelated columns. This is the column
+         stack that shape actually wants: one thing under the next, in reading order. */
+      .confirm {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
         margin: 0;
+        padding: var(--space-4) var(--space-5);
+        border-inline-start: 3px solid var(--error-strong);
+        border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--error) 8%, var(--bg-surface));
+        color: var(--text-primary);
+        line-height: 1.6;
+        animation: confirm-in 160ms cubic-bezier(0.4, 0, 0.2, 1) both;
+      }
+      @keyframes confirm-in {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .confirm {
+          animation: none;
+        }
+        .danger-action:active:not(:disabled),
+        .ghost-action:active:not(:disabled) {
+          transform: none;
+        }
+      }
+      .confirm-title {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-base);
         font-weight: 600;
+        color: var(--text-primary);
       }
-      .blocked-list {
+      .confirm-glyph {
+        color: var(--error-strong);
+        font-size: var(--text-base);
+      }
+      /* Capped measure: the banner spans the page, and an uncapped paragraph on a 1440px
+         shell runs past the length an eye can track back from. */
+      .confirm-body {
+        max-inline-size: 68ch;
         margin: 0;
-        padding-inline-start: var(--space-5);
         font-size: var(--text-sm);
+        color: var(--text-secondary);
       }
-      .notice-actions {
+      /* Program codes are discrete items, not prose — chips, not bullets. */
+      .code-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .code-chips li {
+        padding: var(--space-0-5) var(--space-2);
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--error) 14%, var(--bg-surface));
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+      }
+      /* Start-aligned with the sentence they answer: this is a banner in flow, not a
+         modal footer, so the decision sits under the text that argues for it. */
+      .confirm-actions {
         display: flex;
         gap: var(--space-2);
         flex-wrap: wrap;
+        margin-block-start: var(--space-1);
       }
       .notice {
         display: flex;
@@ -1526,10 +1690,6 @@ interface ReadList {
         margin: 0;
         font-size: var(--text-xs);
         color: var(--text-tertiary);
-      }
-
-      .mono {
-        font-family: var(--font-mono);
       }
 
       /* A chip darkens the ground under its own text, so the warn variant takes primary
@@ -2646,16 +2806,18 @@ export class SurrogateProductDetailPage {
     const push = (type: string, description: string, hasBoard: boolean): void => {
       if (seen.has(type)) return;
       seen.add(type);
+      // One join, stated in a pure module and shared with the editor that renders the
+      // boxes — derived twice, the two would disagree the first time a pick carried two
+      // columns keyed by different facts, and disagree silently.
+      const figures = listFigureState(steps, gates, facts, type);
       out.push({
         type,
         title: this.enumTypes.label(type, this.isAr),
         description,
         hasBoard,
         owned: owned.has(type),
-        // One join, stated in a pure module and shared with the editor that renders the
-        // boxes — derived twice, the two would disagree the first time a pick carried two
-        // columns keyed by different facts, and disagree silently.
-        figures: listFigureState(steps, gates, facts, type).state,
+        figures: figures.state,
+        pricedOn: figures.pricedOn,
       });
     };
 
@@ -2753,6 +2915,20 @@ export class SurrogateProductDetailPage {
   protected readonly activeList = computed<ReadList | null>(
     () => this.readLists().find((l) => l.type === this.activeListType()) ?? null,
   );
+
+  /**
+   * The rail title of another list on this step, or `null` when the rail does not carry it.
+   *
+   * Resolved against `readLists()` and NOT against the registry's label, so a note can never
+   * name — or offer a trip to — a tab that is not on stage: `pricedOn` is derived from the
+   * rule, and a list only reaches the rail once a fact reads it AND its question reports a
+   * backing list. Same posture as `activeListType()`, which resolves the rail's own id
+   * against what is actually there.
+   */
+  protected listTitle(type: string | null): string | null {
+    if (type === null) return null;
+    return this.readLists().find((l) => l.type === type)?.title ?? null;
+  }
 
   /**
    * What the filing board says needs a human — `null` until it has loaded.

@@ -36,6 +36,7 @@ function makeService(state: CatalogState) {
     {} as never,
     {} as never,
     enums as never,
+    { asksByProduct: async () => new Map() } as never,
   );
   // The guard is private by design — it is an invariant of the service, not an
   // API. Reached here through an explicit cast so the test exercises the real

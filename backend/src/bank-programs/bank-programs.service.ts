@@ -11,6 +11,7 @@ import {
 } from '../platform-enumerations/platform-enumerations.repository';
 import { PlatformEnumerationsAdminService } from '../platform-enumerations/platform-enumerations-admin.service';
 import { exclusiveFactKeysOf, isCapOnlyProductKey } from './blueprints/product-blueprints';
+import { ProductAsksRepository } from './asks/product-asks.repository';
 import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductTemplateDto,
@@ -174,6 +175,11 @@ export class BankProgramsService {
     // event, the cache invalidation and the retire guards stay one implementation. Every
     // read below still goes through the repository.
     private readonly enumsAdmin: PlatformEnumerationsAdminService,
+    // The ask table, read-only and for one question: which answers each product asks for, so
+    // a cap-only product's usage can be found at all. LAST in the list, because eight tests
+    // build this service positionally and appending is the one change that leaves the
+    // meaning of every existing argument alone.
+    private readonly productAsks: ProductAsksRepository,
   ) {}
 
   // --- CREATE (US1) --------------------------------------------------------
@@ -1536,6 +1542,7 @@ export class BankProgramsService {
     // ONE repository call. It already carries the rule and the linked names, so there is
     // no per-row follow-up — this used to be 2N+1 round trips, serially.
     const products = await this.enums.listSurrogateProducts();
+    const capUsage = await this.capUsageByProduct();
     return products.map((p) => ({
       key: p.key,
       labelAr: p.labelAr,
@@ -1547,7 +1554,34 @@ export class BankProgramsService {
       // and the form can never disagree about how many a product has.
       wayCount: wayCountOf(p.templateSpec),
       usedBy: p.usedBy,
+      capPrograms: capUsage.get(p.key) ?? [],
     }));
+  }
+
+  /**
+   * Product key → the programs capping their maximum by one of its answers.
+   *
+   * Two reads and an intersection in memory, rather than a query per product: the ask table
+   * and the program table are each one scan, and the board asks this for every product at
+   * once. A DERIVED join and not a stored column, for the reason the fact→list link is also
+   * derived — the answer is already stated twice (in the product's asks and in the bank's cap
+   * table) and a third statement is the one that goes stale.
+   */
+  private async capUsageByProduct(): Promise<Map<string, string[]>> {
+    const [asksByProduct, capFacts] = await Promise.all([
+      this.productAsks.asksByProduct(),
+      this.repo.capFactsByProgram(),
+    ]);
+    const out = new Map<string, string[]>();
+    for (const [productKey, asks] of asksByProduct) {
+      const asked = new Set(asks.map((ask) => ask.factKey));
+      const codes = capFacts
+        .filter((program) => program.factKeys.some((key) => asked.has(key)))
+        .map((program) => program.programCode)
+        .sort();
+      if (codes.length > 0) out.set(productKey, codes);
+    }
+    return out;
   }
 
   /**
@@ -1587,6 +1621,7 @@ export class BankProgramsService {
       outputKind: outputKindOf(row.incomeRule),
       wayCount: wayCountOf(row.templateSpec),
       usedBy: nameKeys,
+      capPrograms: (await this.capUsageByProduct()).get(row.key) ?? [],
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
       template: row.templateSpec,
       valueSources: row.valueSources,

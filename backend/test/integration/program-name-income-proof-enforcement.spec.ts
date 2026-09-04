@@ -35,7 +35,9 @@ function makeGuard(catalog: Record<string, IncomeAssumptionConfig>) {
     programNameIncomeRules: async () =>
       new Map(Object.entries(catalog).map(([key, rule]) => [key, { rule }])),
   };
-  const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never);
+  const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never,
+      { asksByProduct: async () => new Map() } as never,
+    );
   return (args: {
     programNameKey: string;
     programType: 'income_proof' | 'income_surrogate';
@@ -59,7 +61,9 @@ function makeActivationGuard(catalog: Record<string, IncomeAssumptionConfig>) {
     programNameIncomeRules: async () =>
       new Map(Object.entries(catalog).map(([key, rule]) => [key, { rule }])),
   };
-  const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never);
+  const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never,
+      { asksByProduct: async () => new Map() } as never,
+    );
   return (existing: {
     programType: string;
     programNameKey: string | null;

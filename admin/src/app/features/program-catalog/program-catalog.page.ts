@@ -28,7 +28,6 @@ import {
   AppstoreOutline,
   CheckCircleOutline,
   PoweroffOutline,
-  WarningOutline,
   FunctionOutline,
   ArrowRightOutline,
   ExclamationCircleOutline,
@@ -41,12 +40,7 @@ import {
   type RailTabItem,
   type StatStripItem,
 } from '@shared/ui';
-import {
-  LOAN_CATEGORIES,
-  canonicalCategories,
-  categoryLabel,
-  type LoanCategory,
-} from '@core/loan-category';
+import { canonicalCategories, categoryLabel, type LoanCategory } from '@core/loan-category';
 import { incomeBasisLabel } from '@core/income-basis';
 import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
 import {
@@ -67,12 +61,9 @@ import {
   type BasisFilter,
   type ProductCard,
 } from './catalog-board';
-import { CATALOG_BASE, CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
+import { CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
 
 const ENUM_TYPE = 'program_name';
-
-/** How many parked names the health panel names before it stops listing. */
-const PARKED_NAMES_SHOWN = 6;
 
 /**
  * Program catalog — the predefined loan program names that feed the bank-program
@@ -97,11 +88,6 @@ const PARKED_NAMES_SHOWN = 6;
  * link to NO product. Rendered only inside product cards, those names would be reachable
  * from nowhere. See `catalog-board.ts`, which owns every join on this screen and is where
  * the cases that only fail silently are tested.
- *
- * The health panel is inherited from the assignment board this list replaced. It
- * watches the one failure the list cannot show per row: a loan CATEGORY with no
- * names at all leaves the builder's picker empty, and nothing on a name's own
- * card can reveal that.
  *
  * Super-admin only (route-guarded).
  */
@@ -132,7 +118,6 @@ const PARKED_NAMES_SHOWN = 6;
       AppstoreOutline,
       CheckCircleOutline,
       PoweroffOutline,
-      WarningOutline,
       FunctionOutline,
       ArrowRightOutline,
       ExclamationCircleOutline,
@@ -148,42 +133,7 @@ const PARKED_NAMES_SHOWN = 6;
         i18n-title="@@program_catalog.title"
         subtitle="Curated loan program names — Doctor, Military, New Car. Pick these in the bank-program builder instead of free-typing. Open a name to set which loan types offer it and what each one scores on."
         i18n-subtitle="@@program_catalog.subtitle"
-      >
-        @if (gaps().length > 0 || parked().length > 0) {
-          <button
-            type="button"
-            class="health-toggle"
-            [attr.aria-expanded]="healthOpen()"
-            aria-controls="pcl-health"
-            (click)="healthOpen.set(!healthOpen())"
-          >
-            <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@program_catalog.health"
-              >{{ gaps().length + parked().length }} to look at</span
-            >
-          </button>
-        }
-      </app-page-header>
-
-      @if (healthOpen() && (gaps().length > 0 || parked().length > 0)) {
-        <div class="health" id="pcl-health">
-          @if (gaps().length > 0) {
-            <p class="hp-line">
-              <span i18n="@@program_catalog.health.gaps"
-                >No name is offered under {{ labels(gaps()) }}, so the bank-program builder has
-                nothing to pick there. Open a name and turn that loan type on.</span
-              >
-            </p>
-          }
-          @if (parked().length > 0) {
-            <p class="hp-line">
-              <span i18n="@@program_catalog.health.parked"
-                >Offered under no loan type, so nobody can pick them: {{ names(parked()) }}.</span
-              >
-            </p>
-          }
-        </div>
-      }
+      />
 
       @if (!loading()) {
         <app-stat-strip
@@ -270,7 +220,7 @@ const PARKED_NAMES_SHOWN = 6;
              arrows mirrored in RTL) comes with it rather than being copied wrong here. -->
         <app-rail-tabs
           appearance="segmented"
-          uniform
+          [uniform]="true"
           idPrefix="basis"
           [items]="basisChips()"
           [activeId]="basisFilter()"
@@ -423,7 +373,7 @@ const PARKED_NAMES_SHOWN = 6;
       }
 
       <ng-template #nameCard let-r="r" let-unlinked="unlinked">
-        <li class="card" [class.muted]="!r.active" [class.is-surrogate]="isNoPayslip(r)">
+        <li class="card is-name" [class.muted]="!r.active" [class.is-surrogate]="isNoPayslip(r)">
           <!-- The whole card opens the name: one anchor, stretched over the card by
                ::after, with the action row lifted above it. A row of small
                "configure" links instead would give every card three competing
@@ -551,15 +501,21 @@ const PARKED_NAMES_SHOWN = 6;
                 <span nz-icon nzType="delete" nzTheme="outline"></span>
               </button>
             </div>
+            <!-- The same affordance the product card carries, in the same corner: the
+                 action row is hover-only, so without it the foot's end edge is empty at
+                 rest on one grid and arrowed on the other — two boards ten pixels apart
+                 that open the same way and only one of them says so. -->
+            <span class="go" aria-hidden="true">
+              <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
+            </span>
           </div>
         </li>
       </ng-template>
 
-      <!-- NOT one big anchor. The names inside are links, and an <a> inside an <a> is
-           invalid HTML — the browser closes the outer one and the inner link silently
-           becomes the whole card's target. So the title is a stretched link and the name
-           chips are SIBLINGS lifted above its overlay, exactly how the action row escapes
-           the same overlay on the name card. -->
+      <!-- NOT one big anchor. The action row holds real buttons, and a control inside an
+           <a> is invalid HTML — the browser closes the outer one and the inner target wins
+           the whole card. So the title is a stretched link and the row is a SIBLING lifted
+           above its overlay, exactly how the name card escapes the same overlay. -->
       <ng-template #productCard let-c="c">
         <li class="card is-product" [class.muted]="!c.product.active">
           <a
@@ -584,28 +540,32 @@ const PARKED_NAMES_SHOWN = 6;
                    line it shipped as: a calculation nothing sells quotes for nobody, and the
                    disabled ink token sits under 4.5:1 for a sentence somebody must read. -->
               <span class="tag warn" i18n="@@sp.unused">No catalog name sells this yet</span>
-            } @else {
-              <span class="sold-as-label" i18n="@@program_catalog.product.sold_as">Sold as</span>
-              @for (n of c.names; track n.id) {
-                <a class="name-chip" [routerLink]="[catalogBase, n.key]">{{ nameOf(n) }}</a>
-              }
             }
-            <!-- A stored link with no name behind it. Rendering one chip fewer would hide
-                 exactly the case worth seeing. -->
+            <!-- The names that DO sell this are not listed here: the card's own link opens
+                 the product, where step 3 lists them with what each one is offered under.
+                 A chip row repeating a near-identical key beside the product title read as
+                 a duplicate of the heading. A stored link with NO name behind it still
+                 shows — rendering one chip fewer would hide exactly the case worth seeing. -->
             @for (k of c.orphanNameKeys; track k) {
               <span class="name-chip is-orphan" [attr.title]="orphanTitle">{{ k }}</span>
             }
           </div>
 
           <div class="card-foot">
-            <span class="usage" [class.zero]="c.programs === 0">
-              @if (c.programs === 0) {
+            <span class="usage" [class.zero]="c.programs === 0 && c.capPrograms === 0">
+              @if (c.programs > 0) {
+                {{ productUsageLabel(c) }}
+              } @else if (c.capPrograms > 0) {
+                <!-- A product that works out no income is sold through no catalog name — the
+                     link is refused — so the walk above finds nothing however many banks use
+                     it. Saying "no bank quotes from it" about a product three banks cap by
+                     was simply false, and it read as the one card nobody had finished. -->
+                {{ productCapUsageLabel(c) }}
+              } @else {
                 <!-- Not the name card's "Not offered yet": a product is not offered to
                      anybody, it is what a bank program quotes FROM. Borrowing the name's
                      wording here would have the card claim the wrong thing about itself. -->
                 <span i18n="@@program_catalog.product.unquoted">No bank quotes from it yet</span>
-              } @else {
-                {{ productUsageLabel(c) }}
               }
             </span>
             @if (c.missingTables > 0) {
@@ -676,38 +636,6 @@ const PARKED_NAMES_SHOWN = 6;
       }
       .add-btn [nz-icon] {
         margin-inline-end: var(--space-1);
-      }
-      .health-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
-        min-block-size: 32px;
-        padding-inline: var(--space-3);
-        border: 1px solid var(--color-warning);
-        border-radius: var(--radius-pill);
-        background: var(--color-warning-bg);
-        color: var(--color-warning);
-        font-size: var(--text-xxs);
-        font-weight: var(--font-weight-semibold);
-        cursor: pointer;
-      }
-      .health-toggle:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-      .health {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        padding: var(--space-4);
-        border: 1px solid var(--color-warning);
-        border-radius: var(--radius-md);
-        background: var(--color-warning-bg);
-      }
-      .hp-line {
-        margin: 0;
-        font-size: var(--text-sm);
-        color: var(--color-text-primary);
       }
       /* --- Lane groups ------------------------------------------------------ */
       /* Section HEADINGS, not cards. The cards are the page's card layer; wrapping
@@ -794,12 +722,8 @@ const PARKED_NAMES_SHOWN = 6;
         gap: var(--space-1) var(--space-2);
         min-inline-size: 0;
       }
-      .sold-as-label {
-        font-size: var(--text-xs);
-        color: var(--color-text-tertiary);
-      }
-      /* A LINK, so it cannot ship on the .tag ink — tertiary sits under 4.5:1 at this
-         size, and this is text somebody is meant to read and click. */
+      /* Not the .tag ink — tertiary sits under 4.5:1 at this size, and this is a key
+         somebody is meant to read and act on. */
       .name-chip {
         display: inline-flex;
         align-items: center;
@@ -812,17 +736,6 @@ const PARKED_NAMES_SHOWN = 6;
         font-size: var(--text-xs);
         text-decoration: none;
         white-space: nowrap;
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .name-chip:hover {
-        border-color: var(--color-brand-primary);
-        color: var(--color-text-primary);
-      }
-      .name-chip:focus-visible {
-        outline: 2px solid var(--color-brand-primary);
-        outline-offset: 2px;
       }
       /* A key with no name behind it: not a link, and not quietly dropped either. */
       .name-chip.is-orphan {
@@ -831,12 +744,14 @@ const PARKED_NAMES_SHOWN = 6;
         color: var(--color-warning);
         font-family: var(--font-family-mono, monospace);
       }
-      /* The arrow points along the reading direction, so it mirrors in Arabic. */
-      .card.is-product .go {
+      /* Every card that OPENS carries it — not only the product one. The deprecated
+         tombstone has no open link and so has no arrow. The arrow points along the
+         reading direction, so it mirrors in Arabic. */
+      .card .go {
         color: var(--color-text-tertiary);
         display: inline-flex;
       }
-      :host-context([dir='rtl']) .card.is-product .go {
+      :host-context([dir='rtl']) .card .go {
         transform: scaleX(-1);
       }
 
@@ -844,9 +759,41 @@ const PARKED_NAMES_SHOWN = 6;
          would compete with the "inactive" muted state and with the warn tag it also
          has to carry. Plum, the hue this concept already owns — not the brand azure,
          which every active card's chip is already using. */
+      /* The payslip name's own edge, in the hue its medallion already uses. The same
+         3px silhouette as the product card and the same mix formula: the two panels are
+         mutually exclusive, so within one grid the edge is uniform and it is the HUE that
+         says which basis is on stage — exactly what the medallion says one line up. */
+      .card.is-name {
+        border-inline-start: 3px solid
+          color-mix(in srgb, var(--color-brand-primary) 70%, var(--color-surface-default));
+      }
+      /* Declared after .card.is-name, which ties on specificity: a name sold without a
+         payslip takes the plum edge, not the azure one. */
       .card.is-surrogate {
         border-inline-start: 3px solid
           color-mix(in srgb, var(--color-income-surrogate) 70%, var(--color-surface-default));
+      }
+      /* MEASURED, not assumed: a global dark-theme rule in styles.scss
+         ([data-theme='dark'] .card { border-color: … !important }) flattens
+         every one of these edges in dark — so the product card's plum edge has been
+         invisible there since it shipped, and an azure one would have been too. Only
+         !important can answer !important; specificity then decides, and these carry a
+         second class the global rule does not. Colour only — the 3px width survives the
+         global rule, which sets border-COLOR. */
+      :host-context([data-theme='dark']) .card.is-name {
+        border-inline-start-color: color-mix(
+          in srgb,
+          var(--color-brand-primary) 70%,
+          var(--color-surface-default)
+        ) !important;
+      }
+      :host-context([data-theme='dark']) .card.is-product,
+      :host-context([data-theme='dark']) .card.is-surrogate {
+        border-inline-start-color: color-mix(
+          in srgb,
+          var(--color-income-surrogate) 70%,
+          var(--color-surface-default)
+        ) !important;
       }
       .board-empty {
         display: flex;
@@ -1196,16 +1143,10 @@ const PARKED_NAMES_SHOWN = 6;
           inline-size: 40px;
           block-size: 40px;
         }
-        /* Links, so they need a real target where there is no cursor to aim with. */
-        .name-chip {
-          min-block-size: 44px;
-          padding-inline: var(--space-3);
-        }
       }
       @media (prefers-reduced-motion: reduce) {
         .card,
-        .row-actions,
-        .name-chip {
+        .row-actions {
           transition: none;
         }
         .card:hover {
@@ -1235,11 +1176,9 @@ export class ProgramCatalogPage implements OnInit {
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   protected readonly loading = signal(true);
-  protected readonly healthOpen = signal(false);
   private readonly rows = signal<EnumerationRow[]>([]);
   private readonly productRows = signal<readonly SurrogateProductSummary[]>([]);
 
-  protected readonly catalogBase = CATALOG_BASE;
   protected readonly productBase = PRODUCT_BASE;
 
   /**
@@ -1333,7 +1272,7 @@ export class ProgramCatalogPage implements OnInit {
     () => this.rows().length === 0 && this.productRows().length === 0,
   );
 
-  /** Still used by the name card's accent and by the health panel below. */
+  /** Used by the name card's accent. */
   protected isNoPayslip(row: EnumerationRow): boolean {
     return isNoPayslipName(row);
   }
@@ -1396,30 +1335,6 @@ export class ProgramCatalogPage implements OnInit {
       },
     ];
   });
-
-  /**
-   * Loan categories no live name is offered under. The builder's Program name
-   * picker is EMPTY for these, which is a hard stop for whoever is trying to add
-   * a car loan — and the one failure a per-name card cannot show, since every
-   * card looks fine.
-   *
-   * Inactive names count as offered: reactivating one is a single click and its
-   * assignment survives, so a category served only by an inactive name is not a
-   * gap, it is a switch someone has to flip.
-   */
-  protected readonly gaps = computed<LoanCategory[]>(() => {
-    const offered = new Set<LoanCategory>();
-    for (const r of this.rows()) {
-      if (r.deprecatedAt) continue;
-      for (const c of this.categoriesOf(r)) offered.add(c);
-    }
-    return LOAN_CATEGORIES.filter((c) => !offered.has(c));
-  });
-
-  /** Live names offered under nothing — kept and editable, pickable nowhere. */
-  protected readonly parked = computed<EnumerationRow[]>(() =>
-    this.rows().filter((r) => !r.deprecatedAt && this.categoriesOf(r).length === 0),
-  );
 
   ngOnInit(): void {
     // The fact registry backs `reads()` for a `fact:<key>` product, so it names the fact
@@ -1487,9 +1402,8 @@ export class ProgramCatalogPage implements OnInit {
    *
    * `categories` is absent on a backend that has not deployed the assignment
    * endpoints; that reads as "unknown", not as parked, so the card falls back to
-   * an empty list and the health panel counts it — an operator seeing "no loan
-   * types" on every card will look, which is the correct outcome for a version
-   * skew.
+   * an empty list and the card shows no loan types, which is the correct outcome
+   * for a version skew.
    */
   protected categoriesOf(row: EnumerationRow): LoanCategory[] {
     return canonicalCategories(row.categories ?? []);
@@ -1497,19 +1411,6 @@ export class ProgramCatalogPage implements OnInit {
 
   protected label(category: LoanCategory): string {
     return categoryLabel(category);
-  }
-
-  protected labels(categories: readonly LoanCategory[]): string {
-    return categories.map((c) => categoryLabel(c)).join(this.isAr ? '، ' : ', ');
-  }
-
-  protected names(rows: readonly EnumerationRow[]): string {
-    const shown = rows.slice(0, PARKED_NAMES_SHOWN).map((r) => this.nameOf(r));
-    const rest = rows.length - shown.length;
-    const list = shown.join(this.isAr ? '، ' : ', ');
-    return rest > 0
-      ? $localize`:@@program_catalog.health.more:${list}:NAMES: and ${rest}:REST: more`
-      : list;
   }
 
   /**
@@ -1765,6 +1666,18 @@ export class ProgramCatalogPage implements OnInit {
    * through it, so the sum is exact; banks are not, because one bank selling two names under
    * one product would be counted twice and there is no per-bank identity here to fold on.
    */
+  /**
+   * What a CAP-ONLY product is used by — programs that cap their maximum by one of its
+   * answers rather than quoting a calculation from it.
+   *
+   * Worded as capping and not as quoting, because that is the whole difference: these
+   * products work out no income, and a bank reading one is not taking a figure from it, it is
+   * limiting a loan by an answer it asks for.
+   */
+  protected productCapUsageLabel(c: ProductCard): string {
+    return $localize`:@@program_catalog.product.cap_usage:${c.capPrograms}:PROGRAMS: programs cap a loan by this answer`;
+  }
+
   protected productUsageLabel(c: ProductCard): string {
     return $localize`:@@program_catalog.product.usage:${c.programs}:PROGRAMS: programs quote from this`;
   }

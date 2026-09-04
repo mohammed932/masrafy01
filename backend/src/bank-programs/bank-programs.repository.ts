@@ -206,6 +206,42 @@ export class BankProgramRepository {
     });
   }
 
+  /**
+   * Which ANSWER each live program caps or adjusts its maximum by.
+   *
+   * The join a cap-only product's usage needs, and the only one that can find it. A product
+   * that guesses no income is sold through no catalog name — each bank states the maximum it
+   * lends against one answer on its own program — so the name-keyed walk every other surface
+   * uses reports it as sold by nobody while three banks quote a cap from it.
+   *
+   * Read as two columns and unpacked in TypeScript rather than filtered in SQL, for the
+   * reason `fact-readers.ts` states about the same shape: Postgres cannot index into a JSON
+   * array by path, so `maxLoanAdjustments` is unreachable from a path filter and a
+   * `factKey`-only query would silently miss every adjustment.
+   */
+  async capFactsByProgram(): Promise<Array<{ programCode: string; factKeys: string[] }>> {
+    const rows = await this.prisma.bankProgram.findMany({
+      where: { active: true },
+      select: { programCode: true, loanLimits: true },
+    });
+    return rows.map((row) => {
+      const limits = (row.loanLimits ?? {}) as {
+        maxLoanByFact?: { factKey?: unknown; columnFactKey?: unknown };
+        maxLoanAdjustments?: Array<{ whenFactKey?: unknown }>;
+      };
+      const keys = new Set<string>();
+      // BOTH axes of the table, because either one can be the product's own answer: one sheet
+      // caps by city and splits the column by relationship, another does the reverse.
+      const table = limits.maxLoanByFact;
+      if (typeof table?.factKey === 'string') keys.add(table.factKey);
+      if (typeof table?.columnFactKey === 'string') keys.add(table.columnFactKey);
+      for (const adjustment of limits.maxLoanAdjustments ?? []) {
+        if (typeof adjustment?.whenFactKey === 'string') keys.add(adjustment.whenFactKey);
+      }
+      return { programCode: row.programCode, factKeys: [...keys] };
+    });
+  }
+
   // --- Writes --------------------------------------------------------------
 
   async create(input: BankProgramCreate, tx?: Prisma.TransactionClient): Promise<BankProgram> {
