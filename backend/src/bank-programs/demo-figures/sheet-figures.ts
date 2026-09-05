@@ -249,7 +249,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
 
   {
     productKey: 'compound_owner',
-    sheet: 'spec §7 (class table) · App. B FABMISR (brackets) · App. A §2 + CAE (share of paid)',
+    sheet:
+      'spec §7 (class table) · App. B FABMISR (down-payment brackets) · App. A §2 + CAE (share of paid)',
     // Every compound sheet in the source material states a 50% debt burden, and a ceiling has
     // to be told which one it was worked out at or the engine cannot turn it back into a
     // monthly figure.
@@ -277,10 +278,18 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('compound_tier_other', '2000000'),
         ],
       },
+      // The brackets read the DOWN PAYMENT, which is the figure the sheet prints them
+      // against; the share below reads everything paid to date. Two facts, deliberately —
+      // the same customer sits in a different bracket depending on which is read.
       alt: bands(DOWN_PAYMENT_EDGES, ['750000', '1000000', '1250000', '1500000']),
       alt__top_up: bands(DOWN_PAYMENT_EDGES, ['1250000', '1500000', '1750000', '2000000']),
       alt__unit_paid_to_date: percent('15'),
       alt__unit_paid_to_date__top_up: percent('15'),
+      // A share of the down payment alone is the fifth way, and NO sheet in the source
+      // material states a percentage for it — App. A §2 and App. B CAE both take their
+      // share of everything paid. Left blank on purpose: a blank way means "this bank does
+      // not lend this way", and a guessed percentage here would be inherited by every bank
+      // put on `amounts: 'catalog'` as though a sheet had published it.
       alt__owned_unit_type: {
         keyTable: [
           money('apartment', '2000000'),
@@ -296,8 +305,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
         ],
       },
       // Joint ownership shares the imputed ceiling between the owners — App. B FABMISR states
-      // 50% of the imputed income and 50% of the loan amount.
-      share_on: percent('50'),
+      // 50% of the imputed income and 50% of the loan amount. No figure is filed for it any
+      // more: the applicant states the percentage of the unit they own, so a half-owner
+      // reaches the sheet's 50% and every other share is priced as what it is.
       // App. A §2 — "property purchase date not less than 18 months".
       cond__ownedlongenough: { minValue: '18' },
       // App. C COMPOUND — "at least 30% of the unit value paid, including the down payment".
@@ -391,8 +401,11 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
   },
   {
     key: 'doctors_in_practice',
-    labelEn: 'Doctors in Practice',
-    labelAr: 'الأطباء الممارسون',
+    // The key is narrower than the name on purpose: it is immutable (both ABK doctor
+    // programmes file their `programNameKey` under it), and the name covers what the
+    // catalog actually sells — the clinic-owner sheet and the in-practice one.
+    labelEn: 'Doctors',
+    labelAr: 'الأطباء',
     productKey: 'years_in_practice_bands',
     categories: [LoanCategory.personal],
     questionCodes: [...CORE_QUESTIONS, 'years_in_practice', 'governorate'],

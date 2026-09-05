@@ -40,6 +40,8 @@
 
 import { isProductRuleStrategy } from '../types';
 import type { IncomeAssumptionConfig } from '../types';
+import type { ProductRule } from './product-rule';
+import { allWaySlots, wayOwnedSlots, waysAreExclusive } from './product-rule-ways';
 
 /**
  * The figure-bearing keys. The legacy five are included because a catalog rule
@@ -234,7 +236,34 @@ export function effectiveIncomeRule(
     const value = catalogRule[key];
     if (value !== undefined) Object.assign(merged, { [key]: value });
   }
-  return merged;
+  return prunedToChosenWay(merged);
+}
+
+/**
+ * The inherited figures, narrowed to the ONE way this program sells.
+ *
+ * Inheritance is whole-key — the loop above assigns the catalog's entire `stepParams` map,
+ * with no per-slot merge anywhere — and on an exclusive product that is wrong in a way that
+ * quotes: the compound catalog fills FOUR way heads, so a bank on `amounts: 'catalog'` would
+ * quote `min(class table, down-payment bands, 15% of everything paid, unit-type table)`, a
+ * mechanism no sheet sells. Latent only because all 13 surrogate programs are on their own
+ * amounts today — measured, not assumed.
+ *
+ * So `amounts: 'catalog'` on such a product means "use the catalog's figures FOR MY WAY",
+ * which is the only reading a sheet matches. Everything that is not a way is untouched: the
+ * catalog's CONDITIONS still arrive, and that is the existing documented bargain — a bank on
+ * catalog amounts has said sell this product as the catalog configures it — which this change
+ * must not quietly revoke.
+ *
+ * A rule with no `wayId` is returned as it stands. The save refuses that program
+ * (`PROGRAM_INCOME_WAY_REQUIRED`); a READ must not invent a choice nobody made.
+ *
+ * ONE narrowing, shared with the persist path (`stripUnchosenWays`) — `merged` already
+ * carries the catalog's structure, so it is its own effective rule. Two copies of "which
+ * slots survive" would be two answers to the question that decides what a bank quotes.
+ */
+function prunedToChosenWay(merged: IncomeAssumptionConfig): IncomeAssumptionConfig {
+  return stripUnchosenWays(merged, merged);
 }
 
 /**
@@ -279,6 +308,10 @@ export function mergeProductRuleStructure(
     ...(catalogRule.steps !== undefined ? { steps: catalogRule.steps } : {}),
     ...(catalogRule.gates !== undefined ? { gates: catalogRule.gates } : {}),
     ...(catalogRule.output !== undefined ? { output: catalogRule.output } : {}),
+    // Structure, so it overlays with the rest of it. A bank row never carries its own copy
+    // to go stale — `stripCatalogStructure` takes it off on the way in, exactly as it does
+    // the steps.
+    ...(catalogRule.waysAre !== undefined ? { waysAre: catalogRule.waysAre } : {}),
   };
 }
 
@@ -348,6 +381,45 @@ function carryStoredPolicy(
 }
 
 /**
+ * A rule's figures, narrowed to the ONE way the program sells.
+ *
+ * DROPPED: every other way's head, its columns and its pick. KEPT, deliberately: `cond__*`
+ * and `cond__*__bound`, `share` / `share_on`, `uplift` / `uplift_on`, the I-Score slots,
+ * `src__*` and `basis*` — none of them belongs to a way, and a bank's conditions do not
+ * change because it derives the figure a different way.
+ *
+ * Two arguments, because a bank row carries no steps of its own: `config` is the figures,
+ * `effective` is that object under the catalog's structure — the only place the ways are
+ * named. They are the same object on the inheritance path, where the merge has already run.
+ *
+ * NOT applied on the way IN. A save carrying figures under a way the program does not sell is
+ * REFUSED by name (`PROGRAM_INCOME_WAY_CONFLICT`) rather than quietly narrowed: the two cannot
+ * both happen, because the persist chain produces the very object the validator is handed, and
+ * given the choice a refusal that names the boxes beats a strip that destroys figures a bank
+ * typed and says nothing. The screen deletes them on a confirmation that names them; the
+ * server refuses whatever is left. Estimate markers follow the figures either way —
+ * `pruneValueSources` walks the persisted `stepParams` by key, so a marker on a slot the save
+ * does not carry stops being a markable path in the same write.
+ */
+export function stripUnchosenWays(
+  config: IncomeAssumptionConfig,
+  effective: IncomeAssumptionConfig,
+): IncomeAssumptionConfig {
+  const rule = effective as ProductRule;
+  if (!waysAreExclusive(rule)) return config;
+  const chosen = config.wayId;
+  if (chosen === undefined || chosen === '') return config;
+
+  const params = config.stepParams;
+  if (params === undefined) return config;
+  const owned = wayOwnedSlots(rule, chosen);
+  const anyWay = allWaySlots(rule);
+  const kept = Object.entries(params).filter(([slot]) => owned.has(slot) || !anyWay.has(slot));
+  if (kept.length === Object.keys(params).length) return config;
+  return { ...config, stepParams: Object.fromEntries(kept) };
+}
+
+/**
  * The rule to STORE on a bank program: its own object with the catalog's STRUCTURE
  * removed.
  *
@@ -358,12 +430,21 @@ function carryStoredPolicy(
  */
 export function stripCatalogStructure(config: IncomeAssumptionConfig): IncomeAssumptionConfig {
   if (!isProductRuleStrategy(config.strategy)) return config;
-  if (config.steps === undefined && config.gates === undefined && config.output === undefined) {
+  if (
+    config.steps === undefined &&
+    config.gates === undefined &&
+    config.output === undefined &&
+    config.waysAre === undefined
+  ) {
     return config;
   }
   const stripped: IncomeAssumptionConfig = { ...config };
   delete stripped.steps;
   delete stripped.gates;
   delete stripped.output;
+  // Structure too: whether the ways are alternatives is a statement about the PRODUCT. A
+  // stored copy on a bank row would be a second authority, free to go on demanding a choice
+  // after the catalog stopped asking for one. `wayId` stays — it is the bank's answer.
+  delete stripped.waysAre;
   return stripped;
 }

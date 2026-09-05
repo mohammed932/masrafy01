@@ -63,9 +63,9 @@ const COPY: Readonly<Record<string, () => BlueprintCopy>> = {
     glyph: GLYPH.rank,
   }),
   years_in_practice_bands: () => ({
-    title: $localize`:@@bpl.years.title:Doctors (In Practice)`,
-    mechanism: $localize`:@@bpl.years.mech:The customer states how many years they have practised, and the bank has a row for the bracket it falls in — by city tier where it prices those apart.`,
-    example: $localize`:@@bpl.years.eg:One sheet pays 30,000 at 3–5 years and 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere.`,
+    title: $localize`:@@bpl.years.title:Doctors`,
+    mechanism: $localize`:@@bpl.years.mech:The customer states how many years they have practised, and the bank has a row for the bracket it falls in — by city tier where it prices those apart. Clinic owners and doctors in practice are the same calculation on different figures, so each bank programme states its own.`,
+    example: $localize`:@@bpl.years.eg:One sheet pays clinic owners 30,000 at 3–5 years and 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere; the same bank pays a doctor in practice exactly half at every bracket.`,
     glyph: GLYPH.years,
   }),
   card_limit_share: () => ({
@@ -88,7 +88,7 @@ const COPY: Readonly<Record<string, () => BlueprintCopy>> = {
   }),
   compound_owner: () => ({
     title: $localize`:@@bpl.compound.title:Compound Owner`,
-    mechanism: $localize`:@@bpl.compound.mech:Four ways to the same ceiling — the class the compound is filed under, the bracket of what they have paid, a share of what they have paid, or the kind of unit — and the lower of whichever ones a bank fills.`,
+    mechanism: $localize`:@@bpl.compound.mech:Five ways to the same ceiling — the class the compound is filed under, the bracket their down payment falls in, a share of that down payment, a share of everything they have paid, or the kind of unit — and the lower of whichever ones a bank fills.`,
     example: $localize`:@@bpl.compound.eg:One sheet lends 15% of everything paid; another 6,000,000 against a Class AA compound; a third 4,000,000 against a villa.`,
     glyph: GLYPH.compound,
   }),

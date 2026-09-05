@@ -39,6 +39,7 @@ import {
 } from '@shared/ui';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
+import { catalogRuleOf } from '@shared/income-rule/catalog-rule';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import {
   incomeMethodShape,
@@ -67,6 +68,13 @@ import {
   type CatalogQuestionType,
 } from '../lookups/lookups.api.service';
 import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-name-row';
+import {
+  dirtyPickCategories,
+  pendingPickChanges,
+  sameCodeSet,
+  togglePick,
+  type PickDraft,
+} from './question-picks';
 import { NEW_QUESTION_STATE_KEY, type NewQuestionResult } from './new-question.page';
 import { PRODUCT_BASE } from './program-catalog.paths';
 
@@ -169,8 +177,8 @@ interface QuestionRow {
             eyebrow="Program catalog"
             i18n-eyebrow="@@pnd.eyebrow"
             [title]="nameOf(n)"
-            subtitle="Three steps: how the income is worked out, which loan types banks may sell it under, and what each type's applicants are scored on. Nothing here is submitted — every step saves on its own."
-            i18n-subtitle="@@pnd.sub"
+            subtitle="Three steps: how the income is worked out, which loan types banks may sell it under, and what each type's applicants are scored on. The income proof and the scoring list each have their own Save; turning a loan type on or off saves as you tap."
+            i18n-subtitle="@@pnd.sub2"
           >
             <div class="header-aside">
               <span class="usage">
@@ -180,7 +188,14 @@ interface QuestionRow {
                   {{ usageLabel(n) }}
                 }
               </span>
-              <span class="autosave" i18n="@@pnd.autosave">Saves automatically</span>
+              <!-- Only true of THIS step. Step 1 and step 3 are saved with a button, and
+                   a page-wide chip claiming otherwise is the thing a draft layer must
+                   not leave on screen. -->
+              @if (stepIndex() === 1) {
+                <span class="autosave" i18n="@@pnd.autosave_offer"
+                  >Turning a loan type on or off saves at once</span
+                >
+              }
             </div>
           </app-page-header>
 
@@ -192,10 +207,11 @@ interface QuestionRow {
                and the assignment they came to set was four tab-clicks apart.
 
                Non-linear on purpose. This is a settings screen, not a creation flow:
-               every step is reachable at any time, every step saves on its own terms
-               (ticks autosave, the rule has an explicit Save), and nothing is
-               submitted at the end. The rail is the shared wizard rail, so a step
-               here reads exactly like a step in the bank-program wizard. -->
+               every step is reachable at any time and every step saves on its own terms
+               (the rule and the scoring list have their own Save, the offer switches
+               write as they are tapped), and nothing is submitted at the end. The rail
+               is the shared wizard rail, so a step here reads exactly like a step in
+               the bank-program wizard. -->
           <app-wizard-steps
             [steps]="wizardSteps()"
             [activeIndex]="stepIndex()"
@@ -606,33 +622,6 @@ interface QuestionRow {
                     </button>
                   </div>
 
-                  <!-- The one outcome the autosave chip would otherwise lie about: the
-                   question IS created and live, only the tick did not land. Stated
-                   inline and persistently, because a toast for a state the operator
-                   has to act on is a toast they will miss. -->
-                  @if (tickFailed(); as failed) {
-                    <p class="tick-failed" role="alert">
-                      <span
-                        nz-icon
-                        nzType="close-circle"
-                        nzTheme="outline"
-                        aria-hidden="true"
-                      ></span>
-                      <span i18n="@@pnd.tick_failed"
-                        >“{{ failed }}” was created, but ticking it here didn’t save. Tap it below
-                        to score this name on it.</span
-                      >
-                      <button
-                        type="button"
-                        class="linkish"
-                        (click)="dismissTickFailed()"
-                        i18n="@@pnd.dismiss"
-                      >
-                        Dismiss
-                      </button>
-                    </p>
-                  }
-
                   @if (filtering()) {
                     <p class="filter-note">
                       <span i18n="@@pnd.showing"
@@ -679,7 +668,7 @@ interface QuestionRow {
                                   [class.landed]="justMoved() === q.code"
                                   [attr.aria-checked]="s.key === 'scored'"
                                   [attr.aria-label]="cellLabel(q)"
-                                  [attr.aria-busy]="saving().has(q.code) || busy()"
+                                  [attr.aria-busy]="busy()"
                                   (click)="toggleQuestion(q)"
                                 >
                                   <span class="card-head">
@@ -751,6 +740,46 @@ interface QuestionRow {
                prompt, no marker (the rail suppresses a status on the step you are standing
                on), and the edits gone the moment the page was left. Carried here instead, so
                the pending state and its Save travel with the operator. -->
+          <!-- Step 3's ONE write. STICKY, unlike the rule's reminder below it, and for a
+               reason particular to this step: the grid runs to forty-nine cards, so a bar
+               at the foot of it is off screen at the moment the first tick is made — and a
+               step where nothing saves until a button is pressed has to keep that button in
+               view. Ungated by step, so it is also the reminder when the operator walks
+               away from step 3 with picks pending. -->
+          @if (questionsDirty()) {
+            <div class="pending" [attr.aria-label]="pendingAria" role="region">
+              <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+              <span class="pending-text">
+                <span i18n="@@pnd.q_unsaved"
+                  >Not saved yet — what {{ dirtyCategoryNames() }} applicants are scored on.</span
+                >
+                @if (questionsError(); as err) {
+                  <span class="pending-error" role="alert">{{ err }}</span>
+                }
+              </span>
+              <button
+                nz-button
+                nzSize="small"
+                type="button"
+                [disabled]="busy()"
+                (click)="discardQuestions()"
+                i18n="@@pnd.q_discard"
+              >
+                Discard
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                type="button"
+                [nzLoading]="busy()"
+                (click)="saveQuestions()"
+                i18n="@@pnd.q_save"
+              >
+                Save
+              </button>
+            </div>
+          }
           @if (ruleDirty() && !linked() && stepIndex() !== 0) {
             <p class="stepnav-unsaved" role="status">
               <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
@@ -1004,8 +1033,8 @@ interface QuestionRow {
       }
 
       .rule-linked-go:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
         border-radius: var(--radius-sm);
       }
 
@@ -1150,6 +1179,43 @@ interface QuestionRow {
         margin-block-start: 0.15em;
       }
 
+      /* --- The pending-picks bar -------------------------------------------- */
+      /* Sticky inside the page column, whose box spans the whole document, so it holds
+         the viewport's foot for the length of the grid. Opaque and lifted above the
+         flow because it crosses the cards it is about. */
+      .pending {
+        position: sticky;
+        inset-block-end: var(--space-3);
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
+        border-radius: var(--radius-md);
+        /* Opaque, not a wash on the page: it sits over content. The shadow token casts
+           downward, so a bar pinned to the foot takes a lift of its own. */
+        background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface-default));
+        box-shadow: 0 -2px 12px color-mix(in srgb, var(--color-warning) 14%, transparent);
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+      }
+      .pending > [nz-icon] {
+        flex: none;
+        color: var(--ant-warning-color);
+      }
+      .pending-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        flex: 1 1 auto;
+        min-inline-size: 0;
+      }
+      .pending-error {
+        color: var(--color-error);
+        font-size: var(--text-xs);
+        line-height: var(--line-height-base);
+      }
       /* --- Step navigation --------------------------------------------------- */
       .stepnav-unsaved {
         display: flex;
@@ -1458,10 +1524,17 @@ interface QuestionRow {
       /* Rides above the seam so the ring is never clipped by the neighbouring
          half, and takes the group's full radius so a focused middle edge does not
          show a square corner against the round track. */
+      /* An OPAQUE ring first, the glow behind it. --shadow-focus-ring is translucent and
+         measures 1.26:1 in light on its own, under SC 1.4.11's 3:1 — it is a different token
+         from --focus-halo and so survived the sweep that fixed those. A box-shadow rather
+         than an outline here on purpose: it follows the group radius and rides above the
+         seam, which is what the comment above protects. */
       .bulk button:focus-visible {
         z-index: 1;
         border-radius: var(--radius-md);
-        box-shadow: var(--shadow-focus-ring);
+        box-shadow:
+          0 0 0 var(--focus-ring-width) var(--focus-ring-color),
+          var(--shadow-focus-ring);
         outline: none;
       }
       /* ng-zorro fills a disabled button with its own grey, which would paint one
@@ -1519,26 +1592,6 @@ interface QuestionRow {
       }
       /* Persistent, not a toast: the question is live and the operator still has
          one tap to make. A message that fades leaves them thinking it saved. */
-      .tick-failed {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        margin: 0;
-        padding: var(--space-3) var(--space-4);
-        border-radius: var(--radius-md);
-        background: var(--color-error-bg);
-        color: var(--color-error);
-        font-size: var(--text-sm);
-        line-height: var(--line-height-base);
-      }
-      .tick-failed [nz-icon] {
-        flex: none;
-        margin-block-start: 3px;
-      }
-      .tick-failed .linkish {
-        color: inherit;
-      }
-
       /* --- Sections + question cards --------------------------------------- */
       .sec-title {
         display: flex;
@@ -1749,8 +1802,6 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly pool = signal<CatalogQuestion[]>([]);
 
   protected readonly loading = signal(true);
-  /** Question codes with a write in flight (a toggle is one whole-set PUT). */
-  protected readonly saving = signal<ReadonlySet<string>>(new Set<string>());
   protected readonly savingOffer = signal(false);
   protected readonly busy = signal(false);
   protected readonly status = signal('');
@@ -1762,18 +1813,31 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
 
   /**
-   * Set when a question was CREATED but its tick into this name failed — the one
-   * outcome the "Saves automatically" chip would otherwise misreport. Holds the
-   * question's label so the notice can name it.
+   * Unsaved question picks, per loan type. See `question-picks.ts` for why the draft is
+   * keyed by loan type and why an entry equal to the saved set is dropped rather than
+   * stored.
+   *
+   * Explicitly SAVED, like the income rule below and unlike the offer switches above. A
+   * tap used to PUT the whole set on the spot, which made ticking eight questions eight
+   * writes, made a mistap something already stored, and made one failure worth its own
+   * standing alert (the question IS created and live — only the tick did not land). One
+   * deliberate click writes every loan type that moved, and until it is pressed nothing
+   * has left the browser, so "undo" is untick.
    */
-  protected readonly tickFailed = signal<string | null>(null);
+  protected readonly pickDraft = signal<PickDraft>({});
+  /**
+   * Set when the Save was REFUSED. Stated inline and persistently rather than as a
+   * toast: the grid still shows what the operator meant, so a state they have to act on
+   * must not be the one thing that scrolled away.
+   */
+  protected readonly questionsError = signal<string | null>(null);
 
   // --- The ONE income proof --------------------------------------------------
   //
-  // Explicitly SAVED, not autosaved like the question ticks above it. Three reasons,
-  // and the first alone decides it: the write can be REFUSED (the proof is in use, the
-  // table has a duplicate key), and an autosave that fails leaves the operator looking
-  // at a screen that says "Saves automatically". The rule is also a multi-field form
+  // Explicitly SAVED, like the question picks in step 3. Three reasons, and the first
+  // alone decides it: the write can be REFUSED (the proof is in use, the table has a
+  // duplicate key), and an autosave that fails leaves the operator looking at a screen
+  // claiming it saved. The rule is also a multi-field form
   // whose intermediate states are legitimately invalid — a half-typed band table would
   // fire a rejection on every keystroke — and a proof change moves real money at every
   // bank that inherits, which deserves a deliberate click.
@@ -1856,10 +1920,12 @@ export class ProgramNameDetailPage implements OnInit {
   /**
    * The rail's status per step, and the one place the three answers are compared.
    *
-   * Step 2 is the only one that can be WRONG: a name offered under no loan type is a
-   * name no bank can pick, which is unsellable rather than merely unfinished. Step 1 is
-   * legitimately blank (a payslip product states no rule) and step 3 is advisory by
-   * design (`saveWeights` never reads it), so neither ever asks for attention.
+   * Step 2 is the only one that can be WRONG in what it HOLDS: a name offered under no
+   * loan type is a name no bank can pick, which is unsellable rather than merely
+   * unfinished. Step 1 is legitimately blank (a payslip product states no rule) and step
+   * 3's list is advisory by design (`saveWeights` never reads it), so neither is ever
+   * short of an answer. Both can be UNSAVED, though, and that is what `invalid` reports
+   * on them — the rail is the only marker for a step the operator is not standing on.
    *
    * Step 3 is also the one step that can be UNREACHABLE, and it is the only ordering
    * this otherwise non-linear screen enforces. Not a house rule: the scoring template is
@@ -1890,7 +1956,7 @@ export class ProgramNameDetailPage implements OnInit {
     {
       id: 'questions',
       label: this.stepLabels[2] ?? '',
-      status: this.totalPicked() > 0 ? 'done' : 'todo',
+      status: this.questionsDirty() ? 'invalid' : this.totalPicked() > 0 ? 'done' : 'todo',
       disabled: this.offeredCount() === 0,
     },
   ]);
@@ -1942,6 +2008,7 @@ export class ProgramNameDetailPage implements OnInit {
     return Number.isInteger(raw) && raw >= 1 && raw <= 3 ? raw - 1 : 0;
   }
 
+  protected readonly pendingAria = $localize`:@@pnd.pending_aria:Unsaved question picks`;
   protected readonly tabsAria = $localize`:@@pnd.tabs_aria:Loan types`;
   protected readonly searchAria = $localize`:@@pnd.search_aria:Search questions`;
   /** Names the segmented pair for a screen reader, which sees two loose buttons. */
@@ -1967,9 +2034,19 @@ export class ProgramNameDetailPage implements OnInit {
   /** How many of the four are on. Drives the rail's status and its caption. */
   protected readonly offeredCount = computed(() => this.name()?.categories.length ?? 0);
 
+  /**
+   * The pick set IN FORCE for one loan type: the draft where one is open, the saved row
+   * otherwise. Every count, section and tab on this step reads through here, so an
+   * unsaved edit renders exactly like a saved one — which is the point of a draft, and
+   * why the unsaved bar rather than the grid is what says the difference.
+   */
+  protected picksFor(category: LoanCategory): readonly string[] {
+    return this.pickDraft()[category] ?? this.name()?.questions[category] ?? [];
+  }
+
   /** Questions held for one category, offered or not — the "they stay saved" number. */
   protected pickedCountFor(category: LoanCategory): number {
-    return this.name()?.questions[category]?.length ?? 0;
+    return this.picksFor(category).length;
   }
 
   /**
@@ -1977,9 +2054,8 @@ export class ProgramNameDetailPage implements OnInit {
    * are four tabs behind one step — and "some list exists" is what the step is for.
    */
   protected readonly totalPicked = computed(() => {
-    const questions = this.name()?.questions;
-    if (!questions) return 0;
-    return LOAN_CATEGORIES.reduce((sum, c) => sum + (questions[c]?.length ?? 0), 0);
+    if (!this.name()) return 0;
+    return LOAN_CATEGORIES.reduce((sum, c) => sum + this.picksFor(c).length, 0);
   });
 
   /** Questions the OPEN category asks — this tab's whole universe. */
@@ -1989,7 +2065,7 @@ export class ProgramNameDetailPage implements OnInit {
   });
 
   private readonly pickedCodes = computed<ReadonlySet<string>>(
-    () => new Set(this.name()?.questions[this.activeCategory()] ?? []),
+    () => new Set(this.picksFor(this.activeCategory())),
   );
 
   protected readonly pickedCount = computed(() => this.pickedCodes().size);
@@ -2084,7 +2160,7 @@ export class ProgramNameDetailPage implements OnInit {
     const n = this.name();
     const byCode = new Map(this.pool().map((q) => [q.code, q]));
     return LOAN_CATEGORIES.map((category) => {
-      const codes = n?.questions[category] ?? [];
+      const codes = n ? this.picksFor(category) : [];
       const inScope = codes.filter((c) => byCode.get(c)?.categories.includes(category) ?? false);
       const offered = n?.categories.includes(category) ?? false;
       // Warns on DRIFT only — a pick this category does not ask, or one whose
@@ -2110,6 +2186,32 @@ export class ProgramNameDetailPage implements OnInit {
     });
   });
 
+  /**
+   * The loan types holding an edit the server does not have. Also the order the writes
+   * go out in, so a partial failure is reportable against a list the operator can read.
+   */
+  private readonly dirtyCategories = computed<readonly LoanCategory[]>(() =>
+    dirtyPickCategories(this.pickDraft(), this.name()?.questions ?? {}),
+  );
+
+  protected readonly questionsDirty = computed(() => this.dirtyCategories().length > 0);
+
+  /** Questions moved, added plus removed, across every loan type with an edit. */
+  private readonly pendingChanges = computed(() =>
+    pendingPickChanges(this.pickDraft(), this.name()?.questions ?? {}),
+  );
+
+  /**
+   * The loan types named in the unsaved bar. Named rather than counted: a draft on a tab
+   * the operator is not standing on is the one thing this screen can hold that nothing
+   * else on it renders.
+   */
+  protected readonly dirtyCategoryNames = computed(() =>
+    this.dirtyCategories()
+      .map((c) => categoryLabel(c))
+      .join(this.isAr ? '، ' : ', '),
+  );
+
   ngOnInit(): void {
     // Read BEFORE the load starts: a question authored on the new-question screen arrives
     // as router state, and it is taken (not just read) so a plain reload of this URL
@@ -2117,7 +2219,7 @@ export class ProgramNameDetailPage implements OnInit {
     const created = this.takeNewQuestion();
     void (async (): Promise<void> => {
       await this.load();
-      if (created) await this.absorbNewQuestion(created);
+      if (created) this.absorbNewQuestion(created);
     })();
     // A separate read, deliberately not awaited with the others: the income rule comes
     // from the bank-programs API and the rest from the lookups API, so a slow or failing
@@ -2257,87 +2359,84 @@ export class ProgramNameDetailPage implements OnInit {
   }
 
   /**
-   * Optimistic. The whole set for the OPEN category goes up on every tap — there
-   * is no per-question endpoint, because the template IS the set.
+   * Local. Writes the OPEN loan type's draft and nothing else — `saveQuestions` is the
+   * only thing on this step that talks to the server.
    *
-   * Guarded with an early return rather than `[disabled]`: a disabled button
-   * loses focus mid-keyboard-pass, and `aria-busy` reports the state instead.
+   * Guarded with an early return rather than `[disabled]` while a save is in flight: a
+   * disabled button loses focus mid-keyboard-pass, and `aria-busy` reports the state.
    */
-  protected async toggleQuestion(q: QuestionRow): Promise<void> {
-    const n = this.name();
-    if (!n || this.saving().has(q.code) || this.busy()) return;
+  protected toggleQuestion(q: QuestionRow): void {
+    if (!this.name() || this.busy()) return;
 
     const category = this.activeCategory();
-    const before = [...(n.questions[category] ?? [])];
-    const next = before.includes(q.code) ? before.filter((c) => c !== q.code) : [...before, q.code];
-
-    this.patchQuestions(category, next);
+    this.setDraft(category, togglePick(this.picksFor(category), q.code));
     this.markLanded(q.code);
-    this.markSaving(q.code, true);
-    try {
-      await this.api.setQuestions(n.id, category, next);
-    } catch {
-      this.patchQuestions(category, before);
-      await this.load({ quiet: true });
-    } finally {
-      this.markSaving(q.code, false);
-    }
   }
 
   /**
-   * Tick / untick everything currently LISTED. Not optimistic: it can touch the
-   * whole set, and a half-reverted grid is worse than a short wait.
+   * Tick / untick everything currently LISTED. Local, like a single tap.
    *
    * Ticking adds only what is in scope; unticking removes what is on screen,
    * which deliberately INCLUDES drifted picks — that is how an admin clears them.
    */
-  protected async setAllVisible(on: boolean): Promise<void> {
-    const n = this.name();
-    if (!n || this.busy()) return;
+  protected setAllVisible(on: boolean): void {
+    if (!this.name() || this.busy()) return;
 
     const category = this.activeCategory();
-    const before = [...(n.questions[category] ?? [])];
+    const before = this.picksFor(category);
     const next = on
       ? [...new Set([...before, ...this.visibleScope().map((r) => r.code)])]
       : before.filter((c) => !this.sections()[0]?.rows.some((r) => r.code === c));
 
-    if (next.length === before.length && next.every((c) => before.includes(c))) return;
+    if (sameCodeSet(next, before)) return;
 
+    this.setDraft(category, next);
+    this.announce(Math.abs(next.length - before.length), on);
+  }
+
+  /**
+   * Commit every loan type that moved. ONE call per type, because the endpoint replaces
+   * one category's set — sequential and not parallel, since each response carries the
+   * whole row and two in flight would race over `name()`.
+   *
+   * A refusal stops the loop: the types already written keep their server echo and drop
+   * their drafts, the one that failed keeps its draft, and the row is re-read so the grid
+   * shows what the server holds under everything else. Nothing is rolled back remotely
+   * because a partial commit is real — the bar then names what is still pending.
+   */
+  protected async saveQuestions(): Promise<void> {
+    const n = this.name();
+    const dirty = this.dirtyCategories();
+    if (!n || dirty.length === 0 || this.busy()) return;
+
+    const moved = this.pendingChanges();
     this.busy.set(true);
+    this.questionsError.set(null);
     try {
-      const row = await this.api.setQuestions(n.id, category, next);
-      this.absorb(row);
-      this.announce(Math.abs(next.length - before.length), on);
+      for (const category of dirty) {
+        const row = await this.api.setQuestions(n.id, category, [...this.picksFor(category)]);
+        this.absorb(row);
+        this.clearDraft(category);
+      }
+      this.status.set($localize`:@@pnd.live_saved:${moved}:count: question changes saved`);
     } catch {
+      // The toast interceptor already surfaced the typed code (A22); this is the line
+      // that keeps the outcome on the screen the operator is looking at.
+      this.questionsError.set(
+        $localize`:@@pnd.questions_save_failed:Saving what this name scores on didn’t go through. Your picks are still here — try Save again.`,
+      );
       await this.load({ quiet: true });
     } finally {
       this.busy.set(false);
     }
   }
 
-  /**
-   * Write the OPEN category's whole pick set. Not optimistic, like `setAllVisible` and
-   * for the same reason: it can remove several picks at once, and a half-reverted grid
-   * is worse than a short wait.
-   *
-   * Reports whether the write landed, because one caller — the new-question flow —
-   * has already created something by the time it gets here and must say so
-   * rather than silently reloading a screen the operator expects to have changed.
-   */
-  private async writeQuestions(next: readonly string[]): Promise<boolean> {
-    const n = this.name();
-    if (!n || this.busy()) return false;
-    this.busy.set(true);
-    try {
-      const row = await this.api.setQuestions(n.id, this.activeCategory(), [...next]);
-      this.absorb(row);
-      return true;
-    } catch {
-      await this.load({ quiet: true });
-      return false;
-    } finally {
-      this.busy.set(false);
-    }
+  /** Throw the pending picks away. Every loan type at once — the bar names them all. */
+  protected discardQuestions(): void {
+    if (!this.questionsDirty()) return;
+    this.pickDraft.set({});
+    this.questionsError.set(null);
+    this.status.set($localize`:@@pnd.live_discarded:Unsaved question changes discarded`);
   }
 
   // --- Authoring a new question ----------------------------------------------
@@ -2367,40 +2466,35 @@ export class ProgramNameDetailPage implements OnInit {
     });
   }
 
-  protected dismissTickFailed(): void {
-    this.tickFailed.set(null);
-  }
-
   /**
    * Land a freshly created question: refresh the pool so the card exists, then
    * tick it if that was asked for.
    *
-   * The pick set is rebuilt from the CURRENT row rather than from anything the
+   * The pick set is rebuilt from the CURRENT draft-or-row rather than from anything the
    * authoring screen captured when it opened — same discipline as `toggleQuestion`,
    * since a colleague may have written the set in the meantime. Called after the
    * page's own load, so the row it reads is the one on screen.
+   *
+   * The tick lands in the DRAFT: the question itself is already created and live, and
+   * committing its tick behind the operator's back would be the one write on this step
+   * they did not press Save for. The bar picks it up like any other pending pick, which
+   * is also why the old "created, but the tick didn't save" alert is gone — a local
+   * tick has nothing to fail.
    */
-  private async absorbNewQuestion(result: NewQuestionResult): Promise<void> {
-    this.tickFailed.set(null);
+  private absorbNewQuestion(result: NewQuestionResult): void {
     if (!result.tick) {
       this.status.set(
         $localize`:@@pnd.live_created:“${result.label}:question:” was added to the question pool`,
       );
       return;
     }
-    const n = this.name();
-    if (!n) return;
+    if (!this.name()) return;
     const category = this.activeCategory();
-    const before = n.questions[category] ?? [];
+    const before = this.picksFor(category);
     if (before.includes(result.code)) return;
     this.markLanded(result.code);
-    const saved = await this.writeQuestions([...before, result.code]);
-    if (saved) {
-      this.announce(1, true);
-    } else {
-      // Created and live, but not ticked. Says so where the operator is looking.
-      this.tickFailed.set(result.label);
-    }
+    this.setDraft(category, [...before, result.code]);
+    this.announce(1, true);
   }
 
   // --- The ONE income proof --------------------------------------------------
@@ -2528,10 +2622,9 @@ export class ProgramNameDetailPage implements OnInit {
    * rather than a fork), so reading only `incomeRule` here would render every collateral
    * name as a product with no calculation at all.
    */
-  private readonly effectiveRule = computed<IncomeAssumptionConfig | null>(() => {
-    const data = this.rule();
-    return data?.surrogateProduct?.incomeRule ?? data?.incomeRule ?? null;
-  });
+  private readonly effectiveRule = computed<IncomeAssumptionConfig | null>(() =>
+    catalogRuleOf(this.rule()),
+  );
 
   /** The product key this name links to, or `null` when it states its own rule. */
   protected readonly linked = computed<string | null>(
@@ -2546,13 +2639,13 @@ export class ProgramNameDetailPage implements OnInit {
   });
 
   protected readonly ruleSteps = computed<readonly RuleStep[]>(
-    () => (this.effectiveRule() as { steps?: RuleStep[] } | null)?.steps ?? [],
+    () => this.effectiveRule()?.steps ?? [],
   );
   protected readonly ruleGates = computed<readonly RuleGate[]>(
-    () => (this.effectiveRule() as { gates?: RuleGate[] } | null)?.gates ?? [],
+    () => this.effectiveRule()?.gates ?? [],
   );
   protected readonly ruleOutput = computed<ProductRuleOutput | null>(
-    () => (this.effectiveRule() as { output?: ProductRuleOutput } | null)?.output ?? null,
+    () => this.effectiveRule()?.output ?? null,
   );
 
   protected async saveRule(): Promise<void> {
@@ -2685,17 +2778,25 @@ export class ProgramNameDetailPage implements OnInit {
     this.name.update((n) => (n ? { ...n, ...patch } : n));
   }
 
-  private patchQuestions(category: LoanCategory, codes: readonly string[]): void {
-    this.name.update((n) =>
-      n ? { ...n, questions: { ...n.questions, [category]: [...codes] } } : n,
-    );
+  /**
+   * Hold one loan type's pending set. An edit that lands back on the SAVED set drops the
+   * entry instead of storing an equal copy, so a tick the operator undid by hand cannot
+   * leave a bar offering to write the set the server already holds.
+   */
+  private setDraft(category: LoanCategory, codes: readonly string[]): void {
+    const stored = this.name()?.questions[category] ?? [];
+    this.pickDraft.update((draft) => {
+      const next = { ...draft };
+      if (sameCodeSet(codes, stored)) delete next[category];
+      else next[category] = [...codes];
+      return next;
+    });
   }
 
-  private markSaving(code: string, on: boolean): void {
-    this.saving.update((set) => {
-      const next = new Set(set);
-      if (on) next.add(code);
-      else next.delete(code);
+  private clearDraft(category: LoanCategory): void {
+    this.pickDraft.update((draft) => {
+      const next = { ...draft };
+      delete next[category];
       return next;
     });
   }

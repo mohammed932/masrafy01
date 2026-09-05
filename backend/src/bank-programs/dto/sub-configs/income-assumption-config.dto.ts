@@ -263,6 +263,30 @@ export class IncomeAssumptionConfigDto {
   output?: Record<string, unknown>;
 
   /**
+   * The catalog's statement that a bank sells exactly ONE of this product's ways. Declared
+   * here so a client echoing back a rule it just read is not rejected by the global
+   * `forbidNonWhitelisted` pipe; a bank program never stores it (`stripCatalogStructure`).
+   */
+  @ApiPropertyOptional({ enum: ['exclusive'] })
+  @IsOptional()
+  @IsIn(['exclusive'])
+  waysAre?: 'exclusive';
+
+  /**
+   * Which way this program sells, as the way's slot id.
+   *
+   * Shape only here. That the id names a way of THIS product, that the product holds its ways
+   * as alternatives at all, and that no other way carries figures are all decided once in
+   * `validateProductRule`, which holds the rule — the same authority the catalog write and
+   * the draft CHECK endpoint run through.
+   */
+  @ApiPropertyOptional({ example: 'alt__unit_paid_to_date' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z0-9_]{1,80}$/, { message: 'wayId must be a step slot id' })
+  wayId?: string;
+
+  /**
    * The BANK's figures, keyed by step id and gate id. The only half of a product rule a
    * bank program stores, and the whole of "a fifth bank is one config row".
    */

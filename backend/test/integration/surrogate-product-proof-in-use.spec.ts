@@ -49,6 +49,9 @@ function makeService(opts: { names: string[]; programs: string[]; rule?: unknown
     programsUnderName: vi.fn(async () =>
       opts.programs.map((programCode) => ({ programCode, strategy: 'steps', ownAmounts: true })),
     ),
+    // Labels are decoration on this path — what is under test is the refusal. An empty map
+    // exercises the caller's own key fallback, which is the honest default for a double.
+    programNameLabels: vi.fn(async () => new Map()),
     setSurrogateProductIncomeRule: vi.fn(async () => ({
       id: 'x', key: 'compound_owner', labelAr: 'c', labelEn: 'c',
       incomeRule: null, valueSources: {}, surrogateProductKey: null,

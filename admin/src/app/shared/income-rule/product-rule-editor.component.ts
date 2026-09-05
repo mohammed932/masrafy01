@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   model,
   output,
   signal,
 } from '@angular/core';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { FormsModule } from '@angular/forms';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
@@ -30,6 +32,13 @@ import {
   type ValueRef,
 } from '@features/bank-programs/bank-programs.types';
 import { slotsKeyedByList } from './figure-slots';
+import {
+  filledWayIds,
+  wayIdByRow,
+  wayOwnedSlots,
+  waysAreExclusive,
+  waysOfRule,
+} from './product-rule-ways';
 import { derivedFactByKey } from '@core/surrogate-facts';
 import { FigureFieldComponent } from './figure-field.component';
 import { IncomeBandsEditorComponent } from './income-bands-editor.component';
@@ -109,6 +118,14 @@ interface EditorRow {
   state: string;
   /** `true` on a program that owes this figure — the one row state that is a problem. */
   owed: boolean;
+  /**
+   * The WAY this row is, when it is one of the product's ways of reaching the figure.
+   *
+   * Not the row's own id: a way whose table is split into columns renders as the PICK, and
+   * the way is named by its first column — the slot a bank's figures have always been filed
+   * under. `null` on every row that is not a way.
+   */
+  wayId: string | null;
 }
 
 interface RowGroup {
@@ -284,7 +301,7 @@ interface FlowLine {
             </header>
           }
           @if (group.hint && layout() === 'full') {
-            <p class="grp-hint">{{ group.hint }}</p>
+            <p class="grp-hint" [id]="wayGroup + '-hint'">{{ group.hint }}</p>
           }
 
           <ul class="rows">
@@ -295,7 +312,36 @@ interface FlowLine {
                 [class.is-owed]="row.owed"
                 [class.is-open]="isOpen(row)"
               >
-                @if (row.collapsible) {
+                <!-- A WAY, on a product that sells one of them. A native radio in one shared
+                     group, so arrow-key traversal and "3 of 5" come for free — and a LABEL
+                     rather than a button, because a radio inside a button is invalid markup
+                     and a screen reader reads the pair as one control. Picking is what opens
+                     the body, so there is no second toggle affordance to reconcile. -->
+                @if (picksOneWay() && row.wayId) {
+                  <label class="row-head is-way" [class.is-picked]="row.wayId === wayId()">
+                    <input
+                      type="radio"
+                      [name]="wayGroup"
+                      [checked]="row.wayId === wayId()"
+                      [attr.aria-describedby]="wayGroup + '-hint'"
+                      (change)="onWayPicked($event, row.wayId)"
+                    />
+                    <span class="row-name">
+                      <span class="row-title">{{ row.title }}</span>
+                      @if (row.qualifier) {
+                        <span class="row-qualifier">{{ row.qualifier }}</span>
+                      }
+                    </span>
+                    @if (wayConflict(row)) {
+                      <span class="row-state is-conflict">
+                        <span class="conflict-dot" aria-hidden="true"></span>
+                        <span i18n="@@product_rule.way.still_filled"
+                          >Still has amounts — pick this way, or clear them</span
+                        >
+                      </span>
+                    }
+                  </label>
+                } @else if (row.collapsible) {
                   <button
                     type="button"
                     class="row-head is-toggle"
@@ -630,10 +676,15 @@ interface FlowLine {
         font-variant-numeric: tabular-nums;
       }
 
+      /* SECONDARY, not tertiary. Measured through a canvas: tertiary on this ground is
+         3.54:1 in LIGHT mode at 12px/400 — under SC 1.4.3 — and 5.24:1 in dark, which is why
+         a dark-only review passes it. It is also the sentence bound to every way radio by
+         aria-describedby, so it is read, not decoration. (DESIGN_SYSTEM.md's old claim that
+         --text-tertiary is "never below 4.5:1" was corrected in v23.1.0 for this reason.) */
       .grp-hint {
         margin: 0 0 var(--space-1);
         max-inline-size: 72ch;
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
         font-size: var(--text-xs);
         line-height: var(--leading-relaxed);
       }
@@ -681,6 +732,53 @@ interface FlowLine {
         outline: var(--focus-ring-width) solid var(--color-border-focus);
         outline-offset: calc(var(--focus-ring-offset) * -1);
         border-radius: var(--radius-sm);
+      }
+
+      /* One of the product's ways. Three columns, not four: the radio replaces the state
+         mark (it says the same thing more precisely) and there is no caret, because picking
+         is what opens the body. */
+      .row-head.is-way {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        cursor: pointer;
+      }
+
+      .row-head.is-way input {
+        accent-color: var(--color-brand-primary);
+        /* Optically centred against the title's cap height rather than its line box. */
+        margin-block-start: 0.1rem;
+      }
+
+      .row-head.is-way:hover .row-title {
+        color: var(--color-brand-primary);
+      }
+
+      /* The ring goes on the LABEL, not the 13px dot: the label is the target. */
+      .row-head.is-way:has(input:focus-visible) {
+        outline: var(--focus-ring-width) solid var(--color-border-focus);
+        outline-offset: calc(var(--focus-ring-offset) * -1);
+        border-radius: var(--radius-sm);
+      }
+
+      .row-head.is-way.is-picked .row-title {
+        font-weight: var(--font-semibold);
+      }
+
+      /* A way that still holds figures it should not. The WARNING is carried by the dot and
+         the ink stays primary: --color-warning on its own wash measures 2.53:1, which is
+         the pattern v22.0.0 had to unpick on the board's tags. */
+      .row-state.is-conflict {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        color: var(--color-text-primary);
+      }
+
+      .conflict-dot {
+        inline-size: 0.5rem;
+        block-size: 0.5rem;
+        border-radius: 50%;
+        background: var(--color-warning);
+        flex: none;
       }
 
       /* The state mark carries three answers at a glance: set, offered-and-blank, owed. */
@@ -1039,6 +1137,40 @@ export class ProductRuleEditorComponent {
   readonly variant = input<'program' | 'catalog'>('program');
 
   /**
+   * The catalog's statement that a bank sells exactly ONE of this product's ways. Absent
+   * reads as combined, which is what every product but the compound guarantee means.
+   */
+  readonly waysAre = input<'exclusive' | null>(null);
+
+  /**
+   * Which way THIS bank sells. A `model` rather than an input, because the confirmation
+   * below has to be able to decline the change: the DOM has already moved by the time a
+   * radio's `change` fires, and only the component that owns the value can put it back.
+   */
+  readonly wayId = model<string | null>(null);
+
+  private readonly modal = inject(NzModalService);
+
+  /** Unique per mount, so two editors on one page never share a radio group. */
+  protected readonly wayGroup = `rule-way-${(ProductRuleEditorComponent.instances += 1)}`;
+  private static instances = 0;
+
+  /**
+   * Is the operator choosing between the ways rather than filling in whichever they like?
+   *
+   * Only on a PROGRAM: the catalog states every way and picks between none of them, which is
+   * the whole reason a product lists five. Mirrors the server's own gate, so the picker can
+   * never demand a choice a save does not want (the v22.1.0 dead-Save bug, in the other
+   * direction).
+   */
+  protected readonly picksOneWay = computed<boolean>(
+    () => this.variant() === 'program' && waysAreExclusive(this.waysAre(), this.steps()),
+  );
+
+  /** Editor row id → the way it is. See `product-rule-ways.ts` — a way is not one slot. */
+  private readonly wayIdByRow = computed(() => wayIdByRow(this.steps()));
+
+  /**
    * Render only the figures keyed by ONE value list, or every figure when `null`.
    *
    * The product page mounts this editor a second time under each list of answers, so the
@@ -1118,7 +1250,121 @@ export class ProductRuleEditorComponent {
     // is right on a screen listing a whole calculation and wrong under the list of answers
     // the operator opened in order to type into it.
     if (this.layout() === 'inline') return true;
+    // A way the bank does not sell has no figures to type. Open on the pick alone, never on
+    // the fold set: the two would disagree the moment the operator opened one and then chose
+    // another, leaving a table on screen under a way the save is about to strip.
+    if (this.picksOneWay() && row.wayId !== null) return row.wayId === this.wayId();
     return !row.collapsible || this.opened().has(row.id);
+  }
+
+  /**
+   * The one thing a way row can say that the radio does not already say.
+   *
+   * NOT "Not used by this bank" on every unpicked row: an unchecked radio in a group of five
+   * says that four times over, and it reads as a state on a control whose whole job is to be a
+   * choice. What it cannot say is the state that actually blocks the save — a way this program
+   * does not sell that STILL holds figures. That is `PROGRAM_INCOME_WAY_CONFLICT`, and without
+   * this the client gate would hold Save down with nothing on screen naming the row the server
+   * would name. Rare by construction, which is exactly why it is worth a line when it happens.
+   */
+  protected wayConflict(row: EditorRow): boolean {
+    if (row.wayId === null || row.wayId === this.wayId()) return false;
+    return this.filledWays().includes(row.wayId);
+  }
+
+  private readonly filledWays = computed(() => filledWayIds(this.steps(), this.figures()));
+
+  /**
+   * The operator picks another way, and is told what it costs before it costs it.
+   *
+   * The DOM has already moved by the time `change` fires, so a declined switch has to put the
+   * radio back by hand — a `[checked]` binding whose value did not change is not re-applied,
+   * and the screen would sit showing a way the model never took.
+   *
+   * The figures of the way being left are CLEARED here rather than left to the server. They
+   * are stripped on save either way (`stripUnchosenWays`), but a grid still showing them under
+   * a row marked "not used by this bank" is a screen contradicting itself — and the client
+   * save gate, mirroring `PROGRAM_INCOME_WAY_CONFLICT`, would hold Save down with no control
+   * on screen to explain why.
+   */
+  protected onWayPicked(event: Event, wayId: string): void {
+    const input = event.target as HTMLInputElement;
+    if (wayId === this.wayId()) return;
+
+    const losing = this.waysLosingFigures(wayId);
+    if (losing.length === 0) {
+      this.commitWay(wayId);
+      return;
+    }
+    // Back where it was until the question is answered — and that means re-checking the one
+    // the browser just UNCHECKED, not only clearing the one it checked. Clearing alone left
+    // the group with nothing selected, which reads as "this program sells no way at all":
+    // measured in a browser, not reasoned about.
+    this.syncRadios(input);
+    this.modal.confirm({
+      nzTitle: $localize`:@@product_rule.way.confirm_title:Work this program's figure out a different way?`,
+      // The consequence, named — never "are you sure". The operator can see exactly which
+      // tables they are about to lose, because they are the ones who typed them.
+      nzContent: $localize`:@@product_rule.way.confirm_body:The amounts under ${losing.join(
+        ', ',
+      )}:ways: will be cleared. This bank sells one of these ways, so only the one you pick is kept.`,
+      nzOkText: $localize`:@@product_rule.way.confirm_ok:Switch and clear them`,
+      nzCancelText: $localize`:@@product_rule.way.confirm_cancel:Leave it as it is`,
+      nzOkDanger: true,
+      nzOnOk: () => this.commitWay(wayId),
+    });
+  }
+
+  /** The ways that hold figures and are not the one being picked, in their own words. */
+  private waysLosingFigures(wayId: string): string[] {
+    return filledWayIds(this.steps(), this.figures())
+      .filter((id) => id !== wayId)
+      .map((id) => {
+        const step = this.stepById().get(id);
+        // `wayTitleFor`, not `titleFor`: two of the compound product's ways are both "A
+        // percentage of an earlier figure", and a confirmation naming what is about to be
+        // deleted must not name it ambiguously.
+        return step === undefined ? id : this.wayTitleFor(step);
+      });
+  }
+
+  /**
+   * Put the native radio group back in step with the model.
+   *
+   * A DOM write from a component, deliberately and narrowly: a radio's checked state moves on
+   * click, before any handler runs, and Angular re-applies a `[checked]` binding only when its
+   * VALUE changes — which for a declined switch it does not, in either direction. The group is
+   * addressed through the host element and this mount's own `name`, so a second editor on the
+   * page cannot be reached.
+   */
+  private syncRadios(clicked: HTMLInputElement): void {
+    const chosen = this.wayId();
+    const group = clicked
+      .closest('.rule')
+      ?.querySelectorAll<HTMLInputElement>(`input[name="${this.wayGroup}"]`);
+    if (group === undefined) {
+      clicked.checked = false;
+      return;
+    }
+    group.forEach((radio) => {
+      const row = radio.closest('.row-head');
+      radio.checked = row !== null && row.classList.contains('is-picked') && chosen !== null;
+    });
+  }
+
+  private commitWay(wayId: string): void {
+    const steps = this.steps();
+    const keep = wayOwnedSlots(steps, wayId);
+    const everyWay = new Set(waysOfRule(steps).flatMap((way) => way.slots));
+    const figures = this.figures();
+    const kept = Object.fromEntries(
+      Object.entries(figures).filter(([slot]) => keep.has(slot) || !everyWay.has(slot)),
+    );
+    this.wayId.set(wayId);
+    if (Object.keys(kept).length !== Object.keys(figures).length) {
+      this.figures.set(kept);
+    }
+    this.figuresTouched.emit();
   }
 
   /** How many answer chips fit on one line before the row starts stacking. */
@@ -1330,6 +1576,15 @@ export class ProductRuleEditorComponent {
    */
   protected readonly activeDerivation = computed<string | null>(() => {
     const configured = this.configuredStepIds();
+    // On a product that sells ONE way, the answer is the way the operator picked — not the
+    // first candidate that happens to reach a figure. Those are the same thing only while the
+    // program is consistent, and this line is read most when it is not.
+    if (this.picksOneWay()) {
+      const chosen = this.wayId();
+      if (chosen === null) return null;
+      const step = this.stepById().get(chosen);
+      return step === undefined ? null : this.wayTitleFor(step);
+    }
     const { alternatives } = this.coalesceMembers();
     for (const step of this.steps()) {
       if (step.op !== 'coalesce') continue;
@@ -1489,12 +1744,18 @@ export class ProductRuleEditorComponent {
     const configured = slots.some((slot) => slot.configured);
     const optional = this.optional().has(step.id);
     const pickedColumn = step.op === 'pickByFact' ? this.firstColumn(step) : null;
+    const wayId = this.wayIdByRow().get(step.id) ?? null;
+    const isWay = wayId !== null;
     return {
       kind: 'step',
       id: step.id,
-      title: this.titleFor(pickedColumn ?? step),
+      title: isWay ? this.wayTitleFor(pickedColumn ?? step) : this.titleFor(pickedColumn ?? step),
+      // A way drops it. Every way of a product with a second column carries the SAME split
+      // ("split by Topping up a loan from this bank"), so on the picker it distinguishes
+      // nothing and states a property of the product once per option — five copies of one
+      // idea inside the control the operator is reading.
       qualifier:
-        pickedColumn === null
+        pickedColumn === null || isWay
           ? ''
           : $localize`:@@product_rule.step.pick_split:split by ${this.factLabel(step.fact ?? '')}:fact:`,
       hint: this.hintFor(step),
@@ -1504,6 +1765,7 @@ export class ProductRuleEditorComponent {
       collapsible: optional && !configured,
       state: this.stateFor(optional, configured),
       owed: !optional && !configured && this.variant() === 'program',
+      wayId,
     };
   }
 
@@ -1615,6 +1877,7 @@ export class ProductRuleEditorComponent {
       collapsible: !configured,
       state: this.stateFor(true, configured),
       owed: false,
+      wayId: null,
     };
   }
 
@@ -1883,6 +2146,44 @@ export class ProductRuleEditorComponent {
         return $localize`:@@product_rule.step.pick_by_fact:Whichever column fits the customer: ${factLabel}:factLabel:`;
       default:
         return step.id;
+    }
+  }
+
+  /**
+   * A WAY's title, which has to be a name and not an op.
+   *
+   * Three of the six mechanisms read their number through a shared `factNumber` step rather
+   * than naming a fact themselves, so `titleFor` has nothing to say about them: the compound
+   * guarantee's five ways came out as "A table of ranges", "A percentage of an earlier figure"
+   * and "A percentage of an earlier figure" — two of the five word for word the same. That was
+   * survivable while these were rows to fill in (the flow list tells them apart by ordinal) and
+   * is not survivable now they ARE the choice: the two identical ones are 15% of everything
+   * paid and a share of the down payment, which differ by real money on the same applicant.
+   *
+   * So a way that reads one number names it. Scoped to ways rather than fixed inside
+   * `titleFor`, because everywhere else the ordinals and the `↑` refs already disambiguate,
+   * and a longer title there would be noise.
+   */
+  private wayTitleFor(step: RuleStep): string {
+    if (step.op !== 'bandTable' && step.op !== 'percentOf' && step.op !== 'multiply') {
+      return this.titleFor(step);
+    }
+    const refs = stepRefs(step);
+    const [ref] = refs;
+    if (refs.length !== 1 || ref === undefined || !('step' in ref)) return this.titleFor(step);
+    const source = this.stepById().get(ref.step);
+    if (source?.op !== 'factNumber' || !source.fact) return this.titleFor(step);
+    // A whole phrase per op, not the op's own title with the fact appended: "A percentage of
+    // an earlier figure of: How much have you paid" is what appending gives, and it reads as
+    // two prepositions fighting.
+    const factLabel = this.factLabel(source.fact);
+    switch (step.op) {
+      case 'bandTable':
+        return $localize`:@@product_rule.way.band_of:A table of ranges over: ${factLabel}:factLabel:`;
+      case 'percentOf':
+        return $localize`:@@product_rule.way.share_of:A percentage of: ${factLabel}:factLabel:`;
+      default:
+        return $localize`:@@product_rule.way.multiple_of:A multiple of: ${factLabel}:factLabel:`;
     }
   }
 

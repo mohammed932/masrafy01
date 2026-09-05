@@ -94,6 +94,12 @@ export class BlueprintService {
   async createFromBlueprint(
     input: { blueprintKey: string; key?: string; labelEn?: string; labelAr?: string },
     actor: { staffId: string; sourceIp: string | null },
+    // POSITIONAL and third, exactly like `BLUEPRINT_SOURCE` below and for the same reason:
+    // no request body can reach it. `'retemplate'` REPLACES the calculation of a product
+    // that already holds one, which is the promise `blueprint-seed-plan.ts` makes to the
+    // operator — so it is reachable only from a command that names the product and asks for
+    // it (`blueprint-retemplate.command.ts`), never from the seed and never from a click.
+    options: { onExistingProduct?: 'refuse' | 'retemplate' } = {},
   ): Promise<CreateFromBlueprintResultDto> {
     const blueprint = productBlueprint(input.blueprintKey);
     if (!blueprint) {
@@ -130,8 +136,14 @@ export class BlueprintService {
       // failed part-way through leaves behind (the row is written first, so a fact can say
       // which product it belongs to). Refusing that would make the retry impossible and the
       // row unfinishable, which is the opposite of what the idempotence is for.
+      //
+      // `onExistingProduct: 'retemplate'` is the third case and the only one that overwrites
+      // somebody's work: a caller that has named this product, seen what a recompile would
+      // drop, and said so. The write still goes through `setSurrogateProductTemplate`, so
+      // the orphan check, the validator and the audit event all run as they always do.
       const row = await this.repo.findSurrogateProduct(productKey);
-      if (row === null || row.incomeRule !== null) {
+      const retemplating = options.onExistingProduct === 'retemplate' && row !== null;
+      if (!retemplating && (row === null || row.incomeRule !== null)) {
         throw new DomainException(ERROR_CODES.ENUMERATION_KEY_DUPLICATE, {
           type: SURROGATE_PRODUCT_TYPE,
           key: productKey,
@@ -273,10 +285,12 @@ export class BlueprintService {
               questionAr: step.questionAr,
               ...(step.helperEn !== undefined ? { helperTextEn: step.helperEn } : {}),
               ...(step.helperAr !== undefined ? { helperTextAr: step.helperAr } : {}),
-              // Not required, ever. A no-payslip product asks about something the applicant
-              // may simply not have, and a required question would block the whole
-              // questionnaire for everyone the product is not for.
-              isRequired: false,
+              // Not required unless the blueprint says so, and the default is the safe
+              // direction: a no-payslip product usually asks about something the applicant
+              // may simply not have, and a required question blocks the questionnaire for
+              // everyone it is visible to — including the people the product is not for.
+              // A blueprint stating `required` has accepted that, for that one ask.
+              isRequired: step.required === true,
               categories: step.categories,
               ...(step.optionsFromEnumerationType !== undefined
                 ? { optionsFromEnumerationType: step.optionsFromEnumerationType }

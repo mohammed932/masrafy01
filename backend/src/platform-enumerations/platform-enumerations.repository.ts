@@ -659,6 +659,26 @@ export abstract class PlatformEnumerationsRepository {
   abstract programsUnderName(key: string): Promise<ProgramUnderName[]>;
 
   /**
+   * What a set of catalog names is CALLED, in both locales, keyed by name key.
+   *
+   * One query for the whole set, not one per name: the caller already fans out per name to
+   * read the programmes under it, and a second N round trips to fetch two strings each is
+   * latency nobody sees a reason for on a page load.
+   *
+   * Deliberately NOT filtered to active rows. A deprecated name that is still linked is
+   * still quoting through the product, which is the reasoning `catalog-board.ts` already
+   * writes out for resolving names from every row including deprecated ones — withholding
+   * its label here would render it as a bare key and read as broken.
+   *
+   * A key with no row at all is simply absent from the map rather than mapped to a blank:
+   * the caller renders the key itself, which is the only honest thing to show for a link
+   * pointing at something that is not there (the state `orphanNameKeys` reports).
+   */
+  abstract programNameLabels(
+    keys: readonly string[],
+  ): Promise<Map<string, { labelEn: string; labelAr: string }>>;
+
+  /**
    * Re-file many members onto a parent in ONE transaction.
    *
    * One call rather than N patches because a bulk mistake is N rows: half-applied, the
@@ -804,6 +824,30 @@ export interface SurrogateProductListRow {
 /** One surrogate bank program filed under a catalog name. */
 export interface ProgramUnderName {
   programCode: string;
+  /**
+   * What the bank calls it, in both locales, and who the bank is.
+   *
+   * Carried because a CODE is not an identity an operator holds. One product is deliberately
+   * sold as several programmes off one mechanism — ABK files both `ABK-PER-DOCTORS_CLINIC`
+   * (30,000-300,000, capped by city tier) and `ABK-PER-DOCTORS_PRACTICE` (half that, no cap)
+   * under the one doctors name — and a screen printing only the codes says nothing about
+   * which is which. `friendlyNameAr` is nullable on the column, so it is nullable here; the
+   * reader falls back rather than the writer inventing one.
+   */
+  friendlyName: string;
+  friendlyNameAr: string | null;
+  /**
+   * The bank, in both locales. Both, not one: `Bank` stores `nameEnglish` and `nameArabic`
+   * and the caller renders whichever locale the operator is reading, exactly as every other
+   * surface does (Principle III / A2).
+   *
+   * `bankId` is nullable and most rows on a real database do not carry one, so the English
+   * side falls back to the deprecated denormalised `bank_program.bankName`. `bankNameAr` has
+   * no such fallback — that column holds one untranslated string — so an Arabic reader gets
+   * the English name rather than a blank, resolved by the caller.
+   */
+  bankNameEn: string | null;
+  bankNameAr: string | null;
   /** The proof it reads — `IncomeAssumptionConfig['strategy']`, normalized. */
   strategy: string;
   /** `false` when it takes the catalog's figures. */

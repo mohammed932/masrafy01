@@ -101,6 +101,7 @@ import {
   type ProductAsksBoard,
   type SurrogateProductDetail,
   type ProductBlueprint,
+  type ProgramUnderName,
 } from '@features/bank-programs/bank-programs.types';
 import { PRODUCT_BASE, surrogateBoardLink } from './program-catalog.paths';
 import {
@@ -285,6 +286,34 @@ interface ReadList {
             <p class="eyebrow" i18n="@@spd.eyebrow">Surrogate product</p>
             <h1 class="title">{{ label(p) }}</h1>
             <p class="lede">{{ lede() }}</p>
+            <!-- What this product is SOLD AS, in the header and therefore on every step.
+                 One product is deliberately sold as several programmes off one mechanism, so
+                 this is the first thing an operator needs and it used to be two clicks away
+                 on step 3 - the operator asked three times where the clinic-owner programme
+                 was, which is the measurement that put this here. The lede above says how the
+                 income is worked out; it cannot also say what the thing is sold as. -->
+            @if (soldAs().length > 0) {
+              <p class="sold">
+                <span class="sold-label" i18n="@@spd.sold_as">Sold as</span>
+                @for (s of soldAs(); track s.programCode) {
+                  <a
+                    class="sold-chip"
+                    [routerLink]="['/banks/programs', s.programCode]"
+                    [attr.aria-label]="s.aria"
+                  >
+                    <span class="sold-name">{{ s.name }}</span>
+                    @if (s.bank) {
+                      <span class="sold-bank" aria-hidden="true">{{ s.bank }}</span>
+                    }
+                  </a>
+                }
+                @if (soldAsMore() > 0) {
+                  <button class="sold-more" type="button" (click)="goToStep(2)">
+                    {{ soldAsMoreLabel() }}
+                  </button>
+                }
+              </p>
+            }
           </header>
 
           <app-wizard-steps
@@ -997,7 +1026,7 @@ interface ReadList {
               <section class="panel" [attr.aria-label]="steps()[2]?.label ?? ''">
                 @if (p.names.length === 0) {
                   <p class="notice">
-                    <span nz-icon nzType="info-circle" nzTheme="outline"></span>
+                    <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
                     <span i18n="@@spd.uses_none"
                       >No catalog program name takes its calculation from this product yet. Link one
                       from the program catalog, and every bank filing a program under that name
@@ -1008,23 +1037,70 @@ interface ReadList {
                   <ul class="names" role="list">
                     @for (n of p.names; track n.key) {
                       <li class="name">
-                        <a class="name-key" [routerLink]="['/program-catalog', n.key]">{{
-                          n.key
-                        }}</a>
+                        <!-- The NAME, not the slug. This rendered n.key — the operator read
+                             doctors_in_practice on a product called Doctors and concluded the
+                             clinic-owner half had never been built. The key still shows, as a
+                             chip beside it, because it is what every other surface addresses
+                             this row by and an operator does need to see it. -->
+                        <a
+                          class="name-link"
+                          [id]="'spd-name-' + n.key"
+                          [routerLink]="['/program-catalog', n.key]"
+                          >{{ nameLabel(n) }}</a
+                        >
+                        <!-- NOT aria-hidden. It carried that attribute directly under a
+                             comment arguing the operator does need to see the key, which
+                             gave a screen-reader operator nothing. -->
+                        <span class="code"
+                          ><bdi>{{ n.key }}</bdi></span
+                        >
                         @if (n.programs.length === 0) {
                           <span class="muted" i18n="@@spd.no_programs"
                             >No bank offers this name yet</span
                           >
                         } @else {
-                          <ul class="programs" role="list">
+                          <!-- Named, not coded. One product is deliberately sold as several
+                               programmes off one mechanism, so a column of bare codes is the
+                               one thing this list must not be: ABK files the clinic-owner
+                               table and the half-figure in-practice one under the same name,
+                               and the code alone says which is which to nobody. The bank's
+                               own name leads, the bank and the code follow it, and the row
+                               opens the programme where its figures actually live — one
+                               authority on those, not a copy of them here. -->
+                          <ul
+                            class="programs"
+                            role="list"
+                            [attr.aria-labelledby]="'spd-name-' + n.key"
+                          >
                             @for (prog of n.programs; track prog.programCode) {
-                              <li>
-                                <span class="code">{{ prog.programCode }}</span>
-                                @if (!prog.ownAmounts) {
-                                  <span class="tag" i18n="@@spd.takes_catalog"
-                                    >takes these amounts</span
-                                  >
-                                }
+                              <li class="prog-row">
+                                <!-- One explicit accessible name. Left to the DOM it would be
+                                     the concatenation of name + bank + code + tag with no
+                                     separators, which is how a screen reader ends up reading a
+                                     programme code aloud one character class at a time. -->
+                                <a
+                                  class="prog"
+                                  [routerLink]="['/banks/programs', prog.programCode]"
+                                  [attr.aria-label]="progAria(prog)"
+                                >
+                                  <span class="prog-name">{{ programLabel(prog) }}</span>
+                                  <span class="prog-meta" aria-hidden="true">
+                                    @if (bankLabel(prog); as bank) {
+                                      <span class="prog-bank">{{ bank }}</span>
+                                    }
+                                    <!-- Isolated: an LTR code sits directly beside an RTL bank
+                                         name here, and without a bidi boundary the two reorder
+                                         into each other in the Arabic build. -->
+                                    <span class="code"
+                                      ><bdi>{{ prog.programCode }}</bdi></span
+                                    >
+                                    @if (!prog.ownAmounts) {
+                                      <span class="tag" i18n="@@spd.takes_catalog"
+                                        >takes these amounts</span
+                                      >
+                                    }
+                                  </span>
+                                </a>
                               </li>
                             }
                           </ul>
@@ -1146,8 +1222,8 @@ interface ReadList {
       }
 
       .back:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
         border-radius: var(--radius-sm);
       }
 
@@ -1176,6 +1252,83 @@ interface ReadList {
         font-size: var(--text-2xl);
         font-weight: var(--font-semibold);
         color: var(--text-primary);
+      }
+
+      /* A LABEL plus links, not a sentence with the names interpolated into it: the count
+         and the list would need plural and verb agreement in Arabic, and the names are
+         operator-typed content that must not sit inside a translated phrase. */
+      .sold {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin: var(--space-2) 0 0;
+      }
+
+      .sold-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+
+      .sold-chip {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-2-5);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-pill);
+        background: var(--bg-surface);
+        text-decoration: none;
+      }
+
+      .sold-chip:hover {
+        border-color: var(--border-strong);
+      }
+
+      .sold-chip:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+
+      .sold-name {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+
+      /* Secondary, never tertiary - it is half of which programme this is, and tertiary
+         measures under 4.5:1 on this ground in light mode. */
+      .sold-bank {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+
+      .sold-more {
+        padding: var(--space-1) var(--space-2-5);
+        border: 1px dashed var(--border-default);
+        border-radius: var(--radius-pill);
+        background: none;
+        font: inherit;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
+
+      .sold-more:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+
+      /* The chips are the primary target here, and there is no hover to reveal them. */
+      @media (hover: none) {
+        .sold-chip,
+        .sold-more {
+          min-block-size: var(--size-field);
+          align-items: center;
+        }
       }
 
       .lede {
@@ -1299,8 +1452,8 @@ interface ReadList {
         background: var(--primary-hover);
       }
       .from-form-cta:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       .structure[open] > summary {
         margin-block-end: var(--space-4);
@@ -1489,7 +1642,7 @@ interface ReadList {
       .reach {
         margin: 0;
         font-size: var(--text-sm);
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
       }
 
       /* IN FLOW at the end of the step, never pinned — and the first cut of this change got
@@ -1530,66 +1683,150 @@ interface ReadList {
         gap: var(--space-5);
       }
 
+      /* A grid, so the name and its key sit on ONE optical line with the programme list
+         below spanning both — as a flex column the key became a line of its own and the
+         two-level list read as three levels. */
       .name {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: baseline;
+        column-gap: var(--space-2);
+        row-gap: var(--space-2);
         padding-inline-start: var(--space-4);
         border-inline-start: var(--rule-width-accent) solid var(--border-default);
       }
 
-      .name-key {
-        font-family: var(--font-mono);
-        font-size: var(--text-sm);
+      .name > .programs,
+      .name > .muted {
+        grid-column: 1 / -1;
+      }
+
+      /* The key chip sizes to its text. Left to the 1fr track it stretched to the panel
+         edge and read as a full-width field rather than a chip. */
+      .name > .code {
+        justify-self: start;
+      }
+
+      /* Renamed from .name-key with the thing it renders: it carried mono type because it
+         printed a slug, and a proper name set in mono reads as an identifier. It is also the
+         PARENT of the programme rows below it, so it sits a step above their --text-sm.
+         No align-self — the grid's baseline alignment is what puts it on one optical line
+         with the key chip beside it. */
+      .name-link {
+        font-size: var(--text-base);
         font-weight: var(--font-semibold);
         color: var(--primary-visible);
         text-decoration: none;
         cursor: pointer;
-        align-self: flex-start;
       }
 
-      .name-key:hover {
+      .name-link:hover {
         text-decoration: underline;
       }
 
-      .name-key:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+      .name-link:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
         border-radius: var(--radius-sm);
       }
 
+      /* Rows on a hairline, matching .asks / .ask in step ① of this same screen rather
+         than inventing a third row style — each programme carries a name, a bank and a code,
+         and as a chip row those wrapped mid-name into one run-on line. */
       .programs {
         list-style: none;
         margin: 0;
         padding: 0;
+      }
+
+      .prog-row {
+        border-block-end: 1px solid var(--border-subtle);
+      }
+
+      .prog-row:last-child {
+        border-block-end: 0;
+      }
+
+      .prog {
+        display: grid;
+        gap: var(--space-0-5);
+        padding-block: var(--space-2);
+        padding-inline: var(--space-2);
+        border-radius: var(--radius-sm);
+        color: inherit;
+        text-decoration: none;
+      }
+
+      /* --bg-subtle, never --bg-muted: muted is the chip ground (DESIGN_SYSTEM.md), so a
+         muted row hover painted the .code pill out of existence under the cursor. */
+      .prog:hover {
+        background: var(--bg-subtle);
+      }
+
+      /* An OPAQUE ring. The translucent halo alone measures 1.24:1 in light against the
+         surface it sits on, under SC 1.4.11's 3:1 — the same pattern .prog-hit on the bank
+         detail page already uses for these very rows. */
+      .prog:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+
+      .prog-name {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+
+      /* No hover to reveal the row means it is tapped: a real target under the finger. */
+      @media (hover: none) {
+        .prog {
+          min-block-size: var(--size-field);
+          align-content: center;
+        }
+      }
+
+      .prog-meta {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: var(--space-2);
       }
 
-      .programs li {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
+      /* Secondary, never tertiary: the bank is the other half of "which programme is this",
+         and tertiary ink sits under 4.5:1 at this size. */
+      .prog-bank {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
       }
 
+      /* A BORDER, and the STRONG token. Measured, the fill alone is 1.08:1 against a hovered
+         row and 1.17:1 against the resting card, so moving the hover ground off --bg-muted
+         stopped the chip vanishing without ever making it read AS a chip; --border-default
+         then only reached 1.38:1. The edge is DECORATION and not held to SC 1.4.11's 3:1 —
+         the chip's own text carries 5.29:1 and is what conveys the content — so the target
+         here is perceptible, not compliant-in-its-own-right. */
       .code {
         font-family: var(--font-mono);
         font-size: var(--text-xs);
         padding: var(--space-0-5) var(--space-2);
+        border: 1px solid var(--border-strong);
         border-radius: var(--radius-pill);
         background: var(--bg-muted);
         color: var(--text-secondary);
       }
 
+      /* Secondary, never tertiary. --text-tertiary measures 3.83:1 on the card and 3.28:1
+         on a hovered row in LIGHT mode — under 4.5:1, and neither of these is large text.
+         DESIGN_SYSTEM.md's claim that tertiary is "never below 4.5:1" is false in this
+         theme; corrected there in the same change. */
       .tag {
         font-size: var(--text-xs);
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
       }
 
       .muted {
         font-size: var(--text-sm);
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
       }
 
       /* --- step ①: what it asks --------------------------------------- */
@@ -1689,7 +1926,7 @@ interface ReadList {
       .ask-key {
         margin: 0;
         font-size: var(--text-xs);
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
       }
 
       /* A chip darkens the ground under its own text, so the warn variant takes primary
@@ -1760,7 +1997,7 @@ interface ReadList {
       .hint {
         margin: 0;
         font-size: var(--text-sm);
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
       }
 
       /* --- the ask board -----------------------------------------------------
@@ -2355,6 +2592,58 @@ export class SurrogateProductDetailPage {
   protected readonly isPipeline = computed(() => this.ruleSteps().length > 0);
 
   // --- switching the product on and off ---------------------------------------
+
+  /**
+   * What to call one programme in this list, and who sells it.
+   *
+   * Falls back rather than rendering a blank: `friendlyNameAr` and both bank names are
+   * nullable columns, and an empty strong line reads as a broken row. The code is never the
+   * fallback — it is already on the row beside this, so repeating it would leave the row
+   * saying the same thing twice and still not naming the programme.
+   */
+  protected programLabel(prog: ProgramUnderName): string {
+    return (this.isAr ? prog.friendlyNameAr : prog.friendlyName) || prog.friendlyName;
+  }
+
+  /**
+   * What a catalog name is called, in the reading language.
+   *
+   * The server already falls back to the key when the registry cannot resolve the row, so
+   * there is no blank to guard against here — only the locale to pick (Principle IV).
+   */
+  protected nameLabel(n: { key: string; labelEn: string; labelAr: string }): string {
+    return (this.isAr ? n.labelAr : n.labelEn) || n.labelEn || n.key;
+  }
+
+  /** `null` when the programme is filed under no bank, so the span is not rendered at all. */
+  protected bankLabel(prog: ProgramUnderName): string | null {
+    return (this.isAr ? prog.bankNameAr : prog.bankNameEn) ?? prog.bankNameEn ?? null;
+  }
+
+  /**
+   * The row's accessible name, assembled with separators instead of run together.
+   *
+   * The visible metadata line is `aria-hidden` (its parts are three chips that read as one
+   * run-on string), so this label is the ONLY thing announced — which makes it responsible
+   * for every fact in the row, not just the pretty ones.
+   *
+   * An earlier cut dropped both the programme code and the "takes these amounts" tag on the
+   * reasoning that a code is noise read aloud. That was an information REGRESSION: the tag
+   * says this programme quotes off the catalog's figures rather than its own, and it
+   * appeared nowhere else in the accessible tree. And two programmes at one bank may
+   * legitimately share a `friendlyName` (there is no unique constraint on it), so without
+   * the code the label is not guaranteed to tell them apart.
+   */
+  protected progAria(prog: ProgramUnderName): string {
+    const parts = [this.programLabel(prog)];
+    const bank = this.bankLabel(prog);
+    if (bank !== null) parts.push(bank);
+    if (!prog.ownAmounts) {
+      parts.push($localize`:@@spd.takes_catalog_aria:takes the catalog amounts`);
+    }
+    parts.push(prog.programCode);
+    return parts.join(' — ');
+  }
 
   /**
    * The consequence the operator is being shown, or `null` when nothing is pending.
@@ -3042,6 +3331,47 @@ export class SurrogateProductDetailPage {
 
   protected readonly nextLabel = computed(
     () => this.stepLabels[Math.min(this.stepIndex() + 1, 2)] ?? '',
+  );
+
+  /**
+   * How many programmes the header names before it stops and points at step 3.
+   *
+   * A cap, because the header is chrome: one product on this database is already sold as
+   * four programmes, and a product sold as a dozen would push the rail off the fold — which
+   * is the failure this line exists to fix, reintroduced from the other direction.
+   */
+  private static readonly SOLD_AS_SHOWN = 4;
+
+  /**
+   * Every bank programme that quotes from this product, flattened across its catalog names.
+   *
+   * Flattened deliberately: the operator is asking "what is this sold as", and the catalog
+   * name is not the answer to that - the programme is. Step 3 keeps the two-level view for
+   * the question the name DOES answer ("what breaks if I change this").
+   */
+  protected readonly soldAs = computed(() => {
+    const p = this.product();
+    if (!p) return [];
+    return p.names
+      .flatMap((n) => n.programs)
+      .slice(0, SurrogateProductDetailPage.SOLD_AS_SHOWN)
+      .map((prog) => ({
+        programCode: prog.programCode,
+        name: this.programLabel(prog),
+        bank: this.bankLabel(prog),
+        aria: this.progAria(prog),
+      }));
+  });
+
+  protected readonly soldAsMore = computed(() => {
+    const p = this.product();
+    if (!p) return 0;
+    const total = p.names.reduce((n, name) => n + name.programs.length, 0);
+    return Math.max(0, total - SurrogateProductDetailPage.SOLD_AS_SHOWN);
+  });
+
+  protected readonly soldAsMoreLabel = computed(
+    () => $localize`:@@spd.sold_as_more:${this.soldAsMore()}:COUNT: more`,
   );
 
   protected readonly lede = computed(() => {

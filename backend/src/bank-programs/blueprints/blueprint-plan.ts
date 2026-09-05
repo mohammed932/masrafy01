@@ -100,6 +100,8 @@ export type BlueprintPlanStep =
       optionsFromEnumerationType?: string;
       numeric?: { min: number; max: number };
       enabledWhen?: { questionCode: string; optionCode: string };
+      /** Absent means not required — see `BlueprintAsk`. */
+      required?: boolean;
     }
   /**
    * Point a list at the question whose options ARE that list.
@@ -338,6 +340,7 @@ export function planBlueprint(args: {
           ? { optionsFromEnumerationType: ask.list.typeKey }
           : { numeric: ask.numeric }),
         ...(ask.enabledWhen ? { enabledWhen: ask.enabledWhen } : {}),
+        ...(ask.required === true ? { required: true } : {}),
       });
     } else if (!isNew) {
       if (!reuse.questionCodes.includes(questionCode)) {

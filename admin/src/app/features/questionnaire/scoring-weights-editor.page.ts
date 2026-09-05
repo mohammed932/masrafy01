@@ -1238,8 +1238,8 @@ interface WizardStep {
         background: var(--bg-subtle);
       }
       .score-trigger:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
         border-radius: var(--radius-sm);
       }
       .score-chev {
@@ -1464,7 +1464,13 @@ interface WizardStep {
       .pts-slider ::ng-deep .ant-slider-handle:hover,
       .pts-slider ::ng-deep .ant-slider-handle:focus {
         transform: scale(1.14);
-        box-shadow: var(--focus-halo);
+        /* An opaque ring FIRST, the glow behind it. This declaration replaces antd's own
+           handle shadow, so the translucent halo alone was the entire focus indicator at
+           1.24:1 in light — under SC 1.4.11's 3:1. The 1.14 scale is a non-colour cue and
+           stays. */
+        box-shadow:
+          0 0 0 var(--focus-ring-width) var(--focus-ring-color),
+          var(--focus-halo);
       }
 
       /* ── Step 4 · review ──────────────────────────────────────────────── */

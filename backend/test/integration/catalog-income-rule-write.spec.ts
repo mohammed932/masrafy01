@@ -65,6 +65,7 @@ function makeService(state: CatalogState) {
           },
     getActiveMembers: async () => [{ key: 'professor' }, { key: 'doctor' }],
     programsUnderName: async () => state.programs ?? [],
+    programNameLabels: async () => new Map(),
     setProgramNameIncomeRule,
     // The registry context `validateIncomeRule` needs. `professor_rank` members are what
     // a `byProfessorRank` key table's rows are checked against.

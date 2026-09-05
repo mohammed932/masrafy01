@@ -153,6 +153,30 @@ function productMatches(p: SurrogateProductSummary, q: string): boolean {
   );
 }
 
+/**
+ * The order the product cards are read in — by the NAME on the card, in the locale the
+ * operator is reading.
+ *
+ * The wire order is the repository's `orderBy: [{ sortOrder }, { key }]`, and every product
+ * row is seeded with `sortOrder = 0`, so what actually reached the grid was alphabetical by
+ * the INTERNAL KEY. Nothing on screen shows a key, so the grid read as unsorted: "University
+ * Professors" (`academic_rank_table`) came first and "Doctors" (`years_in_practice_bands`)
+ * came eleventh and below the fold, which is how a product that is fully configured and live
+ * gets reported as missing.
+ *
+ * Sorted HERE rather than in the query because the key to sort on is the one being rendered,
+ * and which of the two labels that is depends on the locale — a `labelEn` sort puts the
+ * Arabic board in an order its own words do not explain. Nothing deliberate is discarded:
+ * `sortOrder` is not on this payload and is zero on every row the seed writes, so there is no
+ * operator-chosen order to preserve. `localeCompare` with `numeric` so a name ending in a
+ * figure sorts 2 before 10.
+ */
+function byLabel(isAr: boolean): (a: ProductCard, b: ProductCard) => number {
+  const label = (c: ProductCard): string => (isAr ? c.product.labelAr : c.product.labelEn);
+  return (a, b) =>
+    label(a).localeCompare(label(b), isAr ? 'ar' : 'en', { numeric: true, sensitivity: 'base' });
+}
+
 export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const q = input.search.trim().toLowerCase();
 
@@ -190,9 +214,11 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
 
   // A product matches the search on its own name OR on any name that sells it — searching
   // "Doctor" should find the calculation Doctor Loans quotes from, which is not called that.
-  const products = q
-    ? cards.filter((c) => productMatches(c.product, q) || c.names.some((r) => nameMatches(r, q)))
-    : cards;
+  const products = (
+    q
+      ? cards.filter((c) => productMatches(c.product, q) || c.names.some((r) => nameMatches(r, q)))
+      : cards
+  ).sort(byLabel(input.isAr));
 
   const linked = new Set(input.products.flatMap((p) => p.usedBy));
   const unlinked: UnlinkedName[] = liveMatching

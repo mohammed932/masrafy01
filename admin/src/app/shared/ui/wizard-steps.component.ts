@@ -171,8 +171,8 @@ export interface WizardStepItem {
         opacity: 0.5;
       }
       .step:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       .step-num {
         display: inline-flex;

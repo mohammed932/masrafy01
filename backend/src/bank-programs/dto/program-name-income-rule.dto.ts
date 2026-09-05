@@ -18,6 +18,32 @@ import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { TemplateStarter } from '@/matching/pipeline/product-template-starters';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
 
+/**
+ * One surrogate bank program filed under a catalog name.
+ *
+ * Declared ONCE and referenced by both carriers below, because they are the same list read
+ * from two directions — a name's own programmes, and every programme reachable through a
+ * product — and two inline literals are how one of them silently stops carrying a field.
+ *
+ * The names are here because a CODE is not an identity an operator holds. One product is
+ * deliberately sold as several programmes off one mechanism (spec §10.7), so a screen
+ * printing `ABK-PER-DOCTORS_CLINIC` and `ABK-PER-DOCTORS_PRACTICE` and nothing else cannot
+ * say which is the clinic-owner table and which is half of it. Both locales travel and the
+ * client picks, exactly as every other bank-facing payload does — never an English string
+ * chosen on the server (Principle III / A2).
+ */
+export interface ProgramUnderNameDto {
+  programCode: string;
+  friendlyName: string;
+  /** Nullable on the column, so nullable here — the reader falls back to `friendlyName`. */
+  friendlyNameAr: string | null;
+  /** `null` when the programme is filed under no bank. */
+  bankNameEn: string | null;
+  bankNameAr: string | null;
+  /** `false` when it takes the catalog's figures instead of typing its own. */
+  ownAmounts: boolean;
+}
+
 export class SetProgramNameIncomeRuleDto {
   /**
    * The rule, or `null` to say the name states nothing again.
@@ -67,7 +93,7 @@ export interface ProgramNameIncomeRuleResponseDto {
    * from this, and it is also what the operator needs in front of them before
    * changing the proof — the refusal names the same programs.
    */
-  programs: Array<{ programCode: string; ownAmounts: boolean }>;
+  programs: ProgramUnderNameDto[];
   /**
    * The surrogate product this name takes its calculation from, with the calculation
    * itself, or `null` when the name states its own rule.
@@ -142,7 +168,13 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
    */
   names: Array<{
     key: string;
-    programs: Array<{ programCode: string; ownAmounts: boolean }>;
+    /**
+     * What the name is CALLED, in both locales. Both travel and the client picks
+     * (Principle III / A2); a key that resolves to no row falls back to itself.
+     */
+    labelEn: string;
+    labelAr: string;
+    programs: ProgramUnderNameDto[];
   }>;
 }
 

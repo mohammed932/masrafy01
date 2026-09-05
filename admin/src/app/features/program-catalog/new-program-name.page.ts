@@ -382,8 +382,8 @@ import {
         color: var(--color-text-primary);
       }
       .mode:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       /* 44px on touch. The segment is the control that decides what the rest of the step
          asks, and 40px is under the floor. */
@@ -418,8 +418,8 @@ import {
         border-color: var(--color-border-strong);
       }
       .pick:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       .pick.on {
         border-color: var(--color-income-surrogate);

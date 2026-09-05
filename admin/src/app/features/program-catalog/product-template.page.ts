@@ -739,10 +739,14 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         border-color: var(--color-border-strong);
         color: var(--color-text-primary);
       }
+      /* An outline, and NOT a primary border. These two rules used to turn the border
+         primary on focus — the exact declaration the is-on selected state uses — so tabbing
+         across the shapes made every card look picked. The border was compliant on contrast
+         (5.37:1 on the card ground); what it was not is distinguishable from the state
+         sitting beside it. */
       .pick:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-        border-color: var(--primary);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       .pick.is-on {
         border-color: var(--primary);
@@ -779,9 +783,8 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         border-color: var(--color-border-strong);
       }
       .card:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-        border-color: var(--primary);
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       .card:active {
         background: var(--bg-subtle);

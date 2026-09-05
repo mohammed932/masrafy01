@@ -864,6 +864,29 @@ export interface IncomeBand {
  * their own" — and it is the same list the `INCOME_PROOF_IN_USE` refusal names, so the
  * operator sees who blocks a proof change before they attempt it rather than after.
  */
+/**
+ * One surrogate bank program filed under a catalog name.
+ *
+ * Declared once and used by both carriers, because they are the same list read from two
+ * directions — a name's own programmes, and every programme reachable through a product.
+ *
+ * The NAMES matter as much as the code. One product is deliberately sold as several
+ * programmes off one mechanism, so a list of bare codes cannot say which is which: ABK files
+ * both `ABK-PER-DOCTORS_CLINIC` (30,000-300,000, capped by city tier) and
+ * `ABK-PER-DOCTORS_PRACTICE` (half that, uncapped) under the one doctors name.
+ */
+export interface ProgramUnderName {
+  programCode: string;
+  friendlyName: string;
+  /** Nullable on the column — fall back to `friendlyName`, never render an empty line. */
+  friendlyNameAr: string | null;
+  /** `null` when the programme is filed under no bank. */
+  bankNameEn: string | null;
+  bankNameAr: string | null;
+  /** `false` when it takes the catalog's figures instead of typing its own. */
+  ownAmounts: boolean;
+}
+
 export interface ProgramNameIncomeRule {
   programNameKey: string;
   labelAr: string;
@@ -871,7 +894,7 @@ export interface ProgramNameIncomeRule {
   /** `null` = nobody has decided. A surrogate program cannot be filed under it yet. */
   incomeRule: IncomeAssumptionConfig | null;
   valueSources: ValueSourceMap;
-  programs: Array<{ programCode: string; ownAmounts: boolean }>;
+  programs: ProgramUnderName[];
   /**
    * The surrogate product this name takes its calculation from, or `null` when it states
    * its own rule.
@@ -987,13 +1010,26 @@ export interface ProductTemplate {
     /** What it lifts. `'income'` when unstated, which is what every stored form meant. */
     scope?: 'income' | 'maxLoan';
   };
-  /** A SHARE of the figure for one answer — halving it on joint ownership. */
-  share?: {
-    fact: string;
-    whenOption: string;
-    otherwiseOption: string;
-    scope?: 'income' | 'maxLoan';
-  };
+  /**
+   * The portion of the figure this applicant is lent against.
+   *
+   * Two shapes. `choice` is the bank's percentage switched on by one answer — the joint
+   * ownership halving two sheets print. `statedPercent` is a percentage the APPLICANT states
+   * as a number, and the figure is scaled by it; it carries no bank figure, so the editor
+   * renders no box for it (`stepTakesFigures` — a scalar op with a second input).
+   *
+   * An absent `kind` reads as `'choice'`, which is what every form saved before the union
+   * existed meant.
+   */
+  share?:
+    | {
+        kind?: 'choice';
+        fact: string;
+        whenOption: string;
+        otherwiseOption: string;
+        scope?: 'income' | 'maxLoan';
+      }
+    | { kind: 'statedPercent'; fact: string; scope?: 'income' | 'maxLoan' };
   iScore?: boolean;
   conditions: TemplateCondition[];
 }
@@ -1068,7 +1104,10 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
   valueSources: ValueSourceMap;
   names: Array<{
     key: string;
-    programs: Array<{ programCode: string; ownAmounts: boolean }>;
+    /** What the name is called. A key that resolves to no row falls back to itself. */
+    labelEn: string;
+    labelAr: string;
+    programs: ProgramUnderName[];
   }>;
 }
 
@@ -1234,6 +1273,18 @@ export interface IncomeAssumptionConfig {
   gates?: RuleGate[];
   /** Whether the last step yields an income or a borrowing ceiling. */
   output?: ProductRuleOutput;
+  /**
+   * Catalog-owned. `'exclusive'` when a bank program sells exactly ONE of the product's ways
+   * of reaching the figure — see `@shared/income-rule/product-rule-ways.ts`. Absent reads as
+   * combined, which is every product but the compound guarantee.
+   */
+  waysAre?: 'exclusive';
+  /**
+   * BANK-owned: which way this program sells, as that way's slot id (`primary` · `alt` ·
+   * `alt__<fact>`). Absent on a product whose ways combine, and on every row written before
+   * the field existed.
+   */
+  wayId?: string;
   /**
    * FIGURES, by step id and gate id. The bank's half — and on a CATALOG rule, the
    * defaults every bank under the name starts from.

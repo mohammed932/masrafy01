@@ -251,3 +251,43 @@ describe('the data this seed carries', () => {
     }
   });
 });
+
+describe('the two ABK doctor sheets are two programmes of ONE product', () => {
+  // Spec §10.7: "ABK's two doctor programs use the same bands with different figures
+  // (clinic owners 30K-300K, in-practice 15K-150K) - also correct, they are two programs."
+  // So both must file under one catalog name, that name must take its calculation from the
+  // one doctors product, and the two must NOT hold the same numbers — if they did, the
+  // one-product decision would be hiding a real difference rather than expressing one.
+  const DOCTORS = SHEET_PROGRAMS.filter((program) => program.sheet.includes('Doctors'));
+
+  it('finds both sheets', () => {
+    expect(DOCTORS.map((program) => program.programCode).sort()).toEqual([
+      'ABK-PER-DOCTORS_CLINIC',
+      'ABK-PER-DOCTORS_PRACTICE',
+    ]);
+  });
+
+  it('files them under one catalog name, which reads one product', () => {
+    expect([...new Set(DOCTORS.map((program) => program.dto.programNameKey))]).toEqual([
+      'doctors_in_practice',
+    ]);
+    const name = PROGRAM_NAMES.find((entry) => entry.key === 'doctors_in_practice');
+    expect(name?.productKey).toBe('years_in_practice_bands');
+  });
+
+  it('gives each programme its own figures', () => {
+    const [first, second] = DOCTORS;
+    expect(JSON.stringify(first?.dto.incomeAssumption)).not.toBe(
+      JSON.stringify(second?.dto.incomeAssumption),
+    );
+  });
+
+  it('caps only the sheet that publishes a cap', () => {
+    // §7 prints a maximum by city tier x NTB/Top-up; §8 prints none, and a bank that does not
+    // sell a column leaves it blank rather than inheriting somebody else's ceiling.
+    const withCap = DOCTORS.filter(
+      (program) => program.dto.loanLimits?.maxLoanByFact !== undefined,
+    );
+    expect(withCap.map((program) => program.programCode)).toEqual(['ABK-PER-DOCTORS_CLINIC']);
+  });
+});

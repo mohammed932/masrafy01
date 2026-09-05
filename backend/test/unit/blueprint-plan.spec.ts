@@ -172,6 +172,29 @@ describe('planning against an empty database', () => {
     });
   });
 
+  it('leaves a created question OPTIONAL unless the blueprint asked for required', () => {
+    // The default is the safe direction and it is what nearly every ask wants: a required
+    // question is enforced for everyone it is VISIBLE to, so an ungated one blocks people
+    // the product is not for. A blueprint that states `required` has accepted that.
+    const optional = plan('auto_loan_crosssell').steps.find(
+      (step) => step.op === 'createQuestion' && step.type === 'NUMERIC',
+    );
+    expect(optional).toBeDefined();
+    expect((optional as { required?: boolean }).required).toBeUndefined();
+
+    const required = plan('compound_owner').steps.find(
+      (step) =>
+        step.op === 'createQuestion' &&
+        step.questionEn === 'What percentage of the unit do you own?',
+    );
+    expect(required).toMatchObject({
+      type: 'NUMERIC',
+      required: true,
+      numeric: { min: 0, max: 100 },
+      categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+    });
+  });
+
   it('files a new fact under the product that authored it', () => {
     const step = plan('compound_owner').steps.find(
       (s) => s.op === 'createFact' && s.factKey === 'unit_paid_to_date',

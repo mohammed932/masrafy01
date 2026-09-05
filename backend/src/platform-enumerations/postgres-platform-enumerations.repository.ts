@@ -990,13 +990,30 @@ export class PostgresPlatformEnumerationsRepository
   async programsUnderName(key: string): Promise<ProgramUnderName[]> {
     const rows = await this.prisma.bankProgram.findMany({
       where: { programNameKey: key, programType: BankProgramType.income_surrogate },
-      select: { programCode: true, incomeAssumption: true },
+      select: {
+        programCode: true,
+        friendlyName: true,
+        friendlyNameAr: true,
+        incomeAssumption: true,
+        // The bank's own row, because `bank_program` stores only `bankId`. One extra join
+        // on a list that is at most a handful of programmes per name.
+        bank: { select: { nameEnglish: true, nameArabic: true } },
+        // The relation is the source of truth and it is NULLABLE — 17 of 28 programs on this
+        // database carry no `bankId` — so the deprecated denormalised column is read as the
+        // fallback rather than the row reporting no bank at all. It holds one string with no
+        // Arabic, which is why only the English side falls back to it.
+        bankName: true,
+      },
       orderBy: { programCode: 'asc' },
     });
     return rows.map((row) => {
       const config = row.incomeAssumption as unknown as IncomeAssumptionConfig;
       return {
         programCode: row.programCode,
+        friendlyName: row.friendlyName,
+        friendlyNameAr: row.friendlyNameAr,
+        bankNameEn: row.bank?.nameEnglish ?? row.bankName ?? null,
+        bankNameAr: row.bank?.nameArabic ?? null,
         // Normalized, because the stored blob may be legacy and the caller compares
         // this against a canonical strategy. An un-normalized read would report a
         // legacy program as reading something the catalog never states.
@@ -1004,6 +1021,18 @@ export class PostgresPlatformEnumerationsRepository
         ownAmounts: !inheritsCatalogAmounts(config),
       };
     });
+  }
+
+  async programNameLabels(
+    keys: readonly string[],
+  ): Promise<Map<string, { labelEn: string; labelAr: string }>> {
+    // An empty set would compile to `key IN ()`, so it is answered without a round trip.
+    if (keys.length === 0) return new Map();
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name', key: { in: [...keys] } },
+      select: { key: true, labelEn: true, labelAr: true },
+    });
+    return new Map(rows.map((r) => [r.key, { labelEn: r.labelEn, labelAr: r.labelAr }]));
   }
 
   /**

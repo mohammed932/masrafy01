@@ -28,6 +28,7 @@ import {
   type RuleStep,
   type ValueRef,
 } from '@/matching/pipeline/product-rule';
+import { waysAreExclusive, waysOfRule } from '@/matching/pipeline/product-rule-ways';
 import { legacyScalarKeysFor } from '@/matching/pipeline/income-rule-normalize';
 import type { IncomeRuleBandsInvalidReason } from '@/common/errors/domain.exceptions';
 
@@ -71,6 +72,13 @@ export type IncomeRuleViolation =
     }
   /** The rule reads a registry fact the registry cannot serve (see the error code). */
   | { kind: 'factUnavailable'; factKey: string; availableFacts: string[] }
+  /**
+   * The product sells ONE of its ways and this program has not said which. `wayIds` lists
+   * what there is to choose from, so the screen offers the fix rather than states the problem.
+   */
+  | { kind: 'incomeWayRequired'; wayIds: string[] }
+  /** Figures under a way this program does not sell. `alsoFilled` names the boxes. */
+  | { kind: 'incomeWayConflict'; wayId: string; alsoFilled: string[] }
   /**
    * A step pipeline that is not assemblable. ONE kind with a `reason`, not eleven kinds:
    * every one of these is "the pipeline itself is wrong" and points the operator at the
@@ -130,6 +138,8 @@ export const PRODUCT_RULE_INVALID_REASONS = [
   'optional_step_not_skippable',
   'skip_unset_not_applicable',
   'branch_on_not_applicable',
+  'way_unknown',
+  'way_not_applicable',
 ] as const;
 
 export type ProductRuleInvalidReason = (typeof PRODUCT_RULE_INVALID_REASONS)[number];
@@ -450,6 +460,30 @@ async function validateProductRule(
     if (problem) return problem;
   }
 
+  // Does a candidate produce a figure at all?
+  //
+  // Recursive, because a candidate can be a step that needs no figures of its OWN and
+  // still be empty: `pickByFact` is arithmetic over two columns, so `isStepConfigured`
+  // answers `true` for it unconditionally — and the compound rule's FIRST candidate is a
+  // pick, which made the `coalesce_empty` guard unreachable. A pick counts as configured
+  // only when one of its columns is.
+  //
+  // Hoisted out of that loop so the one-way check below reads the SAME answer. Asking
+  // `isStepConfigured` directly there would read every one of the compound product's way
+  // heads as filled — they all sit behind picks — and refuse all four live programs.
+  const reachesFigures = (id: string, depth = 0): boolean => {
+    if (depth > 8) return true;
+    const candidate = steps.find((s2) => s2.id === id);
+    if (candidate === undefined) return false;
+    if (candidate.op === 'pickByFact' || candidate.op === 'coalesce') {
+      const inner = refsOf(candidate.of);
+      // A literal member always resolves, so such a list is never empty.
+      if (inner.some((ref) => !('step' in ref))) return true;
+      return inner.some((ref) => 'step' in ref && reachesFigures(ref.step, depth + 1));
+    }
+    return isStepConfigured(candidate, params[id] ?? {});
+  };
+
   // Every `coalesce` needs at least ONE configured candidate. Without this a bank could
   // save a rule that declines all four derivations and reports `rule_unconfigured` to every
   // applicant — the definition of a program that looks live and quotes nothing.
@@ -469,28 +503,27 @@ async function validateProductRule(
     // always agreed with the comment rather than the code: it skips unset STEP refs and takes
     // a literal as given.
     if (candidates.length !== refs.length) continue;
-    // Recursive, because a candidate can be a step that needs no figures of its OWN and
-    // still be empty: `pickByFact` is arithmetic over two columns, so `isStepConfigured`
-    // answers `true` for it unconditionally — and the compound rule's FIRST candidate is a
-    // pick, which made this whole guard unreachable. A pick counts as configured only when
-    // one of its columns is.
-    const reaches = (id: string, depth = 0): boolean => {
-      if (depth > 8) return true;
-      const candidate = steps.find((s2) => s2.id === id);
-      if (candidate === undefined) return false;
-      if (candidate.op === 'pickByFact' || candidate.op === 'coalesce') {
-        const inner = refsOf(candidate.of);
-        // A literal member always resolves, so such a list is never empty.
-        if (inner.some((ref) => !('step' in ref))) return true;
-        return inner.some((ref) => 'step' in ref && reaches(ref.step, depth + 1));
-      }
-      return isStepConfigured(candidate, params[id] ?? {});
-    };
-    const anyConfigured = candidates.some((id) => reaches(id));
+    const anyConfigured = candidates.some((id) => reachesFigures(id));
     if (candidates.length > 0 && !anyConfigured) {
       return { kind: 'productRuleInvalid', reason: 'coalesce_empty', stepId: step.id };
     }
   }
+
+  // ONE WAY PER BANK PROGRAM — the at-MOST-one half, beside the at-least-one half above.
+  //
+  // A product whose ways are ALTERNATIVES (`waysAre: 'exclusive'`) offers several mechanisms
+  // because several banks sell it differently, and no sheet pairs two of them. Nothing used
+  // to make a program pick: it filled whatever heads it liked and `emitBasis` folded them all
+  // with `minOf(skipUnset)`, so two filled ways silently became "the lower of the two" — a
+  // mechanism nobody sells, quoted to real applicants. Every live program already fills
+  // exactly one, so the rule the operator wants held by convention and was unenforced.
+  //
+  // Gated on `figuresRequired`, which is already the "bank completeness vs catalog structure"
+  // axis — that one gate exempts the catalog write, the raw step editor, the template compile
+  // and both seeds for free, and it deliberately DOES apply to the admin rule-CHECK endpoint,
+  // which must not reassure an operator about a configuration the save is about to refuse.
+  const wayProblem = validateChosenWay(rule, figuresRequired, reachesFigures);
+  if (wayProblem) return wayProblem;
 
   if (!seenIds.has(rule.output.from)) {
     return { kind: 'productRuleInvalid', reason: 'unknown_output_step', stepId: rule.output.from };
@@ -578,6 +611,65 @@ async function validateProductRule(
 function refsOf(of: RuleStep['of']): ValueRef[] {
   if (of === undefined) return [];
   return Array.isArray(of) ? of : [of];
+}
+
+/**
+ * One way per bank program: the program names the way it sells, and carries figures for
+ * that way only.
+ *
+ * FOUR outcomes, and the split between codes and reasons is deliberate.
+ * `PRODUCT_RULE_INVALID` renders as "This product's calculation steps are not complete:
+ * {reason}" with the raw token interpolated — there is no per-reason dictionary anywhere,
+ * and `check:codes` checks codes only, so a new reason would ship the English token
+ * `way_not_chosen` straight into the Arabic UI (Principle III / A2). The two conditions an
+ * operator actually hits therefore get real sentences and different actions ("pick one" →
+ * the picker; "clear these" → naming which). The two that only a hand-built request can
+ * reach stay reasons, where the existing rawness is pre-existing debt rather than new debt.
+ *
+ * `reaches` is the coalesce guard's own helper, passed in rather than re-derived: the
+ * compound product's way heads all sit behind `pickByFact`, so a check asking
+ * `isStepConfigured` would read every way as filled and refuse all four live programs.
+ */
+function validateChosenWay(
+  rule: ProductRule,
+  figuresRequired: boolean,
+  reaches: (id: string) => boolean,
+): IncomeRuleViolation | undefined {
+  if (!figuresRequired) return undefined;
+
+  const ways = waysOfRule(rule);
+  const chosen = rule.wayId;
+  const exclusive = waysAreExclusive(rule);
+
+  if (!exclusive) {
+    // A way named on a product that combines its ways, or offers only one, is a choice the
+    // product does not ask for — and on a `pickByFact`-shaped id it would look like it was
+    // doing something. Refused rather than dropped, exactly as `skip_unset_not_applicable`
+    // is: a flag that decides nothing is what the next operator reads and believes.
+    if (chosen !== undefined && chosen !== '') {
+      return { kind: 'productRuleInvalid', reason: 'way_not_applicable', detail: chosen };
+    }
+    return undefined;
+  }
+
+  const wayIds = ways.map((way) => way.id);
+  if (chosen === undefined || chosen === '') {
+    return { kind: 'incomeWayRequired', wayIds };
+  }
+  if (!wayIds.includes(chosen)) {
+    return { kind: 'productRuleInvalid', reason: 'way_unknown', detail: chosen };
+  }
+
+  // Filled, way by way — never key by key. With a second column configured a single way
+  // spans several slots (FABMISR's compound program stores `alt` AND `alt__top_up`: one way,
+  // two columns), so counting `stepParams` keys would refuse the one program that is right.
+  const alsoFilled = ways
+    .filter((way) => way.id !== chosen && way.slots.some((slot) => reaches(slot)))
+    .map((way) => way.id);
+  if (alsoFilled.length > 0) {
+    return { kind: 'incomeWayConflict', wayId: chosen, alsoFilled };
+  }
+  return undefined;
 }
 
 /** A reference may name an EARLIER step, a registry fact, or a parseable literal. */
@@ -1253,6 +1345,16 @@ export function stripForeignMethodConfig(
     if (config.steps !== undefined) keep.steps = config.steps;
     if (config.gates !== undefined) keep.gates = config.gates;
     if (config.output !== undefined) keep.output = config.output;
+    // Travels with the structure it belongs to, and off a bank row one line later with it
+    // (`stripCatalogStructure`).
+    if (config.waysAre !== undefined) keep.waysAre = config.waysAre;
+    // NOT method configuration: it says which of the product's ways this BANK sells, which is
+    // a decision about the program rather than a table belonging to whichever method is
+    // selected. This function REBUILDS the config rather than deleting from it, so a field
+    // omitted here is silently discarded on every save — the request succeeds, the screen
+    // shows the way the operator picked, and the stored program carries none. That is exactly
+    // how `additionalIncome` was lost for two versions.
+    if (config.wayId !== undefined) keep.wayId = config.wayId;
     if (config.stepParams !== undefined) keep.stepParams = config.stepParams;
     return keep;
   }

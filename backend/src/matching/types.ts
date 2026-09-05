@@ -508,6 +508,32 @@ export interface IncomeAssumptionConfig {
   gates?: RuleGate[];
   /** Catalog-owned. Says whether the last step is an income or a ceiling. */
   output?: ProductRuleOutput;
+  /**
+   * Catalog-owned. `'exclusive'` when a bank sells exactly ONE of the product's ways of
+   * reaching the figure — see `matching/pipeline/product-rule-ways.ts`.
+   */
+  waysAre?: 'exclusive';
+  /**
+   * BANK-owned: which of the product's ways THIS program sells, as the way's slot id
+   * (`primary` · `alt` · `alt__<fact>`).
+   *
+   * A slot id and never an index. Indexes are positional and the ways may be added to and
+   * removed from but never reordered, so an index would silently move onto a neighbour's
+   * table; the slot id is already the prefix every one of this way's figures is filed under.
+   *
+   * STORED rather than derived from "which box has a figure", and the reason is not
+   * tidiness: a program on `amounts: 'catalog'` stores no `stepParams` at all
+   * (`stripInheritedAmounts` deletes the whole key), so there would be nothing local to
+   * derive from — and that is precisely the case that needs the choice most, because the
+   * compound catalog fills four heads. The wizard also has to render the choice before any
+   * figure exists. "Which box did you type in" is a consequence; "which way does this bank
+   * sell" is a decision, and storing the decision is what lets the save refuse the figures
+   * that contradict it.
+   *
+   * Absent on every rule that is not an exclusive product's, and absent on every row written
+   * before the field existed — which the backfill in `20260904120000` is what makes safe.
+   */
+  wayId?: string;
   /** Bank-owned figures by step id / gate id. Stripped when `amounts: 'catalog'`. */
   stepParams?: Record<string, StepParams & GateParams>;
 

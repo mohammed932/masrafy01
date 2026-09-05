@@ -137,6 +137,15 @@ interface Input {
   requiredDocuments?: string[];
   /** The bank's own figures, keyed by slot id. Absent on a program with no calculation. */
   stepParams?: Record<string, unknown>;
+  /**
+   * Which of the product's ways this program sells, as the way's slot id.
+   *
+   * Stated on every program of a product whose ways are ALTERNATIVES, or the save is refused
+   * `PROGRAM_INCOME_WAY_REQUIRED` and this seed stops at the first such program. Absent
+   * everywhere else — on a product with one way, or one whose ways combine (the auto
+   * cross-sell fills both on purpose), naming one is refused as `way_not_applicable`.
+   */
+  wayId?: string;
   maxLoanByFact?: MaxLoanTable;
   maxLoanAdjustments?: Array<{
     kind: 'upliftPercent' | 'sharePercent';
@@ -243,6 +252,7 @@ function program(input: Input): ProgramSpec {
       ? {
           strategy: PRODUCT_RULE_STRATEGY,
           amounts: 'own',
+          ...(input.wayId !== undefined ? { wayId: input.wayId } : {}),
           stepParams: input.stepParams ?? {},
           ...(input.additionalIncome ? { additionalIncome: input.additionalIncome } : {}),
         }
@@ -636,8 +646,10 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     ageMaxSelfEmployed: 65,
     requires: { requiresCompoundProperty: true, requiresFRMUVerification: true },
     requiredDocuments: ['national_id', 'utility_bill', 'property_deed'],
+    wayId: 'alt__unit_paid_to_date',
     stepParams: {
-      // 15% of the down payment plus the instalments honoured to date.
+      // 15% of the down payment plus the instalments honoured to date — everything paid, so
+      // the share reads `unit_paid_to_date` and not the down payment on its own.
       alt__unit_paid_to_date: percent('15'),
       // Property purchase date not less than 18 months.
       cond__ownedlongenough: { minValue: '18' },
@@ -692,6 +704,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthlyIncomeSelfEmployedEGP: '25000',
     requires: { requiresCompoundProperty: true },
     requiredDocuments: ['national_id', 'utility_bill', 'property_deed'],
+    wayId: 'primary',
     stepParams: {
       primary: {
         keyTable: [
@@ -762,7 +775,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     sheet: 'App. B — FABMISR compound owner (down-payment brackets × NTB / X-SELL)',
     notes: [
       'The sheet’s second column is X-SELL — the client holds another product, a credit card with a limit of at least 100,000. This product’s second column is "new loan or top-up", which spec §10.3 is explicit is a DIFFERENT question. The X-SELL figures are filed in the second column so the grid is complete, and they are the sheet’s own numbers: 1,250,000 · 1,500,000 · 1,750,000 · 2,000,000. Read them as X-SELL, not as top-up, until the product carries a "holds another product" column.',
-      'Minimum down payment 250,000 is expressed by the first bracket starting there: a smaller down payment falls in no bracket and is answered with a stated reason.',
+      'The brackets are keyed by the DOWN PAYMENT, which is the figure the sheet prints them against — not by everything paid to date, which is what two other banks on this product take their share of. Minimum down payment 250,000 is expressed by the first bracket starting there: a smaller down payment falls in no bracket and is answered with a stated reason.',
       'Jointly owned units are accepted at 50% of the imputed income and 50% of the loan amount.',
       'Two lines were not legible on the source photo and are deliberately not encoded: "Clear I-Score: 500K" and "Income will be derived according to down payment within 6 months".',
       'Rate and fees are not stated on the sheet.',
@@ -777,10 +790,12 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthlyIncomeSelfEmployedEGP: '15000',
     requires: { requiresCompoundProperty: true, requiresFRMUVerification: true },
     requiredDocuments: ['national_id', 'utility_bill', 'property_deed'],
+    // ONE way, two columns: `alt__top_up` is the second column of the `alt` bracket table,
+    // not a way of its own. The way's id is the bare head — the first column keeps it.
+    wayId: 'alt',
     stepParams: {
       alt: banded(DOWN_PAYMENT_EDGES, ['750000', '1000000', '1250000', '1500000']),
       alt__top_up: banded(DOWN_PAYMENT_EDGES, ['1250000', '1500000', '1750000', '2000000']),
-      share_on: percent('50'),
     },
     estimated: ['pricing.baseRatePercent', 'fees.adminFeePercent', ...ESTIMATED_FEES],
   }),
@@ -851,16 +866,16 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     dbrCapPercentByEmploymentType: { salaried: '50', self_employed: '40' },
     requires: { requiresCompoundProperty: true },
     requiredDocuments: ['national_id', 'utility_bill', 'property_deed'],
+    wayId: 'alt__unit_paid_to_date',
     stepParams: {
+      // 50% of the amount paid to the developer — the total, as the sheet writes it.
       alt__unit_paid_to_date: percent('50'),
-      share_on: percent('50'),
+      // The sheet's "jointly owned accepted at 50%" is no longer a bank figure: the
+      // applicant states the percentage of the unit they own and the rule scales by it, so
+      // a half-owner reaches the same 50% and an owner of some other share is priced as
+      // what they actually own rather than as a half.
     },
-    estimated: [
-      'pricing.baseRatePercent',
-      'fees.adminFeePercent',
-      ...ESTIMATED_FEES,
-      'incomeAssumption.stepParams.share_on.scalar.value',
-    ],
+    estimated: ['pricing.baseRatePercent', 'fees.adminFeePercent', ...ESTIMATED_FEES],
   }),
 
   program({

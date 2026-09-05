@@ -96,7 +96,10 @@ import {
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { IncomeRuleCheckComponent } from '@shared/income-rule/income-rule-check.component';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
+import { catalogRuleOf } from '@shared/income-rule/catalog-rule';
+import { waysAreExclusive } from '@shared/income-rule/product-rule-ways';
 import { BanksApiService } from '../../banks/banks.api.service';
+import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
   AdditionalIncomeEditorComponent,
@@ -1320,6 +1323,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       [stepFigures]="stepFigures()"
                       (stepFiguresChange)="onStepFiguresEdit($event)"
                       (stepFiguresTouched)="markIncomeRuleDirty()"
+                      [waysAre]="ruleWaysAre()"
+                      [wayId]="wayIdValue()"
+                      (wayIdChange)="onWayPicked($event)"
                     ></app-income-assumption-section>
 
                     <!-- Money the applicant earns BESIDE whatever the rule or the payslip
@@ -3577,6 +3583,12 @@ export class BankProgramFormPage implements OnInit {
        */
       amounts: new FormControl<'catalog' | 'own'>('own', { nonNullable: true }),
       /**
+       * Which of the product's ways this bank sells, when the product holds them as
+       * alternatives. `null` everywhere else, and on every program saved before the field
+       * existed — the server refuses a way named on a product that combines its ways.
+       */
+      wayId: new FormControl<string | null>(null),
+      /**
        * Feature 011 — the CANONICAL scalar shape replaces the four per-method
        * fields. `unit` travels with the value so the stored blob says what
        * arithmetic it means, and the read path normalizes a legacy
@@ -3859,7 +3871,7 @@ export class BankProgramFormPage implements OnInit {
    */
   private seedFromCatalog(): void {
     if (this.amountsValue() !== 'catalog') return;
-    const catalog = this.catalogRule()?.incomeRule;
+    const catalog = this.catalogEffectiveRule();
     if (!catalog) {
       this.incomeKeyTable.set([]);
       this.incomeBands.set([]);
@@ -4003,7 +4015,7 @@ export class BankProgramFormPage implements OnInit {
   private async adoptCatalogProof(): Promise<void> {
     const before = this.form.controls.incomeAssumption.controls.strategy.value;
     await this.loadCatalogRule();
-    const proof = this.catalogRule()?.incomeRule?.strategy;
+    const proof = this.catalogEffectiveRule()?.strategy;
     if (proof === undefined || proof === before) return;
 
     const income = this.form.controls.incomeAssumption;
@@ -4448,13 +4460,23 @@ export class BankProgramFormPage implements OnInit {
    * pipeline the catalog has since changed.
    */
   readonly ruleSteps = computed<readonly RuleStep[]>(
-    () => this.catalogRule()?.incomeRule?.steps ?? [],
+    () => this.catalogEffectiveRule()?.steps ?? [],
   );
   readonly ruleGates = computed<readonly RuleGate[]>(
-    () => this.catalogRule()?.incomeRule?.gates ?? [],
+    () => this.catalogEffectiveRule()?.gates ?? [],
   );
   readonly ruleOutput = computed<ProductRuleOutput | null>(
-    () => this.catalogRule()?.incomeRule?.output ?? null,
+    () => this.catalogEffectiveRule()?.output ?? null,
+  );
+  /**
+   * Whether this product sells ONE of its ways, from the catalog rule beside the steps.
+   *
+   * The catalog's, like the steps — a bank cannot restate what the product IS. It travels on
+   * the rule rather than being fetched from the product's form, because the rule is what both
+   * the wizard and the server hold, and a calculation authored by hand has no form at all.
+   */
+  readonly ruleWaysAre = computed<'exclusive' | null>(
+    () => this.catalogEffectiveRule()?.waysAre ?? null,
   );
 
   /**
@@ -4509,6 +4531,15 @@ export class BankProgramFormPage implements OnInit {
     if (!this.incomeSurrogateActive()) return false;
     this.formValue();
     const ia = this.form.getRawValue().incomeAssumption;
+    // WHICH WAY is true regardless of whose figures they are — so it is asked before the
+    // catalog escape below, not after it. A program on catalog amounts is exactly the case
+    // that needs the choice most: it has typed no figure anywhere, and the compound catalog
+    // fills four of the five heads, so without a way it would inherit the lower of four
+    // mechanisms nobody sells. Gate it after the early return and the one case that needs a
+    // choice is the one case the client never gates.
+    if (waysAreExclusive(this.ruleWaysAre(), this.ruleSteps()) && !this.wayIdValue()) {
+      return true;
+    }
     // A program on CATALOG amounts has no table of its own to be wrong about. Gating on
     // the local editor here would block Continue on an empty table for every program
     // that takes the catalog's — which is the default, so the wizard would refuse to
@@ -4524,6 +4555,8 @@ export class BankProgramFormPage implements OnInit {
         steps: this.ruleSteps(),
         gates: this.ruleGates(),
         figures: this.stepFigures(),
+        waysAre: this.ruleWaysAre(),
+        wayId: this.wayIdValue(),
       });
     }
     return incomeRuleHasError({
@@ -4546,9 +4579,22 @@ export class BankProgramFormPage implements OnInit {
   private readonly catalogRule = signal<ProgramNameIncomeRule | null>(null);
   protected readonly catalogRuleLoading = signal(false);
 
+  /**
+   * The rule this name actually quotes on — the linked PRODUCT's, or the name's own.
+   *
+   * Every read of the catalog rule on this page goes through here. Seven of them used to read
+   * `incomeRule` alone, which is NULL on all eight linked names: step 5 rendered the "nobody
+   * has said what this name reads its income from" blocker for every live surrogate program,
+   * and the figures editor never mounted. The fallback itself is `catalogRuleOf`, shared with
+   * the catalog name's own page so the two screens cannot answer this differently again.
+   */
+  private readonly catalogEffectiveRule = computed<IncomeAssumptionConfig | null>(() =>
+    catalogRuleOf(this.catalogRule()),
+  );
+
   /** The proof, in the operator's words. `null` means nothing is stated yet. */
   protected readonly catalogProof = computed<string | null>(() => {
-    const strategy = this.catalogRule()?.incomeRule?.strategy;
+    const strategy = this.catalogEffectiveRule()?.strategy;
     return strategy === undefined ? null : this.incomeMethodLabelFor(strategy);
   });
 
@@ -4571,7 +4617,7 @@ export class BankProgramFormPage implements OnInit {
    * there is nothing to offer and nothing to go back to.
    */
   protected readonly catalogHasFigures = computed<boolean>(() => {
-    const rule = this.catalogRule()?.incomeRule;
+    const rule = this.catalogEffectiveRule();
     if (!rule) return false;
     return Boolean(
       rule.keyTable?.length ||
@@ -4615,6 +4661,26 @@ export class BankProgramFormPage implements OnInit {
     return this.form.getRawValue().incomeAssumption.amounts === 'catalog' ? 'catalog' : 'own';
   });
 
+  /** Which of the product's ways this program sells. `null` until the operator picks one. */
+  protected readonly wayIdValue = computed<string | null>(() => {
+    this.formValue();
+    return this.form.getRawValue().incomeAssumption.wayId ?? null;
+  });
+
+  /**
+   * The picker chose a way.
+   *
+   * The editor has already cleared the figures of the way being left — it is the one holding
+   * them — so this only records the decision and marks the form dirty. Two writers for one
+   * value would be two chances to disagree about which way is live.
+   */
+  protected onWayPicked(wayId: string | null): void {
+    const control = this.form.controls.incomeAssumption.controls.wayId;
+    if (control.value === wayId) return;
+    control.setValue(wayId);
+    control.markAsDirty();
+  }
+
   /** Reactive view of the bound key so the option list keeps a legacy value visible. */
   readonly programNameKeySignal = toSignal(
     this.form.controls.identity.controls.programNameKey.valueChanges,
@@ -4627,6 +4693,41 @@ export class BankProgramFormPage implements OnInit {
    * every recomputation.
    */
   private readonly programNameMembers = this.enums.membersFor('program_name');
+
+  /**
+   * The labels of the name picked LAST, so a re-pick can tell "still following the catalog"
+   * from "the bank worded this itself".
+   *
+   * Not derived from the form: once the field has been overwritten there is nothing left in
+   * it to compare against, which is exactly how the old unconditional assignment lost the
+   * distinction it was overwriting.
+   */
+  /**
+   * The catalog name the display fields were last seeded from — stored as a KEY and resolved
+   * to labels at compare time.
+   *
+   * A snapshot of the LABELS was tried first and is wrong: `programNameMembers()` is a lazily
+   * populated cache that returns `[]` until its fetch lands, so on a cold edit-load the
+   * snapshot resolved to `null` and `followsCatalogName` then answered `false` for every
+   * programme — including one whose name genuinely still equals the catalog's, which should
+   * move with it. Holding the key defers the lookup to the moment it is actually needed, by
+   * which time the members are there.
+   */
+  private lastPickedNameKey: string | null = null;
+
+  /** The labels of that name, or `null` if it is unset or the registry has not arrived. */
+  private lastPickedNameLabels(): PickedNameLabels | null {
+    if (this.lastPickedNameKey === null) return null;
+    const m = this.programNameMembers().find((x) => x.key === this.lastPickedNameKey);
+    return m ? { labelEn: m.labelEn, labelAr: m.labelAr } : null;
+  }
+
+  /** Fill a display name from the catalog, unless the bank has made it its own. */
+  private seedFriendlyName(control: FormControl<string | null>, label: string): void {
+    if (followsCatalogName(control.value, this.lastPickedNameLabels())) {
+      control.setValue(label, { emitEvent: false });
+    }
+  }
 
   /**
    * Program-name options, sourced from the live `program_name` registry
@@ -4896,24 +4997,48 @@ export class BankProgramFormPage implements OnInit {
       }
     });
 
-    // Program-name picker: the key is the bound value, so both display names are
-    // derived from the chosen catalog member — never hand-typed (A20 / Principle II).
+    // Program-name picker: the catalog member SEEDS both display names, and never
+    // overwrites one the bank has already made its own.
+    //
+    // This used to assign unconditionally, on the stated reasoning that a display name is
+    // "never hand-typed (A20 / Principle II)". Both halves of that are wrong here. A20 bans
+    // hardcoded user-visible strings in the bundle; `friendlyName` is DB content an operator
+    // types. And Principle II argues the other way — a bank naming its own programme IS
+    // banks-as-data. What the old rule actually did was destroy the only record of a
+    // distinction the catalog cannot carry: one product is deliberately sold as several
+    // programmes off one mechanism, so ABK files "Doctors — Clinic Owners" and
+    // "Doctors — In Practice" under the one catalog name "Doctors". Touching the picker
+    // replaced both with "Doctors" and the two became indistinguishable, silently, with the
+    // figures still differing by half at every band.
+    //
+    // Seeded when blank, and re-seeded only while the field still reads as the PREVIOUS
+    // pick's label — so switching names on a programme that never diverged still follows
+    // the catalog, and a programme that diverged keeps its own words.
     this.form.controls.identity.controls.programNameKey.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((key) => {
         const match = this.programNameMembers().find((m) => m.key === key);
         if (match) {
-          this.form.controls.identity.controls.friendlyName.setValue(match.labelEn, {
-            emitEvent: false,
-          });
-          this.form.controls.identity.controls.friendlyNameAr.setValue(match.labelAr, {
-            emitEvent: false,
-          });
+          this.seedFriendlyName(this.form.controls.identity.controls.friendlyName, match.labelEn);
+          this.seedFriendlyName(this.form.controls.identity.controls.friendlyNameAr, match.labelAr);
         }
+        this.lastPickedNameKey = key ?? null;
         // The income proof is the NAME's property, so changing the name changes what
         // this program reads. Re-read, then adopt — the alternative is a program still
         // carrying the previous name's proof, which the server refuses on save with a
         // message about a name the operator has already moved away from.
+        //
+        // NOT while the form is being filled in from a stored program. `applyInitial`
+        // patches `programNameKey` before it patches the rule, so on an edit load this
+        // subscription fires with the form's default `declared` still in the strategy
+        // control — the adopt then reads the name's real proof, sees a change, and flips a
+        // live program onto CATALOG amounts, replacing the figures it quotes off with the
+        // catalog's. Latent until the wizard could resolve a linked name's proof at all
+        // (it read `incomeRule` alone, which is NULL on every linked name, so `proof` was
+        // always `undefined` and the adopt returned early); measured in a browser the
+        // moment that was fixed — FABMISR's program opened showing four of the catalog's
+        // ways as its own.
+        if (this.hydrating) return;
         void this.adoptCatalogProof();
       });
     // No category-change RESET. Changing the product category can invalidate the
@@ -5313,10 +5438,17 @@ export class BankProgramFormPage implements OnInit {
     // server strips them anyway, but sending the pre-filled copy would make the request
     // say the bank typed numbers it only looked at — and the check panel reads this same
     // draft, so it would then check a table the program will not be quoted off.
+    // Sent on BOTH branches, and that is the point of it being a decision rather than a
+    // consequence: a program on the catalog's amounts has typed no figure anywhere, so
+    // "which box did you fill in" cannot answer which way it sells — and the compound catalog
+    // fills four of them.
+    const way = shape === 'steps' && ia.wayId ? { wayId: ia.wayId } : {};
+
     if (ia.amounts === 'catalog') {
       return {
         strategy: ia.strategy,
         amounts: 'catalog',
+        ...way,
         ...(shape !== 'none' && ia.dbrCapPercentOverride
           ? { dbrCapPercentOverride: ia.dbrCapPercentOverride }
           : {}),
@@ -5333,6 +5465,7 @@ export class BankProgramFormPage implements OnInit {
     return {
       strategy: ia.strategy,
       amounts: 'own',
+      ...way,
       ...(shape === 'keyTable' ? { keyTable: this.incomeKeyTable() } : {}),
       ...(shape === 'bands' ? { bands: this.incomeBands() } : {}),
       // A step pipeline sends ONLY its figures. The steps, gates and output belong to the
@@ -5461,7 +5594,27 @@ export class BankProgramFormPage implements OnInit {
     };
   }
 
+  /**
+   * True only while `applyInitial` is populating the form from a stored program.
+   *
+   * The picker's `valueChanges` subscription cannot tell an OPERATOR changing the name from
+   * the form being filled in with the name it already has, and the two must not do the same
+   * thing: adopting on a load re-points a live program at the catalog's amounts and overwrites
+   * the figures it was quoting off. Synchronous, because `patchValue` emits synchronously —
+   * the async work the subscription kicks off has already been declined by then.
+   */
+  private hydrating = false;
+
   private applyInitial(initial: BankProgramResponse): void {
+    this.hydrating = true;
+    try {
+      this.applyInitialFields(initial);
+    } finally {
+      this.hydrating = false;
+    }
+  }
+
+  private applyInitialFields(initial: BankProgramResponse): void {
     this.editBankName.set(initial.bankName);
     // Remember the pair this row arrived with, so an assignment narrowed after
     // it was created does not block an edit to an unrelated field. Mirrors the
@@ -5487,6 +5640,15 @@ export class BankProgramFormPage implements OnInit {
       productCategory: initial.productCategory,
       isShariaCompliant: initial.isShariaCompliant === true,
     });
+    // The baseline for a later re-pick: which catalog name these display fields were last
+    // seeded from. Stated here rather than left to the picker's subscription, which fires
+    // mid-patch only because `programNameKey` precedes `friendlyName` in the object literal
+    // above — an ordering nothing enforces.
+    //
+    // It is NOT what makes the edit-load itself safe. The patch writes the stored
+    // `friendlyName` after the subscription has run, so the stored name wins regardless;
+    // what this line decides is whether a LATER change of name may move that value.
+    this.lastPickedNameKey = this.identityGroup.controls.programNameKey?.value ?? null;
     // programCode is immutable on edit — show it read-only.
     this.identityGroup.controls.programCode?.disable();
     if (initial.bankId) this.bankIdControl.setValue(initial.bankId);
@@ -5577,6 +5739,11 @@ export class BankProgramFormPage implements OnInit {
       // own figures, so defaulting to `'catalog'` here would open the wizard claiming a
       // link the program does not have — and the first save would make it true.
       amounts: initial.incomeAssumption.amounts === 'catalog' ? 'catalog' : 'own',
+      // ABSENT means "this program has not named a way", which is what every row saved
+      // before the field existed says — and what the backfill made false for every program
+      // of a product that needs one. Never defaulted to a way here: guessing one would be the
+      // screen deciding which mechanism a bank publishes.
+      wayId: initial.incomeAssumption.wayId ?? null,
       scalar: {
         value: trimZeros(initial.incomeAssumption.scalar?.value) ?? null,
         unit: initial.incomeAssumption.scalar?.unit ?? 'percent',

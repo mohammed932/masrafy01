@@ -395,6 +395,22 @@ export interface ProductRule {
   steps?: RuleStep[];
   gates?: RuleGate[];
   output?: ProductRuleOutput;
+  /**
+   * `'exclusive'` when a bank program sells exactly ONE of this product's ways of reaching
+   * the figure. Absent reads as combined — see `ProductTemplate.waysAre` and
+   * `product-rule-ways.ts`.
+   *
+   * STRUCTURE, so it belongs to the catalog exactly as `steps` does: it is a statement about
+   * the product, not about one bank. The EVALUATOR ignores it entirely — `emitBasis` already
+   * returns the one filled way's figure — and it is read only where a save is refused and
+   * where the catalog's figures are inherited.
+   */
+  waysAre?: 'exclusive';
+  /**
+   * BANK-owned: which way this program sells, as that way's slot id. Read only where a save
+   * is refused and where the catalog's figures are pruned; the evaluator never looks at it.
+   */
+  wayId?: string;
   /** Figures by step id AND gate id. Absent when the rule inherits catalog amounts. */
   stepParams?: Record<string, StepParams & GateParams>;
 }

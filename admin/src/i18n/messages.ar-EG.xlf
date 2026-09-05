@@ -854,11 +854,16 @@
       <!-- Program catalog — one name, configured per loan type -->
       <trans-unit id="pnd.back" datatype="html"><source>All program names</source><target>كل أسماء البرامج</target></trans-unit>
       <trans-unit id="pnd.eyebrow" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
-      <trans-unit id="pnd.sub" datatype="html">
-        <source>Three steps: how the income is worked out, which loan types banks may sell it under, and what each type&apos;s applicants are scored on. Nothing here is submitted — every step saves on its own.</source>
-        <target>ثلاث خطوات: كيف يُحتسب الدخل، وأنواع التمويل التي يجوز للبنوك بيعه تحتها، وما يُقيَّم عليه المتقدمون في كل نوع. لا شيء هنا يُرسَل — كل خطوة تحفظ بنفسها.</target>
+      <trans-unit id="pnd.sub2" datatype="html">
+        <source>Three steps: how the income is worked out, which loan types banks may sell it under, and what each type&apos;s applicants are scored on. The income proof and the scoring list each have their own Save; turning a loan type on or off saves as you tap.</source>
+        <target>ثلاث خطوات: كيف يُحتسب الدخل، وأنواع التمويل التي يجوز للبنوك بيعه تحتها، وما يُقيَّم عليه المتقدمون في كل نوع. لكلٍّ من إثبات الدخل وقائمة التقييم زر حفظ خاص به؛ أما تشغيل نوع تمويل أو إيقافه فيُحفظ بمجرد الضغط.</target>
       </trans-unit>
-      <trans-unit id="pnd.autosave" datatype="html"><source>Saves automatically</source><target>يُحفظ تلقائياً</target></trans-unit>
+      <trans-unit id="pnd.autosave_offer" datatype="html"><source>Turning a loan type on or off saves at once</source><target>تشغيل نوع التمويل أو إيقافه يُحفظ فوراً</target></trans-unit>
+      <trans-unit id="pnd.pending_aria" datatype="html"><source>Unsaved question picks</source><target>اختيارات أسئلة غير محفوظة</target></trans-unit>
+      <trans-unit id="pnd.q_unsaved" datatype="html"><source>Not saved yet — what <x id="INTERPOLATION" equiv-text="dirtyCategoryNames()"/> applicants are scored on.</source><target>لم يُحفظ بعد — ما يُقيَّم عليه المتقدمون في <x id="INTERPOLATION" equiv-text="dirtyCategoryNames()"/>.</target></trans-unit>
+      <trans-unit id="pnd.q_discard" datatype="html"><source>Discard</source><target>تجاهل</target></trans-unit>
+      <trans-unit id="pnd.q_save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
+      <trans-unit id="pnd.questions_save_failed" datatype="html"><source>Saving what this name scores on didn’t go through. Your picks are still here — try Save again.</source><target>لم يتم حفظ ما يُقيَّم عليه هذا الاسم. اختياراتك ما زالت موجودة — جرّب الحفظ مرة أخرى.</target></trans-unit>
       <trans-unit id="pnd.usage_none" datatype="html"><source>Not offered by any bank yet</source><target>لا يطرحه أي بنك بعد</target></trans-unit>
       <trans-unit id="pnd.usage_value" datatype="html"><source><x id="PROGRAMS" equiv-text="row.usage.programs"/> bank programs · <x id="BANKS" equiv-text="row.usage.banks"/> banks</source><target><x id="PROGRAMS" equiv-text="row.usage.programs"/> برنامج بنكي · <x id="BANKS" equiv-text="row.usage.banks"/> بنك</target></trans-unit>
       <trans-unit id="pnd.missing_title" datatype="html"><source>No program name matches “<x id="INTERPOLATION" equiv-text="routeKey()"/>”.</source><target>لا يوجد اسم برنامج مطابق لـ «<x id="INTERPOLATION" equiv-text="routeKey()"/>».</target></trans-unit>
@@ -912,6 +917,8 @@
       <trans-unit id="pnd.qtype_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
       <trans-unit id="pnd.qtype_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
       <trans-unit id="pnd.cell_aria" datatype="html"><source>Score <x id="category" equiv-text="this.categoryName()"/> applicants on "<x id="question" equiv-text="q.label"/>"</source><target>قيّم متقدمي <x id="category" equiv-text="this.categoryName()"/> على «<x id="question" equiv-text="q.label"/>»</target></trans-unit>
+      <trans-unit id="pnd.live_saved" datatype="html"><source><x id="count" equiv-text="moved"/> question changes saved</source><target>تم حفظ <x id="count" equiv-text="moved"/> من تغييرات الأسئلة</target></trans-unit>
+      <trans-unit id="pnd.live_discarded" datatype="html"><source>Unsaved question changes discarded</source><target>تم تجاهل تغييرات الأسئلة غير المحفوظة</target></trans-unit>
       <trans-unit id="pnd.live_added" datatype="html"><source><x id="count" equiv-text="count"/> questions added for <x id="category" equiv-text="category"/></source><target>أُضيف <x id="count" equiv-text="count"/> من الأسئلة لـ <x id="category" equiv-text="category"/></target></trans-unit>
       <trans-unit id="pnd.live_removed" datatype="html"><source><x id="count" equiv-text="count"/> questions removed for <x id="category" equiv-text="category"/></source><target>أُزيل <x id="count" equiv-text="count"/> من الأسئلة من <x id="category" equiv-text="category"/></target></trans-unit>
 
@@ -1188,8 +1195,6 @@
       <trans-unit id="pnd.new_question_tip" datatype="html"><source>Write a question and tick it into this name in one go</source><target>اكتب سؤالاً وأضفه لهذا الاسم في خطوة واحدة</target></trans-unit>
       <trans-unit id="pnd.write_first" datatype="html"><source>Write the first question</source><target>اكتب أول سؤال</target></trans-unit>
       <trans-unit id="pnd.create_searched" datatype="html"><source>Create “<x id="INTERPOLATION" equiv-text="query()"/>” as a new question</source><target>أنشئ «<x id="INTERPOLATION" equiv-text="query()"/>» كسؤال جديد</target></trans-unit>
-      <trans-unit id="pnd.tick_failed" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="failed"/>” was created, but ticking it here didn’t save. Tap it below to score this name on it.</source><target>أُنشئ «<x id="INTERPOLATION" equiv-text="failed"/>» بالفعل، لكن إضافته هنا لم تُحفظ. اضغط عليه بالأسفل لتقييم هذا الاسم عليه.</target></trans-unit>
-      <trans-unit id="pnd.dismiss" datatype="html"><source>Dismiss</source><target>إخفاء</target></trans-unit>
       <trans-unit id="pnd.live_created" datatype="html"><source>“<x id="question" equiv-text="result.label"/>” was added to the question pool</source><target>أُضيف «<x id="question" equiv-text="result.label"/>» إلى مجموعة الأسئلة</target></trans-unit>
 
       <trans-unit id="pnq.type_h" datatype="html"><source>What kind of answer do you want back?</source><target>ما نوع الإجابة التي تريدها؟</target></trans-unit>
@@ -1398,6 +1403,72 @@
       <trans-unit id="product_rule.step.no_default" datatype="html">
         <source>No default set</source>
         <target>لا يوجد مبلغ افتراضي</target>
+      </trans-unit>
+      <trans-unit id="product_rule.way.still_filled" datatype="html">
+        <source>Still has amounts — pick this way, or clear them</source>
+        <target>ما زالت به مبالغ — اختر هذه الطريقة أو امسحها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">0</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.band_of" datatype="html">
+        <source>A table of ranges over: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>جدول شرائح على: <x id="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">0</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.share_of" datatype="html">
+        <source>A percentage of: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>نسبة من: <x id="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">0</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.multiple_of" datatype="html">
+        <source>A multiple of: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>مضاعف لـ: <x id="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">0</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.confirm_title" datatype="html">
+        <source>Work this program&apos;s figure out a different way?</source>
+        <target>تحتسب رقم هذا البرنامج بطريقة أخرى؟</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1269</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.confirm_body" datatype="html">
+        <source>The amounts under <x id="ways" equiv-text="losing.join(
+        &apos;, &apos;,
+      )"/> will be cleared. This bank sells one of these ways, so only the one you pick is kept.</source>
+        <target>ستُمسح المبالغ المسجّلة في <x id="ways"/>. هذا البنك يبيع طريقة واحدة من هذه الطرق، فلن يبقى إلا ما تختاره.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1272,1274</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.confirm_ok" datatype="html">
+        <source>Switch and clear them</source>
+        <target>بدّل الطريقة وامسحها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1275</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.confirm_cancel" datatype="html">
+        <source>Leave it as it is</source>
+        <target>اتركها كما هي</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1276</context>
+        </context-group>
       </trans-unit>
       <trans-unit id="product_rule.step.not_used" datatype="html">
         <source>Not used by this bank</source>
@@ -1809,10 +1880,13 @@
       <trans-unit id="spd.reach" datatype="html"><source>A change here reaches <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> catalog name(s) and every bank program under them that takes catalog amounts.</source><target>التغيير هنا يصل إلى <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> اسم في الكتالوج وكل برنامج بنكي تحتها يأخذ مبالغ الكتالوج.</target></trans-unit>
       <trans-unit id="spd.reach_none" datatype="html"><source>Nothing sells this yet, so a change here reaches no bank.</source><target>لا شيء يبيع هذا بعد، فالتغيير هنا لا يصل إلى أي بنك.</target></trans-unit>
       <trans-unit id="spd.save" datatype="html"><source>Save the calculation</source><target>احفظ الحساب</target></trans-unit>
+      <trans-unit id="spd.sold_as" datatype="html"><source>Sold as</source><target>يُباع كـ</target></trans-unit>
+      <trans-unit id="spd.sold_as_more" datatype="html"><source><x id="COUNT" equiv-text="this.soldAsMore()"/> more</source><target><x id="COUNT" equiv-text="this.soldAsMore()"/> أخرى</target></trans-unit>
       <trans-unit id="spd.step_rule" datatype="html"><source>How the income is worked out</source><target>كيف يُحتسب الدخل</target></trans-unit>
       <trans-unit id="spd.step_uses" datatype="html"><source>Who uses it</source><target>مَن يستخدمه</target></trans-unit>
       <trans-unit id="spd.steps_aria" datatype="html"><source>Surrogate product setup</source><target>إعداد المنتج البديل</target></trans-unit>
       <trans-unit id="spd.takes_catalog" datatype="html"><source>takes these amounts</source><target>يأخذ هذه المبالغ</target></trans-unit>
+      <trans-unit id="spd.takes_catalog_aria" datatype="html"><source>takes the catalog amounts</source><target>يأخذ مبالغ الكتالوج</target></trans-unit>
       <trans-unit id="spd.uses_none" datatype="html"><source>No catalog program name takes its calculation from this product yet. Link one from the program catalog, and every bank filing a program under that name quotes from here.</source><target>لا يوجد اسم برنامج في الكتالوج يحتسب دخله من هذا المنتج بعد. اربط واحدًا من كتالوج البرامج، وعندها يقتبس كل بنك يسجل برنامجًا تحت ذلك الاسم من هنا.</target></trans-unit>
       <trans-unit id="lookups.type.new" datatype="html">
         <source>New list</source>
@@ -3387,9 +3461,9 @@
       <trans-unit id="bpl.rank.title" datatype="html"><source>University Professors</source><target>أساتذة الجامعات</target></trans-unit>
       <trans-unit id="bpl.rank.mech" datatype="html"><source>A table by rank, and a second column for a private university where a bank prices those differently.</source><target>جدول حسب الدرجة، وعمود ثانٍ للجامعة الخاصة عند البنك الذي يسعّرها بشكل مختلف.</target></trans-unit>
       <trans-unit id="bpl.rank.eg" datatype="html"><source>One sheet pays a Dean 100,000 and a teaching assistant 12,000; another pays 300,000 and 20,000 at private universities.</source><target>إحدى النشرات تدفع للعميد ١٠٠٠٠٠ وللمعيد ١٢٠٠٠؛ وأخرى تدفع ٣٠٠٠٠٠ و٢٠٠٠٠ في الجامعات الخاصة.</target></trans-unit>
-      <trans-unit id="bpl.years.title" datatype="html"><source>Doctors (In Practice)</source><target>الأطباء الممارسون</target></trans-unit>
-      <trans-unit id="bpl.years.mech" datatype="html"><source>The customer states how many years they have practised, and the bank has a row for the bracket it falls in — by city tier where it prices those apart.</source><target>يذكر العميل عدد سنوات ممارسته، وللبنك صف للشريحة التي يقع فيها — وحسب فئة المحافظة عند البنك الذي يفرّق بينها.</target></trans-unit>
-      <trans-unit id="bpl.years.eg" datatype="html"><source>One sheet pays 30,000 at 3–5 years and 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere.</source><target>إحدى النشرات تدفع ٣٠٠٠٠ عند ٣–٥ سنوات و٣٠٠٠٠٠ فوق ٢٠، وتحدّ التمويل بـ١٥٠٠٠٠٠ في القاهرة مقابل ٥٠٠٠٠٠ في غيرها.</target></trans-unit>
+      <trans-unit id="bpl.years.title" datatype="html"><source>Doctors</source><target>الأطباء</target></trans-unit>
+      <trans-unit id="bpl.years.mech" datatype="html"><source>The customer states how many years they have practised, and the bank has a row for the bracket it falls in — by city tier where it prices those apart. Clinic owners and doctors in practice are the same calculation on different figures, so each bank programme states its own.</source><target>يذكر العميل عدد سنوات ممارسته، وللبنك صف للشريحة التي يقع فيها — وحسب فئة المحافظة عند البنك الذي يفرّق بينها. أصحاب العيادات والأطباء الممارسون حساب واحد بأرقام مختلفة، فيذكر كل برنامج بنكي أرقامه.</target></trans-unit>
+      <trans-unit id="bpl.years.eg" datatype="html"><source>One sheet pays clinic owners 30,000 at 3–5 years and 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere; the same bank pays a doctor in practice exactly half at every bracket.</source><target>إحدى النشرات تدفع لأصحاب العيادات ٣٠٠٠٠ عند ٣–٥ سنوات و٣٠٠٠٠٠ فوق ٢٠، وتحدّ التمويل بـ١٥٠٠٠٠٠ في القاهرة مقابل ٥٠٠٠٠٠ في غيرها؛ ويدفع البنك نفسه للطبيب الممارس نصف ذلك في كل شريحة.</target></trans-unit>
       <trans-unit id="bpl.card.title" datatype="html"><source>PL Cross Sell to Credit Card</source><target>التمويل الشخصي مقابل بطاقة ائتمان</target></trans-unit>
       <trans-unit id="bpl.card.mech" datatype="html"><source>The bank treats a percentage of the limit on a card the customer holds elsewhere as their monthly income.</source><target>يعتبر البنك نسبةً من حد بطاقة يحملها العميل في بنك آخر دخلًا شهريًا له.</target></trans-unit>
       <trans-unit id="bpl.card.eg" datatype="html"><source>One sheet takes half: a 60,000 limit reads as 30,000 a month.</source><target>إحدى النشرات تأخذ النصف: حد ٦٠٠٠٠ يُقرأ ٣٠٠٠٠ شهريًا.</target></trans-unit>
@@ -3400,7 +3474,7 @@
       <trans-unit id="bpl.pledged.mech" datatype="html"><source>A share of a certificate or deposit they put up as collateral, with a cap by how large it is and a condition on how long they have held it.</source><target>نسبة من شهادة أو وديعة يقدّمها كضمان، مع حدٍّ أقصى حسب قيمتها وشرط على مدة حيازتها.</target></trans-unit>
       <trans-unit id="bpl.pledged.eg" datatype="html"><source>One sheet takes 30% of the free amount and caps the loan at 500,000 under 2M, rising to 2,000,000 at 10M and above.</source><target>إحدى النشرات تأخذ ٣٠٪ من المبلغ الحر وتحدّ التمويل بـ٥٠٠٠٠٠ تحت ٢ مليون، وترتفع إلى ٢٠٠٠٠٠٠ عند ١٠ ملايين وأكثر.</target></trans-unit>
       <trans-unit id="bpl.compound.title" datatype="html"><source>Compound Owner</source><target>مالك وحدة في كومباوند</target></trans-unit>
-      <trans-unit id="bpl.compound.mech" datatype="html"><source>Four ways to the same ceiling — the class the compound is filed under, the bracket of what they have paid, a share of what they have paid, or the kind of unit — and the lower of whichever ones a bank fills.</source><target>أربع طرق للوصول إلى الحد الأقصى نفسه — فئة الكومباوند، أو شريحة ما دفعه، أو نسبة من ما دفعه، أو نوع الوحدة — ويؤخذ الأقل من الطرق التي يملأها البنك.</target></trans-unit>
+      <trans-unit id="bpl.compound.mech" datatype="html"><source>Five ways to the same ceiling — the class the compound is filed under, the bracket their down payment falls in, a share of that down payment, a share of everything they have paid, or the kind of unit — and the lower of whichever ones a bank fills.</source><target>خمس طرق للوصول إلى الحد الأقصى نفسه — فئة الكومباوند، أو شريحة المقدم الذي دفعه، أو نسبة من هذا المقدم، أو نسبة من إجمالي ما دفعه، أو نوع الوحدة — ويؤخذ الأقل من الطرق التي يملأها البنك.</target></trans-unit>
       <trans-unit id="bpl.compound.eg" datatype="html"><source>One sheet lends 15% of everything paid; another 6,000,000 against a Class AA compound; a third 4,000,000 against a villa.</source><target>إحدى النشرات تمنح ١٥٪ من إجمالي المدفوع؛ وأخرى ٦٠٠٠٠٠٠ لكومباوند من الفئة AA؛ وثالثة ٤٠٠٠٠٠٠ لفيلا.</target></trans-unit>
       <trans-unit id="bpl.stage.title" datatype="html"><source>Teachers — Predefined Limit</source><target>المعلمون — حد محدد مسبقًا</target></trans-unit>
       <trans-unit id="bpl.stage.mech" datatype="html"><source>A ceiling by stage, with a second column for an international school.</source><target>حد أقصى حسب المرحلة، وعمود ثانٍ للمدرسة الدولية.</target></trans-unit>

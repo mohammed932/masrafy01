@@ -24,6 +24,13 @@ const number = (value: string): SurrogateFactValue => ({
   value: new Decimal(value),
 });
 
+/**
+ * The compound product scales its ceiling by the share of the unit the applicant owns, and
+ * that answer is read on every quote it makes. Spread into every compound fact map so each
+ * figure below is the whole ceiling — the share itself is exercised on its own, further down.
+ */
+const OWNS_ALL_OF_IT = { unit_owned_share_pct: number('100') };
+
 function quote(
   blueprintKey: string,
   stepParams: ProductRule['stepParams'],
@@ -255,7 +262,7 @@ describe('§13.12 — doctors, half-open bands and a tier column', () => {
   });
 });
 
-describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of them', () => {
+describe('§13.9 + §13.8 — the compound guarantee, five ways and the lower of them', () => {
   const CLASSES = { mivida: 'compound_tier_aa', al_rehab: 'compound_tier_c' };
   const BY_CLASS = {
     primary: {
@@ -267,6 +274,9 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
   };
   const BY_PAID = {
     [`${SLOT.alt}__unit_paid_to_date`]: { scalar: { value: '15', unit: 'percent' as const } },
+  };
+  const BY_DOWN_PAYMENT_SHARE = {
+    [`${SLOT.alt}__unit_down_payment`]: { scalar: { value: '15', unit: 'percent' as const } },
   };
   const BY_UNIT_TYPE = {
     [`${SLOT.alt}__owned_unit_type`]: {
@@ -281,7 +291,12 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
     // §13.8: pick Mivida → class AA → 6,000,000, off a table of six rows however many
     // compounds the list holds.
     expect(
-      quote('compound_owner', BY_CLASS, { compound_name: choice('mivida') }, CLASSES),
+      quote(
+        'compound_owner',
+        BY_CLASS,
+        { ...OWNS_ALL_OF_IT, compound_name: choice('mivida') },
+        CLASSES,
+      ),
     ).toBe('6000000');
   });
 
@@ -293,6 +308,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
         'compound_owner',
         { ...BY_PAID, ...BY_UNIT_TYPE },
         {
+          ...OWNS_ALL_OF_IT,
           unit_paid_to_date: number('20000000'),
           owned_unit_type: choice('villa'),
         },
@@ -300,29 +316,65 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
     ).toBe('3000000');
   });
 
+  it('takes a share of the DOWN PAYMENT where a bank lends against that alone', () => {
+    // The two share ways read two different figures, and the difference is the whole reason
+    // both exist: 15% of a 250,000 down payment is 37,500, where 15% of the 1,750,000 paid
+    // to date is 262,500. A bank that lends against the contract payment must not be handed
+    // the instalments the customer has paid since.
+    expect(
+      quote('compound_owner', BY_DOWN_PAYMENT_SHARE, {
+        ...OWNS_ALL_OF_IT,
+        unit_down_payment: number('250000'),
+        unit_paid_to_date: number('1750000'),
+      }),
+    ).toBe('37500');
+  });
+
+  it('does not demand the down payment from a bank that reads the total paid', () => {
+    // The new way is a way, not a question every bank now asks: a bank filling only the
+    // share of everything paid still quotes for an applicant who left the down payment
+    // blank, because an unfilled way is skipped before its fact is read.
+    expect(
+      quote('compound_owner', BY_PAID, {
+        ...OWNS_ALL_OF_IT,
+        unit_paid_to_date: number('20000000'),
+      }),
+    ).toBe('3000000');
+  });
+
   it('quotes the one way a bank filled, and never demands the answers of the others', () => {
     // A bank that only prices by class must not be refused because the applicant did not
     // state what they have paid.
     expect(
-      quote('compound_owner', BY_CLASS, { compound_name: choice('al_rehab') }, CLASSES),
+      quote(
+        'compound_owner',
+        BY_CLASS,
+        { ...OWNS_ALL_OF_IT, compound_name: choice('al_rehab') },
+        CLASSES,
+      ),
     ).toBe('2000000');
   });
 
-  it('halves the ceiling for a jointly owned unit, and only then', () => {
-    const figures = {
-      ...BY_PAID,
-      [SLOT.shareOn]: { scalar: { value: '50', unit: 'percent' as const } },
-    };
-    const sole = quote('compound_owner', figures, {
+  it('scales the ceiling by the share of the unit the applicant owns', () => {
+    // No bank figure is involved: the percentage is the applicant's own answer, so a
+    // half-owner reaches the sheet's 50% and every other share is priced as what it is.
+    const owns = (pct: string) =>
+      quote('compound_owner', BY_PAID, {
+        unit_paid_to_date: number('20000000'),
+        unit_owned_share_pct: number(pct),
+      });
+    expect(owns('100')).toBe('3000000');
+    expect(owns('50')).toBe('1500000');
+    expect(owns('40')).toBe('1200000');
+  });
+
+  it('refuses to quote when the share is not stated, naming the answer it wants', () => {
+    // The figure is read on every quote, so an unanswered share is a missing answer and not
+    // a bank that declined a way — the program is listed with the question it needs.
+    const outcome = quote('compound_owner', BY_PAID, {
       unit_paid_to_date: number('20000000'),
-      unit_joint_ownership: choice('joint_sole'),
     });
-    const shared = quote('compound_owner', figures, {
-      unit_paid_to_date: number('20000000'),
-      unit_joint_ownership: choice('joint_shared'),
-    });
-    expect(sole).toBe('3000000');
-    expect(shared).toBe('1500000');
+    expect(outcome).toEqual({ miss: 'fact_not_answered' });
   });
 
   it('refuses an applicant who has not owned the unit long enough, naming why', () => {
@@ -334,6 +386,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
       },
       {
         facts: {
+          ...OWNS_ALL_OF_IT,
           unit_paid_to_date: number('20000000'),
           unit_months_owned: number('6'),
         },
@@ -351,6 +404,7 @@ describe('§13.9 + §13.8 — the compound guarantee, four ways and the lower of
     // not silently applied to the three banks that publish no such condition.
     expect(
       quote('compound_owner', BY_PAID, {
+        ...OWNS_ALL_OF_IT,
         unit_paid_to_date: number('20000000'),
         unit_months_owned: number('6'),
       }),
@@ -370,12 +424,16 @@ describe('§13.10 — a ceiling by down-payment bracket, two columns', () => {
       alt: rows(['750000', '1000000', '1250000', '1500000']),
       alt__top_up: rows(['1250000', '1500000', '1750000', '2000000']),
     };
+    // The bracket reads the DOWN PAYMENT, which is what the sheet prints its brackets
+    // against. Everything paid to date is a different figure and a different way.
     const ntb = quote('compound_owner', figures, {
-      unit_paid_to_date: number('1200000'),
+      ...OWNS_ALL_OF_IT,
+      unit_down_payment: number('1200000'),
       loan_is_topup: choice('new_loan'),
     });
     const xsell = quote('compound_owner', figures, {
-      unit_paid_to_date: number('1200000'),
+      ...OWNS_ALL_OF_IT,
+      unit_down_payment: number('1200000'),
       loan_is_topup: choice('top_up'),
     });
     expect(ntb).toBe('1250000');

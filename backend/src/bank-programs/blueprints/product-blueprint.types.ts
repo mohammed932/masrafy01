@@ -101,6 +101,12 @@ export interface BlueprintGate {
  *   `platformFact`   a fact that already exists, optionally widened to more loan categories
  *   `derivedFact`    an axis the platform computes (new-to-bank, top-up, holds-a-product);
  *                    it has no registry row and no bound question by construction
+ *
+ * `required` is OFF unless a blueprint states it, and stating it is a decision about every
+ * applicant in the loan types the ask reaches — not about this product's customers. A
+ * required question is enforced on apply for everyone it is VISIBLE to, so an ungated one
+ * blocks people the product is not for until they answer it. Gate it with `enabledWhen`
+ * whenever the answer only makes sense for some applicants.
  */
 /**
  * ─── Why a created question states no code ────────────────────────────────────
@@ -127,6 +133,7 @@ export type BlueprintAsk =
       list: BlueprintList;
       categories: readonly LoanCategory[];
       enabledWhen?: BlueprintGate;
+      required?: boolean;
     }
   | {
       kind: 'number';
@@ -138,6 +145,7 @@ export type BlueprintAsk =
       numeric: { min: number; max: number };
       categories: readonly LoanCategory[];
       enabledWhen?: BlueprintGate;
+      required?: boolean;
     }
   | {
       kind: 'bindQuestion';

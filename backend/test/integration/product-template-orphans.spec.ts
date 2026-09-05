@@ -65,6 +65,7 @@ function build(opts: {
     }),
     programNamesLinkedTo: vi.fn(async () => []),
     programsUnderName: vi.fn(async () => []),
+    programNameLabels: vi.fn(async () => new Map()),
     listSurrogateProducts: vi.fn(async () => [
       { key: 'demo', labelAr: 'demo', labelEn: 'demo', active: true, sortOrder: 0, incomeRule: null, usedBy: [] },
     ]),

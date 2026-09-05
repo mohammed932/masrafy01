@@ -1114,6 +1114,33 @@ export class ProductRuleInvalidException extends DomainException {
 }
 
 /**
+ * The product sells one of its ways and this program has not named which.
+ *
+ * `wayIds` are the slot ids of the ways on offer — the picker's own list, so the client can
+ * highlight the choice instead of describing it.
+ */
+export class ProgramIncomeWayRequiredException extends DomainException {
+  constructor(meta: { wayIds: string[] }) {
+    super(ERROR_CODES.PROGRAM_INCOME_WAY_REQUIRED, meta);
+  }
+}
+
+/**
+ * Figures under a way this program does not sell.
+ *
+ * `count` rides beside `alsoFilled` because the message reads as a count, and interpolating
+ * the array would render "alt,primary way(s)".
+ */
+export class ProgramIncomeWayConflictException extends DomainException {
+  constructor(meta: { wayId: string; alsoFilled: string[] }) {
+    super(ERROR_CODES.PROGRAM_INCOME_WAY_CONFLICT, {
+      ...meta,
+      count: meta.alsoFilled.length,
+    });
+  }
+}
+
+/**
  * The friendly form itself is not compilable — about the ANSWERS the operator gave, not
  * about the steps they never saw.
  */

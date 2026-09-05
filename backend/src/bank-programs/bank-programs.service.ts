@@ -35,6 +35,8 @@ import {
   IncomeRuleDbrOverrideInvalidException,
   IncomeRuleFactUnavailableException,
   ProductRuleInvalidException,
+  ProgramIncomeWayConflictException,
+  ProgramIncomeWayRequiredException,
   IncomeRuleDuplicateKeyException,
   IncomeRuleEmptyException,
   IncomeRuleIncomeInvalidException,
@@ -193,13 +195,17 @@ export class BankProgramsService {
       throw new EnumerationRegistryUnavailableException();
     }
 
+    // Read ONCE and threaded through: the persist strip, the validation and the coverage
+    // warnings all need the catalog's structure, and `programNameIncomeRules` is uncached.
+    const catalogRule = await this.catalogIncomeRuleFor(dto.programNameKey);
+
     // The rule AS IT WILL BE STORED, not as it arrived: `runCrossConfigChecks`
     // validates this exact object, so the save can never persist a shape nothing
     // checked (see `persistableIncomeAssumption`).
     const persistedRule = this.persistableIncomeAssumption(dto);
 
     // Cross-config + registry validation.
-    await this.runCrossConfigChecks(dto, { incomeAssumption: persistedRule });
+    await this.runCrossConfigChecks(dto, { incomeAssumption: persistedRule, catalogRule });
 
     // Resolve the program code: auto-generated when the admin doesn't supply one
     // (A33 — codes are never hand-typed). The generation loop already guarantees
@@ -218,10 +224,7 @@ export class BankProgramsService {
     const warnings = await this.incomeRuleWarnings({
       dto,
       persisted: persistedRule,
-      effective: effectiveIncomeRule(
-        persistedRule,
-        await this.catalogIncomeRuleFor(dto.programNameKey),
-      ),
+      effective: effectiveIncomeRule(persistedRule, catalogRule),
       programCode,
     });
 
@@ -442,6 +445,12 @@ export class BankProgramsService {
        */
       incomeAssumption?: IncomeAssumptionConfig;
       /**
+       * The catalog name's rule, already read by the caller. Threaded through rather than
+       * re-read: `programNameIncomeRules` is uncached, and both the strip and the validation
+       * below need the same answer — two reads is two chances for them to differ mid-save.
+       */
+      catalogRule?: IncomeAssumptionConfig;
+      /**
        * The income proof this program already had under this same name. Present only
        * on `update()`, and only to grandfather an UNCHANGED pair — see
        * `assertIncomeProofMatchesName`.
@@ -451,6 +460,7 @@ export class BankProgramsService {
   ): Promise<void> {
     // A program names one predefined program from the catalog, never free text.
     await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, opts);
+    const catalogRule = opts.catalogRule ?? (await this.catalogIncomeRuleFor(dto.programNameKey));
     const persistedRule =
       opts.incomeAssumption ??
       this.persistableIncomeAssumption(dto as CreateBankProgramDto | UpdateBankProgramDto);
@@ -553,7 +563,7 @@ export class BankProgramsService {
     // meaningful — a catalog table with a dead key must fail the bank's save too,
     // because it is the bank's quote that breaks.
     const ruleViolation = await validateIncomeRule(
-      effectiveIncomeRule(persistedRule, await this.catalogIncomeRuleFor(dto.programNameKey)),
+      effectiveIncomeRule(persistedRule, catalogRule),
       this.incomeRuleContext(),
     );
     if (ruleViolation) throw incomeRuleException(ruleViolation);
@@ -882,6 +892,14 @@ export class BankProgramsService {
    *      own. Without this the screen's pre-filled copy would be persisted, and the
    *      program would keep quoting those figures after the catalog moved: the
    *      inheritance would be a one-time copy wearing the label of a link.
+   * ONE WAY PER BANK PROGRAM is NOT enforced here, and the choice is deliberate. A strip at
+   * this stage cannot coexist with `PROGRAM_INCOME_WAY_CONFLICT`: this function produces the
+   * object `runCrossConfigChecks` validates, so anything it removed would be gone before the
+   * validator could refuse it — measured, not reasoned about (the refusal answered 200 until
+   * the strip was taken back out). Given the two, the REFUSAL is the one to keep: it names the
+   * boxes and lets the operator decide, where a silent strip destroys figures a bank typed and
+   * says nothing. The screen deletes them, on a confirmation that names them; the server
+   * refuses anything left over, so no orphan can be stored either way.
    */
   private persistableIncomeAssumption(
     dto: CreateBankProgramDto | UpdateBankProgramDto,
@@ -1129,12 +1147,16 @@ export class BankProgramsService {
     if (!existing) {
       throw new BankProgramNotFoundException({ programCode });
     }
+    const catalogRule = await this.catalogIncomeRuleFor(
+      dto.programNameKey ?? existing.programNameKey,
+    );
     const persistedRule = this.persistableIncomeAssumption(dto);
     await this.runCrossConfigChecks(dto, {
       skipProgramNameCategoryCheck:
         dto.programNameKey === existing.programNameKey &&
         dto.productCategory === existing.productCategory,
       incomeAssumption: persistedRule,
+      catalogRule,
       // The proof this program already reads under this same name. Handed over only
       // when the NAME is unchanged: moving a program to another name is exactly the
       // case the proof check exists for, and a stored proof carried across that move
@@ -1151,10 +1173,7 @@ export class BankProgramsService {
     const warnings = await this.incomeRuleWarnings({
       dto,
       persisted: persistedRule,
-      effective: effectiveIncomeRule(
-        persistedRule,
-        await this.catalogIncomeRuleFor(dto.programNameKey ?? existing.programNameKey),
-      ),
+      effective: effectiveIncomeRule(persistedRule, catalogRule),
       programCode: existing.programCode,
     });
 
@@ -1602,12 +1621,29 @@ export class BankProgramsService {
 
     const nameKeys = summary.usedBy;
     // Concurrent, not serial: the names are independent and a product with several of them
-    // paid for that latency on every page load.
-    const perName = await Promise.all(nameKeys.map((n) => this.enums.programsUnderName(n)));
+    // paid for that latency on every page load. The labels ride alongside as ONE query for
+    // the whole set rather than a second fan-out — the screen renders the name, and a slug
+    // is not a name (the operator read `doctors_in_practice` and concluded the clinic-owner
+    // product had never been built).
+    const [perName, labels] = await Promise.all([
+      Promise.all(nameKeys.map((n) => this.enums.programsUnderName(n))),
+      this.enums.programNameLabels(nameKeys),
+    ]);
     const names = nameKeys.map((nameKey, i) => ({
       key: nameKey,
+      // A key the registry cannot resolve falls back to itself rather than to a blank: the
+      // link is real, the row behind it is not, and the key is the only fact left to show.
+      labelEn: labels.get(nameKey)?.labelEn ?? nameKey,
+      labelAr: labels.get(nameKey)?.labelAr ?? nameKey,
+      // Projected field by field rather than spread, so `strategy` — which the repository
+      // carries for the save-path proof check and no screen renders — does not leak onto
+      // the wire (A8).
       programs: (perName[i] ?? []).map((p) => ({
         programCode: p.programCode,
+        friendlyName: p.friendlyName,
+        friendlyNameAr: p.friendlyNameAr,
+        bankNameEn: p.bankNameEn,
+        bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
       })),
     }));
@@ -2070,7 +2106,14 @@ export class BankProgramsService {
       // address the same shape the engine reads.
       incomeRule: name.incomeRule === null ? null : normalizeIncomeAssumption(name.incomeRule),
       valueSources: name.valueSources,
-      programs: under.map((p) => ({ programCode: p.programCode, ownAmounts: p.ownAmounts })),
+      programs: under.map((p) => ({
+        programCode: p.programCode,
+        friendlyName: p.friendlyName,
+        friendlyNameAr: p.friendlyNameAr,
+        bankNameEn: p.bankNameEn,
+        bankNameAr: p.bankNameAr,
+        ownAmounts: p.ownAmounts,
+      })),
       surrogateProduct:
         product === null || productRow === null
           ? null
@@ -2560,6 +2603,13 @@ function incomeRuleException(violation: IncomeRuleViolation): Error {
       return new IncomeRuleFactUnavailableException({
         factKey: violation.factKey,
         availableFacts: violation.availableFacts,
+      });
+    case 'incomeWayRequired':
+      return new ProgramIncomeWayRequiredException({ wayIds: violation.wayIds });
+    case 'incomeWayConflict':
+      return new ProgramIncomeWayConflictException({
+        wayId: violation.wayId,
+        alsoFilled: violation.alsoFilled,
       });
     case 'productRuleInvalid':
       return new ProductRuleInvalidException({

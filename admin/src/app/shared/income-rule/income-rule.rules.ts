@@ -25,6 +25,7 @@ import type {
   RuleStep,
   StepFigures,
 } from '@features/bank-programs/bank-programs.types';
+import { filledWayIds, waysAreExclusive, waysOfRule } from './product-rule-ways';
 
 // ── Key tables ──────────────────────────────────────────────────────────────
 
@@ -184,9 +185,27 @@ export function productRuleHasError(args: {
   steps: readonly RuleStep[];
   gates: readonly RuleGate[];
   figures: Readonly<Record<string, StepFigures>>;
+  /** The catalog's statement that a bank picks ONE way. Absent reads as combined. */
+  waysAre?: 'exclusive' | null;
+  /** The way this program sells. `null` on a product that combines its ways. */
+  wayId?: string | null;
 }): boolean {
   const { steps, gates, figures } = args;
   if (steps.length === 0) return true;
+
+  // ONE WAY PER BANK PROGRAM — the server's `PROGRAM_INCOME_WAY_REQUIRED` and
+  // `PROGRAM_INCOME_WAY_CONFLICT`, mirrored so Save is not enabled on a rule the API refuses.
+  //
+  // It must not out-refuse the server either (the v22.1.0 dead-Save bug): both branches below
+  // are gated on the SAME `waysAreExclusive` the server uses, so a combined product and a
+  // one-way product reach neither.
+  if (waysAreExclusive(args.waysAre, steps)) {
+    const chosen = args.wayId;
+    if (chosen === null || chosen === undefined || chosen === '') return true;
+    const filled = filledWayIds(steps, figures);
+    if (!waysOfRule(steps).some((way) => way.id === chosen)) return true;
+    if (filled.some((id) => id !== chosen)) return true;
+  }
 
   const optional = optionalStepIds(steps, gates);
   const configured = new Set<string>();

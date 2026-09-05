@@ -172,8 +172,14 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'years_in_practice_bands',
     group: 'income',
-    labelEn: 'Doctors (In Practice)',
-    labelAr: 'الأطباء الممارسون',
+    // ONE doctors product, not one per sheet. The two ABK sheets band years in practice
+    // identically and publish different figures (clinic owners 30K–300K, in-practice
+    // 15K–150K), and the spec is explicit that this makes them two PROGRAMS, not two
+    // products (§10.7). A card per sheet would be the same mechanism duplicated, and the
+    // Arabic DOCTOR sheet — a fifth bank, different band edges again — would mean a third.
+    // So the name covers the profession and each bank's programme states its own figures.
+    labelEn: 'Doctors',
+    labelAr: 'الأطباء',
     asks: [
       { kind: 'platformFact', factKey: 'years_in_practice' },
       {
@@ -404,6 +410,16 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       },
       {
         kind: 'number',
+        factKey: 'unit_down_payment',
+        questionEn: 'How much was the down payment on the unit?',
+        questionAr: 'كم كان مقدم الوحدة؟',
+        helperEn: 'The contract payment only — not the instalments you have paid since.',
+        helperAr: 'دفعة العقد فقط — بدون الأقساط التي سددتها بعدها.',
+        numeric: { min: 0, max: 500000000 },
+        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+      },
+      {
+        kind: 'number',
         factKey: 'unit_contract_price',
         questionEn: 'What is the contract price of the unit?',
         questionAr: 'ما سعر الوحدة في العقد؟',
@@ -419,24 +435,25 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
       },
       {
-        kind: 'choice',
-        factKey: 'unit_joint_ownership',
-        questionEn: 'Do you own the unit with someone else?',
-        questionAr: 'هل تملك الوحدة بالشراكة مع شخص آخر؟',
+        // A NUMBER, not a yes/no over a list. What the collateral supports is shared between
+        // the owners in the proportion they own it, so the portion this applicant is lent
+        // against is the percentage they state — an owner of 40% is not the same customer as
+        // an owner of 90%, and a two-option list cannot tell them apart.
+        //
+        // REQUIRED, and stated here rather than left to the default because the figure is
+        // read on every quote this product makes: an owner who skips it would be told the
+        // program quotes nothing, with the missing answer named. The cost is accepted and it
+        // is real — the ask is not gated, so every applicant in these three loan types
+        // answers it, whether or not they own a unit.
+        kind: 'number',
+        factKey: 'unit_owned_share_pct',
+        questionEn: 'What percentage of the unit do you own?',
+        questionAr: 'ما نسبة ملكيتك في الوحدة؟',
+        helperEn: 'Enter 100 if you own it on your own.',
+        helperAr: 'اكتب 100 إذا كنت تملكها بالكامل.',
+        numeric: { min: 0, max: 100 },
+        required: true,
         categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
-        list: {
-          typeKey: 'unit_ownership_share',
-          labelEn: 'Unit ownership',
-          labelAr: 'ملكية الوحدة',
-          values: [
-            { key: 'joint_sole', labelEn: 'I own it on my own', labelAr: 'أملكها بالكامل' },
-            {
-              key: 'joint_shared',
-              labelEn: 'I own it with someone else',
-              labelAr: 'أملكها بالشراكة',
-            },
-          ],
-        },
       },
       {
         kind: 'choice',
@@ -459,15 +476,35 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'maxAmount',
-      // Four ways, in the order the ways were added and never reordered — the slot ids a
+      // Five ways, in the order the ways were added and never reordered — the slot ids a
       // bank's figures are filed under are positional (`primary`, `alt`, `alt__<fact>`).
+      //
+      // Two of them read a MONEY figure the customer states, and which figure is not a
+      // detail: App. B FABMISR bands its ceiling by the DOWN PAYMENT ("Down payment paid —
+      // 250K–500K → 750,000"), while App. A §2 (ABK, 15%) and App. B CAE (50%) take a share
+      // of EVERYTHING paid to date. A customer who put 250,000 down and has since paid
+      // 1,500,000 in instalments reads the first FABMISR bracket on the down payment and the
+      // last one on the total — 750,000 against 1,500,000 — so one fact cannot serve both.
+      //
+      // A fact may key at most ONE way past index 1, because that slot is named after the
+      // fact and not after the mechanism (`waySlot`): the bracket way therefore keeps the
+      // bare `alt` slot it has always had and the share of the down payment is appended.
       primary: { kind: 'classTable', fact: 'compound_name' },
       alternatives: [
-        { kind: 'numberBand', fact: 'unit_paid_to_date' },
+        { kind: 'numberBand', fact: 'unit_down_payment' },
         { kind: 'shareOf', fact: 'unit_paid_to_date' },
         { kind: 'choiceTable', fact: 'owned_unit_type' },
+        { kind: 'shareOf', fact: 'unit_down_payment' },
       ],
       combine: 'lower',
+      // ALTERNATIVES: four banks derive this ceiling four different ways and no published
+      // sheet pairs two of them, so a program filling two would quote the lower of a
+      // mechanism nobody sells. `combine` cannot say this — the auto cross-sell carries
+      // `'lower'` too and DOES pair its two ways (App. A §4). `combine` is kept beside it as
+      // defence in depth rather than policy: with it absent `emitBasis` emits a bare
+      // `coalesce`, so a row that somehow held two ways would quote the FIRST silently where
+      // `minOf(skipUnset)` quotes the lower.
+      waysAre: 'exclusive',
       secondColumn: { fact: 'loan_is_topup', branches: ['new_loan', 'top_up'] },
       // The sheet says "loan AMOUNTS can be increased by 10%", so it lifts the cap, and the
       // difference between the two readings is 300,000 on one applicant (§10.4). Declared,
@@ -479,12 +516,13 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         otherwiseOption: 'unit_one',
         scope: 'maxLoan',
       },
-      // Joint ownership shares the imputed figure between the owners, which is a statement
-      // about what the collateral supports and so belongs inside the rule.
+      // Ownership shares the imputed figure between the owners in the proportion they own
+      // it, which is a statement about what the collateral supports and so belongs inside
+      // the rule. The applicant states the percentage; no bank figure is involved, and none
+      // should be — the portion is a fact about this applicant, not a bank's policy.
       share: {
-        fact: 'unit_joint_ownership',
-        whenOption: 'joint_shared',
-        otherwiseOption: 'joint_sole',
+        kind: 'statedPercent',
+        fact: 'unit_owned_share_pct',
         scope: 'income',
       },
       conditions: [
@@ -524,7 +562,13 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       factKey: 'owned_unit_type',
       columnFactKey: 'loan_is_topup',
       onNoMatch: 'useProgramMax',
-      rowKeys: ['apartment', 'twin_house', 'villa'],
+      // OPTION CODES, not the registry keys the list above is built from: a cap row is
+      // matched against the code of the answer the applicant picked (`factAnswerHasKey`),
+      // exactly as `factChoiceTable` is, and the question mirrors its options off the list's
+      // LABELS — so "Twin / Town house" is `twin_or_town_house` here and `twin_house` there.
+      // A row keyed by the registry key matches nobody and shows the bank's real row as
+      // unlisted.
+      rowKeys: ['apartment', 'twin_or_town_house', 'villa'],
       columnKeys: ['new_loan', 'top_up'],
     },
     openQuestion: 'PAID_SHARE_FORMULA_UNCONFIRMED',

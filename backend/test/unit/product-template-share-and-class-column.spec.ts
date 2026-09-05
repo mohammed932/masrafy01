@@ -17,7 +17,9 @@ import { describe, expect, it } from 'vitest';
 import {
   SLOT,
   compileTemplate,
+  shareKindOf,
   shareScopeOf,
+  sourceSlot,
   templateParamKeys,
   validateTemplate,
   type ProductTemplate,
@@ -296,5 +298,105 @@ describe('what an upgrade must not move', () => {
     const pick = rule.steps?.find((step) => step.op === 'pickByFact');
     expect(pick).toBeDefined();
     expect(Object.hasOwn(pick as object, 'branchOn')).toBe(false);
+  });
+});
+
+describe('a share the APPLICANT states, as a percentage', () => {
+  const owned = (over: Partial<ProductTemplate> = {}): ProductTemplate =>
+    base({
+      share: { kind: 'statedPercent', fact: 'owned_share_pct', scope: 'income' },
+      ...over,
+    });
+
+  const number = (value: string): SurrogateFactValue => ({
+    kind: 'numeric',
+    value: new Decimal(value),
+  });
+
+  it('scales the figure by the percentage, with no bank figure anywhere', () => {
+    const rule = compileTemplate(owned());
+    const at = (pct: string) =>
+      quote(
+        rule,
+        { primary: GRADE_TABLE },
+        { military_grade: choice('rank_major'), owned_share_pct: number(pct) },
+      );
+    // 30,000 filed against the grade. The bank states nothing about the share and cannot:
+    // the portion is this applicant's answer, so a half-owner reaches the 50% two sheets
+    // print and every other share is priced as what it is.
+    for (const [pct, expected] of [
+      ['100', '30000'],
+      ['50', '15000'],
+      ['40', '12000'],
+    ] as const) {
+      const result = at(pct);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.valueEGP.toString()).toBe(expected);
+    }
+  });
+
+  it('emits ONE step and no `share_on` slot for a bank to fill', () => {
+    // A slot with nothing to put in it renders as a box every bank is expected to fill, and
+    // a bank that filled it would be stating a policy the applicant already answered.
+    const rule = compileTemplate(owned());
+    expect(rule.steps?.some((step) => step.id === SLOT.shareOn)).toBe(false);
+    expect(templateParamKeys(owned())).not.toContain(SLOT.shareOn);
+    const step = rule.steps?.find((s) => s.id === SLOT.share);
+    expect(step?.op).toBe('percentOf');
+    // One way, so the head is `primary` itself — `basis` only appears where ways combine.
+    expect(step?.of).toEqual([{ step: SLOT.primary }, { step: sourceSlot('owned_share_pct') }]);
+  });
+
+  it('reads the percentage through the SAME source slot a way that bands it would use', () => {
+    // One `factNumber` per fact, whoever reads it. Two would be two steps demanding one
+    // answer, and a bank filing figures against the wrong one.
+    const rule = compileTemplate(
+      owned({ alternatives: [{ kind: 'numberBand', fact: 'owned_share_pct' }] }),
+    );
+    const sources = rule.steps?.filter((step) => step.id === sourceSlot('owned_share_pct')) ?? [];
+    expect(sources).toHaveLength(1);
+  });
+
+  it('refuses to quote when the percentage was not answered', () => {
+    // `fact_not_answered`, not a skip: the share is read on every quote this product makes,
+    // so a missing answer is a question to ask and not a bank that declined a way.
+    const result = quote(
+      compileTemplate(owned()),
+      { primary: GRADE_TABLE },
+      { military_grade: choice('rank_major') },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('fact_not_answered');
+      expect(result.factKey).toBe('owned_share_pct');
+    }
+  });
+
+  it('emits NOTHING when it scales the ceiling instead of the income', () => {
+    const rule = compileTemplate(
+      owned({ share: { kind: 'statedPercent', fact: 'owned_share_pct', scope: 'maxLoan' } }),
+    );
+    // Not even the source step: a `factNumber` nothing reads is a question asked for no
+    // reason, and the cap is scaled by bank configuration (`loanLimits.maxLoanAdjustments`).
+    expect(rule.steps?.map((step) => step.id)).toEqual([SLOT.primary]);
+  });
+
+  it('reads an absent `kind` as the choice shape, so stored forms are unmoved', () => {
+    expect(shareKindOf({ fact: 'j', whenOption: 'a', otherwiseOption: 'b' })).toBe('choice');
+    expect(shareKindOf({ kind: 'statedPercent', fact: 'p' })).toBe('statedPercent');
+    expect(shareScopeOf({ kind: 'statedPercent', fact: 'p' })).toBe('income');
+  });
+
+  it('refuses a share that names no fact, and a kind it does not know', () => {
+    expect(validateTemplate(owned({ share: { kind: 'statedPercent', fact: '' } }))).toEqual({
+      reason: 'share_needs_fact',
+    });
+    expect(
+      validateTemplate(
+        owned({
+          share: { kind: 'nonsense', fact: 'p' } as unknown as ProductTemplate['share'],
+        }),
+      ),
+    ).toEqual({ reason: 'unknown_share_kind', detail: 'nonsense' });
   });
 });

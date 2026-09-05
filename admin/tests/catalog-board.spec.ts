@@ -316,3 +316,61 @@ describe('a product no catalog name can sell', () => {
     expect(board.products[0]?.capPrograms).toBe(0);
   });
 });
+
+describe('the order the product cards are read in', () => {
+  // The wire order is the repository's `orderBy: [{ sortOrder }, { key }]` and the seed writes
+  // `sortOrder = 0` on every product, so what reached the grid was alphabetical by a key no
+  // screen renders. That is how the doctors product — key `years_in_practice_bands`, label
+  // "Doctors" — ended up eleventh of eleven and below the fold while being fully configured.
+  const WIRE = [
+    product({
+      key: 'academic_rank_table',
+      labelEn: 'University Professors',
+      labelAr: 'أساتذة الجامعات',
+    }),
+    product({
+      key: 'armed_forces_grades',
+      labelEn: 'Egyptian Armed Forces',
+      labelAr: 'القوات المسلحة',
+    }),
+    product({ key: 'years_in_practice_bands', labelEn: 'Doctors', labelAr: 'الأطباء' }),
+  ];
+
+  it('sorts by the label on the card, not by the key behind it', () => {
+    expect(board({ products: WIRE }).products.map((c) => c.product.labelEn)).toEqual([
+      'Doctors',
+      'Egyptian Armed Forces',
+      'University Professors',
+    ]);
+  });
+
+  it('sorts by the ARABIC label when that is what the card shows', () => {
+    // A `labelEn` sort would leave the Arabic board in an order its own words do not explain.
+    expect(board({ products: WIRE, isAr: true }).products.map((c) => c.product.labelAr)).toEqual([
+      'أساتذة الجامعات',
+      'الأطباء',
+      'القوات المسلحة',
+    ]);
+  });
+
+  it('orders the search results too, not only the full board', () => {
+    const names = [name({ key: 'doctors_in_practice', labelEn: 'Doctors' })];
+    const products = [
+      product({ key: 'zz_last', labelEn: 'Doctors — something else' }),
+      product({ key: 'aa_first', labelEn: 'Doctors — clinic tooling' }),
+    ];
+    expect(
+      board({ names, products, search: 'Doctors' }).products.map((c) => c.product.key),
+    ).toEqual(['aa_first', 'zz_last']);
+  });
+
+  it("does not reorder the caller's array", () => {
+    const products = [...WIRE];
+    board({ products });
+    expect(products.map((p) => p.key)).toEqual([
+      'academic_rank_table',
+      'armed_forces_grades',
+      'years_in_practice_bands',
+    ]);
+  });
+});

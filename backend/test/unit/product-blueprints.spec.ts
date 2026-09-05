@@ -306,6 +306,13 @@ describe('the slot ids are golden', () => {
       'alt__owned_unit_type__top_up',
       'alt__owned_unit_type_pick',
       'alt__top_up',
+      // The share of the down payment was APPENDED as the fifth way, so it takes a slot of
+      // its own and renames none: the bracket way keeps the bare `alt` it has always had
+      // even though the fact it reads moved onto the down payment, because that slot is
+      // positional. Every id below this line is the one it was before.
+      'alt__unit_down_payment',
+      'alt__unit_down_payment__top_up',
+      'alt__unit_down_payment_pick',
       'alt__unit_paid_to_date',
       'alt__unit_paid_to_date__top_up',
       'alt__unit_paid_to_date_pick',
@@ -319,9 +326,14 @@ describe('the slot ids are golden', () => {
       'primary',
       'primary__top_up',
       'primary_pick',
+      // `share` survives and `share_on` is gone: the portion is the percentage the applicant
+      // states, read through the shared source slot below, so there is no bank figure for a
+      // slot to hold. Every bank that had filed one is reported before that figure is
+      // dropped — see `blueprint-retemplate.command.ts`.
       'share',
-      'share_on',
       'src__unit_contract_price',
+      'src__unit_down_payment',
+      'src__unit_owned_share_pct',
       'src__unit_paid_to_date',
     ],
     school_stage_ceiling: ['primary', 'primary__school_international', 'primary_pick'],
@@ -356,6 +368,37 @@ describe('a fact two products read belongs to neither', () => {
     for (const key of sharedBlueprintFactKeys()) {
       const owners = ALL.filter((blueprint) => blueprint.asks.some((ask) => ask.factKey === key));
       expect(owners.length).toBeGreaterThan(1);
+    }
+  });
+});
+
+describe('the doctors product is ONE product, and named for the profession', () => {
+  // The source spec transcribes three doctor sheets — App. A §7 Doctors (Clinic Owners),
+  // App. A §8 Doctors (In Practice) and the unattributed Arabic DOCTOR sheet — and says
+  // plainly (§10.7) that ABK's two "use the same bands with different figures … they are two
+  // programs". Two PROGRAMS, one product: the mechanism is identical and the figures live in
+  // each programme's own `stepParams`, which is what the template layer is for.
+  //
+  // The failure this guards is a naming one that already happened and read as a missing
+  // feature: the card was labelled after §8 alone, so an operator looking for the
+  // clinic-owner product — fully configured and live as `ABK-PER-DOCTORS_CLINIC` — found
+  // nothing and reported it unbuilt. The fix a future change is likeliest to reach for is a
+  // second card, which would be the same arithmetic duplicated and would put two bank tables
+  // under two names for one calculation.
+  const READERS = ALL.filter((blueprint) =>
+    blueprint.asks.some((ask) => ask.factKey === 'years_in_practice'),
+  );
+
+  it('is the only blueprint that reads years in practice', () => {
+    expect(READERS.map((blueprint) => blueprint.key)).toEqual(['years_in_practice_bands']);
+  });
+
+  it('is named after the profession, not after one of its sheets', () => {
+    // A label naming a single sheet is the defect, in either locale: the other two sheets are
+    // then carried by a card that does not mention them.
+    const doctors = productBlueprint('years_in_practice_bands')!;
+    for (const label of [doctors.labelEn, doctors.labelAr]) {
+      expect(label).not.toMatch(/practice|clinic|ممارس|عياد/i);
     }
   });
 });

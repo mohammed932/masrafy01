@@ -236,6 +236,9 @@ import { incomeRuleHasError } from './income-rule.rules';
                 (figuresTouched)="stepFiguresTouched.emit()"
                 [variant]="variant()"
                 [facts]="facts()"
+                [waysAre]="waysAre()"
+                [wayId]="wayId()"
+                (wayIdChange)="wayId.set($event)"
               ></app-product-rule-editor>
             </div>
           }
@@ -507,6 +510,10 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly ruleOutput = input<ProductRuleOutput | null>(null);
   readonly stepFigures = model<Record<string, StepFigures>>({});
   readonly stepFiguresTouched = output<void>();
+  /** The catalog's statement that a bank sells ONE of the product's ways. */
+  readonly waysAre = input<'exclusive' | null>(null);
+  /** Which way this bank sells. Written by the picker inside the editor. */
+  readonly wayId = model<string | null>(null);
 
   readonly documentsPlaceholder = $localize`:@@bank_programs.income.docs_placeholder:Pick the documents`;
 

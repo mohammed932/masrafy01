@@ -695,6 +695,35 @@ export const ERROR_CODES = {
    */
   PRODUCT_RULE_INVALID: 'PRODUCT_RULE_INVALID',
 
+  // --- One way per bank program ---
+  // A product may state several WAYS of reaching its figure because several banks sell it
+  // differently. When they are alternatives (`waysAre: 'exclusive'`), a bank program sells
+  // exactly one: it names the way and types figures for that way only. Both fire on save
+  // only, and only where the bank's own completeness is being judged — never on the catalog
+  // write, which states the ways and picks between none of them.
+
+  /**
+   * The product sells one of its ways and this program has not said which.
+   *
+   * `meta.wayIds` lists the ways there are, so the screen can offer the choice rather than
+   * state the problem. Refused rather than defaulted to the first, or to whichever box has a
+   * figure: "which box did you type in" is a consequence, "which way does this bank sell" is
+   * a decision — and a program on catalog amounts has typed in none of them.
+   */
+  PROGRAM_INCOME_WAY_REQUIRED: 'PROGRAM_INCOME_WAY_REQUIRED',
+  /**
+   * The program carries figures for a way it does not sell.
+   *
+   * `meta.wayId` is the way it named, `meta.alsoFilled` the others still holding figures and
+   * `meta.count` how many — a count because the sentence reads as one, and an interpolated
+   * array renders "alt,primary way(s)".
+   *
+   * Refused rather than silently pruned on the way in: a stored figure nothing reads is the
+   * drift `unknown_param_key` already exists to refuse, and the operator is the one who knows
+   * which of the two mechanisms their bank actually publishes.
+   */
+  PROGRAM_INCOME_WAY_CONFLICT: 'PROGRAM_INCOME_WAY_CONFLICT',
+
   // --- The friendly form ---
   // A surrogate product's calculation, authored by answering three plain questions instead
   // of wiring steps by hand. The form is stored beside the rule it compiles to; these three
@@ -1109,6 +1138,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ADDITIONAL_INCOME_INVALID: 422,
   INCOME_RULE_FACT_UNAVAILABLE: 422,
   PRODUCT_RULE_INVALID: 422,
+  PROGRAM_INCOME_WAY_REQUIRED: 422,
+  PROGRAM_INCOME_WAY_CONFLICT: 422,
   PRODUCT_TEMPLATE_INVALID: 422,
   PRODUCT_BLUEPRINT_UNKNOWN: 422,
   PRODUCT_TEMPLATE_ORPHANS_FIGURES: 409,

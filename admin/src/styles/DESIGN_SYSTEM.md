@@ -36,7 +36,14 @@
 
 - Body text always `--text-primary`.
 - Secondary copy always `--text-secondary`.
-- Muted / metadata always `--text-tertiary` (never below 4.5:1 contrast).
+- Muted / metadata: `--text-tertiary` **only where 4.5:1 is not required** — a decorative
+  glyph, a redundant restatement of something already in the ink beside it. It does **not**
+  clear AA for body-sized or small text in LIGHT mode: measured against the real palette it is
+  **3.83:1** on `--bg-surface`, **3.64:1** on `--bg-base` and **3.28:1** on `--bg-muted`. (Dark
+  is fine at 5.24:1 on a card, which is why a light-only failure survives a dark-mode review.)
+  **A run somebody has to read takes `--text-secondary`** — 6.18:1 on a card, 5.29:1 on muted.
+  A chip darkens the ground under its own text, so a chip's label takes secondary or primary,
+  never tertiary.
 - Backgrounds: page = `--bg-base`; cards = `--bg-surface`; hover rows = `--bg-subtle`; chip / pill bg = `--bg-muted`.
 - Borders default to `--border-default`. Strong dividers use `--border-strong`.
 - Primary CTA = solid `--primary` bg + `--text-on-primary`.
@@ -142,6 +149,28 @@ Every text-like field in the app uses:
 - border `--border-default`
 - font 14px / 600
 - focus: border `--primary` + `--focus-halo`
+
+**Focus indicators, generally.** `--focus-halo` is a translucent GLOW, not an indicator: on its
+own it measures **1.24:1** in light and **2.12:1** in dark, under SC 1.4.11's 3:1. It is only
+correct beside something that carries the contrast itself — the primary border above. Anything
+whose focus state is a ring and nothing else uses the opaque form:
+
+```css
+outline: var(--focus-ring-width) solid var(--focus-ring-color);
+outline-offset: var(--focus-ring-offset);
+```
+
+Phrased against the PATTERN, not the token: **any** focus state whose only indicator is a
+translucent shadow is a review block — `--focus-halo`, `--shadow-focus-ring`, or a hand-rolled
+`rgba(...)` layer. A token-scoped rule missed two live sites (`.bulk button` used
+`--shadow-focus-ring`; the topbar user menu used two `rgba(255,255,255,…)` layers).
+
+On a coloured ground, use that surface's own ink rather than `--focus-ring-color` — the topbar
+is azure in light, so an azure ring is invisible there and `--color-topbar-text` is correct.
+
+Where a `box-shadow` is load-bearing for shape (it follows `border-radius` and can be stacked
+above a neighbour's seam with `z-index`), keep it and put the opaque ring in front of the glow
+rather than swapping in an `outline`.
 
 Affix groups (`nz-input-group [nzAddOnBefore]="EGP"`) inherit the same height and flat-joint border so addon + input read as one pill.
 

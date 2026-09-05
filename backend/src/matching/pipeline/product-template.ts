@@ -121,6 +121,39 @@ export const ADJUSTMENT_SCOPES = ['income', 'maxLoan'] as const;
 
 export type AdjustmentScope = (typeof ADJUSTMENT_SCOPES)[number];
 
+/**
+ * How a share adjustment reads the portion it takes.
+ *
+ * Two kinds, because the portion has two sources and they are not the same statement:
+ *
+ *   `choice`          the BANK states the percentage and one ANSWER switches it on — the
+ *                     joint-ownership halving two sheets print ("jointly owned accepted at
+ *                     50% of the imputed income"). The applicant says whether they share the
+ *                     unit; the bank says what sharing costs.
+ *   `statedPercent`   the APPLICANT states the percentage, as a number, and the figure is
+ *                     scaled by it — someone who owns 40% of the unit is lent against 40% of
+ *                     what the unit supports. No bank figure exists, and none should: the
+ *                     percentage is a fact about the applicant, not a policy.
+ *
+ * Absent `kind` reads as `'choice'`, and that default is load-bearing rather than tidy:
+ * every template stored before this union existed carried the choice shape, so absence has
+ * to keep compiling to byte-identical steps under identical slot ids (§5.4).
+ */
+export type TemplateShare =
+  | {
+      kind?: 'choice';
+      fact: string;
+      whenOption: string;
+      otherwiseOption: string;
+      scope?: AdjustmentScope;
+    }
+  | { kind: 'statedPercent'; fact: string; scope?: AdjustmentScope };
+
+/** Which of the two shapes a stored share carries. Absent reads as `'choice'` — see above. */
+export function shareKindOf(share: TemplateShare): 'choice' | 'statedPercent' {
+  return share.kind ?? 'choice';
+}
+
 /** What a condition measures. */
 export type ConditionMeasure =
   /** A number the applicant stated. */
@@ -199,6 +232,26 @@ export interface ProductTemplate {
    */
   combine?: 'lower' | 'higher';
   /**
+   * Whether the ways above are ALTERNATIVES a bank picks exactly one of, or several a bank
+   * may legitimately fill at once.
+   *
+   * `combine` cannot answer this, and that is why the field exists: BOTH kinds carry
+   * `combine: 'lower'`. The compound guarantee lists five ways because four banks derive the
+   * ceiling four different ways — no sheet pairs two of them, so a program filling two would
+   * quote the lower of two mechanisms nobody sells. The auto cross-sell lists two because ONE
+   * sheet pairs them: App. A §4, "3 × the car instalment OR 10% of the auto loan, whichever is
+   * less". Same shape in the blob, opposite meanings to a bank.
+   *
+   * `'exclusive'` is what a bank program's `wayId` is then held to, and what makes the
+   * catalog's figures inherit one way instead of four.
+   *
+   * ABSENT READS AS `'combined'`, and that default is load-bearing rather than tidy: every
+   * template stored before this field existed folds every filled way, so absence has to be
+   * the reading that changes nothing (§5.4). `'combined'` stated explicitly compiles to
+   * nothing at all, so declaring it is documentation with no footprint in the rule.
+   */
+  waysAre?: 'exclusive' | 'combined';
+  /**
    * A second column — new customer vs existing, city, employment type. The FIRST branch is
    * the default one and keeps the bare step id, so turning this on never moves a figure
    * that is already there.
@@ -227,13 +280,16 @@ export interface ProductTemplate {
     scope?: AdjustmentScope;
   };
   /**
-   * A SHARE of the figure when one answer is given — the joint-ownership halving that two
-   * sheets state and that had no representation until now.
+   * A SHARE of the figure — the portion of what the collateral supports that this applicant
+   * is lent against. `TemplateShare` says where the portion comes from: a bank's percentage
+   * switched on by one answer, or a percentage the applicant states outright.
    *
-   * Shaped exactly like `uplift` and for the same reasons, down to the no-adjustment column
-   * being first. What differs is the arithmetic: `uplift` adds a bonus to the figure
-   * (`upliftPercent`), this takes a portion of it (`percentOf`). A bank that does not halve
-   * anything simply leaves its percentage blank and the standard column is read.
+   * The `choice` shape is shaped exactly like `uplift` and for the same reasons, down to the
+   * no-adjustment column being first. What differs is the arithmetic: `uplift` adds a bonus
+   * to the figure (`upliftPercent`), this takes a portion of it (`percentOf`). A bank that
+   * does not halve anything simply leaves its percentage blank and the standard column is
+   * read. The `statedPercent` shape has no bank figure at all — `percentOf` prefers a second
+   * input over the bank's scalar, so the applicant's own number is the factor.
    *
    * A SECOND field rather than turning `uplift` into an array of adjustments, because an
    * array would renumber its members' slot ids the moment one was removed — the failure this
@@ -243,12 +299,7 @@ export interface ProductTemplate {
    * `scope: 'maxLoan'` compiles to NOTHING here, exactly as the uplift's does: halving the
    * ceiling is a bank setting, configured on `loanLimits.maxLoanAdjustments`.
    */
-  share?: {
-    fact: string;
-    whenOption: string;
-    otherwiseOption: string;
-    scope?: AdjustmentScope;
-  };
+  share?: TemplateShare;
   /** Multiply by the bank's bureau-score table. Unanswered or unstated both mean 100%. */
   iScore?: boolean;
   conditions: TemplateCondition[];
@@ -311,6 +362,17 @@ export function waysOf(template: ProductTemplate): TemplateMechanism[] {
 }
 
 /**
+ * Whether a bank picks ONE of this product's ways. Absent reads as `'combined'` — see
+ * `ProductTemplate.waysAre`.
+ *
+ * One accessor, so the compiler, the validator and the seed can never disagree about what an
+ * older stored form meant.
+ */
+export function waysAreOf(template: ProductTemplate): 'exclusive' | 'combined' {
+  return template.waysAre ?? 'combined';
+}
+
+/**
  * What an uplift lifts. Absent reads as `'income'` — see `ProductTemplate.uplift`.
  *
  * One accessor, so the compiler, the key set and the admin can never disagree about what an
@@ -326,7 +388,7 @@ export function upliftScopeOf(uplift: NonNullable<ProductTemplate['uplift']>): A
  * `'income'` by default for symmetry with the uplift, and safely: the field is new, so
  * there is no stored template whose meaning this default could change.
  */
-export function shareScopeOf(share: NonNullable<ProductTemplate['share']>): AdjustmentScope {
+export function shareScopeOf(share: TemplateShare): AdjustmentScope {
   return share.scope ?? 'income';
 }
 
@@ -373,10 +435,14 @@ export const TEMPLATE_INVALID_REASONS = [
   'ways_double_spelled',
   'duplicate_way',
   'too_many_ways',
+  'unknown_ways_are',
+  'ways_are_not_applicable',
   'second_column_too_few_branches',
   'second_column_duplicate_branch',
   'uplift_same_option',
   'share_same_option',
+  'share_needs_fact',
+  'unknown_share_kind',
   'unknown_adjustment_scope',
   'second_column_branch_on_invalid',
   'condition_id_invalid',
@@ -460,6 +526,18 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
     slots.add(slot);
   }
 
+  if (template.waysAre !== undefined) {
+    if (template.waysAre !== 'exclusive' && template.waysAre !== 'combined') {
+      return { reason: 'unknown_ways_are', detail: String(template.waysAre) };
+    }
+    // A product with one way has nothing to be exclusive BETWEEN, and nothing to combine.
+    // Refused rather than ignored, matching `skip_unset_not_applicable` next door: a flag
+    // that decides nothing is worse than an absent one, because the next operator reads it
+    // and believes it — and on a bank program the same flag would demand a choice between
+    // one thing.
+    if (ways.length < 2) return { reason: 'ways_are_not_applicable', detail: String(ways.length) };
+  }
+
   const column = template.secondColumn;
   if (column !== undefined) {
     // One column is not a second column: `pickByFact` would fall back to it for every
@@ -493,18 +571,26 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
     return { reason: 'uplift_same_option', detail: template.uplift.whenOption };
   }
 
-  if (
-    template.share !== undefined &&
-    template.share.scope !== undefined &&
-    !(ADJUSTMENT_SCOPES as readonly string[]).includes(template.share.scope)
-  ) {
-    return { reason: 'unknown_adjustment_scope', detail: String(template.share.scope) };
-  }
-  if (
-    template.share !== undefined &&
-    template.share.whenOption === template.share.otherwiseOption
-  ) {
-    return { reason: 'share_same_option', detail: template.share.whenOption };
+  if (template.share !== undefined) {
+    const share = template.share;
+    if (
+      share.scope !== undefined &&
+      !(ADJUSTMENT_SCOPES as readonly string[]).includes(share.scope)
+    ) {
+      return { reason: 'unknown_adjustment_scope', detail: String(share.scope) };
+    }
+    if (share.kind !== undefined && share.kind !== 'choice' && share.kind !== 'statedPercent') {
+      return { reason: 'unknown_share_kind', detail: String((share as { kind: string }).kind) };
+    }
+    // A share with no fact reads every applicant's portion off nothing: the choice shape
+    // would pick no column and the stated shape would scale by an answer nobody was asked.
+    if (!share.fact) return { reason: 'share_needs_fact' };
+    if (shareKindOf(share) === 'choice') {
+      const choice = share as Extract<TemplateShare, { whenOption: string }>;
+      if (choice.whenOption === choice.otherwiseOption) {
+        return { reason: 'share_same_option', detail: choice.whenOption };
+      }
+    }
   }
 
   const seen = new Set<string>();
@@ -635,6 +721,14 @@ export function compileTemplate(template: ProductTemplate): ProductRule {
   const baseline = template.baselineDbrPercent;
   return {
     strategy: PRODUCT_RULE_STRATEGY,
+    // Carried onto the COMPILED rule, not left on the form, because the two readers that
+    // enforce it hold a rule and never a template: `validateIncomeRule` is handed the
+    // effective config, and `effectiveIncomeRule` runs inside the snapshot mapper. Reaching
+    // back for `templateSpec` from either would be a second fetch and a second authority —
+    // and a hand-built Advanced rule has no template at all, so it would answer nothing.
+    // Emitted only when EXCLUSIVE: absent already reads as combined everywhere, so every
+    // template stored before this field existed still compiles byte-identically (§5.4).
+    ...(waysAreOf(template) === 'exclusive' ? { waysAre: 'exclusive' as const } : {}),
     steps: out.steps,
     gates: out.gates,
     output: {
@@ -661,6 +755,17 @@ function collectNumericFacts(template: ProductTemplate, into: Set<string>): void
   }
   for (const condition of template.conditions ?? []) {
     if (condition.test.op === 'atLeastShareOf') into.add(condition.test.fact);
+  }
+  // The percentage an applicant states is read like any other number they state, through the
+  // SHARED source slot — so a product that already bands the same fact emits one step, not
+  // two. Only when the share acts on the income: a `maxLoan`-scoped one compiles to nothing
+  // here, and a source step nothing reads would be a question asked for no reason.
+  if (
+    template.share !== undefined &&
+    shareKindOf(template.share) === 'statedPercent' &&
+    shareScopeOf(template.share) === 'income'
+  ) {
+    into.add(template.share.fact);
   }
 }
 
@@ -795,23 +900,35 @@ function emitUplift(
 }
 
 /**
- * A share of the figure when one answer is given — half of it, on the sheets that say so.
+ * The portion of the figure this applicant is lent against.
  *
- * Same column ordering as the uplift and for the same three reasons: no answer, no matching
- * branch and a bank that stated no percentage must all mean "the figure as it stands".
+ * `statedPercent` scales by the number the applicant typed. `choice` keeps the uplift's
+ * column ordering and for the same three reasons: no answer, no matching branch and a bank
+ * that stated no percentage must all mean "the figure as it stands".
  */
-function emitShare(
-  out: Emission,
-  head: string,
-  share: NonNullable<ProductTemplate['share']>,
-): string {
+function emitShare(out: Emission, head: string, share: TemplateShare): string {
+  // The applicant's own percentage. ONE step and no bank figure: `percentOf` takes a second
+  // input as its factor and prefers it over the bank's `scalar` (`scalingFactor`), so the
+  // number the applicant typed is what scales the figure. `share_on` is not emitted — there
+  // is no percentage for a bank to state, and a slot with nothing to put in it would render
+  // as a box every bank is expected to fill.
+  if (shareKindOf(share) === 'statedPercent') {
+    out.steps.push({
+      id: SLOT.share,
+      op: 'percentOf',
+      of: [{ step: head }, { step: sourceSlot(share.fact) }],
+    });
+    return SLOT.share;
+  }
+
+  const choice = share as Extract<TemplateShare, { whenOption: string }>;
   out.steps.push({ id: SLOT.shareOn, op: 'percentOf', of: { step: head } });
   out.steps.push({
     id: SLOT.share,
     op: 'pickByFact',
-    fact: share.fact,
+    fact: choice.fact,
     of: [{ step: head }, { step: SLOT.shareOn }],
-    branches: [share.otherwiseOption, share.whenOption],
+    branches: [choice.otherwiseOption, choice.whenOption],
   });
   return SLOT.share;
 }

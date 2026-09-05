@@ -168,6 +168,15 @@ export class InMemoryPlatformEnumerationsRepository
     return [];
   }
 
+  /**
+   * No catalog names in this stub, so nothing resolves. An EMPTY map, never a map of keys
+   * to themselves: the caller's own fallback already renders the key, and inventing labels
+   * here would make the stub look like it knows names it does not have.
+   */
+  async programNameLabels(): Promise<Map<string, { labelEn: string; labelAr: string }>> {
+    return new Map();
+  }
+
   /** Read-only stub, exactly as `setProgramNameIncomeRule` above. */
   async setParentKeysBulk(): Promise<never> {
     throw new Error('in-memory enumeration registry is read-only');

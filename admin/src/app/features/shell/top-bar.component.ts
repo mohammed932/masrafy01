@@ -200,11 +200,16 @@ import { ThemeService } from '@core/theme/theme.service';
       .user-trigger:active {
         transform: translateY(0.5px);
       }
+      /* An opaque ring in the topbar's OWN ink, not --focus-ring-color: that token is azure
+         and this bar is azure in light mode, so the house ring would be invisible here.
+         --color-topbar-text is the colour already carrying the text contrast on this ground
+         in both themes (near-white on azure in light, near-white on near-black in dark).
+         The two translucent layers were the entire indicator and measured 1.56:1. */
       .user-trigger:focus-visible {
         outline: none;
         box-shadow:
           inset 0 0 0 1px rgba(255, 255, 255, 0.3),
-          0 0 0 3px rgba(255, 255, 255, 0.24);
+          0 0 0 var(--focus-ring-width) var(--color-topbar-text);
       }
       // Hairline divider between name and role chip
       .user-divider {
