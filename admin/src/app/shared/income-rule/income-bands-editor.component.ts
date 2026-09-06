@@ -16,19 +16,15 @@ export { incomeBandsErrorFor, type IncomeBandsError };
 /**
  * Income bands, EDGES ONLY, half-open `[fromInclusive, toExclusive)`.
  *
- * Modelled on the shipped `app-score-bands-editor` (constitution v14.0.0) and for
- * the same reason recorded there: a band's end IS the next band's start, so typing
- * either box moves the other and **gaps and overlaps stay unrepresentable rather
- * than merely validated**. An uncovered value earns the applicant no figures at all,
- * so a hole in the table is not a smaller table — it is a customer told nothing.
+ * A band's end IS the next band's start, so typing either box moves the other and
+ * **gaps and overlaps stay unrepresentable rather than merely validated**. An
+ * uncovered value earns the applicant no figures at all, so a hole in the table is
+ * not a smaller table — it is a customer told nothing.
  *
- * Two deliberate differences from the score editor:
- *
- *   1. The FIRST edge is a real, editable box, not "No minimum". A bank's value
- *      table may start above zero, and below that floor the correct outcome is a
- *      stated reason (`SURROGATE_NO_MATCHING_ROW`), never a zero income.
- *   2. The cell is an EGP money input (`appMoneyInput`, A27), not a 0–100 score,
- *      which is why this is a sibling component rather than a reuse.
+ * The FIRST edge is a real, editable box, not "No minimum": a bank's value table may
+ * start above zero, and below that floor the correct outcome is a stated reason
+ * (`SURROGATE_NO_MATCHING_ROW`), never a zero income. The cell is an EGP money input
+ * (`appMoneyInput`, A27).
  */
 @Component({
   selector: 'app-income-bands-editor',

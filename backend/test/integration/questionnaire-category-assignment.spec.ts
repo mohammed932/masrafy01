@@ -220,7 +220,7 @@ describe('apply validates answers against the questions its category asks', () =
     expect(resolved.map((r) => r.questionCode)).toEqual(['monthly_income']);
   });
 
-  it('reports the asked set as the scoring denominator, scoped to the category', async () => {
+  it('reports the asked set, scoped to the category', async () => {
     // `property_type` is mortgage-only, so a personal-loan applicant is never
     // asked it and a program weighting it must not be charged for it.
     const personal = await makeService().resolveAnswers(

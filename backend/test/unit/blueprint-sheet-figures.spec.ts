@@ -168,10 +168,12 @@ describe('§13.7 — a share of a competitor card limit', () => {
 
 describe('§13.12 — doctors, half-open bands and a tier column', () => {
   // The sheet's own brackets, which the blueprint offers to the form.
-  const EDGES = productBlueprint('years_in_practice_bands')!.suggestedBands![0]!.edges;
+  const EDGES = productBlueprint('doctors_clinic_owner')!.suggestedBands![0]!.edges;
   const band = (incomes: string[]) => ({
     bands: EDGES.map((edge, index) => ({ ...edge, incomeEGP: incomes[index]! })),
   });
+  /** §8's figures — exactly half of §7's at every band. */
+  const HALF = ['15000', '30000', '40000', '60000', '90000', '150000'];
   const FIGURES = {
     primary: band(['30000', '60000', '80000', '120000', '180000', '300000']),
     [`${SLOT.primary}__city_tier_other`]: band([
@@ -183,15 +185,21 @@ describe('§13.12 — doctors, half-open bands and a tier column', () => {
       '200000',
     ]),
   };
-  const FILED = { cairo: 'city_tier_major', tanta: 'city_tier_other' };
+  // Mirrors `20260905090000_giza_secondary_tier`: ABK's top tier is Cairo and Alexandria,
+  // and Giza sits with the other main governorates.
+  const FILED = {
+    cairo: 'city_tier_major',
+    giza: 'city_tier_secondary',
+    tanta: 'city_tier_other',
+  };
 
   it('puts EXACTLY five years in the 5–8 row, not in 3–5', () => {
     // The half-open convention, which is the whole reason the edges are stated as edges.
     expect(
       quote(
-        'years_in_practice_bands',
+        'doctors_clinic_owner',
         FIGURES,
-        { years_in_practice: number('5'), property_governorate: choice('cairo') },
+        { years_in_practice: number('5'), practice_governorate: choice('cairo') },
         FILED,
       ),
     ).toBe('60000');
@@ -200,9 +208,9 @@ describe('§13.12 — doctors, half-open bands and a tier column', () => {
   it('reads the column of the TIER a governorate is filed under', () => {
     expect(
       quote(
-        'years_in_practice_bands',
+        'doctors_clinic_owner',
         FIGURES,
-        { years_in_practice: number('12'), property_governorate: choice('tanta') },
+        { years_in_practice: number('12'), practice_governorate: choice('tanta') },
         FILED,
       ),
     ).toBe('80000');
@@ -210,31 +218,36 @@ describe('§13.12 — doctors, half-open bands and a tier column', () => {
 
   it('prices a governorate added to the list later with no bank edit at all', () => {
     // The point of a class-keyed column: a new value filed under an existing tier reads that
-    // tier's figures on day one.
+    // tier's figures on day one. Deliberately NOT giza — a real governorate whose tier one
+    // bank disagreed about is the worst possible example of "any value, any tier".
     expect(
       quote(
-        'years_in_practice_bands',
+        'doctors_clinic_owner',
         FIGURES,
-        { years_in_practice: number('12'), property_governorate: choice('giza') },
-        { ...FILED, giza: 'city_tier_major' },
+        { years_in_practice: number('12'), practice_governorate: choice('port_said') },
+        { ...FILED, port_said: 'city_tier_other' },
       ),
-    ).toBe('120000');
+    ).toBe('80000');
   });
 
   it('reports a stated reason below the first bracket, never a substituted zero', () => {
+    // Also how "minimum 3 years in business" is enforced: the sheet's own lowest band opens
+    // at 3, and `no_matching_band` is fatal, so a two-year doctor gets a reason and no figure
+    // without a gate saying the same thing a second time.
     expect(
       quote(
-        'years_in_practice_bands',
+        'doctors_clinic_owner',
         FIGURES,
-        { years_in_practice: number('2'), property_governorate: choice('cairo') },
+        { years_in_practice: number('2'), practice_governorate: choice('cairo') },
         FILED,
       ),
     ).toEqual({ miss: 'no_matching_band' });
   });
 
   it('caps the loan by tier and relationship, off the same one list', () => {
-    // §13.21: the same applicant, Cairo then Tanta, on a new loan.
-    const cap = productBlueprint('years_in_practice_bands')!.cap!;
+    // §13.21: the same applicant, Cairo then Tanta, on a new loan — plus Giza, which ABK
+    // prices with Tanta and which this platform filed with Cairo until 2026-09-05.
+    const cap = productBlueprint('doctors_clinic_owner')!.cap!;
     const config = {
       factKey: cap.factKey,
       columnFactKey: cap.columnFactKey!,
@@ -247,18 +260,52 @@ describe('§13.12 — doctors, half-open bands and a tier column', () => {
         { rowKey: 'city_tier_other', columnKey: 'new_loan', maxAmountEGP: '500000' },
       ],
     };
-    const cairo = resolveMaxLoanByFact({
-      config,
-      facts: { property_governorate: choice('cairo'), loan_is_topup: choice('new_loan') },
-      parentKeyByValue: FILED,
-    });
-    const tanta = resolveMaxLoanByFact({
-      config,
-      facts: { property_governorate: choice('tanta'), loan_is_topup: choice('new_loan') },
-      parentKeyByValue: FILED,
-    });
+    const at = (governorate: string) =>
+      resolveMaxLoanByFact({
+        config,
+        facts: {
+          practice_governorate: choice(governorate),
+          loan_is_topup: choice('new_loan'),
+        },
+        parentKeyByValue: FILED,
+      });
+    const cairo = at('cairo');
+    const tanta = at('tanta');
+    const giza = at('giza');
     expect(cairo.matched && cairo.maxAmountEGP.toString()).toBe('1500000');
     expect(tanta.matched && tanta.maxAmountEGP.toString()).toBe('500000');
+    expect(giza.matched && giza.maxAmountEGP.toString()).toBe('500000');
+  });
+
+  it('quotes the in-practice sheet off years alone, with no city and no cap', () => {
+    // §8's own product. It states no second column, so a hospital doctor is never asked
+    // where they practise — and exactly half the clinic-owner figure at the same band, which
+    // is the difference that made quoting the wrong programme a real cost.
+    expect(
+      quote('doctors_in_practice', { primary: band(HALF) }, { years_in_practice: number('12') }),
+    ).toBe('60000');
+    expect(productBlueprint('doctors_in_practice')!.cap).toBeUndefined();
+  });
+
+  it('refuses rather than quoting the best cell when the city is not stated', () => {
+    // `ABK-PER-DOCTORS_CLINIC` carries `onNoMatch: 'reject'`. With `useProgramMax` an
+    // applicant who answered nothing would be capped at the programme maximum — 2,000,000,
+    // the top-up Cairo cell — and that figure would be frozen onto an immutable offer.
+    const cap = productBlueprint('doctors_clinic_owner')!.cap!;
+    const unstated = resolveMaxLoanByFact({
+      config: {
+        factKey: cap.factKey,
+        columnFactKey: cap.columnFactKey!,
+        rowVia: cap.rowVia!,
+        onNoMatch: 'reject',
+        rows: [{ rowKey: 'city_tier_major', columnKey: 'new_loan', maxAmountEGP: '1500000' }],
+      },
+      facts: { loan_is_topup: choice('new_loan') },
+      parentKeyByValue: FILED,
+    });
+    expect(unstated.matched).toBe(false);
+    expect(unstated.matched === false && unstated.action).toBe('reject');
+    expect(unstated.matched === false && unstated.reason).toBe('fact_not_answered');
   });
 });
 

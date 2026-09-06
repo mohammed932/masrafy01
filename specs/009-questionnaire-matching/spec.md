@@ -1,7 +1,7 @@
 # Feature 009 — Dynamic Questionnaire & Matching Engine
 
 **Status:** Backend foundation shipped (Phases 1–5 core); admin/mobile/eligibility pending.
-**Constitution alignment:** II (4-category scope-lock), V v4.1.0 (engine IP + admin-editable questionnaire/weights + maker-checker), III (typed errors), IV (Arabic-first), VI (PII), XIII/XXXVII (JWT-gated, no guest — reconciled with v4.0.0).
+**Constitution alignment:** II (4-category scope-lock), V ~~v4.1.0 (engine IP + admin-editable questionnaire/weights + maker-checker)~~ — **now v25.0.0: the questionnaire half stands, the weights half is deleted and maker-checker was already replaced by direct save in v5.0.0** — III (typed errors), IV (Arabic-first), VI (PII), XIII/XXXVII (JWT-gated, no guest — reconciled with v4.0.0).
 
 > **Reconciliation note (vs the original draft):** the original draft made
 > `GET /questionnaire/:category` and `POST /matching/preview` **anonymous**. That
@@ -35,20 +35,40 @@ gained `scoringWeightSets`. Codes are auto-generated (slugify) + immutable (A33)
 ## 4. Endpoints (shipped)
 **Mobile (CustomerJwtGuard [+ profile-complete on preview]):**
 - `GET /v1/questionnaire/:category` → active snapshot.
-- `POST /v1/matching/preview` → ranked matches by approval probability.
+- `POST /v1/matching/preview` → matches ranked by the applicant's own stated `priority` answer (v25.0.0; there is no approval probability).
 
 **Admin (JwtAuthGuard + Roles):**
 - `admin/questionnaire/*` — group/question/option CRUD, `tree/:category`,
   `versions/:category/publish|history`, `versions/:category/rollback/:versionId`.
-- `admin/scoring/*` — `factors/:category` (+ create), `programs/:id/weights`,
-  `weights/draft`, `weights/submit`, `weights/:setId/approve|reject`,
-  `weights/pending`, `programs/:id/weights/history`. Maker-checker enforced
-  (checker ≠ maker, weights sum 100, atomic activate+archive, audited).
 
-## 5. Approval probability (shipped — `src/matching/scoring/approval-probability.scorer.ts`)
-Pure: `computeProbability(weights, subScores)=Σ(subScore×weight)/100`; `tierFor`
-(excellent ≥.80 / good ≥.60 / moderate ≥.40 / low ≥.20 / very_low); `computeDbrComfort`
-(COMPUTED); `defaultWeights` fallback (no ACTIVE set ⇒ equal split, nothing unscored).
+## ~~5. Approval probability (shipped)~~ — REMOVED (v25.0.0)
+
+> **REMOVED in v25.0.0.** `src/matching/scoring/approval-probability.scorer.ts` is deleted, along
+> with `computeProbability`, `tierFor`, the five tiers, `computeDbrComfort`, the `defaultWeights`
+> equal-split fallback, the `scoring_weight_set` table and the whole `/admin/scoring/*` surface
+> (removed from §4 above). Every weight-set code §7 lists went with them —
+> `WEIGHTS_MUST_SUM_TO_100`, `APPROVER_MUST_DIFFER_FROM_MAKER`, `WEIGHT_SET_NOT_DRAFT/PENDING`,
+> `WEIGHTS_UNKNOWN_FACTOR`, and `OPTION_MISSING_SCORE_VALUE` with them, none of which is in
+> `error-codes.ts` any more — as did §6's "scoring-weights maker-checker" admin-UI deliverable,
+> which is not pending work but cancelled work. §3 above stays as written because it is a true
+> statement about what migration `20260602130000` created at the time; three of the things it
+> created — `scoring_factor`, `scoring_weight_set` and the `ScoringFactorKind` /
+> `ScoringWeightSetStatus` enums — have since been dropped again.
+>
+> Why: the number was never once compared against a bank decision. Both the sub-scores and the
+> weights were figures an admin typed, so the output was a measure of agreement with the admin, not
+> of what a bank would do — v13.0.0 had already had to reword it on mobile from "Guarantee
+> Approval" to "% match", which was the admission in public. A33 now blocks reintroducing a score,
+> a tier or a per-program answer-weighting table under any name without a constitution amendment;
+> earning it back needs the outcome loop — real bank decisions recorded against the answers that
+> preceded them, see [matching-engine-review.md](../matching-engine-review.md) item 7 — not a rewrite.
+>
+> **What replaced it is an order, not a smaller score.** `rankOffers(offers, priority)` sorts by the
+> key the applicant's own `priority` answer names, and the apply path freezes that output on each
+> row as `bank_offer.rankIndex` (Int, 0-based, dense per application, never updated —
+> Principle I / A6); every read of a persisted offer orders by it. This was always in the code and
+> the score used to override it — somebody who asked for the lowest monthly payment was shown the
+> highest-scoring offer first.
 
 ## 6. Remaining work
 - **Eligibility hard-gates + installment/fees** in preview: reuse feature-003

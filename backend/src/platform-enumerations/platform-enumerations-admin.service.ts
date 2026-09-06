@@ -26,7 +26,6 @@ import {
   EnumerationParentUnknownException,
   EnumerationQuestionBindingNotApplicableException,
   EnumerationQuestionUnknownException,
-  EnumerationQuestionsNotApplicableException,
   SurrogateFactQuestionTypeInvalidException,
   EnumerationSystemOnlyException,
   NotFoundException,
@@ -52,7 +51,6 @@ import {
   isBindableQuestionType,
   isCategorisedEnumerationType,
   isQuestionBoundEnumerationType,
-  isQuestionTemplateEnumerationType,
   isUnscopedEnumerationType,
   childTypesOf,
   parentTypeOf,
@@ -61,11 +59,9 @@ import {
   type EnumerationTypeDefinition,
   type EnumerationTypeDefinitions,
   type IncomeBasesByCategory,
-  type QuestionCodesByCategory,
 } from './platform-enumerations.repository';
 import {
   PostgresPlatformEnumerationsRepository,
-  type CatalogQuestionRow,
   type EnumerationCategoryAssignment,
   type EnumerationRow,
   type EnumerationTypeStats,
@@ -86,25 +82,6 @@ import type {
 const PROGRAM_NAME_TYPE = 'program_name';
 const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
 const FACT_TYPE = 'surrogate_fact';
-
-/**
- * Lexical, so the audit no-op check compares SETS. Ordering everywhere else is
- * the questionnaire's `displayOrder`, and a reshuffle there must not make an
- * unchanged template look like an edit.
- */
-function sortCodes(codes: readonly string[]): string[] {
-  return [...codes].sort();
-}
-
-function sameCodeSet(a: readonly string[], b: readonly string[]): boolean {
-  // Compared as SETS, with no delimiter: a joined form needs a separator that
-  // cannot occur in a code, and picking one wrong is how this line ended up
-  // with a raw NUL in it. `next` is deduped by the caller and `before` is
-  // unique by primary key, so length plus membership is exact.
-  if (a.length !== b.length) return false;
-  const seen = new Set(a);
-  return b.every((code) => seen.has(code));
-}
 
 /**
  * Who is asking, when that changes what is allowed.
@@ -1512,96 +1489,6 @@ export class PlatformEnumerationsAdminService {
 
     if (before.join(',') !== next.join(',')) {
       await this.writeAssignmentAudit(existing, `incomeBasis.${category}`, before, next, actor);
-    }
-    return existing;
-  }
-
-  // ---- Question template ---------------------------------------------------
-
-  /**
-   * Suggested question sets for a type, keyed by enumeration id then by loan
-   * category (codes).
-   */
-  async questionAssignments(filter?: {
-    type?: string;
-  }): Promise<Map<string, QuestionCodesByCategory>> {
-    return this.repo.questionAssignments(filter);
-  }
-
-  /** The active question pool the template board picks from. */
-  async questionPool(): Promise<CatalogQuestionRow[]> {
-    return this.repo.questionTemplatePool();
-  }
-
-  /**
-   * Replace one catalog name's SUGGESTED question set FOR ONE loan category.
-   * Advisory data: it pre-ticks the per-program scoring wizard and is read by
-   * nothing at runtime, so this can never invalidate a weight set a bank already
-   * saved.
-   *
-   * Scoped to `category`; the other three sets are untouched. The name's own
-   * category ASSIGNMENT is a different axis with its own endpoint — a name can
-   * be templated for a category it is not currently offered under, and that is
-   * not an error (below).
-   *
-   * Deliberately NOT guarded on `systemOnly`, for the same reason as
-   * `setCategories`: which questions a name suggests is an operational choice,
-   * not a system invariant.
-   *
-   * Deliberately NOT guarded on scope either — neither a question code outside
-   * the category's asked set, nor a category the name is not assigned to, is
-   * rejected. This looks exactly like two missing validations and is neither:
-   * the detail screen surfaces both (a "no longer asked" tag, and a tab whose
-   * "offered under" switch is off), so the admin can see and fix them. Rejecting
-   * would make an existing drifted set unsaveable, and pruning would destroy
-   * configuration the admin never asked to lose.
-   */
-  async setQuestions(
-    id: string,
-    category: LoanCategory,
-    questionCodes: string[],
-    actor: AdminActor,
-  ): Promise<EnumerationRow> {
-    const existing = await this.repo.findById(id);
-    if (!existing) throw new NotFoundException();
-    if (!isQuestionTemplateEnumerationType(existing.type)) {
-      throw new EnumerationQuestionsNotApplicableException({ type: existing.type });
-    }
-
-    const next = [...new Set(questionCodes)];
-    if (next.length > 0) {
-      // Checked against EVERY question, not just the active pool: an admin
-      // re-saving a template that still names a soft-deleted question must not
-      // be blocked by a row they are being told to come here and remove.
-      const known = await this.repo.existingQuestionCodes(next);
-      const unknownCodes = next.filter((c) => !known.has(c));
-      if (unknownCodes.length > 0) {
-        throw new EnumerationQuestionUnknownException({
-          type: existing.type,
-          key: existing.key,
-          unknownCodes,
-        });
-      }
-    }
-
-    const before = await this.repo.questionsOfCategory(id, category);
-    await this.repo.setQuestions(id, category, next);
-    // No `invalidateCache` here, deliberately: question codes are kept OFF
-    // `EnumerationMember` precisely so the 60s registry cache cannot serve the
-    // wizard a stale suggestion. Invalidating would imply the cache holds this.
-
-    if (!sameCodeSet(before, next)) {
-      // Audited per category — `questions.personal`, not `questions`. One key for
-      // all four would make a diff on the Personal tab read as though the whole
-      // template had been replaced, and the log is what an operator reaches for
-      // when a bank asks why its wizard changed.
-      await this.writeAssignmentAudit(
-        existing,
-        `questions.${category}`,
-        sortCodes(before),
-        sortCodes(next),
-        actor,
-      );
     }
     return existing;
   }

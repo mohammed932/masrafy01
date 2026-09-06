@@ -64,7 +64,6 @@ returns — the age-at-maturity rule sees the same number on both paths.
 { "success": true, "data": { "category": "personal", "matches": [ {
   "bankProgramId": "bp_…", "programCode": "ABK-PL-PAYROLL", "bankName": "ABK Egypt",
   "bankIsFeatured": true, "programFriendlyName": "Payroll Loan",
-  "approvalProbability": 78, "approvalTier": "good", "usedDefaultWeights": false,
   "requiredDocuments": ["SIGNED_APPLICATION","VALID_NID"],
   "figures": {
     "offeredAmountEGP": "285000.00",
@@ -86,7 +85,8 @@ returns — the age-at-maturity rule sees the same number on both paths.
 "suggestions": [] } }
 ```
 
-- `figures: null` + `figuresUnavailableReason` (reason code list in [error-codes.md](./error-codes.md)) when a program cannot be quoted. The program is still listed and still scored (FR-024).
+- `figures: null` + `figuresUnavailableReason` (reason code list in [error-codes.md](./error-codes.md)) when a program cannot be quoted. The program is still listed and still ordered (FR-024).
+- **Order** (v25.0.0): `matches` arrives ranked, and the client renders it as received — there is no score to re-sort by. The apply path freezes `rankOffers(offers, priority)` on each row as `bank_offer.rankIndex` and reads back by it; preview persists nothing, so it has no `rankIndex` and applies the same key chain in memory — installment ascending with unquotable programs last, then partner bank (`bankIsFeatured`), then `programCode`.
 - `bindingConstraint` explains any reduction (FR-023).
 - `monthlyInstallmentEGP` is computed on offered amount **plus** financed fees; `cashToCustomerEGP` is what the customer receives (FR-022a).
 - Preview figures equal the figures returned by `POST /v1/apply` for the same answers (FR-025 / SC-004).

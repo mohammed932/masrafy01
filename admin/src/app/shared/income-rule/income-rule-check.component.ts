@@ -2,10 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzFormModule } from 'ng-zorro-antd/form';
-import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { ExperimentOutline } from '@ant-design/icons-angular/icons';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
@@ -27,7 +25,7 @@ import {
 import { derivedFactByKey } from '@core/surrogate-facts';
 
 /**
- * "Check this rule before anyone else sees it" (FR-026 – FR-031).
+ * "Try it on a sample applicant" (FR-026 – FR-031).
  *
  * Sits directly below the table, inside the same section and the SAME tab order, and
  * renders its result IN PLACE — no navigation, no modal, no full-screen blocking state
@@ -53,29 +51,38 @@ import { derivedFactByKey } from '@core/surrogate-facts';
     FormsModule,
     NzButtonModule,
     NzFormModule,
-    NzIconModule,
     NzInputModule,
     NzSelectModule,
     MoneyInputDirective,
   ],
-  providers: [provideNzIconsPatch([ExperimentOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="chk" [formGroup]="form">
+      <!-- The third of three bands in one section, so it is headed the way the other two
+           are: one micro-label, one note. The medallion and the sentence-length h4 it used
+           to carry were the only ones of their kind on the step, which is what made this
+           panel read as a separate card rather than as the last part of one answer. -->
       <header class="chk__head">
-        <span nz-icon nzType="experiment" nzTheme="outline" aria-hidden="true"></span>
-        <div>
-          <h4 class="chk__title" i18n="@@bank_programs.income.check_title">
-            Check this rule before anyone else sees it
-          </h4>
-          <p class="chk__sub" i18n="@@bank_programs.income.check_sub">
-            Runs a sample applicant against what is on screen right now, including edits you have
-            not saved. Nothing is stored.
-          </p>
-        </div>
+        <h3 class="chk__title" i18n="@@bank_programs.income.check_band">
+          Try it on a sample applicant
+        </h3>
+        <p class="chk__sub" i18n="@@bank_programs.income.check_sub">
+          Runs a sample applicant against what is on screen right now, including edits you have not
+          saved. Nothing is stored.
+        </p>
       </header>
 
       <div class="chk__grid">
+        <!-- TWO QUESTIONS, SAID AS TWO.
+             Thirteen fields in one undifferentiated grid asked the operator to keep track
+             of which of them are the PRODUCT's answers and which are the applicant's
+             circumstances — "What is the contract price of the unit?" sat beside "Age" in
+             the same treatment. The bands cost two lines and remove that bookkeeping. -->
+        @if (showsFactBand()) {
+          <p class="chk__band" i18n="@@bank_programs.income.check_band_answers">
+            What the customer answered
+          </p>
+        }
         <!-- The fact the selected method reads. Only the relevant one is asked for:
              showing all ten would bury it. -->
         <!-- Gated on the SHAPE plus a list to pick from, not on the enumeration: a
@@ -146,6 +153,8 @@ import { derivedFactByKey } from '@core/surrogate-facts';
             </nz-form-item>
           }
         }
+
+        <p class="chk__band" i18n="@@bank_programs.income.check_band_person">Their circumstances</p>
 
         <nz-form-item class="numeric">
           <nz-form-label [nzFor]="'sampleAge'" i18n="@@bank_programs.income.check_age"
@@ -310,33 +319,47 @@ import { derivedFactByKey } from '@core/surrogate-facts';
   `,
   styles: [
     `
+      /* No margin of its own. It had one while it was a free-standing bordered card that
+         had to hold itself off whatever preceded it; its one host now wraps it in a band
+         that supplies the hairline and the padding, and a margin here cannot collapse
+         through that padding — it stacked, and the third band's label sat 32px below its
+         rule while the first two sat at 16px. */
       :host {
         display: block;
-        margin-block-start: var(--space-4);
       }
 
+      /*
+       * A BAND, not a card. This panel is the third of three peers inside one section —
+       * the calculation, the other money, and this — and it was the only one of the three
+       * drawn as a bordered card, which made three parts of one answer read as a section
+       * plus a loose block plus a card.
+       *
+       * The fill it used to carry was already doing nothing: --color-surface-elevated
+       * resolves to --bg-subtle, which is the app shell's own background, so once the
+       * host block went bare the "recessed" surface had zero contrast against the page and
+       * only the 1px border was visible. What separates it now is the same hairline the
+       * band above it uses.
+       */
       .chk {
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
-        padding: var(--space-4);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-md);
-        background: var(--color-surface-elevated);
       }
 
       .chk__head {
         display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        color: var(--color-tonal-accent);
+        flex-direction: column;
+        gap: var(--space-1);
       }
 
+      /* The band ramp, shared verbatim with the two bands above it. */
       .chk__title {
         margin: 0;
-        font-size: var(--text-sm);
+        font-size: var(--text-xs);
         font-weight: var(--font-semibold);
-        color: var(--color-text-primary);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
       }
 
       .chk__sub {
@@ -351,6 +374,50 @@ import { derivedFactByKey } from '@core/surrogate-facts';
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: var(--space-2) var(--space-3);
         align-items: start;
+      }
+
+      /*
+       * .span-2 and .numeric are the wizard's vocabulary, and this component loads no
+       * styleUrls — so BOTH were inert here: every pipeline-fact field the template marks
+       * as wide sat in a third of a column with its sentence-long label wrapping, and six
+       * money inputs rendered with proportional figures.
+       *
+       * 1 / -1 rather than span 2, because the column count changes twice below and a
+       * span of two is wrong at one column and at three.
+       */
+      .chk__grid > .span-2 {
+        grid-column: 1 / -1;
+      }
+
+      /* The LABEL takes the row; the control does not. These labels are whole questions —
+         "How much have you paid for the unit so far?" — so they need the width, and the
+         answer is six digits or a picked value, which does not. An input as wide as its
+         own question is the same mistake as a 900px box for a 7-digit number, which this
+         page's own section layout exists to avoid. */
+      .chk__grid > .span-2 nz-form-control {
+        max-inline-size: 26rem;
+      }
+
+      .chk__grid .numeric input {
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: var(--font-feature-tabular);
+      }
+
+      /* The band label over each half of the panel. Same ramp as the section's own
+         micro-labels, and inked SECONDARY: tertiary measures 3.5:1 on this ground and
+         these two lines are read, not decoration. */
+      .chk__band {
+        grid-column: 1 / -1;
+        margin: var(--space-2) 0 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+
+      .chk__band:first-child {
+        margin-block-start: 0;
       }
 
       .chk__actions {
@@ -509,6 +576,20 @@ export class IncomeRuleCheckComponent {
   });
 
   readonly shape = computed(() => incomeMethodShape(this.draft().strategy, this.facts()));
+
+  /**
+   * Does the panel ask for any of the PRODUCT's own answers?
+   *
+   * Mirrors the three template branches above it rather than guessing from the shape alone:
+   * a `keyTable` whose fact has no options to pick from renders nothing, and a `declared`
+   * strategy reads no fact at all. Either way the band would head an empty half.
+   */
+  protected readonly showsFactBand = computed(() => {
+    const shape = this.shape();
+    if (shape === 'keyTable') return this.keyMembers().length > 0;
+    if (shape === 'bands' || shape === 'scalar') return true;
+    return shape === 'steps' && this.pipelineFacts().length > 0;
+  });
 
   /**
    * Every fact this pipeline reads, with the label and the options to test it by.

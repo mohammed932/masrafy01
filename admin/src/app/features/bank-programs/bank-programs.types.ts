@@ -50,6 +50,18 @@ export interface LoanLimitsConfig {
   maxLoanByFact?: {
     factKey: string;
     columnFactKey?: string;
+    /**
+     * Whether a row / column key is the answer's OWN option code, or the class it is filed
+     * under. Absent reads as `'answer'`, which is what every table written before the class
+     * axis existed means.
+     *
+     * Load-bearing on the wire even though the operator rarely touches it: ABK's doctors cap
+     * is keyed by `city_tier_*`, three classes standing in for twenty-seven governorates, and
+     * a save that dropped this field would leave the table matching raw governorate codes,
+     * finding no row, and falling through to `onNoMatch`.
+     */
+    rowVia?: 'answer' | 'parentClass';
+    columnVia?: 'answer' | 'parentClass';
     rows: Array<{
       rowKey?: string;
       fromInclusive?: string;
@@ -249,6 +261,14 @@ export interface RegistryFact {
     parentEnumerationType?: string;
     /** Loan categories the questionnaire actually asks this question of. */
     askedIn: readonly LoanCategory[];
+    /**
+     * The answer this question is asked behind, or `null` when it is asked of everyone.
+     *
+     * Carried so a screen can tell what KIND of fact this is without a hand-typed list of
+     * keys: the questionnaire's own gate is the statement, and it moves when the
+     * questionnaire moves.
+     */
+    enabledWhen?: { questionCode: string; optionCode: string } | null;
   } | null;
 }
 
@@ -290,6 +310,11 @@ export function registryFacts(
             ? { parentEnumerationType: q.parentEnumerationType }
             : {}),
           askedIn: q.askedIn ?? [],
+          // Spread conditionally for the same reason as the two above: `undefined` here
+          // means "an older backend did not send it", which is not the same claim as
+          // `null` ("asked unconditionally"), and an `in` check must be able to tell them
+          // apart.
+          ...(q.enabledWhen !== undefined ? { enabledWhen: q.enabledWhen } : {}),
         },
       },
     ];
@@ -870,10 +895,11 @@ export interface IncomeBand {
  * Declared once and used by both carriers, because they are the same list read from two
  * directions — a name's own programmes, and every programme reachable through a product.
  *
- * The NAMES matter as much as the code. One product is deliberately sold as several
- * programmes off one mechanism, so a list of bare codes cannot say which is which: ABK files
- * both `ABK-PER-DOCTORS_CLINIC` (30,000-300,000, capped by city tier) and
- * `ABK-PER-DOCTORS_PRACTICE` (half that, uncapped) under the one doctors name.
+ * The NAMES matter as much as the code. A product is routinely sold as several programmes off
+ * one mechanism — four banks price the compound guarantee off one frame — so a list of bare
+ * codes cannot say which is which. The two ABK doctor programmes were the sharpest case and
+ * are no longer one: they differ by half at every band and in rate, tenor, age, maximum and
+ * cap, which is why each now has its own product and its own catalog name.
  */
 export interface ProgramUnderName {
   programCode: string;

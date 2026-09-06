@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import 'package:app/features/matching/domain/enums/approval_tier.dart';
 
 /// Domain result of `POST /api/v1/apply`. Two shapes collapse into one entity:
 /// a MATCHED result carries [applicationId] + ranked [offers]; a NO-MATCH result
@@ -103,10 +102,6 @@ class OfferEntity extends Equatable {
     required this.effectiveLoanAmountEGP,
     required this.requestedTenorMonths,
     required this.effectiveTenorMonths,
-    required this.approvalScore,
-    required this.approvalTier,
-    this.approvalUnrated = false,
-    required this.tierLabelCode,
     required this.requiredDocuments,
     required this.matchReasons,
     this.feesBreakdown,
@@ -129,14 +124,6 @@ class OfferEntity extends Equatable {
   final double effectiveLoanAmountEGP;
   final int requestedTenorMonths;
   final int effectiveTenorMonths;
-  final int approvalScore;
-  final ApprovalTier approvalTier;
-
-  /// The program had no ACTIVE scoring weight set at match time, so
-  /// [approvalScore] is 0 for want of configuration rather than for want of a
-  /// fit. Rendered as "Not rated" instead of a 0% match.
-  final bool approvalUnrated;
-  final String tierLabelCode;
   final List<String> requiredDocuments;
   final List<String> matchReasons;
   final Map<String, dynamic>? feesBreakdown;
@@ -191,10 +178,6 @@ class OfferEntity extends Equatable {
         effectiveLoanAmountEGP,
         requestedTenorMonths,
         effectiveTenorMonths,
-        approvalScore,
-        approvalTier,
-        approvalUnrated,
-        tierLabelCode,
         requiredDocuments,
         matchReasons,
         feesBreakdown,

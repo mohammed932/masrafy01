@@ -1,6 +1,5 @@
 import 'package:app/features/matching/data/models/request/apply_request.dart';
 import 'package:app/features/matching/domain/entities/apply_result_entity.dart';
-import 'package:app/features/matching/domain/enums/approval_tier.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 /// Route payload for the offers-list + offer-details screens (Figma `2040:1253`,
@@ -67,17 +66,15 @@ class MatchResultsArgs {
       durationMonths: term,
       offers: [
         MatchOffer(
-          approvalPct: 98,
           termMonths: term,
           ratePct: 9.5,
           monthly: 4620,
           totalLabel: '166K',
           totalInterest: 16320,
           totalLoan: 166320,
-          isBestMatch: true,
+          isTopPick: true,
         ),
         MatchOffer(
-          approvalPct: 84,
           termMonths: term,
           ratePct: 10.1,
           monthly: 4720,
@@ -86,7 +83,6 @@ class MatchResultsArgs {
           totalLoan: 170320,
         ),
         MatchOffer(
-          approvalPct: 72,
           termMonths: term,
           ratePct: 10.1,
           monthly: 4720,
@@ -99,16 +95,15 @@ class MatchResultsArgs {
   }
 }
 
-/// A single bank match rendered by the list + details screens. Display fields
-/// ([approvalPct], rate, monthly, totals) feed the existing Figma widgets and
-/// are always required. The identity/meta fields ([bankOfferId],
-/// [applicationId], [bankName], …) are populated only for real offers (via
+/// A single bank match rendered by the list + details screens. The money fields
+/// (rate, monthly, totals) feed the existing Figma widgets and are always
+/// required. The identity/meta fields ([bankOfferId], [applicationId],
+/// [bankName], …) are populated only for real offers (via
 /// [MatchOffer.fromEntity]); saved-offer / past-application / mock offers leave
 /// them at their defaults, and the details screen's proceed CTA stays inert
 /// unless [applicationId] is set.
 class MatchOffer {
   const MatchOffer({
-    required this.approvalPct,
     required this.termMonths,
     required this.ratePct,
     required this.monthly,
@@ -120,8 +115,6 @@ class MatchOffer {
     this.bankName = '',
     this.programCode = '',
     this.programFriendlyName = '',
-    this.tier = ApprovalTier.veryLow,
-    this.approvalUnrated = false,
     this.bankIsFeatured = false,
     this.requiredDocuments = const [],
     this.feesBreakdown,
@@ -131,12 +124,11 @@ class MatchOffer {
     this.collateralCeiling,
     this.dbrPct,
     this.dbrCapPct,
-    this.isBestMatch = false,
+    this.isTopPick = false,
     this.alreadyApplied = false,
     this.isSaved = false,
   });
 
-  final int approvalPct;
   final int termMonths;
 
   /// Annual interest rate, e.g. `9.5` → "9.5%".
@@ -163,10 +155,6 @@ class MatchOffer {
   final String bankName;
   final String programCode;
   final String programFriendlyName;
-  final ApprovalTier tier;
-
-  /// No ACTIVE weight set behind [approvalPct] — show "Not rated", not "0%".
-  final bool approvalUnrated;
   final bool bankIsFeatured;
   final List<String> requiredDocuments;
 
@@ -217,7 +205,10 @@ class MatchOffer {
   /// interest and would never be under the cap.
   int get totalLoanPrincipal => totalLoan - totalInterest;
 
-  final bool isBestMatch;
+  /// Top of the list — position 0 by the priority the customer actually stated.
+  /// Drives the card's azure fill, azure border, near-white KPI cells and solid
+  /// CTA: a "start here", never a claim about how likely this bank is to say yes.
+  final bool isTopPick;
 
   /// True when this offer belongs to an application the customer already
   /// proceeded with (Applications screen). Hides the Apply CTA on the shared
@@ -229,15 +220,14 @@ class MatchOffer {
   final bool isSaved;
 
   /// Build a display offer from a domain [OfferEntity]. Totals are derived on
-  /// the entity (installment × term); [isBestMatch] marks the top-ranked row.
+  /// the entity (installment × term); [isTopPick] marks the top-ranked row.
   factory MatchOffer.fromEntity(
     OfferEntity e, {
     required String applicationId,
-    required bool isBestMatch,
+    required bool isTopPick,
     bool alreadyApplied = false,
   }) {
     return MatchOffer(
-      approvalPct: e.approvalScore,
       termMonths: e.effectiveTenorMonths,
       ratePct: e.effectiveRatePercent,
       monthly: e.monthlyInstallmentEGP.round(),
@@ -249,8 +239,6 @@ class MatchOffer {
       bankName: e.bankName,
       programCode: e.programCode,
       programFriendlyName: e.programFriendlyName,
-      tier: e.approvalTier,
-      approvalUnrated: e.approvalUnrated,
       bankIsFeatured: e.bankIsFeatured,
       requiredDocuments: e.requiredDocuments,
       feesBreakdown: e.feesBreakdown,
@@ -265,7 +253,7 @@ class MatchOffer {
       collateralCeiling: e.collateralCeilingEGP?.round(),
       dbrPct: e.dbrPercent,
       dbrCapPct: e.dbrCapPercent,
-      isBestMatch: isBestMatch,
+      isTopPick: isTopPick,
       alreadyApplied: alreadyApplied,
       isSaved: e.isSaved,
     );

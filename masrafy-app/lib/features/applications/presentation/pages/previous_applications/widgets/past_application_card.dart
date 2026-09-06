@@ -11,10 +11,10 @@ import 'package:app/l10n/generated/app_localizations.dart';
 import '../../../models/previous_applications_args.dart';
 
 /// A single past-application card on the "Applications" screen (Figma
-/// `4088:332`). Mirrors the live-offers `MatchOfferCard` — "{pct}% Guarantee
-/// Approval" heading, "{type} · {n} months" subtitle, a Rate / Monthly / Total
-/// KPI row and an outlined "View offer" CTA — but swaps the best-match chip for
-/// a status pill (Applied / Approved / Rejected). Flow-local (Principle XXXII);
+/// `4088:332`). Mirrors the live-offers `MatchOfferCard` — bank heading,
+/// "{program} · {type} · {n} months" subtitle, a Rate / Monthly / Total KPI row
+/// and an outlined "View offer" CTA — plus a status pill (Applied / Approved /
+/// Rejected) where the results list has none. Flow-local (Principle XXXII);
 /// UI-only.
 class PastApplicationCard extends StatelessWidget {
   const PastApplicationCard({
@@ -33,6 +33,12 @@ class PastApplicationCard extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final offer = application.offer;
     final productLabel = loanTypeLabel(l, application.loanTypeKey);
+    // The bank, then what it matched — same lead as the results list, so an
+    // application reads as the offer it came from.
+    final subline = offer.programFriendlyName.isNotEmpty
+        ? '${offer.programFriendlyName} · $productLabel · '
+            '${l.results_months(offer.termMonths)}'
+        : '$productLabel · ${l.results_months(offer.termMonths)}';
 
     return Container(
       width: double.infinity,
@@ -52,21 +58,17 @@ class PastApplicationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      offer.approvalUnrated
-                          ? l.results_unrated
-                          : l.results_guarantee_approval(offer.approvalPct),
-                      style: text.bodyLarge.copyWith(
-                        color: colors.primary.main,
-                        fontWeight: FontWeight.w800,
+                    if (offer.bankName.isNotEmpty) ...[
+                      Text(
+                        offer.bankName,
+                        style: text.heading4.copyWith(color: colors.textBase),
                       ),
-                    ),
-                    Gap(1.h),
+                      Gap(2.h),
+                    ],
                     Text(
-                      '$productLabel · ${l.results_months(offer.termMonths)}',
-                      style: text.bodySmall.copyWith(
-                        color: colors.primary.border,
-                      ),
+                      subline,
+                      style:
+                          text.bodySmall.copyWith(color: colors.text.secondary),
                     ),
                   ],
                 ),

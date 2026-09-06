@@ -166,10 +166,10 @@ describe('assignment and pool membership', () => {
     // TWO references, `personal` and `car` — the seeded DEFAULT for where a no-payslip
     // program can be sold, not a fixed rule: v16.0.0 derives capability from these very
     // assignments, so an operator adds `mortgage` on the questionnaire screen without
-    // touching this seed. `personal` in particular must keep them because three live bank
-    // programs (`ABK-MILITARY`, `ABK-PROFESSORS`, `ABK-DOCTORS-PRACTICE`) are `personal` +
-    // `income_surrogate` and read them — dropping that assignment would make every one of
-    // those resolve to `SURROGATE_FACT_MISSING` on the next seed run.
+    // touching this seed. `personal` in particular must keep them because live bank
+    // programs (`ABK-MILITARY`, `ABK-PROFESSORS` and the two `ABK-PER-DOCTORS_*` sheets) are
+    // `personal` + `income_surrogate` and read them — dropping that assignment would make
+    // every one of those resolve to `SURROGATE_FACT_MISSING` on the next seed run.
     //
     // The count is asserted to catch an ACCIDENTAL extra reference (a copy-paste into
     // MORTGAGE), not to forbid a deliberate one: widening the product is a seed edit plus

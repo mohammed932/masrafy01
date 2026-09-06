@@ -4,22 +4,9 @@
  * input in the flow and the one with the largest effect on DBR.
  *
  * The property this file exists to hold is the one that made the design what it
- * is: **debt burden is only meaningful as a total.** Band each debt on its own
- * and one 5 000 car loan reads "high debt" once (a single low score) while three
- * 1 700 debts read "low debt" three times (three high scores) — the same real
- * burden scoring opposite ways, with the v13.0.0 asked-weight denominator
- * shifting underneath it too, because a three-debt applicant is asked three more
- * weighted questions than a one-debt applicant.
- *
- * That is why the five per-debt questions are capture-only (unweighted, no
- * bands) and only `current_installments`, the derived total, carries the
- * obligations weight. These tests pin both halves: the sum is right, and the
- * scored figure is identical for two applicants with the same burden split
- * differently.
- *
- * Four of the five questions state an instalment. The fifth — credit cards —
- * states a total LIMIT instead, discounted to a monthly burden by
- * `CREDIT_CARD_LIMIT_MONTHLY_PERCENT`; that conversion has its own block below.
+ * is: **debt burden is only meaningful as a total.** Each debt is a separate answer,
+ * and only the SUM reaches the quote — `resolveObligations` is the one place that
+ * addition happens, so a per-debt figure can never leak into DBR on its own.
  */
 import { describe, expect, it } from 'vitest';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -36,12 +23,6 @@ import {
   obligationMonthlyAmountFor,
   resolveObligations,
 } from '@/matching/pipeline/money-field-bindings';
-import {
-  computeProbability,
-  normalizeWeights,
-  type ProgramScoring,
-  type SelectedAnswer,
-} from '@/matching/scoring/approval-probability.scorer';
 
 const ITEM = OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE;
 
@@ -251,100 +232,6 @@ describe('credit cards state a LIMIT, and only a share of it is a monthly burden
   it('keeps the discount a percentage of the limit, in Decimal', () => {
     // Guards against the constant being re-expressed as a 0.05 float factor.
     expect(CREDIT_CARD_LIMIT_MONTHLY_PERCENT.toFixed(2)).toBe('5.00');
-  });
-});
-
-describe('the scoring trap — burden is scored as a TOTAL, never per debt', () => {
-  /**
-   * One weighted obligations question: the derived total, banded lower-is-better.
-   * Weights sum to 100, as `assertQuestionWeightsSumTo100` requires on save.
-   */
-  const SCORING: ProgramScoring = normalizeWeights({
-    questionWeights: { monthly_income: 50, [MONEY_FIELD_BINDINGS.existing_obligations]: 50 },
-    answerScores: {},
-    numericBands: {
-      monthly_income: [{ from: null, to: null, score: 100 }],
-      [MONEY_FIELD_BINDINGS.existing_obligations]: [
-        { from: null, to: '2500', score: 100 },
-        { from: '2500', to: '6000', score: 40 },
-        { from: '6000', to: null, score: 10 },
-      ],
-    },
-  });
-
-  /** Score an applicant whose debts are `debts`, split however they like. */
-  function scoreFor(debts: Record<string, string>, picks: string[]): number {
-    const obligations = resolveObligations({
-      numericByCode: numericAnswers(debts),
-      pickedDebtTypes: picks,
-    });
-    expect(obligations).not.toBeNull();
-
-    // The asked set: the debt-type question, one amount question per pick, and
-    // the total. Only the total (and income) is WEIGHTED — see the module doc.
-    const askedQuestionCodes = [
-      DEBT_TYPES_QUESTION_CODE,
-      ...picks.map((p) => obligationItemQuestionFor(p)).filter((c): c is string => c !== undefined),
-      MONEY_FIELD_BINDINGS.existing_obligations,
-      'monthly_income',
-    ];
-
-    const answers: SelectedAnswer[] = [
-      { questionCode: 'monthly_income', kind: 'numeric', value: '20000' },
-      {
-        questionCode: MONEY_FIELD_BINDINGS.existing_obligations,
-        kind: 'numeric',
-        value: obligations!.totalEGP.toFixed(2),
-      },
-    ];
-
-    return computeProbability(SCORING, answers, askedQuestionCodes);
-  }
-
-  it('scores one big debt and several small debts of the same burden identically', () => {
-    const oneBigDebt = scoreFor({ [ITEM.car_loan]: '5100.00' }, ['car_loan']);
-    const threeSmallDebts = scoreFor(
-      {
-        [ITEM.car_loan]: '1700.00',
-        [ITEM.mortgage]: '1700.00',
-        [ITEM.personal_loan]: '1700.00',
-      },
-      ['car_loan', 'mortgage', 'personal_loan'],
-    );
-
-    // Same 5 100 burden → same band → same score, however it is split. Had the
-    // per-debt questions been weighted, the three-debt applicant would have
-    // scored three "low debt" bands AND carried three extra weighted questions
-    // in the denominator.
-    expect(threeSmallDebts).toBe(oneBigDebt);
-  });
-
-  it('still separates a genuinely lighter burden from a heavier one', () => {
-    // The guard above must not be achieved by making obligations stop mattering.
-    const light = scoreFor({ [ITEM.personal_loan]: '400.00' }, ['personal_loan']);
-    const heavy = scoreFor({ [ITEM.car_loan]: '7000.00' }, ['car_loan']);
-
-    expect(light).toBeGreaterThan(heavy);
-  });
-
-  it('leaves the denominator unchanged as the number of debts grows', () => {
-    // The per-debt questions ARE asked (they enter `askedQuestionCodes`), but
-    // they carry no weight, so they cannot move the denominator.
-    const oneDebt = scoreFor({ [ITEM.car_loan]: '1000.00' }, ['car_loan']);
-    const fiveDebts = scoreFor(
-      {
-        [ITEM.car_loan]: '200.00',
-        // A LIMIT, chosen so its 5% share is the same 200 as the instalments —
-        // the point of the test is the denominator, not the numerator.
-        [ITEM.credit_cards]: '4000.00',
-        [ITEM.personal_loan]: '200.00',
-        [ITEM.mortgage]: '200.00',
-        [ITEM.other]: '200.00',
-      },
-      ['car_loan', 'credit_cards', 'personal_loan', 'mortgage', 'other'],
-    );
-
-    expect(fiveDebts).toBe(oneDebt);
   });
 });
 

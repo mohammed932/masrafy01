@@ -27,10 +27,6 @@ export interface SavedOfferListItem {
   bankOfferId: string;
   /** `personal` | `car` | `mortgage` | `business` (falls back to `personal`). */
   loanTypeKey: string;
-  /** Integer approval percent 0–100 → "{pct}% Guarantee Approval". */
-  approvalScore: number;
-  /** Score is 0 for want of configuration, not for want of a fit. */
-  approvalUsedDefault: boolean;
   effectiveTenorMonths: number;
   effectiveRatePercent: string;
   monthlyInstallmentEGP: string;

@@ -339,24 +339,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get match_featured_badge => 'Featured';
 
   @override
-  String get match_tier_excellent => 'Excellent chance';
-
-  @override
-  String get match_tier_good => 'Good chance';
-
-  @override
-  String get match_tier_moderate => 'Moderate chance';
-
-  @override
-  String get match_tier_low => 'Low chance';
-
-  @override
-  String get match_tier_very_low => 'Very low chance';
-
-  @override
-  String get match_tier_unknown => 'Estimated chance';
-
-  @override
   String get match_action_retry => 'Retry';
 
   @override
@@ -1759,14 +1741,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String results_guarantee_approval(int pct) {
-    return '$pct% match';
-  }
-
-  @override
-  String get results_unrated => 'Not rated yet';
-
-  @override
   String get results_unavailable_section => 'Not available for you yet';
 
   @override
@@ -1779,9 +1753,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String results_unavailable_ceiling(String amount) {
     return 'You could borrow up to $amount EGP here.';
   }
-
-  @override
-  String get results_best_match => 'Best Match';
 
   @override
   String get results_rate => 'Rate';
@@ -1819,14 +1790,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String offer_title(String type) {
     return '$type Loan';
   }
-
-  @override
-  String offer_approval(int pct) {
-    return '$pct% match score';
-  }
-
-  @override
-  String get offer_unrated => 'Not rated yet';
 
   @override
   String get offer_interest_rate => 'Interest rate';

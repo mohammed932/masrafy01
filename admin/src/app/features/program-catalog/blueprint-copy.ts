@@ -62,10 +62,16 @@ const COPY: Readonly<Record<string, () => BlueprintCopy>> = {
     example: $localize`:@@bpl.rank.eg:One sheet pays a Dean 100,000 and a teaching assistant 12,000; another pays 300,000 and 20,000 at private universities.`,
     glyph: GLYPH.rank,
   }),
-  years_in_practice_bands: () => ({
-    title: $localize`:@@bpl.years.title:Doctors`,
-    mechanism: $localize`:@@bpl.years.mech:The customer states how many years they have practised, and the bank has a row for the bracket it falls in — by city tier where it prices those apart. Clinic owners and doctors in practice are the same calculation on different figures, so each bank programme states its own.`,
-    example: $localize`:@@bpl.years.eg:One sheet pays clinic owners 30,000 at 3–5 years and 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere; the same bank pays a doctor in practice exactly half at every bracket.`,
+  doctors_clinic_owner: () => ({
+    title: $localize`:@@bpl.clinic.title:Doctors — Clinic Owners`,
+    mechanism: $localize`:@@bpl.clinic.mech:The customer states how many years they have practised, and the bank has a row for the bracket it falls in — with a second column for the tier of the governorate they work in, where it prices those apart. The maximum loan is read off the same governorate.`,
+    example: $localize`:@@bpl.clinic.eg:One sheet pays 30,000 at 3–5 years rising to 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere.`,
+    glyph: GLYPH.years,
+  }),
+  doctors_in_practice: () => ({
+    title: $localize`:@@bpl.practice.title:Doctors — In Practice`,
+    mechanism: $localize`:@@bpl.practice.mech:The same brackets by years practised, and nothing else: this sheet prices one table and states no maximum of its own, so the programme's own maximum is the only ceiling.`,
+    example: $localize`:@@bpl.practice.eg:One sheet pays 15,000 at 3–5 years rising to 150,000 above 20 — exactly half what the same bank pays a clinic owner at every bracket.`,
     glyph: GLYPH.years,
   }),
   card_limit_share: () => ({

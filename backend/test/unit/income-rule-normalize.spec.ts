@@ -11,11 +11,29 @@ import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-norma
 import { bandFor } from '@/matching/pipeline/income-rule-bands';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 import { abkEgypt2026 } from '@/bank-programs/seeds/catalogs/abk-egypt-2026';
+import { CATALOG_INCOME_RULE } from '../../prisma/data/program-catalog-matrix';
 
 function ruleOf(programCode: string): IncomeAssumptionConfig {
   const program = abkEgypt2026.programs.find((p) => p.programCode === programCode);
   if (!program) throw new Error(`seed ${programCode} not found`);
   return program.incomeAssumption as unknown as IncomeAssumptionConfig;
+}
+
+/**
+ * The doctors half of this file reads the CATALOG name's rule, not a bank programme.
+ *
+ * `ABK-DOCTORS-PRACTICE` carried the same converted table and was retired on 2026-09-05: the
+ * doctors sheets are `doctors_clinic_owner` and `doctors_in_practice`, and that legacy pair
+ * was a second,
+ * contradictory answer under `programNameKey: 'doctor'`. The conversion it proved is still
+ * live on `CATALOG_INCOME_RULE.doctor_practice`, byte for byte, so the claim this file makes
+ * — that the hand conversion equals the machine one — moves to the copy that survives rather
+ * than being deleted with the copy that did not.
+ */
+function catalogRuleOf(nameKey: string): IncomeAssumptionConfig {
+  const rule = CATALOG_INCOME_RULE[nameKey];
+  if (!rule) throw new Error(`catalog rule ${nameKey} not found`);
+  return rule as unknown as IncomeAssumptionConfig;
 }
 
 /**
@@ -304,7 +322,7 @@ describe('normalizeIncomeAssumption — idempotence and policy fields', () => {
     // matches the machine one — without it, the seed and the normalizer could disagree
     // and every environment would get one answer or the other depending on whether it
     // had been re-seeded.
-    expect(ruleOf('ABK-DOCTORS-PRACTICE').bands).toEqual(
+    expect(catalogRuleOf('doctor_practice').bands).toEqual(
       normalizeIncomeAssumption(LEGACY_DOCTORS).bands,
     );
     expect(ruleOf('ABK-PROFESSORS').keyTable).toEqual(
@@ -316,10 +334,12 @@ describe('normalizeIncomeAssumption — idempotence and policy fields', () => {
   });
 
   it('leaves the now-canonical seeds untouched — the normalizer is idempotent on them', () => {
-    for (const code of ['ABK-DOCTORS-PRACTICE', 'ABK-PROFESSORS', 'ABK-MILITARY']) {
+    for (const code of ['ABK-PROFESSORS', 'ABK-MILITARY']) {
       const rule = ruleOf(code);
       expect(normalizeIncomeAssumption(rule), code).toBe(rule);
     }
+    const doctors = catalogRuleOf('doctor_practice');
+    expect(normalizeIncomeAssumption(doctors), 'doctor_practice').toBe(doctors);
   });
 
   it('normalizes every seeded catalog rule without throwing', () => {

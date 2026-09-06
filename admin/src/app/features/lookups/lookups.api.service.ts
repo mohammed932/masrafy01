@@ -97,14 +97,6 @@ export interface EnumerationRow {
    * `usage.byCategory` above says what banks actually did, and the two may disagree.
    */
   incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
-  /**
-   * `program_name` rows only — question codes this name SUGGESTS scoring on,
-   * PER loan category. Advisory: it pre-ticks the per-program scoring wizard and
-   * constrains nothing. A missing category key and an empty array both mean "not
-   * configured for that category", which is the day-one state and not a problem
-   * — unlike `categories` above, where `[]` is the meaningful "parked" state.
-   */
-  questionsByCategory?: Partial<Record<LoanCategory, string[]>>;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -450,8 +442,8 @@ export class LookupsApiService {
    * name is meant to be sold there. The array IS the new set and may never be empty:
    * a pair the catalog describes in no way at all is a pair no screen could render.
    *
-   * Scoped to the category, like `setQuestions`: a name is legitimately meant for
-   * no-payslip lending as a personal loan and payslip-only as a car loan.
+   * Scoped to the category: a name is legitimately meant for no-payslip lending as
+   * a personal loan and payslip-only as a car loan.
    */
   /**
    * Point one income FACT at the question that answers it, or unbind it.
@@ -487,33 +479,13 @@ export class LookupsApiService {
     return res.data;
   }
 
-  /** The active question pool the catalog's question-template board picks from. */
+  /**
+   * The active question pool. Read by the new-question screen so its slug preview
+   * avoids colliding with a code the server already holds.
+   */
   async catalogQuestions(): Promise<CatalogQuestion[]> {
     const res = await firstValueFrom(
       this.http.get<SuccessEnvelope<CatalogQuestion[]>>(`${this.base}/questions`),
-    );
-    return res.data;
-  }
-
-  /**
-   * Replace one name's SUGGESTED question set FOR ONE loan category. The array IS
-   * the new set, not a delta; empty clears that category's template and leaves
-   * the other three alone. Advisory only — it pre-ticks the scoring wizard and
-   * can never invalidate a weight set a bank already saved.
-   *
-   * No bulk sibling: every action on the detail screen produces a new set for ONE
-   * name under ONE category.
-   */
-  async setQuestions(
-    id: string,
-    category: LoanCategory,
-    questionCodes: string[],
-  ): Promise<EnumerationRow> {
-    const res = await firstValueFrom(
-      this.http.put<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}/questions`, {
-        category,
-        questionCodes,
-      }),
     );
     return res.data;
   }

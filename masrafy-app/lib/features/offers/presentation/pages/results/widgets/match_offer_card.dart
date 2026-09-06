@@ -10,9 +10,11 @@ import 'package:app/l10n/generated/app_localizations.dart';
 import '../../../models/match_results_args.dart';
 
 /// A single match card in the offers list (Figma best-match `2040:1304`,
-/// regular `2040:1332`). The best match is azure-outlined with a "Best Match"
-/// chip and a solid CTA; regular cards are white with a muted KPI row and an
-/// outlined CTA. Flow-local (Principle XXXII); UI-only.
+/// regular `2040:1332`). Leads with the BANK and the program it matched — the
+/// same two lines `UnavailableProgramCard` leads with, so a priced and an
+/// unpriced bank read alike in one list. The top pick is azure-outlined with a
+/// solid CTA; the rest are white with a muted KPI row and an outlined CTA.
+/// Flow-local (Principle XXXII); UI-only.
 class MatchOfferCard extends StatelessWidget {
   const MatchOfferCard({
     super.key,
@@ -33,16 +35,24 @@ class MatchOfferCard extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final l = AppLocalizations.of(context);
-    final best = offer.isBestMatch;
+    final topPick = offer.isTopPick;
 
-    // Best-match: azure-tinted fill + azure border; regular: white + hairline.
-    final cardColor =
-        best ? colors.secondary.border.withValues(alpha: 0.2) : colors.bg.container;
-    final cardBorder = best ? colors.secondary.main : colors.border.secondary;
-    // KPI cells: near-white on the best card, layout grey on regular cards.
-    final cellColor = best ? colors.bg.container : colors.bg.layout;
-    // Monthly/Total values read muted on regular cards, solid on the best one.
-    final valueColor = best ? colors.textBase : colors.primary.border;
+    // Top pick: azure-tinted fill + azure border; the rest: white + hairline.
+    final cardColor = topPick
+        ? colors.secondary.border.withValues(alpha: 0.2)
+        : colors.bg.container;
+    final cardBorder = topPick ? colors.secondary.main : colors.border.secondary;
+    // KPI cells: near-white on the top pick, layout grey on the rest.
+    final cellColor = topPick ? colors.bg.container : colors.bg.layout;
+    // Monthly/Total values read muted on the rest, solid on the top pick.
+    final valueColor = topPick ? colors.textBase : colors.primary.border;
+
+    // The bank, then what it matched. This card compares twenty banks and had
+    // never said which bank any one of them was.
+    final subline = offer.programFriendlyName.isNotEmpty
+        ? '${offer.programFriendlyName} · $productLabel · '
+            '${l.results_months(offer.termMonths)}'
+        : '$productLabel · ${l.results_months(offer.termMonths)}';
 
     return Container(
       width: double.infinity,
@@ -55,37 +65,16 @@ class MatchOfferCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      offer.approvalUnrated
-                          ? l.results_unrated
-                          : l.results_guarantee_approval(offer.approvalPct),
-                      style: text.bodyLarge.copyWith(
-                        color: colors.primary.main,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Gap(1.h),
-                    Text(
-                      '$productLabel · ${l.results_months(offer.termMonths)}',
-                      style: text.bodySmall.copyWith(
-                        color: colors.primary.border,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (best) ...[
-                Gap(8.w),
-                _BestMatchChip(label: l.results_best_match),
-              ],
-            ],
+          if (offer.bankName.isNotEmpty) ...[
+            Text(
+              offer.bankName,
+              style: text.heading4.copyWith(color: colors.textBase),
+            ),
+            Gap(2.h),
+          ],
+          Text(
+            subline,
+            style: text.bodySmall.copyWith(color: colors.text.secondary),
           ),
           Gap(12.h),
           Row(
@@ -146,7 +135,7 @@ class MatchOfferCard extends StatelessWidget {
           Gap(12.h),
           _ViewOfferButton(
             label: l.results_view_offer,
-            best: best,
+            topPick: topPick,
             onTap: onViewOffer,
           ),
         ],
@@ -157,34 +146,6 @@ class MatchOfferCard extends StatelessWidget {
   /// 9.5 → "9.5", 10.0 → "10".
   static String _trimRate(double rate) =>
       rate == rate.truncateToDouble() ? rate.truncate().toString() : rate.toString();
-}
-
-class _BestMatchChip extends StatelessWidget {
-  const _BestMatchChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final text = MasrafyTextTheme.of(context);
-    return Container(
-      padding: EdgeInsetsDirectional.symmetric(horizontal: 11.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: colors.success.main.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(999.r),
-        border: Border.all(color: colors.success.border),
-      ),
-      child: Text(
-        label,
-        style: text.caption.copyWith(
-          color: colors.success.main,
-          fontWeight: FontWeight.w700,
-          fontSize: 10.sp,
-        ),
-      ),
-    );
-  }
 }
 
 /// Full-width affordability line under the KPI row: the ceiling this salary
@@ -290,12 +251,12 @@ class _KpiCell extends StatelessWidget {
 class _ViewOfferButton extends StatelessWidget {
   const _ViewOfferButton({
     required this.label,
-    required this.best,
+    required this.topPick,
     required this.onTap,
   });
 
   final String label;
-  final bool best;
+  final bool topPick;
   final VoidCallback onTap;
 
   @override
@@ -303,7 +264,7 @@ class _ViewOfferButton extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     return Material(
-      color: best ? colors.secondary.main : colors.bg.container,
+      color: topPick ? colors.secondary.main : colors.bg.container,
       borderRadius: BorderRadius.circular(12.r),
       child: InkWell(
         onTap: onTap,
@@ -313,7 +274,7 @@ class _ViewOfferButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 12.h),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12.r),
-            border: best
+            border: topPick
                 ? null
                 : Border.all(color: colors.secondary.border),
           ),
@@ -321,7 +282,7 @@ class _ViewOfferButton extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: text.bodySmall.copyWith(
-              color: best ? colors.white : colors.textBase,
+              color: topPick ? colors.white : colors.textBase,
               fontWeight: FontWeight.w700,
             ),
           ),

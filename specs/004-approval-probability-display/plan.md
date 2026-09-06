@@ -1,4 +1,21 @@
-# Implementation Plan: Approval Probability Display Enhancement
+# ~~Implementation Plan: Approval Probability Display Enhancement~~ — REMOVED (v25.0.0)
+
+> **REMOVED in v25.0.0.** Nothing in this plan survives in the code. The `ScoringEngineVersion`
+> registry and its table, `POST /api/admin/scoring-versions/:version/activate`, the four
+> `bank_offer` approval columns (`approvalScore`, `approvalTier`, `approvalFactors`, and the later
+> `approvalUsedDefault`), the `ApprovalTier` enum, the admin list pill, the three-bucket tier
+> filter, the "Why this score?" expander, the analyst distribution page and the three
+> `SCORING_VERSION_*` error codes were all deleted platform-wide.
+>
+> Why: the plan is sound engineering built on an unearned premise. Every part of it — a
+> self-contained `factorCatalog` per version, a SERIALIZABLE promotion, deprecated-factor badges,
+> a 180-day accuracy window — exists to make a probability auditable and reproducible. None of it
+> could make the probability *true*: the score was a weighted sum of admin-typed figures that was
+> never once compared against a bank decision, so the accuracy view had nothing to be accurate
+> against. `bank_offer.engineVersion` is the one idea here that survives, and it survives with its
+> meaning corrected — it now reads `MATCHING_ENGINE_VERSION` from code, because which build priced
+> an offer is a fact about the code rather than a pointer into a registry of weight tables.
+> Ordering is now `rankOffers(offers, priority)` frozen as `bank_offer.rankIndex` (Principle I / A6).
 
 **Branch**: `004-approval-probability-display` | **Date**: 2026-05-13 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/004-approval-probability-display/spec.md`

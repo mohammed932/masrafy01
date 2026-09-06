@@ -66,7 +66,12 @@ cd backend && npm run start:dev          # http://localhost:3000
 cd admin   && npm start                  # http://localhost:5173
 ```
 
-Boot log should show `Active scoring engine version: 1.1.0-init` (from feature 004) AND `[StaleLeadScanner] cron registered (0 * * * *)`.
+Boot log should show `[StaleLeadScanner] cron registered (0 * * * *)`.
+
+> **v25.0.0** — this step used to also wait for `Active scoring engine version: 1.1.0-init` (from
+> feature 004). That line will never print again: approval scoring, the `scoring_engine_version`
+> table and the registry that logged it are all deleted, so a runbook holding for it hangs on a
+> boot that is in fact healthy.
 
 ## §3 · Seed two agents + assign one application (operator, super_admin)
 

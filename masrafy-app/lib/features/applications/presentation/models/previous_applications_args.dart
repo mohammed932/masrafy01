@@ -57,7 +57,7 @@ class PastApplication {
         offer: MatchOffer.fromEntity(
           e.offer,
           applicationId: e.applicationId,
-          isBestMatch: false,
+          isTopPick: false,
           // Every application here is one the customer already proceeded with
           // (applied / approved / rejected) — the Offer Details Apply CTA is
           // hidden for all of them.

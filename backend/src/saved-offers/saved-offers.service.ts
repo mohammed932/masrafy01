@@ -57,8 +57,6 @@ export class SavedOffersService {
     return {
       bankOfferId: r.bankOfferId,
       loanTypeKey: r.loanCategory ?? 'personal',
-      approvalScore: r.approvalScore,
-      approvalUsedDefault: r.approvalUsedDefault,
       effectiveTenorMonths: r.effectiveTenorMonths,
       effectiveRatePercent: r.effectiveRatePercent.toFixed(4),
       monthlyInstallmentEGP: r.monthlyInstallmentEGP.toFixed(2),

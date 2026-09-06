@@ -45,8 +45,10 @@ Technical approach:
    worth editing. And because a mis-typed program must not lose its data, non-matching rule
    configuration is **ignored and reported, never stripped** (FR-001 edge case).
 5. **Provenance is frozen on the offer** (`bank_offer.incomeOrigin`, `incomeSurrogateStrategy`) —
-   the `approvalUsedDefault` precedent: an immutable offer must not have its meaning rewritten by
-   a later config change (Principle I).
+   the `bankIsFeatured` / `rateBasis` precedent: an immutable offer must not have its meaning
+   rewritten by a later config change (Principle I). (The precedent originally cited here was
+   `approvalUsedDefault`, removed with approval scoring in v25.0.0; the rule stands, only the
+   example moved.)
 6. **Value-source markers** are a sparse `BankProgram.valueSources` JSONB map of dot-path →
    `team_estimated` (absent = bank-stated, so every pre-existing program is stated by construction,
    FR-037). Activation reads it; a marker set on a live program deactivates in the same

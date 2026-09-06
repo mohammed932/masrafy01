@@ -127,9 +127,8 @@ export class QuestionnaireService {
   /**
    * Customer-facing snapshot of the GLOBAL questionnaire, narrowed to the
    * questions assigned to `category` when one is given. Questions/answers are
-   * pure content (MVP) — per-program per-answer scores live in
-   * `ScoringWeightSet`, never in the snapshot — so this is a shape passthrough
-   * with no IP left to strip.
+   * pure content (MVP) — anything a program configures stays server-side, never in
+   * the snapshot — so this is a shape passthrough with no IP left to strip.
    *
    * `category` is OPTIONAL: a client that does not send one gets the whole pool,
    * which is what every client got before per-category assignment existed. The
@@ -957,19 +956,22 @@ export class QuestionnaireService {
    * hidden by its `enabledWhen` is never required.
    *
    * Single choice still resolves `selectedOptionId`/`selectedOptionCode` so the
-   * scorer and the admin answer views keep working unchanged (FR-045).
+   * surrogate-fact mapper and the admin answer views keep working unchanged (FR-045).
    *
    * `category` narrows the pool to the questions actually ASKED for this
    * application's loan category. It has to: required-question enforcement runs
    * here, so without the filter a personal-loan applicant would be rejected for
    * not answering a mortgage-only question they were never shown.
    *
-   * Returns that asked set alongside the resolved rows. It is the scoring
-   * denominator (Constitution V, v13.0.0) and cannot be recovered from
-   * `resolved` afterwards: a skipped optional question is asked but produces no
-   * row (`validateAnswer` returns null), and it must still cost the applicant
-   * its weight. Non-scoreable codes are left in — a weight set can only name
-   * SINGLE_SELECT questions, so the scorer's intersection drops them anyway.
+   * Returns that asked set alongside the resolved rows. It is NOT bookkeeping: it is
+   * the precise test for "did the snapshot this application was served actually ASK a
+   * question", and `resolveApplicantObligations` reads it to tell three states apart —
+   * a snapshot predating the itemised-debt question (fall back to the stated lump sum),
+   * one that asked it and got no answer (no figure), and one that asked and was answered
+   * (sum the items). That distinction shapes the QUOTED AMOUNT.
+   *
+   * It cannot be recovered from `resolved` afterwards: a skipped optional question is
+   * asked but produces no row (`validateAnswer` returns null).
    */
   async resolveAnswers(
     answers: ReadonlyArray<SubmittedAnswerValue>,
@@ -1012,12 +1014,12 @@ export class QuestionnaireService {
       const answer = submitted.get(q.code);
 
       if (!visible) {
-        // Hidden questions are neither required nor stored — and never scored,
-        // so they stay out of the denominator too.
+        // Hidden questions are neither required nor stored, so they were never
+        // asked and stay out of the asked set.
         continue;
       }
-      // Asked = active, in-category, and visible. Recorded BEFORE validation so
-      // a skipped optional question still counts against the applicant.
+      // Asked = active, in-category, and visible. Recorded BEFORE validation, so a
+      // question the applicant skipped still counts as one they were shown.
       askedQuestionCodes.push(q.code);
 
       const normalised = validateAnswer(

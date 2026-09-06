@@ -670,14 +670,14 @@ type TypeFilter = QuestionType | 'ALL';
                 stored answers would no longer match it. Add a new question instead.
               </p>
             }
-            <!-- Every type is scoreable since v14.0.0 (numeric by band, several
-                 choices by aggregation, text by presence). The old copy here said
-                 the opposite and read as a warning, which told admins their income
-                 and amount questions could not move a match. -->
+            <!-- A non-choice answer has no option list, so nothing on this form
+                 says what it is FOR. It is read by the money bindings and by a
+                 program's income rule, which is worth saying once here — otherwise
+                 the type reads as collected and unused. -->
             @if (!isChoice(selectedType())) {
               <p class="hint" i18n="@@qedit.scoring_by_type">
-                This type carries scoring weights too — a number scores by the band it falls in,
-                text by whether it was answered. Set that per program in its scoring weights.
+                A number or free text has no options to configure. Banks read this answer through
+                their money bindings and income rules.
               </p>
             }
 
@@ -1463,8 +1463,8 @@ type TypeFilter = QuestionType | 'ALL';
       }
       /* An outline the colour of the row's own hairline on a fill the colour of the
          row read as ghost text, so the answers looked like disabled chrome rather
-         than the content they are. Filled + primary text: they are answers a bank
-         scores on, not decoration. */
+         than the content they are. Filled + primary text: they are the answers an
+         applicant picks from, not decoration. */
       .pill {
         max-inline-size: 44ch;
         overflow: hidden;
@@ -1508,8 +1508,8 @@ type TypeFilter = QuestionType | 'ALL';
         padding: 1px 8px;
         border-radius: var(--radius-pill, 999px);
       }
-      /* Value types read as neutral: they carry no scoring weight, so they should
-         not wear the brand accent that marks a scoreable question. */
+      /* Value types read as neutral: they are a lookup list, not a question the
+         applicant answers, so they should not wear the brand accent. */
       .type-chip.value-type {
         color: var(--qe-muted);
         border-color: var(--qe-line);
@@ -2370,7 +2370,7 @@ export class QuestionnaireEditorPage implements OnInit {
   typeHint(type: QuestionType): string {
     switch (type) {
       case 'SINGLE_SELECT':
-        return $localize`:@@qedit.type_single_hint:The applicant picks exactly one option. This is the only type that carries scoring weights.`;
+        return $localize`:@@qedit.type_single_hint:The applicant picks exactly one option.`;
       case 'MULTI_SELECT':
         return $localize`:@@qedit.type_multi_hint:The applicant can pick more than one option.`;
       case 'NUMERIC':

@@ -9,9 +9,6 @@ import type { Routes } from '@angular/router';
  * The tabs are ROUTES rather than panels so a deep link (and the browser's back
  * button) lands on the tab the admin was actually on, and so the 2 400-line pool
  * editor is not re-instantiated when the assignment tab is opened.
- *
- * Per-program scoring weights (assign + weight + score) live under the `/scoring`
- * mount (SCORING_ROUTES), reached from a bank program's detail page.
  */
 export const QUESTIONNAIRE_ROUTES: Routes = [
   {

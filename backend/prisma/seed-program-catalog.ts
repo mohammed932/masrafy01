@@ -3,14 +3,11 @@
  *
  *   1. `platform_enumeration_loan_category` — which loan categories each
  *      predefined program name may be OFFERED under.
- *   2. `platform_enumeration_question`      — which questions that name SUGGESTS
- *      scoring on, per loan category (advisory; pre-ticks step 1 of the
- *      per-bank-program scoring wizard and is read by nothing at runtime).
- *   3. `platform_enumeration_loan_category.payslip` / `.noPayslip` — the income
+ *   2. `platform_enumeration_loan_category.payslip` / `.noPayslip` — the income
  *      BASIS of each offered pair. EXACTLY ONE of the two, always: the catalog
  *      states what a name is for, and a name marked both ways has stated nothing.
  *      A bank that disagrees says so on its own program, where it is enforced.
- *   4. `platform_enumeration.incomeRule` — HOW the income is worked out for the
+ *   3. `platform_enumeration.incomeRule` — HOW the income is worked out for the
  *      name when there is no payslip. Stated ONCE per name, because the same rule
  *      kept on each bank's own program let one name mean several things at one
  *      bank: ABK filed a rank table, no table and a wealth tier all under
@@ -18,7 +15,7 @@
  *      "an operator decided the typed salary is the figure".
  *
  * The curated data lives in `data/program-catalog-matrix.ts`; this file only
- * applies it. Idempotent — both writes are "the listed set IS the set", so a
+ * applies it. Idempotent — every write is "the listed set IS the set", so a
  * re-run converges rather than accumulating.
  *
  * Run:  npm run seed:catalog        (add --dry to print the plan and write nothing)
@@ -29,12 +26,8 @@
  *     creating a program under an unassigned pair, so unassigning one behind
  *     existing rows leaves programs that can be read and matched but never
  *     re-saved. The seed keeps the category, and says so.
- *   - A question outside the category's ASKED set is dropped from the write, not
- *     written-and-flagged. The service tolerates drift because an operator may
- *     have created it before a category assignment caught up; a seed has no such
- *     excuse — it would just be shipping the board a warning on day one.
- *   - An unknown program name or question code is reported and skipped, never
- *     created. This seed curates the catalog; it does not define it.
+ *   - An unknown program name is reported and skipped, never created. This seed
+ *     curates the catalog; it does not define it.
  *
  * No audit events are written. Every other seeder writes its rows directly too,
  * and a `PLATFORM_ENUMERATION_UPDATED` event attributed to a seed actor would
@@ -51,7 +44,6 @@ import {
   CATALOG_CATEGORY_ASSIGNMENTS,
   CATALOG_INCOME_BASIS,
   CATALOG_INCOME_RULE,
-  CATALOG_QUESTION_TEMPLATE,
   catalogIncomeBasis,
   type CatalogCategory,
   type CatalogIncomeBasis,
@@ -118,19 +110,6 @@ export async function seedProgramCatalog(): Promise<void> {
     liveCategoriesByKey.set(row.programNameKey, set);
   }
 
-  // The whole question pool with the categories that ASK each question — the
-  // set the template is filtered against. Inactive questions are included so a
-  // stale pick is reported as "left the pool" rather than as "unknown code".
-  const questions = await prisma.question.findMany({
-    select: {
-      id: true,
-      code: true,
-      isActive: true,
-      loanCategories: { select: { category: true } },
-    },
-  });
-  const questionByCode = new Map(questions.map((q) => [q.code, q]));
-
   // ---- Axis 1: category assignment ---------------------------------------
 
   let categoriesChanged = 0;
@@ -189,75 +168,10 @@ export async function seedProgramCatalog(): Promise<void> {
     ]);
   }
 
-  // ---- Axis 2: question template -----------------------------------------
-
-  let templatesWritten = 0;
-  let picksWritten = 0;
-
-  for (const [key, byCategory] of Object.entries(CATALOG_QUESTION_TEMPLATE)) {
-    const name = nameByKey.get(key);
-    if (!name) continue; // already reported above
-
-    for (const category of CATEGORY_ORDER) {
-      const codes = byCategory[category];
-      if (!codes) continue;
-
-      const resolved: string[] = [];
-      for (const code of [...new Set(codes)]) {
-        const question = questionByCode.get(code);
-        if (!question) {
-          notes.push(`'${key}/${category}': unknown question code '${code}' — dropped`);
-          continue;
-        }
-        if (!question.isActive) {
-          notes.push(`'${key}/${category}': question '${code}' has left the pool — dropped`);
-          continue;
-        }
-        if (!question.loanCategories.some((c) => c.category === category)) {
-          notes.push(`'${key}/${category}': '${code}' is not asked under '${category}' — dropped`);
-          continue;
-        }
-        resolved.push(question.id);
-      }
-
-      const before = await prisma.platformEnumerationQuestion.findMany({
-        where: { enumerationId: name.id, category: category as LoanCategory },
-        select: { questionId: true },
-      });
-      const beforeIds = new Set(before.map((r) => r.questionId));
-      const unchanged =
-        beforeIds.size === resolved.length && resolved.every((id) => beforeIds.has(id));
-      if (unchanged) continue;
-
-      templatesWritten += 1;
-      picksWritten += resolved.length;
-      console.log(
-        `  questions   ${key.padEnd(18)} ${category.padEnd(9)} ${beforeIds.size} → ${resolved.length}`,
-      );
-      if (dryRun) continue;
-
-      // Scoped to the category on BOTH halves: a delete over the whole name
-      // would make writing the Personal set wipe the Business set.
-      await prisma.$transaction([
-        prisma.platformEnumerationQuestion.deleteMany({
-          where: { enumerationId: name.id, category: category as LoanCategory },
-        }),
-        prisma.platformEnumerationQuestion.createMany({
-          data: resolved.map((questionId) => ({
-            enumerationId: name.id,
-            category: category as LoanCategory,
-            questionId,
-          })),
-          skipDuplicates: true,
-        }),
-      ]);
-    }
-  }
-
-  // ---- Axis 3: income basis ------------------------------------------------
+  // ---- Axis 2: income basis ------------------------------------------------
   //
-  // "The listed basis IS the basis" — the same converging shape as axes 1 and 2,
-  // and a change from the additive pass this replaces. That one only ever turned
+  // "The listed basis IS the basis" — the same converging shape as axis 1, and a
+  // change from the additive pass this replaces. That one only ever turned
   // `noPayslip` ON and never touched `payslip`, which left every fact-carrying
   // name marked BOTH ways: a catalog that says a name is for two things is a
   // catalog that has not said what it is for, and the admin screens now offer one
@@ -338,7 +252,7 @@ export async function seedProgramCatalog(): Promise<void> {
     }
   }
 
-  // ---- Axis 4: the income rule ---------------------------------------------
+  // ---- Axis 3: the income rule ---------------------------------------------
   //
   // "The listed rule IS the rule" — converging and authoritative, like axes 1 and
   // 3, so a re-run applies this operator's curated pass rather than accumulating
@@ -354,7 +268,7 @@ export async function seedProgramCatalog(): Promise<void> {
   //      under the name, and "changed" is not enough for a reviewer to catch a
   //      table that arrived with the wrong number of rows.
   //   2. A name in the matrix that is NOT in the catalog is reported and skipped,
-  //      never created (the file header's third guard). Axis 1 already reports it,
+  //      never created (the file header's second guard). Axis 1 already reports it,
   //      so this one stays silent to avoid saying it twice.
   //
   //   3. Every rule is VALIDATED before it is written, through the same
@@ -487,7 +401,6 @@ export async function seedProgramCatalog(): Promise<void> {
   console.log(
     `[seed-program-catalog]${dryRun ? ' (dry run)' : ''} ` +
       `${categoriesChanged} category set(s) changed · ` +
-      `${templatesWritten} template(s) written (${picksWritten} picks) · ` +
       `${basisWritten} income basis/bases corrected · ` +
       `${rulesWritten} income rule(s) written` +
       (rulesRejected > 0 ? ` · ${rulesRejected} REFUSED` : '') +

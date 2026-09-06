@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { StatusPillComponent, type StatusTone } from '@shared/ui';
 import { HumanizePipe } from '@shared/humanize.pipe';
 import type { AdminApplicationOffer } from '../../api/applications.api.service';
-import { ApprovalPillComponent } from '../../list/components/approval-pill.component';
 import { ceilingIsInformative, wasAmountReduced } from './selected-loan.rules';
 
 /** One rendered fee line: label + formatted amount + optional "waived" mark. */
@@ -27,7 +26,7 @@ interface FeeLine {
   selector: 'app-selected-loan-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, StatusPillComponent, ApprovalPillComponent, HumanizePipe],
+  imports: [CommonModule, StatusPillComponent, HumanizePipe],
   template: `
     @let o = offer();
     <section class="loan-card">
@@ -50,13 +49,6 @@ interface FeeLine {
               i18n-label="@@app.detail.selected.awaitingDecision"
             />
           }
-          <app-approval-pill
-            [bestOffer]="{
-              score: o.approvalProbability.score,
-              tier: o.approvalProbability.tier,
-              tierLabelCode: o.approvalProbability.tierLabelCode,
-            }"
-          />
         </div>
       </header>
 

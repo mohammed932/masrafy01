@@ -80,12 +80,31 @@ Publishing NEVER fails on a surrogate binding, exactly as it never fails on a mo
 `bindingWarnings()` (FR-021: reported to admins BEFORE a customer meets it).
 
 `reason` values: `missing_or_inactive` · `wrong_type` · `option_codes_drifted` ·
-`not_assigned_to_surrogate_categories`.
+`not_asked_by_any_category`.
 
-The last one is a SET DIFFERENCE against `SURROGATE_CAPABLE_CATEGORIES` (`personal`, `car`, `fast` —
-constitution v15.1.0), not a membership test, and its meta carries `missingCategories` alongside
-`assignedCategories`: a fact still assigned to `personal` but dropped from `car` is a car program whose
-table can never fire, which "assigned to at least one" would hide.
+> **Corrected — this paragraph described v15.1.0 and was overtaken one day later.** It named
+> `not_assigned_to_surrogate_categories`, a set difference against `SURROGATE_CAPABLE_CATEGORIES`
+> (`personal`, `car`, `fast`). Constitution **v16.0.0** deleted the `fast` category, deleted BOTH
+> capable-category lists rather than renaming them (A26 now blocks reintroducing either), and renamed
+> the warning. Nothing in the code has carried the old spelling since.
+
+The last one now fires only when a bound question is asked by **nobody** — its
+`question_loan_category` set is empty. It is not a set difference against a hardcoded capable list,
+because there is no such list: which categories can sell a no-payslip program is *derived* from
+these very assignments (constitution v16.0.0), so a fact assigned to `personal` but not `car` is a
+product decision an admin made on `/questionnaire/categories`, not a break. Only a fact asked
+nowhere can never fire for anyone.
+
+Its meta carries `assignedCategories: []` — authoritative, and the reason the check tests for an
+EMPTY array rather than a falsy one: **absent** means the caller does not know the assignments and
+has nothing to say, while **empty** means the question is assigned to nothing. There is no
+`missingCategories` key, since there is no reference set to be missing from.
+
+The per-CATEGORY question this paragraph used to answer — "does *this program's* category ask the
+fact its method reads?" — did not disappear; it moved to where it is answerable. Publish knows
+nothing about which programs exist, so it is asked in the admin bank-program form at the moment the
+income method is picked, and at quote time the applicant gets `SURROGATE_FACT_MISSING` with a stated
+reason rather than a silent zero.
 
 ---
 

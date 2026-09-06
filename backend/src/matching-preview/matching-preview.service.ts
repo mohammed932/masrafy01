@@ -4,7 +4,6 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
-import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { toBankProgramSnapshot } from '@/bank-programs/bank-program-snapshot.mapper';
 import { matchesRequestedScope } from '@/bank-programs/program-scope';
@@ -22,12 +21,9 @@ import {
   surrogateOptionPick,
   type SurrogateFacts,
 } from '@/matching/pipeline/surrogate-facts-from-answers';
-import type { ApplicantProfile, ApprovalFactors, Quote } from '@/matching/types';
-import type { SelectedAnswer } from '@/matching/scoring/approval-probability.scorer';
-import { toSelectedAnswer } from '@/matching/scoring/answer-to-selected';
+import type { ApplicantProfile, Quote } from '@/matching/types';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { validateAnswer } from '@/questionnaire/validation/answer-validation';
-import { isQuestionVisible } from '@/questionnaire/validation/question-visibility';
 
 interface SnapshotOption {
   code: string;
@@ -105,19 +101,8 @@ export interface PreviewMatch {
   gateReasonCode: string | null;
   /** When a product rule read answers the applicant has not given: which ones. */
   missingFactKeys: string[] | null;
-  approvalProbability: number;
-  approvalTier: string;
-  /**
-   * Per-answer contribution breakdown behind `approvalProbability`, biggest
-   * first — the SAME numbers the scorer used, not a second derivation
-   * (`buildFactorBreakdown`). Already computed by `scoreProgram`; surfaced so a
-   * surface can explain a score instead of asserting one. Empty when the program
-   * has no ACTIVE weight set (`usedDefaultWeights`) or nothing asked scored.
-   */
-  approvalFactors: ApprovalFactors;
   rejectionReasons: string[];
   requiredDocuments: string[];
-  usedDefaultWeights: boolean;
 }
 
 /** The four bound money figures, once resolved. */
@@ -148,7 +133,6 @@ export const SIMULATOR_DEFAULT_AGE = 18;
 export class MatchingPreviewService {
   constructor(
     private readonly questionnaire: QuestionnaireRepository,
-    private readonly weightedScoring: WeightedApprovalScoringService,
     private readonly programs: BankProgramRepository,
     private readonly programNames: ProgramNameScopeService,
     private readonly enumerations: PlatformEnumerationsRepository,
@@ -179,14 +163,14 @@ export class MatchingPreviewService {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
     }
-    const { selected, money, askedQuestionCodes, surrogateFacts } =
-      await this.resolveSelectedOptions(args.answers, args.category);
+    const { money, surrogateFacts } = await this.resolveSelectedOptions(
+      args.answers,
+      args.category,
+    );
     return this.runAndAssemble(
       args.category,
-      selected,
       money,
       args.age,
-      askedQuestionCodes,
       args.programNameKey ?? null,
       surrogateFacts,
       args.programType ?? null,
@@ -194,8 +178,8 @@ export class MatchingPreviewService {
   }
 
   /**
-   * Validate answers against the active GLOBAL snapshot and return the pairs the
-   * scorer consumes.
+   * Validate answers against the active GLOBAL snapshot and return the figures the
+   * quote consumes.
    *
    * Feature 010: the pool holds all four question types, so every answer is
    * validated through the shared `validateAnswer` (same rules as apply — type,
@@ -217,9 +201,7 @@ export class MatchingPreviewService {
     answers: SubmittedAnswerDto[],
     category: LoanCategory,
   ): Promise<{
-    selected: SelectedAnswer[];
     money: MoneyInputs | null;
-    askedQuestionCodes: string[];
     /** Feature 011 — the facts an income rule looks its table up by (FR-018). */
     surrogateFacts: SurrogateFacts;
   }> {
@@ -245,7 +227,6 @@ export class MatchingPreviewService {
       }
     }
     const byCode = new Map(questions.map((q) => [q.code, q]));
-    const selected: SelectedAnswer[] = [];
     const numeric = new Map<string, string>();
     /**
      * Feature 011 — the SINGLE_SELECT picks, for the surrogate facts. Collected here
@@ -275,12 +256,7 @@ export class MatchingPreviewService {
         },
         ans,
       );
-      // Every type scores since v14.0.0, through the SAME mapper apply uses —
-      // preview and apply must agree on both the asked set and the answer scores.
-      const scorable = normalised ? toSelectedAnswer(normalised) : null;
-      if (scorable) selected.push(scorable);
-      // A numeric answer feeds BOTH sides: it prices the loan here and, if the
-      // program banded it, also scores. Two different jobs, not double counting.
+      // A numeric answer prices the loan.
       if (normalised?.numericValue != null) numeric.set(q.code, normalised.numericValue);
       // A single pick — the option code, which IS the registry key an income rule's
       // table is keyed by (FR-017). Through the SAME predicate apply uses, so the two
@@ -300,15 +276,6 @@ export class MatchingPreviewService {
       }
     }
 
-    // Branch visibility evaluated against what the applicant has answered so
-    // far, using the shared rule apply uses. Mid-questionnaire this set grows
-    // as they answer, which is correct: a branch only becomes asked once its
-    // trigger is picked.
-    const submitted = new Map(answers.map((a) => [a.questionCode, a]));
-    const askedQuestionCodes = questions
-      .filter((q) => isQuestionVisible({ enabledWhen: q.enabledWhen ?? null }, submitted, byCode))
-      .map((q) => q.code);
-
     // Itemised obligations. Three distinct states, and collapsing any two of them
     // would produce a wrong figure rather than no figure:
     //   not served  → this snapshot predates the feature; fall back to the stated
@@ -325,9 +292,7 @@ export class MatchingPreviewService {
       : resolveObligations({ numericByCode: numeric });
 
     return {
-      selected,
       money: this.resolveMoneyInputs(numeric, obligations),
-      askedQuestionCodes,
       // Feature 011 — the SAME mapper apply reads (FR-019). Preview and apply
       // deriving the same engine input differently is a review block (A33), and this
       // is the input an income rule looks its table up by.
@@ -371,18 +336,16 @@ export class MatchingPreviewService {
   }
 
   /**
-   * Score every active program in the requested scope and rank by approval
-   * probability. Scope is the (category, programNameKey, programType) triple the
+   * Quote every active program in the requested scope and order the list. Scope is the
+   * (category, programNameKey, programType) triple the
    * applicant asked for — a null on either optional axis means "not narrowed by
    * it", so `programNameKey` null means the whole category, which is what a
    * client that predates the catalog picker sends.
    */
   private async runAndAssemble(
     category: LoanCategory,
-    answers: SelectedAnswer[],
     money: MoneyInputs | null,
     age: number,
-    askedQuestionCodes: readonly string[],
     programNameKey: string | null,
     surrogateFacts: SurrogateFacts,
     programType: BankProgramType | null,
@@ -402,12 +365,6 @@ export class MatchingPreviewService {
 
     const matches: PreviewMatch[] = [];
     for (const p of rows) {
-      const { probability, tier, usedDefault, factors } = await this.weightedScoring.scoreProgram({
-        programId: p.id,
-        category,
-        answers,
-        askedQuestionCodes,
-      });
       const priced = profile
         ? quoteProgram({
             profile,
@@ -441,20 +398,31 @@ export class MatchingPreviewService {
         gateReasonCode: !quote && priced && !priced.ok ? (priced.unavailable.gateReasonCode ?? null) : null,
         missingFactKeys:
           !quote && priced && !priced.ok ? (priced.unavailable.missingFactKeys ?? null) : null,
-        approvalProbability: probability,
-        approvalTier: tier,
-        approvalFactors: factors,
         rejectionReasons: [],
         requiredDocuments: (p.requiredDocuments as string[]) ?? [],
-        usedDefaultWeights: usedDefault,
       });
     }
 
+    // Same key chain `rankOffers` uses for `lowest_installment`, which is the priority
+    // `buildProfile` states below — preview and apply deriving one order two ways is the
+    // drift A33 forbids, and preview persists nothing so it has no `rankIndex` to read.
+    //
+    // Unquotable programs sort LAST rather than first: a null installment is "we could not
+    // price this yet", not "this one is free". The `programCode` tiebreak is new and
+    // load-bearing — without it equal-featured ties resolved by whatever order the
+    // repository happened to return.
     matches.sort((a, b) => {
-      if (b.approvalProbability !== a.approvalProbability) {
-        return b.approvalProbability - a.approvalProbability;
+      const ai = a.monthlyInstallmentEGP === null ? null : Number(a.monthlyInstallmentEGP);
+      const bi = b.monthlyInstallmentEGP === null ? null : Number(b.monthlyInstallmentEGP);
+      if (ai !== bi) {
+        if (ai === null) return 1;
+        if (bi === null) return -1;
+        return ai - bi;
       }
-      return Number(b.bankIsFeatured) - Number(a.bankIsFeatured);
+      return (
+        Number(b.bankIsFeatured) - Number(a.bankIsFeatured) ||
+        a.programCode.localeCompare(b.programCode)
+      );
     });
 
     return { category, matches, suggestions: [] };

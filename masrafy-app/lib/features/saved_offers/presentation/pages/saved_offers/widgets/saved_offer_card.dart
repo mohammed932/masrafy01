@@ -8,9 +8,9 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/features/saved_offers/domain/entities/saved_offer_entity.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
-/// A single saved-offer card (Figma `4088:189`). Approval heading + loan-type
-/// subtitle with a filled heart (tap = unsave), the Rate/Monthly/Total KPI row,
-/// and a **View offer** (primary) + **Remove** (outlined) button pair.
+/// A single saved-offer card (Figma `4088:189`). Bank heading + program /
+/// loan-type subtitle with a filled heart (tap = unsave), the Rate/Monthly/Total
+/// KPI row, and a **View offer** (primary) + **Remove** (outlined) button pair.
 /// Flow-local (Principle XXXII); UI-only.
 class SavedOfferCard extends StatelessWidget {
   const SavedOfferCard({
@@ -34,6 +34,12 @@ class SavedOfferCard extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final l = AppLocalizations.of(context);
+    // The bank, then what it matched — the same two lines the results list
+    // leads with, so a saved offer reads exactly as it did when it was matched.
+    final subline = offer.programFriendlyName.isNotEmpty
+        ? '${offer.programFriendlyName} · $productLabel · '
+            '${l.results_months(offer.termMonths)}'
+        : '$productLabel · ${l.results_months(offer.termMonths)}';
 
     return Container(
       width: double.infinity,
@@ -53,21 +59,17 @@ class SavedOfferCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      offer.approvalUnrated
-                          ? l.results_unrated
-                          : l.results_guarantee_approval(offer.approvalPct),
-                      style: text.bodyLarge.copyWith(
-                        color: colors.primary.main,
-                        fontWeight: FontWeight.w800,
+                    if (offer.bankName.isNotEmpty) ...[
+                      Text(
+                        offer.bankName,
+                        style: text.heading4.copyWith(color: colors.textBase),
                       ),
-                    ),
-                    Gap(1.h),
+                      Gap(2.h),
+                    ],
                     Text(
-                      '$productLabel · ${l.results_months(offer.termMonths)}',
-                      style: text.bodySmall.copyWith(
-                        color: colors.primary.border,
-                      ),
+                      subline,
+                      style:
+                          text.bodySmall.copyWith(color: colors.text.secondary),
                     ),
                   ],
                 ),

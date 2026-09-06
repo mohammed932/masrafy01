@@ -53,6 +53,9 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Your top matches are ready'), findsOneWidget);
-    expect(find.text('Best Match'), findsOneWidget);
+    // Every match card leads with the bank and what it matched. The mock
+    // offers carry no bank name, so the subline is the whole head — one per
+    // card, all three of them.
+    expect(find.text('Mortgage · 36 months'), findsNWidgets(3));
   });
 }

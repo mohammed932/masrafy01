@@ -124,8 +124,8 @@ class _SavedOffersViewState extends State<_SavedOffersView> {
   /// the existing Offer-Details screen.
   void _openDetails(BuildContext context, SavedOfferEntity e) {
     final offer = MatchOffer(
-      approvalPct: e.approvalPct,
-      approvalUnrated: e.approvalUnrated,
+      bankName: e.bankName,
+      programFriendlyName: e.programFriendlyName,
       termMonths: e.termMonths,
       ratePct: e.ratePct,
       monthly: e.monthly,

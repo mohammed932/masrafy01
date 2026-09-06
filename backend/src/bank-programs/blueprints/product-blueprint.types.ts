@@ -151,6 +151,14 @@ export type BlueprintAsk =
       kind: 'bindQuestion';
       factKey: string;
       questionCode: string;
+      /**
+       * What the REGISTRY row is called — the name every operator screen renders for this
+       * fact. Optional only because the other ask kinds can derive one from the question
+       * text they carry; a bind carries none, and the fallback is the question CODE, which
+       * shows an operator a slug where a name belongs.
+       */
+      labelEn?: string;
+      labelAr?: string;
       alsoAskIn?: readonly LoanCategory[];
     }
   | {

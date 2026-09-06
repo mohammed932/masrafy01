@@ -6,9 +6,9 @@
  * derivation living on a 1900-line component is one nothing exercises. Every state below is
  * a case in `admin/tests/product-asks.spec.ts`.
  *
- * THREE SECTIONS, NOT TWO, and the reason is that the tri-state is real. The catalog name's
- * scoring grid has two (`scored` / `rest`) and folds drift into the first with a warn tag,
- * because there the tick means one thing. Here a card can be:
+ * THREE SECTIONS, NOT TWO, and the reason is that the tri-state is real. A two-section grid
+ * (`in` / `out`) can only fold drift into the first with a warn tag, which works where a tick
+ * means one thing. Here a card can be:
  *
  *   asked here      — this product reads it AND the open loan type asks the question
  *   read, not asked — this product reads it and the open loan type does not ask it. The

@@ -8,7 +8,7 @@
  * and light up every counter + probability bucket. Two things the legacy demo
  * seed skipped — and the reason the board showed all zeros — are set here:
  *   1. `userProceededAt` (Feature-008 gate: the admin list filters on it).
- *   2. one `BankOffer` per matched app (probability buckets read `approvalTier`).
+ *   2. one `BankOffer` per matched app.
  *
  * Idempotent + top-up: creates only the difference between the current proceeded
  * count and the target (SEED_APPS_COUNT, default 36). Never deletes.
@@ -79,11 +79,12 @@ const TIER_CYCLE: readonly (Tier | null)[] = [
   'moderate',
 ];
 
-const TIER_SCORE: Record<Tier, { score: number; prob: number; rate: number }> = {
-  excellent: { score: 90, prob: 88, rate: 18.5 },
-  good: { score: 75, prob: 70, rate: 21.0 },
-  moderate: { score: 55, prob: 52, rate: 24.5 },
-  low: { score: 40, prob: 35, rate: 27.0 },
+/** A demo-only quality label, used solely to give the seeded offers different rates. */
+const TIER_RATE: Record<Tier, { rate: number }> = {
+  excellent: { rate: 18.5 },
+  good: { rate: 21.0 },
+  moderate: { rate: 24.5 },
+  low: { rate: 27.0 },
 };
 
 const AMOUNT_BASE: Record<Purpose, number> = {
@@ -214,7 +215,7 @@ async function main(): Promise<void> {
     });
 
     if (r.tier) {
-      const t = TIER_SCORE[r.tier];
+      const t = TIER_RATE[r.tier];
       const installment = monthlyInstallment(r.amount, t.rate, r.tenor);
       const offer = await prisma.bankOffer.create({
         data: {
@@ -230,10 +231,8 @@ async function main(): Promise<void> {
           requestedTenorMonths: r.tenor,
           effectiveTenorMonths: r.tenor,
           feesBreakdown: {} as Prisma.InputJsonValue,
-          approvalProbabilityPercent: new Prisma.Decimal(t.prob),
-          approvalScore: t.score,
-          approvalTier: r.tier,
-          approvalFactors: {} as Prisma.InputJsonValue,
+          // One offer per application here, so it is the only thing to rank.
+          rankIndex: 0,
           engineVersion: 'seed',
           requiredDocuments: [],
           matchReasons: [],

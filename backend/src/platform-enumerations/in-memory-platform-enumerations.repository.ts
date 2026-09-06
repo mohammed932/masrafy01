@@ -5,7 +5,6 @@ import {
   EnumerationMember,
   EnumerationType,
   PlatformEnumerationsRepository,
-  type EnumerationQuestionTemplate,
   type EnumerationTypeDefinition,
   type EnumerationTypeDefinitions,
   type SurrogateFactBinding,
@@ -64,16 +63,6 @@ export class InMemoryPlatformEnumerationsRepository
    */
   async memberCategories(): Promise<LoanCategory[]> {
     return [];
-  }
-
-  /**
-   * This stub seeds no catalog names, so there is never a template to return —
-   * for any category. The signature takes one anyway (the abstract method does),
-   * so that an implementation which DID seed names could not quietly ignore it
-   * and serve one category's suggestions for another.
-   */
-  async memberQuestionTemplate(): Promise<EnumerationQuestionTemplate | null> {
-    return null;
   }
 
   /**
@@ -327,6 +316,22 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('required_document', 'tax_card', 'بطاقة ضريبية', 'Tax Card');
     this.add('required_document', 'utility_bill', 'إيصال مرافق', 'Utility Bill');
     this.add('required_document', 'property_deed', 'سند ملكية', 'Property Deed');
+    // Mirrors migration `20260905090100_doctor_documents`. Kept in step deliberately: a
+    // program naming a key this stub does not hold is refused by `validateAgainstRegistry`
+    // in exactly the tests that use the stub.
+    this.add('required_document', 'syndicate_card', 'كارنيه النقابة', 'Syndicate ID card');
+    this.add(
+      'required_document',
+      'medical_facility_licence',
+      'رخصة تشغيل منشأة طبية',
+      'Medical facility operating licence',
+    );
+    this.add(
+      'required_document',
+      'professional_practice_certificate',
+      'شهادة مزاولة المهنة',
+      'Certificate of professional practice',
+    );
   }
 
   private verify(): void {

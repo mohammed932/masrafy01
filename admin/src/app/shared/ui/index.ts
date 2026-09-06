@@ -22,18 +22,11 @@ export {
   type AdditionalIncomeOption,
   type AdditionalIncomeSource,
 } from './additional-income-editor.component';
-export { PercentFieldComponent } from './percent-field.component';
 export {
   WizardStepsComponent,
   type WizardStepItem,
   type WizardStepStatus,
 } from './wizard-steps.component';
-export {
-  ScoreBandsEditorComponent,
-  scoreBandsErrorFor,
-  seedScoreBands,
-  type ScoreBandsError,
-} from './score-bands-editor.component';
 export {
   FormDrawerComponent,
   DrawerSectionComponent,

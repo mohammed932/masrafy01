@@ -7,8 +7,9 @@
  * answer and rejected everything else with `UNKNOWN_OPTION_CODE`, which made the
  * admin simulator unusable — its first two questions are NUMERIC.
  *
- * Only SINGLE_SELECT carries an answer score (R9), so the other types are
- * validated and then dropped from the scoring input rather than rejected.
+ * Every type is accepted and validated. What each one is FOR differs — a number can
+ * price the loan or key an income rule, a pick can name a surrogate fact, free text is
+ * neither — but none of them may be rejected for its type alone.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { MatchingPreviewService } from '@/matching-preview/matching-preview.service';
@@ -64,18 +65,16 @@ const PROGRAM = {
 };
 
 function makeService() {
-  const scoreProgram = vi.fn(async () => ({ probability: 0.42, tier: 'moderate', usedDefault: false }));
   const questionnaire = { activeVersion: async () => ({ id: 'ver_3', snapshot: SNAPSHOT }) };
   const programs = { findAllActive: async () => [PROGRAM] };
   const service = new MatchingPreviewService(
     questionnaire as never,
-    { scoreProgram } as never,
     programs as never,
-    // Feature 011 added a 4th and 5th dependency (the catalog name scope and the
-    // enumeration registry); this spec predates both. `assertOfferedUnder` is a no-op
-    // because these cases pass no `programNameKey`, and the registry reads return empty:
-    // no rule here reads a fact or a registry parent, so an empty registry is the honest
-    // answer rather than a convenient one.
+    // Feature 011 added the catalog name scope and the enumeration registry; this spec
+    // predates both. `assertOfferedUnder` is a no-op because these cases pass no
+    // `programNameKey`, and the registry reads return empty: no rule here reads a fact or
+    // a registry parent, so an empty registry is the honest answer rather than a
+    // convenient one.
     { assertOfferedUnder: async () => undefined } as never,
     {
       programNameIncomeRules: async () => new Map(),
@@ -83,15 +82,14 @@ function makeService() {
       enumerationParentKeys: async () => ({}),
     } as never,
   );
-  return { service, scoreProgram };
+  return { service };
 }
 
 function preview(answers: SubmittedAnswerDto[]) {
-  const { service, scoreProgram } = makeService();
+  const { service } = makeService();
   // Age is derived from the caller's birthday in production, never submitted.
   return {
     result: service.preview({ category: 'personal' as never, answers, age: 34 }),
-    scoreProgram,
   };
 }
 
@@ -105,8 +103,12 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
 }
 
 describe('the preview accepts every answer type in the global pool', () => {
-  it('scores a run whose answers mix numbers, multi-pick and single pick', async () => {
-    const { result, scoreProgram } = preview([
+  it('quotes a run whose answers mix numbers, multi-pick, single pick and text', async () => {
+    // The defect this file was written for: `resolveSelectedOptions` looked for an
+    // `optionCode` on every answer and rejected everything else, which made the admin
+    // simulator unusable because its first two questions are NUMERIC. A mixed run must
+    // come back quoted, not refused — the amount comes from the numeric answer.
+    const { result } = preview([
       { questionCode: 'amount_requested', numericValue: '150000' },
       { questionCode: 'current_loans', optionCodes: ['none'] },
       { questionCode: 'loan_purpose', optionCode: 'marriage' },
@@ -114,21 +116,11 @@ describe('the preview accepts every answer type in the global pool', () => {
     ]);
     const matches = (await result).matches;
 
+    // Listed, with the money answers still outstanding — NOT refused for the shape of
+    // the answers. `UNKNOWN_OPTION_CODE` on any of these four would be the regression.
     expect(matches).toHaveLength(1);
-    expect(matches[0]?.approvalProbability).toBe(0.42);
-    // Every type reaches the scorer since v14.0.0, each as its own variant —
-    // before, only the single pick was forwarded and the rest were dropped after
-    // validation, so a numeric or multi-pick answer could never move the score.
-    expect(scoreProgram).toHaveBeenCalledWith(
-      expect.objectContaining({
-        answers: [
-          { questionCode: 'amount_requested', kind: 'numeric', value: '150000.00' },
-          { questionCode: 'current_loans', kind: 'options', optionCodes: ['none'] },
-          { questionCode: 'loan_purpose', kind: 'option', optionCode: 'marriage' },
-          { questionCode: 'notes', kind: 'text', hasValue: true },
-        ],
-      }),
-    );
+    expect(matches[0]?.programCode).toBe('CIB-PRIME-PERSONAL');
+    expect(matches[0]?.figuresUnavailableReason).toBe('MONEY_FIGURE_MISSING');
   });
 
   it('accepts a partial answer set — required questions are enforced at apply, not here', async () => {

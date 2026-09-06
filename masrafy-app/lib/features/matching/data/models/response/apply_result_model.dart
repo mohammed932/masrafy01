@@ -1,5 +1,4 @@
 import 'package:app/features/matching/domain/entities/apply_result_entity.dart';
-import 'package:app/features/matching/domain/enums/approval_tier.dart';
 
 /// Wire model for `POST /api/v1/apply`. Hand-written `fromJson` / `toEntity`
 /// (the app does not use json_serializable for these). Handles BOTH envelopes:
@@ -158,10 +157,6 @@ class OfferModel {
     required this.effectiveLoanAmountEGP,
     required this.requestedTenorMonths,
     required this.effectiveTenorMonths,
-    required this.approvalScore,
-    required this.approvalTierCode,
-    required this.approvalUsedDefault,
-    required this.tierLabelCode,
     required this.requiredDocuments,
     required this.matchReasons,
     this.feesBreakdown,
@@ -184,12 +179,6 @@ class OfferModel {
   final double effectiveLoanAmountEGP;
   final int requestedTenorMonths;
   final int effectiveTenorMonths;
-  final int approvalScore;
-  final String approvalTierCode;
-
-  /// Program had no ACTIVE weight set: the 0 means "not rated", not "poor fit".
-  final bool approvalUsedDefault;
-  final String tierLabelCode;
   final List<String> requiredDocuments;
   final List<String> matchReasons;
   final Map<String, dynamic>? feesBreakdown;
@@ -212,8 +201,6 @@ class OfferModel {
   final bool isSaved;
 
   factory OfferModel.fromJson(Map<String, dynamic> json) {
-    final approval =
-        (json['approvalProbability'] as Map<String, dynamic>?) ?? const {};
     return OfferModel(
       bankOfferId: (json['bankOfferId'] as String?) ?? '',
       programCode: (json['programCode'] as String?) ?? '',
@@ -227,10 +214,6 @@ class OfferModel {
       effectiveLoanAmountEGP: _toDouble(json['effectiveLoanAmountEGP']),
       requestedTenorMonths: _toInt(json['requestedTenorMonths']),
       effectiveTenorMonths: _toInt(json['effectiveTenorMonths']),
-      approvalScore: _toInt(approval['score']),
-      approvalTierCode: (approval['tier'] as String?) ?? 'very_low',
-      approvalUsedDefault: approval['usedDefault'] == true,
-      tierLabelCode: (approval['tierLabelCode'] as String?) ?? '',
       requiredDocuments: _toStringList(json['requiredDocuments']),
       matchReasons: _toStringList(json['matchReasons']),
       feesBreakdown: json['feesBreakdown'] is Map<String, dynamic>
@@ -264,10 +247,6 @@ class OfferModel {
         effectiveLoanAmountEGP: effectiveLoanAmountEGP,
         requestedTenorMonths: requestedTenorMonths,
         effectiveTenorMonths: effectiveTenorMonths,
-        approvalScore: approvalScore,
-        approvalTier: ApprovalTier.fromCode(approvalTierCode),
-        approvalUnrated: approvalUsedDefault,
-        tierLabelCode: tierLabelCode,
         requiredDocuments: requiredDocuments,
         matchReasons: matchReasons,
         feesBreakdown: feesBreakdown,

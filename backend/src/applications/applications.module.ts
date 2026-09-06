@@ -11,11 +11,9 @@ import { ApplicationRepository } from './application.repository';
 import { MatchingModule } from '../matching/matching.module';
 import { BankProgramsModule } from '../bank-programs/bank-programs.module';
 import { AuditModule } from '../audit/audit.module';
-import { ScoringVersionsModule } from '../scoring-versions/scoring-versions.module';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
-import { ScoringModule } from '@/scoring/scoring.module';
 import { SavedOffersModule } from '../saved-offers/saved-offers.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 
@@ -29,10 +27,8 @@ import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enu
     MatchingModule,
     BankProgramsModule,
     AuditModule,
-    ScoringVersionsModule,
     CustomerAuthModule,
     QuestionnaireModule,
-    ScoringModule,
     SavedOffersModule,
     PlatformEnumerationsModule,
   ],

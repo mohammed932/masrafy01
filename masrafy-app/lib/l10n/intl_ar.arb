@@ -433,30 +433,6 @@
   "@match_featured_badge": {
     "description": "Match card — featured-program badge"
   },
-  "match_tier_excellent": "فرصة ممتازة",
-  "@match_tier_excellent": {
-    "description": "Match card — approval tier: excellent"
-  },
-  "match_tier_good": "فرصة جيدة",
-  "@match_tier_good": {
-    "description": "Match card — approval tier: good"
-  },
-  "match_tier_moderate": "فرصة متوسطة",
-  "@match_tier_moderate": {
-    "description": "Match card — approval tier: moderate"
-  },
-  "match_tier_low": "فرصة منخفضة",
-  "@match_tier_low": {
-    "description": "Match card — approval tier: low"
-  },
-  "match_tier_very_low": "فرصة منخفضة جدًا",
-  "@match_tier_very_low": {
-    "description": "Match card — approval tier: very low"
-  },
-  "match_tier_unknown": "تقدير غير محدد",
-  "@match_tier_unknown": {
-    "description": "Match card — approval tier: unknown/estimated"
-  },
   "match_action_retry": "إعادة المحاولة",
   "@match_action_retry": {
     "description": "Generic retry action"
@@ -1101,8 +1077,6 @@
       }
     }
   },
-  "results_guarantee_approval": "توافق {pct}%",
-  "results_unrated": "لم يُقيَّم بعد",
   "results_unavailable_section": "غير متاح لك حاليًا",
   "@results_unavailable_section": {
     "description": "Heading above the checked-but-not-quotable programs"
@@ -1120,14 +1094,6 @@
     "description": "The applicant's ceiling at an unavailable program",
     "placeholders": { "amount": { "type": "String" } }
   },
-  "@results_guarantee_approval": {
-    "placeholders": {
-      "pct": {
-        "type": "int"
-      }
-    }
-  },
-  "results_best_match": "أفضل تطابق",
   "results_rate": "الفائدة",
   "results_monthly": "شهريًا",
   "results_total": "الإجمالي",
@@ -1150,15 +1116,6 @@
     "placeholders": {
       "type": {
         "type": "String"
-      }
-    }
-  },
-  "offer_approval": "درجة التوافق {pct}%",
-  "offer_unrated": "لم يُقيَّم بعد",
-  "@offer_approval": {
-    "placeholders": {
-      "pct": {
-        "type": "int"
       }
     }
   },

@@ -1,4 +1,17 @@
-# Feature 004 — Error Codes
+# ~~Feature 004 — Error Codes~~ — REMOVED (v25.0.0)
+
+> **REMOVED in v25.0.0.** None of these codes exists. The three `SCORING_VERSION_*` codes went with
+> the version registry that threw them, and `ANALYTICS_WINDOW_TOO_LARGE` went with the analyst
+> distribution page — deleted from `backend/src/common/errors/error-codes.ts` and from both admin
+> dictionaries in one change, as Principle III requires of a code in either direction.
+>
+> Why: a typed error is a promise that some code path can still raise it. With the score, its tiers
+> and its engine registry gone there is nothing left to promote, nothing to race, and no accuracy
+> window to bound — so every code here had become unthrowable, and an unthrowable code with an
+> Arabic translation behind it is worse than no code: it survives `check:codes`, reads as live
+> contract, and sends the next reader looking for a promotion endpoint. The `NO_MATCHING_PROGRAMS`
+> payload extension described below also lapses: `meta.suggestions` no longer carries `tier`-bucketed
+> counts, because there are no tiers.
 
 Four new codes ship in this feature. Per Constitution Principle III (Typed Errors End-to-End) every code lands in three files in the same PR:
 

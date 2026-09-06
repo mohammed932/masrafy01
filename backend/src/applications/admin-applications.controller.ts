@@ -41,21 +41,18 @@ export class AdminApplicationsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'List applications (paginated, with bestOffer + tier)' })
+  @ApiOperation({ summary: 'List applications (paginated, newest first)' })
   async findMany(
     @Query('status') status?: string,
     @Query('leadStatus') leadStatus?: string,
     @Query('loanPurpose') loanPurpose?: string,
-    @Query('tier') tier?: string,
     @Query('cursor') cursor?: string,
     @Query('limit', new DefaultValuePipe(25), ParseIntPipe) limit?: number,
   ): Promise<unknown> {
-    const tierBucket = tier === 'high' || tier === 'medium' ? tier : undefined;
     const rows = await this.repo.findManyAdmin({
       status: status?.split(',') as ApplicationStatus[] | undefined,
       leadStatus: leadStatus?.split(',') as LeadStatus[] | undefined,
       loanPurpose,
-      tier: tierBucket,
       cursor,
       limit,
     });
@@ -109,21 +106,11 @@ export class AdminApplicationsController {
     row: Awaited<ReturnType<ApplicationRepository['findManyAdmin']>>[number],
   ) {
     const profile = row.applicantProfile as RawApplicantProfileJson;
-    // Prefer the offer the applicant actually selected (feature 008).
-    // Fall back to the highest-scored offer for legacy rows where the
-    // user-proceed gate did not yet exist.
+    // The offer the applicant actually selected (feature 008) — it carries the
+    // bank's verdict, which is what admin triage reads the row for.
     const selected = row.userSelectedBankOfferId
       ? row.bankOffers.find((o) => o.id === row.userSelectedBankOfferId)
       : undefined;
-    const best =
-      selected ?? [...row.bankOffers].sort((a, b) => b.approvalScore - a.approvalScore)[0];
-    const bestOffer = best
-      ? {
-          score: best.approvalScore,
-          tier: best.approvalTier,
-          tierLabelCode: `approval.tier.${best.approvalTier}`,
-        }
-      : null;
     const selectedOfferDecision = selected?.decision?.outcome ?? null;
     return {
       id: row.id,
@@ -140,7 +127,6 @@ export class AdminApplicationsController {
         ? { firstName: row.applicantCustomer.firstName, lastName: row.applicantCustomer.lastName }
         : null,
       maskedApplicant: maskApplicantProfile(profile),
-      bestOffer,
       userProceededAt: row.userProceededAt ? row.userProceededAt.toISOString() : null,
       userSelectedBankOfferId: row.userSelectedBankOfferId ?? null,
       selectedOfferDecision,
@@ -213,7 +199,9 @@ export class AdminApplicationsController {
       totalPayableEGP: totalPayable.toFixed(2),
       totalCostOfCreditEGP: totalPayable.sub(o.effectiveLoanAmountEGP).toFixed(2),
       feesBreakdown: o.feesBreakdown,
-      approvalProbability: this.projectApprovalProbability(o),
+      // The engine's own rank position, frozen with the offer — the order the
+      // applicant was shown, by the priority they stated.
+      rankIndex: o.rankIndex,
       requiredDocuments: o.requiredDocuments,
       matchReasons: o.matchReasons,
       cascadeTrace: o.cascadeTrace,
@@ -258,33 +246,6 @@ export class AdminApplicationsController {
       memberSince: c.createdAt.toISOString(),
       lastLoginAt: c.lastLoginAt ? c.lastLoginAt.toISOString() : null,
       hasProfilePhoto: c.profilePhotoKey !== null,
-    };
-  }
-
-  private projectApprovalProbability(o: {
-    approvalScore: number;
-    approvalTier: string;
-    approvalFactors: unknown;
-    approvalUsedDefault?: boolean;
-    engineVersion: string;
-  }) {
-    const raw = (o.approvalFactors ?? {}) as {
-      positive?: Array<{ code: string; impact: number }>;
-      negative?: Array<{ code: string; impact: number }>;
-      legacy?: boolean;
-    };
-    return {
-      score: o.approvalScore,
-      tier: o.approvalTier,
-      tierLabelCode: `approval.tier.${o.approvalTier}`,
-      factors: {
-        positive: raw.positive ?? [],
-        negative: raw.negative ?? [],
-        ...(raw.legacy === true ? { legacy: true } : {}),
-      },
-      // Rows predating the column read as false — see the service-side twin.
-      usedDefault: o.approvalUsedDefault ?? false,
-      engineVersion: o.engineVersion,
     };
   }
 }

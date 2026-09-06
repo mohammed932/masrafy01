@@ -30,8 +30,8 @@ class SavedOfferModel {
   const SavedOfferModel({
     required this.bankOfferId,
     required this.loanTypeKey,
-    required this.approvalScore,
-    required this.approvalUsedDefault,
+    required this.bankName,
+    required this.programFriendlyName,
     required this.effectiveTenorMonths,
     required this.effectiveRatePercent,
     required this.monthlyInstallmentEGP,
@@ -43,10 +43,11 @@ class SavedOfferModel {
 
   final String bankOfferId;
   final String loanTypeKey;
-  final int approvalScore;
 
-  /// Program had no ACTIVE weight set at match time — "not rated", not 0%.
-  final bool approvalUsedDefault;
+  /// The bank behind the saved offer, and the program it was matched on — the
+  /// two lines the card leads with now that the match score is gone.
+  final String bankName;
+  final String programFriendlyName;
   final int effectiveTenorMonths;
   final double effectiveRatePercent;
   final double monthlyInstallmentEGP;
@@ -59,8 +60,8 @@ class SavedOfferModel {
     return SavedOfferModel(
       bankOfferId: json['bankOfferId'] as String,
       loanTypeKey: (json['loanTypeKey'] as String?) ?? 'personal',
-      approvalScore: _toInt(json['approvalScore']),
-      approvalUsedDefault: json['approvalUsedDefault'] == true,
+      bankName: (json['bankName'] as String?) ?? '',
+      programFriendlyName: (json['programFriendlyName'] as String?) ?? '',
       effectiveTenorMonths: _toInt(json['effectiveTenorMonths']),
       effectiveRatePercent: _toDouble(json['effectiveRatePercent']),
       monthlyInstallmentEGP: _toDouble(json['monthlyInstallmentEGP']),
@@ -74,8 +75,8 @@ class SavedOfferModel {
   SavedOfferEntity toEntity() => SavedOfferEntity(
         bankOfferId: bankOfferId,
         loanTypeKey: loanTypeKey,
-        approvalPct: approvalScore,
-        approvalUnrated: approvalUsedDefault,
+        bankName: bankName,
+        programFriendlyName: programFriendlyName,
         termMonths: effectiveTenorMonths,
         ratePct: effectiveRatePercent,
         monthly: monthlyInstallmentEGP.round(),

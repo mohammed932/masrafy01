@@ -63,7 +63,6 @@ export enum AuditEventType {
   APPLICATION_RATE_LIMITED = 'APPLICATION_RATE_LIMITED',
   MATCHING_ENGINE_RUN = 'MATCHING_ENGINE_RUN',
   DATA_ERASURE_COMPLETED = 'DATA_ERASURE_COMPLETED',
-  SCORING_ENGINE_VERSION_PROMOTED = 'SCORING_ENGINE_VERSION_PROMOTED',
   APPLICATION_ACTIVITY_LOGGED = 'APPLICATION_ACTIVITY_LOGGED',
   DOCUMENT_UPLOADED = 'DOCUMENT_UPLOADED',
   APPLICATION_REASSIGNED = 'APPLICATION_REASSIGNED',
@@ -129,14 +128,18 @@ export enum AuditEventType {
   CUSTOMER_DEACTIVATED = 'CUSTOMER_DEACTIVATED',
   CUSTOMER_REACTIVATED = 'CUSTOMER_REACTIVATED',
 
-  // Feature 00X — questionnaire + scoring weights (v5.0.0: direct save)
+  // Feature 00X — questionnaire
   QUESTIONNAIRE_PUBLISHED = 'QUESTIONNAIRE_PUBLISHED',
-  SCORING_WEIGHTS_SAVED = 'SCORING_WEIGHTS_SAVED',
 
-  // RETIRED with the removal of prefill / catalog defaults — no writer remains.
-  // The values are preserved (not dropped) because `audit_event` rows are
-  // append-only (Principle VI) and a Postgres enum value cannot be removed in
-  // place without recreating `AuditEventType`. Do not emit these.
+  // RETIRED — no writer remains. The values are preserved (not dropped) because
+  // `audit_event` rows are append-only (Principle VI) and a Postgres enum value cannot be
+  // removed in place without recreating `AuditEventType` against the live audit log. Do
+  // not emit these.
+  //
+  // prefill / catalog defaults:
   BANK_POLICY_UPDATED = 'BANK_POLICY_UPDATED',
   PROGRAM_CATALOG_DEFAULTS_UPDATED = 'PROGRAM_CATALOG_DEFAULTS_UPDATED',
+  // approval scoring, removed v25.0.0:
+  SCORING_ENGINE_VERSION_PROMOTED = 'SCORING_ENGINE_VERSION_PROMOTED',
+  SCORING_WEIGHTS_SAVED = 'SCORING_WEIGHTS_SAVED',
 }

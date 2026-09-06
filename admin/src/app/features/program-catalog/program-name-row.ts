@@ -5,9 +5,6 @@ import type { EnumerationRow } from '../lookups/lookups.api.service';
 /** The `platform_enumeration` type the whole catalog feature is about. */
 export const ENUM_TYPE = 'program_name';
 
-/** Question codes a name suggests scoring on, per loan category. */
-export type QuestionsByCategory = Readonly<Record<LoanCategory, readonly string[]>>;
-
 /**
  * How a name may be sold, per loan category — `[]` for a category it is not
  * offered under, which is why this is filled for all four keys like the questions
@@ -36,11 +33,6 @@ export interface ProgramNameRow {
    */
   bases: BasesByCategory;
   /**
-   * Question codes this name SUGGESTS scoring on, per category. Always has all
-   * four keys — see `fillCategories`.
-   */
-  questions: QuestionsByCategory;
-  /**
    * The no-payslip counters are carried through rather than dropped at this boundary:
    * the detail screen has to be able to say "2 bank programs read these facts and have
    * no table yet", and it used to be structurally unable to, because this row narrowed
@@ -57,24 +49,11 @@ export interface ProgramNameRow {
 /**
  * Wire map → all four keys present, missing ones as `[]`.
  *
- * The server omits a category with nothing suggested, which is correct on the
- * wire (absent and empty mean the same thing on this axis) and hostile in a
- * template: every tab would need `?? []` and the one that forgot would render
- * `undefined.length`. Filled once, here.
- */
-function fillCategories(
-  byCategory: Partial<Record<LoanCategory, readonly string[]>> | undefined,
-): QuestionsByCategory {
-  const out = {} as Record<LoanCategory, readonly string[]>;
-  for (const category of LOAN_CATEGORIES) out[category] = [...(byCategory?.[category] ?? [])];
-  return out;
-}
-
-/**
- * Same fill for the basis map, and for the same reason — except here an empty
- * array carries a meaning the questions map does not have: "not offered under
- * this loan type". Both readings agree that there is nothing to render, so the
- * screens never have to tell them apart.
+ * The server omits a category the name is not offered under, which is correct on
+ * the wire and hostile in a template: every read site would need `?? []` and the
+ * one that forgot would render `undefined.length`. Filled once, here. An empty
+ * array reads as "not offered under this loan type", which is also what "nothing
+ * to render" looks like, so the screens never have to tell the two apart.
  */
 function fillBases(
   byCategory: Partial<Record<LoanCategory, readonly IncomeBasis[]>> | undefined,
@@ -111,7 +90,6 @@ export function absorbProgramNames(list: EnumerationRow[]): {
         active: r.active,
         categories: canonicalCategories(r.categories ?? []),
         bases: fillBases(r.incomeBasesByCategory),
-        questions: fillCategories(r.questionsByCategory),
         usage: r.usage ?? {
           programs: 0,
           banks: 0,

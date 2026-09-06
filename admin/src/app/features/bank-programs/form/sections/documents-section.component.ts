@@ -1,5 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, Input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  Input,
+  LOCALE_ID,
+} from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -79,8 +86,12 @@ export class DocumentsSectionComponent {
   @Input({ required: true }) group!: FormGroup;
   readonly docs = this.enums.membersFor('required_document');
 
+  private readonly localeIsAr = inject(LOCALE_ID).toLowerCase().startsWith('ar');
+
+  // Localised: a syndicate card and a facility operating licence have no English name a
+  // Cairo operator would recognise (Principle IV / A20).
   readonly docOptions = computed<BrandSelectOption[]>(() =>
-    this.docs().map((m) => ({ value: m.key, label: m.labelEn })),
+    this.docs().map((m) => ({ value: m.key, label: this.localeIsAr ? m.labelAr : m.labelEn })),
   );
 
   get currentDocs(): string[] {

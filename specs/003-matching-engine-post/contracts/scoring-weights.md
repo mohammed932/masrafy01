@@ -1,4 +1,29 @@
-# Approval Probability Scoring Weights — Single Source of Truth
+# ~~Approval Probability Scoring Weights — Single Source of Truth~~ — REMOVED (v25.0.0)
+
+> **REMOVED in v25.0.0.** There is no approval score. The formula, the weight table and the tier
+> thresholds below describe `backend/src/matching/pipeline/approval-probability.ts`, which is
+> deleted, and `bank_offer.approvalProbabilityPercent`, which is a dropped column. Anti-pattern
+> **A24**, cited in the header line below, is now `Reserved (was: Approval Probability Without
+> Documented Weights — retired v25.0.0)`.
+>
+> Why, and it is this file specifically: its standing obligation was
+> *"This document MIRRORS `backend/src/matching/scoring-weights.ts` … Both files MUST update in
+> the same PR (FR-034)"* — and that code module was **deleted on 2026-06-16 (commit `a82aecf`),
+> the same change that became constitution v5.0.0** and replaced this rule-based scorer with the
+> per-question weighted one. So the same-PR promise has had nothing on the other end of it for
+> roughly three months: no PR could honour it, and none was blocked for failing to. It was a
+> mirror of a file that was not there. v25.0.0 removes what it was a second copy of as well, so
+> now there is nothing behind it at all.
+>
+> The rest of `specs/003-matching-engine-post/` is deliberately **left frozen** as the historical
+> record — it has survived six Principle V amendments untouched. This one file is bannered rather
+> than left alone because it does not merely *describe* past behaviour, it *claims a live
+> obligation on future PRs*.
+>
+> What ordering does now: `rankOffers(offers, priority)` sorts by the applicant's own stated
+> priority answer, and the apply path freezes that order on each row as `bank_offer.rankIndex`
+> (Principle I / A6). FR-042 — the priority sort this file's score used to override — is the part
+> of feature 003 that survived and became the whole mechanism.
 
 **Feature**: 003-matching-engine-post
 **Constitution**: Principle V (engine is core IP), Anti-pattern A24 (no probability without documented weights).

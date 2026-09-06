@@ -252,12 +252,14 @@ describe('the data this seed carries', () => {
   });
 });
 
-describe('the two ABK doctor sheets are two programmes of ONE product', () => {
-  // Spec §10.7: "ABK's two doctor programs use the same bands with different figures
-  // (clinic owners 30K-300K, in-practice 15K-150K) - also correct, they are two programs."
-  // So both must file under one catalog name, that name must take its calculation from the
-  // one doctors product, and the two must NOT hold the same numbers — if they did, the
-  // one-product decision would be hiding a real difference rather than expressing one.
+describe('the two ABK doctor sheets are two products', () => {
+  // Spec §10.7 read them as two programmes of one product, because they band years in
+  // practice identically and only the figures differ — and figures belong to a bank. The
+  // terms differ too: 26.5% against 30%, an age floor of 32 against 21, a maximum of
+  // 2,000,000 against 1,000,000, opposite accepted employment types, and a cap on §7 and
+  // none on §8. So each sheet gets its own product and its own catalog name, and the doctor
+  // states which is theirs by picking one — the job an ownership question and two gate
+  // conditions used to do inside the merged product.
   const DOCTORS = SHEET_PROGRAMS.filter((program) => program.sheet.includes('Doctors'));
 
   it('finds both sheets', () => {
@@ -267,12 +269,29 @@ describe('the two ABK doctor sheets are two programmes of ONE product', () => {
     ]);
   });
 
-  it('files them under one catalog name, which reads one product', () => {
-    expect([...new Set(DOCTORS.map((program) => program.dto.programNameKey))]).toEqual([
-      'doctors_in_practice',
-    ]);
-    const name = PROGRAM_NAMES.find((entry) => entry.key === 'doctors_in_practice');
-    expect(name?.productKey).toBe('years_in_practice_bands');
+  it('gives each its own catalog name, and each name its own product', () => {
+    // The name is what narrows the programmes an application is matched against, so two
+    // names is what lets the applicant's pick separate them. One shared name would put both
+    // back in front of every doctor.
+    expect(
+      Object.fromEntries(DOCTORS.map((program) => [program.programCode, program.dto.programNameKey])),
+    ).toEqual({
+      'ABK-PER-DOCTORS_CLINIC': 'doctors_clinic_owner',
+      'ABK-PER-DOCTORS_PRACTICE': 'doctors_in_practice',
+    });
+    for (const key of ['doctors_clinic_owner', 'doctors_in_practice']) {
+      expect(PROGRAM_NAMES.find((entry) => entry.key === key)?.productKey).toBe(key);
+    }
+  });
+
+  it('labels the two names so a doctor can tell which is theirs', () => {
+    // Nothing else enforces the pick now, so a name reading plain "Doctors" in either locale
+    // is the defect — and it is the label this repo shipped while they shared one name.
+    for (const key of ['doctors_clinic_owner', 'doctors_in_practice']) {
+      const name = PROGRAM_NAMES.find((entry) => entry.key === key);
+      expect(name?.labelEn).not.toBe('Doctors');
+      expect(name?.labelAr).not.toBe('الأطباء');
+    }
   });
 
   it('gives each programme its own figures', () => {
@@ -289,5 +308,44 @@ describe('the two ABK doctor sheets are two programmes of ONE product', () => {
       (program) => program.dto.loanLimits?.maxLoanByFact !== undefined,
     );
     expect(withCap.map((program) => program.programCode)).toEqual(['ABK-PER-DOCTORS_CLINIC']);
+  });
+
+  it('refuses to quote §7 when the city is unstated, rather than capping at the best cell', () => {
+    // The question is required, so this is a stale-snapshot path — but `useProgramMax` there
+    // would hand a doctor whose city nobody knows the programme maximum, 2,000,000, which is
+    // the top-up Cairo cell. A stated refusal is the only honest answer.
+    const clinic = DOCTORS.find((p) => p.programCode === 'ABK-PER-DOCTORS_CLINIC');
+    expect(clinic?.dto.loanLimits?.maxLoanByFact?.onNoMatch).toBe('reject');
+  });
+
+  it('gates on nothing at all — the name pick is what separates them', () => {
+    // Two conditions on the merged product used to do this, read off an OPTIONAL question
+    // while an unanswered gate fact is fatal: a doctor who skipped it was refused by both
+    // programmes. Neither programme may carry one now.
+    for (const program of DOCTORS) {
+      const params = (
+        program.dto.incomeAssumption as { stepParams?: Record<string, unknown> } | undefined
+      )?.stepParams;
+      expect(Object.keys(params ?? {}).filter((id) => id.startsWith('cond__'))).toEqual([]);
+    }
+  });
+
+  it('gives the in-practice sheet one income slot, not three', () => {
+    // The merged product carried a city-tier column §8 does not use, so this programme held
+    // the identical figures in three slots and read as pricing by city.
+    const practice = DOCTORS.find((p) => p.programCode === 'ABK-PER-DOCTORS_PRACTICE');
+    const params = (
+      practice?.dto.incomeAssumption as { stepParams?: Record<string, unknown> } | undefined
+    )?.stepParams;
+    expect(Object.keys(params ?? {}).sort()).toEqual(['primary']);
+  });
+
+  it('leaves every condition blank on the CATALOG defaults', () => {
+    // A catalog default rides on every bank that inherits the amounts, so a condition turned
+    // on here would be a refusal rule those banks never chose. Blank IS the decision.
+    const catalog = CATALOG_FIGURES.find((entry) => entry.productKey === 'doctors_clinic_owner');
+    expect(Object.keys(catalog?.stepParams ?? {}).filter((id) => id.startsWith('cond__'))).toEqual(
+      [],
+    );
   });
 });

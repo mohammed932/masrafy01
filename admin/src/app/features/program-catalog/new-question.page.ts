@@ -60,24 +60,20 @@ import {
 /**
  * Author a brand-new question WITHOUT leaving the catalog name you are configuring.
  *
- * The ask this answers is "let each program have its own questions". Under
- * Principle V / A33 there is exactly one legal shape for that, and it is not a
- * second pool: the question is created in the ONE global pool, assigned to the
- * loan categories that ask it, and ticked into THIS name's template. The dialog
- * does the first half and hands the tick back to the page, which owns the
- * whole-set write.
+ * Under Principle V / A33 there is exactly one legal shape for a new question, and
+ * it is not a second pool: it is created in the ONE global pool and assigned to the
+ * loan categories that ask it.
  *
- * That last step is not decoration. `ScoringService.saveWeights` rejects any
- * weight on a question outside the (name, category) template with
- * WEIGHTS_QUESTION_NOT_IN_CATALOG, so the tick is what actually lets every bank
- * program under this name score on the new question.
+ * The consequence the operator MUST see before saving is exactly that: the question
+ * is global, so every applicant in the chosen loan types is asked it, not only the
+ * ones who reach this name. That sentence is rendered under the category tiles
+ * rather than buried in a tooltip, because it is the one thing this screen's framing
+ * ("Doctor Loans → a new question") invites people to get wrong.
  *
- * The consequence the operator MUST see before saving is the other half: the
- * question is global, so every applicant in the chosen loan types is asked it,
- * not only the ones who reach this name. That sentence is rendered under the
- * category tiles rather than buried in a tooltip, because it is the one thing
- * this screen's framing ("Doctor Loans → its questions") invites people to get
- * wrong.
+ * This screen used to end with a tick that added the question to the catalog name's
+ * "what it scores on" list. Approval scoring is gone from the platform and that list
+ * with it, so the tick — and the router-state hand-off that carried it back — went
+ * too. The question is still created; nothing is attached to the name.
  *
  * One request, not N. The answers ride along on `createQuestionWithOptions`:
  * the split path publishes a questionnaire version per call, and every
@@ -125,25 +121,6 @@ function uniqueSlug(label: string, existing: ReadonlySet<string>): string {
 
 /** A decimal string the backend's IsDecimalString({ scale: 2, min: 0 }) accepts. */
 const DECIMAL_RE = /^\d+(\.\d{1,2})?$/;
-
-export interface NewQuestionResult {
-  /** The code the SERVER minted — not the preview. */
-  code: string;
-  /** Localised label, for the toast/announcement the page makes. */
-  label: string;
-  type: QuestionType;
-  categories: LoanCategory[];
-  /** Whether the operator asked for it to be ticked into this name's template. */
-  tick: boolean;
-}
-
-/**
- * How the created question travels back to the catalog name's page: as router state,
- * read once on arrival. The TICK is deliberately still the name page's write — it owns
- * that template, holds the current pick set, and re-reads it before writing (a colleague
- * may have changed it meanwhile).
- */
-export const NEW_QUESTION_STATE_KEY = 'newQuestion';
 
 type OptionGroup = FormGroup<{
   labelEn: FormControl<string>;
@@ -453,7 +430,7 @@ type OptionGroup = FormGroup<{
               />
             </label>
             <p class="hint" i18n="@@pnq.text_hint">
-              Free text is scored on whether it was answered at all — never on what it says.
+              Free text is stored as the applicant typed it. Nothing reads what it says.
             </p>
           </section>
         }
@@ -486,42 +463,11 @@ type OptionGroup = FormGroup<{
             }
           </div>
           <!-- The one sentence this dialog exists to stop people getting wrong.
-                 The question is GLOBAL; only the tick below is about this name. -->
+                 The question is GLOBAL — it is not attached to this name. -->
           <p class="consequence">
             <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
             <span>{{ consequence() }}</span>
           </p>
-
-          <label class="tile row" [class.is-on]="tick()" [class.is-off]="!canTick()">
-            <input
-              type="checkbox"
-              class="sr-only"
-              [checked]="tick()"
-              [disabled]="!canTick()"
-              (change)="toggleTick()"
-            />
-            <span class="tile-tick" aria-hidden="true">
-              @if (tick()) {
-                <span nz-icon nzType="check" nzTheme="outline"></span>
-              }
-            </span>
-            <span class="tile-text">
-              <span class="tile-title">{{ tickTitle() }}</span>
-              <span class="tile-hint">
-                @if (canTick()) {
-                  <ng-container i18n="@@pnq.tick_hint"
-                    >Adds it to this name's list here, so every bank program under it can weight
-                    it.</ng-container
-                  >
-                } @else {
-                  <ng-container i18n="@@pnq.tick_off_hint"
-                    >Turn {{ openCategoryName() }} back on above — a name cannot score on a question
-                    its applicants are never asked.</ng-container
-                  >
-                }
-              </span>
-            </span>
-          </label>
 
           <label class="tile row" [class.is-on]="required()">
             <input
@@ -618,9 +564,8 @@ type OptionGroup = FormGroup<{
   `,
   styles: [
     `
-      /* One accent for the whole screen, taken from the tab it was opened on:
-         a question authored from the Business tab is green throughout. Context,
-         not decoration — the tick it produces lands in that tab's template. */
+      /* One accent for the whole screen, taken from the loan type it was opened
+         on: a question authored from the Business lane is green throughout. */
       :host {
         display: block;
         --nqd-accent: var(--color-brand-primary);
@@ -672,7 +617,7 @@ type OptionGroup = FormGroup<{
           background-color var(--motion-duration-fast) var(--motion-easing-standard),
           box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .tile:hover:not(.is-on):not(.is-off) {
+      .tile:hover:not(.is-on) {
         border-color: var(--color-border-strong);
         background: var(--color-surface-default);
       }
@@ -692,10 +637,6 @@ type OptionGroup = FormGroup<{
         );
         box-shadow: inset 0 0 0 1px
           color-mix(in srgb, var(--tile-accent, var(--nqd-accent)) 45%, transparent);
-      }
-      .tile.is-off {
-        opacity: 0.55;
-        cursor: not-allowed;
       }
       .tile-text {
         display: flex;
@@ -1146,8 +1087,8 @@ export class NewQuestionPage implements OnInit {
 
   /**
    * Wording only, and async: the label is not on the URL. Until it arrives the subtitle
-   * and the tick line say what they can without naming the name — never a placeholder
-   * name, which would read as a real one.
+   * says what it can without naming the name — never a placeholder name, which would
+   * read as a real one.
    */
   protected readonly nameLabel = signal('');
   /**
@@ -1175,7 +1116,7 @@ export class NewQuestionPage implements OnInit {
   }
 
   protected subtitleFor(label: string): string {
-    return $localize`:@@pnq.subtitle:Written into the one shared question pool, then offered to “${label}:name:” to score on.`;
+    return $localize`:@@pnq.subtitle:Opened from “${label}:name:”, but written into the one shared question pool — every applicant in the loan types you pick is asked it.`;
   }
 
   protected readonly types = TYPES;
@@ -1193,15 +1134,9 @@ export class NewQuestionPage implements OnInit {
   protected readonly minOptionsTip = $localize`:@@pnq.min_answers_tip:A pick-one question needs at least two answers`;
   protected readonly opEquals = $localize`:@@pnq.op_equals:was answered`;
   protected readonly opNotEquals = $localize`:@@pnq.op_not_equals:was NOT answered`;
-  protected readonly tickTitle = computed(() =>
-    this.nameLabel() === ''
-      ? $localize`:@@pnq.tick_unnamed:Also score this catalog name on it`
-      : $localize`:@@pnq.tick:Also score “${this.nameLabel()}:name:” on it`,
-  );
 
   protected readonly type = signal<QuestionType>('SINGLE_SELECT');
   protected readonly required = signal(true);
-  protected readonly tick = signal(true);
   protected readonly picked = signal<readonly LoanCategory[]>([this.category]);
   protected readonly branchOpen = signal(false);
   protected readonly branchLoading = signal(false);
@@ -1319,7 +1254,7 @@ export class NewQuestionPage implements OnInit {
       case 'NUMERIC':
         return $localize`:@@pnq.type_number_hint:A figure — salary, rent, years.`;
       case 'TEXT':
-        return $localize`:@@pnq.type_text_hint:Typed in freely. Scored on being answered.`;
+        return $localize`:@@pnq.type_text_hint:Typed in freely, in the applicant's own words.`;
     }
   }
 
@@ -1405,10 +1340,6 @@ export class NewQuestionPage implements OnInit {
     return categoryLabel(c);
   }
 
-  protected openCategoryName(): string {
-    return categoryLabel(this.category);
-  }
-
   protected hasCategory(c: LoanCategory): boolean {
     return this.picked().includes(c);
   }
@@ -1420,21 +1351,6 @@ export class NewQuestionPage implements OnInit {
         ? current.filter((x) => x !== c)
         : LOAN_CATEGORIES.filter((x) => x === c || current.includes(x)),
     );
-    if (!this.canTick()) this.tick.set(false);
-  }
-
-  /**
-   * The tick only means something while the open tab still asks the question:
-   * a pick outside its category's asked set is exactly the drift the page tags
-   * "not asked here", and offering to create one on purpose would be a trap.
-   */
-  protected canTick(): boolean {
-    return this.picked().includes(this.category);
-  }
-
-  protected toggleTick(): void {
-    if (!this.canTick()) return;
-    this.tick.update((v) => !v);
   }
 
   protected toggleRequired(): void {
@@ -1568,17 +1484,13 @@ export class NewQuestionPage implements OnInit {
   protected summary(): string {
     const kind = this.typeLabel(this.type()).toLocaleLowerCase(this.locale);
     const where = this.list(this.picked().map((c) => categoryLabel(c)));
-    return this.tick()
-      ? $localize`:@@pnq.summary_ticked:A ${kind}:kind: question, asked of ${where}:types: applicants, and ticked into “${this.nameLabel()}:name:”.`
-      : $localize`:@@pnq.summary_plain:A ${kind}:kind: question, asked of ${where}:types: applicants. Not ticked here.`;
+    return $localize`:@@pnq.summary_plain:A ${kind}:kind: question, asked of ${where}:types: applicants.`;
   }
 
   // ---- save -----------------------------------------------------------------
-  /** Leaves without writing anything — back to the tab this was opened from. */
+  /** Leaves without writing anything — back to the name this was opened from. */
   protected cancel(): void {
-    void this.router.navigate(['/program-catalog', this.key()], {
-      queryParams: { loan: this.category, step: 3 },
-    });
+    void this.router.navigate(['/program-catalog', this.key()]);
   }
 
   protected async save(): Promise<void> {
@@ -1586,22 +1498,11 @@ export class NewQuestionPage implements OnInit {
     this.errorMessage.set(null);
     this.submitting.set(true);
     try {
-      const created = await this.api.createQuestionWithOptions(this.body());
-      const result: NewQuestionResult = {
-        code: created.code,
-        label: created.questionEn,
-        type: this.type(),
-        categories: [...this.picked()],
-        tick: this.tick(),
-      };
-      // The name's page finishes the job: it reloads the pool, ticks the question into
-      // this tab's template if that was asked for, and announces the outcome in its own
-      // live region. Handing it the result as router state keeps that logic where the
-      // template is written from.
-      void this.router.navigate(['/program-catalog', this.key()], {
-        queryParams: { loan: this.category, step: 3 },
-        state: { [NEW_QUESTION_STATE_KEY]: result },
-      });
+      // The write IS the whole job now — the question lands in the global pool and is
+      // asked of the loan types picked above. Nothing is attached to the catalog name,
+      // so there is nothing to hand back to it.
+      await this.api.createQuestionWithOptions(this.body());
+      void this.router.navigate(['/program-catalog', this.key()]);
     } catch (err) {
       const code = (err as { error?: { code?: string } }).error?.code;
       this.errorMessage.set(

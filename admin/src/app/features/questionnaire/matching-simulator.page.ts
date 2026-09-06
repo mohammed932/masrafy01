@@ -31,7 +31,7 @@ import {
   type SimulationMatch,
   type SimulationResult,
 } from './questionnaire.api.service';
-import { approvalTierLabel, bindingConstraintLabel } from './simulation-labels';
+import { bindingConstraintLabel } from './simulation-labels';
 import {
   SimulatedOfferDrawerComponent,
   type SimulatedOfferDrawerData,
@@ -179,10 +179,10 @@ function isVisible(
 
 /**
  * Admin matching simulator (read-only). A guided flow of a few questions per step
- * runs the SAME per-bank approval scoring the mobile app uses — without creating
- * an application. All four question types (single pick, multi pick, text,
- * number) are answerable; only single pick carries an answer score (R9), the
- * rest are validated and carried for the figures work.
+ * runs the SAME pricing pipeline the mobile app uses — eligibility, the rate
+ * cascade, the debt-burden ceiling — without creating an application. All four
+ * question types (single pick, multi pick, text, number) are answerable, and
+ * every answer is validated and carried into the figures work.
  */
 @Component({
   standalone: true,
@@ -203,7 +203,7 @@ function isVisible(
         <h1 i18n="@@sim.title">Matching simulator</h1>
         <p class="muted" i18n="@@sim.subtitle">
           Walk a sample applicant through the questionnaire and see what every active program would
-          decide — eligibility, installment, approval probability. Nothing is saved.
+          quote — eligibility, amount, rate, installment. Nothing is saved.
         </p>
       </header>
 
@@ -254,13 +254,17 @@ function isVisible(
                       <span class="m-bank">{{ m.bankName }}</span>
                       <span class="m-prog">{{ m.programFriendlyName }}</span>
                     </div>
-                    <div
-                      class="prob"
-                      [attr.data-tier]="m.usedDefaultWeights ? 'unrated' : m.approvalTier"
-                    >
-                      <span class="prob-num">{{ pct(m.approvalProbability) }}%</span>
-                      <span class="prob-tier">{{ tierLabel(m) }}</span>
-                    </div>
+                    <!-- The installment anchors the card because it is what the list
+                         is ordered on — the figure that explains the row's place. -->
+                    @if (m.figures; as f) {
+                      <div class="m-anchor">
+                        <span class="m-anchor-num"
+                          >{{ money(f.monthlyInstallmentEGP) }}
+                          <span class="m-anchor-ccy">EGP</span></span
+                        >
+                        <span class="m-anchor-unit" i18n="@@sim.installment">Installment</span>
+                      </div>
+                    }
                   </div>
                   <!-- Registry facts only. "Eligible" is NOT one: gating is dropped
                        for MVP, so every program carries eligible=true and a tag
@@ -272,19 +276,13 @@ function isVisible(
                     @if (m.isShariaCompliant) {
                       <span class="tag ok" i18n="@@sim.sharia">Sharia-compliant</span>
                     }
-                    @if (m.usedDefaultWeights) {
-                      <span class="tag warn" i18n="@@sim.tier.unrated">Not rated</span>
-                    }
                   </div>
-                  <!-- Card carries the three figures a ranking is read on; the rest
-                       of the money block lives in the drawer. Rendered only once
-                       the quote pipeline supplies them, never as "null EGP". -->
+                  <!-- The installment is the headline above; these two say how it
+                       was arrived at. The rest of the money block lives in the
+                       drawer. Rendered only once the quote pipeline supplies them,
+                       never as "null EGP". -->
                   @if (m.figures; as f) {
                     <dl class="m-figs">
-                      <div>
-                        <dt i18n="@@sim.installment">Installment</dt>
-                        <dd class="numeric">{{ money(f.monthlyInstallmentEGP) }} EGP</dd>
-                      </div>
                       <div>
                         <dt i18n="@@sim.rate">Rate</dt>
                         <dd class="numeric">{{ pctText(f.effectiveRatePercent) }}%</dd>
@@ -1091,39 +1089,28 @@ function isVisible(
         font-size: 13px;
         color: var(--color-text-secondary, #6b7280);
       }
-      .prob {
+      .m-anchor {
         display: flex;
         flex-direction: column;
         align-items: flex-end;
         text-align: end;
+        flex: none;
       }
-      .prob-num {
+      .m-anchor-num {
         font-size: 22px;
         font-weight: 800;
         line-height: 1;
         font-variant-numeric: tabular-nums;
+        color: var(--color-text-primary, #1f2430);
       }
-      .prob-tier {
+      .m-anchor-ccy {
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .m-anchor-unit {
         font-size: 11px;
         font-weight: 600;
-        text-transform: capitalize;
         color: var(--color-text-secondary, #6b7280);
-      }
-      .prob[data-tier='excellent'] .prob-num,
-      .prob[data-tier='good'] .prob-num {
-        color: var(--ant-success-color, #2e7d4f);
-      }
-      .prob[data-tier='moderate'] .prob-num {
-        color: var(--ant-warning-color, #b8860b);
-      }
-      .prob[data-tier='low'] .prob-num,
-      .prob[data-tier='very_low'] .prob-num {
-        color: var(--ant-error-color, #c1666b);
-      }
-      /* An unconfigured program is grey, not red: "not rated" and "rated badly"
-         must never look the same (v13.0.0). */
-      .prob[data-tier='unrated'] .prob-num {
-        color: var(--color-text-tertiary, #9aa1ab);
       }
       .m-tags {
         display: flex;
@@ -1551,12 +1538,6 @@ export class MatchingSimulatorPage {
     return labels.length > 0 ? labels.join('، ') : '—';
   }
 
-  pct(p: number): number {
-    return Math.round(p * 100);
-  }
-  tierLabel(match: SimulationMatch): string {
-    return approvalTierLabel(match);
-  }
   bindingLabel(constraint: string): string {
     return bindingConstraintLabel(constraint);
   }

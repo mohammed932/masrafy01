@@ -43,7 +43,6 @@ import {
   AlreadyProceededException,
   ApplicationNotMatchedException,
 } from '../common/errors/domain.exceptions';
-import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
 import { CustomerProfileCompletenessService } from '@/customer-auth/customer-profile-completeness.service';
 import { QuestionnaireService, type ResolvedAnswer } from '@/questionnaire/questionnaire.service';
 import { DomainException } from '@/common/errors/domain.exceptions';
@@ -58,26 +57,11 @@ import {
   surrogateOptionPick,
   type SurrogateFacts,
 } from '@/matching/pipeline/surrogate-facts-from-answers';
-import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
-import {
-  toSelectedAnswers,
-  type ScorableAnswer,
-} from '@/matching/scoring/answer-to-selected';
-import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
 import type { LoanCategory, DecisionOutcome } from '@prisma/client';
-import type {
-  ApplicantProfile,
-  BankProgramSnapshot,
-  Offer,
-  ScoringConfig,
-} from '../matching/types';
+import type { ApplicantProfile, BankProgramSnapshot, Offer } from '../matching/types';
+import { MATCHING_ENGINE_VERSION } from '../matching/types';
 import type { ApplyRequestDto } from './dto/apply.dto';
-import type {
-  ApplyResponse,
-  ApprovalProbabilityResponseDto,
-  ApprovalTierLiteral,
-  UnavailableProgramDto,
-} from './dto/apply-response.dto';
+import type { ApplyResponse, UnavailableProgramDto } from './dto/apply-response.dto';
 import type {
   ApplicationDecisionStatus,
   ApplicationDetailResponse,
@@ -106,9 +90,6 @@ type PersistedOfferRow = {
   effectiveLoanAmountEGP: Decimal;
   requestedTenorMonths: number;
   effectiveTenorMonths: number;
-  approvalScore: number;
-  approvalTier: string;
-  approvalFactors: unknown;
   engineVersion: string;
   requiredDocuments: string[];
   matchReasons: string[];
@@ -154,9 +135,7 @@ export class ApplicationsService {
     private readonly engine: EngineService,
     private readonly programsRepo: BankProgramRepository,
     private readonly audit: AuditEventWriter,
-    private readonly scoringVersions: ScoringEngineVersionService,
     private readonly questionnaire: QuestionnaireService,
-    private readonly weightedScoring: WeightedApprovalScoringService,
     private readonly completeness: CustomerProfileCompletenessService,
     private readonly savedOffers: SavedOfferRepository,
     private readonly programNames: ProgramNameScopeService,
@@ -416,7 +395,6 @@ export class ApplicationsService {
       toBankProgramSnapshot(p, catalogRules),
     );
 
-    const scoringConfig: ScoringConfig = await loadActiveScoringConfig(this.scoringVersions);
     // Age is DERIVED from the customer's birthday, never sent by the client
     // (Principle XXXVII / A31). It prices money — the age-at-maturity rule
     // shortens the tenor, which moves the installment and the max loan.
@@ -430,7 +408,7 @@ export class ApplicationsService {
     const surrogateFacts = await this.resolveSurrogateFacts(resolvedQuestionnaire);
     const profile = this.buildProfile(dto, age, obligations, surrogateFacts);
     // MVP simplification: eligibility gating is dropped on apply — every active
-    // program yields an offer, ranked purely by the per-bank approval score.
+    // program yields an offer, ordered by the applicant's own stated priority.
     // DBR is NOT part of that: affordability shapes the amount offered, so it
     // stays on here. Leaving it off persisted immutable offers at installments
     // the applicant's declared income could never carry.
@@ -441,28 +419,16 @@ export class ApplicationsService {
     const result = this.engine.run({
       profile,
       programs: snapshots,
-      scoringConfig,
       skipEligibility: true,
       parentKeyByValue,
     });
 
-    // Per-bank weighted approval scoring (Constitution V v5.0.0): override each
-    // offer's probability/tier with the per-program per-answer approval score
-    // from `WeightedApprovalScoringService.scoreProgram`. Same scorer the mobile
-    // preview uses. Only runs when the application carries dynamic-questionnaire
-    // answers; otherwise the engine's own approval probability is left as-is.
-    if (dto.category && resolvedQuestionnaire && dynamicAnswers && dynamicAnswers.length > 0) {
-      await this.applyPerBankScoring(
-        result.offers,
-        dto.category,
-        dynamicAnswers,
-        resolvedQuestionnaire.askedQuestionCodes,
-        snapshots,
-      );
-    }
-
-    const offerInputs: CreateBankOfferInput[] = result.offers.map((o) =>
-      this.toOfferInput(o, scoringConfig.version),
+    // The rank IS the array position: `result.offers` comes out of `rankOffers`,
+    // already sorted by the applicant's own `priority`. Carrying a `rankIndex` field
+    // on `Offer` instead would be a second statement of the same fact, free to
+    // disagree with the array it describes.
+    const offerInputs: CreateBankOfferInput[] = result.offers.map((o, rankIndex) =>
+      this.toOfferInput(o, rankIndex),
     );
 
     // Programs the engine checked but could not quote. `quoteProgram` failing is
@@ -566,7 +532,6 @@ export class ApplicationsService {
           },
           tx,
         );
-        const bestOffer = result.offers[0];
         await this.audit.write(
           {
             actorId: null,
@@ -578,9 +543,7 @@ export class ApplicationsService {
               programsCheckedCount: result.programsChecked,
               eligibleProgramsCount: result.eligibleCount,
               durationMs: result.engineDurationMs,
-              engineVersion: scoringConfig.version,
-              bestOfferScore: bestOffer?.approvalProbability.score ?? null,
-              bestOfferTier: bestOffer?.approvalProbability.tier ?? null,
+              engineVersion: MATCHING_ENGINE_VERSION,
             },
           },
           tx,
@@ -676,41 +639,7 @@ export class ApplicationsService {
     };
   }
 
-  /**
-   * Overwrite each offer's approval probability with the per-bank, per-answer
-   * approval score (Constitution V v5.0.0). Mutates the offers IN PLACE before
-   * they are mapped to BankOffer inputs — the rows are not yet created, so
-   * Principle I / A6 (immutable-after-match) is respected. The score is derived
-   * by `scoreProgram` from the program's ACTIVE weight set and the customer's
-   * answers — of every type, since v14.0.0.
-   */
-  private async applyPerBankScoring(
-    offers: Offer[],
-    category: LoanCategory,
-    answers: readonly ScorableAnswer[],
-    askedQuestionCodes: readonly string[],
-    snapshots: BankProgramSnapshot[],
-  ): Promise<void> {
-    if (offers.length === 0) return;
-    // EVERY question type scores (Constitution V, v14.0.0): a single pick, a set
-    // of picks, a number in a band, or the presence of free text. The mapping is
-    // shared with the preview path so both derive the same answer scores (A25).
-    const selectedAnswers = toSelectedAnswers(answers);
-    const idByCode = new Map(snapshots.map((s) => [s.programCode, s.id]));
-
-    for (const offer of offers) {
-      const { score, tier, factors, usedDefault } = await this.weightedScoring.scoreProgram({
-        programId: idByCode.get(offer.programCode) ?? null,
-        category,
-        answers: selectedAnswers,
-        askedQuestionCodes,
-      });
-      offer.approvalProbability = { score, tier, factors, usedDefault };
-      offer.approvalProbabilityPercent = score;
-    }
-  }
-
-  private toOfferInput(offer: Offer, engineVersion: string): CreateBankOfferInput {
+  private toOfferInput(offer: Offer, rankIndex: number): CreateBankOfferInput {
     return {
       programCode: offer.programCode,
       programVersion: offer.programVersion,
@@ -728,12 +657,8 @@ export class ApplicationsService {
       requestedTenorMonths: offer.requestedTenorMonths,
       effectiveTenorMonths: offer.effectiveTenorMonths,
       feesBreakdown: offer.feesBreakdown as unknown as JsonValueInput,
-      approvalProbabilityPercent: new Decimal(offer.approvalProbabilityPercent),
-      approvalScore: offer.approvalProbability.score,
-      approvalTier: offer.approvalProbability.tier,
-      approvalFactors: offer.approvalProbability.factors as unknown as JsonValueInput,
-      approvalUsedDefault: offer.approvalProbability.usedDefault ?? false,
-      engineVersion,
+      rankIndex,
+      engineVersion: MATCHING_ENGINE_VERSION,
       requiredDocuments: offer.requiredDocuments,
       matchReasons: offer.matchReasons,
       cascadeTrace: offer.cascadeTrace as unknown as JsonValueInput,
@@ -753,41 +678,6 @@ export class ApplicationsService {
       collateralCeilingEGP: offer.collateralCeilingEGP
         ? new Decimal(offer.collateralCeilingEGP.toString())
         : null,
-    };
-  }
-
-  /**
-   * Project a persisted BankOffer row into the response-side approvalProbability shape
-   * defined in feature 004. The factor catalog is NOT looked up here — the API stays
-   * locale-agnostic and returns stable codes only. Clients localize via tierLabelCode
-   * and the per-offer engine version's factorCatalog (admin only).
-   */
-  private projectApprovalProbability(row: {
-    approvalScore: number;
-    approvalTier: string;
-    approvalFactors: unknown;
-    approvalUsedDefault?: boolean;
-    engineVersion: string;
-  }): ApprovalProbabilityResponseDto {
-    const tier = row.approvalTier as ApprovalTierLiteral;
-    const raw = (row.approvalFactors ?? {}) as {
-      positive?: Array<{ code: string; impact: number }>;
-      negative?: Array<{ code: string; impact: number }>;
-      legacy?: boolean;
-    };
-    return {
-      score: row.approvalScore,
-      tier,
-      tierLabelCode: `approval.tier.${tier}`,
-      factors: {
-        positive: raw.positive ?? [],
-        negative: raw.negative ?? [],
-        ...(raw.legacy === true ? { legacy: true as const } : {}),
-      },
-      // Rows predating the column read as false — they were scored against a
-      // real weight set, which is the status quo for every backfilled offer.
-      usedDefault: row.approvalUsedDefault ?? false,
-      engineVersion: row.engineVersion,
     };
   }
 
@@ -821,7 +711,6 @@ export class ApplicationsService {
       effectiveLoanAmountEGP: o.effectiveLoanAmountEGP.toFixed(2),
       requestedTenorMonths: o.requestedTenorMonths,
       effectiveTenorMonths: o.effectiveTenorMonths,
-      approvalProbability: this.projectApprovalProbability(o),
       requiredDocuments: o.requiredDocuments,
       matchReasons: o.matchReasons,
       feesBreakdown: o.feesBreakdown,

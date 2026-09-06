@@ -12,12 +12,9 @@
  *     (`EngineService`) against the live `bank_program` rows of its category, so
  *     rates / installments / fees / cascade traces / required documents are the
  *     ones the product would really quote.
- *   - REAL scores: each offer's approval probability comes from the same
- *     `WeightedApprovalScoringService` the apply + preview paths use, reading the
- *     program's ACTIVE `ScoringWeightSet` (Principle V, two-level weights).
  *   - REAL answers: every application carries a full set of `application_answer`
  *     rows against the live GLOBAL question pool, so the detail page's
- *     questionnaire card and the "why this score" panel are populated.
+ *     questionnaire card is populated.
  *   - The Feature-008 gate (`userProceededAt` + `userSelectedBankOfferId`) is set,
  *     which is what makes a row visible on the admin board at all.
  *
@@ -35,20 +32,12 @@ import { Decimal } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcrypt';
 import { EngineService } from '../src/matching/engine.service';
 import { ALL_LOAN_CATEGORIES } from '../src/common/loan-category.util';
-import {
-  askedWeightSum,
-  computeProbability,
-  normalizeWeights,
-  tierFor,
-  type ProgramScoring,
-  type SelectedAnswer,
-} from '../src/matching/scoring/approval-probability.scorer';
 import type {
   ApplicantProfile,
   BankProgramSnapshot,
   Offer,
-  ScoringConfig,
 } from '../src/matching/types';
+import { MATCHING_ENGINE_VERSION } from '../src/matching/types';
 
 const prisma = new PrismaClient();
 const engine = new EngineService();
@@ -638,41 +627,6 @@ function toSnapshot(p: ProgramRow): BankProgramSnapshot {
   };
 }
 
-/**
- * The same two-level formula the apply path runs (Principle V v13.0.0):
- * `Σ_answered(questionWeight × answerScore/100) ÷ Σ_asked(questionWeight)`, with
- * the per-answer contributions kept as the offer's `approvalFactors` so the
- * admin "why this score" panel has real content.
- *
- * The demo applicant was asked exactly what they answered, so the asked set is
- * every question code the spec produced a row for — including the numeric and
- * text ones, which carry no weight and so drop out of the sum anyway.
- */
-function scoreProgram(
-  scoring: ProgramScoring,
-  answers: readonly SelectedAnswer[],
-  askedQuestionCodes: readonly string[],
-): { score: number; tier: string; factors: { positive: Array<{ code: string; impact: number }>; negative: never[] } } {
-  const probability = computeProbability(scoring, answers, askedQuestionCodes);
-  const denominator = askedWeightSum(scoring, askedQuestionCodes);
-  const positive =
-    denominator <= 0
-      ? []
-      : answers
-          .map((ans) => {
-            const weight = scoring.questionWeights[ans.questionCode] ?? 0;
-            const optionScore = scoring.answerScores[ans.questionCode]?.[ans.optionCode] ?? 0;
-            return { code: ans.optionCode, impact: Math.round((weight * optionScore) / denominator) };
-          })
-          .filter((f) => f.impact > 0)
-          .sort((x, y) => y.impact - x.impact);
-  return {
-    score: Math.round(probability * 100),
-    tier: tierFor(probability),
-    factors: { positive, negative: [] },
-  };
-}
-
 function jsonify(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(
     JSON.stringify(value, (_k, v) => (v instanceof Decimal ? v.toString() : v)),
@@ -761,24 +715,6 @@ async function loadQuestions(): Promise<Map<string, QuestionRow>> {
   return out;
 }
 
-async function loadScoringConfig(): Promise<ScoringConfig> {
-  const row = await prisma.scoringEngineVersion.findFirst({ where: { deactivatedAt: null } });
-  if (!row) throw new Error('No active scoring engine version — run `npx prisma db seed` first.');
-  const cfg = row.weightsConfig as unknown as {
-    weights: Record<string, number>;
-    thresholds: ScoringConfig['thresholds'];
-    factorCatalog: ScoringConfig['factorCatalog'];
-    legacy?: boolean;
-  };
-  return {
-    version: row.version,
-    weights: cfg.weights,
-    thresholds: cfg.thresholds,
-    factorCatalog: cfg.factorCatalog,
-    legacy: cfg.legacy ?? false,
-  };
-}
-
 async function resetSeededRows(): Promise<void> {
   const deleted = await prisma.application.deleteMany({
     where: { submissionCorrelationId: { startsWith: DEMO_TAG } },
@@ -820,25 +756,13 @@ async function main(): Promise<void> {
     );
   }
 
-  const [customerIds, questions, scoringConfig] = await Promise.all([
-    ensureCustomers(),
-    loadQuestions(),
-    loadScoringConfig(),
-  ]);
+  const [customerIds, questions] = await Promise.all([ensureCustomers(), loadQuestions()]);
 
   const activeVersion = await prisma.questionnaireVersion.findFirst({ where: { isActive: true } });
-
-  // ACTIVE weight set per program (Principle V) — read once, reused per offer.
-  const weightSets = await prisma.scoringWeightSet.findMany({ where: { status: 'ACTIVE' } });
-  const scoringByProgramId = new Map<string, ProgramScoring>(
-    weightSets.map((w) => [w.bankProgramId, normalizeWeights(w.weights)]),
-  );
-  const programIdByCode = new Map(programs.map((p) => [p.programCode, p.id]));
 
   const specs = buildSpecs(toCreate, seedable);
   let created = 0;
   let offersCreated = 0;
-  const tierTally: Record<string, number> = {};
 
   for (const [index, spec] of specs.entries()) {
     const customerId = customerIds.get(spec.customer.phone);
@@ -848,9 +772,6 @@ async function main(): Promise<void> {
     // Guard: a code that no longer exists in the pool would silently drop an
     // answer row and leave the questionnaire card half-empty.
     const answerRows: Prisma.ApplicationAnswerCreateManyApplicationInput[] = [];
-    const selectedAnswers: SelectedAnswer[] = [];
-    // The scoring denominator: what this demo applicant was put in front of.
-    const askedQuestionCodes: string[] = [];
     for (const [code, value] of Object.entries(answers)) {
       const q = questions.get(code);
       if (!q) continue; // question retired since this seeder was written
@@ -873,13 +794,9 @@ async function main(): Promise<void> {
         textValue: value.textValue ?? null,
         numericValue: value.numericValue ? new Prisma.Decimal(value.numericValue) : null,
       });
-      askedQuestionCodes.push(code);
-      if (value.optionCode) {
-        selectedAnswers.push({ questionCode: code, optionCode: value.optionCode });
-      }
     }
-    // Resolve option ids for the single-choice answers (the scorer + the admin
-    // answer views read the denormalised code, the id keeps the FK honest).
+    // Resolve option ids for the single-choice answers (the admin answer views read
+    // the denormalised code, the id keeps the FK honest).
     for (const row of answerRows) {
       if (!row.selectedOptionCode) continue;
       const option = await prisma.questionOption.findFirst({
@@ -894,7 +811,6 @@ async function main(): Promise<void> {
     const result = engine.run({
       profile,
       programs: categoryPrograms,
-      scoringConfig,
       skipEligibility: true,
     });
     if (result.offers.length === 0) {
@@ -902,27 +818,10 @@ async function main(): Promise<void> {
       continue;
     }
 
-    // Per-bank weighted approval score (overrides the engine's generic one).
-    for (const offer of result.offers) {
-      const programId = programIdByCode.get(offer.programCode);
-      const scoring = (programId && scoringByProgramId.get(programId)) || {
-        questionWeights: {},
-        answerScores: {},
-      };
-      const scored = scoreProgram(scoring, selectedAnswers, askedQuestionCodes);
-      offer.approvalProbability = {
-        score: scored.score,
-        tier: scored.tier,
-        factors: scored.factors,
-        // No ACTIVE weight set → this 0 means "nobody configured the program",
-        // and the board must not render it as a poor fit.
-        usedDefault: !(programId && scoringByProgramId.has(programId)),
-      } as Offer['approvalProbability'];
-      offer.approvalProbabilityPercent = scored.score;
-    }
-    const ranked = [...result.offers].sort(
-      (x, y) => y.approvalProbability.score - x.approvalProbability.score,
-    );
+    // `result.offers` is already ranked by the applicant's own `priority` — the
+    // engine's own order, which is what `rankIndex` freezes below. Re-sorting here
+    // would write a demo board in an order no real applicant would have seen.
+    const ranked = result.offers;
     const best = ranked[0] as Offer;
 
     const createdAt = new Date(Date.now() - spec.daysAgo * DAY);
@@ -963,7 +862,9 @@ async function main(): Promise<void> {
       });
 
       let selectedOfferId: string | null = null;
-      for (const offer of ranked) {
+      // `rankIndex` must agree with the order these rows are inserted in — it is what
+      // every read orders by.
+      for (const [rankIndex, offer] of ranked.entries()) {
         const row = await tx.bankOffer.create({
           data: {
             applicationId: app.id,
@@ -980,12 +881,8 @@ async function main(): Promise<void> {
             requestedTenorMonths: offer.requestedTenorMonths,
             effectiveTenorMonths: offer.effectiveTenorMonths,
             feesBreakdown: jsonify(offer.feesBreakdown),
-            approvalProbabilityPercent: new Prisma.Decimal(offer.approvalProbabilityPercent),
-            approvalScore: offer.approvalProbability.score,
-            approvalTier: offer.approvalProbability.tier,
-            approvalFactors: jsonify(offer.approvalProbability.factors),
-            approvalUsedDefault: offer.approvalProbability.usedDefault ?? false,
-            engineVersion: scoringConfig.version,
+            rankIndex,
+            engineVersion: MATCHING_ENGINE_VERSION,
             requiredDocuments: offer.requiredDocuments,
             matchReasons: offer.matchReasons,
             cascadeTrace: jsonify(offer.cascadeTrace),
@@ -1038,7 +935,6 @@ async function main(): Promise<void> {
       return app.id;
     });
 
-    tierTally[best.approvalProbability.tier] = (tierTally[best.approvalProbability.tier] ?? 0) + 1;
     created += 1;
     if (created % 10 === 0) console.log(`[seed:apps:demo] ${created}/${toCreate}… (last ${applicationId})`);
   }
@@ -1046,7 +942,6 @@ async function main(): Promise<void> {
   console.log(
     `[seed:apps:demo] created ${created} application(s) + ${offersCreated} offer(s); board total ≈ ${already + created}.`,
   );
-  console.log(`[seed:apps:demo] selected-offer tiers: ${JSON.stringify(tierTally)}`);
   console.log(`[seed:apps:demo] demo customers login: ${CUSTOMERS[0]?.phone} / ${DEMO_PASSWORD}`);
 }
 

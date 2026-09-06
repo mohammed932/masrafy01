@@ -80,8 +80,6 @@ export interface ProgramNameSpec {
   /** The product this name takes its calculation from. */
   productKey: string;
   categories: LoanCategory[];
-  /** The scored-question shortlist, per category. Advisory — but a name without one reads empty. */
-  questionCodes: string[];
 }
 
 const money = (key: string, incomeEGP: string) => ({ key, incomeEGP });
@@ -204,7 +202,14 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   },
 
   {
-    productKey: 'years_in_practice_bands',
+    // The clinic-owner product, because that is the shape this sheet has: one income table
+    // banded by years and keyed by a governorate tier. The in-practice product states no
+    // second column, so these figures could not be filed under it without inventing one.
+    //
+    // No catalog default for `doctors_in_practice`, deliberately: no sheet in the source
+    // material publishes a plain years table, so a default there would be a figure nobody
+    // said. Each bank states its own, which its card says.
+    productKey: 'doctors_clinic_owner',
     sheet: 'App. C DOCTOR — years × governorate tier',
     stepParams: {
       // The sheet's "major governorates" are Cairo, Giza, Alexandria, Assiut, Minya, Qalyubia,
@@ -357,22 +362,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
 ];
 
 /**
- * The questions every applicant is asked, whatever the product — the income, the request and
- * the obligations block. Shared by every name below so a demo card is never empty.
- */
-const CORE_QUESTIONS = [
-  'monthly_income',
-  'amount_requested',
-  'repayment_period_months',
-  'current_loans',
-  'current_installments',
-  'credit_card_total_limit',
-  'employment_status',
-  'job_tenure',
-  'i_score',
-];
-
-/**
  * One catalog name per product that has a calculation.
  *
  * `personal` only, and that is not a shortcut: every question these products read is already
@@ -380,7 +369,7 @@ const CORE_QUESTIONS = [
  * never asked its facts is a program that quotes nothing.
  *
  * `compound_owner_4` is absent on purpose — it already exists, is already no-payslip and is
- * already linked to `compound_owner`. Its scored questions are set by the command.
+ * already linked to `compound_owner`, so this seed has nothing to do to it.
  */
 export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
   {
@@ -389,7 +378,6 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'القوات المسلحة',
     productKey: 'armed_forces_grades',
     categories: [LoanCategory.personal],
-    questionCodes: [...CORE_QUESTIONS, 'military_grade'],
   },
   {
     key: 'university_professors',
@@ -397,18 +385,28 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'أساتذة الجامعات',
     productKey: 'academic_rank_table',
     categories: [LoanCategory.personal],
-    questionCodes: [...CORE_QUESTIONS, 'academic_rank', 'is_the_university_government_or_private'],
   },
   {
-    key: 'doctors_in_practice',
-    // The key is narrower than the name on purpose: it is immutable (both ABK doctor
-    // programmes file their `programNameKey` under it), and the name covers what the
-    // catalog actually sells — the clinic-owner sheet and the in-practice one.
-    labelEn: 'Doctors',
-    labelAr: 'الأطباء',
-    productKey: 'years_in_practice_bands',
+    key: 'doctors_clinic_owner',
+    labelEn: 'Doctors — Clinic Owners',
+    labelAr: 'الأطباء — أصحاب العيادات',
+    productKey: 'doctors_clinic_owner',
     categories: [LoanCategory.personal],
-    questionCodes: [...CORE_QUESTIONS, 'years_in_practice', 'governorate'],
+  },
+  {
+    // TWO doctor names, one per product, and the applicant picking between them is what tells
+    // the two ABK programmes apart — the job an ownership question and two gate conditions
+    // used to do inside one product. The name a doctor picks narrows the programmes their
+    // application is matched against, so the two labels have to read unmistakably in both
+    // locales; nothing else enforces the choice.
+    //
+    // The KEY is reused rather than minted: it is immutable, `ABK-PER-DOCTORS_PRACTICE`
+    // already files under it, and a fresh key would strand that programme mid-deploy.
+    key: 'doctors_in_practice',
+    labelEn: 'Doctors — In Practice',
+    labelAr: 'الأطباء — الممارسة',
+    productKey: 'doctors_in_practice',
+    categories: [LoanCategory.personal],
   },
   {
     key: 'pl_to_card',
@@ -416,7 +414,6 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'تمويل شخصي مقابل بطاقة ائتمان',
     productKey: 'card_limit_share',
     categories: [LoanCategory.personal],
-    questionCodes: [...CORE_QUESTIONS, 'existing_bank_products'],
   },
   {
     key: 'pl_to_auto_loan',
@@ -424,11 +421,6 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'تمويل شخصي مقابل قرض سيارة',
     productKey: 'auto_loan_crosssell',
     categories: [LoanCategory.personal],
-    questionCodes: [
-      ...CORE_QUESTIONS,
-      'obligation_car_loan',
-      'how_much_was_the_car_loan_when_it_started',
-    ],
   },
   {
     key: 'cds_holder',
@@ -436,11 +428,6 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'حاملو الشهادات والودائع',
     productKey: 'pledged_collateral_share',
     categories: [LoanCategory.personal],
-    questionCodes: [
-      ...CORE_QUESTIONS,
-      'how_much_is_the_certificate_or_deposit_you_would_pledge',
-      'how_many_months_ago_was_it_issued',
-    ],
   },
   {
     key: 'teachers_predefined',
@@ -448,29 +435,8 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'المعلمون — حد محدد مسبقًا',
     productKey: 'school_stage_ceiling',
     categories: [LoanCategory.personal],
-    questionCodes: [
-      ...CORE_QUESTIONS,
-      'which_stage_do_you_teach',
-      'is_the_school_international_or_national',
-    ],
   },
 ];
-
-/** The name that already exists, and the questions it should show as scoring on. */
-export const EXISTING_COMPOUND_NAME = {
-  key: 'compound_owner_4',
-  categories: [LoanCategory.personal],
-  questionCodes: [
-    ...CORE_QUESTIONS,
-    'which_compound_is_your_unit_in',
-    'what_kind_of_unit_do_you_own',
-    'how_much_have_you_paid_for_the_unit_so_far',
-    'what_is_the_contract_price_of_the_unit',
-    'how_many_months_ago_did_you_sign_the_contract',
-    'do_you_own_the_unit_with_someone_else',
-    'do_you_own_more_than_one_unit',
-  ],
-} as const;
 
 /**
  * The compounds the source material names, and the class each is filed under.

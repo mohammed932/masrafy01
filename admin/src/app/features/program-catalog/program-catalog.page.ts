@@ -73,9 +73,9 @@ const ENUM_TYPE = 'program_name';
  *
  * One flat list, not per-category lanes: a name can be offered under several loan
  * types, so it has no single lane to sit in. Each card OPENS the name, where the
- * two per-category facts are configured together — which loan types may offer it,
- * and what each of those types scores on. The card shows the summary of both, so
- * the list answers "what is left to set up?" without opening anything.
+ * per-category assignment is configured — which loan types may offer it. The card
+ * shows that summary, so the list answers "what is left to set up?" without opening
+ * anything.
  *
  * SURROGATE PRODUCTS ARE ON THIS BOARD, behind the Surrogate chip — they were their own
  * top-level section, two clicks from the names they are sold under. A product is the
@@ -131,7 +131,7 @@ const ENUM_TYPE = 'program_name';
         i18n-eyebrow="@@program_catalog.eyebrow"
         title="Program catalog"
         i18n-title="@@program_catalog.title"
-        subtitle="Curated loan program names — Doctor, Military, New Car. Pick these in the bank-program builder instead of free-typing. Open a name to set which loan types offer it and what each one scores on."
+        subtitle="Curated loan program names — Doctor, Military, New Car. Pick these in the bank-program builder instead of free-typing. Open a name to set how its income is worked out and which loan types offer it."
         i18n-subtitle="@@program_catalog.subtitle"
       />
 
@@ -402,13 +402,6 @@ const ENUM_TYPE = 'program_name';
                     </span>
                   }
                 </span>
-                @if (questionCount(r) === 0) {
-                  <span class="q-none" i18n="@@program_catalog.card.no_questions"
-                    >No questions picked</span
-                  >
-                } @else {
-                  <span class="q-count">{{ questionLabel(r) }}</span>
-                }
                 <!-- WHICH figure a bank works the income out from is the BANK's answer,
                      entered on its own program. The board says only how this name may be
                      sold; naming a fact here was a second, weaker claim that no quote
@@ -938,9 +931,9 @@ const ENUM_TYPE = 'program_name';
         gap: var(--space-3);
         min-inline-size: 0;
       }
-      /* Config summary: which loan types, then how many questions. Two lines of
-         metadata, not a card of its own — nesting a panel inside a card to hold
-         two facts is hierarchy for its own sake. */
+      /* Config summary: which loan types this name is offered under. Metadata, not
+         a card of its own — nesting a panel inside a card to hold one fact is
+         hierarchy for its own sake. */
       .config {
         display: flex;
         flex-direction: column;
@@ -1413,24 +1406,6 @@ export class ProgramCatalogPage implements OnInit {
     return categoryLabel(category);
   }
 
-  /**
-   * Suggested questions across the loan types this name is actually OFFERED
-   * under. Deliberately not the sum over all four: a set left behind under a
-   * withdrawn loan type is kept on purpose (nothing prunes it), and counting it
-   * here would tell an operator their name is configured when the questions it
-   * points at are inert.
-   */
-  protected questionCount(row: EnumerationRow): number {
-    const byCategory = row.questionsByCategory;
-    if (!byCategory) return 0;
-    return this.categoriesOf(row).reduce((n, c) => n + (byCategory[c]?.length ?? 0), 0);
-  }
-
-  protected questionLabel(row: EnumerationRow): string {
-    const count = this.questionCount(row);
-    return $localize`:@@program_catalog.card.questions:${count}:COUNT: questions scored`;
-  }
-
   protected openLabel(row: EnumerationRow): string {
     return $localize`:@@program_catalog.card.open:Set up ${this.nameOf(row)}:NAME:`;
   }
@@ -1526,7 +1501,7 @@ export class ProgramCatalogPage implements OnInit {
     }
     this.modal.confirm({
       nzTitle: $localize`:@@program_catalog.delete.title:Delete this program name?`,
-      nzContent: $localize`:@@program_catalog.delete.body:${this.nameOf(row)}:NAME: is removed for good, along with its loan types and picked questions. This cannot be undone.`,
+      nzContent: $localize`:@@program_catalog.delete.body:${this.nameOf(row)}:NAME: is removed for good, along with its loan types. This cannot be undone.`,
       nzOkText: this.deleteLabel,
       nzOkDanger: true,
       nzOnOk: () => this.remove(row),

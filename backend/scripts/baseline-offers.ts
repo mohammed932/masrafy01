@@ -226,11 +226,14 @@ function quoteAll(snapshot: BankProgramSnapshot): Record<string, BaselineRow> {
  *
  * `seed-bank-programs.ts` never writes them — they are seeded on demand through
  * `POST /api/admin/bank-programs/seed/abk`, so a dev database usually has none of
- * them. They matter here more than anything in the DB: `ABK-MILITARY`,
- * `ABK-PROFESSORS` and `ABK-DOCTORS-PRACTICE` are the only rows carrying the
- * three LEGACY rule shapes, and T065 rewrites those rows into the canonical
- * shape. Without a pre-change quote of each, "the normalizer changed nothing"
- * (FR-015 / SC-009) is an assertion with no evidence behind it.
+ * them. They matter here more than anything in the DB: `ABK-MILITARY` and
+ * `ABK-PROFESSORS` are the rows carrying the LEGACY rule shapes, and T065 rewrites
+ * those rows into the canonical shape. Without a pre-change quote of each, "the
+ * normalizer changed nothing" (FR-015 / SC-009) is an assertion with no evidence
+ * behind it. `ABK-DOCTORS-PRACTICE` was the third and was retired on 2026-09-05 —
+ * the doctors sheets are `doctors_clinic_owner` and `doctors_in_practice`, seeded by
+ * `seed:sheet-figures`,
+ * and its converted table survives on `CATALOG_INCOME_RULE.doctor_practice`.
  */
 const CATALOGS: readonly SeedCatalog[] = [abkEgypt2026, bankNxt2026, salesfloorEgp2026];
 
@@ -245,17 +248,15 @@ const CATALOGS: readonly SeedCatalog[] = [abkEgypt2026, bankNxt2026, salesfloorE
  * salary (T016). Making their tables take effect is the feature.
  *
  * Listed explicitly rather than re-baselined silently: an allow-list keeps the
- * check meaningful for the other 69 programs, and turns "these three changed" from
- * a thing a reader has to notice into a thing the script says out loud. A drift
- * anywhere else still fails.
+ * check meaningful for every other program, and turns "these changed" from a thing
+ * a reader has to notice into a thing the script says out loud. A drift anywhere
+ * else still fails.
  */
 const EXPECTED_TO_MOVE: Readonly<Record<string, string>> = Object.freeze({
   'catalog:abk-egypt-2026:ABK-MILITARY':
     'grade table now read (T072 re-type + T016 combination rule)',
   'catalog:abk-egypt-2026:ABK-PROFESSORS':
     'rank table now read (T072 re-type + T016 combination rule)',
-  'catalog:abk-egypt-2026:ABK-DOCTORS-PRACTICE':
-    'years-in-practice table now read (T072 re-type + T016 combination rule)',
 });
 
 function catalogRows(): Baseline {

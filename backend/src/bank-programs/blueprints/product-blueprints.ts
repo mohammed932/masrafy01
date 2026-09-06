@@ -15,6 +15,13 @@
  * fills two. Four cards would be the same product duplicated, and the fifth bank would
  * mean a fifth card.
  *
+ * The line is the MECHANISM plus the terms, though, not the mechanism alone. The two ABK
+ * doctor sheets band years in practice identically and were one product for that reason, until
+ * the terms were read side by side: different rate, tenor, age floor and maximum, opposite
+ * accepted employment types, and a cap on one sheet and none on the other. That is two
+ * products — `doctors_clinic_owner` and `doctors_in_practice` — and the applicant says which
+ * is theirs by picking its catalog name, so nothing has to be gated to keep them apart.
+ *
  * The same reasoning makes one list serve banks that group it differently: the professors'
  * seven ranks cover both the English and the Arabic sheet, and the three city tiers are cut
  * so each bank's own grouping is a union of whole tiers (§10.1). A bank that does not sell a
@@ -45,6 +52,22 @@ const ALL_CATEGORIES = [
  * a column whose branches drift from the class list silently reads the standard column.
  */
 const CITY_TIERS = ['city_tier_major', 'city_tier_secondary', 'city_tier_other'] as const;
+
+/**
+ * The years-in-practice brackets both ABK doctor sheets print, HALF-OPEN: exactly five years
+ * lands in `5–8`, never in `3–5`.
+ *
+ * Shared by the two doctor products, which band identically and pay figures that differ by
+ * half at every row — the difference is a bank's, so it lives in each bank's programme.
+ */
+const PRACTICE_YEAR_EDGES: readonly { fromInclusive: string; toExclusive: string | null }[] = [
+  { fromInclusive: '3', toExclusive: '5' },
+  { fromInclusive: '5', toExclusive: '8' },
+  { fromInclusive: '8', toExclusive: '11' },
+  { fromInclusive: '11', toExclusive: '14' },
+  { fromInclusive: '14', toExclusive: '20' },
+  { fromInclusive: '20', toExclusive: null },
+];
 
 /** The six compound classes, as migration `20260829090000` seeded them. */
 const COMPOUND_CLASSES = [
@@ -170,23 +193,40 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   },
 
   {
-    key: 'years_in_practice_bands',
+    key: 'doctors_clinic_owner',
     group: 'income',
-    // ONE doctors product, not one per sheet. The two ABK sheets band years in practice
-    // identically and publish different figures (clinic owners 30K–300K, in-practice
-    // 15K–150K), and the spec is explicit that this makes them two PROGRAMS, not two
-    // products (§10.7). A card per sheet would be the same mechanism duplicated, and the
-    // Arabic DOCTOR sheet — a fifth bank, different band edges again — would mean a third.
-    // So the name covers the profession and each bank's programme states its own figures.
-    labelEn: 'Doctors',
-    labelAr: 'الأطباء',
+    // App. A §7 — the doctor who OWNS the clinic.
+    //
+    // TWO doctor products, not one with two figure sets. The earlier reading was that the two
+    // ABK sheets band years in practice identically and only pay differently, which would make
+    // them two PROGRAMS of one product (§10.7). They differ by more than figures: 26.5% against
+    // 30%, an age floor of 32 against 21, a maximum of 2,000,000 against 1,000,000, opposite
+    // accepted employment types, and — the structural half — this one is capped by where the
+    // doctor practises while the other carries no cap at all. One card described neither, and
+    // the merged product had to invent a yes/no question and two gate conditions to stop both
+    // quoting every doctor.
+    //
+    // Each product now carries its own catalog name, so the applicant states which one is
+    // theirs in loan setup and nothing has to be gated to tell them apart.
+    labelEn: 'Doctors — Clinic Owners',
+    labelAr: 'الأطباء — أصحاب العيادات',
     asks: [
       { kind: 'platformFact', factKey: 'years_in_practice' },
       {
-        kind: 'platformFact',
-        factKey: 'property_governorate',
-        // The governorate question is seeded for mortgages only, so a personal-loan doctor
-        // is never asked where they practise — and the column, and the cap, read nothing.
+        kind: 'bindQuestion',
+        factKey: 'practice_governorate',
+        // NOT the mortgage `governorate` question, which asks where the PROPERTY is — in
+        // Arabic it says so literally (`في أي محافظة يقع العقار؟`). A personal-loan doctor
+        // is being asked where they PRACTISE, and the two answers legitimately differ for a
+        // doctor with a clinic in one governorate and a flat in another. Its own question is
+        // seeded in `seed-questionnaire.ts` for personal and car, and REQUIRED there: an
+        // unanswered fact sends the cap to `onNoMatch`, which is the best cell in the table.
+        questionCode: 'practice_governorate',
+        // Stated for the same reason as the car instalment above: a bind carries no question
+        // text, so `factLabels` falls back to the CODE and the registry row ends up named
+        // after its own slug — in the Arabic bundle too, where a Latin slug reads as nothing.
+        labelEn: 'Governorate of practice',
+        labelAr: 'محافظة مزاولة المهنة',
         alsoAskIn: PERSONAL_AND_CAR,
       },
       { kind: 'derivedFact', factKey: 'loan_is_topup', alsoAskIn: PERSONAL_AND_CAR },
@@ -200,34 +240,46 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // and neither "everywhere else" is the other's — so the branches are whole classes and
       // the next governorate added to the list is priced without touching a bank's table.
       secondColumn: {
-        fact: 'property_governorate',
+        fact: 'practice_governorate',
         branches: [...CITY_TIERS],
         branchOn: 'parentClass',
       },
       conditions: [],
     },
-    suggestedBands: [
-      {
-        wayIndex: 0,
-        // Half-open: exactly five years lands in `5–8`, never in `3–5`.
-        edges: [
-          { fromInclusive: '3', toExclusive: '5' },
-          { fromInclusive: '5', toExclusive: '8' },
-          { fromInclusive: '8', toExclusive: '11' },
-          { fromInclusive: '11', toExclusive: '14' },
-          { fromInclusive: '14', toExclusive: '20' },
-          { fromInclusive: '20', toExclusive: null },
-        ],
-      },
-    ],
+    suggestedBands: [{ wayIndex: 0, edges: [...PRACTICE_YEAR_EDGES] }],
     cap: {
-      factKey: 'property_governorate',
+      factKey: 'practice_governorate',
       rowVia: 'parentClass',
       columnFactKey: 'loan_is_topup',
       onNoMatch: 'useProgramMax',
       rowKeys: [...CITY_TIERS],
       columnKeys: ['new_loan', 'top_up'],
     },
+  },
+
+  {
+    key: 'doctors_in_practice',
+    group: 'income',
+    // App. A §8 — the doctor EMPLOYED at a private hospital. Read the clinic-owner blueprint
+    // above for why these are two products.
+    //
+    // The sheet prints ONE income table by years and no maximum-loan table, so this product
+    // states no second column and no cap. The merged product gave this programme three
+    // city-tier slots holding the identical figure three times, which said the bank prices by
+    // city when its own sheet does not.
+    labelEn: 'Doctors — In Practice',
+    labelAr: 'الأطباء — الممارسة',
+    // Its only axis. `years_in_practice` is now asked by two blueprints, so it is a SHARED
+    // fact and neither product owns it — which is what stops one product going away and
+    // taking the other's axis with it.
+    asks: [{ kind: 'platformFact', factKey: 'years_in_practice' }],
+    template: {
+      version: 1,
+      outputKind: 'monthlyIncome',
+      primary: { kind: 'numberBand', fact: 'years_in_practice' },
+      conditions: [],
+    },
+    suggestedBands: [{ wayIndex: 0, edges: [...PRACTICE_YEAR_EDGES] }],
   },
 
   {
@@ -260,6 +312,12 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // The instalment is already asked as an obligation, with its own branch and its own
         // helper text. A second question would ask the same thing twice.
         questionCode: 'obligation_car_loan',
+        // Stated, because `factLabels` falls back to the question CODE when a bind supplies
+        // none — `questionAssignments()` carries no question text to fall back to — and the
+        // fact's label is what every operator screen renders. Without these the registry row
+        // is literally named `obligation_car_loan`, which is what it was called until now.
+        labelEn: 'Monthly car loan instalment',
+        labelAr: 'القسط الشهري لقرض السيارة',
       },
       {
         kind: 'number',

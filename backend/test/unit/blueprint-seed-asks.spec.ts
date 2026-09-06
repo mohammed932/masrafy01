@@ -78,8 +78,8 @@ describe('ensureBlueprintAsks', () => {
     // no registry row and nothing an operator could curate.
     const { repo, addAskByKeys } = fresh();
     await ensureBlueprintAsks({
-      blueprint: productBlueprint('years_in_practice_bands')!,
-      productKey: 'years_in_practice_bands',
+      blueprint: productBlueprint('doctors_clinic_owner')!,
+      productKey: 'doctors_clinic_owner',
       asks: repo,
       actorStaffId: 'staff_1',
     });

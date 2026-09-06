@@ -1,3 +1,24 @@
+# ~~Masrafy Approval Probability Display API~~ — REMOVED (v25.0.0)
+#
+# REMOVED in v25.0.0. Not one of the three additions below exists. The per-offer
+# `approvalProbability` object is gone from the `POST /api/v1/apply` response and from every admin
+# application read, together with the five `bank_offer.approval*` columns behind it;
+# `POST /api/admin/scoring-versions/:version/activate` and `GET /api/admin/scoring-analytics` are
+# both deleted routes.
+#
+# Why: this file is a contract, and a contract for endpoints nothing serves is a trap — the shapes
+# below are precise enough to be generated from, so leaving them un-marked invites a client to be
+# written against a 404. The score they carry was a weighted sum of admin-typed figures never once
+# compared against a bank decision, so the analytics route's whole subject (predicted tier vs.
+# actual outcome) had no measured side. What replaced it is an ORDER rather than a score:
+# `rankOffers(offers, priority)` sorts by the applicant's own stated priority, and the apply path
+# freezes that output on each row as `bank_offer.rankIndex` (Int, 0-based, dense per application,
+# never updated — Principle I / A6), which every read of a persisted offer then orders by.
+#
+# Kept, not deleted: feature 005's quickstart names this directory as a prerequisite, and
+# `design/promax-*` + `design/impec-*` are the Principle XXIII / A17 record that the design
+# pipeline ran.
+
 openapi: 3.1.0
 info:
   title: Masrafy Approval Probability Display API

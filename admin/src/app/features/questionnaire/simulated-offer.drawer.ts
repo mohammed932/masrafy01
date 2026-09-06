@@ -8,7 +8,7 @@ import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '../bank-programs/bank-programs.api.service';
 import type { BankProgramResponse } from '../bank-programs/bank-programs.types';
 import type { SimulationMatch } from './questionnaire.api.service';
-import { approvalTierLabel, bindingConstraintLabel } from './simulation-labels';
+import { bindingConstraintLabel } from './simulation-labels';
 
 /** What the simulator hands the drawer when a result card is pressed. */
 export interface SimulatedOfferDrawerData {
@@ -40,11 +40,6 @@ function percent(value: string): string {
  *  2. Program terms — fetched from `GET /admin/bank-programs/:code` on open, so
  *     the rate / tenor / limits / fees shown are the registry's current values.
  *
- * The per-answer score breakdown lived here and was cut deliberately: the score
- * itself is on the card and in the hero, and the weights editor is where the
- * numbers behind it are actually inspected and changed. `approvalFactors` is
- * still on the response for whoever needs it next.
- *
  * Rendered inside an NzDrawer (portaled to body → full-viewport scrim, A34).
  */
 @Component({
@@ -54,31 +49,20 @@ function percent(value: string): string {
   imports: [CommonModule, RouterLink, SkeletonRowsComponent, StatusPillComponent],
   template: `
     <div class="wrap">
-      <!-- ── Identity + score ─────────────────────────────────── -->
+      <!-- ── Identity ─────────────────────────────────────────── -->
       <header class="hero">
         <div class="hero-id">
           <h3 class="prog">{{ match.programFriendlyName }}</h3>
         </div>
-        <div
-          class="score"
-          [attr.data-tier]="match.usedDefaultWeights ? 'unrated' : match.approvalTier"
-        >
-          <span class="score-num">{{ scorePct() }}<span class="score-sign">%</span></span>
-          <span class="score-tier">{{ tierLabel() }}</span>
+        <div class="pills">
+          @if (match.bankIsFeatured) {
+            <app-status-pill tone="info" [label]="featuredLabel" />
+          }
+          @if (match.isShariaCompliant) {
+            <app-status-pill tone="success" [label]="shariaLabel" />
+          }
         </div>
       </header>
-
-      <div class="pills">
-        @if (match.bankIsFeatured) {
-          <app-status-pill tone="info" [label]="featuredLabel" />
-        }
-        @if (match.isShariaCompliant) {
-          <app-status-pill tone="success" [label]="shariaLabel" />
-        }
-        @if (match.usedDefaultWeights) {
-          <app-status-pill tone="warning" [label]="unratedLabel" />
-        }
-      </div>
 
       <!-- ── 1. The estimate ──────────────────────────────────── -->
       <section class="block">
@@ -254,8 +238,7 @@ function percent(value: string): string {
         gap: var(--space-6, 24px);
       }
 
-      /* Identity and score share one baseline row — the number is the reason the
-         drawer was opened, so it outranks everything else in the panel. */
+      /* Identity on the start edge, the program's standing marks on the end one. */
       .hero {
         display: flex;
         align-items: flex-start;
@@ -275,51 +258,12 @@ function percent(value: string): string {
         line-height: 1.25;
         letter-spacing: -0.01em;
       }
-      .score {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        flex: none;
-      }
-      .score-num {
-        font-size: 34px;
-        font-weight: 800;
-        line-height: 1;
-        font-variant-numeric: tabular-nums lining-nums;
-        letter-spacing: -0.02em;
-      }
-      .score-sign {
-        font-size: 18px;
-        font-weight: 700;
-        margin-inline-start: 2px;
-      }
-      .score-tier {
-        margin-block-start: 4px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: capitalize;
-        color: var(--color-text-secondary, #6b7280);
-      }
-      .score[data-tier='excellent'] .score-num,
-      .score[data-tier='good'] .score-num {
-        color: var(--ant-success-color, #2e7d4f);
-      }
-      .score[data-tier='moderate'] .score-num {
-        color: var(--ant-warning-color, #b8860b);
-      }
-      .score[data-tier='low'] .score-num,
-      .score[data-tier='very_low'] .score-num {
-        color: var(--ant-error-color, #c1666b);
-      }
-      .score[data-tier='unrated'] .score-num {
-        color: var(--color-text-tertiary, #9aa1ab);
-      }
-
       .pills {
         display: flex;
         flex-wrap: wrap;
+        justify-content: flex-end;
         gap: 6px;
-        margin-block-start: calc(-1 * var(--space-3, 12px));
+        flex: none;
       }
 
       /* Blocks are separated by a hairline, not by nested cards: the drawer is
@@ -455,19 +399,9 @@ export class SimulatedOfferDrawerComponent {
 
   protected readonly featuredLabel = $localize`:@@sim.featured:Featured`;
   protected readonly shariaLabel = $localize`:@@sim.detail.sharia:Sharia-compliant`;
-  protected readonly unratedLabel = $localize`:@@sim.detail.unrated:Not rated`;
 
   constructor() {
     void this.loadProgram();
-  }
-
-  protected scorePct(): number {
-    return Math.round(this.match.approvalProbability * 100);
-  }
-
-  /** An unconfigured program reads as unrated — never as `very_low` (v13.0.0). */
-  protected tierLabel(): string {
-    return approvalTierLabel(this.match);
   }
 
   protected money(value: string): string {

@@ -6,15 +6,8 @@
  *
  * MVP model:
  *  - Questions + answers are PURE CONTENT (label + order only). No engine fields.
- *  - Scoring is per bank program: `ScoringWeightSet.weights` holds question
- *    weights (summing to 100) plus the rule each TYPE is scored by — option
- *    scores for the two choice types, an aggregation for MULTI_SELECT, `[from,to)`
- *    bands for NUMERIC, a presence score for TEXT (Constitution V, v14.0.0).
- *    Approval probability = Σ_answered(weight × answerScore÷100) ÷ Σ_asked(weight).
- *    No eligibility gates.
- *  - Options carry an OPTIONAL seed-only `points` hint (0..100 desirability). Each
- *    program gets those points scaled by a per-program multiplier so programs
- *    differ; the banking expert tunes them later in the admin editor.
+ *  - No eligibility gates, and no scoring: a question is asked, priced or read by an
+ *    income rule — never weighted.
  */
 import { I_SCORE_FACT_KEY } from '../src/matching/pipeline/product-template';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
@@ -28,16 +21,24 @@ import {
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
   OBLIGATION_ITEM_QUESTION_CODES,
 } from '../src/matching/pipeline/money-field-bindings';
-// Weight sets are written by ONE routine, shared with `seed-scoring-weights`, and
-// scoped to the program-name catalog's question template (see that file's header).
-import {
-  NEUTRAL_SCORE,
-  SEED_ACTOR,
-  writeProgramWeightSets,
-  type SeedCategory,
-  type SeedNumericRules,
-  type SeedPoolFacts,
-} from './program-weight-sets';
+/** The four retail loan categories, as this seed's configs key them. */
+type SeedCategory = 'personal' | 'mortgage' | 'car' | 'business';
+
+/** Recorded as the author on every row this seed writes. */
+const SEED_ACTOR = 'seed-system';
+
+/**
+ * NUMERIC content bounds, as authored below. The unit is optional: a bureau score has
+ * no unit, and the interface it was lifted from required one — which nothing ever
+ * caught, because `prisma/` is outside the `tsc` include.
+ */
+interface SeedNumericRules {
+  minValue: string;
+  maxValue: string;
+  step?: string;
+  unitEn?: string;
+  unitAr?: string;
+}
 
 const prisma = new PrismaClient();
 
@@ -66,7 +67,7 @@ async function enumOptions(type: string, client: PrismaClient): Promise<SeedOpti
 // the option list follows whatever the admin registered; no hardcoded bank
 // branch anywhere). Cached because the merge reads it once per referencing
 // question. `code` slugs the English name: it is a join key
-// (`ScoringWeightSet.answerScores`, `ApplicationAnswer.selectedOptionCode`), so a
+// (`ApplicationAnswer.selectedOptionCode`, a surrogate fact's table), so a
 // bank renamed in the registry seeds a NEW option code and the old one simply
 // deactivates — stored answers keep pointing at the name that was picked.
 let _bankOptionsCache: SeedOption[] | null = null;
@@ -102,12 +103,10 @@ interface SeedOption {
   labelEn: string;
   labelAr: string;
   /** Stable option code. Authored options pin it explicitly because the code is a
-   *  join key: mobile answer mappers, `ScoringWeightSet.answerScores` and stored
-   *  `ApplicationAnswer.selectedOptionCode` all reference it, so it must survive a
-   *  copy edit. Only options built at seed time fall back to slug(labelEn). */
+   *  join key: mobile answer mappers, stored `ApplicationAnswer.selectedOptionCode`
+   *  and an income rule's key table all reference it, so it must survive a copy
+   *  edit. Only options built at seed time fall back to slug(labelEn). */
   code?: string;
-  /** Seed-only desirability hint (0..100). Becomes the program's per-answer points. */
-  points?: number;
 }
 interface SeedQuestion {
   code: string;
@@ -156,16 +155,16 @@ interface CategoryConfig {
 // Employment codes used across categories. Points = desirability to a lender
 // (stable salaried income scores highest; irregular income lowest).
 const EMPLOYMENT_OPTIONS: SeedOption[] = [
-  { code: 'government_employee', labelEn: 'Government job', labelAr: 'موظف حكومي', points: 100 },
-  { code: 'private_sector_employee', labelEn: 'Private company job', labelAr: 'موظف قطاع خاص', points: 85 },
-  { code: 'business_owner_company_owner', labelEn: 'I own a business or company', labelAr: 'صاحب عمل / شركة', points: 70 },
-  { code: 'freelancer', labelEn: 'I work for myself', labelAr: 'عمل حر', points: 45 },
-  { code: 'retired', labelEn: 'Retired', labelAr: 'متقاعد', points: 55 },
+  { code: 'government_employee', labelEn: 'Government job', labelAr: 'موظف حكومي' },
+  { code: 'private_sector_employee', labelEn: 'Private company job', labelAr: 'موظف قطاع خاص' },
+  { code: 'business_owner_company_owner', labelEn: 'I own a business or company', labelAr: 'صاحب عمل / شركة' },
+  { code: 'freelancer', labelEn: 'I work for myself', labelAr: 'عمل حر' },
+  { code: 'retired', labelEn: 'Retired', labelAr: 'متقاعد' },
 ];
 
-const YESNO = (yesPoints?: number, noPoints?: number): SeedOption[] => [
-  { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', ...(yesPoints != null ? { points: yesPoints } : {}) },
-  { code: 'no', labelEn: 'No', labelAr: 'لا', ...(noPoints != null ? { points: noPoints } : {}) },
+const YESNO = (): SeedOption[] => [
+  { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+  { code: 'no', labelEn: 'No', labelAr: 'لا' },
 ];
 
 // `your_age` used to live here. It is gone: age is a mandatory signup field
@@ -180,12 +179,12 @@ const CURRENT_LOANS_Q: SeedQuestion = {
   code: 'current_loans', type: 'MULTI_SELECT',
   questionEn: 'Do you pay back any loans right now?', questionAr: 'هل لديك قروض أو التزامات حالية؟',
   options: [
-    { code: 'none', labelEn: 'None', labelAr: 'لا يوجد', points: 100 },
-    { code: 'personal_loan', labelEn: 'Personal loan', labelAr: 'قرض شخصي', points: 55 },
-    { code: 'car_loan', labelEn: 'Car loan', labelAr: 'قرض سيارة', points: 55 },
-    { code: 'mortgage', labelEn: 'Home loan', labelAr: 'قرض عقاري', points: 50 },
-    { code: 'credit_cards', labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان', points: 60 },
-    { code: 'other', labelEn: 'Something else', labelAr: 'أخرى', points: 50 },
+    { code: 'none', labelEn: 'None', labelAr: 'لا يوجد' },
+    { code: 'personal_loan', labelEn: 'Personal loan', labelAr: 'قرض شخصي' },
+    { code: 'car_loan', labelEn: 'Car loan', labelAr: 'قرض سيارة' },
+    { code: 'mortgage', labelEn: 'Home loan', labelAr: 'قرض عقاري' },
+    { code: 'credit_cards', labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان' },
+    { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
   ],
 };
 
@@ -198,10 +197,10 @@ const SALARY_TRANSFER_Q: SeedQuestion = {
   options: [
     // The two letters are different products, so each label names the document:
     // one commits the basic salary, the other the applicant's whole income.
-    { code: 'payroll', labelEn: 'My employer already sends my salary to the bank', labelAr: 'تحويل راتب', points: 100 },
-    { code: 'salary_transfer_letter', labelEn: 'My employer signs a letter to transfer my salary', labelAr: 'خطاب تحويل راتب', points: 80 },
-    { code: 'income_transfer_letter', labelEn: 'My employer signs a letter to transfer my whole income', labelAr: 'خطاب تحويل دخل', points: 60 },
-    { code: 'no_salary_transfer', labelEn: 'Nothing is sent to the bank', labelAr: 'بدون تحويل راتب', points: 20 },
+    { code: 'payroll', labelEn: 'My employer already sends my salary to the bank', labelAr: 'تحويل راتب' },
+    { code: 'salary_transfer_letter', labelEn: 'My employer signs a letter to transfer my salary', labelAr: 'خطاب تحويل راتب' },
+    { code: 'income_transfer_letter', labelEn: 'My employer signs a letter to transfer my whole income', labelAr: 'خطاب تحويل دخل' },
+    { code: 'no_salary_transfer', labelEn: 'Nothing is sent to the bank', labelAr: 'بدون تحويل راتب' },
   ],
 };
 
@@ -211,12 +210,12 @@ const SALARY_TRANSFER_Q: SeedQuestion = {
 // "Less than 20%", "10% – 20%" and "20% – 30%" sat side by side and no applicant
 // could tell which one they were in.
 const DOWN_PAYMENT_OPTIONS: SeedOption[] = [
-  { code: 'no_down_payment', labelEn: 'Nothing up front', labelAr: 'بدون دفعة مقدمة', points: 10 },
-  { code: 'less_than_10', labelEn: 'Less than 10%', labelAr: 'أقل من 10%', points: 25 },
-  { code: '10_20', labelEn: '10% – 20%', labelAr: '10% – 20%', points: 50 },
-  { code: '20_30', labelEn: '20% – 30%', labelAr: '20% – 30%', points: 70 },
-  { code: '30_40', labelEn: '30% – 40%', labelAr: '30% – 40%', points: 85 },
-  { code: 'more_than_40', labelEn: 'More than 40%', labelAr: 'أكثر من 40%', points: 100 },
+  { code: 'no_down_payment', labelEn: 'Nothing up front', labelAr: 'بدون دفعة مقدمة' },
+  { code: 'less_than_10', labelEn: 'Less than 10%', labelAr: 'أقل من 10%' },
+  { code: '10_20', labelEn: '10% – 20%', labelAr: '10% – 20%' },
+  { code: '20_30', labelEn: '20% – 30%', labelAr: '20% – 30%' },
+  { code: '30_40', labelEn: '30% – 40%', labelAr: '30% – 40%' },
+  { code: 'more_than_40', labelEn: 'More than 40%', labelAr: 'أكثر من 40%' },
 ];
 
 const DOWN_PAYMENT_Q: SeedQuestion = {
@@ -228,15 +227,15 @@ const DOWN_PAYMENT_Q: SeedQuestion = {
 
 // The questions below are asked for MORE THAN ONE category and are therefore
 // authored ONCE and referenced from each config. Inlining them per category let
-// the same code drift apart in wording or points — and since the merge keeps
+// the same code drift apart in wording — and since the merge keeps
 // FIRST-SEEN content, the drift was silent: whichever config came first won.
 const JOB_TENURE_Q: SeedQuestion = {
   code: 'job_tenure', questionEn: 'How long have you been in this job?', questionAr: 'منذ متى وأنت في وظيفتك الحالية؟',
   options: [
-    { code: 'less_than_6_months', labelEn: 'Less than 6 months', labelAr: 'أقل من 6 أشهر', points: 15 },
-    { code: '6_months_to_1_year', labelEn: '6 months to 1 year', labelAr: 'من 6 أشهر إلى سنة', points: 35 },
-    { code: '1_to_3_years', labelEn: '1 to 3 years', labelAr: 'من 1 إلى 3 سنوات', points: 60 },
-    { code: 'more_than_3_years', labelEn: 'More than 3 years', labelAr: 'أكثر من 3 سنوات', points: 100 },
+    { code: 'less_than_6_months', labelEn: 'Less than 6 months', labelAr: 'أقل من 6 أشهر' },
+    { code: '6_months_to_1_year', labelEn: '6 months to 1 year', labelAr: 'من 6 أشهر إلى سنة' },
+    { code: '1_to_3_years', labelEn: '1 to 3 years', labelAr: 'من 1 إلى 3 سنوات' },
+    { code: 'more_than_3_years', labelEn: 'More than 3 years', labelAr: 'أكثر من 3 سنوات' },
   ],
 };
 
@@ -339,6 +338,51 @@ const YEARS_IN_PRACTICE_Q: SeedQuestion = {
   options: [],
 };
 
+// Where the applicant WORKS, which is not where the property is.
+//
+// A SEPARATE question from the mortgage `governorate`, deliberately, and the two reasons are
+// both structural. (1) `mergeSeedPool` takes a question's `groupCode` from the FIRST config
+// that names it, so referencing `governorate` here would move it out of the mortgage
+// `property_financing` step for mortgage applicants too. (2) `isRequired` is ONE global
+// column, so requiring it here would require it of a mortgage applicant — and for a doctor
+// buying a flat in Cairo with a clinic in Giza, one answer cannot be true of both.
+//
+// REQUIRED, on the operator's call: ABK's clinic-owner cap is keyed by the city tier, and an
+// unanswered fact means `onNoMatch` — which is the programme maximum, i.e. the best cell in
+// the table for everyone who skipped. The cost is that every Personal and Auto applicant
+// answers it, not only doctors; there is no per-product required flag.
+const PRACTICE_GOVERNORATE_Q: SeedQuestion = {
+  code: 'practice_governorate',
+  questionEn: 'Which governorate do you work in?',
+  questionAr: 'في أي محافظة تعمل؟',
+  helperTextEn: 'The governorate your clinic, practice or workplace is in.',
+  helperTextAr: 'المحافظة التي تقع بها عيادتك أو مقر عملك.',
+  // Stated rather than left to the `default true`: this flag decides whether an application
+  // is refused, and it is the one thing on this question somebody will come looking for.
+  isRequired: true,
+  // Options expanded from the active `governorate` platform-enumeration members, so the
+  // option codes ARE the registry keys and `factParentTable` can walk one up to its tier.
+  optionsFromEnum: 'governorate',
+  options: [],
+};
+
+// `owns_practice` was here, and is retired.
+//
+// It existed for one job: ABK sells the same mechanism twice — App. A §7 to a doctor who owns
+// his clinic and §8 to one employed at a private hospital, at half the income — and while both
+// programmes filed under ONE catalog name nothing on the customer path said which was the
+// applicant's, so both quoted every doctor and the bigger, wrong one ranked first. Two product
+// conditions read this answer and each programme switched on the one it sold.
+//
+// v25.0.0 split them into two products, each with its own catalog name, so the applicant states
+// which programme is theirs by picking it. The question became a second authority on one
+// decision, and a harmful one: it was OPTIONAL while an unanswered gate fact is FATAL, so a
+// doctor who skipped it was refused by both programmes.
+//
+// Removing it from this pool is what retires it — `seedQuestionnaire` deactivates every question
+// it does not name. Deliberately NOT deleted: `application_answer.questionId` is `RESTRICT`, so
+// a question a real customer has answered cannot be, and an archived snapshot still carries it.
+
 // ── COLLATERAL PRODUCTS — the gate, then the pack ─────────────────────────
 //
 // A collateral product asks about a thing the applicant OWNS, not about their salary. No such
@@ -437,9 +481,9 @@ const EMPLOYER_APPROVED_Q: SeedQuestion = {
   questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
   isRequired: false,
   options: [
-    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-    { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
-    { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد', points: 65 },
+    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+    { code: 'no', labelEn: 'No', labelAr: 'لا' },
+    { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد' },
   ],
 };
 
@@ -474,12 +518,12 @@ const SALARY_BANK_NAME_Q: SeedQuestion = {
 
 const ADDITIONAL_INCOME_Q: SeedQuestion = {
   code: 'additional_income', questionEn: 'Do you get money from anywhere else?', questionAr: 'هل لديك مصادر دخل إضافية؟',
-  isRequired: false, options: YESNO(100, 70),
+  isRequired: false, options: YESNO(),
 };
 
 const ACTIVE_ACCOUNT_Q: SeedQuestion = {
   code: 'active_account', questionEn: 'Do you have a bank account you use?', questionAr: 'هل لديك حساب بنكي نشط؟',
-  isRequired: false, options: YESNO(100, 40),
+  isRequired: false, options: YESNO(),
 };
 
 // `has_credit_card` + `card_usage` used to sit here. Both were removed: the
@@ -490,7 +534,7 @@ const ACTIVE_ACCOUNT_Q: SeedQuestion = {
 
 const PRIOR_REJECTION_Q: SeedQuestion = {
   code: 'prior_rejection', questionEn: 'Has a bank ever said no to you?', questionAr: 'هل سبق رفض طلب تمويل لك؟',
-  isRequired: false, options: YESNO(25, 100),
+  isRequired: false, options: YESNO(),
 };
 
 /**
@@ -916,6 +960,11 @@ const PERSONAL: CategoryConfig = {
         MILITARY_GRADE_Q,
         ACADEMIC_RANK_Q,
         YEARS_IN_PRACTICE_Q,
+        // The doctors product reads these two as well: WHERE the applicant practises (its
+        // second column and its maximum-loan table are both keyed by the city tier that
+        // governorate is filed under) and WHETHER they own the practice (which of the two
+        // ABK doctor programmes they are for). The reference IS the assignment.
+        PRACTICE_GOVERNORATE_Q,
       ],
     },
     // The reference here IS the assignment (`question_loan_category`, A33) — nothing else in
@@ -1081,6 +1130,10 @@ const CAR: CategoryConfig = {
         MILITARY_GRADE_Q,
         ACADEMIC_RANK_Q,
         YEARS_IN_PRACTICE_Q,
+        // Same two the doctors product reads. CAR carries them for the reason it carries the
+        // three above: an auto loan may be sold off an assumed income, and an unasked fact
+        // resolves to `SURROGATE_FACT_MISSING`, never a zero.
+        PRACTICE_GOVERNORATE_Q,
       ],
     },
     {
@@ -1120,9 +1173,9 @@ const BUSINESS: CategoryConfig = {
         {
           code: 'business_age', questionEn: 'How long has your business been open?', questionAr: 'منذ متى والنشاط يعمل؟',
           options: [
-            { code: 'less_than_1_year', labelEn: 'Less than 1 year', labelAr: 'أقل من سنة', points: 30 },
-            { code: '1_to_2_years', labelEn: '1 to 2 years', labelAr: 'من 1 إلى 2 سنة', points: 60 },
-            { code: 'more_than_2_years', labelEn: 'More than 2 years', labelAr: 'أكثر من سنتين', points: 100 },
+            { code: 'less_than_1_year', labelEn: 'Less than 1 year', labelAr: 'أقل من سنة' },
+            { code: '1_to_2_years', labelEn: '1 to 2 years', labelAr: 'من 1 إلى 2 سنة' },
+            { code: 'more_than_2_years', labelEn: 'More than 2 years', labelAr: 'أكثر من سنتين' },
           ],
         },
         {
@@ -1149,19 +1202,19 @@ const BUSINESS: CategoryConfig = {
     {
       code: 'financial_info', titleEn: 'Your business money', titleAr: 'المعلومات المالية',
       questions: [
-        { code: 'business_account', questionEn: 'Do you have a bank account for the business?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO(100, 50) },
+        { code: 'business_account', questionEn: 'Do you have a bank account for the business?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO() },
         { code: 'registered', questionEn: 'Is your business officially registered?', questionAr: 'هل النشاط مسجل رسميًا؟', isRequired: false, options: [
-          { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-          { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
-          { code: 'registration_in_progress', labelEn: 'We are registering it now', labelAr: 'التسجيل جارٍ', points: 65 },
+          { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+          { code: 'no', labelEn: 'No', labelAr: 'لا' },
+          { code: 'registration_in_progress', labelEn: 'We are registering it now', labelAr: 'التسجيل جارٍ' },
         ] },
-        { code: 'tax_registration', questionEn: 'Do you have a tax card or commercial register?', questionAr: 'هل لديك سجل ضريبي أو تجاري؟', isRequired: false, options: YESNO(100, 45) },
+        { code: 'tax_registration', questionEn: 'Do you have a tax card or commercial register?', questionAr: 'هل لديك سجل ضريبي أو تجاري؟', isRequired: false, options: YESNO() },
       ],
     },
     {
       code: 'obligations_credit', titleEn: 'Business loans you have', titleAr: 'الالتزامات والحالة الائتمانية',
       questions: [
-        { code: 'current_facilities', questionEn: 'Does the business have any loans or credit right now?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO(40, 100) },
+        { code: 'current_facilities', questionEn: 'Does the business have any loans or credit right now?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO() },
       ],
     },
     {
@@ -1195,18 +1248,14 @@ interface MergedQuestion {
   options: { code: string; labelEn: string; labelAr: string }[];
 }
 
-/**
- * The merged pool, plus everything a weight set is built from. Exported as one
- * value so `seed-scoring-weights` can write catalog-scoped weights from the SAME
- * authored option points this file publishes questions from — two copies of the
- * desirability data is how the two seeders drifted apart in the first place.
- */
-export interface SeedPool extends SeedPoolFacts {
+/** The merged pool: one global deduped question list, in publish order. */
+export interface SeedPool {
   groupOrder: string[];
   groupByCode: Map<string, SeedGroup>;
+  /** Pool display order. */
   questionOrder: string[];
   questionByCode: Map<string, MergedQuestion>;
-  pointsByAnswer: Record<string, Record<string, number>>;
+  /** questionCode → the categories that ASK it (`question_loan_category`). */
   categoriesByQuestion: Record<string, Set<Category>>;
 }
 
@@ -1224,7 +1273,6 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   const groupByCode = new Map<string, SeedGroup>();
   const questionOrder: string[] = [];
   const questionByCode = new Map<string, MergedQuestion>();
-  const pointsByAnswer: Record<string, Record<string, number>> = {};
   const categoriesByQuestion: Record<string, Set<Category>> = {};
 
   for (const cfg of CONFIGS) {
@@ -1263,8 +1311,6 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
         }
         for (const o of optionList) {
           const code = o.code ?? slug(o.labelEn);
-          // First-seen points win; every answer keeps a non-zero score.
-          (pointsByAnswer[q.code] ??= {})[code] ??= o.points ?? NEUTRAL_SCORE;
           if (!mq.options.some((x) => x.code === code)) {
             mq.options.push({ code, labelEn: o.labelEn, labelAr: o.labelAr });
           }
@@ -1426,7 +1472,7 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
     .reduce((max, code) => Math.max(max, questionOrder.indexOf(code)), -1);
   questionOrder.splice(lastMoneyIndex + 1, 0, ...obligationBlock);
 
-  return { groupOrder, groupByCode, questionOrder, questionByCode, pointsByAnswer, categoriesByQuestion };
+  return { groupOrder, groupByCode, questionOrder, questionByCode, categoriesByQuestion };
 }
 
 export async function seedQuestionnaire(): Promise<void> {
@@ -1530,18 +1576,9 @@ export async function seedQuestionnaire(): Promise<void> {
   await publishVersion();
 
   // ---- 4. Per-program weight sets ------------------------------------------
-  // WHICH questions each program scores on comes from the program-name CATALOG
-  // (`platform_enumeration_question`), not from the program's category: assigning
-  // every question the category asks is what left seeded programs weighting
-  // questions `ScoringService.assertWithinCatalogSet` then refused to re-save.
-  // Run `npm run seed:catalog` first — a name with no set for its category is
-  // reported here and left unscored, exactly as the save endpoint would treat it.
-  const result = await writeProgramWeightSets(prisma, pool, { editorId: SEED_ACTOR });
-
   console.log(
-    `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global), ${result.written} program weight sets.`,
+    `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global).`,
   );
-  reportWeightSetRun(result, 'seed-questionnaire');
 }
 
 /**
@@ -1658,37 +1695,6 @@ const ADDITIONAL_INCOME_FACT_LABELS: Record<string, { en: string; ar: string }> 
   fixed_allowances_monthly: { en: 'Fixed allowances', ar: 'البدلات الثابتة' },
   variable_allowances_monthly: { en: 'Variable allowances', ar: 'البدلات المتغيرة' },
 };
-
-/** Shared reporting for both entrypoints into `writeProgramWeightSets`. */
-export function reportWeightSetRun(
-  result: {
-    noCatalogSet: string[];
-    keptTuned: string[];
-    droppedPicks: string[];
-  },
-  label: string,
-): void {
-  if (result.noCatalogSet.length > 0) {
-    console.warn(
-      `${label}: ${result.noCatalogSet.length} program(s) scored NOTHING — the catalog has no question ` +
-        `set for their (program name, category): ${result.noCatalogSet.join(', ')}. ` +
-        `Set it in /program-catalog/:key, then re-run.`,
-    );
-  }
-  if (result.keptTuned.length > 0) {
-    console.log(
-      `${label}: kept admin-tuned ACTIVE weights for ${result.keptTuned.length} program(s): ` +
-        `${result.keptTuned.join(', ')}. Re-run with --force to rebuild them from the catalog ` +
-        `(the tuned version is archived, not lost).`,
-    );
-  }
-  if (result.droppedPicks.length > 0) {
-    console.warn(
-      `${label}: ${result.droppedPicks.length} catalog pick(s) dropped as unscoreable: ` +
-        `${result.droppedPicks.join(', ')}`,
-    );
-  }
-}
 
 async function publishVersion(): Promise<void> {
   const groups = await prisma.questionGroup.findMany({ where: { isActive: true }, orderBy: { displayOrder: 'asc' } });

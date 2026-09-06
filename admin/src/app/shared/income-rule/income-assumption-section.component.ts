@@ -239,6 +239,7 @@ import { incomeRuleHasError } from './income-rule.rules';
                 [waysAre]="waysAre()"
                 [wayId]="wayId()"
                 (wayIdChange)="wayId.set($event)"
+                [figuresAreOwn]="figuresAreOwn()"
               ></app-product-rule-editor>
             </div>
           }
@@ -253,6 +254,13 @@ import { incomeRuleHasError } from './income-rule.rules';
 
         <!-- ── Policy on top of the method ──────────────────────────────────── -->
         @if (showPolicy() && shape() !== 'none') {
+          <!-- The comment above has named these three "policy on top of the method" since
+               they were written; the screen never did. Sitting in the same grid directly
+               under the ways, they read as fields OF the way just picked — and a
+               debt-burden cap is not part of how the figure is worked out. -->
+          <h4 class="policy-label" i18n="@@bank_programs.income.policy_label">
+            Policy on top of this method
+          </h4>
           <nz-form-item class="numeric">
             <nz-form-label
               [nzFor]="'dbrCapPercentOverride'"
@@ -325,7 +333,10 @@ import { incomeRuleHasError } from './income-rule.rules';
                 [nzPlaceHolder]="documentsPlaceholder"
               >
                 @for (doc of documentMembers(); track doc.key) {
-                  <nz-option [nzValue]="doc.key" [nzLabel]="doc.labelEn"></nz-option>
+                  <nz-option
+                    [nzValue]="doc.key"
+                    [nzLabel]="isAr ? doc.labelAr : doc.labelEn"
+                  ></nz-option>
                 }
               </nz-select>
               <p class="rule-hint" i18n="@@bank_programs.income.required_docs_hint">
@@ -350,6 +361,18 @@ import { incomeRuleHasError } from './income-rule.rules';
   styleUrls: ['../../features/bank-programs/form/sections/section.styles.scss'],
   styles: [
     `
+      /* The band ramp, shared with the section's other labels. span-2 so it heads the
+         row rather than sitting in the first column of it. */
+      .policy-label {
+        grid-column: span 2;
+        margin: var(--space-2) 0 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+
       /* The catalog's one-line statement of the rule, above the picker. Plain text on
          the card surface — a callout box here would be the third bordered thing on a
          screen whose whole job is one choice. */
@@ -434,7 +457,8 @@ export class IncomeAssumptionSectionComponent implements OnInit {
     registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
   );
 
-  private readonly isAr = document.documentElement.lang.startsWith('ar');
+  // `protected`, not private: the document option list reads it to pick a locale's label.
+  protected readonly isAr = document.documentElement.lang.startsWith('ar');
 
   /** Built-in methods plus one entry per operator-defined fact. */
   protected readonly methodGroups = computed(() => incomeMethodGroups(this.facts()));
@@ -514,6 +538,14 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly waysAre = input<'exclusive' | null>(null);
   /** Which way this bank sells. Written by the picker inside the editor. */
   readonly wayId = model<string | null>(null);
+  /**
+   * Are the figures below this program's own, or the catalog's shown read-only?
+   *
+   * Passed straight through to the editor, which is the only thing that reads it. Default
+   * `true` keeps both catalog hosts — where there is no such thing as someone else's
+   * amounts — exactly as they were.
+   */
+  readonly figuresAreOwn = input<boolean>(true);
 
   readonly documentsPlaceholder = $localize`:@@bank_programs.income.docs_placeholder:Pick the documents`;
 

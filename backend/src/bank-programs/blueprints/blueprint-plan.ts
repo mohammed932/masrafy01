@@ -276,6 +276,11 @@ export function planBlueprint(args: {
           op: 'createFact',
           factKey: ask.factKey,
           questionCode: ask.questionCode,
+          // Carried when the blueprint states them. Absent, `factLabels` falls back to the
+          // question CODE — there is no question TEXT in the state it reads — and the
+          // registry row ends up named after a slug.
+          ...(ask.labelEn !== undefined ? { labelEn: ask.labelEn } : {}),
+          ...(ask.labelAr !== undefined ? { labelAr: ask.labelAr } : {}),
         });
       }
       if (!reuse.questionCodes.includes(ask.questionCode)) {

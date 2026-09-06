@@ -32,9 +32,16 @@ const FILED: Record<string, string> = {
   tanta: 'city_tier_other',
 };
 
-/** ABK 7's city cap, as two tier rows instead of twenty-seven governorate rows. */
+/**
+ * ABK 7's city cap, as two tier rows instead of twenty-seven governorate rows.
+ *
+ * `practice_governorate` — where the doctor WORKS. Not the mortgage `governorate` question
+ * and its `property_governorate` fact, which asks where the property being financed is; the
+ * doctors product read that one until 2026-09-05, so a personal-loan doctor was never asked
+ * at all and this cap read nothing.
+ */
 const BY_TIER: MaxLoanByFactConfig = {
-  factKey: 'property_governorate',
+  factKey: 'practice_governorate',
   rowVia: 'parentClass',
   columnFactKey: 'loan_is_topup',
   onNoMatch: 'useProgramMax',
@@ -57,7 +64,7 @@ describe('a cap keyed by the class', () => {
     const result = resolveMaxLoanByFact({
       config: BY_TIER,
       facts: {
-        property_governorate: choice(governorate as string),
+        practice_governorate: choice(governorate as string),
         loan_is_topup: choice(relationship as string),
       },
       parentKeyByValue: FILED,
@@ -69,10 +76,14 @@ describe('a cap keyed by the class', () => {
   it('adding a governorate to the list caps it without touching the bank table', () => {
     // The whole reason the axis exists. A new value filed under an existing tier reads that
     // tier's row on day one — no bank edit, no orphaned figure, no uncapped applicant.
+    //
+    // Deliberately NOT giza: a real governorate whose tier one bank disagreed about is the
+    // worst possible stand-in for "any value, any tier", and this test used to assert giza
+    // in the top tier, i.e. it pinned the bug `20260905090000_giza_secondary_tier` fixed.
     const result = resolveMaxLoanByFact({
       config: BY_TIER,
-      facts: { property_governorate: choice('giza'), loan_is_topup: choice('new_loan') },
-      parentKeyByValue: { ...FILED, giza: 'city_tier_major' },
+      facts: { practice_governorate: choice('port_said'), loan_is_topup: choice('new_loan') },
+      parentKeyByValue: { ...FILED, port_said: 'city_tier_major' },
     });
     expect(result.matched && result.maxAmountEGP.toString()).toBe('1500000');
   });
@@ -82,7 +93,7 @@ describe('a cap keyed by the class', () => {
     // to, and the bank's own answer decides. `factParentTable` reads it the same way.
     const result = resolveMaxLoanByFact({
       config: BY_TIER,
-      facts: { property_governorate: choice('somewhere_new'), loan_is_topup: choice('new_loan') },
+      facts: { practice_governorate: choice('somewhere_new'), loan_is_topup: choice('new_loan') },
       parentKeyByValue: FILED,
     });
     expect(result).toEqual({
@@ -95,7 +106,7 @@ describe('a cap keyed by the class', () => {
   it('reports a REFUSAL when that is what the bank chose for an unfiled value', () => {
     const result = resolveMaxLoanByFact({
       config: { ...BY_TIER, onNoMatch: 'reject' },
-      facts: { property_governorate: choice('somewhere_new'), loan_is_topup: choice('new_loan') },
+      facts: { practice_governorate: choice('somewhere_new'), loan_is_topup: choice('new_loan') },
       parentKeyByValue: FILED,
     });
     expect(result).toEqual({ matched: false, action: 'reject', reason: 'no_matching_row' });

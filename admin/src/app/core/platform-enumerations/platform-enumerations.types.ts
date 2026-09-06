@@ -109,5 +109,15 @@ export interface EnumerationMember {
      * reads an answer that never arrives, so its table quotes nothing.
      */
     askedIn: LoanCategory[];
+    /**
+     * The question this one is asked BEHIND, when the questionnaire gates it on another
+     * answer. `null` = asked unconditionally.
+     *
+     * The only statement anywhere of what KIND of fact this is. Money the applicant also
+     * receives — rent, certificate returns, allowances — is exactly the set gated on
+     * `additional_income`, and without this a screen offering "count this at N%" cannot
+     * tell those four from a contract price, a bureau score or a number of months.
+     */
+    enabledWhen?: { questionCode: string; optionCode: string } | null;
   } | null;
 }

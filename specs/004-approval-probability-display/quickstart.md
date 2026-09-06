@@ -1,4 +1,24 @@
-# Quickstart: Approval Probability Display (Feature 004)
+# ~~Quickstart: Approval Probability Display (Feature 004)~~ — REMOVED (v25.0.0)
+
+> **REMOVED in v25.0.0 — do not follow this runbook.** Approval scoring is gone platform-wide, so
+> every step below drives machinery that no longer exists: §1's migration (the four `bank_offer`
+> approval columns and the `scoring_engine_version` table were dropped again), §3's structured
+> `approvalProbability` payload, §4's pill and tier filter, §5's "Why this score?" expander, §6's
+> analyst view, §7–§9's engine-version promotion, and §10–§11's backfill and tier-boundary checks.
+>
+> Why this one is bannered rather than left as build record, unlike `tasks.md` / `research.md` /
+> `data-model.md`: those describe what was built, in the past tense, and a reader takes them as
+> history. A quickstart gives *instructions*, and someone will run them —
+> `specs/005-lead-management-application/quickstart.md` names "feature 004 quickstart §1–§2" as its
+> infra prerequisite, so this file is actively pointed at. Only **§2 (boot the backend)** still
+> holds; **§1 does not**. `20260513081424_approval_probability_display` is still on disk — migration
+> history is append-only and is never rewritten — but everything it added was dropped again by
+> later migrations, so re-running §1's command today is meaningless. The boot-log line feature 005's
+> own quickstart used to wait for (`Active scoring engine version: 1.1.0-init`) will never print
+> again either; that step has been corrected in place.
+>
+> The offer order that replaced the score is `rankOffers(offers, priority)`, frozen per row as
+> `bank_offer.rankIndex` (Principle I / A6).
 
 **Audience**: Masrafy operators + developers verifying a fresh environment.
 **Prerequisites**: Features 001 + 002 + 003 shipped; infra running per [feature 003 quickstart §1–§3](../003-matching-engine-post/quickstart.md).

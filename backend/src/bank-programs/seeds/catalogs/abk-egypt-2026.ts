@@ -9,6 +9,17 @@ import { skeletonProgram } from './base';
  * ABK-SELF-EMP, ABK-PAYROLL-CAT-A and ABK-PAYROLL-CAT-B were retired
  * 2026-08-02 (removed from the DB, not deactivated) and must not be re-added
  * here — re-seeding would resurrect them.
+ *
+ * ABK-DOCTORS-CLINIC and ABK-DOCTORS-PRACTICE were retired 2026-09-05 for the same
+ * reason and must not come back. There are TWO doctors products, `doctors_clinic_owner`
+ * and `doctors_in_practice`, seeded by `npm run seed:sheet-figures` as
+ * ABK-PER-DOCTORS_CLINIC and ABK-PER-DOCTORS_PRACTICE — App. A §7 and §8, with the sheets'
+ * own six bands, both rates, and the city-tier cap table on the one sheet that publishes
+ * one. Each has its own catalog name, so the applicant's pick decides which of the
+ * two an applicant is for. What stood here was a second, contradictory pair under
+ * `programNameKey: 'doctor'` carrying a legacy TWO-band table (0–6 → 15,000, 6–51 →
+ * 40,000), so running this catalog produced four doctor programmes and two of them
+ * quoted figures no sheet publishes.
  */
 export const abkEgypt2026: SeedCatalog = {
   name: 'abk-egypt-2026',
@@ -67,48 +78,6 @@ export const abkEgypt2026: SeedCatalog = {
       },
     }),
     skeletonProgram({
-      programCode: 'ABK-DOCTORS-CLINIC',
-      friendlyName: 'Doctors — Clinic Owners',
-      programNameKey: 'doctor',
-      pricing: { isVariableRate: false, baseRatePercent: '26.5000' },
-      eligibility: skeletonEligibility('self_employed'),
-    }),
-    skeletonProgram({
-      programCode: 'ABK-DOCTORS-PRACTICE',
-      friendlyName: 'Doctors — In Practice',
-      programNameKey: 'doctor',
-      // Feature 011 — the program derives income from a table, so it IS an
-      // income-surrogate program. It inherited `income_proof` from
-      // `skeletonProgram` and was never re-typed, which left the rule it carries
-      // unreachable: the admin form's rule section is gated on this field, so the
-      // only rows worth editing were the ones hidden.
-      programType: 'income_surrogate',
-      pricing: { isVariableRate: false, baseRatePercent: '30.0000' },
-      eligibility: skeletonEligibility('self_employed'),
-      // CANONICAL shape (FR-014). Converted from the legacy inclusive
-      // `[minYears, maxYears]` table exactly as `normalizeIncomeAssumption` does, so
-      // the produced offers are unchanged (FR-015 / SC-009):
-      //   `0–5`  → `[0, 6)`   — years are integers, so inclusive 5 and exclusive 6
-      //                          select identically
-      //   `5–50` → `[6, 51)`  — the top band stays CLOSED. Opening it would start
-      //                          paying a 51-year practitioner 40 000 where today they
-      //                          get no figure at all, which is a moved figure.
-      //
-      // The legacy rows OVERLAPPED on year 5 (`0–5` and `5–50` both claimed it) and the
-      // lookup is first-match, so year 5 has always resolved to 15 000. The lower edge
-      // is therefore raised to 6 — no lookup outcome moves (FR-015), and the table
-      // becomes one the canonical shape can express and the save path can accept. The
-      // overlap could not be left in: it made the program 422 on its next save with no
-      // edit available that would not change a figure.
-      incomeAssumption: {
-        strategy: 'byYearsInPractice',
-        bands: [
-          { fromInclusive: '0', toExclusive: '6', incomeEGP: '15000' },
-          { fromInclusive: '6', toExclusive: '51', incomeEGP: '40000' },
-        ],
-      },
-    }),
-    skeletonProgram({
       programCode: 'ABK-BANKERS',
       friendlyName: 'Bankers',
       programNameKey: 'bankers',
@@ -124,7 +93,9 @@ export const abkEgypt2026: SeedCatalog = {
       programCode: 'ABK-PROFESSORS',
       friendlyName: 'University Professors',
       programNameKey: 'professional',
-      // See ABK-DOCTORS-PRACTICE — a rank table makes this income_surrogate.
+      // A rank table makes this income_surrogate. It inherited `income_proof` from
+      // `skeletonProgram` and was never re-typed, which left the rule it carries
+      // unreachable: the admin form's rule section is gated on this field.
       programType: 'income_surrogate',
       pricing: { isVariableRate: false, baseRatePercent: '25.5000' },
       eligibility: skeletonEligibility('salaried'),
@@ -143,7 +114,8 @@ export const abkEgypt2026: SeedCatalog = {
       programCode: 'ABK-MILITARY',
       friendlyName: 'Egyptian Armed Forces',
       programNameKey: 'armed_forces',
-      // See ABK-DOCTORS-PRACTICE — a grade table makes this income_surrogate.
+      // A grade table makes this income_surrogate — same correction as ABK-PROFESSORS
+      // above, and for the same reason.
       programType: 'income_surrogate',
       pricing: { isVariableRate: false, baseRatePercent: '25.0000' },
       eligibility: skeletonEligibility('salaried'),
@@ -248,8 +220,6 @@ export const abkEgypt2026: SeedCatalog = {
     'ABK-AUTO-XSELL-OTHER': '26.0000',
     'ABK-AUTO-XSELL-ABK': '25.0000',
     'ABK-CC-XSELL': '27.0000',
-    'ABK-DOCTORS-CLINIC': '26.5000',
-    'ABK-DOCTORS-PRACTICE': '30.0000',
     'ABK-BANKERS': '22.0000',
     'ABK-PROFESSORS': '25.5000',
     'ABK-MILITARY': '25.0000',

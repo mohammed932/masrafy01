@@ -25,17 +25,16 @@ import {
   type LeadStatus,
   type LeadStatusMeta,
 } from '../shared/lead-status';
-import { ApprovalPillComponent } from '../list/components/approval-pill.component';
-import { WhyThisScorePanelComponent } from './components/why-this-score-panel.component';
 import { ApplicantCardComponent } from './components/applicant-card.component';
 import { ApplicantQuestionnaireComponent } from './components/applicant-questionnaire.component';
 import { ApplicantDocumentsComponent } from './components/applicant-documents.component';
 import { SelectedLoanCardComponent } from './components/selected-loan-card.component';
+import { orderOffers } from './offer-order';
 
 /**
  * Application detail page. A calm, read-only view of one application: header
  * with requested amount + purpose, a little metadata, and every matched offer
- * with its "Why this score?" panel.
+ * with its priced figures, in the order the applicant was shown them.
  */
 @Component({
   selector: 'app-application-detail-page',
@@ -49,8 +48,6 @@ import { SelectedLoanCardComponent } from './components/selected-loan-card.compo
     NzIconModule,
     StatusPillComponent,
     CanDirective,
-    ApprovalPillComponent,
-    WhyThisScorePanelComponent,
     ApplicantCardComponent,
     ApplicantQuestionnaireComponent,
     ApplicantDocumentsComponent,
@@ -158,21 +155,12 @@ import { SelectedLoanCardComponent } from './components/selected-loan-card.compo
           @for (offer of sortedOffers(d); track offer.id) {
             <article class="offer-card" [class.offer-card--selected]="offer.isSelected">
               <header class="offer-head">
-                <div class="offer-title">
-                  <span class="bank">{{ offer.bankName }} · {{ offer.programFriendlyName }}</span>
-                  @if (offer.isSelected) {
-                    <span class="chosen-mark" i18n="@@applications.detail.chosen"
-                      >Chosen by applicant</span
-                    >
-                  }
-                </div>
-                <app-approval-pill
-                  [bestOffer]="{
-                    score: offer.approvalProbability.score,
-                    tier: offer.approvalProbability.tier,
-                    tierLabelCode: offer.approvalProbability.tierLabelCode,
-                  }"
-                />
+                <span class="bank">{{ offer.bankName }} · {{ offer.programFriendlyName }}</span>
+                @if (offer.isSelected) {
+                  <span class="chosen-mark" i18n="@@applications.detail.chosen"
+                    >Chosen by applicant</span
+                  >
+                }
               </header>
 
               <dl class="offer-stats">
@@ -197,11 +185,6 @@ import { SelectedLoanCardComponent } from './components/selected-loan-card.compo
                   <dd>{{ formatAmount(offer.totalPayableEGP) }} EGP</dd>
                 </div>
               </dl>
-
-              <app-why-this-score-panel
-                [probability]="offer.approvalProbability"
-                [activeEngineVersion]="activeEngineVersion()"
-              />
             </article>
           }
         </section>
@@ -376,8 +359,8 @@ import { SelectedLoanCardComponent } from './components/selected-loan-card.compo
         gap: var(--space-4);
         margin-block-end: var(--space-3);
       }
-      /* The applicant's pick keeps its place in the score ranking but is framed
-         in brand so the eye finds it without re-reading every card. */
+      /* The applicant's pick leads the list and is framed in brand so the eye
+         finds it without re-reading every card. */
       .offer-card--selected {
         border-color: var(--color-brand-primary);
       }
@@ -400,12 +383,9 @@ import { SelectedLoanCardComponent } from './components/selected-loan-card.compo
       .offer-head {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
+        align-items: baseline;
         gap: var(--space-3);
-      }
-      .offer-title {
-        display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
       }
       /* The bank + program name now carries the card's identity on its own —
          the program code chip that used to head this row was removed. */
@@ -450,7 +430,6 @@ export class ApplicationDetailPage implements OnInit {
 
   protected readonly detail = signal<AdminApplicationDetail | null>(null);
   protected readonly loading = signal(true);
-  protected readonly activeEngineVersion = signal<string | null>(null);
 
   // Lead (sales pipeline) status — admin-editable, separate from engine status.
   protected readonly leadStatus = signal<LeadStatus>('pending');
@@ -467,14 +446,12 @@ export class ApplicationDetailPage implements OnInit {
   }
 
   /**
-   * Score ranking, except the offer the applicant actually took leads — an agent
-   * opening this page is following up on that loan, not on the best-scoring one.
+   * The order the customer was shown, with the offer they actually took lifted to
+   * the top — an agent opening this page is following up on that loan. The rule
+   * itself is pure and lives in `offer-order.ts`.
    */
   protected sortedOffers(d: AdminApplicationDetail): AdminApplicationDetail['offers'] {
-    return [...d.offers].sort((a, b) => {
-      if (a.isSelected !== b.isSelected) return a.isSelected ? -1 : 1;
-      return b.approvalProbability.score - a.approvalProbability.score;
-    });
+    return orderOffers(d.offers);
   }
 
   async ngOnInit(): Promise<void> {
@@ -489,7 +466,6 @@ export class ApplicationDetailPage implements OnInit {
       this.leadStatus.set(d.leadStatus);
       this.leadStatusControl.setValue(d.leadStatus, { emitEvent: false });
       this.leadStatusControl.valueChanges.subscribe((v) => void this.saveLeadStatus(v));
-      this.activeEngineVersion.set(d.offers[0]?.approvalProbability.engineVersion ?? null);
     } finally {
       this.loading.set(false);
     }

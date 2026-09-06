@@ -12,7 +12,6 @@ import {
   type ApplicationPriority,
   type ApplicationStatus as PrismaApplicationStatus,
   type LeadStatus as PrismaLeadStatus,
-  type ApprovalTier,
   type BankProgramType,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -68,12 +67,12 @@ export interface CreateBankOfferInput {
   requestedTenorMonths: number;
   effectiveTenorMonths: number;
   feesBreakdown: JsonValueInput;
-  approvalProbabilityPercent: Decimal;
-  approvalScore: number;
-  approvalTier: ApprovalTier;
-  approvalFactors: JsonValueInput;
-  /** No ACTIVE weight set at match time — "not rated", not a bad fit. */
-  approvalUsedDefault: boolean;
+  /**
+   * The engine's rank position for this offer — its index in `rankOffers`' output,
+   * 0-based and dense within one application. Frozen with the offer (Principle I / A6):
+   * it is what the applicant was shown, and every read orders by it.
+   */
+  rankIndex: number;
   engineVersion: string;
   requiredDocuments: string[];
   matchReasons: string[];
@@ -179,7 +178,6 @@ export class ApplicationRepository {
             applicationId: created.id,
             // Domain `JsonValueInput` -> Prisma `InputJsonValue` boundary cast.
             feesBreakdown: o.feesBreakdown as unknown as Prisma.InputJsonValue,
-            approvalFactors: o.approvalFactors as unknown as Prisma.InputJsonValue,
             cascadeTrace: o.cascadeTrace as unknown as Prisma.InputJsonValue,
           })),
         });
@@ -219,11 +217,12 @@ export class ApplicationRepository {
       where: { id },
       // All offers for one application are created in the same transaction, so
       // `createdAt` (Postgres `now()`) is identical across rows and cannot rank
-      // them — order by the engine's own score, matching the original ranking.
+      // them. `rankIndex` is the engine's own rank position, frozen at creation —
+      // the order the applicant was actually shown, by the priority they stated.
       include: {
         bankOffers: {
           where: { erasedAt: null },
-          orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
+          orderBy: [{ rankIndex: 'asc' }],
           // The bank's verdict on the offer the applicant committed to. Admins
           // triage on "what loan did this person actually take, and what came
           // back" — without it the detail page could only show candidates.
@@ -281,6 +280,7 @@ export class ApplicationRepository {
       include: {
         bankOffers: {
           where: { erasedAt: null },
+          orderBy: [{ rankIndex: 'asc' }],
           include: { decision: true },
         },
       },
@@ -305,6 +305,7 @@ export class ApplicationRepository {
       include: {
         bankOffers: {
           where: { erasedAt: null },
+          orderBy: [{ rankIndex: 'asc' }],
           include: { decision: true },
         },
       },
@@ -334,7 +335,7 @@ export class ApplicationRepository {
       include: {
         bankOffers: {
           where: { erasedAt: null },
-          orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
+          orderBy: [{ rankIndex: 'asc' }],
         },
       },
     });
@@ -344,7 +345,6 @@ export class ApplicationRepository {
     status?: ApplicationStatus[];
     leadStatus?: LeadStatus[];
     loanPurpose?: string;
-    tier?: 'high' | 'medium';
     cursor?: string;
     limit?: number;
     /**
@@ -363,15 +363,6 @@ export class ApplicationRepository {
       where.leadStatus = { in: params.leadStatus as unknown as PrismaLeadStatus[] };
     if (params.loanPurpose) where.loanPurpose = params.loanPurpose;
 
-    if (params.tier === 'high') {
-      where.bankOffers = { some: { approvalTier: 'excellent', erasedAt: null } };
-    } else if (params.tier === 'medium') {
-      where.AND = [
-        { bankOffers: { some: { approvalTier: 'good', erasedAt: null } } },
-        { bankOffers: { none: { approvalTier: 'excellent', erasedAt: null } } },
-      ];
-    }
-
     return this.prisma.application.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -380,7 +371,7 @@ export class ApplicationRepository {
       include: {
         bankOffers: {
           where: { erasedAt: null },
-          orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
+          orderBy: [{ rankIndex: 'asc' }],
           include: { decision: true },
         },
         // Applicant name for the admin list rows (no longer anonymous).

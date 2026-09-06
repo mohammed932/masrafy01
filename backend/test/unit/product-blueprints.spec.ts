@@ -280,13 +280,18 @@ describe('the slot ids are golden', () => {
   const GOLDEN: Readonly<Record<string, string[]>> = {
     armed_forces_grades: ['primary'],
     academic_rank_table: ['primary', 'primary__uni_private', 'primary_pick'],
-    years_in_practice_bands: [
+    // `years_in_practice_bands` split into these two. The clinic-owner half keeps the merged
+    // product's slot ids byte-identical minus the two `cond__*` gates, so its bank figures
+    // survive the split; the in-practice half is a fresh one-slot shape, because §8 prints one
+    // table and the merged product had been giving that programme three identical columns.
+    doctors_clinic_owner: [
       'primary',
       'primary__city_tier_other',
       'primary__city_tier_secondary',
       'primary_pick',
       'src__years_in_practice',
     ],
+    doctors_in_practice: ['primary', 'src__years_in_practice'],
     card_limit_share: ['primary', 'src__credit_card_limit'],
     auto_loan_crosssell: [
       'alt',
@@ -361,7 +366,13 @@ describe('a fact two products read belongs to neither', () => {
     // Deleting a surrogate product deletes the facts filed under it. A fact two blueprints
     // read must therefore be filed under NO product, or the second one is refused at its
     // next save naming a fact nobody could see had been deleted.
-    expect([...sharedBlueprintFactKeys()].sort()).toEqual(['loan_is_topup', 'school_type']);
+    expect([...sharedBlueprintFactKeys()].sort()).toEqual([
+      'loan_is_topup',
+      'school_type',
+      // Read by both doctor products since they were split apart — which is exactly the
+      // case this rule exists for: switching one off must not take the other's only axis.
+      'years_in_practice',
+    ]);
   });
 
   it('is a fact both of those blueprints really declare', () => {
@@ -372,33 +383,26 @@ describe('a fact two products read belongs to neither', () => {
   });
 });
 
-describe('the doctors product is ONE product, and named for the profession', () => {
-  // The source spec transcribes three doctor sheets — App. A §7 Doctors (Clinic Owners),
-  // App. A §8 Doctors (In Practice) and the unattributed Arabic DOCTOR sheet — and says
-  // plainly (§10.7) that ABK's two "use the same bands with different figures … they are two
-  // programs". Two PROGRAMS, one product: the mechanism is identical and the figures live in
-  // each programme's own `stepParams`, which is what the template layer is for.
-  //
-  // The failure this guards is a naming one that already happened and read as a missing
-  // feature: the card was labelled after §8 alone, so an operator looking for the
-  // clinic-owner product — fully configured and live as `ABK-PER-DOCTORS_CLINIC` — found
-  // nothing and reported it unbuilt. The fix a future change is likeliest to reach for is a
-  // second card, which would be the same arithmetic duplicated and would put two bank tables
-  // under two names for one calculation.
+describe('the doctors sheets are two products', () => {
+  // They were one product until v25.0.0, on the reading that ABK's two sheets "use the same
+  // bands with different figures … they are two programs" (§10.7). The bands are the same; the
+  // rate, tenor, age floor, maximum, accepted employment type and the cap are not, and one
+  // card could describe neither. `doctor-products-split.spec.ts` pins the split itself — what
+  // is here is only that no third doctor blueprint appears and that the old key is gone.
   const READERS = ALL.filter((blueprint) =>
     blueprint.asks.some((ask) => ask.factKey === 'years_in_practice'),
   );
 
-  it('is the only blueprint that reads years in practice', () => {
-    expect(READERS.map((blueprint) => blueprint.key)).toEqual(['years_in_practice_bands']);
+  it('is read by exactly the two of them, and by nothing else', () => {
+    expect(READERS.map((blueprint) => blueprint.key).sort()).toEqual([
+      'doctors_clinic_owner',
+      'doctors_in_practice',
+    ]);
   });
 
-  it('is named after the profession, not after one of its sheets', () => {
-    // A label naming a single sheet is the defect, in either locale: the other two sheets are
-    // then carried by a card that does not mention them.
-    const doctors = productBlueprint('years_in_practice_bands')!;
-    for (const label of [doctors.labelEn, doctors.labelAr]) {
-      expect(label).not.toMatch(/practice|clinic|ممارس|عياد/i);
-    }
+  it('has retired the merged product rather than renaming it', () => {
+    // A rename would have been the cheap move and is the one thing that cannot be done: the
+    // key is what a bank's figures, this product's asks and its facts are all addressed by.
+    expect(productBlueprint('years_in_practice_bands')).toBeUndefined();
   });
 });

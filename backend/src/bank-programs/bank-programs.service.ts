@@ -1623,8 +1623,8 @@ export class BankProgramsService {
     // Concurrent, not serial: the names are independent and a product with several of them
     // paid for that latency on every page load. The labels ride alongside as ONE query for
     // the whole set rather than a second fan-out — the screen renders the name, and a slug
-    // is not a name (the operator read `doctors_in_practice` and concluded the clinic-owner
-    // product had never been built).
+    // is not a name (the operator read the slug `doctors_in_practice` on a card labelled
+    // "Doctors" and concluded the clinic-owner product had never been built).
     const [perName, labels] = await Promise.all([
       Promise.all(nameKeys.map((n) => this.enums.programsUnderName(n))),
       this.enums.programNameLabels(nameKeys),

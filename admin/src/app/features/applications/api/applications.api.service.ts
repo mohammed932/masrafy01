@@ -3,21 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import type { SuccessEnvelope, PaginatedEnvelope } from '@core/auth/auth.types';
-import type { ApprovalTier, BestOfferSummary } from '../list/components/approval-pill.component';
 import type { LeadStatus } from '../shared/lead-status';
-
-export interface FactorImpact {
-  code: string;
-  impact: number;
-}
-
-export interface ApprovalProbability {
-  score: number;
-  tier: ApprovalTier;
-  tierLabelCode: string;
-  factors: { positive: FactorImpact[]; negative: FactorImpact[]; legacy?: boolean };
-  engineVersion: string;
-}
 
 export interface AdminApplicationRow {
   id: string;
@@ -32,7 +18,6 @@ export interface AdminApplicationRow {
   programsCheckedCount: number;
   applicant: { firstName: string; lastName: string } | null;
   maskedApplicant: Record<string, unknown>;
-  bestOffer: BestOfferSummary | null;
   userProceededAt?: string | null;
   userSelectedBankOfferId?: string | null;
   selectedOfferDecision?: 'approved' | 'rejected' | 'withdrawn' | null;
@@ -75,7 +60,16 @@ export interface AdminApplicationOffer {
   totalPayableEGP: string;
   totalCostOfCreditEGP: string;
   feesBreakdown: OfferFeesBreakdown;
-  approvalProbability: ApprovalProbability;
+  /**
+   * The position this offer held in the ranked list the CUSTOMER was shown,
+   * 0-based and dense per application. Frozen at apply time on
+   * `bank_offer.rankIndex`; every read of a persisted offer orders by it.
+   *
+   * Optional because offers written before that column existed carry none. That
+   * is the whole reason `offer-order.ts` keeps a deterministic fallback chain —
+   * do not delete it as dead code.
+   */
+  rankIndex?: number;
   requiredDocuments: string[];
   matchReasons: string[];
   cascadeTrace: unknown;

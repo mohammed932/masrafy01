@@ -19,7 +19,7 @@ any of the three codebases.
 with 20+ bank loan programs (ABK Egypt and partner banks). Users complete
 a 5-step wizard via the mobile app; the matching engine evaluates
 eligibility against all bank programs and returns ranked offers with
-installments, fees, approval probability, and document checklists. The
+installments, fees, and document checklists. The
 service is free for users; commissions are paid by banks per successful
 loan (1–2% personal, 0.5–1% mortgage, flat fees for cards). The platform
 NEVER charges users.
@@ -78,8 +78,9 @@ introduced. Adding a FIFTH category requires a constitution amendment.
 
 **Engine outputs:** Minimum down payment, monthly installment (PMT
 formula), Debt Burden Ratio (DBR ≤ 50%), maximum loan available, ranked
-matched programs (by best rate default), required documents per program,
-approval probability percentage.
+matched programs (ordered by the applicant's stated priority; partner bank
+then fewest documents when they have not stated one), required documents per
+program.
 
 **Critical domain reality:** Real Egyptian bank rates from a single bank
 range 18.5% to 29% — a 10.5pp spread — depending on employment type
@@ -198,94 +199,80 @@ formatting respects Egyptian Arabic conventions.
 Matching logic lives in a dedicated `matching/` feature module in the
 backend with ZERO dependencies on the HTTP layer. Engine signature:
 `match(applicationProfile, programs[]) → MatchResult[]`. Every match
-decision returns `passedChecks[]` AND `failedChecks[]` arrays. Approval
-probability is calculable via rule-based scoring with documented weights.
-The split (v8.0.0): the scoring **formula and tier thresholds** live in code —
-version-controlled, changed only via PR. Approval probability is **two-level
-weighted**, per bank program: each QUESTION carries an importance **weight** and
-all of a program's question weights sum to **100**; each ANSWER carries a
-**score 0–100**. (v13.0.0) The score is **normalised over the questions the
-applicant was ASKED**, not over a flat 100:
+decision returns `passedChecks[]` AND `failedChecks[]` arrays. Match reasons
+surface as error codes across the API boundary — NEVER English text. The matching
+service is a pure dependency-free TypeScript service that can run in isolation
+against in-memory bank program fixtures.
 
-```
-              Σ_answered ( questionWeight × answerScore ÷ 100 )
-probability = ────────────────────────────────────────────────
-                     Σ_asked ( questionWeight )
-```
+**(v25.0.0) There is no approval score.** Approval probability, its tiers, its
+per-program weight sets, its factor breakdown and the engine-version registry
+around it are REMOVED — from the engine, from `bank_offer`, from the admin, and
+from every customer surface. The number was a weighted sum of figures an admin
+typed and was never once compared against a bank decision; v13.0.0 had already
+had to downgrade the customer copy from "Guarantee Approval" to "% match", which
+is the admission. Nothing replaces it. The platform states the figures it can
+derive — installment, rate, fees, tenor, ceiling, documents — and orders the list
+by what the applicant said they cared about. A score returns only when a backtest
+against real bank outcomes earns it, and that is an amendment, not a PR.
 
-clamped to 0..1 — so the best answer (score 100) to everything asked yields
-exactly 1. *Asked* means: active, assigned to the applicant's loan category, and
-visible after branching. (v14.0.0) There is no type filter: **every question type
-is scoreable**. Three consequences are normative, not incidental:
+**Ordering is the applicant's own priority, computed once and FROZEN.**
+`rankOffers(offers, priority)` is the single authority: it sorts by the key the
+applicant's `priority` answer names, then partner-bank first (`bankIsFeatured`),
+then `programCode` lexically as a deterministic last resort. The apply path
+persists the result as `bank_offer.rankIndex` — Int, 0-based, dense within one
+application, written at creation and never updated (A6) — and every reader of a
+persisted offer orders by `rankIndex asc`. Persisted rather than recomputed for
+the reason `bankIsFeatured` and `rateBasis` are frozen (Principle I): the order
+is an output of the engine over the profile, the priority and the whole candidate
+set at match time, so re-sorting an immutable offer set later rewrites what the
+customer was actually shown. All of an application's offers are written in one
+transaction and share an identical `createdAt`, so there is no other key.
 
-1. **Programs stay comparable.** A program weighting six questions of which
-   three are asked is judged on those three, never penalised for the rest.
-2. **A mis-assignment cannot cap a program.** Weight aimed at a question the
-   applicant's category does not ask leaves BOTH sides of the fraction. (Before
-   v13.0.0 it stayed in the implicit denominator and silently held that program
-   below 100% forever.)
-3. **Skipping costs the applicant.** An asked-but-unanswered question keeps its
-   weight in the denominator and earns nothing.
+**`fastest_approval` orders by partner bank, then fewest required documents.**
+It is the DEFAULT arm of all four mobile priority mappers and the fallback for an
+unanswered (optional) `priority_factor`, so it carries most applications, not an
+edge case — and its only sort key used to be the deleted score. The two proxies
+that survive are the two the platform actually has: a live channel with a partner
+bank, and less paper to collect. The `ApplicationPriority` enum member is
+RETAINED — historical applications carry it. An arm of `rankOffers` with no sort
+key of its own = review block.
 
-Nothing asked, or no weight on anything asked → 0, never `NaN`.
+**The customer preview orders by the same key chain.**
+`POST /v1/matching/preview` persists nothing and so has no `rankIndex`, but it
+MUST NOT carry an ordering of its own devising: it sorts by installment ascending
+(unpriced programs last), then `bankIsFeatured`, then `programCode`, matching
+`rankOffers`' `lowest_installment` arm. Preview and apply returning the same
+programs in a different order for the same answers = review block — the v13.0.0
+`isQuestionVisible` lesson applied to ordering.
 
-(v14.0.0) **Every question type carries score, each by its own rule.** The formula
-above is untouched; only the derivation of one answer's 0–100 score is
-type-aware, and every rule is admin-editable DATA in the same `weights` blob:
-
-| Type | How one answer becomes a 0–100 score |
-|---|---|
-| `SINGLE_SELECT` | the picked option's score |
-| `MULTI_SELECT` | the picked options' scores combined by the program's chosen **aggregation** — `AVERAGE` (default) / `SUM_CAPPED` / `MAX` / `MIN` |
-| `NUMERIC` | the score of the **band** the value falls in — ordered, gapless, non-overlapping half-open `[from, to)` intervals, first opening at −∞ and last closing at +∞, edges as decimal strings |
-| `TEXT` | **presence only**: `answeredScore` when non-blank. Pattern / keyword matching on free text is FORBIDDEN — it is defeated by spelling and diacritics, gameable once guessed, and hides a bank's judgement in a regex nobody backtests |
-
-A weighted question with no rule for its type is a save-time error, not a silent
-zero: it would consume its share of the denominator and never earn any of it back.
-An unbanded value or an unscored option earns 0 while still costing its weight,
-which is why full band coverage is required rather than warned about. Before
-v14.0.0 only `SINGLE_SELECT` could score, so monthly income, existing debts,
-requested amount and term — all `NUMERIC` — priced the loan but never moved the
-match.
-
-Both the **per-program question weights** and **per-program answer rules** are
-admin-editable DATA, stored in the program's `ScoringWeightSet.weights` as
-`{ questionWeights: { questionCode → weight }, answerScores: { questionCode →
-optionCode → score }, multiSelectRules, numericBands, textRules }` (the three rule
-maps absent on a pre-v14.0.0 row, which still reads and scores). Questions and
-answer options themselves are **pure content** (label + order) — they carry NO
+Questions and answer options are **pure content** (label + order) — they carry NO
 scoring or eligibility fields, and NO `category` column: they form a single
-**GLOBAL question pool**. (v12.0.0) Each question is **assigned to one or more of
-the four loan categories** through the `question_loan_category` join table, so one
-question can serve several categories; the pool itself stays one canonical list
-with one versioned snapshot. Each bank program **selects which questions it scores
-on** — the set of `questionWeight` keys IS that assignment (admin ticks a
-question → it joins the program's scoring; unticking removes it), and the
-per-program question weights sum to **100 over the program's assigned
-questions**. Weight changes are saved **directly** by an
-authorized admin (no maker-checker): a save archives the prior ACTIVE
-`ScoringWeightSet` and activates the new versioned one atomically, with the
-editor's admin ID written to the audit log (Principle VII). A program with no
-ACTIVE set (no assigned questions) scores 0 (tier `very_low`). **Eligibility gating is dropped for MVP**:
-there are no hard filters (salary / age / DBR / loan-amount / max-loan) in either
-the customer preview or the persisted apply flow — every active program in the
-chosen category is returned, ranked by approval probability. **The questionnaire
-is ONE global pool with ONE versioned snapshot (v10.0.0), and each question is
-assigned to the loan categories that ask it (v12.0.0)** — the chosen loan category
-decides both which *programs* are matched and which of the pool's *questions* are
-asked, but never which *questionnaire* is served: there is only one. Assignment is
-authoritative — a question assigned to nothing is asked by nobody — it lives ONLY
-in the join table, and it is **frozen into the published snapshot**, so a later
-reassignment can never retroactively change what an older version asked. A
-snapshot published before v12.0.0 carries no assignment and reads as "asked for
-every category". `GET /v1/questionnaire?category=` narrows the snapshot, and the
-apply path scopes required-question enforcement to the same set. The questionnaire that
-feeds the engine (questions, options, branching, ordering) is admin-editable
-DATA, published as **one immutable versioned global snapshot**; only the algorithm consuming
-it is code. The customer questionnaire payload carries pure content only (weights
-+ scores live in `ScoringWeightSet`, never in the snapshot). Match reasons surface as error codes across the API boundary —
-NEVER English text. The matching service is a pure dependency-free TypeScript
-service that can run in isolation against in-memory bank program fixtures.
+**GLOBAL question pool**, published as **one immutable versioned snapshot**. The
+questionnaire that feeds the engine (questions, options, branching, ordering) is
+admin-editable DATA; only the algorithm consuming it is code. The customer
+questionnaire payload carries pure content only — anything a program configures
+stays server-side (IP).
+
+(v12.0.0) Each question is **assigned to one or more of the four loan
+categories** through the `question_loan_category` join table, so one question can
+serve several categories while the pool stays one canonical list with one
+snapshot. The chosen loan category decides both which *programs* are matched and
+which of the pool's *questions* are asked, but never which *questionnaire* is
+served: there is only one. Assignment is authoritative — a question assigned to
+nothing is asked by nobody — it lives ONLY in the join table, and it is **frozen
+into the published snapshot**, so a later reassignment can never retroactively
+change what an older version asked. A snapshot published before v12.0.0 carries
+no assignment and reads as "asked for every category". `GET
+/v1/questionnaire?category=` narrows the snapshot and fails loudly on an unknown
+category (`VALIDATION_FAILED`, never a silent fallback); the apply path scopes
+required-question enforcement to the same set, through the same shared
+visibility rule.
+
+**Eligibility gating is dropped for MVP**: there are no hard filters (salary /
+age / DBR / loan-amount / max-loan) in either the customer preview or the
+persisted apply flow — every active program in the chosen category is returned,
+ordered as above, in BOTH surfaces. Program limits and DBR shape the AMOUNT,
+never whether a program is listed.
 
 ## VI. PII Protection & Compliance (All Platforms)
 National IDs, salary slips, bank statements, and any PII-containing
@@ -344,7 +331,7 @@ Organize by domain feature, not technical layer. Required modules:
 - `users/` — registered user accounts
 - `banks/` — BankProgram CRUD, eligibility config, pricing tiers
 - `applications/` — user loan applications, wizard data capture
-- `matching/` — eligibility engine, tier resolver, PMT/DBR calculators, approval probability
+- `matching/` — eligibility engine, tier resolver, PMT/DBR calculators, priority ranking
 - `offers/` — BankOffer creation and retrieval
 - `loans/` — post-selection loan tracking, status workflow, commission recording
 - `documents/` — file upload metadata, S3 presigned URL generation, document type validation
@@ -466,8 +453,8 @@ progressive lockout. All limits documented in API reference and tested.
 
 No backend testing — unit, integration, or E2E — is constitutionally
 required. Features choose their own testing strategy. The matching
-engine's correctness invariants remain governed by Principle V (rule
-weight changes require PR review and historical impact analysis), but
+engine's correctness invariants remain governed by Principle V (engine
+changes require PR review; offer order is frozen on the offer), but
 test artifacts to enforce those invariants are NOT mandated here.
 
 The principle slot is retained for future re-introduction if the team
@@ -883,7 +870,7 @@ same PR:
 | Touch this | Audit these dependents |
 |---|---|
 | `Application.status` / `leadStatus` enum or derivation | applications list status pill · Kanban column membership · application detail header · lead-analytics conversion math · activity-timeline filter labels · any saved filter chip · CSV/PDF exports |
-| `BankOffer.approvalScore` / `approvalTier` thresholds | approval pill component · scoring-analytics histogram bins · agent-leaderboard tone thresholds · drawer KPI tone thresholds · ranking-by-conversion tone |
+| `bank_offer.rankIndex` / the `rankOffers` comparator | apply persistence · every persisted-offer read (customer detail, applied list, idempotent replay, admin list, admin detail) · customer results list · saved-offers list · previous-applications list · matching preview (in-memory, same key chain) |
 | `Activity` outcomeFlags or reasons | add-activity dialog chip options · activity-timeline humanizer + flag pills · lead-analytics activity-type rollups · stuck-lead-flag cron filters |
 | `BankOfferDecision` outcome semantics | lead-analytics `valueFundedEGP` JOIN · drawer "loans approved" count · application-detail submission banner tone · ranking |
 | Currency / Decimal precision rules | every numeric formatter (`formatEgp`, `formatPct`, `formatAvg`) across all features · stat strip · CSV export · Flutter `MasrafyNumberTheme` |
@@ -1729,8 +1716,9 @@ Local `mapErrorToMessage` helper in components or services other than the centra
 ## A23. JWT Tokens Outside Secure Storage (Principle XXVIII, restated v3.0.0)
 Customer JWT access or refresh token persisted in code, asset files, environment files, or `shared_preferences` = review block. Only `flutter_secure_storage`. (HMAC predecessor was retired in v3.0.0 along with the shared-secret signing model.)
 
-## A24. Approval Probability Without Documented Weights (Principle V)
-Changing approval probability scoring without recording weight changes in the PR description with historical-impact analysis = review block. (Test artifacts not mandated post-v1.2.0; PR description carries the rationale.)
+## A24. Reserved (was: Approval Probability Without Documented Weights — retired v25.0.0)
+Approval scoring was removed platform-wide in v25.0.0 — there are no weights
+left to document. Slot reserved to keep downstream anti-pattern IDs stable.
 
 ## A25. Half-Updated Dependents (Principle XXIX)
 Changing a field / enum / derivation / threshold / label-doubling-as-filter / numeric formatter / token / error code without updating every downstream reader in the same PR = review block. UI contradictions where the same business fact reads differently across list / detail / Kanban / drawer / analytics / timeline = automatic block. PR description MUST list "Dependents touched"; reviewers MUST scan for missing ones.
@@ -1762,10 +1750,12 @@ Any `age` column on the customer, persisted `age` field, or DTO that writes a cu
 ## A32. Proceeding Past an Incomplete Profile (Principle XXXVII, v4.0.0; narrowed v9.0.0)
 Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for a customer missing any completeness field (mobile+verified, firstName, lastName, birthday; PHONE also passwordHash) = review block. Profile photo and National ID are NOT completeness fields (Rule 1/3) and MUST NOT be added back into this gate. Backend returns `PROFILE_INCOMPLETE`; mobile routes into the completion flow instead of rendering the gated surface.
 
-## A33. Hardcoded Scores / Hand-Typed Questionnaire Codes / Reintroduced Eligibility / Per-Category Questionnaires (Principle V, v6.0.0; two-level weights v8.0.0; global pool v10.0.0; category assignment v12.0.0; all types scoreable v14.0.0)
-Mutating an ACTIVE `ScoringWeightSet` in place instead of archiving it and activating a new versioned set = review block. Hardcoding a program's question weights or answer scores in the engine instead of reading the admin-set `ScoringWeightSet.weights`, or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Adding a scoring or eligibility field back onto `Question`/`QuestionOption` (they are pure content), reintroducing hard eligibility gates (salary / age / DBR / loan-amount / max-loan) into the preview or apply flow, or computing approval probability by any formula other than `Σ_answered(questionWeight × answerScore ÷ 100) ÷ Σ_asked(questionWeight)`, = review block. **Dividing by a flat 100 instead of the asked-question weight (v13.0.0) = review block** — it silently caps any program that scores on a question the applicant's category does not ask, and makes two programs weighting different question sets incomparable. Equally a review block: scoring an answer to a question that was NOT asked, or omitting an asked-but-unanswered question from the denominator (skipping must cost the applicant its weight). Preview and apply MUST derive the asked set through the same rule — a divergence means the score changes between the two surfaces for identical answers. **Reintroducing a `category` field onto `Question` / `QuestionGroup` / `QuestionnaireVersion`, or publishing a per-category questionnaire (a second pool, or one versioned snapshot per category) instead of the single GLOBAL one, = review block** — there is one pool and one snapshot. Loan-category scoping of *which questions are asked* is legal and lives ONLY in the `question_loan_category` join table (v12.0.0, many-to-many: one question serves several categories). Reading or deriving that assignment from anywhere else — a column, a code map, a naming convention on `code` — = review block, as is publishing a snapshot that omits each question's frozen `categories` or re-deriving them at read time (a reassignment would then silently rewrite what an older version asked). A category-filtered read MUST fail loudly on an unknown category rather than falling back to the whole pool. A program's assigned questions ARE the `questionWeight` keys of its ACTIVE set (no separate join table); an admin selects them via checkbox in the per-program scoring editor. Only the formula + tiers live in code; per-program question weights + answer scores + assignment are admin DATA. Per program, the **assigned-question weights MUST sum to 100** and each **answer score is 0–100**; a save violating either is rejected (`WEIGHTS_QUESTION_WEIGHT_SUM_INVALID` / `WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE`). (Weight saves are direct — no maker-checker — editor ID audited.)
+## A33. Hand-Typed Questionnaire Codes / Reintroduced Scoring / Reintroduced Eligibility / Per-Category Questionnaires / Re-Derived Offer Order (Principle V, v6.0.0; global pool v10.0.0; category assignment v12.0.0; scoring removed v25.0.0)
+Typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them = review block. Adding a scoring or eligibility field back onto `Question`/`QuestionOption` (they are pure content), or reintroducing hard eligibility gates (salary / age / DBR / loan-amount / max-loan) into the preview or apply flow, = review block. **Reintroducing an approval score, approval probability, tier, match percentage, or any per-program answer-weighting table (`ScoringWeightSet` or a successor under another name) without a constitution amendment = review block (v25.0.0)** — the number was never once compared against a bank decision, so a fresh one is the same unbacked claim wearing a new name; earning it back needs the outcome loop, not a PR. **Reintroducing a `category` field onto `Question` / `QuestionGroup` / `QuestionnaireVersion`, or publishing a per-category questionnaire (a second pool, or one versioned snapshot per category) instead of the single GLOBAL one, = review block** — there is one pool and one snapshot. Loan-category scoping of *which questions are asked* is legal and lives ONLY in the `question_loan_category` join table (v12.0.0, many-to-many: one question serves several categories). Reading or deriving that assignment from anywhere else — a column, a code map, a naming convention on `code` — = review block, as is publishing a snapshot that omits each question's frozen `categories` or re-deriving them at read time (a reassignment would then silently rewrite what an older version asked). A category-filtered read MUST fail loudly on an unknown category rather than falling back to the whole pool.
 
-**(v14.0.0 — every type scores.)** Excluding a question from scoring because of its TYPE = review block: restoring `SCOREABLE_TYPES = ['SINGLE_SELECT']`, filtering non-single-choice questions out of the admin's assignable list, or dropping a numeric / multi-pick / text answer on the way to the scorer (as both the preview and apply paths once did) all silently remove real signal — most of all the four bound money answers, which then price the loan without ever moving the match. Equally a review block: **weighting a question without saving the rule its type is scored by** (option scores, numeric bands, or a text presence score) — it eats denominator weight it can never earn back, so `saveWeights` rejects it with `WEIGHTS_MISSING_RULE`; a rule block stored against a question of the wrong type (`WEIGHTS_RULE_TYPE_MISMATCH`); numeric bands that overlap, leave a gap, run out of order, or fail to cover −∞…+∞ (`WEIGHTS_NUMERIC_BANDS_INVALID`) — an uncovered value earns nothing while still costing its weight, penalising the applicant for a hole in the configuration; comparing band edges as floats instead of `Decimal` (Principle I); and **scoring free text by pattern, keyword, regex, or length** instead of presence alone — that is unauditable, defeated by Arabic spelling and diacritics, and gameable by the applicant. Deriving a MULTI_SELECT answer's score by any rule other than the program's stored aggregation (`AVERAGE` / `SUM_CAPPED` / `MAX` / `MIN`) = review block, as is deriving an answer's score in more than one place: the formula and the persisted factor breakdown MUST both read `answerScoreFor`, and preview and apply MUST both map answers through the one shared mapper.
+**Preview and apply deriving the same engine input differently = review block.** Question visibility comes from the one shared `validation/question-visibility.ts`, the surrogate facts from the one shared `surrogate-facts-from-answers.ts`, and the order from the one shared `rankOffers` — the same answers must not produce two outcomes either side of apply.
+
+**(v25.0.0 — the order is frozen, not derived.)** Ordering persisted offers by anything other than `bank_offer.rankIndex asc`, or re-deriving an offer's position at read time, = review block: the order the customer saw is part of what an immutable offer means (Principle I / A6), and every offer of one application shares an identical `createdAt`, so a read that drops `rankIndex` has no discriminating key and returns rows in unspecified order. Equally a review block: a `rankOffers` arm with no sort key of its own (it does not degrade quietly — it freezes an arbitrary order onto immutable rows), a `rankIndex` that is sparse or duplicated within one application's offer set, and a second comparator inside the customer preview instead of the shared key chain.
 
 ## A34. Modal Backdrop That Does Not Cover the Full Viewport (Angular Clean Code Structure, v4.1.1)
 A modal / dialog / sheet whose scrim + blur dims only the content panel instead of the entire viewport (sidebar + top bar + content) = review block. Cause is almost always a hand-rolled `position: fixed` scrim rendered inside an ancestor that establishes a containing block for fixed elements (`transform` / `filter` / `perspective` / `contain` / `will-change`) — notably `section.page`, which runs the `app-page-rise` transform. Fix: prefer `NzModalService` / `NzDrawerService` (portals to `document.body`), or render the custom scrim as a root-level sibling of the page content (outside `section.page`). Use the shared backdrop tokens (`--color-overlay-backdrop`, shared blur radius) so all modals dim identically.
@@ -1826,6 +1816,8 @@ Selecting a value for a form field with an inline / floating / overlay dropdown,
 | 15.1.0 | 2026-08-14 | MINOR | **Principle II: surrogate-CAPABLE (`personal`, `car`, `fast`) split from surrogate-REQUIRED (`fast`).** A personal or auto loan may also be sold with no payslip, so those two categories now ask the four facts, have their surrogate income rules READ instead of reported as ignored, and show the fact picker on their catalog tab. Not an A26 amendment — no category added, `ALL_LOAN_CATEGORIES` untouched, no migration. Backend: `SURROGATE_LOAN_CATEGORIES`/`isSurrogateCategory` renamed to `SURROGATE_REQUIRED_CATEGORIES`/`requiresSurrogateProgramType` (still the only driver of `PROGRAM_TYPE_INVALID_FOR_CATEGORY`), new `SURROGATE_CAPABLE_CATEGORIES`/`isSurrogateCapableCategory`; `collectIncomeRuleWarnings` narrows the category term to the capable set rather than dropping it, so a grade table on a mortgage or business program still warns; `SurrogateFactSpec.category` dropped (the capable list is the single authority) and the publish warning became a set difference with `missingCategories` (`reason: 'not_assigned_to_surrogate_categories'`). Seed assigns `military_grade` / `academic_rank` / `years_in_practice` to `car` (the card-limit fact already rode the obligation block) — **requires a re-seed + re-publish** for car applicants to be asked. No new error code. |
 | 16.0.0 | 2026-08-14 | MAJOR | **Principle II scope-lock back to FOUR retail loan categories: `fast` (Fast Loans) removed, one day after v15.0.0 added it.** The no-payslip product is an income BASIS carried by `bank_program.programType`, not a product line: the same catalog name is sold against a payslip by one bank and against a grade table by another, so a category would have duplicated every sellable name and asked the customer to choose between two descriptions of one loan. Prisma `LoanCategory` back to four and the unapplied `20260814110000_fast_loan_category` migration deleted — the value never reached any database, so there is no destructive migration and no data to wipe. **Both category lists are DELETED, not renamed:** `SURROGATE_REQUIRED_CATEGORIES` / `requiresSurrogateProgramType` and `SURROGATE_CAPABLE_CATEGORIES` / `isSurrogateCapableCategory` are gone, and which categories can sell a no-payslip program is now derived from whether their applicants are asked one of the four surrogate facts (`question_loan_category`) — admin-configurable on the questionnaire screen, `personal` + `car` seeded as the default. `PROGRAM_TYPE_INVALID_FOR_CATEGORY` + its exception deleted across backend and both locale dictionaries (unthrowable once no category constrains the type). `collectIncomeRuleWarnings` drops the category term entirely and keys off `programType` alone, matching the engine's own gate — it previously reported a rule as ignored on categories the engine WOULD price off. Publish warning `not_assigned_to_surrogate_categories` → `not_asked_by_any_category` (a fact missing from one category is a product decision; a fact asked nowhere is a break). **Load-bearing fix:** the catalog usage counters were gated on the no-payslip CATEGORY, so removing it would have silently zeroed the board's only actionable warning while the three live `personal` + `income_surrogate` ABK programs stayed unconfigured — re-gated on `programType`, renamed `fastPrograms*` → `noPayslipPrograms` / `noPayslipProgramsWithoutTable`, pinned by `test/unit/no-payslip-usage-counters.spec.ts`. New derived `EnumerationMember.noPayslipFacts` (facts ticked per category) lets the program wizard filter its name picker by basis and warn, before saving, when the fact a method reads is not set up. Admin: catalog list is one grid with `All · Reads a payslip · No payslip` chips instead of two lanes; catalog name detail gains a "Sold without a payslip" switch on EVERY category tab; the wizard replaces the "Income-proof / Income-surrogate" dropdown with two step-1 choice cards, leads step 4 with the rule, groups the eleven methods by what they read, and gains an income row on the review step. `--color-cat-fast` → `--color-income-surrogate`. Flutter: enum member, home card, `pages/fast/`, route and ARB keys removed + regenerated. A26 re-aimed at a FIFTH category and now also blocks re-introducing the no-payslip product as a category or as a hardcoded capable-category list. |
 
+| 25.0.0 | 2026-09-05 | MAJOR | **Principle V — approval scoring is REMOVED, and offer order becomes a frozen column instead of a derived score.** Both scoring systems go: the rule-based scorer (`matching/pipeline/approval-probability.ts`) and the two-level admin-weighted one (`scoring/`, `matching/scoring/`, `ScoringWeightSet`), together with the `ScoringEngineVersion` registry, `/admin/scoring/*` + `/admin/scoring-versions/*`, the admin weights editor, the approval pill, the tier filter chips and the "Why this score?" panel, and the mobile "% match" on all four surfaces. The number was a weighted sum of admin-typed figures never once compared against a bank decision — v13.0.0 had already had to reword it from "Guarantee Approval" to "% match", which is the admission. **Prisma:** `bank_offer.approvalProbabilityPercent / approvalScore / approvalTier / approvalFactors / approvalUsedDefault` DROPPED with `idx_bank_offer_approval_score`; `scoring_weight_set` and `scoring_engine_version` dropped; enum `ApprovalTier` dropped. `AuditEventType.SCORING_WEIGHTS_SAVED` and `.SCORING_ENGINE_VERSION_PROMOTED` are **RETAINED** — `audit_event` is append-only (Principle VI) and 12 live rows carry the first, so dropping the enum members would mean recreating the type against the audit log. `bank_offer.engineVersion` survives and now reads `MATCHING_ENGINE_VERSION` from code, since which build priced an offer is a fact about the code. 11 error codes deleted (8 `WEIGHT*`, 3 `SCORING_VERSION_*`) in one change with both admin dictionaries — `check:codes` 229 → 218, and 217 once the orphaned `platform_enumeration_question` template dropped with them; `QUESTION_TYPE_NOT_SCOREABLE` stays retired-but-retained as it already was. **What replaces the score is not another score — it is the order.** New `bank_offer.rankIndex` (Int, 0-based, dense per application) persists the output of the existing `rankOffers(offers, priority)`, which has always sorted by the applicant's own priority answer and whose result every read then threw away: the fallback `ORDER BY approvalScore DESC` re-sorted the list by a number the customer never asked to be sorted by, so somebody who chose "lowest monthly payment" was shown the highest-scoring offer first. Backfilled from the existing read order **before** the columns drop (two migrations in timestamp order, not one), verified byte-identical across all 53 applications on the dev database, so no historical list re-orders. **The defect the removal would otherwise have shipped with:** `rankOffers`' `fastest_approval` arm sorted by the deleted probability and nothing else, and it is the `_ =>` DEFAULT of all four mobile priority mappers plus the fallback for an unanswered (optional) `priority_factor` — the majority case, not an edge. Left alone it would have degraded to featured-then-programCode, i.e. alphabetical, and `rankIndex` would have frozen that alphabet onto immutable offers permanently. It now sorts partner-bank first, then fewest required documents; the enum member is retained for historical rows and A33 now blocks an arm with no sort key. The customer preview, which carried its own probability-desc comparator with no `programCode` last resort (so it was not even deterministic), moves to the same key chain. Admin applications list drops `?tier=high|medium`; its `createdAt desc` was already newest-first and is unchanged. A24 retired-but-retained on the A9 precedent — deleting it would renumber A25–A36, which are cited by number across CLAUDE.md, this file and ~40 source comments. A33 rewritten with the weights clauses excised, the questionnaire-pool clauses intact, and the preview/apply-parity clause re-homed off scoring because two live source comments cite it. Principle XXIX's obligations table swaps its `approvalScore`/`approvalTier` row — three of whose five listed dependents had already been deleted with lead-management — for a `rankIndex` row; Project Context, Engine outputs, Principle IX's `matching/` line and Principle XVI's weight-review parenthetical de-scored. |
+
 ---
 
-**Version**: 16.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-08-14
+**Version**: 25.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-09-05

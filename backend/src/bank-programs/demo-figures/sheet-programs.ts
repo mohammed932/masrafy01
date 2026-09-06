@@ -393,12 +393,15 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     bankName: ABK,
     friendlyName: 'Doctors — Clinic Owners',
     friendlyNameAr: 'الأطباء — أصحاب العيادات',
-    programNameKey: 'doctors_in_practice',
+    // Its own catalog name since v25.0.0. The two doctor sheets used to file under one name
+    // and were told apart by an ownership condition; now the applicant picks which of the two
+    // programmes is theirs, and the name is what carries the product's calculation.
+    programNameKey: 'doctors_clinic_owner',
     programType: 'income_surrogate',
     sheet: 'App. A §7 — Doctors (Clinic Owners)',
     notes: [
       'The sheet tiers cities as Cairo & Alexandria against everywhere else, so the same figures are filed against the secondary and other classes.',
-      'Also asks for a syndicate ID, a facility operating licence and a certificate of professional practice — no document key exists for these yet.',
+      'Clinic location — a main area, a prime polyclinic with a weekly slot, or coded in Vezeeta — is a condition the platform has no list and no source data for.',
       'Rate basis is not stated on the sheet; priced on the reducing annuity.',
     ],
     tenor: { minMonths: 12, maxMonths: 120 },
@@ -411,7 +414,22 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     ageMax: 65,
     minMonthsInJob: 36,
     acceptedEmploymentTypes: SELF_EMPLOYED_ONLY,
+    requiredDocuments: [
+      'national_id',
+      'utility_bill',
+      // App. A §7's own list. Registry rows seeded by `20260905090100_doctor_documents`;
+      // without them `validateAgainstRegistry` refuses this whole programme (422), which is
+      // why that migration has to be applied before this seed runs.
+      'syndicate_card',
+      'medical_facility_licence',
+      'professional_practice_certificate',
+    ],
     stepParams: {
+      // The same figures in all three tiers, deliberately repeated rather than left blank.
+      // Leaving a column empty works — `pickByFact` falls back to the first configured one —
+      // but it reads on the grid as a column this bank has not filled, and what the sheet
+      // says is that Cairo and Alexandria pay what everywhere else pays. The city changes the
+      // CAP below, not the income.
       primary: banded(ABK_PRACTICE_EDGES, [
         '30000',
         '60000',
@@ -438,10 +456,17 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       ]),
     },
     maxLoanByFact: {
-      factKey: 'property_governorate',
+      factKey: 'practice_governorate',
       columnFactKey: 'loan_is_topup',
       rowVia: 'parentClass',
-      onNoMatch: 'useProgramMax',
+      // `reject`, not `useProgramMax`, and the two halves are deliberate. The question is
+      // REQUIRED, so on a current snapshot this branch is unreachable — but a required flag
+      // is a promise about the LIVE question table, and an application submitted against an
+      // older snapshot can still arrive with no answer. `useProgramMax` would then quote
+      // 2,000,000, the top-up Cairo cell, to a doctor whose city nobody knows, and freeze it
+      // onto an immutable offer. The programme stays listed with `NO_MAX_LOAN_FOR_ANSWER`
+      // instead — a stated reason, which is what a 200-body refusal is for (A33).
+      onNoMatch: 'reject',
       rows: [
         { rowKey: 'city_tier_major', columnKey: 'new_loan', maxAmountEGP: '1500000' },
         { rowKey: 'city_tier_major', columnKey: 'top_up', maxAmountEGP: '2000000' },
@@ -473,26 +498,17 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     adminFeePercent: '2.5',
     feeWaiverPenalty: true,
     minMonthsInJob: 36,
-    acceptedEmploymentTypes: SELF_EMPLOYED_ONLY,
+    // SALARIED, not self-employed: this sheet's doctor is EMPLOYED at a private hospital and
+    // proves it with an employment letter — the clinic OWNER is §7. It read
+    // `SELF_EMPLOYED_ONLY`, which is the opposite of what the sheet says. Not dead data even
+    // though eligibility never filters: it rides the customer-facing programme payload.
+    acceptedEmploymentTypes: SALARIED_ONLY,
     requiredDocuments: ['national_id', 'utility_bill', 'hr_letter'],
     stepParams: {
+      // ONE slot, because §8 prints one table. The merged product carried a city-tier column
+      // this sheet does not use, so this programme held the identical figures in three slots
+      // and read as pricing by city. Exactly half the clinic-owner figure at every band.
       primary: banded(ABK_PRACTICE_EDGES, ['15000', '30000', '40000', '60000', '90000', '150000']),
-      primary__city_tier_secondary: banded(ABK_PRACTICE_EDGES, [
-        '15000',
-        '30000',
-        '40000',
-        '60000',
-        '90000',
-        '150000',
-      ]),
-      primary__city_tier_other: banded(ABK_PRACTICE_EDGES, [
-        '15000',
-        '30000',
-        '40000',
-        '60000',
-        '90000',
-        '150000',
-      ]),
     },
     additionalIncome: {
       sources: [

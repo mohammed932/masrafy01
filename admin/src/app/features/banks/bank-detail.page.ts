@@ -43,7 +43,7 @@ import {
   isLoanCategory,
   type LoanCategory,
 } from '@core/loan-category';
-import { incomeBasisLabel } from '@core/income-basis';
+import { basisOf, incomeBasisLabel, type ProgramType } from '@core/income-basis';
 import { ErrorCodeService } from '../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs/bank-programs.api.service';
 import {
@@ -57,12 +57,30 @@ import {
   type BankFormDrawerResult,
 } from './bank-form.drawer';
 import type { BankProgramSummary, BankWithProgramCount } from './banks.types';
+import { splitByBasis, type BasisGroupKey } from './basis-groups';
+
+/**
+ * One income-basis group inside a category section (v24.1.0).
+ *
+ * `unknown` is a real member, not a defensive branch: `programType` is optional on the
+ * wire, and a program the backend said nothing about must not be filed under "Income
+ * proof" — that would state a fact nobody sent, on the riskier side of the pair.
+ */
+interface BasisGroup {
+  key: BasisGroupKey;
+  label: string;
+  /** One line saying what the bank reads. `null` for the unknown group — nothing to say. */
+  hint: string | null;
+  items: BankProgramSummary[];
+}
 
 /** One category accordion section on the bank-detail programs list. */
 interface ProgramSection {
   cat: LoanCategory | 'other';
   label: string;
   items: BankProgramSummary[];
+  /** The same programs, split by income basis. Empty groups are absent, never rendered. */
+  basisGroups: BasisGroup[];
 }
 
 /** One glass KPI cell in the command bar's rail (Total / Active / Inactive). */
@@ -366,126 +384,145 @@ interface PortfolioHealth {
                       </a>
                     </div>
                   } @else {
-                    <ul class="prog-grid">
-                      @for (p of section.items; track p.programCode; let j = $index) {
-                        <li
-                          class="prog"
-                          [class.is-off]="!p.active"
-                          [style.--j]="j"
-                          [style.--cat]="catColor(section.cat)"
+                    <!-- Cards sit UNDER their income basis (v24.1.0): a bank desk reads
+                         the two kinds differently, and a per-card tag left the operator
+                         doing the sorting by eye across a grid. The heading is the
+                         statement, so the card carries no basis tag of its own. Groups
+                         that hold nothing are absent, so a bank selling one way only
+                         sees one heading. -->
+                    @for (g of section.basisGroups; track g.key) {
+                      <div class="basis-group" [class.is-surrogate]="g.key === 'income_surrogate'">
+                        <h4 class="basis-head" [id]="'basis-' + section.cat + '-' + g.key">
+                          <span class="basis-name">{{ g.label }}</span>
+                          <span class="basis-count">{{ g.items.length }}</span>
+                        </h4>
+                        @if (g.hint) {
+                          <p class="basis-hint">{{ g.hint }}</p>
+                        }
+                        <ul
+                          class="prog-grid"
+                          [attr.aria-labelledby]="'basis-' + section.cat + '-' + g.key"
                         >
-                          <a
-                            class="prog-hit"
-                            [routerLink]="['/banks/programs', p.programCode]"
-                            [attr.aria-label]="p.friendlyName"
-                          ></a>
+                          @for (p of g.items; track p.programCode; let j = $index) {
+                            <li
+                              class="prog"
+                              [class.is-off]="!p.active"
+                              [style.--j]="j"
+                              [style.--cat]="catColor(section.cat)"
+                            >
+                              <a
+                                class="prog-hit"
+                                [routerLink]="['/banks/programs', p.programCode]"
+                                [attr.aria-label]="p.friendlyName"
+                              ></a>
 
-                          <header class="prog-head">
-                            <span class="prog-name">{{ p.friendlyName }}</span>
-                            <!-- Only the no-payslip case is tagged. Most programs read a
-                                 payslip, so a tag on all of them would cost a row of
-                                 colour to say nothing — absence means the ordinary case,
-                                 the same rule the Islamic tag and the catalog board use. -->
-                            @if (p.programType === 'income_surrogate') {
-                              <span
-                                class="tag no-payslip"
-                                nz-tooltip
-                                i18n-nzTooltipTitle="@@bank_detail.program.no_payslip_tip"
-                                nzTooltipTitle="The bank works the income out from a fact about the applicant"
-                                >{{ noPayslipLabel }}</span
-                              >
-                            }
-                            @if (p.isShariaCompliant) {
-                              <span
-                                class="tag sharia"
-                                nz-tooltip
-                                i18n-nzTooltipTitle="@@bank_detail.program.sharia"
-                                nzTooltipTitle="Sharia-compliant"
-                                i18n="@@bank_detail.program.sharia_short"
-                                >Islamic</span
-                              >
-                            }
-                          </header>
-
-                          <dl class="specs">
-                            <div class="spec">
-                              <dt i18n="@@bank_detail.spec.rate">Rate</dt>
-                              <dd class="num">
-                                {{ rateLabel(p) }}
-                                @if (p.isVariableRate) {
-                                  <span class="spec-flag" i18n="@@bank_detail.spec.variable"
-                                    >var.</span
+                              <header class="prog-head">
+                                <span class="prog-name">{{ p.friendlyName }}</span>
+                                <!-- The card states its own basis as well as sitting under
+                                     the group heading: a grid scrolls, and a card read on
+                                     its own — or dragged into a screenshot — must still
+                                     say which kind of program it is. Absent programType
+                                     shows nothing; it must not read as "Income proof". -->
+                                @if (p.programType; as type) {
+                                  <span
+                                    class="tag basis"
+                                    [class.is-surrogate]="type === 'income_surrogate'"
+                                    >{{ basisLabel(type) }}</span
                                   >
                                 }
-                              </dd>
-                            </div>
-                            <div class="spec">
-                              <dt i18n="@@bank_detail.spec.amount">Amount</dt>
-                              <dd class="num">{{ amountLabel(p) }}</dd>
-                            </div>
-                            <div class="spec">
-                              <dt i18n="@@bank_detail.spec.tenor">Tenor</dt>
-                              <dd class="num">{{ tenorLabel(p) }}</dd>
-                            </div>
-                          </dl>
-
-                          <footer class="prog-foot">
-                            <span class="live">
-                              <nz-switch
-                                *can="['super_admin', 'sales_manager']"
-                                nzSize="small"
-                                [formControl]="rowActiveControl(p)"
-                              ></nz-switch>
-                              <span class="live-label">
-                                @if (p.active) {
-                                  <span i18n="@@bank_detail.status.active">Active</span>
-                                } @else {
-                                  <span i18n="@@bank_detail.status.inactive">Inactive</span>
+                                @if (p.isShariaCompliant) {
+                                  <span
+                                    class="tag sharia"
+                                    nz-tooltip
+                                    i18n-nzTooltipTitle="@@bank_detail.program.sharia"
+                                    nzTooltipTitle="Sharia-compliant"
+                                    i18n="@@bank_detail.program.sharia_short"
+                                    >Islamic</span
+                                  >
                                 }
-                              </span>
-                            </span>
-                            <span class="prog-actions">
-                              <a
-                                *can="['super_admin', 'sales_manager']"
-                                nz-button
-                                nzType="text"
-                                nzShape="circle"
-                                nzSize="small"
-                                nz-tooltip
-                                i18n-nzTooltipTitle="@@bank_detail.program.edit"
-                                nzTooltipTitle="Edit program"
-                                [routerLink]="['/banks/programs', p.programCode, 'edit']"
-                              >
-                                <span
-                                  nz-icon
-                                  nzType="edit"
-                                  nzTheme="outline"
-                                  aria-hidden="true"
-                                ></span>
-                              </a>
-                              <button
-                                *can="['super_admin', 'sales_manager']"
-                                nz-button
-                                nzType="text"
-                                nzShape="circle"
-                                nzSize="small"
-                                nz-tooltip
-                                i18n-nzTooltipTitle="@@bank_detail.program.delete"
-                                nzTooltipTitle="Delete program"
-                                (click)="openDelete(p)"
-                              >
-                                <span
-                                  nz-icon
-                                  nzType="delete"
-                                  nzTheme="outline"
-                                  aria-hidden="true"
-                                ></span>
-                              </button>
-                            </span>
-                          </footer>
-                        </li>
-                      }
-                    </ul>
+                              </header>
+
+                              <dl class="specs">
+                                <div class="spec">
+                                  <dt i18n="@@bank_detail.spec.rate">Rate</dt>
+                                  <dd class="num">
+                                    {{ rateLabel(p) }}
+                                    @if (p.isVariableRate) {
+                                      <span class="spec-flag" i18n="@@bank_detail.spec.variable"
+                                        >var.</span
+                                      >
+                                    }
+                                  </dd>
+                                </div>
+                                <div class="spec">
+                                  <dt i18n="@@bank_detail.spec.amount">Amount</dt>
+                                  <dd class="num">{{ amountLabel(p) }}</dd>
+                                </div>
+                                <div class="spec">
+                                  <dt i18n="@@bank_detail.spec.tenor">Tenor</dt>
+                                  <dd class="num">{{ tenorLabel(p) }}</dd>
+                                </div>
+                              </dl>
+
+                              <footer class="prog-foot">
+                                <span class="live">
+                                  <nz-switch
+                                    *can="['super_admin', 'sales_manager']"
+                                    nzSize="small"
+                                    [formControl]="rowActiveControl(p)"
+                                  ></nz-switch>
+                                  <span class="live-label">
+                                    @if (p.active) {
+                                      <span i18n="@@bank_detail.status.active">Active</span>
+                                    } @else {
+                                      <span i18n="@@bank_detail.status.inactive">Inactive</span>
+                                    }
+                                  </span>
+                                </span>
+                                <span class="prog-actions">
+                                  <a
+                                    *can="['super_admin', 'sales_manager']"
+                                    nz-button
+                                    nzType="text"
+                                    nzShape="circle"
+                                    nzSize="small"
+                                    nz-tooltip
+                                    i18n-nzTooltipTitle="@@bank_detail.program.edit"
+                                    nzTooltipTitle="Edit program"
+                                    [routerLink]="['/banks/programs', p.programCode, 'edit']"
+                                  >
+                                    <span
+                                      nz-icon
+                                      nzType="edit"
+                                      nzTheme="outline"
+                                      aria-hidden="true"
+                                    ></span>
+                                  </a>
+                                  <button
+                                    *can="['super_admin', 'sales_manager']"
+                                    nz-button
+                                    nzType="text"
+                                    nzShape="circle"
+                                    nzSize="small"
+                                    nz-tooltip
+                                    i18n-nzTooltipTitle="@@bank_detail.program.delete"
+                                    nzTooltipTitle="Delete program"
+                                    (click)="openDelete(p)"
+                                  >
+                                    <span
+                                      nz-icon
+                                      nzType="delete"
+                                      nzTheme="outline"
+                                      aria-hidden="true"
+                                    ></span>
+                                  </button>
+                                </span>
+                              </footer>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
                   }
                 </nz-collapse-panel>
               }
@@ -1126,18 +1163,83 @@ interface PortfolioHealth {
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
-      /* Same anatomy as the Islamic tag, plum ink: the two say different KINDS of thing
-         about a program and must not be told apart only by position. */
-      .tag.no-payslip {
+      /* Same anatomy as the Islamic tag: the two say different KINDS of thing about a
+         program and must not be told apart only by position. Neutral by default — the
+         tag is on every card, and two accents per row would leave the card with no
+         quiet ground. The surrogate case keeps the plum the whole no-payslip surface is
+         accented with, matching its group heading. */
+      .tag.basis {
         flex: none;
         padding: 1px var(--space-2);
+        /* Hairline on BOTH variants (transparent on the accented one) so the two tags are
+           the same height in one row. The neutral chip needs it: an inactive card's own
+           ground is the muted surface, where a fill-only chip disappears. */
+        border: 1px solid var(--color-border-default);
         border-radius: var(--radius-pill);
-        background: var(--color-income-surrogate-bg);
-        color: var(--color-income-surrogate);
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
         font-size: var(--text-xxs);
         font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.04em;
+      }
+      /* No tooltip on this one, so it must not re-arm pointer events the way the Islamic
+         tag does — a dead spot in the middle of the card-wide link is worse than a chip
+         that cannot be hovered. */
+      .prog-head .tag.basis {
+        pointer-events: none;
+      }
+      .tag.basis.is-surrogate {
+        border-color: transparent;
+        background: var(--color-income-surrogate-bg);
+        color: var(--color-income-surrogate);
+      }
+      /* Income-basis group inside a category. The heading is the house micro-label
+         (uppercase, tracked, text-xs) — the same rank the specs' own dt row uses, so it
+         reads as a divider inside the section and never competes with the category
+         header above it. Only the surrogate group is accented: it is the exception a
+         desk looks for, and inking both leaves the section with no quiet ground. */
+      .basis-group + .basis-group {
+        margin-block-start: var(--space-5);
+      }
+      .basis-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-text-secondary);
+      }
+      .basis-group.is-surrogate .basis-head {
+        color: var(--color-income-surrogate);
+      }
+      .basis-count {
+        flex: none;
+        min-inline-size: 1.25rem;
+        padding: 0 var(--space-1);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xxs);
+        text-align: center;
+        letter-spacing: 0;
+      }
+      .basis-group.is-surrogate .basis-count {
+        background: var(--color-income-surrogate-bg);
+        color: var(--color-income-surrogate);
+      }
+      /* Secondary ink, never tertiary: this line is read, and tertiary sits under
+         4.5:1 on this ground in light mode. */
+      .basis-hint {
+        margin: var(--space-1) 0 0;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .basis-group .prog-grid {
+        margin-block-start: var(--space-3);
       }
       /* Three figures on one baseline — the actual comparison surface. */
       .specs {
@@ -1276,9 +1378,6 @@ export class BankDetailPage implements OnInit {
     return this.route.snapshot.paramMap.get('bankId') ?? '';
   }
 
-  /** Same words as the catalog board and the program wizard — one source (v16.0.0). */
-  protected readonly noPayslipLabel = incomeBasisLabel('no_payslip');
-
   /**
    * Programs grouped into the four constitution-locked categories (Principle II),
    * in canonical order. Any program whose category falls outside the four
@@ -1287,21 +1386,69 @@ export class BankDetailPage implements OnInit {
    */
   readonly categorySections = computed<ProgramSection[]>(() => {
     const ps = this.programs();
-    const sections: ProgramSection[] = LOAN_CATEGORIES.map((cat) => ({
+    const section = (cat: LoanCategory | 'other', label: string, items: BankProgramSummary[]) => ({
       cat,
-      label: categoryLabel(cat),
-      items: ps.filter((p) => p.productCategory === cat),
-    }));
+      label,
+      items,
+      basisGroups: this.basisGroupsOf(items),
+    });
+    const sections: ProgramSection[] = LOAN_CATEGORIES.map((cat) =>
+      section(
+        cat,
+        categoryLabel(cat),
+        ps.filter((p) => p.productCategory === cat),
+      ),
+    );
     const others = ps.filter((p) => !isLoanCategory(p.productCategory));
     if (others.length > 0) {
-      sections.push({
-        cat: 'other',
-        label: $localize`:@@bank_detail.cat.other:Other`,
-        items: others,
-      });
+      sections.push(section('other', $localize`:@@bank_detail.cat.other:Other`, others));
     }
     return sections;
   });
+
+  /**
+   * The tag on a card. Same words as the group heading above it and as every other
+   * surface — one source (`@core/income-basis`). No tooltip: the sentence explaining
+   * what the bank reads is already rendered under the group heading, and a second copy
+   * on hover would be the same claim in two places.
+   */
+  protected basisLabel(type: ProgramType): string {
+    return incomeBasisLabel(basisOf(type));
+  }
+
+  /**
+   * Split one category's programs by how the bank establishes the income, then hang the
+   * words on the result. The split itself is pure and lives in `basis-groups.ts` — it
+   * decides what an operator sees and is worth exercising without an Angular runtime.
+   */
+  private basisGroupsOf(items: BankProgramSummary[]): BasisGroup[] {
+    return splitByBasis(items).map((g) => ({
+      key: g.key,
+      label: this.basisGroupLabel(g.key),
+      hint: this.basisGroupHint(g.key),
+      items: g.items,
+    }));
+  }
+
+  /** The platform's own two words for the two types — one source (`@core/income-basis`). */
+  private basisGroupLabel(key: BasisGroupKey): string {
+    return key === 'unknown'
+      ? $localize`:@@bank_detail.basis.unknown:Basis not stated`
+      : incomeBasisLabel(basisOf(key));
+  }
+
+  /**
+   * One line under the heading saying what the BANK does. The two words above it are the
+   * platform's type names, and "Income proof" alone does not tell an operator that the
+   * figure comes off a payslip. Rendered, not a tooltip: a group heading is not a
+   * hoverable control, and the sentence is the half a new operator actually needs.
+   */
+  private basisGroupHint(key: BasisGroupKey): string | null {
+    if (key === 'unknown') return null;
+    return key === 'income_surrogate'
+      ? $localize`:@@bank_detail.program.no_payslip_tip:The bank works the income out from a fact about the applicant`
+      : $localize`:@@bank_detail.program.income_proof_tip:The bank lends against a salary the customer is paid`;
+  }
 
   /** Query params for the per-section "Add program" link (scopes category). */
   addQueryParams(cat: LoanCategory | 'other'): Record<string, string> {

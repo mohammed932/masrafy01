@@ -342,24 +342,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get match_featured_badge => 'مميز';
 
   @override
-  String get match_tier_excellent => 'فرصة ممتازة';
-
-  @override
-  String get match_tier_good => 'فرصة جيدة';
-
-  @override
-  String get match_tier_moderate => 'فرصة متوسطة';
-
-  @override
-  String get match_tier_low => 'فرصة منخفضة';
-
-  @override
-  String get match_tier_very_low => 'فرصة منخفضة جدًا';
-
-  @override
-  String get match_tier_unknown => 'تقدير غير محدد';
-
-  @override
   String get match_action_retry => 'إعادة المحاولة';
 
   @override
@@ -1764,14 +1746,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String results_guarantee_approval(int pct) {
-    return 'توافق $pct%';
-  }
-
-  @override
-  String get results_unrated => 'لم يُقيَّم بعد';
-
-  @override
   String get results_unavailable_section => 'غير متاح لك حاليًا';
 
   @override
@@ -1784,9 +1758,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String results_unavailable_ceiling(String amount) {
     return 'يمكنك الاقتراض حتى $amount جنيه من هذا البنك.';
   }
-
-  @override
-  String get results_best_match => 'أفضل تطابق';
 
   @override
   String get results_rate => 'الفائدة';
@@ -1824,14 +1795,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String offer_title(String type) {
     return 'قرض $type';
   }
-
-  @override
-  String offer_approval(int pct) {
-    return 'درجة التوافق $pct%';
-  }
-
-  @override
-  String get offer_unrated => 'لم يُقيَّم بعد';
 
   @override
   String get offer_interest_rate => 'سعر الفائدة';

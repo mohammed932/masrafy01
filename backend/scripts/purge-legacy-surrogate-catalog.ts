@@ -32,10 +32,8 @@
  * a catalog cleanup or a data loss.
  *
  * The deletes that DO cascade are declared in the schema and are all bookkeeping:
- *   · `scoring_weight_set.bankProgramId`            → Cascade
  *   · `audit_event.bankProgramId`                   → SetNull  (the event survives)
  *   · `platform_enumeration_loan_category`          → Cascade
- *   · `platform_enumeration_question`               → Cascade
  *
  * `bank_program.bankId` is `onDelete: Restrict`, so programs are deleted BEFORE their bank.
  * That ordering is load-bearing: reversed, Postgres refuses and the operator is told about

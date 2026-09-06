@@ -164,7 +164,6 @@
       <trans-unit id="dash.brief.intakeDown" datatype="html"><source>Intake is down <x id="PH"/>% on last week (<x id="PH_1"/> applications).</source><target>الطلبات الواردة أقل بنسبة <x id="PH"/>% عن الأسبوع الماضي (<x id="PH_1"/> طلب).</target></trans-unit>
       <trans-unit id="dash.brief.intakeFlat" datatype="html"><source><x id="PH"/> applications arrived this week, flat on last week.</source><target>وصل <x id="PH"/> طلب هذا الأسبوع، بلا تغيّر عن الأسبوع الماضي.</target></trans-unit>
       <trans-unit id="dash.brief.noMatch" datatype="html"><source><x id="PH"/>% of applications find no program — worth a look at program coverage.</source><target><x id="PH"/>% من الطلبات لا تجد أي برنامج — راجع تغطية البرامج.</target></trans-unit>
-      <trans-unit id="dash.brief.quality" datatype="html"><source>Average best-offer probability is <x id="PH"/>%.</source><target>متوسط احتمالية أفضل عرض هو <x id="PH"/>%.</target></trans-unit>
       <trans-unit id="dash.queue.title" datatype="html"><source>Waiting on you</source><target>في انتظارك</target></trans-unit>
       <trans-unit id="dash.queue.all" datatype="html"><source>All applications</source><target>كل الطلبات</target></trans-unit>
       <trans-unit id="dash.queue.clear" datatype="html"><source>Every lead has had a first touch. Nothing is waiting.</source><target>كل الطلبات تم التواصل معها. لا شيء في الانتظار.</target></trans-unit>
@@ -181,11 +180,9 @@
       <trans-unit id="dash.intake.down" datatype="html"><source>−<x id="PH"/>% on last week</source><target>−<x id="PH"/>% عن الأسبوع الماضي</target></trans-unit>
       <trans-unit id="dash.intake.aria" datatype="html"><source><x id="PH"/> applications in the last 7 days, <x id="PH_1"/> in the 7 days before.</source><target><x id="PH"/> طلب في آخر 7 أيام، و<x id="PH_1"/> في الـ 7 أيام السابقة.</target></trans-unit>
       <trans-unit id="dash.dryRun.title" datatype="html"><source>If someone applied right now</source><target>لو تقدّم أحدهم بطلب الآن</target></trans-unit>
-      <trans-unit id="dash.dryRun.hint" datatype="html"><source>Empty-answer run — programs reachable per category, and how many carry no weights. Not a probability.</source><target>تشغيل بلا إجابات — البرامج المتاحة لكل فئة، وكم منها بلا أوزان. ليست نسبة احتمال.</target></trans-unit>
       <trans-unit id="dash.dryRun.action" datatype="html"><source>Open the matching simulator</source><target>افتح محاكي المطابقة</target></trans-unit>
       <trans-unit id="dash.dryRun.offered" datatype="html"><source><x id="PH"/> programs</source><target><x id="PH"/> برنامج</target></trans-unit>
       <trans-unit id="dash.dryRun.noneOffered" datatype="html"><source>nothing to offer</source><target>لا يوجد ما يُعرض</target></trans-unit>
-      <trans-unit id="dash.dryRun.unscored" datatype="html"><source><x id="PH"/> unscored</source><target><x id="PH"/> بلا تقييم</target></trans-unit>
       <trans-unit id="dash.dryRun.featured" datatype="html"><source><x id="PH"/> featured</source><target><x id="PH"/> مميّز</target></trans-unit>
       <trans-unit id="dash.ready.support.title" datatype="html"><source>Support channels reachable</source><target>قنوات الدعم متاحة</target></trans-unit>
       <trans-unit id="dash.ready.support.action" datatype="html"><source>Review support contacts</source><target>راجع بيانات التواصل</target></trans-unit>
@@ -201,7 +198,6 @@
       <trans-unit id="dash.stat.signupsNone" datatype="html"><source>none joined this week</source><target>لا انضمامات هذا الأسبوع</target></trans-unit>
       <trans-unit id="dash.health.noneYet" datatype="html"><source>No offers matched yet.</source><target>لا توجد عروض مطابقة بعد.</target></trans-unit>
       <trans-unit id="dash.health.title" datatype="html"><source>Match quality</source><target>جودة المطابقة</target></trans-unit>
-      <trans-unit id="dash.health.avg" datatype="html"><source>average best-offer probability</source><target>متوسط احتمالية أفضل عرض</target></trans-unit>
       <trans-unit id="dash.health.coverage" datatype="html"><source>Review program coverage</source><target>راجع تغطية البرامج</target></trans-unit>
       <trans-unit id="dash.health.strong" datatype="html"><source>strong</source><target>قوي</target></trans-unit>
       <trans-unit id="dash.health.weak" datatype="html"><source>moderate or lower</source><target>متوسط أو أقل</target></trans-unit>
@@ -265,17 +261,9 @@
       <trans-unit id="dash.ready.questionnaire.unscoreable" datatype="html"><source>no single-select question to score</source><target>لا يوجد سؤال اختيار واحد قابل للتقييم</target></trans-unit>
       <trans-unit id="dash.ready.questionnaire.bindings" datatype="html"><source><x id="PH"/> money bindings unresolved</source><target><x id="PH"/> ربط مالي غير محسوم</target></trans-unit>
       <trans-unit id="dash.ready.questionnaire.live" datatype="html"><source>Version <x id="PH"/> is live — <x id="PH_1"/> questions, <x id="PH_2"/> scoreable.</source><target>الإصدار <x id="PH"/> منشور — <x id="PH_1"/> سؤال، منها <x id="PH_2"/> قابل للتقييم.</target></trans-unit>
-      <trans-unit id="dash.ready.scoring.title" datatype="html"><source>Programs scored</source><target>تقييم البرامج</target></trans-unit>
-      <trans-unit id="dash.ready.scoring.action" datatype="html"><source>Assign scoring weights</source><target>عيّن أوزان التقييم</target></trans-unit>
-      <trans-unit id="dash.ready.scoring.nothingToScore" datatype="html"><source>No active program to score yet.</source><target>لا يوجد برنامج نشط لتقييمه بعد.</target></trans-unit>
-      <trans-unit id="dash.ready.scoring.window" datatype="html"><source> (checked <x id="PH"/> of <x id="PH_1"/>)</source><target> (تم فحص <x id="PH"/> من <x id="PH_1"/>)</target></trans-unit>
-      <trans-unit id="dash.ready.scoring.all" datatype="html"><source>All <x id="PH"/> active programs carry an approved weight set.</source><target>كل البرامج النشطة (<x id="PH"/>) لديها مجموعة أوزان معتمدة.</target></trans-unit>
-      <trans-unit id="dash.ready.scoring.more" datatype="html"><source>+<x id="PH"/> more</source><target>+<x id="PH"/> أخرى</target></trans-unit>
-      <trans-unit id="dash.ready.scoring.partial" datatype="html"><source><x id="PH"/> of <x id="PH_1"/> active programs have no weights — they score 0 and never surface.</source><target><x id="PH"/> من <x id="PH_1"/> برنامج نشط بلا أوزان — تحصل على 0 ولا تظهر أبداً.</target></trans-unit>
       <trans-unit id="dash.ready.brief.oneBlock" datatype="html"><source>One thing still stops the first match: <x id="PH"/></source><target>أمر واحد ما زال يمنع أول مطابقة: <x id="PH"/></target></trans-unit>
       <trans-unit id="dash.ready.brief.blocks" datatype="html"><source><x id="PH"/> things still stop the first match — starting with: <x id="PH_1"/></source><target><x id="PH"/> أمور ما زالت تمنع أول مطابقة — أولها: <x id="PH_1"/></target></trans-unit>
       <trans-unit id="dash.ready.brief.warn" datatype="html"><source>The catalogue can match, with gaps — <x id="PH"/></source><target>الكتالوج قادر على المطابقة مع وجود ثغرات — <x id="PH"/></target></trans-unit>
-      <trans-unit id="dash.ready.brief.clear" datatype="html"><source>Catalogue is live and fully scored — the desk fills the moment the first application lands.</source><target>الكتالوج منشور ومقيَّم بالكامل — تمتلئ لوحة العمل بمجرد وصول أول طلب.</target></trans-unit>
       <trans-unit id="dash.ready.brief.audience" datatype="html"><source><x id="PH"/> customers have signed up; none has submitted an application yet.</source><target>سجّل <x id="PH"/> عميل؛ ولم يقدّم أي منهم طلباً بعد.</target></trans-unit>
       <trans-unit id="dash.brief.support" datatype="html"><source><x id="PH"/> support requests are open, the oldest waiting <x id="PH_1"/>.</source><target><x id="PH"/> طلب دعم مفتوح، أقدمها ينتظر منذ <x id="PH_1"/>.</target></trans-unit>
       <trans-unit id="dash.brief.supportUnassigned" datatype="html"><source><x id="PH"/> support requests are open — <x id="PH_1"/> with nobody on them, the oldest waiting <x id="PH_2"/>.</source><target><x id="PH"/> طلب دعم مفتوح — منها <x id="PH_1"/> بلا مسؤول، وأقدمها ينتظر منذ <x id="PH_2"/>.</target></trans-unit>
@@ -316,10 +304,12 @@
       <trans-unit id="dash.signups.manyApps" datatype="html"><source><x id="PH"/> applications</source><target><x id="PH"/> طلبات</target></trans-unit>
       <trans-unit id="sidebar.applications" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
       <trans-unit id="applications.title" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
-      <trans-unit id="applications.subtitle" datatype="html"><source>Loan-match results triaged by approval probability.</source><target>نتائج مطابقة القروض مُرتَّبة حسب احتمالية الموافقة.</target></trans-unit>
-      <trans-unit id="applications.empty.title" datatype="html"><source>No leads in this bucket yet</source><target>لا توجد طلبات في هذه الفئة بعد</target></trans-unit>
-      <trans-unit id="applications.empty.subtitle" datatype="html"><source>Try a different filter or wait for new applications.</source><target>جرّب فلتراً آخر أو انتظر طلبات جديدة.</target></trans-unit>
-      <trans-unit id="applications.col.probability" datatype="html"><source>Probability</source><target>الاحتمالية</target></trans-unit>
+      <trans-unit id="applications.stat.total" datatype="html"><source>Total in view</source><target>الإجمالي المعروض</target></trans-unit>
+      <trans-unit id="applications.stat.newToday" datatype="html"><source>New today</source><target>جديد اليوم</target></trans-unit>
+      <trans-unit id="applications.stat.awaiting" datatype="html"><source>Awaiting action</source><target>في انتظار إجراء</target></trans-unit>
+      <trans-unit id="applications.subtitle" datatype="html"><source>Newest applications first.</source><target>أحدث الطلبات أولاً.</target></trans-unit>
+      <trans-unit id="applications.empty.title" datatype="html"><source>No applications match your filters</source><target>لا توجد طلبات تطابق عوامل التصفية</target></trans-unit>
+      <trans-unit id="applications.empty.subtitle" datatype="html"><source>Clear a filter or wait for new applications.</source><target>أزل أحد عوامل التصفية أو انتظر طلبات جديدة.</target></trans-unit>
       <trans-unit id="applications.col.purpose" datatype="html"><source>Loan purpose</source><target>الغرض من القرض</target></trans-unit>
       <trans-unit id="applications.col.amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
       <trans-unit id="applications.col.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
@@ -336,12 +326,6 @@
       <trans-unit id="applications.detail.rate" datatype="html"><source>Effective rate</source><target>المعدل الفعلي</target></trans-unit>
       <trans-unit id="applications.detail.installment" datatype="html"><source>Monthly installment</source><target>القسط الشهري</target></trans-unit>
       <trans-unit id="applications.detail.tenor" datatype="html"><source>Effective tenor</source><target>المدة الفعلية</target></trans-unit>
-      <trans-unit id="applications.detail.whyTitle" datatype="html"><source>Why this score?</source><target>لماذا هذه النتيجة؟</target></trans-unit>
-      <trans-unit id="applications.detail.positive" datatype="html"><source>What helped</source><target>ما ساهم في رفع النتيجة</target></trans-unit>
-      <trans-unit id="applications.detail.negative" datatype="html"><source>What hurt</source><target>ما خفّض النتيجة</target></trans-unit>
-      <trans-unit id="applications.detail.legacyNotice" datatype="html"><source>Detailed factors unavailable for offers produced before engine version 1.1.0.</source><target>التفاصيل غير متاحة للعروض الصادرة قبل الإصدار 1.1.0 من المحرك.</target></trans-unit>
-      <trans-unit id="applications.detail.loadingFactors" datatype="html"><source>Loading factor labels…</source><target>جارٍ تحميل تسميات العوامل…</target></trans-unit>
-      <trans-unit id="applications.detail.noFactors" datatype="html"><source>Score reflects the base model only — no profile-specific adjustments applied.</source><target>النتيجة تعتمد على النموذج الأساسي فقط — لم تُطبَّق أي تعديلات خاصة بالملف الشخصي.</target></trans-unit>
       <trans-unit id="applications.detail.amount" datatype="html"><source>Loan amount</source><target>مبلغ القرض</target></trans-unit>
       <trans-unit id="applications.detail.totalPayable" datatype="html"><source>Total payable</source><target>إجمالي المدفوع</target></trans-unit>
       <trans-unit id="applications.detail.chosen" datatype="html"><source>Chosen by applicant</source><target>اختاره مقدّم الطلب</target></trans-unit>
@@ -381,21 +365,6 @@
       <trans-unit id="app.detail.selected.sharia" datatype="html"><source>Sharia-compliant</source><target>متوافق مع الشريعة</target></trans-unit>
       <trans-unit id="app.detail.selected.conventional" datatype="html"><source>Conventional</source><target>تقليدي</target></trans-unit>
       <trans-unit id="app.detail.selected.docs" datatype="html"><source>Bank requires</source><target>البنك يطلب</target></trans-unit>
-      <trans-unit id="applications.detail.deprecatedBadge" datatype="html"><source>Deprecated</source><target>متوقف</target></trans-unit>
-      <trans-unit id="applications.detail.deprecatedTooltip" datatype="html"><source>Deprecated in v<x id="PH"/></source><target>متوقف في الإصدار <x id="PH"/></target></trans-unit>
-      <trans-unit id="applications.detail.deprecatedGeneric" datatype="html"><source>Deprecated in the active engine</source><target>متوقف في الإصدار النشط للمحرك</target></trans-unit>
-      <trans-unit id="applications.detail.scoredUnder" datatype="html"><source>Scored under engine v<x id="PH"/></source><target>تم التقييم بإصدار المحرك v<x id="PH"/></target></trans-unit>
-      <trans-unit id="applications.filter.tier.aria" datatype="html"><source>Filter applications by approval probability</source><target>تصفية الطلبات حسب احتمالية الموافقة</target></trans-unit>
-      <trans-unit id="applications.filter.tier.high" datatype="html"><source>High probability leads</source><target>طلبات عالية الاحتمالية</target></trans-unit>
-      <trans-unit id="applications.filter.tier.medium" datatype="html"><source>Medium probability</source><target>احتمالية متوسطة</target></trans-unit>
-      <trans-unit id="applications.filter.tier.needs_coaching" datatype="html"><source>Needs coaching</source><target>يحتاج إلى متابعة</target></trans-unit>
-      <trans-unit id="approval.tier.excellent" datatype="html"><source>Excellent</source><target>ممتاز</target></trans-unit>
-      <trans-unit id="approval.tier.good" datatype="html"><source>Good</source><target>جيد</target></trans-unit>
-      <trans-unit id="approval.tier.moderate" datatype="html"><source>Moderate</source><target>متوسط</target></trans-unit>
-      <trans-unit id="approval.tier.low" datatype="html"><source>Low</source><target>منخفض</target></trans-unit>
-      <trans-unit id="approval.tier.very_low" datatype="html"><source>Very low</source><target>منخفض جداً</target></trans-unit>
-      <trans-unit id="approval.tier.no_match" datatype="html"><source>No matches yet</source><target>لا توجد مطابقات بعد</target></trans-unit>
-      <trans-unit id="approval.pill.aria" datatype="html"><source>Approval probability <x id="INTERPOLATION"/>% — <x id="INTERPOLATION_1"/></source><target>احتمالية الموافقة <x id="INTERPOLATION"/>٪ — <x id="INTERPOLATION_1"/></target></trans-unit>
 
       <!-- ===== Feature 005 — Lead Management ===== -->
       <trans-unit id="app.detail.addActivity" datatype="html"><source>Add Activity</source><target>إضافة نشاط</target></trans-unit>
@@ -738,7 +707,7 @@
       <trans-unit id="qedit.sec_answer" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
       <trans-unit id="qedit.answer_type" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
       <trans-unit id="qedit.type_locked" datatype="html"><source>The answer type can&apos;t change once applicants have answered this question — their stored answers would no longer match it. Add a new question instead.</source><target>لا يمكن تغيير نوع الإجابة بعد أن أجاب المتقدمون على هذا السؤال — إجاباتهم المحفوظة لن تطابقه. أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
-      <trans-unit id="qedit.scoring_by_type" datatype="html"><source>This type carries scoring weights too — a number scores by the band it falls in, text by whether it was answered. Set that per program in its scoring weights.</source><target>هذا النوع يحمل أوزان تقييم أيضًا — الرقم يُقيَّم حسب الشريحة التي يقع فيها، والنص حسب الإجابة عليه من عدمها. يُضبط ذلك لكل برنامج في أوزان التقييم الخاصة به.</target></trans-unit>
+      <trans-unit id="qedit.scoring_by_type" datatype="html"><source>A number or free text has no options to configure. Banks read this answer through their money bindings and income rules.</source><target>الرقم أو النص الحر ليس له خيارات تُضبط. تقرأ البنوك هذه الإجابة عبر ربط المبالغ وقواعد الدخل الخاصة بها.</target></trans-unit>
       <trans-unit id="qedit.required" datatype="html"><source>Required</source><target>مطلوب</target></trans-unit>
       <trans-unit id="qedit.sec_branch" datatype="html"><source>When to ask this</source><target>متى يُطرح هذا السؤال</target></trans-unit>
       <trans-unit id="qedit.branch_clear" datatype="html"><source>Always ask</source><target>اطرحه دائمًا</target></trans-unit>
@@ -778,7 +747,7 @@
       <trans-unit id="qedit.type_multi" datatype="html"><source>Several choices</source><target>عدة اختيارات</target></trans-unit>
       <trans-unit id="qedit.type_numeric" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
       <trans-unit id="qedit.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
-      <trans-unit id="qedit.type_single_hint" datatype="html"><source>The applicant picks exactly one option. This is the only type that carries scoring weights.</source><target>يختار المتقدم خيارًا واحدًا فقط. هذا هو النوع الوحيد الذي يحمل أوزان التقييم.</target></trans-unit>
+      <trans-unit id="qedit.type_single_hint" datatype="html"><source>The applicant picks exactly one option.</source><target>يختار المتقدم خيارًا واحدًا فقط.</target></trans-unit>
       <trans-unit id="qedit.type_multi_hint" datatype="html"><source>The applicant can pick more than one option.</source><target>يمكن للمتقدم اختيار أكثر من خيار.</target></trans-unit>
       <trans-unit id="qedit.type_numeric_hint" datatype="html"><source>The applicant types a number, within the bounds you set.</source><target>يكتب المتقدم رقمًا داخل الحدود التي تحددها.</target></trans-unit>
       <trans-unit id="qedit.type_text_hint" datatype="html"><source>The applicant types free text.</source><target>يكتب المتقدم نصًا حرًا.</target></trans-unit>
@@ -819,7 +788,7 @@
            filled here because this list is now the catalog's front door. -->
       <trans-unit id="program_catalog.eyebrow" datatype="html"><source>Reference data</source><target>بيانات مرجعية</target></trans-unit>
       <trans-unit id="program_catalog.title" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
-      <trans-unit id="program_catalog.subtitle" datatype="html"><source>Curated loan program names — Doctor, Military, New Car. Pick these in the bank-program builder instead of free-typing. Open a name to set which loan types offer it and what each one scores on.</source><target>أسماء برامج تمويل منسّقة — أطباء، عسكريون، سيارة جديدة. اخترها عند إنشاء برنامج بنكي بدلاً من كتابتها يدوياً. افتح أي اسم لتحديد أنواع التمويل التي تطرحه وما يُقيَّم عليه كل نوع.</target></trans-unit>
+      <trans-unit id="program_catalog.subtitle" datatype="html"><source>Curated loan program names — Doctor, Military, New Car. Pick these in the bank-program builder instead of free-typing. Open a name to set how its income is worked out and which loan types offer it.</source><target>أسماء برامج تمويل منسّقة — أطباء، عسكريون، سيارة جديدة. اخترها عند إنشاء برنامج بنكي بدلاً من كتابتها يدوياً. افتح أي اسم لتحديد كيفية احتساب دخله وأنواع التمويل التي تطرحه.</target></trans-unit>
       <trans-unit id="program_catalog.stats.aria" datatype="html"><source>Program catalog statistics</source><target>إحصاءات كتالوج البرامج</target></trans-unit>
       <trans-unit id="program_catalog.stat.total" datatype="html"><source>Programs</source><target>البرامج</target></trans-unit>
       <trans-unit id="program_catalog.stat.total.hint" datatype="html"><source>across all loan types</source><target>في كل أنواع التمويل</target></trans-unit>
@@ -837,7 +806,7 @@
       <trans-unit id="program_catalog.deprecate.confirm" datatype="html"><source>Deprecate this program? It stops appearing in the picker.</source><target>إلغاء هذا البرنامج؟ سيتوقف عن الظهور في قائمة الاختيار.</target></trans-unit>
       <trans-unit id="program_catalog.delete" datatype="html"><source>Delete</source><target>حذف</target></trans-unit>
       <trans-unit id="program_catalog.delete.title" datatype="html"><source>Delete this program name?</source><target>حذف اسم البرنامج هذا؟</target></trans-unit>
-      <trans-unit id="program_catalog.delete.body" datatype="html"><source><x id="NAME" equiv-text="this.nameOf(row)"/> is removed for good, along with its loan types and picked questions. This cannot be undone.</source><target>سيُحذف <x id="NAME" equiv-text="this.nameOf(row)"/> نهائيًا مع أنواع التمويل والأسئلة المختارة له. لا يمكن التراجع عن هذا الإجراء.</target></trans-unit>
+      <trans-unit id="program_catalog.delete.body" datatype="html"><source><x id="NAME" equiv-text="this.nameOf(row)"/> is removed for good, along with its loan types. This cannot be undone.</source><target>سيُحذف <x id="NAME" equiv-text="this.nameOf(row)"/> نهائيًا مع أنواع التمويل الخاصة به. لا يمكن التراجع عن هذا الإجراء.</target></trans-unit>
       <trans-unit id="program_catalog.delete.success" datatype="html"><source>Program name deleted.</source><target>تم حذف اسم البرنامج.</target></trans-unit>
       <trans-unit id="program_catalog.delete.blocked.title" datatype="html"><source>This name is still in use</source><target>هذا الاسم ما زال مستخدمًا</target></trans-unit>
       <trans-unit id="program_catalog.delete.blocked.body" datatype="html"><source><x id="PROGRAMS" equiv-text="inUse"/> bank programs use <x id="NAME" equiv-text="this.nameOf(row)"/>, so it cannot be deleted. Switch it off instead — it leaves the picker and every saved program keeps working.</source><target>يستخدم <x id="PROGRAMS" equiv-text="inUse"/> برنامج بنكي الاسم <x id="NAME" equiv-text="this.nameOf(row)"/>، لذا لا يمكن حذفه. أوقف تفعيله بدلاً من ذلك — سيختفي من قائمة الاختيار وتظل كل البرامج المحفوظة تعمل.</target></trans-unit>
@@ -847,35 +816,21 @@
 
       <!-- Program catalog — list card + health panel -->
       <trans-unit id="program_catalog.card.parked" datatype="html"><source>No loan types yet</source><target>لا توجد أنواع تمويل بعد</target></trans-unit>
-      <trans-unit id="program_catalog.card.no_questions" datatype="html"><source>No questions picked</source><target>لم تُختر أسئلة</target></trans-unit>
-      <trans-unit id="program_catalog.card.questions" datatype="html"><source><x id="COUNT" equiv-text="count"/> questions scored</source><target><x id="COUNT" equiv-text="count"/> سؤالاً مُقيَّماً</target></trans-unit>
       <trans-unit id="program_catalog.card.open" datatype="html"><source>Set up <x id="NAME" equiv-text="this.nameOf(row)"/></source><target>إعداد <x id="NAME" equiv-text="this.nameOf(row)"/></target></trans-unit>
 
       <!-- Program catalog — one name, configured per loan type -->
       <trans-unit id="pnd.back" datatype="html"><source>All program names</source><target>كل أسماء البرامج</target></trans-unit>
       <trans-unit id="pnd.eyebrow" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
       <trans-unit id="pnd.sub2" datatype="html">
-        <source>Three steps: how the income is worked out, which loan types banks may sell it under, and what each type&apos;s applicants are scored on. The income proof and the scoring list each have their own Save; turning a loan type on or off saves as you tap.</source>
-        <target>ثلاث خطوات: كيف يُحتسب الدخل، وأنواع التمويل التي يجوز للبنوك بيعه تحتها، وما يُقيَّم عليه المتقدمون في كل نوع. لكلٍّ من إثبات الدخل وقائمة التقييم زر حفظ خاص به؛ أما تشغيل نوع تمويل أو إيقافه فيُحفظ بمجرد الضغط.</target>
+        <source>Two steps: how the income is worked out, and which loan types banks may sell it under. The income proof has its own Save; turning a loan type on or off saves as you tap.</source>
+        <target>خطوتان: كيف يُحتسب الدخل، وأنواع التمويل التي يجوز للبنوك بيعه تحتها. لإثبات الدخل زر حفظ خاص به؛ أما تشغيل نوع تمويل أو إيقافه فيُحفظ بمجرد الضغط.</target>
       </trans-unit>
       <trans-unit id="pnd.autosave_offer" datatype="html"><source>Turning a loan type on or off saves at once</source><target>تشغيل نوع التمويل أو إيقافه يُحفظ فوراً</target></trans-unit>
-      <trans-unit id="pnd.pending_aria" datatype="html"><source>Unsaved question picks</source><target>اختيارات أسئلة غير محفوظة</target></trans-unit>
-      <trans-unit id="pnd.q_unsaved" datatype="html"><source>Not saved yet — what <x id="INTERPOLATION" equiv-text="dirtyCategoryNames()"/> applicants are scored on.</source><target>لم يُحفظ بعد — ما يُقيَّم عليه المتقدمون في <x id="INTERPOLATION" equiv-text="dirtyCategoryNames()"/>.</target></trans-unit>
-      <trans-unit id="pnd.q_discard" datatype="html"><source>Discard</source><target>تجاهل</target></trans-unit>
-      <trans-unit id="pnd.q_save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
-      <trans-unit id="pnd.questions_save_failed" datatype="html"><source>Saving what this name scores on didn’t go through. Your picks are still here — try Save again.</source><target>لم يتم حفظ ما يُقيَّم عليه هذا الاسم. اختياراتك ما زالت موجودة — جرّب الحفظ مرة أخرى.</target></trans-unit>
       <trans-unit id="pnd.usage_none" datatype="html"><source>Not offered by any bank yet</source><target>لا يطرحه أي بنك بعد</target></trans-unit>
       <trans-unit id="pnd.usage_value" datatype="html"><source><x id="PROGRAMS" equiv-text="row.usage.programs"/> bank programs · <x id="BANKS" equiv-text="row.usage.banks"/> banks</source><target><x id="PROGRAMS" equiv-text="row.usage.programs"/> برنامج بنكي · <x id="BANKS" equiv-text="row.usage.banks"/> بنك</target></trans-unit>
       <trans-unit id="pnd.missing_title" datatype="html"><source>No program name matches “<x id="INTERPOLATION" equiv-text="routeKey()"/>”.</source><target>لا يوجد اسم برنامج مطابق لـ «<x id="INTERPOLATION" equiv-text="routeKey()"/>».</target></trans-unit>
       <trans-unit id="pnd.missing_body" datatype="html"><source>It may have been renamed or deprecated. Open it from the catalog instead.</source><target>ربما أُعيد تسميته أو أُلغي. افتحه من الكتالوج بدلاً من ذلك.</target></trans-unit>
       <trans-unit id="pnd.missing_cta" datatype="html"><source>Back to the catalog</source><target>العودة إلى الكتالوج</target></trans-unit>
-      <trans-unit id="pnd.tabs_aria" datatype="html"><source>Loan types</source><target>أنواع التمويل</target></trans-unit>
-      <trans-unit id="pnd.tab_not_offered" datatype="html"><source>Not offered</source><target>غير مطروح</target></trans-unit>
-      <trans-unit id="pnd.tab_count_aria" datatype="html">
-        <source><x id="COUNT" equiv-text="count"/> questions ticked</source>
-        <target><x id="COUNT" equiv-text="count"/> سؤال مختار</target>
-      </trans-unit>
-      <trans-unit id="pnd.tab_warn_aria" datatype="html"><source>Holds picks this loan type no longer asks</source><target>يحتفظ باختيارات لم يعد هذا النوع من التمويل يسألها</target></trans-unit>
       <trans-unit id="pnd.gate_label" datatype="html">
         <source>Offer “<x id="name" equiv-text="this.nameOf(row)"/>” under <x id="category" equiv-text="categoryLabel(category)"/></source>
         <target>اعرض «<x id="name" equiv-text="this.nameOf(row)"/>» تحت <x id="category" equiv-text="categoryLabel(category)"/></target>
@@ -885,42 +840,9 @@
         <target>يمكن لأي بنك يضيف برنامجًا من هذا النوع أن يختار هذا الاسم.</target>
       </trans-unit>
       <trans-unit id="pnd.gate_off_hint" datatype="html">
-        <source>No bank program can pick this name here. Turn this on, then choose what those applicants are scored on.</source>
-        <target>لا يمكن لأي برنامج بنكي اختيار هذا الاسم هنا. فعّل هذا، ثم اختر ما يُقيَّم عليه هؤلاء المتقدمون.</target>
+        <source>No bank program can pick this name here.</source>
+        <target>لا يمكن لأي برنامج بنكي اختيار هذا الاسم هنا.</target>
       </trans-unit>
-      <trans-unit id="pnd.gate_off_kept_hint" datatype="html">
-        <source>No bank program can pick this name here. Your <x id="INTERPOLATION" equiv-text="{{ pickedCountFor(c) }}"/> chosen questions stay saved and come back when you turn this on.</source>
-        <target>لا يمكن لأي برنامج بنكي اختيار هذا الاسم هنا. أسئلتك المختارة، وعددها <x id="INTERPOLATION" equiv-text="{{ pickedCountFor(c) }}"/>، محفوظة وتعود عند تفعيل هذا.</target>
-      </trans-unit>
-      <trans-unit id="pnd.no_questions" datatype="html"><source><x id="INTERPOLATION" equiv-text="categoryName()"/> applicants aren’t asked any questions yet.</source><target>لا تُطرح أي أسئلة على متقدمي <x id="INTERPOLATION" equiv-text="categoryName()"/> بعد.</target></trans-unit>
-      <trans-unit id="pnd.no_questions_link" datatype="html"><source>Assign questions to this loan type</source><target>اربط أسئلة بنوع التمويل هذا</target></trans-unit>
-      <trans-unit id="pnd.locked_more" datatype="html"><source>and <x id="INTERPOLATION" equiv-text="scope().length - lockedPreview().length"/> more</source><target>و<x id="INTERPOLATION" equiv-text="scope().length - lockedPreview().length"/> غيرها</target></trans-unit>
-      <trans-unit id="pnd.count" datatype="html"><source>of <x id="INTERPOLATION" equiv-text="scope().length"/> questions asked here</source><target>من <x id="INTERPOLATION" equiv-text="scope().length"/> سؤالاً يُسأل هنا</target></trans-unit>
-      <trans-unit id="pnd.pick_all" datatype="html"><source>Tick all listed</source><target>حدّد كل المعروض</target></trans-unit>
-      <trans-unit id="pnd.pick_all_tip" datatype="html"><source>Score this name on every question listed</source><target>قيّم هذا الاسم على كل سؤال معروض</target></trans-unit>
-      <trans-unit id="pnd.bulk_aria" datatype="html"><source>Tick or untick every question listed</source><target>حدّد أو أزل تحديد كل سؤال معروض</target></trans-unit>
-      <trans-unit id="pnd.clear_all" datatype="html"><source>Untick all listed</source><target>أزل تحديد كل المعروض</target></trans-unit>
-      <trans-unit id="pnd.clear_all_tip" datatype="html"><source>Stop scoring on every question listed</source><target>أوقف التقييم على كل سؤال معروض</target></trans-unit>
-      <trans-unit id="pnd.clear_all_confirm" datatype="html"><source>This clears the list for this loan type — bank programs created from it will start from nothing.</source><target>هذا يمسح القائمة لنوع التمويل هذا — ستبدأ البرامج البنكية المنشأة منه من الصفر.</target></trans-unit>
-      <trans-unit id="pnd.search_ph" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
-      <trans-unit id="pnd.search_aria" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
-      <trans-unit id="pnd.showing" datatype="html"><source><x id="INTERPOLATION" equiv-text="visibleScope().length"/> of <x id="INTERPOLATION_1" equiv-text="scope().length"/> questions</source><target><x id="INTERPOLATION" equiv-text="visibleScope().length"/> من <x id="INTERPOLATION_1" equiv-text="scope().length"/> سؤالاً</target></trans-unit>
-      <trans-unit id="pnd.clear" datatype="html"><source>Clear</source><target>مسح</target></trans-unit>
-      <trans-unit id="pnd.no_matches_title" datatype="html"><source>No questions match that search</source><target>لا توجد أسئلة مطابقة للبحث</target></trans-unit>
-      <trans-unit id="pnd.sec_scored" datatype="html"><source>Scored on</source><target>يُقيَّم عليها</target></trans-unit>
-      <trans-unit id="pnd.sec_rest" datatype="html"><source>Not scored on</source><target>لا يُقيَّم عليها</target></trans-unit>
-      <trans-unit id="pnd.none_scored" datatype="html"><source>Nothing yet — tap a question below, or use “Tick all listed”.</source><target>لا شيء بعد — اضغط على سؤال بالأسفل، أو استخدم «حدّد كل المعروض».</target></trans-unit>
-      <trans-unit id="pnd.drift_tag" datatype="html"><source>not asked here</source><target>لا يُطرح هنا</target></trans-unit>
-      <trans-unit id="pnd.removed_tag" datatype="html"><source>removed from the pool</source><target>أُزيل من المخزن</target></trans-unit>
-      <trans-unit id="pnd.qtype_single" datatype="html"><source>One answer</source><target>إجابة واحدة</target></trans-unit>
-      <trans-unit id="pnd.qtype_multi" datatype="html"><source>Several answers</source><target>عدة إجابات</target></trans-unit>
-      <trans-unit id="pnd.qtype_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
-      <trans-unit id="pnd.qtype_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
-      <trans-unit id="pnd.cell_aria" datatype="html"><source>Score <x id="category" equiv-text="this.categoryName()"/> applicants on "<x id="question" equiv-text="q.label"/>"</source><target>قيّم متقدمي <x id="category" equiv-text="this.categoryName()"/> على «<x id="question" equiv-text="q.label"/>»</target></trans-unit>
-      <trans-unit id="pnd.live_saved" datatype="html"><source><x id="count" equiv-text="moved"/> question changes saved</source><target>تم حفظ <x id="count" equiv-text="moved"/> من تغييرات الأسئلة</target></trans-unit>
-      <trans-unit id="pnd.live_discarded" datatype="html"><source>Unsaved question changes discarded</source><target>تم تجاهل تغييرات الأسئلة غير المحفوظة</target></trans-unit>
-      <trans-unit id="pnd.live_added" datatype="html"><source><x id="count" equiv-text="count"/> questions added for <x id="category" equiv-text="category"/></source><target>أُضيف <x id="count" equiv-text="count"/> من الأسئلة لـ <x id="category" equiv-text="category"/></target></trans-unit>
-      <trans-unit id="pnd.live_removed" datatype="html"><source><x id="count" equiv-text="count"/> questions removed for <x id="category" equiv-text="category"/></source><target>أُزيل <x id="count" equiv-text="count"/> من الأسئلة من <x id="category" equiv-text="category"/></target></trans-unit>
 
       <!-- Bank program form — name↔category assignment -->
       <trans-unit id="bank_programs.warn.name_not_in_category" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="mismatch.name"/>” isn’t offered for <x id="INTERPOLATION_1" equiv-text="mismatch.category"/>. Pick another name, or add it to this loan type in the program catalog.</source><target>«<x id="INTERPOLATION" equiv-text="mismatch.name"/>» غير مطروح لـ <x id="INTERPOLATION_1" equiv-text="mismatch.category"/>. اختر اسماً آخر، أو أضفه إلى نوع التمويل هذا من كتالوج البرامج.</target></trans-unit>
@@ -968,86 +890,14 @@
       <trans-unit id="sim.derived_total" datatype="html"><source>Added up from the payments above — not typed.</source><target>محسوب تلقائيًا من الأقساط بالأعلى — غير مُدخل يدويًا.</target></trans-unit>
       <trans-unit id="sim.step_range" datatype="html"><source>Questions <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></source><target>الأسئلة <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></target></trans-unit>
 
-      <trans-unit id="scoring.editor.unasked_tag" datatype="html"><source>not asked</source><target>غير مطروح</target></trans-unit>
-      <trans-unit id="scoring.editor.unasked_lead" datatype="html"><source>These questions are never shown to <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> applicants.</source><target>هذه الأسئلة لا تُطرح إطلاقًا على متقدّمي <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/>.</target></trans-unit>
-      <trans-unit id="scoring.editor.unasked_hint2" datatype="html"><source>They can never score, so any weight you give them is wasted. Add <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> to them under Questionnaire → Loan categories, or drop them from this name in the program catalog.</source><target>لن تُحتسب لها أي درجة، لذا فأي وزن تمنحه لها يضيع بلا فائدة. أضِف <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> إليها من الاستبيان ← أنواع التمويل، أو احذفها من هذا الاسم في دليل البرامج.</target></trans-unit>
 
       <!-- The scored question set belongs to the program NAME in the catalog, not
            to the bank program: step 1 is a roster, and its copy points at the one
            screen that can change it. -->
-      <trans-unit id="scoring.editor.step_pick2" datatype="html"><source>Questions scored</source><target>الأسئلة المُقيَّمة</target></trans-unit>
-      <trans-unit id="scoring.editor.cap_pick2" datatype="html"><source>The questions this program scores on, set once for its program name in the catalog. Everything else in the pool is still asked of the applicant — it just doesn&apos;t move this program&apos;s approval odds.</source><target>الأسئلة التي يُقيَّم عليها هذا البرنامج، تُحدَّد مرة واحدة لاسم البرنامج في الدليل. باقي أسئلة القائمة تُطرح على المتقدّم كالمعتاد — لكنها لا تؤثر على فرص الموافقة لهذا البرنامج.</target></trans-unit>
-      <trans-unit id="scoring.editor.roster_count" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ roster().length }}"/> questions scored</source><target><x id="INTERPOLATION" equiv-text="{{ roster().length }}"/> أسئلة مُقيَّمة</target></trans-unit>
-      <trans-unit id="scoring.editor.cat_source" datatype="html"><source>These come from <x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> in the program catalog. Every bank offering this name scores on the same questions — here you set only the weights.</source><target>هذه الأسئلة مصدرها <x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> في دليل البرامج. كل بنك يقدّم هذا الاسم يُقيَّم على نفس الأسئلة — وهنا تحدّد الأوزان فقط.</target></trans-unit>
-      <trans-unit id="scoring.editor.cat_source_link" datatype="html"><source>Change the questions</source><target>تعديل الأسئلة</target></trans-unit>
-      <trans-unit id="scoring.editor.no_key_title" datatype="html"><source>This program has no catalog name.</source><target>هذا البرنامج بلا اسم في الدليل.</target></trans-unit>
-      <trans-unit id="scoring.editor.no_key_hint" datatype="html"><source>The questions a program scores on come from its program name in the catalog, so there is nothing to score until one is set.</source><target>الأسئلة التي يُقيَّم عليها أي برنامج مصدرها اسم البرنامج في الدليل، فلا شيء لتقييمه قبل تحديد اسم.</target></trans-unit>
-      <trans-unit id="scoring.editor.no_key_link" datatype="html"><source>Set a program name</source><target>حدّد اسم البرنامج</target></trans-unit>
-      <trans-unit id="scoring.editor.cat_empty_title" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> has no questions set for <x id="INTERPOLATION_1" equiv-text="{{ programCategoryLabel() }}"/>.</source><target>لا توجد أسئلة محدّدة لـ <x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> ضمن <x id="INTERPOLATION_1" equiv-text="{{ programCategoryLabel() }}"/>.</target></trans-unit>
-      <trans-unit id="scoring.editor.cat_empty_hint" datatype="html"><source>Pick them once in the program catalog and every bank offering this name scores on the same set.</source><target>اخترها مرة واحدة في دليل البرامج ليُقيَّم كل بنك يقدّم هذا الاسم على نفس المجموعة.</target></trans-unit>
-      <trans-unit id="scoring.editor.cat_empty_link" datatype="html"><source>Open the program catalog</source><target>افتح دليل البرامج</target></trans-unit>
-      <trans-unit id="scoring.editor.dropped_lead" datatype="html"><source>These were scored before and are no longer in the catalog set.</source><target>كانت هذه الأسئلة مُقيَّمة سابقًا ولم تعد ضمن مجموعة الدليل.</target></trans-unit>
-      <trans-unit id="scoring.editor.dropped_hint" datatype="html"><source>They stop counting the next time you save, so the remaining weights must add back up to 100%.</source><target>تتوقف عن الاحتساب عند الحفظ التالي، لذا يجب أن يعود مجموع الأوزان المتبقية إلى 100%.</target></trans-unit>
-      <trans-unit id="scoring.editor.fix_catalog_empty" datatype="html"><source>Set this program name&apos;s questions in the program catalog first.</source><target>حدّد أسئلة اسم البرنامج في دليل البرامج أولًا.</target></trans-unit>
-      <trans-unit id="scoring.editor.fix_no_name_key" datatype="html"><source>Give this program a catalog name before scoring it.</source><target>امنح هذا البرنامج اسمًا من الدليل قبل تقييمه.</target></trans-unit>
 
       <!-- Every question type is scored (Constitution V, v14.0.0): the control the
            admin sees follows the question's type, and so does its wording. -->
-      <trans-unit id="scoring.editor.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
-      <trans-unit id="scoring.editor.type_multi" datatype="html"><source>Pick several</source><target>اختيار متعدد</target></trans-unit>
-      <trans-unit id="scoring.editor.type_numeric" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
-      <trans-unit id="scoring.editor.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
-      <trans-unit id="scoring.editor.scored_by_bands" datatype="html"><source>scored by number range</source><target>يُقيَّم حسب نطاق الرقم</target></trans-unit>
-      <trans-unit id="scoring.editor.scored_by_presence" datatype="html"><source>scored on being answered</source><target>يُقيَّم على مجرد الإجابة</target></trans-unit>
-      <trans-unit id="scoring.editor.scored_by_answers" datatype="html"><source><x id="COUNT" equiv-text="q.options.length"/> answers</source><target><x id="COUNT" equiv-text="q.options.length"/> إجابة</target></trans-unit>
-      <trans-unit id="scoring.editor.hint_numeric" datatype="html"><source>Score this number by range. Each band starts where the one before it ends, so every answer lands in exactly one.</source><target>قيّم هذا الرقم حسب النطاق. يبدأ كل نطاق من حيث ينتهي الذي قبله، فتقع كل إجابة في نطاق واحد بالضبط.</target></trans-unit>
-      <trans-unit id="scoring.editor.hint_text" datatype="html"><source>Free text is scored on being answered, not on what it says — a keyword rule would be guesswork nobody can audit. Leaving it blank earns nothing.</source><target>يُقيَّم النص الحر على مجرد الإجابة لا على مضمونها — فقاعدة الكلمات المفتاحية تخمين لا يمكن مراجعته. تركه فارغًا لا يمنح أي درجة.</target></trans-unit>
-      <trans-unit id="scoring.editor.text_answered" datatype="html"><source>Answered</source><target>تمت الإجابة</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_label" datatype="html"><source>Several picks count as</source><target>الاختيارات المتعددة تُحسب كـ</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_avg" datatype="html"><source>Their average</source><target>متوسطها</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_sum" datatype="html"><source>Added up (capped at 100)</source><target>مجموعها (بحد أقصى 100)</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_max" datatype="html"><source>The best pick only</source><target>أفضل اختيار فقط</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_min" datatype="html"><source>The worst pick only</source><target>أسوأ اختيار فقط</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_hint_avg" datatype="html"><source>A strong pick and a weak one land in the middle.</source><target>اختيار قوي مع آخر ضعيف ينتج درجة في المنتصف.</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_hint_sum" datatype="html"><source>Picking more counts for more — use this when each extra answer is genuinely better.</source><target>الاختيارات الأكثر تعني درجة أعلى — استخدمه عندما تكون كل إجابة إضافية أفضل فعلًا.</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_hint_max" datatype="html"><source>Only the applicant&apos;s strongest pick counts; the others never help or hurt.</source><target>يُحتسب أقوى اختيار للمتقدّم فقط؛ والبقية لا تنفع ولا تضر.</target></trans-unit>
-      <trans-unit id="scoring.editor.agg_hint_min" datatype="html"><source>One weak pick drags the answer down — use this when any bad item is a concern.</source><target>اختيار ضعيف واحد يخفض الدرجة — استخدمه عندما يمثّل أي بند سيئ مصدر قلق.</target></trans-unit>
-      <trans-unit id="scoring.editor.band_below" datatype="html"><source>Below <x id="TO" equiv-text="band.to"/><x id="UNIT" equiv-text="unit"/></source><target>أقل من <x id="TO" equiv-text="band.to"/><x id="UNIT" equiv-text="unit"/></target></trans-unit>
-      <trans-unit id="scoring.editor.band_above" datatype="html"><source><x id="FROM" equiv-text="band.from"/><x id="UNIT" equiv-text="unit"/> and above</source><target><x id="FROM" equiv-text="band.from"/><x id="UNIT" equiv-text="unit"/> وأكثر</target></trans-unit>
-      <trans-unit id="scoring.editor.band_count" datatype="html"><source><x id="COUNT" equiv-text="count"/> bands</source><target><x id="COUNT" equiv-text="count"/> نطاقات</target></trans-unit>
-      <trans-unit id="scoring.editor.fix_bands" datatype="html"><source><x id="QUESTION" equiv-text="label"/> needs number bands that start in ascending order.</source><target><x id="QUESTION" equiv-text="label"/> يحتاج نطاقات أرقام تبدأ بترتيب تصاعدي.</target></trans-unit>
-      <trans-unit id="scoring.editor.fix_text_score" datatype="html"><source><x id="QUESTION" equiv-text="label"/> needs a score above 0 for being answered.</source><target><x id="QUESTION" equiv-text="label"/> يحتاج درجة أكبر من 0 عند الإجابة عليه.</target></trans-unit>
-      <trans-unit id="scoring.editor.review_stat_questions" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
-      <trans-unit id="scoring.editor.weights_hint" datatype="html"><source>Type each question&apos;s share of the 100. ↑/↓ steps by 1, Shift+↑/↓ by 10.</source><target>اكتب حصة كل سؤال من الـ100. مفتاحا ↑/↓ يغيّران بمقدار 1، ومع Shift بمقدار 10.</target></trans-unit>
-      <trans-unit id="scoring.editor.scale_even" datatype="html"><source>Even share</source><target>الحصة المتساوية</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_no_bands" datatype="html"><source>no ranges yet</source><target>لا توجد نطاقات بعد</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_bad_bands" datatype="html"><source>ranges still need fixing</source><target>النطاقات تحتاج تصحيحًا</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_bands" datatype="html"><source><x id="COUNT" equiv-text="rows.length"/> ranges · best <x id="BAND" equiv-text="bandRangeLabel"/> at <x id="SCORE" equiv-text="top.score"/>%</source><target><x id="COUNT" equiv-text="rows.length"/> نطاقات · الأفضل <x id="BAND" equiv-text="bandRangeLabel"/> بدرجة <x id="SCORE" equiv-text="top.score"/>%</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_text" datatype="html"><source>answering earns <x id="SCORE" equiv-text="score"/>%</source><target>الإجابة تمنح <x id="SCORE" equiv-text="score"/>%</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_text_zero" datatype="html"><source>answering earns nothing yet</source><target>الإجابة لا تمنح أي درجة بعد</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_no_answers" datatype="html"><source>no answers to score</source><target>لا توجد إجابات لتقييمها</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_blanks" datatype="html"><source><x id="COUNT" equiv-text="blanks"/> of <x id="TOTAL" equiv-text="q.options.length"/> answers still at 0</source><target><x id="COUNT" equiv-text="blanks"/> من <x id="TOTAL" equiv-text="q.options.length"/> إجابات لا تزال على 0</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_top" datatype="html"><source><x id="TOTAL" equiv-text="q.options.length"/> answers · top <x id="LABEL" equiv-text="optionLabel"/> at <x id="SCORE" equiv-text="score"/>%</source><target><x id="TOTAL" equiv-text="q.options.length"/> إجابات · الأعلى <x id="LABEL" equiv-text="optionLabel"/> بدرجة <x id="SCORE" equiv-text="score"/>%</target></trans-unit>
-      <trans-unit id="scoring.editor.sum_answers" datatype="html"><source><x id="TOTAL" equiv-text="q.options.length"/> answers scored</source><target>تم تقييم <x id="TOTAL" equiv-text="q.options.length"/> إجابات</target></trans-unit>
 
-      <trans-unit id="scoreBands.empty" datatype="html"><source>This number earns nothing yet. Band it so a higher — or lower — answer scores better.</source><target>هذا الرقم لا يمنح أي درجة بعد. قسّمه إلى نطاقات ليحصل الرقم الأعلى — أو الأقل — على درجة أفضل.</target></trans-unit>
-      <trans-unit id="scoreBands.seed" datatype="html"><source>Start with three bands</source><target>ابدأ بثلاثة نطاقات</target></trans-unit>
-      <trans-unit id="scoreBands.colFrom" datatype="html"><source>From</source><target>من</target></trans-unit>
-      <trans-unit id="scoreBands.colTo" datatype="html"><source>To</source><target>إلى</target></trans-unit>
-      <trans-unit id="scoreBands.colScore" datatype="html"><source>Score</source><target>الدرجة</target></trans-unit>
-      <trans-unit id="scoreBands.noMinimum" datatype="html"><source>No minimum</source><target>بلا حد أدنى</target></trans-unit>
-      <trans-unit id="scoreBands.noMaximum" datatype="html"><source>No maximum</source><target>بلا حد أقصى</target></trans-unit>
-      <trans-unit id="scoreBands.linkHint" datatype="html"><source>A band's end is the next band's start — edit either box and the other follows.</source><target>نهاية كل نطاق هي بداية النطاق التالي — عدّل أيًّا من الحقلين ويتبعه الآخر.</target></trans-unit>
-      <trans-unit id="scoreBands.add" datatype="html"><source>Add a band</source><target>أضف نطاقًا</target></trans-unit>
-      <trans-unit id="scoreBands.clear" datatype="html"><source>Remove all bands</source><target>أزل كل النطاقات</target></trans-unit>
-      <trans-unit id="scoreBands.error.edgeMissing" datatype="html"><source>Every band needs a starting value.</source><target>كل نطاق يحتاج قيمة بداية.</target></trans-unit>
-      <trans-unit id="scoreBands.error.notAscending" datatype="html"><source>Each band must start higher than the one before it.</source><target>يجب أن يبدأ كل نطاق بقيمة أعلى من الذي قبله.</target></trans-unit>
-      <trans-unit id="scoreBands.error.noBands" datatype="html"><source>Add at least one band, or this question earns nothing.</source><target>أضف نطاقًا واحدًا على الأقل، وإلا فلن يمنح هذا السؤال أي درجة.</target></trans-unit>
-      <trans-unit id="scoreBands.aria.from" datatype="html"><source>Band starts at</source><target>يبدأ النطاق من</target></trans-unit>
-      <trans-unit id="scoreBands.aria.to" datatype="html"><source>Band ends at — also the next band's start</source><target>ينتهي النطاق عند — وهي أيضًا بداية النطاق التالي</target></trans-unit>
-      <trans-unit id="scoreBands.aria.scoreSlider" datatype="html"><source>Band score — slider</source><target>درجة النطاق — شريط تمرير</target></trans-unit>
-      <trans-unit id="scoreBands.aria.scoreField" datatype="html"><source>Band score — type or use arrow keys</source><target>درجة النطاق — اكتب أو استخدم مفاتيح الأسهم</target></trans-unit>
-      <trans-unit id="scoreBands.aria.remove" datatype="html"><source>Remove this band</source><target>أزل هذا النطاق</target></trans-unit>
 
       <!-- Shared wizard step rail (app-wizard-steps) — every stepped screen. -->
       <trans-unit id="ui.wizard.step_done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
@@ -1139,8 +989,10 @@
       <trans-unit id="bank_programs.income.aria.remove_band" datatype="html"><source>Remove this band</source><target>أزل هذه الشريحة</target></trans-unit>
 
       <!-- The in-place rule check panel (US3). -->
-      <trans-unit id="bank_programs.income.check_title" datatype="html"><source>Check this rule before anyone else sees it</source><target>راجع هذه القاعدة قبل أن يراها أحد</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_band" datatype="html"><source>Try it on a sample applicant</source><target>جرّبها على مقدّم طلب تجريبي</target></trans-unit>
       <trans-unit id="bank_programs.income.check_sub" datatype="html"><source>Runs a sample applicant against what is on screen right now, including edits you have not saved. Nothing is stored.</source><target>يشغّل مقدّم طلب تجريبي على ما هو معروض الآن، بما في ذلك تعديلات لم تحفظها. لا يتم حفظ أي شيء.</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_band_answers" datatype="html"><source>What the customer answered</source><target>ما أجاب به العميل</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_band_person" datatype="html"><source>Their circumstances</source><target>ظروفه</target></trans-unit>
       <trans-unit id="bank_programs.income.check_run" datatype="html"><source>Check</source><target>افحص</target></trans-unit>
       <trans-unit id="bank_programs.income.check_key_placeholder" datatype="html"><source>Pick a value to test</source><target>اختر قيمة للاختبار</target></trans-unit>
       <trans-unit id="bank_programs.income.check_grade" datatype="html"><source>Sample military grade</source><target>رتبة عسكرية تجريبية</target></trans-unit>
@@ -1180,9 +1032,7 @@
       <trans-unit id="bank_programs.form.deactivated_body" datatype="html"><source>It now holds a number the team estimated. Switch it back on once the bank has confirmed the figure.</source><target>أصبح يحتوي رقمًا قدّره الفريق. أعد تشغيله بعد أن يؤكد البنك الرقم.</target></trans-unit>
       <trans-unit id="bank_programs.form.created_inactive_title" datatype="html"><source>Program created switched off</source><target>تم إنشاء البرنامج متوقفًا</target></trans-unit>
       <trans-unit id="bank_programs.form.created_inactive_body" datatype="html"><source>It holds a number the team estimated. Switch it on once the bank has confirmed the figure.</source><target>يحتوي رقمًا قدّره الفريق. شغّله بعد أن يؤكد البنك الرقم.</target></trans-unit>
-      <trans-unit id="bank_programs.value_source.estimated_short" datatype="html"><source>Estimate</source><target>تقدير</target></trans-unit>
       <trans-unit id="program_catalog.card.unmarked_no_payslip" datatype="html"><source>Banks sell this on a surrogate basis, but the name is not marked for it</source><target>البنوك تبيع هذا الاسم بأساس بديل الدخل، لكن الاسم غير محدَّد لذلك</target></trans-unit>
-      <trans-unit id="pnd.count_drift" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="driftedCount()"/> kept from a change made elsewhere</source><target>+<x id="INTERPOLATION" equiv-text="driftedCount()"/> محفوظة من تغيير حدث في مكان آخر</target></trans-unit>
       <trans-unit id="program_catalog.card.no_table" datatype="html"><source><x id="COUNT" equiv-text="count"/> with no table yet</source><target><x id="COUNT" equiv-text="count"/> بدون جدول بعد</target></trans-unit>
       <trans-unit id="income_basis.payslip" datatype="html"><source>Income proof</source><target>إثبات الدخل</target></trans-unit>
       <trans-unit id="income_basis.no_payslip" datatype="html"><source>Surrogate</source><target>بديل الدخل</target></trans-unit>
@@ -1190,12 +1040,7 @@
       <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The customer has no payslip. The bank works out what they earn from something else about them, such as their job grade or years of work.</source><target>العميل ليس لديه إثبات راتب. فيحسب البنك دخله من معلومة أخرى عنه، مثل درجته الوظيفية أو سنوات عمله.</target></trans-unit>
       <trans-unit id="program_catalog.basis.aria" datatype="html"><source>How the bank reads the income</source><target>طريقة قراءة البنك للدخل</target></trans-unit>
 
-      <trans-unit id="pnd.new_question" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
       <trans-unit id="pnd.new_question_title" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
-      <trans-unit id="pnd.new_question_tip" datatype="html"><source>Write a question and tick it into this name in one go</source><target>اكتب سؤالاً وأضفه لهذا الاسم في خطوة واحدة</target></trans-unit>
-      <trans-unit id="pnd.write_first" datatype="html"><source>Write the first question</source><target>اكتب أول سؤال</target></trans-unit>
-      <trans-unit id="pnd.create_searched" datatype="html"><source>Create “<x id="INTERPOLATION" equiv-text="query()"/>” as a new question</source><target>أنشئ «<x id="INTERPOLATION" equiv-text="query()"/>» كسؤال جديد</target></trans-unit>
-      <trans-unit id="pnd.live_created" datatype="html"><source>“<x id="question" equiv-text="result.label"/>” was added to the question pool</source><target>أُضيف «<x id="question" equiv-text="result.label"/>» إلى مجموعة الأسئلة</target></trans-unit>
 
       <trans-unit id="pnq.type_h" datatype="html"><source>What kind of answer do you want back?</source><target>ما نوع الإجابة التي تريدها؟</target></trans-unit>
       <trans-unit id="pnq.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
@@ -1205,7 +1050,7 @@
       <trans-unit id="pnq.type_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
       <trans-unit id="pnq.type_number_hint" datatype="html"><source>A figure — salary, rent, years.</source><target>قيمة — راتب أو إيجار أو عدد سنوات.</target></trans-unit>
       <trans-unit id="pnq.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
-      <trans-unit id="pnq.type_text_hint" datatype="html"><source>Typed in freely. Scored on being answered.</source><target>يُكتب بحرية. يُقيَّم على الإجابة نفسها لا على محتواها.</target></trans-unit>
+      <trans-unit id="pnq.type_text_hint" datatype="html"><source>Typed in freely, in the applicant&apos;s own words.</source><target>يُكتب بحرية، بكلمات المتقدم نفسه.</target></trans-unit>
 
       <trans-unit id="pnq.wording_h" datatype="html"><source>How is it worded?</source><target>كيف يُصاغ السؤال؟</target></trans-unit>
       <trans-unit id="pnq.q_en" datatype="html"><source>Question — English</source><target>السؤال — بالإنجليزية</target></trans-unit>
@@ -1243,14 +1088,11 @@
 
       <trans-unit id="pnq.text_h" datatype="html"><source>How long can the answer be?</source><target>ما أقصى طول للإجابة؟</target></trans-unit>
       <trans-unit id="pnq.text_len" datatype="html"><source>Longest answer, in characters</source><target>أطول إجابة، بعدد الحروف</target></trans-unit>
-      <trans-unit id="pnq.text_hint" datatype="html"><source>Free text is scored on whether it was answered at all — never on what it says.</source><target>النص الحر يُقيَّم على مجرد الإجابة عليه — لا على ما يحتويه.</target></trans-unit>
+      <trans-unit id="pnq.text_hint" datatype="html"><source>Free text is stored as the applicant typed it. Nothing reads what it says.</source><target>يُحفظ النص الحر كما كتبه المتقدم. لا شيء يقرأ محتواه.</target></trans-unit>
 
       <trans-unit id="pnq.where_h" datatype="html"><source>Who gets asked this?</source><target>من يُسأل هذا السؤال؟</target></trans-unit>
       <trans-unit id="pnq.where_none" datatype="html"><source>Pick at least one loan type — a question no one is asked is a question that does nothing.</source><target>اختر نوع تمويل واحداً على الأقل — سؤال لا يُطرح على أحد سؤال بلا فائدة.</target></trans-unit>
       <trans-unit id="pnq.where_note" datatype="html"><source>Every <x id="types" equiv-text="list"/> applicant will be asked this, in every program — not only “<x id="name" equiv-text="this.data.nameLabel"/>”. Questions are one shared pool.</source><target>سيُسأل كل متقدم <x id="types" equiv-text="list"/> هذا السؤال، في كل البرامج — وليس في «<x id="name" equiv-text="this.data.nameLabel"/>» فقط. الأسئلة مجموعة واحدة مشتركة.</target></trans-unit>
-      <trans-unit id="pnq.tick" datatype="html"><source>Also score “<x id="name" equiv-text="this.data.nameLabel"/>” on it</source><target>قيّم «<x id="name" equiv-text="this.data.nameLabel"/>» عليه أيضاً</target></trans-unit>
-      <trans-unit id="pnq.tick_hint" datatype="html"><source>Adds it to this name's list here, so every bank program under it can weight it.</source><target>يضيفه إلى قائمة هذا الاسم هنا، ليتمكن كل برنامج بنكي تحته من وزنه.</target></trans-unit>
-      <trans-unit id="pnq.tick_off_hint" datatype="html"><source>Turn <x id="INTERPOLATION" equiv-text="openCategoryName()"/> back on above — a name cannot score on a question its applicants are never asked.</source><target>أعد تفعيل <x id="INTERPOLATION" equiv-text="openCategoryName()"/> بالأعلى — لا يمكن لاسم أن يُقيَّم على سؤال لا يُطرح على متقدميه.</target></trans-unit>
       <trans-unit id="pnq.required" datatype="html"><source>Must be answered</source><target>إجابته إلزامية</target></trans-unit>
       <trans-unit id="pnq.required_hint" datatype="html"><source>Applicants cannot move on without it.</source><target>لا يستطيع المتقدم المتابعة بدونه.</target></trans-unit>
 
@@ -1277,8 +1119,7 @@
       <trans-unit id="pnq.block_categories" datatype="html"><source>Pick at least one loan type</source><target>اختر نوع تمويل واحداً على الأقل</target></trans-unit>
       <trans-unit id="pnq.block_branch" datatype="html"><source>Finish the condition, or close it</source><target>أكمل الشرط، أو أغلقه</target></trans-unit>
 
-      <trans-unit id="pnq.summary_ticked" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants, and ticked into “<x id="name" equiv-text="this.data.nameLabel"/>”.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>، ومُضاف إلى «<x id="name" equiv-text="this.data.nameLabel"/>».</target></trans-unit>
-      <trans-unit id="pnq.summary_plain" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants. Not ticked here.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>. غير مُضاف هنا.</target></trans-unit>
+      <trans-unit id="pnq.summary_plain" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>.</target></trans-unit>
       <trans-unit id="pnq.save" datatype="html"><source>Create question</source><target>أنشئ السؤال</target></trans-unit>
 
       <trans-unit id="bank_programs.form.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
@@ -1304,6 +1145,9 @@
       <trans-unit id="bank_programs.step.income" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
       <trans-unit id="bank_programs.step.terms" datatype="html"><source>Amount &amp; duration</source><target>المبلغ والمدة</target></trans-unit>
       <trans-unit id="bank_programs.step.pricing" datatype="html"><source>Pricing &amp; fees</source><target>التسعير والرسوم</target></trans-unit>
+      <!-- Rail-only short names: the rail is scanned sideways and seven full names truncate. -->
+      <trans-unit id="bank_programs.step.terms_short" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
+      <trans-unit id="bank_programs.step.pricing_short" datatype="html"><source>Pricing</source><target>التسعير</target></trans-unit>
       <trans-unit id="bank_programs.step.eligibility" datatype="html"><source>Eligibility</source><target>الأهلية</target></trans-unit>
       <trans-unit id="bank_programs.step.documents" datatype="html"><source>Documents</source><target>المستندات</target></trans-unit>
       <trans-unit id="bank_programs.step.review" datatype="html"><source>Review</source><target>المراجعة</target></trans-unit>
@@ -1329,10 +1173,10 @@
       <trans-unit id="surrogate.fact.years_in_practice" datatype="html"><source>Years in practice</source><target>سنوات الممارسة</target></trans-unit>
       <trans-unit id="surrogate.fact.credit_card_total_limit" datatype="html"><source>Total credit-card limit</source><target>إجمالي حد البطاقات الائتمانية</target></trans-unit>
       <trans-unit id="bank_detail.program.no_payslip_tip" datatype="html"><source>The bank works the income out from a fact about the applicant</source><target>يحسب البنك الدخل من معلومة عن العميل</target></trans-unit>
+      <trans-unit id="bank_detail.program.income_proof_tip" datatype="html"><source>The bank lends against a salary the customer is paid</source><target>يُقرض البنك مقابل راتب يتقاضاه العميل</target></trans-unit>
+      <trans-unit id="bank_detail.basis.unknown" datatype="html"><source>Basis not stated</source><target>الأساس غير محدد</target></trans-unit>
       <trans-unit id="bank_programs.section.income" datatype="html"><source>How the income is worked out</source><target>كيف يُحسب الدخل</target></trans-unit>
       <trans-unit id="bank_programs.field.income_basis_short" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
-      <trans-unit id="bank_programs.income.table" datatype="html"><source>The bank’s table</source><target>جدول البنك</target></trans-unit>
-      <trans-unit id="bank_programs.income.no_table" datatype="html"><source>Not entered — this program quotes nothing</source><target>لم يُدخل — هذا البرنامج لا يعطي أي عرض</target></trans-unit>
       <trans-unit id="bank_programs.income.dbr_override" datatype="html"><source>DBR cap for this rule</source><target>حد نسبة الالتزامات لهذه القاعدة</target></trans-unit>
       <trans-unit id="bank_programs.section.warnings" datatype="html"><source>Needs attention</source><target>يحتاج انتباهًا</target></trans-unit>
       <trans-unit id="income_rule.field.proof" datatype="html"><source>What the income is worked out from</source><target>ما يُحتسب منه الدخل</target></trans-unit>
@@ -1404,6 +1248,9 @@
         <source>No default set</source>
         <target>لا يوجد مبلغ افتراضي</target>
       </trans-unit>
+      <trans-unit id="product_rule.way.still_filled_tag" datatype="html"><source>has amounts</source><target>به مبالغ</target></trans-unit>
+      <trans-unit id="product_rule.way.conflict_clear" datatype="html"><source>Clear the other ways</source><target>امسح الطرق الأخرى</target></trans-unit>
+      <trans-unit id="product_rule.way.conflict_notice" datatype="html"><source>Other ways still hold this bank's amounts. Only the way you pick is saved.</source><target>طرق أخرى لا تزال تحمل مبالغ هذا البنك. لن تُحفظ إلا الطريقة التي تختارها.</target></trans-unit>
       <trans-unit id="product_rule.way.still_filled" datatype="html">
         <source>Still has amounts — pick this way, or clear them</source>
         <target>ما زالت به مبالغ — اختر هذه الطريقة أو امسحها</target>
@@ -1751,29 +1598,15 @@
         </context-group>
       </trans-unit>
       <trans-unit id="pnd.offered_sub" datatype="html">
-        <source> A bank building a program can only pick this name under a loan type that is on here. Turning one off keeps everything you chose for it. </source>
-        <target>لا يمكن للبنك اختيار هذا الاسم إلا تحت نوع تمويل مُفعَّل هنا. إيقاف أحدها يحفظ كل ما اخترته له.</target>
+        <source> A bank building a program can only pick this name under a loan type that is on here. </source>
+        <target>لا يمكن للبنك اختيار هذا الاسم إلا تحت نوع تمويل مُفعَّل هنا.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
       </trans-unit>
       <trans-unit id="pnd.offered_none" datatype="html">
-        <source>No bank can offer this name yet, and there is nothing to score it on until you turn on at least one loan type.</source>
-        <target>لا يمكن لأي بنك عرض هذا الاسم بعد، ولا يوجد ما يُقيَّم عليه حتى تُفعِّل نوع تمويل واحدًا على الأقل.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="pnd.locked_step" datatype="html">
-        <source><x id="INTERPOLATION" equiv-text="{{ scope().length }}"/> questions are asked here, but this name is not offered under this loan type yet.</source>
-        <target><x id="INTERPOLATION" equiv-text="{{ scope().length }}"/> سؤالًا تُطرح هنا، لكن هذا الاسم غير معروض تحت نوع التمويل هذا بعد.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="pnd.locked_go" datatype="html">
-        <source> Turn it on </source>
-        <target>فعّله</target>
+        <source>No bank can offer this name yet — turn on at least one loan type.</source>
+        <target>لا يمكن لأي بنك عرض هذا الاسم بعد — فعِّل نوع تمويل واحدًا على الأقل.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
@@ -1808,13 +1641,6 @@
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="pnd.step_questions" datatype="html">
-        <source>What it scores on</source>
-        <target>ما يُقيَّم عليه</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="pnd.step_income_cap" datatype="html">
         <source>Set once for the name. Every bank selling it on a surrogate basis reads this one figure.</source>
         <target>يُضبط مرة واحدة للاسم. كل بنك يبيعه بأساس بديل الدخل يقرأ هذا الرقم نفسه.</target>
@@ -1827,20 +1653,6 @@
         <target><x id="OFFERED" equiv-text="this.offeredCount()"/> من <x id="TOTAL" equiv-text="this.categories.length"/> أنواع تمويل مُفعَّلة. هذا ما يُرشِّح عليه منتقي البرامج في البنك.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="pnd.step_questions_cap" datatype="html">
-        <source>A starting list per loan type. It pre-ticks each bank&apos;s scoring wizard and constrains nothing.</source>
-        <target>قائمة بداية لكل نوع تمويل. تُعلِّم مسبقًا في معالج تقييم كل بنك ولا تقيّد شيئًا.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="product_rule.reads_more" datatype="html">
-        <source>+<x id="COUNT" equiv-text="count"/> more</source>
-        <target>+<x id="COUNT" equiv-text="count"/> أخرى</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
         </context-group>
       </trans-unit>
       <trans-unit id="product_rule.groups_aria" datatype="html">
@@ -2453,8 +2265,7 @@
       <trans-unit id="banks.form.create" datatype="html"><source>Create bank</source><target>أنشئ البنك</target></trans-unit>
       <trans-unit id="program_catalog.dialog.edit_sub" datatype="html"><source>Renames the name everywhere banks already use it, and restates what it is sold against.</source><target>يعيد تسمية الاسم في كل مكان تستخدمه فيه البنوك بالفعل، ويحدّد من جديد ما يُباع مقابله.</target></trans-unit>
       <trans-unit id="pnq.eyebrow" datatype="html"><source>Question pool</source><target>بنك الأسئلة</target></trans-unit>
-      <trans-unit id="pnq.subtitle" datatype="html"><source>Written into the one shared question pool, then offered to “<x id="name" equiv-text="label"/>” to score on.</source><target>يُكتب في بنك الأسئلة المشترك الواحد، ثم يُعرض على «<x id="name" equiv-text="label"/>» ليُقيّم عليه.</target></trans-unit>
-      <trans-unit id="pnq.tick_unnamed" datatype="html"><source>Also score this catalog name on it</source><target>قيّم اسم الكتالوج هذا عليه أيضًا</target></trans-unit>
+      <trans-unit id="pnq.subtitle" datatype="html"><source>Opened from “<x id="name" equiv-text="label"/>”, but written into the one shared question pool — every applicant in the loan types you pick is asked it.</source><target>فُتِح من «<x id="name" equiv-text="label"/>»، لكنه يُكتب في بنك الأسئلة المشترك الواحد — ويُطرح على كل متقدم في أنواع التمويل التي تختارها.</target></trans-unit>
       <trans-unit id="program_catalog.dialog.add_cta" datatype="html"><source>Add program</source><target>أضف برنامج</target></trans-unit>
     
       <!-- The friendly form for a no-payslip product: the shape picker, the three
@@ -3396,7 +3207,7 @@
       <trans-unit id="pcn.summary_link" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, quoting from “<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>”.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُسعِّرًا من «<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>».</target></trans-unit>
       <trans-unit id="bank_programs.form.max_by_answer" datatype="html"><source> Maximum by answer </source><target>الحد الأقصى حسب الإجابة</target></trans-unit>
       <trans-unit id="max_loan_by_fact.enable" datatype="html"><source>Cap the maximum by an answer</source><target>تحديد الحد الأقصى حسب إجابة</target></trans-unit>
-      <trans-unit id="max_loan_by_fact.enable_hint" datatype="html"><source> For a sheet that prints a second table under “Loan Amount — Maximum” — by property type, city, school, branch, or a down-payment bracket. </source><target>لورقة تطبع جدولًا ثانيًا تحت «مبلغ القرض — الحد الأقصى» — حسب نوع الوحدة أو المدينة أو المدرسة أو الفرع أو شريحة المقدَّم.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.enable_hint" datatype="html"><source> Only if this bank’s maximum changes with an answer — property type, city, school, branch or down-payment bracket. </source><target>فقط إذا كان الحد الأقصى لهذا البنك يتغير حسب إجابة — نوع الوحدة أو المدينة أو المدرسة أو الفرع أو شريحة المقدَّم.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.keyed_by" datatype="html"><source>Keyed by</source><target>مبني على</target></trans-unit>
       <trans-unit id="max_loan_by_fact.second_column" datatype="html"><source>Second column</source><target>عمود ثانٍ</target></trans-unit>
       <trans-unit id="max_loan_by_fact.no_second_column" datatype="html"><source>One column</source><target>عمود واحد</target></trans-unit>
@@ -3413,6 +3224,7 @@
       <trans-unit id="max_loan_by_fact.no_match" datatype="html"><source>An answer with no row</source><target>إجابة بلا صف</target></trans-unit>
       <trans-unit id="max_loan_by_fact.use_program_max" datatype="html"><source>Falls back to this program’s maximum</source><target>ترجع إلى الحد الأقصى لهذا البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.detail.max_by_fact" datatype="html"><source>Maximum by answer</source><target>الحد الأقصى حسب الإجابة</target></trans-unit>
+      <trans-unit id="bank_programs.detail.max_by_class" datatype="html"><source>keyed by the answer’s class</source><target>مفتاحه فئة الإجابة</target></trans-unit>
       <trans-unit id="bank_programs.detail.max_no_match" datatype="html"><source>An answer with no row</source><target>إجابة بلا صف في الجدول</target></trans-unit>
       <trans-unit id="bank_programs.detail.max_adjustments" datatype="html"><source>Adjustments to that maximum</source><target>تعديلات على هذا الحد الأقصى</target></trans-unit>
       <trans-unit id="max_loan_by_fact.reject" datatype="html"><source>Gets no figures, with a stated reason</source><target>لا تظهر لها أرقام، مع ذكر السبب</target></trans-unit>
@@ -3421,6 +3233,11 @@
       <trans-unit id="max_loan_by_fact.err_row_missing_key" datatype="html"><source>One row states no answer, so nothing can match it.</source><target>أحد الصفوف بلا إجابة، فلا شيء يمكن أن يطابقه.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_duplicate" datatype="html"><source>Two rows state the same answer. The second one would never be read.</source><target>صفّان يذكران الإجابة نفسها. الصف الثاني لن يُقرأ أبدًا.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_amount" datatype="html"><source>Every row needs a maximum above zero. A zero would be a blank card, not a cap.</source><target>كل صف يحتاج حدًا أقصى أكبر من صفر. الصفر يعني بطاقة فارغة لا حدًا.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.via_legend" datatype="html"><source>What the keys name</source><target>ما الذي تسمّيه المفاتيح</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.row_via_class" datatype="html"><source>Key the rows by the class the answer is filed under</source><target>اجعل مفتاح الصفوف هو الفئة المُدرجة تحتها الإجابة</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.column_via_class" datatype="html"><source>Key the columns by the class the answer is filed under</source><target>اجعل مفتاح الأعمدة هو الفئة المُدرجة تحتها الإجابة</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.via_hint" datatype="html"><source> One row per class instead of one per answer — three city tiers rather than twenty-seven governorates. A value added to the list later reads its class’s row on day one, with no edit to this table. Changing this clears the rows: the keys come from a different list either way. </source><target>صف لكل فئة بدلًا من صف لكل إجابة — ثلاث فئات مدن بدل سبع وعشرين محافظة. أي قيمة تُضاف لاحقًا تقرأ صف فئتها من أول يوم، دون أي تعديل على هذا الجدول. تغيير هذا يمسح الصفوف: المفاتيح تأتي من قائمة مختلفة في الحالتين.</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.err_via" datatype="html"><source>This table is keyed by the class an answer is filed under, but that answer is not filed under anything. Key it by the answer itself.</source><target>مفتاح هذا الجدول هو الفئة المُدرجة تحتها الإجابة، لكن هذه الإجابة غير مُدرجة تحت أي فئة. اجعل مفتاحه الإجابة نفسها.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_gap" datatype="html"><source>There is a gap between two bands. An answer that falls in it matches no row.</source><target>توجد فجوة بين شريحتين. الإجابة التي تقع فيها لا تطابق أي صف.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.err_overlap" datatype="html"><source>Two bands overlap. The first one written would silently win.</source><target>شريحتان متداخلتان. الأولى المكتوبة ستفوز بصمت.</target></trans-unit>
       <trans-unit id="bank_programs.field.rate_basis" datatype="html"><source>How the interest is charged</source><target>طريقة احتساب الفائدة</target></trans-unit>
@@ -3448,10 +3265,13 @@
       <trans-unit id="pv.file.empty" datatype="html"><source>That file has no rows in it.</source><target>لا يحتوي هذا الملف على أي صفوف.</target></trans-unit>
       <trans-unit id="pv.export" datatype="html"><source>Download as CSV</source><target>تنزيل كملف CSV</target></trans-unit>
       <trans-unit id="pv.file.loaded" datatype="html"><source>Opened <x id="name" equiv-text="file.name"/>. Check the preview before saving.</source><target>تم فتح <x id="name" equiv-text="file.name"/>. راجع المعاينة قبل الحفظ.</target></trans-unit>
+      <trans-unit id="bank_programs.income.band_calculation" datatype="html"><source>The calculation</source><target>طريقة الحساب</target></trans-unit>
+      <trans-unit id="bank_programs.income.policy_label" datatype="html"><source>Policy on top of this method</source><target>سياسة فوق هذه الطريقة</target></trans-unit>
       <trans-unit id="bank_programs.income.additional" datatype="html"><source>Other money the bank counts</source><target>دخل آخر يحتسبه البنك</target></trans-unit>
       <trans-unit id="additional_income.no_sources" datatype="html"><source>The questionnaire is not asking about any other income yet, so there is nothing to weigh here.</source><target>الاستبيان لا يسأل عن أي دخل آخر بعد، فلا يوجد ما يُحتسب هنا.</target></trans-unit>
       <trans-unit id="additional_income.col_source" datatype="html"><source>Source</source><target>المصدر</target></trans-unit>
       <trans-unit id="additional_income.col_counted" datatype="html"><source>Counted at</source><target>يُحتسب بنسبة</target></trans-unit>
+      <trans-unit id="additional_income.retired" datatype="html"><source>no longer asked</source><target>لم يعد يُسأل عنه</target></trans-unit>
       <trans-unit id="additional_income.cap" datatype="html"><source>All of it together may not exceed</source><target>ألا يتجاوز مجموعها</target></trans-unit>
       <trans-unit id="additional_income.cap_tail" datatype="html"><source>of the basic income</source><target>من الدخل الأساسي</target></trans-unit>
       <trans-unit id="additional_income.hint" datatype="html"><source>Leave a row blank to count none of that source. Leave the limit blank if the bank states none — blank is not the same as 100%.</source><target>اترك الصف فارغًا لعدم احتساب هذا المصدر. واترك الحد فارغًا إن لم يذكره البنك — الفراغ لا يعني ١٠٠٪.</target></trans-unit>
@@ -3461,9 +3281,12 @@
       <trans-unit id="bpl.rank.title" datatype="html"><source>University Professors</source><target>أساتذة الجامعات</target></trans-unit>
       <trans-unit id="bpl.rank.mech" datatype="html"><source>A table by rank, and a second column for a private university where a bank prices those differently.</source><target>جدول حسب الدرجة، وعمود ثانٍ للجامعة الخاصة عند البنك الذي يسعّرها بشكل مختلف.</target></trans-unit>
       <trans-unit id="bpl.rank.eg" datatype="html"><source>One sheet pays a Dean 100,000 and a teaching assistant 12,000; another pays 300,000 and 20,000 at private universities.</source><target>إحدى النشرات تدفع للعميد ١٠٠٠٠٠ وللمعيد ١٢٠٠٠؛ وأخرى تدفع ٣٠٠٠٠٠ و٢٠٠٠٠ في الجامعات الخاصة.</target></trans-unit>
-      <trans-unit id="bpl.years.title" datatype="html"><source>Doctors</source><target>الأطباء</target></trans-unit>
-      <trans-unit id="bpl.years.mech" datatype="html"><source>The customer states how many years they have practised, and the bank has a row for the bracket it falls in — by city tier where it prices those apart. Clinic owners and doctors in practice are the same calculation on different figures, so each bank programme states its own.</source><target>يذكر العميل عدد سنوات ممارسته، وللبنك صف للشريحة التي يقع فيها — وحسب فئة المحافظة عند البنك الذي يفرّق بينها. أصحاب العيادات والأطباء الممارسون حساب واحد بأرقام مختلفة، فيذكر كل برنامج بنكي أرقامه.</target></trans-unit>
-      <trans-unit id="bpl.years.eg" datatype="html"><source>One sheet pays clinic owners 30,000 at 3–5 years and 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere; the same bank pays a doctor in practice exactly half at every bracket.</source><target>إحدى النشرات تدفع لأصحاب العيادات ٣٠٠٠٠ عند ٣–٥ سنوات و٣٠٠٠٠٠ فوق ٢٠، وتحدّ التمويل بـ١٥٠٠٠٠٠ في القاهرة مقابل ٥٠٠٠٠٠ في غيرها؛ ويدفع البنك نفسه للطبيب الممارس نصف ذلك في كل شريحة.</target></trans-unit>
+      <trans-unit id="bpl.clinic.title" datatype="html"><source>Doctors — Clinic Owners</source><target>الأطباء — أصحاب العيادات</target></trans-unit>
+      <trans-unit id="bpl.clinic.mech" datatype="html"><source>The customer states how many years they have practised, and the bank has a row for the bracket it falls in — with a second column for the tier of the governorate they work in, where it prices those apart. The maximum loan is read off the same governorate.</source><target>يذكر العميل عدد سنوات ممارسته، وللبنك صف للشريحة التي يقع فيها — مع عمود ثانٍ لفئة المحافظة التي يعمل بها، عند البنك الذي يفرّق بينها. ويُقرأ الحد الأقصى للتمويل من المحافظة نفسها.</target></trans-unit>
+      <trans-unit id="bpl.clinic.eg" datatype="html"><source>One sheet pays 30,000 at 3–5 years rising to 300,000 above 20, and caps the loan at 1,500,000 in Cairo against 500,000 elsewhere.</source><target>إحدى النشرات تدفع ٣٠٠٠٠ عند ٣–٥ سنوات وترتفع إلى ٣٠٠٠٠٠ فوق ٢٠، وتحدّ التمويل بـ١٥٠٠٠٠٠ في القاهرة مقابل ٥٠٠٠٠٠ في غيرها.</target></trans-unit>
+      <trans-unit id="bpl.practice.title" datatype="html"><source>Doctors — In Practice</source><target>الأطباء — الممارسة</target></trans-unit>
+      <trans-unit id="bpl.practice.mech" datatype="html"><source>The same brackets by years practised, and nothing else: this sheet prices one table and states no maximum of its own, so the programme's own maximum is the only ceiling.</source><target>الشرائح نفسها حسب سنوات الممارسة، ولا شيء غيرها: هذه النشرة تسعّر جدولًا واحدًا ولا تذكر حدًّا أقصى خاصًّا بها، فيكون الحد الأقصى للبرنامج هو السقف الوحيد.</target></trans-unit>
+      <trans-unit id="bpl.practice.eg" datatype="html"><source>One sheet pays 15,000 at 3–5 years rising to 150,000 above 20 — exactly half what the same bank pays a clinic owner at every bracket.</source><target>إحدى النشرات تدفع ١٥٠٠٠ عند ٣–٥ سنوات وترتفع إلى ١٥٠٠٠٠ فوق ٢٠ — نصف ما يدفعه البنك نفسه لصاحب العيادة تمامًا في كل شريحة.</target></trans-unit>
       <trans-unit id="bpl.card.title" datatype="html"><source>PL Cross Sell to Credit Card</source><target>التمويل الشخصي مقابل بطاقة ائتمان</target></trans-unit>
       <trans-unit id="bpl.card.mech" datatype="html"><source>The bank treats a percentage of the limit on a card the customer holds elsewhere as their monthly income.</source><target>يعتبر البنك نسبةً من حد بطاقة يحملها العميل في بنك آخر دخلًا شهريًا له.</target></trans-unit>
       <trans-unit id="bpl.card.eg" datatype="html"><source>One sheet takes half: a 60,000 limit reads as 30,000 a month.</source><target>إحدى النشرات تأخذ النصف: حد ٦٠٠٠٠ يُقرأ ٣٠٠٠٠ شهريًا.</target></trans-unit>
@@ -3511,13 +3334,6 @@
       <trans-unit id="bank_programs.strategy.steps" datatype="html">
         <source>Worked out step by step from what the customer owns</source>
         <target>يُحسب خطوة بخطوة من الأصول التي يملكها العميل</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="bank_programs.income.gate_applies" datatype="html">
-        <source>applies</source>
-        <target>مُطبَّق</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
         </context-group>
@@ -3757,6 +3573,418 @@
       <trans-unit id="spd.power.off_confirm" datatype="html"><source>Switch it off</source><target>أوقفها</target></trans-unit>
       <trans-unit id="spd.power.off_title" datatype="html"><source>While this is off, nothing quotes from it.</source><target>وهي موقوفة، لا يُسعِّر منها شيء.</target></trans-unit>
       <trans-unit id="spd.power.on" datatype="html"><source>Switch it back on</source><target>أعِد تشغيلها</target></trans-unit>
+      <trans-unit id="bpd.terms.aria" datatype="html"><source>Key terms</source><target>الشروط الأساسية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.term.rate" datatype="html"><source>Rate</source><target>سعر الفائدة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.term.amount" datatype="html"><source>Loan amount</source><target>مبلغ القرض</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.unit.egp" datatype="html"><source>EGP</source><target>جنيه</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.term.tenor" datatype="html"><source>Tenor</source><target>المدة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.unit.months" datatype="html"><source>months</source><target>شهر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.term.dbr" datatype="html"><source>Debt burden cap</source><target>حد نسبة الالتزامات</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.term.min_income" datatype="html"><source>Income floor</source><target>الحد الأدنى للدخل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.unit.egp_month" datatype="html"><source>EGP a month</source><target>جنيه شهريًا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.estimates_note" datatype="html"><source>Some figures below are the team’s estimates, not the bank’s own — confirm them before this program goes live.</source><target>بعض الأرقام أدناه تقديرات من الفريق وليست أرقام البنك — أكّدها قبل تفعيل هذا البرنامج.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.friendly_name_ar" datatype="html"><source>Arabic name</source><target>الاسم بالعربية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.catalog_name" datatype="html"><source>Catalog name</source><target>اسم الكتالوج</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.last_changed" datatype="html"><source>Last changed</source><target>آخر تعديل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.age_self_employed" datatype="html"><source>Age — self-employed</source><target>السن — لأصحاب الأعمال</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.min_income_self_employed" datatype="html"><source>Min income — self-employed (EGP)</source><target>الحد الأدنى للدخل — لأصحاب الأعمال (جنيه)</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.min_months_in_job" datatype="html"><source>Time in the job</source><target>مدة العمل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.unit.months_min" datatype="html"><source>months minimum</source><target>شهر على الأقل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.transfer_types" datatype="html"><source>Salary transfer</source><target>تحويل الراتب</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.dbr_bands" datatype="html"><source>Cap by income</source><target>الحد حسب الدخل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.dbr_by_employment" datatype="html"><source>Cap by employment</source><target>الحد حسب نوع العمل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.requirements" datatype="html"><source>Also requires</source><target>يشترط أيضًا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.value.no_requirements" datatype="html"><source>Nothing beyond the above</source><target>لا شيء غير ما سبق</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.spread" datatype="html"><source>Spread over the index</source><target>الهامش فوق المؤشر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.amount_range" datatype="html"><source>Amount</source><target>المبلغ</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.tenor_by_employment" datatype="html"><source>Longest term by employment</source><target>أطول مدة حسب نوع العمل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.figures_owner" datatype="html"><source>Whose figures</source><target>أرقام مَن</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.additional_income" datatype="html"><source>Other income counted</source><target>دخل آخر محتسب</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.additional_income_hint" datatype="html"><source>share of each source the bank recognises</source><target>النسبة التي يعترف بها البنك من كل مصدر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.additional_income_cap" datatype="html"><source>Counted up to</source><target>يُحتسب حتى</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.unit.of_basic" datatype="html"><source>of the basic figure</source><target>من الدخل الأساسي</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.section.documents" datatype="html"><source>What the customer must bring</source><target>ما يجب أن يحضره العميل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.field.required_documents" datatype="html"><source>Documents</source><target>المستندات</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.value.no_documents" datatype="html"><source>None recorded for this program</source><target>لا توجد مستندات مسجلة لهذا البرنامج</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.section.performance" datatype="html"><source>Credit history</source><target>التاريخ الائتماني</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.section.notes" datatype="html"><source>Notes for the desk</source><target>ملاحظات للفريق</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.dbr.skipped" datatype="html"><source>not checked on this program</source><target>غير مطبَّق على هذا البرنامج</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.dbr.by_employment" datatype="html"><source>some employment types differ</source><target>يختلف حسب بعض أنواع العمل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.dbr.by_income" datatype="html"><source>refined by income</source><target>يتغيّر حسب الدخل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.dbr.flat" datatype="html"><source>of recognised income</source><target>من الدخل المعتمد</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.dbr.band_open" datatype="html"><source>above the last band → <x id="cap" equiv-text="band.capPercent"/>%</source><target>أعلى من آخر شريحة ← <x id="cap" equiv-text="band.capPercent"/>%</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.gate.bank_statement" datatype="html"><source>Bank-statement balance</source><target>رصيد كشف الحساب</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.gate.assets" datatype="html"><source>Assets</source><target>الأصول</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.gate.car_price" datatype="html"><source>Car price</source><target>سعر السيارة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.gate.down_payment" datatype="html"><source>Down payment</source><target>الدفعة المقدمة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.gate.card_holding" datatype="html"><source>Card held for</source><target>مدة حيازة البطاقة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_employment" datatype="html"><source>Rate by employment</source><target>الفائدة حسب نوع العمل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_transfer" datatype="html"><source>Rate by salary transfer</source><target>الفائدة حسب تحويل الراتب</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_seniority" datatype="html"><source>Rate by seniority</source><target>الفائدة حسب الأقدمية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_tenor" datatype="html"><source>Rate by term</source><target>الفائدة حسب المدة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_tenor_customer" datatype="html"><source>Rate by term and customer</source><target>الفائدة حسب المدة ونوع العميل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_down_payment" datatype="html"><source>Rate by down payment</source><target>الفائدة حسب الدفعة المقدمة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_asset" datatype="html"><source>Rate by asset value</source><target>الفائدة حسب قيمة الأصل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.rate.by_amount" datatype="html"><source>Rate by loan amount</source><target>الفائدة حسب مبلغ القرض</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.waiver.enabled_at" datatype="html"><source>Fee waived at</source><target>يُعفى من الرسوم عند</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.waiver.min_tenor" datatype="html"><source>Waiver needs a term of</source><target>الإعفاء يحتاج مدة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.waiver.penalty" datatype="html"><source>Rate without the waiver</source><target>الفائدة بدون الإعفاء</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.waiver.penalty_tenor" datatype="html"><source>Applied below a term of</source><target>تُطبَّق تحت مدة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.waiver.insurance_penalty" datatype="html"><source>Rate without life cover</source><target>الفائدة بدون تأمين الحياة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.limit.top_up" datatype="html"><source>Top-up ceiling</source><target>سقف الزيادة على قرض قائم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.limit.other_cities" datatype="html"><source>Ceiling outside the main cities</source><target>السقف خارج المدن الرئيسية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.cap.by_employment" datatype="html"><source>Maximum by employment</source><target>الحد الأقصى حسب نوع العمل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.cap.by_transfer" datatype="html"><source>Maximum by salary transfer</source><target>الحد الأقصى حسب تحويل الراتب</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.cap.by_property" datatype="html"><source>Maximum by property</source><target>الحد الأقصى حسب نوع العقار</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.cap.by_cd" datatype="html"><source>Maximum by certificate value</source><target>الحد الأقصى حسب قيمة الشهادة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.figures.catalog" datatype="html"><source>The catalog name’s, shared with every bank on it</source><target>أرقام اسم الكتالوج، مشتركة مع كل بنك عليه</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.figures.own" datatype="html"><source>This bank’s own</source><target>أرقام هذا البنك</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.fee.life_mandatory" datatype="html"><source>Life insurance (mandatory)</source><target>تأمين الحياة (إجباري)</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.fee.late_payment" datatype="html"><source>Late payment</source><target>رسوم التأخير</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.fee.payoff_cash" datatype="html"><source>Early settlement — cash</source><target>السداد المبكر — نقدًا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.fee.payoff_buyout" datatype="html"><source>Early settlement — buyout</source><target>السداد المبكر — شراء الدين</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.fee.life_min_loan" datatype="html"><source>Life cover starts at</source><target>تأمين الحياة يبدأ من</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.fee.collateral_replace" datatype="html"><source>Replacing the collateral</source><target>تغيير الضمان</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.fee.collateral_decrease" datatype="html"><source>Reducing the collateral</source><target>تخفيض الضمان</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.perf.mob" datatype="html"><source>Months on book</source><target>شهور التعامل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.perf.iscore" datatype="html"><source>I-Score performance check</source><target>فحص أداء آي-سكور</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.perf.bkt1" datatype="html"><source>No 30-day arrears within</source><target>بدون تأخر ٣٠ يومًا خلال</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.perf.bkt2" datatype="html"><source>No 60-day arrears within</source><target>بدون تأخر ٦٠ يومًا خلال</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.perf.current" datatype="html"><source>Every live loan current</source><target>كل القروض القائمة منتظمة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.value.yes" datatype="html"><source>Yes</source><target>نعم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bpd.value.no" datatype="html"><source>No</source><target>لا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.flag.requires_cd" datatype="html"><source>Requires CD</source><target>يشترط شهادة ادخار</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_auto_abk" datatype="html"><source>Requires auto loan at ABK</source><target>يشترط قرض سيارة في ABK</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_auto_other" datatype="html"><source>Requires auto loan at another bank</source><target>يشترط قرض سيارة في بنك آخر</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_cc_other" datatype="html"><source>Requires credit card at another bank</source><target>يشترط بطاقة ائتمان في بنك آخر</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_compound" datatype="html"><source>Requires compound property</source><target>يشترط وحدة في كمبوند</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_collateral" datatype="html"><source>Requires collateral</source><target>يشترط ضمانًا</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_club" datatype="html"><source>Requires club membership</source><target>يشترط عضوية نادٍ</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_existing_loan" datatype="html"><source>Requires existing loan (buyout)</source><target>يشترط قرضًا قائمًا (شراء دين)</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_frmu" datatype="html"><source>Requires FRMU verification</source><target>يشترط تحقق FRMU</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_qr" datatype="html"><source>Requires qualitative review (unlocks uplift)</source><target>يشترط مراجعة تقديرية (تفتح الزيادة)</target></trans-unit>
+      <trans-unit id="bank_programs.flag.requires_no_docs" datatype="html"><source>No-documents lending tier</source><target>شريحة إقراض بدون مستندات</target></trans-unit>
+      <trans-unit id="bank_programs.field.skip_dbr" datatype="html"><source>Skip DBR check (secured loans only)</source><target>تخطّي فحص نسبة الالتزامات (للقروض المضمونة فقط)</target></trans-unit>
     </body>
   </file>
 </xliff>

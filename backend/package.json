@@ -30,7 +30,6 @@
     "seed:catalog": "tsx prisma/seed-program-catalog.ts",
     "seed:sheet-figures": "node dist/bank-programs/demo-figures/sheet-figures.command.js",
     "seed:customers": "tsx prisma/seed-customers.ts",
-    "seed:weights": "tsx prisma/seed-scoring-weights.ts",
     "check:codes": "tsx scripts/check-error-codes-parity.ts",
     "seed:surrogate:demo": "tsx prisma/seed-surrogate-demo.ts",
     "check:income-proof": "tsx scripts/income-proof-conflicts.ts",

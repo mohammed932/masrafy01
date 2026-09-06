@@ -1,15 +1,16 @@
 import 'package:equatable/equatable.dart';
 
 /// A customer's saved (bookmarked) loan offer — the domain view backing the
-/// Saved Offers screen (Figma `4088:153`). Carries exactly the fields the card
-/// renders AND those needed to rebuild a `MatchOffer` / `MatchResultsArgs` when
-/// the user taps **View offer** into the existing Offer-Details screen.
+/// Saved Offers screen (Figma `4088:153`). Carries the fields the card renders
+/// — the bank and program it came from, the term and the money — AND those
+/// needed to rebuild a `MatchOffer` / `MatchResultsArgs` when the user taps
+/// **View offer** into the existing Offer-Details screen.
 class SavedOfferEntity extends Equatable {
   const SavedOfferEntity({
     required this.bankOfferId,
     required this.loanTypeKey,
-    required this.approvalPct,
-    this.approvalUnrated = false,
+    required this.bankName,
+    required this.programFriendlyName,
     required this.termMonths,
     required this.ratePct,
     required this.monthly,
@@ -26,13 +27,12 @@ class SavedOfferEntity extends Equatable {
   /// `business`. Resolved to a localized label by `loanTypeLabel`.
   final String loanTypeKey;
 
-  /// Match score 0–100 → "{pct}% match".
-  final int approvalPct;
+  /// The bank that wrote this offer — the card's heading. Empty on offers
+  /// written before the field was carried.
+  final String bankName;
 
-  /// The program had no ACTIVE scoring weight set when this offer was matched,
-  /// so [approvalPct] is 0 for want of configuration rather than for want of a
-  /// fit. Rendered as "Not rated" — the two are otherwise indistinguishable.
-  final bool approvalUnrated;
+  /// Bank-facing name of the matched program — the card's subheading.
+  final String programFriendlyName;
   final int termMonths;
 
   /// Annual interest rate, e.g. `10.1` → "10.1%".
@@ -57,8 +57,8 @@ class SavedOfferEntity extends Equatable {
   List<Object?> get props => [
         bankOfferId,
         loanTypeKey,
-        approvalPct,
-        approvalUnrated,
+        bankName,
+        programFriendlyName,
         termMonths,
         ratePct,
         monthly,

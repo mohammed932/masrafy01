@@ -336,26 +336,6 @@ export class RateLimitedBucketException extends DomainException {
   }
 }
 
-// --- Scoring versions / analytics (feature 004) ----------------------------
-
-export class ScoringVersionConcurrentPromotionException extends DomainException {
-  constructor() {
-    super(ERROR_CODES.SCORING_VERSION_CONCURRENT_PROMOTION);
-  }
-}
-
-export class ScoringVersionNotFoundException extends DomainException {
-  constructor(version: string) {
-    super(ERROR_CODES.SCORING_VERSION_NOT_FOUND, { version });
-  }
-}
-
-export class ScoringVersionNoActiveException extends DomainException {
-  constructor() {
-    super(ERROR_CODES.SCORING_VERSION_NO_ACTIVE);
-  }
-}
-
 // --- Platform enumerations (feature 006) -----------------------------------
 
 export class EnumerationKeyDuplicateException extends DomainException {
@@ -394,17 +374,10 @@ export class EnumerationCategoriesNotApplicableException extends DomainException
   }
 }
 
-/**
- * A suggested question set was submitted for an enumeration type that carries no
- * such template (only `QUESTION_TEMPLATE_ENUMERATION_TYPES` do). 422 for the same
- * reason as its sibling above: the row exists and the request is well-formed, the
- * content is simply meaningless for it.
- */
-export class EnumerationQuestionsNotApplicableException extends DomainException {
-  constructor(meta: { type: string }) {
-    super(ERROR_CODES.ENUMERATION_QUESTIONS_NOT_APPLICABLE, meta);
-  }
-}
+// NOTE (v25.0.0): `EnumerationQuestionsNotApplicableException` was deleted with the
+// catalog question TEMPLATE. It refused a suggested question set on a type carrying no
+// such axis, and no type carries one now — the rule ceased to exist, so the code went
+// with it rather than being retired (see `error-codes.ts`).
 
 /** A question binding was submitted for a type that binds none (only facts do). */
 export class EnumerationQuestionBindingNotApplicableException extends DomainException {
@@ -747,9 +720,14 @@ export class EnumerationBulkCreateNotApplicableException extends DomainException
 }
 
 /**
- * The template named question codes that match no question at all — not even a
- * soft-deleted one. Reports every offender so the board can say which rather
- * than just refusing the save.
+ * A question code matched no question at all — not even a soft-deleted one. Reports
+ * every offender so the caller can say which rather than just refusing the save.
+ *
+ * Written for the catalog question template, which is gone (v25.0.0); the two live
+ * throwers are `setBoundQuestion` (point a surrogate FACT at its question) and
+ * `linkMirrorQuestion` (point a LIST at the question whose options it is). Both pass a
+ * single code, so `unknownCodes` is usually one long — kept plural because the shape has
+ * shipped and reporting every offender is still the right contract.
  */
 export class EnumerationQuestionUnknownException extends DomainException {
   constructor(meta: { type: string; key: string; unknownCodes: string[] }) {

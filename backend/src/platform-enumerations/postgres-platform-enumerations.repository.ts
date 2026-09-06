@@ -17,6 +17,7 @@ import { basesOfFlags, flagsOfBases, type IncomeBasis } from '@/common/income-ba
 import { factKeyOf, type IncomeAssumptionConfig } from '@/matching/types';
 import { SURROGATE_FACTS_BY_STRATEGY } from '@/matching/pipeline/surrogate-fact-bindings';
 import { factReaders, type FactReader } from '@/matching/pipeline/fact-readers';
+import { enabledWhenGate } from '@/questionnaire/validation/question-visibility';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
   EnumerationMember,
@@ -28,13 +29,11 @@ import {
   isDeletableType,
   type BindableQuestionType,
   type BoundQuestion,
-  type EnumerationQuestionTemplate,
   type IncomeBasesByCategory,
   type ParentKeyMove,
   type ProgramNameIncomeRuleRow,
   type ProgramUnderName,
   type SurrogateProductListRow,
-  type QuestionCodesByCategory,
   type SurrogateFactBinding,
   type EnumerationTypeDefinition,
   type EnumerationTypeDefinitions,
@@ -94,30 +93,12 @@ export interface EnumerationCategoryAssignment {
 }
 
 /**
- * One active question, as the catalog's template board needs it: enough to
- * render and scope a row, and nothing more. Narrower than the scoring editor's
- * `WeightableQuestionView`, which also carries options, numeric bounds, units
- * and text length — none of which this board displays.
- */
-export interface CatalogQuestionRow {
-  code: string;
-  labelAr: string;
-  labelEn: string;
-  type: QuestionType;
-  /** The loan categories that ASK this question. Empty = parked. */
-  categories: LoanCategory[];
-}
-
-/**
  * One active pool question, as the ask board on a product's step ① needs it.
  *
- * A SIBLING of `CatalogQuestionRow` rather than two fields added to it, because that row IS
- * the body of `GET admin/enumerations/questions` — it is returned to the client unprojected,
- * so a field added for a server-side decision would ship on an endpoint that never asked
- * for it. This one carries the two the ask door decides on and the pool row has no use for:
- * `id`, to write the loan-category assignment, and `isRequired`, because starting to ask a
- * REQUIRED question of a new loan type refuses every application in it until the next
- * publish lands.
+ * Its own row type rather than a reuse of the questionnaire's, because it carries the two
+ * fields the ask door decides on and nothing else needs: `id`, to write the loan-category
+ * assignment, and `isRequired`, because starting to ask a REQUIRED question of a new loan
+ * type refuses every application in it until the next publish lands.
  */
 export interface FactCandidateQuestionRow {
   id: string;
@@ -309,6 +290,10 @@ const BOUND_QUESTION_SELECT = {
   questionAr: true,
   questionEn: true,
   isActive: true,
+  // What this question is GATED ON. Rides along because a gate is the questionnaire's own
+  // statement of what kind of question it is, and the bank-program form has no other one:
+  // "money the applicant also receives" is exactly the set gated on `additional_income`.
+  enabledWhen: true,
   options: {
     where: { isActive: true },
     orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
@@ -1085,7 +1070,7 @@ export class PostgresPlatformEnumerationsRepository
    * Every fact's bound question, keyed by enumeration id — what the admin list needs
    * to render a fact row.
    *
-   * One query for the page, like `categoryAssignments` and `questionAssignments`, not
+   * One query for the page, like `categoryAssignments`, not
    * one per row. Includes INACTIVE facts and inactive questions: this is the screen
    * where a broken binding gets fixed, so filtering either out would hide exactly the
    * rows the operator came for.
@@ -1632,7 +1617,7 @@ export class PostgresPlatformEnumerationsRepository
    */
   setCategories(enumerationId: string, categories: readonly LoanCategory[]): Promise<unknown> {
     return this.prisma.$transaction(async (tx) => {
-      // Same parent lock, same reason, as `setQuestions`.
+      // Same parent lock, same reason, as `setCategories`.
       await tx.$executeRaw`SELECT 1 FROM platform_enumeration WHERE id = ${enumerationId} FOR UPDATE`;
       // Delete-then-insert would reset the income basis of every SURVIVING pair to
       // the column default, so a name offered under Personal + Car that loses Car
@@ -1662,124 +1647,6 @@ export class PostgresPlatformEnumerationsRepository
         })),
       });
     });
-  }
-
-  // ---- Question template (catalog name → suggested questions) --------------
-  //
-  // Advisory data. Nothing here is read at scoring time; it seeds the wizard.
-
-  /**
-   * Every name→question assignment, keyed by enumeration id, then by loan
-   * category, values as question CODES in pool display order. Read whole rather
-   * than per row: the board renders all 16 names at once, so one query beats N.
-   *
-   * Nested by category rather than flattened to a `${id}:${category}` key so a
-   * caller can hand one name's whole template to the detail screen in one lookup
-   * — the screen's four tabs are four reads of the same object.
-   */
-  async questionAssignments(filter?: {
-    type?: string;
-  }): Promise<Map<string, QuestionCodesByCategory>> {
-    const rows = await this.prisma.platformEnumerationQuestion.findMany({
-      where: filter?.type ? { enumeration: { type: filter.type } } : undefined,
-      select: { enumerationId: true, category: true, question: { select: { code: true } } },
-      orderBy: [{ question: { displayOrder: 'asc' } }, { question: { code: 'asc' } }],
-    });
-    const map = new Map<string, QuestionCodesByCategory>();
-    for (const row of rows) {
-      let byCategory = map.get(row.enumerationId);
-      if (!byCategory) {
-        byCategory = {};
-        map.set(row.enumerationId, byCategory);
-      }
-      const list = byCategory[row.category];
-      if (list) list.push(row.question.code);
-      else byCategory[row.category] = [row.question.code];
-    }
-    return map;
-  }
-
-  /** One entry's suggested sets per category, as codes in pool display order. */
-  async questionsOf(enumerationId: string): Promise<QuestionCodesByCategory> {
-    const rows = await this.prisma.platformEnumerationQuestion.findMany({
-      where: { enumerationId },
-      select: { category: true, question: { select: { code: true } } },
-      orderBy: [{ question: { displayOrder: 'asc' } }, { question: { code: 'asc' } }],
-    });
-    const byCategory: QuestionCodesByCategory = {};
-    for (const row of rows) {
-      const list = byCategory[row.category];
-      if (list) list.push(row.question.code);
-      else byCategory[row.category] = [row.question.code];
-    }
-    return byCategory;
-  }
-
-  /** One entry's suggested set for ONE category — what a per-tab write diffs against. */
-  async questionsOfCategory(enumerationId: string, category: LoanCategory): Promise<string[]> {
-    const rows = await this.prisma.platformEnumerationQuestion.findMany({
-      where: { enumerationId, category },
-      select: { question: { select: { code: true } } },
-      orderBy: [{ question: { displayOrder: 'asc' } }, { question: { code: 'asc' } }],
-    });
-    return rows.map((r) => r.question.code);
-  }
-
-  /** By catalog KEY + category — the read the scoring wizard's seed goes through. */
-  async memberQuestionTemplate(
-    type: EnumerationType,
-    key: string,
-    category: LoanCategory,
-  ): Promise<EnumerationQuestionTemplate | null> {
-    const row = await this.prisma.platformEnumeration.findUnique({
-      where: { idx_platform_enumeration_type_key: { type, key } },
-      select: {
-        key: true,
-        labelAr: true,
-        labelEn: true,
-        questions: {
-          // Scoped in the query, not filtered after: a name templated across all
-          // four categories would otherwise fetch four times the rows to throw
-          // three quarters of them away on every wizard open.
-          where: { category },
-          select: { question: { select: { code: true } } },
-          orderBy: [{ question: { displayOrder: 'asc' } }, { question: { code: 'asc' } }],
-        },
-      },
-    });
-    if (!row) return null;
-    return {
-      key: row.key,
-      labelAr: row.labelAr,
-      labelEn: row.labelEn,
-      category,
-      questionCodes: row.questions.map((q) => q.question.code),
-    };
-  }
-
-  /**
-   * The active question pool this board picks from, each with the loan
-   * categories that ASK it (so the board can scope and flag drift).
-   */
-  async questionTemplatePool(): Promise<CatalogQuestionRow[]> {
-    const rows = await this.prisma.question.findMany({
-      where: { isActive: true },
-      select: {
-        code: true,
-        questionAr: true,
-        questionEn: true,
-        type: true,
-        loanCategories: { select: { category: true } },
-      },
-      orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
-    });
-    return rows.map((q) => ({
-      code: q.code,
-      labelAr: q.questionAr,
-      labelEn: q.questionEn,
-      type: q.type,
-      categories: sortCategories(q.loanCategories.map((c) => c.category)),
-    }));
   }
 
   /**
@@ -1816,62 +1683,7 @@ export class PostgresPlatformEnumerationsRepository
     }));
   }
 
-  /**
-   * Replace one entry's suggested set FOR ONE CATEGORY, atomically. Takes CODES;
-   * resolves them to ids inside the transaction. Delete-then-insert rather than
-   * diffing, so the written set is exactly the submitted set.
-   *
-   * Scoped to the category on both halves — the delete as well as the insert.
-   * A delete over the whole `enumerationId` would make saving the Personal tab
-   * wipe the Business tab, which is precisely the confusion the category axis
-   * exists to remove.
-   *
-   * Resolution deliberately does NOT filter on `isActive`. A question that has
-   * been soft-deleted has left the pool, so it can never be ADDED here — but an
-   * existing pick on one must survive a re-save, or the board would silently
-   * prune a row it is simultaneously telling the admin to go and look at.
-   */
-  setQuestions(
-    enumerationId: string,
-    category: LoanCategory,
-    questionCodes: readonly string[],
-  ): Promise<unknown> {
-    return this.prisma.$transaction(async (tx) => {
-      // Serialise on the parent row FIRST. Delete-then-insert under the default
-      // READ COMMITTED is not safe against a second write to the same name: the
-      // late transaction's DELETE plan is fixed against its own snapshot, so it
-      // cannot see rows the winner inserted, and the two interleave into a state
-      // neither client asked for (or collide on the composite PK and 500).
-      // The board can issue overlapping writes for one name — every tap sends
-      // the whole set — so this is reachable, not theoretical.
-      //
-      // Locked on the NAME, not the (name, category) pair, even though two tabs
-      // touch disjoint rows: the lock is taken on `platform_enumeration`, which
-      // has one row per name and no per-category row to lock instead.
-      await tx.$executeRaw`SELECT 1 FROM platform_enumeration WHERE id = ${enumerationId} FOR UPDATE`;
-      await tx.platformEnumerationQuestion.deleteMany({ where: { enumerationId, category } });
-      if (questionCodes.length === 0) return;
-      const questions = await tx.question.findMany({
-        where: { code: { in: [...questionCodes] } },
-        select: { id: true },
-      });
-      if (questions.length === 0) return;
-      await tx.platformEnumerationQuestion.createMany({
-        data: questions.map((q) => ({ enumerationId, category, questionId: q.id })),
-      });
-    });
-  }
-
   /** Question codes that exist at all (active or soft-deleted) — write validation. */
-  async existingQuestionCodes(codes: readonly string[]): Promise<Set<string>> {
-    if (codes.length === 0) return new Set();
-    const rows = await this.prisma.question.findMany({
-      where: { code: { in: [...codes] } },
-      select: { code: true },
-    });
-    return new Set(rows.map((r) => r.code));
-  }
-
   /** Same as `setCategories`, for many entries in ONE transaction (column actions). */
   setCategoriesBulk(assignments: readonly EnumerationCategoryAssignment[]): Promise<unknown> {
     return this.prisma.$transaction(async (tx) => {
@@ -2200,10 +2012,10 @@ export class PostgresPlatformEnumerationsRepository
   }
 
   /**
-   * Hard delete. `platform_enumeration_loan_category` and
-   * `platform_enumeration_question` cascade with the row (both declare
-   * `onDelete: Cascade`), so this is one statement and leaves no orphan
-   * assignment behind.
+   * Hard delete. `platform_enumeration_loan_category` and `surrogate_product_ask`
+   * cascade with the row (both declare `onDelete: Cascade`), so this is one statement
+   * and leaves no orphan assignment behind. (`platform_enumeration_question` was a
+   * third; it is gone — v25.0.0.)
    *
    * Callers check references FIRST — see `countReferences`. Nothing at this layer
    * can refuse the delete, because nothing here knows what the key is worth.
@@ -2338,6 +2150,8 @@ type PlatformEnumerationWithCategories = PlatformEnumeration & {
     isActive: boolean;
     options: Array<{ code: string; labelAr: string; labelEn: string }>;
     loanCategories?: Array<{ category: LoanCategory }>;
+    /** Stored JSON. Optional so a caller selecting a narrower shape still type-checks. */
+    enabledWhen?: unknown;
   } | null;
 };
 
@@ -2383,6 +2197,9 @@ function boundQuestionOf(row: PlatformEnumerationWithCategories): BoundQuestion 
     active: q.isActive,
     options: q.options,
     askedIn: sortCategories((q.loanCategories ?? []).map((c) => c.category)),
+    // Read through the questionnaire's own rule reader, so "what is this gated on" and
+    // "is this shown" can never answer differently about the same stored blob.
+    enabledWhen: 'enabledWhen' in q ? enabledWhenGate({ enabledWhen: q.enabledWhen }) : undefined,
   };
 }
 

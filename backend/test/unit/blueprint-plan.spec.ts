@@ -297,34 +297,56 @@ describe('planning against a database that already holds some of it', () => {
   });
 
   it('widens a REUSED question to the categories the product needs, keeping the rest', () => {
-    // The governorate question is seeded for mortgages only, so a personal-loan doctor is
-    // never asked where they practise and the column reads nothing — the standard column
-    // would price every applicant, silently. Widening ADDS: narrowing somebody else's
-    // assignment because this product does not need it would break theirs.
+    // `practice_governorate` asks where the applicant WORKS. Seeded for personal and car,
+    // but a database that has it under one of the two still leaves the column reading
+    // nothing for the other — and the standard column would then price those applicants,
+    // silently. Widening ADDS: narrowing somebody else's assignment because this product
+    // does not need it would break theirs.
     const existing: BlueprintExistingState = {
       ...EMPTY,
-      questionCodes: new Set(['governorate', 'years_in_practice', 'existing_bank_loans']),
+      questionCodes: new Set([
+        'practice_governorate',
+        'years_in_practice',
+        'existing_bank_loans',
+      ]),
       categoriesByQuestion: new Map([
-        ['governorate', new Set([LoanCategory.mortgage])],
+        ['practice_governorate', new Set([LoanCategory.mortgage])],
         ['existing_bank_loans', new Set([LoanCategory.personal, LoanCategory.mortgage])],
       ]),
-      factKeys: new Set(['years_in_practice', 'property_governorate']),
+      factKeys: new Set(['years_in_practice', 'practice_governorate']),
       questionCodeByFact: new Map([
         ['years_in_practice', 'years_in_practice'],
-        ['property_governorate', 'governorate'],
+        ['practice_governorate', 'practice_governorate'],
       ]),
     };
-    const result = plan('years_in_practice_bands', existing);
+    const result = plan('doctors_clinic_owner', existing);
     const widened = result.steps.filter((step) => step.op === 'widenCategories');
     expect(
       widened.map((step) => step.op === 'widenCategories' && step.questionCode).sort(),
-    ).toEqual(['existing_bank_loans', 'governorate']);
+    ).toEqual(['existing_bank_loans', 'practice_governorate']);
     const governorate = widened.find(
-      (step) => step.op === 'widenCategories' && step.questionCode === 'governorate',
+      (step) => step.op === 'widenCategories' && step.questionCode === 'practice_governorate',
     );
     expect(
       governorate && governorate.op === 'widenCategories' && governorate.categories.sort(),
     ).toEqual(['car', 'mortgage', 'personal']);
+  });
+
+  it('does not touch the mortgage governorate question, which asks something else', () => {
+    // `governorate` asks where the PROPERTY is — in Arabic it says so literally. The doctors
+    // product used to read it, which is why a personal-loan doctor was asked about a property
+    // they were not buying and, more often, was asked nothing at all. Nothing this blueprint
+    // plans may reach that question or its `property_governorate` fact again.
+    const existing: BlueprintExistingState = {
+      ...EMPTY,
+      questionCodes: new Set(['governorate']),
+      categoriesByQuestion: new Map([['governorate', new Set([LoanCategory.mortgage])]]),
+      factKeys: new Set(['property_governorate']),
+      questionCodeByFact: new Map([['property_governorate', 'governorate']]),
+    };
+    const touched = JSON.stringify(plan('doctors_clinic_owner', existing).steps);
+    expect(touched).not.toContain('property_governorate');
+    expect(touched).not.toContain('"governorate"');
   });
 
   it('widens the question behind a DERIVED axis, which has no registry row', () => {
@@ -336,7 +358,7 @@ describe('planning against a database that already holds some of it', () => {
       questionCodes: new Set(['existing_bank_loans']),
       categoriesByQuestion: new Map([['existing_bank_loans', new Set([LoanCategory.personal])]]),
     };
-    const widen = plan('years_in_practice_bands', existing).steps.find(
+    const widen = plan('doctors_clinic_owner', existing).steps.find(
       (step) => step.op === 'widenCategories' && step.questionCode === 'existing_bank_loans',
     );
     expect(widen && widen.op === 'widenCategories' && widen.categories.sort()).toEqual([
@@ -348,14 +370,17 @@ describe('planning against a database that already holds some of it', () => {
   it('leaves a question alone when it is already asked everywhere the product needs', () => {
     const existing: BlueprintExistingState = {
       ...EMPTY,
-      questionCodes: new Set(['governorate']),
+      questionCodes: new Set(['practice_governorate']),
       categoriesByQuestion: new Map([
-        ['governorate', new Set([LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage])],
+        [
+          'practice_governorate',
+          new Set([LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage]),
+        ],
       ]),
-      questionCodeByFact: new Map([['property_governorate', 'governorate']]),
+      questionCodeByFact: new Map([['practice_governorate', 'practice_governorate']]),
     };
-    const widened = plan('years_in_practice_bands', existing).steps.filter(
-      (step) => step.op === 'widenCategories' && step.questionCode === 'governorate',
+    const widened = plan('doctors_clinic_owner', existing).steps.filter(
+      (step) => step.op === 'widenCategories' && step.questionCode === 'practice_governorate',
     );
     expect(widened).toEqual([]);
   });

@@ -63,10 +63,13 @@ export const ERROR_CODES = {
   IDEMPOTENCY_KEY_MISMATCH: 'IDEMPOTENCY_KEY_MISMATCH',
   UNAUTHENTICATED: 'UNAUTHENTICATED',
 
-  // --- Scoring versions / analytics (feature 004) ---
-  SCORING_VERSION_CONCURRENT_PROMOTION: 'SCORING_VERSION_CONCURRENT_PROMOTION',
-  SCORING_VERSION_NOT_FOUND: 'SCORING_VERSION_NOT_FOUND',
-  SCORING_VERSION_NO_ACTIVE: 'SCORING_VERSION_NO_ACTIVE',
+  // NOTE (v25.0.0): the three `SCORING_VERSION_*` codes were deleted with the
+  // `scoring_engine_version` registry. That registry existed only to version scoring
+  // WEIGHTS, and approval scoring is gone platform-wide; `bank_offer.engineVersion` now
+  // reads `MATCHING_ENGINE_VERSION` from code. Deleted rather than retired because the
+  // routes that threw them are gone too — an older admin bundle calling them gets a 404,
+  // never one of these codes, so there is nothing left to translate. Removed in one change
+  // with both locale dictionaries (Principle III).
 
   // --- Platform enumerations (feature 006) ---
   ENUMERATION_KEY_DUPLICATE: 'ENUMERATION_KEY_DUPLICATE',
@@ -79,9 +82,23 @@ export const ERROR_CODES = {
    * there to describe.
    */
   ENUMERATION_CATEGORY_NOT_ASSIGNED: 'ENUMERATION_CATEGORY_NOT_ASSIGNED',
-  /** A question template was submitted for an enumeration type that has no such axis. */
-  ENUMERATION_QUESTIONS_NOT_APPLICABLE: 'ENUMERATION_QUESTIONS_NOT_APPLICABLE',
-  /** A catalog question template named codes that are in no question, active or not. */
+  // NOTE (v25.0.0): `ENUMERATION_QUESTIONS_NOT_APPLICABLE` was deleted with the catalog
+  // question TEMPLATE (`platform_enumeration_question`). It refused a suggested question
+  // set submitted for a type that carried no such axis — and no type carries one now, so
+  // the RULE ceased to exist, which is this file's stated test for delete-vs-retire
+  // (see `PROGRAM_NAME_KEY_BASIS_MISMATCH` below). The template's only runtime reader was
+  // `ScoringService`, deleted with approval scoring; what a no-payslip product reads lives
+  // in `surrogate_product_ask`. `PUT /admin/enumerations/:id/questions` is gone too, so an
+  // older admin bundle gets a 404 rather than an untranslatable code. Removed in one change
+  // with both locale dictionaries (Principle III).
+  /**
+   * A question code named no question at all — not even a soft-deleted one.
+   *
+   * Outlived the catalog template it was written for (v25.0.0): it is still thrown when a
+   * surrogate FACT is pointed at a question code that does not exist
+   * (`PUT :id/bound-question`), and when a mirrored LIST is linked to one. Retained
+   * because those rules are live, not because the code once had another thrower.
+   */
   ENUMERATION_QUESTION_UNKNOWN: 'ENUMERATION_QUESTION_UNKNOWN',
   /**
    * A question BINDING was submitted for an enumeration type that binds no question —
@@ -554,31 +571,14 @@ export const ERROR_CODES = {
   QUESTION_GROUP_NOT_EMPTY: 'QUESTION_GROUP_NOT_EMPTY',
   REQUIRED_ANSWER_MISSING: 'REQUIRED_ANSWER_MISSING',
   PROGRAM_NO_LONGER_MATCHES: 'PROGRAM_NO_LONGER_MATCHES',
-  // Scoring weights (MVP — per-answer points, direct save)
-  WEIGHT_SET_NOT_FOUND: 'WEIGHT_SET_NOT_FOUND',
-  WEIGHTS_UNKNOWN_OPTION: 'WEIGHTS_UNKNOWN_OPTION',
-  WEIGHTS_QUESTION_WEIGHT_SUM_INVALID: 'WEIGHTS_QUESTION_WEIGHT_SUM_INVALID',
-  WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE: 'WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE',
-  /**
-   * A weighted question carries no rule for its own type (v14.0.0): no option
-   * scores, no numeric bands, no text presence score. It would consume its share
-   * of the denominator and never be able to earn anything — a silent cap.
-   */
-  WEIGHTS_MISSING_RULE: 'WEIGHTS_MISSING_RULE',
-  /** NUMERIC bands missing, out of order, overlapping, gapped, or malformed. */
-  WEIGHTS_NUMERIC_BANDS_INVALID: 'WEIGHTS_NUMERIC_BANDS_INVALID',
-  /** A rule block on a question of the wrong type, or an unknown aggregation. */
-  WEIGHTS_RULE_TYPE_MISMATCH: 'WEIGHTS_RULE_TYPE_MISMATCH',
-  /**
-   * A weighted question is not in the program's catalog set — the questions a
-   * `program_name` scores on under this loan category (`/program-catalog/:key`).
-   * Every bank program sharing a catalog name scores on the SAME questions and
-   * differs only in weights, so the question set is not the bank program's to
-   * choose. Also raised when the program has no `programNameKey` at all (nothing
-   * to scope by) or the catalog set for its category is empty: the meta carries
-   * `programNameKey` + `allowedQuestionCodes` so the admin screen can say which.
-   */
-  WEIGHTS_QUESTION_NOT_IN_CATALOG: 'WEIGHTS_QUESTION_NOT_IN_CATALOG',
+  // NOTE (v25.0.0): the eight `WEIGHT_SET_*` / `WEIGHTS_*` codes were deleted with
+  // per-program approval scoring. Every one of them was thrown from `ScoringService`
+  // behind `POST /admin/scoring/programs/:id/weights`, and that route no longer exists,
+  // so an older admin bundle gets a 404 rather than an untranslatable code. `saveWeights`
+  // was the only writer of the question set a program scored on, and there is no score to
+  // constrain. Deleted, not retired, in one change with both locale dictionaries
+  // (Principle III) — the precedent is `PROGRAM_TYPE_INVALID_FOR_CATEGORY` below: a code
+  // whose RULE ceased to exist is deleted, one whose endpoint survives is retained.
 
   // --- Feature 010 — simple program setup, banded DBR & calculator ---
   // Banded DBR + program ranges (admin)
@@ -961,15 +961,10 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   IDEMPOTENCY_KEY_MISMATCH: 409,
   UNAUTHENTICATED: 401,
 
-  SCORING_VERSION_CONCURRENT_PROMOTION: 409,
-  SCORING_VERSION_NOT_FOUND: 404,
-  SCORING_VERSION_NO_ACTIVE: 503,
-
   ENUMERATION_KEY_DUPLICATE: 409,
   ENUMERATION_SYSTEM_ONLY: 403,
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 422,
   ENUMERATION_CATEGORY_NOT_ASSIGNED: 422,
-  ENUMERATION_QUESTIONS_NOT_APPLICABLE: 422,
   ENUMERATION_QUESTION_UNKNOWN: 422,
   ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE: 422,
   SURROGATE_FACT_QUESTION_TYPE_INVALID: 422,
@@ -1095,14 +1090,6 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   QUESTION_GROUP_NOT_EMPTY: 409,
   REQUIRED_ANSWER_MISSING: 422,
   PROGRAM_NO_LONGER_MATCHES: 409,
-  WEIGHT_SET_NOT_FOUND: 404,
-  WEIGHTS_UNKNOWN_OPTION: 422,
-  WEIGHTS_QUESTION_WEIGHT_SUM_INVALID: 422,
-  WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE: 422,
-  WEIGHTS_MISSING_RULE: 422,
-  WEIGHTS_NUMERIC_BANDS_INVALID: 422,
-  WEIGHTS_RULE_TYPE_MISMATCH: 422,
-  WEIGHTS_QUESTION_NOT_IN_CATALOG: 422,
 
   DBR_BANDS_INVALID: 422,
   DBR_BAND_CAP_OUT_OF_RANGE: 422,

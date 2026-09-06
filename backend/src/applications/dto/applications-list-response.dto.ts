@@ -6,7 +6,6 @@
  * client reuses its existing offer parsing verbatim.
  */
 
-import type { ApprovalProbabilityResponseDto } from './apply-response.dto';
 
 export type ApplicationDecisionStatus = 'applied' | 'approved' | 'rejected';
 
@@ -25,7 +24,6 @@ export interface ApplicationOfferDto {
   effectiveLoanAmountEGP: string;
   requestedTenorMonths: number;
   effectiveTenorMonths: number;
-  approvalProbability: ApprovalProbabilityResponseDto;
   requiredDocuments: string[];
   matchReasons: string[];
   feesBreakdown: unknown;

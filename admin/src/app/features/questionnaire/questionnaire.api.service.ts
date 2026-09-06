@@ -17,108 +17,6 @@ import {
 } from '@core/loan-category';
 export { LOAN_CATEGORIES, categoryLabel, isLoanCategory, type LoanCategory };
 
-/** One answer option that can carry per-program points. */
-export interface WeightableOption {
-  code: string;
-  labelAr: string;
-  labelEn: string;
-}
-
-/** A question shown in the weights editor, with whatever its type is scored by. */
-export interface WeightableQuestion {
-  code: string;
-  labelAr: string;
-  labelEn: string;
-  /** Decides which scoring control the editor renders (every type scores, v14.0.0). */
-  type: QuestionType;
-  /**
-   * Loan categories that ASK this question (lowercase). A program scoring on a
-   * question outside its own category is configuring something its applicants
-   * never see — the editor warns, it does not block.
-   */
-  categories: string[];
-  /** Both choice types. Empty for NUMERIC / TEXT. */
-  options: WeightableOption[];
-  /** NUMERIC only — seeds the band edges so the admin does not invent them. */
-  numericMinValue: string | null;
-  numericMaxValue: string | null;
-  numericUnitAr: string | null;
-  numericUnitEn: string | null;
-  /** TEXT only. */
-  textMaxLength: number | null;
-}
-
-/** Bank + program identity for labelling a per-program weight set. */
-export interface ProgramMeta {
-  programCode: string;
-  friendlyName: string;
-  friendlyNameAr: string | null;
-  bankName: string;
-  category: string;
-  /** Catalog name this program is an instance of. Null on legacy rows only. */
-  programNameKey: string | null;
-  /**
-   * The questions this program scores on — the catalog set for
-   * (`programNameKey`, `category`), edited at `/program-catalog/:key`.
-   *
-   * Fixed, not a suggestion: every bank program under one catalog name scores on
-   * the same questions and differs only in weights + answer scores, so the editor
-   * renders this list read-only and the backend rejects anything outside it.
-   *
-   * `null` = no catalog name to scope by (fix the bank program); `[]` = a catalog
-   * name with nothing set for this category (fix the catalog).
-   */
-  catalogQuestionCodes: string[] | null;
-}
-
-export type WeightSetStatus = 'ACTIVE' | 'ARCHIVED';
-
-/** How a MULTI_SELECT question combines the scores of the options that were picked. */
-export const MULTI_SELECT_AGGREGATIONS = ['AVERAGE', 'SUM_CAPPED', 'MAX', 'MIN'] as const;
-export type MultiSelectAggregation = (typeof MULTI_SELECT_AGGREGATIONS)[number];
-
-/**
- * One NUMERIC scoring band. Half-open `[from, to)` so two adjacent bands never
- * both claim an edge value; `from: null` = −∞, `to: null` = +∞. Edges are decimal
- * STRINGS — these are money values (Principle I).
- */
-export interface NumericScoreBand {
-  from: string | null;
-  to: string | null;
-  score: number;
-}
-
-/**
- * Two-level scoring: per-question weights (sum 100) plus the rule each question's
- * TYPE is scored by (v14.0.0). The three rule maps are optional so a weight set
- * saved before v14.0.0 still parses.
- */
-export interface ProgramScoringWeights {
-  questionWeights: Record<string, number>;
-  answerScores: Record<string, Record<string, number>>;
-  multiSelectRules?: Record<string, { aggregation: MultiSelectAggregation }>;
-  numericBands?: Record<string, NumericScoreBand[]>;
-  textRules?: Record<string, { answeredScore: number }>;
-}
-
-export interface ScoringWeightSet {
-  id: string;
-  bankProgramId: string;
-  status: WeightSetStatus;
-  versionNumber: number;
-  /** Two-level: questionWeights (sum 100) + answerScores (0–100). */
-  weights: ProgramScoringWeights;
-  createdBy: string;
-  createdAt: string;
-  approvedBy: string | null;
-  approvedAt: string | null;
-}
-
-export interface ProgramWeights {
-  program: ProgramMeta;
-  active: ScoringWeightSet | null;
-}
-
 export interface QuestionnaireVersionRow {
   id: string;
   versionNumber: number;
@@ -246,34 +144,8 @@ export interface SimulationMatch {
   figures: SimulationFigures | null;
   /** Why `figures` is null — `MONEY_FIGURE_MISSING` while answers are partial. */
   figuresUnavailableReason: string | null;
-  approvalProbability: number; // 0..1
-  approvalTier: string;
-  /** Per-answer contributions behind the score, biggest first (Principle V). */
-  approvalFactors: SimulationFactors;
   rejectionReasons: string[];
   requiredDocuments: string[];
-  usedDefaultWeights: boolean;
-}
-
-/**
- * Why the score is what it is. `code` is the OPTION code for a single pick and
- * the QUESTION code for the other three types (multi / numeric / text — no one
- * option to name); `impact` is that answer's share of the score in points, and
- * the impacts sum to the displayed percentage.
- */
-export interface SimulationFactors {
-  positive: SimulationFactorImpact[];
-  negative: SimulationFactorImpact[];
-}
-export interface SimulationFactorImpact {
-  code: string;
-  /**
-   * The question the impact came from. Needed to label the row: `code` is an
-   * OPTION code for a single pick, and option codes repeat across questions
-   * (`yes` many times over), so the pair is what identifies an answer.
-   */
-  questionCode?: string;
-  impact: number;
 }
 
 /** Full money block for one simulated program. Decimal strings, never floats. */
@@ -420,31 +292,12 @@ export interface UpdateOptionBody {
   isActive?: boolean;
 }
 
-/** Admin API for Feature 009 (questionnaire + per-question scoring weights, v5.0.0). */
+/** Admin API for Feature 009 (the global questionnaire pool + the matching simulator). */
 @Injectable({ providedIn: 'root' })
 export class QuestionnaireApiService {
   private readonly http = inject(HttpClient);
   private base(): string {
     return environment.apiBaseUrl;
-  }
-
-  // ---- Scoring weights (direct save, assign + score) ---------------------
-  /** The GLOBAL question pool WITH answer options (the assign + per-answer scoring grid). */
-  weightableQuestions(): Promise<WeightableQuestion[]> {
-    return this.get<WeightableQuestion[]>(`/scoring/questions`);
-  }
-
-  programWeights(programId: string): Promise<ProgramWeights> {
-    return this.get<ProgramWeights>(`/scoring/programs/${programId}/weights`);
-  }
-
-  /** Save two-level scoring (v8): question weights (sum 100) + answer scores (0–100). */
-  saveWeights(programId: string, weights: ProgramScoringWeights): Promise<ScoringWeightSet> {
-    return this.post<ScoringWeightSet>(`/scoring/programs/${programId}/weights`, { weights });
-  }
-
-  weightsHistory(programId: string): Promise<ScoringWeightSet[]> {
-    return this.get<ScoringWeightSet[]>(`/scoring/programs/${programId}/weights/history`);
   }
 
   // ---- Questionnaire authoring (one global pool) ------------------------
@@ -463,13 +316,13 @@ export class QuestionnaireApiService {
 
   // ---- Matching simulator (admin) ---------------------------------------
   /**
-   * Run the full engine + per-bank approval scoring for a sample applicant.
+   * Run the full pricing engine for a sample applicant.
    *
    * `answers: []` is a legal empty-answer run: the preview path forces
-   * `isRequired: false`, so it returns every active program in the category with
-   * its `usedDefaultWeights` flag — and a probability of 0 that callers must not
-   * render. `silent` suppresses the toast for speculative probes (the dashboard
-   * dry run against an instance whose questionnaire is not published yet).
+   * `isRequired: false`, so it returns every active program in the category, each
+   * carrying either its figures or the reason it could not be quoted. `silent`
+   * suppresses the toast for speculative probes (the dashboard dry run against an
+   * instance whose questionnaire is not published yet).
    */
   simulateMatching(
     category: LoanCategory,

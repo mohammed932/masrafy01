@@ -17,9 +17,6 @@ export interface SavedOfferRow {
   bankOfferId: string;
   savedAt: Date;
   loanCategory: LoanCategory | null;
-  approvalScore: number;
-  /** No ACTIVE weight set at match time — render "not rated", not 0%. */
-  approvalUsedDefault: boolean;
   effectiveTenorMonths: number;
   effectiveRatePercent: Decimal;
   monthlyInstallmentEGP: Decimal;
@@ -50,8 +47,6 @@ export class SavedOfferRepository {
         bankOffer: {
           select: {
             id: true,
-            approvalScore: true,
-            approvalUsedDefault: true,
             effectiveTenorMonths: true,
             effectiveRatePercent: true,
             monthlyInstallmentEGP: true,
@@ -68,8 +63,6 @@ export class SavedOfferRepository {
       bankOfferId: r.bankOffer.id,
       savedAt: r.createdAt,
       loanCategory: r.bankOffer.application.category,
-      approvalScore: r.bankOffer.approvalScore,
-      approvalUsedDefault: r.bankOffer.approvalUsedDefault,
       effectiveTenorMonths: r.bankOffer.effectiveTenorMonths,
       effectiveRatePercent: r.bankOffer.effectiveRatePercent,
       monthlyInstallmentEGP: r.bankOffer.monthlyInstallmentEGP,

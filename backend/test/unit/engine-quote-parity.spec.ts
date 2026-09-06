@@ -2,16 +2,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { describe, expect, it } from 'vitest';
 import { EngineService } from '../../src/matching/engine.service';
 import { quoteProgram } from '../../src/matching/pipeline/quote';
-import type { ScoringConfig } from '../../src/matching/types';
 import { eligibilityFixture, profileFixture, programFixture } from '../helpers/matching';
-
-const scoringConfig: ScoringConfig = {
-  version: '1.0.0-test',
-  weights: {},
-  thresholds: { excellent: 80, good: 65, moderate: 50, low: 35 },
-  factorCatalog: {},
-  legacy: false,
-};
 
 const engine = new EngineService();
 
@@ -33,7 +24,6 @@ describe('engine ↔ quote parity', () => {
     const result = engine.run({
       profile,
       programs: [program],
-      scoringConfig,
       skipEligibility: true,
     });
     const offer = result.offers[0];
@@ -71,7 +61,6 @@ describe('engine ↔ quote parity', () => {
     const result = engine.run({
       profile,
       programs: [program],
-      scoringConfig,
       skipEligibility: true,
     });
     expect(result.offers).toHaveLength(1);
@@ -94,7 +83,6 @@ describe('engine ↔ quote parity', () => {
       const result = engine.run({
         profile: squeezed,
         programs: [programFixture()],
-        scoringConfig,
       });
 
       const offer = result.offers[0];
@@ -111,7 +99,6 @@ describe('engine ↔ quote parity', () => {
       const result = engine.run({
         profile: profileFixture(),
         programs: [programFixture()],
-        scoringConfig,
       });
       const offer = result.offers[0];
       expect(offer?.maxLoanAvailableEGP?.toFixed(2)).toBe('347608.87');
@@ -122,7 +109,6 @@ describe('engine ↔ quote parity', () => {
       const result = engine.run({
         profile: squeezed,
         programs: [programFixture()],
-        scoringConfig,
         skipEligibility: true,
       });
       const offer = result.offers[0];
@@ -134,7 +120,6 @@ describe('engine ↔ quote parity', () => {
       const result = engine.run({
         profile: squeezed,
         programs: [programFixture()],
-        scoringConfig,
         skipDbrCheck: true,
       });
       expect(result.offers[0]?.requestedLoanAmountEGP.toFixed(2)).toBe('300000.00');
@@ -145,7 +130,6 @@ describe('engine ↔ quote parity', () => {
     const result = engine.run({
       profile: profileFixture(),
       programs: [programFixture({ loanLimits: { minAmountEGP: '10000', maxAmountEGP: '0' } })],
-      scoringConfig,
       skipEligibility: true,
     });
     expect(result.status).toBe('no_match');

@@ -292,11 +292,18 @@ gating rule both forbid it).
 **Decision**: Two nullable columns on `bank_offer` — `incomeOrigin` and `incomeSurrogateStrategy` —
 written at creation, never updated.
 
-**Rationale**: The `approvalUsedDefault` column (schema.prisma:466-470) records the identical
-argument in the identical situation: "Must be persisted, not derived: configuring the program later
-would silently rewrite the meaning of an immutable offer (Principle I)". An offer produced from a
-grade table must still say so after the admin edits that table, and `BankOffer` is immutable
-post-creation (A6).
+**Rationale**: `bank_offer.bankIsFeatured` and `bank_offer.rateBasis` record the identical
+argument in the identical situation — a snapshot taken at match time precisely so that a later
+edit to the bank or the program cannot silently rewrite the meaning of an immutable offer
+(Principle I). An offer produced from a grade table must still say so after the admin edits that
+table, and `BankOffer` is immutable post-creation (A6).
+
+> The precedent this section originally cited was `approvalUsedDefault`, which carried the same
+> reasoning verbatim ("Must be persisted, not derived: configuring the program later would silently
+> rewrite the meaning of an immutable offer"). That column was dropped with approval scoring in
+> **v25.0.0**. Only the illustration went — the rule is untouched, and `rankIndex`, added in the
+> same amendment, is a fresh application of it: the ORDER the applicant was shown is frozen on the
+> row rather than re-derived at read time.
 
 **Alternatives rejected**: recomputing from the program's current rule at read time (rewrites
 history); stuffing it into `cascadeTrace` JSON (that blob explains the pricing/tenor/limit cascade;

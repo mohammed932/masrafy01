@@ -11,8 +11,9 @@
  * the classes it groups together, and one applicant reads each bank's correct row from the one
  * list — with no per-bank parent axis anywhere.
  *
- * The parent map here mirrors `20260901120000_city_tier_axis`. If someone re-files a
- * governorate, this test is where the two banks stop agreeing.
+ * The parent map here mirrors `20260901120000_city_tier_axis` as corrected by
+ * `20260905090000_giza_secondary_tier`. If someone re-files a governorate, this test is where
+ * the two banks stop agreeing.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -28,11 +29,15 @@ const MAJOR = 'city_tier_major';
 const SECONDARY = 'city_tier_secondary';
 const OTHER = 'city_tier_other';
 
-/** As the migration files them. */
+/** As the migrations file them (`20260901120000`, corrected by `20260905090000`). */
 const TIER_OF: Record<string, string> = {
   cairo: MAJOR,
-  giza: MAJOR,
   alexandria: MAJOR,
+  // Giza sits with the other main governorates, NOT with Cairo and Alexandria. It was filed
+  // under MAJOR until 2026-09-05, which put it on ABK's 1,500,000 row when that sheet tiers
+  // it at 500,000 — the one governorate where the two banks' groupings had been collapsed
+  // into each other. See `20260905090000_giza_secondary_tier`.
+  giza: SECONDARY,
   assiut: SECONDARY,
   minya: SECONDARY,
   qalyubia: SECONDARY,
@@ -83,6 +88,18 @@ describe('city tiers serve two banks that group cities differently', () => {
     // whole argument for three classes rather than two.
     expect(quote(ABK, 'assiut')).toBe('500000');
     expect(quote(ARABIC_BANK, 'assiut')).toBe('2000000');
+  });
+
+  it('separates them on Giza too, which is why three classes are enough', () => {
+    // Giza is the second cell where the two sheets disagree: bottom to ABK, top to the
+    // Arabic bank — exactly the membership Assiut has, in BOTH groupings. That is what makes
+    // them one class rather than two, and what makes a fourth class unnecessary. If a future
+    // bank splits them, THAT is when `city_tier_secondary` gets divided (spec §10.1's
+    // non-destructive procedure), not before.
+    expect(quote(ABK, 'giza')).toBe('500000');
+    expect(quote(ARABIC_BANK, 'giza')).toBe('2000000');
+    expect(quote(ABK, 'giza')).toBe(quote(ABK, 'assiut'));
+    expect(quote(ARABIC_BANK, 'giza')).toBe(quote(ARABIC_BANK, 'assiut'));
   });
 
   it('agrees on a governorate neither bank tiers up — Aswan', () => {

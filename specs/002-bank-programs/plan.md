@@ -82,7 +82,7 @@ Anti-patterns review:
 - **A17 (skipping design pipeline)**: FR-040 + SC-016 mandate both promax + impec.
 - **A18 (raw hex)**: Tokens only.
 - **A19 (`margin-left/right`)**: Logical CSS only.
-- **A24 (approval probability without weights)**: N/A — this feature does not produce approval probabilities; the matching feature does.
+- ~~**A24 (approval probability without weights)**~~: retired in constitution v25.0.0 — approval scoring was removed platform-wide, and A24 is now `Reserved` (kept only so A25–A36 are not renumbered). It was N/A to this feature in any case: bank programs never produced a probability.
 
 **Gate result (Phase 0 pre-design)**: PASS — no violations, no Complexity Tracking entries required.
 

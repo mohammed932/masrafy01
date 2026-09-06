@@ -217,7 +217,7 @@ class _ResultsSkeleton extends StatelessWidget {
           const _SummaryCardSkeleton(),
           for (var i = 0; i < 3; i++) ...[
             Gap(25.h),
-            _OfferCardSkeleton(best: i == 0),
+            _OfferCardSkeleton(topPick: i == 0),
           ],
         ],
       ),
@@ -266,13 +266,13 @@ class _SummaryCardSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton for [MatchOfferCard]. The [best] card mirrors the azure-tinted
-/// best-match variant (title + "Best Match" pill + KPI row + View-offer CTA);
-/// regular cards drop the pill and CTA.
+/// Skeleton for [MatchOfferCard]: two bars where the bank name and the
+/// program/type subline land, then the KPI row. The [topPick] card mirrors the
+/// azure-bordered top-pick variant and carries the View-offer CTA bar.
 class _OfferCardSkeleton extends StatelessWidget {
-  const _OfferCardSkeleton({required this.best});
+  const _OfferCardSkeleton({required this.topPick});
 
-  final bool best;
+  final bool topPick;
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +284,7 @@ class _OfferCardSkeleton extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(18.r),
         border: Border.all(
-          color: best ? colors.secondary.main : colors.border.secondary,
+          color: topPick ? colors.secondary.main : colors.border.secondary,
         ),
       ),
       child: Column(
@@ -303,10 +303,6 @@ class _OfferCardSkeleton extends StatelessWidget {
                   ],
                 ),
               ),
-              if (best) ...[
-                Gap(8.w),
-                const MasrafyShimmerBox(width: 92, height: 26, radius: 999),
-              ],
             ],
           ),
           Gap(16.h),
@@ -323,7 +319,7 @@ class _OfferCardSkeleton extends StatelessWidget {
           // Mirrors the max-borrow band, which every real offer carries.
           Gap(8.h),
           const MasrafyShimmerBox(height: 33, radius: 10),
-          if (best) ...[
+          if (topPick) ...[
             Gap(16.h),
             const MasrafyShimmerBox(height: 48, radius: 12),
           ],

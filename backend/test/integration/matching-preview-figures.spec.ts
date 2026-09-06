@@ -67,21 +67,14 @@ const PROGRAM = {
 };
 
 function makeService() {
-  const scoreProgram = vi.fn(async () => ({
-    probability: 0.42,
-    tier: 'moderate',
-    usedDefault: false,
-    factors: { positive: [{ code: 'education', impact: 42 }], negative: [] },
-  }));
   return new MatchingPreviewService(
     { activeVersion: async () => ({ id: 'ver_4', snapshot: SNAPSHOT }) } as never,
-    { scoreProgram } as never,
     { findAllActive: async () => [PROGRAM] } as never,
-    // Feature 011 added a 4th and 5th dependency (the catalog name scope and the
-    // enumeration registry); this spec predates both. `assertOfferedUnder` is a no-op
-    // because these cases pass no `programNameKey`, and the registry reads return empty:
-    // no rule here reads a fact or a registry parent, so an empty registry is the honest
-    // answer rather than a convenient one.
+    // Feature 011 added the catalog name scope and the enumeration registry; this spec
+    // predates both. `assertOfferedUnder` is a no-op because these cases pass no
+    // `programNameKey`, and the registry reads return empty: no rule here reads a fact or
+    // a registry parent, so an empty registry is the honest answer rather than a
+    // convenient one.
     { assertOfferedUnder: async () => undefined } as never,
     {
       programNameIncomeRules: async () => new Map(),
@@ -144,19 +137,6 @@ describe('preview figures', () => {
     expect(match?.figures).toBeNull();
     expect(match?.figuresUnavailableReason).toBe('OBLIGATIONS_EXCEED_ALLOWANCE');
     expect(match?.maxAffordableAmountEGP).toBe('0.00');
-    expect(match?.approvalProbability).toBe(0.42); // still scored + ranked
-  });
-
-  /**
-   * The scorer already computes the per-answer breakdown behind the score. It
-   * used to be discarded here, which left every surface asserting a percentage
-   * it could not explain — and a dropped field looks identical to a program with
-   * nothing scored.
-   */
-  it('carries the scorer’s factor breakdown through to the match', async () => {
-    const { matches } = await preview(moneyAnswers('40000'));
-
-    expect(matches[0]?.approvalFactors.positive).toEqual([{ code: 'education', impact: 42 }]);
   });
 
   it('lists programs without figures until every money answer is in', async () => {

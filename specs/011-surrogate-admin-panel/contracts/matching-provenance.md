@@ -78,9 +78,11 @@ matching (A33). It renders with the reason, never with a zero.
 | `incomeOrigin` | `declared` · `surrogate` · `declared_over_surrogate` · `surrogate_over_declared` · `null` (offers created before this feature) |
 | `incomeSurrogateStrategy` | the strategy token, or `null` |
 
-Both are **frozen at creation and never updated** — the `approvalUsedDefault` precedent
-(schema.prisma:466-470): editing the program's table later must not rewrite what an immutable offer
-meant (Principle I, A6).
+Both are **frozen at creation and never updated**, for the same reason `bankIsFeatured` and
+`rateBasis` are frozen on the same row: editing the program's table later must not rewrite what an
+immutable offer meant (Principle I, A6). (This clause originally cited `approvalUsedDefault` as its
+precedent; that column was removed with approval scoring in v25.0.0 — the rule it illustrated is
+unchanged, so the citation moves to two columns that are still there.)
 
 `null` on a historical offer means "recorded before provenance existed", not "declared". Readers
 must render the absence, not assume a value.

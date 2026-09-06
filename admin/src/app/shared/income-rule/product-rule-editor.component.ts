@@ -239,23 +239,33 @@ interface FlowLine {
         </p>
       }
 
-      <!-- The questions the whole pipeline turns on, in one line. The operator's first
-           question about an unfamiliar product is "what does it ask the customer?", and
-           until now the only answer was to read twenty step titles. -->
+      <!-- The questions the whole pipeline turns on. The operator's first question about an
+           unfamiliar product is "what does it ask the customer?", and until now the only
+           answer was to read twenty step titles.
+
+           A DISCLOSURE, not a row of chips, and that was measured rather than preferred: a
+           fact here is labelled with the whole QUESTION — "How much was the down payment on
+           the unit?" — which renders at 276px in a 678px column, so exactly ONE fits beside
+           the label. Every count-based cap therefore either wrapped the row over three lines
+           and pushed the first decision down the page, or showed one chip and "+7 more",
+           which is a disclosure with extra steps. Closed, this is one line at any width and
+           it states the COUNT, which the chip row never did; open, the questions are a list
+           you can read rather than pills you cannot. Same summary idiom as the arithmetic
+           below it. -->
       @if (layout() === 'full' && readsFacts().length > 0) {
-        <p class="reads">
-          <span class="reads-label" i18n="@@product_rule.reads">Reads the answers</span>
-          @for (f of shownFacts(); track f) {
-            <span class="chip">{{ f }}</span>
-          }
-          <!-- Capped at one line. Thirteen chips over three rows pushed the first
-               decision below the fold to answer a question the operator asks once. -->
-          @if (hiddenFactCount() > 0) {
-            <button type="button" class="chip is-more" (click)="allFacts.set(true)">
-              {{ moreFactsLabel() }}
-            </button>
-          }
-        </p>
+        <details class="flow reads">
+          <summary>
+            <span nz-icon nzType="down" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@product_rule.reads">Reads the answers</span>
+            <span class="flow-count" aria-hidden="true">{{ readsFacts().length }}</span>
+          </summary>
+          <!-- Explicit role: Safari drops list semantics from a list-style:none list. -->
+          <ul class="reads-list" role="list">
+            @for (f of readsFacts(); track f) {
+              <li class="reads-item">{{ f }}</li>
+            }
+          </ul>
+        </details>
       }
 
       @if (layout() === 'full' && variant() === 'program' && activeDerivation(); as active) {
@@ -304,6 +314,30 @@ interface FlowLine {
             <p class="grp-hint" [id]="wayGroup + '-hint'">{{ group.hint }}</p>
           }
 
+          <!-- SAID ONCE, WITH THE ACTION, and only over the list it is about.
+               The same sentence on every offending row is read at the first one and
+               skipped at the rest, and it named something the operator could not do —
+               an unpicked way's fields are not on screen to be cleared. One line, one
+               button that actually does it; the rows keep a two-word tag so the eye can
+               still find which ones.
+
+               Gated on the group: these panels are TABS, so an ungated notice would pin a
+               destructive button over the Conditions list with no tagged row in view. -->
+          @if (group.key === 'alternative' && conflictingWays().length > 0) {
+            <p class="grp-conflict" role="status">
+              <span class="conflict-dot" aria-hidden="true"></span>
+              <span>{{ conflictNotice }}</span>
+              <button
+                type="button"
+                class="grp-conflict-clear"
+                (click)="clearOtherWays()"
+                i18n="@@product_rule.way.conflict_clear"
+              >
+                Clear the other ways
+              </button>
+            </p>
+          }
+
           <ul class="rows">
             @for (row of group.rows; track row.id) {
               <li
@@ -333,11 +367,12 @@ interface FlowLine {
                       }
                     </span>
                     @if (wayConflict(row)) {
-                      <span class="row-state is-conflict">
+                      <!-- The tag MARKS the row; the notice above it explains and fixes.
+                           The full sentence stays on the accessible name, because a screen
+                           reader arrives at the row without the notice in view. -->
+                      <span class="row-state is-conflict" [attr.aria-label]="stillFilledLabel">
                         <span class="conflict-dot" aria-hidden="true"></span>
-                        <span i18n="@@product_rule.way.still_filled"
-                          >Still has amounts — pick this way, or clear them</span
-                        >
+                        <span i18n="@@product_rule.way.still_filled_tag">has amounts</span>
                       </span>
                     }
                   </label>
@@ -580,52 +615,27 @@ interface FlowLine {
         font-size: var(--text-xs);
       }
 
-      /* The questions, as chips. Membership, not a table: the operator is checking that a
-         name they recognise is in the list, which is a scan, not a read. */
-      .reads {
+      /* The questions, one per line, behind the same disclosure the arithmetic uses.
+         NOT chips: each of these is a whole question — "How much was the down payment on
+         the unit?" measures 276px in a 678px column — so a pill row could fit exactly one
+         of them beside its label, and every cap either wrapped over three lines or degraded
+         into a disclosure with extra steps. A pill around a sentence also reads as a token
+         that happens to be long. */
+      .reads-list {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-2);
-        margin: 0;
+        flex-direction: column;
+        gap: var(--space-0-5);
+        margin: var(--space-2) 0 0;
+        padding: 0;
+        list-style: none;
       }
 
-      /* Secondary, not tertiary: measured at 3.83:1 on this surface in light mode, and a
-         12px uppercase micro-label is the worst case for it. */
-      .reads-label {
+      .reads-item {
+        padding-inline-start: var(--space-3);
+        border-inline-start: 2px solid var(--color-border-default);
         color: var(--color-text-secondary);
         font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        letter-spacing: var(--tracking-wide);
-        text-transform: uppercase;
-      }
-
-      /* --bg-muted, not --color-surface-elevated: that token resolves to --bg-subtle, which
-         IS this panel's own ground — so the chips had no chip, and the row read as one
-         run-on line of words rather than as a list of the answers the product turns on. */
-      .chip {
-        padding: var(--space-0-5) var(--space-2);
-        border-radius: var(--radius-pill);
-        background: var(--bg-muted);
-        color: var(--color-text-secondary);
-        font-size: var(--text-xs);
-        white-space: nowrap;
-      }
-      /* Reads as one more chip, behaves as a button — which is exactly what it is. */
-      .chip.is-more {
-        border: 1px dashed var(--color-border-strong);
-        background: none;
-        font: inherit;
-        font-size: var(--text-xs);
-        cursor: pointer;
-      }
-      .chip.is-more:hover {
-        color: var(--color-brand-primary);
-        border-color: var(--color-brand-primary);
-      }
-      .chip.is-more:focus-visible {
-        outline: var(--focus-ring-width) solid var(--color-border-focus);
-        outline-offset: var(--focus-ring-offset);
+        line-height: 1.6;
       }
 
       /* Which derivation is live. The single most useful line on a bank's own rule, so it
@@ -771,6 +781,38 @@ interface FlowLine {
         align-items: center;
         gap: var(--space-2);
         color: var(--color-text-primary);
+        white-space: nowrap;
+      }
+
+      /* One line above the list, stating the count and carrying the fix. Warning ink is
+         the DOT, not the sentence: --color-warning on any ground in this theme is under
+         4.5:1, and this sentence has to be read. */
+      .grp-conflict {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-xs);
+        color: var(--color-text-primary);
+      }
+      .grp-conflict-clear {
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        color: var(--color-brand-primary);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .grp-conflict-clear:hover {
+        color: var(--color-tonal-accent);
+      }
+      .grp-conflict-clear:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
       }
 
       .conflict-dot {
@@ -971,12 +1013,15 @@ interface FlowLine {
 
       /* What the closed state has to say for itself: twenty steps and three are a very
          different offer, and the label alone reads the same either way. */
+      /* Secondary ink and --bg-muted: tertiary on the elevated token measured 3.54:1, and
+         this pill is the only thing saying whether the disclosure holds three lines or
+         twenty — a number nobody can read is not a summary. */
       .flow-count {
         min-inline-size: 2ch;
         padding: 0 var(--space-1);
         border-radius: var(--radius-pill);
-        background: var(--color-surface-elevated);
-        color: var(--color-text-tertiary);
+        background: var(--bg-muted);
+        color: var(--color-text-secondary);
         font-variant-numeric: tabular-nums;
         text-align: center;
       }
@@ -1047,9 +1092,9 @@ interface FlowLine {
         font-size: 0.875em;
       }
 
-      /* Inked at SECONDARY, not the tertiary the surrounding line runs at: a chip darkens
-         the ground under its own text, and tertiary on it lands at 3.5:1. Same pairing the
-         fact chips at the top of this panel already use. */
+      /* Inked at SECONDARY, not the tertiary the surrounding line runs at: a filled pill
+         darkens the ground under its own text, and tertiary on it lands at 3.5:1. Same
+         pairing as .flow-count, the other pill in this panel. */
       .flow-ref {
         min-inline-size: 2ch;
         padding: 0 var(--space-1);
@@ -1149,6 +1194,24 @@ export class ProductRuleEditorComponent {
    */
   readonly wayId = model<string | null>(null);
 
+  /**
+   * Are the figures on screen this program's OWN, or a read-only copy of the catalog's?
+   *
+   * Read by one thing — the way-conflict tag — and it is what makes that tag true.
+   *
+   * A bank inheriting the catalog's amounts is shown the catalog's `stepParams`, and on a
+   * product whose ways a catalog fills (the compound guarantee fills four of five) every
+   * way but the picked one then "holds figures". The tag said so three times over, told the
+   * operator to clear amounts they never typed, and offered no control that could: an
+   * unpicked way's body is not rendered at all. The figures are also never persisted from
+   * that state, and the server cannot raise the refusal it mirrors — `effectiveIncomeRule`
+   * prunes to the chosen way BEFORE validating, so `alsoFilled` is empty by construction.
+   *
+   * Defaults to `true`, so the catalog editors and every existing binding keep the
+   * behaviour they had.
+   */
+  readonly figuresAreOwn = input<boolean>(true);
+
   private readonly modal = inject(NzModalService);
 
   /** Unique per mount, so two editors on one page never share a radio group. */
@@ -1184,8 +1247,8 @@ export class ProductRuleEditorComponent {
   readonly onlyKeyedBy = input<string | null>(null);
 
   /**
-   * `inline` drops the frame — the rail, the group hints, the lede, the fact chips and the
-   * read-only flow — and keeps the figures.
+   * `inline` drops the frame — the rail, the group hints, the lede, the list of answers the
+   * rule reads and the read-only flow — and keeps the figures.
    *
    * Everything it removes is said by the panel this is nested inside, and a box in a box in
    * a box is what the row layout below already exists to avoid.
@@ -1268,8 +1331,41 @@ export class ProductRuleEditorComponent {
    * would name. Rare by construction, which is exactly why it is worth a line when it happens.
    */
   protected wayConflict(row: EditorRow): boolean {
+    // Nothing to reconcile while the figures belong to the catalog: they are not saved
+    // from here, they cannot be cleared from here, and the save does not refuse them.
+    if (!this.figuresAreOwn()) return false;
     if (row.wayId === null || row.wayId === this.wayId()) return false;
     return this.filledWays().includes(row.wayId);
+  }
+
+  /** The ways in conflict right now — the count the notice states, and what Clear removes. */
+  protected readonly conflictingWays = computed<string[]>(() => {
+    if (!this.figuresAreOwn() || !this.picksOneWay()) return [];
+    const chosen = this.wayId();
+    if (chosen === null) return [];
+    return this.filledWays().filter((id) => id !== chosen);
+  });
+
+  /**
+   * No count in the sentence, deliberately.
+   *
+   * The rows carry it — one tag each — so the number here was a second rendering of
+   * something already on screen, and it cost every locale a plural agreement: the first
+   * draft read "1 other ways" in English, and Arabic has six plural forms for a slot this
+   * one sentence would have to satisfy.
+   */
+  protected readonly conflictNotice = $localize`:@@product_rule.way.conflict_notice:Other ways still hold this bank's amounts. Only the way you pick is saved.`;
+
+  /**
+   * Drop every figure the unpicked ways hold.
+   *
+   * `commitWay` on the way ALREADY chosen: it keeps that way's slots and everything no way
+   * owns, and clears the rest — which is exactly this, so the clearing rule is stated once
+   * rather than twice with a chance to disagree.
+   */
+  protected clearOtherWays(): void {
+    const chosen = this.wayId();
+    if (chosen !== null) this.commitWay(chosen);
   }
 
   private readonly filledWays = computed(() => filledWayIds(this.steps(), this.figures()));
@@ -1367,28 +1463,10 @@ export class ProductRuleEditorComponent {
     this.figuresTouched.emit();
   }
 
-  /** How many answer chips fit on one line before the row starts stacking. */
-  private static readonly FACT_CHIPS = 8;
-
-  /** Set once the operator asks for the rest; there is nothing to collapse back to. */
-  protected readonly allFacts = signal(false);
-
-  protected readonly shownFacts = computed(() =>
-    this.allFacts()
-      ? this.readsFacts()
-      : this.readsFacts().slice(0, ProductRuleEditorComponent.FACT_CHIPS),
-  );
-
-  protected readonly hiddenFactCount = computed(
-    () => this.readsFacts().length - this.shownFacts().length,
-  );
-
-  protected moreFactsLabel(): string {
-    const count = this.hiddenFactCount();
-    return $localize`:@@product_rule.reads_more:+${count}:COUNT: more`;
-  }
-
   protected readonly groupsAria = $localize`:@@product_rule.groups_aria:What this rule needs set`;
+  /** The tag's full sentence, kept for the accessible name — the id and its target are the
+   *  ones the visible sentence used, so nothing about the wording changed for a reader. */
+  protected readonly stillFilledLabel = $localize`:@@product_rule.way.still_filled:Still has amounts — pick this way, or clear them`;
   // Same ids as before, moved off the template so the field component can render them as a
   // real `for`-associated label rather than a span the input happens to sit next to.
   protected readonly atLeastLabel = $localize`:@@product_rule.gate.at_least:At least`;

@@ -1,4 +1,16 @@
-# Factor Catalog — Baseline Version `1.1.0-init`
+# ~~Factor Catalog — Baseline Version `1.1.0-init`~~ — REMOVED (v25.0.0)
+
+> **REMOVED in v25.0.0.** There is no factor catalog, no `weightsConfig`, no
+> `bank_offer.approvalFactors` column and no version `1.1.0-init` — the `scoring_engine_version`
+> table was dropped with the rest of approval scoring.
+>
+> Why: this table is the clearest statement of what the score actually was. Every impact in it —
+> `+15` for a certificate of deposit, `−30` for a previous rejection — is a number somebody chose,
+> in a meeting, and then never checked. The catalog made those choices legible and localizable,
+> which is exactly why keeping it would be the wrong call: a well-presented guess reads to an
+> operator as a measurement. Earning a number like this back needs the outcome loop (real bank
+> decisions recorded against the answers that preceded them), not a better-documented table. A33
+> now blocks reintroducing one without a constitution amendment.
 
 This is the seeded factor catalog for the initial registry row written by the feature-004 migration. Every entry carries:
 

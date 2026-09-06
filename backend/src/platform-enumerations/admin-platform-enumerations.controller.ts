@@ -24,7 +24,6 @@ import type { EnumerationRow, ProgramNameUsage } from './postgres-platform-enume
 import type { BoundQuestion } from './platform-enumerations.repository';
 import type { IncomeBasis } from '@/common/income-basis.util';
 import {
-  CatalogQuestionDto,
   CreateEnumerationDto,
   CreateEnumerationTypeDto,
   EnumerationRowDto,
@@ -35,7 +34,6 @@ import {
   type EnumerationBulkCreateResult,
   SetEnumerationCategoriesDto,
   SetEnumerationIncomeBasisDto,
-  SetEnumerationQuestionsDto,
   UpdateEnumerationDto,
   UpdateEnumerationTypeDto,
 } from './dto/enumeration.dto';
@@ -142,31 +140,12 @@ export class AdminPlatformEnumerationsController {
     return { success: true, data: { key } };
   }
 
-  /**
-   * The active question pool the catalog's template board picks from.
-   *
-   * Static segment, declared with the other statics so no future `:id` route at
-   * this depth can shadow it.
-   *
-   * Not served by reusing `GET /admin/scoring/questions`: that endpoint sits on a
-   * controller scoped `super_admin` + `sales_manager` (this one is super-admin
-   * only) and carries options, numeric bounds, units and text length that this
-   * board never renders.
-   */
-  @Get('questions')
-  @ApiOperation({ summary: 'Active questions a catalog name may be templated with' })
-  async questionPool(): Promise<{ success: true; data: CatalogQuestionDto[] }> {
-    const data = await this.service.questionPool();
-    return { success: true, data };
-  }
-
   @Get()
   @ApiOperation({ summary: 'List enumeration members (optionally filtered by type)' })
   async list(@Query('type') type?: string): Promise<{ success: true; data: EnumerationRowDto[] }> {
     const rows = await this.service.listAll({ type });
-    // Usage, loan-category assignment and the question template are all
-    // meaningful only for the program catalog, and three extra queries for the
-    // whole page beat three per row.
+    // Usage, loan-category assignment and income basis are all meaningful only for the
+    // program catalog, and three extra queries for the whole page beat three per row.
     const isCatalog = type === PROGRAM_NAME_TYPE || rows.some((r) => r.type === PROGRAM_NAME_TYPE);
     const projectCatalog = isCatalog ? await this.catalogProjector() : null;
     // Same one-query-per-page rule as the catalog's three side reads: a fact row is
@@ -292,13 +271,12 @@ export class AdminPlatformEnumerationsController {
    * reads it, so it can never refuse a program the bank is entitled to save. What the
    * banks actually did is counted separately (`usage.byCategory`).
    *
-   * Its own endpoint rather than a field on `PUT :id/categories`, for the same
-   * reason the question template has one: that array's empty case means "parked",
-   * and a per-pair attribute cannot ride a whole-set replacement without inventing
-   * a rule for pairs the submitted set adds or drops.
+   * Its own endpoint rather than a field on `PUT :id/categories`: that array's empty
+   * case means "parked", and a per-pair attribute cannot ride a whole-set replacement
+   * without inventing a rule for pairs the submitted set adds or drops.
    *
-   * The category rides in the BODY, exactly as in `PUT :id/questions` — it names
-   * which of the entry's tabs this write lands on, not a sub-resource.
+   * The category rides in the BODY, not the path — it names which of the entry's tabs
+   * this write lands on, not a sub-resource.
    */
   @Put(':id/income-basis')
   @ApiOperation({ summary: 'Replace one catalog name’s income basis for one loan category' })
@@ -309,38 +287,6 @@ export class AdminPlatformEnumerationsController {
     @Ip() ip: string,
   ): Promise<{ success: true; data: EnumerationRowDto }> {
     const row = await this.service.setIncomeBases(id, body.category, body.bases, {
-      staffId: user.sub,
-      sourceIp: ip ?? null,
-    });
-    const projectCatalog = await this.catalogProjector();
-    return { success: true, data: projectCatalog(row) };
-  }
-
-  /**
-   * Replace one catalog name's SUGGESTED question set FOR ONE loan category
-   * (`body.category`). Advisory: it pre-ticks the per-program scoring wizard and
-   * constrains nothing — `saveWeights` never reads it, so this can never
-   * invalidate a weight set a bank already saved.
-   *
-   * The category rides in the BODY, not the path. It is not a sub-resource being
-   * addressed — it is which of the entry's four sets this array replaces, and a
-   * `:category` segment would invite a GET on the same path that nothing serves
-   * (the whole template comes back on every row).
-   *
-   * No bulk sibling, unlike `POST categories`. That one exists because a column
-   * action there spans 16 ROWS; here every action — one tap, tick-all, clear-all
-   * — produces a new set for ONE name under ONE category, so it is one PUT with
-   * the whole array.
-   */
-  @Put(':id/questions')
-  @ApiOperation({ summary: 'Replace one catalog name’s suggested question set for one category' })
-  async setQuestions(
-    @Param('id') id: string,
-    @Body() body: SetEnumerationQuestionsDto,
-    @CurrentUser() user: JwtPayload,
-    @Ip() ip: string,
-  ): Promise<{ success: true; data: EnumerationRowDto }> {
-    const row = await this.service.setQuestions(id, body.category, body.questionCodes, {
       staffId: user.sub,
       sourceIp: ip ?? null,
     });
@@ -421,18 +367,16 @@ export class AdminPlatformEnumerationsController {
   private async catalogProjector(): Promise<
     (row: Parameters<AdminPlatformEnumerationsController['project']>[0]) => EnumerationRowDto
   > {
-    const [usage, categories, bases, questions] = await Promise.all([
+    const [usage, categories, bases] = await Promise.all([
       this.service.programNameUsage(),
       this.service.categoryAssignments({ type: PROGRAM_NAME_TYPE }),
       this.service.incomeBasisAssignments({ type: PROGRAM_NAME_TYPE }),
-      this.service.questionAssignments({ type: PROGRAM_NAME_TYPE }),
     ]);
     return (row) =>
       this.project(row, {
         usage: usage.get(row.key) ?? EMPTY_USAGE,
         categories: [...sortCategories(categories.get(row.id) ?? [])],
         incomeBasesByCategory: bases.get(row.id) ?? {},
-        questionsByCategory: questions.get(row.id) ?? {},
       });
   }
 
@@ -447,12 +391,11 @@ export class AdminPlatformEnumerationsController {
       usage?: ProgramNameUsage;
       categories?: LoanCategory[];
       incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
-      questionsByCategory?: Partial<Record<LoanCategory, string[]>>;
       /** `null` = this fact binds nothing yet; absent = this type binds nothing ever. */
       boundQuestion?: BoundQuestion | null;
     } = {},
   ): EnumerationRowDto {
-    const { usage, categories, incomeBasesByCategory, questionsByCategory, boundQuestion } = extras;
+    const { usage, categories, incomeBasesByCategory, boundQuestion } = extras;
     return {
       id: row.id,
       type: row.type,
@@ -476,9 +419,6 @@ export class AdminPlatformEnumerationsController {
       // Same rule again: absent = this type has no income basis; present and keyed
       // only by the categories the name is actually offered under.
       ...(incomeBasesByCategory ? { incomeBasesByCategory } : {}),
-      // Same rule: absent = no template axis; present `{}` = nothing suggested
-      // for any category yet, which is the day-one state.
-      ...(questionsByCategory ? { questionsByCategory } : {}),
       // `!== undefined`, not truthiness: `null` is the state that MUST reach the client
       // — a fact bound to nothing — and a truthy check would erase it into "this type
       // has no binding", which is the one reading that hides the problem.

@@ -7,26 +7,22 @@ import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import type {
   ApplicantProfile,
-  ApprovalProbabilityResult,
   BankProgramSnapshot,
   FiguresUnavailableReason,
   MatchResult,
   NoMatchDetail,
   Offer,
   Quote,
-  ScoringConfig,
   Suggestion,
 } from './types';
 import { checkEligibility } from './pipeline/eligibility-checker';
 import { applyCompanyTypeAdjustment, resolveAssumedIncome } from './pipeline/income-resolver';
-import { calculateApprovalProbability } from './pipeline/approval-probability';
 import { rankOffers } from './pipeline/ranking';
 import { quoteProgram, shouldConsultIncomeRule } from './pipeline/quote';
 
 export interface EngineInput {
   profile: ApplicantProfile;
   programs: BankProgramSnapshot[];
-  scoringConfig: ScoringConfig;
   /**
    * MVP simplification (Principle V): when true, the eligibility checks are
    * evaluated for transparency but never reject a program — every active program
@@ -75,7 +71,7 @@ export interface EngineOutput {
 export class EngineService {
   run(input: EngineInput): EngineOutput {
     const t0 = Date.now();
-    const { profile, programs, scoringConfig } = input;
+    const { profile, programs } = input;
     const skipEligibility = input.skipEligibility ?? false;
     const skipDbrCheck = input.skipDbrCheck ?? false;
     const results: MatchResult[] = [];
@@ -83,7 +79,7 @@ export class EngineService {
 
     for (const program of programs) {
       if (!program.active) continue;
-      const result = this.evaluateProgram(profile, program, scoringConfig, {
+      const result = this.evaluateProgram(profile, program, {
         skipEligibility,
         skipDbrCheck,
         ...(input.parentKeyByValue !== undefined
@@ -131,7 +127,6 @@ export class EngineService {
   private evaluateProgram(
     profile: ApplicantProfile,
     program: BankProgramSnapshot,
-    scoringConfig: ScoringConfig,
     flags: {
       skipEligibility: boolean;
       skipDbrCheck: boolean;
@@ -217,7 +212,7 @@ export class EngineService {
           ? [...eligibility.passedChecks, 'dbr_adjusted']
           : eligibility.passedChecks,
       failedChecks: [],
-      offer: this.buildOffer({ profile, program, scoringConfig, quote }),
+      offer: this.buildOffer({ profile, program, quote }),
       quote,
     };
   }
@@ -225,17 +220,9 @@ export class EngineService {
   private buildOffer(args: {
     profile: ApplicantProfile;
     program: BankProgramSnapshot;
-    scoringConfig: ScoringConfig;
     quote: Quote;
   }): Offer {
     const { quote } = args;
-    const approvalProbability: ApprovalProbabilityResult = calculateApprovalProbability({
-      profile: args.profile,
-      program: args.program,
-      assumedMonthlyIncomeEGP: quote.recognisedIncomeEGP,
-      dbrPercent: quote.dbrPercent,
-      scoringConfig: args.scoringConfig,
-    });
 
     return {
       bankName: args.program.bankName,
@@ -254,8 +241,6 @@ export class EngineService {
       requestedTenorMonths: args.profile.preferredTenorMonths,
       effectiveTenorMonths: quote.effectiveTenorMonths,
       feesBreakdown: quote.feesBreakdown,
-      approvalProbabilityPercent: approvalProbability.score,
-      approvalProbability,
       requiredDocuments: args.program.requiredDocuments,
       matchReasons: buildMatchReasons(args.profile, args.program),
       cascadeTrace: quote.cascadeTrace,

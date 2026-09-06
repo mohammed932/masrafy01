@@ -96,11 +96,10 @@ class _OfferDetailsView extends StatelessWidget {
     final topInset = MediaQuery.of(context).viewPadding.top;
     final typeLabel = loanTypeLabel(l, summary.loanTypeKey);
     final title = l.offer_title(typeLabel);
-    // An unrated program scores 0 for want of configuration, not for want of
-    // a fit — printing "0% match score" would state the opposite.
-    final subtitle = offer.approvalUnrated
-        ? l.offer_unrated
-        : l.offer_approval(offer.approvalPct);
+    // The bank behind the offer. Saved-offer / past-application / mock views
+    // carry no bank name; the header already supports an empty subtitle (the
+    // shimmer and error states pump one), so nothing more is needed here.
+    final subtitle = offer.bankName.isNotEmpty ? offer.bankName : '';
     final grouped = NumberFormat.decimalPattern();
 
     // A real, not-yet-applied offer is the only case with a live Apply CTA and
@@ -613,9 +612,9 @@ class _OfferDetailsErrorState extends StatelessWidget {
 }
 
 /// The gradient hero with nothing in it yet: real gradient + working back
-/// button, two placeholder bars where the "{type} Loan" title and "{pct}% match
-/// score" subtitle land. Shared by the shimmer and the error state so a failed
-/// load doesn't jump to a different header.
+/// button, two placeholder bars where the "{type} Loan" title and the bank-name
+/// subtitle land. Shared by the shimmer and the error state so a failed load
+/// doesn't jump to a different header.
 class _OfferDetailsLoadingHero extends StatelessWidget {
   const _OfferDetailsLoadingHero();
 

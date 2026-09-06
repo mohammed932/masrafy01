@@ -10,108 +10,36 @@ import { DeleteOutline, PlusOutline, WarningOutline } from '@ant-design/icons-an
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import { DERIVED_FACTS, derivedFactByKey } from '@core/surrogate-facts';
 import type { RegistryFact } from '../../features/bank-programs/bank-programs.types';
-
-/** One cell of the table. Mirrors the backend `MaxLoanByFactRow` exactly. */
-export interface MaxLoanByFactRow {
-  rowKey?: string;
-  fromInclusive?: string;
-  toExclusive?: string | null;
-  columnKey?: string;
-  maxAmountEGP: string;
-}
-
-/** Mirrors the backend `MaxLoanByFactConfig`. */
-export interface MaxLoanByFactConfig {
-  factKey: string;
-  columnFactKey?: string;
-  rows: MaxLoanByFactRow[];
-  onNoMatch: 'useProgramMax' | 'reject';
-}
-
-/** The subset of the backend's reasons this editor can see before a save. */
-export type MaxLoanByFactError =
-  | 'NO_ROWS'
-  | 'ROW_MISSING_KEY'
-  | 'DUPLICATE_ROW'
-  | 'AMOUNT_INVALID'
-  | 'BANDS_GAP'
-  | 'BANDS_OVERLAP'
-  | null;
+import {
+  maxLoanByFactErrorFor,
+  withColumnFact,
+  withRowFact,
+  withoutColumn,
+} from './max-loan-by-fact.rules';
+import type {
+  MaxLoanByFactConfig,
+  MaxLoanByFactError,
+  MaxLoanByFactRow,
+  MaxLoanByFactVia,
+} from './max-loan-by-fact.rules';
 
 /**
- * The row without its column. Written as a rebuild rather than a rest-destructure so the
- * discarded key needs no throwaway binding, and so an added field has to be listed here
- * deliberately rather than carried by accident.
+ * The pure half lives in `max-loan-by-fact.rules.ts` so it can be unit-tested without
+ * Angular. Re-exported here because this file is the one every host imports from, and moving
+ * the type would be a rename across the wizard for no gain.
  */
-function withoutColumn(row: MaxLoanByFactRow): MaxLoanByFactRow {
-  const next: MaxLoanByFactRow = { maxAmountEGP: row.maxAmountEGP };
-  if (row.rowKey !== undefined) next.rowKey = row.rowKey;
-  if (row.fromInclusive !== undefined) next.fromInclusive = row.fromInclusive;
-  if (row.toExclusive !== undefined) next.toExclusive = row.toExclusive;
-  return next;
-}
-
-function cellOf(row: MaxLoanByFactRow): string {
-  const key = row.rowKey ?? `${row.fromInclusive ?? ''}..${row.toExclusive ?? ''}`;
-  return `${key}|${row.columnKey ?? '_'}`;
-}
-
-/**
- * Client-side mirror of `validateMaxLoanByFact`, as a pure function so a host can gate its
- * own save on the same verdict the editor shows inline — including while the editor is not
- * rendered, which is every wizard step the admin has left.
- *
- * Deliberately a SUBSET: whether a fact exists and whether an option code is real are the
- * registry's questions, and the registry is the server's. The server re-checks everything on
- * save; this only saves the round trip on what the browser can already see.
- */
-export function maxLoanByFactErrorFor(
-  config: MaxLoanByFactConfig | null,
-  isNumericFact: boolean,
-): MaxLoanByFactError {
-  if (config === null) return null;
-  if (config.rows.length === 0) return 'NO_ROWS';
-
-  const seen = new Set<string>();
-  for (const row of config.rows) {
-    const amount = Number(row.maxAmountEGP);
-    if (!Number.isFinite(amount) || amount <= 0) return 'AMOUNT_INVALID';
-    if (isNumericFact) {
-      if (row.fromInclusive === undefined && row.toExclusive === undefined) {
-        return 'ROW_MISSING_KEY';
-      }
-    } else if (row.rowKey === undefined || row.rowKey === '') {
-      return 'ROW_MISSING_KEY';
-    }
-    const cell = cellOf(row);
-    if (seen.has(cell)) return 'DUPLICATE_ROW';
-    seen.add(cell);
-  }
-
-  if (!isNumericFact) return null;
-
-  // Bands, per column: two columns each state their own run, and a gap in one is not a gap
-  // in the other.
-  const columns = new Set(config.rows.map((r) => r.columnKey ?? '_'));
-  for (const column of columns) {
-    const run = config.rows
-      .filter((r) => (r.columnKey ?? '_') === column)
-      .map((r) => ({
-        from: Number(r.fromInclusive ?? '0'),
-        to: r.toExclusive === null || r.toExclusive === undefined ? null : Number(r.toExclusive),
-      }))
-      .sort((a, b) => a.from - b.from);
-    for (let i = 1; i < run.length; i += 1) {
-      const previous = run[i - 1];
-      const current = run[i];
-      if (previous === undefined || current === undefined) continue;
-      if (previous.to === null) return 'BANDS_OVERLAP';
-      if (previous.to < current.from) return 'BANDS_GAP';
-      if (previous.to > current.from) return 'BANDS_OVERLAP';
-    }
-  }
-  return null;
-}
+export {
+  maxLoanByFactErrorFor,
+  withColumnFact,
+  withRowFact,
+  withoutColumn,
+} from './max-loan-by-fact.rules';
+export type {
+  MaxLoanByFactConfig,
+  MaxLoanByFactError,
+  MaxLoanByFactRow,
+  MaxLoanByFactVia,
+} from './max-loan-by-fact.rules';
 
 /**
  * The program's MAXIMUM LOAN, keyed by an answer the applicant gave.
@@ -155,9 +83,13 @@ export function maxLoanByFactErrorFor(
         <span nz-icon nzType="plus"></span>
         <span i18n="@@max_loan_by_fact.enable">Cap the maximum by an answer</span>
       </button>
+      <!-- One line, not two: this sits inside the loan-amount card as an OPTIONAL
+           extra, and a two-line paragraph beside a dashed button reads as work the
+           operator has to do. The sheet cue it used to carry ("the second table
+           under ‘Loan Amount — Maximum’") is the section title's job. -->
       <p class="mlf__hint" i18n="@@max_loan_by_fact.enable_hint">
-        For a sheet that prints a second table under “Loan Amount — Maximum” — by property type,
-        city, school, branch, or a down-payment bracket.
+        Only if this bank’s maximum changes with an answer — property type, city, school, branch or
+        down-payment bracket.
       </p>
     } @else {
       <div class="mlf">
@@ -187,6 +119,42 @@ export function maxLoanByFactErrorFor(
             }
           </nz-select>
         </div>
+
+        @if (rowClassKeyable() || columnClassKeyable()) {
+          <fieldset class="mlf__vias">
+            <legend i18n="@@max_loan_by_fact.via_legend">What the keys name</legend>
+            @if (rowClassKeyable()) {
+              <label class="mlf__via">
+                <input
+                  type="checkbox"
+                  [checked]="config()!.rowVia === 'parentClass'"
+                  (change)="changeRowVia(rowViaChecked($event) ? 'parentClass' : 'answer')"
+                />
+                <span i18n="@@max_loan_by_fact.row_via_class"
+                  >Key the rows by the class the answer is filed under</span
+                >
+              </label>
+            }
+            @if (columnClassKeyable()) {
+              <label class="mlf__via">
+                <input
+                  type="checkbox"
+                  [checked]="config()!.columnVia === 'parentClass'"
+                  (change)="changeColumnVia(rowViaChecked($event) ? 'parentClass' : 'answer')"
+                />
+                <span i18n="@@max_loan_by_fact.column_via_class"
+                  >Key the columns by the class the answer is filed under</span
+                >
+              </label>
+            }
+            <p class="mlf__hint" i18n="@@max_loan_by_fact.via_hint">
+              One row per class instead of one per answer — three city tiers rather than
+              twenty-seven governorates. A value added to the list later reads its class’s row on
+              day one, with no edit to this table. Changing this clears the rows: the keys come from
+              a different list either way.
+            </p>
+          </fieldset>
+        }
 
         <table class="mlf__table">
           <thead>
@@ -347,6 +315,27 @@ export function maxLoanByFactErrorFor(
         font-size: 13px;
         color: var(--color-text-secondary);
       }
+      .mlf__vias {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 10px 12px;
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+      }
+      .mlf__vias legend {
+        padding-inline: 6px;
+        font-size: 12px;
+        color: var(--color-text-secondary);
+      }
+      .mlf__via {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--color-text-primary);
+        cursor: pointer;
+      }
       .mlf__select {
         width: 100%;
       }
@@ -454,20 +443,58 @@ export class MaxLoanByFactEditorComponent {
     return this.facts().find((f) => f.key === key)?.question?.type === 'NUMERIC';
   });
 
-  protected readonly rowOptions = computed(() => this.optionsFor(this.config()?.factKey));
-
-  protected readonly columnOptions = computed(() => this.optionsFor(this.config()?.columnFactKey));
-
-  protected readonly error = computed(() =>
-    maxLoanByFactErrorFor(this.config(), this.isNumericFact()),
+  protected readonly rowOptions = computed(() =>
+    this.optionsFor(this.config()?.factKey, this.config()?.rowVia),
   );
 
-  private optionsFor(key: string | undefined): Array<{ code: string; label: string }> {
+  protected readonly columnOptions = computed(() =>
+    this.optionsFor(this.config()?.columnFactKey, this.config()?.columnVia),
+  );
+
+  /**
+   * Whether a fact's answers are filed under classes — i.e. whether keying by the class is
+   * even a thing this fact can do.
+   *
+   * The same guard the income rule's own class column applies: a control offered on a fact
+   * with no classes can only ever produce a table that matches nothing.
+   */
+  private classKeyable(key: string): boolean {
+    if (derivedFactByKey(key)) return false;
+    const question = this.facts().find((f) => f.key === key)?.question;
+    if (!question || question.type !== 'SINGLE_SELECT') return false;
+    return question.parentOptions.length > 0;
+  }
+
+  protected readonly rowClassKeyable = computed(() => {
+    const key = this.config()?.factKey;
+    return key !== undefined && this.classKeyable(key);
+  });
+
+  protected readonly columnClassKeyable = computed(() => {
+    const key = this.config()?.columnFactKey;
+    return key !== undefined && this.classKeyable(key);
+  });
+
+  protected readonly error = computed(() =>
+    maxLoanByFactErrorFor(this.config(), this.isNumericFact(), {
+      rowIsDerived: derivedFactByKey(this.config()?.factKey ?? '') !== undefined,
+      columnIsDerived: derivedFactByKey(this.config()?.columnFactKey ?? '') !== undefined,
+    }),
+  );
+
+  private optionsFor(
+    key: string | undefined,
+    via: MaxLoanByFactVia | undefined,
+  ): Array<{ code: string; label: string }> {
     if (key === undefined) return [];
     const derived = derivedFactByKey(key);
     if (derived) return derived.options.map((o) => ({ code: o.code, label: o.label }));
     const question = this.facts().find((f) => f.key === key)?.question;
-    return (question?.options ?? []).map((o) => ({
+    // On a class axis the key IS a class, so the picker has to offer the classes — three
+    // city tiers, not twenty-seven governorates. Offering the answers there is how a table
+    // ends up spelling option codes no row will ever be looked up by.
+    const source = via === 'parentClass' ? question?.parentOptions : question?.options;
+    return (source ?? []).map((o) => ({
       code: o.code,
       label: this.isAr ? o.labelAr : o.labelEn,
     }));
@@ -493,28 +520,34 @@ export class MaxLoanByFactEditorComponent {
   protected changeFact(factKey: string): void {
     const current = this.config();
     if (current === null || current.factKey === factKey) return;
-    // Rows are CLEARED, not carried: a row keyed the other way round matches nothing at
-    // runtime, so carrying them would leave a table that reads as configured and caps
-    // nobody — the exact failure this whole feature exists to make impossible.
-    this.config.set({ ...current, factKey, rows: [] });
+    this.config.set(withRowFact(current, factKey, (key) => this.classKeyable(key)));
   }
 
   protected changeColumnFact(columnFactKey: string | null): void {
     const current = this.config();
     if (current === null) return;
-    if (columnFactKey === null) {
-      // Dropping the axis drops every row's column, so no row is left pointing at a column
-      // that no longer exists.
-      this.config.set({
-        factKey: current.factKey,
-        onNoMatch: current.onNoMatch,
-        rows: current.rows.map((row) => withoutColumn(row)),
-      });
-      return;
-    }
+    this.config.set(withColumnFact(current, columnFactKey, (key) => this.classKeyable(key)));
+  }
+
+  /** The checkbox's own state, without an `$any` cast in the template (A15). */
+  protected rowViaChecked(event: Event): boolean {
+    return (event.target as HTMLInputElement).checked;
+  }
+
+  protected changeRowVia(via: MaxLoanByFactVia): void {
+    const current = this.config();
+    if (current === null || (current.rowVia ?? 'answer') === via) return;
+    // The keys are drawn from a different list either way, so every row is cleared with the
+    // axis — the same reason changing the fact clears them.
+    this.config.set({ ...current, rowVia: via, rows: [] });
+  }
+
+  protected changeColumnVia(via: MaxLoanByFactVia): void {
+    const current = this.config();
+    if (current === null || (current.columnVia ?? 'answer') === via) return;
     this.config.set({
       ...current,
-      columnFactKey,
+      columnVia: via,
       rows: current.rows.map((row) => withoutColumn(row)),
     });
   }
@@ -556,6 +589,8 @@ export class MaxLoanByFactEditorComponent {
         return $localize`:@@max_loan_by_fact.err_duplicate:Two rows state the same answer. The second one would never be read.`;
       case 'AMOUNT_INVALID':
         return $localize`:@@max_loan_by_fact.err_amount:Every row needs a maximum above zero. A zero would be a blank card, not a cap.`;
+      case 'VIA_NOT_APPLICABLE':
+        return $localize`:@@max_loan_by_fact.err_via:This table is keyed by the class an answer is filed under, but that answer is not filed under anything. Key it by the answer itself.`;
       case 'BANDS_GAP':
         return $localize`:@@max_loan_by_fact.err_gap:There is a gap between two bands. An answer that falls in it matches no row.`;
       case 'BANDS_OVERLAP':

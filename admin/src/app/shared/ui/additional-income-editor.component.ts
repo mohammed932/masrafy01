@@ -15,6 +15,14 @@ export interface AdditionalIncomeConfig {
 export interface AdditionalIncomeOption {
   key: string;
   label: string;
+  /**
+   * This bank weighs the source, but the questionnaire no longer asks about it.
+   *
+   * Shown rather than dropped: the weight is stored and still in effect, so hiding the row
+   * would leave a figure working with no control able to see it. The tag says why it is
+   * here so the operator can clear it deliberately.
+   */
+  retired?: boolean;
 }
 
 /**
@@ -61,7 +69,14 @@ export interface AdditionalIncomeOption {
           <tbody>
             @for (option of options(); track option.key) {
               <tr>
-                <th scope="row" class="aie__label">{{ option.label }}</th>
+                <th scope="row" class="aie__label">
+                  {{ option.label }}
+                  @if (option.retired) {
+                    <span class="aie__retired" i18n="@@additional_income.retired"
+                      >no longer asked</span
+                    >
+                  }
+                </th>
                 <td>
                   <span class="aie__field">
                     <input
@@ -120,15 +135,27 @@ export interface AdditionalIncomeOption {
         padding: var(--space-2) 0;
         text-align: start;
       }
+      /* --color-border-subtle is not a token in this theme, so this rule was invalid at
+         computed-value time and the header had no rule under it at all. */
       .aie__table thead th {
         font-size: var(--text-sm);
-        font-weight: 600;
+        font-weight: var(--font-semibold);
         color: var(--color-text-secondary);
-        border-block-end: 1px solid var(--color-border-subtle);
+        border-block-end: 1px solid var(--color-border-default);
       }
       .aie__label {
-        font-weight: 500;
+        font-weight: var(--font-medium);
         color: var(--color-text-primary);
+      }
+      .aie__retired {
+        margin-inline-start: var(--space-2);
+        padding: var(--space-0-5) var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-normal);
+        white-space: nowrap;
       }
       /* One control drawn as a field with its unit INSIDE it, matching the money and
          percentage inputs everywhere else in this form. */

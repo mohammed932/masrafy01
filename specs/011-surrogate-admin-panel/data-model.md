@@ -161,7 +161,9 @@ model BankOffer {
   // …
   /// Which income the quote actually ran on. Frozen at match time: editing the
   /// program's rule later must not rewrite an immutable offer (Principle I / A6),
-  /// the same reason `approvalUsedDefault` is persisted rather than derived.
+  /// the same reason `bankIsFeatured` and `rateBasis` are persisted rather than
+  /// derived. (Originally cited `approvalUsedDefault`, removed with approval
+  /// scoring in v25.0.0; the rule it stood for is unchanged.)
   incomeOrigin            String? @db.VarChar(32)
   /// The surrogate method that produced it, when one did.
   incomeSurrogateStrategy String? @db.VarChar(32)

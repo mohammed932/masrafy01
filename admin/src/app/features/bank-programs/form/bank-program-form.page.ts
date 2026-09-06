@@ -99,6 +99,7 @@ import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/inc
 import { catalogRuleOf } from '@shared/income-rule/catalog-rule';
 import { waysAreExclusive } from '@shared/income-rule/product-rule-ways';
 import { BanksApiService } from '../../banks/banks.api.service';
+import { additionalIncomeSources } from '../additional-income-sources';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
@@ -131,7 +132,17 @@ type StepId = 'income' | 'program' | 'terms' | 'pricing' | 'eligibility' | 'docu
 
 interface WizardStep {
   readonly id: StepId;
+  /** The step's full name. Used by the review step's section headings. */
   readonly label: string;
+  /**
+   * What the RAIL prints. Optional — falls back to `label`.
+   *
+   * Two names because the two surfaces are read differently: a rail is scanned
+   * sideways, where seven names compete for one row and a long one is truncated
+   * into an ellipsis, while a review heading sits alone above the rows it names
+   * and can afford to say "Amount & duration" in full.
+   */
+  readonly railLabel?: string;
   /** Top-level form-group names validated when this step is left. */
   readonly groups: readonly string[];
 }
@@ -1149,15 +1160,27 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                defining property of such a program — it decides what income exists at all —
                and it used to sit last, below eligibility fields it silently reframes. -->
               @if (incomeSurrogateActive()) {
-                <!-- is-bare: the body of this block is two choice cards and an editor
-                     that draws its own borders. A filled card around them would be the
-                     third container for one decision. -->
-                <section class="card is-bare income-block">
-                  <header class="income-head">
+                <!-- ONE CARD, THREE BANDS.
+                     This block used to be bare on the reasoning that its body already drew
+                     its own surfaces — and that was true of the body, but it made this
+                     section the only thing on the step that was not a card while the two
+                     below it (Eligibility, Debt burden) are. What the body actually held was
+                     a bordered section, a bare hairline block and a bordered elevated card:
+                     three peers, three treatments, inside a container that claimed to be
+                     avoiding exactly that. The frames are gone from all three (see
+                     section.styles.scss and .chk), each is a hairline-separated BAND with
+                     one micro-label, and this becomes a plain peer of its two neighbours. -->
+                <section class="card income-block">
+                  <!-- card-head, and it is load-bearing: from 1024up this page lays a card out
+                       as a label rail plus a column of controls, and card > :not(.card-head)
+                       puts everything else in column 2. Named anything else, this header sat in
+                       the control column and left a 353px rail empty beside it — which is what
+                       made the step look like it had a margin nobody could explain. -->
+                  <header class="card-head">
                     <div>
-                      <h3 class="income-title" i18n="@@bank_programs.income.title">
+                      <h2 class="card-title" i18n="@@bank_programs.income.title">
                         Income assumption
-                      </h3>
+                      </h2>
                       @if (catalogProof(); as proof) {
                         <p class="income-lede" i18n="@@bank_programs.income.reads">
                           {{ programNameLabel() }} works the income out from
@@ -1165,15 +1188,18 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                           >.
                         </p>
                       }
+                      <!-- Inside the rail, under the sentence it belongs to. It used to sit on
+                           the opposite end of a space-between row, which the 17rem rail has no
+                           room for. -->
+                      @if (programNameKeyValue()) {
+                        <a
+                          class="income-catalog-link"
+                          [routerLink]="['/program-catalog', programNameKeyValue()]"
+                          i18n="@@bank_programs.income.set_on_catalog"
+                          >Set on the catalog</a
+                        >
+                      }
                     </div>
-                    @if (programNameKeyValue()) {
-                      <a
-                        class="income-catalog-link"
-                        [routerLink]="['/program-catalog', programNameKeyValue()]"
-                        i18n="@@bank_programs.income.set_on_catalog"
-                        >Set on the catalog</a
-                      >
-                    }
                   </header>
 
                   @if (catalogRuleLoading()) {
@@ -1266,43 +1292,48 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                        too, so an unasked fact silences it just as completely, and the
                        check panel is the only way to see what either table pays. -->
                   @if (catalogProof()) {
-                    <!-- The one thing the operator could not learn before saving: whether
+                    <div class="income-band">
+                      <h3 class="band-label" i18n="@@bank_programs.income.band_calculation">
+                        The calculation
+                      </h3>
+
+                      <!-- The one thing the operator could not learn before saving: whether
                          the figure this name reads is even asked of this loan type's
                          applicants. It arrived as a toast after a failed save, or never —
                          and an unasked figure means no income for anyone, quietly. -->
-                    @if (factBinding(); as fb) {
-                      <p class="binding" [class.warn]="!fb.asked" role="status">
-                        @if (fb.asked) {
-                          <span
-                            nz-icon
-                            nzType="check-circle"
-                            nzTheme="outline"
-                            aria-hidden="true"
-                          ></span>
-                          <span i18n="@@bank_programs.income.binding_ok"
-                            >{{ fb.category }} applicants are asked {{ fb.label }}.</span
-                          >
-                        } @else {
-                          <span
-                            nz-icon
-                            nzType="warning"
-                            nzTheme="outline"
-                            aria-hidden="true"
-                          ></span>
-                          <span i18n="@@bank_programs.income.binding_missing"
-                            >{{ fb.category }} applicants are never asked {{ fb.label }}, so this
-                            rule will produce no income.</span
-                          >
-                          <a
-                            routerLink="/questionnaire/categories"
-                            i18n="@@bank_programs.income.binding_fix"
-                            >Ask it</a
-                          >
-                        }
-                      </p>
-                    }
+                      @if (factBinding(); as fb) {
+                        <p class="binding" [class.warn]="!fb.asked" role="status">
+                          @if (fb.asked) {
+                            <span
+                              nz-icon
+                              nzType="check-circle"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
+                            <span i18n="@@bank_programs.income.binding_ok"
+                              >{{ fb.category }} applicants are asked {{ fb.label }}.</span
+                            >
+                          } @else {
+                            <span
+                              nz-icon
+                              nzType="warning"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
+                            <span i18n="@@bank_programs.income.binding_missing"
+                              >{{ fb.category }} applicants are never asked {{ fb.label }}, so this
+                              rule will produce no income.</span
+                            >
+                            <a
+                              routerLink="/questionnaire/categories"
+                              i18n="@@bank_programs.income.binding_fix"
+                              >Ask it</a
+                            >
+                          }
+                        </p>
+                      }
 
-                    <!-- ALWAYS rendered, pre-filled from the catalog when this program is
+                      <!-- ALWAYS rendered, pre-filled from the catalog when this program is
                          inheriting. It used to appear only once the operator had committed
                          to "own amounts", which put the numbers a bank is about to sell
                          behind a decision they could not yet see the consequence of.
@@ -1311,22 +1342,24 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                          happens. So nothing here is read-only, and the pre-filled copy is
                          never persisted: the payload omits figures while the program is
                          still on the catalog's amounts. -->
-                    <app-income-assumption-section
-                      [group]="incomeAssumptionGroup"
-                      [keyTable]="incomeKeyTable()"
-                      (keyTableChange)="onKeyTableEdit($event)"
-                      [bands]="incomeBands()"
-                      (bandsChange)="onBandsEdit($event)"
-                      [ruleSteps]="ruleSteps()"
-                      [ruleGates]="ruleGates()"
-                      [ruleOutput]="ruleOutput()"
-                      [stepFigures]="stepFigures()"
-                      (stepFiguresChange)="onStepFiguresEdit($event)"
-                      (stepFiguresTouched)="markIncomeRuleDirty()"
-                      [waysAre]="ruleWaysAre()"
-                      [wayId]="wayIdValue()"
-                      (wayIdChange)="onWayPicked($event)"
-                    ></app-income-assumption-section>
+                      <app-income-assumption-section
+                        [group]="incomeAssumptionGroup"
+                        [keyTable]="incomeKeyTable()"
+                        (keyTableChange)="onKeyTableEdit($event)"
+                        [bands]="incomeBands()"
+                        (bandsChange)="onBandsEdit($event)"
+                        [ruleSteps]="ruleSteps()"
+                        [ruleGates]="ruleGates()"
+                        [ruleOutput]="ruleOutput()"
+                        [stepFigures]="stepFigures()"
+                        (stepFiguresChange)="onStepFiguresEdit($event)"
+                        (stepFiguresTouched)="markIncomeRuleDirty()"
+                        [waysAre]="ruleWaysAre()"
+                        [wayId]="wayIdValue()"
+                        (wayIdChange)="onWayPicked($event)"
+                        [figuresAreOwn]="amountsValue() === 'own'"
+                      ></app-income-assumption-section>
+                    </div>
 
                     <!-- Money the applicant earns BESIDE whatever the rule or the payslip
                          says — rent, certificate returns, allowances — each counted at this
@@ -1334,8 +1367,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                          part of what income this bank recognises, and the operator is already
                          looking at the rest of that answer. -->
                     @if (additionalIncomeOptions().length > 0) {
-                      <div class="dbr-bands">
-                        <h3 class="dbr-bands-title" i18n="@@bank_programs.income.additional">
+                      <div class="income-band">
+                        <h3 class="band-label" i18n="@@bank_programs.income.additional">
                           Other money the bank counts
                         </h3>
                         <app-additional-income-editor
@@ -1345,13 +1378,18 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       </div>
                     }
 
-                    <app-income-rule-check
-                      [programCode]="editingProgramCode()"
-                      [draftProgram]="draftProgramForCheck()"
-                      [draft]="liveIncomeRuleDraft()"
-                      [ruleSteps]="ruleSteps()"
-                      [ruleGates]="ruleGates()"
-                    ></app-income-rule-check>
+                    <!-- The third band heads ITSELF, in the same ramp: it is a component with
+                         one host, and a label supplied from out here would be a second
+                         heading over the one it already draws. -->
+                    <div class="income-band">
+                      <app-income-rule-check
+                        [programCode]="editingProgramCode()"
+                        [draftProgram]="draftProgramForCheck()"
+                        [draft]="liveIncomeRuleDraft()"
+                        [ruleSteps]="ruleSteps()"
+                        [ruleGates]="ruleGates()"
+                      ></app-income-rule-check>
+                    </div>
                   }
                 </section>
               }
@@ -1878,13 +1916,16 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         color: var(--color-text-secondary);
         line-height: var(--line-height-base);
       }
+      /* Same ramp and the same ink as .band-label. It was tertiary, which measures
+         3.83:1 against the filled card it sits on — under AA at 12px, and this is the
+         only thing naming the two tables under it. */
       .dbr-bands-title {
         margin: 0 0 var(--space-3);
         font-size: var(--text-xs);
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.04em;
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
         text-transform: uppercase;
-        color: var(--text-tertiary, var(--color-text-tertiary));
+        color: var(--color-text-secondary);
       }
       @media (prefers-reduced-motion: reduce) {
         .dbr-cap,
@@ -1951,33 +1992,43 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         border-radius: var(--radius-sm);
       }
 
-      /* --- Step 5: whose amounts ------------------------------------------- */
-      /* is-bare, because the body is two choice cards and an editor that draws its own
-         borders. A filled card around them was the third container for one decision. */
-      .income-block {
-        display: flex;
-        flex-direction: column;
-      }
-      .income-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: var(--space-4);
-        margin-block-end: var(--space-4);
-        padding-block-end: var(--space-4);
-        border-block-end: 1px solid var(--color-border-subtle);
-      }
-      .income-title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 650;
-        color: var(--color-text-primary);
-      }
+      /* --- Step 5: the income answer, as one card of three bands ------------- */
+      /* No rule of its own any more, and that is the point: this section is a plain
+         .card now, laid out by the same label rail as Eligibility and Debt burden, and
+         every declaration it used to carry either restated .card verbatim or lost to it
+         in the cascade. What went with them: a hairline under the head, which never
+         rendered anyway (it named --color-border-subtle, which this theme does not
+         define, so the shorthand was invalid at computed-value time), and the head's
+         two-up row, which the 17rem rail has no room for. */
       .income-lede {
         margin: var(--space-1) 0 0;
         max-inline-size: 68ch;
-        font-size: 0.8125rem;
+        font-size: var(--text-sm);
         line-height: 1.55;
+        color: var(--color-text-secondary);
+      }
+
+      /*
+       * ONE BAND PER DECISION, one label each, separated by a hairline.
+       *
+       * The three used to be a bordered section, a bare block and a bordered elevated
+       * card — three treatments for three peers, which is why the step read as a list of
+       * unrelated things rather than as one answer in three parts.
+       */
+      .income-band + .income-band {
+        margin-block-start: var(--space-2);
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--color-border-default);
+      }
+      /* SECONDARY, never tertiary: tertiary is #8C7E75, which measures 3.54:1 on this
+         card and 3.83:1 on the filled one below — both under AA, and these labels are
+         what the operator navigates the step by. */
+      .band-label {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
         color: var(--color-text-secondary);
       }
       .income-lede strong {
@@ -1985,9 +2036,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         color: var(--color-text-primary);
       }
       .income-catalog-link {
-        flex: none;
-        font-size: 0.8125rem;
-        white-space: nowrap;
+        display: inline-block;
+        margin-block-start: var(--space-2);
+        font-size: var(--text-sm);
       }
       .income-loading,
       .income-blocked {
@@ -2144,12 +2195,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         to {
           transform: translateX(350%);
           opacity: 0;
-        }
-      }
-      @media (max-width: 40rem) {
-        .income-head {
-          flex-direction: column;
-          align-items: stretch;
         }
       }
       @supports selector(:has(*)) {
@@ -3008,17 +3053,16 @@ export class BankProgramFormPage implements OnInit {
   readonly additionalIncome = signal<AdditionalIncomeConfig | null>(null);
 
   /**
-   * The sources the operator may weigh — every registry fact bound to a NUMBER question.
+   * The sources of money the applicant also receives — and ONLY those.
    *
-   * Derived from the registry rather than listed here, so a fifth source added to the
-   * questionnaire reaches this screen with no release. Numeric only: the resolver reads an
-   * amount, and a source bound to a select would count nothing forever (the server refuses
-   * it, but offering it at all is what makes that refusal a surprise).
+   * Every rule of the derivation, and the seventeen-row table it replaces, is written out
+   * once in `additional-income-sources.ts`. Restated here it would be the second copy.
    */
   protected readonly additionalIncomeOptions = computed<AdditionalIncomeOption[]>(() =>
-    this.incomeFacts()
-      .filter((fact) => fact.question?.type === 'NUMERIC')
-      .map((fact) => ({ key: fact.key, label: fact.label })),
+    additionalIncomeSources(
+      this.incomeFacts(),
+      (this.additionalIncome()?.sources ?? []).map((source) => source.factKey),
+    ),
   );
 
   private readonly banksApi = inject(BanksApiService);
@@ -3071,11 +3115,13 @@ export class BankProgramFormPage implements OnInit {
     {
       id: 'terms',
       label: $localize`:@@bank_programs.step.terms:Amount & duration`,
+      railLabel: $localize`:@@bank_programs.step.terms_short:Amount`,
       groups: ['loanLimits', 'tenor'],
     },
     {
       id: 'pricing',
       label: $localize`:@@bank_programs.step.pricing:Pricing & fees`,
+      railLabel: $localize`:@@bank_programs.step.pricing_short:Pricing`,
       groups: ['pricing', 'fees'],
     },
     {
@@ -3118,7 +3164,7 @@ export class BankProgramFormPage implements OnInit {
   railSteps(): readonly WizardStepItem[] {
     const next = this.steps.map((s, i) => ({
       id: s.id,
-      label: s.label,
+      label: s.railLabel ?? s.label,
       status: this.isStepInvalidTouched(i)
         ? ('invalid' as const)
         : this.isStepComplete(i)
@@ -3386,10 +3432,13 @@ export class BankProgramFormPage implements OnInit {
       .membersFor('transfer_type')()
       .map((m) => ({ value: m.key, label: m.labelEn })),
   );
+  // Localised, unlike the transfer-type list directly above: a doctor's syndicate card and
+  // facility licence have no English name a Cairo operator would recognise, and this list is
+  // read beside Arabic values everywhere else on the form (Principle IV / A20).
   readonly documentOptions = computed(() =>
     this.enums
       .membersFor('required_document')()
-      .map((m) => ({ value: m.key, label: m.labelEn })),
+      .map((m) => ({ value: m.key, label: this.localeIsAr ? m.labelAr : m.labelEn })),
   );
   /**
    * The loan type this form is operating under, or `null` when it has not been
@@ -4281,7 +4330,13 @@ export class BankProgramFormPage implements OnInit {
   private labelsFor(registry: string, keys: readonly string[]): string {
     if (keys.length === 0) return '';
     const members = this.enums.membersFor(registry as never)();
-    return keys.map((k) => members.find((m) => m.key === k)?.labelEn ?? k).join(', ');
+    return keys
+      .map((k) => {
+        const member = members.find((m) => m.key === k);
+        if (!member) return k;
+        return this.localeIsAr ? member.labelAr : member.labelEn;
+      })
+      .join(', ');
   }
 
   private countLabel(n: number): string {
@@ -5059,6 +5114,13 @@ export class BankProgramFormPage implements OnInit {
       'property_type',
       'required_document',
       'program_name',
+      // The fact registry. Preloaded HERE and not left to the income-assumption
+      // section, which is the only other host that asks for it: that section renders
+      // on step 5, and the max-loan cap table on step 3 reads the same registry — so
+      // on the forward path its "Keyed by" list was empty and the table could not be
+      // built at all, while on an edit a stored table rendered its rows with no answer
+      // named. The detail page already preloads it for the same reason.
+      'surrogate_fact',
     ]);
 
     void this.loadActiveBanks();
@@ -5159,6 +5221,7 @@ export class BankProgramFormPage implements OnInit {
       'property_type',
       'required_document',
       'program_name',
+      'surrogate_fact',
     ]);
   }
 

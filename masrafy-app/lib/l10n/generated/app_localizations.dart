@@ -737,42 +737,6 @@ abstract class AppLocalizations {
   /// **'مميز'**
   String get match_featured_badge;
 
-  /// Match card — approval tier: excellent
-  ///
-  /// In ar, this message translates to:
-  /// **'فرصة ممتازة'**
-  String get match_tier_excellent;
-
-  /// Match card — approval tier: good
-  ///
-  /// In ar, this message translates to:
-  /// **'فرصة جيدة'**
-  String get match_tier_good;
-
-  /// Match card — approval tier: moderate
-  ///
-  /// In ar, this message translates to:
-  /// **'فرصة متوسطة'**
-  String get match_tier_moderate;
-
-  /// Match card — approval tier: low
-  ///
-  /// In ar, this message translates to:
-  /// **'فرصة منخفضة'**
-  String get match_tier_low;
-
-  /// Match card — approval tier: very low
-  ///
-  /// In ar, this message translates to:
-  /// **'فرصة منخفضة جدًا'**
-  String get match_tier_very_low;
-
-  /// Match card — approval tier: unknown/estimated
-  ///
-  /// In ar, this message translates to:
-  /// **'تقدير غير محدد'**
-  String get match_tier_unknown;
-
   /// Generic retry action
   ///
   /// In ar, this message translates to:
@@ -3479,18 +3443,6 @@ abstract class AppLocalizations {
   /// **'{count} شهرًا'**
   String results_months(int count);
 
-  /// No description provided for @results_guarantee_approval.
-  ///
-  /// In ar, this message translates to:
-  /// **'توافق {pct}%'**
-  String results_guarantee_approval(int pct);
-
-  /// No description provided for @results_unrated.
-  ///
-  /// In ar, this message translates to:
-  /// **'لم يُقيَّم بعد'**
-  String get results_unrated;
-
   /// Heading above the checked-but-not-quotable programs
   ///
   /// In ar, this message translates to:
@@ -3514,12 +3466,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'يمكنك الاقتراض حتى {amount} جنيه من هذا البنك.'**
   String results_unavailable_ceiling(String amount);
-
-  /// No description provided for @results_best_match.
-  ///
-  /// In ar, this message translates to:
-  /// **'أفضل تطابق'**
-  String get results_best_match;
 
   /// No description provided for @results_rate.
   ///
@@ -3586,18 +3532,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'قرض {type}'**
   String offer_title(String type);
-
-  /// No description provided for @offer_approval.
-  ///
-  /// In ar, this message translates to:
-  /// **'درجة التوافق {pct}%'**
-  String offer_approval(int pct);
-
-  /// No description provided for @offer_unrated.
-  ///
-  /// In ar, this message translates to:
-  /// **'لم يُقيَّم بعد'**
-  String get offer_unrated;
 
   /// No description provided for @offer_interest_rate.
   ///

@@ -57,7 +57,7 @@
 - [x] A21 — no manual `fetch()` in Angular.
 - [x] A22 — single `ErrorCodeService.toLocalizedMessage` helper.
 - [ ] A23 — N/A this feature (Flutter / HMAC secret not used here).
-- [x] A24 — N/A this feature (no approval-probability scoring).
+- [x] ~~A24~~ — retired in constitution v25.0.0 (approval scoring removed platform-wide; A24 is now `Reserved`, kept unrenumbered). Was N/A to this feature regardless.
 
 ## Outstanding
 

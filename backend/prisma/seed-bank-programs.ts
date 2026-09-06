@@ -31,8 +31,7 @@
  *   npm run seed:programs -- --wipe      # delete offers + apps + programs first
  *
  * Idempotent: `programCode` is deterministic (`ABK-PER-DOCTOR`), so a re-run
- * skips what exists. Run `npm run seed:weights` afterwards — a program with no
- * ACTIVE ScoringWeightSet scores every offer 0 (Principle V).
+ * skips what exists.
  *
  * DEV DATA: figures are plausible Egyptian-market placeholders, not contracted
  * terms.
@@ -399,11 +398,6 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
   console.log(
     `[seed-bank-programs] ${created} created, ${updated} updated, ${skipped} left untouched.`,
   );
-  if (created > 0 || updated > 0) {
-    console.log(
-      '[seed-bank-programs] next: `npm run seed:weights` (no ACTIVE weight set → 0% offers).',
-    );
-  }
 }
 
 async function resolveSeedActor(): Promise<string | null> {

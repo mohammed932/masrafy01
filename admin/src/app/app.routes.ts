@@ -101,15 +101,7 @@ export const APP_ROUTES: Routes = [
       import('./features/questionnaire/questionnaire.routes').then((m) => m.QUESTIONNAIRE_ROUTES),
   },
   {
-    // Feature 009 — per-program scoring weights (direct save, v5.0.0).
-    path: 'scoring',
-    canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],
-    loadChildren: () =>
-      import('./features/questionnaire/scoring.routes').then((m) => m.SCORING_ROUTES),
-  },
-  {
-    // Admin matching simulator — full engine + approval scoring, read-only.
+    // Admin matching simulator — full pricing engine, read-only.
     path: 'matching-simulator',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],

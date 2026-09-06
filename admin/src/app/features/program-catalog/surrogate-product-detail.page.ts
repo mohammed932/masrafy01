@@ -302,9 +302,6 @@ interface ReadList {
                     [attr.aria-label]="s.aria"
                   >
                     <span class="sold-name">{{ s.name }}</span>
-                    @if (s.bank) {
-                      <span class="sold-bank" aria-hidden="true">{{ s.bank }}</span>
-                    }
                   </a>
                 }
                 @if (soldAsMore() > 0) {
@@ -1038,7 +1035,7 @@ interface ReadList {
                     @for (n of p.names; track n.key) {
                       <li class="name">
                         <!-- The NAME, not the slug. This rendered n.key — the operator read
-                             doctors_in_practice on a product called Doctors and concluded the
+                             a slug on a product called Doctors and concluded the
                              clinic-owner half had never been built. The key still shows, as a
                              chip beside it, because it is what every other surface addresses
                              this row by and an operator does need to see it. -->
@@ -1299,13 +1296,6 @@ interface ReadList {
         color: var(--text-primary);
       }
 
-      /* Secondary, never tertiary - it is half of which programme this is, and tertiary
-         measures under 4.5:1 on this ground in light mode. */
-      .sold-bank {
-        font-size: var(--text-xs);
-        color: var(--text-secondary);
-      }
-
       .sold-more {
         padding: var(--space-1) var(--space-2-5);
         border: 1px dashed var(--border-default);
@@ -1349,15 +1339,16 @@ interface ReadList {
         background: var(--bg-surface);
       }
 
-      /* Step 1 renders the shared income section, which draws its own bordered
-         surface — so on a phone the operator paid for two frames at once: 32px of
-         panel and 16px of section on each side left 228px of a 390px screen for the
-         figures being edited. The panel keeps the border (it is what separates the
-         stage from the rail) and gives up the inset. */
+      /* Narrow-screen inset. This used to buy back the SECOND frame the shared income
+         section drew for itself — 32px of panel plus 16px of section on each side left
+         228px of a 390px screen for the figures. That section is frameless now
+         (see section.styles.scss), so the doubling is gone and this is what it says it is:
+         a phone-sized panel, still bordered because the border is what separates the
+         stage from the rail. */
       @media (max-width: 640px) {
         .panel {
           gap: var(--space-5);
-          padding: var(--space-4);
+          padding: var(--space-5);
         }
         /* Two rows at this width, so centre them rather than pushing the range
            line to one edge and the pages to the other. */
@@ -2646,6 +2637,21 @@ export class SurrogateProductDetailPage {
   }
 
   /**
+   * The header chip's accessible name.
+   *
+   * Deliberately NOT `progAria`: the product is bank-agnostic - one mechanism several banks
+   * sell - so the header names the programme and not the bank that happens to sell it. An
+   * `aria-label` carrying a bank the chip does not show would put that back for one reader
+   * and nobody else, which is worse than either state. The code stays, for the same reason
+   * `progAria` keeps it: two programmes may share a `friendlyName`, and without it the label
+   * is not guaranteed to tell them apart. The bank is still on every row of step 3, where
+   * the question being asked IS which bank sells what.
+   */
+  protected soldAria(prog: ProgramUnderName): string {
+    return [this.programLabel(prog), prog.programCode].join(' — ');
+  }
+
+  /**
    * The consequence the operator is being shown, or `null` when nothing is pending.
    *
    * Derived from `product()`, which this page already fetched: the names that take their
@@ -3358,8 +3364,7 @@ export class SurrogateProductDetailPage {
       .map((prog) => ({
         programCode: prog.programCode,
         name: this.programLabel(prog),
-        bank: this.bankLabel(prog),
-        aria: this.progAria(prog),
+        aria: this.soldAria(prog),
       }));
   });
 

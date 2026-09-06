@@ -19,7 +19,6 @@ import {
   ClockCircleOutline,
   ProfileOutline,
   RiseOutline,
-  LineChartOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -29,12 +28,17 @@ import {
   type StatStripItem,
 } from '@shared/ui';
 import { ApplicationsApiService, type AdminApplicationRow } from '../api/applications.api.service';
-import { leadStatusMeta, type LeadStatusMeta } from '../shared/lead-status';
-import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
-  TierFilterChipsComponent,
-  type TierFilter,
-} from './components/tier-filter-chips.component';
+  LEAD_STATUS_VALUES,
+  leadStatusMeta,
+  type LeadStatus,
+  type LeadStatusMeta,
+} from '../shared/lead-status';
+import {
+  LeadStatusChipsComponent,
+  type LeadStatusCounts,
+  type LeadStatusFilter,
+} from './components/lead-status-chips.component';
 
 @Component({
   selector: 'app-applications-list-page',
@@ -47,8 +51,7 @@ import {
     NzIconModule,
     NzButtonModule,
     NzInputModule,
-    ApprovalPillComponent,
-    TierFilterChipsComponent,
+    LeadStatusChipsComponent,
     PageHeaderComponent,
     StatStripComponent,
     StatusPillComponent,
@@ -61,7 +64,6 @@ import {
       ClockCircleOutline,
       ProfileOutline,
       RiseOutline,
-      LineChartOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -90,10 +92,10 @@ import {
         </div>
       </div>
 
-      <app-tier-filter-chips
-        [selected]="selectedTier()"
-        [counts]="counts()"
-        (filterChange)="onTierFilterChange($event)"
+      <app-lead-status-chips
+        [selected]="selectedLeadStatus()"
+        [counts]="leadCounts()"
+        (filterChange)="onLeadStatusFilterChange($event)"
       />
 
       @if (loading()) {
@@ -127,7 +129,7 @@ import {
               <tr>
                 <th i18n="@@applications.col.applicant">Applicant</th>
                 <th i18n="@@applications.col.loan">Loan</th>
-                <th i18n="@@applications.col.probability">Probability</th>
+                <th i18n="@@app.detail.meta.matched">Programs matched</th>
                 <th i18n="@@applications.col.status">Status</th>
                 <th i18n="@@applications.col.submitted">Submitted</th>
                 <th class="actions-th" aria-hidden="true"></th>
@@ -162,7 +164,9 @@ import {
                     </div>
                   </td>
                   <td>
-                    <app-approval-pill [bestOffer]="row.bestOffer" />
+                    <span class="offers tabular"
+                      >{{ row.eligibleProgramsCount }}/{{ row.programsCheckedCount }}</span
+                    >
                   </td>
                   <td>
                     <app-status-pill [label]="leadMeta(row).label" [tone]="leadMeta(row).tone" />
@@ -333,6 +337,14 @@ import {
         text-transform: capitalize;
       }
 
+      /* offers cell — eligible / checked, the pair the detail page also prints */
+      .offers {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        letter-spacing: -0.005em;
+      }
+
       .submitted-age {
         display: inline-flex;
         align-items: center;
@@ -386,13 +398,13 @@ export class ApplicationsListPage implements OnInit {
   private readonly router = inject(Router);
 
   protected readonly titleText = $localize`:@@applications.title:Applications`;
-  protected readonly subtitleText = $localize`:@@applications.subtitle:Review applications by approval probability.`;
+  protected readonly subtitleText = $localize`:@@applications.subtitle:Newest applications first.`;
   protected readonly statAriaLabel = $localize`:@@applications.stat.aria:Application totals`;
   protected readonly searchPlaceholder = $localize`:@@apps.search.placeholder:Search by applicant or ID`;
 
   protected readonly rows = signal<readonly AdminApplicationRow[]>([]);
   protected readonly loading = signal(false);
-  protected readonly selectedTier = signal<TierFilter>(null);
+  protected readonly selectedLeadStatus = signal<LeadStatusFilter>(null);
   protected readonly searchQuery = signal('');
   protected readonly searchControl = new FormControl<string>('', { nonNullable: true });
 
@@ -400,25 +412,17 @@ export class ApplicationsListPage implements OnInit {
   protected readonly pageSize = signal(10);
   protected readonly pageSizeOptions = [10, 25, 50];
 
-  protected readonly counts = computed(() => {
-    const r = this.rows();
-    return {
-      high: r.filter((x) => x.bestOffer?.tier === 'excellent').length,
-      medium: r.filter((x) => x.bestOffer?.tier === 'good').length,
-      needs_coaching: r.filter(
-        (x) =>
-          x.status === 'no_match' ||
-          (x.bestOffer &&
-            (['moderate', 'low', 'very_low'] as ApprovalTier[]).includes(x.bestOffer.tier)),
-      ).length,
-    };
+  protected readonly leadCounts = computed<LeadStatusCounts>(() => {
+    const out: LeadStatusCounts = {};
+    for (const r of this.rows()) out[r.leadStatus] = (out[r.leadStatus] ?? 0) + 1;
+    return out;
   });
 
   protected readonly filteredRows = computed<readonly AdminApplicationRow[]>(() => {
     const q = this.searchQuery().trim().toLowerCase();
-    const tier = this.selectedTier();
+    const stage = this.selectedLeadStatus();
     return this.rows().filter((r) => {
-      if (tier && !this.matchesTier(r, tier)) return false;
+      if (stage && r.leadStatus !== stage) return false;
       if (q.length > 0) {
         const name = this.applicantName(r).toLowerCase();
         if (!name.includes(q) && !r.id.toLowerCase().includes(q)) return false;
@@ -432,32 +436,35 @@ export class ApplicationsListPage implements OnInit {
   }
 
   protected readonly statItems = computed<StatStripItem[]>(() => {
-    const c = this.counts();
+    const r = this.rows();
+    const dayAgo = Date.now() - 86_400_000;
+    const newToday = r.filter((x) => new Date(x.createdAt).getTime() >= dayAgo).length;
+    const awaiting = r.filter((x) => x.leadStatus === 'pending').length;
     return [
       {
         label: $localize`:@@applications.stat.total:Total in view`,
-        value: this.rows().length,
+        value: r.length,
         icon: 'profile',
       },
       {
-        label: $localize`:@@applications.stat.high:High probability`,
-        value: c.high,
-        tone: c.high > 0 ? 'success' : 'muted',
+        label: $localize`:@@applications.stat.newToday:New today`,
+        value: newToday,
+        tone: newToday > 0 ? 'success' : 'muted',
         icon: 'rise',
       },
       {
-        label: $localize`:@@applications.stat.medium:Medium probability`,
-        value: c.medium,
-        tone: 'muted',
-        icon: 'line-chart',
+        label: $localize`:@@applications.stat.awaiting:Awaiting action`,
+        value: awaiting,
+        tone: awaiting > 0 ? 'warning' : 'muted',
+        icon: 'clock-circle',
       },
     ];
   });
 
   async ngOnInit(): Promise<void> {
-    const tierParam = this.route.snapshot.queryParamMap.get('tier');
-    if (tierParam === 'high' || tierParam === 'medium' || tierParam === 'needs_coaching') {
-      this.selectedTier.set(tierParam);
+    const stage = this.route.snapshot.queryParamMap.get('leadStatus');
+    if (stage && (LEAD_STATUS_VALUES as readonly string[]).includes(stage)) {
+      this.selectedLeadStatus.set(stage as LeadStatus);
     }
     const q = this.route.snapshot.queryParamMap.get('q');
     if (q) {
@@ -471,12 +478,12 @@ export class ApplicationsListPage implements OnInit {
     await this.reload();
   }
 
-  protected onTierFilterChange(next: TierFilter): void {
-    this.selectedTier.set(next);
+  protected onLeadStatusFilterChange(next: LeadStatusFilter): void {
+    this.selectedLeadStatus.set(next);
     this.pageIndex.set(1);
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { tier: next ?? null },
+      queryParams: { leadStatus: next ?? null },
       queryParamsHandling: 'merge',
     });
   }
@@ -555,17 +562,6 @@ export class ApplicationsListPage implements OnInit {
     if (hours >= 1) return $localize`:@@apps.age.hours:${hours}h ago`;
     if (mins >= 1) return $localize`:@@apps.age.mins:${mins}m ago`;
     return $localize`:@@apps.age.now:just now`;
-  }
-
-  private matchesTier(row: AdminApplicationRow, tier: NonNullable<TierFilter>): boolean {
-    if (tier === 'high') return row.bestOffer?.tier === 'excellent';
-    if (tier === 'medium') return row.bestOffer?.tier === 'good';
-    // needs_coaching
-    return (
-      row.status === 'no_match' ||
-      (!!row.bestOffer &&
-        (['moderate', 'low', 'very_low'] as ApprovalTier[]).includes(row.bestOffer.tier))
-    );
   }
 
   private async reload(): Promise<void> {

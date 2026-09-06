@@ -5,6 +5,11 @@
  *   1. primary sort key chosen by the applicant's `priority`
  *   2. featured-bank boost — partner banks (`bankIsFeatured`) win ties
  *   3. programCode lexical — last resort, deterministic across runs
+ *
+ * This function is the ONE authority on offer order. The apply path freezes its
+ * output as `bank_offer.rankIndex` and every read of a persisted offer orders by
+ * that, so an arm with no sort key of its own does not degrade quietly — it
+ * freezes an arbitrary order onto immutable offers (Principle I / A6).
  */
 
 import type { Offer, ApplicationPriority } from '../types';
@@ -36,11 +41,21 @@ export function rankOffers(offers: Offer[], priority: ApplicationPriority): Offe
           codeTiebreak(a, b),
       );
       break;
+    // "The fastest answer". The platform cannot estimate a bank's turnaround, and the
+    // approval score it used to sort by is gone — it was never once compared against a
+    // real decision. The two proxies that survive are both real: we have a live channel
+    // with partner banks, and fewer documents is less to collect and verify.
+    //
+    // Partner-first rather than documents-first deliberately, so this stays
+    // distinguishable from `least_paperwork` — the customer chose between them.
+    //
+    // This arm carries most applications, not a few: `priority_factor` is optional, and
+    // all four mobile apply mappers default their unmapped answers to it.
     case 'fastest_approval':
       sorted.sort(
         (a, b) =>
-          b.approvalProbabilityPercent - a.approvalProbabilityPercent ||
           featuredTiebreak(a, b) ||
+          a.requiredDocuments.length - b.requiredDocuments.length ||
           codeTiebreak(a, b),
       );
       break;

@@ -184,3 +184,68 @@ category (`matching-preview.service.ts:129`). The real apply flow does check
 Items 1, 2 and 3 remove silent wrongness and need no permission from the constitution.
 Item 6 is the one that turns the score into a fair comparison.
 Item 7 is what would eventually make the word "probability" true.
+
+---
+
+## Resolution — v25.0.0
+
+**Date:** 2026-09-05 · constitution amendment **v25.0.0**
+
+**The score is gone.** Not re-weighted, not re-normalised, not renamed — removed platform-wide.
+Both scoring systems went: the rule-based scorer this review examined
+(`matching/pipeline/approval-probability.ts`) and the two-level admin-weighted one that replaced it
+(`scoring/`, `matching/scoring/`, `ScoringWeightSet`), together with the `ScoringEngineVersion`
+registry, `/admin/scoring/*` and `/admin/scoring-versions/*`, the five `bank_offer.approval*`
+columns, the `ApprovalTier` enum, 11 error codes, the admin weights editor, approval pill, tier
+chips and "Why this score?" panel, and the mobile "% match" on all four surfaces.
+
+**Problem 5 is why.** It was filed here as the fifth problem, "simplest first" — and it was in fact
+the only one that could not be fixed by fixing the score. Problems 1, 2, 3 and 6 are all defects
+*inside* a mechanism; Problem 5 says the mechanism has no ground truth. Every subsequent amendment
+made the number more defensible without making it more true: v13.0.0 fixed the denominator, v14.0.0
+made every question type scoreable, and v13.0.0 also had to reword the mobile label from
+"Guarantee Approval" to "% match" — which is this review's own point, conceded in the product's
+own words.
+
+**What replaced it is an order, not a smaller score.** `rankOffers(offers, priority)` sorts by the
+key the applicant's own `priority` answer names, and the apply path freezes that output on each row
+as `bank_offer.rankIndex` (Int, 0-based, dense per application, never updated — Principle I / A6).
+That function was already in the code; the score used to override it, so somebody who asked for the
+lowest monthly payment was shown the highest-scoring offer first. Anti-pattern **A24** is retired
+(reserved, not renumbered); **A33** now blocks reintroducing a score, a tier, or a per-program
+answer-weighting table under any name without a constitution amendment.
+
+### Item by item, against the list above
+
+| # | Fix | Status |
+|---|---|---|
+| 1 | Block/warn when a program scores on a question its category doesn't ask | **Died with the feature.** Shipped as a warning in v13.0.0 (per-row "not asked" tag + summary panel, warn never block); removed in v25.0.0 with the editor that hosted it. Nothing scores on a question now. |
+| 2 | Show unconfigured programs as "not rated" instead of "very low" | **Died with the feature.** Shipped in v13.0.0 as `usedDefault`, persisted on the offer (`approvalUsedDefault`) precisely so configuring a program later could not rewrite an immutable offer's meaning. The column was dropped in v25.0.0 — there is no rating to be absent. |
+| 3 | Warn on the category screen when unticking would break saved weight sets | **Died with the feature, never built.** It was still open at v14.0.0 ("There is no warning on that screen yet"). There are no saved weight sets to break. Unticking a category still has real consequences — see below. |
+| 4 | Flag (don't hide) programs the customer clearly fails on salary / age / debt | **STILL OPEN.** Never about the score, and untouched by its removal. `eligibility-checker.ts` and `dbr.ts` still exist and are still not consulted on the customer path: apply calls the engine with `skipEligibility: true`, the preview never calls `checkEligibility` at all, and every preview row still carries a hardcoded `rejectionReasons: []`. What the customer sees is *less* misleading than when this was written — there is no "excellent — 87%" pill over a loan they cannot get — but the program is still listed with nothing saying their salary is below the bank's minimum. Constitution Principle V still records eligibility gating as dropped for MVP, so this remains a deliberate gap, not an oversight. |
+| 5 | Add income / debt as bracketed single-choice questions so they carry weight | **Dead, and re-doing it now would break pricing.** Read the proposal as written: its stated purpose is *"Then it can carry weight"* — a workaround for the scorer accepting only single-choice answers. v14.0.0 removed the limitation instead (every type became scoreable, and numeric answers scored off a band table), which made the workaround unnecessary; v25.0.0 then removed scoring altogether, which makes it moot. It is now actively harmful: `monthly_income` and `current_installments` are two of the four money bindings, the quote needs an exact figure for the instalment and the DBR, and a missing one is refused with `MONEY_FIGURE_MISSING` rather than defaulted. Turning either into a bracket would break the arithmetic that survived. The review's own caveat — brackets express a level, never a relationship like debt ÷ income — points the same way. |
+| 6 | Divide by the weight actually asked, so programs are comparable | **Done, then removed.** It shipped as constitution **v13.0.0** with the A33 amendment this row correctly predicted it would need, and it worked: `Σ_answered(weight × score÷100) ÷ Σ_asked(weight)` made programs comparable and stopped a mortgage-only question capping a car program below 100% forever. It was removed in v25.0.0 with everything else. A fair comparison between two guesses is still a comparison between two guesses — which is the sense in which this item was always downstream of Problem 5. |
+| 7 | Record answers next to real bank decisions, so weights can be tuned from evidence later | **STILL OPEN, and now the only route back.** The "so weights can be tuned" clause is void; the work itself is not. A33 names this explicitly as what it would take to earn an approval number back: real decisions recorded against the answers that preceded them, then backtested. Until that loop exists, any new score is the same unbacked claim wearing a different name. Nothing in v25.0.0 built it. |
+
+### The "small extra one" — fixed
+
+The preview accepting answers to any question in the pool without checking the category was fixed in
+**v13.0.0** and is still fixed: `MatchingPreviewService` scopes to the requested category exactly as
+`resolveAnswers` does, and both paths derive visibility through the one shared `isQuestionVisible`.
+The asked set no longer feeds a denominator, but it is still load-bearing — it scopes required-question
+enforcement, it rejects an answer to a question this category does not ask, and it is the signal for
+whether a snapshot was serving the itemised-debt flow.
+
+### What this review got right that is worth keeping
+
+Problem 1 diagnosed a specific silent failure: two tick screens that never validated each other. The
+scoring half of that is gone, but **the shape recurs** and the platform now has three answers to it
+rather than none. Publish reports a surrogate fact whose question is asked by no category at all.
+The bank-program form asks the per-category version of the question — does *this* program's category
+ask the fact its income method reads — at the moment the method is picked. And at quote time an
+absent fact is `SURROGATE_FACT_MISSING` with a stated reason, never a substituted zero. All three
+follow this review's rule: report it before a customer meets it, and never silently substitute a
+number.
+
+Walkthrough of what the questionnaire does now:
+[questions-and-weights-flow.md](questions-and-weights-flow.md).

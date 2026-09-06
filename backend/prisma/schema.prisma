@@ -150,14 +150,6 @@ enum SupportStatus {
   resolved
 }
 
-enum ApprovalTier {
-  excellent
-  good
-  moderate
-  low
-  very_low
-}
-
 enum DecisionOutcome {
   approved
   rejected
@@ -219,7 +211,6 @@ model StaffAccount {
   bankProgramsUpdated       BankProgram[]          @relation("BankProgramUpdatedBy")
   banksCreated              Bank[]                 @relation("BankCreatedBy")
   banksUpdated              Bank[]                 @relation("BankUpdatedBy")
-  scoringVersionActivations ScoringEngineVersion[] @relation("ScoringVersionActivator")
   documentsUploaded         Document[]             @relation("DocumentUploader")
   documentsVerified         Document[]             @relation("DocumentVerifier")
 
@@ -357,8 +348,6 @@ model BankProgram {
   createdByStaff    StaffAccount       @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
   updatedByStaff    StaffAccount       @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
   auditEvents       AuditEvent[]       @relation("BankProgramAuditEvents")
-  // Feature 00X — approval-scoring weights (admin maker-checker, Principle V v4.1.0).
-  scoringWeightSets ScoringWeightSet[] @relation("BankProgramScoringWeightSets")
 
   @@index([active], name: "idx_bank_program_active")
   @@index([bankName], name: "idx_bank_program_bank_name")
@@ -512,15 +501,19 @@ model BankOffer {
   requestedTenorMonths       Int
   effectiveTenorMonths       Int
   feesBreakdown              Json
-  approvalProbabilityPercent Decimal      @db.Decimal(5, 2)
-  approvalScore              Int
-  approvalTier               ApprovalTier
-  approvalFactors            Json
-  /// True when the program had no ACTIVE ScoringWeightSet at match time, so the
-  /// score is 0 for want of configuration rather than for want of a fit. Must be
-  /// persisted, not derived: configuring the program later would silently
-  /// rewrite the meaning of an immutable offer (Principle I).
-  approvalUsedDefault        Boolean      @default(false)
+  /// The engine's own rank position for this offer, 0-based and dense within one
+  /// application — the order the applicant was actually shown.
+  ///
+  /// `rankOffers` sorts by the key the applicant's own `priority` answer names, and
+  /// every read used to throw that away: all of an application's offers are written in
+  /// ONE transaction, so `createdAt` is identical across them and cannot rank anything.
+  /// Frozen rather than re-derived (Principle I / A6) — the sort key depends on the
+  /// profile, the priority and the whole candidate set at match time, and re-sorting an
+  /// immutable offer set later rewrites what the customer saw.
+  rankIndex                  Int
+  /// Which engine build priced this offer. Was the active `scoring_engine_version.version`;
+  /// that registry existed only to version scoring weights and is gone, so the value now
+  /// comes from `MATCHING_ENGINE_VERSION` in `src/matching/types.ts`.
   engineVersion              String       @db.VarChar(32)
   requiredDocuments          String[]     @db.VarChar(80)
   matchReasons               String[]     @db.VarChar(80)
@@ -540,7 +533,7 @@ model BankOffer {
   /// Feature 011 — WHICH income the quote actually ran on:
   /// `declared` · `surrogate` · `declared_over_surrogate` · `surrogate_over_declared`.
   ///
-  /// Frozen at match time for the same reason as `approvalUsedDefault` above:
+  /// Frozen at match time for the same reason `bankIsFeatured` and `rateBasis` are:
   /// editing the program's income rule later must not rewrite the meaning of an
   /// immutable offer (Principle I / A6). Deriving it at read time would rewrite
   /// history every time an admin fixed a table row.
@@ -573,9 +566,8 @@ model BankOffer {
   decision               BankOfferDecision? @relation("BankOfferDecisionFor")
   savedBy                SavedOffer[]       @relation("BankOfferSavedBy")
 
-  @@index([applicationId], name: "idx_bank_offer_application")
+  @@index([applicationId, rankIndex], name: "idx_bank_offer_application_rank")
   @@index([programCode, createdAt(sort: Desc)], name: "idx_bank_offer_program_created")
-  @@index([approvalScore], name: "idx_bank_offer_approval_score")
   @@index([engineVersion], name: "idx_bank_offer_engine_version")
   @@map("bank_offer")
 }
@@ -600,26 +592,6 @@ model SavedOffer {
   @@unique([customerId, bankOfferId], name: "idx_saved_offer_customer_offer")
   @@index([customerId, createdAt(sort: Desc)], name: "idx_saved_offer_customer_created")
   @@map("saved_offer")
-}
-
-// -----------------------------------------------------------------------------
-// ScoringEngineVersion (feature 004) — registry of past + active engine versions
-// -----------------------------------------------------------------------------
-
-model ScoringEngineVersion {
-  id                 String    @id @default(cuid()) @db.VarChar(30)
-  version            String    @unique @db.VarChar(32)
-  description        String?   @db.VarChar(1000)
-  weightsConfig      Json
-  activatedAt        DateTime  @default(now()) @db.Timestamptz(6)
-  deactivatedAt      DateTime? @db.Timestamptz(6)
-  activatedByStaffId String?   @db.VarChar(30)
-  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
-
-  activatedByStaff StaffAccount? @relation("ScoringVersionActivator", fields: [activatedByStaffId], references: [id], onDelete: SetNull)
-
-  @@index([activatedAt(sort: Desc)], name: "idx_scoring_engine_version_activated")
-  @@map("scoring_engine_version")
 }
 
 // -----------------------------------------------------------------------------
@@ -851,7 +823,6 @@ model PlatformEnumeration {
   updatedBy           String?   @db.VarChar(30)
 
   loanCategories  PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
-  questions       PlatformEnumerationQuestion[]     @relation("PlatformEnumerationQuestions")
   boundQuestion   Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
   /// `surrogate_product` side of the ask set — which facts this product reads.
   asks            SurrogateProductAsk[]             @relation("SurrogateProductAsks")
@@ -1049,58 +1020,6 @@ model PlatformEnumerationLoanCategory {
   @@id([enumerationId, category], name: "pk_platform_enumeration_loan_category")
   @@index([category], name: "idx_platform_enumeration_loan_category_category")
   @@map("platform_enumeration_loan_category")
-}
-
-/// Which questions a catalog program name SUGGESTS scoring on — the archetype's
-/// house opinion about what matters for that product ("New Car" cares about the
-/// car instalment; "Working Capital" cares about company age).
-///
-/// A TEMPLATE, READ BY NOTHING AT RUNTIME. `ScoringWeightSet.weights.questionWeights`
-/// remains the sole authority on what a bank program actually scores, and
-/// `ScoringService.saveWeights` never consults this table. All this does is
-/// pre-tick step 1 of the per-program scoring wizard, where the admin then sets
-/// the weights — the archetype says WHICH questions, each bank says HOW MUCH.
-/// Do not "complete" the feature by wiring it into save validation: that would
-/// make a catalog edit retroactively invalidate weight sets banks already saved.
-///
-/// No weights here, deliberately. Two banks offering the same archetype price it
-/// differently — that difference is the whole marketplace — so a shared weight
-/// would be a value with no owner.
-///
-/// Keyed by `questionId`, not `code`, so the board can tell "this question left
-/// the pool" (row cascaded away) from "this question is out of scope" (row still
-/// here, flagged). A dangling code column cannot express that difference, and the
-/// two have different fixes.
-///
-/// PER LOAN CATEGORY. One archetype serves several categories ("Pharmacy" sells
-/// as personal, car and business) and each of those products cares about
-/// different things, so the suggestion is a fact about the (name, category) PAIR,
-/// not about the name. A flat name→question set could not say "Doctor Loans
-/// scores on `monthly_income` as a personal loan but not as a business one",
-/// because the row is the same row. The bank program that consumes this seed
-/// always knows its own `productCategory`, so there is always exactly one set to
-/// read.
-///
-/// The category is NOT validated against `platform_enumeration_loan_category`
-/// here (nor by the service). A pick under a category the name is not currently
-/// offered under is kept and flagged, never pruned — same anti-prune posture as
-/// an out-of-scope question code. Re-assign the category and the picks are still
-/// there.
-model PlatformEnumerationQuestion {
-  enumerationId String       @db.VarChar(30)
-  category      LoanCategory
-  questionId    String       @db.VarChar(30)
-  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
-
-  enumeration PlatformEnumeration @relation("PlatformEnumerationQuestions", fields: [enumerationId], references: [id], onDelete: Cascade)
-  question    Question            @relation("QuestionPlatformEnumerations", fields: [questionId], references: [id], onDelete: Cascade)
-
-  /// `enumerationId` leads so the board's read (one name, every category) is a
-  /// prefix scan, and the per-tab write (`deleteMany` on name + category) is a
-  /// two-column prefix rather than a filtered scan of the name's whole template.
-  @@id([enumerationId, category, questionId], name: "pk_platform_enumeration_question")
-  @@index([questionId], name: "idx_platform_enumeration_question_question")
-  @@map("platform_enumeration_question")
 }
 
 /// WHICH FACTS A NO-PAYSLIP PRODUCT READS — the product's ask set, first class.
@@ -1443,8 +1362,9 @@ model OnboardingScreen {
 
 // -----------------------------------------------------------------------------
 // Feature 00X — Dynamic Questionnaire & Matching (Constitution V v4.1.0).
-// Questions/options/branching/ordering + per-bank scoring weights are
-// admin-editable DATA; formula/tiers/COMPUTED factors stay in code.
+// Questions/options/branching/ordering are admin-editable DATA; the engine that
+// consumes them stays in code. (v25.0.0: there are no per-bank scoring weights —
+// approval scoring was removed platform-wide.)
 // LoanCategory values are lowercase to align with existing `loanPurpose` /
 // `productCategory` string data (scope-locked to four — Principle II).
 // -----------------------------------------------------------------------------
@@ -1477,17 +1397,15 @@ enum QuestionType {
   NUMERIC
 }
 
-enum ScoringWeightSetStatus {
-  DRAFT
-  PENDING_APPROVAL
-  ACTIVE
-  ARCHIVED
-  REJECTED
-}
-
 // Feature 010 — questions are GLOBAL (no category). A single question pool feeds
-// one global questionnaire; per-program scoring picks which questions it uses via
-// `ScoringWeightSet.weights.questionWeights` (checkbox = weight-set membership).
+// one global questionnaire, narrowed per applicant by `question_loan_category`.
+//
+// NOTE (v25.0.0): this used to add "per-program scoring picks which questions it uses
+// via `ScoringWeightSet.weights.questionWeights`". Both authorities named there are
+// gone — approval scoring with its weight sets, and the advisory
+// `platform_enumeration_question` template that pre-ticked its wizard. What a
+// no-payslip product READS is `surrogate_product_ask`, which the engine actually
+// consults; nothing else selects a subset of the pool per program.
 model QuestionGroup {
   id           String   @id @default(cuid()) @db.VarChar(30)
   code         String   @unique(map: "uniq_question_group_code") @db.VarChar(64)
@@ -1536,8 +1454,6 @@ model Question {
   options        QuestionOption[]              @relation("QuestionOptions")
   answers        ApplicationAnswer[]           @relation("QuestionAnswers")
   loanCategories QuestionLoanCategory[]        @relation("QuestionLoanCategories")
-  /// Catalog program names that suggest scoring on this question (template only).
-  catalogNames   PlatformEnumerationQuestion[] @relation("QuestionPlatformEnumerations")
   /// Surrogate income FACTS answered by this question — registry rows, not a
   /// property of the question (see `PlatformEnumeration.boundQuestionId`).
   surrogateFacts PlatformEnumeration[]         @relation("QuestionSurrogateFactBindings")
@@ -1623,23 +1539,4 @@ model ApplicationAnswer {
   @@unique([applicationId, questionId], name: "uniq_application_answer_app_question")
   @@index([applicationId], name: "idx_application_answer_application")
   @@map("application_answer")
-}
-
-model ScoringWeightSet {
-  id             String                 @id @default(cuid()) @db.VarChar(30)
-  bankProgramId  String                 @db.VarChar(30)
-  status         ScoringWeightSetStatus @default(DRAFT)
-  versionNumber  Int
-  weights        Json // v8: { questionWeights: {qCode→weight, sum 100}, answerScores: {qCode→oCode→score 0–100} }; legacy {qCode→oCode→points} upgraded on read
-  createdBy      String                 @db.VarChar(30) // editor who saved (staff id)
-  createdAt      DateTime               @default(now()) @db.Timestamptz(6)
-  approvedBy     String?                @db.VarChar(30) // checker (staff id, != createdBy)
-  approvedAt     DateTime?              @db.Timestamptz(6)
-  rejectedReason String?                @db.VarChar(500)
-
-  bankProgram BankProgram @relation("BankProgramScoringWeightSets", fields: [bankProgramId], references: [id], onDelete: Cascade)
-
-  @@unique([bankProgramId, versionNumber], name: "uniq_scoring_weight_set_program_version")
-  @@index([bankProgramId, status], name: "idx_scoring_weight_set_program_status")
-  @@map("scoring_weight_set")
 }

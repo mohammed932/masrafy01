@@ -36,7 +36,7 @@ class MatchingResultsCubit extends Cubit<MatchingResultsState> {
             MatchOffer.fromEntity(
               entity.offers[i],
               applicationId: entity.applicationId,
-              isBestMatch: i == 0,
+              isTopPick: i == 0,
             ),
         ];
         emit(state.copyWith(

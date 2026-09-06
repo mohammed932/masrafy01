@@ -12,11 +12,11 @@
  * strings in the bundle; this is DB content an operator types. And Principle II argues the
  * other way — a bank naming its own programme IS banks-as-data.
  *
- * What the old rule destroyed is the only record of a distinction the catalog cannot carry.
- * One product is deliberately sold as several programmes off one mechanism (spec §10.7), so
- * ABK files "Doctors — Clinic Owners" and "Doctors — In Practice" under the single catalog
- * name "Doctors", differing by half at every band. Touching the name picker replaced both
- * with "Doctors" and the two became indistinguishable.
+ * What the old rule destroyed is the only record of a distinction the catalog may not carry.
+ * A product is routinely sold as several programmes off one mechanism, and a bank's own name
+ * for its programme is the only thing that tells them apart — four banks sell the compound
+ * guarantee off one frame, and ABK sold both doctor sheets under one name until each got its
+ * own. Touching the name picker replaced every one of them with the catalog's word.
  */
 
 /** The labels of the name picked last, or `null` before anything has been picked. */

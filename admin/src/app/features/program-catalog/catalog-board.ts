@@ -160,9 +160,9 @@ function productMatches(p: SurrogateProductSummary, q: string): boolean {
  * The wire order is the repository's `orderBy: [{ sortOrder }, { key }]`, and every product
  * row is seeded with `sortOrder = 0`, so what actually reached the grid was alphabetical by
  * the INTERNAL KEY. Nothing on screen shows a key, so the grid read as unsorted: "University
- * Professors" (`academic_rank_table`) came first and "Doctors" (`years_in_practice_bands`)
- * came eleventh and below the fold, which is how a product that is fully configured and live
- * gets reported as missing.
+ * Professors" (`academic_rank_table`) came first and the doctors card, then keyed
+ * `years_in_practice_bands`, came eleventh and below the fold — which is how a product that is
+ * fully configured and live gets reported as missing.
  *
  * Sorted HERE rather than in the query because the key to sort on is the one being rendered,
  * and which of the two labels that is depends on the locale — a `labelEn` sort puts the

@@ -110,8 +110,8 @@ export function isUnscopedEnumerationType(type: string): boolean {
  * new set of classes is a pricing decision; it should not be a release.
  *
  * Still hardcoded, and deliberately: `UNSCOPED_ENUMERATION_TYPES`,
- * `CATEGORISED_ENUMERATION_TYPES`, `QUESTION_TEMPLATE_ENUMERATION_TYPES`,
- * `QUESTION_BOUND_ENUMERATION_TYPES` and `CUSTOMER_READABLE_ENUMERATION_TYPES`. Each names
+ * `CATEGORISED_ENUMERATION_TYPES`, `QUESTION_BOUND_ENUMERATION_TYPES` and
+ * `CUSTOMER_READABLE_ENUMERATION_TYPES`. Each names
  * a behaviour that only a builtin has — a code path reads that type by name — so making one
  * of them settable would let an operator claim a capability nothing implements. The customer
  * allow-list is the sharpest case: it must not be widenable from a browser, and its
@@ -221,32 +221,13 @@ export function isCategorisedEnumerationType(type: string): boolean {
 }
 
 /**
- * Types whose members carry a suggested QUESTION set — the archetype's house
- * opinion about what a bank should score that product on, via the join table
- * `platform_enumeration_question`.
- *
- * Advisory only. The set pre-ticks the per-program scoring wizard and is read by
- * nothing at runtime; `ScoringWeightSet.weights.questionWeights` remains the sole
- * authority on what a bank program actually scores.
- */
-export const QUESTION_TEMPLATE_ENUMERATION_TYPES: readonly EnumerationType[] = ['program_name'];
-
-/** True when members of `type` carry a question template (see above). */
-export function isQuestionTemplateEnumerationType(type: string): boolean {
-  return (QUESTION_TEMPLATE_ENUMERATION_TYPES as readonly string[]).includes(type);
-}
-
-/**
  * Types whose members BIND ONE QUESTION — the answer that IS the member.
  *
  * Exactly one type today, and the reason it exists at all: a surrogate income fact
  * is not a label, it is "the thing the bank's table is keyed by", which is
  * meaningless without saying which question answers it. The other ten types are
  * pickable values in their own right and bind nothing.
- *
- * Orthogonal to `QUESTION_TEMPLATE_ENUMERATION_TYPES`, which is a `program_name`
- * SUGGESTING many questions to score on. This is one member reading one answer, and
- * the engine reads it at quote time — an advisory template never is.
+
  */
 export const QUESTION_BOUND_ENUMERATION_TYPES: readonly EnumerationType[] = ['surrogate_fact'];
 
@@ -381,15 +362,21 @@ export interface BoundQuestion {
    * own assignment is the thing the engine actually depends on.
    */
   askedIn: LoanCategory[];
+  /**
+   * The question this one is GATED ON, when the questionnaire only asks it under an answer
+   * to another question — read straight off `question.enabledWhen`.
+   *
+   * Carried because a gate is the questionnaire's own statement of what KIND of question
+   * this is, and it is the only such statement that exists. The four additional-income
+   * sources (rent, certificate returns, fixed and variable allowances) are exactly the
+   * numeric questions gated on `additional_income`; the bank-program form had no way to
+   * tell them from the fifteen other numeric facts — contract prices, months-since-issue,
+   * a bureau score — and so offered a weight against every one of them.
+   *
+   * `null` when the question is asked unconditionally. `undefined` still means "not loaded".
+   */
+  enabledWhen?: { questionCode: string; optionCode: string } | null;
 }
-
-/**
- * One catalog name's suggested question sets — one per loan category, keyed by
- * it. `Partial` because an absent key and an empty array mean the same thing
- * here ("nothing suggested for this category"), unlike the category ASSIGNMENT
- * axis where an empty set is the meaningful "parked" state.
- */
-export type QuestionCodesByCategory = Partial<Record<LoanCategory, string[]>>;
 
 /**
  * One catalog name's income BASES, per loan category — how the name is MEANT to be
@@ -405,17 +392,6 @@ export type QuestionCodesByCategory = Partial<Record<LoanCategory, string[]>>;
  * from `bank_program.programType` — see `ProgramNameUsage.byCategory`.
  */
 export type IncomeBasesByCategory = Partial<Record<LoanCategory, IncomeBasis[]>>;
-
-/** One catalog name's suggested question set for ONE loan category, by key. */
-export interface EnumerationQuestionTemplate {
-  key: string;
-  labelAr: string;
-  labelEn: string;
-  /** The category the codes below were suggested for. */
-  category: LoanCategory;
-  /** Question CODES, in pool display order. Empty = not configured. */
-  questionCodes: string[];
-}
 
 export interface EnumerationMember {
   type: EnumerationType;
@@ -523,31 +499,6 @@ export abstract class PlatformEnumerationsRepository {
    * picker.
    */
   abstract memberCategories(type: string, key: string): Promise<LoanCategory[]>;
-
-  /**
-   * A catalog name's SUGGESTED question set for ONE loan category, by key.
-   * `null` when the key names nothing — a legacy bank program whose
-   * `programNameKey` predates the catalog.
-   *
-   * The category is a required argument, not an optional filter over a flat set:
-   * the caller is always a bank program, which always has a `productCategory`,
-   * and a default that merged every category's suggestions would hand the wizard
-   * questions the applicant is never asked.
-   *
-   * Uncached, like `memberCategories` — but for the opposite reason. That one is
-   * uncached because it backs a rejection. This one is uncached because it costs
-   * one indexed read per scoring-wizard open, and a template lagging the catalog
-   * by 60s would have an admin edit a name and then not see their own edit.
-   *
-   * Deliberately NOT folded into `EnumerationMember`: that payload is cached for
-   * 60s and served to the mobile controller and the bank-program picker, neither
-   * of which wants it.
-   */
-  abstract memberQuestionTemplate(
-    type: EnumerationType,
-    key: string,
-    category: LoanCategory,
-  ): Promise<EnumerationQuestionTemplate | null>;
 
   /**
    * The surrogate income FACT registry — every ACTIVE fact with a resolvable bound

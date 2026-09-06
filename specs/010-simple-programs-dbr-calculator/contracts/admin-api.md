@@ -130,7 +130,6 @@ Roles: `super_admin`, `sales_manager`, `analyst`. Existing route, **extended** b
 ```jsonc
 { "success": true, "data": { "category": "personal", "matches": [ {
   "programCode": "ABK-PL-PAYROLL", "bankName": "ABK Egypt", "programFriendlyName": "Payroll Loan",
-  "approvalProbability": 78, "approvalTier": "good", "usedDefaultWeights": false,
   "figures": {
     "recognisedIncomeEGP": "17340.00", "dbrCapPercent": "40.0000", "dbrBandIndex": 2,
     "offeredAmountEGP": "285000.00", "cashToCustomerEGP": "280725.00", "totalFeesEGP": "4275.00",
@@ -177,6 +176,17 @@ Response gains `warnings[]` (publish still succeeds):
   { "code": "MONEY_FIELD_BINDING_MISSING", "meta": { "binding": "existing_obligations" } } ] } }
 ```
 
-### `GET /admin/scoring/questions`
+### ~~`GET /admin/scoring/questions`~~ — REMOVED (v25.0.0)
 
-Returns **single-choice questions only** — multi-choice, text and number are not scoreable (R9). A weight set naming one is rejected with `QUESTION_TYPE_NOT_SCOREABLE`.
+> **REMOVED in v25.0.0.** The whole `/admin/scoring/*` surface is deleted along with the weights
+> editor it fed, the `ScoringWeightSet` table and the eight `WEIGHT*` error codes. There is no
+> weight set to name a question, so nothing is rejected for naming the wrong kind.
+>
+> Why: this endpoint existed to answer "which questions may a bank program score on", and by
+> v14.0.0 its own answer had already been overtaken — every question type became scoreable, so the
+> single-choice filter documented here was wrong before it was removed, and
+> `QUESTION_TYPE_NOT_SCOREABLE` was already retired-but-retained rather than thrown. It stays
+> retired-but-retained now, for the same reason it was then: the code has shipped.
+>
+> The simulator above (`POST /admin/matching/simulate`) still exists and still persists nothing —
+> it lost its three approval fields, not the route.

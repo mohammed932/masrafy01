@@ -1,35 +1,10 @@
 /**
  * Mobile apply-endpoint response envelope (Constitution Principle XIV).
- * Mirrors the OpenAPI contract under specs/004-approval-probability-display/contracts/openapi.yaml.
  *
- * Feature 004: per-offer `approvalProbabilityPercent: number` is replaced by the structured
- * `approvalProbability: ApprovalProbabilityResponseDto`. Mobile + admin both read this shape.
+ * Offers arrive in the order the engine ranked them — by the applicant's own
+ * `priority` answer — and that order is frozen on each row as `bank_offer.rankIndex`,
+ * so every later read returns the same sequence the applicant first saw.
  */
-
-export type ApprovalTierLiteral = 'excellent' | 'good' | 'moderate' | 'low' | 'very_low';
-
-export interface FactorImpactDto {
-  code: string;
-  impact: number;
-}
-
-export interface ApprovalProbabilityResponseDto {
-  score: number;
-  tier: ApprovalTierLiteral;
-  tierLabelCode: string;
-  factors: {
-    positive: FactorImpactDto[];
-    negative: FactorImpactDto[];
-    legacy?: boolean;
-  };
-  /**
-   * The program had no ACTIVE weight set when this offer was matched, so the 0
-   * score means "not rated", not "poor fit". Clients render the two
-   * differently; without this they cannot tell them apart.
-   */
-  usedDefault: boolean;
-  engineVersion: string;
-}
 
 /**
  * A program the engine checked but could not quote — listed, never hidden.
@@ -105,7 +80,6 @@ export interface ApplyMatchedResponse {
       effectiveLoanAmountEGP: string;
       requestedTenorMonths: number;
       effectiveTenorMonths: number;
-      approvalProbability: ApprovalProbabilityResponseDto;
       requiredDocuments: string[];
       matchReasons: string[];
       feesBreakdown: unknown;

@@ -1,0 +1,30 @@
+-- Drop the catalog question TEMPLATE.
+--
+-- This table never had a runtime reader, and its own schema comment said so in capitals:
+-- "A TEMPLATE, READ BY NOTHING AT RUNTIME". Its whole job was to pre-tick step 1 of the
+-- per-program scoring wizard -- which questions a catalog name SUGGESTS a bank score that
+-- product on -- and to back `WEIGHTS_QUESTION_NOT_IN_CATALOG`. `ScoringService` was the
+-- only code that ever read it, through `catalogQuestionCodes`, and `20260906090200`
+-- deleted that service along with both scoring systems. So this is not an unused table
+-- being tidied away: it is the last input to a feature that no longer exists.
+--
+-- SAFE BECAUSE NOTHING DEPENDS ON THE ROWS. Every column is a foreign key into a table
+-- that keeps every one of its own rows -- `platform_enumeration` (the catalog name),
+-- `question` (the pool), and a `LoanCategory` value -- so dropping this drops only the
+-- ASSOCIATION between them. No enumeration, no question, no loan-category assignment and
+-- no bank program loses anything, and no offer ever carried a value derived from here
+-- (Principle I / A6): the template was advisory, so it was never frozen onto one.
+--
+-- DELETED, NOT LEFT UNREAD, because an admin screen let an operator curate this list and
+-- the list did nothing. Leaving the table and removing the screen would only move the
+-- trap; leaving both would keep inviting an operator to configure a name and expect a
+-- consequence. "Which facts a no-payslip product actually reads" has a first-class home
+-- the engine really does consult -- `surrogate_product_ask` -- so this is redundant, not
+-- merely idle.
+--
+-- NO DEPLOY ORDER CONSTRAINT, unlike `20260906090200`. Nothing reads this table at boot
+-- or on any request path, so an old artifact still running against a database where it
+-- has been dropped fails only if an operator opens the template board and saves -- and
+-- the routes behind that board (`GET /admin/enumerations/questions`,
+-- `PUT /admin/enumerations/:id/questions`) are removed in the same change.
+DROP TABLE "platform_enumeration_question";

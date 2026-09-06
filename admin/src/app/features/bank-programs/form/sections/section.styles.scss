@@ -2,14 +2,24 @@
   display: block;
 }
 
+/*
+ * FRAMELESS BY DESIGN, since v25.x.
+ *
+ * This sheet has exactly ONE live consumer — `app-income-assumption-section` — and all
+ * three of ITS hosts already supply a container: the wizard's `.card.income-block`, the
+ * catalog name's `.rule-card`, and the product page's `.panel`. So the border and the
+ * padding here were always a SECOND frame around a rule that is mostly hairlines, which is
+ * the box-in-a-box the hosts' own comments each claim not to be drawing.
+ *
+ * The `background` that used to sit here read `var(--color-surface)` — a token this theme
+ * does not define (the real ones are `--color-surface-page` / `-default` / `-elevated` /
+ * `-muted`), so it was invalid at computed-value time and painted nothing. Removing it
+ * changes no pixel; saying so stops the next reader restoring a fill that never existed.
+ */
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
   scroll-margin-top: var(--space-6);
 }
 
@@ -74,7 +84,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding-block: var(--space-2);
-  border-block-end: 1px dashed var(--color-border-subtle);
+  border-block-end: 1px dashed var(--color-border-default);
 }
 
 .row:last-child {
@@ -179,10 +189,15 @@ nz-input-number.num-field {
   font-size: 14px;
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease;
 
-  &:hover { border-color: var(--primary, var(--color-brand-primary)); }
-  &:focus, &:focus-visible {
+  &:hover {
+    border-color: var(--primary, var(--color-brand-primary));
+  }
+  &:focus,
+  &:focus-visible {
     outline: none;
     border-color: var(--primary, var(--color-brand-primary));
     box-shadow: 0 0 0 3px rgba(8, 105, 195, 0.15);
@@ -212,7 +227,7 @@ nz-input-number.num-field {
     border-radius: 4px;
   }
   option:checked {
-    background: color-mix(in srgb, var(--color-tonal-accent) 12%, var(--color-surface));
+    background: color-mix(in srgb, var(--color-tonal-accent) 12%, var(--color-surface-default));
     color: var(--color-brand-primary);
     font-weight: var(--font-weight-semibold);
   }

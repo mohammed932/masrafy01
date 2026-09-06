@@ -1197,6 +1197,20 @@ records what is now in the code and which of its open questions were answered.
 
 **Decisions taken.**
 
+- **§10.7 is superseded for the doctors sheets: they are two PRODUCTS (2026-09-05, v25.0.0).**
+  This section reads "ABK's two doctor programs use the same bands with different figures
+  … they are two programs", and the platform built them that way — one product,
+  per-programme `stepParams`. The bands are the same; nothing else is. App. A §7 against
+  §8 is 26.5% against 30%, an age floor of 32 against 21, a maximum of 2,000,000 against
+  1,000,000, opposite accepted employment types, and a maximum-loan table on §7 against
+  none on §8. A single card could describe neither, and keeping them together required an
+  `owns_practice` question and two gate conditions whose only job was to stop both quoting
+  every doctor — a second authority on one decision, and one that refused a doctor who
+  simply skipped an optional question. They are now `doctors_clinic_owner` and
+  `doctors_in_practice`, each with its own catalog name, and the applicant's pick is what
+  separates them. The reading stands for every OTHER product here: the compound guarantee
+  is still one product sold four ways.
+
 - **`credit_card_total_limit` vs `credit_card_limit` stay as they are.** They are not two names
   for one thing: the first is a QUESTION code, the second a FACT key, joined by
   `boundQuestionId`. Renaming the fact key would orphan every stored rule that names it —

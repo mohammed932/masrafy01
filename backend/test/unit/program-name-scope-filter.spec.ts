@@ -89,7 +89,6 @@ function fakeRegistry(): PlatformEnumerationsRepository {
         .filter(([, m]) => m.active)
         .map(([key]) => ({ key }) as EnumerationMember),
     memberCategories: async (_type, key) => members[key]?.categories ?? [],
-    memberQuestionTemplate: async () => null,
   } as unknown as PlatformEnumerationsRepository;
 }
 

@@ -15,14 +15,12 @@ import { BankProgramsModule } from '@/bank-programs/bank-programs.module';
 import { ApplicationsModule } from '@/applications/applications.module';
 import { SavedOffersModule } from '@/saved-offers/saved-offers.module';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
-import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 import { DocumentsModule } from '@/documents/documents.module';
 import { SupportModule } from '@/support/support.module';
 import { OnboardingModule } from '@/onboarding/onboarding.module';
 import { TelemetryModule } from '@/telemetry/telemetry.module';
 import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
-import { ScoringModule } from '@/scoring/scoring.module';
 import { MatchingPreviewModule } from '@/matching-preview/matching-preview.module';
 import { CalculatorModule } from '@/calculator/calculator.module';
 import { loadEnv } from '@/infra/env/env.schema';
@@ -53,7 +51,6 @@ import { pinoOptions } from '@/common/pino/pino.config';
     PlatformEnumerationsModule,
     BanksModule,
     BankProgramsModule,
-    ScoringVersionsModule,
     CustomerAuthModule,
     ApplicationsModule,
     SavedOffersModule,
@@ -62,7 +59,6 @@ import { pinoOptions } from '@/common/pino/pino.config';
     OnboardingModule,
     TelemetryModule,
     QuestionnaireModule,
-    ScoringModule,
     MatchingPreviewModule,
     CalculatorModule,
   ],

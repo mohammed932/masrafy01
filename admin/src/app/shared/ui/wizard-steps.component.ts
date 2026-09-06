@@ -1,11 +1,23 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+  type ElementRef,
+} from '@angular/core';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { CheckOutline } from '@ant-design/icons-angular/icons';
 
 /**
  * How a step reads when it is NOT the one on stage.
  * - `todo`    — number chip, muted.
- * - `done`    — green check + the "Done" word.
+ * - `done`    — green check glyph (the word is read by assistive tech only).
  * - `invalid` — tinted red chip + the "Needs attention" word.
  */
 export type WizardStepStatus = 'todo' | 'done' | 'invalid';
@@ -27,20 +39,24 @@ export interface WizardStepItem {
 /**
  * The wizard step rail shared by every multi-step admin screen.
  *
- * Extracted on the second use (scoring editor + bank-program form), which had
- * drifted into two rails with the same markup, the same class names and two
- * different sets of hardcoded sizes — so a fix to one silently skipped the other.
+ * Extracted on the second use, when two screens had drifted into two rails with the
+ * same markup, the same class names and two different sets of hardcoded sizes — so a
+ * fix to one silently skipped the other.
  *
  * What the component owns, and hosts therefore cannot get wrong:
- * - **State is a word, not only a colour** — "Done" / "Needs attention" ride
- *   beside the chip, so the rail is never a colour-only signal (Principle IV/A11
- *   accessibility floor). The word is hidden below 900px, where it would wrap the
- *   rail; assistive tech still reads it, and `aria-current="step"` marks the one
- *   on stage.
+ * - **State is never colour alone** (Principle IV/A11 accessibility floor).
+ *   `done` is carried by the check GLYPH, which is a shape, so it prints no word;
+ *   `invalid` keeps "Needs attention" in print, because a red tint on a numeral is
+ *   colour and nothing else. Both words reach assistive tech either way, and
+ *   `aria-current="step"` marks the one on stage.
  * - **Reachability is a real `disabled` button**, not a click handler that
  *   silently no-ops — the cursor and the focus order both say so.
- * - **Overflow** — labels collapse to the active one below 720px before the rail
- *   is allowed to scroll sideways.
+ * - **Overflow, in the order a reader can afford to lose it** — the connectors
+ *   give way first (they claim no width of their own), and when the names still
+ *   do not fit, every step except the one on stage drops to a bare numbered chip.
+ *   The step on stage keeps its full name at every width, and nothing is ever
+ *   ellipsed. The threshold is MEASURED per rail, not a viewport breakpoint —
+ *   see `measure()`.
  *
  * Navigation is the host's: the rail emits an index and refuses nothing on its
  * own beyond `disabled`, because "can I leave this step" is a form question
@@ -53,7 +69,13 @@ export interface WizardStepItem {
   imports: [NzIconModule],
   providers: [provideNzIconsPatch([CheckOutline])],
   template: `
-    <ol class="steps" [class.card]="variant() === 'card'" [attr.aria-label]="ariaLabel()">
+    <ol
+      #rail
+      class="steps"
+      [class.card]="variant() === 'card'"
+      [class.is-compact]="compact()"
+      [attr.aria-label]="ariaLabel()"
+    >
       @for (s of steps(); track s.id; let i = $index, last = $last) {
         <li class="steps-item" [class.is-last]="last">
           <button
@@ -74,8 +96,14 @@ export interface WizardStepItem {
               }
             </span>
             <span class="step-label">{{ s.label }}</span>
+            <!-- 'Done' is a SHAPE (the check glyph), so it is not a colour-only
+                 signal and needs no word beside it. The word stays for assistive
+                 tech only: printed, it was two extra runs of text per rail and it
+                 is what pushed the step ON STAGE into an ellipsis. 'Needs
+                 attention' keeps its word — a red tint on a numeral IS colour
+                 alone, and it is rare enough to cost nothing. -->
             @if (statusOf(i) === 'done') {
-              <span class="step-state">{{ doneLabel() }}</span>
+              <span class="sr-only">{{ doneLabel() }}</span>
             } @else if (statusOf(i) === 'invalid') {
               <span class="step-state">{{ attentionLabel() }}</span>
             }
@@ -121,17 +149,18 @@ export interface WizardStepItem {
         align-items: center;
         gap: var(--space-2);
         flex: 1 1 auto;
-        /* Floored at its own min-content, so an item can never shrink under the
-           44px chip it holds — an item narrower than its step is what put step 2
-           on top of step 1 at 390px, with the rail's own scroller none the wiser
-           because the overflow was inside the item, not past the row. */
-        min-inline-size: auto;
-      }
-      /* The step being read is the one that gives way: on a narrow rail it is the
-         only one still carrying a label, and a label truncates where a chip
-         cannot. Losing :has() costs nothing but a sideways scroll. */
-      .steps-item:has(.step.active) {
+        /* Every item may give its label up under pressure... */
         min-inline-size: 0;
+      }
+      /* ...except the one on stage, which is floored at its own min-content and
+         therefore never truncates. This used to be the other way round, which
+         put an ellipsis on the ONE label the operator needs — the rail read
+         "Amoun…" for the step they were standing on while six steps they were
+         not on sat there in full. A step you cannot name is not navigation.
+         Losing :has() costs nothing but a sideways scroll. */
+      .steps-item:has(.step.active) {
+        min-inline-size: auto;
+        flex-shrink: 0;
       }
       /* The last item owns no connector, so it must not claim connector width. */
       .steps-item.is-last {
@@ -211,9 +240,10 @@ export interface WizardStepItem {
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
         white-space: nowrap;
-        /* Truncation is what the step gives up when it shrinks. The caption under
-           the rail states the current step in full, and the button's accessible
-           name is the untruncated text either way. */
+        /* Kept as a backstop only. measure() drops the other labels before any
+           of them reaches this, and the step on stage is floored at min-content,
+           so in practice nothing ellipses. The button's accessible name is the
+           untruncated text either way. */
         overflow: hidden;
         text-overflow: ellipsis;
       }
@@ -236,20 +266,17 @@ export interface WizardStepItem {
       .step.invalid .step-state {
         color: var(--error-500);
       }
+      /* The connector claims NO width of its own — it is drawn out of whatever
+         slack the row has left, and it is the first thing to disappear when the
+         row has none. It used to hold a 16px floor, which across six connectors
+         reserved 96px of an 894px rail: the row then read as over-full and every
+         label that was not on stage was truncated with 35px of real slack still
+         in the row. A hairline is decoration; a step's name is not. */
       .step-sep {
         flex: 1 1 auto;
-        min-inline-size: var(--space-4);
+        min-inline-size: 0;
         block-size: 1px;
         background: var(--border-default);
-      }
-      /* The connector is the last thing worth paying for. Once the chips are at
-         their 44px floor the row has nothing else to give, and 16px of hairline
-         apiece was the 4px that made step 2 and step 3 touch at 320px. The floor
-         goes, not the rule: there is still slack it can grow into. */
-      @media (max-width: 400px) {
-        .step-sep {
-          min-inline-size: 0;
-        }
       }
       .step-caption {
         margin: 0;
@@ -271,15 +298,15 @@ export interface WizardStepItem {
           white-space: nowrap;
         }
       }
-      /* Labels compete for width on narrow screens; only the current step keeps
-         its name, so the rail degrades to chips instead of scrolling sideways. */
-      @media (max-width: 720px) {
-        .step-label {
-          display: none;
-        }
-        .step.active .step-label {
-          display: inline;
-        }
+      /* Compact: only the step on stage keeps its name, the rest are numbered
+         chips. Driven by a MEASUREMENT (see measure() on the class), not by a
+         viewport
+         breakpoint - the width a rail needs is a function of how many steps it
+         has and how long their names are, and this component does not know
+         either. A breakpoint guessed for a seven-step rail truncates a
+         three-step one for no reason, and vice versa. */
+      .steps.is-compact .step:not(.active) .step-label {
+        display: none;
       }
       .sr-only {
         position: absolute;
@@ -317,6 +344,58 @@ export class WizardStepsComponent {
 
   /** Index of the step the host wants on stage. Gating stays with the host. */
   readonly stepSelect = output<number>();
+
+  private readonly rail = viewChild.required<ElementRef<HTMLOListElement>>('rail');
+  /** True while only the active step prints its name. Measured, never guessed. */
+  protected readonly compact = signal(false);
+  /** Rail width, in px, at which every label fits. 0 until measured once. */
+  private naturalWidth = 0;
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      this.measure();
+      const ro = new ResizeObserver(() => this.measure());
+      ro.observe(this.rail().nativeElement);
+      destroyRef.onDestroy(() => ro.disconnect());
+    });
+    // A status change can widen a step ("Needs attention" appears), which the
+    // observer never sees: the rail's own box does not move.
+    effect(() => {
+      this.steps();
+      queueMicrotask(() => this.measure());
+    });
+  }
+
+  /**
+   * Decide whether the rail can print every name.
+   *
+   * Expanded, a label that does not fit reports `scrollWidth > clientWidth`, and
+   * the sum of those deficits is exactly the width the rail is short by — so the
+   * width at which everything WOULD fit is knowable, and is remembered. Compact,
+   * the hidden labels measure nothing, which is why it has to be remembered
+   * rather than re-derived.
+   *
+   * The 4px hysteresis is what stops a flip-flop: coming back out at exactly the
+   * recorded width can land 1px short on a fractional layout, compact again, and
+   * record a width 1px higher each pass.
+   */
+  private measure(): void {
+    const ol = this.rail().nativeElement;
+    if (!ol.isConnected) return;
+    if (this.compact()) {
+      if (this.naturalWidth > 0 && ol.clientWidth >= this.naturalWidth + 4) this.compact.set(false);
+      return;
+    }
+    let deficit = 0;
+    ol.querySelectorAll<HTMLElement>('.step-label').forEach((label) => {
+      deficit += label.scrollWidth - label.clientWidth;
+    });
+    if (deficit > 1) {
+      this.naturalWidth = ol.clientWidth + deficit;
+      this.compact.set(true);
+    }
+  }
 
   /** Status as rendered: the active step is current, never done or failing. */
   protected statusOf(index: number): WizardStepStatus {

@@ -1,7 +1,5 @@
-import type { SimulationMatch } from './questionnaire.api.service';
-
 /**
- * Localized labels for the simulator's engine enums.
+ * Localized label for the simulator's binding-constraint enum.
  *
  * ONE home for both surfaces (result card + offer drawer): the same code must
  * not read one way in the list and another in the drill-down (A25). Codes are
@@ -12,27 +10,6 @@ import type { SimulationMatch } from './questionnaire.api.service';
  * Figures-unavailable reasons are NOT here: they are error codes with entries in
  * `error-codes.{ar-EG,en-US}.json`, read through `ErrorCodeService` (A22).
  */
-
-/** Approval tier — or "Not rated" when the program has no active weight set. */
-export function approvalTierLabel(
-  match: Pick<SimulationMatch, 'approvalTier' | 'usedDefaultWeights'>,
-): string {
-  if (match.usedDefaultWeights) return $localize`:@@sim.tier.unrated:Not rated`;
-  switch (match.approvalTier) {
-    case 'excellent':
-      return $localize`:@@sim.tier.excellent:Excellent`;
-    case 'good':
-      return $localize`:@@sim.tier.good:Good`;
-    case 'moderate':
-      return $localize`:@@sim.tier.moderate:Moderate`;
-    case 'low':
-      return $localize`:@@sim.tier.low:Low`;
-    case 'very_low':
-      return $localize`:@@sim.tier.very_low:Very low`;
-    default:
-      return match.approvalTier;
-  }
-}
 
 /** Which reduction shaped the quoted amount / term (FR-023). */
 export function bindingConstraintLabel(constraint: string): string {

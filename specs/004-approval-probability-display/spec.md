@@ -1,4 +1,23 @@
-# Feature Specification: Approval Probability Display Enhancement
+# ~~Feature Specification: Approval Probability Display Enhancement~~ — REMOVED (v25.0.0)
+
+> **REMOVED in v25.0.0.** Approval scoring is gone platform-wide — the score, its tiers, its
+> factor breakdown, the `ScoringEngineVersion` registry, `/admin/scoring-versions/*`, the five
+> `bank_offer.approval*` columns, the `ApprovalTier` enum, the admin pill / tier filter / "Why this
+> score?" panel, and the mobile "% match". Everything below describes a feature that no longer
+> exists in the code.
+>
+> Why: this feature was the presentation and governance layer around a number, and the number never
+> earned it. It was a weighted sum of figures an admin typed, never once compared against a bank's
+> actual decision — v13.0.0 had already had to reword it from "Guarantee Approval" to "% match",
+> which was the admission. Tiers, a factor catalog, an engine-version registry and an accuracy page
+> are all machinery for auditing a claim; none of them made the claim true. What ships instead is an
+> order, not a score: `rankOffers(offers, priority)` sorts by the applicant's OWN stated priority and
+> that order is frozen on each row as `bank_offer.rankIndex` (Principle I / A6).
+>
+> **This directory is kept, not deleted.** `specs/005-lead-management-application/quickstart.md`
+> names its quickstart as a prerequisite, and `design/promax-*` + `design/impec-*` are the
+> Principle XXIII / A17 evidence that the design pipeline was run. `tasks.md`, `research.md`,
+> `data-model.md` and `design/` are left untouched as the build record.
 
 **Feature Branch**: `004-approval-probability-display`
 **Created**: 2026-05-13

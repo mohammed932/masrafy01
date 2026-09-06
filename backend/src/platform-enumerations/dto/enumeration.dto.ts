@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, QuestionType } from '@prisma/client';
+import { LoanCategory } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ALL_INCOME_BASES, type IncomeBasis } from '@/common/income-basis.util';
@@ -133,12 +133,11 @@ export class CreateEnumerationDto {
  * income" rows on the catalog detail screen and in the Add / Edit dialog, one tab
  * at a time.
  *
- * `category` is REQUIRED and scopes the whole write, exactly as in
- * `SetEnumerationQuestionsDto`: a name is legitimately meant for no-payslip lending
- * as a personal loan and payslip-only as a car loan, so a body without a category
- * would have to guess which of those the operator meant.
+ * `category` is REQUIRED and scopes the whole write: a name is legitimately meant for
+ * no-payslip lending as a personal loan and payslip-only as a car loan, so a body
+ * without a category would have to guess which of those the operator meant.
  *
- * `@ArrayMinSize(1)` here and NOT on the category / question DTOs, deliberately.
+ * `@ArrayMinSize(1)` here and NOT on `SetEnumerationCategoriesDto`, deliberately.
  * Empty means "parked" there — a real state with a real screen affordance. Here it
  * would mean a pair the catalog describes in no way at all, which no control can
  * produce and no screen could render.
@@ -183,45 +182,6 @@ export class EnumerationCategoryAssignmentDto {
   @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories!: LoanCategory[];
-}
-
-/**
- * Replace one catalog name's SUGGESTED question set FOR ONE LOAN CATEGORY. The
- * array IS the new set, not a delta, and MAY be empty — empty means "not
- * configured", which makes the scoring wizard seed nothing (today's behaviour).
- *
- * `category` is REQUIRED, and scopes the whole write: every other category's set
- * is untouched. A body without it would have to mean either "all of them" or "some
- * default", and both readings silently destroy sets the admin never opened.
- *
- * No `@ArrayMinSize`, deliberately, same as `SetEnumerationCategoriesDto`: that
- * omission is how a template is cleared. Do not "fix" it.
- *
- * No bulk sibling, also deliberately — see the controller. Every action on the
- * detail screen (one tap, tick-all, clear-all) is a new set for ONE name under
- * ONE category, so it is one PUT carrying the whole array.
- */
-export class SetEnumerationQuestionsDto {
-  @ApiProperty({ enum: LoanCategory })
-  @IsEnum(LoanCategory)
-  category!: LoanCategory;
-
-  @ApiProperty({ type: [String] })
-  @IsArray()
-  @ArrayMaxSize(200)
-  @IsString({ each: true })
-  @Length(1, 64, { each: true })
-  questionCodes!: string[];
-}
-
-/** One active question as the catalog template board renders it. */
-export class CatalogQuestionDto {
-  @ApiProperty() code!: string;
-  @ApiProperty() labelAr!: string;
-  @ApiProperty() labelEn!: string;
-  @ApiProperty({ enum: QuestionType }) type!: QuestionType;
-  /** The loan categories that ASK this question. Empty = parked. */
-  @ApiProperty({ enum: LoanCategory, isArray: true }) categories!: LoanCategory[];
 }
 
 /** Reassign many entries in ONE transaction — the board's per-category actions. */
@@ -601,24 +561,6 @@ export class EnumerationRowDto {
     example: { personal: ['payslip', 'no_payslip'], car: ['payslip'] },
   })
   incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
-  /**
-   * Question codes this catalog name SUGGESTS scoring on, PER LOAN CATEGORY —
-   * `{ personal: ['monthly_income'], business: [] }`. Present on `program_name`
-   * rows only. Advisory: it pre-ticks the per-program scoring wizard and
-   * constrains nothing.
-   *
-   * A missing category key and an empty array both mean "not configured for that
-   * category", which is the day-one state and not a problem. That is why this one
-   * is NOT keyed exhaustively the way `categories` is — there is no
-   * third state to distinguish, unlike the assignment axis where `[]` means
-   * parked.
-   */
-  @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: { type: 'array', items: { type: 'string' } },
-    example: { personal: ['monthly_income', 'employer_name'], business: ['business_age'] },
-  })
-  questionsByCategory?: Partial<Record<LoanCategory, string[]>>;
   /**
    * The question whose ANSWER is this fact. `surrogate_fact` rows only.
    *

@@ -400,8 +400,14 @@ describe('FR-022 / FR-024 — an unresolved program is still listed and ordering
 
   it('quotes every re-typed seed and orders them by installment exactly as their figures imply', () => {
     // Ordering is not re-implemented by this feature, so the assertion is that the
-    // figures the new income path produces still sort — i.e. every one of the three
-    // re-typed programs produces a figure for an applicant carrying the facts.
+    // figures the new income path produces still sort — i.e. every one of the re-typed
+    // programs produces a figure for an applicant carrying the facts.
+    //
+    // Two, not three: `ABK-DOCTORS-PRACTICE` was retired on 2026-09-05. The doctors product
+    // split into `doctors_clinic_owner` and `doctors_in_practice`, seeded as
+    // ABK-PER-DOCTORS_CLINIC / _PRACTICE and quoted
+    // by `blueprint-sheet-figures.spec.ts` against the sheets' own figures; this legacy pair
+    // was a second, contradictory answer under `programNameKey: 'doctor'`.
     const p = profile({
       salaryEGP: '12000',
       militaryGrade: 'senior_officer',
@@ -409,7 +415,7 @@ describe('FR-022 / FR-024 — an unresolved program is still listed and ordering
       yearsInPractice: 3,
       monthsInJob: 96,
     });
-    const targets = ['ABK-MILITARY', 'ABK-PROFESSORS', 'ABK-DOCTORS-PRACTICE'];
+    const targets = ['ABK-MILITARY', 'ABK-PROFESSORS'];
     const quotes = targets.map((code) => {
       const seed = abkEgypt2026.programs.find((s) => s.programCode === code);
       if (!seed) throw new Error(`${code} missing from the catalog`);
@@ -428,7 +434,7 @@ describe('FR-022 / FR-024 — an unresolved program is still listed and ordering
     });
 
     const sorted = [...quotes].sort((a, b) => a.installment.comparedTo(b.installment));
-    expect(sorted.map((q) => q.code)).toHaveLength(3);
+    expect(sorted.map((q) => q.code)).toHaveLength(2);
     // Every program produced a positive installment: none was silently dropped.
     for (const q of quotes) expect(q.installment.greaterThan(0)).toBe(true);
   });

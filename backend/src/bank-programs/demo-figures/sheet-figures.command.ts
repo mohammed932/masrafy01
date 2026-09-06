@@ -45,12 +45,7 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { compileTemplate } from '@/matching/pipeline/product-template';
 import { productBlueprint } from '../blueprints/product-blueprints';
-import {
-  CATALOG_FIGURES,
-  COMPOUND_CLASSES,
-  EXISTING_COMPOUND_NAME,
-  PROGRAM_NAMES,
-} from './sheet-figures';
+import { CATALOG_FIGURES, COMPOUND_CLASSES, PROGRAM_NAMES } from './sheet-figures';
 import { SHEET_PROGRAMS } from './sheet-programs';
 import {
   blankSlots,
@@ -290,37 +285,10 @@ async function main(): Promise<void> {
           tally.namesReused.push(spec.key);
           console.log(`${TAG} reuse   ${pad(spec.key)} → ${spec.productKey}`);
         }
-        for (const category of spec.categories) {
-          await enumsAdmin.setQuestions(id, category, [...spec.questionCodes], enumActor);
-        }
       } catch (error) {
         tally.refused.push(spec.key);
         console.error(`${TAG} ✗ ${pad(spec.key)} ${describe(error)}`);
       }
-    }
-
-    // The compound name predates this seed and is already linked. Only its scored-question
-    // shortlist is missing, and a name with none reads "No questions picked" on the board.
-    const compoundName = nameRows.get(EXISTING_COMPOUND_NAME.key);
-    if (compoundName && !dry) {
-      try {
-        for (const category of EXISTING_COMPOUND_NAME.categories) {
-          await enumsAdmin.setQuestions(
-            compoundName.id,
-            category,
-            [...EXISTING_COMPOUND_NAME.questionCodes],
-            enumActor,
-          );
-        }
-        console.log(`${TAG} reuse   ${pad(EXISTING_COMPOUND_NAME.key)} questions set`);
-      } catch (error) {
-        tally.refused.push(EXISTING_COMPOUND_NAME.key);
-        console.error(`${TAG} ✗ ${pad(EXISTING_COMPOUND_NAME.key)} ${describe(error)}`);
-      }
-    } else if (!compoundName) {
-      console.log(
-        `${TAG} note    ${pad(EXISTING_COMPOUND_NAME.key)} not in this database — skipped`,
-      );
     }
 
     // 4. The bank programs.
