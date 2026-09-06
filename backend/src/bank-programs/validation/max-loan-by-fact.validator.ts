@@ -39,6 +39,7 @@ import {
   derivedFactOptionCodes,
   isDerivedFactKey,
 } from '../../matching/pipeline/surrogate-fact-registry';
+import type { BlueprintCap } from '../blueprints/product-blueprint.types';
 import type { IncomeRuleValidationContext } from './income-rule.validator';
 
 export const MAX_LOAN_BY_FACT_REASONS = [
@@ -60,6 +61,8 @@ export const MAX_LOAN_BY_FACT_REASONS = [
   'band_edges_inverted',
   'bands_gap',
   'bands_overlap',
+  'cap_fact_not_product',
+  'cap_row_not_declared',
 ] as const;
 
 export type MaxLoanByFactReason = (typeof MAX_LOAN_BY_FACT_REASONS)[number];
@@ -341,4 +344,184 @@ export async function validateMaxLoanAdjustments(
   }
 
   return undefined;
+}
+
+// --- the product's declared grid -------------------------------------------
+
+/**
+ * The cells a product's blueprint declares, as two sets.
+ *
+ * A row is named by its option code, or — on a banded cap — by its edges in the same
+ * `from..to` spelling the duplicate-cell check above uses, so one table cannot be read two
+ * ways depending on which check is looking at it. A cap with no `columnKeys` has ONE
+ * implicit column, and every stored row belongs to it.
+ */
+function declaredOf(shape: BlueprintCap): { rows: Set<string>; columns: Set<string> } {
+  const rows =
+    shape.rowKeys ??
+    (shape.bands ?? []).map((band) => bandId(band.fromInclusive, band.toExclusive));
+  return { rows: new Set(rows), columns: new Set(shape.columnKeys ?? []) };
+}
+
+function bandId(fromInclusive: string | undefined, toExclusive: string | null | undefined): string {
+  return `${fromInclusive ?? ''}..${toExclusive ?? ''}`;
+}
+
+/** How a stored row names its own cell — the option code, or the band's edges. */
+function rowIdOf(row: MaxLoanByFactRow): string {
+  return row.rowKey ?? bandId(row.fromInclusive, row.toExclusive);
+}
+
+/** `row|column`, or just the row when the cap declares no second axis. */
+function cellId(rowId: string, columnKey: string | undefined): string {
+  return columnKey === undefined ? rowId : `${rowId}|${columnKey}`;
+}
+
+/**
+ * Do this program's AXES agree with the product's?
+ *
+ * The axes are the product's to state and the amounts are the bank's — that is the whole of
+ * the product-driven cap. A program keyed by a different fact, or reading the answer where
+ * the product reads the class it is filed under, is not a variant of the product's grid: it
+ * is a second grid wearing the same product's name, and every figure typed into it is filed
+ * under keys the product screen cannot show.
+ *
+ * `onNoMatch` IS NOT COMPARED, deliberately. `ABK-PER-DOCTORS_CLINIC` stores `reject` where
+ * its blueprint declares `useProgramMax` (`demo-figures/sheet-programs.ts`), because that
+ * programme's city question is required and an application arriving on an older snapshot
+ * with no answer must be refused rather than quoted the best cell in the table — 2,000,000,
+ * frozen onto an immutable offer (Principle I / A6). What happens to an applicant with no
+ * row is the BANK's decision about its own money; the blueprint's value is the seeded
+ * starting point, never a constraint.
+ *
+ * `detail` names the AXIS that disagrees (`factKey` · `columnFactKey` · `rowVia` ·
+ * `columnVia`) and `allowed` carries what the product declares for it, so the message can
+ * say both halves. An absent declaration is an empty `allowed`, never a fabricated token.
+ */
+export function validateCapAgainstProduct(
+  config: MaxLoanByFactConfig | undefined,
+  shape: BlueprintCap | undefined,
+): MaxLoanByFactViolation | undefined {
+  if (config === undefined || shape === undefined) return undefined;
+  const axes: ReadonlyArray<{ axis: string; stored?: string; declared?: string }> = [
+    { axis: 'factKey', stored: config.factKey, declared: shape.factKey },
+    { axis: 'columnFactKey', stored: config.columnFactKey, declared: shape.columnFactKey },
+    // Normalised on both sides: `answer` is the default and what every stored table means,
+    // so an omitted `rowVia` and an explicit `'answer'` are the same axis and must not read
+    // as a disagreement.
+    { axis: 'rowVia', stored: config.rowVia ?? 'answer', declared: shape.rowVia ?? 'answer' },
+    {
+      axis: 'columnVia',
+      stored: config.columnVia ?? 'answer',
+      declared: shape.columnVia ?? 'answer',
+    },
+  ];
+  for (const { axis, stored, declared } of axes) {
+    if (stored === declared) continue;
+    return {
+      reason: 'cap_fact_not_product',
+      detail: axis,
+      allowed: declared === undefined ? [] : [declared],
+    };
+  }
+  return undefined;
+}
+
+/**
+ * A stored row that keys nothing the product declares — the first one, fail-fast like the
+ * rest of this module.
+ *
+ * WARN-ONLY ON A BANK PROGRAM, and that is not squeamishness. The grid is code: editing a
+ * blueprint can drop a row key from under a program that has been quoting off it for
+ * months, and refusing the save would leave that program unopenable — the operator could
+ * not even change a fee on it, let alone fix the row. The engine already answers the
+ * undeclared row honestly (it matches an answer nobody can give, so the applicant lands on
+ * `onNoMatch`), so nothing is quoted wrongly by leaving it stored.
+ *
+ * On the PRODUCT's own default amounts it IS a refusal, and the difference is who is
+ * typing: those rows are typed against the grid that is on screen at that moment, so a key
+ * outside it is a mistake being made now rather than one inherited from a code change.
+ */
+export function validateCapRowsAgainstProduct(
+  config: MaxLoanByFactConfig | undefined,
+  shape: BlueprintCap | undefined,
+): MaxLoanByFactViolation | undefined {
+  if (config === undefined || shape === undefined) return undefined;
+  const declared = declaredOf(shape);
+  for (const [index, row] of config.rows.entries()) {
+    const rowId = rowIdOf(row);
+    const rowUnknown = declared.rows.size > 0 && !declared.rows.has(rowId);
+    const columnUnknown =
+      row.columnKey !== undefined &&
+      declared.columns.size > 0 &&
+      !declared.columns.has(row.columnKey);
+    if (!rowUnknown && !columnUnknown) continue;
+    return {
+      reason: 'cap_row_not_declared',
+      index,
+      detail: cellId(rowId, row.columnKey),
+      allowed: [...declared.rows],
+    };
+  }
+  return undefined;
+}
+
+/** How a stored cap table lines up with the grid the product declares. */
+export interface CapGridDiff {
+  /** Declared cells with no figure — `rowKey` or `rowKey|columnKey`. */
+  missing: string[];
+  /** Stored cells keying nothing declared. The other half of the same misalignment. */
+  undeclared: string[];
+  /** Declared cells that DO carry a figure, and how many there are in all. */
+  have: number;
+  expected: number;
+}
+
+/**
+ * The two halves of "does this bank's table cover the product's grid?".
+ *
+ * A row that states no `columnKey` applies to EVERY column (`resolveMaxLoanByFact`'s second
+ * pass), so it covers the whole row — which is exactly how a bank states one figure against
+ * both new-loan and top-up without typing it twice, and counting it once per column would
+ * report five sixths of a complete table as a gap.
+ *
+ * A cell whose figure is unreadable or non-positive counts as MISSING, because that is how
+ * the engine reads it: the resolver skips such a row and falls through to `onNoMatch`.
+ */
+export function capGridDiff(config: MaxLoanByFactConfig, shape: BlueprintCap): CapGridDiff {
+  const declared = declaredOf(shape);
+  const columns = declared.columns.size > 0 ? [...declared.columns] : [undefined];
+
+  const filled = new Set<string>();
+  const undeclared: string[] = [];
+  for (const row of config.rows) {
+    const rowId = rowIdOf(row);
+    const amount = decimalOf(row.maxAmountEGP);
+    const priced = amount !== null && amount.greaterThan(0);
+    const rowUnknown = declared.rows.size > 0 && !declared.rows.has(rowId);
+    const columnUnknown =
+      row.columnKey !== undefined &&
+      declared.columns.size > 0 &&
+      !declared.columns.has(row.columnKey);
+    if (rowUnknown || columnUnknown) {
+      undeclared.push(cellId(rowId, row.columnKey));
+      continue;
+    }
+    if (!priced) continue;
+    for (const column of columns) {
+      // The row's own column when it names one; every column when it does not.
+      if (row.columnKey !== undefined && row.columnKey !== column) continue;
+      filled.add(cellId(rowId, column));
+    }
+  }
+
+  const missing: string[] = [];
+  for (const rowId of declared.rows) {
+    for (const column of columns) {
+      const id = cellId(rowId, column);
+      if (!filled.has(id)) missing.push(id);
+    }
+  }
+  const expected = declared.rows.size * columns.length;
+  return { missing, undeclared, have: expected - missing.length, expected };
 }

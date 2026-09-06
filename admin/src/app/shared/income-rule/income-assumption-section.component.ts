@@ -240,6 +240,8 @@ import { incomeRuleHasError } from './income-rule.rules';
                 [wayId]="wayId()"
                 (wayIdChange)="wayId.set($event)"
                 [figuresAreOwn]="figuresAreOwn()"
+                [catalogFigures]="catalogFigures()"
+                [showsCatalogDefaults]="showsCatalogDefaults()"
               ></app-product-rule-editor>
             </div>
           }
@@ -546,6 +548,14 @@ export class IncomeAssumptionSectionComponent implements OnInit {
    * amounts — exactly as they were.
    */
   readonly figuresAreOwn = input<boolean>(true);
+
+  /**
+   * The surrogate product's own figures, so a box this bank left blank can offer the number
+   * the product states. Pass-through: the derivation and the affordance both live in the
+   * editor, and this section is the wizard's only route to it.
+   */
+  readonly catalogFigures = input<Readonly<Record<string, StepFigures>>>({});
+  readonly showsCatalogDefaults = input<boolean>(false);
 
   readonly documentsPlaceholder = $localize`:@@bank_programs.income.docs_placeholder:Pick the documents`;
 

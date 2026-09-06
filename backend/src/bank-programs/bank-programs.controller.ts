@@ -28,6 +28,7 @@ import { IncomeRuleCheckDto, IncomeRuleDraftCheckDto } from './dto/income-rule-c
 import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductActiveDto,
+  SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductTemplateDto,
 } from './dto/program-name-income-rule.dto';
 import { BankProgramsService } from './bank-programs.service';
@@ -204,6 +205,34 @@ export class BankProgramsController {
     @Req() req: Request,
   ) {
     return ok(await this.service.setSurrogateProductIncomeRule(key, body, this.actor(user, req)));
+  }
+
+  @Put('surrogate-products/:key/cap-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default maximum-loan amounts",
+    description:
+      'AMOUNTS ONLY. The grid — which answer keys the rows, which keys the columns, and ' +
+      'what happens to an applicant with no row — comes from the product blueprint and is ' +
+      'resolved on every read, so a row keyed outside it is refused here. An empty `rows` ' +
+      'clears the defaults. A program takes these once, when it is created, and stores its ' +
+      'own copy: editing them moves no program that has already saved.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'SURROGATE_PRODUCT_NO_CAP — this product declares no maximum-loan grid. Plus ' +
+      "MAX_LOAN_BY_FACT_INVALID, the same code a bank program's own table raises, with " +
+      '`cap_row_not_declared` for a row outside the declared grid.',
+  })
+  async setSurrogateProductCapDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductCapDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.service.setSurrogateProductCapDefaults(key, body, this.actor(user, req)));
   }
 
   /**

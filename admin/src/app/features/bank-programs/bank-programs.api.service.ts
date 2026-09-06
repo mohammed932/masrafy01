@@ -24,6 +24,7 @@ import type {
   ProductBlueprint,
   ValueSourceMap,
 } from './bank-programs.types';
+import type { MaxLoanByFactRow } from '@shared/ui/max-loan-by-fact.rules';
 
 interface SuccessEnvelope<T> {
   success: true;
@@ -333,6 +334,24 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/income-rule`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The amounts every new bank program starts this product's maximum-loan grid from.
+   *
+   * AMOUNTS ONLY — the grid itself comes from the blueprint and is resolved on every read, so
+   * the shape and the figures in it cannot disagree. An empty `rows` clears them.
+   */
+  async setSurrogateProductCapDefaults(
+    key: string,
+    payload: { rows: MaxLoanByFactRow[] },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/cap-defaults`,
         payload,
       ),
     );

@@ -203,16 +203,16 @@ model StaffAccount {
   updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
   lastLoginAt        DateTime? @db.Timestamptz(6)
 
-  refreshTokens             RefreshToken[]
-  signInAttempts            SignInAttempt[]
-  auditEventsAsActor        AuditEvent[]           @relation("AuditEventActor")
-  auditEventsAsTarget       AuditEvent[]           @relation("AuditEventTarget")
-  bankProgramsCreated       BankProgram[]          @relation("BankProgramCreatedBy")
-  bankProgramsUpdated       BankProgram[]          @relation("BankProgramUpdatedBy")
-  banksCreated              Bank[]                 @relation("BankCreatedBy")
-  banksUpdated              Bank[]                 @relation("BankUpdatedBy")
-  documentsUploaded         Document[]             @relation("DocumentUploader")
-  documentsVerified         Document[]             @relation("DocumentVerifier")
+  refreshTokens       RefreshToken[]
+  signInAttempts      SignInAttempt[]
+  auditEventsAsActor  AuditEvent[]    @relation("AuditEventActor")
+  auditEventsAsTarget AuditEvent[]    @relation("AuditEventTarget")
+  bankProgramsCreated BankProgram[]   @relation("BankProgramCreatedBy")
+  bankProgramsUpdated BankProgram[]   @relation("BankProgramUpdatedBy")
+  banksCreated        Bank[]          @relation("BankCreatedBy")
+  banksUpdated        Bank[]          @relation("BankUpdatedBy")
+  documentsUploaded   Document[]      @relation("DocumentUploader")
+  documentsVerified   Document[]      @relation("DocumentVerifier")
 
   @@index([isActive, role], name: "idx_staff_account_active_role")
   @@map("staff_account")
@@ -345,9 +345,9 @@ model BankProgram {
   createdBy String   @db.VarChar(30)
   updatedBy String   @db.VarChar(30)
 
-  createdByStaff    StaffAccount       @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
-  updatedByStaff    StaffAccount       @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
-  auditEvents       AuditEvent[]       @relation("BankProgramAuditEvents")
+  createdByStaff StaffAccount @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
+  updatedByStaff StaffAccount @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
+  auditEvents    AuditEvent[] @relation("BankProgramAuditEvents")
 
   @@index([active], name: "idx_bank_program_active")
   @@index([bankName], name: "idx_bank_program_bank_name")
@@ -468,22 +468,22 @@ model Application {
 // -----------------------------------------------------------------------------
 
 model BankOffer {
-  id                         String       @id @default(cuid()) @db.VarChar(30)
-  applicationId              String       @db.VarChar(30)
-  programCode                String       @db.VarChar(32)
-  programVersion             Int
-  bankName                   String       @db.VarChar(80)
-  programFriendlyName        String       @db.VarChar(120)
+  id                      String    @id @default(cuid()) @db.VarChar(30)
+  applicationId           String    @db.VarChar(30)
+  programCode             String    @db.VarChar(32)
+  programVersion          Int
+  bankName                String    @db.VarChar(80)
+  programFriendlyName     String    @db.VarChar(120)
   /// Snapshot of the owning bank's `isFeatured` at match time (Constitution
   /// Principle I — BankOffer is immutable; the partner-bank flag is frozen
   /// here so a bank toggling its featured state later doesn't rewrite
   /// history). Surfaced to mobile so the FEATURED chip never goes stale.
-  bankIsFeatured             Boolean      @default(false)
+  bankIsFeatured          Boolean   @default(false)
   /// Snapshot of the program's Sharia-compliance flag at match time. Frozen on
   /// the offer for the same reason as `bankIsFeatured` (Principle I — BankOffer
   /// is immutable): a program later re-flagged must not rewrite past offers.
-  isShariaCompliant          Boolean      @default(false)
-  effectiveRatePercent       Decimal      @db.Decimal(7, 4)
+  isShariaCompliant       Boolean   @default(false)
+  effectiveRatePercent    Decimal   @db.Decimal(7, 4)
   /// How that rate was charged — `reducing` (interest on the outstanding balance) or
   /// `flat` (interest on the original principal for the whole tenor).
   ///
@@ -494,13 +494,13 @@ model BankOffer {
   ///
   /// `null` on every offer written before this column. Absent is NOT "flat": those offers
   /// were all priced by the reducing annuity, which is what `rateBasisOf` answers.
-  rateBasis                  String?      @db.VarChar(16)
-  monthlyInstallmentEGP      Decimal      @db.Decimal(13, 2)
-  requestedLoanAmountEGP     Decimal      @db.Decimal(13, 2)
-  effectiveLoanAmountEGP     Decimal      @db.Decimal(13, 2)
-  requestedTenorMonths       Int
-  effectiveTenorMonths       Int
-  feesBreakdown              Json
+  rateBasis               String?   @db.VarChar(16)
+  monthlyInstallmentEGP   Decimal   @db.Decimal(13, 2)
+  requestedLoanAmountEGP  Decimal   @db.Decimal(13, 2)
+  effectiveLoanAmountEGP  Decimal   @db.Decimal(13, 2)
+  requestedTenorMonths    Int
+  effectiveTenorMonths    Int
+  feesBreakdown           Json
   /// The engine's own rank position for this offer, 0-based and dense within one
   /// application — the order the applicant was actually shown.
   ///
@@ -510,26 +510,26 @@ model BankOffer {
   /// Frozen rather than re-derived (Principle I / A6) — the sort key depends on the
   /// profile, the priority and the whole candidate set at match time, and re-sorting an
   /// immutable offer set later rewrites what the customer saw.
-  rankIndex                  Int
+  rankIndex               Int
   /// Which engine build priced this offer. Was the active `scoring_engine_version.version`;
   /// that registry existed only to version scoring weights and is gone, so the value now
   /// comes from `MATCHING_ENGINE_VERSION` in `src/matching/types.ts`.
-  engineVersion              String       @db.VarChar(32)
-  requiredDocuments          String[]     @db.VarChar(80)
-  matchReasons               String[]     @db.VarChar(80)
-  cascadeTrace               Json
-  qualitativeReviewBadge     Boolean      @default(false)
-  selfDeclared               Boolean      @default(false)
+  engineVersion           String    @db.VarChar(32)
+  requiredDocuments       String[]  @db.VarChar(80)
+  matchReasons            String[]  @db.VarChar(80)
+  cascadeTrace            Json
+  qualitativeReviewBadge  Boolean   @default(false)
+  selfDeclared            Boolean   @default(false)
   /// The applicant's borrowing ceiling at this program, frozen at match time:
   /// income × dbrCapPercent ÷ 100 − obligations, present-valued over the tenor.
   /// Independent of what was requested — compare with `effectiveLoanAmountEGP`
   /// to tell "this is your limit" from "you asked for less than you could have".
-  maxLoanAvailableEGP        Decimal?     @db.Decimal(13, 2)
+  maxLoanAvailableEGP     Decimal?  @db.Decimal(13, 2)
   /// (installment + existing obligations) ÷ income × 100 for THIS offer, and the
   /// cap it was measured against (scalar or the resolved band). Frozen with the
   /// offer so a later policy change cannot rewrite why an amount was what it was.
-  dbrPercent                 Decimal?     @db.Decimal(6, 2)
-  dbrCapPercent              Decimal?     @db.Decimal(7, 4)
+  dbrPercent              Decimal?  @db.Decimal(6, 2)
+  dbrCapPercent           Decimal?  @db.Decimal(7, 4)
   /// Feature 011 — WHICH income the quote actually ran on:
   /// `declared` · `surrogate` · `declared_over_surrogate` · `surrogate_over_declared`.
   ///
@@ -540,11 +540,11 @@ model BankOffer {
   ///
   /// `null` means "recorded before provenance existed" — NOT `declared`. Readers
   /// must render the absence rather than assume a value.
-  incomeOrigin               String?      @db.VarChar(32)
+  incomeOrigin            String?   @db.VarChar(32)
   /// The surrogate method that produced the income, when one did — the strategy
   /// token (`byMilitaryGrade`, …). `null` on a declared-income offer and on every
   /// offer predating this column.
-  incomeSurrogateStrategy    String?      @db.VarChar(32)
+  incomeSurrogateStrategy String?   @db.VarChar(32)
   /// The COLLATERAL CEILING a product rule derived for this applicant — what the unit,
   /// the membership or the vehicle supports, before their existing payments are taken off.
   ///
@@ -557,9 +557,9 @@ model BankOffer {
   ///
   /// `null` on every offer of an income-based program, and on every offer predating this
   /// column. Absent is not zero: a zero ceiling would mean the collateral supports nothing.
-  collateralCeilingEGP       Decimal?     @db.Decimal(13, 2)
-  createdAt                  DateTime     @default(now()) @db.Timestamptz(6)
-  erasedAt                   DateTime?    @db.Timestamptz(6)
+  collateralCeilingEGP    Decimal?  @db.Decimal(13, 2)
+  createdAt               DateTime  @default(now()) @db.Timestamptz(6)
+  erasedAt                DateTime? @db.Timestamptz(6)
 
   application            Application        @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
   selectedByApplications Application[]      @relation("ApplicationUserSelectedOffer")
@@ -798,6 +798,32 @@ model PlatformEnumeration {
   /// hand edit is how a screen ends up describing a calculation that is not the one
   /// running.
   templateSpec        Json?
+  /// `surrogate_product` ONLY — the AMOUNTS every new bank program starts its
+  /// maximum-loan grid from. Shape: `{ "rows": MaxLoanByFactRow[] }`.
+  ///
+  /// AMOUNTS ONLY, never the axes. Which answer keys the rows, which keys the
+  /// columns and what happens to an applicant with no row all come from the
+  /// blueprint (`capShapeOf`), resolved at read time — so the grid and the figures
+  /// in it cannot disagree about what a row means, and a shape change is a code
+  /// change with a test behind it rather than a stale column.
+  ///
+  /// WHY IT IS COPIED AND NOT INHERITED. A bank program takes these numbers once,
+  /// when it is created, and stores its own copy in `loanLimits.maxLoanByFact`.
+  /// Editing them here later moves no program that has already saved — which is
+  /// correct on a platform whose offers are immutable (Principle I / A6), and which
+  /// is why this needs no `amounts: 'catalog' | 'own'` machinery of its own.
+  ///
+  /// NOT SEEDED. Every cap figure the source sheets publish is a NAMED bank's (App.
+  /// A §2, §3 and §7 are ABK's), and three of the four banks selling the compound
+  /// guarantee publish no unit-type cap at all — writing one bank's numbers here
+  /// would hand the others a policy they never published (Principle II / A1). An
+  /// operator types the default set on the product's own screen, exactly as they
+  /// already type its income defaults.
+  ///
+  /// NULL = this product states no starting amounts, and a new program opens with
+  /// the grid's rows in place and every box empty. That is the state every product
+  /// ships in.
+  capDefaults         Json?
   /// `surrogate_product` and `program_name` — estimated-value markers for the
   /// figures in `incomeRule`,
   /// the same sparse map `bank_program.valueSources` carries and with the same
@@ -1064,17 +1090,17 @@ model PlatformEnumerationLoanCategory {
 /// what an applicant is actually asked.
 model SurrogateProductAsk {
   /// `platform_enumeration.id` of the `surrogate_product` row.
-  productId String             @db.VarChar(30)
+  productId  String             @db.VarChar(30)
   /// `platform_enumeration.id` of the `surrogate_fact` row.
-  factId    String             @db.VarChar(30)
-  source    SurrogateAskSource
-  createdAt DateTime           @default(now()) @db.Timestamptz(6)
-  createdBy String?            @db.VarChar(30)
+  factId     String             @db.VarChar(30)
+  source     SurrogateAskSource
+  createdAt  DateTime           @default(now()) @db.Timestamptz(6)
+  createdBy  String?            @db.VarChar(30)
   /// Set when an operator unticked a `blueprint` ask. NULL = the product reads the fact.
   /// Every read of the ask set filters on it; the blueprint seed does not, which is what
   /// stops a re-seed reviving what an operator removed.
-  detachedAt DateTime?         @db.Timestamptz(6)
-  detachedBy String?           @db.VarChar(30)
+  detachedAt DateTime?          @db.Timestamptz(6)
+  detachedBy String?            @db.VarChar(30)
 
   product PlatformEnumeration @relation("SurrogateProductAsks", fields: [productId], references: [id], onDelete: Cascade)
   fact    PlatformEnumeration @relation("SurrogateFactAskedBy", fields: [factId], references: [id], onDelete: Cascade)
@@ -1450,17 +1476,17 @@ model Question {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  group          QuestionGroup                 @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
-  options        QuestionOption[]              @relation("QuestionOptions")
-  answers        ApplicationAnswer[]           @relation("QuestionAnswers")
-  loanCategories QuestionLoanCategory[]        @relation("QuestionLoanCategories")
+  group          QuestionGroup          @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
+  options        QuestionOption[]       @relation("QuestionOptions")
+  answers        ApplicationAnswer[]    @relation("QuestionAnswers")
+  loanCategories QuestionLoanCategory[] @relation("QuestionLoanCategories")
   /// Surrogate income FACTS answered by this question — registry rows, not a
   /// property of the question (see `PlatformEnumeration.boundQuestionId`).
-  surrogateFacts PlatformEnumeration[]         @relation("QuestionSurrogateFactBindings")
+  surrogateFacts PlatformEnumeration[]  @relation("QuestionSurrogateFactBindings")
   /// Lists whose values ARE this question's options, one-for-one by code. Again a
   /// statement the REGISTRY makes about itself, not a field on the question
   /// (see `EnumerationTypeDef.mirrorQuestionId`).
-  mirroredLists  EnumerationTypeDef[]          @relation("QuestionMirroredEnumerationTypes")
+  mirroredLists  EnumerationTypeDef[]   @relation("QuestionMirroredEnumerationTypes")
 
   @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")

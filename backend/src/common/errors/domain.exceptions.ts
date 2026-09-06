@@ -281,6 +281,19 @@ export class SurrogateProductCapOnlyException extends DomainException {
   }
 }
 
+/**
+ * Default cap amounts were written for a product whose blueprint declares no cap.
+ *
+ * `blueprintKey` is carried because it is what the shape is resolved by once a product has
+ * been renamed (`capShapeOf`), so a reader of the log can check the same registry entry the
+ * refusal read.
+ */
+export class SurrogateProductNoCapException extends DomainException {
+  constructor(meta: { productKey: string; blueprintKey: string | null }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_NO_CAP, meta);
+  }
+}
+
 export class EnumerationRegistryUnavailableException extends DomainException {
   constructor() {
     super(ERROR_CODES.ENUMERATION_REGISTRY_UNAVAILABLE);

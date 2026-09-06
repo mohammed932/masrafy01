@@ -24,7 +24,7 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
     @if (label()) {
       <label class="ff__label" [for]="fieldId()">{{ label() }}</label>
     }
-    <span class="ff__field" [class.is-narrow]="!money()">
+    <span class="ff__field" [class.is-narrow]="!money()" [class.has-default]="!!placeholder()">
       <!-- Money groups its thousands (A27); a percentage or a multiplier does not, and a
            kind this screen cannot prove groups anyway — it changes nothing on a two-digit
            month count and saves a misread on a seven-digit floor. -->
@@ -41,7 +41,7 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
         [id]="fieldId()"
         [attr.placeholder]="hint()"
         [attr.aria-label]="label() ? null : ariaLabel()"
-        [attr.aria-describedby]="unit() ? fieldId() + '-unit' : null"
+        [attr.aria-describedby]="describedBy()"
         [ngModel]="value()"
         (ngModelChange)="valueChange.emit($event)"
         [ngModelOptions]="{ standalone: true }"
@@ -50,6 +50,12 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
         <span class="ff__unit" [id]="fieldId() + '-unit'">{{ unit() }}</span>
       }
     </span>
+    <!-- A placeholder is not reliably announced, and this one carries a figure the operator
+         may be about to adopt. It is said out loud here, off-screen, rather than left to the
+         grey text alone. -->
+    @if (placeholder()) {
+      <span class="ff__sr" [id]="fieldId() + '-default'">{{ placeholderNote() }}</span>
+    }
   `,
   styles: [
     `
@@ -140,6 +146,26 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
         opacity: 1;
       }
 
+      /* A placeholder that carries the PRODUCT'S OWN FIGURE is content, not a shape hint, and
+         the operator is meant to read it and decide. Tertiary measures 3.54:1 on this ground
+         in light mode — under AA — so it lifts to secondary here and only here. The weight
+         stays regular, which is what still tells it apart from a figure this bank has typed
+         (those are semibold), and the button beside it says what it is. */
+      .ff__field.has-default .ff__input::placeholder {
+        color: var(--color-text-secondary);
+      }
+
+      /* Visually hidden, still announced. The house has no utility class for this. */
+      .ff__sr {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
       .ff__unit {
         flex: none;
         color: var(--color-text-tertiary);
@@ -169,8 +195,31 @@ export class FigureFieldComponent {
   /** Accessible name, used only when there is no visible label. */
   readonly ariaLabel = input<string | null>(null);
 
+  /**
+   * A figure to show in grey when the field is empty — the surrogate product's own amount.
+   *
+   * A PLACEHOLDER, never a value: it must not reach `stepIsConfigured`, `filledWayIds` or
+   * `productRuleHasError`, all of which read the model. Writing it as a value would turn a
+   * blank the bank meant ("this bank does not apply this condition") into a stated figure
+   * the moment the form was saved from any other step.
+   */
+  readonly placeholder = input<string | null>(null);
+  /** What the placeholder is, said in words for a screen reader. */
+  readonly placeholderNote = input<string>('');
+
   readonly valueChange = output<string>();
 
-  /** The placeholder. No caller ever passed one, so the kind decides it. */
-  protected readonly hint = computed(() => (this.money() ? '0.00' : '0'));
+  /** The shape hint, or — when the product states one — the figure it states. */
+  protected readonly hint = computed(() => this.placeholder() ?? (this.money() ? '0.00' : '0'));
+
+  /**
+   * Both descriptions when both exist. `aria-describedby` takes a list, and dropping the unit
+   * to make room for the default would stop saying whether the number is pounds or per cent.
+   */
+  protected readonly describedBy = computed<string | null>(() => {
+    const ids: string[] = [];
+    if (this.unit()) ids.push(`${this.fieldId()}-unit`);
+    if (this.placeholder()) ids.push(`${this.fieldId()}-default`);
+    return ids.length === 0 ? null : ids.join(' ');
+  });
 }

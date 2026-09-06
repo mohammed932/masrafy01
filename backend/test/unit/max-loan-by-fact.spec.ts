@@ -21,7 +21,13 @@ import { resolveMaxLoanByFact } from '../../src/matching/pipeline/max-loan-by-fa
 import type { MaxLoanByFactConfig } from '../../src/matching/pipeline/max-loan-by-fact';
 import type { Quote, QuoteOutcome, SurrogateFactValue } from '../../src/matching/types';
 import { profileFixture, programFixture } from '../helpers/matching';
-import { validateMaxLoanByFact } from '../../src/bank-programs/validation/max-loan-by-fact.validator';
+import {
+  capGridDiff,
+  validateCapAgainstProduct,
+  validateCapRowsAgainstProduct,
+  validateMaxLoanByFact,
+} from '../../src/bank-programs/validation/max-loan-by-fact.validator';
+import type { BlueprintCap } from '../../src/bank-programs/blueprints/product-blueprint.types';
 import type { IncomeRuleValidationContext } from '../../src/bank-programs/validation/income-rule.validator';
 
 function expectQuoted(outcome: QuoteOutcome): Quote {
@@ -800,5 +806,205 @@ describe('adjustments that act on the cap', () => {
     );
     expect(withUplift.bindingConstraint).toBe('dbr_affordability');
     expect(withUplift.offeredAmountEGP.toFixed(2)).toBe(withoutUplift.offeredAmountEGP.toFixed(2));
+  });
+});
+
+/**
+ * The cap against the grid its PRODUCT declares.
+ *
+ * The axes are the product's and the amounts are the bank's, so the two checks pull in
+ * opposite directions on purpose: a table keyed by a different fact is refused (it is a
+ * second grid wearing the product's name), while a row outside the declared grid is only
+ * reported (the grid is code, and a blueprint edit must not make a live program unopenable).
+ */
+describe('a cap measured against the product that declares it', () => {
+  /** ABK Compound Owner, §2: unit type × new-loan/top-up. */
+  const SHAPE: BlueprintCap = {
+    factKey: 'owned_unit_type',
+    columnFactKey: 'loan_is_topup',
+    onNoMatch: 'useProgramMax',
+    rowKeys: ['apartment', 'twin_or_town_house', 'villa'],
+    columnKeys: ['new_loan', 'top_up'],
+  };
+
+  const keyedByTheProduct = (rows: MaxLoanByFactConfig['rows']): MaxLoanByFactConfig => ({
+    factKey: 'owned_unit_type',
+    columnFactKey: 'loan_is_topup',
+    onNoMatch: 'useProgramMax',
+    rows,
+  });
+
+  it('accepts a table keyed exactly as the product declares', () => {
+    expect(
+      validateCapAgainstProduct(
+        keyedByTheProduct([{ rowKey: 'villa', columnKey: 'new_loan', maxAmountEGP: '4000000' }]),
+        SHAPE,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('refuses a table keyed by a different fact', () => {
+    // A second grid filed under the product's name: every figure in it lands under keys the
+    // product screen cannot show, and the operator has no way to see that is what happened.
+    expect(
+      validateCapAgainstProduct(
+        { ...keyedByTheProduct([{ rowKey: 'villa', maxAmountEGP: '4000000' }]), factKey: 'club_branch' },
+        SHAPE,
+      ),
+    ).toEqual({ reason: 'cap_fact_not_product', detail: 'factKey', allowed: ['owned_unit_type'] });
+  });
+
+  it('refuses a table that drops the product’s second axis', () => {
+    const config = keyedByTheProduct([{ rowKey: 'villa', maxAmountEGP: '4000000' }]);
+    delete config.columnFactKey;
+    expect(validateCapAgainstProduct(config, SHAPE)).toEqual({
+      reason: 'cap_fact_not_product',
+      detail: 'columnFactKey',
+      allowed: ['loan_is_topup'],
+    });
+  });
+
+  it('refuses a table that reads the ANSWER where the product reads its class', () => {
+    // The failure is silent otherwise: an answer-keyed table against a class-keyed grid
+    // matches no row for anybody, and the program reads as configured on every screen.
+    const classKeyed: BlueprintCap = { ...SHAPE, rowVia: 'parentClass' };
+    expect(
+      validateCapAgainstProduct(
+        keyedByTheProduct([{ rowKey: 'villa', maxAmountEGP: '4000000' }]),
+        classKeyed,
+      ),
+    ).toEqual({ reason: 'cap_fact_not_product', detail: 'rowVia', allowed: ['parentClass'] });
+  });
+
+  it('reads an omitted rowVia and an explicit "answer" as the same axis', () => {
+    const explicit: BlueprintCap = { ...SHAPE, rowVia: 'answer', columnVia: 'answer' };
+    expect(
+      validateCapAgainstProduct(
+        keyedByTheProduct([{ rowKey: 'villa', maxAmountEGP: '4000000' }]),
+        explicit,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('lets a program keep its own onNoMatch where the product declares another', () => {
+    // `ABK-PER-DOCTORS_CLINIC` stores `reject` against a blueprint that declares
+    // `useProgramMax`, deliberately: its city question is required, so an application on an
+    // older snapshot with no answer must be refused rather than quoted 2,000,000 — the
+    // top-up Cairo cell — and frozen onto an immutable offer. What happens to an applicant
+    // with no row is the bank's decision about its own money.
+    const rejecting: MaxLoanByFactConfig = {
+      ...keyedByTheProduct([{ rowKey: 'villa', columnKey: 'new_loan', maxAmountEGP: '4000000' }]),
+      onNoMatch: 'reject',
+    };
+    expect(validateCapAgainstProduct(rejecting, SHAPE)).toBeUndefined();
+    expect(validateCapRowsAgainstProduct(rejecting, SHAPE)).toBeUndefined();
+  });
+
+  it('never refuses a stored row outside the declared grid — it reports it', () => {
+    // `twin_house` is the registry key; the question's option code is `twin_or_town_house`,
+    // which is what the grid declares. A row on the wrong side of that is a real problem and
+    // still must not block the save: the grid is CODE, so a blueprint edit can drop a key
+    // from under a program that has been quoting off it for months, and refusing would leave
+    // its operator unable to open the program to change so much as a fee.
+    const strayRow = keyedByTheProduct([
+      { rowKey: 'villa', columnKey: 'new_loan', maxAmountEGP: '4000000' },
+      { rowKey: 'twin_house', columnKey: 'new_loan', maxAmountEGP: '3000000' },
+    ]);
+    expect(validateCapAgainstProduct(strayRow, SHAPE)).toBeUndefined();
+
+    const diff = capGridDiff(strayRow, SHAPE);
+    expect(diff.undeclared).toEqual(['twin_house|new_loan']);
+    // The other half of the same mistype: the cell it was meant for is still empty.
+    expect(diff.missing).toContain('twin_or_town_house|new_loan');
+    expect(diff.expected).toBe(6);
+    expect(diff.have).toBe(1);
+  });
+
+  it('refuses that same row when it is the PRODUCT’s own defaults being typed', () => {
+    // The difference is who is typing. A product's default amounts are typed against the
+    // grid that is on screen at that moment, so a key outside it is a mistake being made
+    // now — not one inherited from a code change.
+    const strayRow = keyedByTheProduct([{ rowKey: 'twin_house', maxAmountEGP: '3000000' }]);
+    expect(validateCapRowsAgainstProduct(strayRow, SHAPE)).toEqual({
+      reason: 'cap_row_not_declared',
+      index: 0,
+      detail: 'twin_house',
+      allowed: ['apartment', 'twin_or_town_house', 'villa'],
+    });
+  });
+
+  it('refuses a row whose COLUMN the product does not declare', () => {
+    expect(
+      validateCapRowsAgainstProduct(
+        keyedByTheProduct([{ rowKey: 'villa', columnKey: 'xsell', maxAmountEGP: '4000000' }]),
+        SHAPE,
+      ),
+    ).toEqual({
+      reason: 'cap_row_not_declared',
+      index: 0,
+      detail: 'villa|xsell',
+      allowed: ['apartment', 'twin_or_town_house', 'villa'],
+    });
+  });
+
+  it('counts a column-agnostic row as covering every column', () => {
+    // How a bank states one figure against both new-loan and top-up without typing it twice
+    // (`resolveMaxLoanByFact`'s second pass). Counted per column instead, a complete table
+    // would be reported as half a gap.
+    const diff = capGridDiff(
+      keyedByTheProduct([
+        { rowKey: 'apartment', maxAmountEGP: '2000000' },
+        { rowKey: 'twin_or_town_house', maxAmountEGP: '3000000' },
+        { rowKey: 'villa', maxAmountEGP: '4000000' },
+      ]),
+      SHAPE,
+    );
+    expect(diff).toEqual({ missing: [], undeclared: [], have: 6, expected: 6 });
+  });
+
+  it('counts a cell whose figure the engine would skip as missing', () => {
+    // `resolveMaxLoanByFact` treats a non-positive figure as NOT CONFIGURED rather than as a
+    // cap of zero, so a row holding one covers nothing — and the warning has to read it the
+    // same way or it reports a table as complete that quotes `onNoMatch`.
+    const diff = capGridDiff(
+      keyedByTheProduct([
+        { rowKey: 'apartment', maxAmountEGP: '0' },
+        { rowKey: 'twin_or_town_house', maxAmountEGP: '3000000' },
+        { rowKey: 'villa', maxAmountEGP: '4000000' },
+      ]),
+      SHAPE,
+    );
+    expect(diff.missing).toEqual(['apartment|new_loan', 'apartment|top_up']);
+    expect(diff.have).toBe(4);
+  });
+
+  it('reads a BANDED cap by its edges', () => {
+    const banded: BlueprintCap = {
+      factKey: 'pledged_free_amount',
+      onNoMatch: 'useProgramMax',
+      bands: [
+        { fromInclusive: '0', toExclusive: '2000000' },
+        { fromInclusive: '2000000', toExclusive: null },
+      ],
+    };
+    const config: MaxLoanByFactConfig = {
+      factKey: 'pledged_free_amount',
+      onNoMatch: 'useProgramMax',
+      rows: [{ fromInclusive: '0', toExclusive: '2000000', maxAmountEGP: '1000000' }],
+    };
+    expect(validateCapAgainstProduct(config, banded)).toBeUndefined();
+    expect(capGridDiff(config, banded)).toEqual({
+      missing: ['2000000..'],
+      undeclared: [],
+      have: 1,
+      expected: 2,
+    });
+  });
+
+  it('says nothing at all when there is no product grid to measure against', () => {
+    const config = keyedByTheProduct([{ rowKey: 'villa', maxAmountEGP: '4000000' }]);
+    expect(validateCapAgainstProduct(config, undefined)).toBeUndefined();
+    expect(validateCapRowsAgainstProduct(config, undefined)).toBeUndefined();
+    expect(validateCapAgainstProduct(undefined, SHAPE)).toBeUndefined();
   });
 });

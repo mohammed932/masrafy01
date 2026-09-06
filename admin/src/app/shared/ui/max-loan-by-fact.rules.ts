@@ -197,3 +197,187 @@ export function maxLoanByFactErrorFor(
   }
   return null;
 }
+
+// --- the product's declared grid --------------------------------------------------------
+//
+// When a program's catalog name resolves to a surrogate product whose blueprint declares a
+// cap, the table stops being built row by row: the axes and the keys are the product's, in
+// the order its sheet prints them, and the bank types only the amounts. Everything below is
+// the projection between that declared grid and the flat `rows[]` the engine reads.
+//
+// The shape carries NO money. Amounts come from the product's own `capDefaults` — figures an
+// operator typed once on the product screen — or from what this bank has already stored.
+
+/** The blueprint's declared grid. Mirrors the backend `BlueprintCap` exactly. */
+export interface ProductCapShape {
+  readonly factKey: string;
+  readonly columnFactKey?: string;
+  readonly rowVia?: MaxLoanByFactVia;
+  readonly columnVia?: MaxLoanByFactVia;
+  readonly onNoMatch: 'useProgramMax' | 'reject';
+  /** Row keys in the order the sheet prints them... */
+  readonly rowKeys?: readonly string[];
+  /** ...or the brackets, when the row axis is a number. */
+  readonly bands?: readonly { fromInclusive: string; toExclusive: string | null }[];
+  readonly columnKeys?: readonly string[];
+}
+
+/** One cell of the declared grid, before any amount is put in it. */
+export interface CapCell {
+  readonly rowKey?: string;
+  readonly fromInclusive?: string;
+  readonly toExclusive?: string | null;
+  readonly columnKey?: string;
+}
+
+/** One cell with whatever amount it currently holds. */
+export interface CapGridCell {
+  readonly cell: CapCell;
+  readonly amount: string;
+}
+
+/**
+ * Every cell the product declares, in declared order.
+ *
+ * Row-major: all of one row's columns together, so the grid reads the way the sheet prints
+ * it and a caller can chunk by `columnKeys.length` without re-deriving the order.
+ *
+ * A shape with neither `rowKeys` nor `bands` declares no grid at all and yields nothing —
+ * which is what keeps a product that only names its axes out of the product-driven path.
+ */
+export function capCellsOf(shape: ProductCapShape): CapCell[] {
+  const columns: (string | undefined)[] =
+    shape.columnKeys && shape.columnKeys.length > 0 ? [...shape.columnKeys] : [undefined];
+  const rows: CapCell[] = shape.rowKeys
+    ? shape.rowKeys.map((rowKey) => ({ rowKey }))
+    : (shape.bands ?? []).map((band) => ({
+        fromInclusive: band.fromInclusive,
+        toExclusive: band.toExclusive,
+      }));
+  return rows.flatMap((row) =>
+    columns.map((columnKey) => (columnKey === undefined ? { ...row } : { ...row, columnKey })),
+  );
+}
+
+/** The cell id, through the SAME expression the duplicate check uses. */
+function capCellId(cell: CapCell): string {
+  return cellOf({ ...cell, maxAmountEGP: '' });
+}
+
+/**
+ * The declared grid filled in, plus every stored row that falls outside it.
+ *
+ * `unlisted` is the guarantee that no typed figure is ever hidden. A blueprint whose
+ * `rowKeys` change later, a row written by an older seed, a key the question no longer
+ * carries — all of them keep their amount, on screen and editable, instead of disappearing
+ * from a grid that looks complete. The orphan lane is lifted from `income-key-table`'s
+ * `displayRows`, which exists for the same reason.
+ *
+ * `defaults` fills a cell only where this bank has stored nothing. A bank that typed a zero-
+ * length string is treated as having stored nothing, because that is what a cleared box is.
+ */
+export function capGridFrom(
+  shape: ProductCapShape,
+  config: MaxLoanByFactConfig | null,
+  defaults: readonly MaxLoanByFactRow[] = [],
+): { declared: CapGridCell[]; unlisted: MaxLoanByFactRow[] } {
+  const stored = new Map((config?.rows ?? []).map((row) => [capCellId(row), row]));
+  const fallback = new Map(defaults.map((row) => [capCellId(row), row]));
+
+  const declared = capCellsOf(shape).map((cell) => {
+    const id = capCellId(cell);
+    const own = stored.get(id)?.maxAmountEGP ?? '';
+    const amount = own !== '' ? own : (fallback.get(id)?.maxAmountEGP ?? '');
+    return { cell, amount };
+  });
+
+  const declaredIds = new Set(declared.map((entry) => capCellId(entry.cell)));
+  const unlisted = (config?.rows ?? []).filter((row) => !declaredIds.has(capCellId(row)));
+  return { declared, unlisted };
+}
+
+/**
+ * The grid back as a config, or `null` when nothing is filled in.
+ *
+ * `null` is load-bearing three ways, and all three are why a blank grid must store NOTHING
+ * rather than an empty table: the wire DTO holds `rows` to at least one entry, every amount
+ * must be a positive decimal, and the wizard's payload omits the field entirely when the
+ * signal is null. So a program on a product that declares a cap, whose bank has not typed a
+ * figure, saves byte-identical to what it stores today.
+ *
+ * Cells are emitted in declared order and blank ones are dropped: a partial table is a
+ * legitimate state, which is exactly what `onNoMatch` exists to answer for.
+ */
+export function capConfigFrom(
+  shape: ProductCapShape,
+  grid: { declared: readonly CapGridCell[]; unlisted: readonly MaxLoanByFactRow[] },
+  onNoMatch: 'useProgramMax' | 'reject',
+  storedOrder: readonly MaxLoanByFactRow[] = [],
+): MaxLoanByFactConfig | null {
+  const rows: MaxLoanByFactRow[] = [];
+  for (const entry of grid.declared) {
+    if (entry.amount.trim() === '') continue;
+    rows.push({ ...entry.cell, maxAmountEGP: entry.amount });
+  }
+  rows.push(...grid.unlisted.filter((row) => row.maxAmountEGP.trim() !== ''));
+  if (rows.length === 0) return null;
+
+  // ROW ORDER IS A STATEMENT, not a rendering detail, so a row that was already stored keeps
+  // its place. `fact-value.ts` reads a multi-pick answer top to bottom and the FIRST row
+  // whose key the applicant chose wins — "row order is the operator's way of saying which
+  // answer outranks which" — and `keyableFacts` admits a MULTI_SELECT fact. Re-emitting in
+  // the product's declared order would re-rank an applicant who picked two answers, on a
+  // save that merely re-rendered the table. New rows follow, in declared order.
+  const rank = new Map(storedOrder.map((row, index) => [cellOf(row), index]));
+  // A row the stored table did not have sorts AFTER every one it did, keeping the order this
+  // function emitted it in. Ranked with `Infinity` instead, two new rows would compare
+  // `Infinity - Infinity` = NaN and the sort would be free to shuffle them.
+  const base = rank.size;
+  const ranked = rows.map((row, index) => ({ row, at: rank.get(cellOf(row)) ?? base + index }));
+  ranked.sort((a, b) => a.at - b.at);
+  const ordered = ranked.map((entry) => entry.row);
+
+  const next: MaxLoanByFactConfig = { factKey: shape.factKey, onNoMatch, rows: ordered };
+  if (shape.columnFactKey !== undefined) next.columnFactKey = shape.columnFactKey;
+  if (shape.rowVia !== undefined) next.rowVia = shape.rowVia;
+  if (shape.columnVia !== undefined) next.columnVia = shape.columnVia;
+  return next;
+}
+
+/**
+ * Is a stored table keyed differently from what the product declares?
+ *
+ * When it is, the editor stays on its free-form controls: re-keying somebody's live table to
+ * the product's axes would leave every one of its rows matching nothing at runtime — a table
+ * that reads as configured and caps nobody, which is the exact failure `withRowFact` clears
+ * rows to avoid. The server refuses this state on the next save and names it; the screen's
+ * job is not to hide it.
+ */
+export function capShapeConflict(
+  shape: ProductCapShape,
+  config: MaxLoanByFactConfig | null,
+): boolean {
+  if (config === null) return false;
+  return (
+    config.factKey !== shape.factKey ||
+    (config.columnFactKey ?? null) !== (shape.columnFactKey ?? null) ||
+    (config.rowVia ?? 'answer') !== (shape.rowVia ?? 'answer') ||
+    (config.columnVia ?? 'answer') !== (shape.columnVia ?? 'answer')
+  );
+}
+
+/**
+ * Declared cells with no amount anywhere.
+ *
+ * A WARNING, never an error: an answer with no row falls to `onNoMatch`, which is a stated
+ * policy and not a defect. Mirrors `missingKeys` in `income-key-table.component.ts`.
+ */
+export function missingCapCells(
+  shape: ProductCapShape,
+  config: MaxLoanByFactConfig | null,
+  defaults: readonly MaxLoanByFactRow[] = [],
+): CapCell[] {
+  return capGridFrom(shape, config, defaults)
+    .declared.filter((entry) => entry.amount.trim() === '')
+    .map((entry) => entry.cell);
+}

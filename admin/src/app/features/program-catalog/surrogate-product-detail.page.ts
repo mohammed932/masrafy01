@@ -61,8 +61,13 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { RailTabsComponent, SkeletonRowsComponent, WizardStepsComponent } from '@shared/ui';
-import type { RailTabItem, WizardStepItem } from '@shared/ui';
+import {
+  MaxLoanByFactEditorComponent,
+  RailTabsComponent,
+  SkeletonRowsComponent,
+  WizardStepsComponent,
+} from '@shared/ui';
+import type { MaxLoanByFactConfig, ProductCapShape, RailTabItem, WizardStepItem } from '@shared/ui';
 import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.component';
 import {
   ParentClassBoardComponent,
@@ -171,6 +176,7 @@ interface ReadList {
     ParentClassBoardComponent,
     IncomeAssumptionSectionComponent,
     ProductRuleEditorComponent,
+    MaxLoanByFactEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -1001,6 +1007,32 @@ interface ReadList {
                     (stepFiguresTouched)="markDirty()"
                   ></app-income-assumption-section>
                 </form>
+
+                <!-- THE MAXIMUM-LOAN GRID.
+                     Here rather than on each bank's wizard because the GRID is the product's:
+                     which answers it caps on, and in what order, is one statement shared by
+                     every bank selling this product. The amounts are the bank's, and these
+                     are only the ones a NEW program starts from — a copy taken once, so
+                     editing them moves no program that has already been saved. -->
+                @if (productCap(); as cap) {
+                  <section class="cap-defaults">
+                    <h3 class="cap-defaults-title" i18n="@@spd.cap.title">
+                      The maximum every new program starts from
+                    </h3>
+                    <p class="cap-defaults-lede" i18n="@@spd.cap.lede">
+                      A new bank program opens with these already in its grid, ready to change.
+                      Leave a box empty and that bank types its own. Changing them here moves no
+                      program that has already been saved.
+                    </p>
+                    <app-max-loan-by-fact-editor
+                      [facts]="facts()"
+                      [config]="capConfig()"
+                      (configChange)="onCapConfig($event)"
+                      [productCap]="cap"
+                      [productLabel]="p.labelEn"
+                    ></app-max-loan-by-fact-editor>
+                  </section>
+                }
 
                 <p class="reach">
                   @if (p.usedBy.length === 0) {
@@ -3491,6 +3523,51 @@ export class SurrogateProductDetailPage {
     this.markDirty();
   }
 
+  // --- the maximum-loan grid every new program starts from ------------------
+
+  /** The grid this product's blueprint declares, or `null` when it declares none. */
+  protected readonly productCap = computed<ProductCapShape | null>(
+    () => this.product()?.cap ?? null,
+  );
+
+  /**
+   * The default amounts, in the shape the editor edits.
+   *
+   * The editor speaks `MaxLoanByFactConfig` because the same control draws a bank's own
+   * table; the product stores only the ROWS, since the axes are the blueprint's and are
+   * resolved on every read. This wraps and unwraps that one difference in one place.
+   */
+  protected readonly capConfig = signal<MaxLoanByFactConfig | null>(null);
+
+  protected onCapConfig(config: MaxLoanByFactConfig | null): void {
+    this.capConfig.set(config);
+    this.capDirty = true;
+    this.markDirty();
+  }
+
+  /**
+   * Whether the grid was touched, so an untouched Save does not write it.
+   *
+   * A flag rather than a value comparison, because an empty `rows` CLEARS the defaults:
+   * "nothing was typed" and "everything was deleted" are the same payload, and only the
+   * operator's action tells them apart.
+   */
+  private capDirty = false;
+
+  private capConfigFromProduct(p: SurrogateProductDetail): MaxLoanByFactConfig | null {
+    const cap = p.cap;
+    const rows = p.capDefaults ?? [];
+    if (cap === null || rows.length === 0) return null;
+    return {
+      factKey: cap.factKey,
+      onNoMatch: cap.onNoMatch,
+      rows: rows.map((row) => ({ ...row })),
+      ...(cap.columnFactKey !== undefined ? { columnFactKey: cap.columnFactKey } : {}),
+      ...(cap.rowVia !== undefined ? { rowVia: cap.rowVia } : {}),
+      ...(cap.columnVia !== undefined ? { columnVia: cap.columnVia } : {}),
+    };
+  }
+
   /**
    * A value the board or a panel changed can move what the calculation resolves to, so the
    * product is re-read rather than assumed unchanged.
@@ -3535,10 +3612,24 @@ export class SurrogateProductDetailPage {
     this.saving.set(true);
     this.saveError.set(null);
     try {
+      // READ BEFORE THE FIRST WRITE. `absorb` re-seeds the screen from the response and
+      // clears `capDirty` with it, so asking afterwards always answered "no" and the second
+      // write never fired — the grid took the figures, the Save succeeded, and nothing was
+      // stored. Both the flag and the rows are taken here, while they still mean something.
+      const capRows = this.capDirty ? (this.capConfig()?.rows ?? []) : null;
+
       const res = await this.api.setSurrogateProductIncomeRule(p.key, {
         incomeRule: this.ruleFromForm(),
       });
       this.absorb(res.data);
+
+      // SECOND, and only when it moved. The two live in different columns, and the cap write
+      // refuses a product whose blueprint declares no grid — so an unconditional call would
+      // fail every product that has none, on a Save that had nothing to do with it.
+      if (capRows !== null) {
+        const capRes = await this.api.setSurrogateProductCapDefaults(p.key, { rows: capRows });
+        this.absorb(capRes.data);
+      }
     } catch (err) {
       this.saveError.set(this.localizedError(err));
     } finally {
@@ -3668,6 +3759,8 @@ export class SurrogateProductDetailPage {
         ]),
       ),
     );
+    this.capConfig.set(this.capConfigFromProduct(data));
+    this.capDirty = false;
     this.dirty.set(false);
   }
 

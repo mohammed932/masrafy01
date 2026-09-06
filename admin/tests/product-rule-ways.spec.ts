@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   filledWayIds,
+  ownedSlotIdsFor,
   wayIdByRow,
   wayOwnedSlots,
   waysAreExclusive,
@@ -216,5 +217,32 @@ describe('the Save gate mirrors the server, and no further', () => {
 
   it('asks nothing when the caller states no way at all — every existing caller', () => {
     expect(productRuleHasError({ steps: PLAIN, gates: [], figures: { primary: pct } })).toBe(false);
+  });
+});
+
+describe('ownedSlotIdsFor — one owner for "this bank’s slots"', () => {
+  const ALL = ['primary', 'alt', 'alt__top_up', 'cond__paid', 'src__price'];
+
+  it('narrows nothing when the ways are not exclusive', () => {
+    expect(ownedSlotIdsFor(COLUMNED, ALL, null, 'primary')).toBeUndefined();
+  });
+
+  it('keeps the chosen way and every slot no way owns', () => {
+    const owned = ownedSlotIdsFor(COLUMNED, ALL, 'exclusive', 'alt');
+    expect([...(owned ?? [])].sort()).toEqual(
+      ['alt', 'alt__top_up', 'alt_pick', 'cond__paid', 'src__price'].sort(),
+    );
+  });
+
+  it('an unpicked way is excluded, which is the whole point', () => {
+    expect(ownedSlotIdsFor(COLUMNED, ALL, 'exclusive', 'alt')?.has('primary')).toBe(false);
+  });
+
+  it('no way picked yet still leaves the conditions in play, never an empty set', () => {
+    const owned = ownedSlotIdsFor(COLUMNED, ALL, 'exclusive', null);
+    expect(owned?.has('cond__paid')).toBe(true);
+    expect(owned?.has('src__price')).toBe(true);
+    expect(owned?.has('primary')).toBe(false);
+    expect(owned?.has('alt')).toBe(false);
   });
 });

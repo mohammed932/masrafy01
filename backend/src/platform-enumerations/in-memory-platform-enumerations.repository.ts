@@ -134,6 +134,11 @@ export class InMemoryPlatformEnumerationsRepository
     throw new Error('in-memory enumeration registry is read-only');
   }
 
+  /** Read-only stub, exactly as the rule write above. */
+  async setSurrogateProductCapDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
   /**
    * Empty, not a throw: "which programs have typed figures under this product" has a true
    * answer in a registry with no programs, and it backs a REFUSAL — a throw here would turn

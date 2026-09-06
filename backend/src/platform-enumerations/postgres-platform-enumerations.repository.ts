@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BankProgramType, Prisma } from '@prisma/client';
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
+import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { LoanCategory, PlatformEnumeration, QuestionType } from '@prisma/client';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
@@ -798,6 +799,9 @@ export class PostgresPlatformEnumerationsRepository
     labelEn: true,
     incomeRule: true,
     templateSpec: true,
+    // Read with the rule and not on a follow-up query: every screen that renders a product's
+    // grid renders the amounts in it, and the two are one answer to one question.
+    capDefaults: true,
     valueSources: true,
     surrogateProductKey: true,
   } as const;
@@ -844,6 +848,31 @@ export class PostgresPlatformEnumerationsRepository
     template?: ProductTemplate | null,
   ): Promise<ProgramNameIncomeRuleRow> {
     return this.setRuleRow('surrogate_product', key, rule, valueSources, updatedBy, template);
+  }
+
+  /**
+   * A surrogate product's default cap amounts — the figures every new program under it
+   * starts from.
+   *
+   * `Prisma.DbNull` for the cleared state, exactly as `incomeRule` and `templateSpec` use
+   * it: `JsonNull` would store the JSON literal `null`, which reads back as a present-but-
+   * empty set and would make "states no amounts" answerable two different ways depending on
+   * which write last touched the column.
+   */
+  async setSurrogateProductCapDefaults(
+    key: string,
+    rows: MaxLoanByFactRow[] | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: {
+        capDefaults: rows === null ? Prisma.DbNull : ({ rows } as unknown as Prisma.InputJsonValue),
+        updatedBy,
+      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
+    });
+    return toProgramNameIncomeRuleRow(row);
   }
 
   /**
@@ -2094,6 +2123,7 @@ function toProgramNameIncomeRuleRow(row: {
   labelEn: string;
   incomeRule: unknown;
   templateSpec?: unknown;
+  capDefaults?: unknown;
   valueSources: unknown;
   surrogateProductKey?: string | null;
 }): ProgramNameIncomeRuleRow {
@@ -2107,9 +2137,25 @@ function toProgramNameIncomeRuleRow(row: {
         ? null
         : (row.incomeRule as IncomeAssumptionConfig),
     templateSpec: asProductTemplate(row.templateSpec),
+    capDefaults: asCapDefaultRows(row.capDefaults),
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
     surrogateProductKey: row.surrogateProductKey ?? null,
   };
+}
+
+/**
+ * A stored `capDefaults` column as the rows it holds, or null when it states none.
+ *
+ * The column's shape is `{ rows: [...] }` and this returns the ARRAY, because the wrapper
+ * exists only so the column has somewhere to grow and every reader wants the rows. A column
+ * that is not an object, or whose `rows` is not an array, reads as "no defaults" rather than
+ * throwing: it is a starting point for a figure an operator types, so a half-written one must
+ * not take a product's whole page down.
+ */
+function asCapDefaultRows(value: unknown): MaxLoanByFactRow[] | null {
+  if (value === null || value === undefined || typeof value !== 'object') return null;
+  const rows = (value as { rows?: unknown }).rows;
+  return Array.isArray(rows) ? (rows as MaxLoanByFactRow[]) : null;
 }
 
 /** A stored `templateSpec` column as the form it holds, or null when there is no form. */

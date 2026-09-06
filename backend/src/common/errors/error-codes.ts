@@ -362,6 +362,22 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_CAP_ONLY: 'SURROGATE_PRODUCT_CAP_ONLY',
   /**
+   * Default maximum-loan amounts were written for a product whose blueprint declares no
+   * cap at all.
+   *
+   * The grid — which answer keys the rows, which keys the columns, and what happens to an
+   * applicant with no row — comes from `product-blueprints.ts` and is resolved at read
+   * time (`capShapeOf`). A product with no cap has no grid, so there is nothing for the
+   * amounts to be filed under: stored anyway they would be a set of figures no screen can
+   * render and no program can inherit, which is worse than a refusal because it looks
+   * like it worked.
+   *
+   * Its own code rather than `MAX_LOAN_BY_FACT_INVALID`: that one says the TABLE cannot be
+   * read and sends the operator to check rows and bands, and here the rows are not the
+   * problem — this product simply does not cap by an answer.
+   */
+  SURROGATE_PRODUCT_NO_CAP: 'SURROGATE_PRODUCT_NO_CAP',
+  /**
    * The question an operator ticked on a product's step ① is already answered by MORE THAN
    * ONE surrogate fact.
    *
@@ -847,6 +863,28 @@ export const ERROR_CODES = {
    * does not lose it.
    */
   INCOME_RULE_CLASS_ROW_MISSING: 'INCOME_RULE_CLASS_ROW_MISSING',
+  /**
+   * This program's maximum-loan table does not line up with the grid its surrogate product
+   * declares: cells with no figure, rows keying nothing declared, or both.
+   *
+   * `meta.missing` names the empty cells and `meta.undeclared` the rows that key nothing —
+   * the two halves of one misalignment, because a mistyped key produces both at once.
+   * `meta.have` / `meta.expected` count the grid.
+   *
+   * Warning and never a refusal, for the reason `INCOME_RULE_CLASS_ROW_MISSING` is one and
+   * one more of its own: the grid is CODE, so a blueprint edit can drop a row key from
+   * under a program that has been quoting off it for months, and refusing would leave that
+   * program unopenable — its operator could not change a fee, let alone fix the row. What
+   * it buys is that somebody hears about it at all: an applicant whose cell is empty is
+   * capped by whatever that program chose for an answer it has no row for, which is either
+   * the program's own maximum or a refusal, and neither was decided about this cell.
+   *
+   * Emitted on SAVE and again on READ, from one shared derivation, so leaving the screen
+   * does not lose it. Skipped entirely for a program that stores NO table: three of the
+   * four compound programmes publish no unit-type cap, and a bank that has stated no cap
+   * has not left a gap in one.
+   */
+  MAX_LOAN_BY_FACT_CELLS_MISSING: 'MAX_LOAN_BY_FACT_CELLS_MISSING',
   // Reason codes: returned inside a 200 payload, the program still listed and
   // still ranked (FR-022, FR-024). They exist as a PAIR because the two lead to
   // different admin actions — assign the question vs. add the table row.
@@ -997,6 +1035,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   PROGRAM_NAME_RULE_LINKED: 422,
   SURROGATE_PRODUCT_NOT_FOUND: 404,
   SURROGATE_PRODUCT_CAP_ONLY: 422,
+  SURROGATE_PRODUCT_NO_CAP: 422,
   // 409: the request is well-formed and the rows exist — the platform's own data is in a
   // shape that has no single right answer, and only an operator can pick one.
   SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,
@@ -1139,6 +1178,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   PROGRAM_HAS_ESTIMATED_VALUES: 409,
   SURROGATE_FACT_BINDING_MISSING: 422,
   INCOME_RULE_CLASS_ROW_MISSING: 422,
+  MAX_LOAN_BY_FACT_CELLS_MISSING: 422,
   // Reason codes: only ever returned inside a 200 payload.
   SURROGATE_FACT_MISSING: 200,
   SURROGATE_NO_MATCHING_ROW: 200,

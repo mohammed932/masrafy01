@@ -11,12 +11,37 @@
  */
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsObject, IsOptional, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsObject,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { TemplateStarter } from '@/matching/pipeline/product-template-starters';
+import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
+import type { BlueprintCap } from '../blueprints/product-blueprint.types';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
+import { MaxLoanByFactRowDto } from './sub-configs/loan-limits-config.dto';
+
+/**
+ * The maximum-loan GRID a surrogate product declares — the axes and the row and column
+ * keys, in the order the sheet prints them.
+ *
+ * An alias of `BlueprintCap` and deliberately not a restatement of it. The blueprint
+ * registry is the single authority on what a product's grid is (`capShapeOf` resolves it at
+ * read time for exactly that reason), and a hand-copied wire shape beside it would be a
+ * second one — free to drift a field at a time, silently, because nothing compares them.
+ *
+ * FIGURES ARE NOT IN IT. What a bank lends against an answer is the bank's; what an
+ * operator wants every new program to start from is the product's `capDefaults`, typed on
+ * the product's own screen and carried separately.
+ */
+export type ProductCapShapeDto = BlueprintCap;
 
 /**
  * One surrogate bank program filed under a catalog name.
@@ -109,6 +134,24 @@ export interface ProgramNameIncomeRuleResponseDto {
     labelEn: string;
     active: boolean;
     incomeRule: IncomeAssumptionConfig | null;
+    /**
+     * The maximum-loan grid this product implies, or `null` when it declares none.
+     *
+     * Carried so a bank program's cap editor can stop being a build-your-own grid: the axes
+     * and the keys come from here and only the amounts are the bank's. Resolved from the
+     * blueprint registry on every read (`capShapeOf`), never stored — so a shape change is
+     * a code change with a test behind it rather than a column that has gone stale.
+     */
+    cap: ProductCapShapeDto | null;
+    /**
+     * The amounts every new program under this name starts its grid from, or `null` when
+     * the product states none — which is the state every product ships in.
+     *
+     * COPIED, not inherited: a program takes these once, at creation, and stores its own
+     * copy. Editing them later moves no program that has already saved, which is correct on
+     * a platform whose offers are immutable (Principle I / A6).
+     */
+    capDefaults: MaxLoanByFactRow[] | null;
   } | null;
 }
 
@@ -151,6 +194,14 @@ export interface SurrogateProductSummaryDto {
 /** A surrogate product's own page: the calculation, and who uses it. */
 export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
   incomeRule: IncomeAssumptionConfig | null;
+  /**
+   * The maximum-loan grid this product's blueprint declares, or `null` when it declares
+   * none. The same object the catalog name's response carries, from the same resolver — the
+   * product's own page renders it and authors the amounts against it.
+   */
+  cap: ProductCapShapeDto | null;
+  /** The default amounts, as `PUT :key/cap-defaults` last stored them. `null` = none. */
+  capDefaults: MaxLoanByFactRow[] | null;
   /**
    * The friendly form the calculation was compiled from, or `null` when it was authored
    * through the raw step editor.
@@ -238,6 +289,30 @@ export interface SurrogateProductTemplateResponseDto {
    * saying so is the honest state — see `PRODUCT_TEMPLATE_NOT_EDITABLE`.
    */
   advanced: boolean;
+}
+
+/**
+ * The default maximum-loan AMOUNTS a surrogate product hands every new program under it.
+ *
+ * AMOUNTS ONLY. The axes and the row and column keys are the blueprint's and are resolved at
+ * read time, so there is nothing here to state them with — which is what makes the grid and
+ * the figures in it unable to disagree about what a row means.
+ *
+ * `rows` is REQUIRED and an EMPTY array is a real operation: it clears the defaults. Stored
+ * as SQL NULL rather than as `{"rows": []}`, so "this product states no starting amounts"
+ * has one spelling and a reader never has to know that two mean the same thing.
+ *
+ * The row shape is `MaxLoanByFactRowDto`, the one a bank program's own table already uses —
+ * so the positive-amount rule, the band edges and the key pattern are stated once. A second
+ * row class here would be a second answer to "what is a legal cell".
+ */
+export class SetSurrogateProductCapDefaultsDto {
+  @ApiProperty({ type: [MaxLoanByFactRowDto], description: 'Empty clears the defaults.' })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => MaxLoanByFactRowDto)
+  rows!: MaxLoanByFactRowDto[];
 }
 
 /**

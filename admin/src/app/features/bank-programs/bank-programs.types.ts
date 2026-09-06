@@ -5,6 +5,10 @@
 
 import type { EnumerationMember } from '@core/platform-enumerations/platform-enumerations.types';
 import type { LoanCategory } from '@core/loan-category';
+// The cap table's own types live beside the control that edits them, and that module imports
+// nothing — so this direction is the only one, and there is one declaration of the shape
+// rather than a wire echo free to drift from it.
+import type { MaxLoanByFactRow, ProductCapShape } from '@shared/ui/max-loan-by-fact.rules';
 
 export type ProgramType = 'income_proof' | 'income_surrogate';
 
@@ -935,6 +939,23 @@ export interface ProgramNameIncomeRule {
     labelEn: string;
     active: boolean;
     incomeRule: IncomeAssumptionConfig | null;
+    /**
+     * The maximum-loan grid this product declares — the axes and the row and column keys, in
+     * the order its sheet prints them. `null` when it declares none, which is when the bank
+     * builds its own table row by row exactly as before.
+     *
+     * SHAPE ONLY, no money. Resolved on the server off the blueprint registry rather than
+     * stored, so there is one authority for what a row means.
+     */
+    cap: ProductCapShape | null;
+    /**
+     * The amounts an operator set once on the product, which a new bank program starts from.
+     *
+     * COPIED on arrival, never inherited: the bank stores its own rows, and changing these
+     * later moves no program that has already saved. `null` = the product states none, which
+     * is the state every product ships in.
+     */
+    capDefaults: MaxLoanByFactRow[] | null;
   } | null;
 }
 
@@ -1125,6 +1146,16 @@ export const I_SCORE_FACT_KEY = 'i_score';
 /** A surrogate product's own workspace: the calculation, and everything reachable from it. */
 export interface SurrogateProductDetail extends SurrogateProductSummary {
   incomeRule: IncomeAssumptionConfig | null;
+  /**
+   * The maximum-loan grid this product's blueprint declares, or `null`.
+   *
+   * The same object the catalog name's response carries, from the same resolver on the
+   * server — the product's page renders it and authors the amounts against it, and a bank
+   * program reads it to draw the same grid.
+   */
+  cap: ProductCapShape | null;
+  /** The amounts every new program starts that grid from. `null` = none stated yet. */
+  capDefaults: MaxLoanByFactRow[] | null;
   /** The form it was compiled from, or `null` when it was authored by hand. */
   template: ProductTemplate | null;
   valueSources: ValueSourceMap;

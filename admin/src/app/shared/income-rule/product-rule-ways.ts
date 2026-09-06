@@ -125,3 +125,32 @@ export function waysAreExclusive(
 ): boolean {
   return waysAre === 'exclusive' && waysOfRule(steps).length >= 2;
 }
+
+/**
+ * The slots a bank may be offered a figure for: the way it sells, plus every slot no way owns.
+ *
+ * ONE OWNER, and this file is it. `catalog-defaults.ts` states in its own doc that
+ * `product-rule-ways.ts` owns this union — and it was open-coded twice anyway, in the rule
+ * editor and in the wizard, which had already drifted apart by a term. Two derivations of
+ * "which slots belong to this bank" is how a default for a way the operator has ruled out
+ * gets offered on a screen that has already pruned it.
+ *
+ * `undefined` means "no narrowing": a product that does not hold its ways as alternatives has
+ * every slot in play, and so does one whose ways this rule does not describe.
+ *
+ * A `null` wayId on an EXCLUSIVE product narrows to the slots no way owns — the conditions
+ * and the sources — and never to nothing. The bank has not picked a way yet; that is a reason
+ * to withhold the ways' figures, not a reason to withhold the conditions' as well.
+ */
+export function ownedSlotIdsFor(
+  steps: readonly RuleStep[],
+  allSlotIds: Iterable<string>,
+  waysAre: 'exclusive' | null | undefined,
+  wayId: string | null,
+): ReadonlySet<string> | undefined {
+  if (!waysAreExclusive(waysAre, steps)) return undefined;
+  const owned = wayId === null ? new Set<string>() : wayOwnedSlots(steps, wayId);
+  const everyWaySlot = new Set(waysOfRule(steps).flatMap((way) => way.slots));
+  for (const id of allSlotIds) if (!everyWaySlot.has(id)) owned.add(id);
+  return owned;
+}

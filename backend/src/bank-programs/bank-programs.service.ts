@@ -10,10 +10,17 @@ import {
   type ProgramUnderName,
 } from '../platform-enumerations/platform-enumerations.repository';
 import { PlatformEnumerationsAdminService } from '../platform-enumerations/platform-enumerations-admin.service';
-import { exclusiveFactKeysOf, isCapOnlyProductKey } from './blueprints/product-blueprints';
+import {
+  capShapeOf,
+  exclusiveFactKeysOf,
+  isCapOnlyProductKey,
+} from './blueprints/product-blueprints';
+import type { BlueprintCap } from './blueprints/product-blueprint.types';
+import type { MaxLoanByFactConfig, MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import { ProductAsksRepository } from './asks/product-asks.repository';
 import {
   SetProgramNameIncomeRuleDto,
+  SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductTemplateDto,
   type ProgramNameIncomeRuleResponseDto,
   type SurrogateProductDetailDto,
@@ -29,6 +36,7 @@ import {
   DeprecatedEnumerationKeyException,
   DerivationArithmeticMismatchException,
   MaxLoanByFactInvalidException,
+  SurrogateProductNoCapException,
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
   AdditionalIncomeInvalidException,
@@ -101,8 +109,12 @@ import {
   type IncomeRuleWarning,
 } from './validation/income-rule.validator';
 import {
+  capGridDiff,
+  validateCapAgainstProduct,
+  validateCapRowsAgainstProduct,
   validateMaxLoanAdjustments,
   validateMaxLoanByFact,
+  type MaxLoanByFactViolation,
 } from './validation/max-loan-by-fact.validator';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
@@ -579,20 +591,18 @@ export class BankProgramsService {
       dto.loanLimits.maxLoanAdjustments,
       this.incomeRuleContext(),
     );
-    const capOrAdjustmentViolation = capViolation ?? adjustmentViolation;
+    // The product's own axes, when its catalog name resolves to one. The grid is the
+    // PRODUCT's and only the amounts are the bank's, so a table keyed by a different fact is
+    // not a variant of it — it is a second grid filed under the product's name, with every
+    // figure in it under keys the product screen cannot show. `onNoMatch` is deliberately
+    // not compared; see `validateCapAgainstProduct`.
+    const shapeViolation = validateCapAgainstProduct(
+      dto.loanLimits.maxLoanByFact,
+      await this.productCapShapeFor(dto.loanLimits.maxLoanByFact, dto.programNameKey ?? null),
+    );
+    const capOrAdjustmentViolation = capViolation ?? adjustmentViolation ?? shapeViolation;
     if (capOrAdjustmentViolation) {
-      throw new MaxLoanByFactInvalidException({
-        reason: capOrAdjustmentViolation.reason,
-        ...(capOrAdjustmentViolation.index !== undefined
-          ? { index: capOrAdjustmentViolation.index }
-          : {}),
-        ...(capOrAdjustmentViolation.detail !== undefined
-          ? { detail: capOrAdjustmentViolation.detail }
-          : {}),
-        ...(capOrAdjustmentViolation.allowed !== undefined
-          ? { allowed: capOrAdjustmentViolation.allowed }
-          : {}),
-      });
+      throw this.maxLoanByFactException(capOrAdjustmentViolation);
     }
 
     // FR-008s — derivation arithmetic.
@@ -843,6 +853,99 @@ export class BankProgramsService {
     return out;
   }
 
+  /**
+   * The typed 422 for anything the cap validators refuse.
+   *
+   * One builder rather than the spread block written out at each call site: the three
+   * optional meta fields are what the SCREEN reads to point at the offending row, and a site
+   * that forgot one would leave the operator a refusal with nothing to act on.
+   */
+  private maxLoanByFactException(violation: MaxLoanByFactViolation): MaxLoanByFactInvalidException {
+    return new MaxLoanByFactInvalidException({
+      reason: violation.reason,
+      ...(violation.index !== undefined ? { index: violation.index } : {}),
+      ...(violation.detail !== undefined ? { detail: violation.detail } : {}),
+      ...(violation.allowed !== undefined ? { allowed: violation.allowed } : {}),
+    });
+  }
+
+  /**
+   * The maximum-loan grid the product behind this catalog name declares, or `undefined`
+   * when this program stores no table, there is no product, or the product declares none.
+   *
+   * Two hops (name → product → blueprint) because the link is `programNameKey`, which is
+   * what a bank program stores. The SECOND read is skipped whenever the product key is
+   * itself a blueprint key — which it is on every seeded row, since `seedProductKey` writes
+   * it verbatim — so the extra query is paid only by a product an operator renamed, where
+   * `templateSpec.blueprintKey` is the only thing that still says which grid it is.
+   */
+  private async productCapShapeFor(
+    table: MaxLoanByFactConfig | undefined,
+    programNameKey: string | null,
+  ): Promise<BlueprintCap | undefined> {
+    // A program that stores no cap table has nothing to measure against a grid, and the
+    // reads below are not free: most programs store none, so resolving the product for them
+    // would put a query on every save that could never change an answer.
+    if (table === undefined) return undefined;
+    if (programNameKey === null) return undefined;
+    const name = await this.enums.findProgramName(programNameKey);
+    const productKey = name?.surrogateProductKey ?? null;
+    if (productKey === null) return undefined;
+    const direct = capShapeOf(productKey);
+    if (direct !== undefined) return direct;
+    const product = await this.enums.findSurrogateProduct(productKey);
+    return capShapeOf(productKey, product?.templateSpec?.blueprintKey ?? null);
+  }
+
+  /**
+   * Does this program's cap table cover the grid its product declares?
+   *
+   * The warning the validator's own header has promised since the cap shipped ("the admin
+   * surfaces the gap as a warning on the program screen") and which did not exist. An empty
+   * cell is not a refusal — a partial table is a legitimate state, which is what `onNoMatch`
+   * is for — but nothing said so before a real customer met it, and what that customer gets
+   * is either the program's whole maximum or a refusal, neither of which anybody decided
+   * about that cell.
+   *
+   * SKIPPED ENTIRELY for a program that stores no table, and that is load-bearing rather
+   * than tidy: three of the four banks selling the compound guarantee publish no unit-type
+   * cap at all, so warning on an absent table would nag EGB, FABMISR and CAE forever about
+   * a policy their sheets do not have. A bank that has stated no cap has not left a gap in
+   * one.
+   *
+   * The axes are not re-checked here — `validateCapAgainstProduct` refuses a mismatched one
+   * at save — but a table stored before that check existed can still disagree, and the diff
+   * reads it as every cell missing, which is the honest answer for a grid the program is not
+   * keyed by.
+   */
+  private capCoverageWarnings(
+    config: MaxLoanByFactConfig | undefined,
+    shape: BlueprintCap | undefined,
+    programCode: string,
+  ): Array<{ code: string; meta?: Record<string, unknown> }> {
+    if (config === undefined || shape === undefined) return [];
+    if (config.rows.length === 0) return [];
+    const diff = capGridDiff(config, shape);
+    if (diff.missing.length === 0 && diff.undeclared.length === 0) return [];
+    return [
+      {
+        code: ERROR_CODES.MAX_LOAN_BY_FACT_CELLS_MISSING,
+        meta: {
+          programCode,
+          factKey: shape.factKey,
+          ...(shape.columnFactKey !== undefined ? { columnFactKey: shape.columnFactKey } : {}),
+          missing: diff.missing,
+          // The other half of one misalignment: a mistyped key empties a declared cell AND
+          // leaves a row keying nothing. Reported beside it so the screen can say which row
+          // to retype rather than only which cell is blank.
+          undeclared: diff.undeclared,
+          have: diff.have,
+          expected: diff.expected,
+        },
+      },
+    ];
+  }
+
   /** One name's catalog rule, or `undefined` when the name states none. */
   private async catalogIncomeRuleFor(
     programNameKey: string,
@@ -937,6 +1040,17 @@ export class BankProgramsService {
 
     if (args.effective && args.programCode) {
       warnings.push(...(await this.classCoverageWarnings(args.effective, args.programCode)));
+      // The cap is a PROGRAM setting, not part of the rule, so it is read off the DTO rather
+      // than off the merged rule beside it. Same derivation as the read path, so leaving the
+      // screen does not lose the sentence.
+      const capTable = args.dto.loanLimits.maxLoanByFact;
+      warnings.push(
+        ...this.capCoverageWarnings(
+          capTable,
+          await this.productCapShapeFor(capTable, args.dto.programNameKey ?? null),
+          args.programCode,
+        ),
+      );
     }
     return warnings;
   }
@@ -1100,6 +1214,18 @@ export class BankProgramsService {
         ),
         program.programCode,
       )),
+    );
+
+    // The cap's coverage, from the same derivation the save path runs. Read off the stored
+    // `loanLimits` blob — the cap belongs to the program, so unlike the rule there is no
+    // catalog structure to merge in first.
+    const capTable = storedMaxLoanByFact(program.loanLimits);
+    warnings.push(
+      ...this.capCoverageWarnings(
+        capTable,
+        await this.productCapShapeFor(capTable, program.programNameKey ?? null),
+        program.programCode,
+      ),
     );
 
     const registry =
@@ -1659,6 +1785,11 @@ export class BankProgramsService {
       usedBy: nameKeys,
       capPrograms: (await this.capUsageByProduct()).get(row.key) ?? [],
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
+      // The same two fields the catalog name's response carries, from the same resolver and
+      // the same column — this is the screen that AUTHORS the amounts, so it has to be able
+      // to render the grid they are filed under.
+      cap: capShapeOf(row.key, row.templateSpec?.blueprintKey) ?? null,
+      capDefaults: row.capDefaults,
       template: row.templateSpec,
       valueSources: row.valueSources,
       names,
@@ -1783,6 +1914,94 @@ export class BankProgramsService {
     });
 
     return this.getSurrogateProduct(key);
+  }
+
+  /**
+   * Set (or clear) the default maximum-loan AMOUNTS every new bank program under this
+   * product starts its grid from.
+   *
+   * Mirrors `setSurrogateProductIncomeRule` step for step — the same 404, the same actor,
+   * the same `PLATFORM_ENUMERATION_UPDATED` audit event keyed by the column it wrote, the
+   * same "read the product back" return — with two differences, both of which follow from
+   * these being FIGURES and not a calculation:
+   *
+   *   · there is no proof-change refusal to make. `INCOME_PROOF_IN_USE` exists because a
+   *     bank's stored table is keyed by the proof it was written against; a default amount
+   *     is copied into a program at creation and read by nothing afterwards, so changing it
+   *     cannot move a figure any live program quotes;
+   *   · the AXES are not writable at all. They come from the blueprint (`capShapeOf`), so
+   *     the body carries rows and nothing else, and a product with no declared grid is
+   *     refused rather than handed a set of figures nothing can file.
+   *
+   * An EMPTY `rows` clears them, stored as SQL NULL — one spelling per state.
+   */
+  async setSurrogateProductCapDefaults(
+    key: string,
+    dto: SetSurrogateProductCapDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const blueprintKey = row.templateSpec?.blueprintKey ?? null;
+    const shape = capShapeOf(row.key, blueprintKey);
+    if (shape === undefined) {
+      throw new SurrogateProductNoCapException({ productKey: row.key, blueprintKey });
+    }
+
+    const rows = dto.rows as unknown as MaxLoanByFactRow[];
+    if (rows.length > 0) {
+      // Validated as the ENGINE will read it: the product's axes plus the operator's rows,
+      // which is exactly the object a program under this product ends up storing. Anything
+      // less would let the product hand out figures its own programs are refused for.
+      const config: MaxLoanByFactConfig = {
+        factKey: shape.factKey,
+        ...(shape.columnFactKey !== undefined ? { columnFactKey: shape.columnFactKey } : {}),
+        ...(shape.rowVia !== undefined ? { rowVia: shape.rowVia } : {}),
+        ...(shape.columnVia !== undefined ? { columnVia: shape.columnVia } : {}),
+        onNoMatch: shape.onNoMatch,
+        rows,
+      };
+      // The GRID check first, deliberately. Both checks catch a mistyped key, but this one
+      // answers with the keys that are on the operator's screen at that moment, where
+      // `unknown_row_key` answers with every option the question offers — a longer list, and
+      // one that includes answers this product's grid does not price.
+      const outsideShape = validateCapRowsAgainstProduct(config, shape);
+      const violation =
+        outsideShape ?? (await validateMaxLoanByFact(config, this.incomeRuleContext()));
+      if (violation) throw this.maxLoanByFactException(violation);
+    }
+
+    const stored = rows.length === 0 ? null : rows;
+    const saved = await this.enums.setSurrogateProductCapDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      // A FK to STAFF_ACCOUNT — "the staff member this was done to", never the row it was
+      // about. The product's id travels in the payload, as every other
+      // PLATFORM_ENUMERATION_UPDATED writer sends it.
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // Keyed `capDefaults` to match the column, exactly as the rule write keys
+        // `incomeRule`. The COUNT is written out separately because it is the part a reader
+        // of the log cares about — "this product stopped stating any starting amounts" is
+        // buried in a whole-blob diff.
+        changes: {
+          capDefaults: {
+            before: row.capDefaults?.length ?? null,
+            after: stored?.length ?? null,
+            figuresChanged: stableJson(row.capDefaults ?? null) !== stableJson(stored ?? null),
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
   }
 
   // --- the friendly form ------------------------------------------------------
@@ -2124,6 +2343,12 @@ export class BankProgramsService {
               active: productRow.active,
               incomeRule:
                 product.incomeRule === null ? null : normalizeIncomeAssumption(product.incomeRule),
+              // Resolved off the blueprint registry on every read, never off the row: the
+              // file that declares the grid is its one authority, and a column beside it
+              // would be free to disagree. `templateSpec.blueprintKey` is the fallback for a
+              // product an operator renamed — on a seeded row the key IS the blueprint key.
+              cap: capShapeOf(product.key, product.templateSpec?.blueprintKey) ?? null,
+              capDefaults: product.capDefaults,
             },
     };
   }
@@ -2746,4 +2971,22 @@ function outputKindOf(
 ): 'monthlyIncome' | 'maxAmount' | null {
   const kind = rule?.output?.kind;
   return kind === 'monthlyIncome' || kind === 'maxAmount' ? kind : null;
+}
+
+/**
+ * A stored `loanLimits` blob's cap table, or `undefined` when the program states none.
+ *
+ * A blob and not a DTO, because this is the READ path: what came back from Postgres is JSON
+ * that a DTO validated on the way in, possibly under an older shape. A table with no `rows`
+ * array reads as ABSENT rather than as an empty one — the coverage warning skips a program
+ * with no table on purpose (three of the four compound banks publish no cap), and a
+ * half-written blob must land in that same silence rather than reporting every cell missing.
+ */
+function storedMaxLoanByFact(raw: unknown): MaxLoanByFactConfig | undefined {
+  if (raw === null || typeof raw !== 'object') return undefined;
+  const table = (raw as { maxLoanByFact?: unknown }).maxLoanByFact;
+  if (table === null || typeof table !== 'object') return undefined;
+  return Array.isArray((table as { rows?: unknown }).rows)
+    ? (table as MaxLoanByFactConfig)
+    : undefined;
 }

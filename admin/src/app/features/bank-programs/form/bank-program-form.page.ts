@@ -97,7 +97,14 @@ import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-ass
 import { IncomeRuleCheckComponent } from '@shared/income-rule/income-rule-check.component';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { catalogRuleOf } from '@shared/income-rule/catalog-rule';
-import { waysAreExclusive } from '@shared/income-rule/product-rule-ways';
+import {
+  slotShapes,
+  slotsMissingDefault,
+  withAllDefaults,
+  type SlotDefault,
+} from '@shared/income-rule/catalog-defaults';
+import { gateTitleFor } from '@shared/income-rule/gate-labels';
+import { wayOwnedSlots, waysAreExclusive, waysOfRule } from '@shared/income-rule/product-rule-ways';
 import { BanksApiService } from '../../banks/banks.api.service';
 import { additionalIncomeSources } from '../additional-income-sources';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
@@ -107,6 +114,8 @@ import {
   DbrBandsEditorComponent,
   MaxLoanByFactEditorComponent,
   WizardStepsComponent,
+  capConfigFrom,
+  capGridFrom,
   dbrBandsErrorFor,
   maxLoanByFactErrorFor,
   IncomeBasisCardsComponent,
@@ -114,6 +123,8 @@ import {
   type AdditionalIncomeOption,
   type DbrBandsError,
   type MaxLoanByFactConfig,
+  type MaxLoanByFactRow,
+  type ProductCapShape,
   type WizardStepItem,
 } from '@shared/ui';
 
@@ -678,7 +689,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   <app-max-loan-by-fact-editor
                     [facts]="incomeFacts()"
                     [config]="maxLoanByFact()"
-                    (configChange)="maxLoanByFact.set($event)"
+                    (configChange)="onMaxLoanByFact($event)"
+                    [productCap]="productCap()"
+                    [productDefaults]="productCapDefaults()"
+                    [productLabel]="programNameLabel()"
                   ></app-max-loan-by-fact-editor>
                 </div>
               </section>
@@ -1284,6 +1298,27 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                         </button>
                       }
                     </p>
+
+                    <!-- WHAT THE FILL DID, named.
+                         A blank gate reads as "this bank does not apply this condition", so
+                         filling one switches a refusal ON. The count alone would not say
+                         which, and the operator has no other record of what was blank when
+                         they opened the program — so every filled figure is listed, and
+                         undoing is one click. Nothing has been sent: the form is merely
+                         dirty. -->
+                    @if (filledFromProduct().length > 0) {
+                      <p class="income-filled" role="status">
+                        <span>{{ filledNotice() }}</span>
+                        <button
+                          type="button"
+                          class="income-filled-undo"
+                          (click)="undoFillFromProduct()"
+                          i18n="@@bank_programs.income.filled_undo"
+                        >
+                          Undo the fill
+                        </button>
+                      </p>
+                    }
                   }
 
                   <!-- Both of these used to be projected INSIDE the editor, which now
@@ -1358,6 +1393,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                         [wayId]="wayIdValue()"
                         (wayIdChange)="onWayPicked($event)"
                         [figuresAreOwn]="amountsValue() === 'own'"
+                        [catalogFigures]="ruleCatalogFigures()"
+                        [showsCatalogDefaults]="amountsValue() === 'own'"
                       ></app-income-assumption-section>
                     </div>
 
@@ -2128,6 +2165,63 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       /* Quiet by construction: it undoes work, so it must not compete with the grid it
          sits above. Underline on hover rather than a filled button — the same treatment
          the name-picker's escape hatch uses two steps back. */
+      /* WHAT THE FILL DID. Below the source strip and separate from it: the strip says
+         whose numbers these are, which is a standing fact; this says what changed just now,
+         which is a one-off. Secondary ink, because it is a sentence that has to be read and
+         tertiary measures 3.83:1 on this ground in light mode. */
+      .income-filled {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: var(--space-2) 0 0;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+        animation: income-filled-in var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .income-filled-undo {
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        font-size: var(--text-xs);
+        color: var(--color-brand-primary);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .income-filled-undo:hover {
+        color: var(--color-tonal-accent);
+      }
+      .income-filled-undo:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+      @media (hover: none) {
+        .income-filled-undo {
+          min-block-size: 44px;
+          display: inline-flex;
+          align-items: center;
+        }
+      }
+      /* Entry only, ease-out, no bounce. */
+      @keyframes income-filled-in {
+        from {
+          opacity: 0;
+          transform: translateY(-2px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .income-filled {
+          animation: none;
+        }
+      }
+
       .income-source-reset {
         flex: none;
         align-self: center;
@@ -4046,6 +4140,210 @@ export class BankProgramFormPage implements OnInit {
     // the signals the editor writes to — a computed view would be read-only, and the
     // operator has to be able to type straight into it.
     this.seedFromCatalog();
+    this.seedCapFromProduct();
+    if (this.fillOnArrival) {
+      this.fillOnArrival = false;
+      this.fillFromProduct();
+    }
+  }
+
+  // --- the product's maximum-loan grid, copied ------------------------------------------
+
+  /**
+   * What we last seeded, so a name change can replace an untouched copy and nothing else.
+   *
+   * A COPY, not a link: the bank stores its own rows, and editing the product's defaults
+   * later moves no program that has already saved. That is the right semantics on a platform
+   * whose offers are immutable (Principle I / A6), and it is why there is no
+   * `amounts: 'catalog' | 'own'` machinery here.
+   */
+  private capSeededSignature: string | null = null;
+
+  /** The last `onNoMatch` this bank actually held, so a re-seed cannot overwrite it. */
+  private capNoMatch: 'useProgramMax' | 'reject' | null = null;
+
+  /**
+   * Put the product's amounts into the grid, once.
+   *
+   * WITHOUT THIS the boxes would render the product's figures — `capGridFrom` falls back to
+   * them — and save nothing, because the config would still be `null`. The operator would be
+   * looking at six numbers that do not exist.
+   *
+   * Never overwrites a table this bank has touched: only a `null` config, or one byte-equal
+   * to the copy we ourselves seeded, is replaced. So switching the name re-shapes an
+   * untouched grid and leaves a typed one alone — and a typed one that no longer matches the
+   * new product is shown on the free-form controls and refused by name on the next save,
+   * rather than silently re-keyed to axes it was never written for.
+   */
+  /** Every write to the cap table, so the bank's `onNoMatch` is remembered as it is chosen. */
+  protected onMaxLoanByFact(config: MaxLoanByFactConfig | null): void {
+    if (config !== null) this.capNoMatch = config.onNoMatch;
+    this.maxLoanByFact.set(config);
+  }
+
+  private seedCapFromProduct(): void {
+    const shape = this.productCap();
+    const defaults = this.productCapDefaults();
+    if (shape === null || defaults.length === 0) return;
+
+    const current = this.maxLoanByFact();
+    const untouched = current === null || JSON.stringify(current) === this.capSeededSignature;
+    if (!untouched) return;
+
+    // The BANK's answer survives a re-seed. `onNoMatch` is not the product's to force —
+    // `ABK-PER-DOCTORS_CLINIC` stores `reject` where its blueprint declares `useProgramMax` —
+    // and re-picking the name after clearing the amounts used to flip a deliberate `reject`
+    // back to the default with no interaction and nothing on screen saying it had moved.
+    const onNoMatch = this.capNoMatch ?? shape.onNoMatch;
+    const seeded = capConfigFrom(shape, capGridFrom(shape, null, defaults), onNoMatch);
+    if (seeded === null) return;
+    this.capSeededSignature = JSON.stringify(seeded);
+    this.maxLoanByFact.set(seeded);
+  }
+
+  // --- the product's defaults, on a program that already has its own figures -------------
+
+  /**
+   * Arm the fill for the next catalog rule to arrive.
+   *
+   * The rule is fetched asynchronously and `applyInitial` runs before it lands, so the fill
+   * cannot be done where the stored figures are set — there would be nothing to compare them
+   * against. A flag rather than an effect, because this must happen exactly once per load and
+   * never again as the operator edits.
+   */
+  private fillOnArrival = false;
+
+  /** Slot ids filled on open, and the figure map as it was before. Both empty = no fill. */
+  protected readonly filledFromProduct = signal<readonly SlotDefault[]>([]);
+  private figuresBeforeFill: Record<string, StepFigures> | null = null;
+
+  /**
+   * Put the product's amount into every box this bank left blank.
+   *
+   * ONLY on a program already on its own figures: one still inheriting has the product's
+   * numbers in every box already, and filling would be a no-op that printed a banner.
+   *
+   * The form is marked dirty and nothing is sent. That is the whole safety property: a blank
+   * GATE reads as "this bank does not apply this condition", so a fill can switch a refusal
+   * on, and the operator has to see which before it reaches a save.
+   */
+  private fillFromProduct(): void {
+    if (this.amountsValue() !== 'own') return;
+    const catalog = this.catalogEffectiveRule();
+    if (!catalog) return;
+    const missing = slotsMissingDefault(
+      slotShapes(this.ruleSteps(), this.ruleGates()),
+      this.stepFigures(),
+      catalog.stepParams,
+      { ownedSlots: this.ownedSlotIdsForFill() },
+    );
+    if (missing.length === 0) return;
+    this.figuresBeforeFill = this.stepFigures();
+    this.stepFigures.set(withAllDefaults(this.stepFigures(), missing).figures);
+    this.filledFromProduct.set(missing);
+    this.markIncomeRuleDirty();
+  }
+
+  /**
+   * The slots a fill may touch: the way this bank sells, plus every slot no way owns.
+   *
+   * Mirrors the editor's own narrowing, through the same `wayOwnedSlots` — `undefined` when
+   * the product does not make its ways exclusive, which means every slot is in play.
+   */
+  private ownedSlotIdsForFill(): ReadonlySet<string> | undefined {
+    const steps = this.ruleSteps();
+    if (!waysAreExclusive(this.ruleWaysAre(), steps)) return undefined;
+    const chosen = this.wayIdValue();
+    if (chosen === null) return new Set<string>();
+    const owned = wayOwnedSlots(steps, chosen);
+    const everyWaySlot = new Set(waysOfRule(steps).flatMap((way) => way.slots));
+    for (const slot of slotShapes(steps, this.ruleGates()).keys()) {
+      if (!everyWaySlot.has(slot)) owned.add(slot);
+    }
+    return owned;
+  }
+
+  /**
+   * The banner's sentence: how many, and — for the ones that change who is refused — which.
+   *
+   * CONDITIONS are named and the rest are counted, deliberately. A blank condition reads as
+   * "this bank does not apply this" (`gateIsConfigured`), so filling one switches a refusal
+   * ON, and that is the only part of a fill an operator cannot infer from the boxes in front
+   * of them. A filled table or percentage is visible where it landed; a condition that
+   * quietly started refusing applicants is not.
+   *
+   * The gate's own title, not the slot id: the box holding `cond__paidenough__bound` is drawn
+   * on the `cond__paidenough` row, and naming the bound step would point at a heading that is
+   * not on screen.
+   */
+  protected filledNotice(): string {
+    const filled = this.filledFromProduct();
+    const gates = this.ruleGates();
+    const conditions = filled
+      .map((slot) => gates.find((gate) => gate.id === slot.rowId))
+      .filter((gate): gate is RuleGate => gate !== undefined)
+      .map((gate) => gateTitleFor(gate));
+    const count = filled.length;
+    const name = this.programNameLabel();
+    // TWO SENTENCES, each agreeing with its own count. One sentence carrying both counts
+    // read "1 figures were filled … and 1 of them turn a condition on" the moment a single
+    // condition was the only thing filled — wrong in English, and worse in Arabic, where
+    // the verb agrees too.
+    const names = conditions.join(' · ');
+    // The one-and-the-same case gets its own sentence: "One figure was filled … One of them
+    // turns a condition on" is two sentences about one figure, and "of them" has nothing to
+    // refer back to.
+    if (count === 1 && conditions.length === 1) {
+      return $localize`:@@bank_programs.income.filled_one_condition:One figure was filled from ${name}:NAME: and it turns a condition on — ${names}:NAMES:. It applies when you save.`;
+    }
+    const head =
+      count === 1
+        ? $localize`:@@bank_programs.income.filled_one:One figure was filled from ${name}:NAME:. It applies when you save.`
+        : $localize`:@@bank_programs.income.filled_many:${count}:COUNT: figures were filled from ${name}:NAME:. They apply when you save.`;
+    if (conditions.length === 0) return head;
+    const tail =
+      conditions.length === 1
+        ? $localize`:@@bank_programs.income.filled_condition_one:One of them turns a condition on — ${names}:NAMES:.`
+        : $localize`:@@bank_programs.income.filled_condition_many:${conditions.length}:COUNT: of them turn a condition on — ${names}:NAMES:.`;
+    return `${head} ${tail}`;
+  }
+
+  /**
+   * Put back exactly the boxes the fill touched — and nothing else.
+   *
+   * PER SLOT, never the whole map. Restoring the load-time snapshot undid every edit made
+   * since: switch the way (which prunes the losing way's figures), type the new way's table,
+   * then click Undo, and the pruned way came back while the freshly typed one vanished — a
+   * state where `filledWayIds` disagrees with `wayId` and Save is refused, with no second
+   * undo to escape it.
+   */
+  protected undoFillFromProduct(): void {
+    const before = this.figuresBeforeFill;
+    const filled = this.filledFromProduct();
+    if (before === null || filled.length === 0) {
+      this.clearFillBanner();
+      return;
+    }
+    const next = { ...this.stepFigures() };
+    for (const slot of filled) {
+      const original = before[slot.id];
+      if (original === undefined) delete next[slot.id];
+      else next[slot.id] = original;
+    }
+    this.stepFigures.set(next);
+    this.clearFillBanner();
+  }
+
+  /**
+   * Drop the banner without touching a figure.
+   *
+   * Called when the fill stops describing the truth: picking a way prunes the losing way's
+   * slots (`commitWay`), so an offer to undo figures that no longer exist counts boxes the
+   * operator can no longer see.
+   */
+  private clearFillBanner(): void {
+    this.figuresBeforeFill = null;
+    this.filledFromProduct.set([]);
   }
 
   /**
@@ -4535,6 +4833,45 @@ export class BankProgramFormPage implements OnInit {
   );
 
   /**
+   * The surrogate product's own figures, whole.
+   *
+   * Not pruned to the chosen way: the editor already hides the ways this bank does not sell,
+   * and `catalog-defaults.ts` narrows by `wayOwnedSlots` — which is the ONE owner of that
+   * split. A second pruning here would be free to disagree with it.
+   *
+   * Cloned, for the hazard `cloneStepFigures` exists for: the editor writes into whatever it
+   * is handed, and the operator's first keystroke would otherwise edit the catalog copy this
+   * program is departing from.
+   */
+  readonly ruleCatalogFigures = computed<Record<string, StepFigures>>(() =>
+    cloneStepFigures(this.catalogEffectiveRule()?.stepParams),
+  );
+
+  /**
+   * The maximum-loan grid the picked name's product declares, or `null`.
+   *
+   * A property of the NAME's product, which is why it rides the rule payload this page
+   * already fetches on load and on every name re-pick: changing the name re-shapes the grid
+   * with no second request and no ordering to get wrong.
+   */
+  readonly productCap = computed<ProductCapShape | null>(
+    () => this.catalogRule()?.surrogateProduct?.cap ?? null,
+  );
+
+  /**
+   * The amounts a NEW program starts that grid from. Empty is the normal state.
+   *
+   * Withheld on an edit, deliberately. A grid that rendered the product's figures without
+   * storing them would show six numbers that do not exist; and seeding them into a live
+   * program would give it a maximum it has never had, silently, on a screen the operator
+   * opened to change a fee. An existing program shows what it holds, and its empty boxes are
+   * reported as empty.
+   */
+  readonly productCapDefaults = computed<readonly MaxLoanByFactRow[]>(() =>
+    this.editProgramCode() ? [] : (this.catalogRule()?.surrogateProduct?.capDefaults ?? []),
+  );
+
+  /**
    * The BANK's figures, by step id and gate id. A signal for the same reason `incomeKeyTable`
    * is one: a pipeline is not a fixed set of named fields, so there is no control shape to
    * declare — the catalog decides how many there are.
@@ -4734,6 +5071,10 @@ export class BankProgramFormPage implements OnInit {
     if (control.value === wayId) return;
     control.setValue(wayId);
     control.markAsDirty();
+    // The way change prunes the losing way's figures, so the fill's own record of what it
+    // put where stops being true. The banner goes rather than offering to undo boxes that
+    // are no longer there.
+    this.clearFillBanner();
   }
 
   /** Reactive view of the bound key so the option list keeps a legacy value visible. */
@@ -5727,6 +6068,7 @@ export class BankProgramFormPage implements OnInit {
     this.loanLimitsGroup.patchValue({
       qualitativeReviewMaxEGP: initial.loanLimits.qualitativeReviewMaxEGP ?? null,
     });
+    this.capNoMatch = initial.loanLimits.maxLoanByFact?.onNoMatch ?? null;
     this.maxLoanByFact.set(
       initial.loanLimits.maxLoanByFact === undefined
         ? null
@@ -5824,6 +6166,9 @@ export class BankProgramFormPage implements OnInit {
     // step at a time, and sharing the response's own objects would mutate the loaded snapshot
     // the review step reads back.
     this.stepFigures.set(cloneStepFigures(initial.incomeAssumption.stepParams));
+    // Armed here, run when the rule lands: the comparison needs BOTH this program's stored
+    // figures and the product's, and only the first of those is available yet.
+    this.fillOnArrival = true;
     // The name's rule, so the block can render the proof and the catalog's figures. NOT
     // adopted: this program's stored strategy is what it is quoting off today, and
     // overwriting it on load would silently rewrite a legacy program the moment an

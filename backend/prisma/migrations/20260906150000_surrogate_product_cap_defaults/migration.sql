@@ -1,0 +1,17 @@
+-- The amounts a new bank program starts its maximum-loan grid from.
+--
+-- ADDITIVE AND NULLABLE. Every existing row means "this product states no starting
+-- amounts", which is the state all twelve products are in today and the state each stays
+-- in until an operator types a set on the product's own screen. Nothing is backfilled and
+-- nothing is seeded: every cap figure the source sheets publish belongs to a NAMED bank
+-- (App. A §2, §3 and §7 are all ABK's), and three of the four banks selling the compound
+-- guarantee publish no unit-type cap at all — writing one bank's numbers onto the shared
+-- product would hand the other three a policy they never published (Principle II / A1).
+--
+-- AMOUNTS ONLY. The grid's axes and its row and column keys come from the blueprint
+-- registry at read time (`capShapeOf`), so there is no second statement of what a row
+-- means and no column to go stale against the file that declares it.
+--
+-- No quote moves when this lands: `resolveMaxLoanByFact` reads a PROGRAM's own
+-- `loanLimits.maxLoanByFact` and never this column.
+ALTER TABLE "platform_enumeration" ADD COLUMN "capDefaults" JSONB;

@@ -3985,6 +3985,214 @@
       <trans-unit id="bank_programs.flag.requires_qr" datatype="html"><source>Requires qualitative review (unlocks uplift)</source><target>يشترط مراجعة تقديرية (تفتح الزيادة)</target></trans-unit>
       <trans-unit id="bank_programs.flag.requires_no_docs" datatype="html"><source>No-documents lending tier</source><target>شريحة إقراض بدون مستندات</target></trans-unit>
       <trans-unit id="bank_programs.field.skip_dbr" datatype="html"><source>Skip DBR check (secured loans only)</source><target>تخطّي فحص نسبة الالتزامات (للقروض المضمونة فقط)</target></trans-unit>
+      <trans-unit id="bank_programs.income.filled_undo" datatype="html">
+        <source> Undo the fill </source>
+        <target> تراجع عن التعبئة </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/form/bank-program-form.page.ts</context>
+          <context context-type="linenumber">1318,1319</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.income.filled_one" datatype="html">
+        <source>One figure was filled from <x id="NAME" equiv-text="name"/>. It applies when you save.</source>
+        <target>تمت تعبئة رقم واحد من <x id="NAME" equiv-text="name"/>. سيُطبَّق عند الحفظ.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/form/bank-program-form.page.ts</context>
+          <context context-type="linenumber">4276</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.income.filled_many" datatype="html">
+        <source><x id="COUNT" equiv-text="count"/> figures were filled from <x id="NAME" equiv-text="name"/>. They apply when you save.</source>
+        <target>تمت تعبئة <x id="COUNT" equiv-text="count"/> أرقام من <x id="NAME" equiv-text="name"/>. ستُطبَّق عند الحفظ.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/form/bank-program-form.page.ts</context>
+          <context context-type="linenumber">4277</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.default.group_fill" datatype="html">
+        <source> Fill them from the product </source>
+        <target> عبِّئها من المنتج </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">363,365</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.default.says" datatype="html">
+        <source>The product states <x id="figure" equiv-text="shown"/></source>
+        <target>المنتج يحدد <x id="figure" equiv-text="shown"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1525</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.default.group_one" datatype="html">
+        <source>One of these is blank where the product states an amount.</source>
+        <target>واحد من هذه فارغ بينما يحدد المنتج مبلغًا له.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1552</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.default.group_many" datatype="html">
+        <source><x id="COUNT" equiv-text="count"/> of these are blank where the product states an amount.</source>
+        <target><x id="COUNT" equiv-text="count"/> من هذه فارغة بينما يحدد المنتج مبالغ لها.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1553</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.default.take" datatype="html">
+        <source>Use it</source>
+        <target>استخدمه</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1571</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.default.take_table" datatype="html">
+        <source>Use the product&apos;s amounts</source>
+        <target>استخدم مبالغ المنتج</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">1572</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.key_not_in_list" datatype="html">
+        <source>not an answer any more</source>
+        <target>لم يعد إجابة متاحة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">133,135</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.unlisted_heading" datatype="html">
+        <source>Not in the product&apos;s table</source>
+        <target>ليست ضمن جدول المنتج</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">165,166</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.unlisted_hint" datatype="html">
+        <source> This program still caps on these, so they are still read. Remove one only if the bank no longer states it. </source>
+        <target> ما زال هذا البرنامج يضع حدًا أقصى بناءً عليها، فهي ما زالت تُقرأ. لا تحذف واحدة إلا إذا لم يعد البنك يحددها. </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">167,170</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.clear_all" datatype="html">
+        <source>Clear every amount</source>
+        <target>امسح كل المبالغ</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">212,214</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.band_open" datatype="html">
+        <source><x id="FROM" equiv-text="from"/> and above</source>
+        <target><x id="FROM" equiv-text="from"/> فأكثر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">756</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.band_range" datatype="html">
+        <source><x id="FROM" equiv-text="from"/> → <x id="TO" equiv-text="formatGroupedNumber(cell.toExclusive)"/></source>
+        <target><x id="FROM" equiv-text="from"/> ← <x id="TO" equiv-text="formatGroupedNumber(cell.toExclusive)"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">757</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.missing_one" datatype="html">
+        <source>One box is empty. Anyone whose answer lands there is handled by the rule below.</source>
+        <target>خانة واحدة فارغة. من تقع إجابته فيها تتولاه القاعدة أدناه.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">821</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.missing_many" datatype="html">
+        <source><x id="COUNT" equiv-text="count"/> boxes are empty. Anyone whose answer lands in one of them is handled by the rule below.</source>
+        <target><x id="COUNT" equiv-text="count"/> خانات فارغة. من تقع إجابته في إحداها تتولاه القاعدة أدناه.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">822</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.declared_one" datatype="html">
+        <source><x id="PRODUCT" equiv-text="product"/> caps the maximum by <x id="FACT" equiv-text="fact"/>.</source>
+        <target><x id="PRODUCT" equiv-text="product"/> يضع الحد الأقصى حسب <x id="FACT" equiv-text="fact"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">837</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.declared_two" datatype="html">
+        <source><x id="PRODUCT" equiv-text="product"/> caps the maximum by <x id="FACT" equiv-text="fact"/>, split by <x id="COLUMN" equiv-text="columnLabel"/>.</source>
+        <target><x id="PRODUCT" equiv-text="product"/> يضع الحد الأقصى حسب <x id="FACT" equiv-text="fact"/>، مقسومًا حسب <x id="COLUMN" equiv-text="columnLabel"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">838</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.income.filled_condition_one" datatype="html">
+        <source>One of them turns a condition on — <x id="NAMES" equiv-text="names"/>.</source>
+        <target>واحد منها يُفعِّل شرطًا — <x id="NAMES" equiv-text="names"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/form/bank-program-form.page.ts</context>
+          <context context-type="linenumber">4288</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.income.filled_condition_many" datatype="html">
+        <source><x id="COUNT" equiv-text="conditions.length"/> of them turn a condition on — <x id="NAMES" equiv-text="names"/>.</source>
+        <target><x id="COUNT" equiv-text="conditions.length"/> منها تُفعِّل شروطًا — <x id="NAMES" equiv-text="names"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/form/bank-program-form.page.ts</context>
+          <context context-type="linenumber">4289</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.income.filled_one_condition" datatype="html">
+        <source>One figure was filled from <x id="NAME" equiv-text="name"/> and it turns a condition on — <x id="NAMES" equiv-text="names"/>. It applies when you save.</source>
+        <target>تمت تعبئة رقم واحد من <x id="NAME" equiv-text="name"/> وهو يُفعِّل شرطًا — <x id="NAMES" equiv-text="names"/>. سيُطبَّق عند الحفظ.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/form/bank-program-form.page.ts</context>
+          <context context-type="linenumber">4283</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.missing_band_one" datatype="html">
+        <source>One bracket has no figure. Every bracket needs one — a gap in the middle is refused.</source>
+        <target>شريحة واحدة بلا رقم. كل شريحة تحتاج رقمًا — والفجوة في المنتصف مرفوضة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">830</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="max_loan_by_fact.missing_band_many" datatype="html">
+        <source><x id="COUNT" equiv-text="count"/> brackets have no figure. Every bracket needs one — a gap in the middle is refused.</source>
+        <target><x id="COUNT" equiv-text="count"/> شرائح بلا أرقام. كل شريحة تحتاج رقمًا — والفجوة في المنتصف مرفوضة.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/ui/max-loan-by-fact-editor.component.ts</context>
+          <context context-type="linenumber">831</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="spd.cap.title" datatype="html">
+        <source>The maximum every new program starts from</source>
+        <target>الحد الأقصى الذي يبدأ منه كل برنامج جديد</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/program-catalog/surrogate-product-detail.page.ts</context>
+          <context context-type="linenumber">1013,1015</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="spd.cap.lede" datatype="html">
+        <source> A new bank program opens with these already in its grid, ready to change. Leave a box empty and that bank types its own. Changing them here moves no program that has already been saved. </source>
+        <target> يفتح أي برنامج بنكي جديد وهذه الأرقام في جدوله جاهزة للتعديل. اترك خانة فارغة ليكتب ذلك البنك رقمه بنفسه. وتغييرها هنا لا يحرك أي برنامج تم حفظه من قبل. </target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/program-catalog/surrogate-product-detail.page.ts</context>
+          <context context-type="linenumber">1016,1020</context>
+        </context-group>
+      </trans-unit>
     </body>
   </file>
 </xliff>

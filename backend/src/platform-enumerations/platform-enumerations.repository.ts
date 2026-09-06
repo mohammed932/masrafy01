@@ -13,6 +13,7 @@ import type {
   SurrogateFactBinding,
 } from '@/matching/pipeline/surrogate-fact-registry';
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
+import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 
@@ -683,6 +684,23 @@ export abstract class PlatformEnumerationsRepository {
   ): Promise<ProgramNameIncomeRuleRow>;
 
   /**
+   * Write (or clear, with `null`) a surrogate product's default cap amounts.
+   *
+   * `null` and an empty list are ONE state and the caller resolves them before it gets here:
+   * a product either states starting amounts or it does not, and two spellings for that
+   * would be two things a reader has to know are the same.
+   *
+   * Its own method rather than a widening of `setSurrogateProductIncomeRule`: these figures
+   * are not part of the calculation and are not compiled from the form, so folding them into
+   * that write would make a figures-only cap edit look like a rule change in the audit log.
+   */
+  abstract setSurrogateProductCapDefaults(
+    key: string,
+    rows: MaxLoanByFactRow[] | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
    * Which `stepParams` boxes each bank program under this product has actually typed into.
    *
    * Backs the one refusal that protects live figures: recompiling a changed form can stop
@@ -725,6 +743,17 @@ export interface ProgramNameIncomeRuleRow {
    * the raw step editor and there is no form that describes it.
    */
   templateSpec: ProductTemplate | null;
+  /**
+   * `surrogate_product` only — the AMOUNTS every new bank program starts its maximum-loan
+   * grid from. `null` when the product states none, which is the state every product ships
+   * in.
+   *
+   * AMOUNTS ONLY, never the axes: which answer keys the rows, which keys the columns and
+   * what happens to an applicant with no row all come from the blueprint (`capShapeOf`),
+   * resolved at read time. Stored here they would be a second authority on the grid, free to
+   * disagree with the file that declares it.
+   */
+  capDefaults: MaxLoanByFactRow[] | null;
   valueSources: Record<string, 'team_estimated'>;
   /**
    * `program_name` only — the product this name takes its calculation from.

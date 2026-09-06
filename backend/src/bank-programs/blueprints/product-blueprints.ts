@@ -35,7 +35,7 @@
  */
 
 import { LoanCategory } from '@prisma/client';
-import type { ProductBlueprint } from './product-blueprint.types';
+import type { BlueprintCap, ProductBlueprint } from './product-blueprint.types';
 
 const PERSONAL_AND_CAR = [LoanCategory.personal, LoanCategory.car] as const;
 const ALL_CATEGORIES = [
@@ -854,6 +854,51 @@ export function blueprintKeysAsking(
     }
   }
   return found;
+}
+
+/**
+ * The maximum-loan grid this product implies — the axes and the row and column keys, in the
+ * order the sheet prints them. `undefined` when the product declares none.
+ *
+ * Resolved AT READ TIME off the registry rather than stored on the product row, and the
+ * reason is that `product-blueprints.ts` is already the single authority. A `capSpec` column
+ * would be a second one, free to disagree with the file that declares it, plus a migration
+ * and a seed pass for a fact the code already states. `templateSpec.cap` is not an option
+ * either: a cap-only product never gets a `templateSpec` at all, and the column is set back
+ * to NULL one-way the moment an operator opens the advanced editor — a shape stored there
+ * would vanish from live programs on a click that has nothing to do with it.
+ *
+ * FIGURES ARE NOT HERE, and that is deliberate rather than an omission. Every cap figure in
+ * this repo is a named bank's (App. A §2, §3 and §7 are all ABK), and EGBank, FABMISR and
+ * CAE publish no unit-type cap at all — writing ABK's numbers into a shared product would
+ * hand three banks a policy they never published (Principle II / A1). The default AMOUNTS an
+ * operator wants every new program to start from are theirs to type, once, on the product.
+ *
+ * `blueprintKey` is the fallback for a product an operator renamed: `seedProductKey()` writes
+ * the blueprint key verbatim, so the product key IS the blueprint key on every seeded row,
+ * and `templateSpec.blueprintKey` is what survives a rename.
+ *
+ * Frozen, because the registry is a module singleton: a caller that sorted `rowKeys` in place
+ * would reorder the grid for every later request in the process.
+ */
+export function capShapeOf(
+  productKey: string,
+  blueprintKey?: string | null,
+): BlueprintCap | undefined {
+  const cap =
+    productBlueprint(productKey)?.cap ??
+    (blueprintKey ? productBlueprint(blueprintKey)?.cap : undefined);
+  if (cap === undefined) return undefined;
+  const copy: BlueprintCap = {
+    ...cap,
+    ...(cap.rowKeys ? { rowKeys: [...cap.rowKeys] } : {}),
+    ...(cap.columnKeys ? { columnKeys: [...cap.columnKeys] } : {}),
+    ...(cap.bands ? { bands: cap.bands.map((band) => Object.freeze({ ...band })) } : {}),
+  };
+  if (copy.rowKeys) Object.freeze(copy.rowKeys);
+  if (copy.columnKeys) Object.freeze(copy.columnKeys);
+  if (copy.bands) Object.freeze(copy.bands);
+  return Object.freeze(copy);
 }
 
 /**

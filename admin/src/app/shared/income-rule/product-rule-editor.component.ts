@@ -32,9 +32,19 @@ import {
   type ValueRef,
 } from '@features/bank-programs/bank-programs.types';
 import { slotsKeyedByList } from './figure-slots';
+import { writeFigure } from './figure-write';
+import {
+  slotShapes,
+  slotsMissingDefault,
+  withAllDefaults,
+  type SlotDefault,
+} from './catalog-defaults';
+import { formatGroupedNumber } from '@core/directives/money-format';
+import { gateTitleFor } from './gate-labels';
 import {
   filledWayIds,
   wayIdByRow,
+  ownedSlotIdsFor,
   wayOwnedSlots,
   waysAreExclusive,
   waysOfRule,
@@ -338,6 +348,24 @@ interface FlowLine {
             </p>
           }
 
+          <!-- Said once per group, with the action, and only when there is something to do.
+               A per-row sentence repeated down a list of ten conditions is read at the
+               first and skipped at the rest — the same finding the way-conflict notice
+               above was rebuilt for. The rows keep their own small button. -->
+          @if (defaultsIn(group).length > 0) {
+            <p class="grp-defaults" role="status">
+              <span>{{ defaultsNotice(defaultsIn(group).length) }}</span>
+              <button
+                type="button"
+                class="grp-defaults-fill"
+                (click)="takeGroupDefaults(group)"
+                i18n="@@product_rule.default.group_fill"
+              >
+                Fill them from the product
+              </button>
+            </p>
+          }
+
           <ul class="rows">
             @for (row of group.rows; track row.id) {
               <li
@@ -431,6 +459,21 @@ interface FlowLine {
                         }
                         @switch (slot.shape) {
                           @case ('keyTable') {
+                            <!-- A table cannot be shown as a placeholder, so the button is
+                                 the whole affordance here. It sits ABOVE the editor: below
+                                 it, an empty table's own "add a row for every key" action
+                                 would be read first and the product's rows never found. -->
+                            @if (hasDefault(slot.id) || hasDefault(slot.secondId ?? '')) {
+                              <p class="take-default-line">
+                                <button
+                                  type="button"
+                                  class="take-default"
+                                  (click)="takeSlotDefaults(slot)"
+                                >
+                                  {{ takeTableLabel }}
+                                </button>
+                              </p>
+                            }
                             <app-income-key-table
                               [rows]="tableFor(slot.id)"
                               (rowsChange)="setTable(slot.id, $event)"
@@ -442,6 +485,17 @@ interface FlowLine {
                             ></app-income-key-table>
                           }
                           @case ('bands') {
+                            @if (hasDefault(slot.id)) {
+                              <p class="take-default-line">
+                                <button
+                                  type="button"
+                                  class="take-default"
+                                  (click)="takeDefault(slot.id)"
+                                >
+                                  {{ takeTableLabel }}
+                                </button>
+                              </p>
+                            }
                             <app-income-bands-editor
                               [bands]="bandsFor(slot.id)"
                               (bandsChange)="setBands(slot.id, $event)"
@@ -451,14 +505,27 @@ interface FlowLine {
                             ></app-income-bands-editor>
                           }
                           @case ('scalar') {
-                            <app-figure-field
-                              [fieldId]="slot.id + '-value'"
-                              [value]="scalarFor(slot.id)"
-                              [unit]="slot.unit"
-                              [money]="slot.money"
-                              [ariaLabel]="row.title"
-                              (valueChange)="setScalar(slot.id, $event)"
-                            />
+                            <span class="slot-figure">
+                              <app-figure-field
+                                [fieldId]="slot.id + '-value'"
+                                [value]="scalarFor(slot.id)"
+                                [unit]="slot.unit"
+                                [money]="slot.money"
+                                [ariaLabel]="row.title"
+                                [placeholder]="defaultText(slot.id)"
+                                [placeholderNote]="defaultNote(slot.id)"
+                                (valueChange)="setScalar(slot.id, $event)"
+                              />
+                              @if (hasDefault(slot.id)) {
+                                <button
+                                  type="button"
+                                  class="take-default"
+                                  (click)="takeDefault(slot.id)"
+                                >
+                                  {{ takeLabel }}
+                                </button>
+                              }
+                            </span>
                           }
                           @case ('minmax') {
                             <div class="figure-pair">
@@ -469,6 +536,8 @@ interface FlowLine {
                                   [value]="minFor(slot.id)"
                                   [unit]="slot.unit"
                                   [money]="slot.money"
+                                  [placeholder]="defaultText(slot.id, 'minValue')"
+                                  [placeholderNote]="defaultNote(slot.id, 'minValue')"
                                   (valueChange)="setBound(slot.id, 'minValue', $event)"
                                 />
                               }
@@ -479,8 +548,19 @@ interface FlowLine {
                                   [value]="maxFor(slot.id)"
                                   [unit]="slot.unit"
                                   [money]="slot.money"
+                                  [placeholder]="defaultText(slot.id, 'maxValue')"
+                                  [placeholderNote]="defaultNote(slot.id, 'maxValue')"
                                   (valueChange)="setBound(slot.id, 'maxValue', $event)"
                                 />
+                              }
+                              @if (hasDefault(slot.id)) {
+                                <button
+                                  type="button"
+                                  class="take-default"
+                                  (click)="takeDefault(slot.id)"
+                                >
+                                  {{ takeLabel }}
+                                </button>
                               }
                             </div>
                           }
@@ -813,6 +893,72 @@ interface FlowLine {
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
         outline-offset: 2px;
         border-radius: var(--radius-sm);
+      }
+
+      /* The product's defaults, offered.
+         Same idiom as the way-conflict line one rule up — one sentence, one action, said at
+         the group and not on every row — but INFORMATIONAL, so it carries no warning dot.
+         Secondary ink, never tertiary: this is a sentence somebody has to read, and tertiary
+         measures 3.83:1 on a card in light mode. */
+      .grp-defaults {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .grp-defaults-fill,
+      .take-default {
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        font-size: var(--text-xs);
+        color: var(--color-brand-primary);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .grp-defaults-fill:hover,
+      .take-default:hover {
+        color: var(--color-tonal-accent);
+      }
+      .grp-defaults-fill:active,
+      .take-default:active {
+        color: var(--color-brand-primary);
+      }
+      /* Replaced, never removed: the halo alone measures 1.24:1 in light mode, which is
+         under SC 1.4.11's 3:1 for a non-text indicator. */
+      .grp-defaults-fill:focus-visible,
+      .take-default:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+
+      /* The field and its offer on one line, so the button reads as belonging to that box
+         and not to the row. */
+      .slot-figure {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
+      .take-default-line {
+        margin: 0 0 var(--space-2);
+      }
+
+      /* A pointer target can be 20px of underlined text; a thumb cannot. */
+      @media (hover: none) {
+        .grp-defaults-fill,
+        .take-default {
+          min-block-size: 44px;
+          display: inline-flex;
+          align-items: center;
+        }
       }
 
       .conflict-dot {
@@ -1289,6 +1435,147 @@ export class ProductRuleEditorComponent {
   /** The brackets offered for one box, or none. */
   protected suggestedFor(stepId: string): readonly IncomeBand[] {
     return this.suggestedBands()[stepId] ?? [];
+  }
+
+  // --- what the product states, for a box this bank left blank ----------------
+  //
+  // A new program IS seeded from the product and detaches on the first keystroke. From then
+  // on the product's numbers are unreachable one at a time — the only way back is
+  // `resetToCatalog()`, which drops the whole table. So an operator who clears one box has
+  // to throw away every other figure they typed to recover it. That is the defect these
+  // three members close; the derivation itself lives in `catalog-defaults.ts`.
+
+  /**
+   * The surrogate product's own figures, by slot id.
+   *
+   * Empty for every caller but the bank wizard, so the four catalog-side mounts are
+   * unchanged by construction.
+   */
+  readonly catalogFigures = input<Readonly<Record<string, StepFigures>>>({});
+
+  /**
+   * Offer them at all.
+   *
+   * Off on the CATALOG variant, where the figures on screen ARE the product's and offering
+   * them back would be a control that does nothing; and off while a program is still
+   * inheriting, where every box already holds the product's number.
+   */
+  readonly showsCatalogDefaults = input<boolean>(false);
+
+  /**
+   * Which slots may be offered a default: the way this bank sells, plus every slot no way
+   * owns.
+   *
+   * `ownedSlotIdsFor` is the one owner of that split (`product-rule-ways.ts`), and it has to
+   * be: this was open-coded here AND in the wizard, and the two had already drifted apart by
+   * a term. A second derivation is how a default for a way the operator ruled out gets
+   * offered on a screen that has already pruned it.
+   */
+  private readonly ownedSlotIds = computed<ReadonlySet<string> | undefined>(() =>
+    ownedSlotIdsFor(
+      this.steps(),
+      slotShapes(this.steps(), this.gates()).keys(),
+      // Only a PROGRAM picks between the ways; the catalog states them all, which is
+      // `picksOneWay`'s own rule.
+      this.variant() === 'program' ? this.waysAre() : null,
+      this.wayId(),
+    ),
+  );
+
+  /** Blank boxes the product states an amount for, by slot id. */
+  protected readonly defaultsBySlot = computed<ReadonlyMap<string, SlotDefault>>(() => {
+    if (!this.showsCatalogDefaults()) return new Map();
+    const missing = slotsMissingDefault(
+      slotShapes(this.steps(), this.gates()),
+      this.figures(),
+      this.catalogFigures(),
+      { ownedSlots: this.ownedSlotIds() },
+    );
+    return new Map(missing.map((slot) => [slot.id, slot]));
+  });
+
+  /** Does this box have a default waiting? */
+  protected hasDefault(slotId: string): boolean {
+    return this.defaultsBySlot().has(slotId);
+  }
+
+  /**
+   * The default as a bare figure, for the grey placeholder — money grouped, a percentage
+   * left alone (A27's rule, and the one `figure-field` already applies to its own hint).
+   */
+  protected defaultText(
+    slotId: string,
+    key: 'value' | 'minValue' | 'maxValue' = 'value',
+  ): string | null {
+    const slot = this.defaultsBySlot().get(slotId);
+    if (slot === undefined) return null;
+    const raw =
+      key === 'value' ? (slot.figures.valueEGP ?? slot.figures.scalar?.value) : slot.figures[key];
+    if (raw === undefined || raw === '') return null;
+    const step = this.stepById().get(slotId);
+    const money = step === undefined ? true : step.op === 'constant';
+    return money || key !== 'value' ? formatGroupedNumber(raw) : raw;
+  }
+
+  /** The same figure, in a sentence, for the screen reader and the button. */
+  protected defaultNote(slotId: string, key: 'value' | 'minValue' | 'maxValue' = 'value'): string {
+    const shown = this.defaultText(slotId, key);
+    if (shown === null) return '';
+    return $localize`:@@product_rule.default.says:The product states ${shown}:figure:`;
+  }
+
+  /** Take one figure from the product. Routes through `patch`, so the host detaches as usual. */
+  protected takeDefault(slotId: string): void {
+    const slot = this.defaultsBySlot().get(slotId);
+    if (slot === undefined) return;
+    this.patch(slotId, slot.figures);
+  }
+
+  /** Every blank-with-a-default inside one group, so the group can offer to fill them all. */
+  protected defaultsIn(group: RowGroup): SlotDefault[] {
+    const bySlot = this.defaultsBySlot();
+    const out: SlotDefault[] = [];
+    for (const row of group.rows) {
+      for (const slot of row.slots) {
+        const found = bySlot.get(slot.id);
+        if (found !== undefined) out.push(found);
+        const second = slot.secondId === null ? undefined : bySlot.get(slot.secondId);
+        if (second !== undefined) out.push(second);
+      }
+    }
+    return out;
+  }
+
+  protected defaultsNotice(count: number): string {
+    return count === 1
+      ? $localize`:@@product_rule.default.group_one:One of these is blank where the product states an amount.`
+      : $localize`:@@product_rule.default.group_many:${count}:COUNT: of these are blank where the product states an amount.`;
+  }
+
+  /**
+   * Both columns of a merged key-table pair, in one write.
+   *
+   * The two columns are one table on screen; taking one and leaving the other would print a
+   * grid half from the product and half blank, with nothing saying which half is which.
+   */
+  protected takeSlotDefaults(slot: FigureSlot): void {
+    const slots = [slot.id, slot.secondId]
+      .flatMap((id) => (id === null ? [] : [this.defaultsBySlot().get(id)]))
+      .filter((found): found is SlotDefault => found !== undefined);
+    if (slots.length === 0) return;
+    this.figures.set(withAllDefaults(this.figures(), slots).figures);
+    this.figuresTouched.emit();
+  }
+
+  protected readonly takeLabel = $localize`:@@product_rule.default.take:Use it`;
+  protected readonly takeTableLabel = $localize`:@@product_rule.default.take_table:Use the product's amounts`;
+
+  /** Take every one of them at once. One write, so one undo on the host's side. */
+  protected takeGroupDefaults(group: RowGroup): void {
+    const slots = this.defaultsIn(group);
+    if (slots.length === 0) return;
+    this.figures.set(withAllDefaults(this.figures(), slots).figures);
+    this.figuresTouched.emit();
   }
 
   /**
@@ -1840,11 +2127,24 @@ export class ProductRuleEditorComponent {
       slots,
       optional,
       configured,
-      collapsible: optional && !configured,
+      // A blank row folds — EXCEPT when the product states an amount for it. Folding that
+      // one hides the only control that can recover the figure, which is how the two
+      // conditions on `ABK-PERSONAL-7110` stayed blank: the group notice said two were
+      // missing and both rows were shut.
+      collapsible: optional && !configured && !this.rowHasDefault(slots),
       state: this.stateFor(optional, configured),
       owed: !optional && !configured && this.variant() === 'program',
       wayId,
     };
+  }
+
+  /** Does any box on this row have a figure waiting on the product? */
+  private rowHasDefault(slots: readonly FigureSlot[]): boolean {
+    const bySlot = this.defaultsBySlot();
+    if (bySlot.size === 0) return false;
+    return slots.some(
+      (slot) => bySlot.has(slot.id) || (slot.secondId !== null && bySlot.has(slot.secondId)),
+    );
   }
 
   private stepSlot(step: RuleStep): FigureSlot {
@@ -1944,7 +2244,7 @@ export class ProductRuleEditorComponent {
     return {
       kind: 'gate',
       id: gate.id,
-      title: this.gateTitleFor(gate),
+      title: gateTitleFor(gate),
       qualifier: this.gateQualifierFor(gate),
       hint: this.gateHintFor(gate),
       slots: [this.gateSlot(gate)],
@@ -1952,7 +2252,7 @@ export class ProductRuleEditorComponent {
       // turns on the one it applies (see `GateParams` on the backend).
       optional: true,
       configured,
-      collapsible: !configured,
+      collapsible: !configured && !this.rowHasDefault([this.gateSlot(gate)]),
       state: this.stateFor(true, configured),
       owed: false,
       wayId: null,
@@ -2173,15 +2473,19 @@ export class ProductRuleEditorComponent {
     this.patch(id, { applies: next });
   }
 
+  /**
+   * The blanking rules live in `figure-write.ts`, not here.
+   *
+   * They used to be inline, and they guarded on a TOP-LEVEL empty string — correct for
+   * `minValue` / `maxValue` / `valueEGP`, wrong for `scalar`, whose top-level value is an
+   * object. So clearing a bound removed the key and clearing a percentage stored
+   * `{scalar:{unit:'percent',value:''}}`: two shapes for one state, both of which reached the
+   * database on a live program. `writeFigure` also drops a slot that now states nothing,
+   * rather than leaving `{}` behind — which is what lets "is this slot blank?" be one test
+   * for the catalog-default affordances above.
+   */
   private patch(id: string, part: Partial<StepFigures>): void {
-    const current = this.figures();
-    const merged: StepFigures = { ...(current[id] ?? {}), ...part };
-    for (const [key, value] of Object.entries(part)) {
-      // An empty string and an absent key are the same statement — "nothing here" — and
-      // storing the empty string would make a blank field look like a figure of zero.
-      if (value === undefined || value === '') delete (merged as Record<string, unknown>)[key];
-    }
-    this.figures.set({ ...current, [id]: merged });
+    this.figures.set(writeFigure(this.figures(), id, part));
     this.figuresTouched.emit();
   }
 
@@ -2275,29 +2579,6 @@ export class ProductRuleEditorComponent {
       return $localize`:@@product_rule.step.pick_by_fact_hint:Fill in the first column for everyone. Fill in another only where this bank prices that group differently — left empty, it reads the first.`;
     }
     return '';
-  }
-
-  private gateTitleFor(gate: RuleGate): string {
-    switch (gate.reasonCode) {
-      case 'DOWN_PAYMENT_BELOW_MIN':
-        return $localize`:@@product_rule.gate.down_payment:Minimum the customer must have paid`;
-      case 'UNIT_PRICE_BELOW_MIN':
-        return $localize`:@@product_rule.gate.unit_price:Minimum unit price, by the year of the contract`;
-      case 'CONTRACT_TOO_NEW':
-        return $localize`:@@product_rule.gate.owned_min:How long the unit must have been owned`;
-      case 'CONTRACT_TOO_OLD':
-        return $localize`:@@product_rule.gate.owned_max:How old the contract may be`;
-      case 'OWNERSHIP_NOT_CONFIRMED':
-        return $localize`:@@product_rule.gate.ownership:How ownership must be stated`;
-      case 'MULTI_UNIT_NOT_CONFIRMED':
-        return $localize`:@@product_rule.gate.multi_unit:Multi-unit owners must confirm their strongest unit`;
-      case 'SELF_EMPLOYED_DOCS_MISSING':
-        return $localize`:@@product_rule.gate.self_employed_docs:Self-employed customers need a valid trade or practice licence`;
-      case 'BUSINESS_TOO_NEW':
-        return $localize`:@@product_rule.gate.business_years:How long a self-employed customer's business must have been running`;
-      default:
-        return $localize`:@@product_rule.gate.other:A condition on the answers`;
-    }
   }
 
   /**

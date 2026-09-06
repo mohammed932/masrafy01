@@ -11,10 +11,18 @@ export {
 } from './dbr-bands-editor.component';
 export {
   MaxLoanByFactEditorComponent,
+  capCellsOf,
+  capConfigFrom,
+  capGridFrom,
+  capShapeConflict,
   maxLoanByFactErrorFor,
+  missingCapCells,
+  type CapCell,
+  type CapGridCell,
   type MaxLoanByFactConfig,
   type MaxLoanByFactError,
   type MaxLoanByFactRow,
+  type ProductCapShape,
 } from './max-loan-by-fact-editor.component';
 export {
   AdditionalIncomeEditorComponent,
