@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   model,
@@ -42,12 +43,14 @@ import {
 import { formatGroupedNumber } from '@core/directives/money-format';
 import { gateTitleFor } from './gate-labels';
 import {
+  combineOfRule,
   filledWayIds,
   wayIdByRow,
   ownedSlotIdsFor,
+  picksBetweenWays,
   wayOwnedSlots,
-  waysAreExclusive,
   waysOfRule,
+  type WaysAre,
 } from './product-rule-ways';
 import { derivedFactByKey } from '@core/surrogate-facts';
 import { FigureFieldComponent } from './figure-field.component';
@@ -241,6 +244,13 @@ interface FlowLine {
               >This product works out the most the customer's property or membership can support.
               Their salary is not read.</span
             >
+            <!-- Authored on the product (spec §4 Q3), and until now rendered nowhere on the
+                 program — yet the whole ceiling quote turns on it. -->
+            @if (output()?.baselineDbrPercent; as baseline) {
+              <span i18n="@@product_rule.output.baseline_dbr"
+                >This ceiling was worked out at a debt burden of {{ baseline }}%.</span
+              >
+            }
           } @else {
             <span i18n="@@product_rule.output.monthly_income"
               >This product works out an assumed monthly income from the answers below.</span
@@ -278,12 +288,38 @@ interface FlowLine {
         </details>
       }
 
-      @if (layout() === 'full' && variant() === 'program' && activeDerivation(); as active) {
+      <!-- Withheld when the one-way statement below says it better. On a product with ONE way
+           this line added nothing and said it worse: on the cross-sell it read "the smallest of
+           the earlier figures" — the OP's name, for a product whose one way has a name — and
+           called an income product's figure a ceiling. -->
+      @if (
+        layout() === 'full' &&
+          variant() === 'program' &&
+          !singleWayStatement() &&
+          activeDerivation();
+        as active
+      ) {
         <p class="live">
           <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@product_rule.active_derivation"
             >This bank works the ceiling out from: {{ active }}</span
           >
+        </p>
+      }
+      <!-- The DECISION leads. On a product with a choice and no pick yet, one line in the same
+           slot says so — same slot, so nothing shifts under the pointer when the pick lands.
+           On a product with ONE way, the same slot states which, because that way was recorded
+           for the program without asking. -->
+      @if (layout() === 'full' && picksOneWay() && wayId() === null) {
+        <p class="live is-pending" role="status" i18n="@@product_rule.way.pick_first">
+          Pick the way this bank works the figure out. The amounts are that way's, so they wait for
+          it.
+        </p>
+      }
+      @if (layout() === 'full' && singleWayStatement(); as one) {
+        <p class="live" role="status">
+          <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
+          <span>{{ one }}</span>
         </p>
       }
 
@@ -731,6 +767,10 @@ interface FlowLine {
         background: var(--color-success-bg);
         color: var(--color-text-primary);
         font-size: var(--text-sm);
+      }
+      /* Same slot as the decision line, before the decision: secondary ink, no medallion. */
+      .live.is-pending {
+        color: var(--color-text-secondary);
       }
 
       .live [nz-icon] {
@@ -1328,10 +1368,10 @@ export class ProductRuleEditorComponent {
   readonly variant = input<'program' | 'catalog'>('program');
 
   /**
-   * The catalog's statement that a bank sells exactly ONE of this product's ways. Absent
-   * reads as combined, which is what every product but the compound guarantee means.
+   * The catalog's statement of how this product's ways relate: rivals a bank picks one of
+   * (`'exclusive'`, the default), or the terms of ONE method it fills whole (`'combined'`).
    */
-  readonly waysAre = input<'exclusive' | null>(null);
+  readonly waysAre = input<WaysAre>(null);
 
   /**
    * Which way THIS bank sells. A `model` rather than an input, because the confirmation
@@ -1339,6 +1379,16 @@ export class ProductRuleEditorComponent {
    * radio's `change` fires, and only the component that owns the value can put it back.
    */
   readonly wayId = model<string | null>(null);
+
+  /**
+   * The chosen way's title, in the editor's own words, for whoever has to NAME it elsewhere —
+   * the wizard's name-change confirmation says which choice is about to go. Emitted from an
+   * effect so the host never re-derives a title the editor already owns (`wayTitleFor`).
+   */
+  readonly wayTitleChange = output<string | null>();
+  private readonly announceWayTitle = effect(() => {
+    this.wayTitleChange.emit(this.picksOneWay() ? this.activeDerivation() : null);
+  });
 
   /**
    * Are the figures on screen this program's OWN, or a read-only copy of the catalog's?
@@ -1373,11 +1423,11 @@ export class ProductRuleEditorComponent {
    * direction).
    */
   protected readonly picksOneWay = computed<boolean>(
-    () => this.variant() === 'program' && waysAreExclusive(this.waysAre(), this.steps()),
+    () => this.variant() === 'program' && picksBetweenWays(this.steps(), this.waysAre()),
   );
 
   /** Editor row id → the way it is. See `product-rule-ways.ts` — a way is not one slot. */
-  private readonly wayIdByRow = computed(() => wayIdByRow(this.steps()));
+  private readonly wayIdByRow = computed(() => wayIdByRow(this.steps(), this.waysAre()));
 
   /**
    * Render only the figures keyed by ONE value list, or every figure when `null`.
@@ -1655,7 +1705,9 @@ export class ProductRuleEditorComponent {
     if (chosen !== null) this.commitWay(chosen);
   }
 
-  private readonly filledWays = computed(() => filledWayIds(this.steps(), this.figures()));
+  private readonly filledWays = computed(() =>
+    filledWayIds(this.steps(), this.figures(), this.waysAre()),
+  );
 
   /**
    * The operator picks another way, and is told what it costs before it costs it.
@@ -1700,7 +1752,7 @@ export class ProductRuleEditorComponent {
 
   /** The ways that hold figures and are not the one being picked, in their own words. */
   private waysLosingFigures(wayId: string): string[] {
-    return filledWayIds(this.steps(), this.figures())
+    return filledWayIds(this.steps(), this.figures(), this.waysAre())
       .filter((id) => id !== wayId)
       .map((id) => {
         const step = this.stepById().get(id);
@@ -1737,8 +1789,8 @@ export class ProductRuleEditorComponent {
 
   private commitWay(wayId: string): void {
     const steps = this.steps();
-    const keep = wayOwnedSlots(steps, wayId);
-    const everyWay = new Set(waysOfRule(steps).flatMap((way) => way.slots));
+    const keep = wayOwnedSlots(steps, wayId, this.waysAre());
+    const everyWay = new Set(waysOfRule(steps, this.waysAre()).flatMap((way) => way.slots));
     const figures = this.figures();
     const kept = Object.fromEntries(
       Object.entries(figures).filter(([slot]) => keep.has(slot) || !everyWay.has(slot)),
@@ -1770,7 +1822,48 @@ export class ProductRuleEditorComponent {
     const groups = this.groups();
     const picked = this.pickedGroup();
     if (groups.some((g) => g.key === picked)) return picked;
+    // Open on the DECISION. A program with a choice of ways and none picked yet lands on the
+    // ways, not on "Amounts this bank sets" — those amounts are the way's, and there is no
+    // way yet. The single highest-value line on this screen.
+    if (
+      this.picksOneWay() &&
+      this.wayId() === null &&
+      groups.some((g) => g.key === 'alternative')
+    ) {
+      return 'alternative';
+    }
     return groups[0]?.key ?? '';
+  });
+
+  /**
+   * The one thing a product with ONE way has to say: which it is.
+   *
+   * Recorded for the program without asking — `wayId` is that way's id — so this is a
+   * STATEMENT, not a control: a radio group of one cannot be operated, and a disabled radio is
+   * skipped by browse-mode screen readers, which would make the fact inaudible. A combined
+   * product's terms are named together ("the lower of A and B"), because the whole sentence is
+   * the method and a bank fills both halves.
+   */
+  protected readonly singleWayStatement = computed<string | null>(() => {
+    if (this.variant() !== 'program') return null;
+    const ways = waysOfRule(this.steps(), this.waysAre());
+    const [way] = ways;
+    if (ways.length !== 1 || way === undefined) return null;
+    const byId = this.stepById();
+    const titleOf = (id: string): string => {
+      const step = byId.get(id);
+      return step === undefined ? id : this.wayTitleFor(step);
+    };
+    if (way.rowIds.length < 2) {
+      const only = titleOf(way.id);
+      return $localize`:@@product_rule.way.only_one:This product works the figure out one way: ${only}:WAY:.`;
+    }
+    const [a, b] = way.rowIds.map(titleOf);
+    const first = a ?? '';
+    const second = b ?? '';
+    return combineOfRule(this.steps()) === 'higher'
+      ? $localize`:@@product_rule.way.only_one_combined_higher:This product works the figure out one way: the higher of ${first}:A: and ${second}:B:.`
+      : $localize`:@@product_rule.way.only_one_combined:This product works the figure out one way: the lower of ${first}:A: and ${second}:B:.`;
   });
 
   protected readonly groupTabs = computed<RailTabItem[]>(() =>
@@ -2042,13 +2135,30 @@ export class ProductRuleEditorComponent {
       });
     }
     if (alts.length > 0) {
+      // A COMBINED product's heads are the terms of one way — the cross-sell's "3 × the
+      // instalment or 10% of the loan, whichever is less" — so "fill in exactly one" is false
+      // of it, on the catalog page as much as on the program's. The rows are the same; only
+      // the words change.
+      const combined =
+        alts.length >= 2 && waysOfRule(this.steps(), this.waysAre()).length === 1
+          ? (combineOfRule(this.steps()) ?? 'lower')
+          : null;
       groups.push({
         key: 'alternative',
-        title: $localize`:@@product_rule.group.alternatives:Ways to work the figure out`,
+        title:
+          combined === null
+            ? $localize`:@@product_rule.group.alternatives:Ways to work the figure out`
+            : combined === 'higher'
+              ? $localize`:@@product_rule.group.combined_higher:Both of these — the higher is used`
+              : $localize`:@@product_rule.group.combined:Both of these — the lower is used`,
         hint:
-          this.variant() === 'catalog'
-            ? $localize`:@@product_rule.group.alternatives_hint_catalog:Every bank fills in exactly one of these. An amount you set here is the starting point for a bank that keeps the catalog's figures.`
-            : $localize`:@@product_rule.group.alternatives_hint_program:Fill in exactly one. The rest are other banks' ways of working the same figure out.`,
+          combined !== null
+            ? combined === 'higher'
+              ? $localize`:@@product_rule.group.combined_hint_higher:This product uses both. Fill in both boxes — the customer is quoted whichever comes out higher.`
+              : $localize`:@@product_rule.group.combined_hint:This product uses both. Fill in both boxes — the customer is quoted whichever comes out lower.`
+            : this.variant() === 'catalog'
+              ? $localize`:@@product_rule.group.alternatives_hint_catalog:Every bank fills in exactly one of these. An amount you set here is the starting point for a bank that keeps the catalog's figures.`
+              : $localize`:@@product_rule.group.alternatives_hint_program:Fill in exactly one. The rest are other banks' ways of working the same figure out.`,
         count: this.countLabel(alts),
         rows: alts,
       });
@@ -2496,6 +2606,11 @@ export class ProductRuleEditorComponent {
   // be translated per rule, which no operator should be asked to do.
 
   private titleFor(step: RuleStep): string {
+    // The one slot named by what it IS rather than by its op: every income product now carries
+    // the bureau-score table, and "A table of ranges" is what three other slots are called.
+    if (step.id === 'iscore_band') {
+      return $localize`:@@product_rule.step.iscore_title:Adjust by I-Score`;
+    }
     const factLabel = step.fact ? this.factLabel(step.fact) : '';
     switch (step.op) {
       case 'constant':
@@ -2570,6 +2685,9 @@ export class ProductRuleEditorComponent {
   }
 
   private hintFor(step: RuleStep): string {
+    if (step.id === 'iscore_band') {
+      return $localize`:@@product_rule.step.iscore_hint:One row per score range, with the share of the figure this bank counts at that score. Leave it blank to count every score at 100%.`;
+    }
     if (step.op === 'pickByFact') {
       // Worded for the AXIS in general, not for one of them. The first spelling said "only if
       // this bank lends more to customers it already has" — true of a new-customer column and

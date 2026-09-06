@@ -154,7 +154,9 @@ describe('programNameIncomeRules resolves the link', () => {
     const map = await repo.programNameIncomeRules();
     // One entry, not two: a surrogate product is not itself a catalog name.
     expect([...map.keys()]).toEqual(['compound_owner']);
-    expect(map.get('compound_owner')).toEqual({ rule: PRODUCT });
+    // The product's key rides beside the rule: it is what tells the save path this program
+    // sits under a product and is asked which of its ways it sells.
+    expect(map.get('compound_owner')).toEqual({ rule: PRODUCT, productKey: 'compound_owner' });
   });
 
   it('does not let a same-keyed name and product collide', async () => {
@@ -166,7 +168,7 @@ describe('programNameIncomeRules resolves the link', () => {
       productRow({ key: 'shared', incomeRule: PRODUCT }),
     ]);
     const map = await repo.programNameIncomeRules();
-    expect(map.get('shared')).toEqual({ rule: PRODUCT });
+    expect(map.get('shared')).toEqual({ rule: PRODUCT, productKey: 'shared' });
     expect(map.size).toBe(1);
   });
 

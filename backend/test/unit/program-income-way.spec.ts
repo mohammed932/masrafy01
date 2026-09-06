@@ -14,12 +14,17 @@
  *      is one way, and an enforcement counting `stepParams` keys would refuse the one program
  *      that is already right. Nor can it be read lexically: `alt__unit_paid_to_date` is a way
  *      HEAD and `alt__top_up` is a COLUMN, and as strings they are indistinguishable.
- *   2. **The exception survives.** `auto_loan_crosssell` is two ways ONE sheet pairs — App. A
- *      §4, "3 × the car instalment OR 10% of the auto loan, whichever is less" — and both its
- *      ABK programs legitimately fill both. `combine` cannot tell the two situations apart:
- *      both products carry `'lower'`.
- *   3. **Absent means what it has always meant.** Every stored template and every stored rule
- *      predates the flag, so absence has to read as combined and change nothing (§5.4).
+ *   2. **One sheet's two terms are ONE way.** `auto_loan_crosssell` is App. A §4, "3 × the car
+ *      instalment OR 10% of the auto loan, whichever is less" — one sentence a bank fills both
+ *      halves of. It declares `waysAre: 'combined'`, `waysOfRule` folds its heads into one way
+ *      whose slots are the UNION, and both ABK programs name that way and keep filling both
+ *      boxes. `combine` cannot be the flag: the compound product carries `'lower'` too.
+ *   3. **Every product-backed program names exactly one way.** Absent `waysAre` reads as
+ *      exclusive (a product that forgot to say is asked, not folded); a single-way product's
+ *      one way is `primary`; and `surrogateProductKey` on the validator is what scopes the rule
+ *      to programs under a product, so a hand-wired pipeline on an unlinked name is never asked.
+ *      Byte-stability (§5.4) holds because the flag is emitted only on a template with two or
+ *      more ways.
  *   4. **Catalog inheritance narrows to the chosen way.** Inheritance is whole-key, and the
  *      compound catalog fills four heads, so a bank on `amounts: 'catalog'` would otherwise
  *      quote the lower of four mechanisms nobody sells.
@@ -37,7 +42,6 @@ import {
   allWaySlots,
   filledWayIds,
   wayOwnedSlots,
-  waysAreExclusive,
   waysOfRule,
 } from '@/matching/pipeline/product-rule-ways';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -62,14 +66,30 @@ const COMPOUND_RULE = compileTemplate(COMPOUND) as ProductRule;
 
 const asConfig = (rule: unknown): IncomeAssumptionConfig => rule as IncomeAssumptionConfig;
 
+/** What the save path passes: the product the rule is read from. Absent = not product-backed. */
+const asCompound = { surrogateProductKey: 'compound_owner' } as const;
+const asCrossSell = { surrogateProductKey: 'auto_loan_crosssell' } as const;
+
+const SINGLE: ProductTemplate = {
+  version: 1,
+  outputKind: 'monthlyIncome',
+  primary: { kind: 'flatAmount' },
+  conditions: [],
+};
+
 // ---------------------------------------------------------------------------
 // The form declares it
 // ---------------------------------------------------------------------------
 
 describe('a product declares whether its ways are alternatives', () => {
-  it('reads an absent flag as combined, which is what every stored form means', () => {
+  it('reads an absent flag as exclusive, so a product that forgot to say is asked, not folded', () => {
+    expect(waysAreOf({ ...CROSSSELL, waysAre: undefined })).toBe('exclusive');
+    expect(waysAreOf({ ...COMPOUND, waysAre: undefined })).toBe('exclusive');
+  });
+
+  it('has the auto cross-sell state that its two terms are one way', () => {
+    expect(CROSSSELL.waysAre).toBe('combined');
     expect(waysAreOf(CROSSSELL)).toBe('combined');
-    expect(CROSSSELL.waysAre).toBeUndefined();
   });
 
   it('has the compound guarantee state that they are alternatives', () => {
@@ -108,14 +128,17 @@ describe('a product declares whether its ways are alternatives', () => {
 describe('the flag travels on the compiled rule, and only when it decides something', () => {
   it('is carried, because the two readers hold a rule and never a form', () => {
     expect(COMPOUND_RULE.waysAre).toBe('exclusive');
-    expect(waysAreExclusive(COMPOUND_RULE)).toBe(true);
+    expect(waysOfRule(COMPOUND_RULE).length).toBeGreaterThanOrEqual(2);
+    expect((compileTemplate(CROSSSELL) as ProductRule).waysAre).toBe('combined');
   });
 
-  it('leaves a combined product compiling byte-identically', () => {
-    // Absent already reads as combined everywhere, so stating it must add nothing — which is
-    // what keeps every template stored before the field existed compiling to the same steps.
-    expect(compileTemplate(CROSSSELL)).toEqual(compileTemplate({ ...CROSSSELL, waysAre: 'combined' }));
-    expect((compileTemplate(CROSSSELL) as ProductRule).waysAre).toBeUndefined();
+  it('leaves a single-way product compiling byte-identically, with no flag at all', () => {
+    // The default flipped to exclusive, so byte-stability (§5.4) is carried by the compiler
+    // instead: nothing is emitted unless the template has two or more ways to relate.
+    expect((compileTemplate(SINGLE) as ProductRule).waysAre).toBeUndefined();
+    expect(compileTemplate({ ...COMPOUND, waysAre: undefined })).toEqual(
+      compileTemplate({ ...COMPOUND, waysAre: 'exclusive' }),
+    );
   });
 
   it('adds no step and renames none', () => {
@@ -173,15 +196,27 @@ describe('a way is its head, its columns and its pick — never one slot', () =>
     expect(wayOwnedSlots(COMPOUND_RULE, 'alt__nothing').size).toBe(0);
   });
 
-  it('finds no ways at all in a one-way product, which is why none can be chosen', () => {
-    const single = compileTemplate({
-      version: 1,
-      outputKind: 'monthlyIncome',
-      primary: { kind: 'flatAmount' },
-      conditions: [],
-    }) as ProductRule;
-    expect(waysOfRule(single)).toEqual([]);
-    expect(waysAreExclusive({ ...single, waysAre: 'exclusive' })).toBe(false);
+  it("names a one-way product's single way `primary`, so a program can record it", () => {
+    const single = compileTemplate(SINGLE) as ProductRule;
+    expect(waysOfRule(single)).toEqual([{ id: 'primary', slots: ['primary'] }]);
+  });
+
+  it('finds no way at all in a hand-wired pipeline that names no `primary`', () => {
+    const single = compileTemplate(SINGLE) as ProductRule;
+    const renamed: ProductRule = {
+      ...single,
+      steps: single.steps.map((step) => (step.id === 'primary' ? { ...step, id: 'lump' } : step)),
+      output: { ...single.output, from: 'lump' },
+    };
+    expect(waysOfRule(renamed)).toEqual([]);
+  });
+
+  it("folds a combined product's two heads into ONE way whose slots are the UNION", () => {
+    // The union is what a catalog-amounts program inherits by. The first head's slots alone
+    // would drop `alt` and quote 3 × the instalment with the 10% clamp silently gone.
+    expect(waysOfRule(compileTemplate(CROSSSELL) as ProductRule)).toEqual([
+      { id: 'primary', slots: ['primary', 'alt'] },
+    ]);
   });
 });
 
@@ -222,6 +257,8 @@ const FACTS: SurrogateFactBinding[] = [
   { key: 'unit_contract_price', questionCode: 'unit_contract_price', type: 'NUMERIC' },
   { key: 'unit_months_owned', questionCode: 'unit_months_owned', type: 'NUMERIC' },
   { key: 'unit_owned_share_pct', questionCode: 'unit_owned_share_pct', type: 'NUMERIC' },
+  // Platform-owned; every income product's rule reads it since `iScore: true` went universal.
+  { key: 'i_score', questionCode: 'i_score', type: 'NUMERIC' },
 ];
 
 const ctx: IncomeRuleValidationContext = {
@@ -249,11 +286,11 @@ function fabmisr(over: Partial<IncomeAssumptionConfig> = {}): IncomeAssumptionCo
 
 describe('a bank program must name exactly one of an exclusive product’s ways', () => {
   it('accepts a program that fills one way across two columns', async () => {
-    expect(await validateIncomeRule(fabmisr(), ctx)).toBeUndefined();
+    expect(await validateIncomeRule(fabmisr(), ctx, asCompound)).toBeUndefined();
   });
 
   it('refuses a program that has not said which way it sells', async () => {
-    const violation = await validateIncomeRule(fabmisr({ wayId: undefined }), ctx);
+    const violation = await validateIncomeRule(fabmisr({ wayId: undefined }), ctx, asCompound);
     expect(violation).toEqual({
       kind: 'incomeWayRequired',
       wayIds: [
@@ -275,6 +312,7 @@ describe('a bank program must name exactly one of an exclusive product’s ways'
         },
       }),
       ctx,
+      asCompound,
     );
     expect(violation).toEqual({
       kind: 'incomeWayConflict',
@@ -283,52 +321,121 @@ describe('a bank program must name exactly one of an exclusive product’s ways'
     });
   });
 
-  it('refuses a way id the product does not offer', async () => {
-    const violation = await validateIncomeRule(fabmisr({ wayId: 'alt__nothing' }), ctx);
+  it('refuses a way id the product does not offer, by name, with the real list', async () => {
+    // A real sentence, not a `PRODUCT_RULE_INVALID` reason: a stale id is now the NORMAL result
+    // of changing the program name, and a reason would ship its English token into the Arabic UI.
+    const violation = await validateIncomeRule(fabmisr({ wayId: 'alt__nothing' }), ctx, asCompound);
     expect(violation).toEqual({
-      kind: 'productRuleInvalid',
-      reason: 'way_unknown',
-      detail: 'alt__nothing',
+      kind: 'incomeWayUnknown',
+      wayId: 'alt__nothing',
+      wayIds: [
+        'primary',
+        'alt',
+        'alt__unit_paid_to_date',
+        'alt__owned_unit_type',
+        'alt__unit_down_payment',
+      ],
     });
   });
 
-  it('refuses a way named on a product that combines its ways', async () => {
-    const combined = asConfig({
+  /** The ABK cross-sell as it stands: both terms filled, the one way named or not. */
+  const crossSell = (wayId?: string): IncomeAssumptionConfig =>
+    asConfig({
       ...(compileTemplate(CROSSSELL) as ProductRule),
+      amounts: 'own',
+      ...(wayId === undefined ? {} : { wayId }),
+      stepParams: {
+        primary: { scalar: { value: '3', unit: 'multiplier' } },
+        alt: { scalar: { value: '10', unit: 'percent' } },
+      },
+    });
+
+  it('still lets the one sheet that pairs two ways fill both — as ONE named way', async () => {
+    // App. A §4. Operator decision: the whole sentence is the method. Both boxes stay filled,
+    // and the program names the one way that holds them.
+    expect(await validateIncomeRule(crossSell('primary'), autoCtx, asCrossSell)).toBeUndefined();
+  });
+
+  it('asks the cross-sell for its one way like any other program', async () => {
+    expect(await validateIncomeRule(crossSell(), autoCtx, asCrossSell)).toEqual({
+      kind: 'incomeWayRequired',
+      wayIds: ['primary'],
+    });
+  });
+
+  it('refuses a TERM of the combined way named as if it were a way of its own', async () => {
+    // `alt` is a SLOT of the one way, not its id — exactly the value a careless backfill would
+    // write, and what `wayOwnedSlots` would answer with an empty set for.
+    expect(await validateIncomeRule(crossSell('alt'), autoCtx, asCrossSell)).toEqual({
+      kind: 'incomeWayUnknown',
+      wayId: 'alt',
+      wayIds: ['primary'],
+    });
+  });
+
+  /** A single-way product: one `shareOf` over a number the applicant states. */
+  const single = (wayId?: string): IncomeAssumptionConfig =>
+    asConfig({
+      ...(compileTemplate({
+        version: 1,
+        outputKind: 'monthlyIncome',
+        primary: { kind: 'shareOf', fact: 'auto_loan_amount' },
+        conditions: [],
+      }) as ProductRule),
+      amounts: 'own',
+      ...(wayId === undefined ? {} : { wayId }),
+      stepParams: { primary: { scalar: { value: '10', unit: 'percent' } } },
+    });
+
+  it("asks a single-way product's program for its one way, and accepts `primary`", async () => {
+    expect(await validateIncomeRule(single(), autoCtx, { surrogateProductKey: 'x' })).toEqual({
+      kind: 'incomeWayRequired',
+      wayIds: ['primary'],
+    });
+    expect(
+      await validateIncomeRule(single('primary'), autoCtx, { surrogateProductKey: 'x' }),
+    ).toBeUndefined();
+  });
+
+  it('never asks a pipeline that no surrogate product stands behind', async () => {
+    // A `steps` rule hand-wired on an UNLINKED catalog name offers a calculation, not a
+    // catalogue of ways. The save path passes no `surrogateProductKey` for it, and it is held
+    // to nothing — however many heads it happens to have.
+    expect(await validateIncomeRule(single(), autoCtx)).toBeUndefined();
+    expect(await validateIncomeRule(fabmisr({ wayId: undefined }), ctx)).toBeUndefined();
+    expect(await validateIncomeRule(crossSell(), autoCtx)).toBeUndefined();
+  });
+
+  it('still refuses a way named on a pipeline that offers none, product or not', async () => {
+    // Deliberately outside the product gate: it cannot leak onto a payslip program (wrong
+    // strategy), and it is what catches a program dragged onto a raw-pipeline name.
+    const base = compileTemplate({
+      version: 1,
+      outputKind: 'monthlyIncome',
+      primary: { kind: 'shareOf', fact: 'auto_loan_amount' },
+      conditions: [],
+    }) as ProductRule;
+    const noWay = asConfig({
+      ...base,
+      steps: base.steps.map((step) => (step.id === 'primary' ? { ...step, id: 'lump' } : step)),
+      output: { ...base.output, from: 'lump' },
       amounts: 'own',
       wayId: 'primary',
-      stepParams: {
-        primary: { scalar: { value: '3', unit: 'multiplier' } },
-        alt: { scalar: { value: '10', unit: 'percent' } },
-      },
+      stepParams: { lump: { scalar: { value: '10', unit: 'percent' } } },
     });
-    expect(await validateIncomeRule(combined, autoCtx)).toEqual({
-      kind: 'productRuleInvalid',
-      reason: 'way_not_applicable',
-      detail: 'primary',
-    });
-  });
-
-  it('still lets the one sheet that pairs two ways fill both', async () => {
-    // App. A §4. The exception a global rule would have broken, and the reason `combine`
-    // could not be the flag: this product carries `'lower'` too.
-    const both = asConfig({
-      ...(compileTemplate(CROSSSELL) as ProductRule),
-      amounts: 'own',
-      stepParams: {
-        primary: { scalar: { value: '3', unit: 'multiplier' } },
-        alt: { scalar: { value: '10', unit: 'percent' } },
-      },
-    });
-    expect(await validateIncomeRule(both, autoCtx)).toBeUndefined();
+    const expected = { kind: 'productRuleInvalid', reason: 'way_not_applicable', detail: 'primary' };
+    expect(await validateIncomeRule(noWay, autoCtx)).toEqual(expected);
+    expect(await validateIncomeRule(noWay, autoCtx, { surrogateProductKey: 'x' })).toEqual(expected);
   });
 
   it('says nothing about ways on a CATALOG write, which states them and picks none', async () => {
     // `figuresRequired: false` is the axis that exempts the catalog write, the raw step
-    // editor, the template compile and both seeds — in one gate, so none of them can start
-    // refusing.
+    // editor, the template compile and the blueprint seed — in one gate, so none of them can
+    // start refusing, product-backed or not.
     const catalog = asConfig({ ...COMPOUND_RULE, stepParams: {} });
-    expect(await validateIncomeRule(catalog, ctx, { figuresRequired: false })).toBeUndefined();
+    expect(
+      await validateIncomeRule(catalog, ctx, { figuresRequired: false, ...asCompound }),
+    ).toBeUndefined();
   });
 });
 
@@ -338,6 +445,7 @@ const autoCtx: IncomeRuleValidationContext = {
   surrogateFacts: async () => [
     { key: 'car_loan_installment', questionCode: 'car_loan_installment', type: 'NUMERIC' },
     { key: 'auto_loan_amount', questionCode: 'auto_loan_amount', type: 'NUMERIC' },
+    { key: 'i_score', questionCode: 'i_score', type: 'NUMERIC' },
   ],
   questionOptionCodes: async () => [],
 };
@@ -399,10 +507,11 @@ describe('narrowing a rule to the way it sells', () => {
     expect(Object.keys(stored.stepParams ?? {})).toEqual(['primary']);
   });
 
-  it('touches nothing on a product whose ways combine', () => {
+  it('touches nothing on a product whose ways combine — the SAME object comes back', () => {
     const combined = asConfig({
       strategy: PRODUCT_RULE_STRATEGY,
       amounts: 'own',
+      wayId: 'primary',
       stepParams: {
         primary: { scalar: { value: '3', unit: 'multiplier' } },
         alt: { scalar: { value: '10', unit: 'percent' } },
@@ -410,6 +519,17 @@ describe('narrowing a rule to the way it sells', () => {
     });
     const effective = effectiveIncomeRule(combined, asConfig(compileTemplate(CROSSSELL)));
     expect(stripUnchosenWays(combined, effective)).toBe(combined);
+  });
+
+  it('touches nothing on a single-way product either — callers memoise on identity', () => {
+    const one = asConfig({
+      strategy: PRODUCT_RULE_STRATEGY,
+      amounts: 'own',
+      wayId: 'primary',
+      stepParams: { primary: { valueEGP: '5000' } },
+    });
+    const effective = effectiveIncomeRule(one, asConfig(compileTemplate(SINGLE)));
+    expect(stripUnchosenWays(one, effective)).toBe(one);
   });
 });
 
@@ -445,7 +565,9 @@ describe('catalog amounts inherit the chosen way only', () => {
     expect(effective.stepParams?.['cond__ownedlongenough']).toEqual({ minValue: '18' });
   });
 
-  it('inherits everything when the product does not hold its ways as alternatives', () => {
+  it("inherits BOTH terms of a combined product's one way — the load-bearing union", () => {
+    // Operator decision #2 in test form. A grouping that took the first head's slots instead
+    // of the union would drop `alt` here and quote 3 × the instalment with the clamp gone.
     const combinedCatalog = asConfig({
       ...(compileTemplate(CROSSSELL) as ProductRule),
       stepParams: {
@@ -453,11 +575,17 @@ describe('catalog amounts inherit the chosen way only', () => {
         alt: { scalar: { value: '10', unit: 'percent' } },
       },
     });
-    const effective = effectiveIncomeRule(
-      asConfig({ strategy: PRODUCT_RULE_STRATEGY, amounts: 'catalog' }),
-      combinedCatalog,
-    );
-    expect(Object.keys(effective.stepParams ?? {}).sort()).toEqual(['alt', 'primary']);
+    for (const wayId of ['primary', undefined]) {
+      const effective = effectiveIncomeRule(
+        asConfig({
+          strategy: PRODUCT_RULE_STRATEGY,
+          amounts: 'catalog',
+          ...(wayId === undefined ? {} : { wayId }),
+        }),
+        combinedCatalog,
+      );
+      expect(Object.keys(effective.stepParams ?? {}).sort()).toEqual(['alt', 'primary']);
+    }
   });
 
   it('narrows nothing when the program has not named a way — a read invents no choice', () => {

@@ -31,6 +31,20 @@
  * is the obvious shortcut: `alt__unit_paid_to_date` is a way HEAD (the third and later ways
  * are named after the fact they read) while `alt__top_up` is a COLUMN of the `alt` way. The
  * two are indistinguishable as strings and only the rule says which is which.
+ *
+ * ─── EVERY PRODUCT OFFERS AT LEAST ONE WAY, AND A PROGRAM NAMES EXACTLY ONE ───
+ *
+ * A single-way product's way is its head (`primary`, or `primary_pick` behind a second
+ * column). A `'combined'` product's heads are the TERMS of one way — the auto cross-sell's
+ * "3 × the instalment or 10% of the loan, whichever is less" is one sentence a bank fills
+ * both halves of — and fold into ONE way whose slots are the union. Only an `'exclusive'`
+ * product lists rivals. So `waysOfRule(rule).length >= 2` is the whole test for "does this
+ * program have a choice to make", and `length === 1` for "its one way is named for it".
+ *
+ * The EVALUATOR reads none of this. `emitBasis`'s `minOf(skipUnset)` + `coalesce` already
+ * returns the filled way's figure, or the fold of a combined product's terms; `waysAre` and
+ * `wayId` are read only where a save is refused and where the catalog's figures are pruned.
+ * That is the property that makes the grouping safe to change without moving a quote.
  */
 
 import { SLOT } from './product-template';
@@ -63,24 +77,40 @@ function stepRefIds(step: RuleStep | undefined): string[] {
 /**
  * Every way this rule offers, in the order the product declares them.
  *
- * Read off `basis` — the `coalesce` `emitBasis` always emits for a multi-way product — with
- * `basis_combine` dropped, because that member is the COMPARISON between the ways and not one
- * of them. Reading `basis` rather than `basis_combine` covers both spellings in one place: a
- * product with no `combine` emits `coalesce [ ...ways ]` and no comparison at all.
+ * MULTI-WAY: read off `basis` — the `coalesce` `emitBasis` always emits for two or more ways —
+ * with `basis_combine` dropped, because that member is the COMPARISON between the ways and
+ * not one of them. Reading `basis` rather than `basis_combine` covers both spellings in one
+ * place: a product with no `combine` emits `coalesce [ ...ways ]` and no comparison at all.
  *
- * EMPTY for a one-way product, and deliberately: `emitBasis` returns the single head directly
- * and emits no `basis` step, so there is nothing here to name — and nothing to choose between,
- * which is exactly what `ways_are_not_applicable` refuses on the form.
+ * ONE WAY: `emitBasis` returns the single head directly and emits no `basis` step, so the way
+ * IS the head — `primary_pick` when the product has a second column, else `primary`
+ * (`waySlot(m, 0)` is `primary` unconditionally). Named rather than empty, because every
+ * surrogate program records the way it sells and a one-way product has exactly one to record.
+ * A rule naming no `primary` at all — a hand-wired pipeline — offers no way and is asked for
+ * none.
+ *
+ * COMBINED: `waysAre: 'combined'` says the heads are TERMS of one method, not rivals. They
+ * collapse to ONE way whose id is the first head's and whose slots are the UNION of every
+ * head's. The union is load-bearing, not tidy: a program on `amounts: 'catalog'` inherits by
+ * these slots, and the first head's slots alone would drop `alt` from the cross-sell and quote
+ * 3 × the instalment with the 10% clamp silently gone.
  */
 export function waysOfRule(rule: ProductRule): RuleWay[] {
   const steps = rule.steps ?? [];
   const byId = new Map(steps.map((step) => [step.id, step]));
   const basis = byId.get(SLOT.basis);
-  if (basis === undefined || basis.op !== 'coalesce') return [];
+
+  const heads: string[] =
+    basis !== undefined && basis.op === 'coalesce'
+      ? stepRefIds(basis).filter((head) => head !== SLOT.basisCombine)
+      : byId.has(SLOT.primaryPick)
+        ? [SLOT.primaryPick]
+        : byId.has(SLOT.primary)
+          ? [SLOT.primary]
+          : [];
 
   const ways: RuleWay[] = [];
-  for (const head of stepRefIds(basis)) {
-    if (head === SLOT.basisCombine) continue;
+  for (const head of heads) {
     const step = byId.get(head);
     if (step === undefined) continue;
     if (step.op !== 'pickByFact') {
@@ -92,6 +122,12 @@ export function waysOfRule(rule: ProductRule): RuleWay[] {
     const [first] = columns;
     if (first === undefined) continue;
     ways.push({ id: first, slots: [...columns, head] });
+  }
+
+  if (rule.waysAre === 'combined' && ways.length >= 2) {
+    const [first] = ways;
+    if (first === undefined) return ways;
+    return [{ id: first.id, slots: [...new Set(ways.flatMap((way) => way.slots))] }];
   }
   return ways;
 }
@@ -135,15 +171,4 @@ export function filledWayIds(rule: ProductRule): string[] {
       }),
     )
     .map((way) => way.id);
-}
-
-/**
- * Does this rule hold its ways as alternatives a bank picks exactly one of?
- *
- * Absent reads as combined, which is what every rule stored before the flag existed means.
- * A product with fewer than two ways is never exclusive however the flag is spelled — there
- * is nothing to choose between, and demanding a choice would make it unsavable.
- */
-export function waysAreExclusive(rule: ProductRule): boolean {
-  return rule.waysAre === 'exclusive' && waysOfRule(rule).length >= 2;
 }

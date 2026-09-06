@@ -34,15 +34,20 @@ import type { IncomeAssumptionConfig } from '@/matching/types';
 const ALL = productBlueprints();
 
 /** Every fact the library declares, as the registry would hold it once a product is created. */
-const REGISTRY = ALL.flatMap((blueprint) =>
-  blueprint.asks
-    .filter((ask) => ask.kind !== 'derivedFact')
-    .map((ask) => ({
-      key: ask.factKey,
-      questionCode: ask.kind === 'platformFact' ? ask.factKey : ask.questionCode,
-      type: (ask.kind === 'number' ? 'NUMERIC' : 'SINGLE_SELECT') as 'NUMERIC' | 'SINGLE_SELECT',
-    })),
-);
+const REGISTRY = [
+  ...ALL.flatMap((blueprint) =>
+    blueprint.asks
+      .filter((ask) => ask.kind !== 'derivedFact')
+      .map((ask) => ({
+        key: ask.factKey,
+        questionCode: ask.kind === 'platformFact' ? ask.factKey : ask.questionCode,
+        type: (ask.kind === 'number' ? 'NUMERIC' : 'SINGLE_SELECT') as 'NUMERIC' | 'SINGLE_SELECT',
+      })),
+  ),
+  // The bureau score is PLATFORM-owned — asked of everyone, declared by no blueprint, seeded by
+  // `seed-questionnaire.ts` — and every income product's rule now reads it (`iScore: true`).
+  { key: 'i_score', questionCode: 'i_score', type: 'NUMERIC' as const },
+];
 
 /** Every option code the library's own lists offer, keyed by the question that mirrors them. */
 const OPTIONS: Record<string, string[]> = {};
@@ -344,11 +349,19 @@ describe('the slot ids are golden', () => {
     school_stage_ceiling: ['primary', 'primary__school_international', 'primary_pick'],
   };
 
+  /**
+   * APPENDED to every product's golden list, not written into it: the I-Score multiplier is
+   * declared on every income-bearing template (`iScore: true`), which adds these four slots
+   * LAST and renames none — §5.4 holds, and `iscore-every-product.spec.ts` pins the append.
+   * Kept out of the list above so the list keeps saying what each product's OWN shape is.
+   */
+  const I_SCORE_SLOTS = ['iscore_applied', 'iscore_band', 'iscore_factor', 'iscore_src'];
+
   it.each(ALL.filter(withProduct).map((b) => [b.key, b] as const))(
     '%s files its figures under exactly the ids it always has',
     (key, blueprint) => {
       const keys = paramKeysOf(compileTemplate(blueprint.template!)).slice().sort();
-      expect(keys).toEqual(GOLDEN[key]);
+      expect(keys).toEqual([...GOLDEN[key]!, ...I_SCORE_SLOTS].sort());
     },
   );
 

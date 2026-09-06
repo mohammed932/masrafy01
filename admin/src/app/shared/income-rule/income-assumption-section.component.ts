@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import type { WaysAre } from './product-rule-ways';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -239,6 +240,7 @@ import { incomeRuleHasError } from './income-rule.rules';
                 [waysAre]="waysAre()"
                 [wayId]="wayId()"
                 (wayIdChange)="wayId.set($event)"
+                (wayTitleChange)="wayTitleChange.emit($event)"
                 [figuresAreOwn]="figuresAreOwn()"
                 [catalogFigures]="catalogFigures()"
                 [showsCatalogDefaults]="showsCatalogDefaults()"
@@ -278,14 +280,25 @@ import { incomeRuleHasError } from './income-rule.rules';
                 [attr.aria-describedby]="'dbrOverrideHint'"
                 (blur)="touchOverride()"
               />
-              <p
-                class="rule-hint"
-                id="dbrOverrideHint"
-                i18n="@@bank_programs.income.dbr_override_hint"
-              >
-                Applied only when the income came from this rule. Leave empty to use the program's
-                own cap.
-              </p>
+              @if (programCapPercent()) {
+                <p
+                  class="rule-hint"
+                  id="dbrOverrideHint"
+                  i18n="@@bank_programs.income.dbr_override_hint_v2"
+                >
+                  Applied only when the income came from this rule. Leave empty to use the program's
+                  own cap, currently {{ programCapPercent() }}% (set on the Eligibility step).
+                </p>
+              } @else {
+                <p
+                  class="rule-hint"
+                  id="dbrOverrideHint"
+                  i18n="@@bank_programs.income.dbr_override_hint"
+                >
+                  Applied only when the income came from this rule. Leave empty to use the program's
+                  own cap.
+                </p>
+              }
               @if (overrideError()) {
                 <p class="rule-error" role="alert" i18n="@@bank_programs.income.err_dbr_override">
                   The cap must be greater than 0 and at most 100.
@@ -537,9 +550,18 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly stepFigures = model<Record<string, StepFigures>>({});
   readonly stepFiguresTouched = output<void>();
   /** The catalog's statement that a bank sells ONE of the product's ways. */
-  readonly waysAre = input<'exclusive' | null>(null);
+  readonly waysAre = input<WaysAre>(null);
+  /**
+   * The program's own flat debt-burden cap, for the override's hint: "leave empty to use the
+   * program's own cap" is a sentence that should say what that cap currently is, or the two
+   * DBR controls on two steps read as duplicates. Empty on the catalog variant, which shows
+   * no policy block at all.
+   */
+  readonly programCapPercent = input<string>('');
   /** Which way this bank sells. Written by the picker inside the editor. */
   readonly wayId = model<string | null>(null);
+  /** The chosen way's title in the editor's words, re-emitted for the wizard (see the editor). */
+  readonly wayTitleChange = output<string | null>();
   /**
    * Are the figures below this program's own, or the catalog's shown read-only?
    *

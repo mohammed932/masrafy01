@@ -183,7 +183,7 @@ export class IncomeAssumptionConfigDto {
    */
   @ApiPropertyOptional({
     enum: ['catalog', 'own'],
-    description: 'Whose figures these are. Absent = `own`. `catalog` inherits the program name\'s.',
+    description: "Whose figures these are. Absent = `own`. `catalog` inherits the program name's.",
   })
   @IsOptional()
   @IsIn(['catalog', 'own'])
@@ -263,14 +263,15 @@ export class IncomeAssumptionConfigDto {
   output?: Record<string, unknown>;
 
   /**
-   * The catalog's statement that a bank sells exactly ONE of this product's ways. Declared
-   * here so a client echoing back a rule it just read is not rejected by the global
-   * `forbidNonWhitelisted` pipe; a bank program never stores it (`stripCatalogStructure`).
+   * The catalog's statement of how this product's ways relate — rivals a bank picks one of,
+   * or the terms of one method it fills whole. Declared here so a client echoing back a rule
+   * it just read is not rejected by the global `forbidNonWhitelisted` pipe; a bank program
+   * never stores it (`stripCatalogStructure`).
    */
-  @ApiPropertyOptional({ enum: ['exclusive'] })
+  @ApiPropertyOptional({ enum: ['exclusive', 'combined'] })
   @IsOptional()
-  @IsIn(['exclusive'])
-  waysAre?: 'exclusive';
+  @IsIn(['exclusive', 'combined'])
+  waysAre?: 'exclusive' | 'combined';
 
   /**
    * Which way this program sells, as the way's slot id.

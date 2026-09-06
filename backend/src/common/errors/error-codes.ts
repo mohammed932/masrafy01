@@ -713,10 +713,11 @@ export const ERROR_CODES = {
 
   // --- One way per bank program ---
   // A product may state several WAYS of reaching its figure because several banks sell it
-  // differently. When they are alternatives (`waysAre: 'exclusive'`), a bank program sells
-  // exactly one: it names the way and types figures for that way only. Both fire on save
-  // only, and only where the bank's own completeness is being judged — never on the catalog
-  // write, which states the ways and picks between none of them.
+  // differently. Every surrogate bank program sells exactly one: it names the way and types
+  // figures for that way only — a single-way product's one way included, and a `'combined'`
+  // product's terms counting as one. All three fire on save only, and only where the bank's
+  // own completeness is being judged — never on the catalog write, which states the ways and
+  // picks between none of them.
 
   /**
    * The product sells one of its ways and this program has not said which.
@@ -739,6 +740,19 @@ export const ERROR_CODES = {
    * which of the two mechanisms their bank actually publishes.
    */
   PROGRAM_INCOME_WAY_CONFLICT: 'PROGRAM_INCOME_WAY_CONFLICT',
+  /**
+   * The program names a way this product does not offer.
+   *
+   * `meta.wayId` is what it named, `meta.wayIds` what there is — the same list
+   * `PROGRAM_INCOME_WAY_REQUIRED` carries, so one client branch re-renders the picker for both.
+   * A real sentence rather than a `PRODUCT_RULE_INVALID` reason because it is now the NORMAL
+   * result of a routine action: every surrogate program stores a way, and changing the program
+   * NAME moves it onto a different product whose ways have different ids. Not warned-and-kept
+   * the way a dropped cap row is (`cap_row_not_declared`): removing a way that holds figures is
+   * already refused one level up by `PRODUCT_TEMPLATE_ORPHANS_FIGURES`, so a stale id here can
+   * only come from the client, never from a product edit under a live program.
+   */
+  PROGRAM_INCOME_WAY_UNKNOWN: 'PROGRAM_INCOME_WAY_UNKNOWN',
 
   // --- The friendly form ---
   // A surrogate product's calculation, authored by answering three plain questions instead
@@ -1166,6 +1180,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   PRODUCT_RULE_INVALID: 422,
   PROGRAM_INCOME_WAY_REQUIRED: 422,
   PROGRAM_INCOME_WAY_CONFLICT: 422,
+  PROGRAM_INCOME_WAY_UNKNOWN: 422,
   PRODUCT_TEMPLATE_INVALID: 422,
   PRODUCT_BLUEPRINT_UNKNOWN: 422,
   PRODUCT_TEMPLATE_ORPHANS_FIGURES: 409,

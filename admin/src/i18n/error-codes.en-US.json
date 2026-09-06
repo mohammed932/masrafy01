@@ -188,6 +188,7 @@
   "PRODUCT_RULE_INVALID": "This product's calculation steps are not complete: {reason}",
   "PROGRAM_INCOME_WAY_REQUIRED": "This product is worked out one way per bank. Pick which way this program uses before saving.",
   "PROGRAM_INCOME_WAY_CONFLICT": "This program still has figures under {count} other way(s) of working the figure out. Clear them, or pick that way instead.",
+  "PROGRAM_INCOME_WAY_UNKNOWN": "The way this program was set to work its figure out is not one of this product's ways. Pick one of the ways it does offer.",
   "PRODUCT_BLUEPRINT_UNKNOWN": "There is no ready-made product by that name. Reload the page and try again.",
   "PRODUCT_TEMPLATE_INVALID": "This form can't be turned into a calculation yet: {reason}",
   "PRODUCT_TEMPLATE_ORPHANS_FIGURES": "Saving this would throw away figures {count} bank program(s) have already entered. Clear them first, or leave this part of the calculation in place.",

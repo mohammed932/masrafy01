@@ -1132,6 +1132,18 @@ export class ProgramIncomeWayConflictException extends DomainException {
 }
 
 /**
+ * The program names a way this product does not offer.
+ *
+ * `wayIds` is the picker's own list, exactly as on `ProgramIncomeWayRequiredException`, so the
+ * client handles "pick one" and "that one is not here" with one branch.
+ */
+export class ProgramIncomeWayUnknownException extends DomainException {
+  constructor(meta: { wayId: string; wayIds: string[] }) {
+    super(ERROR_CODES.PROGRAM_INCOME_WAY_UNKNOWN, meta);
+  }
+}
+
+/**
  * The friendly form itself is not compilable — about the ANSWERS the operator gave, not
  * about the steps they never saw.
  */

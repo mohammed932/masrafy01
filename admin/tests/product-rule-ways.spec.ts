@@ -16,11 +16,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  combineOfRule,
   filledWayIds,
+  mustPickWayFirst,
   ownedSlotIdsFor,
+  picksBetweenWays,
   wayIdByRow,
   wayOwnedSlots,
-  waysAreExclusive,
   waysOfRule,
 } from '../src/app/shared/income-rule/product-rule-ways';
 import { productRuleHasError } from '../src/app/shared/income-rule/income-rule.rules';
@@ -125,15 +127,50 @@ describe('the ways a rule offers', () => {
     ]);
   });
 
-  it('finds no ways in a rule with one — which is why none can be chosen', () => {
+  it("names a one-way product's single way `primary` — recorded, never picked", () => {
     const single: RuleStep[] = [{ id: 'primary', op: 'constant' }];
-    expect(waysOfRule(single)).toEqual([]);
-    expect(waysAreExclusive('exclusive', single)).toBe(false);
+    expect(waysOfRule(single)).toEqual([{ id: 'primary', slots: ['primary'], rowIds: ['primary'] }]);
+    expect(picksBetweenWays(single, 'exclusive')).toBe(false);
+    expect(picksBetweenWays(single, null)).toBe(false);
   });
 
-  it('reads an absent flag as combined, which is what every other product means', () => {
-    expect(waysAreExclusive(null, COLUMNED)).toBe(false);
-    expect(waysAreExclusive('exclusive', COLUMNED)).toBe(true);
+  it('finds no way in a hand-wired pipeline that names no `primary`', () => {
+    expect(waysOfRule([{ id: 'lump', op: 'constant' }])).toEqual([]);
+  });
+
+  it('reads an absent flag as exclusive — a product that forgot to say is asked, not folded', () => {
+    expect(picksBetweenWays(COLUMNED, null)).toBe(true);
+    expect(picksBetweenWays(COLUMNED, 'exclusive')).toBe(true);
+    expect(picksBetweenWays(PLAIN, null)).toBe(true);
+  });
+
+  it('folds a combined product into ONE way — union of slots, both rows', () => {
+    // The cross-sell: "the lower of 3 × the instalment and 10% of the loan" is one method.
+    expect(waysOfRule(PLAIN, 'combined')).toEqual([
+      { id: 'primary', slots: ['primary', 'alt'], rowIds: ['primary', 'alt'] },
+    ]);
+    expect(picksBetweenWays(PLAIN, 'combined')).toBe(false);
+    expect([...wayIdByRow(PLAIN, 'combined')]).toEqual([
+      ['primary', 'primary'],
+      ['alt', 'primary'],
+    ]);
+    expect([...wayOwnedSlots(PLAIN, 'primary', 'combined')].sort()).toEqual(['alt', 'primary']);
+  });
+
+  it('says how a product folds its heads, for the words only', () => {
+    expect(combineOfRule(COLUMNED)).toBe('lower');
+    expect(combineOfRule(PLAIN)).toBeNull();
+    expect(combineOfRule([{ id: 'basis_combine', op: 'maxOf', of: [] }])).toBe('higher');
+  });
+
+  it('locks the amounts only while a program WITH a choice has not made it', () => {
+    expect(mustPickWayFirst(COLUMNED, 'exclusive', null)).toBe(true);
+    expect(mustPickWayFirst(COLUMNED, null, '')).toBe(true);
+    expect(mustPickWayFirst(COLUMNED, 'exclusive', 'alt')).toBe(false);
+    // Nothing to pick: a single-way product, a combined product, a payslip program.
+    expect(mustPickWayFirst([{ id: 'primary', op: 'constant' }], null, null)).toBe(false);
+    expect(mustPickWayFirst(PLAIN, 'combined', null)).toBe(false);
+    expect(mustPickWayFirst([], null, null)).toBe(false);
   });
 });
 
@@ -167,7 +204,7 @@ describe('the Save gate mirrors the server, and no further', () => {
     ).toBe(false);
   });
 
-  it('refuses a program that has not picked a way', () => {
+  it('refuses a product-backed program that has not picked a way', () => {
     expect(
       productRuleHasError({
         steps: COLUMNED,
@@ -175,8 +212,13 @@ describe('the Save gate mirrors the server, and no further', () => {
         figures,
         waysAre: 'exclusive',
         wayId: null,
+        productBacked: true,
       }),
     ).toBe(true);
+    // The same rule hand-wired on an UNLINKED name is asked for none — the server's gate.
+    expect(
+      productRuleHasError({ steps: COLUMNED, gates: [], figures, waysAre: 'exclusive', wayId: null }),
+    ).toBe(false);
   });
 
   it('refuses figures under a way the program does not sell', () => {
@@ -203,19 +245,40 @@ describe('the Save gate mirrors the server, and no further', () => {
     ).toBe(true);
   });
 
-  it('asks nothing of a product whose ways combine, even with two filled', () => {
+  it('lets a combined product fill both terms of its one way, named `primary`', () => {
     // App. A §4 fills both on purpose. Out-refusing here would disable Save on both live
     // ABK cross-sell programs.
+    const figures = { primary: { scalar: { value: '3', unit: 'multiplier' } }, alt: pct };
     expect(
       productRuleHasError({
         steps: PLAIN,
         gates: [],
-        figures: { primary: { scalar: { value: '3', unit: 'multiplier' } }, alt: pct },
+        figures,
+        waysAre: 'combined',
+        wayId: 'primary',
+        productBacked: true,
       }),
     ).toBe(false);
+    // `alt` is a TERM of the one way, not a way — the value a careless client would send.
+    expect(
+      productRuleHasError({
+        steps: PLAIN,
+        gates: [],
+        figures,
+        waysAre: 'combined',
+        wayId: 'alt',
+        productBacked: true,
+      }),
+    ).toBe(true);
   });
 
-  it('asks nothing when the caller states no way at all — every existing caller', () => {
+  it('requires a way only when a product stands behind the rule — the server’s own gate', () => {
+    const single: RuleStep[] = [{ id: 'primary', op: 'constant' }];
+    const figures = { primary: { valueEGP: '5000' } };
+    expect(productRuleHasError({ steps: single, gates: [], figures, productBacked: true })).toBe(true);
+    expect(productRuleHasError({ steps: single, gates: [], figures, wayId: 'primary', productBacked: true })).toBe(false);
+    // Not product-backed (a hand-wired pipeline on an unlinked name): never asked.
+    expect(productRuleHasError({ steps: single, gates: [], figures })).toBe(false);
     expect(productRuleHasError({ steps: PLAIN, gates: [], figures: { primary: pct } })).toBe(false);
   });
 });
@@ -224,7 +287,11 @@ describe('ownedSlotIdsFor — one owner for "this bank’s slots"', () => {
   const ALL = ['primary', 'alt', 'alt__top_up', 'cond__paid', 'src__price'];
 
   it('narrows nothing when the ways are not exclusive', () => {
-    expect(ownedSlotIdsFor(COLUMNED, ALL, null, 'primary')).toBeUndefined();
+    // Absent reads as exclusive now, so `null` narrows like `'exclusive'`; `'combined'` and a
+    // one-way product are the cases with nothing to narrow.
+    expect(ownedSlotIdsFor(COLUMNED, ALL, null, 'primary')).toBeDefined();
+    expect(ownedSlotIdsFor(PLAIN, ALL, 'combined', 'primary')).toBeUndefined();
+    expect(ownedSlotIdsFor([{ id: 'primary', op: 'constant' }], ALL, null, 'primary')).toBeUndefined();
   });
 
   it('keeps the chosen way and every slot no way owns', () => {

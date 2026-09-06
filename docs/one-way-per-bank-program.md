@@ -441,5 +441,148 @@ the flag adds no step and renames none, so that is exactly equivalent to a recom
   no placeholder mismatch — the check this repo relies on. The strings were not seen RENDERING in an
   Arabic browser session: RTL was measured with `dir=rtl` forced on the English bundle, because the
   ar dev server cannot authenticate against a backend whose CORS allows `:5173` only.
-- Only `compound_owner` declares `waysAre`. Any future product whose ways are alternatives has to say
-  so, and nothing detects one that forgets — a product with two ways no sheet pairs still folds them.
+---
+
+# 2026-09-06 — the rule goes UNIVERSAL, and the choice moves before the amounts
+
+The bullet that used to close this file read: *"Only `compound_owner` declares `waysAre`. Any future
+product whose ways are alternatives has to say so, and nothing detects one that forgets."* Closed —
+by inverting the default rather than by adding a detector.
+
+## What changed
+
+**Every surrogate bank program names exactly one way. No product is exempt.**
+
+| | before | after |
+|---|---|---|
+| absent `waysAre` | reads `'combined'` — fold every filled way | reads **`'exclusive'`** — a product that forgot to say is ASKED |
+| a one-way product | `waysOfRule` returns `[]`, no way nameable | its head IS the way (`primary`), recorded without asking |
+| `auto_loan_crosssell` | two ways, exempt from the rule | **one way with two terms**, declaring `waysAre: 'combined'` |
+| `wayId` required | only under `compound_owner` | under every product-backed `steps` rule |
+
+**The cross-sell is the interesting half.** App. A §4 is *"3 × the car instalment or 10% of the auto
+loan, whichever is less"* — one sentence a bank fills both halves of. So `waysAre: 'combined'` stops
+meaning "exempt from the rule" and starts meaning **the heads are TERMS of one way**: `waysOfRule`
+folds them into a single way whose id is the first head's and whose `slots` are the UNION of both.
+The programme names `primary`, keeps both boxes filled, and quotes exactly what it quoted before.
+The union is load-bearing — `expanded[0].slots` would drop `alt` from a catalog-amounts programme
+and quote 3 × the instalment with the 10% clamp silently gone.
+
+**Byte-stability moved from the default to the compiler.** `compileTemplate` emits `waysAre` only
+when the template has two or more ways, so all ten single-way products compile exactly as before
+(§5.4). It is emitted for BOTH spellings now, because `'combined'` has a footprint in the rule: it
+is what `waysOfRule` reads in order to fold.
+
+**Scoping, which the universal rule made necessary.** A `steps` rule hand-wired on an unlinked
+catalog name offers a calculation, not a catalogue of ways. `CatalogRuleResolution` now carries
+`productKey`, threaded into `IncomeRuleValidationOptions.surrogateProductKey` at both save sites and
+the rule-CHECK endpoint; absent means not product-backed and no way is demanded. The migration's
+join scopes on the same two facts, so backfill and refusal cannot disagree about who is asked.
+`way_not_applicable` survives, narrowed to one reachable state — a rule offering NO way that carries
+a `wayId` — and is deliberately left OUTSIDE the product gate.
+
+**`way_unknown` was promoted to `PROGRAM_INCOME_WAY_UNKNOWN`** (422, meta `{wayId, wayIds}`). The
+original argument for keeping it a raw reason was that only a hand-built request could reach it.
+That stopped being true: every surrogate programme now stores a way, and changing the programme NAME
+moves it onto a different product whose ways have different ids — so a stale id is the normal result
+of a routine action, and a reason ships its English token into the Arabic UI (Principle III / A2).
+`check:codes` **219 → 220**.
+
+**`waysAreExclusive` is deleted.** After the fold it is exactly `waysOfRule(rule).length >= 2`, and a
+helper named "exclusive" that means "offers a choice" is the flag-that-decides-nothing problem in
+helper form.
+
+## I-Score, on every income product
+
+"Adjust by I-Score" was a per-PRODUCT tick and **0 of 12 blueprints declared it**, so no bank
+programme could state a bureau-score table at all. All nine rule-bearing blueprints now declare
+`iScore: true`. A programme-level field was rejected: two sources of one multiplier would be two
+authorities (the `uplift.scope` trap), and it would weaken the before-DBR guarantee from structural
+to procedural. A blank table coalesces to `{const:'100'}` → ×1, and `iscore_band` is a coalesce
+member, so **no figure moves and no save is blocked**. `blankSlots` learned to skip a box the
+compiler pairs with a literal fallback (new `literalFallbackStepIds`) — otherwise every programme
+would be nagged for a figure the product deliberately lets it omit.
+
+DBR needed nothing: `dbrCapPercent`, `dbrBands`, `dbrCapPercentByEmploymentType` and `skipDbrCheck`
+were already on every programme, payslip included. Only placement and two cross-references changed.
+
+## Migrations
+
+`20260907090000_one_way_every_program` — the cross-sell declares `'combined'` in both blobs; every
+other multi-way product states `'exclusive'` explicitly (so "present iff ≥2 ways" is true of every
+row by inspection); then `waysOfRule` in SQL — `WITH ORDINALITY` on `basis -> 'of'` so "first" is
+deterministic, a single-head fallback, and the combined collapse — backfills `wayId`. A one-way
+product writes to every programme under it, filled or not, which is what catches `amounts:'catalog'`
+(it stores no `stepParams` at all); a multi-way one keeps the predecessor's posture and RAISEs on two
+filled ways.
+
+`20260907090100_iscore_every_surrogate_product` — splices the four I-Score steps in immediately
+BEFORE the first `cond__*` step, because the compiler's order is sources → ways → basis → uplift →
+share → I-Score → conditions, and a condition's comparison figure is a step emitted after the
+multiplier. Not appended: a fresh compile and a migrated row must be the same list in the same order.
+It asserts its own end state rather than assuming it.
+
+## The wizard
+
+The income block MOVED, whole, out of Eligibility into a new **Calculation** step between Program and
+Amount — the ways, the figures, additional income, the check panel. Eligibility keeps age / income /
+employment and Debt burden. **Scoped to surrogate programmes**: the step exists iff
+`incomeSurrogateActive()`, so a payslip programme is untouched at seven steps.
+
+That made the step list conditional, which the page could not express — `steps` was a static array
+and the whole template switched on numeric index. New pure `wizard-step-plan.ts` owns the order; the
+page holds step IDS in its signals and derives indices, with `indexOfOrPreceding` so a list that
+shrinks under an operator resolves to the nearest earlier step instead of throwing them back to the
+start.
+
+**Two live bugs this walked into, both fixed.** `commitStep`'s escape for a signal-only verdict was
+keyed on "owns no groups", so `terms` (a broken cap table), `program` and `eligibility` fell through
+to the control walk, found every control valid, and **Continue advanced past a broken cap table
+saying nothing**. And `stepIssueCount` counts invalid leaves — zero for an unpicked way — while the
+rail's alert is gated on it being above zero, so Continue would have refused with an empty banner.
+
+Amount's min/max and the cap grid lock until a way is picked, via `[attr.disabled]` and never
+`.disable()` — a disabled control drops out of group validity, so the step would report itself
+complete with two empty required fields. One notice says it once, with the trip back.
+
+Changing the programme name clears the way and the cap rows, **warned first**, naming both losses in
+clauses that each agree with their own count. Nothing moves until OK; Esc, the mask and the close
+icon all restore the picker. (`nzOnOk` must RETURN TRUE — `afterClose` emits its result, so a void
+handler read as "cancelled" and the restore undid the change the operator had just approved. Caught
+in a browser, not by reading.)
+
+## Verified
+
+- **Both migrations applied to the real database.** All 14 surrogate programmes re-quoted through the
+  stored rows before and after: FAB 1,000,000 · ABK 150,000 · CAE 500,000 · EGB 6,000,000 · both
+  cross-sells 24,000 · doctors 120,000 / 60,000 · professors 50,000 · CDs 300,000 · card 30,000 ·
+  teachers 200,000 — **MOVED: none**. `output.from` moved to `iscore_applied` on all nine products;
+  0 programmes left without a `wayId`.
+- **Seeds** — `seed:blueprints` 0 created / 0 REFUSED / 0 published; `seed:sheet-figures` 0 written /
+  0 REFUSED / 17 unchanged.
+- **Browser, on the running app.** Surrogate: 8 steps, Calculation third, "8 short steps". Payslip: 7
+  steps, no Calculation, unchanged. On an edit, 5 radios with 1 checked; on a fresh create, 5 radios
+  0 checked, the pending line, the group opening ON the ways, and **Continue refused with a real
+  sentence**. Single-way and combined products render a statement rather than an unusable radio, the
+  cross-sell titled "Both of these — the lower is used". Way-switch cancel restores to 1 checked
+  radio, never 0. Name change names what goes ("Compound Owner works its figure out from … 6
+  maximum-by-answer rows you typed go"), Esc restores, OK commits and the rule follows (5 ways → 0 →
+  5). Page overflow **0** at 1440/1024/720 in light, dark and RTL on all four programmes; no page
+  errors beyond the app's own 401 session probe. Contrast in real dark mode (`data-theme`): live
+  15.36 · hint 8.91 · title 8.91; light 14.18 / 6.17 / 6.17.
+- **Checks** — `check:codes` 220 in sync, `check:income-proof` clean (14 programmes across 9 names),
+  `check:parent-keys` clean. Backend 1266, admin 351. Both locales build; ar-EG untranslated **339
+  ids / 362 warnings = exact HEAD parity**, none of the 26 new ids among them, 4 retired, no orphans.
+  Lint at parity: backend 0, admin 10 pre-existing `label-has-associated-control`.
+
+## Not done, stated (2026-09-06)
+
+- **The amount lock is defence-in-depth and is not reachable through the UI.** The step gate refuses
+  to leave Calculation without a way, so Amount cannot be reached in that state; the lock renders only
+  if a programme arrives there some other way. The rendered locked state was never seen in a browser.
+- No new unit tests were written (operator decision, 2026-09-06 — see CLAUDE.md). Existing suites were
+  updated where this change made them wrong, and all pass.
+- Arabic was verified by the `development-ar` build and by forcing `dir=rtl` on the English bundle,
+  not by serving the Arabic bundle — the standing CORS limitation.
+- A programme whose catalog name links to NO product still names no way, by design; and the read-only
+  programme detail page still prints raw step ids.

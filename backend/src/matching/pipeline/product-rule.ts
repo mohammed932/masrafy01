@@ -397,7 +397,8 @@ export interface ProductRule {
   output?: ProductRuleOutput;
   /**
    * `'exclusive'` when a bank program sells exactly ONE of this product's ways of reaching
-   * the figure. Absent reads as combined — see `ProductTemplate.waysAre` and
+   * the figure; `'combined'` when the ways are the terms of ONE method the program fills
+   * whole. Absent reads as exclusive — see `ProductTemplate.waysAre` and
    * `product-rule-ways.ts`.
    *
    * STRUCTURE, so it belongs to the catalog exactly as `steps` does: it is a statement about
@@ -405,7 +406,7 @@ export interface ProductRule {
    * returns the one filled way's figure — and it is read only where a save is refused and
    * where the catalog's figures are inherited.
    */
-  waysAre?: 'exclusive';
+  waysAre?: 'exclusive' | 'combined';
   /**
    * BANK-owned: which way this program sells, as that way's slot id. Read only where a save
    * is refused and where the catalog's figures are pruned; the evaluator never looks at it.
@@ -1340,6 +1341,27 @@ export function optionalStepIds(rule: ProductRule): Set<string> {
     if (gate.kind === 'number' && gate.right !== undefined && 'step' in gate.right) {
       ids.add(gate.right.step);
     }
+  }
+  return ids;
+}
+
+/**
+ * The step ids some `coalesce` falls back FROM onto a literal — the boxes where blank is an
+ * answer, not an omission.
+ *
+ * `coalesce [iscore_band, {const: '100'}]` is the shape: a bank that states no I-Score table
+ * multiplies by 100%, and the same holds for any adjustment the compiler pairs with a literal
+ * default. A report that listed such a box as "owed" would nag every program about a figure
+ * the product deliberately lets a bank leave out; the validator already skips these
+ * (`coalesce_empty` ignores a mixed list), so this is the same reading for the seed's report.
+ */
+export function literalFallbackStepIds(rule: ProductRule): Set<string> {
+  const ids = new Set<string>();
+  for (const step of rule.steps ?? []) {
+    if (step.op !== 'coalesce') continue;
+    const refs = stepRefsOf(step);
+    if (!refs.some((ref) => 'const' in ref)) continue;
+    for (const ref of refs) if ('step' in ref) ids.add(ref.step);
   }
   return ids;
 }

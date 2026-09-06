@@ -242,13 +242,17 @@ export interface ProductTemplate {
    * sheet pairs them: App. A §4, "3 × the car instalment OR 10% of the auto loan, whichever is
    * less". Same shape in the blob, opposite meanings to a bank.
    *
-   * `'exclusive'` is what a bank program's `wayId` is then held to, and what makes the
-   * catalog's figures inherit one way instead of four.
+   * `'exclusive'` is what a bank program's `wayId` picks BETWEEN, and what makes the
+   * catalog's figures inherit one way instead of four. `'combined'` makes the heads the TERMS
+   * of one way: the program still names it (there is exactly one to name), fills every term,
+   * and quotes the fold. Either way a surrogate program records exactly one way.
    *
-   * ABSENT READS AS `'combined'`, and that default is load-bearing rather than tidy: every
-   * template stored before this field existed folds every filled way, so absence has to be
-   * the reading that changes nothing (§5.4). `'combined'` stated explicitly compiles to
-   * nothing at all, so declaring it is documentation with no footprint in the rule.
+   * ABSENT READS AS `'exclusive'`. The default flipped when the one-way rule went universal:
+   * a product that states several ways and does not say they are one sentence is offering a
+   * choice, and the safe direction for a product that forgot to say is to ASK rather than to
+   * fold two mechanisms nobody pairs. Byte-stability (§5.4) is kept by the compiler instead
+   * of by the default — the flag is emitted only when the template has two or more ways, so
+   * every single-way template compiles exactly as it did before the field existed.
    */
   waysAre?: 'exclusive' | 'combined';
   /**
@@ -362,14 +366,14 @@ export function waysOf(template: ProductTemplate): TemplateMechanism[] {
 }
 
 /**
- * Whether a bank picks ONE of this product's ways. Absent reads as `'combined'` — see
- * `ProductTemplate.waysAre`.
+ * Whether a bank picks ONE of this product's ways, or fills them all as the terms of one.
+ * Absent reads as `'exclusive'` — see `ProductTemplate.waysAre`.
  *
  * One accessor, so the compiler, the validator and the seed can never disagree about what an
  * older stored form meant.
  */
 export function waysAreOf(template: ProductTemplate): 'exclusive' | 'combined' {
-  return template.waysAre ?? 'combined';
+  return template.waysAre ?? 'exclusive';
 }
 
 /**
@@ -726,9 +730,11 @@ export function compileTemplate(template: ProductTemplate): ProductRule {
     // effective config, and `effectiveIncomeRule` runs inside the snapshot mapper. Reaching
     // back for `templateSpec` from either would be a second fetch and a second authority —
     // and a hand-built Advanced rule has no template at all, so it would answer nothing.
-    // Emitted only when EXCLUSIVE: absent already reads as combined everywhere, so every
-    // template stored before this field existed still compiles byte-identically (§5.4).
-    ...(waysAreOf(template) === 'exclusive' ? { waysAre: 'exclusive' as const } : {}),
+    // Emitted only when the template has TWO OR MORE ways: with one there is nothing to be
+    // exclusive between or to combine, so every single-way template compiles byte-identically
+    // to before the field existed (§5.4). Emitted for BOTH spellings — `'combined'` is what
+    // `waysOfRule` reads to fold the heads into one way, so it has a footprint in the rule.
+    ...(waysOf(template).length >= 2 ? { waysAre: waysAreOf(template) } : {}),
     steps: out.steps,
     gates: out.gates,
     output: {

@@ -140,10 +140,13 @@ interface Input {
   /**
    * Which of the product's ways this program sells, as the way's slot id.
    *
-   * Stated on every program of a product whose ways are ALTERNATIVES, or the save is refused
-   * `PROGRAM_INCOME_WAY_REQUIRED` and this seed stops at the first such program. Absent
-   * everywhere else — on a product with one way, or one whose ways combine (the auto
-   * cross-sell fills both on purpose), naming one is refused as `way_not_applicable`.
+   * Stated on EVERY surrogate program under a product, or the save is refused
+   * `PROGRAM_INCOME_WAY_REQUIRED` and this seed stops at the first such program — this seed runs
+   * the full save path. A single-way product's one way is `primary`; the auto cross-sell's two
+   * terms are ONE way (`waysAre: 'combined'`) also named `primary`, with both boxes still
+   * filled; only the compound guarantee offers a choice. `sheet-figures-plan.spec.ts` pins
+   * every entry here to `waysOfRule(compileTemplate(blueprint))[0].id`, so this literal and the
+   * migration's backfill cannot drift apart.
    */
   wayId?: string;
   maxLoanByFact?: MaxLoanTable;
@@ -335,6 +338,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     adminFeePercent: '2',
     minMonthsInJob: 3,
     acceptedEmploymentTypes: SALARIED_ONLY,
+    wayId: 'primary',
     stepParams: {
       primary: {
         keyTable: [
@@ -378,6 +382,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     feeWaiverPenalty: true,
     acceptedEmploymentTypes: SALARIED_ONLY,
     requiredDocuments: ['national_id', 'utility_bill', 'hr_letter'],
+    wayId: 'primary',
     stepParams: {
       primary: { keyTable: ABK_PROFESSOR_RANKS },
       // The same figures, deliberately repeated rather than left blank. Leaving the second
@@ -424,6 +429,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       'medical_facility_licence',
       'professional_practice_certificate',
     ],
+    wayId: 'primary',
     stepParams: {
       // The same figures in all three tiers, deliberately repeated rather than left blank.
       // Leaving a column empty works — `pickByFact` falls back to the first configured one —
@@ -504,6 +510,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     // though eligibility never filters: it rides the customer-facing programme payload.
     acceptedEmploymentTypes: SALARIED_ONLY,
     requiredDocuments: ['national_id', 'utility_bill', 'hr_letter'],
+    wayId: 'primary',
     stepParams: {
       // ONE slot, because §8 prints one table. The merged product carried a city-tier column
       // this sheet does not use, so this programme held the identical figures in three slots
@@ -552,6 +559,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minimumCreditCardHoldingMonths: 6,
     competitorCardMustBeUnsecured: true,
     requires: { requiresCreditCardAtOtherBank: true },
+    wayId: 'primary',
     stepParams: { primary: percent('50') },
   }),
 
@@ -577,6 +585,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     ageMaxSelfEmployed: 65,
     requires: { requiresCD: true, requiresCollateral: true },
     requiredDocuments: ['national_id', 'utility_bill', 'bank_statement'],
+    wayId: 'primary',
     stepParams: {
       primary: percent('30'),
       // Three months after issuance, which is when the sheet's cap table applies at all.
@@ -613,6 +622,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     adminFeePercent: '2.5',
     feeWaiverPenalty: true,
     requires: { requiresAutoLoanAtOtherBank: true, requiresExistingLoan: true },
+    wayId: 'primary',
     stepParams: { primary: times('3'), alt: percent('10') },
   }),
 
@@ -635,6 +645,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     adminFeePercent: '2.5',
     feeWaiverPenalty: true,
     requires: { requiresAutoLoanAtABK: true, requiresExistingLoan: true },
+    wayId: 'primary',
     stepParams: { primary: times('3'), alt: percent('10') },
     estimated: ['incomeAssumption.stepParams.alt.scalar.value'],
   }),
@@ -914,6 +925,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     adminFeePercent: '2.5',
     acceptedEmploymentTypes: SALARIED_ONLY,
     requiredDocuments: ['national_id', 'utility_bill', 'hr_letter'],
+    wayId: 'primary',
     stepParams: {
       primary: {
         keyTable: [

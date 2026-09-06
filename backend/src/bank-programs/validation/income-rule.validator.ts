@@ -28,7 +28,7 @@ import {
   type RuleStep,
   type ValueRef,
 } from '@/matching/pipeline/product-rule';
-import { waysAreExclusive, waysOfRule } from '@/matching/pipeline/product-rule-ways';
+import { waysOfRule } from '@/matching/pipeline/product-rule-ways';
 import { legacyScalarKeysFor } from '@/matching/pipeline/income-rule-normalize';
 import type { IncomeRuleBandsInvalidReason } from '@/common/errors/domain.exceptions';
 
@@ -79,6 +79,8 @@ export type IncomeRuleViolation =
   | { kind: 'incomeWayRequired'; wayIds: string[] }
   /** Figures under a way this program does not sell. `alsoFilled` names the boxes. */
   | { kind: 'incomeWayConflict'; wayId: string; alsoFilled: string[] }
+  /** Names a way this product does not offer. `wayIds` is the list, as on `incomeWayRequired`. */
+  | { kind: 'incomeWayUnknown'; wayId: string; wayIds: string[] }
   /**
    * A step pipeline that is not assemblable. ONE kind with a `reason`, not eleven kinds:
    * every one of these is "the pipeline itself is wrong" and points the operator at the
@@ -166,6 +168,18 @@ export type IncomeRuleWarning =
 export interface IncomeRuleValidationOptions {
   /** `false` for a CATALOG name's rule: its figures are the banks' to fill in. */
   figuresRequired?: boolean;
+  /**
+   * The surrogate product this rule is read from, when there is one.
+   *
+   * What makes "exactly one way" ASKED at all: a `steps` pipeline hand-wired on an unlinked
+   * catalog name has no product behind it and offers a calculation, not a catalogue of ways,
+   * so it is never held to a choice it was never given. ABSENT means not product-backed — the
+   * inverse of `figuresRequired`'s strict default, deliberately, because the strict reading
+   * here would refuse rules nobody asked about. Both save sites and the rule-CHECK endpoint
+   * set it from the same `CatalogRuleResolution` the migration backfill joins on, so the
+   * validator and the backfill cannot disagree about which programs are asked.
+   */
+  surrogateProductKey?: string;
 }
 
 export interface IncomeRuleValidationContext {
@@ -511,18 +525,19 @@ async function validateProductRule(
 
   // ONE WAY PER BANK PROGRAM — the at-MOST-one half, beside the at-least-one half above.
   //
-  // A product whose ways are ALTERNATIVES (`waysAre: 'exclusive'`) offers several mechanisms
-  // because several banks sell it differently, and no sheet pairs two of them. Nothing used
-  // to make a program pick: it filled whatever heads it liked and `emitBasis` folded them all
-  // with `minOf(skipUnset)`, so two filled ways silently became "the lower of the two" — a
-  // mechanism nobody sells, quoted to real applicants. Every live program already fills
-  // exactly one, so the rule the operator wants held by convention and was unenforced.
+  // Every surrogate program under a product names exactly one way and carries figures for
+  // that way only. Nothing used to make a program pick: it filled whatever heads it liked and
+  // `emitBasis` folded them all with `minOf(skipUnset)`, so two filled ways silently became
+  // "the lower of the two" — a mechanism nobody sells, quoted to real applicants. A one-way
+  // product's one way is named for it; a `'combined'` product's terms count as one.
   //
   // Gated on `figuresRequired`, which is already the "bank completeness vs catalog structure"
   // axis — that one gate exempts the catalog write, the raw step editor, the template compile
-  // and both seeds for free, and it deliberately DOES apply to the admin rule-CHECK endpoint,
-  // which must not reassure an operator about a configuration the save is about to refuse.
-  const wayProblem = validateChosenWay(rule, figuresRequired, reachesFigures);
+  // and the blueprint seed for free, and it deliberately DOES apply to the admin rule-CHECK
+  // endpoint, which must not reassure an operator about a configuration the save will refuse.
+  // Gated a second time on `opts.surrogateProductKey`, which is what scopes the rule to
+  // programs that actually sit under a product.
+  const wayProblem = validateChosenWay(rule, opts, figuresRequired, reachesFigures);
   if (wayProblem) return wayProblem;
 
   if (!seenIds.has(rule.output.from)) {
@@ -614,17 +629,28 @@ function refsOf(of: RuleStep['of']): ValueRef[] {
 }
 
 /**
- * One way per bank program: the program names the way it sells, and carries figures for
- * that way only.
+ * One way per bank program: every surrogate program names the way it sells, and carries
+ * figures for that way only.
  *
- * FOUR outcomes, and the split between codes and reasons is deliberate.
- * `PRODUCT_RULE_INVALID` renders as "This product's calculation steps are not complete:
- * {reason}" with the raw token interpolated — there is no per-reason dictionary anywhere,
- * and `check:codes` checks codes only, so a new reason would ship the English token
- * `way_not_chosen` straight into the Arabic UI (Principle III / A2). The two conditions an
- * operator actually hits therefore get real sentences and different actions ("pick one" →
- * the picker; "clear these" → naming which). The two that only a hand-built request can
- * reach stay reasons, where the existing rawness is pre-existing debt rather than new debt.
+ * UNIVERSAL: `waysOfRule` names one way for a single-way product (`primary`), folds a
+ * `'combined'` product's terms into one, and lists each rival of an `'exclusive'` product — so
+ * "exactly one" is asked of every product-backed pipeline with no product exempt. What decides
+ * whether it is asked AT ALL is `opts.surrogateProductKey`: a `steps` rule with no product
+ * behind it (hand-wired on an unlinked catalog name) offers a calculation, not a catalogue of
+ * ways, and is never held to a choice it was never given.
+ *
+ * FIVE outcomes, and the split between codes and reasons is deliberate. `PRODUCT_RULE_INVALID`
+ * renders as "This product's calculation steps are not complete: {reason}" with the raw token
+ * interpolated — there is no per-reason dictionary anywhere, and `check:codes` checks codes
+ * only, so a reason ships its English token straight into the Arabic UI (Principle III / A2).
+ * The three conditions an operator actually hits get real sentences and different actions:
+ * "pick one" → the picker, "clear these" → naming which, "that way is not this product's" →
+ * re-render the picker. `way_unknown` was a reason while only one product had ways; now every
+ * surrogate program stores a way, and changing the program NAME moves it to a different
+ * product whose ways have different ids, so a stale id is the normal result of a routine
+ * action and earns a sentence. The one condition only a stale client or a hand-built request
+ * can reach — a way named on a rule that offers none — stays a reason, where the rawness is
+ * pre-existing debt rather than new debt.
  *
  * `reaches` is the coalesce guard's own helper, passed in rather than re-derived: the
  * compound product's way heads all sit behind `pickByFact`, so a check asking
@@ -632,6 +658,7 @@ function refsOf(of: RuleStep['of']): ValueRef[] {
  */
 function validateChosenWay(
   rule: ProductRule,
+  opts: IncomeRuleValidationOptions,
   figuresRequired: boolean,
   reaches: (id: string) => boolean,
 ): IncomeRuleViolation | undefined {
@@ -639,25 +666,28 @@ function validateChosenWay(
 
   const ways = waysOfRule(rule);
   const chosen = rule.wayId;
-  const exclusive = waysAreExclusive(rule);
 
-  if (!exclusive) {
-    // A way named on a product that combines its ways, or offers only one, is a choice the
-    // product does not ask for — and on a `pickByFact`-shaped id it would look like it was
-    // doing something. Refused rather than dropped, exactly as `skip_unset_not_applicable`
-    // is: a flag that decides nothing is what the next operator reads and believes.
+  if (ways.length === 0) {
+    // A way named on a rule that offers none is a flag nothing reads — and on a
+    // `pickByFact`-shaped id it would look like it was doing something. Refused rather than
+    // dropped, exactly as `skip_unset_not_applicable` is. Deliberately NOT behind the product
+    // gate below: it cannot leak onto a payslip program (wrong strategy), and it is what
+    // catches a program dragged from a product-backed name onto a raw-pipeline one.
     if (chosen !== undefined && chosen !== '') {
       return { kind: 'productRuleInvalid', reason: 'way_not_applicable', detail: chosen };
     }
     return undefined;
   }
 
+  // Not product-backed → not asked. See `IncomeRuleValidationOptions.surrogateProductKey`.
+  if (opts.surrogateProductKey === undefined) return undefined;
+
   const wayIds = ways.map((way) => way.id);
   if (chosen === undefined || chosen === '') {
     return { kind: 'incomeWayRequired', wayIds };
   }
   if (!wayIds.includes(chosen)) {
-    return { kind: 'productRuleInvalid', reason: 'way_unknown', detail: chosen };
+    return { kind: 'incomeWayUnknown', wayId: chosen, wayIds };
   }
 
   // Filled, way by way — never key by key. With a second column configured a single way

@@ -1,5 +1,9 @@
 import { stableJson } from '@/common/stable-json.util';
-import { isGateConfigured, isStepConfigured } from '@/matching/pipeline/product-rule';
+import {
+  isGateConfigured,
+  isStepConfigured,
+  literalFallbackStepIds,
+} from '@/matching/pipeline/product-rule';
 import type { GateParams, ProductRule, StepParams } from '@/matching/pipeline/product-rule';
 
 /**
@@ -158,7 +162,13 @@ export function blankSlots(args: {
     steps.filter((step) => isStepConfigured(step, at(step.id))).map((step) => step.id),
   );
 
+  // A box the compiler pairs with a literal fallback — the I-Score band table, which every
+  // income product now carries — is blank BY DESIGN when a bank states no table (it multiplies
+  // by 100%). Reporting it would nag every program about a figure it may legitimately omit.
+  const optionalByLiteral = literalFallbackStepIds(args.rule);
+
   const blanks = steps
+    .filter((step) => !optionalByLiteral.has(step.id))
     .filter((step) => !isStepConfigured(step, {}))
     .filter((step) => !isStepConfigured(step, at(step.id)))
     // A condition's own figure is a condition's own figure whether the engine keeps it as a

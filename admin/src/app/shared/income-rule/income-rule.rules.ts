@@ -25,7 +25,7 @@ import type {
   RuleStep,
   StepFigures,
 } from '@features/bank-programs/bank-programs.types';
-import { filledWayIds, waysAreExclusive, waysOfRule } from './product-rule-ways';
+import { filledWayIds, waysOfRule, type WaysAre } from './product-rule-ways';
 
 // ── Key tables ──────────────────────────────────────────────────────────────
 
@@ -185,26 +185,34 @@ export function productRuleHasError(args: {
   steps: readonly RuleStep[];
   gates: readonly RuleGate[];
   figures: Readonly<Record<string, StepFigures>>;
-  /** The catalog's statement that a bank picks ONE way. Absent reads as combined. */
-  waysAre?: 'exclusive' | null;
-  /** The way this program sells. `null` on a product that combines its ways. */
+  /** The catalog's statement of how the ways relate. Absent reads as exclusive. */
+  waysAre?: WaysAre;
+  /** The way this program sells — every surrogate program under a product names one. */
   wayId?: string | null;
+  /**
+   * Does a surrogate PRODUCT stand behind this rule? Only then is a way REQUIRED — the
+   * server's `surrogateProductKey` gate. A `steps` rule hand-wired on an unlinked catalog
+   * name is asked for none, and requiring one here would be the dead-Save direction.
+   */
+  productBacked?: boolean;
 }): boolean {
   const { steps, gates, figures } = args;
   if (steps.length === 0) return true;
 
-  // ONE WAY PER BANK PROGRAM — the server's `PROGRAM_INCOME_WAY_REQUIRED` and
-  // `PROGRAM_INCOME_WAY_CONFLICT`, mirrored so Save is not enabled on a rule the API refuses.
-  //
-  // It must not out-refuse the server either (the v22.1.0 dead-Save bug): both branches below
-  // are gated on the SAME `waysAreExclusive` the server uses, so a combined product and a
-  // one-way product reach neither.
-  if (waysAreExclusive(args.waysAre, steps)) {
+  // ONE WAY PER BANK PROGRAM — the server's `PROGRAM_INCOME_WAY_REQUIRED`,
+  // `PROGRAM_INCOME_WAY_UNKNOWN` and `PROGRAM_INCOME_WAY_CONFLICT`, mirrored so Save is not
+  // enabled on a rule the API refuses — and not out-refusing it either (the v22.1.0 dead-Save
+  // bug). Same arithmetic as the server: `waysOfRule` names one way for a single-way product,
+  // folds a combined product's terms into one, and lists an exclusive product's rivals.
+  const ways = waysOfRule(steps, args.waysAre);
+  if (ways.length > 0) {
     const chosen = args.wayId;
-    if (chosen === null || chosen === undefined || chosen === '') return true;
-    const filled = filledWayIds(steps, figures);
-    if (!waysOfRule(steps).some((way) => way.id === chosen)) return true;
-    if (filled.some((id) => id !== chosen)) return true;
+    const picked = chosen !== null && chosen !== undefined && chosen !== '';
+    if (!picked && args.productBacked === true) return true;
+    if (picked) {
+      if (!ways.some((way) => way.id === chosen)) return true;
+      if (filledWayIds(steps, figures, args.waysAre).some((id) => id !== chosen)) return true;
+    }
   }
 
   const optional = optionalStepIds(steps, gates);

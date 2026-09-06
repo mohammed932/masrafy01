@@ -138,6 +138,7 @@ export type {
                 @for (cell of row.cells; track cell.index) {
                   <td>
                     <input
+                      [attr.disabled]="locked() ? '' : null"
                       nz-input
                       appMoneyInput
                       inputmode="numeric"
@@ -175,6 +176,7 @@ export type {
                   }}{{ row.columnKey ? ' · ' + row.columnKey : '' }}</span
                 >
                 <input
+                  [attr.disabled]="locked() ? '' : null"
                   nz-input
                   appMoneyInput
                   inputmode="numeric"
@@ -182,6 +184,7 @@ export type {
                   (ngModelChange)="setUnlisted(i, $event)"
                 />
                 <button
+                  [disabled]="locked()"
                   nz-button
                   nzType="text"
                   nzDanger
@@ -209,7 +212,13 @@ export type {
 
         @if (config() !== null) {
           <p class="mlf__foot">
-            <button nz-button nzType="text" type="button" (click)="clearAmounts()">
+            <button
+              [disabled]="locked()"
+              nz-button
+              nzType="text"
+              type="button"
+              (click)="clearAmounts()"
+            >
               <span i18n="@@max_loan_by_fact.clear_all">Clear every amount</span>
             </button>
           </p>
@@ -223,7 +232,14 @@ export type {
         }
       </div>
     } @else if (config() === null) {
-      <button nz-button nzType="dashed" type="button" class="mlf__enable" (click)="enable()">
+      <button
+        [disabled]="locked()"
+        nz-button
+        nzType="dashed"
+        type="button"
+        class="mlf__enable"
+        (click)="enable()"
+      >
         <span nz-icon nzType="plus"></span>
         <span i18n="@@max_loan_by_fact.enable">Cap the maximum by an answer</span>
       </button>
@@ -240,6 +256,7 @@ export type {
         <div class="mlf__axes">
           <span class="mlf__label" i18n="@@max_loan_by_fact.keyed_by">Keyed by</span>
           <nz-select
+            [nzDisabled]="locked()"
             class="mlf__select"
             [ngModel]="config()!.factKey"
             (ngModelChange)="changeFact($event)"
@@ -251,6 +268,7 @@ export type {
 
           <span class="mlf__label" i18n="@@max_loan_by_fact.second_column">Second column</span>
           <nz-select
+            [nzDisabled]="locked()"
             class="mlf__select"
             nzAllowClear
             [ngModel]="config()!.columnFactKey ?? null"
@@ -270,6 +288,7 @@ export type {
             @if (rowClassKeyable()) {
               <label class="mlf__via">
                 <input
+                  [attr.disabled]="locked() ? '' : null"
                   type="checkbox"
                   [checked]="config()!.rowVia === 'parentClass'"
                   (change)="changeRowVia(rowViaChecked($event) ? 'parentClass' : 'answer')"
@@ -282,6 +301,7 @@ export type {
             @if (columnClassKeyable()) {
               <label class="mlf__via">
                 <input
+                  [attr.disabled]="locked() ? '' : null"
                   type="checkbox"
                   [checked]="config()!.columnVia === 'parentClass'"
                   (change)="changeColumnVia(rowViaChecked($event) ? 'parentClass' : 'answer')"
@@ -324,6 +344,7 @@ export type {
                   @if (isNumericFact()) {
                     <span class="mlf__band">
                       <input
+                        [attr.disabled]="locked() ? '' : null"
                         nz-input
                         appMoneyInput
                         inputmode="numeric"
@@ -333,6 +354,7 @@ export type {
                       />
                       <span class="mlf__dash">→</span>
                       <input
+                        [attr.disabled]="locked() ? '' : null"
                         nz-input
                         appMoneyInput
                         inputmode="numeric"
@@ -344,6 +366,7 @@ export type {
                     </span>
                   } @else {
                     <nz-select
+                      [nzDisabled]="locked()"
                       class="mlf__select"
                       [ngModel]="row.rowKey ?? null"
                       (ngModelChange)="patchRow($index, { rowKey: $event })"
@@ -357,6 +380,7 @@ export type {
                 @if (config()!.columnFactKey) {
                   <td>
                     <nz-select
+                      [nzDisabled]="locked()"
                       class="mlf__select"
                       nzAllowClear
                       [ngModel]="row.columnKey ?? null"
@@ -372,6 +396,7 @@ export type {
                 }
                 <td>
                   <input
+                    [attr.disabled]="locked() ? '' : null"
                     nz-input
                     appMoneyInput
                     inputmode="numeric"
@@ -382,6 +407,7 @@ export type {
                 </td>
                 <td class="mlf__actions">
                   <button
+                    [disabled]="locked()"
                     nz-button
                     nzType="text"
                     nzDanger
@@ -400,11 +426,18 @@ export type {
         </table>
 
         <div class="mlf__foot">
-          <button nz-button nzType="dashed" type="button" (click)="addRow()">
+          <button [disabled]="locked()" nz-button nzType="dashed" type="button" (click)="addRow()">
             <span nz-icon nzType="plus"></span>
             <span i18n="@@max_loan_by_fact.add_row">Add a row</span>
           </button>
-          <button nz-button nzType="text" nzDanger type="button" (click)="disable()">
+          <button
+            [disabled]="locked()"
+            nz-button
+            nzType="text"
+            nzDanger
+            type="button"
+            (click)="disable()"
+          >
             <span i18n="@@max_loan_by_fact.remove_table">Remove the table</span>
           </button>
         </div>
@@ -433,7 +466,11 @@ export type {
     <ng-template #noMatch>
       <fieldset class="mlf__nomatch">
         <legend i18n="@@max_loan_by_fact.no_match">An answer with no row</legend>
-        <nz-radio-group [ngModel]="effectiveNoMatch()" (ngModelChange)="setNoMatch($event)">
+        <nz-radio-group
+          [nzDisabled]="locked()"
+          [ngModel]="effectiveNoMatch()"
+          (ngModelChange)="setNoMatch($event)"
+        >
           <label nz-radio nzValue="useProgramMax">
             <span i18n="@@max_loan_by_fact.use_program_max"
               >Falls back to this program’s maximum</span
@@ -653,6 +690,17 @@ export class MaxLoanByFactEditorComponent {
 
   /** The product's own name, for the one line that says where the grid came from. */
   readonly productLabel = input<string>('');
+
+  /**
+   * Every control refused the pointer, for a program that has not yet said HOW it works the
+   * figure out. Additive and default-off, so the four other mounts are byte-identical.
+   *
+   * The grid may already be on screen while locked — `seedCapFromProduct` runs when the rule
+   * arrives, before any way is picked — and that is right: the operator sees the product's
+   * grid greyed, under one line on the card that says what to do first. The `config` model is
+   * never touched, so nothing here can change a stored figure; only the pointer is refused.
+   */
+  readonly locked = input<boolean>(false);
 
   /**
    * Is the grid the product's?

@@ -41,7 +41,7 @@
 import { isProductRuleStrategy } from '../types';
 import type { IncomeAssumptionConfig } from '../types';
 import type { ProductRule } from './product-rule';
-import { allWaySlots, wayOwnedSlots, waysAreExclusive } from './product-rule-ways';
+import { allWaySlots, wayOwnedSlots, waysOfRule } from './product-rule-ways';
 
 /**
  * The figure-bearing keys. The legacy five are included because a catalog rule
@@ -143,7 +143,15 @@ export function inheritsCatalogAmounts(config: IncomeAssumptionConfig): boolean 
  * change what an operator is allowed to SAVE, which nobody asked for.
  */
 export type CatalogRuleResolution =
-  | { readonly rule: IncomeAssumptionConfig }
+  | {
+      readonly rule: IncomeAssumptionConfig;
+      /**
+       * The surrogate product the rule is read FROM; absent when the name holds its own
+       * (grandfathered) rule. Read by the save path to decide whether "exactly one way" is
+       * asked of a program at all — see `IncomeRuleValidationOptions.surrogateProductKey`.
+       */
+      readonly productKey?: string;
+    }
   | {
       readonly withheld: 'surrogate_product_retired';
       readonly productKey: string;
@@ -193,10 +201,20 @@ export function effectiveProgramNameRule(
         ...(product.rule !== undefined ? { rule: product.rule } : {}),
       };
     }
-    if (product.rule !== undefined) return { rule: product.rule };
+    if (product.rule !== undefined) return { rule: product.rule, productKey: product.key };
   }
   const rule = own ?? undefined;
   return rule === undefined ? undefined : { rule };
+}
+
+/**
+ * The surrogate product a resolution reads from, or `undefined` for a name's own rule.
+ *
+ * Withheld or not: a switched-off product is still the product the name is filed under, and
+ * the save path validates a program under it exactly as before (see `CatalogRuleResolution`).
+ */
+export function productKeyOf(resolution: CatalogRuleResolution | undefined): string | undefined {
+  return resolution?.productKey;
 }
 
 /**
@@ -341,7 +359,11 @@ export function withStoredStructure(
   // away a write that revised the gates or the output while leaving the step list to the
   // stored copy — a 200 with the caller's change discarded. `steps: []` is a statement too
   // (an explicit clear), and must not be read as silence either.
-  if (incoming.steps !== undefined || incoming.gates !== undefined || incoming.output !== undefined) {
+  if (
+    incoming.steps !== undefined ||
+    incoming.gates !== undefined ||
+    incoming.output !== undefined
+  ) {
     return incoming;
   }
   if (!stored) return incoming;
@@ -388,6 +410,9 @@ function carryStoredPolicy(
  * `src__*` and `basis*` — none of them belongs to a way, and a bank's conditions do not
  * change because it derives the figure a different way.
  *
+ * A product with fewer than two ways — every single-way product, and a `'combined'` product
+ * whose terms fold into one — has nothing to strip and returns the SAME object.
+ *
  * Two arguments, because a bank row carries no steps of its own: `config` is the figures,
  * `effective` is that object under the catalog's structure — the only place the ways are
  * named. They are the same object on the inheritance path, where the merge has already run.
@@ -406,7 +431,7 @@ export function stripUnchosenWays(
   effective: IncomeAssumptionConfig,
 ): IncomeAssumptionConfig {
   const rule = effective as ProductRule;
-  if (!waysAreExclusive(rule)) return config;
+  if (waysOfRule(rule).length < 2) return config;
   const chosen = config.wayId;
   if (chosen === undefined || chosen === '') return config;
 

@@ -44,6 +44,7 @@ import {
   IncomeRuleFactUnavailableException,
   ProductRuleInvalidException,
   ProgramIncomeWayConflictException,
+  ProgramIncomeWayUnknownException,
   ProgramIncomeWayRequiredException,
   IncomeRuleDuplicateKeyException,
   IncomeRuleEmptyException,
@@ -121,9 +122,11 @@ import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-norma
 import {
   catalogRuleOf,
   effectiveIncomeRule,
+  productKeyOf,
   stripCatalogStructure,
   stripInheritedAmounts,
   withStoredStructure,
+  type CatalogRuleResolution,
 } from '@/matching/pipeline/income-rule-inherit';
 import {
   compileTemplate,
@@ -209,7 +212,8 @@ export class BankProgramsService {
 
     // Read ONCE and threaded through: the persist strip, the validation and the coverage
     // warnings all need the catalog's structure, and `programNameIncomeRules` is uncached.
-    const catalogRule = await this.catalogIncomeRuleFor(dto.programNameKey);
+    const catalogResolution = await this.catalogResolutionFor(dto.programNameKey);
+    const catalogRule = catalogRuleOf(catalogResolution);
 
     // The rule AS IT WILL BE STORED, not as it arrived: `runCrossConfigChecks`
     // validates this exact object, so the save can never persist a shape nothing
@@ -217,7 +221,7 @@ export class BankProgramsService {
     const persistedRule = this.persistableIncomeAssumption(dto);
 
     // Cross-config + registry validation.
-    await this.runCrossConfigChecks(dto, { incomeAssumption: persistedRule, catalogRule });
+    await this.runCrossConfigChecks(dto, { incomeAssumption: persistedRule, catalogResolution });
 
     // Resolve the program code: auto-generated when the admin doesn't supply one
     // (A33 — codes are never hand-typed). The generation loop already guarantees
@@ -457,11 +461,13 @@ export class BankProgramsService {
        */
       incomeAssumption?: IncomeAssumptionConfig;
       /**
-       * The catalog name's rule, already read by the caller. Threaded through rather than
-       * re-read: `programNameIncomeRules` is uncached, and both the strip and the validation
-       * below need the same answer — two reads is two chances for them to differ mid-save.
+       * The catalog name's resolution, already read by the caller. Threaded through rather
+       * than re-read: `programNameIncomeRules` is uncached, and both the strip and the
+       * validation below need the same answer — two reads is two chances for them to differ
+       * mid-save. The RESOLUTION and not the bare rule, because the validator also needs to
+       * know whether a surrogate product stands behind it (`surrogateProductKey`).
        */
-      catalogRule?: IncomeAssumptionConfig;
+      catalogResolution?: CatalogRuleResolution;
       /**
        * The income proof this program already had under this same name. Present only
        * on `update()`, and only to grandfather an UNCHANGED pair — see
@@ -472,7 +478,9 @@ export class BankProgramsService {
   ): Promise<void> {
     // A program names one predefined program from the catalog, never free text.
     await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, opts);
-    const catalogRule = opts.catalogRule ?? (await this.catalogIncomeRuleFor(dto.programNameKey));
+    const catalogResolution =
+      opts.catalogResolution ?? (await this.catalogResolutionFor(dto.programNameKey));
+    const catalogRule = catalogRuleOf(catalogResolution);
     const persistedRule =
       opts.incomeAssumption ??
       this.persistableIncomeAssumption(dto as CreateBankProgramDto | UpdateBankProgramDto);
@@ -574,9 +582,14 @@ export class BankProgramsService {
     // for the case the screen defaults to. The merge is also what makes the check
     // meaningful — a catalog table with a dead key must fail the bank's save too,
     // because it is the bank's quote that breaks.
+    // Whether a surrogate product stands behind the rule decides whether "exactly one way" is
+    // asked — read off the SAME resolution the figures were merged from, so the two cannot
+    // disagree about which product this program sits under.
+    const productKey = productKeyOf(catalogResolution);
     const ruleViolation = await validateIncomeRule(
       effectiveIncomeRule(persistedRule, catalogRule),
       this.incomeRuleContext(),
+      productKey === undefined ? {} : { surrogateProductKey: productKey },
     );
     if (ruleViolation) throw incomeRuleException(ruleViolation);
 
@@ -950,7 +963,17 @@ export class BankProgramsService {
   private async catalogIncomeRuleFor(
     programNameKey: string,
   ): Promise<IncomeAssumptionConfig | undefined> {
-    return catalogRuleOf((await this.enums.programNameIncomeRules()).get(programNameKey));
+    return catalogRuleOf(await this.catalogResolutionFor(programNameKey));
+  }
+
+  /**
+   * The catalog name's whole resolution — its rule AND the product it is read from. The save
+   * path wants both from one read (see `runCrossConfigChecks`'s `catalogResolution`).
+   */
+  private async catalogResolutionFor(
+    programNameKey: string,
+  ): Promise<CatalogRuleResolution | undefined> {
+    return (await this.enums.programNameIncomeRules()).get(programNameKey);
   }
 
   // --- Feature 011 — income-rule plumbing ---------------------------------
@@ -1273,16 +1296,17 @@ export class BankProgramsService {
     if (!existing) {
       throw new BankProgramNotFoundException({ programCode });
     }
-    const catalogRule = await this.catalogIncomeRuleFor(
+    const catalogResolution = await this.catalogResolutionFor(
       dto.programNameKey ?? existing.programNameKey,
     );
+    const catalogRule = catalogRuleOf(catalogResolution);
     const persistedRule = this.persistableIncomeAssumption(dto);
     await this.runCrossConfigChecks(dto, {
       skipProgramNameCategoryCheck:
         dto.programNameKey === existing.programNameKey &&
         dto.productCategory === existing.productCategory,
       incomeAssumption: persistedRule,
-      catalogRule,
+      catalogResolution,
       // The proof this program already reads under this same name. Handed over only
       // when the NAME is unchanged: moving a program to another name is exactly the
       // case the proof check exists for, and a stored proof carried across that move
@@ -2450,18 +2474,23 @@ export class BankProgramsService {
     // to. Merged here rather than in the mapper because the mapper's copy is discarded:
     // the draft REPLACES `incomeAssumption` on the snapshot two statements down.
     const catalogRules = await this.enums.programNameIncomeRules();
+    const catalogResolution =
+      program.programNameKey === null ? undefined : catalogRules.get(program.programNameKey);
     const draft = normalizeIncomeAssumption(
       effectiveIncomeRule(
         dto.incomeAssumption as unknown as IncomeAssumptionConfig,
-        program.programNameKey === null
-          ? undefined
-          : catalogRuleOf(catalogRules.get(program.programNameKey)),
+        catalogRuleOf(catalogResolution),
       ),
     );
-    // The SAME validator the save path runs. A rule that could not be saved must not
-    // silently "work" here, or the panel would be reassuring the admin about a
-    // configuration the server is about to reject (contracts § 2).
-    const violation = await validateIncomeRule(draft, this.incomeRuleContext());
+    // The SAME validator the save path runs, with the SAME product scoping. A rule that could
+    // not be saved must not silently "work" here, or the panel would be reassuring the admin
+    // about a configuration the server is about to reject (contracts § 2).
+    const productKey = productKeyOf(catalogResolution);
+    const violation = await validateIncomeRule(
+      draft,
+      this.incomeRuleContext(),
+      productKey === undefined ? {} : { surrogateProductKey: productKey },
+    );
     if (violation) throw incomeRuleException(violation);
 
     const snapshot: BankProgramSnapshot = {
@@ -2835,6 +2864,11 @@ function incomeRuleException(violation: IncomeRuleViolation): Error {
       return new ProgramIncomeWayConflictException({
         wayId: violation.wayId,
         alsoFilled: violation.alsoFilled,
+      });
+    case 'incomeWayUnknown':
+      return new ProgramIncomeWayUnknownException({
+        wayId: violation.wayId,
+        wayIds: violation.wayIds,
       });
     case 'productRuleInvalid':
       return new ProductRuleInvalidException({

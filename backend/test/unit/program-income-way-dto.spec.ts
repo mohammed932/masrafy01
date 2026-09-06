@@ -82,8 +82,12 @@ describe('waysAre reaches a client that echoes back what it read', () => {
     expect(failed({ strategy: PRODUCT_RULE_STRATEGY, waysAre: 'exclusive' }, 'waysAre')).toEqual([]);
   });
 
+  it('accepts the other spelling too — the cross-sell rule echoes it back', () => {
+    expect(failed({ strategy: PRODUCT_RULE_STRATEGY, waysAre: 'combined' }, 'waysAre')).toEqual([]);
+  });
+
   it('refuses a value the platform does not know', () => {
-    expect(failed({ strategy: PRODUCT_RULE_STRATEGY, waysAre: 'combined' }, 'waysAre')).toContain(
+    expect(failed({ strategy: PRODUCT_RULE_STRATEGY, waysAre: 'either' }, 'waysAre')).toContain(
       'waysAre',
     );
   });

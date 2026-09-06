@@ -1331,15 +1331,15 @@ export interface IncomeAssumptionConfig {
   /** Whether the last step yields an income or a borrowing ceiling. */
   output?: ProductRuleOutput;
   /**
-   * Catalog-owned. `'exclusive'` when a bank program sells exactly ONE of the product's ways
-   * of reaching the figure — see `@shared/income-rule/product-rule-ways.ts`. Absent reads as
-   * combined, which is every product but the compound guarantee.
+   * Catalog-owned. `'exclusive'` when a bank program picks ONE of the product's ways of
+   * reaching the figure (the default when absent); `'combined'` when the ways are the terms
+   * of one method the program fills whole — see `@shared/income-rule/product-rule-ways.ts`.
    */
-  waysAre?: 'exclusive';
+  waysAre?: 'exclusive' | 'combined';
   /**
    * BANK-owned: which way this program sells, as that way's slot id (`primary` · `alt` ·
-   * `alt__<fact>`). Absent on a product whose ways combine, and on every row written before
-   * the field existed.
+   * `alt__<fact>`). Present on every surrogate program under a product — a single-way
+   * product's is `primary`, recorded by the wizard without asking.
    */
   wayId?: string;
   /**

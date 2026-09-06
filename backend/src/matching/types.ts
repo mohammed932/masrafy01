@@ -510,9 +510,10 @@ export interface IncomeAssumptionConfig {
   output?: ProductRuleOutput;
   /**
    * Catalog-owned. `'exclusive'` when a bank sells exactly ONE of the product's ways of
-   * reaching the figure — see `matching/pipeline/product-rule-ways.ts`.
+   * reaching the figure, `'combined'` when the ways are the terms of one method — see
+   * `matching/pipeline/product-rule-ways.ts`.
    */
-  waysAre?: 'exclusive';
+  waysAre?: 'exclusive' | 'combined';
   /**
    * BANK-owned: which of the product's ways THIS program sells, as the way's slot id
    * (`primary` · `alt` · `alt__<fact>`).
@@ -530,8 +531,9 @@ export interface IncomeAssumptionConfig {
    * sell" is a decision, and storing the decision is what lets the save refuse the figures
    * that contradict it.
    *
-   * Absent on every rule that is not an exclusive product's, and absent on every row written
-   * before the field existed — which the backfill in `20260904120000` is what makes safe.
+   * Present on every surrogate program under a product — a single-way product's is `primary`
+   * — and absent only on rows written before the rule went universal, which the backfills in
+   * `20260904120000` and `20260907090000` are what make safe.
    */
   wayId?: string;
   /** Bank-owned figures by step id / gate id. Stripped when `amounts: 'catalog'`. */

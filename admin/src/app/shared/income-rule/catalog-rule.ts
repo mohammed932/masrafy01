@@ -25,3 +25,16 @@ export function catalogRuleOf(
 ): IncomeAssumptionConfig | null {
   return data?.surrogateProduct?.incomeRule ?? data?.incomeRule ?? null;
 }
+
+/**
+ * Does a surrogate PRODUCT stand behind the rule this name quotes on?
+ *
+ * The server's `surrogateProductKey` gate, mirrored: only a product-backed program is asked
+ * which of the product's ways it sells. A name holding its own hand-wired `steps` rule is
+ * asked for none, so the Save gate must not demand one either (the v22.1.0 dead-Save lesson).
+ */
+export function catalogRuleIsProductBacked(
+  data: ProgramNameIncomeRule | null | undefined,
+): boolean {
+  return data?.surrogateProduct?.incomeRule != null;
+}

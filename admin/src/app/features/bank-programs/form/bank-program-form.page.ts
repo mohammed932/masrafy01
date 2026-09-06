@@ -1,12 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
-  effect,
+  DestroyRef,
   ElementRef,
-  inject,
   LOCALE_ID,
   OnInit,
+  computed,
+  effect,
+  inject,
   signal,
   untracked,
   viewChild,
@@ -96,7 +97,8 @@ import {
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { IncomeRuleCheckComponent } from '@shared/income-rule/income-rule-check.component';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
-import { catalogRuleOf } from '@shared/income-rule/catalog-rule';
+import { catalogRuleIsProductBacked, catalogRuleOf } from '@shared/income-rule/catalog-rule';
+import { nameChangeLoss, type NameChangeLoss } from './name-change-losses';
 import {
   slotShapes,
   slotsMissingDefault,
@@ -104,7 +106,20 @@ import {
   type SlotDefault,
 } from '@shared/income-rule/catalog-defaults';
 import { gateTitleFor } from '@shared/income-rule/gate-labels';
-import { wayOwnedSlots, waysAreExclusive, waysOfRule } from '@shared/income-rule/product-rule-ways';
+import {
+  mustPickWayFirst,
+  picksBetweenWays,
+  wayOwnedSlots,
+  waysOfRule,
+  type WaysAre,
+} from '@shared/income-rule/product-rule-ways';
+import {
+  indexOfOrPreceding,
+  indexOfStep,
+  isLaterStep,
+  stepIdsFor,
+  type StepId,
+} from './wizard-step-plan';
 import { BanksApiService } from '../../banks/banks.api.service';
 import { additionalIncomeSources } from '../additional-income-sources';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
@@ -139,7 +154,7 @@ type ToggleKey = 'tieredRates';
  * validity and their "done" marker answered explicitly rather than by walking a group
  * — see `isStepValid` / `isStepComplete`.
  */
-type StepId = 'income' | 'program' | 'terms' | 'pricing' | 'eligibility' | 'documents' | 'review';
+// `StepId` — and which steps a given program walks — lives in `wizard-step-plan.ts`.
 
 interface WizardStep {
   readonly id: StepId;
@@ -274,10 +289,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         <div class="header-row">
           <div class="title-block">
             <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
-            <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
-              Seven short steps. Every number belongs to this program alone, and nothing is saved
-              until you confirm on the last step.
-            </p>
+            <p class="page-subtitle">{{ subtitle() }}</p>
           </div>
           <!-- What was already decided BEFORE this form opened — the bank and
                the loan type. They belong to the whole program, not to a step,
@@ -418,7 +430,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                  one question on it can afford to say what each answer commits to,
                  and the line at the foot of each card is the dependency said out
                  loud instead of discovered two steps later. -->
-            @if (stepIndex() === 0) {
+            @if (currentStepId() === 'income') {
               <!-- is-bare: this step's body IS two tiles, so the panel behind them
                    was a card holding cards — three nested surfaces for one question.
                    Dropping its fill and border leaves the rail and the two answers,
@@ -450,7 +462,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 2 — PROGRAM ════════════════════════════════════════════ -->
-            @if (stepIndex() === 1) {
+            @if (currentStepId() === 'program') {
               <!-- Create reached without a loan type (direct URL): the value is not
                guessable, and defaulting it would file the program under the
                wrong product. Say where the choice is made instead. -->
@@ -624,8 +636,276 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
               </section>
             }
 
+            <!-- ═══ STEP — CALCULATION (surrogate programs only) ═══════════════════════
+                 The one step the payslip wizard does not have. It sits BEFORE Amount on
+                 purpose: the operator states how the bank works the figure out — which of
+                 the product's ways, its numbers, the I-Score table, the rule's own DBR cap —
+                 before typing the amounts that live downstream of it. The whole income block
+                 moved here from the Eligibility step verbatim; only the wrapper changed.
+                 Exists iff incomeSurrogateActive() is true; see wizard-step-plan.ts. -->
+            @if (currentStepId() === 'calculation') {
+              <!-- ONE CARD, THREE BANDS.
+                   This block used to be bare on the reasoning that its body already drew
+                   its own surfaces — and that was true of the body, but it made this
+                   section the only thing on the step that was not a card while the two
+                   below it (Eligibility, Debt burden) are. What the body actually held was
+                   a bordered section, a bare hairline block and a bordered elevated card:
+                   three peers, three treatments, inside a container that claimed to be
+                   avoiding exactly that. The frames are gone from all three (see
+                   section.styles.scss and .chk), each is a hairline-separated BAND with
+                   one micro-label, and this becomes a plain peer of its two neighbours. -->
+              <section class="card income-block">
+                <!-- card-head, and it is load-bearing: from 1024up this page lays a card out
+                     as a label rail plus a column of controls, and card > :not(.card-head)
+                     puts everything else in column 2. Named anything else, this header sat in
+                     the control column and left a 353px rail empty beside it — which is what
+                     made the step look like it had a margin nobody could explain. -->
+                <header class="card-head">
+                  <div>
+                    <!-- The STEP's own name, not a second one: a card headed "Income
+                         assumption" inside a step called "Calculation" is two names for one
+                         thing on one screen. -->
+                    <h2 class="card-title" i18n="@@bank_programs.step.calculation">Calculation</h2>
+                    @if (catalogProof(); as proof) {
+                      <p class="income-lede" i18n="@@bank_programs.income.reads">
+                        {{ programNameLabel() }} works the income out from
+                        <strong>{{ proof }}</strong
+                        >.
+                      </p>
+                    }
+                    <!-- Inside the rail, under the sentence it belongs to. It used to sit on
+                         the opposite end of a space-between row, which the 17rem rail has no
+                         room for. -->
+                    @if (programNameKeyValue()) {
+                      <a
+                        class="income-catalog-link"
+                        [routerLink]="['/program-catalog', programNameKeyValue()]"
+                        i18n="@@bank_programs.income.set_on_catalog"
+                        >Set on the catalog</a
+                      >
+                    }
+                  </div>
+                </header>
+
+                @if (catalogRuleLoading()) {
+                  <p class="income-loading" i18n="@@bank_programs.income.loading">
+                    Reading what this program name says…
+                  </p>
+                } @else if (!programNameKeyValue()) {
+                  <!-- Reachable only by going back to step 2 and clearing the name, so
+                       it states the missing input rather than scolding about a proof
+                       nobody could have set. -->
+                  <p class="income-loading" i18n="@@bank_programs.income.no_name">
+                    Pick a program name on the Program step first — the name decides what the income
+                    is worked out from.
+                  </p>
+                } @else if (!catalogProof()) {
+                  <!-- Fails on screen before it fails on save. The server would answer
+                       PROGRAM_NAME_INCOME_PROOF_MISSING; saying it here, next to the
+                       link that fixes it, costs the operator nothing. -->
+                  <p class="income-blocked" role="status">
+                    <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@bank_programs.income.no_proof"
+                      >Nobody has said what {{ programNameLabel() }} reads its income from. Set it
+                      once on the program catalog and every bank starts from the same table.</span
+                    >
+                  </p>
+                } @else {
+                  <!-- NOT a choice any more. The operator does not pick "whose amounts"
+                       up front and then go looking for an editor: the catalog's figures
+                       are already in the grid below, and touching one is what makes them
+                       this bank's. So this is a LABEL on that grid — where the numbers
+                       came from, and the way back — not a third container around it.
+                       A spine on the editor's own inset surface, the same idiom the
+                       blocked-notice above uses to state a condition.
+
+                       One slot, two states, so the strip never moves under the pointer
+                       while the operator is typing in the row beneath it. -->
+                  <p
+                    class="income-source"
+                    [class.is-own]="amountsValue() === 'own'"
+                    [class.is-empty]="catalogStatesNothing()"
+                    [class.just-detached]="justDetached()"
+                    role="status"
+                  >
+                    <span class="income-source-medallion" aria-hidden="true">
+                      <span nz-icon [nzType]="sourceIcon()" nzTheme="outline"></span>
+                    </span>
+                    <span class="income-source-body">
+                      @if (amountsValue() === 'own') {
+                        <span class="income-source-line" i18n="@@bank_programs.income.src_own"
+                          >This bank uses its own numbers. Changes on the catalog no longer reach
+                          it.</span
+                        >
+                      } @else if (catalogStatesNothing()) {
+                        <!-- The state the two-branch strip could not say, and the one every
+                             product starts in: the name states a proof and the catalog
+                             states no amounts, so the grid below is empty, the save
+                             succeeds, and every applicant is quoted nothing. Advisory, not
+                             a gate — the fix is on a screen this operator may not own. -->
+                        <span
+                          class="income-source-line"
+                          i18n="@@bank_programs.income.src_catalog_empty"
+                          >{{ programNameLabel() }} states no amounts on the catalog yet, so this
+                          program would quote nobody. Type them below to make them this bank's, or
+                          set them once on the product so every bank starts from the same
+                          table.</span
+                        >
+                      } @else {
+                        <span class="income-source-line" i18n="@@bank_programs.income.src_catalog"
+                          >These are {{ programNameLabel() }}'s numbers from the catalog. Change any
+                          of them and this bank keeps its own copy.</span
+                        >
+                      }
+                    </span>
+                    @if (amountsValue() === 'own' && catalogHasFigures()) {
+                      <button
+                        type="button"
+                        class="income-source-reset"
+                        (click)="resetToCatalog()"
+                        i18n="@@bank_programs.income.src_reset"
+                      >
+                        Back to the catalog's
+                      </button>
+                    }
+                  </p>
+
+                  <!-- WHAT THE FILL DID, named.
+                       A blank gate reads as "this bank does not apply this condition", so
+                       filling one switches a refusal ON. The count alone would not say
+                       which, and the operator has no other record of what was blank when
+                       they opened the program — so every filled figure is listed, and
+                       undoing is one click. Nothing has been sent: the form is merely
+                       dirty. -->
+                  @if (filledFromProduct().length > 0) {
+                    <p class="income-filled" role="status">
+                      <span>{{ filledNotice() }}</span>
+                      <button
+                        type="button"
+                        class="income-filled-undo"
+                        (click)="undoFillFromProduct()"
+                        i18n="@@bank_programs.income.filled_undo"
+                      >
+                        Undo the fill
+                      </button>
+                    </p>
+                  }
+                }
+
+                <!-- Both of these used to be projected INSIDE the editor, which now
+                     renders only for a bank on its own amounts. They belong to the
+                     whole block: a program on CATALOG amounts is quoted off a table
+                     too, so an unasked fact silences it just as completely, and the
+                     check panel is the only way to see what either table pays. -->
+                @if (catalogProof()) {
+                  <div class="income-band">
+                    <h3 class="band-label" i18n="@@bank_programs.income.band_calculation">
+                      The calculation
+                    </h3>
+
+                    <!-- The one thing the operator could not learn before saving: whether
+                       the figure this name reads is even asked of this loan type's
+                       applicants. It arrived as a toast after a failed save, or never —
+                       and an unasked figure means no income for anyone, quietly. -->
+                    @if (factBinding(); as fb) {
+                      <p class="binding" [class.warn]="!fb.asked" role="status">
+                        @if (fb.asked) {
+                          <span
+                            nz-icon
+                            nzType="check-circle"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                          <span i18n="@@bank_programs.income.binding_ok"
+                            >{{ fb.category }} applicants are asked {{ fb.label }}.</span
+                          >
+                        } @else {
+                          <span
+                            nz-icon
+                            nzType="warning"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                          <span i18n="@@bank_programs.income.binding_missing"
+                            >{{ fb.category }} applicants are never asked {{ fb.label }}, so this
+                            rule will produce no income.</span
+                          >
+                          <a
+                            routerLink="/questionnaire/categories"
+                            i18n="@@bank_programs.income.binding_fix"
+                            >Ask it</a
+                          >
+                        }
+                      </p>
+                    }
+
+                    <!-- ALWAYS rendered, pre-filled from the catalog when this program is
+                       inheriting. It used to appear only once the operator had committed
+                       to "own amounts", which put the numbers a bank is about to sell
+                       behind a decision they could not yet see the consequence of.
+                       Editing any cell is what commits — the onKeyTableEdit /
+                       onBandsEdit / onStepFiguresEdit trio below is where that flip
+                       happens. So nothing here is read-only, and the pre-filled copy is
+                       never persisted: the payload omits figures while the program is
+                       still on the catalog's amounts. -->
+                    <app-income-assumption-section
+                      [group]="incomeAssumptionGroup"
+                      [keyTable]="incomeKeyTable()"
+                      (keyTableChange)="onKeyTableEdit($event)"
+                      [bands]="incomeBands()"
+                      (bandsChange)="onBandsEdit($event)"
+                      [ruleSteps]="ruleSteps()"
+                      [ruleGates]="ruleGates()"
+                      [ruleOutput]="ruleOutput()"
+                      [stepFigures]="stepFigures()"
+                      (stepFiguresChange)="onStepFiguresEdit($event)"
+                      (stepFiguresTouched)="markIncomeRuleDirty()"
+                      [waysAre]="ruleWaysAre()"
+                      [wayId]="wayIdValue()"
+                      (wayIdChange)="onWayPicked($event)"
+                      (wayTitleChange)="currentWayTitle.set($event)"
+                      [figuresAreOwn]="amountsValue() === 'own'"
+                      [catalogFigures]="ruleCatalogFigures()"
+                      [showsCatalogDefaults]="amountsValue() === 'own'"
+                      [programCapPercent]="dbrFlatCap()"
+                    ></app-income-assumption-section>
+                  </div>
+
+                  <!-- Money the applicant earns BESIDE whatever the rule or the payslip
+                       says — rent, certificate returns, allowances — each counted at this
+                       bank's own weight. Here rather than under Eligibility because it is
+                       part of what income this bank recognises, and the operator is already
+                       looking at the rest of that answer. -->
+                  @if (additionalIncomeOptions().length > 0) {
+                    <div class="income-band">
+                      <h3 class="band-label" i18n="@@bank_programs.income.additional">
+                        Other money the bank counts
+                      </h3>
+                      <app-additional-income-editor
+                        [options]="additionalIncomeOptions()"
+                        [(config)]="additionalIncome"
+                      />
+                    </div>
+                  }
+
+                  <!-- The third band heads ITSELF, in the same ramp: it is a component with
+                       one host, and a label supplied from out here would be a second
+                       heading over the one it already draws. -->
+                  <div class="income-band">
+                    <app-income-rule-check
+                      [programCode]="editingProgramCode()"
+                      [draftProgram]="draftProgramForCheck()"
+                      [draft]="liveIncomeRuleDraft()"
+                      [ruleSteps]="ruleSteps()"
+                      [ruleGates]="ruleGates()"
+                    ></app-income-rule-check>
+                  </div>
+                }
+              </section>
+            }
+
             <!-- ═══ STEP 2 — AMOUNT & DURATION ══════════════════════════════════ -->
-            @if (stepIndex() === 2) {
+            @if (currentStepId() === 'terms') {
               <section class="card" formGroupName="loanLimits">
                 <header class="card-head">
                   <div>
@@ -635,8 +915,27 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                     </p>
                   </div>
                 </header>
+                <!-- SAID ONCE, at the top of the card, never per field: the same sentence on
+                     three controls is read at the first and skipped at the rest, and a disabled
+                     input announces nothing — so the notice carries the role and the action. -->
+                @if (amountsLocked()) {
+                  <p class="amount-locked" role="status">
+                    <span i18n="@@bank_programs.form.amount.locked"
+                      >This program has not said how it works the figure out yet. Pick the way on
+                      the Calculation step, then set the amounts.</span
+                    >
+                    <button
+                      type="button"
+                      class="amount-locked-cta"
+                      (click)="goTo(indexOf('calculation'))"
+                      i18n="@@bank_programs.form.amount.locked_cta"
+                    >
+                      Go to Calculation
+                    </button>
+                  </p>
+                }
                 <div class="grid">
-                  <nz-form-item>
+                  <nz-form-item [class.is-locked]="amountsLocked()">
                     <nz-form-label
                       [nzFor]="'minAmountEGP'"
                       nzRequired
@@ -652,11 +951,13 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                           formControlName="minAmountEGP"
                           inputmode="numeric"
                           placeholder="50,000"
+                          [attr.disabled]="amountsLocked() ? '' : null"
+                          [attr.aria-disabled]="amountsLocked()"
                         />
                       </nz-input-group>
                     </nz-form-control>
                   </nz-form-item>
-                  <nz-form-item>
+                  <nz-form-item [class.is-locked]="amountsLocked()">
                     <nz-form-label
                       [nzFor]="'maxAmountEGP'"
                       nzRequired
@@ -672,6 +973,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                           formControlName="maxAmountEGP"
                           inputmode="numeric"
                           placeholder="1,500,000"
+                          [attr.disabled]="amountsLocked() ? '' : null"
+                          [attr.aria-disabled]="amountsLocked()"
                         />
                       </nz-input-group>
                     </nz-form-control>
@@ -693,6 +996,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                     [productCap]="productCap()"
                     [productDefaults]="productCapDefaults()"
                     [productLabel]="programNameLabel()"
+                    [locked]="amountsLocked()"
                   ></app-max-loan-by-fact-editor>
                 </div>
               </section>
@@ -765,7 +1069,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 3 — PRICING & FEES ═════════════════════════════════════ -->
-            @if (stepIndex() === 3) {
+            @if (currentStepId() === 'pricing') {
               <section class="card" formGroupName="pricing">
                 <header class="card-head">
                   <div>
@@ -1169,268 +1473,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 4 — ELIGIBILITY ════════════════════════════════════════ -->
-            @if (stepIndex() === 4) {
-              <!-- FIRST on this step when the program has no payslip to read. The rule is the
-               defining property of such a program — it decides what income exists at all —
-               and it used to sit last, below eligibility fields it silently reframes. -->
-              @if (incomeSurrogateActive()) {
-                <!-- ONE CARD, THREE BANDS.
-                     This block used to be bare on the reasoning that its body already drew
-                     its own surfaces — and that was true of the body, but it made this
-                     section the only thing on the step that was not a card while the two
-                     below it (Eligibility, Debt burden) are. What the body actually held was
-                     a bordered section, a bare hairline block and a bordered elevated card:
-                     three peers, three treatments, inside a container that claimed to be
-                     avoiding exactly that. The frames are gone from all three (see
-                     section.styles.scss and .chk), each is a hairline-separated BAND with
-                     one micro-label, and this becomes a plain peer of its two neighbours. -->
-                <section class="card income-block">
-                  <!-- card-head, and it is load-bearing: from 1024up this page lays a card out
-                       as a label rail plus a column of controls, and card > :not(.card-head)
-                       puts everything else in column 2. Named anything else, this header sat in
-                       the control column and left a 353px rail empty beside it — which is what
-                       made the step look like it had a margin nobody could explain. -->
-                  <header class="card-head">
-                    <div>
-                      <h2 class="card-title" i18n="@@bank_programs.income.title">
-                        Income assumption
-                      </h2>
-                      @if (catalogProof(); as proof) {
-                        <p class="income-lede" i18n="@@bank_programs.income.reads">
-                          {{ programNameLabel() }} works the income out from
-                          <strong>{{ proof }}</strong
-                          >.
-                        </p>
-                      }
-                      <!-- Inside the rail, under the sentence it belongs to. It used to sit on
-                           the opposite end of a space-between row, which the 17rem rail has no
-                           room for. -->
-                      @if (programNameKeyValue()) {
-                        <a
-                          class="income-catalog-link"
-                          [routerLink]="['/program-catalog', programNameKeyValue()]"
-                          i18n="@@bank_programs.income.set_on_catalog"
-                          >Set on the catalog</a
-                        >
-                      }
-                    </div>
-                  </header>
-
-                  @if (catalogRuleLoading()) {
-                    <p class="income-loading" i18n="@@bank_programs.income.loading">
-                      Reading what this program name says…
-                    </p>
-                  } @else if (!programNameKeyValue()) {
-                    <!-- Reachable only by going back to step 2 and clearing the name, so
-                         it states the missing input rather than scolding about a proof
-                         nobody could have set. -->
-                    <p class="income-loading" i18n="@@bank_programs.income.no_name">
-                      Pick a program name on the Program step first — the name decides what the
-                      income is worked out from.
-                    </p>
-                  } @else if (!catalogProof()) {
-                    <!-- Fails on screen before it fails on save. The server would answer
-                         PROGRAM_NAME_INCOME_PROOF_MISSING; saying it here, next to the
-                         link that fixes it, costs the operator nothing. -->
-                    <p class="income-blocked" role="status">
-                      <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
-                      <span i18n="@@bank_programs.income.no_proof"
-                        >Nobody has said what {{ programNameLabel() }} reads its income from. Set it
-                        once on the program catalog and every bank starts from the same table.</span
-                      >
-                    </p>
-                  } @else {
-                    <!-- NOT a choice any more. The operator does not pick "whose amounts"
-                         up front and then go looking for an editor: the catalog's figures
-                         are already in the grid below, and touching one is what makes them
-                         this bank's. So this is a LABEL on that grid — where the numbers
-                         came from, and the way back — not a third container around it.
-                         A spine on the editor's own inset surface, the same idiom the
-                         blocked-notice above uses to state a condition.
-
-                         One slot, two states, so the strip never moves under the pointer
-                         while the operator is typing in the row beneath it. -->
-                    <p
-                      class="income-source"
-                      [class.is-own]="amountsValue() === 'own'"
-                      [class.is-empty]="catalogStatesNothing()"
-                      [class.just-detached]="justDetached()"
-                      role="status"
-                    >
-                      <span class="income-source-medallion" aria-hidden="true">
-                        <span nz-icon [nzType]="sourceIcon()" nzTheme="outline"></span>
-                      </span>
-                      <span class="income-source-body">
-                        @if (amountsValue() === 'own') {
-                          <span class="income-source-line" i18n="@@bank_programs.income.src_own"
-                            >This bank uses its own numbers. Changes on the catalog no longer reach
-                            it.</span
-                          >
-                        } @else if (catalogStatesNothing()) {
-                          <!-- The state the two-branch strip could not say, and the one every
-                               product starts in: the name states a proof and the catalog
-                               states no amounts, so the grid below is empty, the save
-                               succeeds, and every applicant is quoted nothing. Advisory, not
-                               a gate — the fix is on a screen this operator may not own. -->
-                          <span
-                            class="income-source-line"
-                            i18n="@@bank_programs.income.src_catalog_empty"
-                            >{{ programNameLabel() }} states no amounts on the catalog yet, so this
-                            program would quote nobody. Type them below to make them this bank's, or
-                            set them once on the product so every bank starts from the same
-                            table.</span
-                          >
-                        } @else {
-                          <span class="income-source-line" i18n="@@bank_programs.income.src_catalog"
-                            >These are {{ programNameLabel() }}'s numbers from the catalog. Change
-                            any of them and this bank keeps its own copy.</span
-                          >
-                        }
-                      </span>
-                      @if (amountsValue() === 'own' && catalogHasFigures()) {
-                        <button
-                          type="button"
-                          class="income-source-reset"
-                          (click)="resetToCatalog()"
-                          i18n="@@bank_programs.income.src_reset"
-                        >
-                          Back to the catalog's
-                        </button>
-                      }
-                    </p>
-
-                    <!-- WHAT THE FILL DID, named.
-                         A blank gate reads as "this bank does not apply this condition", so
-                         filling one switches a refusal ON. The count alone would not say
-                         which, and the operator has no other record of what was blank when
-                         they opened the program — so every filled figure is listed, and
-                         undoing is one click. Nothing has been sent: the form is merely
-                         dirty. -->
-                    @if (filledFromProduct().length > 0) {
-                      <p class="income-filled" role="status">
-                        <span>{{ filledNotice() }}</span>
-                        <button
-                          type="button"
-                          class="income-filled-undo"
-                          (click)="undoFillFromProduct()"
-                          i18n="@@bank_programs.income.filled_undo"
-                        >
-                          Undo the fill
-                        </button>
-                      </p>
-                    }
-                  }
-
-                  <!-- Both of these used to be projected INSIDE the editor, which now
-                       renders only for a bank on its own amounts. They belong to the
-                       whole block: a program on CATALOG amounts is quoted off a table
-                       too, so an unasked fact silences it just as completely, and the
-                       check panel is the only way to see what either table pays. -->
-                  @if (catalogProof()) {
-                    <div class="income-band">
-                      <h3 class="band-label" i18n="@@bank_programs.income.band_calculation">
-                        The calculation
-                      </h3>
-
-                      <!-- The one thing the operator could not learn before saving: whether
-                         the figure this name reads is even asked of this loan type's
-                         applicants. It arrived as a toast after a failed save, or never —
-                         and an unasked figure means no income for anyone, quietly. -->
-                      @if (factBinding(); as fb) {
-                        <p class="binding" [class.warn]="!fb.asked" role="status">
-                          @if (fb.asked) {
-                            <span
-                              nz-icon
-                              nzType="check-circle"
-                              nzTheme="outline"
-                              aria-hidden="true"
-                            ></span>
-                            <span i18n="@@bank_programs.income.binding_ok"
-                              >{{ fb.category }} applicants are asked {{ fb.label }}.</span
-                            >
-                          } @else {
-                            <span
-                              nz-icon
-                              nzType="warning"
-                              nzTheme="outline"
-                              aria-hidden="true"
-                            ></span>
-                            <span i18n="@@bank_programs.income.binding_missing"
-                              >{{ fb.category }} applicants are never asked {{ fb.label }}, so this
-                              rule will produce no income.</span
-                            >
-                            <a
-                              routerLink="/questionnaire/categories"
-                              i18n="@@bank_programs.income.binding_fix"
-                              >Ask it</a
-                            >
-                          }
-                        </p>
-                      }
-
-                      <!-- ALWAYS rendered, pre-filled from the catalog when this program is
-                         inheriting. It used to appear only once the operator had committed
-                         to "own amounts", which put the numbers a bank is about to sell
-                         behind a decision they could not yet see the consequence of.
-                         Editing any cell is what commits — the onKeyTableEdit /
-                         onBandsEdit / onStepFiguresEdit trio below is where that flip
-                         happens. So nothing here is read-only, and the pre-filled copy is
-                         never persisted: the payload omits figures while the program is
-                         still on the catalog's amounts. -->
-                      <app-income-assumption-section
-                        [group]="incomeAssumptionGroup"
-                        [keyTable]="incomeKeyTable()"
-                        (keyTableChange)="onKeyTableEdit($event)"
-                        [bands]="incomeBands()"
-                        (bandsChange)="onBandsEdit($event)"
-                        [ruleSteps]="ruleSteps()"
-                        [ruleGates]="ruleGates()"
-                        [ruleOutput]="ruleOutput()"
-                        [stepFigures]="stepFigures()"
-                        (stepFiguresChange)="onStepFiguresEdit($event)"
-                        (stepFiguresTouched)="markIncomeRuleDirty()"
-                        [waysAre]="ruleWaysAre()"
-                        [wayId]="wayIdValue()"
-                        (wayIdChange)="onWayPicked($event)"
-                        [figuresAreOwn]="amountsValue() === 'own'"
-                        [catalogFigures]="ruleCatalogFigures()"
-                        [showsCatalogDefaults]="amountsValue() === 'own'"
-                      ></app-income-assumption-section>
-                    </div>
-
-                    <!-- Money the applicant earns BESIDE whatever the rule or the payslip
-                         says — rent, certificate returns, allowances — each counted at this
-                         bank's own weight. Here rather than under Eligibility because it is
-                         part of what income this bank recognises, and the operator is already
-                         looking at the rest of that answer. -->
-                    @if (additionalIncomeOptions().length > 0) {
-                      <div class="income-band">
-                        <h3 class="band-label" i18n="@@bank_programs.income.additional">
-                          Other money the bank counts
-                        </h3>
-                        <app-additional-income-editor
-                          [options]="additionalIncomeOptions()"
-                          [(config)]="additionalIncome"
-                        />
-                      </div>
-                    }
-
-                    <!-- The third band heads ITSELF, in the same ramp: it is a component with
-                         one host, and a label supplied from out here would be a second
-                         heading over the one it already draws. -->
-                    <div class="income-band">
-                      <app-income-rule-check
-                        [programCode]="editingProgramCode()"
-                        [draftProgram]="draftProgramForCheck()"
-                        [draft]="liveIncomeRuleDraft()"
-                        [ruleSteps]="ruleSteps()"
-                        [ruleGates]="ruleGates()"
-                      ></app-income-rule-check>
-                    </div>
-                  }
-                </section>
-              }
-
+            @if (currentStepId() === 'eligibility') {
               <section class="card" formGroupName="eligibility">
                 <header class="card-head">
                   <div>
@@ -1505,9 +1548,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       @if (incomeSurrogateActive()) {
                         <p
                           class="field-hint"
-                          i18n="@@bank_programs.field.min_income.no_payslip_hint"
+                          i18n="@@bank_programs.field.min_income.no_payslip_hint_v2"
                         >
-                          Checked against the figure the rule above produces, not income proof.
+                          Checked against the figure the Calculation step produces, not income
+                          proof.
                         </p>
                       }
                     </nz-form-control>
@@ -1587,6 +1631,20 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                     </p>
                   </div>
                 </header>
+                <!-- The rule's own cap wins over everything on this card whenever the income came
+                     from the calculation (resolveDbrCap: rule override, then by employment, then
+                     bands, then flat). Said here so the two screens do not read as duplicates of
+                     one setting — they are two settings, and this is which one is in force. -->
+                @if (incomeSurrogateActive() && dbrOverrideValue(); as override) {
+                  <p
+                    class="dbr-rule-note"
+                    role="status"
+                    i18n="@@bank_programs.eligibility.dbr_rule_override_note"
+                  >
+                    The calculation on this program states its own debt-burden cap of
+                    {{ override }}% — that one wins whenever the income came from the calculation.
+                  </p>
+                }
                 <div class="card-body">
                   <!-- One number, one switch: stacked rather than side-by-side, so the
                  cap keeps a hand-sized field instead of stretching half the card,
@@ -1684,7 +1742,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 5 — DOCUMENTS & NOTES ══════════════════════════════════ -->
-            @if (stepIndex() === 5) {
+            @if (currentStepId() === 'documents') {
               <section class="card" formGroupName="documents">
                 <header class="card-head">
                   <div>
@@ -1734,7 +1792,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             <!-- ═══ STEP 6 — REVIEW ═════════════════════════════════════════════
                A read-back, not a form: every row is a value the admin typed, and
                every group jumps straight back to the step that owns it. -->
-            @if (stepIndex() === 6) {
+            @if (currentStepId() === 'review') {
               <section class="card review">
                 <header class="card-head">
                   <div>
@@ -2100,6 +2158,48 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         flex: none;
         margin-block-start: 0.15em;
         color: var(--ant-warning-color);
+      }
+      /* The amount fields wait for the method — same construction as the blocked notice
+         (accent spine, inset surface), with the action inline. Ink at primary; the state is
+         carried by the spine, because warning ink on its own wash measures 2.53:1. */
+      .amount-locked {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-4);
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        border-inline-start: var(--rule-width-accent) solid var(--ant-warning-color);
+        background: var(--color-surface-elevated);
+        color: var(--color-text-primary);
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+      .amount-locked-cta {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--primary);
+        font: inherit;
+        font-weight: var(--font-semibold);
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+        cursor: pointer;
+      }
+      .amount-locked-cta:hover {
+        color: var(--primary-visible);
+      }
+      .amount-locked-cta:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
+      }
+      .dbr-rule-note {
+        margin: 0 0 var(--space-3);
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        color: var(--color-text-secondary);
       }
       /* ── Where the numbers came from ─────────────────────────────────────
          A LABEL on the grid below, not a container around it. The editor draws its own
@@ -3123,6 +3223,7 @@ export class BankProgramFormPage implements OnInit {
   private readonly message = inject(NzMessageService);
   /** Via NzModalService so the scrim covers the whole viewport, never the panel (A34). */
   private readonly modal = inject(NzModalService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly notification = inject(NzNotificationService);
   private readonly errorsService = inject(ErrorCodeService);
   readonly enums = inject(PlatformEnumerationsService);
@@ -3195,55 +3296,87 @@ export class BankProgramFormPage implements OnInit {
    * may offer, and it decides whether `eligibility` carries a whole rate-table
    * editor. A question that reshapes two later steps is not a field.
    */
-  readonly steps: readonly WizardStep[] = [
-    {
-      id: 'income',
-      label: $localize`:@@bank_programs.step.income:Income`,
-      groups: [],
-    },
-    {
+  private readonly stepDefs: Readonly<Record<StepId, WizardStep>> = {
+    income: { id: 'income', label: $localize`:@@bank_programs.step.income:Income`, groups: [] },
+    program: {
       id: 'program',
       label: $localize`:@@bank_programs.step.program:Program`,
       groups: ['identity'],
     },
-    {
+    // Surrogate programs only. The income block — the ways, their figures, the I-Score
+    // table, the rule's own DBR cap, the check panel — moved here from Eligibility so the
+    // method is stated BEFORE the amounts it governs. See `wizard-step-plan.ts`.
+    calculation: {
+      id: 'calculation',
+      label: $localize`:@@bank_programs.step.calculation:Calculation`,
+      groups: ['incomeAssumption'],
+    },
+    terms: {
       id: 'terms',
       label: $localize`:@@bank_programs.step.terms:Amount & duration`,
       railLabel: $localize`:@@bank_programs.step.terms_short:Amount`,
       groups: ['loanLimits', 'tenor'],
     },
-    {
+    pricing: {
       id: 'pricing',
       label: $localize`:@@bank_programs.step.pricing:Pricing & fees`,
       railLabel: $localize`:@@bank_programs.step.pricing_short:Pricing`,
       groups: ['pricing', 'fees'],
     },
-    {
+    eligibility: {
       id: 'eligibility',
       label: $localize`:@@bank_programs.step.eligibility:Eligibility`,
-      groups: ['eligibility', 'incomeAssumption'],
+      groups: ['eligibility'],
     },
-    {
+    documents: {
       id: 'documents',
       label: $localize`:@@bank_programs.step.documents:Documents`,
       groups: ['documents'],
     },
-    { id: 'review', label: $localize`:@@bank_programs.step.review:Review`, groups: [] },
-  ];
+    review: { id: 'review', label: $localize`:@@bank_programs.step.review:Review`, groups: [] },
+  };
+  /**
+   * The steps THIS program walks. Eight for a surrogate program, seven for a payslip one —
+   * keyed off the same synchronous boolean the income block was always gated on, so the list
+   * can only change shape while the operator stands on the Income step.
+   */
+  readonly steps = computed<readonly WizardStep[]>(() =>
+    stepIdsFor(this.incomeSurrogateActive()).map((id) => this.stepDefs[id]),
+  );
   readonly stepsAria = $localize`:@@bank_programs.steps.aria:Program setup steps`;
-  readonly stepIndex = signal(0);
+  /**
+   * The step on stage, held as an ID. Indices are DERIVED from it against the current list,
+   * so a list that changes shape moves nobody: `indexOfOrPreceding` answers the nearest
+   * earlier step still present rather than `-1`.
+   */
+  readonly currentStepId = signal<StepId>('income');
+  readonly stepIndex = computed(() => indexOfOrPreceding(this.steps(), this.currentStepId()));
   /** Highest step reached — the rail only lets an admin jump to what they've seen. */
-  readonly furthestStep = signal(0);
+  readonly furthestStepId = signal<StepId>('income');
+  readonly furthestStep = computed(() => indexOfOrPreceding(this.steps(), this.furthestStepId()));
   /** Set when Continue / Create is refused, cleared on every step change. */
   readonly showStepIssues = signal(false);
 
-  readonly isLastStep = computed(() => this.stepIndex() === this.steps.length - 1);
+  readonly isLastStep = computed(() => this.stepIndex() === this.steps().length - 1);
   readonly stepCaption = computed(() => {
     const current = this.stepIndex() + 1;
-    const total = this.steps.length;
-    const label = this.steps[this.stepIndex()]?.label ?? '';
+    const total = this.steps().length;
+    const label = this.steps()[this.stepIndex()]?.label ?? '';
     return $localize`:@@bank_programs.step.caption:Step ${current}:current: of ${total}:total: · ${label}:label:`;
   });
+  /** "Seven short steps" was a literal; the count is the list's, so 7 and 8 both read true. */
+  readonly subtitle = computed(() => {
+    const count = this.steps().length;
+    return $localize`:@@bank_programs.form.subtitle_counted:${count}:COUNT: short steps. Every number belongs to this program alone, and nothing is saved until you confirm on the last step.`;
+  });
+
+  /** A step's position on THIS program's rail — `-1` when the program does not walk it. */
+  indexOf(id: StepId): number {
+    return indexOfStep(this.steps(), id);
+  }
+  labelOf(id: StepId): string {
+    return this.stepDefs[id].label;
+  }
 
   /**
    * The shared rail's model.
@@ -3256,7 +3389,7 @@ export class BankProgramFormPage implements OnInit {
    * re-render.
    */
   railSteps(): readonly WizardStepItem[] {
-    const next = this.steps.map((s, i) => ({
+    const next = this.steps().map((s, i) => ({
       id: s.id,
       label: s.railLabel ?? s.label,
       status: this.isStepInvalidTouched(i)
@@ -3266,7 +3399,7 @@ export class BankProgramFormPage implements OnInit {
           : ('todo' as const),
       disabled: !this.canJumpTo(i),
     }));
-    const key = next.map((s) => `${s.status}${s.disabled ? '!' : ''}`).join('|');
+    const key = next.map((s) => `${s.id}:${s.status}${s.disabled ? '!' : ''}`).join('|');
     if (key !== this.railKey) {
       this.railKey = key;
       this.railCache = next;
@@ -3277,7 +3410,7 @@ export class BankProgramFormPage implements OnInit {
   private railCache: readonly WizardStepItem[] = [];
 
   private stepControls(index: number): AbstractControl[] {
-    const step = this.steps[index];
+    const step = this.steps()[index];
     if (!step) return [];
     return step.groups
       .map((name) => this.form.get(name))
@@ -3290,23 +3423,23 @@ export class BankProgramFormPage implements OnInit {
     // lives in is valid before anybody has answered. Its answer is a signal, and this
     // is what stops Continue walking past an unanswered question into a name picker
     // that would then have nothing to filter on.
-    if (this.steps[index]?.id === 'income' && this.basisAnswered() === null) return false;
+    if (this.steps()[index]?.id === 'income' && this.basisAnswered() === null) return false;
     // The DBR band table lives in a signal, not a control, so step validity has
     // to ask it directly — otherwise a broken table would sail past Continue and
     // only fail on the server (`DBR_BANDS_INVALID`).
-    if (this.steps[index]?.id === 'eligibility' && this.dbrBandsError() !== null) return false;
+    if (this.steps()[index]?.id === 'eligibility' && this.dbrBandsError() !== null) return false;
     // Same reason for the maximum-by-answer table, which is a signal on the `terms` step:
     // a broken table would sail past Continue and only fail on the server
     // (`MAX_LOAN_BY_FACT_INVALID`).
-    if (this.steps[index]?.id === 'terms' && this.maxLoanByFactError() !== null) return false;
+    if (this.steps()[index]?.id === 'terms' && this.maxLoanByFactError() !== null) return false;
     // Same reason: the name↔category verdict lives in a signal, so Continue
     // would sail past it and the save would fail on the server
     // (`PROGRAM_NAME_KEY_NOT_IN_CATEGORY`).
-    if (this.steps[index]?.id === 'program' && this.programNameMismatch() !== null) return false;
-    // Same reason again for the income rule's two tables, which are signals too.
+    if (this.steps()[index]?.id === 'program' && this.programNameMismatch() !== null) return false;
+    // Same reason again for the income rule — its way, its tables — which are signals too.
     // Without this the wizard's "which step is blocked" search could not find the one
     // holding a broken rule, and `submit()` would return having moved nowhere.
-    if (this.steps[index]?.id === 'eligibility' && this.incomeRuleError()) return false;
+    if (this.steps()[index]?.id === 'calculation' && this.incomeRuleError()) return false;
     return true;
   }
 
@@ -3319,7 +3452,7 @@ export class BankProgramFormPage implements OnInit {
    * form back is not a thing that can be finished.
    */
   isStepComplete(index: number): boolean {
-    const step = this.steps[index];
+    const step = this.steps()[index];
     if (!step || step.id === 'review') return false;
     return index !== this.stepIndex() && index <= this.furthestStep() && this.isStepValid(index);
   }
@@ -3339,15 +3472,16 @@ export class BankProgramFormPage implements OnInit {
     // Jumping forward through the rail passes the same gate as Continue.
     if (index > this.stepIndex() && !this.commitStep()) return;
     this.showStepIssues.set(false);
-    this.stepIndex.set(index);
+    this.currentStepId.set(this.steps()[index]?.id ?? 'income');
     this.revealStepStart();
   }
 
   next(): void {
     if (this.isLastStep() || !this.commitStep()) return;
-    const target = this.stepIndex() + 1;
-    this.stepIndex.set(target);
-    this.furthestStep.update((max) => Math.max(max, target));
+    const target = this.steps()[this.stepIndex() + 1];
+    if (target === undefined) return;
+    this.currentStepId.set(target.id);
+    this.reach(target.id);
     this.showStepIssues.set(false);
     this.revealStepStart();
   }
@@ -3355,8 +3489,13 @@ export class BankProgramFormPage implements OnInit {
   prev(): void {
     if (this.stepIndex() === 0) return;
     this.showStepIssues.set(false);
-    this.stepIndex.update((i) => i - 1);
+    this.currentStepId.set(this.steps()[this.stepIndex() - 1]?.id ?? 'income');
     this.revealStepStart();
+  }
+
+  /** Advance the furthest-reached marker, in canonical order, never backwards. */
+  private reach(id: StepId): void {
+    this.furthestStepId.update((reached) => (isLaterStep(id, reached) ? id : reached));
   }
 
   /**
@@ -3365,22 +3504,25 @@ export class BankProgramFormPage implements OnInit {
    * the admin never has to hunt for what blocked them.
    */
   private commitStep(): boolean {
-    // A step whose verdict is a SIGNAL rather than a control — today only `income` —
-    // has nothing for the control walk below to reject, so it is checked first.
-    // Without this Continue advanced silently past an unanswered income question.
-    if (!this.isStepValid(this.stepIndex()) && this.stepControls(this.stepIndex()).length === 0) {
+    const controls = this.stepControls(this.stepIndex());
+    if (!this.isStepValid(this.stepIndex())) {
+      // A step whose verdict is a SIGNAL rather than a control has nothing for the control
+      // walk to reveal — `income` (no groups at all), but also `calculation` (an unpicked
+      // way beside a valid group), `terms` (a broken cap table) and `program` (the name↔
+      // category verdict). The old escape keyed on "owns no groups", so the last three
+      // fell through to the control walk, found every control valid, and Continue advanced
+      // past a broken cap table with nothing said.
+      if (controls.every((c) => c.valid)) {
+        this.showStepIssues.set(true);
+        return false;
+      }
+      for (const c of controls) revealErrors(c);
       this.showStepIssues.set(true);
+      this.focusFirstInvalid();
       return false;
     }
-    const controls = this.stepControls(this.stepIndex());
-    if (controls.every((c) => c.valid)) {
-      this.showStepIssues.set(false);
-      return true;
-    }
-    for (const c of controls) revealErrors(c);
-    this.showStepIssues.set(true);
-    this.focusFirstInvalid();
-    return false;
+    this.showStepIssues.set(false);
+    return true;
   }
 
   /**
@@ -3391,15 +3533,26 @@ export class BankProgramFormPage implements OnInit {
    * while reporting nothing is the worst of both.
    */
   stepIssueCount(): number {
-    if (this.steps[this.stepIndex()]?.id === 'income') {
-      return this.basisAnswered() === null ? 1 : 0;
-    }
+    const id = this.steps()[this.stepIndex()]?.id;
+    if (id === 'income') return this.basisAnswered() === null ? 1 : 0;
+    // The rule's verdict and the cap table's are signals, so the leaf count reads 0 for
+    // them — and the rail's alert is gated on this being above zero. A step that refuses
+    // Continue while reporting nothing is the worst of both.
+    if (id === 'calculation' && this.incomeRuleError()) return 1;
+    if (id === 'terms' && this.maxLoanByFactError() !== null) return 1;
     return this.stepControls(this.stepIndex()).reduce((sum, c) => sum + countInvalidLeaves(c), 0);
   }
 
   stepIssueLabel(): string {
-    if (this.steps[this.stepIndex()]?.id === 'income') {
+    const id = this.steps()[this.stepIndex()]?.id;
+    if (id === 'income') {
       return $localize`:@@bank_programs.step.issue_income:Choose how the bank reads the income before you continue.`;
+    }
+    if (id === 'calculation' && this.incomeRuleError()) {
+      return $localize`:@@bank_programs.step.issue_calculation:Say how this bank works the figure out — pick a way and fill its numbers — before you continue.`;
+    }
+    if (id === 'terms' && this.maxLoanByFactError() !== null) {
+      return $localize`:@@bank_programs.step.issue_fix:Something on this step needs fixing before you continue — see the message in red.`;
     }
     const count = this.stepIssueCount();
     // A cross-field verdict (tenor min > max, rate bands out of order) leaves
@@ -3980,7 +4133,7 @@ export class BankProgramFormPage implements OnInit {
         // are a single number, and `declared` is nothing at all, which seven seeded
         // business/professional programs use on purpose. Promising a table here
         // described one method in eleven, so it named the SETTING instead.
-        $localize`:@@bank_programs.income.effect.no_payslip:Pick this and the next step shows the program names sold on a surrogate basis. On the Eligibility step you then set how the bank works the income out.`
+        $localize`:@@bank_programs.income.effect.no_payslip_v2:Pick this and the next step shows the program names sold on a surrogate basis. On the Calculation step you then set how the bank works the income out.`
       : $localize`:@@bank_programs.income.effect.payslip:Pick this and the next step shows the program names that need income proof.`;
   }
 
@@ -4141,6 +4294,7 @@ export class BankProgramFormPage implements OnInit {
     // operator has to be able to type straight into it.
     this.seedFromCatalog();
     this.seedCapFromProduct();
+    this.recordSingleWay();
     if (this.fillOnArrival) {
       this.fillOnArrival = false;
       this.fillFromProduct();
@@ -4252,11 +4406,12 @@ export class BankProgramFormPage implements OnInit {
    */
   private ownedSlotIdsForFill(): ReadonlySet<string> | undefined {
     const steps = this.ruleSteps();
-    if (!waysAreExclusive(this.ruleWaysAre(), steps)) return undefined;
+    const waysAre = this.ruleWaysAre();
+    if (!picksBetweenWays(steps, waysAre)) return undefined;
     const chosen = this.wayIdValue();
     if (chosen === null) return new Set<string>();
-    const owned = wayOwnedSlots(steps, chosen);
-    const everyWaySlot = new Set(waysOfRule(steps).flatMap((way) => way.slots));
+    const owned = wayOwnedSlots(steps, chosen, waysAre);
+    const everyWaySlot = new Set(waysOfRule(steps, waysAre).flatMap((way) => way.slots));
     for (const slot of slotShapes(steps, this.ruleGates()).keys()) {
       if (!everyWaySlot.has(slot)) owned.add(slot);
     }
@@ -4379,6 +4534,106 @@ export class BankProgramFormPage implements OnInit {
     this.seedFromCatalog();
   }
 
+  /** The chosen way's title, as the editor names it — for the name-change confirmation. */
+  readonly currentWayTitle = signal<string | null>(null);
+
+  /**
+   * A product with ONE way has nothing to choose, and every surrogate program records the way
+   * it sells — so the one way is written without asking, the moment the rule is on hand. A
+   * stored way wins (this runs after `applyInitial` has patched the form); marked dirty only
+   * when it actually changed, so an untouched edit stays pristine.
+   */
+  private recordSingleWay(): void {
+    if (!this.productBacked()) return;
+    const ways = waysOfRule(this.ruleSteps(), this.ruleWaysAre());
+    const [only] = ways;
+    if (ways.length !== 1 || only === undefined) return;
+    const control = this.form.controls.incomeAssumption.controls.wayId;
+    if (control.value === only.id) return;
+    control.setValue(only.id);
+    control.markAsDirty();
+  }
+
+  /**
+   * The name change, applied — everything that used to run inline in the subscription, so a
+   * confirmation can put ALL of it behind OK. Order matters at step 3: the grid is cleared
+   * BEFORE the re-read, because `seedCapFromProduct` seeds only into an empty or still-seeded
+   * grid, and `capNoMatch` goes with it — one bank's deliberate `reject` must not be carried
+   * onto a different product's table.
+   */
+  private commitNameChange(key: string | null): void {
+    const match = this.programNameMembers().find((m) => m.key === key);
+    if (match) {
+      this.seedFriendlyName(this.form.controls.identity.controls.friendlyName, match.labelEn);
+      this.seedFriendlyName(this.form.controls.identity.controls.friendlyNameAr, match.labelAr);
+    }
+    this.lastPickedNameKey = key;
+    const way = this.form.controls.incomeAssumption.controls.wayId;
+    if (way.value !== null) {
+      way.setValue(null);
+      way.markAsDirty();
+    }
+    this.maxLoanByFact.set(null);
+    this.capSeededSignature = null;
+    this.capNoMatch = null;
+    // The income proof is the NAME's property, so changing the name changes what this program
+    // reads. Re-read, then adopt — the alternative is a program still carrying the previous
+    // name's proof, which the server refuses on save with a message about a name the operator
+    // has already moved away from.
+    void this.adoptCatalogProof();
+  }
+
+  /**
+   * Put the picker back on cancel. A `formControlName`-bound select has a real value accessor,
+   * so `setValue` alone repaints it; `emitEvent: false` keeps this subscription from re-entering
+   * and asking again. Strictly simpler than the radios' `syncRadios`, whose `[checked]` binding
+   * is not re-applied when its value has not changed — do not "fix" this into a DOM write.
+   */
+  private restoreName(previous: string | null): void {
+    this.form.controls.identity.controls.programNameKey.setValue(previous ?? '', {
+      emitEvent: false,
+    });
+  }
+
+  /**
+   * Two clauses, each agreeing with its own count — never one sentence carrying two.
+   *
+   * Named after the program the operator is LEAVING. `programNameLabel()` is derived from the
+   * control, which the picker has already moved, so it answers with the new name — the dialog
+   * then read "Armed Forces works its figure out from …" about a way that belongs to Compound
+   * Owner. Measured in a browser, not reasoned about.
+   */
+  private nameChangeBody(loss: NameChangeLoss, previousKey: string | null): string {
+    const name = this.labelForNameKey(previousKey);
+    const clauses: string[] = [];
+    if (loss.wayTitle !== null) {
+      clauses.push(
+        $localize`:@@bank_programs.name_change.confirm_way:${name}:NAME: works its figure out from: ${loss.wayTitle}:WAY:. That choice goes.`,
+      );
+    }
+    if (loss.typedCapRows === 1) {
+      clauses.push(
+        $localize`:@@bank_programs.name_change.confirm_cap_one:One maximum-by-answer row you typed goes.`,
+      );
+    } else if (loss.typedCapRows > 1) {
+      const count = loss.typedCapRows;
+      clauses.push(
+        $localize`:@@bank_programs.name_change.confirm_cap_many:${count}:COUNT: maximum-by-answer rows you typed go.`,
+      );
+    }
+    return clauses.join(' ');
+  }
+
+  private keepNameLabel(previousKey: string | null): string {
+    return $localize`:@@bank_programs.name_change.confirm_cancel:Keep ${this.labelForNameKey(previousKey)}:OLDNAME:`;
+  }
+
+  /** A catalog name key → the words the picker shows, falling back to the key itself. */
+  private labelForNameKey(key: string | null): string {
+    if (key === null) return '';
+    return this.programNameMembers().find((m) => m.key === key)?.labelEn ?? key;
+  }
+
   /** A strategy token → the words the picker used, built-in or registry fact. */
   private incomeMethodLabelFor(strategy: IncomeAssumptionStrategy): string {
     return incomeMethodLabel(strategy, this.incomeFacts());
@@ -4441,8 +4696,8 @@ export class BankProgramFormPage implements OnInit {
       // that folds it back under "Program" would send an operator who wants to change
       // it to the step that no longer asks it.
       {
-        step: 0,
-        title: this.steps[0]?.label ?? '',
+        step: this.indexOf('income'),
+        title: this.labelOf('income'),
         rows: [
           {
             label: $localize`:@@bank_programs.review.income_basis:Income`,
@@ -4451,8 +4706,8 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: 1,
-        title: this.steps[1]?.label ?? '',
+        step: this.indexOf('program'),
+        title: this.labelOf('program'),
         rows: [
           { label: $localize`:@@bank_programs.review.bank:Bank`, value: id.bankName },
           { label: $localize`:@@bank_programs.review.name:Program name`, value: id.friendlyName },
@@ -4464,9 +4719,20 @@ export class BankProgramFormPage implements OnInit {
           },
         ],
       },
+      // Its own group because it is its own step: an Edit here has to land on the step that
+      // asks the question, and the rule is no longer asked on Eligibility.
+      ...(this.incomeSurrogateActive()
+        ? [
+            {
+              step: this.indexOf('calculation'),
+              title: this.labelOf('calculation'),
+              rows: [this.incomeRuleReviewRow()],
+            },
+          ]
+        : []),
       {
-        step: 2,
-        title: this.steps[2]?.label ?? '',
+        step: this.indexOf('terms'),
+        title: this.labelOf('terms'),
         rows: [
           {
             label: $localize`:@@bank_programs.review.amount:Loan amount`,
@@ -4479,8 +4745,8 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: 3,
-        title: this.steps[3]?.label ?? '',
+        step: this.indexOf('pricing'),
+        title: this.labelOf('pricing'),
         rows: [
           ...rateRows,
           {
@@ -4508,14 +4774,9 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: 4,
-        title: this.steps[4]?.label ?? '',
+        step: this.indexOf('eligibility'),
+        title: this.labelOf('eligibility'),
         rows: [
-          // The rule leads the read-back for the same reason it leads the step: on a
-          // no-payslip program it decides what income exists at all. The review step
-          // carried NO income-rule row before, so an operator could reach Create having
-          // never seen the method or the table summarised.
-          ...(this.incomeSurrogateActive() ? [this.incomeRuleReviewRow()] : []),
           {
             label: $localize`:@@bank_programs.review.age:Age`,
             value: `${v.eligibility.ageMin} – ${v.eligibility.ageMax}`,
@@ -4547,8 +4808,8 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: 5,
-        title: this.steps[5]?.label ?? '',
+        step: this.indexOf('documents'),
+        title: this.labelOf('documents'),
         rows: [
           {
             label: $localize`:@@bank_programs.review.documents:Required documents`,
@@ -4828,9 +5089,38 @@ export class BankProgramFormPage implements OnInit {
    * the rule rather than being fetched from the product's form, because the rule is what both
    * the wizard and the server hold, and a calculation authored by hand has no form at all.
    */
-  readonly ruleWaysAre = computed<'exclusive' | null>(
-    () => this.catalogEffectiveRule()?.waysAre ?? null,
+  readonly ruleWaysAre = computed<WaysAre>(() => this.catalogEffectiveRule()?.waysAre ?? null);
+
+  /**
+   * Whether a surrogate PRODUCT stands behind the rule — which is what makes a way REQUIRED
+   * (the server's `surrogateProductKey` gate). A name holding its own hand-wired rule is asked
+   * for none, and neither is a payslip program.
+   */
+  readonly productBacked = computed<boolean>(() => catalogRuleIsProductBacked(this.catalogRule()));
+
+  /**
+   * The amount fields wait for the method. True only while a program WITH a choice of ways has
+   * not made it — inert by construction for a payslip program (no steps), a single-way product
+   * and a combined product, whose one way is recorded without asking. A create-time state in
+   * practice: the backfill named every existing program's way, so an edit never opens locked.
+   *
+   * Only the POINTER is refused, never the control (`[attr.disabled]`, not `.disable()`): a
+   * disabled control drops out of the group's validity, so the step would report itself
+   * complete with two empty required fields, and it emits through `valueChanges`, which
+   * every signal on this page hangs off. The Sharia checkbox states the same rule.
+   */
+  readonly amountsLocked = computed<boolean>(
+    () =>
+      this.incomeSurrogateActive() &&
+      mustPickWayFirst(this.ruleSteps(), this.ruleWaysAre(), this.wayIdValue()),
   );
+
+  /** The rule's own debt-burden cap, when the bank stated one — for the Eligibility cross-reference. */
+  readonly dbrOverrideValue = computed<string | null>(() => {
+    this.formValue();
+    const raw = this.form.getRawValue().incomeAssumption.dbrCapPercentOverride;
+    return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : null;
+  });
 
   /**
    * The surrogate product's own figures, whole.
@@ -4929,7 +5219,11 @@ export class BankProgramFormPage implements OnInit {
     // fills four of the five heads, so without a way it would inherit the lower of four
     // mechanisms nobody sells. Gate it after the early return and the one case that needs a
     // choice is the one case the client never gates.
-    if (waysAreExclusive(this.ruleWaysAre(), this.ruleSteps()) && !this.wayIdValue()) {
+    if (
+      this.productBacked() &&
+      waysOfRule(this.ruleSteps(), this.ruleWaysAre()).length > 0 &&
+      !this.wayIdValue()
+    ) {
       return true;
     }
     // A program on CATALOG amounts has no table of its own to be wrong about. Gating on
@@ -4949,6 +5243,7 @@ export class BankProgramFormPage implements OnInit {
         figures: this.stepFigures(),
         waysAre: this.ruleWaysAre(),
         wayId: this.wayIdValue(),
+        productBacked: this.productBacked(),
       });
     }
     return incomeRuleHasError({
@@ -5413,17 +5708,6 @@ export class BankProgramFormPage implements OnInit {
     this.form.controls.identity.controls.programNameKey.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((key) => {
-        const match = this.programNameMembers().find((m) => m.key === key);
-        if (match) {
-          this.seedFriendlyName(this.form.controls.identity.controls.friendlyName, match.labelEn);
-          this.seedFriendlyName(this.form.controls.identity.controls.friendlyNameAr, match.labelAr);
-        }
-        this.lastPickedNameKey = key ?? null;
-        // The income proof is the NAME's property, so changing the name changes what
-        // this program reads. Re-read, then adopt — the alternative is a program still
-        // carrying the previous name's proof, which the server refuses on save with a
-        // message about a name the operator has already moved away from.
-        //
         // NOT while the form is being filled in from a stored program. `applyInitial`
         // patches `programNameKey` before it patches the rule, so on an edit load this
         // subscription fires with the form's default `declared` still in the strategy
@@ -5433,9 +5717,57 @@ export class BankProgramFormPage implements OnInit {
         // (it read `incomeRule` alone, which is NULL on every linked name, so `proof` was
         // always `undefined` and the adopt returned early); measured in a browser the
         // moment that was fixed — FABMISR's program opened showing four of the catalog's
-        // ways as its own.
-        if (this.hydrating) return;
-        void this.adoptCatalogProof();
+        // ways as its own. The baseline is still recorded, or a later operator-driven change
+        // would compare against `null` and `followsCatalogName` would refuse to move a name
+        // that genuinely still follows the catalog.
+        if (this.hydrating) {
+          this.lastPickedNameKey = key ?? null;
+          return;
+        }
+        const previous = this.lastPickedNameKey;
+        const next = key ?? null;
+        if (next === previous) return;
+
+        // THE NAME DECIDES THE PRODUCT, and two things belong to the product: the way this
+        // program picked (a slot id of one product's rule — stale, the server refuses it as
+        // PROGRAM_INCOME_WAY_UNKNOWN) and the maximum-by-answer rows (keyed by one product's
+        // facts). Both are cleared. Warned FIRST, naming what goes, when the operator made
+        // either — and silently when neither was theirs: a way recorded without asking and a
+        // grid still equal to the product's seed are not decisions to lose. NOTHING moves
+        // until they confirm: the friendly names, the way, the grid and the re-read all wait,
+        // so a cancel has nothing to undo but the picker itself.
+        const loss = nameChangeLoss({
+          wayId: this.wayIdValue(),
+          wayTitle: this.currentWayTitle(),
+          hadChoice: picksBetweenWays(this.ruleSteps(), this.ruleWaysAre()),
+          capConfig: this.maxLoanByFact(),
+          capSeededSignature: this.capSeededSignature,
+        });
+        if (loss === null) {
+          this.commitNameChange(next);
+          return;
+        }
+        const ref = this.modal.confirm({
+          nzTitle: $localize`:@@bank_programs.name_change.confirm_title:Change the program name?`,
+          nzContent: this.nameChangeBody(loss, previous),
+          nzOkDanger: true,
+          nzOkText: $localize`:@@bank_programs.name_change.confirm_ok:Change the name and clear them`,
+          nzCancelText: this.keepNameLabel(previous),
+          // RETURNS TRUE, and it is load-bearing: `afterClose` emits whatever `nzOnOk` returned,
+          // so a handler returning void reads as "not confirmed" below and the restore undoes
+          // the very change the operator just approved. Measured in a browser — the name
+          // snapped back to the old one with the dialog reporting success.
+          nzOnOk: () => {
+            this.commitNameChange(next);
+            return true;
+          },
+        });
+        // `afterClose`, not `nzOnCancel`: Esc, the mask and the close icon must ALL restore
+        // the picker, or the form is left holding a new name with the old way — the state the
+        // server refuses with no control on screen naming it.
+        ref.afterClose.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((ok) => {
+          if (ok !== true) this.restoreName(previous);
+        });
       });
     // No category-change RESET. Changing the product category can invalidate the
     // picked name, but clearing the key would not clear `friendlyName` /
@@ -5746,10 +6078,11 @@ export class BankProgramFormPage implements OnInit {
       this.incomeRuleError()
     ) {
       revealErrors(this.form);
-      const blocked = this.steps.findIndex((_, i) => !this.isStepValid(i));
+      const blocked = this.steps().findIndex((_, i) => !this.isStepValid(i));
       if (blocked >= 0) {
-        this.stepIndex.set(blocked);
-        this.furthestStep.update((max) => Math.max(max, blocked));
+        const blockedId = this.steps()[blocked]?.id ?? 'income';
+        this.currentStepId.set(blockedId);
+        this.reach(blockedId);
         this.showStepIssues.set(true);
         this.revealStepStart();
         this.focusFirstInvalid();
@@ -5809,7 +6142,7 @@ export class BankProgramFormPage implements OnInit {
       d.pricing.rateByLoanAmountBand != null &&
         Object.keys(d.pricing.rateByLoanAmountBand).length > 0,
     );
-    this.furthestStep.set(this.steps.length - 1);
+    this.furthestStepId.set('review');
   }
 
   private buildCreatePayload(): BankProgramCreatePayload {
