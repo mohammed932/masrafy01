@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
+import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
 
 /** One source and the share of it this bank counts. Mirrors the server DTO exactly. */
 export interface AdditionalIncomeSource {
@@ -50,6 +51,7 @@ export interface AdditionalIncomeOption {
 @Component({
   selector: 'app-additional-income-editor',
   standalone: true,
+  imports: [FigureFieldComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="aie">
@@ -59,6 +61,9 @@ export interface AdditionalIncomeOption {
           here.
         </p>
       } @else {
+        <!-- One table, and the ceiling is its LAST ROW rather than a sentence adrift below it:
+             the limit is stated over the total of the rows above, so it belongs to them, and a
+             rule across the full width is the invoice idiom every reader already knows. -->
         <table class="aie__table">
           <thead>
             <tr>
@@ -70,47 +75,55 @@ export interface AdditionalIncomeOption {
             @for (option of options(); track option.key) {
               <tr>
                 <th scope="row" class="aie__label">
-                  {{ option.label }}
+                  <span>{{ option.label }}</span>
                   @if (option.retired) {
                     <span class="aie__retired" i18n="@@additional_income.retired"
                       >no longer asked</span
                     >
                   }
                 </th>
-                <td>
-                  <span class="aie__field">
-                    <input
-                      class="aie__input"
-                      type="text"
-                      inputmode="decimal"
-                      [value]="percentFor(option.key)"
-                      (input)="setPercent(option.key, $any($event.target).value)"
-                      [attr.aria-label]="option.label"
-                    />
-                    <span class="aie__unit" aria-hidden="true">%</span>
-                  </span>
+                <td class="aie__cell">
+                  <!-- The house field, not a local one: this is the same kind of figure as
+                       every other percentage on the step, and the local copy reached for
+                       --color-accent-strong, which no palette defines -- so its focus ring
+                       was invalid at computed-value time and keyboard focus showed nothing. -->
+                  <app-figure-field
+                    [fieldId]="'aie-' + option.key"
+                    [value]="percentFor(option.key)"
+                    unit="%"
+                    [ariaLabel]="option.label"
+                    (valueChange)="setPercent(option.key, $event)"
+                  ></app-figure-field>
                 </td>
               </tr>
             }
           </tbody>
+          <tfoot>
+            <tr>
+              <!-- The ceiling keeps the SAME two columns as the rows above it, so its figure
+                   lines up with the ones it caps. The sentence still reads as one sentence --
+                   its tail sits under the head as a caption rather than beside the field,
+                   because at this width "of the basic income" wrapped to its own line anyway
+                   and, set at the same size and ink as the head, that read as an accident. -->
+              <th scope="row" class="aie__label aie__cap-cell">
+                <label for="aie-cap">
+                  <span i18n="@@additional_income.cap">All of it together may not exceed</span>
+                  <span class="aie__cap-tail" i18n="@@additional_income.cap_tail"
+                    >of the basic income</span
+                  >
+                </label>
+              </th>
+              <td class="aie__cell aie__cap-cell">
+                <app-figure-field
+                  fieldId="aie-cap"
+                  [value]="config()?.capPercentOfBasic ?? ''"
+                  unit="%"
+                  (valueChange)="setCap($event)"
+                ></app-figure-field>
+              </td>
+            </tr>
+          </tfoot>
         </table>
-
-        <label class="aie__cap">
-          <span class="aie__cap-label" i18n="@@additional_income.cap">
-            All of it together may not exceed
-          </span>
-          <span class="aie__field">
-            <input
-              class="aie__input"
-              type="text"
-              inputmode="decimal"
-              [value]="config()?.capPercentOfBasic ?? ''"
-              (input)="setCap($any($event.target).value)"
-            />
-            <span class="aie__unit" aria-hidden="true">%</span>
-          </span>
-          <span class="aie__cap-tail" i18n="@@additional_income.cap_tail">of the basic income</span>
-        </label>
         <p class="aie__hint" i18n="@@additional_income.hint">
           Leave a row blank to count none of that source. Leave the limit blank if the bank states
           none — blank is not the same as 100%.
@@ -125,27 +138,53 @@ export interface AdditionalIncomeOption {
         flex-direction: column;
         gap: var(--space-3);
       }
+      /* Capped at the width the longest source label and one narrow figure need. Left to
+         fill the control column, the label and the number it belongs to end up a third of a
+         screen apart and the eye has to travel to pair them. */
       .aie__table {
         inline-size: 100%;
+        max-inline-size: 34rem;
         border-collapse: collapse;
-        max-inline-size: 32rem;
       }
       .aie__table th,
       .aie__table td {
-        padding: var(--space-2) 0;
         text-align: start;
       }
-      /* --color-border-subtle is not a token in this theme, so this rule was invalid at
-         computed-value time and the header had no rule under it at all. */
+      /* The figure column is exactly as wide as the field; everything left over goes to the
+         name. 1% is the CSS idiom for "shrink to content" in an auto-layout table. */
+      .aie__table thead th:last-child,
+      .aie__cell {
+        inline-size: 1%;
+        white-space: nowrap;
+      }
+      /* One step BELOW the band heading, and deliberately not uppercase: the band above
+         already sets an uppercase micro-label, and a second tracked-out row directly under
+         it reads as two headings competing rather than a heading and its columns. */
       .aie__table thead th {
-        font-size: var(--text-sm);
+        padding-block: 0 var(--space-2);
+        font-size: var(--text-xs);
         font-weight: var(--font-semibold);
         color: var(--color-text-secondary);
-        border-block-end: 1px solid var(--color-border-default);
+        /* --color-border-subtle is not a token in this theme, which is why this rule was
+           invalid at computed-value time and the header sat over nothing. */
+        border-block-end: 1px solid var(--border-subtle);
+      }
+      .aie__table tbody th,
+      .aie__table tbody td {
+        padding-block: var(--space-2);
+        border-block-end: 1px solid var(--border-subtle);
+      }
+      /* Pairs the name with its figure under the pointer. The rows are unfilled and their
+         separators are hairlines, so at four rows the only thing joining the two ends of a
+         line is the line itself. */
+      .aie__table tbody tr:hover th,
+      .aie__table tbody tr:hover td {
+        background: var(--color-surface-row-hover);
       }
       .aie__label {
         font-weight: var(--font-medium);
         color: var(--color-text-primary);
+        padding-inline-end: var(--space-4);
       }
       .aie__retired {
         margin-inline-start: var(--space-2);
@@ -157,55 +196,36 @@ export interface AdditionalIncomeOption {
         font-weight: var(--font-normal);
         white-space: nowrap;
       }
-      /* One control drawn as a field with its unit INSIDE it, matching the money and
-         percentage inputs everywhere else in this form. */
-      .aie__field {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
-        padding-inline: var(--space-2);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-field);
-        background: var(--color-surface-default);
-        block-size: var(--size-field);
-        inline-size: 7rem;
+      /* The total rule: heavier than the hairlines above it, which is what says the figure
+         below is stated OVER the rows rather than beside them. */
+      .aie__cap-cell {
+        padding-block: var(--space-3);
+        border-block-start: 1px solid var(--color-border-strong);
       }
-      .aie__field:focus-within {
-        border-color: var(--color-accent-strong);
-        outline: 2px solid var(--color-accent-strong);
-        outline-offset: 1px;
+      .aie__table tbody tr:last-child th,
+      .aie__table tbody tr:last-child td {
+        border-block-end: 0;
       }
-      .aie__input {
-        inline-size: 100%;
-        border: 0;
-        background: transparent;
-        color: var(--color-text-primary);
-        text-align: end;
-        font-variant-numeric: tabular-nums lining-nums;
+      .aie__cap-tail {
+        display: block;
+        margin-block-start: var(--space-0-5);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-normal);
       }
-      .aie__input:focus {
-        outline: none;
-      }
-      .aie__unit {
+      /* Aligned with the table, not with the card: a hint set wider than the thing it is
+         about reads as a note on the whole step. */
+      .aie__hint {
+        margin: 0;
+        max-inline-size: 34rem;
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
       }
-      .aie__cap {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-2);
-      }
-      .aie__cap-label,
-      .aie__cap-tail {
-        color: var(--color-text-primary);
-      }
-      .aie__hint,
       .aie__empty {
         margin: 0;
+        max-inline-size: 42rem;
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
-        max-inline-size: 42rem;
       }
     `,
   ],

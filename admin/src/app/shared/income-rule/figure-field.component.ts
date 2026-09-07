@@ -166,9 +166,14 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
         white-space: nowrap;
       }
 
+      /* Secondary, not tertiary. The unit is what separates twenty per cent of a price from
+         twenty pounds, so it is read, not decoration -- and on this field's ground tertiary
+         measures 3.54:1 in light mode (it passes at 5.04:1 in dark, which is why a light-only
+         failure survives a dark-mode review). The value beside it stays dominant: it is a
+         step larger and inked primary. */
       .ff__unit {
         flex: none;
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
         font-size: var(--text-xs);
         font-weight: var(--font-semibold);
         white-space: nowrap;

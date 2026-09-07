@@ -933,9 +933,6 @@
       <trans-unit id="bank_programs.income.scalar_generic" datatype="html"><source>Figure</source><target>الرقم</target></trans-unit>
 
       <!-- Policy on top of the method: DBR override, combination, documents. -->
-      <trans-unit id="bank_programs.income.dbr_override_label" datatype="html"><source>Debt-burden cap for this rule (%)</source><target>حد عبء الدين لهذه القاعدة (٪)</target></trans-unit>
-      <trans-unit id="bank_programs.income.dbr_override_hint" datatype="html"><source>Applied only when the income came from this rule. Leave empty to use the program's own cap.</source><target>يُطبّق فقط عندما يأتي الدخل من هذه القاعدة. اتركه فارغًا لاستخدام حد البرنامج نفسه.</target></trans-unit>
-      <trans-unit id="bank_programs.income.err_dbr_override" datatype="html"><source>The cap must be greater than 0 and at most 100.</source><target>يجب أن يكون الحد أكبر من ٠ و١٠٠ على الأكثر.</target></trans-unit>
       <trans-unit id="bank_programs.income.combination_label" datatype="html"><source>When the applicant also states a salary</source><target>عندما يذكر مقدّم الطلب راتبًا أيضًا</target></trans-unit>
       <trans-unit id="bank_programs.income.combination_replace" datatype="html"><source>Use this rule's figure instead</source><target>استخدم رقم هذه القاعدة بدلًا منه</target></trans-unit>
       <trans-unit id="bank_programs.income.combination_greater" datatype="html"><source>Use whichever is higher</source><target>استخدم الأعلى منهما</target></trans-unit>
@@ -978,6 +975,7 @@
       <trans-unit id="bank_programs.income.col_to" datatype="html"><source>To</source><target>إلى</target></trans-unit>
       <trans-unit id="bank_programs.income.no_maximum" datatype="html"><source>No maximum</source><target>بلا حد أقصى</target></trans-unit>
       <trans-unit id="bank_programs.income.bands_link_hint" datatype="html"><source>A band's end is the next band's start — edit either box and the other follows. A value below the first edge produces no figures, which is stated to the customer, never shown as zero.</source><target>نهاية الشريحة هي بداية الشريحة التالية — عدّل أي خانة وتتبعها الأخرى. القيمة الأقل من أول حد لا تُنتج أرقامًا، ويُوضَّح ذلك للعميل ولا يُعرض كصفر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.bands_locked_hint" datatype="html"><source>The ranges are the product&apos;s and are the same at every bank selling it. Only the amount beside each one is this bank&apos;s — leave a box as it is to quote what the product states.</source><target>النطاقات مِلك المنتج وهي نفسها لدى كل بنك يبيعه. المبلغ المقابل لكل نطاق وحده هو مِلك هذا البنك — اترك الخانة كما هي ليُحتسب ما ينص عليه المنتج.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_edge_missing" datatype="html"><source>Every band needs a starting value.</source><target>كل شريحة تحتاج قيمة بداية.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_not_ascending" datatype="html"><source>Each band must start higher than the one before it, and the top band must end above where it starts — or be left open.</source><target>يجب أن تبدأ كل شريحة أعلى من التي قبلها، وأن تنتهي الشريحة العليا عند قيمة أعلى من بدايتها — أو تُترك مفتوحة.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_band_income_invalid" datatype="html"><source>Every assumed income must be greater than zero.</source><target>يجب أن يكون كل دخل مفترض أكبر من صفر.</target></trans-unit>
@@ -989,11 +987,6 @@
       <trans-unit id="bank_programs.income.aria.remove_band" datatype="html"><source>Remove this band</source><target>أزل هذه الشريحة</target></trans-unit>
 
       <!-- The in-place rule check panel (US3). -->
-      <trans-unit id="bank_programs.income.check_band" datatype="html"><source>Try it on a sample applicant</source><target>جرّبها على مقدّم طلب تجريبي</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_sub" datatype="html"><source>Runs a sample applicant against what is on screen right now, including edits you have not saved. Nothing is stored.</source><target>يشغّل مقدّم طلب تجريبي على ما هو معروض الآن، بما في ذلك تعديلات لم تحفظها. لا يتم حفظ أي شيء.</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_band_answers" datatype="html"><source>What the customer answered</source><target>ما أجاب به العميل</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_band_person" datatype="html"><source>Their circumstances</source><target>ظروفه</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_run" datatype="html"><source>Check</source><target>افحص</target></trans-unit>
       <trans-unit id="bank_programs.income.check_key_placeholder" datatype="html"><source>Pick a value to test</source><target>اختر قيمة للاختبار</target></trans-unit>
       <trans-unit id="bank_programs.income.check_grade" datatype="html"><source>Sample military grade</source><target>رتبة عسكرية تجريبية</target></trans-unit>
       <trans-unit id="bank_programs.income.check_rank" datatype="html"><source>Sample academic rank</source><target>درجة علمية تجريبية</target></trans-unit>
@@ -1006,21 +999,6 @@
       <trans-unit id="bank_programs.income.check_card_limit" datatype="html"><source>Sample card limit (EGP)</source><target>حد بطاقة تجريبي (ج.م)</target></trans-unit>
       <trans-unit id="bank_programs.income.check_statement" datatype="html"><source>Sample statement balance (EGP)</source><target>رصيد كشف حساب تجريبي (ج.م)</target></trans-unit>
       <trans-unit id="bank_programs.income.check_value" datatype="html"><source>Sample value</source><target>قيمة تجريبية</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_age" datatype="html"><source>Age</source><target>السن</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_salary" datatype="html"><source>Declared salary (EGP)</source><target>الراتب المُعلن (ج.م)</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_obligations" datatype="html"><source>Current monthly payments (EGP)</source><target>الأقساط الشهرية الحالية (ج.م)</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_amount" datatype="html"><source>Amount asked for (EGP)</source><target>المبلغ المطلوب (ج.م)</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_tenor" datatype="html"><source>Term (months)</source><target>المدة (بالشهور)</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_income" datatype="html"><source>Recognised income</source><target>الدخل المعتمد</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_dbr" datatype="html"><source>Debt-burden cap applied</source><target>حد عبء الدين المطبَّق</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_dbr_rule" datatype="html"><source>from this rule</source><target>من هذه القاعدة</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_dbr_program" datatype="html"><source>from the program</source><target>من البرنامج</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_installment" datatype="html"><source>Affordable installment</source><target>القسط الممكن تحمله</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_loan" datatype="html"><source>Estimated loan</source><target>القرض التقديري</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_qualifies" datatype="html"><source>Covers the amount asked for</source><target>يغطي المبلغ المطلوب</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_yes" datatype="html"><source>Yes</source><target>نعم</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_no" datatype="html"><source>No</source><target>لا</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_traced" datatype="html"><source>Traced to <x id="INTERPOLATION"/>.</source><target>مستمد من <x id="INTERPOLATION"/>.</target></trans-unit>
       <!-- The "no figures" sentences. Shown where the income would be — never a zero (FR-031). -->
       <trans-unit id="bank_programs.income.check_no_row" datatype="html"><source>No row matched this value</source><target>لا يوجد صف يطابق هذه القيمة</target></trans-unit>
       <trans-unit id="bank_programs.income.check_no_fact" datatype="html"><source>This applicant was not asked for the detail this method reads</source><target>لم يُسأل مقدّم الطلب عن البيان الذي تقرؤه هذه الطريقة</target></trans-unit>
@@ -1128,7 +1106,6 @@
       <trans-unit id="bank_programs.step.caption" datatype="html"><source>Step <x id="current" equiv-text="current"/> of <x id="total" equiv-text="total"/> · <x id="label" equiv-text="label"/></source><target>الخطوة <x id="current" equiv-text="current"/> من <x id="total" equiv-text="total"/> · <x id="label" equiv-text="label"/></target></trans-unit>
       <trans-unit id="bank_programs.step.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.form.for_bank" datatype="html"><source>For bank</source><target>لبنك</target></trans-unit>
-      <trans-unit id="bank_programs.form.core.title" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.form.core.sub" datatype="html"><source>The name customers see. The catalog fills in how the bank reads an income — change it if this bank differs.</source><target>الاسم الذي يراه العملاء. الكتالوج يملأ كيف يقرأ البنك الدخل — غيّره إذا كان هذا البنك مختلفًا.</target></trans-unit>
       <trans-unit id="bank_programs.field.bank" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>
       <trans-unit id="bank_programs.field.bank.placeholder" datatype="html"><source>Pick a bank</source><target>اختر بنكًا</target></trans-unit>
@@ -1141,19 +1118,26 @@
       <trans-unit id="bank_programs.err.friendly_name_required" datatype="html"><source>Program name is required.</source><target>اسم البرنامج مطلوب.</target></trans-unit>
       <trans-unit id="bank_programs.form.income" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
       <trans-unit id="bank_programs.form.income.not_set" datatype="html"><source>Not set yet</source><target>لم يُحدَّد بعد</target></trans-unit>
-      <trans-unit id="bank_programs.step.income" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
-      <trans-unit id="bank_programs.step.terms" datatype="html"><source>Amount &amp; duration</source><target>المبلغ والمدة</target></trans-unit>
-      <trans-unit id="bank_programs.step.pricing" datatype="html"><source>Pricing &amp; fees</source><target>التسعير والرسوم</target></trans-unit>
       <!-- Rail-only short names: the rail is scanned sideways and seven full names truncate. -->
-      <trans-unit id="bank_programs.step.terms_short" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
-      <trans-unit id="bank_programs.step.pricing_short" datatype="html"><source>Pricing</source><target>التسعير</target></trans-unit>
-      <trans-unit id="bank_programs.step.eligibility" datatype="html"><source>Eligibility</source><target>الأهلية</target></trans-unit>
-      <trans-unit id="bank_programs.step.documents" datatype="html"><source>Documents</source><target>المستندات</target></trans-unit>
       <trans-unit id="bank_programs.step.review" datatype="html"><source>Review</source><target>المراجعة</target></trans-unit>
+      <trans-unit id="bank_programs.step.money" datatype="html"><source>Amount &amp; pricing</source><target>المبلغ والتسعير</target></trans-unit>
+      <trans-unit id="bank_programs.step.money_short" datatype="html"><source>Money</source><target>المال</target></trans-unit>
+      <trans-unit id="bank_programs.step.requirements" datatype="html"><source>Requirements</source><target>المتطلبات</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_name_category" datatype="html"><source>This program name is not offered for this loan type. Pick another name, or add this loan type to it in the program catalog.</source><target>اسم البرنامج هذا غير متاح لنوع التمويل هذا. اختر اسمًا آخر، أو أضف نوع التمويل هذا إليه في كتالوج البرامج.</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_dbr_bands" datatype="html"><source>The caps by income band need fixing before you continue — see the message on the table.</source><target>حدود الأقساط حسب شريحة الدخل تحتاج تصحيحًا قبل المتابعة — راجع الرسالة أعلى الجدول.</target></trans-unit>
+      <trans-unit id="bank_programs.form.core.title_v2" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="bank_programs.form.income_step.sub_v2" datatype="html"><source> How does this bank check what the customer earns? Your answer decides which program names you can pick below. </source><target> كيف يتحقق هذا البنك مما يكسبه العميل؟ إجابتك تحدد أسماء البرامج التي يمكنك اختيارها بالأسفل. </target></trans-unit>
+      <trans-unit id="bank_programs.income.effect.payslip_v2" datatype="html"><source>Pick this and the picker below shows the program names that need income proof.</source><target>اختر هذا لتعرض القائمة بالأسفل أسماء البرامج التي تحتاج إثبات دخل.</target></trans-unit>
+      <trans-unit id="bank_programs.income.effect.no_payslip_v3" datatype="html"><source>Pick this and the picker below shows the program names sold on a surrogate basis. The wizard then adds a Calculation step where you set how the bank works the income out.</source><target>اختر هذا لتعرض القائمة بالأسفل أسماء البرامج التي تُباع بدون كشف راتب. ثم يضيف المعالج خطوة الاحتساب حيث تحدد كيف يحتسب البنك الدخل.</target></trans-unit>
+      <trans-unit id="bank_programs.review.group.income" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
+      <trans-unit id="bank_programs.review.group.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.review.group.calculation" datatype="html"><source>Calculation</source><target>الاحتساب</target></trans-unit>
+      <trans-unit id="bank_programs.review.group.amount" datatype="html"><source>Amount &amp; duration</source><target>المبلغ والمدة</target></trans-unit>
+      <trans-unit id="bank_programs.review.group.pricing" datatype="html"><source>Pricing &amp; fees</source><target>التسعير والرسوم</target></trans-unit>
+      <trans-unit id="bank_programs.review.group.eligibility" datatype="html"><source>Eligibility</source><target>الأهلية</target></trans-unit>
+      <trans-unit id="bank_programs.review.group.documents" datatype="html"><source>Documents</source><target>المستندات</target></trans-unit>
       <trans-unit id="bank_programs.income.aria" datatype="html"><source>How the bank reads the income</source><target>كيف يقرأ البنك الدخل</target></trans-unit>
       <trans-unit id="bank_programs.form.income_step.title" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
-      <trans-unit id="bank_programs.form.income_step.sub" datatype="html"><source> How does this bank check what the customer earns? Your answer decides which program names you can pick next. </source><target> كيف يتحقق هذا البنك مما يكسبه العميل؟ إجابتك تحدد أسماء البرامج التي يمكنك اختيارها بعد ذلك. </target></trans-unit>
-      <trans-unit id="bank_programs.income.effect.payslip" datatype="html"><source>Pick this and the next step shows the program names that need income proof.</source><target>اختر هذا لتعرض الخطوة التالية أسماء البرامج التي تحتاج إثبات دخل.</target></trans-unit>
       <trans-unit id="bank_programs.step.issue_income" datatype="html"><source>Choose how the bank reads the income before you continue.</source><target>اختر كيف يقرأ البنك الدخل قبل المتابعة.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_ok" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are asked <x id="INTERPOLATION_1" equiv-text="x"/>.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> يُسألون <x id="INTERPOLATION_1" equiv-text="x"/>.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_missing" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are never asked <x id="INTERPOLATION_1" equiv-text="x"/>, so this rule will produce no income.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> لا يُسألون <x id="INTERPOLATION_1" equiv-text="x"/> أبدًا، لذا لن تنتج هذه القاعدة أي دخل.</target></trans-unit>
@@ -1186,7 +1170,6 @@
       <trans-unit id="bank_programs.income.no_proof" datatype="html"><source>Nobody has said what <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> reads its income from. Set it once on the program catalog and every bank starts from the same table.</source><target>لم يحدد أحد ما يُحتسب منه دخل <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/>. حدده مرة واحدة في كتالوج البرامج، فيبدأ كل بنك من الجدول نفسه.</target></trans-unit>
       <trans-unit id="bank_programs.income.check_fact" datatype="html"><source>Sample <x id="fact" equiv-text="fact.label"/></source><target>عيّنة <x id="fact" equiv-text="fact.label"/></target></trans-unit>
       <trans-unit id="bank_programs.income.check_fact_key" datatype="html"><source>Sample answer for “<x id="fact" equiv-text="factKey"/>”</source><target>إجابة عيّنة لـ ”<x id="fact" equiv-text="factKey"/>“</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_needs_pricing" datatype="html"><source> Fill the Terms and Pricing steps first — the check needs a rate and a term to work out an installment. </source><target>أكمل خطوتي الشروط والتسعير أولاً — يحتاج الفحص إلى نسبة ومدة لحساب القسط.</target></trans-unit>
       <trans-unit id="bank_programs.income.src_catalog_empty" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> states no amounts on the catalog yet, so this program would quote nobody. Type them below to make them this bank&apos;s, or set them once on the product so every bank starts from the same table.</source><target><x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> لا يحدد أي مبالغ في الكتالوج بعد، فلن يسعّر هذا البرنامج لأحد. اكتبها بالأسفل لتصبح مبالغ هذا البنك، أو حدّدها مرة واحدة على المنتج ليبدأ كل بنك من الجدول نفسه.</target></trans-unit>
       <trans-unit id="bank_programs.income.src_catalog" datatype="html"><source>These are <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/>&apos;s numbers from the catalog. Change any of them and this bank keeps its own copy.</source><target>هذه أرقام <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> من الكتالوج. عدّل أيًّا منها ويحتفظ هذا البنك بنسخته الخاصة.</target></trans-unit>
       <trans-unit id="bank_programs.income.src_own" datatype="html"><source>This bank uses its own numbers. Changes on the catalog no longer reach it.</source><target>يستخدم هذا البنك أرقامه الخاصة. لم تعد تعديلات الكتالوج تصل إليه.</target></trans-unit>
@@ -1232,12 +1215,12 @@
           <context context-type="linenumber">105,110</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="product_rule.active_derivation" datatype="html">
-        <source>This bank works the ceiling out from: <x id="INTERPOLATION" equiv-text="{{ active }}"/></source>
-        <target>هذا البنك يحسب الحد الأقصى من: <x id="INTERPOLATION" equiv-text="{{ active }}"/></target>
+      <trans-unit id="product_rule.active_from" datatype="html">
+        <source>Worked out from</source>
+        <target>يُحسب من</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
-          <context context-type="linenumber">114,115</context>
+          <context context-type="linenumber">304</context>
         </context-group>
       </trans-unit>
       <trans-unit id="product_rule.step.no_default" datatype="html">
@@ -2267,7 +2250,10 @@
       <!-- The friendly form for a no-payslip product: the shape picker, the three
            questions, and the product page's doors into them. -->
       <trans-unit id="bank_programs.eligibility.dbr_by_employment" datatype="html"><source>Caps by kind of applicant</source><target>حدود حسب نوع المتقدم</target></trans-unit>
-      <trans-unit id="bank_programs.eligibility.dbr_by_employment.note" datatype="html"><source>Leave a row blank to fall through to the bands above. A figure here wins for that kind of applicant whatever they earn.</source><target>اترك الصف فارغًا ليُستخدم جدول الشرائح بالأعلى. الرقم هنا يسبق الشرائح لهذا النوع من المتقدمين مهما كان دخله.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_by_employment.note_bands" datatype="html"><source>A figure here wins for that kind of applicant whatever they earn. Leave a row blank and the income bands above apply.</source><target>الرقم هنا يسبق غيره لهذا النوع من المتقدمين مهما كان دخله. اترك الصف فارغًا فيُطبَّق جدول شرائح الدخل بالأعلى.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_by_employment.note_flat" datatype="html"><source>A figure here wins for that kind of applicant whatever they earn. Leave a row blank and the cap above applies.</source><target>الرقم هنا يسبق غيره لهذا النوع من المتقدمين مهما كان دخله. اترك الصف فارغًا فيُطبَّق الحد بالأعلى.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_by_employment.default_bands" datatype="html"><source>Blank — the income bands above apply.</source><target>فارغ — يُطبَّق جدول شرائح الدخل بالأعلى.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_by_employment.default_flat" datatype="html"><source>Blank — the cap above applies.</source><target>فارغ — يُطبَّق الحد بالأعلى.</target></trans-unit>
       <trans-unit id="bank_programs.employment.salaried" datatype="html"><source>Salaried</source><target>موظف براتب</target></trans-unit>
       <trans-unit id="bank_programs.employment.self_employed" datatype="html"><source>Self-employed</source><target>يعمل لحسابه</target></trans-unit>
       <trans-unit id="bank_programs.employment.retired" datatype="html"><source>Retired</source><target>متقاعد</target></trans-unit>
@@ -3201,7 +3187,6 @@
       <trans-unit id="spt.back_product" datatype="html"><source>Back to the product</source><target>العودة إلى المنتج</target></trans-unit>
       <trans-unit id="pcn.summary_payslip" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, sold against a payslip.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُباعًا مقابل كشف راتب.</target></trans-unit>
       <trans-unit id="pcn.summary_link" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, quoting from “<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>”.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُسعِّرًا من «<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>».</target></trans-unit>
-      <trans-unit id="bank_programs.form.max_by_answer" datatype="html"><source> Maximum by answer </source><target>الحد الأقصى حسب الإجابة</target></trans-unit>
       <trans-unit id="max_loan_by_fact.enable" datatype="html"><source>Cap the maximum by an answer</source><target>تحديد الحد الأقصى حسب إجابة</target></trans-unit>
       <trans-unit id="max_loan_by_fact.enable_hint" datatype="html"><source> Only if this bank’s maximum changes with an answer — property type, city, school, branch or down-payment bracket. </source><target>فقط إذا كان الحد الأقصى لهذا البنك يتغير حسب إجابة — نوع الوحدة أو المدينة أو المدرسة أو الفرع أو شريحة المقدَّم.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.keyed_by" datatype="html"><source>Keyed by</source><target>مبني على</target></trans-unit>
@@ -4195,9 +4180,6 @@
       <trans-unit id="bank_programs.form.amount.locked" datatype="html"><source>This program has not said how it works the figure out yet. Pick the way on the Calculation step, then set the amounts.</source><target>هذا البرنامج لم يحدد بعد كيف يحتسب الرقم. اختر الطريقة في خطوة الاحتساب، ثم حدّد المبالغ.</target></trans-unit>
       <trans-unit id="bank_programs.form.amount.locked_cta" datatype="html"><source>Go to Calculation</source><target>اذهب إلى الاحتساب</target></trans-unit>
       <trans-unit id="bank_programs.field.min_income.no_payslip_hint_v2" datatype="html"><source>Checked against the figure the Calculation step produces, not income proof.</source><target>يُقارن بالرقم الناتج من خطوة الاحتساب، وليس بإثبات الدخل.</target></trans-unit>
-      <trans-unit id="bank_programs.income.effect.no_payslip_v2" datatype="html"><source>Pick this and the next step shows the program names sold on a surrogate basis. On the Calculation step you then set how the bank works the income out.</source><target>اختر هذا وستعرض الخطوة التالية أسماء البرامج التي تُباع بدون كشف راتب. وفي خطوة الاحتساب تحدد كيف يحتسب البنك الدخل.</target></trans-unit>
-      <trans-unit id="bank_programs.income.dbr_override_hint_v2" datatype="html"><source>Applied only when the income came from this rule. Leave empty to use the program&apos;s own cap, currently <x id="INTERPOLATION" equiv-text="{{ programCapPercent() }}"/>% (set on the Eligibility step).</source><target>يُطبَّق فقط عندما يأتي الدخل من هذه القاعدة. اتركه فارغًا لاستخدام حد البرنامج نفسه، وهو حاليًا <x id="INTERPOLATION" equiv-text="{{ programCapPercent() }}"/>% (يُحدَّد في خطوة الأهلية).</target></trans-unit>
-      <trans-unit id="bank_programs.eligibility.dbr_rule_override_note" datatype="html"><source>The calculation on this program states its own debt-burden cap of <x id="INTERPOLATION" equiv-text="{{ override }}"/>% — that one wins whenever the income came from the calculation.</source><target>احتساب هذا البرنامج يذكر حد عبء دين خاصًا به قدره <x id="INTERPOLATION" equiv-text="{{ override }}"/>% — وهو الذي يُطبَّق كلما جاء الدخل من الاحتساب.</target></trans-unit>
       <trans-unit id="bank_programs.name_change.confirm_title" datatype="html"><source>Change the program name?</source><target>تغيير اسم البرنامج؟</target></trans-unit>
       <trans-unit id="bank_programs.name_change.confirm_way" datatype="html"><source><x id="NAME" equiv-text="name"/> works its figure out from: <x id="WAY" equiv-text="loss.wayTitle"/>. That choice goes.</source><target><x id="NAME" equiv-text="name"/> يحتسب رقمه من: <x id="WAY" equiv-text="loss.wayTitle"/>. هذا الاختيار سيُلغى.</target></trans-unit>
       <trans-unit id="bank_programs.name_change.confirm_cap_one" datatype="html"><source>One maximum-by-answer row you typed goes.</source><target>سيُلغى صف واحد من صفوف الحد الأقصى حسب الإجابة كتبته بنفسك.</target></trans-unit>
@@ -4215,6 +4197,15 @@
       <trans-unit id="product_rule.way.only_one" datatype="html"><source>This product works the figure out one way: <x id="WAY" equiv-text="only"/>.</source><target>هذا المنتج يحتسب الرقم بطريقة واحدة: <x id="WAY" equiv-text="only"/>.</target></trans-unit>
       <trans-unit id="product_rule.way.only_one_combined" datatype="html"><source>This product works the figure out one way: the lower of <x id="A" equiv-text="first"/> and <x id="B" equiv-text="second"/>.</source><target>هذا المنتج يحتسب الرقم بطريقة واحدة: الأقل من <x id="A" equiv-text="first"/> و<x id="B" equiv-text="second"/>.</target></trans-unit>
       <trans-unit id="product_rule.way.only_one_combined_higher" datatype="html"><source>This product works the figure out one way: the higher of <x id="A" equiv-text="first"/> and <x id="B" equiv-text="second"/>.</source><target>هذا المنتج يحتسب الرقم بطريقة واحدة: الأعلى من <x id="A" equiv-text="first"/> و<x id="B" equiv-text="second"/>.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_rule_cap" datatype="html"><source> Cap for the calculation&apos;s figure </source><target> الحد على الرقم الناتج من الاحتساب </target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_rule_cap.note_narrowed" datatype="html"><source>A figure here wins over every cap above, but only when the income came from the Calculation step. A salary the applicant states gets the caps above. Leave it empty and so does the calculation&apos;s figure.</source><target>الرقم هنا يسبق كل الحدود بالأعلى، لكن فقط عندما يأتي الدخل من خطوة الاحتساب. أما الراتب الذي يذكره المتقدم فتُطبَّق عليه الحدود بالأعلى. اتركه فارغًا فتُطبَّق على الرقم الناتج من الاحتساب هي أيضًا.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_rule_cap.note_flat" datatype="html"><source>A figure here wins over the cap above, but only when the income came from the Calculation step. A salary the applicant states gets the cap above. Leave it empty and so does the calculation&apos;s figure.</source><target>الرقم هنا يسبق الحد بالأعلى، لكن فقط عندما يأتي الدخل من خطوة الاحتساب. أما الراتب الذي يذكره المتقدم فيُطبَّق عليه الحد بالأعلى. اتركه فارغًا فيُطبَّق على الرقم الناتج من الاحتساب هو أيضًا.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_rule_cap.aria" datatype="html"><source>Debt-burden cap for the calculation&apos;s figure, per cent</source><target>حد عبء الدين على الرقم الناتج من الاحتساب، بالنسبة المئوية</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_rule_cap.default_narrowed" datatype="html"><source>Blank — the caps above apply.</source><target>فارغ — تُطبَّق الحدود بالأعلى.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_rule_cap.default_flat" datatype="html"><source>Blank — the cap above applies.</source><target>فارغ — يُطبَّق الحد بالأعلى.</target></trans-unit>
+      <trans-unit id="bank_programs.eligibility.dbr_rule_cap.error" datatype="html"><source> The cap must be greater than 0 and at most 100. </source><target> يجب أن يكون الحد أكبر من ٠ و١٠٠ على الأكثر. </target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_dbr_override" datatype="html"><source>The cap for the calculation&apos;s figure must be greater than 0 and at most 100.</source><target>الحد على الرقم الناتج من الاحتساب يجب أن يكون أكبر من ٠ و١٠٠ على الأكثر.</target></trans-unit>
+      <trans-unit id="bank_programs.review.dbr_rule_cap" datatype="html"><source>Cap for the calculation&apos;s figure</source><target>الحد على الرقم الناتج من الاحتساب</target></trans-unit>
     </body>
   </file>
 </xliff>

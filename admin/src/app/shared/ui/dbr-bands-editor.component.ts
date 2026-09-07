@@ -48,7 +48,7 @@ export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
 /**
  * Income-banded DBR table editor (FR-016 … FR-021a).
  *
- * One implementation, two hosts — the bank program form's eligibility step and
+ * One implementation, two hosts — the bank program form's Debt burden card and
  * any future policy surface — with identical rules, so an admin learns the
  * control once.
  *
@@ -79,7 +79,12 @@ export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
     <div class="bands">
       <div class="bands__head">
         <div>
-          <h4 class="bands__title" i18n="@@dbrBands.title">Debt-burden ratio by income</h4>
+          <!-- Suppressible, because a host that already names this section in its own
+               eyebrow would otherwise stack two headings that say the same thing. Default
+               ON, so a host that renders the editor bare keeps its title. -->
+          @if (showTitle()) {
+            <h4 class="bands__title" i18n="@@dbrBands.title">Debt-burden ratio by income</h4>
+          }
           <p class="bands__hint" i18n="@@dbrBands.hint">
             Lower incomes usually carry a tighter cap. Upper bounds are inclusive; the last band
             covers everything above.
@@ -221,12 +226,21 @@ export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
         color: var(--color-text-primary);
       }
 
+      /* Secondary, not tertiary: this is a sentence the operator has to READ before they
+         can decide whether to band at all, and tertiary measures 3.83:1 on this ground in
+         light mode -- under AA at this size. */
       .bands__hint {
-        margin: var(--space-1) 0 0;
+        margin: 0;
         font-size: var(--text-xs);
         line-height: var(--line-height-base);
-        color: var(--color-text-tertiary);
-        max-inline-size: 52ch;
+        color: var(--color-text-secondary);
+        max-inline-size: 60ch;
+      }
+
+      /* Only when the title is actually rendered -- with it suppressed the hint IS the
+         first line of the block and must sit flush under the host's own eyebrow. */
+      .bands__title + .bands__hint {
+        margin-block-start: var(--space-1);
       }
 
       .bands__clear,
@@ -381,6 +395,16 @@ export class DbrBandsEditorComponent {
 
   /** Flat cap of the host, used as the starting cap when banding is switched on. */
   readonly flatCapPercent = input<string>('50.0000');
+
+  /**
+   * Whether to render the editor's own `<h4>`.
+   *
+   * `false` for a host that already names this block — the bank-program wizard puts an
+   * eyebrow above it — where the two headings otherwise restate each other one line apart.
+   * The HINT is never suppressed: it carries the two rules (bounds are inclusive, the last
+   * band is open-ended) that nothing else on the screen states.
+   */
+  readonly showTitle = input<boolean>(true);
 
   // Aria labels + tooltips are plain properties so `i18n` extraction still sees them.
   readonly upToAriaLabel = $localize`:@@dbrBands.aria.upTo:Band upper bound, monthly income in EGP`;

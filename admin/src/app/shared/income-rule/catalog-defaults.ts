@@ -35,6 +35,7 @@ import {
   STEP_OP_SHAPE,
   stepRefs,
   stepTakesFigures,
+  type IncomeBand,
   type RuleGate,
   type RuleStep,
   type StepFigures,
@@ -290,4 +291,109 @@ export function withAllDefaults(
     filled.push(slot.id);
   }
   return { figures: next, filled };
+}
+
+// --- band ranges are the PRODUCT'S, the figure beside each is the bank's -----------------
+//
+// A bank program does not get to re-cut a surrogate product's brackets. Which ranges exist
+// is the SHAPE of the table, and the shape belongs to the product exactly as `steps` and
+// `gates` do (`mergeProductRuleStructure` on the server, `withStoredStructure` here) — it was
+// only ever editable per bank because the edges happen to be stored inside `stepParams`
+// alongside the figures. Two banks selling one product off different brackets is not a
+// product with two shapes; it is one product nobody can read.
+
+/**
+ * The bank's band table re-cut onto the product's ranges.
+ *
+ * The value column is carried across BY EDGE and never by position: a product that gains a
+ * bracket at the bottom would otherwise shift every figure up one row and silently re-price
+ * the whole table. A range this bank has typed nothing against takes the product's own
+ * figure — that is the default the operator edits. A stored figure whose range the product
+ * no longer publishes is dropped, because there is no longer a range for it to price.
+ */
+export function bandsOnProductEdges(
+  productBands: readonly IncomeBand[],
+  own: readonly IncomeBand[] | undefined,
+): IncomeBand[] {
+  const byEdge = new Map<string, string>();
+  for (const row of own ?? []) byEdge.set(edgeKey(row), row.incomeEGP);
+  return productBands.map((row) => ({
+    fromInclusive: row.fromInclusive,
+    toExclusive: row.toExclusive,
+    // `??`, not `||`: a figure the operator has deliberately CLEARED is an empty string, and
+    // quietly putting the product's number back would undo an edit on a control that never
+    // said it would. The blank is what the editor's own verdict then refuses.
+    incomeEGP: byEdge.get(edgeKey(row)) ?? row.incomeEGP,
+  }));
+}
+
+/** Two rows are the same range when both edges match — trimmed, since the boxes are text. */
+function edgeKey(band: IncomeBand): string {
+  return `${(band.fromInclusive ?? '').trim()}→${(band.toExclusive ?? '').trim()}`;
+}
+
+function sameBands(a: readonly IncomeBand[], b: readonly IncomeBand[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((row, i) => {
+      const other = b[i];
+      return (
+        other !== undefined && edgeKey(row) === edgeKey(other) && row.incomeEGP === other.incomeEGP
+      );
+    })
+  );
+}
+
+/** One band slot and the table it should be holding. */
+export interface RelockedBands {
+  readonly id: string;
+  readonly bands: IncomeBand[];
+}
+
+/**
+ * Every band slot whose stored table is not already cut on the product's ranges.
+ *
+ * Called at the two moments a bank's figure map can end up off them — the rule landing on
+ * load (a legacy table, typed before the ranges were the product's) and a way being picked
+ * (which prunes the losing way and leaves the winning one blank). Empty at every other
+ * moment, so it is cheap to ask and safe to ask twice.
+ *
+ * `ownedSlots` is PASSED IN for the reason `slotsMissingDefault` states: re-cutting a slot
+ * belonging to a way this bank does not sell writes a table onto a way the screen has
+ * already pruned.
+ */
+export function bandsToRelock(
+  shapes: ReadonlyMap<string, SlotShape>,
+  figures: Readonly<Record<string, StepFigures>>,
+  catalogFigures: Readonly<Record<string, StepFigures>> | undefined,
+  options: { readonly ownedSlots?: ReadonlySet<string> } = {},
+): RelockedBands[] {
+  const owned = options.ownedSlots;
+  const out: RelockedBands[] = [];
+  for (const slot of shapes.values()) {
+    if (slot.shape !== 'bands') continue;
+    if (owned !== undefined && !owned.has(slot.id)) continue;
+    const product = catalogFigures?.[slot.id]?.bands;
+    // No product ranges = nothing to lock to. A hand-wired name rule that states no bands
+    // leaves the bank authoring its own, which is the only table it has.
+    if (product === undefined || product.length === 0) continue;
+    const own = figures[slot.id]?.bands;
+    const next = bandsOnProductEdges(product, own);
+    if (own !== undefined && sameBands(own, next)) continue;
+    out.push({ id: slot.id, bands: next });
+  }
+  return out;
+}
+
+/** The figure map with every listed band slot re-cut. Through `writeFigure`, as a keystroke goes. */
+export function withLockedBands(
+  figures: Readonly<Record<string, StepFigures>>,
+  relocked: readonly RelockedBands[],
+): Record<string, StepFigures> {
+  // The SAME reference when there is nothing to do, so a caller can test identity instead of
+  // writing a fresh map — a needless write here is a needless dirty form on the wizard.
+  if (relocked.length === 0) return figures as Record<string, StepFigures>;
+  let next: Record<string, StepFigures> = { ...figures };
+  for (const slot of relocked) next = writeFigure(next, slot.id, { bands: slot.bands });
+  return next;
 }

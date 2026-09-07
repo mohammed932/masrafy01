@@ -75,7 +75,6 @@ import type {
   DbrBand,
   IncomeAssumptionStrategy,
   IncomeAssumptionConfig,
-  IncomeRuleDraftProgram,
   IncomeBand,
   IncomeKeyTableRow,
   ProgramNameIncomeRule,
@@ -95,14 +94,15 @@ import {
   registryFacts,
 } from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
-import { IncomeRuleCheckComponent } from '@shared/income-rule/income-rule-check.component';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { catalogRuleIsProductBacked, catalogRuleOf } from '@shared/income-rule/catalog-rule';
 import { nameChangeLoss, type NameChangeLoss } from './name-change-losses';
 import {
+  bandsToRelock,
   slotShapes,
   slotsMissingDefault,
   withAllDefaults,
+  withLockedBands,
   type SlotDefault,
 } from '@shared/income-rule/catalog-defaults';
 import { gateTitleFor } from '@shared/income-rule/gate-labels';
@@ -120,6 +120,7 @@ import {
   stepIdsFor,
   type StepId,
 } from './wizard-step-plan';
+import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
 import { BanksApiService } from '../../banks/banks.api.service';
 import { additionalIncomeSources } from '../additional-income-sources';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
@@ -127,12 +128,10 @@ import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
   AdditionalIncomeEditorComponent,
   DbrBandsEditorComponent,
-  MaxLoanByFactEditorComponent,
   WizardStepsComponent,
   capConfigFrom,
   capGridFrom,
   dbrBandsErrorFor,
-  maxLoanByFactErrorFor,
   IncomeBasisCardsComponent,
   type AdditionalIncomeConfig,
   type AdditionalIncomeOption,
@@ -156,17 +155,25 @@ type ToggleKey = 'tieredRates';
  */
 // `StepId` — and which steps a given program walks — lives in `wizard-step-plan.ts`.
 
+/** A step verdict that lives in a signal rather than in a form control. */
+type StepIssue = 'basis' | 'nameCategory' | 'incomeRule' | 'dbrBands' | 'dbrOverride';
+
 interface WizardStep {
   readonly id: StepId;
-  /** The step's full name. Used by the review step's section headings. */
+  /** The step's full name. Printed by the step caption ("Step 3 of 5 · Amount & pricing"). */
   readonly label: string;
   /**
    * What the RAIL prints. Optional — falls back to `label`.
    *
    * Two names because the two surfaces are read differently: a rail is scanned
-   * sideways, where seven names compete for one row and a long one is truncated
-   * into an ellipsis, while a review heading sits alone above the rows it names
-   * and can afford to say "Amount & duration" in full.
+   * sideways, where the names compete for one row and the shared component
+   * MEASURES itself and drops every inactive label to a bare numeral once they
+   * stop fitting — with these five that is 860px — while the caption below it
+   * sits alone and can afford "Amount & pricing" in full.
+   *
+   * NOT the review's headings any more: three steps now host two review groups
+   * each, so the review names its own sections (`reviewTitle`) and is
+   * deliberately finer-grained than the rail.
    */
   readonly railLabel?: string;
   /** Top-level form-group names validated when this step is left. */
@@ -180,8 +187,22 @@ interface ReviewRow {
 }
 
 interface ReviewGroup {
+  /**
+   * `@for` track key. NOT the step index any more: three steps host two groups each
+   * (the money step reads back as amount + pricing, requirements as eligibility +
+   * documents, program as income + name), and duplicate track keys make Angular throw
+   * NG0955 and mis-reconcile the list.
+   */
+  readonly key: string;
   /** Step index the "Edit" affordance jumps to. */
   readonly step: number;
+  /**
+   * `id` of the card on that step to land on. Without it Edit on "Pricing & fees" lands
+   * at the top of a five-card step, two cards above what the operator clicked — which
+   * would make the merge measurably worse at the one thing this step promises ("any row
+   * can be corrected in place"). Omitted where the group IS the top of its step.
+   */
+  readonly anchor?: string;
   readonly title: string;
   readonly rows: readonly ReviewRow[];
 }
@@ -244,11 +265,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
     NzSelectModule,
     NzSwitchModule,
     DbrBandsEditorComponent,
+    FigureFieldComponent,
     AdditionalIncomeEditorComponent,
-    MaxLoanByFactEditorComponent,
     IncomeBasisCardsComponent,
     IncomeAssumptionSectionComponent,
-    IncomeRuleCheckComponent,
     MoneyInputDirective,
     WizardStepsComponent,
   ],
@@ -422,46 +442,12 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                page, so a long step never squeezes itself into a short box with
                its own scrollbar. The action bar below scrolls with it. -->
           <div class="step-stack">
-            <!-- ═══ STEP 1 — INCOME ═════════════════════════════════════════════
-                 A step of its own, and the first one, because everything after it is
-                 downstream: it narrows the program names step 2 may offer, and it
-                 decides whether Eligibility carries a whole rate-table editor. Asked
-                 as two full cards rather than the pills it used to be — a step with
-                 one question on it can afford to say what each answer commits to,
-                 and the line at the foot of each card is the dependency said out
-                 loud instead of discovered two steps later. -->
-            @if (currentStepId() === 'income') {
-              <!-- is-bare: this step's body IS two tiles, so the panel behind them
-                   was a card holding cards — three nested surfaces for one question.
-                   Dropping its fill and border leaves the rail and the two answers,
-                   which is all the step ever had. -->
-              <section class="card is-bare">
-                <header class="card-head">
-                  <div>
-                    <h2 class="card-title" i18n="@@bank_programs.form.income_step.title">Income</h2>
-                    <p class="card-sub" i18n="@@bank_programs.form.income_step.sub">
-                      How does this bank check what the customer earns? Your answer decides which
-                      program names you can pick next.
-                    </p>
-                  </div>
-                </header>
-
-                <!-- Shared with the catalog's own create screen: two copies of the one
-                     question the whole platform turns on is how two screens come to
-                     describe one decision in different words. What the answer COMMITS the
-                     operator to is still this wizard's own — it names THIS wizard's later
-                     steps — so it arrives as the effects input. -->
-                <app-income-basis-cards
-                  [value]="basisAnswered()"
-                  [ariaLabel]="incomeStepAria"
-                  [effects]="basisEffects()"
-                  groupName="incomeBasis"
-                  (picked)="pickBasis($event)"
-                />
-              </section>
-            }
-
-            <!-- ═══ STEP 2 — PROGRAM ════════════════════════════════════════════ -->
+            <!-- ═══ STEP 1 — PROGRAM ════════════════════════════════════════════
+                 The income question is the first CARD here rather than a step of its own.
+                 It still reshapes what comes after — it narrows the program names, and it
+                 decides whether a Calculation step exists at all — but it also disables the
+                 two controls six inches below it, and that is the version an operator can
+                 watch. A gate you see unlock teaches more than a page turn. -->
             @if (currentStepId() === 'program') {
               <!-- Create reached without a loan type (direct URL): the value is not
                guessable, and defaulting it would file the program under the
@@ -479,10 +465,39 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                 </div>
               }
 
-              <section class="card" formGroupName="identity">
+              <!-- is-bare: this step's body IS two tiles, so the panel behind them
+                   was a card holding cards — three nested surfaces for one question.
+                   Dropping its fill and border leaves the rail and the two answers,
+                   which is all the step ever had. -->
+              <section id="card-income-basis" class="card is-bare">
                 <header class="card-head">
                   <div>
-                    <h2 class="card-title" i18n="@@bank_programs.form.core.title">Program</h2>
+                    <h2 class="card-title" i18n="@@bank_programs.form.income_step.title">Income</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.income_step.sub_v2">
+                      How does this bank check what the customer earns? Your answer decides which
+                      program names you can pick below.
+                    </p>
+                  </div>
+                </header>
+
+                <!-- Shared with the catalog's own create screen: two copies of the one
+                     question the whole platform turns on is how two screens come to
+                     describe one decision in different words. What the answer COMMITS the
+                     operator to is still this wizard's own — it names THIS wizard's later
+                     steps — so it arrives as the effects input. -->
+                <app-income-basis-cards
+                  [value]="basisAnswered()"
+                  [ariaLabel]="incomeStepAria"
+                  [effects]="basisEffects()"
+                  groupName="incomeBasis"
+                  (picked)="pickBasis($event)"
+                />
+              </section>
+
+              <section id="card-program" class="card" formGroupName="identity">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.core.title_v2">Name</h2>
                     <p class="card-sub" i18n="@@bank_programs.form.core.sub">
                       The name customers see. The catalog fills in how the bank reads an income —
                       change it if this bank differs.
@@ -641,25 +656,22 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                  purpose: the operator states how the bank works the figure out — which of
                  the product's ways, its numbers, the I-Score table, the rule's own DBR cap —
                  before typing the amounts that live downstream of it. The whole income block
-                 moved here from the Eligibility step verbatim; only the wrapper changed.
+                 moved here from the old Eligibility step verbatim; only the wrapper changed.
                  Exists iff incomeSurrogateActive() is true; see wizard-step-plan.ts. -->
             @if (currentStepId() === 'calculation') {
-              <!-- ONE CARD, THREE BANDS.
-                   This block used to be bare on the reasoning that its body already drew
-                   its own surfaces — and that was true of the body, but it made this
-                   section the only thing on the step that was not a card while the two
-                   below it (Eligibility, Debt burden) are. What the body actually held was
-                   a bordered section, a bare hairline block and a bordered elevated card:
-                   three peers, three treatments, inside a container that claimed to be
-                   avoiding exactly that. The frames are gone from all three (see
-                   section.styles.scss and .chk), each is a hairline-separated BAND with
-                   one micro-label, and this becomes a plain peer of its two neighbours. -->
+              <!-- ONE CARD, TWO BANDS.
+                   Three, until the sample-applicant checker was taken off the step: it ran a
+                   made-up applicant against the figures above it and printed a trace, which
+                   is a debugging surface, and it was the tallest thing on a step already
+                   past 2000px — thirteen empty inputs and a Check button standing between
+                   the operator and Continue. The panel is gone; the endpoint behind it is
+                   untouched. What is left is the two bands that are actually the answer:
+                   how the figure is worked out, and what else counts as income. -->
               <section class="card income-block">
-                <!-- card-head, and it is load-bearing: from 1024up this page lays a card out
-                     as a label rail plus a column of controls, and card > :not(.card-head)
-                     puts everything else in column 2. Named anything else, this header sat in
-                     the control column and left a 353px rail empty beside it — which is what
-                     made the step look like it had a margin nobody could explain. -->
+                <!-- Same head every other step draws, so the class is what makes this one
+                     read as a peer of Eligibility and Debt burden rather than as loose
+                     markup: title, the sentence under it, then the controls at full
+                     width. -->
                 <header class="card-head">
                   <div>
                     <!-- The STEP's own name, not a second one: a card headed "Income
@@ -673,9 +685,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                         >.
                       </p>
                     }
-                    <!-- Inside the rail, under the sentence it belongs to. It used to sit on
-                         the opposite end of a space-between row, which the 17rem rail has no
-                         room for. -->
+                    <!-- Under the sentence it belongs to, not on the far end of a
+                         space-between row — at full width that put the link a screen away
+                         from the name it sets. -->
                     @if (programNameKeyValue()) {
                       <a
                         class="income-catalog-link"
@@ -867,7 +879,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       [figuresAreOwn]="amountsValue() === 'own'"
                       [catalogFigures]="ruleCatalogFigures()"
                       [showsCatalogDefaults]="amountsValue() === 'own'"
-                      [programCapPercent]="dbrFlatCap()"
                     ></app-income-assumption-section>
                   </div>
 
@@ -887,26 +898,15 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       />
                     </div>
                   }
-
-                  <!-- The third band heads ITSELF, in the same ramp: it is a component with
-                       one host, and a label supplied from out here would be a second
-                       heading over the one it already draws. -->
-                  <div class="income-band">
-                    <app-income-rule-check
-                      [programCode]="editingProgramCode()"
-                      [draftProgram]="draftProgramForCheck()"
-                      [draft]="liveIncomeRuleDraft()"
-                      [ruleSteps]="ruleSteps()"
-                      [ruleGates]="ruleGates()"
-                    ></app-income-rule-check>
-                  </div>
                 }
               </section>
             }
 
-            <!-- ═══ STEP 2 — AMOUNT & DURATION ══════════════════════════════════ -->
-            @if (currentStepId() === 'terms') {
-              <section class="card" formGroupName="loanLimits">
+            <!-- ═══ STEP 3 — AMOUNT & PRICING ═══════════════════════════════════
+                 What the loan is and what it costs. Five cards, in the order they
+                 reference each other: amount → duration → rate → bands → fees. -->
+            @if (currentStepId() === 'money') {
+              <section id="card-amount" class="card" formGroupName="loanLimits">
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.amount.title">Loan amount</h2>
@@ -981,24 +981,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   </nz-form-item>
                 </div>
 
-                <!-- The maximum above is this program's flat ceiling; the table below
-                 states it per ANSWER, which is how nine of the source sheets print it.
-                 Beside the flat field and not in an "advanced" panel, because on those
-                 programs the table IS the maximum and the flat one is only its backstop. -->
-                <div class="cap-table">
-                  <h3 class="cap-table-title" i18n="@@bank_programs.form.max_by_answer">
-                    Maximum by answer
-                  </h3>
-                  <app-max-loan-by-fact-editor
-                    [facts]="incomeFacts()"
-                    [config]="maxLoanByFact()"
-                    (configChange)="onMaxLoanByFact($event)"
-                    [productCap]="productCap()"
-                    [productDefaults]="productCapDefaults()"
-                    [productLabel]="programNameLabel()"
-                    [locked]="amountsLocked()"
-                  ></app-max-loan-by-fact-editor>
-                </div>
+                <!-- The per-answer maximum is not edited here any more. It is the
+                 product's own ceiling table and the Calculation step already shows those
+                 figures beside the way they belong to, so a second grid on this step was
+                 one number with two homes. What a program already stores is still read on
+                 load and sent back unchanged, the same way maxLoanAdjustments is. -->
               </section>
 
               <!-- Tenor -->
@@ -1066,11 +1053,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   </nz-form-item>
                 </div>
               </section>
-            }
-
-            <!-- ═══ STEP 3 — PRICING & FEES ═════════════════════════════════════ -->
-            @if (currentStepId() === 'pricing') {
-              <section class="card" formGroupName="pricing">
+              <!-- Rate, bands and fees continue on the same step. The band table's own note
+                   — "loans under X fall outside every band" — is about the minimum loan
+                   amount typed at the top of this step; as two steps that sentence pointed
+                   somewhere the operator could not see without navigating. -->
+              <section id="card-pricing" class="card" formGroupName="pricing">
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.rate.title">Interest rate</h2>
@@ -1472,9 +1459,12 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
               </section>
             }
 
-            <!-- ═══ STEP 4 — ELIGIBILITY ════════════════════════════════════════ -->
-            @if (currentStepId() === 'eligibility') {
-              <section class="card" formGroupName="eligibility">
+            <!-- ═══ STEP 4 — REQUIREMENTS ═══════════════════════════════════════
+                 Who qualifies, how much of their income the bank will commit, and what
+                 they have to bring. Debt burden reads the minimum income typed in the
+                 card above it, so the order is forced, not preferred. -->
+            @if (currentStepId() === 'requirements') {
+              <section id="card-eligibility" class="card" formGroupName="eligibility">
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.eligibility_core.title">
@@ -1631,20 +1621,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                     </p>
                   </div>
                 </header>
-                <!-- The rule's own cap wins over everything on this card whenever the income came
-                     from the calculation (resolveDbrCap: rule override, then by employment, then
-                     bands, then flat). Said here so the two screens do not read as duplicates of
-                     one setting — they are two settings, and this is which one is in force. -->
-                @if (incomeSurrogateActive() && dbrOverrideValue(); as override) {
-                  <p
-                    class="dbr-rule-note"
-                    role="status"
-                    i18n="@@bank_programs.eligibility.dbr_rule_override_note"
-                  >
-                    The calculation on this program states its own debt-burden cap of
-                    {{ override }}% — that one wins whenever the income came from the calculation.
-                  </p>
-                }
                 <div class="card-body">
                   <!-- One number, one switch: stacked rather than side-by-side, so the
                  cap keeps a hand-sized field instead of stretching half the card,
@@ -1698,6 +1674,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       [bands]="dbrBands()"
                       (bandsChange)="dbrBands.set($event)"
                       [flatCapPercent]="dbrFlatCap()"
+                      [showTitle]="false"
                     ></app-dbr-bands-editor>
                   </div>
 
@@ -1707,43 +1684,136 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   <div class="dbr-bands" [class.is-muted]="skipDbr">
                     <h3
                       class="dbr-bands-title"
+                      id="dbrEmpTitle"
                       i18n="@@bank_programs.eligibility.dbr_by_employment"
                     >
                       Caps by kind of applicant
                     </h3>
-                    <p
-                      class="dbr-emp-note"
-                      i18n="@@bank_programs.eligibility.dbr_by_employment.note"
-                    >
-                      Leave a row blank to fall through to the bands above. A figure here wins for
-                      that kind of applicant whatever they earn.
+                    <!-- The sentence branches because the old one was FALSE half the time:
+                         it said "falls through to the bands above" on a program with no band
+                         table, which is the default. Where a blank row lands is a fact this
+                         card already knows, so it says the true half. -->
+                    <p class="dbr-emp-note">
+                      @if (dbrBands().length > 0) {
+                        <ng-container
+                          i18n="@@bank_programs.eligibility.dbr_by_employment.note_bands"
+                          >A figure here wins for that kind of applicant whatever they earn. Leave a
+                          row blank and the income bands above apply.</ng-container
+                        >
+                      } @else {
+                        <ng-container i18n="@@bank_programs.eligibility.dbr_by_employment.note_flat"
+                          >A figure here wins for that kind of applicant whatever they earn. Leave a
+                          row blank and the cap above applies.</ng-container
+                        >
+                      }
                     </p>
-                    <div class="dbr-emp">
+                    <!-- Rows, not a three-column auto-fit grid. The grid gave each 6rem field a
+                         14rem cell, so every field trailed half a column of dead space and the
+                         three of them never lined up under one another. -->
+                    <!-- Named by its own heading: a bare list of three percentages announces as
+                         "list, 3 items" with nothing saying what the three are caps ON. Each field
+                         carries the fall-through in words itself, so the list needs no description
+                         on top of that. -->
+                    <ul class="dbr-emp" aria-labelledby="dbrEmpTitle">
                       @for (bucket of employmentBuckets; track bucket) {
-                        <label class="dbr-emp-row">
-                          <span class="dbr-emp-label">{{ employmentBucketLabel(bucket) }}</span>
-                          <span class="dbr-emp-field">
-                            <input
-                              class="dbr-emp-input"
-                              type="text"
-                              inputmode="decimal"
-                              [value]="dbrByEmployment()[bucket] ?? ''"
-                              (input)="setDbrForEmployment(bucket, $any($event.target).value)"
-                              [attr.aria-label]="employmentBucketLabel(bucket)"
-                            />
-                            <span class="dbr-emp-unit" aria-hidden="true">%</span>
-                          </span>
-                        </label>
+                        <li class="dbr-emp-row">
+                          <label class="dbr-emp-label" [attr.for]="'dbrEmp-' + bucket">{{
+                            employmentBucketLabel(bucket)
+                          }}</label>
+                          <!-- The house field (v18.1.5): the unit lives INSIDE the box. As a bare
+                               input with a floating "%" beside it, the three of these read as
+                               unlabelled slabs with stray symbols after them — and it was the only
+                               figure input on this card outside the shared control. -->
+                          <app-figure-field
+                            [fieldId]="'dbrEmp-' + bucket"
+                            [value]="dbrByEmployment()[bucket] ?? ''"
+                            (valueChange)="setDbrForEmployment(bucket, $event)"
+                            unit="%"
+                            [placeholder]="dbrEmploymentFallback()"
+                            [placeholderNote]="dbrEmploymentFallbackNote()"
+                          ></app-figure-field>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+
+                  <!-- The narrowest cap of the four, and the one that beats the other three —
+                       so it closes the card, continuing the broad-to-narrow order the three
+                       above already read in (flat, then by income, then by applicant).
+
+                       It used to be a field on the Calculation step with a sentence pointing
+                       across the step boundary at this card's flat cap, and a second sentence
+                       here pointing back. Two controls a step apart, both called a debt-burden
+                       cap, is what made one setting out of two: the resolver reads the rule
+                       override, then the by-applicant map, then the bands, then the flat cap,
+                       and all four of those are now on one card in that order.
+
+                       Rendered only where it can ever apply. The value is scoped to the income
+                       rule — it is stored on the income assumption, not on eligibility — and the
+                       resolver is handed
+                       it ONLY for a surrogate-derived income — a salary the applicant states is a
+                       payslip figure and gets the caps above, even on a surrogate program — so on
+                       a payslip program, or a surrogate one whose method states no figure of its
+                       own, the box would have no consequence. -->
+                  @if (ruleCapApplies()) {
+                    <div class="dbr-bands" [class.is-muted]="skipDbr">
+                      <h3 class="dbr-bands-title" i18n="@@bank_programs.eligibility.dbr_rule_cap">
+                        Cap for the calculation's figure
+                      </h3>
+                      <!-- Both halves of the scope, because either alone misleads: it wins over
+                           everything on this card, AND only over a figure the calculation worked
+                           out. A bank that states 45 here has not capped the applicant who brings
+                           a payslip. -->
+                      <p class="dbr-emp-note">
+                        @if (dbrBands().length > 0 || dbrByEmploymentSet()) {
+                          <ng-container
+                            i18n="@@bank_programs.eligibility.dbr_rule_cap.note_narrowed"
+                            >A figure here wins over every cap above, but only when the income came
+                            from the Calculation step. A salary the applicant states gets the caps
+                            above. Leave it empty and so does the calculation's
+                            figure.</ng-container
+                          >
+                        } @else {
+                          <ng-container i18n="@@bank_programs.eligibility.dbr_rule_cap.note_flat"
+                            >A figure here wins over the cap above, but only when the income came
+                            from the Calculation step. A salary the applicant states gets the cap
+                            above. Leave it empty and so does the calculation's
+                            figure.</ng-container
+                          >
+                        }
+                      </p>
+                      <!-- Bound by value, not by control NAME: the control belongs to the income
+                           assumption group and this card element carries a form-group name of
+                           "eligibility", so a control name here would resolve to
+                           eligibility -> dbrCapPercentOverride and throw. Same shared field the
+                           three by-applicant rows use, so the four caps are one control drawn four
+                           times rather than two shapes on one card. -->
+                      <app-figure-field
+                        fieldId="dbrCapPercentOverride"
+                        [value]="dbrOverrideValue() ?? ''"
+                        (valueChange)="setDbrOverride($event)"
+                        unit="%"
+                        [ariaLabel]="dbrRuleCapAriaLabel"
+                        [placeholder]="dbrRuleCapFallback()"
+                        [placeholderNote]="dbrRuleCapFallbackNote()"
+                      ></app-figure-field>
+                      @if (dbrOverrideError()) {
+                        <p
+                          class="field-warn"
+                          role="alert"
+                          i18n="@@bank_programs.eligibility.dbr_rule_cap.error"
+                        >
+                          The cap must be greater than 0 and at most 100.
+                        </p>
                       }
                     </div>
-                  </div>
+                  }
                 </div>
               </section>
-            }
-
-            <!-- ═══ STEP 5 — DOCUMENTS & NOTES ══════════════════════════════════ -->
-            @if (currentStepId() === 'documents') {
-              <section class="card" formGroupName="documents">
+              <!-- Documents & notes closes the step, and it is the only card here with no
+                   validator on either field — it can never be what the step banner is talking
+                   about. Two optional boxes are the right thing to land on before Review. -->
+              <section id="card-documents" class="card" formGroupName="documents">
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.documents.title">
@@ -1789,9 +1859,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
               </section>
             }
 
-            <!-- ═══ STEP 6 — REVIEW ═════════════════════════════════════════════
+            <!-- ═══ STEP 5 — REVIEW ═════════════════════════════════════════════
                A read-back, not a form: every row is a value the admin typed, and
-               every group jumps straight back to the step that owns it. -->
+               every group jumps straight back to the CARD that owns it. Deliberately
+               finer than the rail — a merged money step read back as one twelve-row
+               list is worse to scan than two named halves. -->
             @if (currentStepId() === 'review') {
               <section class="card review">
                 <header class="card-head">
@@ -1805,11 +1877,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                 </header>
 
                 <div class="card-body">
-                  @for (g of reviewGroups(); track g.step) {
+                  @for (g of reviewGroups(); track g.key) {
                     <div class="review-group">
                       <div class="review-group-head">
                         <h3 class="review-group-title">{{ g.title }}</h3>
-                        <button type="button" class="review-edit" (click)="goTo(g.step)">
+                        <button type="button" class="review-edit" (click)="goTo(g.step, g.anchor)">
                           <span i18n="@@bank_programs.form.review.edit">Edit</span>
                         </button>
                       </div>
@@ -1963,51 +2035,47 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       .dbr-bands.is-muted {
         opacity: 0.55;
       }
+      /* Same row idiom as the band table one section up: a bordered row on the card's own
+         ground, the same radius, the same focus-within edge. The two sub-sections refine
+         the one cap between them, so they read as one control learned once. */
       .dbr-emp {
-        display: grid;
-        gap: var(--space-3);
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-        max-inline-size: 44rem;
-      }
-      .dbr-emp-row {
+        list-style: none;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+        margin: var(--space-3) 0 0;
+        padding: 0;
+        max-inline-size: 34rem;
       }
-      .dbr-emp-label {
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-secondary);
-      }
-      .dbr-emp-field {
-        display: inline-flex;
+      .dbr-emp-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
-        gap: var(--space-2);
-      }
-      .dbr-emp-input {
-        inline-size: 6rem;
-        min-block-size: var(--size-field);
-        padding-inline: var(--space-3);
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-3);
         border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-field);
-        background: var(--bg-subtle);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-default);
+        transition: border-color var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .dbr-emp-row:focus-within {
+        border-color: var(--color-border-focus);
+      }
+      /* The row's identity, so it carries the row the way .band__index carries a band --
+         primary ink at body size, not the xs secondary micro-label it was, which put the
+         name of the applicant below the name of the unit beside it. */
+      .dbr-emp-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
         color: var(--color-text-primary);
-        font: inherit;
-        font-size: var(--text-sm);
+        cursor: pointer;
       }
-      .dbr-emp-input:focus-visible {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: var(--focus-halo);
-      }
-      .dbr-emp-unit {
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-      }
+      /* Matches .bands__hint exactly -- these are the two sub-sections of one card and
+         their explanatory lines were set two steps apart on the ramp. */
       .dbr-emp-note {
-        margin: 0 0 var(--space-3);
-        max-inline-size: 44rem;
-        font-size: var(--text-sm);
+        margin: 0;
+        max-inline-size: 60ch;
+        font-size: var(--text-xs);
         color: var(--color-text-secondary);
         line-height: var(--line-height-base);
       }
@@ -2015,7 +2083,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
          3.83:1 against the filled card it sits on — under AA at 12px, and this is the
          only thing naming the two tables under it. */
       .dbr-bands-title {
-        margin: 0 0 var(--space-3);
+        /* Tight to the sentence it names (one group), while the sentence sits a step
+           further from the control it introduces. */
+        margin: 0 0 var(--space-2);
         font-size: var(--text-xs);
         font-weight: var(--font-semibold);
         letter-spacing: var(--tracking-wide);
@@ -2025,6 +2095,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       @media (prefers-reduced-motion: reduce) {
         .dbr-cap,
         .dbr-bands,
+        .dbr-emp-row,
         label.option-row {
           transition: none;
         }
@@ -2038,12 +2109,32 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       }
 
       /* Not an nz-form error: the verdict comes from a signal, so nzErrorTip
-         never fires for it. Styled to read at the same weight as one. */
+         never fires for it. Styled to read at the same weight as one.
+
+         The amber is a DOT, not the ink. Coloured warning on this text measured
+         2.89:1 on the card ground in light mode (8.71:1 in dark, which is why a light-only
+         failure survives a dark-mode review) — under AA, on the one sentence that says what
+         is wrong. Primary ink carries the words and the warning-dot token carries the state,
+         the same trade the .tag.warn chips already make, and the token exists for it. */
       .field-warn {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
         margin: var(--space-1) 0 0;
         font-size: var(--text-xs);
         line-height: var(--line-height-base);
-        color: var(--color-warning);
+        color: var(--color-text-primary);
+      }
+      .field-warn::before {
+        content: '';
+        flex: none;
+        inline-size: 0.375rem;
+        block-size: 0.375rem;
+        /* Nudged off the baseline onto the x-height, where a round mark reads as level
+           with the text rather than sitting under it. */
+        transform: translateY(-0.15em);
+        border-radius: 50%;
+        background: var(--color-warning-dot);
       }
 
       /* Visually hidden but still focusable and still a real form control. Declared
@@ -2087,14 +2178,13 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         border-radius: var(--radius-sm);
       }
 
-      /* --- Step 5: the income answer, as one card of three bands ------------- */
-      /* No rule of its own any more, and that is the point: this section is a plain
-         .card now, laid out by the same label rail as Eligibility and Debt burden, and
-         every declaration it used to carry either restated .card verbatim or lost to it
-         in the cascade. What went with them: a hairline under the head, which never
-         rendered anyway (it named --color-border-subtle, which this theme does not
-         define, so the shorthand was invalid at computed-value time), and the head's
-         two-up row, which the 17rem rail has no room for. */
+      /* --- The Calculation step: one card of two bands ------------------------ */
+      /* No rule of its own, and that is the point: this section is a plain .card now,
+         laid out exactly like Eligibility and Debt burden, and every declaration it used
+         to carry either restated .card verbatim or lost to it in the cascade. What went
+         with them: a hairline under the head, which never rendered anyway (it named
+         --color-border-subtle, which this theme does not define, so the shorthand was
+         invalid at computed-value time), and the head's two-up row. */
       .income-lede {
         margin: var(--space-1) 0 0;
         max-inline-size: 68ch;
@@ -2195,12 +2285,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         outline-offset: var(--focus-ring-offset);
         border-radius: var(--radius-sm);
       }
-      .dbr-rule-note {
-        margin: 0 0 var(--space-3);
-        font-size: 0.8125rem;
-        line-height: 1.55;
-        color: var(--color-text-secondary);
-      }
       /* ── Where the numbers came from ─────────────────────────────────────
          A LABEL on the grid below, not a container around it. The editor draws its own
          borders and the header above draws a rule, so a third box here would be the
@@ -2251,9 +2335,15 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           background-color var(--motion-duration-base) var(--motion-easing-standard),
           color var(--motion-duration-base) var(--motion-easing-standard);
       }
+      /* The measure, not the bar, is what caps: the strip is full-bleed like every other
+         status line on the step, and the sentence stops at a readable length so the action
+         that follows it sits beside the words rather than a screen-width away. Before the
+         card lost its 17rem label rail there was no room for that gap to open; at full
+         width there is 700px of it. */
       .income-source-body {
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         min-inline-size: 0;
+        max-inline-size: 78ch;
       }
       .income-source-line {
         display: block;
@@ -2322,7 +2412,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         }
       }
 
+      /* Directly after the sentence — it was pushed to the end edge by the body's
+         flex-grow, which reads as an unrelated control once the row is 1000px wide. */
       .income-source-reset {
+        margin-inline-start: var(--space-4);
         flex: none;
         align-self: center;
         padding: 0;
@@ -2419,7 +2512,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
          The page grows to its content and lets the SHELL scroll it
          (<main class="content"> in app.component owns overflow-y). It used to
          pin itself to the scrollport and hand its overflow to an inner band,
-         which squeezed the step body into whatever height the rail and the
+         which squeezed the step body into whatever height the step rail and the
          action bar left over — about 400px on a laptop — so a six-field step
          grew a scrollbar inside the white card while the window itself had
          none. One scrollbar, on the window, is the honest one.
@@ -2612,9 +2705,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       }
       /* A step whose whole body is already a set of surfaces does not need a surface
          behind it — that is a card holding cards, and the middle one carries no
-         information. The rail and the grid geometry stay; only the fill, the border
-         and the inline padding go, so the tiles sit on the page and the step reads
-         as one question with two answers. */
+         information. The geometry stays; only the fill, the border and the inline
+         padding go, so the tiles sit on the page and the step reads as one question
+         with two answers. */
       .card.is-bare {
         background: transparent;
         border-color: transparent;
@@ -2646,52 +2739,43 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         color: var(--text-secondary, var(--color-text-secondary));
       }
 
-      /* ── Section shape: label rail + controls ─────────────────────────────
-         What the extra page width buys is a scannable left edge of section
-         names — NOT a 900px-wide box for a 7-digit number. From 1024 up, the
-         section's title and the sentence explaining it move into a fixed rail
-         and every control sits in the column beside it, so each step reads as
-         a labelled list instead of a stack of near-empty panels. Below that,
-         the rail has nowhere to go and it collapses back to head-over-fields.
-         Children are placed by exclusion (:not(.card-head)) because the cards
-         hold different things — a grid, a checkbox, a band table, review
-         groups — and each of them belongs in the same right-hand column. */
-      @media (min-width: 1024px) {
-        .card {
-          display: grid;
-          grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
-          column-gap: var(--space-7);
-          row-gap: var(--space-4);
-          align-items: start;
-        }
-        .card-head {
-          grid-column: 1;
-          grid-row: 1;
-          margin-block-end: 0;
-        }
-        .card > :not(.card-head) {
-          grid-column: 2;
-        }
-      }
-      /* A card whose controls are more than one block wraps them here, so the
-         rail and the controls stay two grid items. Without it each block claims
-         its own row, and a tall rail (the tiered-rate explanation runs five
-         lines) sets row 1's height — leaving the second block stranded a
-         paragraph below the control it belongs to. */
+      /* ── Section shape: head over controls, at every width ────────────────
+         This used to be a 17rem label rail from 1024 up, with every control in
+         the column beside it. What that bought on a short card — a scannable
+         left edge of section names — it lost several times over on a tall one:
+         the Calculation step runs past 2000px, so the rail held four lines and
+         then two thousand pixels of nothing, while the controls were squeezed
+         into two thirds of a screen that had room for four columns of fields.
+         A title is not worth a third of the page. It sits above the fields now,
+         the fields take the full width, and the same shape holds at every
+         breakpoint instead of switching at 1024. */
+      /* A card whose controls are more than one block wraps them here, so the whole
+         body scrolls as one column with one gap. It was load-bearing under the old
+         label rail, where an unwrapped second block claimed its own grid row and
+         landed a paragraph below the control it belongs to; it is now simply the
+         card's body rhythm, and every card that uses it keeps it. */
       .card-body {
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
       }
 
-      /* Columns are bounded, not fractional: a min/max pair split across two
-         1fr columns of a 900px card strands the second label half a screen
-         from the first field. Capped columns keep the pair readable as a pair
-         at every width the card can take. */
+      /* Columns are FLUID and floor-bounded, and the count is the width's to
+         decide: auto-fill at a 15rem floor lays four fields across the card
+         a full-width step now has, two at tablet and one on a phone, with no
+         breakpoint of its own. It replaced a fixed two columns of 20rem, which
+         under the old rail meant a form 40rem wide inside a 78rem card — the
+         four age/income/tenure fields stacked into two rows with half the page
+         empty beside them. The floor is what keeps a pair readable as a pair.
+
+         .span-2 is 1 / -1 and NOT span 2: it has always meant "the full
+         row", which is only the same thing while there are exactly two columns.
+         With the count now decided by the viewport, span 2 would silently
+         become half a row on a wide screen — a multi-select for accepted
+         employment types sharing a line with the next control. */
       .grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 20rem));
-        justify-content: start;
+        grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
         column-gap: var(--space-5);
         row-gap: var(--space-4);
         align-items: start;
@@ -2701,15 +2785,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         min-block-size: 0;
       }
       .grid .span-2 {
-        grid-column: span 2;
-      }
-      @media (max-width: 720px) {
-        .grid {
-          grid-template-columns: minmax(0, 1fr);
-        }
-        .grid .span-2 {
-          grid-column: span 1;
-        }
+        grid-column: 1 / -1;
       }
 
       /* ── Numeric fields ───────────────────────────────────────────────────
@@ -3101,6 +3177,15 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       .step-stack > section.card:nth-of-type(3) {
         animation-delay: 60ms;
       }
+      /* Four and five exist now: the money step is amount → duration → rate → bands →
+         fees. Without these the last two land at 0ms alongside the first while cards
+         two and three are still staggered, which reads as a stutter, not a cue. */
+      .step-stack > section.card:nth-of-type(4) {
+        animation-delay: 90ms;
+      }
+      .step-stack > section.card:nth-of-type(5) {
+        animation-delay: 120ms;
+      }
       @keyframes step-enter {
         from {
           opacity: 0;
@@ -3285,60 +3370,68 @@ export class BankProgramFormPage implements OnInit {
 
   // ── Wizard (FR-011 revisited) ────────────────────────────────────────────
   /**
-   * A 7-step wizard, with the defect that killed the previous one designed out:
+   * A 5-step wizard, with the defect that killed the first one designed out:
    * **no control hides behind a disclosure.** Every fee, the DBR cap and the rate
    * all render in the open on the step that owns them, so an admin can never be
    * blocked by a field they were never shown, and the rail marks the exact step
-   * that still needs attention.
+   * that still needs attention. Five steps rather than eight does not weaken that
+   * — nothing folded away, three steps became cards on the step they belonged to.
    *
-   * `income` is a step of its own rather than the first field of `program`, because
-   * the rest of the wizard is downstream of it: it narrows the program names step 2
-   * may offer, and it decides whether `eligibility` carries a whole rate-table
-   * editor. A question that reshapes two later steps is not a field.
+   * WHAT EARNS A STEP: something an operator can be BLOCKED on. `income` asked one
+   * question and owned no control; `documents` carried no validator on either of its
+   * two fields, so it could never be what a step banner was talking about — a step
+   * structurally incapable of failing; and `terms` was four numbers that the pricing
+   * step's own band note then cross-references ("loans under X fall outside every
+   * band"), a sentence that pointed across a step boundary at a figure the operator
+   * could not see. What is left is who the program is, how its figure is worked out,
+   * what it costs, who qualifies, and the read-back.
+   *
+   * The income question keeps every argument it had for being its own step — it
+   * narrows the program names, and it decides whether a `calculation` step exists at
+   * all — and loses on the one that matters: it also disables the two controls
+   * directly beneath it, so as a card the dependency is watched instead of described.
    */
   private readonly stepDefs: Readonly<Record<StepId, WizardStep>> = {
-    income: { id: 'income', label: $localize`:@@bank_programs.step.income:Income`, groups: [] },
     program: {
       id: 'program',
       label: $localize`:@@bank_programs.step.program:Program`,
       groups: ['identity'],
     },
     // Surrogate programs only. The income block — the ways, their figures, the I-Score
-    // table, the rule's own DBR cap, the check panel — moved here from Eligibility so the
-    // method is stated BEFORE the amounts it governs. See `wizard-step-plan.ts`.
+    // table, the check panel — is stated BEFORE the amounts it governs. See
+    // `wizard-step-plan.ts`. The rule's own DBR cap was here too and is on `requirements`
+    // now, beside the three program-level caps it takes precedence over.
     calculation: {
       id: 'calculation',
       label: $localize`:@@bank_programs.step.calculation:Calculation`,
       groups: ['incomeAssumption'],
     },
-    terms: {
-      id: 'terms',
-      label: $localize`:@@bank_programs.step.terms:Amount & duration`,
-      railLabel: $localize`:@@bank_programs.step.terms_short:Amount`,
-      groups: ['loanLimits', 'tenor'],
+    // `railLabel` on this one only, and it earns it: the shared rail MEASURES itself and
+    // collapses every inactive step to a bare numeral when the names stop fitting — with
+    // these five it already does that at 860px — so one 16-character name costs the whole
+    // rail its words. "Requirements" at 12 fits. The short form is "Money" rather than
+    // "Amount" because this step is also the rate, the bands and seven fees: naming it
+    // after its first card is shorter than the truth AND wrong, where "Money" is only
+    // vaguer. The precise name is one line down in the caption ("Step 3 of 5 · Amount &
+    // pricing") and in the review's two headings.
+    money: {
+      id: 'money',
+      label: $localize`:@@bank_programs.step.money:Amount & pricing`,
+      railLabel: $localize`:@@bank_programs.step.money_short:Money`,
+      groups: ['loanLimits', 'tenor', 'pricing', 'fees'],
     },
-    pricing: {
-      id: 'pricing',
-      label: $localize`:@@bank_programs.step.pricing:Pricing & fees`,
-      railLabel: $localize`:@@bank_programs.step.pricing_short:Pricing`,
-      groups: ['pricing', 'fees'],
-    },
-    eligibility: {
-      id: 'eligibility',
-      label: $localize`:@@bank_programs.step.eligibility:Eligibility`,
-      groups: ['eligibility'],
-    },
-    documents: {
-      id: 'documents',
-      label: $localize`:@@bank_programs.step.documents:Documents`,
-      groups: ['documents'],
+    requirements: {
+      id: 'requirements',
+      label: $localize`:@@bank_programs.step.requirements:Requirements`,
+      groups: ['eligibility', 'documents'],
     },
     review: { id: 'review', label: $localize`:@@bank_programs.step.review:Review`, groups: [] },
   };
   /**
-   * The steps THIS program walks. Eight for a surrogate program, seven for a payslip one —
+   * The steps THIS program walks. Five for a surrogate program, four for a payslip one —
    * keyed off the same synchronous boolean the income block was always gated on, so the list
-   * can only change shape while the operator stands on the Income step.
+   * can only change shape while the operator stands on the Program step, where the question
+   * that reshapes it is asked.
    */
   readonly steps = computed<readonly WizardStep[]>(() =>
     stepIdsFor(this.incomeSurrogateActive()).map((id) => this.stepDefs[id]),
@@ -3349,10 +3442,10 @@ export class BankProgramFormPage implements OnInit {
    * so a list that changes shape moves nobody: `indexOfOrPreceding` answers the nearest
    * earlier step still present rather than `-1`.
    */
-  readonly currentStepId = signal<StepId>('income');
+  readonly currentStepId = signal<StepId>('program');
   readonly stepIndex = computed(() => indexOfOrPreceding(this.steps(), this.currentStepId()));
   /** Highest step reached — the rail only lets an admin jump to what they've seen. */
-  readonly furthestStepId = signal<StepId>('income');
+  readonly furthestStepId = signal<StepId>('program');
   readonly furthestStep = computed(() => indexOfOrPreceding(this.steps(), this.furthestStepId()));
   /** Set when Continue / Create is refused, cleared on every step change. */
   readonly showStepIssues = signal(false);
@@ -3364,7 +3457,7 @@ export class BankProgramFormPage implements OnInit {
     const label = this.steps()[this.stepIndex()]?.label ?? '';
     return $localize`:@@bank_programs.step.caption:Step ${current}:current: of ${total}:total: · ${label}:label:`;
   });
-  /** "Seven short steps" was a literal; the count is the list's, so 7 and 8 both read true. */
+  /** "Seven short steps" was a literal; the count is the list's, so 4 and 5 both read true. */
   readonly subtitle = computed(() => {
     const count = this.steps().length;
     return $localize`:@@bank_programs.form.subtitle_counted:${count}:COUNT: short steps. Every number belongs to this program alone, and nothing is saved until you confirm on the last step.`;
@@ -3373,9 +3466,6 @@ export class BankProgramFormPage implements OnInit {
   /** A step's position on THIS program's rail — `-1` when the program does not walk it. */
   indexOf(id: StepId): number {
     return indexOfStep(this.steps(), id);
-  }
-  labelOf(id: StepId): string {
-    return this.stepDefs[id].label;
   }
 
   /**
@@ -3417,39 +3507,80 @@ export class BankProgramFormPage implements OnInit {
       .filter((c): c is AbstractControl => c !== null);
   }
 
+  /**
+   * The verdicts that block a step but live in SIGNALS rather than in controls.
+   *
+   * ONE list, read by four callers — `isStepValid` (may I leave?), `isStepInvalidTouched`
+   * (does the rail mark it?), `stepIssueCount` (is there anything to say?) and
+   * `stepIssueLabel` (what?). They used to be four hand-kept lists and they had drifted:
+   * a `program` step blocked on the name↔category verdict has every control valid, so the
+   * count read 0 while Continue refused — and the rail's alert is gated on the count being
+   * above zero, so the operator got a refusal with an EMPTY banner and a grey rail chip.
+   * Merging steps makes that state ordinary rather than rare, so the lists are collapsed
+   * rather than extended.
+   *
+   * Order is REPORT order: a verdict that disables the controls under it comes first,
+   * because filling the fields it locked is not something the operator can do.
+   */
+  private signalIssues(id: StepId | undefined): readonly StepIssue[] {
+    const out: StepIssue[] = [];
+    if (id === 'program') {
+      // `programType` has a default, so the group the answer lives in is valid before
+      // anybody has answered. This is what stops Continue walking past an unanswered
+      // question into a name picker that would have nothing to filter on.
+      if (this.basisAnswered() === null) out.push('basis');
+      // The name↔category verdict is a signal, so Continue would sail past it and the
+      // save would fail on the server (`PROGRAM_NAME_KEY_NOT_IN_CATEGORY`).
+      if (this.programNameMismatch() !== null) out.push('nameCategory');
+    }
+    // Same reason for the income rule — its way, its tables. Without this the wizard's
+    // "which step is blocked" search could not find the one holding a broken rule, and
+    // `submit()` would return having moved nowhere.
+    if (id === 'calculation' && this.incomeRuleError()) out.push('incomeRule');
+    // And for the DBR band table, which lives in a signal, not a control: a broken table
+    // would sail past Continue and only fail on the server (`DBR_BANDS_INVALID`).
+    if (id === 'requirements' && this.dbrBandsError() !== null) out.push('dbrBands');
+    // The rule's own cap, same card, same reason and one step further: its control carries no
+    // validator at all, so an out-of-range figure used to pass Continue AND Save and come back
+    // as `INCOME_RULE_DBR_OVERRIDE_INVALID` from the server. Gated on the field being on screen
+    // — a hidden box is cleared, but a verdict about one nobody can see is a refusal with
+    // nothing to fix.
+    if (id === 'requirements' && this.ruleCapApplies() && this.dbrOverrideError()) {
+      out.push('dbrOverride');
+    }
+    return out;
+  }
+
+  /**
+   * The verdict on this step that DISABLES the controls under it, if there is one.
+   *
+   * Only `basis` so far, and it is load-bearing rather than tidy. Before the merge, the
+   * income question was a step owning NO groups, so `commitStep`'s escape — "every control
+   * is valid, so there is nothing to reveal" — was vacuously true and a refusal drew the
+   * banner and moved nothing. Merged into `program`, the step owns `identity`, whose
+   * `programNameKey` is REQUIRED and empty on a new program — so the escape stopped firing,
+   * and the first Continue revealed a red "needs a value" on the picker that the unanswered
+   * income question has deliberately disabled, then focused it, scrolling away from the card
+   * the banner is telling the operator to answer. Filling it is not something they are
+   * allowed to do. A gated step reports the gate and nothing else.
+   */
+  private gatingIssue(id: StepId | undefined): StepIssue | null {
+    return this.signalIssues(id)[0] === 'basis' ? 'basis' : null;
+  }
+
   isStepValid(index: number): boolean {
     if (!this.stepControls(index).every((c) => c.valid)) return false;
-    // The income step owns no control — `programType` has a default, so the group it
-    // lives in is valid before anybody has answered. Its answer is a signal, and this
-    // is what stops Continue walking past an unanswered question into a name picker
-    // that would then have nothing to filter on.
-    if (this.steps()[index]?.id === 'income' && this.basisAnswered() === null) return false;
-    // The DBR band table lives in a signal, not a control, so step validity has
-    // to ask it directly — otherwise a broken table would sail past Continue and
-    // only fail on the server (`DBR_BANDS_INVALID`).
-    if (this.steps()[index]?.id === 'eligibility' && this.dbrBandsError() !== null) return false;
-    // Same reason for the maximum-by-answer table, which is a signal on the `terms` step:
-    // a broken table would sail past Continue and only fail on the server
-    // (`MAX_LOAN_BY_FACT_INVALID`).
-    if (this.steps()[index]?.id === 'terms' && this.maxLoanByFactError() !== null) return false;
-    // Same reason: the name↔category verdict lives in a signal, so Continue
-    // would sail past it and the save would fail on the server
-    // (`PROGRAM_NAME_KEY_NOT_IN_CATEGORY`).
-    if (this.steps()[index]?.id === 'program' && this.programNameMismatch() !== null) return false;
-    // Same reason again for the income rule — its way, its tables — which are signals too.
-    // Without this the wizard's "which step is blocked" search could not find the one
-    // holding a broken rule, and `submit()` would return having moved nowhere.
-    if (this.steps()[index]?.id === 'calculation' && this.incomeRuleError()) return false;
-    return true;
+    return this.signalIssues(this.steps()[index]?.id).length === 0;
   }
 
   /**
    * Green check: a step already visited, left behind, and holding valid values.
    *
-   * Keyed off the review step by NAME, not by "owns no groups" — `income` owns none
-   * either, and it is the one step that most deserves a tick: the rest of the wizard
-   * is filtered by its answer. Only `review` is never complete, because reading the
-   * form back is not a thing that can be finished.
+   * Keyed off the review step by NAME, not by "owns no groups". Since `income` became a
+   * card the two tests happen to coincide — `review` is the only groupless step left —
+   * and the name is still the right one: a groupless step is not inherently
+   * uncompletable, `review` is, because reading the form back is not a thing that can
+   * be finished.
    */
   isStepComplete(index: number): boolean {
     const step = this.steps()[index];
@@ -3460,20 +3591,27 @@ export class BankProgramFormPage implements OnInit {
   /** Red marker: a visited step the admin still has to come back to. */
   isStepInvalidTouched(index: number): boolean {
     if (index === this.stepIndex()) return false;
-    return this.stepControls(index).some((c) => c.touched && c.invalid);
+    if (this.stepControls(index).some((c) => c.touched && c.invalid)) return true;
+    // A step blocked only by a SIGNAL has no touched control for the walk above to find,
+    // so the rail painted it grey while Continue refused it. Reachable on an ordinary
+    // edit: a saved program whose name has since left its loan type opens with `program`
+    // blocked and, until now, unmarked. Gated on having been REACHED, so a step nobody
+    // has opened is not accused of anything.
+    return index <= this.furthestStep() && this.signalIssues(this.steps()[index]?.id).length > 0;
   }
 
   canJumpTo(index: number): boolean {
     return index <= this.furthestStep();
   }
 
-  goTo(index: number): void {
+  /** `anchor` is a card `id` on the destination step — the review's Edit uses it. */
+  goTo(index: number, anchor?: string): void {
     if (index === this.stepIndex() || !this.canJumpTo(index)) return;
     // Jumping forward through the rail passes the same gate as Continue.
     if (index > this.stepIndex() && !this.commitStep()) return;
     this.showStepIssues.set(false);
-    this.currentStepId.set(this.steps()[index]?.id ?? 'income');
-    this.revealStepStart();
+    this.currentStepId.set(this.steps()[index]?.id ?? 'program');
+    this.revealStepStart(anchor);
   }
 
   next(): void {
@@ -3489,7 +3627,7 @@ export class BankProgramFormPage implements OnInit {
   prev(): void {
     if (this.stepIndex() === 0) return;
     this.showStepIssues.set(false);
-    this.currentStepId.set(this.steps()[this.stepIndex() - 1]?.id ?? 'income');
+    this.currentStepId.set(this.steps()[this.stepIndex() - 1]?.id ?? 'program');
     this.revealStepStart();
   }
 
@@ -3507,13 +3645,20 @@ export class BankProgramFormPage implements OnInit {
     const controls = this.stepControls(this.stepIndex());
     if (!this.isStepValid(this.stepIndex())) {
       // A step whose verdict is a SIGNAL rather than a control has nothing for the control
-      // walk to reveal — `income` (no groups at all), but also `calculation` (an unpicked
-      // way beside a valid group), `terms` (a broken cap table) and `program` (the name↔
-      // category verdict). The old escape keyed on "owns no groups", so the last three
+      // walk to reveal: `program` (the income question unanswered, or the name↔category
+      // verdict), `calculation` (an unpicked way beside a valid group) and `requirements`
+      // (a broken band table). The old escape keyed on "owns no groups", so the last two
       // fell through to the control walk, found every control valid, and Continue advanced
-      // past a broken cap table with nothing said.
-      if (controls.every((c) => c.valid)) {
+      // past a broken table with nothing said.
+      if (
+        this.gatingIssue(this.steps()[this.stepIndex()]?.id) !== null ||
+        controls.every((c) => c.valid)
+      ) {
         this.showStepIssues.set(true);
+        // Nothing was revealed and focus did not move, so the banner is the only thing that
+        // changed — and a merged step is tall enough that it can be off-screen above the
+        // operator. Bring the sentence they were refused with into view.
+        this.revealStepIssues();
         return false;
       }
       for (const c of controls) revealErrors(c);
@@ -3526,35 +3671,51 @@ export class BankProgramFormPage implements OnInit {
   }
 
   /**
-   * Number of fields on the current step that still fail validation.
+   * How many things on this step are stopping Continue.
    *
-   * The income step has no field, so its unanswered question counts as one — the
-   * rail's alert is gated on this being above zero, and a step that blocks Continue
-   * while reporting nothing is the worst of both.
+   * ADDITIVE, never an early return: a signal verdict contributes on top of the field
+   * count rather than instead of it. That is the whole point — the rail's alert is
+   * `@if (showStepIssues() && stepIssueCount() > 0)`, so any verdict that can block
+   * while counting 0 is a refusal with an empty banner. Two of them could, before the
+   * verdicts were collapsed into one list.
    */
   stepIssueCount(): number {
     const id = this.steps()[this.stepIndex()]?.id;
-    if (id === 'income') return this.basisAnswered() === null ? 1 : 0;
-    // The rule's verdict and the cap table's are signals, so the leaf count reads 0 for
-    // them — and the rail's alert is gated on this being above zero. A step that refuses
-    // Continue while reporting nothing is the worst of both.
-    if (id === 'calculation' && this.incomeRuleError()) return 1;
-    if (id === 'terms' && this.maxLoanByFactError() !== null) return 1;
+    // A gated step counts its gate and nothing else: the fields below it are disabled, and
+    // "2 fields need a value" about boxes the operator cannot type in is worse than silence.
+    if (this.gatingIssue(id) !== null) return 1;
+    return this.controlIssueCount() + this.signalIssues(id).length;
+  }
+
+  /** Fields on this step that fail validation — what a human would count on screen. */
+  private controlIssueCount(): number {
     return this.stepControls(this.stepIndex()).reduce((sum, c) => sum + countInvalidLeaves(c), 0);
   }
 
   stepIssueLabel(): string {
-    const id = this.steps()[this.stepIndex()]?.id;
-    if (id === 'income') {
+    const issues = this.signalIssues(this.steps()[this.stepIndex()]?.id);
+    // A verdict that DISABLES the controls beneath it is what to say, whatever else is
+    // empty: filling the fields it locked is not something the operator can do.
+    if (issues[0] === 'basis') {
       return $localize`:@@bank_programs.step.issue_income:Choose how the bank reads the income before you continue.`;
     }
-    if (id === 'calculation' && this.incomeRuleError()) {
-      return $localize`:@@bank_programs.step.issue_calculation:Say how this bank works the figure out — pick a way and fill its numbers — before you continue.`;
+    const count = this.controlIssueCount();
+    // Otherwise the fields win — they are visible, individually flagged and countable.
+    // A verdict speaks only when nothing else on the step is wrong, and each gets its own
+    // sentence rather than borrowing `issue_fix`: that one says "see the message in red",
+    // and `.field-warn` is amber, so it would send the operator hunting for the wrong colour.
+    if (count === 0 && issues.length > 0) {
+      switch (issues[0]) {
+        case 'nameCategory':
+          return $localize`:@@bank_programs.step.issue_name_category:This program name is not offered for this loan type. Pick another name, or add this loan type to it in the program catalog.`;
+        case 'incomeRule':
+          return $localize`:@@bank_programs.step.issue_calculation:Say how this bank works the figure out — pick a way and fill its numbers — before you continue.`;
+        case 'dbrBands':
+          return $localize`:@@bank_programs.step.issue_dbr_bands:The caps by income band need fixing before you continue — see the message on the table.`;
+        case 'dbrOverride':
+          return $localize`:@@bank_programs.step.issue_dbr_override:The cap for the calculation's figure must be greater than 0 and at most 100.`;
+      }
     }
-    if (id === 'terms' && this.maxLoanByFactError() !== null) {
-      return $localize`:@@bank_programs.step.issue_fix:Something on this step needs fixing before you continue — see the message in red.`;
-    }
-    const count = this.stepIssueCount();
     // A cross-field verdict (tenor min > max, rate bands out of order) leaves
     // every field filled, so "needs a value" would send the admin hunting for an
     // empty box that does not exist.
@@ -3583,8 +3744,33 @@ export class BankProgramFormPage implements OnInit {
    * was reset to avoid; only the element that holds the offset changed.
    * Falls back to the window in case the page is ever hosted outside the shell.
    */
-  private revealStepStart(): void {
+  private revealStepStart(anchor?: string): void {
     const behavior = this.prefersReducedMotion ? 'auto' : 'smooth';
+    if (anchor !== undefined) {
+      // One tick out: the destination step's cards have not been stamped into the DOM
+      // yet when `currentStepId` is written. A card that is not there falls back to the
+      // top of the step rather than leaving the operator wherever they were standing.
+      setTimeout(() => {
+        const card = this.host.nativeElement.querySelector<HTMLElement>(`#${anchor}`);
+        if (card) card.scrollIntoView({ block: 'start', behavior });
+        else this.scrollStepToTop(behavior);
+      });
+      return;
+    }
+    this.scrollStepToTop(behavior);
+  }
+
+  /** Bring the refusal banner into view. One tick out: it renders on `showStepIssues`. */
+  private revealStepIssues(): void {
+    setTimeout(() => {
+      this.host.nativeElement.querySelector<HTMLElement>('.step-alert')?.scrollIntoView({
+        block: 'center',
+        behavior: this.prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    });
+  }
+
+  private scrollStepToTop(behavior: ScrollBehavior): void {
     const scroller = this.host.nativeElement.closest<HTMLElement>('.content');
     if (scroller) {
       scroller.scrollTo({ top: 0, behavior });
@@ -4115,10 +4301,10 @@ export class BankProgramFormPage implements OnInit {
   /**
    * What the answer COMMITS the operator to, said on the card before it is picked.
    *
-   * The income step reshapes two later steps — it filters the program names step 2
-   * offers, and a no-payslip program has a whole rate-table editor on Eligibility
-   * that a payslip one does not. Discovering that two steps in reads as the wizard
-   * changing under you; naming it here makes the dependency the point of the step.
+   * The nearest consequence is now visible — the picker this unlocks is the next card
+   * down — so these lines carry the one an operator still cannot see: a no-payslip
+   * program gains a whole Calculation step that a payslip one does not have. The
+   * wizard growing a step under you reads as it changing its mind unless it was named.
    */
   /** The two consequence lines, as the shared component's `effects` map. */
   protected readonly basisEffects = computed<Partial<Record<IncomeBasis, string>>>(() => ({
@@ -4133,8 +4319,8 @@ export class BankProgramFormPage implements OnInit {
         // are a single number, and `declared` is nothing at all, which seven seeded
         // business/professional programs use on purpose. Promising a table here
         // described one method in eleven, so it named the SETTING instead.
-        $localize`:@@bank_programs.income.effect.no_payslip_v2:Pick this and the next step shows the program names sold on a surrogate basis. On the Calculation step you then set how the bank works the income out.`
-      : $localize`:@@bank_programs.income.effect.payslip:Pick this and the next step shows the program names that need income proof.`;
+        $localize`:@@bank_programs.income.effect.no_payslip_v3:Pick this and the picker below shows the program names sold on a surrogate basis. The wizard then adds a Calculation step where you set how the bank works the income out.`
+      : $localize`:@@bank_programs.income.effect.payslip_v2:Pick this and the picker below shows the program names that need income proof.`;
   }
 
   /**
@@ -4299,6 +4485,37 @@ export class BankProgramFormPage implements OnInit {
       this.fillOnArrival = false;
       this.fillFromProduct();
     }
+    this.relockBands();
+  }
+
+  /**
+   * Put this program's band tables back on the product's ranges.
+   *
+   * A bank states the FIGURE beside each range and never the ranges themselves, so a stored
+   * table cut on edges the product no longer publishes is a table the editor cannot draw —
+   * it renders the product's ranges under a lock, and without this the screen and the payload
+   * would be two different tables.
+   *
+   * Runs on every arrival of the rule, not only the armed one: a name change re-seeds from the
+   * new product, and the check is a no-op for a table already on its ranges. Blank tables are
+   * already covered one line up — `fillFromProduct` writes the product's whole band table into
+   * an empty box — so what is left here is the legacy case, which is why it is worth marking
+   * dirty when it moves anything.
+   */
+  private relockBands(): void {
+    if (this.amountsValue() !== 'own') return;
+    const catalog = this.catalogEffectiveRule();
+    if (!catalog) return;
+    const figures = this.stepFigures();
+    const relocked = withLockedBands(
+      figures,
+      bandsToRelock(slotShapes(this.ruleSteps(), this.ruleGates()), figures, catalog.stepParams, {
+        ownedSlots: this.ownedSlotIdsForFill(),
+      }),
+    );
+    if (relocked === figures) return;
+    this.stepFigures.set(relocked);
+    this.markIncomeRuleDirty();
   }
 
   // --- the product's maximum-loan grid, copied ------------------------------------------
@@ -4329,12 +4546,6 @@ export class BankProgramFormPage implements OnInit {
    * new product is shown on the free-form controls and refused by name on the next save,
    * rather than silently re-keyed to axes it was never written for.
    */
-  /** Every write to the cap table, so the bank's `onNoMatch` is remembered as it is chosen. */
-  protected onMaxLoanByFact(config: MaxLoanByFactConfig | null): void {
-    if (config !== null) this.capNoMatch = config.onNoMatch;
-    this.maxLoanByFact.set(config);
-  }
-
   private seedCapFromProduct(): void {
     const shape = this.productCap();
     const defaults = this.productCapDefaults();
@@ -4657,6 +4868,25 @@ export class BankProgramFormPage implements OnInit {
    * derived numbers the engine would disagree with. Percentages are trimmed as
    * STRINGS (never parsed to a float, Principle I) and money is grouped digit-wise.
    */
+  /**
+   * The review's own headings.
+   *
+   * NOT `labelOf(<step id>)` any more, and the reason is structural rather than a
+   * knock-on: the review is deliberately FINER than the rail — a merged money step read
+   * back as one twelve-row list is worse to scan than two named halves — so borrowing
+   * the rail's vocabulary would print "Amount & pricing" over rows that are only the
+   * amount. (`labelOf` on a merged-away id would also throw, but that is the small half.)
+   */
+  private readonly reviewTitle = {
+    income: $localize`:@@bank_programs.review.group.income:Income`,
+    program: $localize`:@@bank_programs.review.group.program:Program`,
+    calculation: $localize`:@@bank_programs.review.group.calculation:Calculation`,
+    amount: $localize`:@@bank_programs.review.group.amount:Amount & duration`,
+    pricing: $localize`:@@bank_programs.review.group.pricing:Pricing & fees`,
+    eligibility: $localize`:@@bank_programs.review.group.eligibility:Eligibility`,
+    documents: $localize`:@@bank_programs.review.group.documents:Documents`,
+  } as const;
+
   readonly reviewGroups = computed<ReviewGroup[]>(() => {
     this.formValue();
     const v = this.form.getRawValue();
@@ -4692,12 +4922,14 @@ export class BankProgramFormPage implements OnInit {
     }
 
     return [
-      // The income row is its own group now, because it is its own step: a review
-      // that folds it back under "Program" would send an operator who wants to change
-      // it to the step that no longer asks it.
+      // Its own group even though it shares a step with the name: what the reviewer is
+      // checking is one answer, and folding it into "Program" would bury it under three
+      // rows about identity. Edit lands on the income card, which is the top of the step
+      // anyway — hence no anchor.
       {
-        step: this.indexOf('income'),
-        title: this.labelOf('income'),
+        key: 'income',
+        step: this.indexOf('program'),
+        title: this.reviewTitle.income,
         rows: [
           {
             label: $localize`:@@bank_programs.review.income_basis:Income`,
@@ -4706,8 +4938,10 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
+        key: 'program',
         step: this.indexOf('program'),
-        title: this.labelOf('program'),
+        anchor: 'card-program',
+        title: this.reviewTitle.program,
         rows: [
           { label: $localize`:@@bank_programs.review.bank:Bank`, value: id.bankName },
           { label: $localize`:@@bank_programs.review.name:Program name`, value: id.friendlyName },
@@ -4724,15 +4958,17 @@ export class BankProgramFormPage implements OnInit {
       ...(this.incomeSurrogateActive()
         ? [
             {
+              key: 'calculation',
               step: this.indexOf('calculation'),
-              title: this.labelOf('calculation'),
+              title: this.reviewTitle.calculation,
               rows: [this.incomeRuleReviewRow()],
             },
           ]
         : []),
       {
-        step: this.indexOf('terms'),
-        title: this.labelOf('terms'),
+        key: 'amount',
+        step: this.indexOf('money'),
+        title: this.reviewTitle.amount,
         rows: [
           {
             label: $localize`:@@bank_programs.review.amount:Loan amount`,
@@ -4745,8 +4981,10 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: this.indexOf('pricing'),
-        title: this.labelOf('pricing'),
+        key: 'pricing',
+        step: this.indexOf('money'),
+        anchor: 'card-pricing',
+        title: this.reviewTitle.pricing,
         rows: [
           ...rateRows,
           {
@@ -4774,8 +5012,9 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: this.indexOf('eligibility'),
-        title: this.labelOf('eligibility'),
+        key: 'eligibility',
+        step: this.indexOf('requirements'),
+        title: this.reviewTitle.eligibility,
         rows: [
           {
             label: $localize`:@@bank_programs.review.age:Age`,
@@ -4805,11 +5044,24 @@ export class BankProgramFormPage implements OnInit {
                 ? $localize`:@@bank_programs.review.dbr_banded:${pct(v.eligibility.dbrCapPercent)}:cap: · ${bands}:bands: income bands`
                 : pct(v.eligibility.dbrCapPercent),
           },
+          // Only when stated. It is the narrowest of the four caps and it beats the row above,
+          // so a review that reads back 50% with no mention of it would be reading back a cap
+          // this program does not apply to its own calculation's figure.
+          ...(this.ruleCapApplies() && this.dbrOverrideValue()
+            ? [
+                {
+                  label: $localize`:@@bank_programs.review.dbr_rule_cap:Cap for the calculation's figure`,
+                  value: pct(this.dbrOverrideValue() ?? ''),
+                },
+              ]
+            : []),
         ],
       },
       {
-        step: this.indexOf('documents'),
-        title: this.labelOf('documents'),
+        key: 'documents',
+        step: this.indexOf('requirements'),
+        anchor: 'card-documents',
+        title: this.reviewTitle.documents,
         rows: [
           {
             label: $localize`:@@bank_programs.review.documents:Required documents`,
@@ -4932,22 +5184,6 @@ export class BankProgramFormPage implements OnInit {
   > | null>(null);
 
   /**
-   * Whether the picked fact is answered with a number, which decides whether the rows are
-   * option pickers or band edges. Computed here as well as inside the editor because the
-   * save gate has to know it while the editor is not rendered.
-   */
-  private readonly maxLoanByFactIsNumeric = computed(() => {
-    const key = this.maxLoanByFact()?.factKey;
-    if (key === undefined) return false;
-    return this.incomeFacts().find((f) => f.key === key)?.question?.type === 'NUMERIC';
-  });
-
-  /** The same verdict the editor shows inline, so Save is gated on it from any step. */
-  readonly maxLoanByFactError = computed(() =>
-    maxLoanByFactErrorFor(this.maxLoanByFact(), this.maxLoanByFactIsNumeric()),
-  );
-
-  /**
    * A DBR cap per kind of applicant — "50% salaried / 40% self-employed".
    *
    * A signal rather than a form control, exactly like `dbrBands` beside it and for the same
@@ -4966,6 +5202,27 @@ export class BankProgramFormPage implements OnInit {
     return EMPLOYMENT_BUCKET_LABELS[bucket]?.() ?? bucket;
   }
 
+  /**
+   * What a BLANK row resolves to right now, shown in the field as grey placeholder text.
+   *
+   * `resolveDbrCap` reads rule override → by employment → bands → flat, so a row left empty
+   * lands on the band table when there is one and on the flat cap when there is not. Only the
+   * second of those is a single figure; with bands in play there is no one number to show and
+   * a confident wrong one is worse than none, so it renders an em dash and the note above the
+   * list carries the explanation. Never a value — this must not reach `dbrByEmployment`, or a
+   * blank the bank meant would be saved as a stated cap.
+   */
+  readonly dbrEmploymentFallback = computed<string>(() =>
+    this.dbrBands().length > 0 ? '—' : this.dbrFlatCap(),
+  );
+
+  /** The same fact in words, since a placeholder attribute is not reliably announced. */
+  readonly dbrEmploymentFallbackNote = computed<string>(() =>
+    this.dbrBands().length > 0
+      ? $localize`:@@bank_programs.eligibility.dbr_by_employment.default_bands:Blank — the income bands above apply.`
+      : $localize`:@@bank_programs.eligibility.dbr_by_employment.default_flat:Blank — the cap above applies.`,
+  );
+
   /** Blank REMOVES the row — an empty string would be refused, and means "no cap here". */
   protected setDbrForEmployment(bucket: string, raw: string): void {
     const value = raw.trim();
@@ -4975,6 +5232,92 @@ export class BankProgramFormPage implements OnInit {
       else next[bucket] = value;
       return next;
     });
+  }
+
+  // ── The fourth cap on the Debt burden card: the income rule's own ──────────────────
+  //
+  // The VALUE stays where it has always been, on `incomeAssumption` — it is scoped to the
+  // method, the payload writes it there, the backend carries it as a policy key, and it is
+  // cleared when the method loses its shape and when the program stops being surrogate. Only
+  // the field moved. Reading and writing it from here is what lets the card that already owns
+  // the other three caps own this one too, without a second copy of the figure anywhere.
+
+  /**
+   * Does the rule's cap have anything to apply to on this program?
+   *
+   * Two conditions, and each rules out a box with no consequence. A payslip program reads no
+   * rule at all. A surrogate program whose method states no figure of its own (`shape: 'none'`
+   * — a declared salary used as-is) produces a `declared` origin, and the resolver is handed
+   * the override only for a surrogate-derived income.
+   *
+   * Through `incomeMethodShape`, the same derivation the payload builder uses, so the screen
+   * and the request cannot disagree about whether the method states a figure.
+   */
+  readonly ruleCapApplies = computed<boolean>(() => {
+    if (!this.incomeSurrogateActive()) return false;
+    this.formValue();
+    const strategy = this.form.getRawValue().incomeAssumption.strategy;
+    return incomeMethodShape(strategy, this.incomeFacts()) !== 'none';
+  });
+
+  /** Whether any by-applicant row is filled — which changes what a blank rule cap falls to. */
+  protected readonly dbrByEmploymentSet = computed<boolean>(
+    () => Object.keys(this.dbrByEmployment()).length > 0,
+  );
+
+  /**
+   * Named by its own accessible label rather than by the heading above it.
+   *
+   * One field under a heading takes no visible label — a second "Cap" beside a heading that
+   * already says "Cap for the calculation's figure" is the same word twice — but "edit text,
+   * blank" is not a name, so the field carries the heading's words itself.
+   */
+  protected readonly dbrRuleCapAriaLabel = $localize`:@@bank_programs.eligibility.dbr_rule_cap.aria:Debt-burden cap for the calculation's figure, per cent`;
+
+  /**
+   * What a blank rule cap falls through to, shown in grey in the empty field.
+   *
+   * `—` once anything above narrows by who or by what they earn, because then the answer
+   * depends on the applicant and a single figure here would be one of several. Same
+   * construction as `dbrEmploymentFallback` one block up, one term longer: the by-applicant
+   * map beats the bands, and both beat the flat cap, so either of them being present is
+   * enough to make "what applies instead" un-nameable as one number.
+   */
+  readonly dbrRuleCapFallback = computed<string>(() =>
+    this.dbrBands().length > 0 || this.dbrByEmploymentSet() ? '—' : this.dbrFlatCap(),
+  );
+
+  /** The same fact in words, since a placeholder attribute is not reliably announced. */
+  readonly dbrRuleCapFallbackNote = computed<string>(() =>
+    this.dbrBands().length > 0 || this.dbrByEmploymentSet()
+      ? $localize`:@@bank_programs.eligibility.dbr_rule_cap.default_narrowed:Blank — the caps above apply.`
+      : $localize`:@@bank_programs.eligibility.dbr_rule_cap.default_flat:Blank — the cap above applies.`,
+  );
+
+  /**
+   * The verdict on the rule cap: empty is legal, anything else must be in (0, 100].
+   *
+   * NOT gated on touched or dirty, unlike the inline check this replaces. That one was
+   * display-only — the control carries no validator and the value is not in
+   * `incomeRuleError()` — so an out-of-range cap drew a red line, let Continue through, let
+   * Save through, and was refused by the server as `INCOME_RULE_DBR_OVERRIDE_INVALID` three
+   * steps back from the field. It is a step verdict now (see `signalIssues`), and a step gate
+   * that waits for a blur is a step gate an operator can walk past with the caret still in
+   * the box.
+   */
+  readonly dbrOverrideError = computed<boolean>(() => {
+    const raw = this.dbrOverrideValue();
+    if (raw === null) return false;
+    const value = Number(raw);
+    return !Number.isFinite(value) || value <= 0 || value > 100;
+  });
+
+  /** Blank means "use the caps above", which is the common case — so it stores `null`. */
+  protected setDbrOverride(raw: string): void {
+    const value = raw.trim();
+    const control = this.form.controls.incomeAssumption.controls.dbrCapPercentOverride;
+    control.setValue(value === '' ? null : value);
+    control.markAsDirty();
   }
 
   /**
@@ -5001,50 +5344,11 @@ export class BankProgramFormPage implements OnInit {
   }
 
   /**
-   * The rule EXACTLY as it stands on screen, including unsaved edits (FR-028).
+   * The rule EXACTLY as it stands on screen, including unsaved edits.
    *
-   * Recomputed from the same form value the save payload is built from, so the panel
-   * can never check something different from what Save would send — which is the one
-   * way an in-place checker becomes worse than useless.
+   * Recomputed from the same form value the save payload is built from, so nothing
+   * downstream can read a rule different from the one Save would send.
    */
-  /**
-   * The un-saved program the check runs against, on a CREATE only.
-   *
-   * `null` once the program exists, because the server then reads the STORED rate, fees and
-   * limits — this program's own figures rather than a form's current state, which is the
-   * better answer whenever there is a row to read.
-   *
-   * Built by `payloadFromForm`, the same function the Save button uses, so a draft check and
-   * the program that save would create cannot describe different things. Only the five blobs
-   * a quote actually reads are forwarded; the program code, bank name and Arabic friendly
-   * name are none of the check's business, and demanding them is how this panel came to be
-   * disabled for the whole of a create in the first place.
-   *
-   * Returns `null` while no rate is set. Pricing is step 4 and this is step 5, so in practice
-   * it is filled — but an operator who went back and cleared it should get the panel's
-   * "fill the Terms and Pricing steps first" line rather than a quote with no rate behind it.
-   */
-  protected readonly draftProgramForCheck = computed<IncomeRuleDraftProgram | null>(() => {
-    if (this.editingProgramCode() !== null) return null;
-    this.formValue();
-    this.dbrBands();
-    const payload = this.payloadFromForm(this.form.getRawValue());
-    if (!payload.pricing.baseRatePercent && !payload.pricing.currentEffectiveRatePercent) {
-      return null;
-    }
-    return {
-      ...(payload.programNameKey ? { programNameKey: payload.programNameKey } : {}),
-      productCategory: payload.productCategory,
-      isShariaCompliant: payload.isShariaCompliant,
-      programType: payload.programType,
-      tenor: payload.tenor,
-      loanLimits: payload.loanLimits,
-      pricing: payload.pricing,
-      eligibility: payload.eligibility,
-      fees: payload.fees,
-    };
-  });
-
   readonly liveIncomeRuleDraft = computed<IncomeAssumptionConfig>(() => {
     // Touching the two table signals registers them as dependencies, so editing a row
     // re-derives the draft the panel holds.
@@ -5115,7 +5419,12 @@ export class BankProgramFormPage implements OnInit {
       mustPickWayFirst(this.ruleSteps(), this.ruleWaysAre(), this.wayIdValue()),
   );
 
-  /** The rule's own debt-burden cap, when the bank stated one — for the Eligibility cross-reference. */
+  /**
+   * The rule's own debt-burden cap, when the bank stated one.
+   *
+   * Read by the field on the Debt burden card, by its verdict, and by the review row. Trimmed
+   * to `null` when blank, which is what "use the caps above" is stored as.
+   */
   readonly dbrOverrideValue = computed<string | null>(() => {
     this.formValue();
     const raw = this.form.getRawValue().incomeAssumption.dbrCapPercentOverride;
@@ -6070,17 +6379,17 @@ export class BankProgramFormPage implements OnInit {
     // Signal-derived verdicts are tested alongside `form.invalid`: they are
     // invisible to it, so `goTo()`-ing back to an early step and hitting Create
     // would otherwise slip past them and fail on the server.
-    if (
-      this.form.invalid ||
-      this.programNameMismatch() !== null ||
-      this.dbrBandsError() !== null ||
-      this.maxLoanByFactError() !== null ||
-      this.incomeRuleError()
-    ) {
+    //
+    // Asked through `isStepValid`, which reads the one `signalIssues` list, rather than by
+    // re-listing the verdicts here. This was the fourth hand-kept list of them, and the one a
+    // new verdict is most easily forgotten from: a missing clause here is not a wrong banner,
+    // it is a Save that goes through and a server refusal pointing at a step the operator
+    // left behind.
+    if (this.form.invalid || this.steps().some((_, i) => !this.isStepValid(i))) {
       revealErrors(this.form);
       const blocked = this.steps().findIndex((_, i) => !this.isStepValid(i));
       if (blocked >= 0) {
-        const blockedId = this.steps()[blocked]?.id ?? 'income';
+        const blockedId = this.steps()[blocked]?.id ?? 'program';
         this.currentStepId.set(blockedId);
         this.reach(blockedId);
         this.showStepIssues.set(true);

@@ -258,55 +258,18 @@ import { incomeRuleHasError } from './income-rule.rules';
 
         <!-- ── Policy on top of the method ──────────────────────────────────── -->
         @if (showPolicy() && shape() !== 'none') {
-          <!-- The comment above has named these three "policy on top of the method" since
-               they were written; the screen never did. Sitting in the same grid directly
-               under the ways, they read as fields OF the way just picked — and a
-               debt-burden cap is not part of how the figure is worked out. -->
+          <!-- The comment above has named these "policy on top of the method" since they
+               were written; the screen never did. Sitting in the same grid directly under
+               the ways, they read as fields OF the way just picked.
+
+               The rule's own debt-burden cap used to be the first of three fields here. It
+               is on the Requirements step now, in the card that already holds the program's
+               flat cap, its income bands and its by-applicant table — four DBR figures on
+               one card, in the order the resolver reads them, rather than the narrowest
+               of the four sitting two steps away from the three it beats. -->
           <h4 class="policy-label" i18n="@@bank_programs.income.policy_label">
             Policy on top of this method
           </h4>
-          <nz-form-item class="numeric">
-            <nz-form-label
-              [nzFor]="'dbrCapPercentOverride'"
-              i18n="@@bank_programs.income.dbr_override_label"
-              >Debt-burden cap for this rule (%)</nz-form-label
-            >
-            <nz-form-control>
-              <input
-                nz-input
-                id="dbrCapPercentOverride"
-                formControlName="dbrCapPercentOverride"
-                inputmode="decimal"
-                [attr.aria-describedby]="'dbrOverrideHint'"
-                (blur)="touchOverride()"
-              />
-              @if (programCapPercent()) {
-                <p
-                  class="rule-hint"
-                  id="dbrOverrideHint"
-                  i18n="@@bank_programs.income.dbr_override_hint_v2"
-                >
-                  Applied only when the income came from this rule. Leave empty to use the program's
-                  own cap, currently {{ programCapPercent() }}% (set on the Eligibility step).
-                </p>
-              } @else {
-                <p
-                  class="rule-hint"
-                  id="dbrOverrideHint"
-                  i18n="@@bank_programs.income.dbr_override_hint"
-                >
-                  Applied only when the income came from this rule. Leave empty to use the program's
-                  own cap.
-                </p>
-              }
-              @if (overrideError()) {
-                <p class="rule-error" role="alert" i18n="@@bank_programs.income.err_dbr_override">
-                  The cap must be greater than 0 and at most 100.
-                </p>
-              }
-            </nz-form-control>
-          </nz-form-item>
-
           <nz-form-item>
             <nz-form-label
               [nzFor]="'combinationRule'"
@@ -376,16 +339,22 @@ import { incomeRuleHasError } from './income-rule.rules';
   styleUrls: ['../../features/bank-programs/form/sections/section.styles.scss'],
   styles: [
     `
-      /* The band ramp, shared with the section's other labels. span-2 so it heads the
-         row rather than sitting in the first column of it. */
+      /* ONE RUNG BELOW the band labels, deliberately.
+         It used to copy their ramp exactly — uppercase, text-xs, wide tracking — which
+         put a FOURTH identically-drawn micro-label on a step that has two bands, one of
+         them nested two levels inside another. Three of those labels headed a band and
+         one headed a group of fields inside one, and nothing on screen said which.
+         Sentence case at text-sm reads as what it is: a sub-heading of the calculation,
+         not a peer of it.
+
+         1 / -1, never span 2: it heads the whole row, and the grid's column count is
+         now the viewport's to decide. */
       .policy-label {
-        grid-column: span 2;
-        margin: var(--space-2) 0 0;
-        font-size: var(--text-xs);
+        grid-column: 1 / -1;
+        margin: var(--space-5) 0 0;
+        font-size: var(--text-sm);
         font-weight: var(--font-semibold);
-        letter-spacing: var(--tracking-wide);
-        text-transform: uppercase;
-        color: var(--color-text-secondary);
+        color: var(--color-text-primary);
       }
 
       /* The catalog's one-line statement of the rule, above the picker. Plain text on
@@ -418,11 +387,14 @@ import { incomeRuleHasError } from './income-rule.rules';
         color: var(--color-text-primary);
       }
 
+      /* SECONDARY, not tertiary. --color-text-tertiary is #8C7E75, which measures
+         3.83:1 on this card — under AA — and these lines carry the consequence of
+         leaving a box empty, which is the one thing on the step nobody can guess. */
       .rule-hint {
         margin: var(--space-1) 0 0;
         max-inline-size: 68ch;
         font-size: var(--text-xs);
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
       }
 
       .rule-error {
@@ -524,7 +496,13 @@ export class IncomeAssumptionSectionComponent implements OnInit {
     () => this.variant() === 'catalog' && this.pipelineLocked(),
   );
 
-  /** Bank policy on top of the method. Never a catalog name's business. */
+  /**
+   * Bank policy on top of the method — how a stated salary combines with the rule's figure,
+   * and which documents the method needs. Never a catalog name's business.
+   *
+   * No longer the rule's DBR cap: that control is on the Requirements step, beside the three
+   * program-level caps it takes precedence over.
+   */
   protected readonly showPolicy = computed(() => this.variant() === 'program');
 
   /**
@@ -551,13 +529,6 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly stepFiguresTouched = output<void>();
   /** The catalog's statement that a bank sells ONE of the product's ways. */
   readonly waysAre = input<WaysAre>(null);
-  /**
-   * The program's own flat debt-burden cap, for the override's hint: "leave empty to use the
-   * program's own cap" is a sentence that should say what that cap currently is, or the two
-   * DBR controls on two steps read as duplicates. Empty on the catalog variant, which shows
-   * no policy block at all.
-   */
-  readonly programCapPercent = input<string>('');
   /** Which way this bank sells. Written by the picker inside the editor. */
   readonly wayId = model<string | null>(null);
   /** The chosen way's title in the editor's words, re-emitted for the wizard (see the editor). */
@@ -727,17 +698,6 @@ export class IncomeAssumptionSectionComponent implements OnInit {
     return !Number.isFinite(value) || value <= 0;
   });
 
-  readonly overrideError = computed(() => {
-    this.revision();
-    const control = this.group().get('dbrCapPercentOverride');
-    if (!control || (!control.touched && !control.dirty)) return false;
-    const raw = control.value as string | null;
-    // Empty is legal — it means "use the program's own cap".
-    if (raw === null || raw === '') return false;
-    const value = Number(raw);
-    return !Number.isFinite(value) || value <= 0 || value > 100;
-  });
-
   /**
    * The section's verdict, through the SAME shared function the form page's save gate
    * calls (`incomeRuleHasError`). One implementation: a second copy here would be the
@@ -757,11 +717,6 @@ export class IncomeAssumptionSectionComponent implements OnInit {
 
   touchScalar(): void {
     this.group().get('scalar.value')?.markAsTouched();
-    this.bump();
-  }
-
-  touchOverride(): void {
-    this.group().get('dbrCapPercentOverride')?.markAsTouched();
     this.bump();
   }
 
@@ -853,6 +808,10 @@ export class IncomeAssumptionSectionComponent implements OnInit {
     if (nextShape !== 'scalar' && nextShape !== 'bands') {
       this.group().get('scalar')?.reset({ value: null, unit: 'percent' }, { emitEvent: false });
     }
+    // `dbrCapPercentOverride` is still cleared from here even though its FIELD now lives on
+    // the Requirements step: the value is this group's, the method is what scopes it, and a
+    // shapeless method produces a `declared` origin the resolver never applies it to. Clearing
+    // it where the method changes is what stops a figure surviving with nothing to apply to.
     if (nextShape === 'none') {
       this.group().patchValue(
         { dbrCapPercentOverride: null, combinationRule: null, requiredDocuments: [] },

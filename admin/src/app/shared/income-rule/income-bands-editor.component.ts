@@ -4,8 +4,10 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { DeleteOutline, ImportOutline, PlusOutline } from '@ant-design/icons-angular/icons';
+import { formatGroupedNumber } from '@core/directives/money-format';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import type { IncomeBand } from '@features/bank-programs/bank-programs.types';
+import { bandsOnProductEdges } from './catalog-defaults';
 import { incomeBandsErrorFor, type IncomeBandsError } from './income-rule.rules';
 
 // The verdict lives in `income-rule.rules.ts` (no Angular) — see that file for why
@@ -38,7 +40,7 @@ export { incomeBandsErrorFor, type IncomeBandsError };
   providers: [provideNzIconsPatch([PlusOutline, DeleteOutline, ImportOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (bands().length === 0) {
+    @if (rows().length === 0) {
       <div class="ib__empty">
         <p class="ib__emptyText" i18n="@@bank_programs.income.bands_empty">
           This method reads a number and looks up the band it falls in. Enter the edges — a band's
@@ -79,49 +81,62 @@ export { incomeBandsErrorFor, type IncomeBandsError };
       </div>
 
       <ol class="ib__list">
-        @for (band of bands(); track $index) {
+        @for (band of rows(); track $index) {
           <li class="ib__row">
             <span class="ib__range">
-              <input
-                nz-input
-                appMoneyInput
-                type="text"
-                class="ib__edge"
-                [attr.aria-label]="fromAriaLabel"
-                [ngModel]="band.fromInclusive"
-                (ngModelChange)="setEdge($index, $event)"
-                [ngModelOptions]="{ standalone: true }"
-              />
-              <span class="ib__arrow" aria-hidden="true">→</span>
-              @if ($index < bands().length - 1) {
+              @if (locked()) {
+                <!-- THE RANGE IS THE PRODUCT'S, so it is rendered as the fact it is rather
+                     than as a box with the keystrokes thrown away. A disabled input would
+                     read as "you may type here later" and announces nothing to a screen
+                     reader; a read-only one is still a tab stop on a value that cannot
+                     move. The whole row is named by the group's own label above it. -->
+                <span class="ib__edge is-fixed">{{ edgeText(band.fromInclusive) }}</span>
+                <span class="ib__arrow" aria-hidden="true">→</span>
+                <span class="ib__edge is-fixed">{{
+                  band.toExclusive ? edgeText(band.toExclusive) : noMaximumPlaceholder
+                }}</span>
+              } @else {
                 <input
                   nz-input
                   appMoneyInput
                   type="text"
                   class="ib__edge"
-                  [attr.aria-label]="toAriaLabel"
-                  [ngModel]="band.toExclusive"
-                  (ngModelChange)="setUpperEdge($index, $event)"
+                  [attr.aria-label]="fromAriaLabel"
+                  [ngModel]="band.fromInclusive"
+                  (ngModelChange)="setEdge($index, $event)"
                   [ngModelOptions]="{ standalone: true }"
                 />
-              } @else {
-                <!-- The LAST band's ceiling is a real, editable box, not a fixed "No
+                <span class="ib__arrow" aria-hidden="true">→</span>
+                @if ($index < rows().length - 1) {
+                  <input
+                    nz-input
+                    appMoneyInput
+                    type="text"
+                    class="ib__edge"
+                    [attr.aria-label]="toAriaLabel"
+                    [ngModel]="band.toExclusive"
+                    (ngModelChange)="setUpperEdge($index, $event)"
+                    [ngModelOptions]="{ standalone: true }"
+                  />
+                } @else {
+                  <!-- The LAST band's ceiling is a real, editable box, not a fixed "No
                      maximum" label. Legacy years tables close their top band on purpose
                      (a 51-year practitioner resolves to nothing today, and opening it
                      would start paying them), so rendering that row as open-ended showed
                      the admin a table the program does not have — and the first edit
                      silently made the lie true. Blank means open-ended. -->
-                <input
-                  nz-input
-                  appMoneyInput
-                  type="text"
-                  class="ib__edge"
-                  [attr.aria-label]="lastToAriaLabel"
-                  [placeholder]="noMaximumPlaceholder"
-                  [ngModel]="band.toExclusive"
-                  (ngModelChange)="setLastUpperEdge($event)"
-                  [ngModelOptions]="{ standalone: true }"
-                />
+                  <input
+                    nz-input
+                    appMoneyInput
+                    type="text"
+                    class="ib__edge"
+                    [attr.aria-label]="lastToAriaLabel"
+                    [placeholder]="noMaximumPlaceholder"
+                    [ngModel]="band.toExclusive"
+                    (ngModelChange)="setLastUpperEdge($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                  />
+                }
               }
               @if (unit()) {
                 <span class="ib__unit">{{ unit() }}</span>
@@ -134,12 +149,13 @@ export { incomeBandsErrorFor, type IncomeBandsError };
               type="text"
               class="ib__income"
               [attr.aria-label]="incomeAriaLabel"
+              [placeholder]="productFigure($index)"
               [ngModel]="band.incomeEGP"
               (ngModelChange)="setIncome($index, $event)"
               [ngModelOptions]="{ standalone: true }"
             />
 
-            @if (bands().length > 1) {
+            @if (!locked() && rows().length > 1) {
               <button
                 nz-button
                 nzType="text"
@@ -158,27 +174,35 @@ export { incomeBandsErrorFor, type IncomeBandsError };
         }
       </ol>
 
-      <p class="ib__hint" i18n="@@bank_programs.income.bands_link_hint">
-        A band's end is the next band's start — edit either box and the other follows. A value below
-        the first edge produces no figures, which is stated to the customer, never shown as zero.
-      </p>
+      @if (locked()) {
+        <p class="ib__hint" i18n="@@bank_programs.income.bands_locked_hint">
+          The ranges are the product's and are the same at every bank selling it. Only the amount
+          beside each one is this bank's — leave a box as it is to quote what the product states.
+        </p>
+      } @else {
+        <p class="ib__hint" i18n="@@bank_programs.income.bands_link_hint">
+          A band's end is the next band's start — edit either box and the other follows. A value
+          below the first edge produces no figures, which is stated to the customer, never shown as
+          zero.
+        </p>
 
-      <div class="ib__actions">
-        <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addBand()">
-          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.income.bands_add">Add a band</span>
-        </button>
-        <button
-          nz-button
-          nzType="text"
-          nzSize="small"
-          type="button"
-          (click)="clear()"
-          i18n="@@bank_programs.income.bands_clear"
-        >
-          Remove all bands
-        </button>
-      </div>
+        <div class="ib__actions">
+          <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addBand()">
+            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.income.bands_add">Add a band</span>
+          </button>
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            type="button"
+            (click)="clear()"
+            i18n="@@bank_programs.income.bands_clear"
+          >
+            Remove all bands
+          </button>
+        </div>
+      }
 
       <!-- NO_BANDS is absent for the same reason as NO_ROWS in the key table: an
            empty table renders the empty STATE, so this branch could never show. The
@@ -295,6 +319,18 @@ export { incomeBandsErrorFor, type IncomeBandsError };
         font-feature-settings: var(--font-feature-tabular);
       }
 
+      /* A range the bank cannot move: set on the field's own line so the row still reads as
+         a table, but with no border and no ground — a box drawn around a value nobody can
+         type into is the affordance this mode exists to withdraw. */
+      .ib__edge.is-fixed {
+        display: inline-block;
+        min-block-size: var(--size-field);
+        padding-block: calc((var(--size-field) - 1.5rem) / 2);
+        line-height: 1.5rem;
+        color: var(--color-text-primary);
+        white-space: nowrap;
+      }
+
       .ib__income {
         inline-size: 100%;
       }
@@ -308,11 +344,15 @@ export { incomeBandsErrorFor, type IncomeBandsError };
         color: var(--color-text-tertiary);
       }
 
+      /* SECONDARY, not tertiary. Both hints are sentences an operator reads for meaning —
+         the locked one is the only thing on screen that says why the range column cannot be
+         typed into — and tertiary measures 3.83:1 on a card in light mode, under 4.5:1
+         (DESIGN_SYSTEM.md; measured on this very line). */
       .ib__hint {
         margin: var(--space-2) 0 0;
         max-inline-size: 68ch;
         font-size: var(--text-xs);
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
       }
 
       .ib__actions {
@@ -361,6 +401,39 @@ export class IncomeBandsEditorComponent {
   readonly unit = input<string | null>(null);
 
   /**
+   * The surrogate product's own bands, when the RANGES are the product's and not this bank's.
+   *
+   * `null` — every caller that has no product behind the box: the catalog variant, where these
+   * ranges are the ones being authored, and a hand-wired name rule that publishes none. With
+   * rows, the range column stops being editable and the table on screen is always the
+   * product's, carrying this bank's figure against each range it has typed one for.
+   *
+   * WHY THE RANGES ARE NOT THE BANK'S. Which brackets exist is the SHAPE of the table, and a
+   * surrogate product owns its shape exactly as it owns `steps` and `gates`
+   * (`mergeProductRuleStructure` on the server). Band edges were only ever per-bank because
+   * they happen to be stored inside `stepParams` beside the figures — two banks selling one
+   * product off different brackets is not a product with two shapes, it is one product
+   * nobody can read.
+   */
+  readonly lockedEdges = input<readonly IncomeBand[] | null>(null);
+
+  /** Are the ranges the product's? */
+  protected readonly locked = computed<boolean>(() => (this.lockedEdges()?.length ?? 0) > 0);
+
+  /**
+   * The table on screen.
+   *
+   * Locked, it is the product's ranges carrying this bank's figures — matched BY EDGE in
+   * `bandsOnProductEdges`, never by position. Unlocked it is simply what the bank stores, so
+   * every existing caller is byte-identical.
+   */
+  protected readonly rows = computed<IncomeBand[]>(() => {
+    const edges = this.lockedEdges();
+    if (edges === null || edges.length === 0) return this.bands();
+    return bandsOnProductEdges(edges, this.bands());
+  });
+
+  /**
    * Brackets a published sheet prints for this box, offered while the table is empty.
    *
    * Edges only, and never written on their own: a band row with no figure beside it is
@@ -388,7 +461,10 @@ export class IncomeBandsEditorComponent {
   readonly incomeAriaLabel = $localize`:@@bank_programs.income.aria.band_income:Assumed monthly income in EGP`;
   readonly removeAriaLabel = $localize`:@@bank_programs.income.aria.remove_band:Remove this band`;
 
-  readonly error = computed<IncomeBandsError>(() => incomeBandsErrorFor(this.bands()));
+  // Over the DISPLAYED rows, which under a lock are the product's. Reading the stored table
+  // instead would report a program that has typed nothing as having no table at all, on a
+  // screen showing a full one.
+  readonly error = computed<IncomeBandsError>(() => incomeBandsErrorFor(this.rows()));
 
   /**
    * Three ascending bands with blank incomes. A blank table is the one state that
@@ -488,9 +564,22 @@ export class IncomeBandsEditorComponent {
   }
 
   setIncome(index: number, value: string): void {
-    this.bands.set(
-      this.bands().map((row, i) => (i === index ? { ...row, incomeEGP: value } : row)),
-    );
+    // `rows()`, not `bands()`. Under a lock the stored table may hold nothing at all — the
+    // figures on screen are the product's — so writing over the stored array would store one
+    // row where the operator can see six. Writing the displayed set makes the first keystroke
+    // commit the product's ranges along with the figure, which is what the screen promises.
+    this.bands.set(this.rows().map((row, i) => (i === index ? { ...row, incomeEGP: value } : row)));
+  }
+
+  /** A locked range, as text. Grouped like the box it replaces, so a column of them lines up. */
+  protected edgeText(raw: string): string {
+    return formatGroupedNumber(raw);
+  }
+
+  /** The product's own figure for one row, shown as the placeholder a cleared box falls back to. */
+  protected productFigure(index: number): string {
+    const raw = this.lockedEdges()?.[index]?.incomeEGP ?? '';
+    return raw === '' ? '' : formatGroupedNumber(raw);
   }
 }
 

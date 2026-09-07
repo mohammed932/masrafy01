@@ -35,9 +35,11 @@ import {
 import { slotsKeyedByList } from './figure-slots';
 import { writeFigure } from './figure-write';
 import {
+  bandsToRelock,
   slotShapes,
   slotsMissingDefault,
   withAllDefaults,
+  withLockedBands,
   type SlotDefault,
 } from './catalog-defaults';
 import { formatGroupedNumber } from '@core/directives/money-format';
@@ -299,11 +301,15 @@ interface FlowLine {
           activeDerivation();
         as active
       ) {
+        <!-- A LABEL and a value, not one sentence. As one it read "This bank works the
+             ceiling out from: A percentage of: How much have you paid for the unit so
+             far?" — two colons in a row, the second belonging to the way's own name, and
+             a way title starting with a capital letter in the middle of a sentence. It
+             also said "ceiling" on products that derive an income. -->
         <p class="live">
           <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@product_rule.active_derivation"
-            >This bank works the ceiling out from: {{ active }}</span
-          >
+          <span class="live-label" i18n="@@product_rule.active_from">Worked out from</span>
+          <span class="live-value">{{ active }}</span>
         </p>
       }
       <!-- The DECISION leads. On a product with a choice and no pick yet, one line in the same
@@ -489,7 +495,10 @@ interface FlowLine {
                       <p class="row-hint">{{ row.hint }}</p>
                     }
                     @for (slot of row.slots; track slot.id) {
-                      <div class="slot">
+                      <!-- The SHAPE on the element, so the layout can tell a one-box figure
+                           from a whole table without re-deriving it: a scalar takes one
+                           column of the body's grid and everything else takes the row. -->
+                      <div class="slot" [class]="'is-' + slot.shape">
                         @if (slot.label) {
                           <p class="slot-label">{{ slot.label }}</p>
                         }
@@ -521,7 +530,11 @@ interface FlowLine {
                             ></app-income-key-table>
                           }
                           @case ('bands') {
-                            @if (hasDefault(slot.id)) {
+                            <!-- No "use the product's amounts" under a LOCK: the ranges are
+                                 the product's already and every figure the bank has not
+                                 typed reads the product's, so the button would offer what
+                                 the box is showing. -->
+                            @if (hasDefault(slot.id) && lockedBandsFor(slot.id) === null) {
                               <p class="take-default-line">
                                 <button
                                   type="button"
@@ -537,6 +550,7 @@ interface FlowLine {
                               (bandsChange)="setBands(slot.id, $event)"
                               [unit]="slot.unit"
                               [valueLabel]="slot.valueLabel"
+                              [lockedEdges]="lockedBandsFor(slot.id)"
                               [suggested]="suggestedFor(slot.id)"
                             ></app-income-bands-editor>
                           }
@@ -758,8 +772,9 @@ interface FlowLine {
          gets the one saturated accent on the screen. */
       .live {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
-        gap: var(--space-2);
+        gap: var(--space-1) var(--space-2);
         margin: 0;
         padding: var(--space-2) var(--space-3);
         border-inline-start: var(--rule-width-accent) solid var(--color-success);
@@ -767,6 +782,18 @@ interface FlowLine {
         background: var(--color-success-bg);
         color: var(--color-text-primary);
         font-size: var(--text-sm);
+      }
+      /* The caption recedes; the way's own name is what the operator reads. Secondary ink
+         rather than tertiary — this sits on a tinted wash where tertiary drops further. */
+      .live-label {
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+      }
+      .live-value {
+        font-weight: var(--font-medium);
       }
       /* Same slot as the decision line, before the decision: secondary ink, no medallion. */
       .live.is-pending {
@@ -1088,11 +1115,19 @@ interface FlowLine {
       }
 
       /* Indented to the title, so the figures read as belonging to the row above rather
-         than as a new block. */
+         than as a new block.
+
+         A GRID, not a column, and only because of the two-column branch case: a way whose
+         figure is stated once for everyone and again for customers who already bank here
+         renders two single-box slots, and stacked they read as two unrelated questions
+         with two unrelated answers rather than as two columns of one table. Everything
+         wider than a box still takes the whole row (below), so a key table, a band editor
+         and a min/max pair are laid out exactly as they were. */
       .row-body {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+        align-items: start;
+        gap: var(--space-3) var(--space-4);
         /* Logical, not a 4-value shorthand: the start-side indent lines the body up under
            the row's own title, and the physical form indented from the WRONG edge in RTL
            (A19). */
@@ -1101,10 +1136,13 @@ interface FlowLine {
         animation: rule-row-in var(--motion-duration-base) var(--motion-easing-standard) both;
       }
 
+      /* SECONDARY, not tertiary: --color-text-tertiary measures 3.83:1 on this surface,
+         and this line is where a slot says what leaving it empty means. */
       .row-hint {
         margin: 0;
+        grid-column: 1 / -1;
         max-inline-size: 72ch;
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
         font-size: var(--text-xs);
         line-height: var(--leading-relaxed);
       }
@@ -1113,6 +1151,13 @@ interface FlowLine {
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+      }
+      /* Everything but a single figure claims the row. Stated as the exception rather than
+         listing the four wide shapes, so a shape added later is full-width by default —
+         the safe direction: a table squeezed into a fifth of the width is unusable, a box
+         given the whole row is merely wide. */
+      .slot:not(.is-scalar) {
+        grid-column: 1 / -1;
       }
 
       .slot-none {
@@ -1484,7 +1529,66 @@ export class ProductRuleEditorComponent {
 
   /** The brackets offered for one box, or none. */
   protected suggestedFor(stepId: string): readonly IncomeBand[] {
+    // Withheld under a lock: the sheet's brackets are an offer to SHAPE a table, and the
+    // shape is no longer the bank's to state.
+    if (this.lockedBandsFor(stepId) !== null) return [];
     return this.suggestedBands()[stepId] ?? [];
+  }
+
+  /**
+   * The product's ranges for one band box, or `null` when the bank still authors its own.
+   *
+   * A BANK does not re-cut a surrogate product's brackets — which ranges exist is the shape of
+   * the table, and the product owns its shape exactly as it owns `steps` and `gates`. On the
+   * CATALOG variant this returns `null` on purpose: those ranges ARE the product's, and this is
+   * the one screen where they are authored.
+   *
+   * `null` also for a box the product publishes no ranges for. A hand-wired name rule states
+   * none, and a bank with nothing to lock to has to be able to state its own table or it has
+   * no table at all.
+   */
+  protected lockedBandsFor(stepId: string): readonly IncomeBand[] | null {
+    if (this.variant() !== 'program') return null;
+    const own = this.catalogFigures()[stepId]?.bands;
+    if (own !== undefined && own.length > 0) return own;
+    return this.siblingBandEdges(stepId);
+  }
+
+  /**
+   * The ranges a SIBLING column publishes, figures stripped.
+   *
+   * A `pickByFact`'s columns are one table read for two kinds of customer — that is what a
+   * column IS, and it is why `suggestedBandsBySlot` prints the same brackets on every one of
+   * them. So a product that states its first column and leaves the second for each bank to
+   * fill still fixes the RANGES of both; without this the two render side by side as a locked
+   * table and a free-form one, and nothing on screen says the second is meant to line up with
+   * the first.
+   *
+   * The figures are blanked deliberately. They are the sibling's — putting a top-up column's
+   * amounts in the new-loan column as its "default" would be the wrong number offered under
+   * the product's name.
+   *
+   * DISPLAY ONLY, and `bandsToRelock` deliberately does not follow it: a table of ranges with
+   * no figure in any of them is refused at save, so writing one would trade a slot that
+   * states nothing for a slot that states something invalid. The rows appear the moment the
+   * operator types the first figure (`setIncome` commits the whole displayed set), which on a
+   * column the product prices for nobody is a figure they have to type anyway.
+   */
+  private siblingBandEdges(stepId: string): readonly IncomeBand[] | null {
+    const shapes = slotShapes(this.steps(), this.gates());
+    const rowId = shapes.get(stepId)?.rowId;
+    if (rowId === undefined) return null;
+    for (const slot of shapes.values()) {
+      if (slot.id === stepId || slot.rowId !== rowId || slot.shape !== 'bands') continue;
+      const bands = this.catalogFigures()[slot.id]?.bands;
+      if (bands === undefined || bands.length === 0) continue;
+      return bands.map((band) => ({
+        fromInclusive: band.fromInclusive,
+        toExclusive: band.toExclusive,
+        incomeEGP: '',
+      }));
+    }
+    return null;
   }
 
   // --- what the product states, for a box this bank left blank ----------------
@@ -1796,10 +1900,45 @@ export class ProductRuleEditorComponent {
       Object.entries(figures).filter(([slot]) => keep.has(slot) || !everyWay.has(slot)),
     );
     this.wayId.set(wayId);
-    if (Object.keys(kept).length !== Object.keys(figures).length) {
-      this.figures.set(kept);
+    // THE RANGES OF THE WAY JUST PICKED, put where they will be saved from.
+    //
+    // The prune above leaves the winning way's boxes exactly as the operator last left them,
+    // which on a way nobody has typed into is nothing at all — and the wizard's on-open fill
+    // has already run and cannot run again. So the screen drew the product's ranges (the
+    // editor renders them under a lock) over a stored table that was empty: what was shown
+    // and what would have been sent were two different tables. Re-cut here, at the one
+    // moment the owned set moves, rather than from an effect — an effect writing figures on
+    // load is what silently detaches a program still on the catalog's amounts.
+    const relocked = this.showsCatalogDefaults()
+      ? withLockedBands(
+          kept,
+          bandsToRelock(slotShapes(steps, this.gates()), kept, this.catalogFigures(), {
+            ownedSlots: this.slotsOwnedAfter(keep, everyWay),
+          }),
+        )
+      : kept;
+    if (relocked !== kept || Object.keys(kept).length !== Object.keys(figures).length) {
+      this.figures.set(relocked);
     }
     this.figuresTouched.emit();
+  }
+
+  /**
+   * The slots in play once `wayId` is this one: the way's own, plus every slot no way owns.
+   *
+   * The same union `ownedSlotIds` computes, taken from the sets `commitWay` already has —
+   * that computed still reads the OLD `wayId` at this point in the write, and re-deriving it
+   * from the signal would re-cut the way the operator has just left.
+   */
+  private slotsOwnedAfter(
+    keep: ReadonlySet<string>,
+    everyWay: ReadonlySet<string>,
+  ): ReadonlySet<string> {
+    const owned = new Set(keep);
+    for (const slot of slotShapes(this.steps(), this.gates()).keys()) {
+      if (!everyWay.has(slot)) owned.add(slot);
+    }
+    return owned;
   }
 
   protected readonly groupsAria = $localize`:@@product_rule.groups_aria:What this rule needs set`;
