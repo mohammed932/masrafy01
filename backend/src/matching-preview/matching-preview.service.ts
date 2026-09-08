@@ -10,6 +10,7 @@ import { matchesRequestedScope } from '@/bank-programs/program-scope';
 import { ProgramNameScopeService } from '@/platform-enumerations/program-name-scope.service';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { quoteProgram } from '@/matching/pipeline/quote';
+import { carDetailsFrom } from '@/matching/pipeline/car-details';
 import {
   DEBT_TYPES_QUESTION_CODE,
   MONEY_FIELD_BINDINGS,
@@ -75,6 +76,10 @@ export interface PreviewFigures {
    * `null` for every program that does not price off collateral.
    */
   collateralCeilingEGP: string | null;
+  /** Car programs: the most this program finances against the stated price. */
+  ltvCeilingEGP: string | null;
+  /** Car programs: the price less the cash paid out — what the customer puts in. */
+  requiredDownPaymentEGP: string | null;
   fees: { adminFeeEGP: string; stampDutyEGP: string; lifeInsuranceEGP: string };
 }
 
@@ -395,7 +400,8 @@ export class MatchingPreviewService {
           : priced && !priced.ok
             ? priced.unavailable.reason
             : 'MONEY_FIGURE_MISSING',
-        gateReasonCode: !quote && priced && !priced.ok ? (priced.unavailable.gateReasonCode ?? null) : null,
+        gateReasonCode:
+          !quote && priced && !priced.ok ? (priced.unavailable.gateReasonCode ?? null) : null,
         missingFactKeys:
           !quote && priced && !priced.ok ? (priced.unavailable.missingFactKeys ?? null) : null,
         rejectionReasons: [],
@@ -439,6 +445,7 @@ export class MatchingPreviewService {
     age: number,
     surrogateFacts: SurrogateFacts,
   ): ApplicantProfile {
+    const carDetails = carDetailsFrom(surrogateFacts.byKey);
     return {
       age,
       loanPurpose: 'personal',
@@ -472,6 +479,11 @@ export class MatchingPreviewService {
       // The operator-defined facts, keyed — the same map apply builds, from the same
       // mapper, so a `fact:` rule prices identically before and after apply (A33).
       surrogateFacts: surrogateFacts.byKey,
+      // The car, from the two numeric answers. Preview built none of this until now, so an
+      // LTV-capped program quoted its full ceiling here and the capped figure after apply —
+      // the same input derived two ways, which A33 forbids. No body fallback: preview has no
+      // request body.
+      ...(carDetails !== undefined ? { carDetails } : {}),
       ...(surrogateFacts.bankAxisSlugs !== undefined
         ? { bankAxisSlugs: surrogateFacts.bankAxisSlugs }
         : {}),
@@ -498,6 +510,8 @@ function toPreviewFigures(q: Quote): PreviewFigures {
     maxAffordableAmountEGP: q.maxAffordableAmountEGP.toFixed(2),
     bindingConstraint: q.bindingConstraint,
     collateralCeilingEGP: q.collateralCeilingEGP?.toFixed(2) ?? null,
+    ltvCeilingEGP: q.ltvCeilingEGP?.toFixed(2) ?? null,
+    requiredDownPaymentEGP: q.requiredDownPaymentEGP?.toFixed(2) ?? null,
     fees: {
       adminFeeEGP: new Decimal(q.feesBreakdown.adminFeeEGP).toFixed(2),
       stampDutyEGP: new Decimal(q.feesBreakdown.stampDutyEGP).toFixed(2),

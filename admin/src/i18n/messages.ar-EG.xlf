@@ -4230,6 +4230,16 @@
       <trans-unit id="bank_programs.eligibility.dbr_rule_cap.error" datatype="html"><source> The cap must be greater than 0 and at most 100. </source><target> يجب أن يكون الحد أكبر من ٠ و١٠٠ على الأكثر. </target></trans-unit>
       <trans-unit id="bank_programs.step.issue_dbr_override" datatype="html"><source>The cap for the calculation&apos;s figure must be greater than 0 and at most 100.</source><target>الحد على الرقم الناتج من الاحتساب يجب أن يكون أكبر من ٠ و١٠٠ على الأكثر.</target></trans-unit>
       <trans-unit id="bank_programs.review.dbr_rule_cap" datatype="html"><source>Cap for the calculation&apos;s figure</source><target>الحد على الرقم الناتج من الاحتساب</target></trans-unit>
+      <trans-unit id="bank_programs.field.ltv" datatype="html"><source>Share of the price financed</source><target>نسبة التمويل من السعر</target></trans-unit>
+      <trans-unit id="bank_programs.field.ltv.hint" datatype="html"><source>Leave it blank when the program lends against the whole price.</source><target>اتركها فارغة إذا كان البرنامج يمول السعر بالكامل.</target></trans-unit>
+      <trans-unit id="product_rule.step.divide" datatype="html"><source>An earlier figure divided</source><target>رقم سابق مقسومًا</target></trans-unit>
+      <trans-unit id="product_rule.unit.divisor" datatype="html"><source>÷ divide by</source><target>÷ القسمة على</target></trans-unit>
+      <trans-unit id="sim.binding.ltv" datatype="html"><source>Share of the car&apos;s price this program finances</source><target>نسبة سعر السيارة التي يمولها هذا البرنامج</target></trans-unit>
+      <trans-unit id="sim.binding.collateral" datatype="html"><source>What the applicant&apos;s collateral supports</source><target>ما يدعمه ضمان العميل</target></trans-unit>
+      <trans-unit id="sim.binding.program_max_by_fact" datatype="html"><source>The program&apos;s maximum for this answer</source><target>الحد الأقصى للبرنامج لهذه الإجابة</target></trans-unit>
+      <trans-unit id="spt.mech.divided" datatype="html"><source>A number the customer states, divided by a figure the bank states</source><target>رقم يذكره العميل، مقسومًا على رقم يحدده البنك</target></trans-unit>
+      <trans-unit id="spt.mech.divided.eg" datatype="html"><source>e.g. a 500,000 down payment ÷ 3.6 → 138,888.89 a month</source><target>مثال: دفعة مقدمة ٥٠٠٬٠٠٠ ÷ ٣٫٦ ← ١٣٨٬٨٨٨٫٨٩ شهريًا</target></trans-unit>
+      <trans-unit id="bank_programs.field.ltv.implied" datatype="html"><source>The customer puts in the rest — <x id="INTERPOLATION" equiv-text="{{ impliedDownPaymentPercent() }}"/>% down.</source><target>العميل يدفع الباقي — <x id="INTERPOLATION" equiv-text="{{ impliedDownPaymentPercent() }}"/>٪ مقدمًا.</target></trans-unit>
     </body>
   </file>
 </xliff>

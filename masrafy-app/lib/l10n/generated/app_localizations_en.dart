@@ -2242,4 +2242,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String offer_collateral_ceiling(String amount) {
     return 'Your unit supports up to $amount';
   }
+
+  @override
+  String offer_required_down_payment(String amount) {
+    return 'You would put down $amount';
+  }
+
+  @override
+  String get offer_limited_by_ltv => 'Capped at this bank\'s share of the car\'s price';
+
+  @override
+  String get offer_limited_by_dbr => 'Capped by what your income supports';
+
+  @override
+  String get offer_limited_by_program_max => 'Capped by this program\'s maximum';
+
+  @override
+  String get offer_limited_by_program_row => 'Capped by this program\'s limit for your answers';
+
+  @override
+  String get offer_limited_by_collateral => 'Capped by what your collateral supports';
+
+  @override
+  String get results_unavailable_no_max_for_answer => 'This bank sets no limit for the answers you gave.';
+
+  @override
+  String get results_unavailable_product_retired => 'This bank is not offering this program right now.';
 }

@@ -1373,6 +1373,17 @@
     "description": "Hint under the skip button"
   },
   "offer_collateral_ceiling": "وحدتك تدعم حتى {amount}",
+  "offer_required_down_payment": "ستدفع {amount} مقدمًا",
+  "@offer_required_down_payment": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "offer_limited_by_ltv": "محدود بنسبة تمويل البنك من سعر السيارة",
+  "offer_limited_by_dbr": "محدود بما يسمح به دخلك",
+  "offer_limited_by_program_max": "محدود بالحد الأقصى لهذا البرنامج",
+  "offer_limited_by_program_row": "محدود بحد البرنامج لإجاباتك",
+  "offer_limited_by_collateral": "محدود بما يدعمه ضمانك",
+  "results_unavailable_no_max_for_answer": "هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.",
+  "results_unavailable_product_retired": "هذا البنك لا يقدم هذا البرنامج حاليًا.",
   "@offer_collateral_ceiling": {
     "description": "On a priced offer card: the ceiling the customer's collateral supports",
     "placeholders": { "amount": { "type": "String" } }

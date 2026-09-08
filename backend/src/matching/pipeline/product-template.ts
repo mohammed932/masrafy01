@@ -16,7 +16,9 @@
  * applies, and what the numbers are. This module is that frame, and `compileTemplate` turns
  * it into exactly the steps the engine already runs.
  *
- * NO NEW OP. Every row of the mapping below is an op that shipped with v18.0.0.
+ * NO NEW OP, with one dated exception: `dividedBy` compiles to `divide`, added 2026-09-08 for
+ * the savings-as-income sheets (see `docs/scb-auto-finance-under-car.md`). Every other row of
+ * the mapping below is an op that shipped with v18.0.0.
  *
  * ─── The one thing that can silently destroy data ─────────────────────────────
  *
@@ -45,6 +47,7 @@
  *   table by years / amount bracket    factNumber -> bandTable
  *   share of a stated figure           factNumber -> percentOf
  *   multiple of a stated figure        factNumber -> multiply
+ *   a stated figure divided            factNumber -> divide
  *   a figure the bank states outright  constant
  *   second column                      one step per column + pickByFact
  *   another way, bank fills one        coalesce
@@ -89,6 +92,7 @@ export const TEMPLATE_MECHANISMS = [
   'numberBand',
   'shareOf',
   'multipleOf',
+  'dividedBy',
   'flatAmount',
 ] as const;
 
@@ -105,6 +109,14 @@ export type TemplateMechanism =
   | { kind: 'shareOf'; fact: string }
   /** A multiple of a number the applicant states. */
   | { kind: 'multipleOf'; fact: string }
+  /**
+   * A number the applicant states, DIVIDED by a figure the bank states.
+   *
+   * The savings sheets: "the down payment is 36 months of saving, and saving is 10% of
+   * income" is one divisor the bank types (3.6), and it is the number printed on the sheet.
+   * A share cannot say it — the reciprocal is 27.7777777777777778%, which no sheet prints.
+   */
+  | { kind: 'dividedBy'; fact: string }
   /** One figure the bank states outright, the same for every applicant. */
   | { kind: 'flatAmount' };
 
@@ -754,7 +766,8 @@ function collectNumericFacts(template: ProductTemplate, into: Set<string>): void
     if (
       mechanism.kind === 'numberBand' ||
       mechanism.kind === 'shareOf' ||
-      mechanism.kind === 'multipleOf'
+      mechanism.kind === 'multipleOf' ||
+      mechanism.kind === 'dividedBy'
     ) {
       into.add(mechanism.fact);
     }
@@ -827,6 +840,8 @@ function mechanismStep(mechanism: TemplateMechanism, id: string): RuleStep {
       return { id, op: 'percentOf', of: { step: sourceSlot(mechanism.fact) } };
     case 'multipleOf':
       return { id, op: 'multiply', of: { step: sourceSlot(mechanism.fact) } };
+    case 'dividedBy':
+      return { id, op: 'divide', of: { step: sourceSlot(mechanism.fact) } };
     case 'flatAmount':
       return { id, op: 'constant' };
   }

@@ -107,6 +107,8 @@ class OfferEntity extends Equatable {
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
     this.collateralCeilingEGP,
+    this.bindingConstraint,
+    this.requiredDownPaymentEGP,
     this.dbrPercent,
     this.dbrCapPercent,
     this.isSaved = false,
@@ -140,6 +142,12 @@ class OfferEntity extends Equatable {
   /// Distinct from [maxLoanAvailableEGP] on purpose: that one is what their obligations leave
   /// room for. Null unless the program prices off collateral, which is most of them.
   final double? collateralCeilingEGP;
+
+  /// Which reduction decided the amount, frozen with the offer.
+  final String? bindingConstraint;
+
+  /// Car offers: what the customer has to put in.
+  final double? requiredDownPaymentEGP;
 
   /// Where this offer's installment lands on the debt-burden scale, and the cap
   /// it was measured against.
@@ -183,6 +191,8 @@ class OfferEntity extends Equatable {
         feesBreakdown,
         maxLoanAvailableEGP,
         collateralCeilingEGP,
+        bindingConstraint,
+        requiredDownPaymentEGP,
         dbrPercent,
         dbrCapPercent,
         isSaved,

@@ -45,6 +45,7 @@ import { ceilingToIncome } from './product-rule-ceiling';
 import { factsForProgram } from './bank-relationship';
 import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
+import { ltvCeilingFor } from './ltv-ceiling';
 import { applyMaxLoanAdjustments } from './max-loan-adjustments';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
@@ -107,6 +108,12 @@ const BINDING_PRECEDENCE: Record<BindingConstraint, number> = {
    * because a ceiling the applicant's own unit imposes is the more surprising of the two.
    */
   program_max_by_fact: 5,
+  /**
+   * Beside the other two specific ceilings: "the program would lend more, this car will not
+   * carry more". It is also the one a customer can act on — it names the down payment they
+   * have to find.
+   */
+  ltv_ceiling: 5,
   program_max: 4,
   age_at_maturity: 3,
   tenor_max: 2,
@@ -461,6 +468,24 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     }
   }
 
+  // ── 3c. The share of the car's price this program finances ──────────────
+  //
+  // AFTER the collateral ceiling and before the request is clamped, so all four ceilings —
+  // the flat maximum, the cap table, the collateral and this — compose and the lowest wins.
+  // Everything downstream then follows with no further code: the request clamp below,
+  // `BELOW_PROGRAM_MIN_AMOUNT` when the LTV lands under the program's floor, and
+  // `maxAffordableAmountEGP`, which is where the reference's `MIN(DBR max, LTV max)` is
+  // actually taken.
+  //
+  // A no-op for every program that states no LTV and every applicant who stated no car —
+  // `ltvCeilingFor` answers `null` rather than zero, because a zero cap is a blank card with
+  // no stated reason.
+  const ltvCeilingEGP = ltvCeilingFor(program.loanLimits, profile.carDetails);
+  if (ltvCeilingEGP !== null && ltvCeilingEGP.lessThan(programMax)) {
+    programMax = ltvCeilingEGP;
+    noteConstraint('ltv_ceiling');
+  }
+
   // ── 4. Amount: clamp down to the program ceiling ────────────────────────
   const minAmount = toFiniteDecimal(program.loanLimits?.minAmountEGP) ?? new Decimal(0);
   let cash = round2(input.overrideAmountEGP ?? profile.requestedAmountEGP);
@@ -689,6 +714,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   }
 
   // ── 7. Assemble ─────────────────────────────────────────────────────────
+  const carValueEGP = profile.carDetails?.carValueEGP ?? null;
   const totalFeesEGP = round2(priced.fees.totalFinancedFeesEGP);
   const offeredAmountEGP = round2(priced.booked);
   const cashToCustomerEGP = round2(offeredAmountEGP.minus(totalFeesEGP));
@@ -715,6 +741,19 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       dbrBandIndex,
       maxAffordableAmountEGP,
       bindingConstraint: binding,
+      ...(ltvCeilingEGP !== null ? { ltvCeilingEGP } : {}),
+      // What the customer puts in: the price they stated less the cash this offer pays out.
+      // The cash leg is what reaches the dealer — fees are financed on top (see the header) —
+      // and it is floored at zero rather than allowed negative, which an offer above the
+      // stated price would otherwise produce.
+      ...(carValueEGP !== null
+        ? {
+            requiredDownPaymentEGP: Decimal.max(
+              new Decimal(0),
+              carValueEGP.minus(cashToCustomerEGP),
+            ),
+          }
+        : {}),
       recognisedIncomeEGP,
       // Frozen onto the offer (Principle I / A6). "2 000 000" says nothing about WHY, and
       // the ceiling cannot be re-derived later: the rule, the tables and the applicant's

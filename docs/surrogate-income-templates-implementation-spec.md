@@ -29,6 +29,12 @@ a **two-list lookup setup** (classes + hundreds of compounds) and a **paste-a-li
 1. **No engine change.** Every template compiles to existing operations in
    `backend/src/matching/pipeline/product-rule.ts`. If a shape cannot be expressed with the existing
    operations, it does not go in the template list — it goes in §10 as a decision.
+   *Amended 2026-09-08:* one exception has been taken, and the bar it set is the one to hold. The
+   savings sheets state `income = down payment ÷ 3.6`; the only existing spelling was a `percentOf`
+   with the reciprocal `27.7777777777777778%`, a figure that appears on no sheet, cannot be checked
+   by eye, and misquotes by 388 EGP on a 5,000,000 down payment if an operator rounds it to one
+   decimal. A `divide` op was added — arithmetic only, mirroring `multiply`, with a single-step
+   mechanism so every stored template recompiles byte-identically.
 2. **No bank names, no bank numbers, in a template.** One product is sold by many banks. A bank's
    real figure may appear as grey placeholder text beside an empty field; it is never saved as part
    of the template. (Hardcoding a bank into shared code is a Principle II / A1 violation.)
@@ -164,6 +170,7 @@ program's `stepParams` like every other number.
 | `bandTable` | `factNumber` → `bandTable` |
 | `shareOf` | `factNumber` → `percentOf` |
 | `multipleOf` | `factNumber` → `multiply` |
+| `dividedBy` | `factNumber` → `divide` — added 2026-09-08 with the `divide` op, the one dated exception to §2 rule 1; see `docs/scb-auto-finance-under-car.md` |
 | `splitBy` | one copy of the path per column + `pickByFact` |
 | `combine: 'min' \| 'max'` | `minOf` / `maxOf` |
 | `combine: 'coalesce'` | `coalesce` |

@@ -26,9 +26,11 @@ const withTemplate = productBlueprints().filter((b) => b.template !== null);
 const singleWay = withTemplate.filter((b) => waysOf(b.template!).length === 1);
 
 describe('every product offers a way a program can name', () => {
-  it('has ten single-way products, one combined and one exclusive — the registry as it stands', () => {
+  it('has nine single-way products, one combined and one exclusive — the registry as it stands', () => {
     const shapes = withTemplate.map((b) => [b.key, waysOf(b.template!).length, b.template!.waysAre]);
-    expect(shapes.filter(([, n]) => n === 1)).toHaveLength(7);
+    // Seven, plus the two savings products: each states ONE way, and the Green product's two
+    // divisors are two COLUMNS of that way rather than a second way to reach the figure.
+    expect(shapes.filter(([, n]) => n === 1)).toHaveLength(9);
     expect(shapes.find(([key]) => key === 'auto_loan_crosssell')?.slice(1)).toEqual([2, 'combined']);
     expect(shapes.find(([key]) => key === 'compound_owner')?.slice(1)).toEqual([5, 'exclusive']);
   });
@@ -65,8 +67,10 @@ const PRE_EXISTING_NAMES: Readonly<Record<string, string>> = { compound_owner_4:
 describe('the seed names, for every surrogate program, a way its product offers', () => {
   const surrogate = SHEET_PROGRAMS.filter((p) => p.dto.programType === 'income_surrogate');
 
-  it('seeds thirteen surrogate programs and four payslip ones', () => {
-    expect(surrogate).toHaveLength(13);
+  it('seeds twenty surrogate programs and four payslip ones', () => {
+    // Thirteen, plus the seven Suez Canal auto programmes — five down-payment tiers off one
+    // product and two Green Finance ones off the other.
+    expect(surrogate).toHaveLength(20);
     expect(SHEET_PROGRAMS.length - surrogate.length).toBe(4);
   });
 

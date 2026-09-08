@@ -45,6 +45,13 @@ describe('engine ↔ quote parity', () => {
     // the offer is the cash the customer receives.
     expect(offer.effectiveLoanAmountEGP.toFixed(2)).toBe(quote.offeredAmountEGP.toFixed(2));
     expect(offer.requestedLoanAmountEGP.toFixed(2)).toBe(quote.cashToCustomerEGP.toFixed(2));
+
+    // WHY the amount stopped where it did, and the down payment that implies. Both are
+    // carried, never re-derived: the offer is frozen and the inputs behind them can move.
+    expect(offer.bindingConstraint).toBe(quote.bindingConstraint);
+    expect(offer.requiredDownPaymentEGP?.toFixed(2) ?? null).toBe(
+      quote.requiredDownPaymentEGP?.toFixed(2) ?? null,
+    );
   });
 
   it('exposes the quote on the match result so callers need not recompute', () => {

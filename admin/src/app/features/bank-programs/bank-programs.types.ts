@@ -565,6 +565,7 @@ export const STEP_OPS = [
   'percentOf',
   'upliftPercent',
   'multiply',
+  'divide',
   'sum',
   'subtract',
   'minOf',
@@ -681,6 +682,7 @@ export const STEP_OP_SHAPE: Readonly<Record<StepOp, IncomeMethodShape>> = {
   percentOf: 'scalar',
   upliftPercent: 'scalar',
   multiply: 'scalar',
+  divide: 'scalar',
   sum: 'none',
   subtract: 'none',
   minOf: 'none',
@@ -1002,6 +1004,7 @@ export type TemplateMechanismKind =
   | 'numberBand'
   | 'shareOf'
   | 'multipleOf'
+  | 'dividedBy'
   | 'flatAmount';
 
 export type TemplateMechanism =
@@ -1010,6 +1013,7 @@ export type TemplateMechanism =
   | { kind: 'numberBand'; fact: string }
   | { kind: 'shareOf'; fact: string }
   | { kind: 'multipleOf'; fact: string }
+  | { kind: 'dividedBy'; fact: string }
   | { kind: 'flatAmount' };
 
 export type ConditionMeasure = { of: 'fact'; fact: string } | { of: 'answer' };

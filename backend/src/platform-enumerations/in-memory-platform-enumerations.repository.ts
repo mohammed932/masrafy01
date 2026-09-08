@@ -337,6 +337,23 @@ export class InMemoryPlatformEnumerationsRepository
       'شهادة مزاولة المهنة',
       'Certificate of professional practice',
     );
+    // Mirrors migration `20260908120100_scb_auto_documents` — the four Suez Canal auto sheets
+    // ask for these, and the stub must hold them or the seven SCB programs are refused here
+    // while saving cleanly against a real database.
+    this.add('required_document', 'price_quotation', 'عرض سعر السيارة', 'Price quotation');
+    this.add(
+      'required_document',
+      'down_payment_receipt',
+      'إيصال الدفعة المقدمة',
+      'Down payment receipt',
+    );
+    this.add(
+      'required_document',
+      'home_ownership_contract',
+      'عقد ملكية الوحدة',
+      'Home ownership contract',
+    );
+    this.add('required_document', 'proforma_invoice', 'فاتورة مبدئية', 'Proforma invoice');
   }
 
   private verify(): void {

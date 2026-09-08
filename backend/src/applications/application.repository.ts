@@ -93,6 +93,10 @@ export interface CreateBankOfferInput {
   incomeSurrogateStrategy?: string | null;
   /** The collateral ceiling a product rule derived, frozen with the rest. */
   collateralCeilingEGP?: Decimal | null;
+  /** Which reduction decided the amount, frozen with the rest. */
+  bindingConstraint?: string | null;
+  /** The down payment this offer implies (car programs), frozen with the rest. */
+  requiredDownPaymentEGP?: Decimal | null;
 }
 
 export interface PersistMatchInput {

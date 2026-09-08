@@ -41,6 +41,15 @@ class FiguresUnavailableReasons {
   /// showing: "a condition was not met" is not something a customer can act on.
   static const String productRuleGateFailed = 'PRODUCT_RULE_GATE_FAILED';
 
+  /// The bank's own cap table has no row for the answers given, and the bank chose refusal
+  /// over falling back to its programme maximum. Emitted by the backend since the fact-keyed
+  /// cap shipped, and it had no sentence here — it fell through to the generic line.
+  static const String noMaxLoanForAnswer = 'NO_MAX_LOAN_FOR_ANSWER';
+
+  /// The no-payslip product this programme quotes from has been switched off by an operator.
+  /// Also emitted since v22 and also missing a sentence until now.
+  static const String surrogateProductRetired = 'SURROGATE_PRODUCT_RETIRED';
+
   /// Every code, so a test can assert none is left without a sentence.
   static const List<String> all = [
     noRecognisedIncome,
@@ -51,6 +60,8 @@ class FiguresUnavailableReasons {
     surrogateFactMissing,
     surrogateNoMatchingRow,
     productRuleGateFailed,
+    noMaxLoanForAnswer,
+    surrogateProductRetired,
   ];
 }
 
@@ -114,6 +125,10 @@ String figuresUnavailableLabel(
       return l10n.reason_surrogate_fact_missing;
     case FiguresUnavailableReasons.surrogateNoMatchingRow:
       return l10n.reason_surrogate_no_matching_row;
+    case FiguresUnavailableReasons.noMaxLoanForAnswer:
+      return l10n.results_unavailable_no_max_for_answer;
+    case FiguresUnavailableReasons.surrogateProductRetired:
+      return l10n.results_unavailable_product_retired;
     case FiguresUnavailableReasons.productRuleGateFailed:
       // Reachable only when no gate code came with it — a build that predates one of the
       // conditions, or an older application replayed.

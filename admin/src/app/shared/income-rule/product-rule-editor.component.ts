@@ -2194,7 +2194,7 @@ export class ProductRuleEditorComponent {
       const refs = stepRefs(step);
       if (refs.length < 2) continue;
       const kind =
-        step.op === 'multiply'
+        step.op === 'multiply' || step.op === 'divide'
           ? ('multiplier' as const)
           : step.op === 'percentOf' || step.op === 'upliftPercent'
             ? ('percent' as const)
@@ -2786,7 +2786,9 @@ export class ProductRuleEditorComponent {
       this.patch(id, { valueEGP: raw });
       return;
     }
-    const unit = step?.op === 'multiply' ? 'multiplier' : 'percent';
+    // A divisor is a plain number, like a multiplier: the unit union has two members and the
+    // OP is what says the arithmetic — the engine ignores `unit` entirely.
+    const unit = step?.op === 'multiply' || step?.op === 'divide' ? 'multiplier' : 'percent';
     this.patch(id, { scalar: { value: raw, unit } });
   }
 
@@ -2848,6 +2850,8 @@ export class ProductRuleEditorComponent {
         return $localize`:@@product_rule.step.uplift:An increase on an earlier figure`;
       case 'multiply':
         return $localize`:@@product_rule.step.multiply:An earlier figure multiplied`;
+      case 'divide':
+        return $localize`:@@product_rule.step.divide:An earlier figure divided`;
       case 'sum':
         return $localize`:@@product_rule.step.sum:Earlier figures added together`;
       case 'subtract':
@@ -3130,6 +3134,9 @@ export class ProductRuleEditorComponent {
         return $localize`:@@product_rule.unit.egp:EGP`;
       case 'multiply':
         return $localize`:@@product_rule.unit.multiplier:× multiplier`;
+      case 'divide':
+        // "÷ 3.6" is how the savings sheets print it, and the box holds exactly that number.
+        return $localize`:@@product_rule.unit.divisor:÷ divide by`;
       case 'percentOf':
       case 'upliftPercent':
         return $localize`:@@product_rule.unit.percent:%`;

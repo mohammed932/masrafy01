@@ -981,6 +981,51 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   </nz-form-item>
                 </div>
 
+                <!-- The share of the asset's price this program finances. Shown on a car or
+                     a mortgage program only: on a personal loan there is no price to take a
+                     share of, and an empty percent box on every program would read as a
+                     setting somebody forgot. -->
+                @if (financesAnAsset()) {
+                  <div class="grid">
+                    <nz-form-item>
+                      <nz-form-label [nzFor]="'ltvCeilingPercent'" i18n="@@bank_programs.field.ltv"
+                        >Share of the price financed</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-group nzAddOnAfter="%" class="rate-group">
+                          <input
+                            nz-input
+                            id="ltvCeilingPercent"
+                            formControlName="ltvCeilingPercent"
+                            inputmode="decimal"
+                            placeholder="60"
+                            aria-describedby="ltvCeilingPercentHint"
+                          />
+                        </nz-input-group>
+                        <!-- Described-by, and a live region on the derived half: the down
+                             payment changes as the share is typed, and a screen-reader user
+                             who never hears it is the one who most needs it said. -->
+                        <p
+                          id="ltvCeilingPercentHint"
+                          class="field-hint is-read"
+                          [attr.role]="impliedDownPaymentPercent() !== null ? 'status' : null"
+                        >
+                          @if (impliedDownPaymentPercent() !== null) {
+                            <span i18n="@@bank_programs.field.ltv.implied"
+                              >The customer puts in the rest —
+                              {{ impliedDownPaymentPercent() }}% down.</span
+                            >
+                          } @else {
+                            <span i18n="@@bank_programs.field.ltv.hint"
+                              >Leave it blank when the program lends against the whole price.</span
+                            >
+                          }
+                        </p>
+                      </nz-form-control>
+                    </nz-form-item>
+                  </div>
+                }
+
                 <!-- The per-answer maximum is not edited here any more. It is the
                  product's own ceiling table and the Calculation step already shows those
                  figures beside the way they belong to, so a second grid on this step was
@@ -2118,6 +2163,14 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         font-size: var(--text-xs);
         line-height: var(--line-height-base);
         color: var(--color-text-tertiary);
+      }
+
+      /* A hint that states a CONSEQUENCE rather than an aside — "the customer puts in the
+         rest, 40% down" is the other half of the number being typed. Tertiary ink measures
+         3.83:1 on this ground in light mode (v23.1.0), which is under AA for a line meant to
+         be read; secondary is 5.29:1. */
+      .field-hint.is-read {
+        color: var(--color-text-secondary);
       }
 
       /* Not an nz-form error: the verdict comes from a signal, so nzErrorTip
@@ -3997,6 +4050,28 @@ export class BankProgramFormPage implements OnInit {
       // value the admin never saw and never asked to change. New programs leave
       // it null, exactly as before.
       qualitativeReviewMaxEGP: new FormControl<string | null>(null),
+      /**
+       * The share of the asset's price this program finances — 40% against a 60% down
+       * payment. Rendered on a car or a mortgage program only: the engine reads it for a CAR
+       * (`pipeline/ltv-ceiling.ts`), and a mortgage states it for the record until its own
+       * price stops being a bucket.
+       */
+      ltvCeilingPercent: new FormControl<string | null>(null, {
+        // Bounded here as well as at the DTO: an out-of-range share is refused by the server
+        // at the END of a five-step wizard, and the operator has to find their way back to
+        // this card to learn what was wrong with it.
+        validators: [
+          Validators.pattern(/^\d{1,3}(\.\d{1,4})?$/),
+          Validators.min(0.01),
+          Validators.max(100),
+        ],
+      }),
+      /**
+       * Carried, never edited, and never sent as anything but what was read. The engine
+       * reads the LTV only, and this used to be dropped by the full-replacement PUT above —
+       * an operator editing a rate silently deleted a figure they never saw.
+       */
+      minDownPaymentPercent: new FormControl<string | null>(null),
     }),
     pricing: this.fb.nonNullable.group({
       isVariableRate: new FormControl(false, { nonNullable: true }),
@@ -4191,6 +4266,32 @@ export class BankProgramFormPage implements OnInit {
   };
 
   // Reactive view of identity.productCategory so the template + effects react.
+  /**
+   * Whether this program lends against something with a price — a car or a property.
+   *
+   * The LTV field is theirs alone: a personal loan has no price to take a share of, and the
+   * engine reads the percentage for a CAR only (a mortgage's price is still a bucket, and
+   * capping money by a bucket midpoint is the defect FR-018 exists to prevent).
+   */
+  protected financesAnAsset(): boolean {
+    const cat = this.productCategorySignal();
+    return cat === 'car' || cat === 'mortgage';
+  }
+
+  /**
+   * The down payment the share implies, said back to the operator in the words the sheets
+   * use: a bank that finances 40% is a 60%-down programme, and one of the two numbers is
+   * always the one they have in front of them.
+   */
+  protected impliedDownPaymentPercent(): string | null {
+    const raw = this.loanLimitsGroup.controls.ltvCeilingPercent?.value;
+    if (raw === undefined) return null;
+    if (raw === null || raw.trim() === '') return null;
+    const ltv = Number(raw);
+    if (!Number.isFinite(ltv) || ltv <= 0 || ltv > 100) return null;
+    return String(Math.round((100 - ltv) * 100) / 100);
+  }
+
   readonly productCategorySignal = toSignal(
     this.form.controls.identity.controls.productCategory.valueChanges,
     { initialValue: this.form.controls.identity.controls.productCategory.value },
@@ -6598,6 +6699,12 @@ export class BankProgramFormPage implements OnInit {
         minAmountEGP: ll.minAmountEGP,
         maxAmountEGP: ll.maxAmountEGP,
         qualitativeReviewMaxEGP: ll.qualitativeReviewMaxEGP ?? undefined,
+        // Blank means "this program states no share", which is an absent field rather than a
+        // zero: a zero would be a cap of nothing, and `ltvCeilingFor` refuses it anyway.
+        ...(ll.ltvCeilingPercent ? { ltvCeilingPercent: ll.ltvCeilingPercent } : {}),
+        ...(ll.minDownPaymentPercent
+          ? { minDownPaymentPercent: ll.minDownPaymentPercent }
+          : {}),
         // Omitted rather than sent as `null` when there is no table: `forbidNonWhitelisted`
         // accepts an absent optional field and the backend reads absence as "no cap table".
         ...(this.maxLoanByFact() !== null ? { maxLoanByFact: this.maxLoanByFact()! } : {}),
@@ -6743,6 +6850,8 @@ export class BankProgramFormPage implements OnInit {
     });
     this.loanLimitsGroup.patchValue({
       qualitativeReviewMaxEGP: initial.loanLimits.qualitativeReviewMaxEGP ?? null,
+      ltvCeilingPercent: initial.loanLimits.ltvCeilingPercent ?? null,
+      minDownPaymentPercent: initial.loanLimits.minDownPaymentPercent ?? null,
     });
     this.capNoMatch = initial.loanLimits.maxLoanByFact?.onNoMatch ?? null;
     this.maxLoanByFact.set(

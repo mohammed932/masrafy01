@@ -122,6 +122,8 @@ class MatchOffer {
     this.cashReceived,
     this.maxLoan,
     this.collateralCeiling,
+    this.bindingConstraint,
+    this.requiredDownPayment,
     this.dbrPct,
     this.dbrCapPct,
     this.isTopPick = false,
@@ -187,6 +189,16 @@ class MatchOffer {
   /// every program that reads an income instead.
   final int? collateralCeiling;
 
+  /// Which reduction decided this amount, as a backend code — localized on the card.
+  ///
+  /// The engine has always known it and no surface said it, so a customer saw a cut amount
+  /// with nothing explaining the cut. On an auto loan that is the difference between "borrow
+  /// less" and "put more down".
+  final String? bindingConstraint;
+
+  /// Car offers: what the customer puts in — the price less the cash this offer pays out.
+  final int? requiredDownPayment;
+
   /// Debt-burden ratio this offer lands at, and the cap it was measured
   /// against — e.g. `48.9` against `60.0`.
   final double? dbrPct;
@@ -251,6 +263,8 @@ class MatchOffer {
       cashReceived: e.requestedLoanAmountEGP.round(),
       maxLoan: e.maxLoanAvailableEGP?.round(),
       collateralCeiling: e.collateralCeilingEGP?.round(),
+      bindingConstraint: e.bindingConstraint,
+      requiredDownPayment: e.requiredDownPaymentEGP?.round(),
       dbrPct: e.dbrPercent,
       dbrCapPct: e.dbrCapPercent,
       isTopPick: isTopPick,

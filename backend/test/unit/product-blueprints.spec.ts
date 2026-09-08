@@ -76,6 +76,13 @@ OPTIONS['academic_rank'] = [
 // elsewhere — the point of these cases is the SHAPE, and a missing key is a different test.
 OPTIONS['unit_months_owned'] = [];
 OPTIONS['compound_name'] = ['compound_other'];
+// The Green Finance pair is authored by `seed-questionnaire.ts` and BOUND by the blueprint,
+// so the library carries no list for it — but the second column's branches are validated
+// against the bound question's own option codes, which is exactly what this registry stands
+// in for. Codes copied from the seed; a rename there fails this case, which is the point.
+OPTIONS['green_buyer_type'] = ['instalment_buyer', 'cash_buyer'];
+OPTIONS['total_savings'] = [];
+OPTIONS['car_down_payment'] = [];
 
 const ctx: IncomeRuleValidationContext = {
   isActiveMember: async () => true,
@@ -347,6 +354,11 @@ describe('the slot ids are golden', () => {
       'src__unit_paid_to_date',
     ],
     school_stage_ceiling: ['primary', 'primary__school_international', 'primary_pick'],
+    // The savings products: one `divide` per column, over the shared source slot. The
+    // instalment column keeps the bare `primary`, so adding the cash column to a live
+    // product could never have moved a figure (§5.4).
+    down_payment_income: ['primary', 'src__car_down_payment'],
+    savings_income: ['primary', 'primary__cash_buyer', 'primary_pick', 'src__total_savings'],
   };
 
   /**

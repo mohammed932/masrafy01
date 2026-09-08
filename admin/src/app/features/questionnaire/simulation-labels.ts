@@ -24,6 +24,14 @@ export function bindingConstraintLabel(constraint: string): string {
       return $localize`:@@sim.binding.tenor:Maximum term`;
     case 'tenor_min':
       return $localize`:@@sim.binding.tenor_min:Minimum term`;
+    case 'ltv_ceiling':
+      return $localize`:@@sim.binding.ltv:Share of the car's price this program finances`;
+    // The two ceilings that reached this switch before and fell through to their own raw
+    // code — an untranslated `collateral_ceiling` shown to an Arabic-first admin (A2).
+    case 'collateral_ceiling':
+      return $localize`:@@sim.binding.collateral:What the applicant's collateral supports`;
+    case 'program_max_by_fact':
+      return $localize`:@@sim.binding.program_max_by_fact:The program's maximum for this answer`;
     case 'requested_amount':
       return $localize`:@@sim.binding.requested:Nothing — the full request was priced`;
     default:

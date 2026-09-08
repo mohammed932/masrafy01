@@ -558,6 +558,24 @@ model BankOffer {
   /// `null` on every offer of an income-based program, and on every offer predating this
   /// column. Absent is not zero: a zero ceiling would mean the collateral supports nothing.
   collateralCeilingEGP    Decimal?  @db.Decimal(13, 2)
+
+  /// WHICH reduction decided this offer's amount — `ltv_ceiling`, `dbr_affordability`,
+  /// `program_max`, `collateral_ceiling`, `program_max_by_fact`, `tenor_max`, `tenor_min`,
+  /// `age_at_maturity`, `requested_amount`.
+  ///
+  /// The engine has computed it on every quote since feature 010 and every surface threw it
+  /// away, so a customer saw a cut amount with nothing saying what cut it. Frozen here rather
+  /// than re-derived at read time: the program's limits, its LTV and the applicant's answers
+  /// can all move afterwards (Principle I / A6). `null` on offers predating the column.
+  bindingConstraint       String?   @db.VarChar(32)
+
+  /// The down payment this offer implies: the car's price less the cash it pays out.
+  ///
+  /// Car programs only, and absent rather than zero everywhere else. A program's stated down
+  /// payment is an eligibility floor, not the final one — the debt burden can push the
+  /// financed amount below the LTV ceiling, which RAISES what the customer has to find, and
+  /// this is the only field that says so.
+  requiredDownPaymentEGP  Decimal?  @db.Decimal(13, 2)
   createdAt               DateTime  @default(now()) @db.Timestamptz(6)
   erasedAt                DateTime? @db.Timestamptz(6)
 

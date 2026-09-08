@@ -2247,4 +2247,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String offer_collateral_ceiling(String amount) {
     return 'وحدتك تدعم حتى $amount';
   }
+
+  @override
+  String offer_required_down_payment(String amount) {
+    return 'ستدفع $amount مقدمًا';
+  }
+
+  @override
+  String get offer_limited_by_ltv => 'محدود بنسبة تمويل البنك من سعر السيارة';
+
+  @override
+  String get offer_limited_by_dbr => 'محدود بما يسمح به دخلك';
+
+  @override
+  String get offer_limited_by_program_max => 'محدود بالحد الأقصى لهذا البرنامج';
+
+  @override
+  String get offer_limited_by_program_row => 'محدود بحد البرنامج لإجاباتك';
+
+  @override
+  String get offer_limited_by_collateral => 'محدود بما يدعمه ضمانك';
+
+  @override
+  String get results_unavailable_no_max_for_answer => 'هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.';
+
+  @override
+  String get results_unavailable_product_retired => 'هذا البنك لا يقدم هذا البرنامج حاليًا.';
 }

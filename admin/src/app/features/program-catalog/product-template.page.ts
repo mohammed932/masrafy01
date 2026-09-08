@@ -72,6 +72,7 @@ const MECHANISM_FACT_TYPE: Readonly<
   numberBand: 'NUMERIC',
   shareOf: 'NUMERIC',
   multipleOf: 'NUMERIC',
+  dividedBy: 'NUMERIC',
   flatAmount: null,
 };
 
@@ -89,6 +90,7 @@ const MECHANISM_ORDER: readonly TemplateMechanismKind[] = [
   'numberBand',
   'shareOf',
   'multipleOf',
+  'dividedBy',
   'flatAmount',
 ];
 
@@ -1979,6 +1981,8 @@ const MECHANISM_LABELS: Readonly<Record<TemplateMechanismKind, () => string>> = 
   numberBand: () => $localize`:@@spt.mech.band:One figure for each range of a number`,
   shareOf: () => $localize`:@@spt.mech.share:A percentage of a number the customer states`,
   multipleOf: () => $localize`:@@spt.mech.multiple:A multiple of a number the customer states`,
+  dividedBy: () =>
+    $localize`:@@spt.mech.divided:A number the customer states, divided by a figure the bank states`,
   flatAmount: () => $localize`:@@spt.mech.flat:The same figure for everyone`,
 };
 
@@ -1994,6 +1998,8 @@ const MECHANISM_EXAMPLES: Readonly<Record<TemplateMechanismKind, () => string>> 
   numberBand: () => $localize`:@@spt.mech.band.eg:e.g. 8–12 years → 30,000 a month`,
   shareOf: () => $localize`:@@spt.mech.share.eg:e.g. 30% of what they spend on their card`,
   multipleOf: () => $localize`:@@spt.mech.multiple.eg:e.g. 3× their car instalment`,
+  dividedBy: () =>
+    $localize`:@@spt.mech.divided.eg:e.g. a 500,000 down payment ÷ 3.6 → 138,888.89 a month`,
   flatAmount: () => $localize`:@@spt.mech.flat.eg:e.g. 15,000, nothing asked`,
 };
 

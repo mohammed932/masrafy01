@@ -810,6 +810,74 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     },
     openQuestion: 'DBR_PERCENT_UNCONFIRMED',
   },
+
+  {
+    key: 'down_payment_income',
+    group: 'income',
+    // The label names the loan type, not just the mechanism: this product is only ever sold
+    // under `car`, and the board sorts by the rendered label — it filed under D with nothing
+    // on the card saying it is an auto product. The KEY is untouched: it is what
+    // `surrogate_product_ask.productId`, `platform_enumeration.surrogateProductKey` and the
+    // blueprint registry all address.
+    labelEn: 'Auto Loan — Down Payment as Income',
+    labelAr: 'قرض سيارة — الدفعة المقدمة كدخل',
+    asks: [
+      // Already asked of every car applicant as an amount, and read by the rate cascade and
+      // the LTV ceiling as well. Asking it again would be two answers to one question.
+      { kind: 'platformFact', factKey: 'car_down_payment', alsoAskIn: [LoanCategory.car] },
+    ],
+    template: {
+      version: 1,
+      outputKind: 'monthlyIncome',
+      iScore: true,
+      // The sheet's own sentence: the down payment is N months of saving, and the saving is
+      // a share of income — so income = down payment ÷ (months × share). ONE divisor, and it
+      // is the number the sheet prints.
+      primary: { kind: 'dividedBy', fact: 'car_down_payment' },
+      conditions: [],
+    },
+  },
+
+  {
+    key: 'savings_income',
+    group: 'income',
+    // Auto-only, same reasoning as `down_payment_income` above.
+    labelEn: 'Auto Loan — Savings as Income',
+    labelAr: 'قرض سيارة — المدخرات كدخل',
+    asks: [
+      // Both questions are authored by `seed-questionnaire.ts` and bound here rather than
+      // minted: that seed switches off every question outside its own pool, and
+      // `seed:blueprints` skips a product that already holds a calculation without reviving
+      // anything — so a blueprint-minted question is dead after the next `prisma:seed`.
+      {
+        kind: 'bindQuestion',
+        factKey: 'total_savings',
+        questionCode: 'total_savings',
+        labelEn: 'Total savings',
+        labelAr: 'إجمالي المدخرات',
+        alsoAskIn: [LoanCategory.car],
+      },
+      {
+        kind: 'bindQuestion',
+        factKey: 'green_buyer_type',
+        questionCode: 'green_buyer_type',
+        labelEn: 'How the purchase is paid for',
+        labelAr: 'طريقة سداد الشراء',
+        alsoAskIn: [LoanCategory.car],
+      },
+    ],
+    template: {
+      version: 1,
+      outputKind: 'monthlyIncome',
+      iScore: true,
+      primary: { kind: 'dividedBy', fact: 'total_savings' },
+      // The two divisors are a different sentence per buyer, not a different mechanism: an
+      // instalment buyer's savings are read over one horizon and a cash buyer's over another.
+      // The FIRST branch keeps the bare slot, so the instalment column is `primary`.
+      secondColumn: { fact: 'green_buyer_type', branches: ['instalment_buyer', 'cash_buyer'] },
+      conditions: [],
+    },
+  },
 ]);
 
 export function productBlueprints(): readonly ProductBlueprint[] {

@@ -47,6 +47,7 @@ const ABK = 'ABK Egypt';
 const EGB = 'EG Bank';
 const FAB = 'FABMISR';
 const CAE = 'Crédit Agricole Egypt';
+const SCB = 'Suez Canal Bank';
 
 /** Nothing extra is required of the applicant unless a sheet says so. */
 const NO_REQUIREMENTS = {
@@ -135,6 +136,10 @@ interface Input {
   competitorCardMustBeUnsecured?: boolean;
   requires?: Partial<typeof NO_REQUIREMENTS>;
   requiredDocuments?: string[];
+  /** Defaults to `personal` — the ten ABK sheets and their three competitors are all personal. */
+  productCategory?: 'personal' | 'car' | 'mortgage' | 'business';
+  /** The share of the asset's price this program finances — 40% against a 60% down payment. */
+  ltvCeilingPercent?: string;
   /** The bank's own figures, keyed by slot id. Absent on a program with no calculation. */
   stepParams?: Record<string, unknown>;
   /**
@@ -180,7 +185,7 @@ function program(input: Input): ProgramSpec {
     friendlyNameAr: input.friendlyNameAr,
     programNameKey: input.programNameKey,
     programType: input.programType,
-    productCategory: 'personal',
+    productCategory: input.productCategory ?? 'personal',
     isShariaCompliant: false,
     operatorNotes: [`Figures transcribed from ${input.sheet}.`, ...input.notes].join('\n'),
     ...(input.tips ? { operatorTips: input.tips } : {}),
@@ -189,6 +194,7 @@ function program(input: Input): ProgramSpec {
     loanLimits: {
       minAmountEGP: input.minAmountEGP,
       maxAmountEGP: input.maxAmountEGP,
+      ...(input.ltvCeilingPercent ? { ltvCeilingPercent: input.ltvCeilingPercent } : {}),
       ...(input.maxLoanByFact ? { maxLoanByFact: input.maxLoanByFact } : {}),
       ...(input.maxLoanAdjustments ? { maxLoanAdjustments: input.maxLoanAdjustments } : {}),
     },
@@ -301,6 +307,14 @@ const ABK_PROFESSOR_RANKS = [
 ];
 const percent = (value: string) => ({ scalar: { value, unit: 'percent' as const } });
 const times = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
+/**
+ * The number a savings sheet divides by — "36 months of saving, at 10% of income" is 3.6.
+ *
+ * `unit: 'multiplier'` because the union has two members and this is the one that means "a
+ * plain number, not a percentage"; the unit is inert at runtime and the `divide` op is what
+ * says the arithmetic (see `product-rule.ts`).
+ */
+const divisor = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
 
 function banded(
   edges: ReadonlyArray<{ fromInclusive: string; toExclusive: string | null }>,
@@ -314,6 +328,33 @@ function banded(
     }),
   };
 }
+
+/**
+ * Suez Canal's own divisors: "36 months of saving, and the saving is 10% of income" is 3.6,
+ * and the cash buyer's "60 months at 20%" is 12. The sheet prints the first one as
+ * `income = down payment ÷ 3.6`, so these are transcriptions, not derivations.
+ */
+const SCB_DP_DIVISOR = '3.6';
+const SCB_CASH_DIVISOR = '12';
+
+/** No slide states a rate, a fee or a basis. Placeholders, and every one is marked below. */
+const SCB_RATE = '24';
+const SCB_ADMIN_FEE = '1';
+const SCB_ESTIMATED: EstimatedPaths = [
+  'pricing.baseRatePercent',
+  'pricing.rateByTransferType.none.value',
+  ...ESTIMATED_FEES,
+];
+
+/** App. §4.5 pre-approval, less the two the platform has no key for (application form, BOD declaration). */
+const SCB_DP_DOCUMENTS = ['national_id', 'price_quotation', 'down_payment_receipt'];
+/** App. §5.4 — the ownership contract is what proves the unit, the invoice what proves the goods. */
+const SCB_GREEN_DOCUMENTS = [
+  'national_id',
+  'home_ownership_contract',
+  'proforma_invoice',
+  'price_quotation',
+];
 
 export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
   // -------------------------------------------------------------------------
@@ -1016,5 +1057,257 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       ],
     },
     estimated: ['pricing.baseRatePercent', 'fees.adminFeePercent'],
+  }),
+
+  // -------------------------------------------------------------------------
+  // Suez Canal Bank — the unsecured auto programmes and Green Finance
+  //
+  // Seven programmes off two mechanisms. The five down-payment programmes are ONE product
+  // sold five ways: the same `income = down payment ÷ 3.6`, and what separates them is the
+  // share of the car's price the bank will finance (60% down → 40% financed) plus the
+  // floors and the conditions each tier carries. Green Finance is the same arithmetic over
+  // what the applicant has SAVED, with a second column for a cash buyer.
+  //
+  // No rate is published on any of these slides, so the rate and the admin fee below are the
+  // team's placeholders and every one of them is marked an estimate.
+  // -------------------------------------------------------------------------
+  program({
+    programCode: 'SCB-CAR-DP60',
+    friendlyName: 'Auto Loan — 60% Down Payment',
+    friendlyNameAr: 'قرض سيارة — مقدم 60%',
+    programNameKey: 'auto_down_payment_income',
+    sheet: 'App. §4 — Suez Canal unsecured auto, 60% down payment',
+    notes: [
+      'No car insurance and no ban on sale on this programme.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+    ],
+    minAmountEGP: '100000',
+    maxAmountEGP: '5000000',
+    ltvCeilingPercent: '40',
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'car',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    ageMin: 21,
+    ageMax: 60,
+    ageMinSelfEmployed: 25,
+    ageMaxSelfEmployed: 65,
+    minMonthlyIncomeEGP: '6000',
+    minMonthlyIncomeSelfEmployedEGP: '15000',
+    minMonthsInJob: 6,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    requiredDocuments: SCB_DP_DOCUMENTS,
+    estimated: SCB_ESTIMATED,
+  }),
+  program({
+    programCode: 'SCB-CAR-DP50',
+    friendlyName: 'Auto Loan — 50% Down Payment',
+    friendlyNameAr: 'قرض سيارة — مقدم 50%',
+    programNameKey: 'auto_down_payment_income',
+    sheet: 'App. §4 — Suez Canal unsecured auto, 50% down payment',
+    notes: [
+      'Ban on sale until the loan is settled.',
+      'The 12-month service requirement is waived when the I-Score shows regular repayment over the last six months. No field expresses a conditional waiver — recorded here.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+    ],
+    minAmountEGP: '100000',
+    maxAmountEGP: '5000000',
+    ltvCeilingPercent: '50',
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'car',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    ageMin: 21,
+    ageMax: 60,
+    ageMinSelfEmployed: 25,
+    ageMaxSelfEmployed: 65,
+    minMonthlyIncomeEGP: '6000',
+    minMonthlyIncomeSelfEmployedEGP: '15000',
+    minMonthsInJob: 6,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    requiredDocuments: SCB_DP_DOCUMENTS,
+    estimated: SCB_ESTIMATED,
+  }),
+  program({
+    programCode: 'SCB-CAR-DP40',
+    friendlyName: 'Auto Loan — 40% Down Payment',
+    friendlyNameAr: 'قرض سيارة — مقدم 40%',
+    programNameKey: 'auto_down_payment_income',
+    sheet: 'App. §4 — Suez Canal unsecured auto, 40% down payment',
+    notes: [
+      'Ban on sale until the loan is settled.',
+      'The 12-month service requirement is waived when the I-Score shows regular repayment over the last six months. No field expresses a conditional waiver — recorded here.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+    ],
+    minAmountEGP: '100000',
+    maxAmountEGP: '5000000',
+    ltvCeilingPercent: '60',
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'car',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    ageMin: 21,
+    ageMax: 60,
+    ageMinSelfEmployed: 25,
+    ageMaxSelfEmployed: 65,
+    minMonthlyIncomeEGP: '6000',
+    minMonthlyIncomeSelfEmployedEGP: '15000',
+    minMonthsInJob: 6,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    requiredDocuments: SCB_DP_DOCUMENTS,
+    estimated: SCB_ESTIMATED,
+  }),
+  program({
+    programCode: 'SCB-CAR-DP30',
+    friendlyName: 'Auto Loan — 30% Down Payment',
+    friendlyNameAr: 'قرض سيارة — مقدم 30%',
+    programNameKey: 'auto_down_payment_income',
+    sheet: 'App. §4 — Suez Canal unsecured auto, 30% down payment',
+    notes: [
+      'Ban on sale until the loan is settled.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+    ],
+    minAmountEGP: '100000',
+    maxAmountEGP: '5000000',
+    ltvCeilingPercent: '70',
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'car',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    ageMin: 21,
+    ageMax: 60,
+    ageMinSelfEmployed: 25,
+    ageMaxSelfEmployed: 65,
+    minMonthlyIncomeEGP: '6000',
+    minMonthlyIncomeSelfEmployedEGP: '15000',
+    minMonthsInJob: 6,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    requiredDocuments: SCB_DP_DOCUMENTS,
+    estimated: SCB_ESTIMATED,
+  }),
+  program({
+    programCode: 'SCB-CAR-DP20',
+    friendlyName: 'Auto Loan — 20% Down Payment',
+    friendlyNameAr: 'قرض سيارة — مقدم 20%',
+    programNameKey: 'auto_down_payment_income',
+    sheet: 'App. §4 — Suez Canal unsecured auto, 20% down payment',
+    notes: [
+      'Car insurance is required on this programme, and the home must be owned by the applicant or a first-degree relative. Neither is expressible as a field — recorded here.',
+      'Ban on sale until the loan is settled.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+    ],
+    minAmountEGP: '1000000',
+    maxAmountEGP: '5000000',
+    ltvCeilingPercent: '80',
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'car',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    ageMin: 21,
+    ageMax: 60,
+    ageMinSelfEmployed: 25,
+    ageMaxSelfEmployed: 65,
+    minMonthlyIncomeEGP: '6000',
+    minMonthlyIncomeSelfEmployedEGP: '15000',
+    minMonthsInJob: 6,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    requiredDocuments: SCB_DP_DOCUMENTS,
+    estimated: SCB_ESTIMATED,
+  }),
+  program({
+    programCode: 'SCB-CAR-GREEN_POWER',
+    friendlyName: 'Green Power Loan',
+    friendlyNameAr: 'قرض الطاقة الخضراء',
+    sheet: 'App. §5 — Suez Canal Green Finance, Green Power Loan',
+    notes: [
+      'Sold to owners of a delivered unit in a pre-approved compound. Neither the compound list nor the delivery status is a field — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+    ],
+    tenor: { minMonths: 6, maxMonths: 120 },
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'car',
+    programNameKey: 'green_finance_savings',
+    minAmountEGP: '100000',
+    maxAmountEGP: '1000000',
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    ageMin: 25,
+    ageMax: 60,
+    ageMinSelfEmployed: 25,
+    ageMaxSelfEmployed: 65,
+    minMonthlyIncomeEGP: '50000',
+    minMonthsInJob: 6,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    stepParams: {
+      primary: divisor(SCB_DP_DIVISOR),
+      primary__cash_buyer: divisor(SCB_CASH_DIVISOR),
+    },
+    requiredDocuments: SCB_GREEN_DOCUMENTS,
+    estimated: SCB_ESTIMATED,
+  }),
+  program({
+    programCode: 'SCB-CAR-MICRO_MOBILITY',
+    friendlyName: 'Micro Mobility',
+    friendlyNameAr: 'التنقل الخفيف',
+    sheet: 'App. §5 — Suez Canal Green Finance, Micro Mobility',
+    notes: [
+      'Golf cars, scooters and e-bikes. Sold to owners of a delivered unit in a pre-approved compound. Neither the compound list nor the delivery status is a field — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+    ],
+    tenor: { minMonths: 6, maxMonths: 84 },
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'car',
+    programNameKey: 'green_finance_savings',
+    minAmountEGP: '100000',
+    maxAmountEGP: '1000000',
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    ageMin: 25,
+    ageMax: 60,
+    ageMinSelfEmployed: 25,
+    ageMaxSelfEmployed: 65,
+    minMonthlyIncomeEGP: '50000',
+    minMonthsInJob: 6,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    stepParams: {
+      primary: divisor(SCB_DP_DIVISOR),
+      primary__cash_buyer: divisor(SCB_CASH_DIVISOR),
+    },
+    requiredDocuments: SCB_GREEN_DOCUMENTS,
+    estimated: SCB_ESTIMATED,
   }),
 ];

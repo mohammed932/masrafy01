@@ -948,5 +948,16 @@
   "gate_not_met": "This program has a condition your answers don't meet, so no figures can be shown.",
   "collateral_skip_step": "Skip for now",
   "collateral_skip_hint": "Skip and we still show the program, just without figures until you answer.",
-  "offer_collateral_ceiling": "Your unit supports up to {amount}"
+  "offer_collateral_ceiling": "Your unit supports up to {amount}",
+  "offer_required_down_payment": "You would put down {amount}",
+  "@offer_required_down_payment": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "offer_limited_by_ltv": "Capped at this bank's share of the car's price",
+  "offer_limited_by_dbr": "Capped by what your income supports",
+  "offer_limited_by_program_max": "Capped by this program's maximum",
+  "offer_limited_by_program_row": "Capped by this program's limit for your answers",
+  "offer_limited_by_collateral": "Capped by what your collateral supports",
+  "results_unavailable_no_max_for_answer": "This bank sets no limit for the answers you gave.",
+  "results_unavailable_product_retired": "This bank is not offering this program right now."
 }

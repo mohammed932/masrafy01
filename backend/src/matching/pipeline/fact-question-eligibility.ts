@@ -30,6 +30,7 @@
  */
 import { DERIVED_FACT_KEYS } from './surrogate-fact-registry';
 import { I_SCORE_FACT_KEY } from './product-template';
+import { CAR_DOWN_PAYMENT_FACT_KEY, CAR_PRICE_FACT_KEY } from './car-details';
 
 /**
  * Fact keys nothing may be created under.
@@ -38,7 +39,15 @@ import { I_SCORE_FACT_KEY } from './product-template';
  * answer→fact mapper; `i_score` is one fact for the whole platform. A row under either
  * looks configured on every screen and can never carry an answer.
  */
-export const RESERVED_FACT_KEYS: readonly string[] = [...DERIVED_FACT_KEYS, I_SCORE_FACT_KEY];
+export const RESERVED_FACT_KEYS: readonly string[] = [
+  ...DERIVED_FACT_KEYS,
+  I_SCORE_FACT_KEY,
+  // The two car figures are the platform's, like the bureau score: the rate cascade and the
+  // LTV ceiling read them for every car program, so an operator must not be able to point
+  // one at another question or delete it out from under them.
+  CAR_PRICE_FACT_KEY,
+  CAR_DOWN_PAYMENT_FACT_KEY,
+];
 
 export function isReservedFactKey(factKey: string): boolean {
   return RESERVED_FACT_KEYS.includes(factKey);

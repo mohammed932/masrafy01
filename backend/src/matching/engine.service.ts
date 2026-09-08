@@ -263,6 +263,11 @@ export class EngineService {
       // output of a pipeline over a table, an uplift and the applicant's own answers, every
       // one of which can move after the offer is written.
       collateralCeilingEGP: quote.collateralCeilingEGP ?? null,
+      // Which reduction decided the amount, and the down payment it implies. Carried off the
+      // quote rather than re-derived, for the reason every field above it is: the offer is
+      // about to become immutable and the inputs can all move (Principle I / A6).
+      bindingConstraint: quote.bindingConstraint,
+      requiredDownPaymentEGP: quote.requiredDownPaymentEGP ?? null,
     };
   }
 

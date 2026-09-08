@@ -53,6 +53,7 @@ const BANKS: readonly SeedBank[] = [
   { nameEnglish: 'EG Bank', nameArabic: 'البنك المصري الخليجي', displayOrder: 11 },
   { nameEnglish: 'FABMISR', nameArabic: 'بنك أبوظبي الأول مصر', displayOrder: 12 },
   { nameEnglish: 'Crédit Agricole Egypt', nameArabic: 'كريدي أجريكول مصر', displayOrder: 13 },
+  { nameEnglish: 'Suez Canal Bank', nameArabic: 'بنك قناة السويس', displayOrder: 14 },
 ];
 
 const SEED_NOTE = 'Created by seed-banks.ts (dev data) — verify details before any shared use.';

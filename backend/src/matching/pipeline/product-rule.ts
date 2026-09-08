@@ -83,6 +83,7 @@ export function isProductRule(strategy: string): boolean {
  *   percentOf        value × pct ÷ 100
  *   upliftPercent    value × (1 + pct ÷ 100)
  *   multiply         value × multiplier
+ *   divide           value ÷ divisor
  *
  * ─── `coalesce`, and why a product needs it ───────────────────────────────────
  *
@@ -127,6 +128,7 @@ export const STEP_OPS = [
   'percentOf',
   'upliftPercent',
   'multiply',
+  'divide',
   'sum',
   'subtract',
   'minOf',
@@ -719,6 +721,34 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
     return { ok: true, value: round2(input.value.mul(mult.value)) };
   },
 
+  /**
+   * value ÷ divisor — the arithmetic a savings sheet states outright.
+   *
+   * Suez Canal's auto programs read the DOWN PAYMENT as proof of income: "36 months of
+   * saving, and the saving is 10% of income", which the sheet itself prints as
+   * `income = down payment ÷ 3.6`. Reaching that with `percentOf` would mean typing the
+   * reciprocal (27.7777777777777778%) — a figure that appears on no sheet, cannot be checked
+   * by eye, and misquotes by 388 EGP on a 5,000,000 down payment if an operator rounds it to
+   * one decimal. The divisor IS the bank's figure, so the op is division.
+   *
+   * Same shape as `multiply` in every other respect: configuration before the answer, the
+   * factor from a second input when the step names one, else the bank's `scalar`, and
+   * `round2` at the end. A divisor of zero (or anything that does not parse) is
+   * `rule_unconfigured`, never Infinity and never a substituted figure — a division by zero
+   * that reached a quote would be an unbounded income.
+   */
+  divide: (env) => {
+    if (!configuredFactor(env)) return { ok: false, reason: 'rule_unconfigured' };
+    const input = firstRef(env.step, env);
+    if (!input.ok) return input;
+    const divisor = scalingFactor(env);
+    if (!divisor.ok) return divisor;
+    if (!divisor.value.isFinite() || divisor.value.lessThanOrEqualTo(0)) {
+      return { ok: false, reason: 'rule_unconfigured' };
+    }
+    return { ok: true, value: round2(input.value.div(divisor.value)) };
+  },
+
   sum: (env) => {
     const refs = refList(env.step);
     if (refs.length === 0) return { ok: false, reason: 'rule_unconfigured' };
@@ -1163,7 +1193,8 @@ export function isStepConfigured(step: RuleStep, figures: StepParams): boolean {
       return (figures.bands?.length ?? 0) > 0;
     case 'percentOf':
     case 'upliftPercent':
-    case 'multiply': {
+    case 'multiply':
+    case 'divide': {
       const refs = step.of === undefined ? [] : Array.isArray(step.of) ? step.of : [step.of];
       // A factor read from a second input needs no figure at all.
       if (refs.length >= 2) return true;

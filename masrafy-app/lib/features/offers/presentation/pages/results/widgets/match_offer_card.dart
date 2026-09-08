@@ -132,6 +132,32 @@ class MatchOfferCard extends StatelessWidget {
               ),
             ),
           ],
+          // What the customer puts in, and what stopped the amount going higher. Two lines
+          // that answer the question a cut offer always raises — "why this much?" — which
+          // the card could not answer at all before: on an auto loan the difference between
+          // "borrow less" and "put more down" is the whole decision.
+          if (offer.requiredDownPayment != null) ...[
+            Gap(6.h),
+            Text(
+              l.offer_required_down_payment(
+                NumberFormat.decimalPattern().format(offer.requiredDownPayment),
+              ),
+              style: text.caption.copyWith(
+                color: colors.primary.border,
+                fontSize: 10.sp,
+              ),
+            ),
+          ],
+          if (_limitedByLabel(l, offer.bindingConstraint) case final String limit) ...[
+            Gap(4.h),
+            Text(
+              limit,
+              style: text.caption.copyWith(
+                color: colors.primary.border,
+                fontSize: 10.sp,
+              ),
+            ),
+          ],
           Gap(12.h),
           _ViewOfferButton(
             label: l.results_view_offer,
@@ -142,6 +168,20 @@ class MatchOfferCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Why the amount stopped where it did, in the customer's words.
+  ///
+  /// Only the ceilings that CUT the amount get a line. `requested_amount` means nothing was
+  /// cut, a term constraint already shows as the term, and an unknown code prints nothing —
+  /// never the raw token, which is untranslated English to an Arabic-first reader.
+  static String? _limitedByLabel(AppLocalizations l, String? constraint) => switch (constraint) {
+        'ltv_ceiling' => l.offer_limited_by_ltv,
+        'dbr_affordability' => l.offer_limited_by_dbr,
+        'program_max' => l.offer_limited_by_program_max,
+        'program_max_by_fact' => l.offer_limited_by_program_row,
+        'collateral_ceiling' => l.offer_limited_by_collateral,
+        _ => null,
+      };
 
   /// 9.5 → "9.5", 10.0 → "10".
   static String _trimRate(double rate) =>

@@ -218,6 +218,79 @@ const DOWN_PAYMENT_OPTIONS: SeedOption[] = [
   { code: 'more_than_40', labelEn: 'More than 40%', labelAr: 'أكثر من 40%' },
 ];
 
+/**
+ * The car's price and the down payment, as AMOUNTS the applicant types.
+ *
+ * The car flow used to ask both as ranges and the app guessed a midpoint — a 400,000 stand-in
+ * for "less than 500,000". Suez Canal Bank reads the down payment ITSELF as proof of income
+ * (`income = down payment ÷ 3.6`) and caps the loan at a share of the price, so a midpoint is
+ * not an approximation of the answer, it is a different customer's quote. Both are exact.
+ *
+ * CAR ONLY. Mortgage keeps `DOWN_PAYMENT_Q` below: its property value is still a bucket, and
+ * one question cannot be a percentage there and an amount here.
+ *
+ * No `step`: `answer-validation.ts` refuses a value off the step, and a dealer's price is
+ * whatever the quotation says.
+ */
+const CAR_PRICE_Q: SeedQuestion = {
+  code: 'car_price',
+  type: 'NUMERIC',
+  questionEn: "What is the car's price?",
+  questionAr: 'ما سعر السيارة؟',
+  helperTextEn: 'The price on the quotation, in pounds.',
+  helperTextAr: 'السعر المذكور في عرض السعر، بالجنيه.',
+  numeric: { minValue: '10000', maxValue: '50000000', unitEn: 'EGP', unitAr: 'جنيه' },
+  options: [],
+};
+
+const CAR_DOWN_PAYMENT_Q: SeedQuestion = {
+  code: 'car_down_payment',
+  type: 'NUMERIC',
+  questionEn: 'How much will you pay up front?',
+  questionAr: 'كم ستدفع مقدمًا؟',
+  helperTextEn: 'The amount, not a percentage — some banks read it as proof of your income.',
+  helperTextAr: 'المبلغ وليس النسبة — بعض البنوك تعتبره دليلاً على دخلك.',
+  numeric: { minValue: '0', maxValue: '50000000', unitEn: 'EGP', unitAr: 'جنيه' },
+  options: [],
+};
+
+/**
+ * What the applicant has saved, and how they are buying — the Green Finance pair.
+ *
+ * OPTIONAL, both of them: they are read by one product, and a required question is enforced
+ * for everyone the category shows it to. An unanswered buyer type reads the first column
+ * (instalments), which is what `pickByFact` does with a missing answer.
+ *
+ * Authored HERE rather than minted by the blueprint, and that is load-bearing: this seed
+ * deactivates every question outside its own pool, and `seed:blueprints` skips a product that
+ * already holds a calculation without reviving anything — so a blueprint-minted question is
+ * switched off by the next `prisma:seed` and the product quietly stops quoting.
+ */
+const TOTAL_SAVINGS_Q: SeedQuestion = {
+  code: 'total_savings',
+  type: 'NUMERIC',
+  questionEn: 'How much have you saved in total?',
+  questionAr: 'كم إجمالي مدخراتك؟',
+  helperTextEn: 'Cash, deposits and certificates you can show statements for.',
+  helperTextAr: 'النقد والودائع والشهادات التي يمكنك تقديم كشوف بها.',
+  isRequired: false,
+  numeric: { minValue: '0', maxValue: '100000000', unitEn: 'EGP', unitAr: 'جنيه' },
+  options: [],
+};
+
+const GREEN_BUYER_TYPE_Q: SeedQuestion = {
+  code: 'green_buyer_type',
+  questionEn: 'Are you paying in instalments or in cash?',
+  questionAr: 'هل تشتري بالتقسيط أم نقدًا؟',
+  isRequired: false,
+  options: [
+    // Codes stated rather than slugged: they are the `pickByFact` branches a bank's second
+    // column is keyed by, and a reworded label must not move a column.
+    { code: 'instalment_buyer', labelEn: 'Paying in instalments', labelAr: 'بالتقسيط' },
+    { code: 'cash_buyer', labelEn: 'Paying cash', labelAr: 'نقدًا' },
+  ],
+};
+
 const DOWN_PAYMENT_Q: SeedQuestion = {
   code: 'down_payment',
   questionEn: 'How much money can you pay up front?',
@@ -1091,20 +1164,18 @@ const CAR: CategoryConfig = {
             { code: 'more_than_5_years_old', labelEn: 'More than 5 years old', labelAr: 'أكثر من 5 سنوات' },
           ],
         },
-        {
-          code: 'vehicle_price', questionEn: 'About how much does the car cost?', questionAr: 'ما السعر التقريبي للسيارة؟',
-          options: [
-            { code: 'less_than_egp_500000', labelEn: 'Less than 500,000 EGP', labelAr: 'أقل من 500,000 جنيه' },
-            { code: 'egp_500000_1_million', labelEn: '500,000 – 1 million EGP', labelAr: '500,000 – مليون جنيه' },
-            { code: 'egp_1_2_million', labelEn: '1 – 2 million EGP', labelAr: '1 – 2 مليون جنيه' },
-            { code: 'more_than_egp_2_million', labelEn: 'More than 2 million EGP', labelAr: 'أكثر من 2 مليون جنيه' },
-          ],
-        },
+        CAR_PRICE_Q,
+        // The Green Finance pair rides the car flow: a solar loan and an e-bike loan are both
+        // sold under `car`, and both are quoted off what the applicant has saved.
+        TOTAL_SAVINGS_Q,
+        GREEN_BUYER_TYPE_Q,
       ],
     },
     {
+      // `down_payment` (the shared percentage bucket) is deliberately NOT here: a car
+      // applicant states the amount, and the bucket stays a mortgage question.
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [DOWN_PAYMENT_Q],
+      questions: [CAR_DOWN_PAYMENT_Q],
     },
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
@@ -1571,6 +1642,7 @@ export async function seedQuestionnaire(): Promise<void> {
   // ---- 2b. The bureau-score FACT --------------------------------------------
   await upsertIScoreFact();
   await upsertAdditionalIncomeFacts();
+  await upsertCarFacts();
 
   // ---- 3. Publish ONE global snapshot ---------------------------------------
   await publishVersion();
@@ -1632,6 +1704,77 @@ async function upsertIScoreFact(): Promise<void> {
       updatedBy: SEED_ACTOR,
     },
   });
+}
+
+/**
+ * The `surrogate_fact` rows for the car's price and its down payment.
+ *
+ * PLATFORM-OWNED, for the reason the bureau score is (`surrogateProductKey` null): they are
+ * properties of the purchase, not of one product. The rate cascade bands on the down-payment
+ * percentage for every car program, `quote.ts` caps every car loan at a share of the price,
+ * and one no-payslip product reads the down payment as the applicant's income. Filing them
+ * under whichever product wanted them first would make retiring that product read as
+ * retiring the price.
+ *
+ * Idempotent like its neighbours: re-running re-points the binding at the question's current
+ * id, which is what makes it survive a question being recreated.
+ */
+async function upsertCarFacts(): Promise<void> {
+  const facts = [
+    { key: 'car_price', labelEn: 'Car price', labelAr: 'سعر السيارة', sortOrder: 120 },
+    {
+      key: 'car_down_payment',
+      labelEn: 'Car down payment',
+      labelAr: 'الدفعة المقدمة للسيارة',
+      sortOrder: 121,
+    },
+  ] as const;
+
+  for (const fact of facts) {
+    const question = await prisma.question.findUnique({
+      where: { code: fact.key },
+      select: { id: true },
+    });
+    if (!question) {
+      // Not a throw, for the reason `upsertIScoreFact` states: the question is written a few
+      // hundred lines above, so a miss means the seed itself is broken and dying here would
+      // send the next person to the wrong file.
+      console.warn(`seed-questionnaire: no '${fact.key}' question — fact not bound.`);
+      continue;
+    }
+
+    const existing = await prisma.platformEnumeration.findUnique({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_fact', key: fact.key } },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.platformEnumeration.update({
+        where: { id: existing.id },
+        data: {
+          boundQuestionId: question.id,
+          active: true,
+          deprecatedAt: null,
+          updatedBy: SEED_ACTOR,
+        },
+      });
+      continue;
+    }
+
+    await prisma.platformEnumeration.create({
+      data: {
+        type: 'surrogate_fact',
+        key: fact.key,
+        labelEn: fact.labelEn,
+        labelAr: fact.labelAr,
+        sortOrder: fact.sortOrder,
+        active: true,
+        boundQuestionId: question.id,
+        createdBy: SEED_ACTOR,
+        updatedBy: SEED_ACTOR,
+      },
+    });
+  }
 }
 
 /**

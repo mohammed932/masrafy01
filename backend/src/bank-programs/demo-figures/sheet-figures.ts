@@ -145,6 +145,9 @@ const I_SCORE_TIER_EDGES = [
 
 const I_SCORE_TIER_PERCENTS = ['80', '100', '110'] as const;
 
+/** The number a savings sheet divides by — see `sheet-programs.ts#divisor`. */
+const divisor = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
+
 /** The tier table, as the `iscore_band` slot holds it. */
 function iscoreTiers(): ReturnType<typeof bands> {
   return bands(I_SCORE_TIER_EDGES, I_SCORE_TIER_PERCENTS);
@@ -410,6 +413,30 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   },
 
   {
+    productKey: 'down_payment_income',
+    sheet: 'App. §4.3 — the down payment read as 36 months of saving at 10% of income',
+    stepParams: {
+      // The catalog default IS the published formula: `income = down payment ÷ 3.6`. One
+      // bank sells it today and states the same figure on its own programmes, exactly as the
+      // auto cross-sell does — a bank that inherits gets the sheet's arithmetic, not a guess.
+      primary: divisor('3.6'),
+      iscore_band: iscoreTiers(),
+    },
+    estimated: [...I_SCORE_ESTIMATED],
+  },
+
+  {
+    productKey: 'savings_income',
+    sheet: 'App. §5.2 — savings ÷ 36 ÷ 10% for an instalment buyer, ÷ 60 ÷ 20% for a cash buyer',
+    stepParams: {
+      primary: divisor('3.6'),
+      primary__cash_buyer: divisor('12'),
+      iscore_band: iscoreTiers(),
+    },
+    estimated: [...I_SCORE_ESTIMATED],
+  },
+
+  {
     productKey: 'school_stage_ceiling',
     sheet: 'App. B — CAE Teachers, Predefined Limit (codes 0760-22 / 0760-23)',
     // The sheet waives the income check and prints no percentage; a ceiling still needs one.
@@ -447,6 +474,22 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
  * already linked to `compound_owner`, so this seed has nothing to do to it.
  */
 export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
+  {
+    // The two auto names are the only CAR entries here, and they are what a car applicant
+    // picks between: one product quoted off the down payment, one off what they have saved.
+    key: 'auto_down_payment_income',
+    labelEn: 'Auto Loan — Down Payment as Income',
+    labelAr: 'قرض سيارة — الدفعة المقدمة كدخل',
+    productKey: 'down_payment_income',
+    categories: [LoanCategory.car],
+  },
+  {
+    key: 'green_finance_savings',
+    labelEn: 'Green Finance',
+    labelAr: 'التمويل الأخضر',
+    productKey: 'savings_income',
+    categories: [LoanCategory.car],
+  },
   {
     key: 'armed_forces_no_payslip',
     labelEn: 'Armed Forces',

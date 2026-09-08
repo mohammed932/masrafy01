@@ -60,6 +60,7 @@ import {
 import type { LoanCategory, DecisionOutcome } from '@prisma/client';
 import type { ApplicantProfile, BankProgramSnapshot, Offer } from '../matching/types';
 import { MATCHING_ENGINE_VERSION } from '../matching/types';
+import { carDetailsFrom } from '../matching/pipeline/car-details';
 import type { ApplyRequestDto } from './dto/apply.dto';
 import type { ApplyResponse, UnavailableProgramDto } from './dto/apply-response.dto';
 import type {
@@ -107,6 +108,10 @@ type PersistedOfferRow = {
   incomeSurrogateStrategy?: string | null;
   /** What the applicant's collateral supported. `null` unless the program prices off it. */
   collateralCeilingEGP?: Decimal | null;
+  /** Which reduction decided the amount. `null` on offers predating the column. */
+  bindingConstraint?: string | null;
+  /** The down payment the offer implies (car programs). `null` everywhere else. */
+  requiredDownPaymentEGP?: Decimal | null;
 };
 
 /** An applied application's row + the offer the customer proceeded with. */
@@ -678,6 +683,13 @@ export class ApplicationsService {
       collateralCeilingEGP: offer.collateralCeilingEGP
         ? new Decimal(offer.collateralCeilingEGP.toString())
         : null,
+      // Which reduction decided the amount, and the down payment it implies. Frozen for the
+      // same reason the figures above are: both answer a question about a program's limits
+      // and an applicant's answers, and both can move afterwards.
+      bindingConstraint: offer.bindingConstraint,
+      requiredDownPaymentEGP: offer.requiredDownPaymentEGP
+        ? new Decimal(offer.requiredDownPaymentEGP.toString())
+        : null,
     };
   }
 
@@ -729,6 +741,11 @@ export class ApplicationsService {
       // What the unit or membership supported. Read off the frozen column, so an offer
       // keeps saying what it said the day it was made (Principle I / A6).
       collateralCeilingEGP: o.collateralCeilingEGP?.toFixed(2) ?? null,
+      // Read off the frozen columns like every figure above. `null` on an offer written
+      // before the columns existed — the customer is told nothing rather than told a
+      // constraint nobody recorded.
+      bindingConstraint: o.bindingConstraint ?? null,
+      requiredDownPaymentEGP: o.requiredDownPaymentEGP?.toFixed(2) ?? null,
     };
   }
 
@@ -930,12 +947,18 @@ export class ApplicationsService {
             constructionStage: dto.mortgageDetails.constructionStage,
           }
         : undefined,
-      carDetails: dto.carDetails
-        ? {
-            carValueEGP: new Decimal(dto.carDetails.carValueEGP),
-            downPaymentEGP: new Decimal(dto.carDetails.downPaymentEGP),
-          }
-        : undefined,
+      // The price and the down payment the applicant TYPED, with the request body as the
+      // fallback for clients that predate those questions. One shared derivation with
+      // preview (A33): both paths cap the loan at the same share of the same price.
+      carDetails: carDetailsFrom(
+        surrogateFacts.byKey,
+        dto.carDetails
+          ? {
+              carValueEGP: new Decimal(dto.carDetails.carValueEGP),
+              downPaymentEGP: new Decimal(dto.carDetails.downPaymentEGP),
+            }
+          : undefined,
+      ),
       // Registry facts, keyed. No request-body fallback like the four typed fields
       // above have: an operator-defined fact has never existed on the apply DTO, so
       // there is no legacy caller whose figures could be stripped by leaving it out —

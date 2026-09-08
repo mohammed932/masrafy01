@@ -868,7 +868,8 @@ async function validateStepFigures(
 
     case 'percentOf':
     case 'upliftPercent':
-    case 'multiply': {
+    case 'multiply':
+    case 'divide': {
       // A step that takes its factor from a SECOND input states no figure — the compound
       // product's down payment is the customer's percentage of the customer's price, and
       // there is no bank number in it. Requiring a scalar anyway would force the operator

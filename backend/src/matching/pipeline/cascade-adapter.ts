@@ -7,6 +7,8 @@
  * directly — do not re-derive cascade order anywhere else.
  */
 
+import { Decimal } from '@prisma/client/runtime/library';
+
 import type { ApplicantProfile, BankProgramSnapshot } from '../types';
 import type {
   ApplicantContext,
@@ -88,14 +90,26 @@ export function runCascade(
   };
 }
 
+/**
+ * The applicant's down payment as a percentage of what they are buying.
+ *
+ * Computed in `Decimal` and converted ONCE at the boundary: `ApplicantContext` is a
+ * `number`-typed structure by design (the cascade compares band edges), but the ratio itself
+ * is money divided by money and was the only float arithmetic left in the pipeline
+ * (Principle I / A3). Four decimals is finer than any band edge a sheet prints.
+ */
 function computeDownPaymentPercent(profile: ApplicantProfile): number | undefined {
   const m = profile.mortgageDetails;
-  if (m && Number(m.propertyValueEGP.toString()) > 0) {
-    return (Number(m.downPaymentEGP.toString()) / Number(m.propertyValueEGP.toString())) * 100;
+  if (m && m.propertyValueEGP.greaterThan(0)) {
+    return ratioPercent(m.downPaymentEGP, m.propertyValueEGP);
   }
   const c = profile.carDetails;
-  if (c && Number(c.carValueEGP.toString()) > 0) {
-    return (Number(c.downPaymentEGP.toString()) / Number(c.carValueEGP.toString())) * 100;
+  if (c && c.carValueEGP.greaterThan(0)) {
+    return ratioPercent(c.downPaymentEGP, c.carValueEGP);
   }
   return undefined;
+}
+
+function ratioPercent(part: Decimal, whole: Decimal): number {
+  return part.div(whole).mul(100).toDecimalPlaces(4, Decimal.ROUND_HALF_EVEN).toNumber();
 }

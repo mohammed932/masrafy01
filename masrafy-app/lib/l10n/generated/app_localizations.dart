@@ -4420,6 +4420,54 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'وحدتك تدعم حتى {amount}'**
   String offer_collateral_ceiling(String amount);
+
+  /// No description provided for @offer_required_down_payment.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستدفع {amount} مقدمًا'**
+  String offer_required_down_payment(String amount);
+
+  /// No description provided for @offer_limited_by_ltv.
+  ///
+  /// In ar, this message translates to:
+  /// **'محدود بنسبة تمويل البنك من سعر السيارة'**
+  String get offer_limited_by_ltv;
+
+  /// No description provided for @offer_limited_by_dbr.
+  ///
+  /// In ar, this message translates to:
+  /// **'محدود بما يسمح به دخلك'**
+  String get offer_limited_by_dbr;
+
+  /// No description provided for @offer_limited_by_program_max.
+  ///
+  /// In ar, this message translates to:
+  /// **'محدود بالحد الأقصى لهذا البرنامج'**
+  String get offer_limited_by_program_max;
+
+  /// No description provided for @offer_limited_by_program_row.
+  ///
+  /// In ar, this message translates to:
+  /// **'محدود بحد البرنامج لإجاباتك'**
+  String get offer_limited_by_program_row;
+
+  /// No description provided for @offer_limited_by_collateral.
+  ///
+  /// In ar, this message translates to:
+  /// **'محدود بما يدعمه ضمانك'**
+  String get offer_limited_by_collateral;
+
+  /// No description provided for @results_unavailable_no_max_for_answer.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.'**
+  String get results_unavailable_no_max_for_answer;
+
+  /// No description provided for @results_unavailable_product_retired.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك لا يقدم هذا البرنامج حاليًا.'**
+  String get results_unavailable_product_retired;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

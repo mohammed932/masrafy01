@@ -19,8 +19,9 @@ import { compileTemplate, I_SCORE_FACT_KEY, SLOT } from '@/matching/pipeline/pro
 const withTemplate = productBlueprints().filter((b) => b.template !== null);
 
 describe('I-Score on every income-bearing product', () => {
-  it('is declared on all nine rule-bearing blueprints, and only there', () => {
-    expect(withTemplate).toHaveLength(9);
+  it('is declared on all eleven rule-bearing blueprints, and only there', () => {
+    // Nine, plus the two savings products the Suez Canal auto sheets added.
+    expect(withTemplate).toHaveLength(11);
     for (const blueprint of withTemplate) expect(blueprint.template!.iScore).toBe(true);
     // The three cap-only products have no template, so there is nothing to multiply.
     expect(productBlueprints().filter((b) => b.template === null).map((b) => b.key).sort()).toEqual([

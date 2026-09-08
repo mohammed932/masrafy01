@@ -6,7 +6,6 @@
  * client reuses its existing offer parsing verbatim.
  */
 
-
 export type ApplicationDecisionStatus = 'applied' | 'approved' | 'rejected';
 
 export interface ApplicationOfferDto {
@@ -65,6 +64,10 @@ export interface ApplicationOfferDto {
    * the same read-the-absence rule the two fields above carry.
    */
   collateralCeilingEGP?: string | null;
+  /** Which reduction decided the amount — `ltv_ceiling`, `dbr_affordability`, … */
+  bindingConstraint?: string | null;
+  /** The down payment this offer implies (car programs only). */
+  requiredDownPaymentEGP?: string | null;
 }
 
 export interface ApplicationListItemDto {

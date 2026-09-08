@@ -162,6 +162,8 @@ class OfferModel {
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
     this.collateralCeilingEGP,
+    this.bindingConstraint,
+    this.requiredDownPaymentEGP,
     this.dbrPercent,
     this.dbrCapPercent,
     this.isSaved = false,
@@ -194,6 +196,13 @@ class OfferModel {
   /// every program that does not price off collateral.
   final double? collateralCeilingEGP;
 
+  /// WHICH reduction decided this offer's amount — `ltv_ceiling`, `dbr_affordability`, …
+  /// A backend code, localized on this side like every other (Principle III).
+  final String? bindingConstraint;
+
+  /// Car offers: the price less the cash paid out — what the customer puts in.
+  final double? requiredDownPaymentEGP;
+
   /// Where this offer's installment lands on the debt-burden scale, and the cap
   /// it was measured against. Null on offers written before the fields existed.
   final double? dbrPercent;
@@ -222,6 +231,10 @@ class OfferModel {
       maxLoanAvailableEGP: json['maxLoanAvailableEGP'] == null
           ? null
           : _toDouble(json['maxLoanAvailableEGP']),
+      bindingConstraint: json['bindingConstraint'] as String?,
+      requiredDownPaymentEGP: json['requiredDownPaymentEGP'] == null
+          ? null
+          : _toDouble(json['requiredDownPaymentEGP']),
       collateralCeilingEGP: json['collateralCeilingEGP'] == null
           ? null
           : _toDouble(json['collateralCeilingEGP']),
@@ -252,6 +265,8 @@ class OfferModel {
         feesBreakdown: feesBreakdown,
         maxLoanAvailableEGP: maxLoanAvailableEGP,
         collateralCeilingEGP: collateralCeilingEGP,
+        bindingConstraint: bindingConstraint,
+        requiredDownPaymentEGP: requiredDownPaymentEGP,
         dbrPercent: dbrPercent,
         dbrCapPercent: dbrCapPercent,
         isSaved: isSaved,

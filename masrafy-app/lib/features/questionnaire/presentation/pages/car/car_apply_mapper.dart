@@ -5,11 +5,13 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// Maps the questionnaire answers to a car-loan `ApplyRequest`.
 ///
 /// Amount, tenor, income and current installments come from the bound NUMERIC
-/// questions via [MoneyFigures] (feature 010 — no bucket midpoints). The
-/// vehicle price and down-payment percentage are still choice answers with no
-/// NUMERIC binding, so they keep their documented representative values and
-/// feed `carDetails` only; the financed principal is the amount the applicant
-/// actually asked for. The full answer set rides along as `questionnaireAnswers`
+/// questions via [MoneyFigures] (feature 010 — no bucket midpoints). The car's
+/// PRICE and DOWN PAYMENT are now typed too: a bank that reads the down payment
+/// as proof of income (`income = down payment ÷ 3.6`) and caps the loan at a
+/// share of the price cannot be quoted off a bucket midpoint. Both are omitted
+/// when unanswered rather than zeroed — the backend then applies no LTV cap and
+/// says so, instead of capping at nothing. The financed principal is still the
+/// amount the applicant actually asked for. The full answer set rides along as `questionnaireAnswers`
 /// so the engine applies per-bank weighted scoring (Principle V). `age` stays
 /// null — the results cubit fills it from the profile (`/auth/me`).
 ///
@@ -33,9 +35,9 @@ ApplyRequest mapCarAnswersToApplyRequest(
   final employmentType =
       _employmentType[employmentCode] ?? employmentCode ?? 'salaried';
 
-  final price = _vehiclePriceEgp[pickedOption(answers, 'vehicle_price')] ?? 0;
+  final price = num.tryParse(numericOf(answers, 'car_price') ?? '')?.toDouble();
   final downPayment =
-      price * (_downPaymentPct[pickedOption(answers, 'down_payment')] ?? 0);
+      num.tryParse(numericOf(answers, 'car_down_payment') ?? '')?.toDouble();
 
   return ApplyRequest(
     loanPurpose: 'car',
@@ -67,32 +69,20 @@ ApplyRequest mapCarAnswersToApplyRequest(
     // The card limit IS answered, in the commitments step, and feeds both the 5%
     // obligation discount and a `byCreditCardLimit` income rule.
     assets: facts.assets,
-    carDetails: CarDetailsPayload(
-      carValueEGP: egp(price),
-      downPaymentEGP: egp(downPayment),
-    ),
+    // Omitted when either is unanswered: the server derives the same pair from
+    // `questionnaireAnswers`, and a zeroed price would cap every LTV program at nothing.
+    carDetails: (price != null && downPayment != null)
+        ? CarDetailsPayload(
+            carValueEGP: egp(price),
+            downPaymentEGP: egp(downPayment),
+          )
+        : null,
     category: 'car',
     programNameKey: programNameKey,
     programType: programType,
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }
-
-/// Representative vehicle price (EGP) per `vehicle_price` bucket.
-const Map<String, double> _vehiclePriceEgp = {
-  'less_than_egp_500000': 400000,
-  'egp_500000_1_million': 750000,
-  'egp_1_2_million': 1500000,
-  'more_than_egp_2_million': 3000000,
-};
-
-/// `down_payment` bucket → representative fraction of the vehicle price.
-const Map<String, double> _downPaymentPct = {
-  'no_down_payment': 0,
-  'less_than_20': 0.10,
-  '20_40': 0.30,
-  'more_than_40': 0.45,
-};
 
 /// `employment_status` seed code → the engine's `employmentType` token
 /// (the engine keys on the shorter legacy tokens for bank-employee programs).

@@ -206,6 +206,20 @@ export interface LoanLimitsConfig {
    * `pipeline/max-loan-adjustments.ts` for the 300,000-EGP worked example.
    */
   maxLoanAdjustments?: MaxLoanAdjustment[];
+  /**
+   * The share of an asset's price this program finances — 40% against a 60% down payment.
+   *
+   * Read by `pipeline/ltv-ceiling.ts` for a CAR only, because a car's price is a figure the
+   * applicant types exactly (`car_price`) while a mortgage's is still a bucket midpoint, and
+   * capping money by a midpoint is the defect FR-018 exists to prevent.
+   */
+  ltvCeilingPercent?: string;
+  /**
+   * DEPRECATED, and carried rather than deleted: the engine reads `ltvCeilingPercent` only.
+   * Stored rows keep it, the wizard passes it through untouched, and the read-only detail
+   * page derives `100 − LTV` when it is absent — one figure, one authority.
+   */
+  minDownPaymentPercent?: string;
   qualitativeReviewMaxEGP?: string;
 }
 
@@ -833,6 +847,16 @@ export interface Offer {
    * collateral supports nothing.
    */
   collateralCeilingEGP: Decimal | null;
+  /**
+   * Which reduction decided this offer's amount, frozen with it (Principle I / A6).
+   *
+   * Computed on every quote since feature 010 and thrown away at the door: the customer was
+   * shown a cut amount with nothing saying what cut it. Re-deriving it at read time is not
+   * available — the program's limits, its LTV and the applicant's answers can all move.
+   */
+  bindingConstraint: BindingConstraint;
+  /** The down payment this offer implies (car only), frozen for the same reason. */
+  requiredDownPaymentEGP: Decimal | null;
 }
 
 export interface MatchResult {
@@ -898,6 +922,14 @@ export const BINDING_CONSTRAINTS = [
    * of the two statements, and it is the one an operator can act on.
    */
   'program_max_by_fact',
+  /**
+   * The amount was capped by the share of the car's price this program finances
+   * (`loanLimits.ltvCeilingPercent` × the price the applicant stated), below the program's
+   * own maximum. Ranked with `collateral_ceiling`: both say "the program would lend more,
+   * this asset will not carry more", which is the more specific of the two statements and
+   * the one that explains the down payment the customer has to find.
+   */
+  'ltv_ceiling',
 ] as const;
 
 export type BindingConstraint = (typeof BINDING_CONSTRAINTS)[number];
@@ -1014,6 +1046,19 @@ export interface Quote {
   maxAffordableAmountEGP: Decimal;
   bindingConstraint: BindingConstraint;
   /**
+   * Car programs only: the most this program would finance against the stated price, before
+   * affordability. Absent when the program states no LTV or the applicant stated no car.
+   */
+  ltvCeilingEGP?: Decimal;
+  /**
+   * What the customer has to put in: the car's price less the cash this offer pays out.
+   *
+   * The reference's §1.2 in one number — a program's stated down payment is an eligibility
+   * floor, and the debt burden can push the financed amount BELOW the LTV ceiling, which
+   * raises the down payment the customer actually pays. Absent on every non-car quote.
+   */
+  requiredDownPaymentEGP?: Decimal;
+  /**
    * Set only for a product rule whose answer is a CEILING: the amount the applicant's
    * collateral supports, before obligations.
    *
@@ -1095,4 +1140,4 @@ export type ApplicationPriority = (typeof APPLICATION_PRIORITIES)[number];
  * priced this offer — and that is a fact about the code, so it lives in code. Bump it on
  * any change to the quote pipeline. Max 32 chars (`engineVersion` is VarChar(32)).
  */
-export const MATCHING_ENGINE_VERSION = '2.0.0';
+export const MATCHING_ENGINE_VERSION = '2.1.0';
