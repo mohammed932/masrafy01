@@ -121,6 +121,7 @@ import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
   catalogRuleOf,
+  dropClearedPolicy,
   effectiveIncomeRule,
   productKeyOf,
   stripCatalogStructure,
@@ -1605,7 +1606,10 @@ export class BankProgramsService {
     if (incoming !== null) {
       rule = normalizeIncomeAssumption(stripForeignMethodConfig(incoming));
       delete rule.amounts;
-      rule = withStoredStructure(rule, name.incomeRule);
+      // A cleared policy field arrives as `null` and must not reach the validator, which
+      // reads it as an out-of-range percentage. After the carry, so an absent key still
+      // means "keep what is stored".
+      rule = dropClearedPolicy(withStoredStructure(rule, name.incomeRule));
     }
 
     if (rule !== null) {
@@ -1858,7 +1862,7 @@ export class BankProgramsService {
       // A figures-only write keeps the structure already stored. This is what lets the
       // product screen save an edited table without re-posting a step list it merely
       // rendered — re-posting would let a stale screen replace the product itself.
-      rule = withStoredStructure(rule, row.incomeRule);
+      rule = dropClearedPolicy(withStoredStructure(rule, row.incomeRule));
     }
 
     if (rule !== null) {
@@ -1932,6 +1936,14 @@ export class BankProgramsService {
             before: row.incomeRule?.strategy ?? null,
             after: rule?.strategy ?? null,
             figuresChanged: stableJson(row.incomeRule ?? null) !== stableJson(rule ?? null),
+            // Called out beside the figures rather than folded into them: this one cap is
+            // read by every bank program under the product that states none of its own
+            // (`withInheritedDbrCap`), so a change here moves live quotes and the log has
+            // to say what it was.
+            dbrCapPercentOverride: {
+              before: row.incomeRule?.dbrCapPercentOverride ?? null,
+              after: rule?.dbrCapPercentOverride ?? null,
+            },
           },
         },
       },

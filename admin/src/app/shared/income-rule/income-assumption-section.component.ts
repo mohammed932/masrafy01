@@ -256,73 +256,119 @@ import { incomeRuleHasError } from './income-rule.rules';
           }
         }
 
-        <!-- ── Policy on top of the method ──────────────────────────────────── -->
+        <!-- ── Policy on top of the method ──────────────────────────── -->
         @if (showPolicy() && shape() !== 'none') {
           <!-- The comment above has named these "policy on top of the method" since they
                were written; the screen never did. Sitting in the same grid directly under
-               the ways, they read as fields OF the way just picked.
+               the ways, they read as fields OF the way just picked — so they are their own
+               band now, set off by one hairline, with a two-up grid of their own.
+
+               Their own grid, not the section's: the section's is auto-fill at a 15rem
+               floor, which on a full-width card left the combination select in a 15rem
+               cell and the document list on a row of its own at 1 / -1 — two peer policy
+               fields drawn at two wildly different widths, one of them orphaned under a
+               heading with empty space beside it. An 18rem floor sits them side by side
+               at card width and stacks them on a phone.
 
                The rule's own debt-burden cap used to be the first of three fields here. It
                is on the Requirements step now, in the card that already holds the program's
                flat cap, its income bands and its by-applicant table — four DBR figures on
                one card, in the order the resolver reads them, rather than the narrowest
                of the four sitting two steps away from the three it beats. -->
-          <h4 class="policy-label" i18n="@@bank_programs.income.policy_label">
-            Policy on top of this method
-          </h4>
-          <nz-form-item>
-            <nz-form-label
-              [nzFor]="'combinationRule'"
-              i18n="@@bank_programs.income.combination_label"
-              >When the applicant also states a salary</nz-form-label
-            >
-            <nz-form-control>
-              <nz-select id="combinationRule" formControlName="combinationRule">
-                <nz-option
-                  [nzValue]="null"
-                  i18n-nzLabel="@@bank_programs.income.combination_replace"
-                  nzLabel="Use this rule's figure instead"
-                ></nz-option>
-                <nz-option
-                  nzValue="greater_of"
-                  i18n-nzLabel="@@bank_programs.income.combination_greater"
-                  nzLabel="Use whichever is higher"
-                ></nz-option>
-                <nz-option
-                  nzValue="lesser_of"
-                  i18n-nzLabel="@@bank_programs.income.combination_lesser"
-                  nzLabel="Use whichever is lower"
-                ></nz-option>
-              </nz-select>
-            </nz-form-control>
-          </nz-form-item>
+          <div class="span-2 policy">
+            <h4 class="policy-label" i18n="@@bank_programs.income.policy_label">
+              Policy on top of this method
+            </h4>
 
-          <nz-form-item class="span-2">
-            <nz-form-label
-              [nzFor]="'ruleRequiredDocuments'"
-              i18n="@@bank_programs.income.required_docs_label"
-              >Documents this method needs</nz-form-label
-            >
-            <nz-form-control>
-              <nz-select
-                id="ruleRequiredDocuments"
-                nzMode="multiple"
-                formControlName="requiredDocuments"
-                [nzPlaceHolder]="documentsPlaceholder"
-              >
-                @for (doc of documentMembers(); track doc.key) {
-                  <nz-option
-                    [nzValue]="doc.key"
-                    [nzLabel]="isAr ? doc.labelAr : doc.labelEn"
-                  ></nz-option>
-                }
-              </nz-select>
-              <p class="rule-hint" i18n="@@bank_programs.income.required_docs_hint">
-                Checked against the program's own document list on save. A gap is reported, never
-                blocked.
-              </p>
-            </nz-form-control>
-          </nz-form-item>
+            <div class="policy-grid">
+              @if (shape() === 'steps') {
+                <!-- A STATEMENT, not a dead select. resolveIncome returns a product rule's
+                     answer before decide() is ever reached (income-resolver.ts), so a
+                     pipeline's figure always replaces a stated salary and no value stored
+                     here can move a quote. A live control that changes nothing is worse
+                     than no control: an operator curates it and expects an effect. Same
+                     posture the ways list takes for a single-way product. -->
+                <div class="policy-statement">
+                  <p class="policy-statement-label" i18n="@@bank_programs.income.combination_label">
+                    When the applicant also states a salary
+                  </p>
+                  <p class="rule-hint" i18n="@@bank_programs.income.combination_pipeline">
+                    This product works the figure out from several answers, and that figure is what
+                    the quote runs on. A stated salary is never combined with it.
+                  </p>
+                </div>
+              } @else {
+                <nz-form-item>
+                  <nz-form-label
+                    [nzFor]="'combinationRule'"
+                    i18n="@@bank_programs.income.combination_label"
+                    >When the applicant also states a salary</nz-form-label
+                  >
+                  <nz-form-control>
+                    <!-- The placeholder carries the DEFAULT in words. An nz-select holding
+                         null renders an empty trigger, so the field read as unanswered on
+                         every program — while absent means something specific and lending:
+                         the rule's figure replaces the salary. Same string as the option, so
+                         the two cannot drift. -->
+                    <nz-select
+                      id="combinationRule"
+                      formControlName="combinationRule"
+                      [nzPlaceHolder]="combinationPlaceholder"
+                    >
+                      <nz-option
+                        [nzValue]="null"
+                        i18n-nzLabel="@@bank_programs.income.combination_replace"
+                        nzLabel="Use this rule's figure instead"
+                      ></nz-option>
+                      <nz-option
+                        nzValue="greater_of"
+                        i18n-nzLabel="@@bank_programs.income.combination_greater"
+                        nzLabel="Use whichever is higher"
+                      ></nz-option>
+                      <nz-option
+                        nzValue="lesser_of"
+                        i18n-nzLabel="@@bank_programs.income.combination_lesser"
+                        nzLabel="Use whichever is lower"
+                      ></nz-option>
+                    </nz-select>
+                    <!-- The document list one column over states its consequence; this one
+                         stated none, which is half of why the pair read as unfinished. -->
+                    <p class="rule-hint" i18n="@@bank_programs.income.combination_hint">
+                      The figure that wins is what the instalment allowance is worked out from, so
+                      this changes the loan the program offers.
+                    </p>
+                  </nz-form-control>
+                </nz-form-item>
+              }
+
+              <nz-form-item>
+                <nz-form-label
+                  [nzFor]="'ruleRequiredDocuments'"
+                  i18n="@@bank_programs.income.required_docs_label"
+                  >Documents this method needs</nz-form-label
+                >
+                <nz-form-control>
+                  <nz-select
+                    id="ruleRequiredDocuments"
+                    nzMode="multiple"
+                    formControlName="requiredDocuments"
+                    [nzPlaceHolder]="documentsPlaceholder"
+                  >
+                    @for (doc of documentMembers(); track doc.key) {
+                      <nz-option
+                        [nzValue]="doc.key"
+                        [nzLabel]="isAr ? doc.labelAr : doc.labelEn"
+                      ></nz-option>
+                    }
+                  </nz-select>
+                  <p class="rule-hint" i18n="@@bank_programs.income.required_docs_hint">
+                    Checked against the program's own document list on save. A gap is reported,
+                    never blocked.
+                  </p>
+                </nz-form-control>
+              </nz-form-item>
+            </div>
+          </div>
         }
       </div>
 
@@ -339,22 +385,70 @@ import { incomeRuleHasError } from './income-rule.rules';
   styleUrls: ['../../features/bank-programs/form/sections/section.styles.scss'],
   styles: [
     `
+      /* The policy band. One hairline and one spacing step, because these two fields
+         are the bank's own policy sitting under a calculation the CATALOG owns — a
+         different kind of decision from everything above them, and space alone at the
+         section's uniform --space-3 gap did not say so. Not a card: this section is
+         already inside one on all three hosts, and a bordered box here would be the
+         box-in-a-box the sheet's own header refuses. */
+      .policy {
+        grid-column: 1 / -1;
+        margin-block-start: var(--space-5);
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--color-border-default);
+      }
+
       /* ONE RUNG BELOW the band labels, deliberately.
          It used to copy their ramp exactly — uppercase, text-xs, wide tracking — which
          put a FOURTH identically-drawn micro-label on a step that has two bands, one of
          them nested two levels inside another. Three of those labels headed a band and
          one headed a group of fields inside one, and nothing on screen said which.
          Sentence case at text-sm reads as what it is: a sub-heading of the calculation,
-         not a peer of it.
-
-         1 / -1, never span 2: it heads the whole row, and the grid's column count is
-         now the viewport's to decide. */
+         not a peer of it. */
       .policy-label {
-        grid-column: 1 / -1;
-        margin: var(--space-5) 0 0;
+        margin: 0 0 var(--space-3);
         font-size: var(--text-sm);
         font-weight: var(--font-semibold);
         color: var(--color-text-primary);
+      }
+
+      /* Two peer fields, side by side from card width, stacked on a phone. The 18rem
+         floor is the widest of the two triggers a single value reads at; the section's
+         own 15rem floor would fit a third column that has nothing to put in it. */
+      .policy-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+        gap: var(--space-3) var(--space-4);
+        align-items: start;
+      }
+      .policy-grid > * {
+        min-inline-size: 0;
+      }
+      /* The document list is a multi-select of long Arabic names and the combination
+         select holds one short sentence; unbounded, either one stretches to whatever
+         the column is and drags its own dropdown panel with it. */
+      .policy-grid ::ng-deep nz-select {
+        display: block;
+        max-inline-size: 34rem;
+      }
+
+      /* The pipeline branch: a label drawn exactly like the nz-form-label beside it
+         (12px / 600 / secondary / 0.02em, per styles.scss) so the two cells read as one
+         row of two fields, one of which happens to have nothing to pick. */
+      .policy-statement {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .policy-statement-label {
+        margin: 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.02em;
+        color: var(--color-text-secondary);
+      }
+      .policy-statement .rule-hint {
+        margin: 0;
       }
 
       /* The catalog's one-line statement of the rule, above the picker. Plain text on
@@ -551,6 +645,15 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly showsCatalogDefaults = input<boolean>(false);
 
   readonly documentsPlaceholder = $localize`:@@bank_programs.income.docs_placeholder:Pick the documents`;
+
+  /**
+   * The DEFAULT, in words, on the trigger of the combination select. An `nz-select`
+   * whose value is `null` renders an empty trigger even when a `null` option exists,
+   * so the field read as unanswered on every program that had never been touched —
+   * while absent has a specific, lending meaning: the rule's figure replaces the
+   * stated salary. Same id as the option, so the two strings cannot drift.
+   */
+  readonly combinationPlaceholder = $localize`:@@bank_programs.income.combination_replace:Use this rule's figure instead`;
 
   /**
    * The selected method, as a SIGNAL.

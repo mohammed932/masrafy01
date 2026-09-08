@@ -61,3 +61,93 @@ describe('productRuleHasError', () => {
     ).toBe(false);
   });
 });
+
+describe('band tables are judged by their SHAPE, not just their presence', () => {
+  const STEPS: RuleStep[] = [
+    { id: 'basis', op: 'constant' },
+    { id: 'iscore_band', op: 'bandTable', of: { step: 'basis' } },
+    { id: 'iscore_factor', op: 'coalesce', of: [{ step: 'iscore_band' }, { const: '100' }] },
+    { id: 'out', op: 'percentOf', of: [{ step: 'basis' }, { step: 'iscore_factor' }] },
+  ];
+  const FILLED: StepFigures = { valueEGP: '1000' };
+  const tiers = (rows: Array<[string, string | null, string]>): StepFigures => ({
+    bands: rows.map(([fromInclusive, toExclusive, incomeEGP]) => ({
+      fromInclusive,
+      toExclusive,
+      incomeEGP,
+    })),
+  });
+
+  it('accepts a tier table that covers every score', () => {
+    expect(
+      productRuleHasError({
+        steps: STEPS,
+        gates: [],
+        figures: {
+          basis: FILLED,
+          iscore_band: tiers([
+            ['0', '550', '80'],
+            ['550', '700', '100'],
+            ['700', null, '110'],
+          ]),
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('refuses a tier figure left blank, which the server answers INCOME_RULE_INCOME_INVALID', () => {
+    // Found by clearing one box in a browser: the row had figures, so `stepIsConfigured` read
+    // it as configured, Continue stayed enabled and the refusal arrived three steps later.
+    expect(
+      productRuleHasError({
+        steps: STEPS,
+        gates: [],
+        figures: { basis: FILLED, iscore_band: tiers([['0', null, '']]) },
+      }),
+    ).toBe(true);
+  });
+
+  it('refuses a tier table that does not cover every score', () => {
+    expect(
+      productRuleHasError({
+        steps: STEPS,
+        gates: [],
+        figures: { basis: FILLED, iscore_band: tiers([['550', null, '100']]) },
+      }),
+    ).toBe(true);
+    expect(
+      productRuleHasError({
+        steps: STEPS,
+        gates: [],
+        figures: { basis: FILLED, iscore_band: tiers([['0', '900', '100']]) },
+      }),
+    ).toBe(true);
+  });
+
+  it('leaves an EMPTY tier table alone — the product states those', () => {
+    expect(
+      productRuleHasError({ steps: STEPS, gates: [], figures: { basis: FILLED } }),
+    ).toBe(false);
+  });
+
+  it('does not demand total coverage of an ordinary range table', () => {
+    // A years table closing its top band is legal and common; only the multiplier must cover
+    // everything (`coverAll`).
+    const years: RuleStep[] = [
+      { id: 'src__years', op: 'factNumber', fact: 'years_in_practice' },
+      { id: 'primary', op: 'bandTable', of: { step: 'src__years' } },
+    ];
+    expect(
+      productRuleHasError({
+        steps: years,
+        gates: [],
+        figures: {
+          primary: tiers([
+            ['3', '5', '12000'],
+            ['5', '8', '30000'],
+          ]),
+        },
+      }),
+    ).toBe(false);
+  });
+});

@@ -170,7 +170,7 @@
   "INCOME_RULE_DUPLICATE_KEY": "This key already has a row. Each key may appear once.",
   "INCOME_RULE_FACT_UNAVAILABLE": "The fact this method reads is not set up, so it can produce no income. Pick another method.",
   "INCOME_RULE_UNKNOWN_KEY": "This key is no longer offered by the registry. Pick a current one.",
-  "INCOME_RULE_BANDS_INVALID": "The income bands must ascend with no gaps or overlaps, and only the last band may be open-ended.",
+  "INCOME_RULE_BANDS_INVALID": "The income bands must ascend with no gaps or overlaps, and only the last band may be open-ended. An I-Score tier table must also start at 0 and leave its top tier open.",
   "INCOME_RULE_DBR_OVERRIDE_INVALID": "The debt-burden override must be greater than 0 and at most 100.",
   "ADDITIONAL_INCOME_INVALID": "The extra income this bank counts cannot be read. Check the source, its percentage, and the ceiling.",
   "PROGRAM_NAME_INCOME_PROOF_MISMATCH": "This program name reads a different income proof. Every bank selling it must read the same one — only the amounts are yours.",

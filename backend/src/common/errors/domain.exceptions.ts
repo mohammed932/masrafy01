@@ -1025,11 +1025,18 @@ export type IncomeRuleBandsInvalidReason =
   /** An open-ended band with rows after it — those rows can never be reached. */
   | 'open_band_not_last'
   /**
-   * Retired: a CLOSED last band is legal (it means "above this the rule yields
-   * nothing"). Retained in the union so a stored or in-flight payload carrying it
-   * still type-checks, the same treatment `QUESTION_TYPE_NOT_SCOREABLE` got.
+   * LIVE again, for the I-Score tier table only.
+   *
+   * A closed last band stays legal on every other table — it means "above this the rule
+   * yields nothing", which `bandFor` reports as `no_matching_band`, a stated reason. On the
+   * I-Score table that reading inverts: the tiers scale a figure the rule has already
+   * worked out, so a score above the top row does not yield a smaller quote, it yields
+   * `SURROGATE_NO_MATCHING_ROW` and no quote at all. A table that does not cover every
+   * score is refused where the operator can still fix it.
    */
   | 'last_band_not_open'
+  /** The I-Score table's lowest tier starts above zero, so low scores match no row. */
+  | 'first_band_not_zero'
   | 'empty'
   | 'edge_not_decimal';
 

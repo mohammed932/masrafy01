@@ -1765,7 +1765,19 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                            out. A bank that states 45 here has not capped the applicant who brings
                            a payslip. -->
                       <p class="dbr-emp-note">
-                        @if (dbrBands().length > 0 || dbrByEmploymentSet()) {
+                        @if (productDbrCap(); as productCap) {
+                          <!-- The product states one, so the true sentence is a different one:
+                               blank does NOT fall through to this card's caps, it reads the
+                               product's. Said here rather than only in the field's hint,
+                               because it changes what the three controls above this one mean
+                               for a surrogate-derived figure. -->
+                          <ng-container i18n="@@bank_programs.eligibility.dbr_rule_cap.note_product"
+                            >The product this name takes its calculation from caps that figure at
+                            {{ productCap }}%. A figure here replaces it for this bank only. Either
+                            way the caps above still apply to a salary the applicant
+                            states.</ng-container
+                          >
+                        } @else if (dbrBands().length > 0 || dbrByEmploymentSet()) {
                           <ng-container
                             i18n="@@bank_programs.eligibility.dbr_rule_cap.note_narrowed"
                             >A figure here wins over every cap above, but only when the income came
@@ -5283,16 +5295,38 @@ export class BankProgramFormPage implements OnInit {
    * map beats the bands, and both beat the flat cap, so either of them being present is
    * enough to make "what applies instead" un-nameable as one number.
    */
-  readonly dbrRuleCapFallback = computed<string>(() =>
-    this.dbrBands().length > 0 || this.dbrByEmploymentSet() ? '—' : this.dbrFlatCap(),
-  );
+  readonly dbrRuleCapFallback = computed<string>(() => {
+    // The PRODUCT's cap first, because that is what a blank box actually resolves to: the
+    // engine reads the product's for any program that states none (`withInheritedDbrCap`).
+    // Showing this bank's flat cap there was true until the product stated one and false
+    // afterwards, on the field whose whole job is saying what blank means.
+    const product = this.productDbrCap();
+    if (product !== null) return product;
+    return this.dbrBands().length > 0 || this.dbrByEmploymentSet() ? '—' : this.dbrFlatCap();
+  });
 
   /** The same fact in words, since a placeholder attribute is not reliably announced. */
-  readonly dbrRuleCapFallbackNote = computed<string>(() =>
-    this.dbrBands().length > 0 || this.dbrByEmploymentSet()
+  readonly dbrRuleCapFallbackNote = computed<string>(() => {
+    const product = this.productDbrCap();
+    if (product !== null) {
+      return $localize`:@@bank_programs.eligibility.dbr_rule_cap.default_product:Blank — the product's cap of ${product}:cap:% applies to the calculation's figure.`;
+    }
+    return this.dbrBands().length > 0 || this.dbrByEmploymentSet()
       ? $localize`:@@bank_programs.eligibility.dbr_rule_cap.default_narrowed:Blank — the caps above apply.`
-      : $localize`:@@bank_programs.eligibility.dbr_rule_cap.default_flat:Blank — the cap above applies.`,
-  );
+      : $localize`:@@bank_programs.eligibility.dbr_rule_cap.default_flat:Blank — the cap above applies.`;
+  });
+
+  /**
+   * The debt-burden cap the picked name's PRODUCT states, or `null`.
+   *
+   * Read from the catalog rule this page already fetches, so it follows a name re-pick with no
+   * second request. Never written into this program's control: the value is the product's, and
+   * copying it into the box would freeze a live default into this bank's own figure.
+   */
+  readonly productDbrCap = computed<string | null>(() => {
+    const raw = this.catalogEffectiveRule()?.dbrCapPercentOverride;
+    return raw === null || raw === undefined || raw.trim() === '' ? null : raw.trim();
+  });
 
   /**
    * The verdict on the rule cap: empty is legal, anything else must be in (0, 100].

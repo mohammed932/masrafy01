@@ -124,6 +124,37 @@ export const DOWN_PAYMENT_EDGES = [
   { fromInclusive: '1500000', toExclusive: null },
 ] as const;
 
+/**
+ * The I-Score tiers, and the reason they are the same three rows on every product.
+ *
+ * Spec §10.10 in terms: "the design record's 80% / 100% / 110% is an illustration, not a bank's
+ * table. The prototypes all carry a single 100% Standard row, i.e. no bank has supplied one yet."
+ * So there is nothing per-product to transcribe — one illustration, stated once, marked an
+ * estimate everywhere it lands, replaced per product or per bank the day a sheet arrives.
+ *
+ * COVERAGE IS TOTAL and the validator now demands it (`validateBands`' `coverAll`): the lowest
+ * tier opens at 0 and the top one is open-ended, because the tiers multiply a figure the rule has
+ * already produced — a score the table misses is `no_matching_band`, which kills the quote rather
+ * than shrinking it.
+ */
+const I_SCORE_TIER_EDGES = [
+  { fromInclusive: '0', toExclusive: '550' },
+  { fromInclusive: '550', toExclusive: '700' },
+  { fromInclusive: '700', toExclusive: null },
+] as const;
+
+const I_SCORE_TIER_PERCENTS = ['80', '100', '110'] as const;
+
+/** The tier table, as the `iscore_band` slot holds it. */
+function iscoreTiers(): ReturnType<typeof bands> {
+  return bands(I_SCORE_TIER_EDGES, I_SCORE_TIER_PERCENTS);
+}
+
+/** Every tier figure is an estimate — no bank has published one (§10.10). */
+const I_SCORE_ESTIMATED: EstimatedPaths = I_SCORE_TIER_EDGES.map(
+  (_edge, index) => `incomeRule.stepParams.iscore_band.bands.${index}.incomeEGP`,
+);
+
 /** ABK's own brackets for years in practice — 3–5 · 5–8 · 8–11 · 11–14 · 14–20 · 20+. */
 export const ABK_PRACTICE_EDGES = [
   { fromInclusive: '3', toExclusive: '5' },
@@ -163,7 +194,10 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('officer', '15000'),
         ],
       },
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
     },
+    estimated: [...I_SCORE_ESTIMATED],
   },
 
   {
@@ -195,8 +229,11 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('dean', '300000'),
         ],
       },
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
     },
     estimated: [
+      ...I_SCORE_ESTIMATED,
       'incomeRule.stepParams.primary__uni_private.keyTable.professor_section_head.incomeEGP',
     ],
   },
@@ -231,25 +268,58 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
         '150000',
         '240000',
       ]),
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
     },
+    estimated: [...I_SCORE_ESTIMATED],
+  },
+
+  {
+    // The in-practice doctors product states no years table on purpose — no sheet in the
+    // source material publishes a plain one, so a default here would be a figure nobody said
+    // and each bank types its own (its product card says so). It reaches this list anyway for
+    // the I-Score tiers, which are the platform's illustration rather than any bank's figure,
+    // and which every rule-bearing product states identically.
+    productKey: 'doctors_in_practice',
+    sheet: "spec §10.10 — I-Score tiers only; the years table is each bank's own",
+    stepParams: {
+      iscore_band: iscoreTiers(),
+    },
+    estimated: [...I_SCORE_ESTIMATED],
   },
 
   {
     productKey: 'card_limit_share',
     sheet: 'App. A §6 — net monthly income is half the competitor card limit',
-    stepParams: { primary: percent('50') },
+    stepParams: {
+      primary: percent('50'),
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
+    },
+    estimated: [...I_SCORE_ESTIMATED],
   },
 
   {
     productKey: 'auto_loan_crosssell',
     sheet: 'App. A §4 — three times the instalment or 10% of the loan, whichever is less',
-    stepParams: { primary: times('3'), alt: percent('10') },
+    stepParams: {
+      primary: times('3'),
+      alt: percent('10'),
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
+    },
+    estimated: [...I_SCORE_ESTIMATED],
   },
 
   {
     productKey: 'pledged_collateral_share',
     sheet: 'App. A §3 — 30% of the free amount of the collateral',
-    stepParams: { primary: percent('30') },
+    stepParams: {
+      primary: percent('30'),
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
+    },
+    estimated: [...I_SCORE_ESTIMATED],
   },
 
   {
@@ -321,8 +391,11 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       // earliest (before 2021). A bank pricing to a later year states its own, and EG Bank's
       // own program does.
       cond__unitworthenough: { minValue: '1000000' },
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
     },
     estimated: [
+      ...I_SCORE_ESTIMATED,
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_aa.incomeEGP',
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_ab.incomeEGP',
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_a.incomeEGP',
@@ -356,8 +429,10 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('stage_secondary', '600000'),
         ],
       },
+      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
+      iscore_band: iscoreTiers(),
     },
-    estimated: ['incomeRule.output.baselineDbrPercent'],
+    estimated: ['incomeRule.output.baselineDbrPercent', ...I_SCORE_ESTIMATED],
   },
 ];
 

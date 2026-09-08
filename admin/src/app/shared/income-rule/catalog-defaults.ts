@@ -32,6 +32,7 @@
  * Change `stepSlot` / `columnSlots` / `gateSlot` and change this file with them.
  */
 import {
+  I_SCORE_BAND_SLOT,
   STEP_OP_SHAPE,
   stepRefs,
   stepTakesFigures,
@@ -151,6 +152,25 @@ function isBlankText(value: string | undefined): boolean {
 }
 
 /**
+ * Slots the ENGINE reads from the product when this bank states none — so the screen must
+ * leave them alone rather than offering to fill them in.
+ *
+ * Mirrors `SLOTS_INHERITED_WHEN_BLANK` in `income-rule-inherit.ts`, and the whole point is
+ * that the copy must NOT happen: a blank I-Score table already quotes the product's tiers, so
+ * writing them into this bank's figures on open would turn a live default into a frozen copy —
+ * dirtying a form the operator only opened to read, and leaving the bank on yesterday's tiers
+ * the day the product's change. The row says "the product's tiers apply" instead, with a
+ * button for a bank that wants its own.
+ */
+function slotInheritsWhenBlank(
+  slotId: string,
+  catalogFigures: Readonly<Record<string, StepFigures>> | undefined,
+): boolean {
+  if (slotId !== I_SCORE_BAND_SLOT) return false;
+  return (catalogFigures?.[slotId]?.bands?.length ?? 0) > 0;
+}
+
+/**
  * Does this slot state nothing?
  *
  * Deliberately NOT `stepIsConfigured`: that answers "will the engine read a figure here",
@@ -251,6 +271,10 @@ export function slotsMissingDefault(
     // Offering the product's own `applies: true` as a "default" would turn a refusal on
     // through a control labelled as though it were filling in a number.
     if (slot.shape === 'applies') continue;
+    // AN INHERITED SLOT IS NOT AN EMPTY BOX. Blank, it already quotes the product's figure,
+    // so "fill it from the product" would change nothing about the quote and everything about
+    // where the figure lives.
+    if (slotInheritsWhenBlank(slot.id, catalogFigures)) continue;
     if (owned !== undefined && !owned.has(slot.id)) continue;
     // A gate is asked per BOUND, so its "is it blank" test is `defaultFor`'s own — a floor
     // typed and a ceiling empty is a half-blank slot, and the slot-level test says false.
@@ -372,6 +396,16 @@ export function bandsToRelock(
   const out: RelockedBands[] = [];
   for (const slot of shapes.values()) {
     if (slot.shape !== 'bands') continue;
+    // Same reason as in `slotsMissingDefault`, but only while the box is EMPTY: re-cutting a
+    // table this bank does not hold would write the product's tiers into its figures on a page
+    // load, unannounced. A bank that HAS typed its own tiers is re-cut like any other table —
+    // the ranges are still the product's.
+    if (
+      slotInheritsWhenBlank(slot.id, catalogFigures) &&
+      figureIsBlank('bands', figures[slot.id])
+    ) {
+      continue;
+    }
     if (owned !== undefined && !owned.has(slot.id)) continue;
     const product = catalogFigures?.[slot.id]?.bands;
     // No product ranges = nothing to lock to. A hand-wired name rule that states no bands

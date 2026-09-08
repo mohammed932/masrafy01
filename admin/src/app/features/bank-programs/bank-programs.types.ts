@@ -1143,6 +1143,15 @@ export interface SurrogateProductTemplateResponse {
 /** The bureau-score fact. One key for the whole platform — it is about the APPLICANT. */
 export const I_SCORE_FACT_KEY = 'i_score';
 
+/**
+ * The slot the I-Score TIER TABLE lives in (`SLOT.iScoreBand` on the server).
+ *
+ * Named rather than spelled out at each use, because three separate decisions key off it: the
+ * table must cover every score, its figures are percentages, and a bank that states none
+ * reads the product's (`withInheritedSlots`).
+ */
+export const I_SCORE_BAND_SLOT = 'iscore_band';
+
 /** A surrogate product's own workspace: the calculation, and everything reachable from it. */
 export interface SurrogateProductDetail extends SurrogateProductSummary {
   incomeRule: IncomeAssumptionConfig | null;
@@ -1348,8 +1357,16 @@ export interface IncomeAssumptionConfig {
    */
   stepParams?: Record<string, StepFigures>;
 
-  /** FR-012 — DBR cap used when the recognised income came FROM this rule. (0, 100]. */
-  dbrCapPercentOverride?: string;
+  /**
+   * FR-012 — DBR cap used when the recognised income came FROM this rule. (0, 100].
+   *
+   * On a SURROGATE PRODUCT's rule this is the default every bank program under it reads when
+   * it states none of its own (`withInheritedDbrCap` on the server).
+   *
+   * `null` is a WRITE-ONLY spelling and means "clear it": an absent key tells the server to
+   * keep whatever is stored, so the two cannot be merged. A response never carries it.
+   */
+  dbrCapPercentOverride?: string | null;
   /** FR-013 — `required_document` keys this method demands. Warning only. */
   requiredDocuments?: string[];
   /** How a surrogate figure combines with a declared salary. Absent = replace. */

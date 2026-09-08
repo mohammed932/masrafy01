@@ -14,6 +14,7 @@
  */
 
 import {
+  I_SCORE_BAND_SLOT,
   optionalStepIds,
   stepIsConfigured,
   stepRefs,
@@ -73,9 +74,25 @@ export type IncomeBandsError =
   | 'EDGE_MISSING'
   | 'NOT_ASCENDING'
   | 'INCOME_INVALID'
+  /** `coverAll` only — the lowest range starts above zero, so low values match no row. */
+  | 'FIRST_NOT_ZERO'
+  /** `coverAll` only — the top range is closed, so high values match no row. */
+  | 'LAST_NOT_OPEN'
   | null;
 
-export function incomeBandsErrorFor(rows: readonly IncomeBand[]): IncomeBandsError {
+/**
+ * `coverAll`: must this table answer EVERY value?
+ *
+ * Off for every ordinary table, and that is not laziness — a value under the floor or over
+ * the top resolves to `no_matching_band`, which the customer is told as a stated reason. The
+ * I-Score tier table is the exception: its figure MULTIPLIES an amount the rule has already
+ * worked out, so a score it does not cover does not shrink the quote, it destroys it. Mirrors
+ * `validateBands`' own `coverAll` on the server, which is what actually refuses the save.
+ */
+export function incomeBandsErrorFor(
+  rows: readonly IncomeBand[],
+  opts: { coverAll?: boolean } = {},
+): IncomeBandsError {
   if (rows.length === 0) return 'NO_BANDS';
 
   let previous: number | null = null;
@@ -104,6 +121,15 @@ export function incomeBandsErrorFor(rows: readonly IncomeBand[]): IncomeBandsErr
       if (ceiling !== null && !Number.isFinite(Number(ceiling))) return 'EDGE_MISSING';
       if (ceiling !== null && Number(ceiling) <= edge) return 'NOT_ASCENDING';
     }
+  }
+  // Both coverage checks AFTER the walk, and the floor before the ceiling — the order the
+  // server reports them in (`validateBands`), so a table that breaks both gets the same
+  // message here as the refusal would carry. The shape problems come first either way: they
+  // are likelier to be what the operator is mid-way through typing.
+  if (opts.coverAll) {
+    if (Number(rows[0]?.fromInclusive ?? '') !== 0) return 'FIRST_NOT_ZERO';
+    const top = rows[rows.length - 1]?.toExclusive;
+    if (top !== null && top !== undefined && top.trim() !== '') return 'LAST_NOT_OPEN';
   }
   return null;
 }
@@ -256,5 +282,33 @@ export function productRuleHasError(args: {
     if (candidates.length > 0 && !candidates.some((id) => reaches(id))) return true;
   }
 
+  // THE SHAPE OF EACH TABLE, not only whether one is there. `stepIsConfigured` answers "does
+  // this slot hold rows", so a range table with a blank figure, a hole or a closed I-Score top
+  // read as configured here and were refused by the server three steps after Continue —
+  // `INCOME_RULE_INCOME_INVALID` / `INCOME_RULE_BANDS_INVALID` on a control the operator had
+  // already walked past. Measured in a browser: clearing one tier figure left Continue enabled
+  // with the editor's own error on screen.
+  return stepBandsHaveError(steps, figures);
+}
+
+/**
+ * Does any band table in a pipeline break its own rules?
+ *
+ * Only tables that HOLD rows: an empty one is a way this bank declines (or, for the I-Score
+ * tiers, the product's to state), which the configured/optional walk above already judges.
+ * `coverAll` for the tier table alone — see `incomeBandsErrorFor`.
+ */
+export function stepBandsHaveError(
+  steps: readonly RuleStep[],
+  figures: Readonly<Record<string, StepFigures>>,
+): boolean {
+  for (const step of steps) {
+    if (step.op !== 'bandTable') continue;
+    const rows = figures[step.id]?.bands;
+    if (rows === undefined || rows.length === 0) continue;
+    if (incomeBandsErrorFor(rows, { coverAll: step.id === I_SCORE_BAND_SLOT }) !== null) {
+      return true;
+    }
+  }
   return false;
 }

@@ -20,6 +20,7 @@
 import { describe, expect, it } from 'vitest';
 import { mergeFigure, writeFigure } from '../src/app/shared/income-rule/figure-write';
 import {
+  bandsToRelock,
   defaultFor,
   figureIsBlank,
   slotShapes,
@@ -73,6 +74,12 @@ const STEPS: RuleStep[] = [
     op: 'coalesce',
     of: [{ step: 'primary_pick' }, { step: 'alt__unit_paid_to_date_pick' }],
   },
+  // The four steps `emitIScore` compiles, in the order it emits them. Present in the fixture
+  // because the slot they own is the one exception to "a blank box wants the product's figure".
+  { id: 'iscore_src', op: 'factNumber', fact: 'i_score', optional: true },
+  { id: 'iscore_band', op: 'bandTable', of: { step: 'iscore_src' } },
+  { id: 'iscore_factor', op: 'coalesce', of: [{ step: 'iscore_band' }, { const: '100' }] },
+  { id: 'iscore_applied', op: 'percentOf', of: [{ step: 'basis' }, { step: 'iscore_factor' }] },
   {
     id: 'cond__paidenough__bound',
     op: 'percentOf',
@@ -124,6 +131,13 @@ const CATALOG: Record<string, StepFigures> = {
   cond__ownedlongenough: { minValue: '18' },
   cond__unitworthenough: { minValue: '1000000' },
   cond__paidenough__bound: { scalar: { unit: 'percent', value: '30' } },
+  iscore_band: {
+    bands: [
+      { fromInclusive: '0', toExclusive: '550', incomeEGP: '80' },
+      { fromInclusive: '550', toExclusive: '700', incomeEGP: '100' },
+      { fromInclusive: '700', toExclusive: null, incomeEGP: '110' },
+    ],
+  },
 };
 
 /** What `ABK-PERSONAL-7110` actually saved. */
@@ -431,5 +445,40 @@ describe('one default, one stored shape', () => {
     const missing = slotsMissingDefault(shapes, {}, { cond__x: { minValue: '20', maxValue: '' } });
     const { figures } = withAllDefaults({}, missing);
     expect(figures['cond__x']).toEqual({ minValue: '20' });
+  });
+});
+
+describe('the I-Score slot is inherited, not filled in', () => {
+  const SHAPES = slotShapes(STEPS, GATES);
+
+  it('is never offered as a blank box wanting the product’s figure', () => {
+    // The engine reads the product's tiers for a bank that states none, so "fill it from the
+    // product" would move the figure into this bank's own `stepParams` and change nothing
+    // about the quote — turning a live default into a copy, on page load, unannounced.
+    const missing = slotsMissingDefault(SHAPES, {}, CATALOG);
+
+    expect(missing.map((slot) => slot.id)).not.toContain('iscore_band');
+    // Every other blank slot the product states a figure for is still offered.
+    expect(missing.map((slot) => slot.id)).toContain('cond__unitworthenough');
+  });
+
+  it('is not re-cut onto the product’s ranges while the bank states nothing', () => {
+    expect(bandsToRelock(SHAPES, {}, CATALOG).map((slot) => slot.id)).not.toContain('iscore_band');
+  });
+
+  it('IS re-cut once the bank has typed its own tiers', () => {
+    // Then it is a table like any other: the ranges are still the product's, and a stored
+    // table cut on ranges the product no longer publishes is one the editor cannot draw.
+    const own: Record<string, StepFigures> = {
+      iscore_band: { bands: [{ fromInclusive: '0', toExclusive: '600', incomeEGP: '90' }] },
+    };
+
+    const relocked = bandsToRelock(SHAPES, own, CATALOG);
+
+    expect(relocked.map((slot) => slot.id)).toContain('iscore_band');
+    // Three ranges, the product's, carrying this bank's 90 against the one range it matches.
+    const bands = relocked.find((slot) => slot.id === 'iscore_band')?.bands;
+    expect(bands?.map((band) => band.fromInclusive)).toEqual(['0', '550', '700']);
+    expect(bands?.map((band) => band.incomeEGP)).toEqual(['80', '100', '110']);
   });
 });

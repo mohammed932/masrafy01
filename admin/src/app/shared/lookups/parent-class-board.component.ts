@@ -20,7 +20,7 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import {
-  CheckOutline,
+  ArrowRightOutline,
   ExclamationCircleOutline,
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
@@ -68,13 +68,25 @@ export interface BoardAttention {
  * This board inverts it: pick a class, see every value at once, split into the ones priced
  * here and the ones priced elsewhere, and move as many as you like in one action.
  *
- * ─── What a tick means, and what unticking costs ──────────────────────────────
+ * ─── Why these cards are not checkboxes ───────────────────────────────────────
  *
- * A value's class is a SINGLE parent, so the count is at most one: ticking a candidate MOVES
- * it here from wherever it was — never adds a second class — and unticking takes it out of this
- * one without putting it in another. A candidate card therefore names the class it would LEAVE.
+ * A value's class is a SINGLE parent — `platform_enumeration.parentKey` is one nullable scalar,
+ * there is no join table, and the bulk endpoint writes one `updateMany` per distinct target — so
+ * the count is at most one and always has been. Pressing a candidate MOVES it here from wherever
+ * it was; it never adds a second class.
  *
- * Unticking is a real and costly answer, not an undo. An unfiled value is still offered to
+ * These cards were `role="checkbox"` with a tick circle until an operator read the Class AB tab
+ * and reasonably concluded that ticking Mivida there would ALSO put it in AB while it stayed in
+ * AA. A checkbox promises a state you toggle and a set you join. This control has neither: it has
+ * a destination. So the role is gone, the disc is gone — any glyph inside a 1.25rem disc at a
+ * card's leading edge reads as a tick box no matter what the glyph is — and the leading slot
+ * carries a direction instead, with the class the value is in NOW named on the card.
+ *
+ * `role="radio"` is the tempting wrong answer and is worse: the grid holds sixteen VALUES, so a
+ * radiogroup there would announce "3 of 16" and claim the sixteen compounds are mutually
+ * exclusive. The one-of-N set is the six CLASSES, and those live on six different tabs.
+ *
+ * Taking a value out of a class is a real and costly answer, not an undo. An unfiled value is still offered to
  * the customer, and `factParentTable` then answers `no_matching_row` — which is NOT a skippable
  * reason, so the rule stops and every bank keying its cap table by the class quotes that
  * applicant nothing. That is why it can only be said through this screen and through the one
@@ -83,6 +95,25 @@ export interface BoardAttention {
  * The board already had the vocabulary for the state before it could produce it — a `No class`
  * warn tag, unfiled-first ordering, and a notice counting them at the top of the panel. Those
  * are the feedback for this action.
+ *
+ * ─── Which move asks first ────────────────────────────────────────────────────
+ *
+ * Only a RE-TIER: a value leaving a real class for another one. Filing a value that is unfiled or
+ * sitting in the catch-all is one click, because that is the long grind (58 of 71 compounds sit in
+ * the catch-all today) and a modal per card would tax the one thing an operator should be doing
+ * freely. Nothing is destroyed there either — the value was quoting nothing, or quoting the
+ * catch-all figure.
+ *
+ * A re-tier is different on the one axis that decides it, and it is NOT "importance": it is the
+ * only gesture here whose reverse is not the same click. `unfileToFallback` argues for no
+ * confirmation on the grounds that the action is one click to undo, and that is true of it — but
+ * after moving Mivida AA → AB, the click available on the AB tab sends it to the CATCH-ALL, not
+ * back to AA. Getting it back means changing tab and finding it again. The same argument,
+ * applied honestly, asks for a confirmation here and refuses one everywhere else.
+ *
+ * The dialog's product is a SENTENCE, not friction: the card says "Now in Class AA" and the panel
+ * header says "Class AB" four hundred pixels away, and this is the only surface that can put both
+ * names in one line at the moment it matters.
  *
  * ─── The rank tint ────────────────────────────────────────────────────────────
  *
@@ -124,7 +155,12 @@ const CARD_PAGE_SIZE = 16;
     NzPaginationModule,
     RailTabsComponent,
   ],
-  providers: [provideNzIconsPatch([CheckOutline, ExclamationCircleOutline, SearchOutline])],
+  /* `arrow-right` is the one glyph here that GENUINELY needs patching — `exclamation-circle`,
+     `info-circle` and `search` are in ng-zorro's own always-registered `NZ_ICONS_USED_BY_ZORRO`
+     set and would resolve without this line. They stay listed anyway: a shared component should
+     not depend on what its host happens to have registered, and that default set is ng-zorro's
+     to change. `check` left with the tick it drew. */
+  providers: [provideNzIconsPatch([ArrowRightOutline, ExclamationCircleOutline, SearchOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -280,22 +316,22 @@ const CARD_PAGE_SIZE = 16;
               is an amount the bank states and nobody can quote.
             </p>
           } @else if (onFallbackTab()) {
-            <!-- The CATCH-ALL's own tab. These cards are chips, not checkboxes: there is
-                 genuinely no untick here — unticking sends a value to the catch-all and
-                 these are already in it. Rendering an inert checkbox would be a dead
-                 affordance to explain; removing it says the same thing in less. -->
-            <p class="note is-info" i18n="@@clsb.fallback_panel">
+            <!-- The CATCH-ALL's own tab. These cards carry no gesture at all: taking a value
+                 out of a class sends it here, and these are already here. Rendering a dead
+                 affordance would be one more thing to explain; removing it says it in less. -->
+            <p class="note" i18n="@@clsb.fallback_panel">
               These have no class of their own, so a bank prices them at the
               {{ activeClassLabel() }}
-              figure. Tick one on another class's tab to price it there.
+              figure. Open another class's tab and press one there to move it in.
             </p>
             <ul class="grid">
               @for (c of filedPage().rows; track c.id) {
                 <li class="cell">
                   <span class="card is-filed is-static">
-                    <span class="tick" aria-hidden="true">
-                      <span nz-icon nzType="check" nzTheme="outline"></span>
-                    </span>
+                    <!-- An EMPTY leading slot, not a glyph: it holds the 1.25rem alignment
+                         against the candidate buttons further down the same tab, and says
+                         plainly that there is no verb attached to this card. -->
+                    <span class="lead" aria-hidden="true"></span>
                     <span class="name">{{ c.label }}</span>
                     @if (!c.active) {
                       <span class="tag" i18n="@@clsb.tag_off">Off</span>
@@ -305,21 +341,30 @@ const CARD_PAGE_SIZE = 16;
               }
             </ul>
           } @else {
+            <!-- Said ONCE, above the grid, rather than as a destination chip on each of sixteen
+                 identical cards. It is also the aria-describedby target for every one of them. -->
+            <p class="note" id="ccb-filed-note" i18n="@@clsb.filed_note">
+              Pressing one takes it out of this class and sends it to {{ fallbackLabel() }}, where
+              it is still offered to the customer and still priced.
+            </p>
             <ul class="grid" [class.is-stagger]="stagger()">
               @for (c of filedPage().rows; track c.id) {
                 <li class="cell" [style.--i]="$index">
+                  <!-- The accent tint is what says "this one is in this class"; the leading slot
+                       carries the verb. The long consequence sentence moved to the note above,
+                       reached by aria-describedby — read aloud on every one of sixteen cards it
+                       was noise, and it is the same sentence each time. -->
                   <button
                     type="button"
                     class="card is-filed"
                     [class.is-moved]="justMoved().has(c.id)"
-                    role="checkbox"
-                    aria-checked="true"
                     [attr.aria-busy]="saving().has(c.id)"
                     [attr.aria-label]="filedAria(c)"
+                    aria-describedby="ccb-filed-note"
                     (click)="unfileToFallback(c)"
                   >
-                    <span class="tick" aria-hidden="true">
-                      <span nz-icon nzType="check" nzTheme="outline"></span>
+                    <span class="lead is-out" aria-hidden="true">
+                      <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
                     </span>
                     <span class="name">{{ c.label }}</span>
                     @if (!c.active) {
@@ -350,22 +395,31 @@ const CARD_PAGE_SIZE = 16;
           @if (candidates().length === 0) {
             <p class="empty">{{ candidatesEmpty() }}</p>
           } @else {
+            <!-- The VERB, once. Each card names the class it is in now; what pressing it does is
+                 the same sentence sixteen times over, so it is said here instead. -->
+            <p class="note" i18n="@@clsb.candidates_note">
+              Press one to move it into {{ activeClassLabel() }}. It leaves the class it is in now —
+              a value is priced in one class only.
+            </p>
             <ul class="grid" [class.is-stagger]="stagger()">
               @for (c of candidatePage().rows; track c.id) {
                 <li class="cell" [style.--i]="$index">
+                  <!-- No role, no aria-checked: it is a button with a destination, not a
+                       membership toggle. candidateAria already read "Move X from A to B" while
+                       the role said "checkbox, not checked" over the top of it. -->
                   <button
                     type="button"
                     class="card"
                     [class.is-unfiled]="wantsAttention(c)"
-                    role="checkbox"
-                    aria-checked="false"
                     [attr.aria-busy]="saving().has(c.id)"
                     [attr.aria-label]="candidateAria(c)"
                     (click)="move(c)"
                   >
-                    <span class="tick is-empty" aria-hidden="true"></span>
+                    <span class="lead" aria-hidden="true">
+                      <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
+                    </span>
                     <span class="name">{{ c.label }}</span>
-                    <span class="tag" [class.is-warn]="wantsAttention(c)">{{ whereLabel(c) }}</span>
+                    <span class="tag" [class.is-warn]="wantsAttention(c)">{{ nowInLabel(c) }}</span>
                   </button>
                 </li>
               }
@@ -385,9 +439,8 @@ const CARD_PAGE_SIZE = 16;
           }
 
           <p class="foot" i18n="@@clsb.foot">
-            A value is priced in at most one class, so ticking it here takes it out of the one it
-            was in. Unticking sends it to {{ fallbackLabel() }} — it is still offered to the
-            customer and still priced, at the {{ fallbackLabel() }} figure.
+            Every value is priced in exactly one class — never two. Moving one here takes it out of
+            the class it is in now.
           </p>
         </section>
       }
@@ -588,9 +641,10 @@ const CARD_PAGE_SIZE = 16;
         line-height: var(--leading-snug);
       }
 
-      /* A card on the catch-all's own tab: the same object, with no gesture attached. It
-         keeps the tick and the full text contrast — it is FILED, not disabled. The cursor
-         stays default rather than not-allowed, which would read as a refusal. */
+      /* A card on the catch-all's own tab: the same object, with no gesture attached. It keeps
+         the accent tint and the full text contrast — it is FILED, not disabled — and its verb
+         slot is empty because there is no verb. The cursor stays default rather than
+         not-allowed, which would read as a refusal. */
       .card.is-static {
         cursor: default;
       }
@@ -620,7 +674,7 @@ const CARD_PAGE_SIZE = 16;
 
       /* min() on the track floor: a bare 17rem is a HARD minimum, so inside the
          product page's panel on a 360px phone the cards were 272px wide in a 230px
-         column and their trailing edge — the tick, the class tag — was cut off. */
+         column and their trailing edge — the verb slot, the class tag — was cut off. */
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
@@ -636,7 +690,7 @@ const CARD_PAGE_SIZE = 16;
       .card {
         display: flex;
         align-items: center;
-        /* On a phone the tick, the name and the class tag cannot share a line
+        /* On a phone the verb slot, the name and the class tag cannot share a line
            without squeezing the name to ~80px, narrow enough to split a long value name
            across two lines. The tag drops under the name instead — it still reads
            as that card's class, and the name gets the full width back. */
@@ -670,7 +724,7 @@ const CARD_PAGE_SIZE = 16;
       }
 
       /* Already here: the accent is EARNED, so it is the filled state. It presses like any
-         other card — unticking is a real action, and the hover deepens the accent rather
+         other card — taking a value out is a real action, and the hover deepens the accent rather
          than tinting toward it, so the two directions do not look like the same gesture. */
       .card.is-filed {
         border-color: color-mix(in srgb, var(--ccb-accent) 45%, transparent);
@@ -684,20 +738,57 @@ const CARD_PAGE_SIZE = 16;
         border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
       }
 
-      .tick {
+      /* The verb slot. It occupies exactly the footprint the tick disc used to, so it REPLACES
+         the wrong signal rather than sitting beside it — but it is bare ink: no radius, no
+         background, no border. That is the whole point. A glyph inside a 1.25rem disc at a
+         pressable card's leading edge reads as a tick box whatever the glyph is, so filling the
+         circle with an arrow would have fixed nothing.
+
+         Secondary, not tertiary: this glyph carries meaning, and .tag below already records
+         that tertiary lands under 4.5:1 at this size. It brightens to the class accent on
+         hover/focus — a preview of where the value is about to land. */
+      .lead {
         display: grid;
         place-items: center;
         flex: none;
         inline-size: 1.25rem;
         block-size: 1.25rem;
-        border-radius: 999px;
-        background: var(--ccb-accent);
-        color: var(--color-text-on-brand);
-        font-size: 0.75rem;
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        transition: color 160ms cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .tick.is-empty {
-        border: 1px solid var(--color-border-default);
-        background: transparent;
+      .card:hover .lead,
+      .card:focus-visible .lead {
+        color: var(--ccb-accent);
+      }
+      .card.is-static:hover .lead {
+        color: var(--color-text-secondary);
+      }
+
+      /* ONE registered glyph serves all four states. "Out of this class" is the mirror of "into
+         this class", and RTL mirrors the base — which un-mirrors "out", correctly, because in
+         RTL moving away from the panel IS rightward. */
+      .lead.is-out [nz-icon] {
+        transform: scaleX(-1);
+      }
+      :host-context([dir='rtl']) .lead [nz-icon] {
+        transform: scaleX(-1);
+      }
+      :host-context([dir='rtl']) .lead.is-out [nz-icon] {
+        transform: none;
+      }
+
+      /* A quiet explanatory line under a group heading — NOT the boxed .notice above the rail.
+         Three of these sit inside the panel; boxing them would put three more frames inside a
+         surface whose own comment says it is the only container on stage.
+         (class="note is-info" on the catch-all panel matched no rule at all before this: only
+         .notice.is-info was ever defined, so that paragraph rendered unstyled.) */
+      .note {
+        margin: 0 0 var(--space-3);
+        max-inline-size: 44rem;
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        line-height: 1.6;
       }
 
       /* The name is the whole identity of the card — a value the operator
@@ -734,11 +825,14 @@ const CARD_PAGE_SIZE = 16;
         color: var(--color-text-primary);
       }
 
+      /* Secondary, not tertiary. Tertiary measures 3.83:1 on this ground in light mode — fine
+         for a decorative footnote, and this stopped being one: it is now the single sentence
+         stating the invariant the whole screen turns on. */
       .foot {
         margin: var(--space-5) 0 0;
         padding-block-start: var(--space-4);
         border-block-start: 1px solid var(--color-border-default);
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
         font-size: var(--text-sm);
         line-height: 1.6;
       }
@@ -857,7 +951,7 @@ export class ParentClassBoardComponent {
   readonly childType = input.required<string>();
   readonly parentType = input.required<string>();
   /**
-   * Where an untick sends a value, by class key. `null` = derive it.
+   * Where taking a value out of a class sends it, by class key. `null` = derive it.
    *
    * An input rather than a constant because the answer lives on the KIND
    * (`enumeration_type_def.fallbackParentKey`) and the host is what reads the registry. When
@@ -1135,14 +1229,14 @@ export class ParentClassBoardComponent {
   }
 
   /**
-   * The catch-all class — where an untick lands.
+   * The catch-all class — where a value taken out of a class lands.
    *
    * The input wins. Failing that, two derivations, first match wins, and BOTH are stated
    * because a convention nobody can see is one that breaks silently:
    *   1. an active class whose key slugs to `other`
    *   2. failing that, the LAST class in registry order
    *
-   * `null` only when there are no classes at all, and the tick then goes inert rather than
+   * `null` only when there are no classes at all, and the card then goes inert rather than
    * writing a value into nowhere.
    *
    * Nothing on screen relies on this being invisible: every string that depends on it names
@@ -1189,9 +1283,26 @@ export class ParentClassBoardComponent {
     return this.isUnfiled(value) || value.parentKey === this.fallbackKey();
   }
 
+  /**
+   * Whether moving this value is a RE-TIER — leaving a real class for another one — and so the
+   * one gesture on this board that asks before it acts.
+   *
+   * Extensionally this is `!wantsAttention(value)` today, and it is deliberately NOT written that
+   * way. That predicate answers "does this card deserve an amber tag"; this one answers "is this
+   * move hard to reverse". One flag standing for two unrelated questions is how the two come to
+   * disagree the first time either definition moves.
+   */
+  protected needsRetierConfirm(value: BoardValue): boolean {
+    return !this.isUnfiled(value) && value.parentKey !== this.fallbackKey();
+  }
+
   protected readonly fallbackLabel = computed(() => {
     const key = this.fallbackKey();
-    return this.classes().find((c) => c.key === key)?.labelEn ?? '';
+    const row = this.classes().find((c) => c.key === key);
+    // By LOCALE, like `whereLabel` and `activeClassLabel`. It read `labelEn` unconditionally, so
+    // an Arabic operator got the English class name — "Other" — dropped into the middle of an
+    // Arabic sentence, here and in the catch-all notice.
+    return row ? (this.isAr ? row.labelAr : row.labelEn) : '';
   });
 
   /** Whether the class currently on stage IS the catch-all. Changes what its cards can do. */
@@ -1258,19 +1369,37 @@ export class ParentClassBoardComponent {
       : $localize`:@@clsb.candidates_empty:Every value is priced in this class. Nothing left to move.`,
   );
 
-  /** Which class a candidate would LEAVE — the half a plain checkbox cannot say. */
+  /**
+   * Which class a candidate would LEAVE — the half a plain checkbox could not say.
+   *
+   * Stays BARE. It is the `{FROM}` clause of `candidateAria`, so wrapping the state wording in
+   * here would make the announced name read "Move Mivida from Now in Class AA to Class AB".
+   * `nowInLabel` composes it for the visible chip instead.
+   */
   protected whereLabel(value: BoardValue): string {
     if (this.isUnfiled(value)) return $localize`:@@clsb.where_none:No class`;
     const row = this.classes().find((c) => c.key === value.parentKey);
     return row ? (this.isAr ? row.labelAr : row.labelEn) : (value.parentKey ?? '');
   }
 
+  /**
+   * The chip on a candidate card: where the value is RIGHT NOW.
+   *
+   * The bare class name read as a category badge — the label of a thing rather than a statement
+   * about it — which is exactly what let an unticked box beside it be read as "not in Class AB
+   * yet". A tense fixes that in two words.
+   */
+  protected nowInLabel(value: BoardValue): string {
+    if (this.isUnfiled(value)) return $localize`:@@clsb.now_in_none:Now in no class`;
+    return $localize`:@@clsb.now_in:Now in ${this.whereLabel(value)}:CLASS:`;
+  }
+
   protected filedAria(value: BoardValue): string {
-    // Names the consequence, not just the action: with no H1 in view a screen-reader user has
-    // only this string to tell "untick" from "delete", and the two are a class apart.
-    // Names the CONSEQUENCE, not the gesture: a screen reader has no H1 in view here, and
-    // "untick" and "re-price at the catch-all figure" are the same click.
-    return $localize`:@@clsb.aria_filed:Move ${value.label}:NAME: out of ${this.activeClassLabel()}:CLASS: and into ${this.fallbackLabel()}:FALLBACK:. Any bank pricing off the class will then quote it the ${this.fallbackLabel()}:FALLBACK2: figure.`;
+    // Names both classes, because a screen reader has no H1 in view here and "take it out" and
+    // "delete it" are a class apart. The pricing consequence used to be a second sentence on
+    // this string, read aloud on every one of sixteen cards; it is now the visible note above
+    // the grid, reached once through `aria-describedby`.
+    return $localize`:@@clsb.aria_filed:Move ${value.label}:NAME: out of ${this.activeClassLabel()}:CLASS: and into ${this.fallbackLabel()}:FALLBACK:`;
   }
 
   protected candidateAria(value: BoardValue): string {
@@ -1315,12 +1444,27 @@ export class ParentClassBoardComponent {
    * Move one value into the active class — optimistically, then confirmed.
    *
    * Optimistic because the operator's next action is usually the next card, and a spinner
-   * between every tick makes a nine-card re-tiering feel like nine round trips. Rolled back on
+   * between every press makes a nine-card re-tiering feel like nine round trips. Rolled back on
    * failure, with the interceptor's toast carrying the reason.
    */
   protected async move(value: BoardValue): Promise<void> {
     const target = this.activeClassKey();
     if (target === '' || value.parentKey === target) return;
+
+    // A re-tier asks first; filing from the catch-all or from no class does not. See the
+    // "Which move asks first" section of the class docblock for why the line falls there.
+    if (this.needsRetierConfirm(value)) {
+      const from = this.whereLabel(value);
+      const ok = await this.confirmRetier(value.label, from);
+      if (!ok) return;
+      // The captured `value` is a snapshot from the `@for`, and the host reloads the board on
+      // `changed` — so re-read both ends before writing rather than trusting what was on screen
+      // when the dialog opened.
+      const current = this.valueRows().find((r) => r.id === value.id);
+      if (!current || current.parentKey === target) return;
+      if (this.activeClassKey() !== target) return;
+    }
+
     const previous = value.parentKey;
 
     this.stagger.set(false);
@@ -1347,9 +1491,13 @@ export class ParentClassBoardComponent {
    * per-card `saving` flag, same live-region announcement. What differs is only the target —
    * `null`, which the bulk endpoint accepts from this screen and from nowhere else.
    *
-   * No confirmation step. The action is one click to undo (tick it again), and the panel's own
-   * warn notice fires the moment the count goes above zero, naming what it costs — which is a
-   * louder and more useful signal than a modal the operator dismisses on the way through.
+   * No confirmation step, and this is the gesture the rule was written around: the value lands in
+   * the catch-all, which is one tab away and one press from coming back, so the action IS one
+   * click to undo. The panel's own warn notice fires the moment the count goes above zero, naming
+   * what it costs — a louder and more useful signal than a modal dismissed on the way through.
+   *
+   * A RE-TIER cannot say that, which is why `move` asks and this does not. See "Which move asks
+   * first" on the class.
    */
   protected async unfileToFallback(value: BoardValue): Promise<void> {
     const previous = value.parentKey;
@@ -1395,15 +1543,30 @@ export class ParentClassBoardComponent {
     // the reason rather than vanishing; see `bulkOverLimit`.
     if (moving.length > PARENT_KEYS_BULK_MAX) return;
 
-    // Moving everything into the CATCH-ALL is the one destructive direction: every bank
-    // pricing off the class then quotes all of them the same figure. Confirmed through
-    // `NzModalService` so the scrim covers the viewport (A34) rather than being trapped
-    // inside `section.page`'s own containing block.
-    if (this.onFallbackTab()) {
+    // Two directions ask first, and the second one is why this is not just the catch-all case.
+    //
+    //  - Into the CATCH-ALL: the one destructive target — every bank pricing off the class then
+    //    quotes all of them the same figure.
+    //  - Carrying any RE-TIER: once a single move asks before leaving a real class, this button
+    //    is the back door to the same act in bulk. Leaving it unguarded would have the screen
+    //    saying two different things about one gesture depending on how it was pressed.
+    //
+    // Both through `NzModalService` so the scrim covers the viewport (A34) rather than being
+    // trapped inside `section.page`'s own containing block. The catch-all wording wins where both
+    // apply: it names the worse outcome. The title is shared verbatim — its words do not change,
+    // and re-keying an id to rename it would throw away a reviewed Arabic target for cosmetics.
+    const retiering = moving.filter((c) => this.needsRetierConfirm(c)).length;
+    if (this.onFallbackTab() || retiering > 0) {
+      // `this.activeClassLabel()` inline rather than through a local, for the two strings that
+      // already shipped: the extractor writes the call site into `equiv-text`, so hoisting it
+      // would rewrite the source of a translated unit for no gain.
+      const body = this.onFallbackTab()
+        ? $localize`:@@clsb.bulk_fallback_body:${this.activeClassLabel()}:CLASS: is the catch-all. Every bank pricing off the class will quote all of them the same figure.`
+        : $localize`:@@clsb.bulk_retier_body:${retiering}:COUNT: of these are priced in a class today and will leave it. A value is priced in one class only, so every bank pricing off the class starts quoting them the ${this.activeClassLabel()}:CLASS: figure.`;
       const ok = await new Promise<boolean>((resolve) => {
         this.modal.confirm({
           nzTitle: $localize`:@@clsb.bulk_fallback_title:Move ${moving.length}:COUNT: values into ${this.activeClassLabel()}:CLASS:?`,
-          nzContent: $localize`:@@clsb.bulk_fallback_body:${this.activeClassLabel()}:CLASS: is the catch-all. Every bank pricing off the class will quote all of them the same figure.`,
+          nzContent: body,
           nzOkText: $localize`:@@clsb.bulk_fallback_ok:Move them`,
           nzOnOk: () => resolve(true),
           nzOnCancel: () => resolve(false),
@@ -1430,6 +1593,32 @@ export class ParentClassBoardComponent {
     } finally {
       this.bulkSaving.set(false);
     }
+  }
+
+  /**
+   * Ask before a re-tier, naming BOTH classes in one sentence.
+   *
+   * `NzModalService` and not a scrim of our own: `section.page` renders inside the product page's
+   * own containing block, so a `position: fixed` overlay written here would dim the panel and
+   * nothing else (A34). Esc and a mask click both route through `nzOnCancel`, so the promise
+   * cannot leak; `nzOnOk` deliberately returns void rather than a promise, because ng-zorro puts
+   * the OK button into a spinner and awaits anything thenable it gets back — the write happens
+   * after this resolves, which keeps the board's no-spinner posture.
+   *
+   * Not `nzOkDanger`. A re-tier is the operator's job, not a destructive act, and a red button
+   * here would cry wolf on the one dialog they should actually read.
+   */
+  private confirmRetier(name: string, from: string): Promise<boolean> {
+    const to = this.activeClassLabel();
+    return new Promise<boolean>((resolve) => {
+      this.modal.confirm({
+        nzTitle: $localize`:@@clsb.retier_title:Move ${name}:NAME: from ${from}:FROM: to ${to}:TO:?`,
+        nzContent: $localize`:@@clsb.retier_body:A value is priced in one class only, so it leaves ${from}:FROM:. Any bank pricing off the class starts quoting it the ${to}:TO: figure.`,
+        nzOkText: $localize`:@@clsb.retier_ok:Move it`,
+        nzOnOk: () => resolve(true),
+        nzOnCancel: () => resolve(false),
+      });
+    });
   }
 
   private applyLocal(id: string, parentKey: string | null): void {

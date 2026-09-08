@@ -143,19 +143,27 @@ export { incomeBandsErrorFor, type IncomeBandsError };
               }
             </span>
 
-            <input
-              nz-input
-              appMoneyInput
-              type="text"
-              class="ib__income"
-              [attr.aria-label]="incomeAriaLabel"
-              [placeholder]="productFigure($index)"
-              [ngModel]="band.incomeEGP"
-              (ngModelChange)="setIncome($index, $event)"
-              [ngModelOptions]="{ standalone: true }"
-            />
+            @if (inherited()) {
+              <!-- The figure is the PRODUCT's and the engine reads it, so it is rendered as
+                   the fact it is. A box holding somebody else's number reads as this bank's
+                   the moment it is on screen, and the first keystroke would freeze a live
+                   default into a copy. -->
+              <span class="ib__income is-fixed">{{ edgeText(band.incomeEGP) }}</span>
+            } @else {
+              <input
+                nz-input
+                appMoneyInput
+                type="text"
+                class="ib__income"
+                [attr.aria-label]="incomeAriaLabel()"
+                [placeholder]="productFigure($index)"
+                [ngModel]="band.incomeEGP"
+                (ngModelChange)="setIncome($index, $event)"
+                [ngModelOptions]="{ standalone: true }"
+              />
+            }
 
-            @if (!locked() && rows().length > 1) {
+            @if (!locked() && !inherited() && rows().length > 1) {
               <button
                 nz-button
                 nzType="text"
@@ -174,7 +182,12 @@ export { incomeBandsErrorFor, type IncomeBandsError };
         }
       </ol>
 
-      @if (locked()) {
+      @if (inherited()) {
+        <p class="ib__hint" i18n="@@bank_programs.income.bands_inherited_hint">
+          These are the product's and every bank selling it quotes them. Nothing here is this bank's
+          yet.
+        </p>
+      } @else if (locked()) {
         <p class="ib__hint" i18n="@@bank_programs.income.bands_locked_hint">
           The ranges are the product's and are the same at every bank selling it. Only the amount
           beside each one is this bank's — leave a box as it is to quote what the product states.
@@ -224,6 +237,18 @@ export { incomeBandsErrorFor, type IncomeBandsError };
             @case ('INCOME_INVALID') {
               <span i18n="@@bank_programs.income.err_band_income_invalid">
                 Every assumed income must be greater than zero.
+              </span>
+            }
+            @case ('FIRST_NOT_ZERO') {
+              <span i18n="@@bank_programs.income.err_first_not_zero">
+                The first range must start at 0, or a low score matches no row and the program
+                quotes nothing.
+              </span>
+            }
+            @case ('LAST_NOT_OPEN') {
+              <span i18n="@@bank_programs.income.err_last_not_open">
+                Leave the top range's end empty, or a high score matches no row and the program
+                quotes nothing.
               </span>
             }
           }
@@ -322,7 +347,8 @@ export { incomeBandsErrorFor, type IncomeBandsError };
       /* A range the bank cannot move: set on the field's own line so the row still reads as
          a table, but with no border and no ground — a box drawn around a value nobody can
          type into is the affordance this mode exists to withdraw. */
-      .ib__edge.is-fixed {
+      .ib__edge.is-fixed,
+      .ib__income.is-fixed {
         display: inline-block;
         min-block-size: var(--size-field);
         padding-block: calc((var(--size-field) - 1.5rem) / 2);
@@ -421,6 +447,25 @@ export class IncomeBandsEditorComponent {
   protected readonly locked = computed<boolean>(() => (this.lockedEdges()?.length ?? 0) > 0);
 
   /**
+   * The whole table is the PRODUCT's and this bank has stated none of it.
+   *
+   * Different from `lockedEdges`, which locks the ranges and leaves the figures editable.
+   * Here the figures are the product's too, because the engine reads them
+   * (`withInheritedSlots`) — so the table is rendered as the fact it is, and a bank that wants
+   * its own gets a button rather than boxes that already look filled in.
+   */
+  readonly inherited = input<boolean>(false);
+
+  /**
+   * Must this table answer EVERY value?
+   *
+   * The I-Score tiers, and nothing else: their figure multiplies an amount the rule has
+   * already produced, so a score the table misses destroys the quote instead of shrinking it.
+   * Mirrors the server's own `coverAll` (`validateBands`), which is what refuses the save.
+   */
+  readonly coverAll = input<boolean>(false);
+
+  /**
    * The table on screen.
    *
    * Locked, it is the product's ranges carrying this bank's figures — matched BY EDGE in
@@ -458,13 +503,28 @@ export class IncomeBandsEditorComponent {
   readonly toAriaLabel = $localize`:@@bank_programs.income.aria.band_to:Band ends at — also the next band's start`;
   readonly lastToAriaLabel = $localize`:@@bank_programs.income.aria.band_last_to:Top band ends at — leave empty for no maximum`;
   readonly noMaximumPlaceholder = $localize`:@@bank_programs.income.no_maximum:No maximum`;
-  readonly incomeAriaLabel = $localize`:@@bank_programs.income.aria.band_income:Assumed monthly income in EGP`;
+  readonly defaultIncomeAriaLabel = $localize`:@@bank_programs.income.aria.band_income:Assumed monthly income in EGP`;
+
+  /**
+   * The value cell's accessible name, taken from the column heading whenever there is one.
+   *
+   * Left as the default it announced "assumed monthly income in EGP" on every cell of a
+   * PERCENTAGE table — the heading above said "Percentage (%)" and the accessible name said
+   * something else about the same box.
+   */
+  protected readonly incomeAriaLabel = computed<string>(
+    () => this.valueLabel() ?? this.defaultIncomeAriaLabel,
+  );
   readonly removeAriaLabel = $localize`:@@bank_programs.income.aria.remove_band:Remove this band`;
 
   // Over the DISPLAYED rows, which under a lock are the product's. Reading the stored table
   // instead would report a program that has typed nothing as having no table at all, on a
   // screen showing a full one.
-  readonly error = computed<IncomeBandsError>(() => incomeBandsErrorFor(this.rows()));
+  readonly error = computed<IncomeBandsError>(() =>
+    // An INHERITED table is the product's; a verdict on it would ask this bank to fix a
+    // table it cannot edit, and the product screen is where that message belongs.
+    this.inherited() ? null : incomeBandsErrorFor(this.rows(), { coverAll: this.coverAll() }),
+  );
 
   /**
    * Three ascending bands with blank incomes. A blank table is the one state that

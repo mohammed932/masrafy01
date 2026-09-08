@@ -40,6 +40,8 @@ const CLIENT_TO_BACKEND: Record<Exclude<IncomeBandsError, null>, string> = {
   EDGE_MISSING: 'INCOME_RULE_BANDS_INVALID:edge_not_decimal',
   NOT_ASCENDING: 'INCOME_RULE_BANDS_INVALID:unordered|gap|overlap|open_band_not_last',
   INCOME_INVALID: 'INCOME_RULE_INCOME_INVALID',
+  FIRST_NOT_ZERO: 'INCOME_RULE_BANDS_INVALID:first_band_not_zero',
+  LAST_NOT_OPEN: 'INCOME_RULE_BANDS_INVALID:last_band_not_open',
 };
 
 describe('incomeBandsErrorFor — accepts exactly what the backend accepts', () => {
@@ -161,6 +163,8 @@ describe('incomeBandsErrorFor — every rejection maps to a real backend reason'
       'EDGE_MISSING',
       'NOT_ASCENDING',
       'INCOME_INVALID',
+      'FIRST_NOT_ZERO',
+      'LAST_NOT_OPEN',
     ];
     for (const v of verdicts) {
       expect(CLIENT_TO_BACKEND[v], v).toBeTruthy();
@@ -236,5 +240,58 @@ describe('incomeKeyTableErrorFor — the key table half of the same contract', (
     // have saved one before it was deprecated. Mirroring the registry client-side
     // would need a second copy of it, and would disagree the moment it went stale.
     expect(incomeKeyTableErrorFor([{ key: 'colonel', incomeEGP: '30000' }])).toBeNull();
+  });
+});
+
+describe('coverAll — the I-Score tier table must answer every score', () => {
+  it('accepts a table that starts at 0 and leaves its top range open', () => {
+    expect(
+      incomeBandsErrorFor(
+        bands([
+          ['0', '550', '80'],
+          ['550', '700', '100'],
+          ['700', null, '110'],
+        ]),
+        { coverAll: true },
+      ),
+    ).toBeNull();
+  });
+
+  it('FIRST_NOT_ZERO when the lowest range starts above zero', () => {
+    // A 540 score would match no row, and on a MULTIPLIER that is not a smaller quote —
+    // `no_matching_band` stops the rule and the program quotes nothing at all.
+    expect(
+      incomeBandsErrorFor(
+        bands([
+          ['550', '700', '100'],
+          ['700', null, '110'],
+        ]),
+        { coverAll: true },
+      ),
+    ).toBe('FIRST_NOT_ZERO');
+  });
+
+  it('LAST_NOT_OPEN when the top range is closed', () => {
+    expect(
+      incomeBandsErrorFor(
+        bands([
+          ['0', '700', '90'],
+          ['700', '900', '110'],
+        ]),
+        { coverAll: true },
+      ),
+    ).toBe('LAST_NOT_OPEN');
+  });
+
+  it('says neither about an ordinary table, where a miss is a stated reason', () => {
+    // The default, and the reason `coverAll` is opt-in: a years table closes its top band on
+    // purpose, and a value below the floor earns `SURROGATE_NO_MATCHING_ROW`, not a wrong
+    // figure. Demanding coverage everywhere made every legacy table unsaveable (v18.x).
+    const closedAbove = bands([
+      ['3', '5', '12000'],
+      ['5', '8', '30000'],
+    ]);
+    expect(incomeBandsErrorFor(closedAbove)).toBeNull();
+    expect(incomeBandsErrorFor(closedAbove, { coverAll: true })).toBe('FIRST_NOT_ZERO');
   });
 });

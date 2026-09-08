@@ -29,6 +29,7 @@ import {
   type ValueRef,
 } from '@/matching/pipeline/product-rule';
 import { waysOfRule } from '@/matching/pipeline/product-rule-ways';
+import { SLOT } from '@/matching/pipeline/product-template';
 import { legacyScalarKeysFor } from '@/matching/pipeline/income-rule-normalize';
 import type { IncomeRuleBandsInvalidReason } from '@/common/errors/domain.exceptions';
 
@@ -844,8 +845,15 @@ async function validateStepFigures(
       // open-ended-last rule, positive figures. Passed a synthetic config rather than
       // refactored into a row-level helper: the function is already exactly right, and a
       // second entry point is a second thing to keep in step.
+      //
+      // `coverAll` for the I-Score tiers and nothing else. Everywhere else a range table
+      // may legitimately stop — a value under the floor or over the top resolves to
+      // `no_matching_band`, a stated reason. The I-Score table SCALES a figure the rule has
+      // already produced, so a score it does not cover kills a quote the rest of the
+      // program could price; the coverage is demanded where it can still be typed.
       const violation = validateBands({ strategy: 'steps', bands: figures.bands }, 'steps', {
         bandsRequired: true,
+        coverAll: step.id === SLOT.iScoreBand,
       });
       if (!violation) return undefined;
       switch (violation.kind) {
@@ -1136,7 +1144,7 @@ async function validateKeyTable(
 function validateBands(
   config: IncomeAssumptionConfig,
   strategy: IncomeAssumptionStrategy,
-  opts: { bandsRequired?: boolean } = {},
+  opts: { bandsRequired?: boolean; coverAll?: boolean } = {},
 ): IncomeRuleViolation | undefined {
   const bands = config.bands;
   if (!bands || bands.length === 0) {
@@ -1204,6 +1212,20 @@ function validateBands(
       }
     }
     previousTo = to;
+  }
+
+  // EVERY value, for a table that must not miss. Checked after the walk so the shape
+  // problems (a gap, an overlap, a non-decimal edge) are reported first: they are what the
+  // operator is likelier to have just typed, and reporting coverage over a table that does
+  // not yet ascend would send them to the wrong end of it.
+  if (opts.coverAll) {
+    const first = bands[0];
+    if (first !== undefined && !toDecimalOrNull(first.fromInclusive)?.isZero()) {
+      return { kind: 'bandsInvalid', index: 0, reason: 'first_band_not_zero' };
+    }
+    if (previousTo !== null) {
+      return { kind: 'bandsInvalid', index: bands.length - 1, reason: 'last_band_not_open' };
+    }
   }
 
   return undefined;

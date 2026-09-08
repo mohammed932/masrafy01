@@ -16,6 +16,8 @@ import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { RailTabsComponent, type RailTabItem } from '@shared/ui';
 import { CheckCircleOutline, CheckOutline, DownOutline } from '@ant-design/icons-angular/icons';
 import {
+  I_SCORE_BAND_SLOT,
+  I_SCORE_FACT_KEY,
   STEP_OP_SHAPE,
   gateIsConfigured,
   factKeysReadBy,
@@ -545,12 +547,41 @@ interface FlowLine {
                                 </button>
                               </p>
                             }
+                            <!-- THE TABLE THIS BANK HAS NOT STATED is the product's, and the
+                                 engine reads it there — so the two directions are offered as
+                                 what they are rather than as an empty box and a full one.
+                                 Taking a copy is a real decision (it stops following the
+                                 product), and giving it back is the only way to follow again,
+                                 so neither is left to be inferred from typing. -->
+                            @if (inheritsSlot(slot.id)) {
+                              <p class="take-default-line">
+                                <button
+                                  type="button"
+                                  class="take-default"
+                                  (click)="stateOwnBands(slot.id)"
+                                >
+                                  {{ stateOwnLabel }}
+                                </button>
+                              </p>
+                            } @else if (inheritableSlot(slot.id)) {
+                              <p class="take-default-line">
+                                <button
+                                  type="button"
+                                  class="take-default"
+                                  (click)="setBands(slot.id, [])"
+                                >
+                                  {{ backToProductLabel }}
+                                </button>
+                              </p>
+                            }
                             <app-income-bands-editor
                               [bands]="bandsFor(slot.id)"
                               (bandsChange)="setBands(slot.id, $event)"
                               [unit]="slot.unit"
                               [valueLabel]="slot.valueLabel"
                               [lockedEdges]="lockedBandsFor(slot.id)"
+                              [inherited]="inheritsSlot(slot.id)"
+                              [coverAll]="slot.id === iScoreBandSlot"
                               [suggested]="suggestedFor(slot.id)"
                             ></app-income-bands-editor>
                           }
@@ -1678,6 +1709,46 @@ export class ProductRuleEditorComponent {
     return $localize`:@@product_rule.default.says:The product states ${shown}:figure:`;
   }
 
+  /** The slot whose blank means "read the product's", named for the template. */
+  protected readonly iScoreBandSlot = I_SCORE_BAND_SLOT;
+
+  protected readonly stateOwnLabel = $localize`:@@product_rule.iscore.set_own:Set this bank's own tiers`;
+  protected readonly backToProductLabel = $localize`:@@product_rule.iscore.back_to_product:Back to the product's tiers`;
+
+  /**
+   * Could this slot read the product's figure if the bank stated none?
+   *
+   * Mirrors `SLOTS_INHERITED_WHEN_BLANK` on the server. Program variant only: on the product
+   * screen this IS the table being authored, and there is nothing above it to inherit from.
+   */
+  protected inheritableSlot(slotId: string): boolean {
+    if (this.variant() !== 'program') return false;
+    if (slotId !== I_SCORE_BAND_SLOT) return false;
+    return (this.catalogFigures()[slotId]?.bands?.length ?? 0) > 0;
+  }
+
+  /** Is it reading the product's right now — i.e. has this bank stated nothing? */
+  protected inheritsSlot(slotId: string): boolean {
+    return this.inheritableSlot(slotId) && this.bandsFor(slotId).length === 0;
+  }
+
+  /**
+   * Take a copy of the product's tiers for this bank to edit.
+   *
+   * A copy, deliberately: from here the bank states its own and stops following the product,
+   * which is exactly what the operator asked for by pressing the button. The edges stay the
+   * product's — `lockedEdges` renders them read-only — so what is being claimed is the
+   * percentage column and nothing else.
+   */
+  protected stateOwnBands(slotId: string): void {
+    const source = this.catalogFigures()[slotId]?.bands;
+    if (source === undefined || source.length === 0) return;
+    this.setBands(
+      slotId,
+      source.map((band) => ({ ...band })),
+    );
+  }
+
   /** Take one figure from the product. Routes through `patch`, so the host detaches as usual. */
   protected takeDefault(slotId: string): void {
     const slot = this.defaultsBySlot().get(slotId);
@@ -2342,7 +2413,10 @@ export class ProductRuleEditorComponent {
       ...row,
       slots,
       configured,
-      state: this.stateFor(row.optional, configured),
+      state:
+        slots.length === 1 && this.inheritsSlot(slots[0]?.id ?? '')
+          ? $localize`:@@product_rule.step.inherited:The product's tiers apply`
+          : this.stateFor(row.optional, configured),
       owed: !row.optional && !configured && this.variant() === 'program',
     };
   }
@@ -2380,8 +2454,14 @@ export class ProductRuleEditorComponent {
       // one hides the only control that can recover the figure, which is how the two
       // conditions on `ABK-PERSONAL-7110` stayed blank: the group notice said two were
       // missing and both rows were shut.
-      collapsible: optional && !configured && !this.rowHasDefault(slots),
-      state: this.stateFor(optional, configured),
+      // An INHERITED row is not folded either, for the same reason and one more: blank, it is
+      // not "not used by this bank" — it is quoting the product's figures, which is a state
+      // worth reading rather than a shut row with a misleading tag.
+      collapsible:
+        optional && !configured && !this.rowHasDefault(slots) && !this.inheritsSlot(step.id),
+      state: this.inheritsSlot(step.id)
+        ? $localize`:@@product_rule.step.inherited:The product's tiers apply`
+        : this.stateFor(optional, configured),
       owed: !optional && !configured && this.variant() === 'program',
       wayId,
     };
@@ -2747,7 +2827,7 @@ export class ProductRuleEditorComponent {
   private titleFor(step: RuleStep): string {
     // The one slot named by what it IS rather than by its op: every income product now carries
     // the bureau-score table, and "A table of ranges" is what three other slots are called.
-    if (step.id === 'iscore_band') {
+    if (step.id === I_SCORE_BAND_SLOT) {
       return $localize`:@@product_rule.step.iscore_title:Adjust by I-Score`;
     }
     const factLabel = step.fact ? this.factLabel(step.fact) : '';
@@ -2824,8 +2904,15 @@ export class ProductRuleEditorComponent {
   }
 
   private hintFor(step: RuleStep): string {
-    if (step.id === 'iscore_band') {
-      return $localize`:@@product_rule.step.iscore_hint:One row per score range, with the share of the figure this bank counts at that score. Leave it blank to count every score at 100%.`;
+    // Two sentences for one box, because the two screens are answering different questions.
+    // On the product this is the tier table every bank selling it reads; on a bank program it
+    // is an override of that table, and saying "leave it blank for 100%" there would be false
+    // the moment the product states tiers — blank quotes the PRODUCT's.
+    if (step.id === I_SCORE_BAND_SLOT) {
+      if (this.variant() === 'catalog') {
+        return $localize`:@@product_rule.step.iscore_hint_catalog:One row per score range, with the share of the figure counted at that score. Every bank selling this product reads these unless it states its own. The table must start at 0 and leave its top range open, so every score is covered.`;
+      }
+      return $localize`:@@product_rule.step.iscore_hint_program:The share of the figure this bank counts at each score. Leave it as it is to count what the product states; type a table here only where this bank scores differently.`;
     }
     if (step.op === 'pickByFact') {
       // Worded for the AXIS in general, not for one of them. The first spelling said "only if
@@ -2900,6 +2987,12 @@ export class ProductRuleEditorComponent {
   private readonly isAr = document.documentElement.lang.startsWith('ar');
 
   private factLabel(key: string): string {
+    // The bureau score is the platform's own fact: it is reserved from every product's ask
+    // list, so no registry row carries an operator-authored label and the raw slug `i_score`
+    // was what the flow list and the "reads the answers" disclosure printed.
+    if (key === I_SCORE_FACT_KEY) {
+      return $localize`:@@product_rule.fact.i_score:I-Score (credit bureau score)`;
+    }
     const fact = this.factByKey().get(key);
     if (fact?.label) return fact.label;
     // A DERIVED fact has no registry row and so no operator-authored label — the platform
@@ -3025,6 +3118,13 @@ export class ProductRuleEditorComponent {
   }
 
   private unitFor(step: RuleStep): string | null {
+    // A band table's unit labels its RANGE, not the figure beside it (the value column is
+    // named by `valueLabel`, which already reads "Percentage (%)" here). The I-Score ranges
+    // are bureau scores, and unlabelled they read as money like every other range on the
+    // platform — this is the one band slot whose edges are not EGP.
+    if (step.id === I_SCORE_BAND_SLOT) {
+      return $localize`:@@product_rule.unit.score:score`;
+    }
     switch (step.op) {
       case 'constant':
         return $localize`:@@product_rule.unit.egp:EGP`;

@@ -10,8 +10,11 @@
  *   1. An inheriting program is quoted off the CATALOG's table, and editing the catalog
  *      moves it. That is the difference between a link and a one-time copy, and a copy
  *      is exactly the drift the catalog exists to end.
- *   2. A program on its OWN figures ignores the catalog entirely — the number a bank
- *      typed must never be silently replaced by someone else's.
+ *   2. A program on its OWN figures ignores the catalog's TABLES entirely — the number a
+ *      bank typed must never be silently replaced by someone else's. Two fields are
+ *      deliberately outside that rule and are pinned as such: the debt-burden cap and the
+ *      I-Score tier table are the product's DEFAULTS, read only where the bank states
+ *      none of its own.
  *   3. ABSENT `amounts` reads as `'own'`. The stored book predates the field; a default
  *      of `'catalog'` would re-point every program at tables it has never quoted from.
  *   4. Inheriting from a name that states NOTHING resolves to a stated reason, never a
@@ -85,6 +88,26 @@ describe('catalog amounts — inherited', () => {
     expect(effective.combinationRule).toBe('greater_of');
   });
 
+  it('reads the catalog’s debt-burden cap only where the bank states none', () => {
+    // The other half of the rule above, and the direction that decides what a live quote
+    // does: a product states the cap once and every bank under it that has said nothing
+    // reads it. `requiredDocuments` and `combinationRule` are NOT like that — they stay
+    // the bank's, blank or not.
+    const silent: IncomeAssumptionConfig = { strategy: 'byProfessorRank', amounts: 'catalog' };
+    const catalog: IncomeAssumptionConfig = {
+      ...CATALOG,
+      dbrCapPercentOverride: '60',
+      requiredDocuments: ['syndicate_card'],
+      combinationRule: 'greater_of',
+    };
+
+    const effective = effectiveIncomeRule(silent, catalog);
+
+    expect(effective.dbrCapPercentOverride).toBe('60');
+    expect(effective.requiredDocuments).toBeUndefined();
+    expect(effective.combinationRule).toBeUndefined();
+  });
+
   it('drops a table the program left behind when it switched to catalog amounts', () => {
     // A blob mid-migration: `amounts` flipped but the old rows are still there. Quoting
     // them would be the program silently keeping numbers it no longer claims.
@@ -112,7 +135,7 @@ describe('catalog amounts — inherited', () => {
   });
 });
 
-describe('own amounts — never touched by the catalog', () => {
+describe('own amounts — the catalog’s tables never touched', () => {
   it('ignores the catalog when `amounts` is explicit', () => {
     const program: IncomeAssumptionConfig = {
       strategy: 'byProfessorRank',
@@ -121,6 +144,75 @@ describe('own amounts — never touched by the catalog', () => {
     };
 
     expect(effectiveIncomeRule(program, CATALOG)).toBe(program);
+  });
+
+  it('still reads the product’s debt-burden cap, and yields to the bank’s own', () => {
+    const silent: IncomeAssumptionConfig = {
+      strategy: 'byProfessorRank',
+      amounts: 'own',
+      keyTable: [{ key: 'lecturer', incomeEGP: '22000' }],
+    };
+    const catalog: IncomeAssumptionConfig = { ...CATALOG, dbrCapPercentOverride: '40' };
+
+    expect(effectiveIncomeRule(silent, catalog).dbrCapPercentOverride).toBe('40');
+    // The bank's tables are untouched either way — only the cap arrived.
+    expect(effectiveIncomeRule(silent, catalog).keyTable).toEqual(silent.keyTable);
+    expect(
+      effectiveIncomeRule({ ...silent, dbrCapPercentOverride: '35' }, catalog)
+        .dbrCapPercentOverride,
+    ).toBe('35');
+  });
+
+  it('reads the product’s I-Score tiers for a bank that states none, and no other slot', () => {
+    // The one per-slot exception. A blank way or condition means "this bank does not sell
+    // that way" and must stay blank; a blank I-Score table has never meant a decline — the
+    // compiled rule answers it with a literal 100% — so it reads the product's tiers.
+    const productRule: IncomeAssumptionConfig = {
+      strategy: 'steps',
+      stepParams: {
+        primary: { keyTable: [{ key: 'lecturer', incomeEGP: '30000' }] },
+        iscore_band: {
+          bands: [
+            { fromInclusive: '0', toExclusive: '700', incomeEGP: '90' },
+            { fromInclusive: '700', toExclusive: null, incomeEGP: '110' },
+          ],
+        },
+      },
+    } as unknown as IncomeAssumptionConfig;
+    const bank: IncomeAssumptionConfig = {
+      strategy: 'steps',
+      amounts: 'own',
+      stepParams: { primary: { keyTable: [{ key: 'lecturer', incomeEGP: '40000' }] } },
+    } as unknown as IncomeAssumptionConfig;
+
+    const effective = effectiveIncomeRule(bank, productRule);
+
+    expect(effective.stepParams?.iscore_band).toEqual(productRule.stepParams?.iscore_band);
+    // The bank's own figure, not the product's: only the tier slot was filled in.
+    expect(effective.stepParams?.primary).toEqual(bank.stepParams?.primary);
+  });
+
+  it('leaves a bank’s OWN I-Score tiers alone', () => {
+    const productRule: IncomeAssumptionConfig = {
+      strategy: 'steps',
+      stepParams: {
+        iscore_band: { bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '100' }] },
+      },
+    } as unknown as IncomeAssumptionConfig;
+    const bank: IncomeAssumptionConfig = {
+      strategy: 'steps',
+      amounts: 'own',
+      stepParams: {
+        iscore_band: { bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '80' }] },
+      },
+    } as unknown as IncomeAssumptionConfig;
+
+    // Deep equality, not identity: `mergeProductRuleStructure` already rebuilds the object
+    // for any pair of product rules, so there is no same-object path to assert here.
+    expect(effectiveIncomeRule(bank, productRule)).toEqual(bank);
+    expect(effectiveIncomeRule(bank, productRule).stepParams?.iscore_band).toEqual(
+      bank.stepParams?.iscore_band,
+    );
   });
 
   it('ignores the catalog when `amounts` is ABSENT — every pre-existing row', () => {
@@ -353,7 +445,9 @@ describe('withStoredStructure — a figures-only catalog write', () => {
   it('leaves a write that states GATES but no steps alone — the revision is the point', () => {
     const revised = {
       strategy: 'steps',
-      gates: [{ id: 'floor', kind: 'number', op: 'gte', left: { step: 'ceiling' }, reasonCode: 'X' }],
+      gates: [
+        { id: 'floor', kind: 'number', op: 'gte', left: { step: 'ceiling' }, reasonCode: 'X' },
+      ],
     } as unknown as IncomeAssumptionConfig;
 
     const written = withStoredStructure(revised, stored);
@@ -381,7 +475,7 @@ describe('withStoredStructure — a figures-only catalog write', () => {
     expect(withStoredStructure(cleared, stored).steps).toEqual([]);
   });
 
-  it('carries the name\'s own policy fields onto a figures-only write', () => {
+  it("carries the name's own policy fields onto a figures-only write", () => {
     // No pipeline screen edits these, and the catalog page posts strategy + stepParams only,
     // so dropping them loses them for good with nothing saying so.
     const withPolicy = {
@@ -391,7 +485,10 @@ describe('withStoredStructure — a figures-only catalog write', () => {
     } as unknown as IncomeAssumptionConfig;
 
     const written = withStoredStructure(
-      { strategy: 'steps', stepParams: { ceiling: { valueEGP: '1' } } } as unknown as IncomeAssumptionConfig,
+      {
+        strategy: 'steps',
+        stepParams: { ceiling: { valueEGP: '1' } },
+      } as unknown as IncomeAssumptionConfig,
       withPolicy,
     );
 

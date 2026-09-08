@@ -34,14 +34,18 @@
  *   never       strategy — copied onto the program at save and enforced equal
  *               (`PROGRAM_NAME_INCOME_PROOF_MISMATCH`), so a reader that switches
  *               on it keeps working against the program object alone
- *   never       dbrCapPercentOverride / requiredDocuments / combinationRule —
- *               bank policy, which is why a bank on catalog amounts still has them
+ *   never       requiredDocuments / combinationRule — bank policy, which is why a
+ *               bank on catalog amounts still has its own
+ *   when blank  dbrCapPercentOverride, and the I-Score tier table. Both are stated by
+ *               the PRODUCT and overridden per bank, so a bank that states neither
+ *               reads the product's — see `withInheritedDbrCap` / `withInheritedSlots`
  */
 
 import { isProductRuleStrategy } from '../types';
 import type { IncomeAssumptionConfig } from '../types';
-import type { ProductRule } from './product-rule';
+import type { GateParams, ProductRule, StepParams } from './product-rule';
 import { allWaySlots, wayOwnedSlots, waysOfRule } from './product-rule-ways';
+import { SLOT } from './product-template';
 
 /**
  * The figure-bearing keys. The legacy five are included because a catalog rule
@@ -69,12 +73,46 @@ const AMOUNT_KEYS = [
   'creditCardLimitMultiplier',
 ] as const satisfies ReadonlyArray<keyof IncomeAssumptionConfig>;
 
-/** The rule's non-figure policy fields — the ones no pipeline screen edits. */
+/**
+ * The rule's non-figure policy fields — carried across a figures-only write to the
+ * row that STATES them (see `carryStoredPolicy`).
+ *
+ * `dbrCapPercentOverride` is on this list because it is part of the rule blob and no
+ * pipeline screen used to edit it; that it is now also INHERITED when a program leaves
+ * it blank is a separate matter, decided by `withInheritedDbrCap`.
+ */
 const POLICY_KEYS = [
   'dbrCapPercentOverride',
   'requiredDocuments',
   'combinationRule',
 ] as const satisfies ReadonlyArray<keyof IncomeAssumptionConfig>;
+
+/**
+ * The figure slots a program inherits from the product WHEN IT STATES NONE OF ITS OWN,
+ * whatever `amounts` says. Exactly one member, and the narrowness is the point.
+ *
+ * A blank slot normally means "this bank does not sell this way" / "does not apply this
+ * condition" — a stated decision the product must not override, which is why the rest of
+ * `stepParams` is inherited whole-key and only on `amounts: 'catalog'`.
+ *
+ * The I-Score table is not like that. The score is a PLATFORM fact about the applicant,
+ * every rule-bearing product carries the four steps, and the compiled shape answers a
+ * blank table with `{const:'100'}` — so a blank here has never meant "declined", it has
+ * meant "nobody has stated the tiers". Reading the product's tiers in that state is what
+ * lets a product state them once for every bank selling it, and a bank that disagrees
+ * types its own (including a flat 100%, which is how it opts out).
+ */
+const SLOTS_INHERITED_WHEN_BLANK: ReadonlySet<string> = new Set([SLOT.iScoreBand]);
+
+/** A percentage nobody stated: absent, null, or whitespace. */
+function isBlankOverride(value: string | null | undefined): boolean {
+  return value === null || value === undefined || value.trim() === '';
+}
+
+/** A band slot nobody stated: the key is absent, or its table has no rows. */
+function slotStatesNoBands(figures: StepParams | undefined): boolean {
+  return figures === undefined || (figures.bands?.length ?? 0) === 0;
+}
 
 /**
  * Does this program rule take its figures from the catalog?
@@ -243,9 +281,14 @@ export function effectiveIncomeRule(
   // shape lives on the name.
   const withStructure = mergeProductRuleStructure(program, catalogRule);
 
-  if (!inheritsCatalogAmounts(program)) return withStructure;
+  // The product's DEBT-BURDEN cap, on both amounts: it is a statement about the figure the
+  // calculation produces, not about who owns the figures, so a bank on its own tables still
+  // reads it unless it states one itself.
+  const withCap = withInheritedDbrCap(withStructure, catalogRule);
 
-  const merged: IncomeAssumptionConfig = { ...withStructure };
+  if (!inheritsCatalogAmounts(program)) return withInheritedSlots(withCap, catalogRule);
+
+  const merged: IncomeAssumptionConfig = { ...withCap };
   for (const key of AMOUNT_KEYS) {
     // Deleted first so an inherited rule never keeps a figure the program left
     // behind: a program that switched from 'own' to 'catalog' before the strip in
@@ -255,6 +298,63 @@ export function effectiveIncomeRule(
     if (value !== undefined) Object.assign(merged, { [key]: value });
   }
   return prunedToChosenWay(merged);
+}
+
+/**
+ * The product's debt-burden cap, when the program states none.
+ *
+ * The bank's own wins whenever it states one — this is a DEFAULT, not a ceiling on what a
+ * bank may say. Blank on both sides leaves the key absent, so `resolveDbrCap` falls through
+ * to the program's by-applicant map, its income bands and its flat cap exactly as before.
+ *
+ * Runs on BOTH `amounts` values, unlike the figure keys. `amounts` answers "whose numbers
+ * are in the tables"; a cap on what the resulting figure may be spent on is a different
+ * question, and a bank that types its own tables has not thereby made a statement about it.
+ *
+ * Returns the SAME object when there is nothing to inherit.
+ */
+function withInheritedDbrCap(
+  program: IncomeAssumptionConfig,
+  catalogRule: IncomeAssumptionConfig,
+): IncomeAssumptionConfig {
+  if (!isBlankOverride(program.dbrCapPercentOverride)) return program;
+  if (isBlankOverride(catalogRule.dbrCapPercentOverride)) return program;
+  return { ...program, dbrCapPercentOverride: catalogRule.dbrCapPercentOverride };
+}
+
+/**
+ * The product's I-Score tiers, for a program on its OWN amounts that states none.
+ *
+ * The one per-slot exception to whole-key `stepParams` inheritance, and the note above
+ * `SLOTS_INHERITED_WHEN_BLANK` is the argument for it. Scoped by that set rather than by a
+ * predicate over the steps: "which slots does a blank mean nothing at" is a decision about
+ * the platform's own facts, not something to re-derive from a rule's shape.
+ *
+ * Both sides must be product rules — a single-fact rule has no `stepParams` to speak of —
+ * and the merge is one slot deep, so a bank's other figures are untouched. `amounts:
+ * 'catalog'` never reaches here: that program already takes the product's whole map.
+ *
+ * Returns the SAME object when there is nothing to inherit.
+ */
+function withInheritedSlots(
+  program: IncomeAssumptionConfig,
+  catalogRule: IncomeAssumptionConfig,
+): IncomeAssumptionConfig {
+  if (!isProductRuleStrategy(program.strategy)) return program;
+  if (!isProductRuleStrategy(catalogRule.strategy)) return program;
+
+  let params: Record<string, StepParams & GateParams> | undefined;
+  for (const slot of SLOTS_INHERITED_WHEN_BLANK) {
+    const fromProduct = catalogRule.stepParams?.[slot];
+    if (slotStatesNoBands(fromProduct)) continue;
+    if (!slotStatesNoBands(program.stepParams?.[slot])) continue;
+    params ??= { ...(program.stepParams ?? {}) };
+    // The product's own array, handed on by reference: every consumer of an effective rule
+    // reads it (the resolver, the validator, the check panel) and none of them writes to it.
+    // The admin screens copy before they edit — `cloneStepFigures` on the way in.
+    params[slot] = fromProduct as StepParams & GateParams;
+  }
+  return params === undefined ? program : { ...program, stepParams: params };
 }
 
 /**
@@ -371,35 +471,62 @@ export function withStoredStructure(
 }
 
 /**
- * The name's own POLICY fields, carried onto a figures-only write for the same reason its
+ * The row's own POLICY fields, carried onto a figures-only write for the same reason its
  * structure is.
  *
  * `dbrCapPercentOverride`, `requiredDocuments` and `combinationRule` are part of the rule
- * blob and no screen edits them on a pipeline — the catalog page posts `strategy` plus
- * `stepParams` and nothing else. Dropped, they are gone for good and nothing says so; the
- * only reason that has not bitten yet is that the save used to fail before it could.
+ * blob and a pipeline screen posts only some of them. Dropped, they are gone for good and
+ * nothing says so; the only reason that has not bitten yet is that the save used to fail
+ * before it could.
  *
- * Same guard as the structure: carried ONLY when the incoming write states none of them, so
- * a client that means to change or clear one still can.
+ * PER KEY, not all-or-nothing. It used to carry the whole set only when the write mentioned
+ * none of it, which held for exactly as long as no screen edited any of them — and the
+ * product screen now posts the debt-burden cap on every save. All-or-nothing, that one field
+ * would silently drop a stored `requiredDocuments` and `combinationRule` on a save about
+ * something else.
+ *
+ *   undefined   the write says nothing about this field → keep what is stored
+ *   null        the write CLEARS it → keep the null, which `dropClearedPolicy` turns into
+ *               an absent key before validation
+ *   a value     the write states it → keep the write's
  */
 function carryStoredPolicy(
   incoming: IncomeAssumptionConfig,
   stored: IncomeAssumptionConfig,
 ): IncomeAssumptionConfig {
-  const states =
-    incoming.dbrCapPercentOverride !== undefined ||
-    incoming.requiredDocuments !== undefined ||
-    incoming.combinationRule !== undefined;
-  if (states) return incoming;
   const carried: IncomeAssumptionConfig = { ...incoming };
   let touched = false;
   for (const key of POLICY_KEYS) {
+    if (incoming[key] !== undefined) continue;
     const value = stored[key];
     if (value === undefined) continue;
     Object.assign(carried, { [key]: value });
     touched = true;
   }
   return touched ? carried : incoming;
+}
+
+/**
+ * A policy field the write CLEARED, removed rather than stored as `null`.
+ *
+ * `null` is the only way a client can say "there is no longer a cap here": an absent key
+ * means "not touching it" (see `carryStoredPolicy`), so the two spellings cannot be merged.
+ * It must not survive this far, though — `validateDbrOverride` refuses a `null` as an
+ * out-of-range percentage, so clearing the field answered
+ * `INCOME_RULE_DBR_OVERRIDE_INVALID` on a request that stated no percentage at all.
+ *
+ * The DTO types these as optional strings and `@IsOptional()` skips validation for `null` as
+ * well as `undefined`, which is how a `null` gets in here in the first place.
+ */
+export function dropClearedPolicy(config: IncomeAssumptionConfig): IncomeAssumptionConfig {
+  const cleared = POLICY_KEYS.filter((key) => {
+    const value = config[key];
+    return value === null || (typeof value === 'string' && value.trim() === '');
+  });
+  if (cleared.length === 0) return config;
+  const stripped: IncomeAssumptionConfig = { ...config };
+  for (const key of cleared) delete stripped[key];
+  return stripped;
 }
 
 /**

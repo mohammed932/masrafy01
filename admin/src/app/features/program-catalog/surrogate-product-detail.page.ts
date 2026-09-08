@@ -76,6 +76,7 @@ import {
 import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
+import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
 import { listFigureState, type ListFigureState } from '@shared/income-rule/figure-slots';
 import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
 import { incomeKeyTableErrorFor, productRuleHasError } from '@shared/income-rule/income-rule.rules';
@@ -177,6 +178,7 @@ interface ReadList {
     IncomeAssumptionSectionComponent,
     ProductRuleEditorComponent,
     MaxLoanByFactEditorComponent,
+    FigureFieldComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -1008,6 +1010,38 @@ interface ReadList {
                   ></app-income-assumption-section>
                 </form>
 
+                <!-- THE DEBT-BURDEN CAP.
+                     Here rather than on each bank's wizard for the same reason the grid below
+                     is: it is ONE statement about the figure this calculation produces, and
+                     every bank selling the product reads it unless it states its own. Unlike
+                     the grid it is not a copy taken once — a change here moves every program
+                     that has said nothing, which is what the sentence below says out loud. -->
+                @if (isPipeline()) {
+                  <section class="dbr-cap">
+                    <h3 class="dbr-cap-title" i18n="@@spd.dbr.title">
+                      Debt burden for this calculation's figure
+                    </h3>
+                    <p class="dbr-cap-lede" i18n="@@spd.dbr.lede">
+                      The share of the figure worked out here that may go to instalments. Every bank
+                      selling this product uses it unless it states its own on its program. Leave it
+                      empty and each bank's own cap applies.
+                    </p>
+                    <app-figure-field
+                      fieldId="product-dbr-cap"
+                      unit="%"
+                      [value]="dbrCapValue() ?? ''"
+                      (valueChange)="setDbrCap($event)"
+                      [ariaLabel]="dbrCapAriaLabel"
+                      [placeholderNote]="dbrCapBlankNote"
+                    ></app-figure-field>
+                    @if (dbrCapError()) {
+                      <p class="dbr-cap-error" role="alert" i18n="@@spd.dbr.error">
+                        The cap must be greater than 0 and at most 100.
+                      </p>
+                    }
+                  </section>
+                }
+
                 <!-- THE MAXIMUM-LOAN GRID.
                      Here rather than on each bank's wizard because the GRID is the product's:
                      which answers it caps on, and in what order, is one statement shared by
@@ -1041,8 +1075,9 @@ interface ReadList {
                     >
                   } @else {
                     <span i18n="@@spd.reach"
-                      >A change here reaches {{ p.usedBy.length }} catalog name(s) and every bank
-                      program under them that takes catalog amounts.</span
+                      >A change here reaches {{ p.usedBy.length }} catalog name(s): the tables go to
+                      every bank program under them that takes catalog amounts, and the debt burden
+                      and the I-Score tiers go to every one that states none of its own.</span
                     >
                   }
                 </p>
@@ -1666,6 +1701,41 @@ interface ReadList {
         margin: 0;
         font-size: var(--text-sm);
         color: var(--text-secondary);
+      }
+
+      /* One field under a heading, laid out like the grid below it rather than as a card:
+         the panel is already a container and a box inside a box is the nesting this screen
+         was rebuilt to remove (v25.1.0). */
+      .dbr-cap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .dbr-cap-title {
+        margin: 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+
+      /* SECONDARY, not tertiary: this sentence states that a change here moves live quotes at
+         every bank reading it, which is the one thing an operator must actually read. Tertiary
+         measures 3.83:1 on this ground in light mode (DESIGN_SYSTEM.md). */
+      .dbr-cap-lede {
+        margin: 0;
+        max-inline-size: 60ch;
+        font-size: var(--text-sm);
+        line-height: 1.6;
+        color: var(--text-secondary);
+      }
+
+      .dbr-cap-error {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--error);
       }
 
       /* IN FLOW at the end of the step, never pinned — and the first cut of this change got
@@ -2537,7 +2607,11 @@ export class SurrogateProductDetailPage {
       value: new FormControl<string | null>(null),
       unit: new FormControl<'percent' | 'multiplier'>('percent', { nonNullable: true }),
     }),
-    dbrCapPercentOverride: new FormControl<string | null>(null),
+    // NOT the debt-burden cap: that one is a signal (`dbrCapValue`), like the two tables and
+    // the step figures beside it. A control read through `valueChanges` cannot work here —
+    // `absorb` resets with `emitEvent: false`, so the stored value never reached the field and
+    // the box read empty over a product that states 45%. Measured in a browser, not reasoned
+    // about: the save wrote 45, the audit recorded it, and the reload showed nothing.
     requiredDocuments: new FormControl<string[]>([], { nonNullable: true }),
     combinationRule: new FormControl<'lesser_of' | 'greater_of' | null>(null),
   });
@@ -2589,7 +2663,49 @@ export class SurrogateProductDetailPage {
    *
    * Advisory, never the authority: the server re-checks and its answer stands.
    */
+  // --- the product's debt-burden cap -----------------------------------------------------
+  //
+  // Stored on the rule blob (`incomeAssumption.dbrCapPercentOverride`) because it is scoped to
+  // the calculation: the engine applies it only to a figure this rule produced, never to a
+  // salary an applicant states. What is new is that a BANK program which states none of its own
+  // reads it (`withInheritedDbrCap`), which is what makes this one field worth a control.
+
+  /** The stored cap as text, or `null` when the product states none. */
+  protected readonly dbrCapValue = signal<string | null>(null);
+
+  protected readonly dbrCapAriaLabel = $localize`:@@spd.dbr.aria:Debt-burden cap for this calculation's figure, per cent`;
+  protected readonly dbrCapBlankNote = $localize`:@@spd.dbr.blank_note:Blank — each bank's own cap applies.`;
+
+  /**
+   * Empty is legal and is the state every product ships in; anything else must be in (0, 100].
+   *
+   * Not gated on touched or dirty: the control carries no validator, so an out-of-range figure
+   * would otherwise draw nothing, let Save through, and be refused by the server as
+   * `INCOME_RULE_DBR_OVERRIDE_INVALID`. Same reasoning as the wizard's own copy of this field.
+   */
+  protected readonly dbrCapError = computed<boolean>(() => {
+    const raw = this.dbrCapValue();
+    if (raw === null || raw.trim() === '') return false;
+    const value = Number(raw);
+    return !Number.isFinite(value) || value <= 0 || value > 100;
+  });
+
+  /**
+   * Blank stores `null`, which the save path turns into an absent key — never `''`.
+   *
+   * Raises `dirty` itself: the flag is subscribed to `ruleGroup.valueChanges` and a signal
+   * write is not a form change, exactly as `onStepFigures` has to say so too.
+   */
+  protected setDbrCap(raw: string): void {
+    const value = raw.trim();
+    this.dbrCapValue.set(value === '' ? null : value);
+    this.markDirty();
+  }
+
   protected readonly ruleBlocked = computed(() => {
+    // An out-of-range cap is refused by the server, so Save is held here too — on a screen
+    // where the field is in view rather than three steps away.
+    if (this.dbrCapError()) return true;
     if (!this.isPipeline()) return false;
     if (
       productRuleHasError({
@@ -2600,6 +2716,9 @@ export class SurrogateProductDetailPage {
     ) {
       return true;
     }
+    // Band tables are judged inside `productRuleHasError` (`stepBandsHaveError`), including
+    // the I-Score tiers' total-coverage rule. What is left here is the KEY tables.
+    //
     // A row with a key and no amount reads as CONFIGURED to the check above — the table has
     // rows — and is refused by the server as `incomeInvalid`, naming a step id. An EMPTY
     // table is skipped: that is a way the product offers and this bank declines, which the
@@ -3667,6 +3786,11 @@ export class SurrogateProductDetailPage {
       ...(shape === 'steps' && Object.keys(this.stepFigures()).length > 0
         ? { stepParams: this.stepFigures() }
         : {}),
+      // ALWAYS sent, and `null` when empty. An absent key means "not touching it" on the
+      // server (`carryStoredPolicy` keeps what is stored), so there would be no way to clear
+      // a cap once typed; `null` is the clear, and the server drops the key before validating
+      // it (`dropClearedPolicy`). Never `''` — the DTO refuses that as a non-decimal.
+      dbrCapPercentOverride: this.dbrCapValue() ?? null,
     };
   }
 
@@ -3734,7 +3858,6 @@ export class SurrogateProductDetailPage {
       {
         strategy: rule?.strategy ?? 'declared',
         scalar: { value: rule?.scalar?.value ?? null, unit: rule?.scalar?.unit ?? 'percent' },
-        dbrCapPercentOverride: null,
         requiredDocuments: [],
         combinationRule: null,
       },
@@ -3742,6 +3865,10 @@ export class SurrogateProductDetailPage {
       // it had just read.
       { emitEvent: false },
     );
+    // READ, not cleared. This used to be reset to null on every load while the payload never
+    // sent it, so the field was a control over a value the screen could neither see nor write
+    // — which is why a product's cap could not be stated at all.
+    this.dbrCapValue.set(rule?.dbrCapPercentOverride ?? null);
     this.ruleKeyTable.set(rule?.keyTable ? [...rule.keyTable] : []);
     this.ruleBands.set(rule?.bands ? [...rule.bands] : []);
     // Cloned a level deeper than the two tables: a step's figures are themselves a table or
