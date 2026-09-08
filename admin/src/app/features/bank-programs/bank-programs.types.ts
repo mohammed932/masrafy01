@@ -973,6 +973,18 @@ export interface SurrogateProductSummary {
   outputKind: 'monthlyIncome' | 'maxAmount' | null;
   /** How many ways of reaching that figure it offers. `null` = built by hand, so no form. */
   wayCount: number | null;
+  /**
+   * The facts those ways read, in way order — what tells two products of the SAME shape
+   * apart. Two auto products each worked out one way by dividing a number the customer
+   * states printed the identical sentence without it, and read as one product entered twice.
+   *
+   * Optional on the wire so this bundle still runs against a backend that predates it, and
+   * absent reads as "not known" rather than as "reads nothing" — the same posture
+   * `capPrograms` takes below, and for the same reason: a card must not invent a claim from
+   * a field nobody sent. Can be SHORTER than `wayCount` (a flat-amount way states no fact),
+   * which is why the card names one only when both are exactly one.
+   */
+  readsFactKeys?: string[];
   /** Catalog names taking their calculation from it. Empty = nothing sells it yet. */
   usedBy: string[];
   /**

@@ -2301,6 +2301,8 @@
       <trans-unit id="spt.addon.alt.full" datatype="html"><source>That is as many ways as one product can offer.</source><target>هذا أقصى عدد من الطرق يمكن للمنتج الواحد أن يقدمه.</target></trans-unit>
       <trans-unit id="spt.form.block_alt_duplicate" datatype="html"><source>Two ways read the same answer the same way. Remove one, or change what it reads.</source><target>طريقتان تقرآن الإجابة نفسها بالأسلوب نفسه. احذف إحداهما أو غيِّر ما تقرأه.</target></trans-unit>
       <trans-unit id="sp.reads_ceiling" datatype="html"><source>A borrowing ceiling, worked out <x id="ways" equiv-text="this.waysWord(ways)"/></source><target>حد أقصى للاقتراض، يُحسب بـ<x id="ways" equiv-text="this.waysWord(ways)"/></target></trans-unit>
+      <trans-unit id="sp.reads_ceiling_from" datatype="html"><source>A borrowing ceiling from <x id="fact" equiv-text="fact"/></source><target>حد أقصى للاقتراض من <x id="fact" equiv-text="fact"/></target></trans-unit>
+      <trans-unit id="sp.reads_income_from" datatype="html"><source>An assumed income from <x id="fact" equiv-text="fact"/></source><target>دخل مُقدَّر من <x id="fact" equiv-text="fact"/></target></trans-unit>
       <trans-unit id="sp.reads_income" datatype="html"><source>An assumed income, worked out <x id="ways" equiv-text="this.waysWord(ways)"/></source><target>دخل مُقدَّر، يُحسب بـ<x id="ways" equiv-text="this.waysWord(ways)"/></target></trans-unit>
       <trans-unit id="sp.ways_1" datatype="html"><source>one way</source><target>طريقة واحدة</target></trans-unit>
       <trans-unit id="sp.ways_2" datatype="html"><source>two ways</source><target>طريقتين</target></trans-unit>

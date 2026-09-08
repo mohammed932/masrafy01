@@ -1726,6 +1726,9 @@ export class BankProgramsService {
       // `waysOf` rather than a second count: one accessor decides what a way IS, so the list
       // and the form can never disagree about how many a product has.
       wayCount: wayCountOf(p.templateSpec),
+      // What tells two one-way products of the same shape apart. Without it the board prints
+      // the identical sentence on both and they read as one product entered twice.
+      readsFactKeys: wayFactKeysOf(p.templateSpec),
       usedBy: p.usedBy,
       capPrograms: capUsage.get(p.key) ?? [],
     }));
@@ -1810,6 +1813,7 @@ export class BankProgramsService {
       strategy: row.incomeRule?.strategy ?? null,
       outputKind: outputKindOf(row.incomeRule),
       wayCount: wayCountOf(row.templateSpec),
+      readsFactKeys: wayFactKeysOf(row.templateSpec),
       usedBy: nameKeys,
       capPrograms: (await this.capUsageByProduct()).get(row.key) ?? [],
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
@@ -3010,6 +3014,22 @@ function computeStructuralDiff(
 /** How many ways a product offers, or null when it has no form to count them from. */
 function wayCountOf(template: ProductTemplate | null | undefined): number | null {
   return template === null || template === undefined ? null : waysOf(template).length;
+}
+
+/**
+ * The facts this product's ways read, in way order.
+ *
+ * Off `waysOf` for the reason `wayCountOf` is: one accessor decides what a way IS, so the
+ * count and the facts can never describe different sets. A `flatAmount` way states no fact,
+ * so this can be SHORTER than the count — which is why the board only names a fact when the
+ * two are both one, rather than pairing them off by index.
+ *
+ * Keys, never labels: the fact registry is already on the admin's side of the wire and
+ * resolves them per locale, and a label sent from here would be a second, staler authority.
+ */
+function wayFactKeysOf(template: ProductTemplate | null | undefined): string[] {
+  if (template === null || template === undefined) return [];
+  return waysOf(template).flatMap((way) => ('fact' in way ? [way.fact] : []));
 }
 
 function outputKindOf(

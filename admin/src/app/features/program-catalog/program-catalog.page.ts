@@ -962,14 +962,37 @@ const ENUM_TYPE = 'program_name';
         border-radius: var(--radius-pill);
         background: var(--cat-accent, var(--color-cat-other));
       }
-      .cat-none,
-      .q-none {
+      /* SECONDARY, not disabled. Disabled ink is #B8ACA3, which measures 2.16:1 on
+         this card ground in light mode (3.34:1 dark) — under AA in BOTH themes, so a
+         dark-mode review does not rescue it either. "No loan types yet" is the state
+         somebody opens the card to fix, not decoration. */
+      .cat-none {
         font-size: var(--text-xs);
-        color: var(--color-text-disabled);
+        color: var(--color-text-secondary);
       }
+      /* The contradiction line — banks selling a name the catalog says is payslip-only —
+         which shipped in the LOWEST ink on the board at 2.16:1. Warning INK is not the
+         answer either: .tag.warn records it at 2.53:1 on its own wash, so the wash carries
+         the state and the words keep live ink (14.35:1 light, 13.4:1 dark).
+         The WASH and not .tag.warn's dot: this sentence wraps to two or three lines in a
+         268px column, and a flex dot beside a wrapped sentence sits against the middle
+         line. And not .tag itself, which is a nowrap pill sized for the foot row. */
+      .q-none {
+        align-self: flex-start;
+        padding-inline: var(--space-2);
+        padding-block: 2px;
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+        font-size: var(--text-xs);
+        color: var(--color-text-primary);
+      }
+      /* The one sentence on a product card that says what the product IS — "An assumed
+         income from the down payment". Tertiary measures 3.83:1 here in light mode
+         (5.24:1 dark), the same light-only failure .tag records eighty lines down.
+         Secondary is 6.17:1 light / 8.92:1 dark. */
       .q-count {
         font-size: var(--text-xs);
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
         font-variant-numeric: tabular-nums lining-nums;
       }
       /* The stat strip's 36px tonal chip, same size and radius. It is decoration
@@ -1022,15 +1045,23 @@ const ENUM_TYPE = 'program_name';
          at this size (Principle IV). Tone alone carries the "unused" signal, and
          the card border stays solid: dashed is reserved for deprecated, the one
          destructive state on this board. */
+      /* SECONDARY, not disabled: 2.16:1 light / 3.34:1 dark is under AA in BOTH themes, and
+         this is the card's actionable state ("Not offered yet", "No bank quotes from it yet").
+         Not the warn tag either — every unsold name would carry one and a board of amber pills
+         says nothing; the tag stays for the rarer "no catalog name sells this". */
       .usage.zero {
-        color: var(--color-text-disabled);
+        color: var(--color-text-secondary);
       }
       /* Pinned to the card floor so the meta + action rows align across a grid
          row regardless of how many lines each name takes. */
+      /* WRAPS. Three nowrap tags are reachable at once — a product switched off, still sold
+         by names, and missing figure tables — and with the usage line, the hover actions and
+         the arrow they overflow a 268px column. Longer again in ar-EG. */
       .card-foot {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
-        gap: var(--space-2);
+        gap: var(--space-1) var(--space-2);
         margin-block-start: auto;
       }
       .foot-spacer {
@@ -1126,15 +1157,18 @@ const ENUM_TYPE = 'program_name';
         font-weight: var(--font-weight-semibold);
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--color-text-tertiary);
+        /* 3.64:1 on the page ground in light mode. A section heading is read, not decoration. */
+        color: var(--color-text-secondary);
       }
       @media (hover: none) {
         .row-actions {
           opacity: 1;
         }
+        /* 44, not 40: the touch-target floor this repo already applies to the name chips
+           one screen over. */
         .icon-action {
-          inline-size: 40px;
-          block-size: 40px;
+          inline-size: 44px;
+          block-size: 44px;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -1611,6 +1645,17 @@ export class ProgramCatalogPage implements OnInit {
     // arrives at and how many ways it offers of getting there, so the card says that.
     const ways = p.wayCount;
     if (ways !== null && ways > 0 && p.outputKind !== null) {
+      // ONE way is the case where the count above says nothing at all: it is true of most of
+      // this board, and it was true of both Suez Canal auto products, which then differed by
+      // their title alone. So the single way names the fact it reads instead of counting
+      // itself. Two or more ways keeps the count — that IS what separates those, and listing
+      // four facts on one line would not fit or scan.
+      const fact = ways === 1 ? this.soleFactLabel(p) : null;
+      if (fact !== null) {
+        return p.outputKind === 'maxAmount'
+          ? $localize`:@@sp.reads_ceiling_from:A borrowing ceiling from ${fact}:fact:`
+          : $localize`:@@sp.reads_income_from:An assumed income from ${fact}:fact:`;
+      }
       return p.outputKind === 'maxAmount'
         ? $localize`:@@sp.reads_ceiling:A borrowing ceiling, worked out ${this.waysWord(ways)}:ways:`
         : $localize`:@@sp.reads_income:An assumed income, worked out ${this.waysWord(ways)}:ways:`;
@@ -1619,6 +1664,30 @@ export class ProgramCatalogPage implements OnInit {
     // The label is already a complete phrase, so it stands alone — "Reads By Academic rank"
     // reads as a typo.
     return incomeMethodLabel(p.strategy as IncomeAssumptionStrategy, this.facts());
+  }
+
+  /**
+   * The label of the one fact a single-way product reads, or `null`.
+   *
+   * `null` on every uncertainty rather than a guess: a backend that predates the field sends
+   * none (absent, not empty), a flat-amount way states none, and a key the registry cannot
+   * resolve would print a slug where a name belongs. Each of those falls back to the ways
+   * sentence, which is never wrong — only vague.
+   */
+  private soleFactLabel(p: ProductCard['product']): string | null {
+    const keys = p.readsFactKeys;
+    if (keys === undefined || keys.length !== 1) return null;
+    const key = keys[0];
+    const fact = this.facts().find((f) => f.key === key);
+    if (fact === undefined) return null;
+    // A registry label is whatever the blueprint or the operator typed, and two of them are
+    // the QUESTION rather than a name for the answer — "How much is the certificate or
+    // deposit you would pledge?". Read into this sentence that is not a shorter card, it is
+    // a broken one, so a question falls back to the ways line, which is only ever vague.
+    // Both marks, because the Arabic label ends in U+061F and the English one in U+003F.
+    const label = fact.label.trimEnd();
+    if (label.endsWith('?') || label.endsWith('\u061F')) return null;
+    return label;
   }
 
   /**

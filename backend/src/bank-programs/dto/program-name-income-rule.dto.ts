@@ -177,6 +177,17 @@ export interface SurrogateProductSummaryDto {
    * `coalesce` in a graph somebody wrote by hand would be a guess wearing a number.
    */
   wayCount: number | null;
+  /**
+   * The facts those ways read, in way order — what tells two products of the SAME shape
+   * apart on a list. Two auto products both worked out one way by dividing a number the
+   * customer states print the identical sentence without it, and read as one product entered
+   * twice; with it they read "from the down payment" and "from total savings".
+   *
+   * Keys, not labels: the fact registry is already on the admin's side and resolves them per
+   * locale. Can be SHORTER than `wayCount` — a flat-amount way states no fact — and empty for
+   * a hand-built calculation, which has no form to read ways off.
+   */
+  readsFactKeys: string[];
   /** Catalog names taking their calculation from it. Empty means nothing sells it yet. */
   usedBy: string[];
   /**

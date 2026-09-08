@@ -466,9 +466,11 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
 /**
  * One catalog name per product that has a calculation.
  *
- * `personal` only, and that is not a shortcut: every question these products read is already
- * asked of personal-loan applicants, and a name offered under a loan type whose applicants are
- * never asked its facts is a program that quotes nothing.
+ * The RULE is that a name is offered only under a loan type whose applicants are already
+ * asked every question its product reads — a name offered anywhere else is a program that
+ * quotes nothing. Everything here was `personal` until the Suez Canal auto sheets arrived;
+ * the two entries below are `car`, and they satisfy the same rule (their questions are in the
+ * CAR seed config). The comment said `personal` only, which stopped being true with them.
  *
  * `compound_owner_4` is absent on purpose — it already exists, is already no-payslip and is
  * already linked to `compound_owner`, so this seed has nothing to do to it.
