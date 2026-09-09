@@ -1019,7 +1019,14 @@ export type TemplateMechanismKind =
   | 'dividedBy'
   | 'flatAmount';
 
-export type TemplateMechanism =
+/** A second column — on the whole product (`secondColumn`) or on one way (`column`). */
+export interface TemplateColumn {
+  fact: string;
+  branches: string[];
+  branchOn?: 'answer' | 'parentClass';
+}
+
+type MechanismShape =
   | { kind: 'choiceTable'; fact: string }
   | { kind: 'classTable'; fact: string }
   | { kind: 'numberBand'; fact: string }
@@ -1027,6 +1034,12 @@ export type TemplateMechanism =
   | { kind: 'multipleOf'; fact: string }
   | { kind: 'dividedBy'; fact: string }
   | { kind: 'flatAmount' };
+
+/**
+ * One way, optionally split into columns of its own. `column` is carried by the form and
+ * never authored there yet — see `product-template.page.ts` `wayGroup`.
+ */
+export type TemplateMechanism = MechanismShape & { column?: TemplateColumn };
 
 export type ConditionMeasure = { of: 'fact'; fact: string } | { of: 'answer' };
 
@@ -1065,7 +1078,7 @@ export interface ProductTemplate {
   /** Every other way to reach the figure. Each bank fills in the ones it sells. */
   alternatives?: TemplateMechanism[];
   combine?: 'lower' | 'higher';
-  secondColumn?: { fact: string; branches: string[]; branchOn?: 'answer' | 'parentClass' };
+  secondColumn?: TemplateColumn;
   uplift?: {
     fact: string;
     whenOption: string;

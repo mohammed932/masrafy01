@@ -1269,10 +1269,12 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthlyIncomeEGP: '50000',
     minMonthsInJob: 6,
     dbrCapPercent: '50',
-    wayId: 'primary',
+    // The SAVINGS way of the one auto product (`alt`); the five down-payment programmes sell
+    // `primary`. The cash column hangs off this way alone.
+    wayId: 'alt',
     stepParams: {
-      primary: divisor(SCB_DP_DIVISOR),
-      primary__cash_buyer: divisor(SCB_CASH_DIVISOR),
+      alt: divisor(SCB_DP_DIVISOR),
+      alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
     },
     requiredDocuments: SCB_GREEN_DOCUMENTS,
     estimated: SCB_ESTIMATED,
@@ -1302,10 +1304,12 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthlyIncomeEGP: '50000',
     minMonthsInJob: 6,
     dbrCapPercent: '50',
-    wayId: 'primary',
+    // The SAVINGS way of the one auto product (`alt`); the five down-payment programmes sell
+    // `primary`. The cash column hangs off this way alone.
+    wayId: 'alt',
     stepParams: {
-      primary: divisor(SCB_DP_DIVISOR),
-      primary__cash_buyer: divisor(SCB_CASH_DIVISOR),
+      alt: divisor(SCB_DP_DIVISOR),
+      alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
     },
     requiredDocuments: SCB_GREEN_DOCUMENTS,
     estimated: SCB_ESTIMATED,

@@ -2294,6 +2294,7 @@
       <trans-unit id="spt.q1.baseline" datatype="html"><source>This ceiling was worked out at a DBR of</source><target>حُسب هذا الحد عند نسبة عبء دين قدرها</target></trans-unit>
       <trans-unit id="spt.q1.baseline.help" datatype="html"><source>The share of income the bank assumed when it decided that ceiling. Leave it blank to use the program's own cap.</source><target>نسبة الدخل التي افترضها البنك حين حدّد هذا الحد. اتركها فارغة لاستخدام حد البرنامج نفسه.</target></trans-unit>
       <trans-unit id="spt.q2" datatype="html"><source>Does anything else apply?</source><target>هل ينطبق شيء آخر؟</target></trans-unit>
+      <trans-unit id="spt.addon.alt.split_by" datatype="html"><source>Split into columns by <x id="fact" equiv-text="fact"/></source><target>مقسّمة إلى أعمدة حسب <x id="fact" equiv-text="fact"/></target></trans-unit>
       <trans-unit id="spt.addon.alt.way" datatype="html"><source>Way <x id="index" equiv-text="n"/></source><target>الطريقة <x id="index" equiv-text="n"/></target></trans-unit>
       <trans-unit id="spt.addon.alt.remove" datatype="html"><source>Remove</source><target>إزالة</target></trans-unit>
       <trans-unit id="spt.addon.alt.remove_aria" datatype="html"><source>Remove way <x id="index" equiv-text="n"/></source><target>إزالة الطريقة <x id="index" equiv-text="n"/></target></trans-unit>

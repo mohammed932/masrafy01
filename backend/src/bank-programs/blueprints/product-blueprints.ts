@@ -814,39 +814,29 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
   {
     key: 'down_payment_income',
     group: 'income',
-    // The label names the loan type, not just the mechanism: this product is only ever sold
-    // under `car`, and the board sorts by the rendered label — it filed under D with nothing
-    // on the card saying it is an auto product. The KEY is untouched: it is what
+    // ONE product, two ways — the operator's call (2026-09-09), reversing the two-product
+    // shape this shipped as the day before. Suez Canal sells seven auto programmes: five
+    // read the DOWN PAYMENT as 36 months of saving at 10% of income, two (Green Finance) read
+    // demonstrated SAVINGS the same way, split by how the buyer pays. Same arithmetic, same
+    // bank, same loan type; a bank program picks the way it sells (`wayId`), exactly as a
+    // compound program picks which of five derivations is its bank's.
+    //
+    // What made two products the ONLY option yesterday was that a second column lived on the
+    // PRODUCT and reached every way: the savings split (instalment ÷ 3.6, cash ÷ 12) would have
+    // landed on the down-payment way too, and a blank cash column still counts a way as
+    // filled — five programmes quoting a cash buyer nothing, silently. `TemplateMechanism.column`
+    // puts the split on the one way that has it. The KEY stays `down_payment_income`: it is what
     // `surrogate_product_ask.productId`, `platform_enumeration.surrogateProductKey` and the
-    // blueprint registry all address.
-    labelEn: 'Auto Loan — Down Payment as Income',
-    labelAr: 'قرض سيارة — الدفعة المقدمة كدخل',
+    // blueprint registry all address, and the five down-payment programmes never move. The
+    // label names both halves; the board sorts by the rendered label, hence the loan type first.
+    labelEn: 'Car Buyers — Down Payment or Savings',
+    labelAr: 'مشترو السيارات — الدفعة المقدمة أو المدخرات',
     asks: [
       // Already asked of every car applicant as an amount, and read by the rate cascade and
       // the LTV ceiling as well. Asking it again would be two answers to one question.
       { kind: 'platformFact', factKey: 'car_down_payment', alsoAskIn: [LoanCategory.car] },
-    ],
-    template: {
-      version: 1,
-      outputKind: 'monthlyIncome',
-      iScore: true,
-      // The sheet's own sentence: the down payment is N months of saving, and the saving is
-      // a share of income — so income = down payment ÷ (months × share). ONE divisor, and it
-      // is the number the sheet prints.
-      primary: { kind: 'dividedBy', fact: 'car_down_payment' },
-      conditions: [],
-    },
-  },
-
-  {
-    key: 'savings_income',
-    group: 'income',
-    // Auto-only, same reasoning as `down_payment_income` above.
-    labelEn: 'Auto Loan — Savings as Income',
-    labelAr: 'قرض سيارة — المدخرات كدخل',
-    asks: [
-      // Both questions are authored by `seed-questionnaire.ts` and bound here rather than
-      // minted: that seed switches off every question outside its own pool, and
+      // Both Green questions are authored by `seed-questionnaire.ts` and bound here rather
+      // than minted: that seed switches off every question outside its own pool, and
       // `seed:blueprints` skips a product that already holds a calculation without reviving
       // anything — so a blueprint-minted question is dead after the next `prisma:seed`.
       {
@@ -870,11 +860,26 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       version: 1,
       outputKind: 'monthlyIncome',
       iScore: true,
-      primary: { kind: 'dividedBy', fact: 'total_savings' },
-      // The two divisors are a different sentence per buyer, not a different mechanism: an
-      // instalment buyer's savings are read over one horizon and a cash buyer's over another.
-      // The FIRST branch keeps the bare slot, so the instalment column is `primary`.
-      secondColumn: { fact: 'green_buyer_type', branches: ['instalment_buyer', 'cash_buyer'] },
+      // The sheet's own sentence: the down payment is N months of saving, and the saving is
+      // a share of income — so income = down payment ÷ (months × share). ONE divisor, and it
+      // is the number the sheet prints. Way 1 keeps the bare `primary` slot the five
+      // down-payment programmes have always filed under (§5.4).
+      primary: { kind: 'dividedBy', fact: 'car_down_payment' },
+      alternatives: [
+        {
+          kind: 'dividedBy',
+          fact: 'total_savings',
+          // The two divisors are a different sentence per BUYER, not a different mechanism:
+          // an instalment buyer's savings are read over one horizon and a cash buyer's over
+          // another, and the applicant's answer picks the column at quote time. On THIS way
+          // only — the down-payment sheets make no such distinction. Instalment first, so it
+          // keeps the bare `alt` slot.
+          column: { fact: 'green_buyer_type', branches: ['instalment_buyer', 'cash_buyer'] },
+        },
+      ],
+      // A bank program sells ONE of these. No sheet pairs a down payment with savings, so
+      // `combine` is absent and a program filling both is refused by name.
+      waysAre: 'exclusive',
       conditions: [],
     },
   },

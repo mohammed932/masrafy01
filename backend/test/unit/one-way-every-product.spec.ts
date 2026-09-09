@@ -26,13 +26,16 @@ const withTemplate = productBlueprints().filter((b) => b.template !== null);
 const singleWay = withTemplate.filter((b) => waysOf(b.template!).length === 1);
 
 describe('every product offers a way a program can name', () => {
-  it('has nine single-way products, one combined and one exclusive — the registry as it stands', () => {
+  it('has seven single-way products, one combined and two exclusive — the registry as it stands', () => {
     const shapes = withTemplate.map((b) => [b.key, waysOf(b.template!).length, b.template!.waysAre]);
-    // Seven, plus the two savings products: each states ONE way, and the Green product's two
-    // divisors are two COLUMNS of that way rather than a second way to reach the figure.
-    expect(shapes.filter(([, n]) => n === 1)).toHaveLength(9);
+    // Seven single-way. The Suez Canal auto product is the second EXCLUSIVE one: a down-payment
+    // way and a savings way, a bank program selling one of them — and the Green product's two
+    // divisors are two COLUMNS of the savings way, carried on that way alone, rather than a
+    // third way to reach the figure.
+    expect(shapes.filter(([, n]) => n === 1)).toHaveLength(7);
     expect(shapes.find(([key]) => key === 'auto_loan_crosssell')?.slice(1)).toEqual([2, 'combined']);
     expect(shapes.find(([key]) => key === 'compound_owner')?.slice(1)).toEqual([5, 'exclusive']);
+    expect(shapes.find(([key]) => key === 'down_payment_income')?.slice(1)).toEqual([2, 'exclusive']);
   });
 
   it.each(singleWay.map((b) => [b.key, b] as const))(

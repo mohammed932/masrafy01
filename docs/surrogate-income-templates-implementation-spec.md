@@ -1218,6 +1218,15 @@ records what is now in the code and which of its open questions were answered.
   separates them. The reading stands for every OTHER product here: the compound guarantee
   is still one product sold four ways.
 
+- **A second column may belong to ONE way (2026-09-09).** §4 Q2's "a second column" was a
+  property of the product — every path got it. The Suez Canal auto sheets are one product whose
+  savings way splits by buyer type and whose down-payment way does not; with the column on the
+  product, merging them would have put a cash-buyer box on the down-payment way, where a blank
+  still counts the way as filled and quotes a cash buyer nothing. `TemplateMechanism.column` is
+  that column on one way; `secondColumn` keeps its meaning; both at once is refused. Slot ids are
+  unchanged either way (§5.4). The reading for the doctors pair (two PRODUCTS) stands: those
+  differ in rate, age, ceiling, employment and cap — not in a column.
+
 - **`credit_card_total_limit` vs `credit_card_limit` stay as they are.** They are not two names
   for one thing: the first is a QUESTION code, the second a FACT key, joined by
   `boundQuestionId`. Renaming the fact key would orphan every stored rule that names it —

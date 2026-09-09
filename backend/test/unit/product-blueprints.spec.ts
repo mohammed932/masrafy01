@@ -354,11 +354,21 @@ describe('the slot ids are golden', () => {
       'src__unit_paid_to_date',
     ],
     school_stage_ceiling: ['primary', 'primary__school_international', 'primary_pick'],
-    // The savings products: one `divide` per column, over the shared source slot. The
-    // instalment column keeps the bare `primary`, so adding the cash column to a live
-    // product could never have moved a figure (§5.4).
-    down_payment_income: ['primary', 'src__car_down_payment'],
-    savings_income: ['primary', 'primary__cash_buyer', 'primary_pick', 'src__total_savings'],
+    // The Suez Canal auto product: two ways, one `divide` each over its own source slot.
+    // The down-payment way keeps the bare `primary` its five programmes have always filed
+    // under; the savings way is `alt`, and ONLY it carries the buyer-type column
+    // (`alt__cash_buyer`, `alt_pick`) — a product-level column would have put a cash-buyer
+    // box on the down-payment way too. Merged from two products on 2026-09-09 (§5.4: no
+    // existing slot renamed; `alt*` and `basis` are additions).
+    down_payment_income: [
+      'alt',
+      'alt__cash_buyer',
+      'alt_pick',
+      'basis',
+      'primary',
+      'src__car_down_payment',
+      'src__total_savings',
+    ],
   };
 
   /**

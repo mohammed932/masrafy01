@@ -414,23 +414,18 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
 
   {
     productKey: 'down_payment_income',
-    sheet: 'App. §4.3 — the down payment read as 36 months of saving at 10% of income',
+    sheet:
+      'App. §4.3 — the down payment read as 36 months of saving at 10% of income; ' +
+      'App. §5.2 — savings ÷ 36 ÷ 10% for an instalment buyer, ÷ 60 ÷ 20% for a cash buyer',
     stepParams: {
       // The catalog default IS the published formula: `income = down payment ÷ 3.6`. One
       // bank sells it today and states the same figure on its own programmes, exactly as the
       // auto cross-sell does — a bank that inherits gets the sheet's arithmetic, not a guess.
       primary: divisor('3.6'),
-      iscore_band: iscoreTiers(),
-    },
-    estimated: [...I_SCORE_ESTIMATED],
-  },
-
-  {
-    productKey: 'savings_income',
-    sheet: 'App. §5.2 — savings ÷ 36 ÷ 10% for an instalment buyer, ÷ 60 ÷ 20% for a cash buyer',
-    stepParams: {
-      primary: divisor('3.6'),
-      primary__cash_buyer: divisor('12'),
+      // The savings way, both columns. A default for EVERY way is the compound precedent: a
+      // program on catalog amounts is pruned to the one way it picked before it quotes.
+      alt: divisor('3.6'),
+      alt__cash_buyer: divisor('12'),
       iscore_band: iscoreTiers(),
     },
     estimated: [...I_SCORE_ESTIMATED],
@@ -478,7 +473,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
 export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
   {
     // The two auto names are the only CAR entries here, and they are what a car applicant
-    // picks between: one product quoted off the down payment, one off what they have saved.
+    // picks between: ONE product, quoted off the down payment under this name and off what
+    // they have saved under the Green one.
     key: 'auto_down_payment_income',
     labelEn: 'Auto Loan — Down Payment as Income',
     labelAr: 'قرض سيارة — الدفعة المقدمة كدخل',
@@ -486,10 +482,13 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     categories: [LoanCategory.car],
   },
   {
+    // The SAME product as the down-payment name: one calculation, two ways, and the two Green
+    // programmes pick the savings way. Two names because the applicant still chooses what
+    // they are buying — a car against a down payment, or green goods against savings.
     key: 'green_finance_savings',
     labelEn: 'Green Finance',
     labelAr: 'التمويل الأخضر',
-    productKey: 'savings_income',
+    productKey: 'down_payment_income',
     categories: [LoanCategory.car],
   },
   {

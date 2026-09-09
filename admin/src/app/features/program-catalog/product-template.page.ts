@@ -56,6 +56,7 @@ import {
   type RuleStep,
   type ProductRuleOutput,
   type StepFigures,
+  type TemplateColumn,
   type TemplateCondition,
   type TemplateMechanism,
   type TemplateMechanismKind,
@@ -326,6 +327,13 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                                   }
                                 </select>
                               </label>
+                            }
+                            <!-- A column this WAY carries, set by the library and carried by
+                                 this form (there is no control for it here). Said on the row,
+                                 because a hidden field that decides slot ids is exactly the
+                                 kind of thing an operator should be able to see. -->
+                            @if (wayColumnLabel($index); as split) {
+                              <span class="help way-split">{{ split }}</span>
                             }
                             <button
                               type="button"
@@ -976,6 +984,10 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
         padding-block-end: var(--space-3);
         border-block-end: 1px solid var(--color-border-default);
       }
+      /* Full row under the selects: a sentence about the way, not a third control. */
+      .way-split {
+        grid-column: 1 / -1;
+      }
       .way:last-of-type {
         padding-block-end: 0;
         border-block-end: 0;
@@ -1295,10 +1307,17 @@ export class ProductTemplatePage implements OnInit {
    * it opened to an empty select with nothing saying why. `flatAmount` reads no fact at all,
    * so it is the one kind that can never open empty.
    */
-  private wayGroup(kind: TemplateMechanismKind = 'flatAmount', fact = '') {
+  private wayGroup(
+    kind: TemplateMechanismKind = 'flatAmount',
+    fact = '',
+    column: TemplateColumn | null = null,
+  ) {
     const group = this.fb.nonNullable.group({
       kind: this.fb.nonNullable.control<TemplateMechanismKind>(kind),
       fact: this.fb.nonNullable.control(fact),
+      // Carried, not edited: the way's own column travels WITH the row, so removing the way
+      // above it cannot hand its column to the wrong way (an index-keyed carry would).
+      column: this.fb.control<TemplateColumn | null>(column),
     });
     // The fact a table is keyed by and the fact a percentage reads are different KINDS of
     // answer, so carrying the old pick across would leave a select showing a value that is
@@ -1565,6 +1584,14 @@ export class ProductTemplatePage implements OnInit {
     return $localize`:@@spt.addon.alt.way:Way ${n}:index:`;
   }
 
+  /** "Split into columns by <fact>" for a way carrying its own column, else `null`. */
+  protected wayColumnLabel(index: number): string | null {
+    const column = this.alternatives.at(index)?.controls.column.value;
+    if (!column) return null;
+    const fact = this.facts().find((f) => f.key === column.fact)?.label ?? column.fact;
+    return $localize`:@@spt.addon.alt.split_by:Split into columns by ${fact}:fact:`;
+  }
+
   protected wayRemoveLabel(index: number): string {
     const n = index + 2;
     return $localize`:@@spt.addon.alt.remove_aria:Remove way ${n}:index:`;
@@ -1762,14 +1789,25 @@ export class ProductTemplatePage implements OnInit {
     blueprintKey?: string;
     branchOn?: 'answer' | 'parentClass';
     share?: NonNullable<ProductTemplate['share']>;
+    /** The FIRST way's own column; the other ways carry theirs on their own row. */
+    primaryColumn?: TemplateColumn;
   }>({});
 
   /** The form, as the shape the server compiles. */
   private toTemplate(): ProductTemplate {
     const v = this.form.getRawValue();
     const extras = this.storedExtras();
-    const mechanism = (kind: TemplateMechanismKind, fact: string): TemplateMechanism =>
-      kind === 'flatAmount' ? { kind } : ({ kind, fact } as TemplateMechanism);
+    // `column` is a way's OWN split, carried from the stored form — the library authors it,
+    // this screen has no control for it, and re-emitting the way without it would delete the
+    // cash-buyer column off the Suez Canal savings way while reporting success.
+    const mechanism = (
+      kind: TemplateMechanismKind,
+      fact: string,
+      column?: TemplateColumn | null,
+    ): TemplateMechanism => ({
+      ...(kind === 'flatAmount' ? { kind } : ({ kind, fact } as TemplateMechanism)),
+      ...(column ? { column } : {}),
+    });
 
     const conditions: TemplateCondition[] = this.conditions.controls.map((control) => {
       const c = control.getRawValue();
@@ -1794,9 +1832,11 @@ export class ProductTemplatePage implements OnInit {
       ...(v.outputKind === 'maxAmount' && v.baselineDbrPercent
         ? { baselineDbrPercent: v.baselineDbrPercent }
         : {}),
-      primary: mechanism(v.primaryKind, v.primaryFact),
+      primary: mechanism(v.primaryKind, v.primaryFact, extras.primaryColumn),
       ...(v.useAlternative && v.alternatives.length > 0
-        ? { alternatives: v.alternatives.map((way) => mechanism(way.kind, way.fact)) }
+        ? {
+            alternatives: v.alternatives.map((way) => mechanism(way.kind, way.fact, way.column)),
+          }
         : {}),
       ...(v.useAlternative && v.alternatives.length > 0 && v.combine ? { combine: v.combine } : {}),
       ...(v.useSecondColumn && v.columnBranches.length >= 2
@@ -1886,6 +1926,7 @@ export class ProductTemplatePage implements OnInit {
         ? { branchOn: template.secondColumn.branchOn }
         : {}),
       ...(template.share !== undefined ? { share: template.share } : {}),
+      ...(template.primary.column !== undefined ? { primaryColumn: template.primary.column } : {}),
     });
 
     // Both spellings of the ways list, read the one way the server reads them. `alternative`
@@ -1894,7 +1935,9 @@ export class ProductTemplatePage implements OnInit {
       template.alternatives ?? (template.alternative === undefined ? [] : [template.alternative]);
     this.alternatives.clear();
     for (const way of ways) {
-      this.alternatives.push(this.wayGroup(way.kind, way.kind === 'flatAmount' ? '' : way.fact));
+      this.alternatives.push(
+        this.wayGroup(way.kind, way.kind === 'flatAmount' ? '' : way.fact, way.column ?? null),
+      );
     }
 
     this.conditions.clear();

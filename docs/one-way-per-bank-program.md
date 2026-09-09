@@ -586,3 +586,7 @@ in a browser, not by reading.)
   not by serving the Arabic bundle — the standing CORS limitation.
 - A programme whose catalog name links to NO product still names no way, by design; and the read-only
   programme detail page still prints raw step ids.
+
+---
+
+**2026-09-09 — a column may belong to ONE way.** `TemplateMechanism.column` ([product-template.ts](backend/src/matching/pipeline/product-template.ts)) puts a second column on a single way; `ProductTemplate.secondColumn` still means every way, and stating both is refused. Needed to merge the two Suez Canal auto products into one exclusive two-way product without giving the down-payment way a cash-buyer column it has no figure for — see `docs/scb-auto-finance-under-car.md`, Amendment. `waysOfRule`, `wayId`, the refusals and the strip are untouched: a way with its own column has exactly the slots a product-level column would have given it.

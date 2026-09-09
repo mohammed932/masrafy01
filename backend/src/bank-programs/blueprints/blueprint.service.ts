@@ -555,7 +555,12 @@ export class BlueprintService {
           : 1 +
             (blueprint.template.alternatives?.length ??
               (blueprint.template.alternative !== undefined ? 1 : 0)),
-      hasSecondColumn: blueprint.template?.secondColumn !== undefined,
+      // Either spelling: a column on the product reaches every way, a column on one way is
+      // that way's alone. The card says "split into columns" for both.
+      hasSecondColumn:
+        blueprint.template !== null &&
+        (blueprint.template.secondColumn !== undefined ||
+          waysOf(blueprint.template).some((way) => way.column !== undefined)),
       conditionCount: blueprint.template?.conditions.length ?? 0,
       hasCap: blueprint.cap !== undefined,
       ...(blueprint.openQuestion !== undefined ? { openQuestion: blueprint.openQuestion } : {}),

@@ -98,7 +98,21 @@ export const TEMPLATE_MECHANISMS = [
 
 export type TemplateMechanismKind = (typeof TEMPLATE_MECHANISMS)[number];
 
-export type TemplateMechanism =
+/**
+ * A second column on a way — new customer vs existing, city, employment type, buyer type.
+ *
+ * The FIRST branch is the default one and keeps the bare step id, so turning a column on
+ * never moves a figure that is already there. Stated ONCE for the whole product
+ * (`ProductTemplate.secondColumn`, every way gets it) or on ONE way (`TemplateMechanism.column`,
+ * that way alone) — never both on one template, refused as `column_on_way_and_product`.
+ */
+export interface TemplateColumn {
+  fact: string;
+  branches: string[];
+  branchOn?: 'answer' | 'parentClass';
+}
+
+type MechanismShape =
   /** A table keyed by what the applicant picked — a grade, a rank, a unit type. */
   | { kind: 'choiceTable'; fact: string }
   /** A table keyed by the CLASS the picked value is filed under, not the value itself. */
@@ -119,6 +133,25 @@ export type TemplateMechanism =
   | { kind: 'dividedBy'; fact: string }
   /** One figure the bank states outright, the same for every applicant. */
   | { kind: 'flatAmount' };
+
+/**
+ * One way of reaching the figure, optionally split into columns of its own.
+ *
+ * `column` is PER WAY, and it exists because a product's ways do not always split the same
+ * way — or at all. Suez Canal's auto product reads a down payment on one way and savings on
+ * the other, and only the savings way has two columns (an instalment buyer's savings over one
+ * horizon, a cash buyer's over another). With the column on the PRODUCT the down-payment way
+ * got a cash column too: five programmes asked to type a divisor their sheet does not print,
+ * and a blank one would still count the way as filled (`filledWayIds`) and then quote a cash
+ * buyer NOTHING. The alternative to this field was two products, which the operator refused.
+ *
+ * Absent means "no column of its own", and a template-level `secondColumn` still applies to
+ * every way — so every template stored before this field existed compiles byte-identically
+ * under identical slot ids (§5.4). A way's column names the SAME slots a product-level one
+ * would (`<head>__<branch>`, `<head>_pick`), so moving a column from the product onto its one
+ * way that needs it is not a rename either.
+ */
+export type TemplateMechanism = MechanismShape & { column?: TemplateColumn };
 
 /**
  * What an adjustment acts on.
@@ -272,7 +305,7 @@ export interface ProductTemplate {
    * the default one and keeps the bare step id, so turning this on never moves a figure
    * that is already there.
    */
-  secondColumn?: { fact: string; branches: string[]; branchOn?: 'answer' | 'parentClass' };
+  secondColumn?: TemplateColumn;
   /**
    * A bonus percentage when one answer is given. `otherwiseOption` is required and is what
    * makes a third answer, or no answer, mean "no bonus" rather than "bonus for everyone".
@@ -455,6 +488,7 @@ export const TEMPLATE_INVALID_REASONS = [
   'ways_are_not_applicable',
   'second_column_too_few_branches',
   'second_column_duplicate_branch',
+  'column_on_way_and_product',
   'uplift_same_option',
   'share_same_option',
   'share_needs_fact',
@@ -556,21 +590,20 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
 
   const column = template.secondColumn;
   if (column !== undefined) {
-    // One column is not a second column: `pickByFact` would fall back to it for every
-    // applicant, which is the same rule with an extra step nobody can read.
-    if (column.branches.length < 2) {
-      return { reason: 'second_column_too_few_branches', detail: String(column.branches.length) };
+    const problem = columnProblem(column);
+    if (problem !== undefined) return problem;
+    // One statement of where the columns are, not two: a product-level column already
+    // reaches every way, so a way naming one as well is either the same column said twice or
+    // a different one — and the compiler would have to pick, silently, which is exactly the
+    // kind of decision this layer refuses to make on an operator's behalf.
+    if (ways.some((way) => way.column !== undefined)) {
+      return { reason: 'column_on_way_and_product' };
     }
-    if (new Set(column.branches).size !== column.branches.length) {
-      return { reason: 'second_column_duplicate_branch' };
-    }
-    if (
-      column.branchOn !== undefined &&
-      column.branchOn !== 'answer' &&
-      column.branchOn !== 'parentClass'
-    ) {
-      return { reason: 'second_column_branch_on_invalid', detail: String(column.branchOn) };
-    }
+  }
+  for (const [index, way] of ways.entries()) {
+    if (way.column === undefined) continue;
+    const problem = columnProblem(way.column);
+    if (problem !== undefined) return { ...problem, detail: waySlot(way, index) };
   }
 
   if (
@@ -623,6 +656,29 @@ export function validateTemplate(template: ProductTemplate): TemplateViolation |
     if (bad) return bad;
   }
 
+  return undefined;
+}
+
+/**
+ * Is this a column the compiler can split a way by? Shared by the product-level column and a
+ * way's own, so the two cannot be held to different rules.
+ */
+function columnProblem(column: TemplateColumn): TemplateViolation | undefined {
+  // One column is not a second column: `pickByFact` would fall back to it for every
+  // applicant, which is the same rule with an extra step nobody can read.
+  if (column.branches.length < 2) {
+    return { reason: 'second_column_too_few_branches', detail: String(column.branches.length) };
+  }
+  if (new Set(column.branches).size !== column.branches.length) {
+    return { reason: 'second_column_duplicate_branch' };
+  }
+  if (
+    column.branchOn !== undefined &&
+    column.branchOn !== 'answer' &&
+    column.branchOn !== 'parentClass'
+  ) {
+    return { reason: 'second_column_branch_on_invalid', detail: String(column.branchOn) };
+  }
   return undefined;
 }
 
@@ -802,7 +858,9 @@ function emitMechanism(
   pickId: string,
   template: ProductTemplate,
 ): string {
-  const column = template.secondColumn;
+  // The way's own column, else the product's — `validateTemplate` refuses a template that
+  // states both, so this is a choice between one and none, never between two.
+  const column = mechanism.column ?? template.secondColumn;
   if (column === undefined) {
     out.steps.push(mechanismStep(mechanism, head));
     return head;
