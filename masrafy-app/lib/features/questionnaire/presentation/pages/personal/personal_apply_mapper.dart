@@ -47,7 +47,7 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-      monthsInJob: _monthsInJob[pickedOption(answers, 'job_tenure')] ?? 24,
+      monthsInJob: monthsFromTenure(pickedOption(answers, 'job_tenure')),
       salaryTransferType: salaryTransferType(
         answerCode: pickedOption(answers, 'salary_transfer'),
       ),
@@ -80,14 +80,6 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }
-
-/// `job_tenure` bucket → representative months in job.
-const Map<String, int> _monthsInJob = {
-  'less_than_6_months': 3,
-  '6_months_to_1_year': 9,
-  '1_to_3_years': 24,
-  'more_than_3_years': 48,
-};
 
 /// `employment_status` seed code → the engine's `employmentType` token
 /// (the engine keys on the shorter legacy tokens for bank-employee programs).

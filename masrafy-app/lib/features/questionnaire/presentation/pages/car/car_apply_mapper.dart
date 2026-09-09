@@ -47,8 +47,12 @@ ApplyRequest mapCarAnswersToApplyRequest(
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-      // Car questions don't ask job tenure — use the shared fallback.
-      monthsInJob: monthsFromTenure(null),
+      // `job_tenure` IS asked of a car applicant — it is assigned to personal, car and
+      // mortgage — and this passed `null` regardless, so every car programme's service
+      // floor was checked against the 24-month fallback rather than the answer. All ten
+      // car programmes state `minMonthsInJob: 6`, so an applicant who answered
+      // "Less than 6 months" was quoted as if they had been in the job two years.
+      monthsInJob: monthsFromTenure(pickedOption(answers, 'job_tenure')),
       salaryTransferType: salaryTransferType(
         answerCode: pickedOption(answers, 'salary_transfer'),
       ),

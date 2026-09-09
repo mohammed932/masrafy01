@@ -37,8 +37,10 @@ ApplyRequest mapMortgageAnswersToApplyRequest(
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-      // Mortgage questions don't ask job tenure — use the shared fallback.
-      monthsInJob: monthsFromTenure(null),
+      // `job_tenure` IS asked of a mortgage applicant, and this passed `null`, so all
+      // three mortgage programmes' `minMonthsInJob: 6` was checked against the 24-month
+      // fallback rather than the answer.
+      monthsInJob: monthsFromTenure(pickedOption(answers, 'job_tenure')),
       salaryTransferType: salaryTransferType(
         answerCode: pickedOption(answers, 'salary_transfer'),
       ),

@@ -64,17 +64,24 @@ String salaryTransferType({required String? answerCode}) =>
 String companyTypeFor(String employmentType) =>
     employmentType == 'government_employee' ? 'public_bank' : 'commercial_bank';
 
-/// Job-tenure bucket → representative `monthsInJob`. [fallback] covers wizards
-/// that don't ask (car / mortgage / business).
+/// Job-tenure bucket → representative `monthsInJob`. [fallback] covers the business
+/// wizard, which asks `business_age` instead and maps it itself.
+///
+/// The case labels ARE the `job_tenure` option codes the questionnaire seed emits
+/// (`JOB_TENURE_Q`). They used to read `under_6m` / `6m_1y` / `1_3y` / `over_3y`, which
+/// no question has ever emitted, so every arm was dead and every applicant was reported
+/// at the 24-month fallback — including the ones the personal wizard passed a real bucket
+/// to. Personal escaped it only because that mapper carried a second, correct copy of this
+/// map; the copy is deleted and both now read this one.
 int monthsFromTenure(String? bucket, {int fallback = 24}) {
   switch (bucket) {
-    case 'under_6m':
+    case 'less_than_6_months':
       return 3;
-    case '6m_1y':
+    case '6_months_to_1_year':
       return 9;
-    case '1_3y':
+    case '1_to_3_years':
       return 24;
-    case 'over_3y':
+    case 'more_than_3_years':
       return 48;
     default:
       return fallback;

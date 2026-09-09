@@ -41,7 +41,16 @@ function seedBlockFor(code: string): string {
   expect(start, `seed block for '${code}' not found`).toBeGreaterThan(-1);
   // A `SeedQuestion` literal ends at the closing `};` of its const declaration.
   const end = seedSource.indexOf('\n};', start);
-  return seedSource.slice(start, end === -1 ? start + 2000 : end);
+  const block = seedSource.slice(start, end === -1 ? start + 2000 : end);
+  // Comments are STRIPPED, so every assertion below reads the code and not the prose
+  // beside it. Without this, an explanation of why a question has no gate — which is
+  // exactly the sort of comment a removed gate leaves behind — reads as the gate: the
+  // ungated cases match on `/enabledWhen:/`, and a comment naming that field satisfies
+  // it. Found the first time one was written (2026-09-09, the `academic_rank` gate).
+  return block
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('//'))
+    .join('\n');
 }
 
 /**
@@ -129,26 +138,32 @@ describe('none of the fact questions is REQUIRED', () => {
 });
 
 describe('branching matches what `enabledWhen` can actually express', () => {
-  it('gates both SINGLE_SELECTs on the SAME single option code', () => {
-    // The accepted limit (research R11): `enabledWhen` holds ONE `optionCode`, and
-    // `EMPLOYMENT_OPTIONS` has no option separating a soldier from an academic. So a
-    // government employee is asked both and skips the one that does not apply — which
-    // FR-020 already defines as a stated reason, never a zero.
-    for (const fact of ['military_grade', 'academic_rank'] as const) {
-      const block = seedBlockFor(SURROGATE_FACT_SPECS[fact].questionCode);
-      expect(block).toMatch(/questionCode: 'employment_status'/);
-      expect(block).toMatch(/operator: 'equals'/);
-      expect(block).toMatch(/optionCode: 'government_employee'/);
-      // Not a list: `enabledWhen` takes one code, and writing an array would be
-      // silently ignored.
-      expect(block).not.toMatch(/optionCodes:/);
-    }
+  it('gates military_grade on government employment, and ONLY that one', () => {
+    // The armed forces are the state, so an officer answers `government_employee` or is
+    // answering wrongly — the gate names the whole population and costs every other
+    // applicant one fewer question. `enabledWhen` holds ONE `optionCode` (research R11),
+    // which is exactly enough here.
+    const block = seedBlockFor(SURROGATE_FACT_SPECS.military_grade.questionCode);
+    expect(block).toMatch(/questionCode: 'employment_status'/);
+    expect(block).toMatch(/operator: 'equals'/);
+    expect(block).toMatch(/optionCode: 'government_employee'/);
+    // Not a list: `enabledWhen` takes one code, and writing an array would be
+    // silently ignored.
+    expect(block).not.toMatch(/optionCodes:/);
   });
 
-  it('leaves years_in_practice UNGATED', () => {
-    // Its population spans `freelancer` and `business_owner_company_owner`, which one
-    // branch rule cannot express — so it is shown to everyone and left optional.
-    const block = seedBlockFor(SURROGATE_FACT_SPECS.years_in_practice.questionCode);
+  it.each(['academic_rank', 'years_in_practice'] as const)('leaves %s UNGATED', (fact) => {
+    // Both populations spill outside any ONE employment option, so no gate can name
+    // them and the honest gate is none.
+    //
+    // `academic_rank` carried the grade question's gate until 2026-09-09, and it was
+    // wrong rather than merely coarse: a professor at a PRIVATE university answers
+    // `private_sector_employee`, is salaried, passes `ABK-PER-PROFESSORS`'s
+    // `acceptedEmploymentTypes` — and was never shown the one question that product
+    // reads, while the product's own second column (`uni_government` / `uni_private`)
+    // exists precisely to price them. `years_in_practice` spans `freelancer` and
+    // `business_owner_company_owner` for the same structural reason.
+    const block = seedBlockFor(SURROGATE_FACT_SPECS[fact].questionCode);
     // The FIELD, not the word: the seed's own comment explains why there is no gate,
     // and matching the bare identifier would flag that explanation as a gate.
     expect(block).not.toMatch(/enabledWhen:/);

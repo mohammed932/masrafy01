@@ -386,11 +386,20 @@ const ACADEMIC_RANK_Q: SeedQuestion = {
   helperTextEn: 'Some banks set an assumed income from your rank. Skip this if it does not apply.',
   helperTextAr: 'بعض البنوك تحدد دخلًا مفترضًا حسب درجتك العلمية. تجاوز هذا السؤال إن لم ينطبق عليك.',
   isRequired: false,
-  enabledWhen: {
-    questionCode: 'employment_status',
-    operator: 'equals',
-    optionCode: 'government_employee',
-  },
+  // UNGATED, unlike the military grade above, and the difference is not a preference.
+  //
+  // It used to carry `enabledWhen: employment_status = government_employee`, copied from
+  // the grade question. That is right for a grade — the armed forces are the state, so an
+  // officer answers `government_employee` or is answering wrongly — and it is wrong here:
+  // a professor at a PRIVATE university is not a government employee, answers
+  // `private_sector_employee`, is salaried, passes `ABK-PER-PROFESSORS`'s
+  // `acceptedEmploymentTypes` — and was never shown the one question that product reads,
+  // while the product's second column (`uni_government` / `uni_private`) exists precisely
+  // to price them differently. `enabledWhen` carries ONE option code, so "government or
+  // private employee" cannot be expressed as a gate; the honest gate is none.
+  //
+  // The cost is one more optional question for every personal and car applicant, which is
+  // the posture `years_in_practice` below already takes with the same helper sentence.
   optionsFromEnum: 'professor_rank',
   options: [],
 };
@@ -1207,6 +1216,7 @@ const CAR: CategoryConfig = {
         PRACTICE_GOVERNORATE_Q,
       ],
     },
+    COLLATERAL_GATES_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
