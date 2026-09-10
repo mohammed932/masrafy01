@@ -2872,7 +2872,7 @@ export class ProductRuleEditorComponent {
   /**
    * A WAY's title, which has to be a name and not an op.
    *
-   * Three of the six mechanisms read their number through a shared `factNumber` step rather
+   * Four of the seven mechanisms read their number through a shared `factNumber` step rather
    * than naming a fact themselves, so `titleFor` has nothing to say about them: the compound
    * guarantee's five ways came out as "A table of ranges", "A percentage of an earlier figure"
    * and "A percentage of an earlier figure" — two of the five word for word the same. That was
@@ -2883,9 +2883,19 @@ export class ProductRuleEditorComponent {
    * So a way that reads one number names it. Scoped to ways rather than fixed inside
    * `titleFor`, because everywhere else the ordinals and the `↑` refs already disambiguate,
    * and a longer title there would be noise.
+   *
+   * `divide` was the same defect a second time, and it shipped: the merged Suez Canal auto
+   * product's two ways are a down payment divided and total savings divided, so both came out
+   * as "An earlier figure divided" — word for word identical on the one screen where the two
+   * ARE the choice, and they read different answers.
    */
   private wayTitleFor(step: RuleStep): string {
-    if (step.op !== 'bandTable' && step.op !== 'percentOf' && step.op !== 'multiply') {
+    if (
+      step.op !== 'bandTable' &&
+      step.op !== 'percentOf' &&
+      step.op !== 'multiply' &&
+      step.op !== 'divide'
+    ) {
       return this.titleFor(step);
     }
     const refs = stepRefs(step);
@@ -2902,6 +2912,8 @@ export class ProductRuleEditorComponent {
         return $localize`:@@product_rule.way.band_of:A table of ranges over: ${factLabel}:factLabel:`;
       case 'percentOf':
         return $localize`:@@product_rule.way.share_of:A percentage of: ${factLabel}:factLabel:`;
+      case 'divide':
+        return $localize`:@@product_rule.way.division_of:A division of: ${factLabel}:factLabel:`;
       default:
         return $localize`:@@product_rule.way.multiple_of:A multiple of: ${factLabel}:factLabel:`;
     }

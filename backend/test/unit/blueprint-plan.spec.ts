@@ -176,8 +176,13 @@ describe('planning against an empty database', () => {
     // The default is the safe direction and it is what nearly every ask wants: a required
     // question is enforced for everyone it is VISIBLE to, so an ungated one blocks people
     // the product is not for. A blueprint that states `required` has accepted that.
+    // Named explicitly rather than "the first NUMERIC one": this product now binds three
+    // more numeric questions that `seed-questionnaire.ts` authors, and a positional find
+    // would start reporting on whichever of them the plan happened to order first.
     const optional = plan('auto_loan_crosssell').steps.find(
-      (step) => step.op === 'createQuestion' && step.type === 'NUMERIC',
+      (step) =>
+        step.op === 'createQuestion' &&
+        step.questionEn === 'How much was the car loan when it started?',
     );
     expect(optional).toBeDefined();
     expect((optional as { required?: boolean }).required).toBeUndefined();
@@ -191,7 +196,11 @@ describe('planning against an empty database', () => {
       type: 'NUMERIC',
       required: true,
       numeric: { min: 0, max: 100 },
-      categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+      // PERSONAL only now, and gated. Every programme on this product is sold as `personal`,
+      // so a car or mortgage applicant could never be quoted from this answer — and it is the
+      // one required question of the eight, which is why it was the one worth narrowing.
+      categories: [LoanCategory.personal],
+      enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
     });
   });
 

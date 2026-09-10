@@ -10,10 +10,10 @@
  * Four properties are pinned here, and each fails silently if it is not held:
  *
  *   1. **A WAY IS NOT ONE SLOT.** With a second column configured a way spans its head, its
- *      columns and its pick — FABMISR's compound program stores `alt` AND `alt__top_up`, which
+ *      columns and its pick — FABMISR's compound program stores `alt` AND `alt__other_product_held`, which
  *      is one way, and an enforcement counting `stepParams` keys would refuse the one program
  *      that is already right. Nor can it be read lexically: `alt__unit_paid_to_date` is a way
- *      HEAD and `alt__top_up` is a COLUMN, and as strings they are indistinguishable.
+ *      HEAD and `alt__other_product_held` is a COLUMN, and as strings they are indistinguishable.
  *   2. **One sheet's two terms are ONE way.** `auto_loan_crosssell` is App. A §4, "3 × the car
  *      instalment OR 10% of the auto loan, whichever is less" — one sentence a bank fills both
  *      halves of. It declares `waysAre: 'combined'`, `waysOfRule` folds its heads into one way
@@ -167,13 +167,17 @@ describe('a way is its head, its columns and its pick — never one slot', () =>
   it("carries FABMISR's two columns inside the one way they belong to", () => {
     // The program that would be refused by any check counting `stepParams` keys.
     const slots = wayOwnedSlots(COMPOUND_RULE, 'alt');
-    expect([...slots].sort()).toEqual(['alt', 'alt__top_up', 'alt_pick']);
+    expect([...slots].sort()).toEqual(['alt', 'alt__other_product_held', 'alt_pick']);
   });
 
   it('does not confuse a way HEAD named after a fact with a COLUMN named after a branch', () => {
     // Indistinguishable as strings; only the rule says which is which.
-    expect(wayOwnedSlots(COMPOUND_RULE, 'alt__unit_paid_to_date').has('alt__top_up')).toBe(false);
-    expect(waysOfRule(COMPOUND_RULE).some((way) => way.id === 'alt__top_up')).toBe(false);
+    expect(
+      wayOwnedSlots(COMPOUND_RULE, 'alt__unit_paid_to_date').has('alt__other_product_held'),
+    ).toBe(false);
+    expect(waysOfRule(COMPOUND_RULE).some((way) => way.id === 'alt__other_product_held')).toBe(
+      false,
+    );
   });
 
   it('claims nothing that is not a way', () => {
@@ -226,7 +230,7 @@ describe('a way counts as filled when any of its slots holds a figure', () => {
 
   it('counts one column as the whole way', () => {
     expect(filled({ alt: bands() })).toEqual(['alt']);
-    expect(filled({ alt: bands(), alt__top_up: bands() })).toEqual(['alt']);
+    expect(filled({ alt: bands(), alt__other_product_held: bands() })).toEqual(['alt']);
   });
 
   it('counts a share the bank stated', () => {
@@ -259,14 +263,31 @@ const FACTS: SurrogateFactBinding[] = [
   { key: 'unit_owned_share_pct', questionCode: 'unit_owned_share_pct', type: 'NUMERIC' },
   // Platform-owned; every income product's rule reads it since `iScore: true` went universal.
   { key: 'i_score', questionCode: 'i_score', type: 'NUMERIC' },
+  // The two sheet conditions CAE states on this product. Registered here because validation
+  // refuses an unavailable fact BEFORE it reaches the way checks — so without these every
+  // assertion below reports `factUnavailable` instead of the way refusal it is about.
+  { key: 'business_months', questionCode: 'business_months', type: 'SINGLE_SELECT' },
+  {
+    key: 'self_employed_licence',
+    questionCode: 'self_employed_licence',
+    type: 'SINGLE_SELECT',
+  },
 ];
 
 const ctx: IncomeRuleValidationContext = {
   isActiveMember: async () => true,
   activeMembers: async () => [],
   surrogateFacts: async () => FACTS,
-  questionOptionCodes: async (questionCode) =>
-    questionCode === 'owned_unit_type' ? ['apartment', 'twin_or_town_house', 'villa'] : [],
+  questionOptionCodes: async (questionCode) => {
+    // A choice condition's `expect` is checked against its question's own options, so the
+    // two condition questions need theirs here as well as in `FACTS`.
+    if (questionCode === 'owned_unit_type') return ['apartment', 'twin_or_town_house', 'villa'];
+    if (questionCode === 'business_months') {
+      return ['under_12m', '12m_to_24m', '24m_or_more', 'not_self_employed'];
+    }
+    if (questionCode === 'self_employed_licence') return ['yes', 'no', 'not_self_employed'];
+    return [];
+  },
 };
 
 function bands(): Record<string, unknown> {
@@ -279,7 +300,7 @@ function fabmisr(over: Partial<IncomeAssumptionConfig> = {}): IncomeAssumptionCo
     ...COMPOUND_RULE,
     amounts: 'own',
     wayId: 'alt',
-    stepParams: { alt: bands(), alt__top_up: bands() },
+    stepParams: { alt: bands(), alt__other_product_held: bands() },
     ...over,
   });
 }
@@ -446,6 +467,16 @@ const autoCtx: IncomeRuleValidationContext = {
     { key: 'car_loan_installment', questionCode: 'car_loan_installment', type: 'NUMERIC' },
     { key: 'auto_loan_amount', questionCode: 'auto_loan_amount', type: 'NUMERIC' },
     { key: 'i_score', questionCode: 'i_score', type: 'NUMERIC' },
+    // The three details of the existing loan the sheet's conditions read. Registered for the
+    // same reason as the pair above: an unavailable fact is refused before the way checks, so
+    // without these every assertion here reports `factUnavailable` instead of its own case.
+    { key: 'car_loan_original_tenor', questionCode: 'car_loan_original_tenor', type: 'NUMERIC' },
+    {
+      key: 'car_loan_instalments_paid',
+      questionCode: 'car_loan_instalments_paid',
+      type: 'NUMERIC',
+    },
+    { key: 'car_loan_down_payment', questionCode: 'car_loan_down_payment', type: 'NUMERIC' },
   ],
   questionOptionCodes: async () => [],
 };
@@ -478,14 +509,14 @@ describe('narrowing a rule to the way it sells', () => {
         wayId: 'alt',
         stepParams: {
           alt: bands(),
-          alt__top_up: bands(),
+          alt__other_product_held: bands(),
           cond__ownedlongenough: { minValue: '18' },
         },
       }),
     );
     expect(Object.keys(stored.stepParams ?? {}).sort()).toEqual([
       'alt',
-      'alt__top_up',
+      'alt__other_product_held',
       'cond__ownedlongenough',
     ]);
   });
@@ -499,7 +530,7 @@ describe('narrowing a rule to the way it sells', () => {
         stepParams: {
           primary: { keyTable: [{ key: 'compound_tier_a', incomeEGP: '4000000' }] },
           alt: bands(),
-          alt__top_up: bands(),
+          alt__other_product_held: bands(),
           alt_pick: {},
         },
       }),

@@ -2,10 +2,23 @@
 
 _Written 2026-09-09, then re-checked and acted on the same day._
 
-**Status.** The survey below is current. Four of the defects it found have been FIXED (the
-questionnaire seed and the three mobile apply mappers); two turned out to be **errors in the first
-draft of this document** and are corrected in place; the rest are open and marked so. The
-"Defects" section at the foot is the ledger.
+**Status, updated 2026-09-09 (second pass).** The survey below is current as a survey. Its
+ledger is not: **8 of the 12 proposed questions have since been built**, and so have open defects
+7, 8 and 10. Four proposals are refused with reasons. See **What was built** at the foot, which
+supersedes the "Still open" list above it.
+
+Two findings from building it are worth reading before the tables below, because they change what
+the proposals mean:
+
+1. **"Optional" is not a safe posture for a question a condition reads.** An unanswered gate fact
+   is FATAL — `choiceFact` answers `fact_not_answered` and the evaluator returns before the gate's
+   pass/fail — so an optional question plus a live condition refuses everyone who skips it. That is
+   the defect that retired `owns_practice`, and this document proposed walking into it 12 times.
+2. **Gating such a question to the population the CONDITION is about is worse.** All five SCB
+   down-payment programmes accept every employment type while "24 months in business" applies only
+   to the self-employed, so a gate would hide the question from a salaried applicant the programme
+   still quotes — and then refuse them for not answering it. The exemption has to live in the
+   ANSWER, as an allow-listed "does not apply to me" option, which is how all eight were built.
 
 Every one of the 13 surrogate products in the library is listed below with the questions it
 reads, taken from the live question pool behind **http://localhost:5173/questionnaire/questions**.
@@ -756,3 +769,154 @@ pattern. The helper's own comment had predicted this trap; writing the explanati
 - No new questions were created. All 12 in the consolidated list remain proposals.
 - Nothing was changed on `compound_owner`: not the tombstoned ask, not the loan-type assignments,
   not the FABMISR column.
+
+---
+
+## What was built (2026-09-09, second pass)
+
+Ten questions, all **required** and each carrying an allow-listed "does not apply to me" answer
+where its population is narrower than the programmes that read it. Authored in
+`backend/prisma/seed-questionnaire.ts` and BOUND by the blueprint (`kind: 'bindQuestion'`), never
+minted there: that seed deactivates every question outside its own pool, so a blueprint-minted
+question dies at the next `prisma:seed`.
+
+| Code | Type | Loan types | Gate | Condition → reason |
+|---|---|---|---|---|
+| `business_months` | SINGLE_SELECT, 3 buckets + `not_self_employed` | P C | none | `oneOf ['24m_or_more','not_self_employed']` → `BUSINESS_TOO_NEW` |
+| `self_employed_licence` | SINGLE_SELECT + `not_self_employed` | P C | none | `oneOf ['yes','not_self_employed']` → `SELF_EMPLOYED_DOCS_MISSING` |
+| `hospital_sector` | SINGLE_SELECT + `not_at_a_hospital` | P C | none | `oneOf ['private_hospital','not_at_a_hospital']` → `GATE_NOT_MET` |
+| `home_ownership` | SINGLE_SELECT, 3 real answers | C | none | `oneOf ['owned_by_me','owned_by_relative']` → `OWNERSHIP_NOT_CONFIRMED` |
+| `unit_approved_compound` | SINGLE_SELECT + `no_unit` | C | none | `oneOf ['yes']` → `GATE_NOT_MET` |
+| `car_loan_original_tenor` | NUMERIC 6–120 | P C | `current_loans = car_loan` | divisor for the share test below |
+| `car_loan_instalments_paid` | NUMERIC 0–120 | P C | same | `atLeast` **and** `atLeastShareOf car_loan_original_tenor` → `LOAN_TOO_NEW` |
+| `car_loan_down_payment` | NUMERIC 0–20,000,000 | P C | same | `atLeastShareOf auto_loan_amount` → `DOWN_PAYMENT_BELOW_MIN` |
+| `owns_compound_unit` | yes/no | P | none | none — it exists to gate the eight compound questions |
+| `club_membership` | yes/no | P C | none | none — it gates the club branch question |
+
+**The car-loan trio is gated and the sheet-condition five are not, and the difference is not a
+preference.** A gate is safe only when its population is a superset of everyone the programme can
+quote. The cross-sell reads `car_loan_installment` and `auto_loan_amount`, both behind the same
+`current_loans = car_loan` gate, so an applicant it hides the question from cannot be quoted by
+that programme at all. The five SCB down-payment tiers accept every employment type, so no gate on
+employment is safe there — hence the exemption option.
+
+**One new gate reason code, not five.** `BUSINESS_TOO_NEW` and `SELF_EMPLOYED_DOCS_MISSING`
+already existed, wired across all 13 surfaces and translated in both locales, and were read by no
+blueprint — minted for exactly this and never connected. `DOWN_PAYMENT_BELOW_MIN` and
+`OWNERSHIP_NOT_CONFIRMED` fit word for word. Only `LOAN_TOO_NEW` is new: it earns its own sentence
+because the refusal is actionable and time-bound, and because `CONTRACT_TOO_NEW` would have printed
+*"this bank needs you to have owned the unit for longer"* at somebody who owns no unit.
+`check:codes` 220 → 221.
+
+**The `enabledWhen` one-option-code limit blocked nothing.** The first plan for this work led with
+extending it across three apps so "self-employed" could be a gate. Finding 2 above deleted that
+from scope: every gate that survives names one option code.
+
+### Defects closed
+
+- **7 — the eight compound questions.** Narrowed from `[personal, car, mortgage]` to `[personal]`
+  and gated on `owns_compound_unit = yes`. The one that is REQUIRED now binds every compound owner
+  and nobody else, because required is enforced only for a question the shared visibility rule
+  shows. Done by migration `20260909120000`, because `blueprint-plan.ts` only ever creates or
+  reactivates a question and never rewrites `categories` or `enabledWhen` — `seed:blueprints` and
+  `blueprint:retemplate` would both have reported success and changed nothing.
+- **8 — FABMISR's X-SELL column.** What was wrong was ONE column reaching every way, not the
+  column. Two ways genuinely have a new-loan/top-up column and the catalog seeds both sides of
+  each (the class table per spec §7, and the unit-type table whose two sets differ), so deleting
+  the product-level column outright would have thrown those away — which the first attempt did,
+  and which is why this is worth writing down. Each way now carries the column its own sheet
+  prints: class table → `loan_is_topup`, bracket table → `holds_other_product`, unit-type table →
+  `loan_is_topup`, and the two share ways → none. Migration `20260909120100` renames
+  `alt__top_up` → `alt__other_product_held` and drops `alt__unit_paid_to_date__top_up` after
+  asserting it equals the standard column beside it.
+- **10 — the two dead asks.** `current_loans` and `repayment_period_months` detached from
+  `compound_owner` through the real endpoint. Both were `source: 'operator'`, so both were hard
+  deleted along with their unread `surrogate_fact` rows; both QUESTIONS survive and stay active.
+- **The sweep hazard, fixed at the source.** `seed:questionnaire` deactivated every
+  blueprint-minted question on every run, `seed:blueprints` did not put them back, and
+  `publishVersion()` runs BEFORE any manual repair could — so the served snapshot was short of
+  exactly those questions until somebody republished by hand. The changelog records this being
+  missed and re-done three times. The seed now reactivates exactly the questions a live,
+  non-detached `surrogate_product_ask` points at, derived from that table and never hand-typed,
+  between the sweep and the publish. It reported `kept 15 blueprint question(s) live`.
+
+### Refused, with reasons
+
+- **Item 3, the contract-year price floor.** Needs a band-keyed condition *bound*. The only keyed
+  bounds are `atLeastPerAnswer` / `atMostPerAnswer`, keyed by picked option codes, and
+  `GateParams` has no `bands` field. A new engine capability.
+- **Item 8, the clinic-location classes.** The bank never supplied the list.
+- **Item 6, the teaching-subject exclusion.** Same class, and this document says so itself: the
+  exclusion mixes subjects with school types and no list carries either. Inverting the five named
+  exclusions into an allow-list would be a guess dressed as data.
+- **Item 11, the card holding period.** The period is expressible; the SUBJECT is wrong.
+  `credit_card_total_limit` is a total across every card at every bank by deliberate design, so
+  "held ≥ N months" would validate a period against a sum of cards held for different lengths.
+  Shipping it would make the quote look checked when it is not.
+- **Item 9's "half the tenor" was NOT blocked**, contrary to the table above: `atLeastShareOf`
+  compares a fact against a percentage of another fact, so it needed a question (the original
+  tenor), not an engine change.
+
+### Two claims in this document that were wrong
+
+- **Defect 12 is stale.** Three programmes DO read the cap-only products' facts, through
+  `bank_program.loanLimits.maxLoanByFact`: `FAB-PER-CLUB_MEMBERSHIP`,
+  `CAE-PER-TEACHERS_STANDARD`, `ABK-PER-SALARIED_CODING`.
+- **`requiresClubMembership` / `requiresCompoundProperty` are dead config, not a live refusal.**
+  No client populates `profile.assets.*` (`AssetsPayload` carries only `creditCardLimitEGP`), but
+  the only engine caller runs with `skipEligibility: true`, so nothing is refused by them.
+
+### What was verified
+
+Against the real database, not read:
+
+- All **21** surrogate programmes quoted through the stored rows before and after, for two
+  applicants — one on the passing path, one on the exemption path — **every figure identical**:
+  SCB down payment 500,000 → 138,888.89, Green instalment → 10,000, cash → 3,000, doctors clinic
+  12 years → 120,000 and exactly 5 → 60,000, in practice 60,000 / 30,000, auto cross-sell 24,000,
+  card 60,000 → 30,000, armed forces Major → 30,000, CDs 1,000,000 → 300,000. A third applicant
+  answering nothing gets a stated reason on all 21 and never a zero. Repeatable as
+  `npm run quote:surrogate`.
+- **15 condition cases, both directions**, as `npm run check:conditions`: each refusal fires with
+  its own reason code, each passing and each exempting answer quotes, the boundaries (exactly half
+  the tenor, exactly 40% down) are accepted, and a condition on one SCB tier does not leak onto a
+  sibling tier that lacks it.
+- Both migrations applied with every `RAISE` guard passing; the X-SELL figures survived the rename
+  (1,250,000 · 1,500,000 · 1,750,000 · 2,000,000); **no orphaned bank figure** on any product.
+- `seed:sheet-figures` **0 written · 0 refused** and `seed:blueprints` 0 created · 0 refused ·
+  0 published on a re-run, with **0 drift lines**.
+- `check:codes` **221** in sync · `check:income-proof` clean at 21 programmes across 11 names ·
+  `check:parent-keys` clean at 98 values.
+- Backend **1542** tests, admin **364**, `flutter analyze` clean, 11 Flutter gate-reason tests
+  covering the new code in both locales, `tsc` clean, backend lint **100 problems = exact HEAD
+  parity** (measured by stashing the change), both locale builds exit 0 with ar-EG untranslated
+  **362 warnings / 339 unique ids = exact HEAD parity** and the new id not among them.
+
+### Mistakes made while building this, recorded
+
+- **The first `20260909120100` wiped the product's figures.** It pasted the compiled `incomeRule`
+  whole, and a compiled rule carries STRUCTURE and no `stepParams` — so `compound_owner` lost its
+  I-Score tiers and every product-level default. Every compound programme's quote dropped by
+  exactly ×1/1.1, which is how it was caught: the before/after diff, not a reading. This is the
+  same wipe v26.2.0 records hitting through a figures-only PUT. The migration now MERGES
+  `stepParams`; the figures were restored from `CATALOG_FIGURES` by `seed:sheet-figures`.
+- **A first orphan-check harness reported `primary` orphaned on every product** — impossible, and
+  the tell that the harness was wrong: it read `compiled.stepParams`, which does not exist, where
+  the real test uses `paramKeysOf`.
+- **The first narrowing recreated defect 7 one level up.** `owns_compound_unit` and
+  `club_membership` were put in the shared `COLLATERAL_GATES_GROUP`, which all three non-business
+  configs reference, so both became REQUIRED questions in loan types where nothing reads what they
+  unlock. Caught by querying the stored categories rather than trusting the placement.
+- **A backtick in an unquoted shell heredoc ran a command substitution** and silently deleted six
+  words from a migration comment.
+
+### Still not done
+
+- **No browser was driven.** The ten new questions, the four gate states on the wizard's condition
+  editor and the product screens' new ask lists are unmeasured on a page in light, dark and RTL.
+- **The mobile app was not run.** The three new car-loan questions and the five sheet conditions
+  ride the existing questionnaire snapshot, so no Flutter change was needed — but nobody has
+  submitted an application through the new steps.
+- **Nothing was seeded for the compound catch-all.** 58 of 71 compounds still price as "Other".
+- The `alt__unit_down_payment` way still holds no figure on any bank or on the catalog, because no
+  sheet states a percentage for a share of the down payment alone.

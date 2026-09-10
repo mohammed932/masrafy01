@@ -99,11 +99,32 @@ describe('two doctor products, not one', () => {
     expect(blueprintOf(CLINIC_KEY).labelAr).not.toBe(blueprintOf(PRACTICE_KEY).labelAr);
   });
 
-  it('gates on nothing, and no blueprint anywhere still reads the ownership answer', () => {
-    for (const key of [CLINIC_KEY, PRACTICE_KEY]) {
-      expect(blueprintOf(key).template!.conditions).toEqual([]);
-      expect(blueprintOf(key).usesReasonCodes ?? []).toEqual([]);
-    }
+  it('never reads the ownership answer again, and gates only on what a sheet prints', () => {
+    // The CLINIC product still states no condition: §7 prints none, and the split is what
+    // removed the need for one.
+    expect(blueprintOf(CLINIC_KEY).template!.conditions).toEqual([]);
+    expect(blueprintOf(CLINIC_KEY).usesReasonCodes ?? []).toEqual([]);
+
+    // The IN-PRACTICE product has exactly one, and it is the sheet's own sentence: "private
+    // hospitals only, not governmental". Asserted here rather than left off the list because
+    // this file is where somebody comes to check the two products cannot drift back into one
+    // — and a condition that told them apart is precisely what was deleted. This one does
+    // not: it names the hospital SECTOR, which §7 says nothing about.
+    const practice = blueprintOf(PRACTICE_KEY);
+    expect(practice.template!.conditions.map((c) => c.id)).toEqual(['privatehospitalonly']);
+    expect(practice.template!.conditions[0]!.measure).toEqual({
+      of: 'fact',
+      fact: 'hospital_sector',
+    });
+    // The exempting answer is allow-listed beside the passing one. Without it the condition
+    // would refuse every applicant who does not work at a hospital, which is nearly all of
+    // them — the `owns_practice` failure, rebuilt.
+    expect(practice.template!.conditions[0]!.test).toEqual({
+      op: 'oneOf',
+      expect: ['private_hospital', 'not_at_a_hospital'],
+    });
+
+    // The retired ownership question is read by NOBODY, which is the absence that matters.
     const asksOwnership = productBlueprints().filter((bp) =>
       bp.asks.some((ask) => ask.factKey === 'owns_practice'),
     );
@@ -151,7 +172,9 @@ describe('the in-practice product reads one thing, and states no cap', () => {
     // table, and a template copied from the clinic-owner one would fail right here rather
     // than silently asking every hospital doctor for a governorate nothing reads.
     const bp = blueprintOf(PRACTICE_KEY);
-    expect(bp.asks.map((ask) => ask.factKey)).toEqual(['years_in_practice']);
+    // The years, and the hospital sector its one condition reads. Still no governorate:
+    // that is the clinic-owner product's axis and this sheet prints no city tiers.
+    expect(bp.asks.map((ask) => ask.factKey)).toEqual(['years_in_practice', 'hospital_sector']);
     expect(bp.template!.secondColumn).toBeUndefined();
     expect(bp.cap).toBeUndefined();
   });

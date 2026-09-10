@@ -281,15 +281,43 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     // Its only axis. `years_in_practice` is now asked by two blueprints, so it is a SHARED
     // fact and neither product owns it — which is what stops one product going away and
     // taking the other's axis with it.
-    asks: [{ kind: 'platformFact', factKey: 'years_in_practice' }],
+    asks: [
+      { kind: 'platformFact', factKey: 'years_in_practice' },
+      // §8's other half: "private hospitals only, not governmental". `employment_status` is
+      // no proxy for it — a government-hospital doctor is salaried and passes this
+      // programme's accepted types today — so the sheet's exclusion was enforced against
+      // nobody. Bound rather than minted, and ungated with its own "I do not work at a
+      // hospital" answer: see the block header in `seed-questionnaire.ts` for why a gate
+      // here would refuse the very applicants it hid the question from.
+      {
+        kind: 'bindQuestion',
+        factKey: 'hospital_sector',
+        questionCode: 'hospital_sector',
+        labelEn: 'Hospital sector',
+        labelAr: 'قطاع المستشفى',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
+    ],
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
       iScore: true,
       primary: { kind: 'numberBand', fact: 'years_in_practice' },
-      conditions: [],
+      // `not_at_a_hospital` is in the allow-list on purpose: the exclusion is about a
+      // GOVERNMENT hospital, and everyone else is already priced out by the years band and
+      // this programme's accepted employment types. Allow-listing only `private_hospital`
+      // would refuse every non-doctor for a reason that is not theirs.
+      conditions: [
+        {
+          id: 'privatehospitalonly',
+          measure: { of: 'fact', fact: 'hospital_sector' },
+          test: { op: 'oneOf', expect: ['private_hospital', 'not_at_a_hospital'] },
+          reasonCode: 'GATE_NOT_MET',
+        },
+      ],
     },
     suggestedBands: [{ wayIndex: 0, edges: [...PRACTICE_YEAR_EDGES] }],
+    usesReasonCodes: ['GATE_NOT_MET'],
   },
 
   {
@@ -341,6 +369,35 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         categories: PERSONAL_AND_CAR,
         enabledWhen: { questionCode: 'current_loans', optionCode: 'car_loan' },
       },
+      // The sheet's three conditions on the EXISTING loan. All three bind questions authored
+      // in `seed-questionnaire.ts` beside the instalment, never minted here: that seed
+      // deactivates every question outside its own pool, and `seed:blueprints` skips a product
+      // that already holds a calculation, so a blueprint-minted question is dead after the
+      // next `prisma:seed`.
+      {
+        kind: 'bindQuestion',
+        factKey: 'car_loan_original_tenor',
+        questionCode: 'car_loan_original_tenor',
+        labelEn: 'Original term of the car loan',
+        labelAr: 'المدة الأصلية لقرض السيارة',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
+      {
+        kind: 'bindQuestion',
+        factKey: 'car_loan_instalments_paid',
+        questionCode: 'car_loan_instalments_paid',
+        labelEn: 'Instalments already paid',
+        labelAr: 'الأقساط المسددة بالفعل',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
+      {
+        kind: 'bindQuestion',
+        factKey: 'car_loan_down_payment',
+        questionCode: 'car_loan_down_payment',
+        labelEn: 'Down payment on that car',
+        labelAr: 'الدفعة المقدمة لتلك السيارة',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
     ],
     template: {
       version: 1,
@@ -355,8 +412,37 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // bank fills both halves of it. `waysOfRule` folds the heads into one way, so a program
       // names it (`primary`) and is never asked to choose between halves of one formula.
       waysAre: 'combined',
-      conditions: [],
+      // The sheet: the existing loan must be past half its tenor, with at least 12 paid
+      // months, and must have been booked with 40% down.
+      //
+      // TWO conditions on the instalment count, not one, because they measure different
+      // things and a bank may state either without the other: a flat floor in months, and a
+      // share of that loan's own term. The share is expressible today — `atLeastShareOf`
+      // compares the count against a percentage of another fact the applicant stated, which
+      // is what the second question is for. The doc recorded this as needing an engine
+      // change; it needed a question.
+      conditions: [
+        {
+          id: 'paidenoughmonths',
+          measure: { of: 'fact', fact: 'car_loan_instalments_paid' },
+          test: { op: 'atLeast' },
+          reasonCode: 'LOAN_TOO_NEW',
+        },
+        {
+          id: 'paidenoughofterm',
+          measure: { of: 'fact', fact: 'car_loan_instalments_paid' },
+          test: { op: 'atLeastShareOf', fact: 'car_loan_original_tenor' },
+          reasonCode: 'LOAN_TOO_NEW',
+        },
+        {
+          id: 'bookedwithdownpayment',
+          measure: { of: 'fact', fact: 'car_loan_down_payment' },
+          test: { op: 'atLeastShareOf', fact: 'auto_loan_amount' },
+          reasonCode: 'DOWN_PAYMENT_BELOW_MIN',
+        },
+      ],
     },
+    usesReasonCodes: ['LOAN_TOO_NEW', 'DOWN_PAYMENT_BELOW_MIN'],
   },
 
   {
@@ -427,7 +513,13 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionAr: 'وحدتك في أي كومباوند؟',
         helperEn: 'Pick it by name. If it is not listed, choose "Other".',
         helperAr: 'اختره بالاسم. إذا لم يكن موجودًا اختر «أخرى».',
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        // PERSONAL only, and gated. All four programmes on `compound_owner_4` are personal,
+        // so a car or mortgage applicant could never be quoted from these answers — one of
+        // the eight was nonetheless REQUIRED of them. And the gate is what makes that one
+        // required question honest: required is enforced only for a question the shared
+        // visibility rule shows, so it now binds every compound owner and nobody else.
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
         list: {
           typeKey: 'compound',
           labelEn: 'Compounds',
@@ -460,7 +552,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         factKey: 'owned_unit_type',
         questionEn: 'What kind of unit do you own?',
         questionAr: 'ما نوع الوحدة التي تملكها؟',
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
         list: {
           // The list already exists with exactly these three rows.
           typeKey: 'property_type',
@@ -481,7 +574,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperEn: 'The down payment plus every instalment you have paid.',
         helperAr: 'المقدم بالإضافة إلى كل الأقساط التي سددتها.',
         numeric: { min: 0, max: 500000000 },
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
         kind: 'number',
@@ -491,7 +585,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperEn: 'The contract payment only — not the instalments you have paid since.',
         helperAr: 'دفعة العقد فقط — بدون الأقساط التي سددتها بعدها.',
         numeric: { min: 0, max: 500000000 },
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
         kind: 'number',
@@ -499,7 +594,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionEn: 'What is the contract price of the unit?',
         questionAr: 'ما سعر الوحدة في العقد؟',
         numeric: { min: 0, max: 500000000 },
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
         kind: 'number',
@@ -507,7 +603,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionEn: 'How many months ago did you sign the contract?',
         questionAr: 'منذ كم شهر وقّعت العقد؟',
         numeric: { min: 0, max: 600 },
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
         // A NUMBER, not a yes/no over a list. What the collateral supports is shared between
@@ -528,14 +625,16 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperAr: 'اكتب 100 إذا كنت تملكها بالكامل.',
         numeric: { min: 0, max: 100 },
         required: true,
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
         kind: 'choice',
         factKey: 'unit_count_owned',
         questionEn: 'Do you own more than one unit?',
         questionAr: 'هل تملك أكثر من وحدة؟',
-        categories: [LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage],
+        categories: [LoanCategory.personal],
+        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
         list: {
           typeKey: 'unit_count_owned',
           labelEn: 'Units owned',
@@ -546,7 +645,28 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
           ],
         },
       },
+      // `loan_is_topup` stays: the CAP still keys its column on it. Nobody fills that column
+      // today, and repointing it is a separate decision from fixing the one that was read.
       { kind: 'derivedFact', factKey: 'loan_is_topup', alsoAskIn: PERSONAL_AND_CAR },
+      { kind: 'derivedFact', factKey: 'holds_other_product', alsoAskIn: PERSONAL_AND_CAR },
+      // App. B CAE requires 24 months of trading and both papers from a self-employed
+      // applicant. Shared with the SCB auto product, so neither product owns these facts.
+      {
+        kind: 'bindQuestion',
+        factKey: 'business_months',
+        questionCode: 'business_months',
+        labelEn: 'How long the business has been running',
+        labelAr: 'مدة قيام النشاط التجاري',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
+      {
+        kind: 'bindQuestion',
+        factKey: 'self_employed_licence',
+        questionCode: 'self_employed_licence',
+        labelEn: 'Commercial register and tax card',
+        labelAr: 'السجل التجاري والبطاقة الضريبية',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
     ],
     template: {
       version: 1,
@@ -565,11 +685,51 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // A fact may key at most ONE way past index 1, because that slot is named after the
       // fact and not after the mechanism (`waySlot`): the bracket way therefore keeps the
       // bare `alt` slot it has always had and the share of the down payment is appended.
-      primary: { kind: 'classTable', fact: 'compound_name' },
+      primary: {
+        kind: 'classTable',
+        fact: 'compound_name',
+        // The class table's second column IS new-loan/top-up: spec §7 prints the worked
+        // example and `sheet-figures.ts` seeds both of its columns. Per-way now rather than
+        // product-level, which is the whole correction — one column reaching all five ways is
+        // what put FABMISR's X-SELL figures on this axis.
+        column: { fact: 'loan_is_topup', branches: ['new_loan', 'top_up'] },
+      },
       alternatives: [
-        { kind: 'numberBand', fact: 'unit_down_payment' },
+        {
+          kind: 'numberBand',
+          fact: 'unit_down_payment',
+          // FABMISR's second column, on THIS way and not on the product.
+          //
+          // It was `secondColumn: loan_is_topup` at product level, reaching all five ways —
+          // and the programme's own note said, in as many words, that the figures filed there
+          // are X-SELL ("the client holds another product, a credit card with a limit of at
+          // least 100,000"), which spec §10.3 is explicit is a DIFFERENT question from
+          // new-loan/top-up. So every FABMISR applicant with a card and no ABK loan was read
+          // off the wrong row.
+          //
+          // `FAB-PER-COMPOUND_OWNER` is the only programme on this product that fills a
+          // column slot at all, and it states no `maxLoanByFact`, so nothing else read either
+          // axis. A template stating both a product column and a way column is refused
+          // (`column_on_way_and_product`), which is why this MOVES rather than being added.
+          // The first branch keeps the bare head, so its NTB figures stay on `alt` — correct,
+          // since NTB is exactly "holds no other product".
+          column: {
+            fact: 'holds_other_product',
+            branches: ['other_product_none', 'other_product_held'],
+          },
+        },
+        // NO column on this way, deliberately. Both copies of its top-up figure — the
+        // catalog's and `ABK-PERSONAL-7110`'s own — held 15%, byte-identical to the standard
+        // column beside them, so the column stated nothing and a slot every bank is expected
+        // to fill is worse than no slot at all.
         { kind: 'shareOf', fact: 'unit_paid_to_date' },
-        { kind: 'choiceTable', fact: 'owned_unit_type' },
+        {
+          kind: 'choiceTable',
+          fact: 'owned_unit_type',
+          // A real top-up column too — the catalog's two sets differ (2M/3M/4M against
+          // 3M/3.5M/4.5M), so this one says something.
+          column: { fact: 'loan_is_topup', branches: ['new_loan', 'top_up'] },
+        },
         { kind: 'shareOf', fact: 'unit_down_payment' },
       ],
       combine: 'lower',
@@ -581,7 +741,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // `coalesce`, so a row that somehow held two ways would quote the FIRST silently where
       // `minOf(skipUnset)` quotes the lower.
       waysAre: 'exclusive',
-      secondColumn: { fact: 'loan_is_topup', branches: ['new_loan', 'top_up'] },
       // The sheet says "loan AMOUNTS can be increased by 10%", so it lifts the cap, and the
       // difference between the two readings is 300,000 on one applicant (§10.4). Declared,
       // never defaulted — it compiles to nothing here and is configured per bank on
@@ -620,6 +779,22 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
           test: { op: 'atLeast' },
           reasonCode: 'UNIT_PRICE_BELOW_MIN',
         },
+        // App. B CAE's two self-employed conditions. Both allow-list the exempting answer,
+        // because every programme on this product accepts salaried applicants too and a
+        // condition refuses on an unanswered fact before it reaches pass/fail — so without it
+        // CAE would refuse every salaried compound owner it quotes.
+        {
+          id: 'businessoldenough',
+          measure: { of: 'fact', fact: 'business_months' },
+          test: { op: 'oneOf', expect: ['24m_or_more', 'not_self_employed'] },
+          reasonCode: 'BUSINESS_TOO_NEW',
+        },
+        {
+          id: 'selfemployedpapers',
+          measure: { of: 'fact', fact: 'self_employed_licence' },
+          test: { op: 'oneOf', expect: ['yes', 'not_self_employed'] },
+          reasonCode: 'SELF_EMPLOYED_DOCS_MISSING',
+        },
       ],
     },
     suggestedBands: [
@@ -648,7 +823,13 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       columnKeys: ['new_loan', 'top_up'],
     },
     openQuestion: 'PAID_SHARE_FORMULA_UNCONFIRMED',
-    usesReasonCodes: ['CONTRACT_TOO_NEW', 'DOWN_PAYMENT_BELOW_MIN', 'UNIT_PRICE_BELOW_MIN'],
+    usesReasonCodes: [
+      'CONTRACT_TOO_NEW',
+      'DOWN_PAYMENT_BELOW_MIN',
+      'UNIT_PRICE_BELOW_MIN',
+      'BUSINESS_TOO_NEW',
+      'SELF_EMPLOYED_DOCS_MISSING',
+    ],
   },
 
   {
@@ -789,6 +970,11 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionEn: 'Which club branch is your membership at?',
         questionAr: 'عضويتك في أي فرع من النادي؟',
         categories: PERSONAL_AND_CAR,
+        // Gated, because ungated this asked every personal and auto applicant which branch
+        // their membership is at — including everyone who has none. Safe to gate where the
+        // sheet conditions were not: this fact is the product's ONLY axis, so an applicant
+        // the gate hides it from cannot be quoted here at all.
+        enabledWhen: { questionCode: 'club_membership', optionCode: 'yes' },
         list: {
           typeKey: 'club_branch',
           labelEn: 'Club branches',
@@ -855,6 +1041,41 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         labelAr: 'طريقة سداد الشراء',
         alsoAskIn: [LoanCategory.car],
       },
+      // The four sheet conditions' facts. All bound, none minted, for the reason stated on
+      // the Green pair above — and all four questions carry an exempting answer, because a
+      // condition refuses on an UNANSWERED fact before it ever reaches pass/fail.
+      {
+        kind: 'bindQuestion',
+        factKey: 'business_months',
+        questionCode: 'business_months',
+        labelEn: 'How long the business has been running',
+        labelAr: 'مدة قيام النشاط التجاري',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
+      {
+        kind: 'bindQuestion',
+        factKey: 'self_employed_licence',
+        questionCode: 'self_employed_licence',
+        labelEn: 'Commercial register and tax card',
+        labelAr: 'السجل التجاري والبطاقة الضريبية',
+        alsoAskIn: PERSONAL_AND_CAR,
+      },
+      {
+        kind: 'bindQuestion',
+        factKey: 'home_ownership',
+        questionCode: 'home_ownership',
+        labelEn: 'Who owns the home lived in',
+        labelAr: 'مالك المنزل الذي يسكنه العميل',
+        alsoAskIn: [LoanCategory.car],
+      },
+      {
+        kind: 'bindQuestion',
+        factKey: 'unit_approved_compound',
+        questionCode: 'unit_approved_compound',
+        labelEn: 'Unit in a delivered, approved compound',
+        labelAr: 'وحدة في كومباوند مكتمل ومعتمد',
+        alsoAskIn: [LoanCategory.car],
+      },
     ],
     template: {
       version: 1,
@@ -880,8 +1101,48 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // A bank program sells ONE of these. No sheet pairs a down payment with savings, so
       // `combine` is absent and a program filling both is refused by name.
       waysAre: 'exclusive',
-      conditions: [],
+      // The four conditions the sheets print and no field could hold. Each applies only to
+      // the programme whose bank fills its figure, so the five down-payment tiers and the two
+      // Green ones share this list without inheriting each other's rules.
+      conditions: [
+        {
+          id: 'businessoldenough',
+          measure: { of: 'fact', fact: 'business_months' },
+          test: { op: 'oneOf', expect: ['24m_or_more', 'not_self_employed'] },
+          reasonCode: 'BUSINESS_TOO_NEW',
+        },
+        {
+          id: 'selfemployedpapers',
+          measure: { of: 'fact', fact: 'self_employed_licence' },
+          test: { op: 'oneOf', expect: ['yes', 'not_self_employed'] },
+          reasonCode: 'SELF_EMPLOYED_DOCS_MISSING',
+        },
+        // The 20% tier only. `rented_or_other` is the honest no and is NOT allow-listed:
+        // every auto applicant lives somewhere, so all three answers are real and there is
+        // no non-applicant to exempt.
+        {
+          id: 'homeowned',
+          measure: { of: 'fact', fact: 'home_ownership' },
+          test: { op: 'oneOf', expect: ['owned_by_me', 'owned_by_relative'] },
+          reasonCode: 'OWNERSHIP_NOT_CONFIRMED',
+        },
+        // Both Green programmes. `GATE_NOT_MET` rather than its own code: an unlisted
+        // compound and an undelivered unit are two different refusals folded into one answer,
+        // and neither is one the customer can act on.
+        {
+          id: 'unitinapprovedcompound',
+          measure: { of: 'fact', fact: 'unit_approved_compound' },
+          test: { op: 'oneOf', expect: ['yes'] },
+          reasonCode: 'GATE_NOT_MET',
+        },
+      ],
     },
+    usesReasonCodes: [
+      'BUSINESS_TOO_NEW',
+      'SELF_EMPLOYED_DOCS_MISSING',
+      'OWNERSHIP_NOT_CONFIRMED',
+      'GATE_NOT_MET',
+    ],
   },
 ]);
 

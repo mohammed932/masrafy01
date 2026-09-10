@@ -2230,6 +2230,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gate_business_too_new => 'This bank needs your business to have been running longer than it has.';
 
   @override
+  String get gate_loan_too_new => 'This bank needs the loan you already have to be further through its term.';
+
+  @override
   String get gate_not_met => 'This program has a condition your answers don\'t meet, so no figures can be shown.';
 
   @override

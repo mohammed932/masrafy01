@@ -31,6 +31,8 @@ export function gateTitleFor(gate: RuleGate): string {
       return $localize`:@@product_rule.gate.self_employed_docs:Self-employed customers need a valid trade or practice licence`;
     case 'BUSINESS_TOO_NEW':
       return $localize`:@@product_rule.gate.business_years:How long a self-employed customer's business must have been running`;
+    case 'LOAN_TOO_NEW':
+      return $localize`:@@product_rule.gate.loan_repaid:How far through its term the customer's existing loan must be`;
     default:
       return $localize`:@@product_rule.gate.other:A condition on the answers`;
   }

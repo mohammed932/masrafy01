@@ -4397,6 +4397,12 @@ abstract class AppLocalizations {
   /// **'هذا البنك يطلب أن يكون نشاطك التجاري قائمًا لمدة أطول من مدته الحالية.'**
   String get gate_business_too_new;
 
+  /// Backend LOAN_TOO_NEW gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك يطلب أن يكون القرض الحالي قد سُدد جزء أكبر من مدته.'**
+  String get gate_loan_too_new;
+
   /// Backend GATE_NOT_MET / PRODUCT_RULE_GATE_FAILED fallback
   ///
   /// In ar, this message translates to:

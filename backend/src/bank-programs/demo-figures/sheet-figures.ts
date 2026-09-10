@@ -360,9 +360,21 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       // against; the share below reads everything paid to date. Two facts, deliberately —
       // the same customer sits in a different bracket depending on which is read.
       alt: bands(DOWN_PAYMENT_EDGES, ['750000', '1000000', '1250000', '1500000']),
-      alt__top_up: bands(DOWN_PAYMENT_EDGES, ['1250000', '1500000', '1750000', '2000000']),
+      // The bracket way's second column is X-SELL — the client holds another product — which
+      // is what the FABMISR sheet prints, and spec §10.3 is explicit that this is a DIFFERENT
+      // question from new-loan/top-up. It was filed under `alt__top_up` until 2026-09-09, so
+      // these four figures were read as a top-up row.
+      alt__other_product_held: bands(DOWN_PAYMENT_EDGES, [
+        '1250000',
+        '1500000',
+        '1750000',
+        '2000000',
+      ]),
       alt__unit_paid_to_date: percent('15'),
-      alt__unit_paid_to_date__top_up: percent('15'),
+      // `alt__unit_paid_to_date__top_up` was here at 15% — byte-identical to the standard
+      // column above it, so the column stated nothing. That way now carries no column at all,
+      // which is the honest shape: a slot every bank is expected to fill, holding the figure
+      // beside it, reads as a policy nobody actually has.
       // A share of the down payment alone is the fifth way, and NO sheet in the source
       // material states a percentage for it — App. A §2 and App. B CAE both take their
       // share of everything paid. Left blank on purpose: a blank way means "this bank does
@@ -405,7 +417,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_b.incomeEGP',
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_c.incomeEGP',
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_other.incomeEGP',
-      'incomeRule.stepParams.alt__unit_paid_to_date__top_up.scalar.value',
       'incomeRule.stepParams.alt__owned_unit_type__top_up.keyTable.apartment.incomeEGP',
       'incomeRule.stepParams.alt__owned_unit_type__top_up.keyTable.twin_or_town_house.incomeEGP',
       'incomeRule.stepParams.alt__owned_unit_type__top_up.keyTable.villa.incomeEGP',

@@ -33,7 +33,15 @@ function beforeTheDownPayment(template: ProductTemplate): ProductTemplate {
   return {
     ...template,
     alternatives: [
-      { kind: 'numberBand', fact: 'unit_paid_to_date' },
+      // The bracket way is repointed at the fact it used to read, and everything ELSE about
+      // it is carried across — its own `column` included. That is scope, not convenience:
+      // the per-way column arrived with the 2026-09-09 move of the second column off the
+      // PRODUCT and onto the three ways whose sheets print one, which is a different change,
+      // pinned by the golden slot list in `product-blueprints.spec.ts`, by the migration's
+      // own end-state assertions and by the orphan check. Dropping it here would make every
+      // assertion below report on THAT change instead of on the fifth way, which is the one
+      // thing this file exists to hold still.
+      { ...ways[0]!, fact: 'unit_paid_to_date' },
       ...ways.slice(1, ways.length - 1),
     ],
   };
@@ -54,10 +62,13 @@ describe('the down payment became its own figure without moving anybody else’s
   it('adds only the fifth way’s own slots', () => {
     const before = new Set(templateParamKeys(BEFORE));
     const after = templateParamKeys(NOW);
+    // Two slots, not four: the fifth way carries no second column of its own. It used to
+    // get one from the PRODUCT-level column that reached every way, and that column is now
+    // declared per way — on the three whose sheets actually print one, which this way's does
+    // not. The way holds no figure anywhere either (`sheet-figures.ts` leaves it blank on
+    // purpose, since no sheet states a percentage for a share of the down payment alone).
     expect(after.filter((slot) => !before.has(slot)).sort()).toEqual([
       'alt__unit_down_payment',
-      'alt__unit_down_payment__top_up',
-      'alt__unit_down_payment_pick',
       'src__unit_down_payment',
     ]);
   });
@@ -67,7 +78,8 @@ describe('the down payment became its own figure without moving anybody else’s
     // `waySlot` names index 1 positionally, so FABMISR's four figures stay put and start
     // being read against the down payment the sheet prints them against.
     const way = NOW.alternatives![0]!;
-    expect(way).toEqual({ kind: 'numberBand', fact: 'unit_down_payment' });
+    expect(way.kind).toBe('numberBand');
+    expect(way.fact).toBe('unit_down_payment');
     const steps = compileTemplate(NOW).steps ?? [];
     const bracket = steps.find((step) => step.id === 'alt');
     expect(bracket?.op).toBe('bandTable');

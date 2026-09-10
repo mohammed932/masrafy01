@@ -291,6 +291,12 @@ export const GATE_REASON_CODES = [
   'MULTI_UNIT_NOT_CONFIRMED',
   'SELF_EMPLOYED_DOCS_MISSING',
   'BUSINESS_TOO_NEW',
+  // The EXISTING loan a cross-sell is priced against is not far enough through its own
+  // term. Its own code rather than `CONTRACT_TOO_NEW`, which is worded around a unit
+  // ("owned it for longer than you have") and would be read by somebody who owns none —
+  // and rather than `GATE_NOT_MET`, because this is one of the few refusals the customer
+  // can act on: it comes true on its own with time.
+  'LOAN_TOO_NEW',
   'GATE_NOT_MET',
 ] as const;
 

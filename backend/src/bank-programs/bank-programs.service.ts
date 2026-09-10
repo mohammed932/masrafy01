@@ -2068,13 +2068,50 @@ export class BankProgramsService {
       labelAr: row.labelAr,
       labelEn: row.labelEn,
       template,
-      // Recompiled rather than echoing the stored rule: if the two ever disagreed, the form
-      // is what the operator is about to edit and the compile is what a save would produce.
-      // Showing the stored blob would hide exactly that disagreement.
+      // The SHAPE is recompiled rather than echoed: if the stored rule and the stored form
+      // ever disagreed, the form is what the operator is about to edit and the compile is
+      // what a save would produce. Showing the stored steps would hide exactly that.
+      //
+      // The FIGURES are the stored ones, and they have to be, because `compileTemplate`
+      // emits a shape and no `stepParams` at all. Without them this screen opened every
+      // catalog default as an empty box reading "No default set" over a product that states
+      // one — and then, on the next Save, POSTED that emptiness: the page always sends
+      // `stepParams`, `{}` is not nullish, so the fallback to the stored figures in
+      // `setSurrogateProductTemplate` never fired and every default the product had was
+      // wiped while the save reported success. Pruned to the ids the recompile still emits,
+      // by the same `paramKeysOf` the save prunes with, so a figure under a step this shape
+      // no longer has is not handed back to be refused as `unknown_param_key`.
       compiled:
-        template === null ? null : (compileTemplate(template) as unknown as IncomeAssumptionConfig),
+        template === null
+          ? null
+          : (this.compiledWithStoredFigures(template, row.incomeRule) as never),
       advanced: template === null && row.incomeRule !== null,
     };
+  }
+
+  /**
+   * The form's shape, carrying the product's own stored figures.
+   *
+   * Kept as its own function because the pruning is the load-bearing half and it is the same
+   * rule the save applies: a figure filed under a step the recompiled shape no longer emits
+   * is `unknown_param_key` the moment it is posted back, so it is dropped here rather than
+   * shown in a box the operator cannot save.
+   */
+  private compiledWithStoredFigures(
+    template: ProductTemplate,
+    stored: IncomeAssumptionConfig | null,
+  ): IncomeAssumptionConfig {
+    const shape = compileTemplate(template);
+    const surviving = new Set(paramKeysOf(shape));
+    const figures = Object.fromEntries(
+      Object.entries(
+        (stored?.stepParams ?? {}) as Record<string, unknown>,
+      ).filter(([id]) => surviving.has(id)),
+    );
+    return {
+      ...(shape as unknown as IncomeAssumptionConfig),
+      ...(Object.keys(figures).length > 0 ? { stepParams: figures } : {}),
+    } as unknown as IncomeAssumptionConfig;
   }
 
   /**

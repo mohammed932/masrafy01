@@ -303,15 +303,27 @@ describe('the slot ids are golden', () => {
       'primary_pick',
       'src__years_in_practice',
     ],
-    doctors_in_practice: ['primary', 'src__years_in_practice'],
+    // The private-hospital condition APPENDS `cond__privatehospitalonly` and renames nothing
+    // — a choice condition emits one gate and no step (§5.4).
+    doctors_in_practice: ['cond__privatehospitalonly', 'primary', 'src__years_in_practice'],
     card_limit_share: ['primary', 'src__credit_card_limit'],
+    // The sheet's three conditions on the existing loan, APPENDED. Two are `atLeastShareOf`,
+    // which emits a `percentOf` bound step beside its gate — hence the two `__bound` ids —
+    // and the tenor it divides by needs a `factNumber` source slot of its own. Nothing above
+    // is renamed.
     auto_loan_crosssell: [
       'alt',
       'basis',
       'basis_combine',
+      'cond__bookedwithdownpayment',
+      'cond__bookedwithdownpayment__bound',
+      'cond__paidenoughmonths',
+      'cond__paidenoughofterm',
+      'cond__paidenoughofterm__bound',
       'primary',
       'src__auto_loan_amount',
       'src__car_loan_installment',
+      'src__car_loan_original_tenor',
     ],
     // No `src__pledged_months_since_issue`: a numeric condition's gate reads the fact
     // directly (`left: { fact }`), so only a way that BANDS or SCALES a number needs a
@@ -322,23 +334,28 @@ describe('the slot ids are golden', () => {
       'alt__owned_unit_type',
       'alt__owned_unit_type__top_up',
       'alt__owned_unit_type_pick',
-      'alt__top_up',
+      // RENAMED from `alt__top_up`, and this is the one rename the change makes on purpose:
+      // the bracket way's second column reads `holds_other_product` (FABMISR's X-SELL) where
+      // the whole product used to read `loan_is_topup`. The class table and the unit-type
+      // table keep their `__top_up` columns, because those sheets really do print one.
+      'alt__other_product_held',
       // The share of the down payment was APPENDED as the fifth way, so it takes a slot of
       // its own and renames none: the bracket way keeps the bare `alt` it has always had
       // even though the fact it reads moved onto the down payment, because that slot is
       // positional. Every id below this line is the one it was before.
+      // No column on either share way any more: their top-up slots each held the figure
+      // beside them, so the column stated nothing.
       'alt__unit_down_payment',
-      'alt__unit_down_payment__top_up',
-      'alt__unit_down_payment_pick',
       'alt__unit_paid_to_date',
-      'alt__unit_paid_to_date__top_up',
-      'alt__unit_paid_to_date_pick',
       'alt_pick',
       'basis',
       'basis_combine',
+      // CAE's two self-employed conditions, appended.
+      'cond__businessoldenough',
       'cond__ownedlongenough',
       'cond__paidenough',
       'cond__paidenough__bound',
+      'cond__selfemployedpapers',
       'cond__unitworthenough',
       'primary',
       'primary__top_up',
@@ -365,6 +382,12 @@ describe('the slot ids are golden', () => {
       'alt__cash_buyer',
       'alt_pick',
       'basis',
+      // The four sheet conditions. Every one is `oneOf`, which emits a gate and no step, so
+      // all four are pure additions.
+      'cond__businessoldenough',
+      'cond__homeowned',
+      'cond__selfemployedpapers',
+      'cond__unitinapprovedcompound',
       'primary',
       'src__car_down_payment',
       'src__total_savings',
@@ -402,8 +425,13 @@ describe('a fact two products read belongs to neither', () => {
     // read must therefore be filed under NO product, or the second one is refused at its
     // next save naming a fact nobody could see had been deleted.
     expect([...sharedBlueprintFactKeys()].sort()).toEqual([
+      // Both the SCB auto product and the CAE compound programme read the two self-employed
+      // conditions, so neither product owns them — the same rule as `years_in_practice`
+      // below, and the reason it exists.
+      'business_months',
       'loan_is_topup',
       'school_type',
+      'self_employed_licence',
       // Read by both doctor products since they were split apart — which is exactly the
       // case this rule exists for: switching one off must not take the other's only axis.
       'years_in_practice',

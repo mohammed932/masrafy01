@@ -316,6 +316,21 @@ const times = (value: string) => ({ scalar: { value, unit: 'multiplier' as const
  */
 const divisor = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
 
+/**
+ * The two self-employed conditions every Suez Canal auto sheet prints, switched ON.
+ *
+ * A choice condition applies exactly when the bank states `applies: true` — a gate nobody
+ * turned on does not apply — so this pair is what turns "24 months in business, and a valid
+ * commercial register and tax card" from a line in `notes` into a refusal the customer is
+ * actually told about. Both allow-list the exempting answer, so a SALARIED applicant (whom
+ * every one of these programmes accepts) passes in one tap rather than being refused for
+ * failing to answer a question about a business they do not have.
+ */
+const SCB_SELF_EMPLOYED_GATES = {
+  cond__businessoldenough: { applies: true },
+  cond__selfemployedpapers: { applies: true },
+};
+
 function banded(
   edges: ReadonlyArray<{ fromInclusive: string; toExclusive: string | null }>,
   amounts: readonly string[],
@@ -534,7 +549,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     programType: 'income_surrogate',
     sheet: 'App. A §8 — Doctors (In Practice)',
     notes: [
-      'Private hospitals only, not governmental — an exclusion the platform has no field for.',
+      'Private hospitals only, not governmental — now asked and enforced as a condition. It carries an "I do not work at a hospital" answer, which is allow-listed: the exclusion is about a GOVERNMENT hospital, and everybody else is already priced out by the years band and this programme\u2019s accepted employment types.',
       'The weighted additional-income table is transcribed from the unattributed Arabic COMPOUND sheet (spec §10.11) because it is the only sheet in the source material that states one; ABK states none. Every percentage is marked an estimate — confirm with ABK before this program goes live.',
       'Rate basis is not stated on the sheet; priced on the reducing annuity.',
     ],
@@ -557,6 +572,10 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       // this sheet does not use, so this programme held the identical figures in three slots
       // and read as pricing by city. Exactly half the clinic-owner figure at every band.
       primary: banded(ABK_PRACTICE_EDGES, ['15000', '30000', '40000', '60000', '90000', '150000']),
+      // "Private hospitals only, not governmental" — the sheet's own words, and until now a
+      // line in `notes` that refused nobody. `employment_status` is no proxy for it: a
+      // government-hospital doctor is salaried and passes `acceptedEmploymentTypes`.
+      cond__privatehospitalonly: { applies: true },
     },
     additionalIncome: {
       sources: [
@@ -653,7 +672,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     programType: 'income_surrogate',
     sheet: 'App. A §4 — PL Cross Sell to Auto Loan, Other Banks',
     notes: [
-      'The sheet also requires the existing loan to be past half its tenor with at least 12 paid months, booked with 40% down, and the new instalment not to exceed 50% of the existing car instalment — the last is computed after the rule and is not expressible.',
+      'Past half its tenor, at least 12 paid months, and booked with 40% down: all three are now asked and enforced, the first two against the original tenor the applicant states. The FOURTH — the new instalment not exceeding 50% of the existing car instalment — is computed after the rule and is still not expressible.',
       'Rate basis is not stated on the sheet; priced on the reducing annuity.',
     ],
     tenor: { minMonths: 12, maxMonths: 84 },
@@ -664,7 +683,16 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     feeWaiverPenalty: true,
     requires: { requiresAutoLoanAtOtherBank: true, requiresExistingLoan: true },
     wayId: 'primary',
-    stepParams: { primary: times('3'), alt: percent('10') },
+    stepParams: {
+      primary: times('3'),
+      alt: percent('10'),
+      // The sheet's three conditions on the loan being cross-sold against: past half its
+      // tenor, at least 12 instalments paid, and booked with 40% down. All three were
+      // `notes` until the questions existed to read.
+      cond__paidenoughmonths: { minValue: '12' },
+      cond__paidenoughofterm__bound: percent('50'),
+      cond__bookedwithdownpayment__bound: percent('40'),
+    },
   }),
 
   program({
@@ -687,7 +715,16 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     feeWaiverPenalty: true,
     requires: { requiresAutoLoanAtABK: true, requiresExistingLoan: true },
     wayId: 'primary',
-    stepParams: { primary: times('3'), alt: percent('10') },
+    stepParams: {
+      primary: times('3'),
+      alt: percent('10'),
+      // The sheet's three conditions on the loan being cross-sold against: past half its
+      // tenor, at least 12 instalments paid, and booked with 40% down. All three were
+      // `notes` until the questions existed to read.
+      cond__paidenoughmonths: { minValue: '12' },
+      cond__paidenoughofterm__bound: percent('50'),
+      cond__bookedwithdownpayment__bound: percent('40'),
+    },
     estimated: ['incomeAssumption.stepParams.alt.scalar.value'],
   }),
 
@@ -842,7 +879,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     programType: 'income_surrogate',
     sheet: 'App. B — FABMISR compound owner (down-payment brackets × NTB / X-SELL)',
     notes: [
-      'The sheet’s second column is X-SELL — the client holds another product, a credit card with a limit of at least 100,000. This product’s second column is "new loan or top-up", which spec §10.3 is explicit is a DIFFERENT question. The X-SELL figures are filed in the second column so the grid is complete, and they are the sheet’s own numbers: 1,250,000 · 1,500,000 · 1,750,000 · 2,000,000. Read them as X-SELL, not as top-up, until the product carries a "holds another product" column.',
+      'The sheet’s second column is X-SELL — the client holds another product, a credit card with a limit of at least 100,000 — and the product now carries that axis on this way (`holds_other_product`), so these figures are read as what they are: 1,250,000 · 1,500,000 · 1,750,000 · 2,000,000. Until 2026-09-09 they sat in a "new loan or top-up" column, which spec §10.3 is explicit is a DIFFERENT question. The ≥100,000 limit itself is still not expressible as a condition.',
       'The brackets are keyed by the DOWN PAYMENT, which is the figure the sheet prints them against — not by everything paid to date, which is what two other banks on this product take their share of. Minimum down payment 250,000 is expressed by the first bracket starting there: a smaller down payment falls in no bracket and is answered with a stated reason.',
       'Jointly owned units are accepted at 50% of the imputed income and 50% of the loan amount.',
       'Two lines were not legible on the source photo and are deliberately not encoded: "Clear I-Score: 500K" and "Income will be derived according to down payment within 6 months".',
@@ -858,12 +895,24 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthlyIncomeSelfEmployedEGP: '15000',
     requires: { requiresCompoundProperty: true, requiresFRMUVerification: true },
     requiredDocuments: ['national_id', 'utility_bill', 'property_deed'],
-    // ONE way, two columns: `alt__top_up` is the second column of the `alt` bracket table,
-    // not a way of its own. The way's id is the bare head — the first column keeps it.
+    // ONE way, two columns: `alt__other_product_held` is the second column of the `alt`
+    // bracket table, not a way of its own. The way's id is the bare head — the first column
+    // keeps it, and here that is right in substance and not only in mechanics: the first
+    // branch is `other_product_none`, which is what NTB means.
+    //
+    // The column reads `holds_other_product`, which is what the sheet actually prints. It
+    // used to read `loan_is_topup` and these four figures sat in its top-up column, so a
+    // customer holding a card and no ABK loan was quoted the X-SELL row as though they were
+    // topping a loan up. The note below said so for three versions.
     wayId: 'alt',
     stepParams: {
       alt: banded(DOWN_PAYMENT_EDGES, ['750000', '1000000', '1250000', '1500000']),
-      alt__top_up: banded(DOWN_PAYMENT_EDGES, ['1250000', '1500000', '1750000', '2000000']),
+      alt__other_product_held: banded(DOWN_PAYMENT_EDGES, [
+        '1250000',
+        '1500000',
+        '1750000',
+        '2000000',
+      ]),
     },
     estimated: ['pricing.baseRatePercent', 'fees.adminFeePercent', ...ESTIMATED_FEES],
   }),
@@ -942,6 +991,11 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       // applicant states the percentage of the unit they own and the rule scales by it, so
       // a half-owner reaches the same 50% and an owner of some other share is priced as
       // what they actually own rather than as a half.
+      //
+      // CAE's two self-employed conditions, switched on. This programme accepts salaried
+      // applicants too, which is exactly why both allow-list the exempting answer.
+      cond__businessoldenough: { applies: true },
+      cond__selfemployedpapers: { applies: true },
     },
     estimated: ['pricing.baseRatePercent', 'fees.adminFeePercent', ...ESTIMATED_FEES],
   }),
@@ -1079,7 +1133,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     sheet: 'App. §4 — Suez Canal unsecured auto, 60% down payment',
     notes: [
       'No car insurance and no ban on sale on this programme.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
       'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
@@ -1101,7 +1155,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthsInJob: 6,
     dbrCapPercent: '50',
     wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
     requiredDocuments: SCB_DP_DOCUMENTS,
     estimated: SCB_ESTIMATED,
   }),
@@ -1114,7 +1168,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     notes: [
       'Ban on sale until the loan is settled.',
       'The 12-month service requirement is waived when the I-Score shows regular repayment over the last six months. No field expresses a conditional waiver — recorded here.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
       'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
@@ -1136,7 +1190,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthsInJob: 6,
     dbrCapPercent: '50',
     wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
     requiredDocuments: SCB_DP_DOCUMENTS,
     estimated: SCB_ESTIMATED,
   }),
@@ -1149,7 +1203,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     notes: [
       'Ban on sale until the loan is settled.',
       'The 12-month service requirement is waived when the I-Score shows regular repayment over the last six months. No field expresses a conditional waiver — recorded here.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
       'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
@@ -1171,7 +1225,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthsInJob: 6,
     dbrCapPercent: '50',
     wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
     requiredDocuments: SCB_DP_DOCUMENTS,
     estimated: SCB_ESTIMATED,
   }),
@@ -1183,7 +1237,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     sheet: 'App. §4 — Suez Canal unsecured auto, 30% down payment',
     notes: [
       'Ban on sale until the loan is settled.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
       'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
@@ -1205,7 +1259,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthsInJob: 6,
     dbrCapPercent: '50',
     wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
     requiredDocuments: SCB_DP_DOCUMENTS,
     estimated: SCB_ESTIMATED,
   }),
@@ -1216,9 +1270,9 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     programNameKey: 'auto_down_payment_income',
     sheet: 'App. §4 — Suez Canal unsecured auto, 20% down payment',
     notes: [
-      'Car insurance is required on this programme, and the home must be owned by the applicant or a first-degree relative. Neither is expressible as a field — recorded here.',
+      'The home must be owned by the applicant or a first-degree relative — now asked and enforced as a condition on this tier alone. Car insurance is still not expressible as a field: `wants_insurance` asks whether the customer wants OFFERS, which is a different question. Recorded here.',
       'Ban on sale until the loan is settled.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card; the platform states one service floor per programme, so only the salaried 6 months is enforced.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
       'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
@@ -1240,7 +1294,13 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthsInJob: 6,
     dbrCapPercent: '50',
     wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR) },
+    stepParams: {
+      primary: divisor(SCB_DP_DIVISOR),
+      ...SCB_SELF_EMPLOYED_GATES,
+      // The 20% tier alone: the home lived in must be owned by the applicant or a
+      // first-degree relative. Its four sibling tiers state no such condition.
+      cond__homeowned: { applies: true },
+    },
     requiredDocuments: SCB_DP_DOCUMENTS,
     estimated: SCB_ESTIMATED,
   }),
@@ -1250,7 +1310,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     friendlyNameAr: 'قرض الطاقة الخضراء',
     sheet: 'App. §5 — Suez Canal Green Finance, Green Power Loan',
     notes: [
-      'Sold to owners of a delivered unit in a pre-approved compound. Neither the compound list nor the delivery status is a field — recorded here.',
+      'Sold to owners of a delivered unit in a pre-approved compound. Now asked and enforced as one condition — the applicant states whether their home is in a finished, bank-approved compound. The compound LIST itself is still not a field, so the answer is the applicant\u2019s word for it rather than a lookup.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
     tenor: { minMonths: 6, maxMonths: 120 },
@@ -1275,6 +1335,10 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     stepParams: {
       alt: divisor(SCB_DP_DIVISOR),
       alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
+      ...SCB_SELF_EMPLOYED_GATES,
+      // Sold only against a delivered unit in a pre-approved compound. On for the Green pair
+      // and nobody else.
+      cond__unitinapprovedcompound: { applies: true },
     },
     requiredDocuments: SCB_GREEN_DOCUMENTS,
     estimated: SCB_ESTIMATED,
@@ -1285,7 +1349,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     friendlyNameAr: 'التنقل الخفيف',
     sheet: 'App. §5 — Suez Canal Green Finance, Micro Mobility',
     notes: [
-      'Golf cars, scooters and e-bikes. Sold to owners of a delivered unit in a pre-approved compound. Neither the compound list nor the delivery status is a field — recorded here.',
+      'Golf cars, scooters and e-bikes. Sold to owners of a delivered unit in a pre-approved compound — now asked and enforced as one condition. The compound LIST itself is still not a field, so the answer is the applicant\u2019s word for it rather than a lookup.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
     tenor: { minMonths: 6, maxMonths: 84 },
@@ -1310,6 +1374,10 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     stepParams: {
       alt: divisor(SCB_DP_DIVISOR),
       alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
+      ...SCB_SELF_EMPLOYED_GATES,
+      // Sold only against a delivered unit in a pre-approved compound. On for the Green pair
+      // and nobody else.
+      cond__unitinapprovedcompound: { applies: true },
     },
     requiredDocuments: SCB_GREEN_DOCUMENTS,
     estimated: SCB_ESTIMATED,

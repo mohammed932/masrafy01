@@ -82,6 +82,9 @@ const PAGE_SIZE = 10;
 
 type TypeFilter = QuestionType | 'ALL';
 
+/** The two comparisons `enabledWhen` can carry — the server's own closed pair. */
+type BranchOperator = 'equals' | 'not_equals';
+
 /**
  * GLOBAL question-pool authoring (Constitution V, Feature 010 — questions are
  * admin DATA with NO category). One pool feeds one global questionnaire; codes
@@ -828,41 +831,54 @@ type TypeFilter = QuestionType | 'ALL';
               }
             }
           </div>
-        </div>
-
-        <!-- Branch rule. Sits below both columns because it is about WHEN the
-             question is asked, not about what it accepts — and because the source
-             list depends on this question's position, not on its type. -->
-        <div formGroupName="enabledWhen" class="branch-box">
-          <p class="section-lbl">
-            <span i18n="@@qedit.sec_branch">When to ask this</span>
-            @if (questionForm.controls.enabledWhen.controls.questionCode.value) {
-              <button type="button" class="clear-branch" (click)="clearBranch()">
-                <span nz-icon nzType="close" nzTheme="outline" aria-hidden="true"></span>
-                <span i18n="@@qedit.branch_clear">Always ask</span>
-              </button>
-            }
-          </p>
-          @if (branchSources().length === 0) {
-            <p class="hint" i18n="@@qedit.branch_none">
-              Nothing to branch on yet. A rule reads an answer the applicant already gave, so it
-              needs an earlier question that offers a choice of options.
+          <!-- Branch rule. Spans BOTH columns and lives inside .form-cols, which is
+               the scrollport: as a sibling of it this box was a full-bleed band with
+               no body padding, pinned between the columns and the action bar, taking
+               that height off the option list at every scroll offset. It is here
+               rather than in a column because "when is this asked" is a different
+               question from "what does it accept", and because the source list
+               depends on this question's POSITION, not on its type. -->
+          <div formGroupName="enabledWhen" class="branch-box">
+            <p class="section-lbl">
+              <span i18n="@@qedit.sec_branch">When to ask this</span>
+              @if (branchOn()) {
+                <!-- Undoes the whole rule, so it sits at the far edge of the heading
+                     rather than beside the row it would clear. No icon: a close glyph
+                     says "dismiss" while the label states an outcome, and the two read
+                     as contradicting each other. -->
+                <button
+                  type="button"
+                  class="clear-branch"
+                  (click)="clearBranch()"
+                  i18n="@@qedit.branch_clear"
+                >
+                  Always ask instead
+                </button>
+              }
             </p>
-          } @else {
-            <!-- A div + aria-labelledby rather than a label/for pair: nz-select
-                 renders a div, not an input, so a wrapping label associates with
-                 nothing. Same pattern as the simulator's question select. -->
-            <div class="field-row">
-              <div class="field grow">
-                <span class="lbl" id="branch-src-lbl" i18n="@@qedit.branch_source">Depends on</span>
+            @if (branchSources().length === 0) {
+              <p class="hint" i18n="@@qedit.branch_none">
+                Nothing to branch on yet — a rule reads an answer from an earlier question that
+                offers options.
+              </p>
+            } @else {
+              <!-- ONE sentence, read start to end, instead of three caps micro-labels
+                   over three 52px selects: "Depends on / Condition / This answer" is
+                   query-builder vocabulary for a rule that states itself in words.
+                   A span + aria-labelledby rather than a label/for pair: nz-select
+                   renders a div, not an input, so a wrapping label associates with
+                   nothing. Same pattern as the simulator's question select. -->
+              <div class="rule-line">
+                <span class="rule-lead" id="branch-src-lbl" i18n="@@qedit.branch_source">
+                  Ask this only when the answer to
+                </span>
                 <nz-select
                   formControlName="questionCode"
-                  class="select-comfy"
+                  class="select-comfy rule-grow"
                   nzDropdownClassName="select-comfy-dropdown"
                   [nzOptionHeightPx]="42"
-                  nzAllowClear
                   nzShowSearch
-                  [nzPlaceHolder]="branchAlwaysLabel"
+                  [nzPlaceHolder]="branchPickSourceLabel"
                   [attr.aria-labelledby]="'branch-src-lbl'"
                   (ngModelChange)="onBranchSourceChange()"
                 >
@@ -874,32 +890,36 @@ type TypeFilter = QuestionType | 'ALL';
                   }
                 </nz-select>
               </div>
-              @if (questionForm.controls.enabledWhen.controls.questionCode.value) {
-                <div class="field">
-                  <span class="lbl" id="branch-op-lbl" i18n="@@qedit.branch_operator">
-                    Condition
+              @if (branchOn()) {
+                <div class="rule-line">
+                  <!-- Two values, both worth showing at once: as a select the panel
+                       inherited the trigger's content width, so "is not" arrived
+                       ellipsised to "is …" — a picker whose options cannot be read.
+                       role=radiogroup is the honest semantics for one-of-two, and it
+                       reuses the answer-type picker's segmented vocabulary. -->
+                  <span class="sr-only" id="branch-op-lbl" i18n="@@qedit.branch_operator">
+                    Matches or does not match
                   </span>
-                  <nz-select
-                    formControlName="operator"
-                    class="select-comfy"
-                    nzDropdownClassName="select-comfy-dropdown"
-                    [nzOptionHeightPx]="42"
-                    [attr.aria-labelledby]="'branch-op-lbl'"
-                  >
-                    <nz-option [nzValue]="'equals'" [nzLabel]="branchEqualsLabel"></nz-option>
-                    <nz-option
-                      [nzValue]="'not_equals'"
-                      [nzLabel]="branchNotEqualsLabel"
-                    ></nz-option>
-                  </nz-select>
-                </div>
-                <div class="field grow">
-                  <span class="lbl" id="branch-opt-lbl" i18n="@@qedit.branch_option">
-                    This answer
+                  <div class="op-group" role="radiogroup" aria-labelledby="branch-op-lbl">
+                    @for (op of branchOperators; track op) {
+                      <button
+                        type="button"
+                        role="radio"
+                        class="op-btn"
+                        [class.on]="branchOperator() === op"
+                        [attr.aria-checked]="branchOperator() === op"
+                        (click)="pickBranchOperator(op)"
+                      >
+                        {{ branchOperatorLabel(op) }}
+                      </button>
+                    }
+                  </div>
+                  <span class="sr-only" id="branch-opt-lbl" i18n="@@qedit.branch_option">
+                    The answer that turns this question on
                   </span>
                   <nz-select
                     formControlName="optionCode"
-                    class="select-comfy"
+                    class="select-comfy rule-grow"
                     nzDropdownClassName="select-comfy-dropdown"
                     [nzOptionHeightPx]="42"
                     nzShowSearch
@@ -915,35 +935,37 @@ type TypeFilter = QuestionType | 'ALL';
                   </nz-select>
                 </div>
               }
-            </div>
-            @if (branchIncomplete()) {
-              <p class="hint warn" i18n="@@qedit.branch_incomplete">
-                Pick which answer triggers this question. A half-set rule can't be evaluated, so it
-                would save without ever hiding anything.
-              </p>
-            } @else if (questionForm.controls.enabledWhen.controls.questionCode.value) {
-              <p class="hint" i18n="@@qedit.branch_hint">
-                Asked only when that answer matches. If the source question allows several picks,
-                any one of them matching is enough.
-              </p>
-            } @else {
-              <p class="hint" i18n="@@qedit.branch_hint_off">
-                Asked of every applicant in this question's categories. Pick a question above to ask
-                it conditionally instead.
-              </p>
+              @if (branchIncomplete()) {
+                <p class="hint warn" i18n="@@qedit.branch_incomplete">
+                  Pick which answer turns this question on — a half-set rule hides nothing.
+                </p>
+              } @else if (branchSourceIsMulti()) {
+                <!-- The one thing the sentence above cannot say: the source accepts
+                     several picks, and the rule fires on any one of them. Shown only
+                     when it is true, instead of as a standing caveat. -->
+                <p class="hint" i18n="@@qedit.branch_hint_multi">
+                  That question accepts several picks — any one of them matching is enough.
+                </p>
+              } @else if (!branchOn()) {
+                <p class="hint" i18n="@@qedit.branch_hint_off">
+                  Asked of every applicant in this question's loan types.
+                </p>
+              }
             }
+          </div>
+          <!-- Also inside the scrollport: as a sibling of it this note was a
+               full-bleed tinted band pinned above the action bar. -->
+          @if (!editing()) {
+            <p class="ins-note" i18n="@@qedit.code_note">
+              A stable code is generated automatically — no need to type one.
+            </p>
           }
         </div>
 
-        @if (!editing()) {
-          <p class="ins-note" i18n="@@qedit.code_note">
-            A stable code is generated automatically — no need to type one.
-          </p>
-        }
-
-        <!-- Sticky, so a long option list never buries the save button. Delete is
-             pushed to the far edge: it belongs to this question and had nowhere else
-             to go once the row menu was removed, but it must not sit next to Save. -->
+        <!-- Its own grid ROW beside the scrollport, so a long option list can never
+             bury the save button and the bar never covers a control. Delete is pushed
+             to the far edge: it belongs to this question and had nowhere else to go
+             once the row menu was removed, but it must not sit next to Save. -->
         <div class="form-actions">
           @if (editingQuestion(); as eq) {
             <button
@@ -1717,7 +1739,8 @@ type TypeFilter = QuestionType | 'ALL';
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: var(--qe-muted);
+        /* 11px caps is small text, not large: tertiary ink is 3.83:1 on this card. */
+        color: var(--qe-text-2);
       }
       .count-pill {
         min-inline-size: 24px;
@@ -1748,10 +1771,11 @@ type TypeFilter = QuestionType | 'ALL';
         margin-inline-end: auto;
       }
       .ins-note {
+        grid-column: 1 / -1;
         margin: 0;
         padding: var(--space-2, 8px) var(--space-3, 12px);
         font-size: 12px;
-        color: var(--qe-muted);
+        color: var(--qe-text-2);
         background: color-mix(in srgb, var(--cat) 10%, transparent);
         border-radius: var(--radius-md, 8px);
       }
@@ -1807,62 +1831,160 @@ type TypeFilter = QuestionType | 'ALL';
         background: var(--qe-surface-muted);
         border-radius: var(--radius-md, 8px);
       }
-      /* Spans both columns: "when is this asked" is a different question from
-         "what does it accept", and its source list depends on position, not type. */
+      /* Spans both columns of the scrollport. A hairline PANEL on the modal's own
+         ground rather than a muted fill: the fill made it read as a second action
+         bar above the real one, and it left an inner segmented track (also muted)
+         with nothing to sit on. */
       .branch-box {
+        grid-column: 1 / -1;
         display: flex;
         flex-direction: column;
         gap: var(--space-3, 12px);
-        margin-block-start: var(--space-4, 16px);
-        padding: var(--space-3, 12px);
-        background: var(--qe-surface-muted);
+        margin-block-start: var(--space-2, 8px);
+        padding: var(--space-4, 16px);
+        border: 1px solid var(--qe-line);
         border-radius: var(--radius-md, 8px);
       }
       /* Sits at the far edge of the section label — it undoes the whole rule, so
-         it must not read as part of the field row it would clear. */
+         it must not read as part of the row it would clear. */
       .branch-box .section-lbl {
         justify-content: space-between;
+        gap: var(--space-3, 12px);
       }
       .clear-branch {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        min-block-size: 32px;
         border: 0;
-        padding: 2px 8px;
+        padding-inline: var(--space-2, 8px);
         border-radius: var(--radius-pill, 999px);
         background: transparent;
-        color: var(--qe-muted);
+        color: var(--qe-text-2);
         font: inherit;
+        font-size: var(--text-xs, 12px);
+        font-weight: 600;
         letter-spacing: 0;
         text-transform: none;
+        white-space: nowrap;
         cursor: pointer;
         transition:
           background var(--motion-duration-fast, 120ms) var(--motion-easing-standard, ease),
           color var(--motion-duration-fast, 120ms) var(--motion-easing-standard, ease);
       }
       .clear-branch:hover {
-        background: var(--qe-surface);
+        background: var(--qe-surface-muted);
         color: var(--qe-text);
       }
-      .branch-box .field-row {
-        flex-wrap: wrap;
+      .clear-branch:focus-visible {
+        outline: 2px solid var(--cat);
+        outline-offset: 2px;
       }
-      @media (prefers-reduced-motion: reduce) {
+      /* One row of the sentence. Wraps rather than shrinking the selects below
+         their own text at narrow widths. */
+      .rule-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3, 12px);
+        animation: qe-fade var(--motion-duration-fast, 120ms) var(--qe-ease);
+      }
+      /* Prose, not a micro-label: it is read as the first words of the sentence the
+         two controls finish, so it takes body size and reading-grade ink. */
+      .rule-lead {
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-text-2);
+      }
+      .rule-grow {
+        flex: 1 1 16rem;
+        min-inline-size: 0;
+      }
+      /* Segmented, sized to the 52px selects it sits between (46px segment + 2 x 3px
+         track padding). Same vocabulary as the answer-type picker one column over. */
+      .op-group {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 4px;
+        padding: 3px;
+        background: var(--qe-surface-muted);
+        border-radius: var(--radius-md, 8px);
+      }
+      .op-btn {
+        min-block-size: 46px;
+        min-inline-size: 64px;
+        padding-inline: var(--space-3, 12px);
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm, 6px);
+        background: transparent;
+        color: var(--qe-text-2);
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast, 120ms) ease,
+          color var(--motion-duration-fast, 120ms) ease;
+      }
+      .op-btn:hover {
+        color: var(--qe-text);
+      }
+      .op-btn:focus-visible {
+        outline: 2px solid var(--cat);
+        outline-offset: -2px;
+      }
+      .op-btn.on {
+        background: var(--qe-surface);
+        border-color: var(--cat);
+        color: var(--cat);
+      }
+      /* A pressable row on a touch screen has no hover to reveal itself, so the
+         44px floor applies where it is the only affordance. */
+      @media (hover: none) {
         .clear-branch {
-          transition: none;
+          min-block-size: 44px;
         }
       }
+      @media (prefers-reduced-motion: reduce) {
+        .clear-branch,
+        .op-btn {
+          transition: none;
+        }
+        .rule-line {
+          animation: none;
+        }
+      }
+      /* Secondary, not tertiary. Every hint here is read prose, and tertiary ink
+         measures 3.83:1 on this card and 3.28:1 on a muted panel in light mode —
+         under AA on both. (DESIGN_SYSTEM.md, focus-and-contrast note.) */
       .hint {
         margin: 0;
         font-size: var(--text-xs, 12px);
         line-height: var(--leading-normal, 1.5);
-        color: var(--qe-muted);
+        color: var(--qe-text-2);
       }
-      .hint.warn {
-        color: var(--color-warning, var(--ant-warning-color));
-      }
+      /* Severity is carried by a DOT, not by the ink: --color-warning measures
+         2.89:1 on this card and --color-error 3.81:1, and the warn hint is the one
+         line that has to be read to unblock Save. */
+      .hint.warn,
       .hint.error {
-        color: var(--color-error, var(--ant-error-color));
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2, 8px);
+        color: var(--qe-text);
+      }
+      .hint.warn::before,
+      .hint.error::before {
+        content: '';
+        flex: 0 0 auto;
+        inline-size: 6px;
+        block-size: 6px;
+        margin-block-start: 0.4em;
+        border-radius: 50%;
+      }
+      .hint.warn::before {
+        background: var(--color-warning-dot, var(--color-warning));
+      }
+      .hint.error::before {
+        background: var(--color-error-dot, var(--color-error));
       }
 
       /* ---- Options, edited in place ------------------------------------- */
@@ -2267,7 +2389,7 @@ export class QuestionnaireEditorPage implements OnInit {
      */
     enabledWhen: new FormGroup({
       questionCode: new FormControl('', { nonNullable: true }),
-      operator: new FormControl<'equals' | 'not_equals'>('equals', { nonNullable: true }),
+      operator: new FormControl<BranchOperator>('equals', { nonNullable: true }),
       optionCode: new FormControl('', { nonNullable: true }),
     }),
   });
@@ -2346,13 +2468,20 @@ export class QuestionnaireEditorPage implements OnInit {
     return q.options.map((o) => (this.isAr ? o.labelAr : o.labelEn)).join(' · ');
   }
 
-  // Placeholders and option labels for the branch pickers. Properties, not method
-  // calls: `nzPlaceHolder` / `nzLabel` are plain string inputs, so a method here
-  // would re-run `$localize` on every change detection pass.
-  readonly branchAlwaysLabel = $localize`:@@qedit.branch_always:Always ask this`;
-  readonly branchEqualsLabel = $localize`:@@qedit.branch_is:is`;
-  readonly branchNotEqualsLabel = $localize`:@@qedit.branch_is_not:is not`;
+  // Placeholders and segment labels for the branch pickers. Properties, not method
+  // calls: `nzPlaceHolder` is a plain string input, so a method here would re-run
+  // `$localize` on every change detection pass.
+  readonly branchPickSourceLabel = $localize`:@@qedit.branch_always:Pick an earlier question`;
   readonly branchPickOptionLabel = $localize`:@@qedit.branch_pick_option:Pick an answer`;
+
+  /** The two halves of `enabledWhen.operator`, in the order the segments render. */
+  readonly branchOperators: readonly BranchOperator[] = ['equals', 'not_equals'];
+
+  branchOperatorLabel(op: BranchOperator): string {
+    return op === 'equals'
+      ? $localize`:@@qedit.branch_is:is`
+      : $localize`:@@qedit.branch_is_not:is not`;
+  }
 
   typeLabel(type: QuestionType): string {
     switch (type) {
@@ -2549,6 +2678,43 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   // ---- Branch rule ---------------------------------------------------------
+  /**
+   * Is a rule set at all? Read by the heading's reset button, the second sentence
+   * row and the off-state hint — one predicate rather than three copies of the
+   * same control read, which is how those three came to disagree about what an
+   * empty `questionCode` means.
+   */
+  branchOn(): boolean {
+    return this.questionForm.controls.enabledWhen.controls.questionCode.value !== '';
+  }
+
+  /** The comparison currently picked, for the segmented control's checked state. */
+  branchOperator(): BranchOperator {
+    return this.questionForm.controls.enabledWhen.controls.operator.value;
+  }
+
+  /**
+   * The segments write the typed control directly (Principle XXII holds — the form
+   * is still the single source of truth), the way the answer-type radiogroup one
+   * column over writes `type`. `nz-select` is gone from this slot because its panel
+   * inherits the trigger's content width, and a trigger sized to "is" ellipsised
+   * "is not" to "is …".
+   */
+  pickBranchOperator(op: BranchOperator): void {
+    this.questionForm.controls.enabledWhen.controls.operator.setValue(op);
+  }
+
+  /**
+   * Does the picked source accept SEVERAL picks? The one thing the sentence cannot
+   * say — the rule fires when any one of them matches — so the caveat is shown when
+   * it is true instead of standing under every rule.
+   */
+  branchSourceIsMulti(): boolean {
+    const code = this.questionForm.controls.enabledWhen.controls.questionCode.value;
+    if (!code) return false;
+    return this.rows().find((q) => q.code === code)?.type === 'MULTI_SELECT';
+  }
+
   /**
    * Questions that may serve as a branch SOURCE for the one being edited.
    *

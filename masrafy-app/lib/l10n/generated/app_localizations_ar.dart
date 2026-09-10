@@ -2235,6 +2235,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get gate_business_too_new => 'هذا البنك يطلب أن يكون نشاطك التجاري قائمًا لمدة أطول من مدته الحالية.';
 
   @override
+  String get gate_loan_too_new => 'هذا البنك يطلب أن يكون القرض الحالي قد سُدد جزء أكبر من مدته.';
+
+  @override
   String get gate_not_met => 'هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.';
 
   @override

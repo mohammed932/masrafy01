@@ -469,19 +469,25 @@ describe('§13.10 — a ceiling by down-payment bracket, two columns', () => {
     });
     const figures = {
       alt: rows(['750000', '1000000', '1250000', '1500000']),
-      alt__top_up: rows(['1250000', '1500000', '1750000', '2000000']),
+      alt__other_product_held: rows(['1250000', '1500000', '1750000', '2000000']),
     };
     // The bracket reads the DOWN PAYMENT, which is what the sheet prints its brackets
     // against. Everything paid to date is a different figure and a different way.
+    //
+    // And the COLUMN is X-SELL — whether the customer already holds another product — not
+    // new-loan/top-up. This test named its own variables `ntb` and `xsell` while keying them
+    // off `loan_is_topup`, which is the same confusion the stored figures were in: spec
+    // §10.3 is explicit that the two are different questions. Both are now the axis the
+    // sheet prints.
     const ntb = quote('compound_owner', figures, {
       ...OWNS_ALL_OF_IT,
       unit_down_payment: number('1200000'),
-      loan_is_topup: choice('new_loan'),
+      holds_other_product: choice('other_product_none'),
     });
     const xsell = quote('compound_owner', figures, {
       ...OWNS_ALL_OF_IT,
       unit_down_payment: number('1200000'),
-      loan_is_topup: choice('top_up'),
+      holds_other_product: choice('other_product_held'),
     });
     expect(ntb).toBe('1250000');
     expect(xsell).toBe('1750000');

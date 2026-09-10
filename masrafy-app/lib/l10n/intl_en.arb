@@ -945,6 +945,7 @@
   "gate_multi_unit_not_confirmed": "You told us you own more than one unit. Confirm which one to use and we can quote this program.",
   "gate_self_employed_docs_missing": "This bank needs a valid trade or practice licence from self-employed customers.",
   "gate_business_too_new": "This bank needs your business to have been running longer than it has.",
+  "gate_loan_too_new": "This bank needs the loan you already have to be further through its term.",
   "gate_not_met": "This program has a condition your answers don't meet, so no figures can be shown.",
   "collateral_skip_step": "Skip for now",
   "collateral_skip_hint": "Skip and we still show the program, just without figures until you answer.",

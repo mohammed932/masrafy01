@@ -202,6 +202,7 @@
   "GATE_MULTI_UNIT_NOT_CONFIRMED": "You told us you own more than one unit. Confirm which one to use and we can quote this program.",
   "GATE_SELF_EMPLOYED_DOCS_MISSING": "This bank needs a valid trade or practice licence for self-employed applicants.",
   "GATE_BUSINESS_TOO_NEW": "This bank needs your business to have been running longer than it has.",
+  "GATE_LOAN_TOO_NEW": "This bank needs the loan you already have to be further through its term.",
   "GATE_NOT_MET": "One of this program's conditions isn't met by your answers.",
   "SURROGATE_PRODUCT_REQUIRED": "Pick the surrogate product this name works its income out from. A program sold without a payslip has to say what the bank reads instead.",
   "SURROGATE_PRODUCT_IN_USE": "{count} program name(s) still take their calculation from this surrogate product. Move them to another one first, then retire it.",

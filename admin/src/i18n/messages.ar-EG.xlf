@@ -710,15 +710,15 @@
       <trans-unit id="qedit.scoring_by_type" datatype="html"><source>A number or free text has no options to configure. Banks read this answer through their money bindings and income rules.</source><target>الرقم أو النص الحر ليس له خيارات تُضبط. تقرأ البنوك هذه الإجابة عبر ربط المبالغ وقواعد الدخل الخاصة بها.</target></trans-unit>
       <trans-unit id="qedit.required" datatype="html"><source>Required</source><target>مطلوب</target></trans-unit>
       <trans-unit id="qedit.sec_branch" datatype="html"><source>When to ask this</source><target>متى يُطرح هذا السؤال</target></trans-unit>
-      <trans-unit id="qedit.branch_clear" datatype="html"><source>Always ask</source><target>اطرحه دائمًا</target></trans-unit>
-      <trans-unit id="qedit.branch_none" datatype="html"><source>Nothing to branch on yet. A rule reads an answer the applicant already gave, so it needs an earlier question that offers a choice of options.</source><target>لا يوجد ما يمكن التفريع عليه بعد. القاعدة تقرأ إجابة سبق أن قدّمها المتقدم، لذا تحتاج سؤالًا أسبق يعرض خيارات للاختيار منها.</target></trans-unit>
-      <trans-unit id="qedit.branch_source" datatype="html"><source>Depends on</source><target>يعتمد على</target></trans-unit>
-      <trans-unit id="qedit.branch_operator" datatype="html"><source>Condition</source><target>الشرط</target></trans-unit>
-      <trans-unit id="qedit.branch_option" datatype="html"><source>This answer</source><target>هذه الإجابة</target></trans-unit>
-      <trans-unit id="qedit.branch_incomplete" datatype="html"><source>Pick which answer triggers this question. A half-set rule can&apos;t be evaluated, so it would save without ever hiding anything.</source><target>اختر الإجابة التي تُظهر هذا السؤال. القاعدة الناقصة لا يمكن تقييمها، لذا ستُحفظ دون أن تُخفي أي شيء.</target></trans-unit>
-      <trans-unit id="qedit.branch_hint" datatype="html"><source>Asked only when that answer matches. If the source question allows several picks, any one of them matching is enough.</source><target>يُطرح فقط عند تطابق تلك الإجابة. إذا كان السؤال المصدر يسمح بعدة اختيارات، فتطابق أي واحد منها يكفي.</target></trans-unit>
-      <trans-unit id="qedit.branch_hint_off" datatype="html"><source>Asked of every applicant in this question&apos;s categories. Pick a question above to ask it conditionally instead.</source><target>يُطرح على كل متقدم في فئات هذا السؤال. اختر سؤالًا بالأعلى لطرحه بشروط بدلًا من ذلك.</target></trans-unit>
-      <trans-unit id="qedit.branch_always" datatype="html"><source>Always ask this</source><target>اطرح هذا دائمًا</target></trans-unit>
+      <trans-unit id="qedit.branch_clear" datatype="html"><source> Always ask instead </source><target> اطرحه دائمًا بدلًا من ذلك </target></trans-unit>
+      <trans-unit id="qedit.branch_none" datatype="html"><source> Nothing to branch on yet — a rule reads an answer from an earlier question that offers options. </source><target> لا يوجد ما يمكن التفريع عليه بعد — القاعدة تقرأ إجابة من سؤال أسبق يعرض خيارات. </target></trans-unit>
+      <trans-unit id="qedit.branch_source" datatype="html"><source> Ask this only when the answer to </source><target> اطرح هذا فقط عندما تكون الإجابة على </target></trans-unit>
+      <trans-unit id="qedit.branch_operator" datatype="html"><source> Matches or does not match </source><target> مطابق أو غير مطابق </target></trans-unit>
+      <trans-unit id="qedit.branch_option" datatype="html"><source> The answer that turns this question on </source><target> الإجابة التي تُظهر هذا السؤال </target></trans-unit>
+      <trans-unit id="qedit.branch_incomplete" datatype="html"><source> Pick which answer turns this question on — a half-set rule hides nothing. </source><target> اختر الإجابة التي تُظهر هذا السؤال — القاعدة الناقصة لا تُخفي شيئًا. </target></trans-unit>
+      <trans-unit id="qedit.branch_hint_off" datatype="html"><source> Asked of every applicant in this question&apos;s loan types. </source><target> يُطرح على كل متقدم في أنواع التمويل الخاصة بهذا السؤال. </target></trans-unit>
+      <trans-unit id="qedit.branch_hint_multi" datatype="html"><source> That question accepts several picks — any one of them matching is enough. </source><target> هذا السؤال يسمح بعدة اختيارات — تطابق أي واحد منها يكفي. </target></trans-unit>
+      <trans-unit id="qedit.branch_always" datatype="html"><source>Pick an earlier question</source><target>اختر سؤالًا أسبق</target></trans-unit>
       <trans-unit id="qedit.branch_is" datatype="html"><source>is</source><target>يساوي</target></trans-unit>
       <trans-unit id="qedit.branch_is_not" datatype="html"><source>is not</source><target>لا يساوي</target></trans-unit>
       <trans-unit id="qedit.branch_pick_option" datatype="html"><source>Pick an answer</source><target>اختر إجابة</target></trans-unit>
@@ -1262,6 +1262,14 @@
       <trans-unit id="product_rule.way.multiple_of" datatype="html">
         <source>A multiple of: <x id="factLabel" equiv-text="factLabel"/></source>
         <target>مضاعف لـ: <x id="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">0</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.way.division_of" datatype="html">
+        <source>A division of: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>قسمة لـ: <x id="factLabel"/></target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
           <context context-type="linenumber">0</context>
@@ -3329,6 +3337,13 @@
         <target>المدة المطلوبة لقيام النشاط التجاري لصاحب العمل الحر</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.loan_repaid" datatype="html">
+        <source>How far through its term the customer's existing loan must be</source>
+        <target>المدة التي يجب أن يكون القرض الحالي قد سُدد منها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/gate-labels.ts</context>
         </context-group>
       </trans-unit>
       <trans-unit id="bank_programs.strategy.steps" datatype="html">

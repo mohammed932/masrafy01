@@ -448,6 +448,146 @@ const PRACTICE_GOVERNORATE_Q: SeedQuestion = {
   options: [],
 };
 
+// ── SHEET CONDITIONS — the answers a bank's own rule refuses on ───────────
+//
+// Each of these exists because a bank's sheet states a condition the platform had no field
+// for, so it lived in the programme's `notes` and was enforced against nobody.
+//
+// EVERY one is REQUIRED and carries an explicit "does not apply to me" option, and that
+// PAIRING is the design — not a style choice, and not safe to relax to `isRequired: false`
+// in a later edit. A condition is switched on per PROGRAMME and never per applicant
+// (`isGateConfigured`), gates AND together, and an unanswered fact behind a live gate is
+// FATAL: `choiceFact` answers `fact_not_answered` and `evaluateProductRule` returns before
+// the gate's pass/fail is ever computed. So the two obvious shapes are both wrong:
+//
+//   · OPTIONAL — whoever skips is refused with a missing-answer reason, on a question they
+//     may have had no business answering. That is verbatim the defect that retired
+//     `owns_practice` below; read its note before touching any of these.
+//   · GATED to the population the CONDITION is about — worse. All five SCB down-payment
+//     programmes accept EVERY employment type while "24 months in business" applies only to
+//     the self-employed, so a gate would hide the question from a salaried applicant the
+//     programme still quotes, and then refuse them for not having answered it.
+//
+// So the exemption lives in the ANSWER, where the engine can read it: the exempting option
+// code sits in the condition's own `oneOf` allow-list, a non-applicant passes in one tap,
+// and nobody is refused over a question that was never theirs.
+//
+// They are BUCKETS rather than numbers for the same reason — a NUMERIC question has no
+// option list, so it has nowhere to put "does not apply to me". The threshold then lives in
+// which codes a bank allow-lists, which is per programme, so a second bank with a different
+// floor states a different allow-list instead of needing a new question.
+
+// App. A — every Suez Canal auto sheet requires 24 months of trading from a self-employed
+// applicant, and App. B's CAE compound sheet says the same. Three live buckets rather than
+// two, so a bank with a 12-month floor allow-lists one more code instead of asking again.
+const BUSINESS_MONTHS_Q: SeedQuestion = {
+  code: 'business_months',
+  questionEn: 'How long has your business been running?',
+  questionAr: 'منذ متى بدأ نشاطك التجاري؟',
+  helperTextEn: 'Some banks lend against a business only after it has been trading a while.',
+  helperTextAr: 'بعض البنوك تمنح التمويل للنشاط التجاري بعد مرور مدة على بدء نشاطه.',
+  isRequired: true,
+  options: [
+    { code: 'under_12m', labelEn: 'Less than a year', labelAr: 'أقل من سنة' },
+    { code: '12m_to_24m', labelEn: 'One to two years', labelAr: 'من سنة إلى سنتين' },
+    { code: '24m_or_more', labelEn: 'More than two years', labelAr: 'أكثر من سنتين' },
+    { code: 'not_self_employed', labelEn: 'I do not run a business', labelAr: 'ليس لدي نشاط تجاري' },
+  ],
+};
+
+// The same sheets require BOTH documents. The option says both, because a bank that accepts
+// one of them states its own allow-list rather than needing the question re-worded.
+const SELF_EMPLOYED_LICENCE_Q: SeedQuestion = {
+  code: 'self_employed_licence',
+  questionEn: 'Do you have a valid commercial register and tax card?',
+  questionAr: 'هل لديك سجل تجاري وبطاقة ضريبية ساريان؟',
+  isRequired: true,
+  options: [
+    { code: 'yes', labelEn: 'Yes, both', labelAr: 'نعم، الاثنان' },
+    { code: 'no', labelEn: 'No, or only one of them', labelAr: 'لا، أو أحدهما فقط' },
+    { code: 'not_self_employed', labelEn: 'I do not run a business', labelAr: 'ليس لدي نشاط تجاري' },
+  ],
+};
+
+// App. A §8 — ABK's in-practice doctor programme is "private hospitals only, not
+// governmental", and `employment_status` is no proxy for it: a government-hospital doctor is
+// salaried and passes that programme's accepted types today.
+//
+// The third option is the exemption, and it is what makes the question askable of every
+// personal and auto applicant: a taxi driver answers it once and no condition can refuse
+// them, because the programme's own bands already price only doctors.
+const HOSPITAL_SECTOR_Q: SeedQuestion = {
+  code: 'hospital_sector',
+  questionEn: 'Do you work at a private hospital or a government one?',
+  questionAr: 'هل تعمل في مستشفى خاص أم حكومي؟',
+  isRequired: true,
+  options: [
+    { code: 'private_hospital', labelEn: 'A private hospital', labelAr: 'مستشفى خاص' },
+    { code: 'government_hospital', labelEn: 'A government hospital', labelAr: 'مستشفى حكومي' },
+    { code: 'not_at_a_hospital', labelEn: 'I do not work at a hospital', labelAr: 'لا أعمل في مستشفى' },
+  ],
+};
+
+// App. A — the 20% down-payment tier is sold only where the home the applicant LIVES in is
+// owned by them or by a first-degree relative. Asked of every auto applicant, because
+// everybody lives somewhere: all three answers are real and `rented_or_other` is the honest
+// no, so this one needs no separate exemption.
+const HOME_OWNERSHIP_Q: SeedQuestion = {
+  code: 'home_ownership',
+  questionEn: 'Do you own the home you live in, or does a close relative?',
+  questionAr: 'هل تملك المنزل الذي تسكنه، أو يملكه أحد أقاربك من الدرجة الأولى؟',
+  isRequired: true,
+  options: [
+    { code: 'owned_by_me', labelEn: 'I own it', labelAr: 'أملكه' },
+    { code: 'owned_by_relative', labelEn: 'A close relative owns it', labelAr: 'يملكه قريب من الدرجة الأولى' },
+    { code: 'rented_or_other', labelEn: 'Rented, or neither', labelAr: 'مستأجر، أو غير ذلك' },
+  ],
+};
+
+// App. A — both Green Finance programmes are sold only to the owner of a DELIVERED unit in a
+// compound the bank has pre-approved. `no_unit` is the exemption for the auto applicant who
+// owns no unit at all.
+const UNIT_APPROVED_COMPOUND_Q: SeedQuestion = {
+  code: 'unit_approved_compound',
+  questionEn: 'Is your home in a finished, bank-approved compound?',
+  questionAr: 'هل منزلك في كومباوند مكتمل ومعتمد من البنك؟',
+  helperTextEn: 'Finished and handed over, in a compound the bank already finances.',
+  helperTextAr: 'مكتمل ومستلم، وفي كومباوند يموّله البنك بالفعل.',
+  isRequired: true,
+  options: [
+    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+    { code: 'no', labelEn: 'No, or I am not sure', labelAr: 'لا، أو غير متأكد' },
+    { code: 'no_unit', labelEn: 'I do not own a unit', labelAr: 'لا أملك وحدة' },
+  ],
+};
+
+// ── GATE SOURCES ──────────────────────────────────────────────────────────
+//
+// These two carry no fact and no condition. Each exists so a question already in the pool
+// can be gated on it, which is the only way to stop that question being asked of applicants
+// it was never about. Both live in `COLLATERAL_GATES_GROUP`, whose questions sit at
+// `displayOrder` 24-26 while every question they gate is at 47+ — checked against the
+// database, because `assertEnabledWhenValid` refuses a forward reference and `displayOrder`
+// is this pool's array index.
+//
+// REQUIRED, and they pay for themselves: one tap hides EIGHT compound questions from an
+// applicant who owns no unit, one of which is itself required today.
+const OWNS_COMPOUND_UNIT_Q: SeedQuestion = {
+  code: 'owns_compound_unit',
+  questionEn: 'Do you own a unit in a compound?',
+  questionAr: 'هل تملك وحدة في كومباوند؟',
+  isRequired: true,
+  options: YESNO(),
+};
+
+const CLUB_MEMBERSHIP_Q: SeedQuestion = {
+  code: 'club_membership',
+  questionEn: 'Are you a member of a sporting club?',
+  questionAr: 'هل أنت عضو في نادٍ رياضي؟',
+  isRequired: true,
+  options: YESNO(),
+};
+
 // `owns_practice` was here, and is retired.
 //
 // It existed for one job: ABK sells the same mechanism twice — App. A §7 to a doctor who owns
@@ -556,6 +696,25 @@ const COLLATERAL_GATES_GROUP: SeedGroup = {
   titleAr: 'ما تملكه بالفعل',
   questions: [EXISTING_BANK_RELATIONSHIPS_Q, EXISTING_BANK_LOANS_Q, EXISTING_BANK_PRODUCTS_Q],
 };
+
+/**
+ * The same group, plus whichever gate sources this loan type actually needs.
+ *
+ * A FUNCTION rather than one shared const, because the three bank axes belong to all three
+ * loan types and the two gate sources do not: `owns_compound_unit` gates eight questions that
+ * are personal-only, and `club_membership` gates one asked in personal and car. Referencing
+ * them from a shared group would make each a REQUIRED question in a loan type where nothing
+ * reads the answers it unlocks — the same defect this change removes from the compound asks,
+ * one level up.
+ *
+ * `mergeSeedPool` dedupes groups by code and unions each question's categories, so all three
+ * configs naming `collateral_gates` produce ONE group whose members carry exactly the
+ * categories that referenced them.
+ */
+const collateralGatesGroup = (...gateSources: SeedQuestion[]): SeedGroup => ({
+  ...COLLATERAL_GATES_GROUP,
+  questions: [...COLLATERAL_GATES_GROUP.questions, ...gateSources],
+});
 
 const EMPLOYER_APPROVED_Q: SeedQuestion = {
   code: 'employer_approved',
@@ -858,6 +1017,25 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
  * the derived total must come last so the applicant sees it settle after the
  * parts. The injection below enforces that ordering explicitly.
  */
+/**
+ * The three details of an EXISTING car loan that the ABK auto cross-sell prices against.
+ *
+ * Gated on the same `current_loans = car_loan` pick as the instalment amount, and that gate
+ * is safe where the sheet-condition questions above could not be gated: the product itself
+ * reads `car_loan_installment` and `auto_loan_amount`, both behind this same gate, so an
+ * applicant it hides the question from cannot be quoted by the programme at all. Nobody is
+ * refused for an answer they were never asked for.
+ *
+ * NOT obligation items — nothing here is a monthly payment and none of it reaches the debt
+ * burden. They ride the same injection loop only because they share the gate, and they are
+ * listed separately so `OBLIGATION_ITEM_QUESTION_CODES` keeps meaning "a debt we subtract".
+ */
+const CAR_LOAN_DETAIL_QUESTION_CODES = [
+  'car_loan_original_tenor',
+  'car_loan_instalments_paid',
+  'car_loan_down_payment',
+] as const;
+
 const OBLIGATION_QUESTIONS: ReadonlyArray<{
   groupCode: string;
   question: SeedQuestion;
@@ -938,6 +1116,68 @@ const OBLIGATION_QUESTIONS: ReadonlyArray<{
         questionCode: DEBT_TYPES_QUESTION_CODE,
         operator: 'equals' as const,
         optionCode: debtType,
+      },
+      options: [],
+    },
+  })),
+  // The car-loan details. Same gate, different job — see `CAR_LOAN_DETAIL_QUESTION_CODES`.
+  // Order matters: the tenor comes before the count of instalments paid, because the sheet's
+  // rule is "past half its tenor AND at least 12 paid" and the editor's own share condition
+  // reads the tenor as its divisor.
+  ...(
+    [
+      {
+        code: 'car_loan_original_tenor',
+        questionEn: 'Over how many months was the car loan taken?',
+        questionAr: 'كم عدد أشهر قرض السيارة الأصلي؟',
+        helperTextEn: 'The original term, not what is left to pay.',
+        helperTextAr: 'المدة الأصلية للقرض، وليست المدة المتبقية.',
+        numeric: { minValue: '6', maxValue: '120', step: '1', unitEn: 'months', unitAr: 'شهر' },
+      },
+      {
+        code: 'car_loan_instalments_paid',
+        questionEn: 'How many instalments have you already paid on it?',
+        questionAr: 'كم قسطًا سددت منه بالفعل؟',
+        numeric: { minValue: '0', maxValue: '120', step: '1', unitEn: 'months', unitAr: 'شهر' },
+      },
+      {
+        code: 'car_loan_down_payment',
+        questionEn: 'What did you pay up front on that car?',
+        questionAr: 'كم دفعت مقدمًا عند شراء تلك السيارة؟',
+        helperTextEn: 'The down payment when you bought it, not what you pay each month.',
+        helperTextAr: 'الدفعة المقدمة عند الشراء، وليست القسط الشهري.',
+        numeric: { minValue: '0', maxValue: '20000000', unitEn: 'EGP', unitAr: 'جنيه' },
+      },
+    ] as ReadonlyArray<{
+      code: string;
+      questionEn: string;
+      questionAr: string;
+      helperTextEn?: string;
+      helperTextAr?: string;
+      numeric: SeedNumericRules;
+    }>
+  ).map(({ code, questionEn, questionAr, helperTextEn, helperTextAr, numeric }) => ({
+    groupCode: 'commitments',
+    // Personal and car only. The cross-sell is a PERSONAL product; `car` carries it for the
+    // same reason it carries every other surrogate fact (an auto loan may be sold off an
+    // assumed income). The injection loop intersects this with whoever asks the branch
+    // source anyway, so business is dropped there rather than needing to be remembered here.
+    categories: ['personal', 'car'] as readonly Category[],
+    question: {
+      code,
+      type: 'NUMERIC' as QuestionType,
+      questionEn,
+      questionAr,
+      helperTextEn,
+      helperTextAr,
+      // Required, like the instalment beside it: the gate means only somebody who ticked
+      // "car loan" is ever shown this, and for them it is not optional information.
+      isRequired: true,
+      numeric,
+      enabledWhen: {
+        questionCode: DEBT_TYPES_QUESTION_CODE,
+        operator: 'equals' as const,
+        optionCode: 'car_loan',
       },
       options: [],
     },
@@ -1047,12 +1287,18 @@ const PERSONAL: CategoryConfig = {
         // governorate is filed under) and WHETHER they own the practice (which of the two
         // ABK doctor programmes they are for). The reference IS the assignment.
         PRACTICE_GOVERNORATE_Q,
+        // The sheet conditions. The reference IS the assignment (`question_loan_category`,
+        // A33). Each is required and carries its own "does not apply to me" answer — see the
+        // block header where they are declared before changing either.
+        BUSINESS_MONTHS_Q,
+        SELF_EMPLOYED_LICENCE_Q,
+        HOSPITAL_SECTOR_Q,
       ],
     },
     // The reference here IS the assignment (`question_loan_category`, A33) — nothing else in
     // the codebase holds a list of which categories ask this, so widening it is an admin
     // action on the questionnaire screen, never a release.
-    COLLATERAL_GATES_GROUP,
+    collateralGatesGroup(OWNS_COMPOUND_UNIT_Q, CLUB_MEMBERSHIP_Q),
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
@@ -1131,6 +1377,10 @@ const MORTGAGE: CategoryConfig = {
         EMPLOYER_APPROVED_Q,
         ADDITIONAL_INCOME_Q,
         ACTIVE_ACCOUNT_Q,
+        // NONE of the sheet conditions. Every product that reads them is sold as `personal`
+        // (the CAE compound) or `car` (the seven Suez Canal auto programmes), so any of them
+        // here would be a REQUIRED question no mortgage programme could ever read — which is
+        // exactly the defect this change removes from the compound asks.
       ],
     },
     // The reference here IS the assignment (`question_loan_category`, A33) — nothing else in
@@ -1178,6 +1428,11 @@ const CAR: CategoryConfig = {
         // sold under `car`, and both are quoted off what the applicant has saved.
         TOTAL_SAVINGS_Q,
         GREEN_BUYER_TYPE_Q,
+        // Both Green programmes are sold only against a delivered unit in a pre-approved
+        // compound, and the 20% down-payment tier only where the home is owned by the
+        // applicant or a first-degree relative. Car only — no other loan type sells them.
+        UNIT_APPROVED_COMPOUND_Q,
+        HOME_OWNERSHIP_Q,
       ],
     },
     {
@@ -1214,9 +1469,15 @@ const CAR: CategoryConfig = {
         // three above: an auto loan may be sold off an assumed income, and an unasked fact
         // resolves to `SURROGATE_FACT_MISSING`, never a zero.
         PRACTICE_GOVERNORATE_Q,
+        // The sheet conditions. The reference IS the assignment (`question_loan_category`,
+        // A33). Each is required and carries its own "does not apply to me" answer — see the
+        // block header where they are declared before changing either.
+        BUSINESS_MONTHS_Q,
+        SELF_EMPLOYED_LICENCE_Q,
+        HOSPITAL_SECTOR_Q,
       ],
     },
-    COLLATERAL_GATES_GROUP,
+    collateralGatesGroup(CLUB_MEMBERSHIP_Q),
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
@@ -1539,6 +1800,10 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   const obligationBlock: readonly string[] = [
     DEBT_TYPES_QUESTION_CODE,
     ...OBLIGATION_ITEM_QUESTION_CODES,
+    // In the block because that splice is the ONLY thing that puts an injected question into
+    // `questionOrder` — and a question missing from it is not merely mis-ordered, it is never
+    // written and then swept inactive by the `notIn: questionOrder` pass below.
+    ...CAR_LOAN_DETAIL_QUESTION_CODES,
     MONEY_FIELD_BINDINGS.existing_obligations,
   ];
   for (let i = questionOrder.length - 1; i >= 0; i--) {
@@ -1648,6 +1913,46 @@ export async function seedQuestionnaire(): Promise<void> {
   // Deactivate stale questions + groups (dropped/renamed across the whole pool).
   await prisma.question.updateMany({ where: { code: { notIn: questionOrder } }, data: { isActive: false } });
   await prisma.questionGroup.updateMany({ where: { code: { notIn: groupOrder } }, data: { isActive: false } });
+
+  // ---- 2a-ii. Put back the ones a live product still reads --------------------
+  //
+  // The sweep above is right about a question DROPPED from this pool — removing it is how a
+  // question is retired. It is wrong about a question a BLUEPRINT minted: those are not in
+  // this pool by design (`seed:blueprints` owns them), so every run switched all of them off
+  // and the product reading them quietly stopped quoting. `seed:blueprints` does not put them
+  // back either — it `skip`s a product that already holds a calculation — so the repair was a
+  // manual step somebody had to know about, and the changelog records it being missed and
+  // then re-done three times (v24.0.0, v25.0.0, v26.0.0).
+  //
+  // It is fixed here rather than left as a runbook line because of WHERE the two acts fall:
+  // `publishVersion()` runs a few lines below, so a repair applied afterwards leaves the
+  // SERVED snapshot short of exactly those questions until somebody republishes by hand.
+  //
+  // Derived from `surrogate_product_ask` and never hand-typed — a list of codes in this file
+  // would be a fourth place to keep in step. `detachedAt IS NULL` is load-bearing: an
+  // operator's untick is a tombstone precisely so the seed cannot undo it, and reviving a
+  // detached ask's question here would be this seed overruling them.
+  const revived = await prisma.question.updateMany({
+    where: {
+      isActive: false,
+      id: {
+        in: (
+          await prisma.surrogateProductAsk.findMany({
+            where: { detachedAt: null, fact: { type: 'surrogate_fact' } },
+            select: { fact: { select: { boundQuestionId: true } } },
+          })
+        )
+          .map((ask) => ask.fact.boundQuestionId)
+          .filter((id): id is string => id !== null),
+      },
+    },
+    data: { isActive: true },
+  });
+  if (revived.count > 0) {
+    console.log(
+      `seed-questionnaire: kept ${revived.count} blueprint question(s) live — a product still reads them.`,
+    );
+  }
 
   // ---- 2b. The bureau-score FACT --------------------------------------------
   await upsertIScoreFact();

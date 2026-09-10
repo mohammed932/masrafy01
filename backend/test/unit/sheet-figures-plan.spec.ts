@@ -318,26 +318,42 @@ describe('the two ABK doctor sheets are two products', () => {
     expect(clinic?.dto.loanLimits?.maxLoanByFact?.onNoMatch).toBe('reject');
   });
 
-  it('gates on nothing at all — the name pick is what separates them', () => {
-    // Two conditions on the merged product used to do this, read off an OPTIONAL question
-    // while an unanswered gate fact is fatal: a doctor who skipped it was refused by both
-    // programmes. Neither programme may carry one now.
-    for (const program of DOCTORS) {
-      const params = (
-        program.dto.incomeAssumption as { stepParams?: Record<string, unknown> } | undefined
-      )?.stepParams;
-      expect(Object.keys(params ?? {}).filter((id) => id.startsWith('cond__'))).toEqual([]);
-    }
+  it('never gates on which of the two programmes is the applicant’s', () => {
+    // Two conditions on the MERGED product used to decide that, read off an OPTIONAL question
+    // while an unanswered gate fact is fatal — so a doctor who skipped it was refused by both
+    // programmes. The split is what removed the need, and neither programme may reintroduce a
+    // condition that separates them.
+    //
+    // This is not "no conditions at all": the in-practice sheet says "private hospitals only,
+    // not governmental", which is a different claim about a different fact, and it is enforced
+    // (`cond__privatehospitalonly`) with an exempting answer allow-listed. What is asserted is
+    // that neither programme gates on the OWNERSHIP question the split retired.
+    const gateIds = DOCTORS.flatMap((program) =>
+      Object.keys(
+        (program.dto.incomeAssumption as { stepParams?: Record<string, unknown> } | undefined)
+          ?.stepParams ?? {},
+      ).filter((id) => id.startsWith('cond__')),
+    );
+    expect(gateIds).toEqual(['cond__privatehospitalonly']);
+    expect(gateIds.some((id) => /own|practice|clinic/i.test(id))).toBe(false);
   });
 
   it('gives the in-practice sheet one income slot, not three', () => {
     // The merged product carried a city-tier column §8 does not use, so this programme held
     // the identical figures in three slots and read as pricing by city.
+    //
+    // ONE income slot is the claim, so the sector condition is excluded rather than added to
+    // the expectation: a `cond__*` id is a gate, not a column, and letting it into this list
+    // would mean the next real column could slip in beside it unnoticed.
     const practice = DOCTORS.find((p) => p.programCode === 'ABK-PER-DOCTORS_PRACTICE');
     const params = (
       practice?.dto.incomeAssumption as { stepParams?: Record<string, unknown> } | undefined
     )?.stepParams;
-    expect(Object.keys(params ?? {}).sort()).toEqual(['primary']);
+    expect(
+      Object.keys(params ?? {})
+        .filter((id) => !id.startsWith('cond__'))
+        .sort(),
+    ).toEqual(['primary']);
   });
 
   it('leaves every condition blank on the CATALOG defaults', () => {
