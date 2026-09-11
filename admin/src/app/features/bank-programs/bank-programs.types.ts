@@ -1280,6 +1280,23 @@ export interface AskPoolQuestion {
   askedByOtherProducts: string[];
 }
 
+/**
+ * What an applicant who picks one of this product's catalog names actually answers.
+ *
+ * Counted server-side off the customer payload itself, never re-derived here: a second
+ * derivation on this screen is how a screen comes to report a narrowing other than the one
+ * being served.
+ */
+export interface ProductAskServed {
+  programNameKey: string;
+  category: LoanCategory;
+  categoryTotal: number;
+  categoryRequired: number;
+  servedTotal: number;
+  servedRequired: number;
+  servedQuestionCodes: string[];
+}
+
 export interface ProductAsksBoard {
   productKey: string;
   labelAr: string;
@@ -1288,6 +1305,8 @@ export interface ProductAsksBoard {
   capOnly: boolean;
   asks: ProductAsk[];
   pool: AskPoolQuestion[];
+  /** One row per catalog name and loan type this product is sold under. */
+  served: ProductAskServed[];
   /**
    * Fact keys the product's own calculation reads.
    *

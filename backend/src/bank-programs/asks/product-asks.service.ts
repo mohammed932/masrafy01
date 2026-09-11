@@ -61,6 +61,7 @@ import type {
   AskWriteResultDto,
   AttachProductAskDto,
   ProductAskDto,
+  ProductAskServedDto,
   ProductAsksResponseDto,
 } from '../dto/product-asks.dto';
 import { ASK_SOURCE, ProductAsksRepository, type ProductAskRow } from './product-asks.repository';
@@ -220,6 +221,7 @@ export class ProductAsksService {
       labelEn: product.labelEn,
       active: product.active,
       capOnly: isCapOnlyProductKey(productKey),
+      served: await this.servedPreview(productKey),
       asks,
       pool: poolDtos,
       factsReadByRule,
@@ -495,6 +497,50 @@ export class ProductAsksService {
     return ids.length > 0 ? ids : ['(the whole calculation)'];
   }
 
+  /**
+   * What the ticks above actually cost an applicant, per catalog name and loan type.
+   *
+   * Counted off `activeSnapshot`, the customer read itself, so this reports the narrowing
+   * being SERVED rather than a second opinion about it. The un-narrowed count comes from the
+   * same call with no name, memoised per loan type because it does not vary by name.
+   *
+   * A product with no linked name reports nothing: nothing narrows, so there is nothing to
+   * say. Same for a name whose programs are all switched off — `narrowingScopeFor` answers
+   * `null` there and the snapshot comes back whole, which the equal counts then show.
+   */
+  private async servedPreview(productKey: string): Promise<ProductAskServedDto[]> {
+    const nameKeys = await this.repo.programNamesLinkedTo(productKey);
+    if (nameKeys.length === 0) return [];
+    const members = await this.repo.getActiveMembers('program_name');
+    const byKey = new Map(members.map((m) => [m.key, m]));
+
+    const wholeCategory = new Map<LoanCategory, { total: number; required: number }>();
+    const out: ProductAskServedDto[] = [];
+    for (const programNameKey of nameKeys) {
+      const member = byKey.get(programNameKey);
+      if (member === undefined) continue; // retired name: it offers nothing to narrow
+      for (const category of member.categories) {
+        let whole = wholeCategory.get(category);
+        if (whole === undefined) {
+          whole = countQuestions(await this.questionnaire.activeSnapshot(category));
+          wholeCategory.set(category, whole);
+        }
+        const narrowed = await this.questionnaire.activeSnapshot(category, programNameKey);
+        const counted = countQuestions(narrowed);
+        out.push({
+          programNameKey,
+          category,
+          categoryTotal: whole.total,
+          categoryRequired: whole.required,
+          servedTotal: counted.total,
+          servedRequired: counted.required,
+          servedQuestionCodes: counted.codes,
+        });
+      }
+    }
+    return out;
+  }
+
   /** Whether an ask can be removed on this screen, decided server-side and served. */
   private detachability(args: {
     productKey: string;
@@ -509,6 +555,15 @@ export class ProductAsksService {
     // card still says about it is PROVENANCE ("comes with the product"), read off `source`.
     if (args.ownRuleStepIds.length > 0) {
       return { ok: false, reason: 'read_by_own_rule', meta: { stepIds: [...args.ownRuleStepIds] } };
+    }
+    // The same test `planDetach` refuses on, so the card greys out before the click rather
+    // than after it. A bank program reading the fact is now also a statement about what its
+    // applicants are ASKED, not only about a hard delete.
+    const bankReaders = args.readers.filter(
+      (reader) => reader.source === 'bank_program' || reader.source === 'bank_program_cap',
+    );
+    if (bankReaders.length > 0) {
+      return { ok: false, reason: 'fact_still_read', meta: { readBy: [...bankReaders] } };
     }
     const wouldDelete =
       args.fact !== null &&
@@ -602,4 +657,24 @@ export class ProductAsksService {
     }
     return [...bySource].map(([source, count]) => ({ source, count }));
   }
+}
+
+/**
+ * Count a served customer snapshot. Structural on purpose: the payload is typed `unknown`
+ * because it is a projection of stored JSON, and this reads only the three fields it needs.
+ */
+function countQuestions(snapshot: unknown): {
+  total: number;
+  required: number;
+  codes: string[];
+} {
+  const groups =
+    (snapshot as { groups?: { questions?: { code?: unknown; isRequired?: unknown }[] }[] })
+      .groups ?? [];
+  const questions = groups.flatMap((g) => g.questions ?? []);
+  return {
+    total: questions.length,
+    required: questions.filter((q) => q.isRequired === true).length,
+    codes: questions.map((q) => String(q.code)),
+  };
 }

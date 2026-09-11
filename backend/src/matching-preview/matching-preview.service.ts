@@ -25,6 +25,7 @@ import {
 import type { ApplicantProfile, Quote } from '@/matching/types';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { validateAnswer } from '@/questionnaire/validation/answer-validation';
+import { narrowAskedQuestions } from '@/questionnaire/validation/question-scope';
 
 interface SnapshotOption {
   code: string;
@@ -171,6 +172,7 @@ export class MatchingPreviewService {
     const { money, surrogateFacts } = await this.resolveSelectedOptions(
       args.answers,
       args.category,
+      args.programNameKey,
     );
     return this.runAndAssemble(
       args.category,
@@ -205,6 +207,7 @@ export class MatchingPreviewService {
   private async resolveSelectedOptions(
     answers: SubmittedAnswerDto[],
     category: LoanCategory,
+    programNameKey?: string,
   ): Promise<{
     money: MoneyInputs | null;
     /** Feature 011 — the facts an income rule looks its table up by (FR-018). */
@@ -232,6 +235,20 @@ export class MatchingPreviewService {
       }
     }
     const byCode = new Map(questions.map((q) => [q.code, q]));
+
+    // The program-name axis, through the SAME function serve and apply use. Acceptance below
+    // stays category-wide, exactly as apply's does — exploring must never 422, and the admin
+    // simulator posts whatever answer set it likes.
+    const decision = narrowAskedQuestions(
+      questions.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen ?? null })),
+      programNameKey === undefined
+        ? null
+        : await this.enumerations.narrowingScopeFor(programNameKey),
+    );
+    /** Was this question SERVED for this request — not merely answerable. */
+    const served = (code: string): boolean =>
+      decision.narrowed ? decision.keep.has(code) : byCode.has(code);
+
     const numeric = new Map<string, string>();
     /**
      * Feature 011 — the SINGLE_SELECT picks, for the surrogate facts. Collected here
@@ -290,7 +307,7 @@ export class MatchingPreviewService {
     //                 his debts, then shrink it.
     //   served, answered   → sum the visible per-debt amounts (picking "none"
     //                 sums to a real, stated 0).
-    const obligations = byCode.has(DEBT_TYPES_QUESTION_CODE)
+    const obligations = served(DEBT_TYPES_QUESTION_CODE)
       ? pickedDebtTypes === undefined
         ? null
         : resolveObligations({ numericByCode: numeric, pickedDebtTypes })

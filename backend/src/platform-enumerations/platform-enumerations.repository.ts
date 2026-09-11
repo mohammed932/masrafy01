@@ -15,6 +15,7 @@ import type {
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
+import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 
 export type EnumerationType =
@@ -573,6 +574,31 @@ export abstract class PlatformEnumerationsRepository {
    * its old category is a wrong loan amount frozen onto an offer, not a stale picker.
    */
   abstract enumerationParentKeys(): Promise<Readonly<Record<string, string>>>;
+
+  /**
+   * Everything the question-scope rule needs about one catalog program name, or `null` when
+   * the name narrows nothing.
+   *
+   * The SECOND narrowing axis (`questionnaire/validation/question-scope.ts`): of the questions
+   * the loan category asks, an applicant is put in front of the ones a program behind the name
+   * they picked can actually be quoted from, plus the core every quote needs. This is the one
+   * place the three inputs meet — the product's declared ask set, the facts the name's own
+   * programs read, and the fact-to-question bindings — so serve, apply and preview cannot
+   * disagree about what was asked.
+   *
+   * Returns question CODES, never fact keys. The derived bank axes have no registry binding at
+   * all, so resolving a fact to its question is knowledge that belongs here and not in the pure
+   * rule.
+   *
+   * `null` when the name is unknown, inactive, or has no active program: with no program there
+   * is no read set to trust, and serving the whole category is the safe answer.
+   *
+   * Uncached by contract, like `surrogateFactRegistry` and `programNameIncomeRules`. It decides
+   * which questions an applicant is asked, so a 60s window is a window in which an operator's
+   * tick does nothing — and, worse, one in which a cap table that started reading a fact is
+   * still being quoted without the answer.
+   */
+  abstract narrowingScopeFor(programNameKey: string): Promise<NarrowingScope | null>;
 
   /**
    * One catalog program name, with the two fields its income rule needs.

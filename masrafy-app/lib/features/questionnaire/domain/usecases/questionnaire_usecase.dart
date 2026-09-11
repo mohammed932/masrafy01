@@ -15,7 +15,8 @@ class QuestionnaireUseCase extends BaseUseCase<QuestionnaireRepository> {
   QuestionnaireUseCase(super.repository);
 
   Future<Either<Failure, QuestionnaireSnapshotEntity>> getActive(
-    LoanCategory category,
-  ) =>
-      repository.getActive(category);
+    LoanCategory category, {
+    String? programNameKey,
+  }) =>
+      repository.getActive(category, programNameKey: programNameKey);
 }

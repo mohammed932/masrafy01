@@ -116,6 +116,30 @@ export interface AskPoolQuestionDto {
   askedByOtherProducts: string[];
 }
 
+/**
+ * What an applicant who picks one of this product's catalog names is actually asked.
+ *
+ * Counted off the very payload the customer would receive — `activeSnapshot(category, name)`
+ * — and never re-derived here. A second derivation on an operator screen is how a screen
+ * comes to report a narrowing other than the one being served.
+ *
+ * One row per (catalog name, loan type) the product is sold under, because that pair is what
+ * the applicant picks and what the narrowing keys off. A product backing two names has two
+ * rows and they may legitimately differ.
+ */
+export interface ProductAskServedDto {
+  programNameKey: string;
+  category: LoanCategory;
+  /** Everything this loan type asks, before the program narrows it. */
+  categoryTotal: number;
+  categoryRequired: number;
+  /** What an applicant picking this name answers. */
+  servedTotal: number;
+  servedRequired: number;
+  /** The served codes, in the order the applicant meets them. */
+  servedQuestionCodes: string[];
+}
+
 /** Everything step ① renders, in one response. */
 export interface ProductAsksResponseDto {
   productKey: string;
@@ -126,6 +150,13 @@ export interface ProductAsksResponseDto {
   capOnly: boolean;
   asks: ProductAskDto[];
   pool: AskPoolQuestionDto[];
+  /**
+   * The consequence of the ticks above, per catalog name and loan type: how many questions
+   * an applicant who picks that name actually answers, and how many of them they must.
+   * Empty for a product no catalog name is linked to, and for one whose names have no
+   * active program — in both cases nothing narrows, so there is nothing to report.
+   */
+  served: ProductAskServedDto[];
   /**
    * Fact keys this product's own calculation reads.
    *

@@ -306,6 +306,33 @@ export function planDetach(input: DetachPlanInput): DetachPlan {
     };
   }
 
+  // 1.5. A live BANK PROGRAM still reads it. Refused whatever the ask's source is and whatever
+  //      the delete decision would have been, and it has to come BEFORE the tombstone branch
+  //      below — that branch exists because a blueprint re-declares its own facts, which says
+  //      nothing about whether a bank is quoting off one right now.
+  //
+  //      Since the program-name axis narrows the questionnaire, an untick is no longer only a
+  //      claim about this product's calculation: it decides whether the applicants this
+  //      program quotes are ASKED the question at all. Take the answer away from a cap table
+  //      and `maxLoanByFact` misses, `onNoMatch: 'useProgramMax'` swallows the miss, and the
+  //      program quotes its own maximum instead of the bank's row — silently. That is exactly
+  //      how `do_you_own_more_than_one_unit` went dark and took ABK's multi-unit uplift with
+  //      it; nothing refused, and nothing reported it for a week.
+  //
+  //      Filtered by SOURCE rather than taking a second input, so a caller cannot forget to
+  //      pass it. `surrogate_product` and `program_name` readers are deliberately excluded:
+  //      this product's own rule is step 1's refusal, and another product's rule is not a
+  //      reason this product must keep asking.
+  const bankReaders = input.readBy.filter(
+    (reader) => reader.source === 'bank_program' || reader.source === 'bank_program_cap',
+  );
+  if (bankReaders.length > 0) {
+    return {
+      kind: 'refuse',
+      refusal: { code: 'factInUse', factKey: input.factKey, readBy: bankReaders },
+    };
+  }
+
   // 2. An ask the library owns comes off as a TOMBSTONE, and its fact row is never touched.
   //    The row survives so `npm run seed:blueprints` collides with it instead of re-inserting
   //    the ask; the fact is the library's own — it will be re-declared by the blueprint on

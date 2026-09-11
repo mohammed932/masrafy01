@@ -32,9 +32,15 @@ class QuestionnaireView extends StatelessWidget {
     super.key,
     required this.category,
     required this.buildRequest,
+    this.programNameKey,
   });
 
   final LoanCategory category;
+
+  /// The catalog program the applicant picked on loan setup. It narrows the questions
+  /// the server serves to the ones a program behind that name reads, so two applicants
+  /// on the same loan type answer different sets. Null asks the whole category.
+  final String? programNameKey;
 
   /// Maps the loaded state (visible answers + version) to the apply request.
   final ApplyRequest Function(QuestionnaireState state) buildRequest;
@@ -42,18 +48,27 @@ class QuestionnaireView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<QuestionnaireCubit>(
-      create: (_) => getIt<QuestionnaireCubit>()..load(category),
-      child: _QuestionnaireBody(category: category, buildRequest: buildRequest),
+      create: (_) =>
+          getIt<QuestionnaireCubit>()..load(category, programNameKey: programNameKey),
+      child: _QuestionnaireBody(
+        category: category,
+        buildRequest: buildRequest,
+        programNameKey: programNameKey,
+      ),
     );
   }
 }
 
 class _QuestionnaireBody extends StatefulWidget {
-  const _QuestionnaireBody(
-      {required this.category, required this.buildRequest});
+  const _QuestionnaireBody({
+    required this.category,
+    required this.buildRequest,
+    this.programNameKey,
+  });
 
   final LoanCategory category;
   final ApplyRequest Function(QuestionnaireState state) buildRequest;
+  final String? programNameKey;
 
   @override
   State<_QuestionnaireBody> createState() => _QuestionnaireBodyState();
@@ -114,7 +129,15 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
               RequestState.loading =>
                 const QuestionnaireShimmer(),
               RequestState.error =>
-                _MessageView(onRetry: () => cubit.load(widget.category)),
+                // The key travels on the RETRY too. Without it a tap here reloads the
+                // whole category, and apply would then hold the applicant to the narrower
+                // set they were never shown.
+                _MessageView(
+                  onRetry: () => cubit.load(
+                    widget.category,
+                    programNameKey: widget.programNameKey,
+                  ),
+                ),
               RequestState.loaded => state.steps.isEmpty
                   ? const _MessageView()
                   : _LoadedView(state: state, controller: _controller),

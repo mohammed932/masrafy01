@@ -35,6 +35,7 @@ import {
   type SubmittedAnswerValue,
 } from './validation/answer-validation';
 import { isQuestionVisible } from './validation/question-visibility';
+import { narrowAskedQuestions, type NarrowingScope } from './validation/question-scope';
 import type {
   CreateGroupDto,
   CreateOptionDto,
@@ -135,10 +136,14 @@ export class QuestionnaireService {
    * pool itself stays one canonical list; assignment decides which of its
    * questions a given applicant is asked (A33 as amended).
    */
-  async activeSnapshot(category?: LoanCategory): Promise<unknown> {
+  async activeSnapshot(category?: LoanCategory, programNameKey?: string): Promise<unknown> {
     const version = await this.repo.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
-    return toCustomerSnapshot(version.snapshot, category);
+    // No name, no read. The un-narrowed path stays query-identical to what it always was,
+    // which is what lets a client that has never heard of this parameter keep working.
+    const scope =
+      programNameKey === undefined ? null : await this.enums.narrowingScopeFor(programNameKey);
+    return toCustomerSnapshot(version.snapshot, category, scope);
   }
 
   // ---- Groups -------------------------------------------------------------
@@ -976,6 +981,7 @@ export class QuestionnaireService {
   async resolveAnswers(
     answers: ReadonlyArray<SubmittedAnswerValue>,
     category?: LoanCategory,
+    programNameKey?: string,
   ): Promise<{ resolved: ResolvedAnswer[]; askedQuestionCodes: string[] }> {
     const questions = await this.repo.questions();
     const assignments = category ? await this.repo.categoryAssignments() : null;
@@ -984,8 +990,23 @@ export class QuestionnaireService {
         q.isActive &&
         (assignments === null || (assignments.get(q.id) ?? []).includes(category as LoanCategory)),
     );
+    // CATEGORY-wide, and it stays that way even when a program name narrows the set below.
+    // Two reasons, and both are load-bearing. It is the ACCEPTANCE map, and a backend deploy
+    // is not atomic with an app release — every build in the field posts the whole category
+    // set, so narrowing what may be answered would answer all of them with
+    // `UNKNOWN_QUESTION_CODE`. It is also what `isQuestionVisible` reads to decide whether a
+    // gate is dangling: keeping it wide means a narrowed-away gate SOURCE can never make its
+    // target read as unconditionally visible, which is a second guard independent of the
+    // narrowing rule's own gate closure.
     const byCode = new Map(active.map((q) => [q.code, q]));
     const submitted = new Map(answers.map((a) => [a.questionCode, a]));
+
+    // The program-name axis. No name, no read — which is also what keeps this method working
+    // for a caller that never supplies one.
+    const decision = narrowAskedQuestions(
+      active,
+      programNameKey === undefined ? null : await this.enums.narrowingScopeFor(programNameKey),
+    );
 
     // Unknown codes fail before anything else: a stale client must be told. A
     // code that exists in the pool but is not asked for this category counts as
@@ -1009,6 +1030,11 @@ export class QuestionnaireService {
     const resolved: ResolvedAnswer[] = [];
     const askedQuestionCodes: string[] = [];
     for (const q of active) {
+      // Narrowed away: this program does not read the answer, so it is neither required, nor
+      // stored, nor recorded as asked. Before the visibility test, because a question nobody
+      // in scope reads is not a question whose gate is worth evaluating.
+      if (decision.narrowed && !decision.keep.has(q.code)) continue;
+
       const options = optionsByQuestionId.get(q.id) ?? [];
       const visible = isQuestionVisible(q, submitted, byCode);
       const answer = submitted.get(q.code);
@@ -1026,7 +1052,10 @@ export class QuestionnaireService {
         {
           code: q.code,
           type: q.type,
-          isRequired: q.isRequired,
+          // Required because a program in scope reads it — the same override the served
+          // snapshot carries, from the same decision, so the app and the server cannot
+          // disagree about which questions the applicant had to answer.
+          isRequired: q.isRequired || decision.extraRequired.has(q.code),
           optionCodes: options.map((o) => o.code),
           numeric: numericRulesOf(q),
           text: textRulesOf(q),
@@ -1658,11 +1687,35 @@ function askedFor(q: StoredQuestion, category: LoanCategory | undefined): boolea
  * renders one step per group, so an empty one is a blank screen with a live Next
  * button.
  */
-function toCustomerSnapshot(raw: unknown, category?: LoanCategory): unknown {
+function toCustomerSnapshot(
+  raw: unknown,
+  category?: LoanCategory,
+  scope: NarrowingScope | null = null,
+): unknown {
   const snap = raw as StoredSnapshot;
-  const groups = (snap.groups ?? [])
-    .map((g) => ({ ...g, questions: (g.questions ?? []).filter((q) => askedFor(q, category)) }))
-    .filter((g) => g.questions.length > 0);
+  const inCategory = (snap.groups ?? []).map((g) => ({
+    ...g,
+    questions: (g.questions ?? []).filter((q) => askedFor(q, category)),
+  }));
+
+  // The program-name axis, applied ACROSS groups and in one call: a question's gate may point
+  // at a question in another group, so a per-group decision could drop a source and leave its
+  // target dangling — which `isQuestionVisible` renders as unconditionally visible.
+  const decision = narrowAskedQuestions(
+    inCategory.flatMap((g) =>
+      g.questions.map((q) => ({ code: q.code, enabledWhen: q['enabledWhen'] ?? null })),
+    ),
+    scope,
+  );
+
+  const groups = (
+    decision.narrowed
+      ? inCategory.map((g) => ({
+          ...g,
+          questions: g.questions.filter((q) => decision.keep.has(q.code)),
+        }))
+      : inCategory
+  ).filter((g) => g.questions.length > 0);
   return {
     versionNumber: snap.versionNumber,
     groups: groups.map((g) => ({
@@ -1679,7 +1732,11 @@ function toCustomerSnapshot(raw: unknown, category?: LoanCategory): unknown {
         questionEn: q['questionEn'],
         helperTextAr: q['helperTextAr'],
         helperTextEn: q['helperTextEn'],
-        isRequired: q['isRequired'],
+        // Required BECAUSE a program in scope reads it: the only reason a narrowed question is
+        // on screen is that the picked name's calculation needs the answer, and an unanswered
+        // fact is not a smaller quote but no quote at all from that program. The app reads
+        // requiredness straight off the snapshot, so this line is the whole of it client-side.
+        isRequired: q['isRequired'] === true || decision.extraRequired.has(q.code),
         displayOrder: q['displayOrder'],
         enabledWhen: q['enabledWhen'] ?? null,
         // Rule blocks travel to the client so the app can enforce bounds locally

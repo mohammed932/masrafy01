@@ -9,12 +9,16 @@ import 'package:app/features/questionnaire/domain/enums/loan_category.dart';
 /// Fetches the active published questionnaire snapshot for one loan category —
 /// the pool stays GLOBAL (one list, one version) and the category selects which
 /// of its questions are asked (Principle X — repository owns the datasource).
+///
+/// `programNameKey` narrows it again to the program the applicant picked, so they are
+/// asked what that program reads and not what every other one does.
 /// Returns `Either<Failure, T>`; never throws.
 abstract class QuestionnaireRepository
     extends BaseRepository<QuestionnaireRemoteDataSource> {
   QuestionnaireRepository(super.remoteDataSource);
 
   Future<Either<Failure, QuestionnaireSnapshotEntity>> getActive(
-    LoanCategory category,
-  );
+    LoanCategory category, {
+    String? programNameKey,
+  });
 }

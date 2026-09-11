@@ -5,6 +5,8 @@ import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { LoanCategory, PlatformEnumeration, QuestionType } from '@prisma/client';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
+  catalogRuleOf,
+  effectiveIncomeRule,
   effectiveProgramNameRule,
   inheritsCatalogAmounts,
 } from '@/matching/pipeline/income-rule-inherit';
@@ -17,7 +19,15 @@ import { asLoanCategory, sortCategories } from '@/common/loan-category.util';
 import { basesOfFlags, flagsOfBases, type IncomeBasis } from '@/common/income-basis.util';
 import { factKeyOf, type IncomeAssumptionConfig } from '@/matching/types';
 import { SURROGATE_FACTS_BY_STRATEGY } from '@/matching/pipeline/surrogate-fact-bindings';
-import { factReaders, type FactReader } from '@/matching/pipeline/fact-readers';
+import {
+  factReaders,
+  factsReadByIncomeRule,
+  factsReadByLoanLimits,
+  type FactReader,
+} from '@/matching/pipeline/fact-readers';
+import { isReservedFactKey } from '@/matching/pipeline/fact-question-eligibility';
+import { bankAxisByFactKey } from '@/matching/pipeline/bank-relationship';
+import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import { enabledWhenGate } from '@/questionnaire/validation/question-visibility';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
@@ -703,6 +713,120 @@ export class PostgresPlatformEnumerationsRepository
       }),
     ]);
     return factReaders(key, { programs, rules });
+  }
+
+  /**
+   * The question-scope inputs for one catalog program name. See the abstract for the contract.
+   *
+   * FOUR reads, and the shape of the third is the point: the facts a program reads come from
+   * its EFFECTIVE rule, never from the stored `incomeAssumption` column. A program on
+   * `amounts: 'catalog'` carries no `steps` of its own — the structure lives on the name — so
+   * reading the column would report exactly the programs this feature exists for as needing
+   * nothing at all, and every question their calculation reads would be narrowed away.
+   *
+   * The needed set is a UNION over every ACTIVE program under the name, both income bases, and
+   * that breadth is deliberate twice over. A payslip program reads its facts only through
+   * `loanLimits.maxLoanByFact` / `maxLoanAdjustments`, which is the whole reader set of a
+   * cap-only product and would otherwise be invisible here — and a cap that misses its answer
+   * falls through `onNoMatch: 'useProgramMax'`, quoting ABOVE the bank's own table with nothing
+   * reporting it. Not filtering by basis also means a customer who fetches on one basis and
+   * changes their mind is never under-asked.
+   *
+   * The declared ask set is unioned in as well, so a question an operator ticked before any
+   * bank filled a figure is still asked and the product's own board does not lie.
+   */
+  async narrowingScopeFor(programNameKey: string): Promise<NarrowingScope | null> {
+    const [nameRow, factRows, programs] = await Promise.all([
+      this.prisma.platformEnumeration.findUnique({
+        where: { idx_platform_enumeration_type_key: { type: 'program_name', key: programNameKey } },
+        select: { active: true, deprecatedAt: true, incomeRule: true, surrogateProductKey: true },
+      }),
+      this.prisma.platformEnumeration.findMany({
+        where: { type: FACT_TYPE },
+        select: {
+          key: true,
+          boundQuestion: { select: { code: true } },
+          // The tombstone rule, second reader. `ProductAsksRepository` owns the write side and
+          // every other read of this table; the predicate is repeated rather than reached for
+          // because that repository is unexported by design.
+          askedByProducts: {
+            where: { detachedAt: null },
+            select: { product: { select: { key: true } } },
+          },
+        },
+      }),
+      this.prisma.bankProgram.findMany({
+        where: { active: true, programNameKey },
+        select: { incomeAssumption: true, loanLimits: true },
+      }),
+    ]);
+
+    // Unknown, retired, or backed by nothing: there is no read set to trust, and serving the
+    // whole category is the safe answer rather than a stub questionnaire that looks like it
+    // worked. An unofferable name is refused earlier, by `assertOfferedUnder`.
+    if (nameRow === null || !nameRow.active || nameRow.deprecatedAt !== null) return null;
+    if (programs.length === 0) return null;
+
+    const productKey = nameRow.surrogateProductKey;
+    const productRow =
+      productKey === null
+        ? null
+        : await this.prisma.platformEnumeration.findUnique({
+            where: {
+              idx_platform_enumeration_type_key: { type: 'surrogate_product', key: productKey },
+            },
+            select: { key: true, active: true, deprecatedAt: true, incomeRule: true },
+          });
+
+    // The catalog rule the programs inherit their structure from, resolved exactly as the quote
+    // path resolves it — a retired product still carries its figures, and asking its questions
+    // is harmless while the quote itself refuses.
+    const linked: LinkedProduct | undefined =
+      productRow === null
+        ? undefined
+        : {
+            key: productRow.key,
+            active: productRow.active,
+            deprecatedAt: productRow.deprecatedAt,
+            rule: asIncomeRule(productRow.incomeRule),
+          };
+    const catalogRule = catalogRuleOf(
+      effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked),
+    );
+
+    const needed = new Set<string>();
+    for (const program of programs) {
+      const effective = effectiveIncomeRule(
+        (program.incomeAssumption ?? {}) as unknown as IncomeAssumptionConfig,
+        catalogRule,
+      );
+      for (const key of factsReadByIncomeRule(effective)) needed.add(key);
+      for (const key of factsReadByLoanLimits(program.loanLimits)) needed.add(key);
+    }
+
+    const factBoundQuestionCodes: string[] = [];
+    const askScopedQuestionCodes: string[] = [];
+    const platformQuestionCodes: string[] = [];
+    const neededQuestionCodes: string[] = [];
+    for (const fact of factRows) {
+      // A derived bank axis has no registry binding: its question is named by the axis itself.
+      const code = fact.boundQuestion?.code ?? bankAxisByFactKey(fact.key)?.questionCode;
+      if (code === undefined) continue;
+      factBoundQuestionCodes.push(code);
+      if (fact.askedByProducts.length > 0) askScopedQuestionCodes.push(code);
+      if (isReservedFactKey(fact.key)) platformQuestionCodes.push(code);
+      const askedByThisProduct =
+        productKey !== null && fact.askedByProducts.some((ask) => ask.product.key === productKey);
+      if (needed.has(fact.key) || askedByThisProduct) neededQuestionCodes.push(code);
+    }
+
+    return {
+      programNameKey,
+      factBoundQuestionCodes,
+      askScopedQuestionCodes,
+      platformQuestionCodes,
+      neededQuestionCodes,
+    };
   }
 
   /**

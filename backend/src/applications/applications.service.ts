@@ -369,7 +369,11 @@ export class ApplicationsService {
     // it must only consider the questions this category actually asks.
     const resolvedQuestionnaire =
       dto.category && dto.questionnaireAnswers && dto.questionnaireAnswers.length > 0
-        ? await this.questionnaire.resolveAnswers(dto.questionnaireAnswers, dto.category)
+        ? await this.questionnaire.resolveAnswers(
+            dto.questionnaireAnswers,
+            dto.category,
+            dto.programNameKey,
+          )
         : undefined;
     const dynamicAnswers = resolvedQuestionnaire?.resolved;
 

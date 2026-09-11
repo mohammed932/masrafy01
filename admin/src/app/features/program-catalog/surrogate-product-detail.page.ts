@@ -105,6 +105,7 @@ import {
   type AskQuestionType,
   type AskWriteResult,
   type ProductAsksBoard,
+  type ProductAskServed,
   type SurrogateProductDetail,
   type ProductBlueprint,
   type ProgramUnderName,
@@ -402,11 +403,31 @@ interface ReadList {
                     role="tabpanel"
                     [attr.aria-labelledby]="'spd-asks-tab-' + askCategory()"
                   >
-                    <p class="hint hint-lede" i18n="@@spd.ask.lede">
-                      Tick a question and this product reads its answer. It also starts being asked
-                      of
-                      {{ askCategoryLabel() }} applicants, so they have an answer to give.
+                    <p class="hint hint-lede" i18n="@@spd.ask.lede2">
+                      Tick a question and this product reads its answer. It is then asked of the
+                      {{ askCategoryLabel() }} applicants who pick one of this product's program
+                      names — and of nobody else, so a tick here is also what keeps it off every
+                      other program's form.
                     </p>
+
+                    <!--
+                      The consequence of the ticks below, counted off the payload the customer
+                      is actually served rather than re-derived here. It is the only place an
+                      operator can see what a tick costs an applicant before running the app.
+                    -->
+                    @if (servedHere().length > 0) {
+                      <ul class="served">
+                        @for (row of servedHere(); track row.programNameKey) {
+                          <li class="served-row">
+                            <span class="served-name">{{ servedName(row) }}</span>
+                            <span class="served-count" i18n="@@spd.ask.served">
+                              answers {{ row.servedTotal }} of {{ row.categoryTotal }} questions,
+                              {{ row.servedRequired }} of them required
+                            </span>
+                          </li>
+                        }
+                      </ul>
+                    }
 
                     @if (askUnpublished()) {
                       <!-- The one outcome a toast would lie about: the tick DID land and the
@@ -2137,6 +2158,40 @@ interface ReadList {
         line-height: var(--leading-relaxed);
       }
 
+      /* What the ticks below cost an applicant. A quiet list under the lede rather than a
+         boxed notice: it is a statement of fact, not something to act on, and this stage
+         already sits inside the step's own container. */
+      .served {
+        margin: 0 0 var(--space-4);
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+
+      .served-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        font-size: var(--text-xs);
+        line-height: var(--leading-relaxed);
+      }
+
+      .served-name {
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
+      }
+
+      /* Secondary, not tertiary: these are the numbers the operator came for, and tertiary
+         ink on this ground measures under 4.5:1 in light mode. Tabular figures so the counts
+         line up down the list. */
+      .served-count {
+        color: var(--color-text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+
       .ask-alert {
         display: flex;
         align-items: center;
@@ -2755,6 +2810,25 @@ export class SurrogateProductDetailPage {
    */
   protected nameLabel(n: { key: string; labelEn: string; labelAr: string }): string {
     return (this.isAr ? n.labelAr : n.labelEn) || n.labelEn || n.key;
+  }
+
+  /**
+   * The served rows for the loan type on stage.
+   *
+   * Filtered by the open tab, because that is what the rest of step ① is showing and a row
+   * for another loan type sitting beside these ticks would read as a consequence of them.
+   */
+  protected readonly servedHere = computed(() => {
+    const board = this.asksBoard();
+    if (board === null) return [];
+    const category = this.askCategory();
+    return board.served.filter((row) => row.category === category);
+  });
+
+  /** The catalog name in the reading language, off the detail this page already fetched. */
+  protected servedName(row: ProductAskServed): string {
+    const match = this.product()?.names.find((n) => n.key === row.programNameKey);
+    return match ? this.nameLabel(match) : row.programNameKey;
   }
 
   /** `null` when the programme is filed under no bank, so the span is not rendered at all. */

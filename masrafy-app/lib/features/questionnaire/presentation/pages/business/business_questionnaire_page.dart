@@ -34,6 +34,9 @@ class BusinessQuestionnairePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return QuestionnaireView(
       category: LoanCategory.business,
+      // The picked program decides WHICH questions are served, not only which programs
+      // are matched at apply. Forwarded here as well as into the mapper below.
+      programNameKey: programNameKey,
       buildRequest: (QuestionnaireState state) =>
           mapBusinessAnswersToApplyRequest(
         state.visibleAnswers,

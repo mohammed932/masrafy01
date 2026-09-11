@@ -107,6 +107,18 @@ export class InMemoryPlatformEnumerationsRepository
    * reports `no_matching_row` — a stated reason — which is the honest answer for a stub
    * registry that files nothing under a parent.
    */
+  /**
+   * Narrowing is OFF in the stub, always.
+   *
+   * The scope is derived from `bank_program` rows and the ask table, and this stub holds
+   * neither — it exists to serve the ENGINE. `null` is the same answer the real repository
+   * gives for a name with no active program: serve every question the category asks. That is
+   * the safe direction, and it keeps the stub honest rather than inventing a read set.
+   */
+  async narrowingScopeFor(): Promise<null> {
+    return null;
+  }
+
   async enumerationParentKeys(): Promise<Readonly<Record<string, string>>> {
     return {};
   }

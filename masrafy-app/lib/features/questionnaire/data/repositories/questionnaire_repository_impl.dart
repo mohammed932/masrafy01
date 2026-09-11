@@ -13,10 +13,11 @@ class QuestionnaireRepositoryImpl extends QuestionnaireRepository {
 
   @override
   Future<Either<Failure, QuestionnaireSnapshotEntity>> getActive(
-    LoanCategory category,
-  ) async {
+    LoanCategory category, {
+    String? programNameKey,
+  }) async {
     final result = await ApiHandler.callApi(
-      () => remoteDataSource.getActive(category),
+      () => remoteDataSource.getActive(category, programNameKey: programNameKey),
     );
     return result.map((model) => model.toEntity());
   }

@@ -30,10 +30,19 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
   final QuestionnaireUseCase _useCase;
 
   /// Fetch (or re-fetch, on retry) the snapshot for [category] — only the
-  /// questions that category asks.
-  Future<void> load(LoanCategory category) async {
+  /// questions that category asks, narrowed again to the ones a program behind
+  /// [programNameKey] reads.
+  ///
+  /// Every caller must pass the key it holds, the retry included: a re-fetch that
+  /// dropped it would quietly reload the whole category, and the applicant would then
+  /// be answering questions their program never reads while apply holds them to the
+  /// narrower set.
+  Future<void> load(LoanCategory category, {String? programNameKey}) async {
     emit(state.copyWith(status: RequestState.loading, failure: null));
-    final result = await _useCase.getActive(category);
+    final result = await _useCase.getActive(
+      category,
+      programNameKey: programNameKey,
+    );
     result.fold(
       (failure) =>
           emit(state.copyWith(status: RequestState.error, failure: failure)),

@@ -172,6 +172,45 @@ function makeService(snapshot: unknown = SNAPSHOT, questions: LiveQuestion[] = L
   return new QuestionnaireService(repo as never);
 }
 
+/**
+ * The same service, plus a COUNTED stand-in for the enumerations repository.
+ *
+ * The count is the assertion: with no program name the serve and apply paths must not read
+ * the scope at all, which is what keeps the un-narrowed request query-identical to what it
+ * has always been — and what lets every other case in this file build the service with one
+ * argument and no fake at all.
+ */
+function makeScopedService(
+  scope: unknown,
+  snapshot: unknown = SNAPSHOT,
+  questions: LiveQuestion[] = LIVE,
+) {
+  const calls: string[] = [];
+  const repo = {
+    activeVersion: async () => ({ id: 'ver', versionNumber: 11, snapshot }),
+    versionById: async () => ({ id: 'ver', versionNumber: 11, snapshot }),
+    questions: async () => questions.map((q) => ({ ...q, ...NO_RULES })),
+    categoryAssignments: async () => new Map(questions.map((q) => [q.id, [...q.categories]])),
+    optionsByQuestion: async (questionId: string) =>
+      (questionId === 'q_property' ? ['apartment', 'villa'] : []).map((code, i) => ({
+        id: `${questionId}_${code}`,
+        questionId,
+        code,
+        labelAr: code,
+        labelEn: code,
+        displayOrder: i + 1,
+        isActive: true,
+      })),
+  };
+  const enums = {
+    narrowingScopeFor: async (key: string) => {
+      calls.push(key);
+      return scope;
+    },
+  };
+  return { service: new QuestionnaireService(repo as never, enums as never), calls };
+}
+
 interface ProjectedSnapshot {
   versionNumber: number;
   groups: { code: string; questions: { code: string }[] }[];
@@ -271,5 +310,118 @@ describe('apply validates answers against the questions its category asks', () =
       'monthly_income',
       'property_type',
     ]);
+  });
+});
+
+/**
+ * The program-name axis. `monthly_income` is the core anchor throughout — a money binding can
+ * never be narrowed away, which is what stops a narrowed snapshot from emptying out.
+ */
+describe('the customer snapshot narrows again to the program the applicant picked', () => {
+  /** `property_type` is bound to a fact one product asks; nothing else here is. */
+  const SCOPE_WITHOUT_PROPERTY = {
+    programNameKey: 'a_name',
+    factBoundQuestionCodes: ['property_type'],
+    askScopedQuestionCodes: ['property_type'],
+    platformQuestionCodes: [],
+    neededQuestionCodes: [],
+  };
+  const SCOPE_WITH_PROPERTY = {
+    ...SCOPE_WITHOUT_PROPERTY,
+    neededQuestionCodes: ['property_type'],
+  };
+
+  it('drops a question no program behind the name reads', async () => {
+    const { service } = makeScopedService(SCOPE_WITHOUT_PROPERTY);
+    const snap = (await service.activeSnapshot(
+      'mortgage' as never,
+      'a_name',
+    )) as ProjectedSnapshot;
+    expect(codesIn(snap)).toEqual(['monthly_income']);
+  });
+
+  it('keeps it, and REQUIRES it, when a program behind the name does read it', async () => {
+    const { service } = makeScopedService(SCOPE_WITH_PROPERTY);
+    const snap = (await service.activeSnapshot(
+      'mortgage' as never,
+      'a_name',
+    )) as ProjectedSnapshot;
+    expect(codesIn(snap)).toEqual(['monthly_income', 'property_type']);
+  });
+
+  it('reads no scope at all when no program name is asked for', async () => {
+    const { service, calls } = makeScopedService(SCOPE_WITHOUT_PROPERTY);
+    const snap = (await service.activeSnapshot('mortgage' as never)) as ProjectedSnapshot;
+    expect(codesIn(snap)).toEqual(['monthly_income', 'property_type']);
+    expect(calls).toEqual([]);
+  });
+
+  it('serves the whole category when the name narrows nothing', async () => {
+    // `null` is what the repository answers for a name with no active program: there is no
+    // read set to trust, so the safe answer is every question the category asks.
+    const { service } = makeScopedService(null);
+    const snap = (await service.activeSnapshot(
+      'mortgage' as never,
+      'a_name',
+    )) as ProjectedSnapshot;
+    expect(codesIn(snap)).toEqual(['monthly_income', 'property_type']);
+  });
+});
+
+describe('apply enforces the same narrowed set the snapshot served', () => {
+  const answer = (questionCode: string, numericValue: string) => ({
+    questionCode,
+    numericValue,
+  });
+
+  it('does not require a question the picked program does not read', async () => {
+    // `property_type` is required and mortgage-only. Narrowed away, it must not be demanded —
+    // this is the same failure the category filter exists to prevent, one axis in.
+    const { service } = makeScopedService({
+      programNameKey: 'a_name',
+      factBoundQuestionCodes: ['property_type'],
+      askScopedQuestionCodes: ['property_type'],
+      platformQuestionCodes: [],
+      neededQuestionCodes: [],
+    });
+    const result = await service.resolveAnswers(
+      [answer('monthly_income', '40000')] as never,
+      'mortgage' as never,
+      'a_name',
+    );
+    expect(result.askedQuestionCodes).toEqual(['monthly_income']);
+  });
+
+  it('ACCEPTS an answer to a narrowed-away question rather than rejecting it', async () => {
+    // A backend deploy is not atomic with an app release: every installed build posts the
+    // whole category set. Narrowing what may be ANSWERED would answer all of them with
+    // UNKNOWN_QUESTION_CODE, so only what is asked and required narrows.
+    const { service } = makeScopedService({
+      programNameKey: 'a_name',
+      factBoundQuestionCodes: ['property_type'],
+      askScopedQuestionCodes: ['property_type'],
+      platformQuestionCodes: [],
+      neededQuestionCodes: [],
+    });
+    const result = await service.resolveAnswers(
+      [answer('monthly_income', '40000'), answer('property_type', '1')] as never,
+      'mortgage' as never,
+      'a_name',
+    );
+    expect(result.askedQuestionCodes).toEqual(['monthly_income']);
+  });
+
+  it('reads no scope at all when no program name is asked for', async () => {
+    const { service, calls } = makeScopedService(null);
+    const result = await service.resolveAnswers(
+      [
+        answer('monthly_income', '40000'),
+        { questionCode: 'property_type', optionCode: 'apartment' },
+      ] as never,
+      'mortgage' as never,
+    );
+    // The whole category, as before, and without touching the scope read.
+    expect(result.askedQuestionCodes).toEqual(['monthly_income', 'property_type']);
+    expect(calls).toEqual([]);
   });
 });

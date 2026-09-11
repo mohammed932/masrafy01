@@ -390,14 +390,55 @@ describe('planDetach', () => {
     });
   });
 
-  it('does NOT refuse a reader when another product keeps the row alive anyway', () => {
+  it('does NOT refuse a NON-BANK reader when another product keeps the row alive anyway', () => {
     // Nothing is being deleted, so the reader keeps reading and the ask simply goes. An
-    // "in use" refusal here would block an untick that costs nothing.
+    // "in use" refusal here would block an untick that costs nothing. Another product's
+    // stored rule is that kind of reader: it is not a reason THIS product must keep asking.
     const plan = detach({
       productsAsking: ['compound_owner', 'school_stage_ceiling'],
-      readBy: [{ source: 'bank_program', ref: 'X' }],
+      readBy: [{ source: 'surrogate_product', ref: 'school_stage_ceiling' }],
     });
     expect(plan.kind).toBe('proceed');
+  });
+
+  it('refuses a BANK PROGRAM reader even when another product keeps the row alive', () => {
+    // The reason the delete decision is irrelevant here: since the program-name axis
+    // narrows the questionnaire, an untick decides whether the applicants this program
+    // quotes are ASKED the question at all. Take the answer away from a cap table and
+    // `onNoMatch: 'useProgramMax'` swallows the miss — the program quotes its own maximum
+    // instead of the bank's row, and nothing reports it. That is how
+    // `do_you_own_more_than_one_unit` went dark and took ABK's multi-unit uplift with it.
+    expect(
+      detach({
+        productsAsking: ['compound_owner', 'school_stage_ceiling'],
+        readBy: [{ source: 'bank_program', ref: 'X' }],
+      }),
+    ).toEqual({
+      kind: 'refuse',
+      refusal: {
+        code: 'factInUse',
+        factKey: 'owned_unit_type',
+        readBy: [{ source: 'bank_program', ref: 'X' }],
+      },
+    });
+  });
+
+  it('refuses a BANK PROGRAM reader on a BLUEPRINT ask, before the tombstone branch', () => {
+    // The tombstone branch exists because the library re-declares its own facts, which says
+    // nothing about whether a bank is quoting off one right now. Ordering regression test.
+    expect(
+      detach({
+        ask: { source: 'blueprint' },
+        readBy: [{ source: 'bank_program_cap', ref: 'ABK-PER-COMPOUND_OWNER' }],
+      }),
+    ).toEqual({
+      kind: 'refuse',
+      refusal: {
+        code: 'factInUse',
+        factKey: 'owned_unit_type',
+        readBy: [{ source: 'bank_program_cap', ref: 'ABK-PER-COMPOUND_OWNER' }],
+      },
+    });
   });
 
   it('never writes a category and never publishes', () => {
