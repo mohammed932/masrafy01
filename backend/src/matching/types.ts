@@ -21,6 +21,7 @@ import type {
   StepParams,
 } from './pipeline/product-rule';
 import type { MaxLoanByFactConfig } from './pipeline/max-loan-by-fact';
+import type { FactGridConfig } from './pipeline/fact-grid';
 import type { MaxLoanAdjustment } from './pipeline/max-loan-adjustments';
 import type { RateBasis } from './pipeline/rate-basis';
 import type { AdditionalIncomeConfig } from './pipeline/additional-income';
@@ -169,6 +170,12 @@ export interface PricingConfig {
   rateBySeniority?: RateBandMap;
   rateByTransferType?: RateBandMap;
   rateByTenor?: RateBandMap;
+  /**
+   * The N-axis rate grid — down payment x tenor band x insurance, or anything else the bank
+   * states (`fact-grid.ts`). FIRST in `PRICING_CASCADE_ORDER`; absent on every program stored
+   * before it existed, so the cascade is unchanged for all of them.
+   */
+  rateByFact?: FactGridConfig;
   rateByDownPaymentPercent?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;
@@ -227,6 +234,13 @@ export interface TenorConfig {
   minMonths: number;
   maxMonths: number;
   maxMonthsByEmploymentType?: Record<string, number>;
+  /**
+   * A term ceiling the bank states against the applicant's own answers — a model year, the
+   * country the car was built in, the share they are putting down. Read as a CLAMP beside
+   * the age-at-maturity one and composed by `min`, never as a cascade level: see
+   * `cascade.evaluator.ts`'s `TenorConfig`.
+   */
+  maxMonthsByFact?: FactGridConfig;
 }
 
 export interface EligibilityConfig {
@@ -857,6 +871,21 @@ export interface Offer {
   bindingConstraint: BindingConstraint;
   /** The down payment this offer implies (car only), frozen for the same reason. */
   requiredDownPaymentEGP: Decimal | null;
+  /**
+   * The longest term this program would have written for THIS VEHICLE, before the applicant's
+   * age or the program's own floor touched it.
+   *
+   * Frozen for the reason `collateralCeilingEGP` is, and to the same end: the pair
+   * (this, `effectiveTenorMonths`) is what lets a surface say "this bank finances a 2016 car
+   * for at most 48 months, and your age brought that to 44", where the second number on its
+   * own reads as an unexplained cut. Re-deriving it later is not available — the bank's
+   * table, the applicant's answers and the platform's reading of both can all move.
+   *
+   * `null` when the program states no vehicle table, and on every offer written before the
+   * column. Absent is NOT zero: a zero ceiling would mean the bank finances this car for no
+   * time at all.
+   */
+  vehicleMaxTenorMonths: number | null;
 }
 
 export interface MatchResult {
@@ -930,6 +959,15 @@ export const BINDING_CONSTRAINTS = [
    * the one that explains the down payment the customer has to find.
    */
   'ltv_ceiling',
+  /**
+   * The TERM was shortened by the ceiling this vehicle carries — the bank's own model-year /
+   * origin / down-payment table (`tenor.maxMonthsByFact`).
+   *
+   * Ranked with `age_at_maturity`, because both shorten the term rather than cut the amount,
+   * and both are the more specific statement than the program's flat `tenor_max`. When both
+   * apply, whichever produced the FINAL term is the one reported — see `resolveTenor`.
+   */
+  'vehicle_tenor_cap',
 ] as const;
 
 export type BindingConstraint = (typeof BINDING_CONSTRAINTS)[number];
@@ -994,6 +1032,36 @@ export const FIGURES_UNAVAILABLE_REASONS = [
    * payslip the bank never agreed to lend against.
    */
   'SURROGATE_PRODUCT_RETIRED',
+  /**
+   * The program prices off a rate GRID, no cell matches this applicant, and the bank set
+   * `onNoMatch: 'reject'`.
+   *
+   * Deliberately parallel in name and meaning to `NO_MAX_LOAN_FOR_ANSWER`: "the bank's table
+   * has no row and the bank chose refusal". Distinct from it because the two lead to edits on
+   * two different wizard steps — pricing against limits — which is the same reason that one
+   * was split from `SURROGATE_NO_MATCHING_ROW`.
+   *
+   * A rate has no safe fallback, which is why `reject` must be available here at all: the
+   * base rate is a figure no bank stated for this combination, over-quoting frightens the
+   * customer, and under-quoting corrupts the DBR, the affordability ceiling and the shrink
+   * loop that are all measured against the instalment — and then freezes them.
+   *
+   * Carries `missingFactKeys` when the miss was an unanswered axis, so a client can say
+   * which questions to go back and answer rather than showing a blank card.
+   */
+  'NO_RATE_FOR_ANSWER',
+  /**
+   * The bank finances no car of this model year, origin, or at this down payment — its
+   * `tenor.maxMonthsByFact` table has no row and the bank set `onNoMatch: 'reject'`.
+   *
+   * Its own reason rather than one of the three nearby ones, because each of those would say
+   * something false: `AGE_AT_MATURITY` tells a thirty-year-old they are too old,
+   * `SURROGATE_NO_MATCHING_ROW` is documented as the INCOME rule's table and sends the
+   * operator to the product-catalog screen, and `PRODUCT_RULE_GATE_FAILED` claims a rule ran
+   * when none did. This one is the customer-actionable sentence: a different car, or a
+   * bigger deposit.
+   */
+  'VEHICLE_NOT_ELIGIBLE',
 ] as const;
 
 export type FiguresUnavailableReason = (typeof FIGURES_UNAVAILABLE_REASONS)[number];
@@ -1058,6 +1126,8 @@ export interface Quote {
    * raises the down payment the customer actually pays. Absent on every non-car quote.
    */
   requiredDownPaymentEGP?: Decimal;
+  /** The term ceiling this vehicle carried, when the program states a table and a row matched. */
+  vehicleMaxTenorMonths?: number;
   /**
    * Set only for a product rule whose answer is a CEILING: the amount the applicant's
    * collateral supports, before obligations.
@@ -1140,4 +1210,4 @@ export type ApplicationPriority = (typeof APPLICATION_PRIORITIES)[number];
  * priced this offer — and that is a fact about the code, so it lives in code. Bump it on
  * any change to the quote pipeline. Max 32 chars (`engineVersion` is VarChar(32)).
  */
-export const MATCHING_ENGINE_VERSION = '2.1.0';
+export const MATCHING_ENGINE_VERSION = '2.2.0';

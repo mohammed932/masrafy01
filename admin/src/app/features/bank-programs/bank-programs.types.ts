@@ -29,6 +29,8 @@ export interface TenorConfig {
   minMonths: number;
   maxMonths: number;
   maxMonthsByEmploymentType?: Record<string, number>;
+  /** The vehicle term ceiling, mirroring the backend. Carried, not yet authored — see `rateByFact`. */
+  maxMonthsByFact?: unknown;
 }
 
 export interface LoanLimitsConfig {
@@ -114,7 +116,15 @@ export interface PricingConfig {
   rateBySeniority?: RateBandMap;
   rateByTransferType?: RateBandMap;
   rateByTenor?: RateBandMap;
-  rateByTenorAndCustomerType?: RateBandMap;
+  /**
+   * The N-axis rate grid, mirroring the backend's `pricing.rateByFact`.
+   *
+   * `unknown`-shaped on purpose for now: nothing in the admin AUTHORS one yet, and the
+   * wizard's carry-through (`PRICING_KEYS_EDITED_HERE`) sends back whatever it read. Typing
+   * it here before an editor exists would be a second declaration of a shape only the
+   * backend can currently produce.
+   */
+  rateByFact?: unknown;
   rateByDownPaymentPercent?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;

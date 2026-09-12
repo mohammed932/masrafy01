@@ -68,6 +68,8 @@ export interface ApplicationOfferDto {
   bindingConstraint?: string | null;
   /** The down payment this offer implies (car programs only). */
   requiredDownPaymentEGP?: string | null;
+  /** The term ceiling this vehicle carried, so a card can explain a shortened term. */
+  vehicleMaxTenorMonths?: number | null;
 }
 
 export interface ApplicationListItemDto {

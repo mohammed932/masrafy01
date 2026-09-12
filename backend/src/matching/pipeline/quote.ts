@@ -35,7 +35,7 @@ import type {
   IncomeResolution,
   QuoteOutcome,
 } from '../types';
-import { runCascade, type CascadeBundle } from './cascade-adapter';
+import { runCascade, type CascadeBundle, type CascadeExtras } from './cascade-adapter';
 import { resolveAssumedIncome } from './income-resolver';
 import { calculateFees } from './fees';
 import { calculateEffectiveLoanAmount, calculateMonthlyInstallment } from './pmt';
@@ -43,6 +43,7 @@ import { calculateDbr, calculateMaxLoanFromDbr, resolveDbrCap } from './dbr';
 import { rateBasisOf } from './rate-basis';
 import { ceilingToIncome } from './product-rule-ceiling';
 import { factsForProgram } from './bank-relationship';
+import { resolveFactGrid } from './fact-grid';
 import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
 import { ltvCeilingFor } from './ltv-ceiling';
@@ -116,6 +117,12 @@ const BINDING_PRECEDENCE: Record<BindingConstraint, number> = {
   ltv_ceiling: 5,
   program_max: 4,
   age_at_maturity: 3,
+  /**
+   * With `age_at_maturity`, because both shorten the TERM rather than cut the amount and both
+   * are more specific than the program's flat `tenor_max`. `resolveTenor` reports whichever
+   * of the two produced the final term, so an equal ranking never has to break a tie.
+   */
+  vehicle_tenor_cap: 3,
   tenor_max: 2,
   // Lowest of the real constraints: stretching a too-short term UP to the
   // program floor gives the customer more time, not less money, so anything
@@ -149,6 +156,88 @@ export function shouldConsultIncomeRule(
   return program.programType === 'income_surrogate' || !hasDeclaredIncome;
 }
 
+interface TenorPlan {
+  /** The term that was asked for, kept so the caller can tell whether anything moved. */
+  readonly requested: number;
+  /** The term the loan is repaid over. */
+  readonly months: number;
+  /** In the order they applied, so the caller reports the same binding it always did. */
+  readonly constraints: readonly BindingConstraint[];
+}
+
+/**
+ * The term the loan is actually repaid over: the requested term brought inside the
+ * program's ceiling, then its floor, then the applicant's age at maturity.
+ *
+ * Pure, and lifted out of step 3, because the answer is needed TWICE — once to PRICE the
+ * loan (`rateByTenor` is keyed by the term) and once to report which constraint bound it —
+ * and computing it in two places is precisely how the priced loan and the reported loan
+ * come apart. The order of the three clamps is unchanged and is load-bearing: the floor is
+ * applied after the ceiling, so a program with an inverted range is caught at step 1
+ * rather than here, and the age cap is applied last because it is the only one that can
+ * legitimately drive the term below the floor and refuse the program.
+ *
+ * Total by construction — a non-finite ceiling skips its clamp rather than poisoning the
+ * term with NaN, because step 1 has already recorded that as a misconfiguration and is
+ * about to return; this must not throw on the way there.
+ */
+function resolveTenor(input: {
+  requested: number;
+  minMonths: number;
+  maxMonths: number;
+  maxAge?: number;
+  age: number;
+  /** The ceiling this vehicle carries, when the program states a table and a row matched. */
+  vehicleMaxMonths?: number | null;
+}): TenorPlan {
+  const constraints: BindingConstraint[] = [];
+  let months = input.requested;
+
+  if (Number.isFinite(input.maxMonths) && months > input.maxMonths) {
+    months = input.maxMonths;
+    constraints.push('tenor_max');
+  }
+
+  // A term SHORTER than the program's floor is stretched UP to it — symmetrical
+  // with the ceiling clamp above, and for the same reason: the program is still
+  // sellable to this applicant, just on its own shortest term.
+  //
+  // Rejecting instead is what emptied whole shortlists: the questionnaire lets
+  // any applicant ask for 6 months while every personal program floors at 12, so
+  // "personal + Doctor Loans, 6 months" dropped BOTH doctor programs and the
+  // customer got an empty screen — reported, on top of that, as AGE_AT_MATURITY,
+  // which had nothing to do with it.
+  if (months < input.minMonths) {
+    months = input.minMonths;
+    constraints.push('tenor_min');
+  }
+
+  // The two ceilings that shorten rather than refuse. Only the one that produces the FINAL
+  // term is reported: they share a precedence, and `noteConstraint` breaks a tie by call
+  // order, which would otherwise credit the vehicle table for a cut the age cap made.
+  let ceiling: BindingConstraint | null = null;
+
+  // The bank finances this car for at most N months, whatever the applicant asked for.
+  const vehicleMax = input.vehicleMaxMonths;
+  if (typeof vehicleMax === 'number' && Number.isFinite(vehicleMax) && vehicleMax < months) {
+    months = vehicleMax;
+    ceiling = 'vehicle_tenor_cap';
+  }
+
+  // The loan must be repaid before the applicant passes the program's age
+  // ceiling, so the term is shortened rather than the program rejected.
+  if (typeof input.maxAge === 'number' && Number.isFinite(input.maxAge)) {
+    const monthsUntilAgeCap = Math.floor((input.maxAge - input.age) * 12);
+    if (monthsUntilAgeCap < months) {
+      months = monthsUntilAgeCap;
+      ceiling = 'age_at_maturity';
+    }
+  }
+  if (ceiling !== null) constraints.push(ceiling);
+
+  return { requested: input.requested, months, constraints };
+}
+
 export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const { profile, program } = input;
 
@@ -168,8 +257,113 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   }
 
   // ── 1. Misconfiguration — collect every offending path, don't fail fast ──
-  const cascade = runCascade(program, profile);
+  //
+  // The cascade runs in two passes, and the ORDER is load-bearing. `evaluateTenor` and
+  // `evaluateLoanLimit` read no term, so the first pass settles both. PRICING does read one
+  // — `rateByTenor` is keyed by it — so it must be evaluated against the term the loan is
+  // REPAID over, and the program's ceiling, its floor and the applicant's age at maturity
+  // can each move that away from the term the customer typed. Pricing one term while
+  // writing another quotes a four-year loan at a ten-year rate.
+  //
+  // The facts are built ONCE here and reused by every reader below — the rate grid, the
+  // vehicle term ceiling and the cap table. They were built at step 3c before, which was
+  // fine while only the cap read them; a grid in the cascade needs them one step earlier,
+  // and two builds would be two chances to disagree about what this applicant answered.
+  const programFacts = factsForProgram({
+    profile,
+    ...(program.bankName !== undefined ? { programBankName: program.bankName } : {}),
+  });
+  const gridExtras: CascadeExtras = {
+    facts: programFacts,
+    ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+  };
+
+  const firstPass = runCascade(program, profile, gridExtras);
   const problems: string[] = [];
+
+  // Tenor is checked FIRST now, because the term it settles is an input to the pricing
+  // pass below. The checks themselves are unchanged.
+  const minTenor = program.tenor?.minMonths ?? 0;
+  const cascadeMaxTenor = firstPass.tenor.maxMonths;
+  if (!Number.isFinite(cascadeMaxTenor) || cascadeMaxTenor < 1) {
+    problems.push('tenor.maxMonths');
+  } else if (minTenor > cascadeMaxTenor) {
+    // Inverted range — either `tenor` itself or a by-X override pushed the
+    // ceiling under the floor. Reported as an offending path, same as a
+    // missing one: both make the program unquotable until an admin fixes it.
+    problems.push('tenor.minMonths');
+  }
+
+  // ── 1b. The term ceiling this VEHICLE carries ───────────────────────────
+  //
+  // A bank's used-car card prints a table, not a formula: "German from 2015 → 3 years,
+  // Chinese from 2023 at 50% down → 4". The engine reads that table and knows nothing about
+  // what "german" means or that 2015 is a year — the keys and the figures are the bank's
+  // (Principle II / A1) — and it holds no clock, so a model-year rule cannot drift under a
+  // frozen offer (Principle V / A6).
+  //
+  // Resolved BEFORE the term is settled, because it is one of the things that settles it.
+  const vehicleGrid = program.tenor?.maxMonthsByFact;
+  let vehicleMaxMonths: number | null = null;
+  if (vehicleGrid !== undefined) {
+    const hit = resolveFactGrid({
+      config: vehicleGrid,
+      // The facts the cascade itself was given, so the down-payment share a vehicle rule
+      // keys on is the same number the rate banded on.
+      facts: firstPass.ctx.facts ?? programFacts,
+      ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+    });
+    if (hit.matched) {
+      vehicleMaxMonths = Math.floor(hit.value.toNumber());
+    } else if (hit.action === 'reject') {
+      // The bank finances no car of this age, origin or down payment. A stated refusal, not
+      // a filter: the program stays listed and ranked (Principle V / A33), and the reason is
+      // the customer's to act on — a different car, or a bigger deposit.
+      return {
+        ok: false,
+        unavailable: {
+          reason: 'VEHICLE_NOT_ELIGIBLE',
+          ...(hit.missingFactKeys.length > 0 ? { missingFactKeys: [...hit.missingFactKeys] } : {}),
+        },
+      };
+    }
+  }
+
+  // Resolved ONCE and read twice: here, to price the loan on the right term, and at step 3
+  // to report which constraint bound it. Two computations of one term is exactly how the
+  // priced loan and the reported loan come apart.
+  const tenorPlan = resolveTenor({
+    requested: Math.floor(input.overrideTenorMonths ?? profile.preferredTenorMonths),
+    minMonths: minTenor,
+    maxMonths: cascadeMaxTenor,
+    maxAge: program.eligibility?.maxAge,
+    age: profile.age,
+    vehicleMaxMonths,
+  });
+
+  // Second pass only when the term actually moved, so a program whose applicant asked for a
+  // term it can write is byte-identical to before this split existed.
+  const cascade =
+    tenorPlan.months === tenorPlan.requested
+      ? firstPass
+      : runCascade(program, profile, { ...gridExtras, tenorMonths: tenorPlan.months });
+
+  // A grid that matched nothing and whose bank chose `reject` STOPS here. There is no safe
+  // fallback rate — see `fact-grid.ts` — and quoting one would freeze a figure no bank
+  // stated onto an immutable offer, with the DBR and the whole affordability loop measured
+  // against it.
+  const refusal = cascade.pricing.refusal;
+  if (refusal !== undefined) {
+    return {
+      ok: false,
+      unavailable: {
+        reason: 'NO_RATE_FOR_ANSWER',
+        ...(refusal.missingFactKeys.length > 0
+          ? { missingFactKeys: [...refusal.missingFactKeys] }
+          : {}),
+      },
+    };
+  }
 
   const ratePercent = toFiniteDecimal(cascade.pricing.effectiveRatePercent);
   // How that rate is charged. Read ONCE here and passed to every formula below: a quote
@@ -188,17 +382,6 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const programMaxConfigured = toFiniteDecimal(cascade.loanLimit.maxAmount);
   if (programMaxConfigured === null || programMaxConfigured.lessThanOrEqualTo(0)) {
     problems.push('loanLimits.maxAmountEGP');
-  }
-
-  const minTenor = program.tenor?.minMonths ?? 0;
-  const cascadeMaxTenor = cascade.tenor.maxMonths;
-  if (!Number.isFinite(cascadeMaxTenor) || cascadeMaxTenor < 1) {
-    problems.push('tenor.maxMonths');
-  } else if (minTenor > cascadeMaxTenor) {
-    // Inverted range — either `tenor` itself or a by-X override pushed the
-    // ceiling under the floor. Reported as an offending path, same as a
-    // missing one: both make the program unquotable until an admin fixes it.
-    problems.push('tenor.minMonths');
   }
 
   if (problems.length > 0 || ratePercent === null || programMaxConfigured === null) {
@@ -333,36 +516,11 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     if (BINDING_PRECEDENCE[candidate] > BINDING_PRECEDENCE[binding]) binding = candidate;
   };
 
-  let tenorMonths = Math.floor(input.overrideTenorMonths ?? profile.preferredTenorMonths);
-  if (tenorMonths > cascadeMaxTenor) {
-    tenorMonths = cascadeMaxTenor;
-    noteConstraint('tenor_max');
-  }
-
-  // A term SHORTER than the program's floor is stretched UP to it — symmetrical
-  // with the ceiling clamp above, and for the same reason: the program is still
-  // sellable to this applicant, just on its own shortest term.
-  //
-  // Rejecting instead is what emptied whole shortlists: the questionnaire lets
-  // any applicant ask for 6 months while every personal program floors at 12, so
-  // "personal + Doctor Loans, 6 months" dropped BOTH doctor programs and the
-  // customer got an empty screen — reported, on top of that, as AGE_AT_MATURITY,
-  // which had nothing to do with it.
-  if (tenorMonths < minTenor) {
-    tenorMonths = minTenor;
-    noteConstraint('tenor_min');
-  }
-
-  // The loan must be repaid before the applicant passes the program's age
-  // ceiling, so the term is shortened rather than the program rejected.
-  const maxAge = program.eligibility?.maxAge;
-  if (typeof maxAge === 'number' && Number.isFinite(maxAge)) {
-    const monthsUntilAgeCap = Math.floor((maxAge - profile.age) * 12);
-    if (monthsUntilAgeCap < tenorMonths) {
-      tenorMonths = monthsUntilAgeCap;
-      noteConstraint('age_at_maturity');
-    }
-  }
+  // Already resolved at step 1, because the rate had to be picked on this term rather than
+  // on the one that was asked for. Replayed here in the order `resolveTenor` applied it, so
+  // the reported constraint is the same one it always was.
+  const tenorMonths = tenorPlan.months;
+  for (const constraint of tenorPlan.constraints) noteConstraint(constraint);
 
   // Only the age ceiling can reach here now: the requested term was raised to
   // `minTenor` above, so a term still under the floor means the age cap ate it.
@@ -393,11 +551,6 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // `max-loan-by-fact.ts`, including why capping the AMOUNT here gives the same figure to
   // the piastre as capping the INCOME upstream would (the map is monotonic, so `min`
   // commutes with it).
-  const programFacts = factsForProgram({
-    profile,
-    ...(program.bankName !== undefined ? { programBankName: program.bankName } : {}),
-  });
-
   let programCap = programMaxConfigured;
   let capCameFromTable = false;
   const maxLoanByFact = program.loanLimits?.maxLoanByFact;
@@ -741,6 +894,10 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       dbrBandIndex,
       maxAffordableAmountEGP,
       bindingConstraint: binding,
+      // The term ceiling this vehicle carried, frozen even when something else ended up
+      // binding: on its own, a shortened term reads as an unexplained cut, and the bank's
+      // table cannot be re-read later (Principle I / A6).
+      ...(vehicleMaxMonths !== null ? { vehicleMaxTenorMonths: vehicleMaxMonths } : {}),
       ...(ltvCeilingEGP !== null ? { ltvCeilingEGP } : {}),
       // What the customer puts in: the price they stated less the cash this offer pays out.
       // The cash leg is what reaches the dealer — fees are financed on top (see the header) —

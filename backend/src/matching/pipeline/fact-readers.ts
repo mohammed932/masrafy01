@@ -48,12 +48,21 @@ import { additionalIncomeFactKeys } from './additional-income';
 import { factsReadBy } from './product-rule';
 import type { ProductRule } from './product-rule';
 import { SURROGATE_FACTS_BY_STRATEGY } from './surrogate-fact-bindings';
+import { isGridOnlyFactKey } from './car-details';
 import { factKeyOf } from '../types';
 
 /** Where a fact key was found, and what an operator would have to open to remove it. */
 export type FactReaderSource =
   | 'bank_program'
   | 'bank_program_cap'
+  /**
+   * A rate grid (`pricing.rateByFact`) or a vehicle term ceiling (`tenor.maxMonthsByFact`).
+   *
+   * Reported apart from the other two for the reason they are reported apart from each
+   * other: a refusal has to name the screen an operator must go and change, and these live
+   * on the pricing and requirements steps rather than the income one.
+   */
+  | 'bank_program_grid'
   | 'surrogate_product'
   | 'program_name';
 
@@ -68,6 +77,16 @@ export interface FactReaderProgramRow {
   programCode: string;
   incomeAssumption: unknown;
   loanLimits: unknown;
+  /**
+   * `pricing.rateByFact`'s axes and `tenor.maxMonthsByFact`'s.
+   *
+   * REQUIRED, deliberately, even though `unknown` accepts anything: a call site that forgets
+   * to SELECT these columns is exactly the failure this surface exists to close — the reader
+   * would report nothing and the guard would pass while a live program went on reading the
+   * fact. Optional here, TypeScript says nothing; required, it names every caller.
+   */
+  pricing: unknown;
+  tenor: unknown;
 }
 
 export interface FactReaderRuleRow {
@@ -161,13 +180,62 @@ export function factsReadByLoanLimits(raw: unknown): Set<string> {
   return keys;
 }
 
-/** Both of a bank program's surfaces, as one set. */
+/**
+ * Every fact key a bank program's PRICING reads — the axes of its rate grid.
+ *
+ * A third surface, and the reason it exists is the hazard it closes. `narrowingScopeFor`,
+ * `check:question-scope`, the fact-delete guard and the operator's untick guard all derive
+ * "what does this program need" from the reader functions in this file. A grid axis that no
+ * reader reports is INVISIBLE to all four at once: the question is narrowed out of the
+ * served questionnaire, the check script reports clean while it happens, and the fact can
+ * then be deleted or unticked out from under a live program.
+ *
+ * Closed here, at the seam, rather than at each of the four — that is the property this
+ * file's header claims, and it is only true while every surface is in it.
+ */
+export function factsReadByPricing(raw: unknown): Set<string> {
+  if (!isRecord(raw)) return new Set<string>();
+  return gridAxisKeys(raw.rateByFact);
+}
+
+/** Every fact key a bank program's TENOR ceiling reads. */
+export function factsReadByTenor(raw: unknown): Set<string> {
+  if (!isRecord(raw)) return new Set<string>();
+  return gridAxisKeys(raw.maxMonthsByFact);
+}
+
+/**
+ * The axes of one grid, minus the ones the engine computes for itself.
+ *
+ * `car_down_payment_percent` and `tenor_months` are derived per quote and have no question
+ * behind them, so reporting them would have the narrowing rule demand a question that does
+ * not exist and the delete guard defend a registry row that was never created.
+ */
+function gridAxisKeys(raw: unknown): Set<string> {
+  const keys = new Set<string>();
+  if (!isRecord(raw) || !Array.isArray(raw.axes)) return keys;
+  for (const axis of raw.axes) {
+    if (!isRecord(axis)) continue;
+    const key = axis.factKey;
+    if (typeof key !== 'string' || key === '') continue;
+    if (isGridOnlyFactKey(key)) continue;
+    keys.add(key);
+  }
+  return keys;
+}
+
+/** Every one of a bank program's surfaces, as one set. */
 export function factsReadByProgram(row: {
   incomeAssumption: unknown;
   loanLimits: unknown;
+  /** Required for the reason `FactReaderProgramRow`'s are. */
+  pricing: unknown;
+  tenor: unknown;
 }): Set<string> {
   const keys = factsReadByIncomeRule(row.incomeAssumption);
   for (const key of factsReadByLoanLimits(row.loanLimits)) keys.add(key);
+  for (const key of factsReadByPricing(row.pricing)) keys.add(key);
+  for (const key of factsReadByTenor(row.tenor)) keys.add(key);
   return keys;
 }
 
@@ -194,6 +262,12 @@ export function factReaders(
     }
     if (factsReadByLoanLimits(program.loanLimits).has(factKey)) {
       readers.push({ source: 'bank_program_cap', ref: program.programCode });
+    }
+    if (
+      factsReadByPricing(program.pricing).has(factKey) ||
+      factsReadByTenor(program.tenor).has(factKey)
+    ) {
+      readers.push({ source: 'bank_program_grid', ref: program.programCode });
     }
   }
 

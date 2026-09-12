@@ -97,6 +97,8 @@ export interface CreateBankOfferInput {
   bindingConstraint?: string | null;
   /** The down payment this offer implies (car programs), frozen with the rest. */
   requiredDownPaymentEGP?: Decimal | null;
+  /** The term ceiling this vehicle carried. `null` on every non-car offer. */
+  vehicleMaxTenorMonths?: number | null;
 }
 
 export interface PersistMatchInput {

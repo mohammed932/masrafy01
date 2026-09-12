@@ -1,3 +1,4 @@
+import type { ApplicationOfferDto } from './applications-list-response.dto';
 /**
  * Mobile apply-endpoint response envelope (Constitution Principle XIV).
  *
@@ -64,41 +65,17 @@ export interface ApplyMatchedResponse {
     };
     /** Empty when every checked program produced an offer. */
     unavailablePrograms: UnavailableProgramDto[];
-    matchedOffers: Array<{
-      /** Persisted BankOffer id — the select-offer key the client sends back. */
-      bankOfferId: string;
-      programCode: string;
-      programVersion: number;
-      bankName: string;
-      /** Phase-1 partner-bank flag. Mobile renders a FEATURED chip when true. */
-      bankIsFeatured: boolean;
-      isShariaCompliant: boolean;
-      programFriendlyName: string;
-      effectiveRatePercent: string;
-      monthlyInstallmentEGP: string;
-      requestedLoanAmountEGP: string;
-      effectiveLoanAmountEGP: string;
-      requestedTenorMonths: number;
-      effectiveTenorMonths: number;
-      requiredDocuments: string[];
-      matchReasons: string[];
-      feesBreakdown: unknown;
-      cascadeTrace: unknown;
-      qualitativeReviewBadge: boolean;
-      selfDeclared: boolean;
-      /** True when the authenticated customer has already saved this offer. */
-      isSaved: boolean;
-      /**
-       * The applicant's borrowing ceiling at this program — income × cap ÷ 100
-       * minus obligations, present-valued over the tenor. Present on every
-       * offer: compare with `effectiveLoanAmountEGP` to tell "this is your
-       * limit" from "you asked for less than you could have had".
-       */
-      maxLoanAvailableEGP?: string;
-      /** The ratio this offer lands at, and the cap it was measured against. */
-      dbrPercent?: string;
-      dbrCapPercent?: string;
-    }>;
+    /**
+     * The SAME shape the list and detail endpoints return, and referenced rather than
+     * re-declared.
+     *
+     * It used to be an inline literal here — a second declaration of one wire contract, free
+     * to drift, and it had: `rateBasis`, `incomeOrigin`, `collateralCeilingEGP`,
+     * `bindingConstraint` and `requiredDownPaymentEGP` were all being sent by `toOfferDto`
+     * and all five were missing from this list, so the documented apply response and the real
+     * one disagreed about five fields. One declaration cannot go stale (A25).
+     */
+    matchedOffers: ApplicationOfferDto[];
   };
 }
 

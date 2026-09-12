@@ -53,6 +53,7 @@ import {
   ProgramRangeInvalidException,
   InvalidQualitativeReviewCeilingException,
   InvalidVariableRateConfigurationException,
+  FactGridInvalidException,
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
   ProgramNameKeyNotInCategoryException,
@@ -91,6 +92,7 @@ import {
   ValidationContext,
 } from './validation/cross-config.validators';
 import { validateDbrBands } from './validation/dbr-bands.validator';
+import { validateFactGrid } from './validation/fact-grid.validator';
 import {
   catalogIncomeRulePaths,
   estimatedPaths,
@@ -636,6 +638,25 @@ export class BankProgramsService {
       if (!hasNoneRate && !requiresCollateral) {
         throw new NoneTransferUnsafeException();
       }
+    }
+
+    // The N-axis grids, both of them, against the same fact registry the income rule is held
+    // to. Runs BEFORE the enumeration sweep for the reason `validateRanges` does: a grid whose
+    // axis names no fact would otherwise save and then quote its `onNoMatch` at every
+    // applicant, which reads as "this bank has no price" rather than as a table to fix.
+    const gridRegistry = await this.enums.surrogateFactRegistry();
+    for (const [config, fieldPath, valueKind] of [
+      [dto.pricing?.rateByFact, 'pricing.rateByFact', 'ratePercent'],
+      [dto.tenor?.maxMonthsByFact, 'tenor.maxMonthsByFact', 'months'],
+    ] as const) {
+      if (config === undefined) continue;
+      const violation = validateFactGrid({
+        config,
+        fieldPath,
+        valueKind,
+        registry: gridRegistry,
+      });
+      if (violation) throw new FactGridInvalidException(violation);
     }
 
     // FR-010 / FR-010c — enumeration key validation.
@@ -2104,9 +2125,9 @@ export class BankProgramsService {
     const shape = compileTemplate(template);
     const surviving = new Set(paramKeysOf(shape));
     const figures = Object.fromEntries(
-      Object.entries(
-        (stored?.stepParams ?? {}) as Record<string, unknown>,
-      ).filter(([id]) => surviving.has(id)),
+      Object.entries((stored?.stepParams ?? {}) as Record<string, unknown>).filter(([id]) =>
+        surviving.has(id),
+      ),
     );
     return {
       ...(shape as unknown as IncomeAssumptionConfig),

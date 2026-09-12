@@ -927,6 +927,43 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_RETIRED: 'SURROGATE_PRODUCT_RETIRED',
   /**
+   * The program prices off a rate GRID (down payment x tenor x insurance, or whatever axes
+   * the bank stated), no cell matches this applicant, and the bank chose `onNoMatch: reject`.
+   *
+   * A 200-body reason, never a filter: the program stays LISTED and stays RANKED (A33), and
+   * only the figures are withheld. Parallel to `NO_MAX_LOAN_FOR_ANSWER` — "the bank's table
+   * has no row and the bank chose refusal" — and separate from it because the two send an
+   * operator to two different wizard steps, pricing against limits.
+   *
+   * Refusal is the only safe answer for a RATE. The base rate is a figure no bank stated for
+   * this combination; over-quoting frightens the customer; under-quoting is worse still,
+   * because the debt burden, the affordability ceiling and the shrink loop are all measured
+   * against that instalment and every one of them would be wrong, and frozen.
+   */
+  /**
+   * A bank program's N-axis grid is not savable — an axis names a fact the registry cannot
+   * serve, a cell's keys do not line up with the axes, a cell states no key at all, or the
+   * figure is outside what the axis's unit allows. `meta.reason` says which.
+   *
+   * ONE code with many reasons, the `PRODUCT_RULE_INVALID` shape, rather than a code per
+   * check: every one of them sends the operator to the same grid on the same step, and
+   * twelve wire codes for twelve lines of one table would be twelve translations of "this
+   * table is wrong".
+   */
+  FACT_GRID_INVALID: 'FACT_GRID_INVALID',
+  NO_RATE_FOR_ANSWER: 'NO_RATE_FOR_ANSWER',
+  /**
+   * The bank finances no car of this model year, country of origin, or at this down payment:
+   * its `tenor.maxMonthsByFact` table has no row and the bank chose `onNoMatch: reject`.
+   *
+   * Its own reason because each neighbouring one would say something false. `AGE_AT_MATURITY`
+   * tells a thirty-year-old they are too old; `SURROGATE_NO_MATCHING_ROW` is the INCOME
+   * rule's table and sends the operator to the product-catalog screen;
+   * `PRODUCT_RULE_GATE_FAILED` claims a rule ran when none did. This one is the sentence the
+   * customer can act on: a different car, or a bigger deposit.
+   */
+  VEHICLE_NOT_ELIGIBLE: 'VEHICLE_NOT_ELIGIBLE',
+  /**
    * A COLLATERAL product's own condition refused this applicant — the share paid is short,
    * the ownership contract is outside the bank's window, the strongest unit was not
    * confirmed. The program stays LISTED and stays RANKED; only the figures are withheld.
@@ -1199,6 +1236,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_FACT_MISSING: 200,
   SURROGATE_NO_MATCHING_ROW: 200,
   SURROGATE_PRODUCT_RETIRED: 200,
+  FACT_GRID_INVALID: 422,
+  NO_RATE_FOR_ANSWER: 200,
+  VEHICLE_NOT_ELIGIBLE: 200,
   PRODUCT_RULE_GATE_FAILED: 200,
   GATE_DOWN_PAYMENT_BELOW_MIN: 200,
   GATE_UNIT_PRICE_BELOW_MIN: 200,

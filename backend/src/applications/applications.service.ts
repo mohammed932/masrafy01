@@ -112,6 +112,7 @@ type PersistedOfferRow = {
   bindingConstraint?: string | null;
   /** The down payment the offer implies (car programs). `null` everywhere else. */
   requiredDownPaymentEGP?: Decimal | null;
+  vehicleMaxTenorMonths?: number | null;
 };
 
 /** An applied application's row + the offer the customer proceeded with. */
@@ -250,9 +251,7 @@ export class ApplicationsService {
    */
   async listMine(customerId: string): Promise<ApplicationsListResponse> {
     const rows = await this.repo.findAppliedByCustomer(customerId);
-    const savedOfferIds = await this.savedOffers.findSavedBankOfferIds(
-      customerId,
-    );
+    const savedOfferIds = await this.savedOffers.findSavedBankOfferIds(customerId);
     const applications = rows.flatMap((row) => {
       const offer = row.bankOffers.find((o) => o.id === row.userSelectedBankOfferId);
       if (!offer || !row.userProceededAt) return [];
@@ -279,10 +278,7 @@ export class ApplicationsService {
    * An application that exists but was never proceeded with has no selected
    * offer to show and reads as 404 too (the list never showed it either).
    */
-  async getMine(
-    applicationId: string,
-    customerId: string,
-  ): Promise<ApplicationDetailResponse> {
+  async getMine(applicationId: string, customerId: string): Promise<ApplicationDetailResponse> {
     const row = await this.repo.findAppliedById(applicationId);
     if (!row) throw new NotFoundException();
     if (row.applicantUserId !== customerId) throw new ForbiddenException();
@@ -325,9 +321,7 @@ export class ApplicationsService {
 
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
     const correlationId = randomUUID();
-    const savedOfferIds = await this.savedOffers.findSavedBankOfferIds(
-      ctx.customerId,
-    );
+    const savedOfferIds = await this.savedOffers.findSavedBankOfferIds(ctx.customerId);
 
     // No document gate here (constitution v9.0.1): matched offers browse freely.
     // Profile photo + National ID are asserted only at the select-offer
@@ -339,12 +333,7 @@ export class ApplicationsService {
         if (existing.payloadHash && ctx.payloadHash && existing.payloadHash !== ctx.payloadHash) {
           throw new IdempotencyKeyMismatchException({ idempotencyKey: ctx.idempotencyKey });
         }
-        return this.toResponse(
-          existing.id,
-          existing,
-          correlationId,
-          savedOfferIds,
-        );
+        return this.toResponse(existing.id, existing, correlationId, savedOfferIds);
       }
     }
 
@@ -691,6 +680,7 @@ export class ApplicationsService {
       // same reason the figures above are: both answer a question about a program's limits
       // and an applicant's answers, and both can move afterwards.
       bindingConstraint: offer.bindingConstraint,
+      vehicleMaxTenorMonths: offer.vehicleMaxTenorMonths ?? null,
       requiredDownPaymentEGP: offer.requiredDownPaymentEGP
         ? new Decimal(offer.requiredDownPaymentEGP.toString())
         : null,
@@ -703,10 +693,7 @@ export class ApplicationsService {
    * one mapper, two callers (Principle X keeps this the only place that reads
    * these BankOffer columns for a response).
    */
-  private toOfferDto(
-    o: PersistedOfferRow,
-    savedOfferIds: Set<string>,
-  ): ApplicationOfferDto {
+  private toOfferDto(o: PersistedOfferRow, savedOfferIds: Set<string>): ApplicationOfferDto {
     return {
       bankOfferId: o.id,
       isSaved: savedOfferIds.has(o.id),
@@ -750,6 +737,7 @@ export class ApplicationsService {
       // constraint nobody recorded.
       bindingConstraint: o.bindingConstraint ?? null,
       requiredDownPaymentEGP: o.requiredDownPaymentEGP?.toFixed(2) ?? null,
+      vehicleMaxTenorMonths: o.vehicleMaxTenorMonths ?? null,
     };
   }
 
@@ -907,7 +895,8 @@ export class ApplicationsService {
         // mapper sent an empty asset set entirely); they stay as the fallback for a
         // caller that has no dynamic answers at all, so a legacy or server-to-server
         // submit is not silently stripped of facts it did supply.
-        yearsInPractice: surrogateFacts.employment.yearsInPractice ?? dto.employment.yearsInPractice,
+        yearsInPractice:
+          surrogateFacts.employment.yearsInPractice ?? dto.employment.yearsInPractice,
         professorRank: surrogateFacts.employment.professorRank ?? dto.employment.professorRank,
         militaryGrade: surrogateFacts.employment.militaryGrade ?? dto.employment.militaryGrade,
         salaryTransferType: dto.employment.salaryTransferType,
@@ -935,7 +924,8 @@ export class ApplicationsService {
         // the body is the fallback. This one is why the mobile app sent
         // `const AssetsPayload()` and `byCreditCardLimit` resolved to nothing for
         // every customer — the limit was answered and never left the phone (FR-019).
-        creditCardLimitEGP: surrogateFacts.assets.creditCardLimitEGP ?? dec(dto.assets.creditCardLimitEGP),
+        creditCardLimitEGP:
+          surrogateFacts.assets.creditCardLimitEGP ?? dec(dto.assets.creditCardLimitEGP),
         autoLoanAtOtherBankEGP: dec(dto.assets.autoLoanAtOtherBankEGP),
         autoLoanAtABKEGP: dec(dto.assets.autoLoanAtABKEGP),
         carInstallmentEGP: dec(dto.assets.carInstallmentEGP),

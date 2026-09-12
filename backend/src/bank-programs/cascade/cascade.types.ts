@@ -22,12 +22,32 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { Prisma } from '@prisma/client';
+// TYPE-ONLY, and the direction is worth a note: `matching/types.ts` imports `RateBandValue`
+// from this file, so this is a back-reference. Both edges are `import type` and are erased
+// entirely at compile time, so there is no runtime cycle — and the alternative, restating
+// the fact-value union structurally here, is a second definition of a discriminated union
+// carrying a Decimal, which is precisely the drift this whole change is closing elsewhere.
+import type { SurrogateFactValue } from '../../matching/types';
 
 export type Decimal = Prisma.Decimal;
 
 // --- Frozen cascade orders -------------------------------------------------
 
 export const PRICING_CASCADE_ORDER = [
+  /**
+   * FR-008b.1 — the N-axis grid, and it sits at the HEAD.
+   *
+   * This is an ADDITION to the enumerated list, not an FR-008e reorder: it moves no existing
+   * level relative to any other, and it is a provable no-op for every stored program, because
+   * none declares `rateByFact` — `evaluatePricing` pushes one `not configured` trace row and
+   * returns the identical rate at the identical `matchedLevel`.
+   *
+   * The head, because the grid SUBSUMES the dimensions below it. A down-payment x tenor grid
+   * placed at the tail could be pre-empted for ever by a loan-amount band an operator added
+   * on an unrelated screen, and a program that states a grid means "this grid is my price
+   * book" — anything outranking it is a surprise.
+   */
+  'rateByFact',
   'rateByTenor',
   'rateByTransferType',
   'rateByDownPaymentPercent',
@@ -87,6 +107,18 @@ export interface ApplicantContext {
   qualitativeReviewApproved?: boolean;
   /** Whether the applicant uploaded income documents (FR-005d candidate-pool gate). */
   uploadedIncomeDocuments?: boolean;
+  /**
+   * Every surrogate fact this applicant answered, for the program being quoted.
+   *
+   * The cascade's fixed field list is the platform's own vocabulary — employment, transfer
+   * type, seniority. A fact is the OPERATOR's, and a grid axis can name any of them, so a
+   * fixed field per axis would make "the bank states its own table" a release (Principle II
+   * / A1). Built by `factsForProgram`, which is per program because a derived axis like
+   * `bank_relationship` is a different answer at every bank.
+   */
+  facts?: Readonly<Record<string, SurrogateFactValue>>;
+  /** The class each list value is filed under. Only read by an axis saying `parentClass`. */
+  parentKeyByValue?: Readonly<Record<string, string>>;
 }
 
 // --- Cascade trace + result -------------------------------------------------
@@ -96,6 +128,14 @@ export interface CascadeTraceStep {
   matched: boolean;
   value?: string;
   reason?: string;
+  /**
+   * Per axis, the key that matched — only a grid sets it.
+   *
+   * Frozen onto `bank_offer.cascadeTrace`, which is why it is here rather than derived: the
+   * level NAME says nothing about which of thirty-two cells was read, the grid is edited in
+   * place, and an offer has to stay explainable after the table moves (Principle I / A6).
+   */
+  keys?: Readonly<Record<string, string>>;
 }
 
 export interface PricingResult {
@@ -103,6 +143,20 @@ export interface PricingResult {
   matchedLevel: PricingCascadeLevel;
   derivationChain?: DerivationChain;
   trace: CascadeTraceStep[];
+  /**
+   * Set ONLY when a declared grid matched nothing and the bank chose `reject`.
+   *
+   * A rate has no safe fallback direction — see `fact-grid.ts`. Falling through to
+   * `baseRatePercent` quotes a number no bank stated; over-quoting frightens the customer;
+   * under-quoting is worse still, because the DBR, the affordability ceiling and the whole
+   * shrink loop are measured against that instalment and every one of them is then wrong,
+   * and frozen. So the refusal travels instead of a figure, and `quote.ts` turns it into a
+   * stated 200-body reason with the program still listed and still ranked (Principle V/A33).
+   */
+  refusal?: {
+    reason: 'fact_not_answered' | 'no_matching_row';
+    missingFactKeys: readonly string[];
+  };
 }
 
 export interface LoanLimitResult {

@@ -2270,5 +2270,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get results_unavailable_no_max_for_answer => 'This bank sets no limit for the answers you gave.';
 
   @override
+  String get results_unavailable_no_rate_for_answer => 'This bank sets no rate for the down payment, term and insurance you chose.';
+
+  @override
+  String get results_unavailable_vehicle_not_eligible => 'This bank does not finance a car of this model year, origin, or at this down payment.';
+
+  @override
   String get results_unavailable_product_retired => 'This bank is not offering this program right now.';
 }

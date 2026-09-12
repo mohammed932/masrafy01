@@ -2275,5 +2275,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get results_unavailable_no_max_for_answer => 'هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.';
 
   @override
+  String get results_unavailable_no_rate_for_answer => 'هذا البنك لا يحدد سعر فائدة للدفعة المقدمة ومدة السداد والتأمين التي اخترتها.';
+
+  @override
+  String get results_unavailable_vehicle_not_eligible => 'هذا البنك لا يموّل سيارة بسنة الصنع أو بلد المنشأ أو الدفعة المقدمة المذكورة.';
+
+  @override
   String get results_unavailable_product_retired => 'هذا البنك لا يقدم هذا البرنامج حاليًا.';
 }

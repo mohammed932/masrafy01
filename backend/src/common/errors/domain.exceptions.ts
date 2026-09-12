@@ -1105,6 +1105,22 @@ export class IncomeRuleFactUnavailableException extends DomainException {
  * ids are the human half: the admin editor highlights the step or gate named here, so a
  * pipeline of ten steps does not have to be re-read to find the one that is wrong.
  */
+/**
+ * A bank program's N-axis grid cannot be saved. `meta.reason` names which check refused and
+ * `meta.fieldPath` which of the two grids it was, so the client can open the right one.
+ */
+export class FactGridInvalidException extends DomainException {
+  constructor(meta: {
+    reason: string;
+    fieldPath: string;
+    factKey?: string;
+    cellIndex?: number;
+    availableFacts?: string[];
+  }) {
+    super(ERROR_CODES.FACT_GRID_INVALID, meta);
+  }
+}
+
 export class ProductRuleInvalidException extends DomainException {
   constructor(meta: { reason: string; stepId?: string; gateId?: string; detail?: string }) {
     super(ERROR_CODES.PRODUCT_RULE_INVALID, meta);

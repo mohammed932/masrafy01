@@ -23,6 +23,8 @@ import {
   factReaders,
   factsReadByIncomeRule,
   factsReadByLoanLimits,
+  factsReadByPricing,
+  factsReadByTenor,
   type FactReader,
 } from '@/matching/pipeline/fact-readers';
 import { isReservedFactKey } from '@/matching/pipeline/fact-question-eligibility';
@@ -698,9 +700,20 @@ export class PostgresPlatformEnumerationsRepository
           OR: [
             { NOT: { incomeAssumption: { equals: Prisma.DbNull } } },
             { NOT: { loanLimits: { equals: Prisma.DbNull } } },
+            // The grid surfaces. Without these two the scan would not even LOAD the rows
+            // whose rate grid or vehicle ceiling reads the fact, and the delete guard would
+            // report no reader for a fact a live program prices off.
+            { NOT: { pricing: { equals: Prisma.DbNull } } },
+            { NOT: { tenor: { equals: Prisma.DbNull } } },
           ],
         },
-        select: { programCode: true, incomeAssumption: true, loanLimits: true },
+        select: {
+          programCode: true,
+          incomeAssumption: true,
+          loanLimits: true,
+          pricing: true,
+          tenor: true,
+        },
       }),
       this.prisma.platformEnumeration.findMany({
         where: {
@@ -757,7 +770,10 @@ export class PostgresPlatformEnumerationsRepository
       }),
       this.prisma.bankProgram.findMany({
         where: { active: true, programNameKey },
-        select: { incomeAssumption: true, loanLimits: true },
+        // All four surfaces. A column left out here is a fact the narrowing cannot see, and
+        // the question behind it is then dropped from the served questionnaire while the
+        // programme goes on reading the answer (`fact-readers.ts`).
+        select: { incomeAssumption: true, loanLimits: true, pricing: true, tenor: true },
       }),
     ]);
 
@@ -802,6 +818,11 @@ export class PostgresPlatformEnumerationsRepository
       );
       for (const key of factsReadByIncomeRule(effective)) needed.add(key);
       for (const key of factsReadByLoanLimits(program.loanLimits)) needed.add(key);
+      // The grid surfaces. `effectiveIncomeRule` has no equivalent for them — a grid is the
+      // BANK's own table and is never inherited from the catalog — so they are read straight
+      // off the stored row.
+      for (const key of factsReadByPricing(program.pricing)) needed.add(key);
+      for (const key of factsReadByTenor(program.tenor)) needed.add(key);
     }
 
     const factBoundQuestionCodes: string[] = [];

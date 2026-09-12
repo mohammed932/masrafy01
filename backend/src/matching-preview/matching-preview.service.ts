@@ -81,6 +81,7 @@ export interface PreviewFigures {
   ltvCeilingEGP: string | null;
   /** Car programs: the price less the cash paid out — what the customer puts in. */
   requiredDownPaymentEGP: string | null;
+  vehicleMaxTenorMonths: number | null;
   fees: { adminFeeEGP: string; stampDutyEGP: string; lifeInsuranceEGP: string };
 }
 
@@ -529,6 +530,7 @@ function toPreviewFigures(q: Quote): PreviewFigures {
     collateralCeilingEGP: q.collateralCeilingEGP?.toFixed(2) ?? null,
     ltvCeilingEGP: q.ltvCeilingEGP?.toFixed(2) ?? null,
     requiredDownPaymentEGP: q.requiredDownPaymentEGP?.toFixed(2) ?? null,
+    vehicleMaxTenorMonths: q.vehicleMaxTenorMonths ?? null,
     fees: {
       adminFeeEGP: new Decimal(q.feesBreakdown.adminFeeEGP).toFixed(2),
       stampDutyEGP: new Decimal(q.feesBreakdown.stampDutyEGP).toFixed(2),

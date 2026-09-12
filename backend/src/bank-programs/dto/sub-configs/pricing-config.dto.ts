@@ -1,4 +1,15 @@
-import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { FactGridDto } from './fact-grid.dto';
 import { DecimalRange } from '../../../common/decorators/decimal-range.decorator';
 import { RATE_BASES, type RateBasis } from '../../../matching/pipeline/rate-basis';
 
@@ -54,7 +65,18 @@ export class PricingConfigDto {
   @IsOptional() @IsObject() rateBySeniority?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByTransferType?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByTenor?: Record<string, RateBandLike>;
-  @IsOptional() @IsObject() rateByTenorAndCustomerType?: Record<string, RateBandLike>;
+  /**
+   * The N-axis grid — down payment x tenor band x insurance, or whatever axes the bank's own
+   * card prints. FIRST in `PRICING_CASCADE_ORDER`. See `fact-grid.ts`.
+   *
+   * `rateByTenorAndCustomerType` stood here until this field replaced it. That one was
+   * accepted on the wire, stored, rendered to operators on the detail page and seeded onto a
+   * live program — and read by NO cascade level, so `NXT-SALARIED` quoted its base rate while
+   * its catalog's own assertion recorded the fall-through as correct. A two-axis rate table is
+   * expressible for real now, which is why the dead one goes rather than staying beside it:
+   * two ways to say one thing, one of which silently does nothing, is worse than either.
+   */
+  @IsOptional() @ValidateNested() @Type(() => FactGridDto) rateByFact?: FactGridDto;
   @IsOptional() @IsObject() rateByDownPaymentPercent?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByAssetValueBand?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByLoanAmountBand?: Record<string, RateBandLike>;

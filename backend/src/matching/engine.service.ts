@@ -268,6 +268,7 @@ export class EngineService {
       // about to become immutable and the inputs can all move (Principle I / A6).
       bindingConstraint: quote.bindingConstraint,
       requiredDownPaymentEGP: quote.requiredDownPaymentEGP ?? null,
+      vehicleMaxTenorMonths: quote.vehicleMaxTenorMonths ?? null,
     };
   }
 
@@ -363,6 +364,17 @@ export function reasonToCheckCode(reason: FiguresUnavailableReason): string {
     // proposing a guarantor for something only an operator can undo.
     case 'SURROGATE_PRODUCT_RETIRED':
       return 'program_misconfigured';
+    // The rate GRID has no cell for this applicant and the bank chose to refuse. Same
+    // reading as `NO_MAX_LOAN_FOR_ANSWER` one case up and for the same reason — nothing
+    // about this applicant's earnings was in question — but `interest_rate` rather than
+    // `loan_amount`, because the two send an operator to two different wizard steps and a
+    // customer-facing list should not say "loan amount" about a missing price.
+    case 'NO_RATE_FOR_ANSWER':
+      return 'interest_rate';
+    // The bank finances no car of this age, origin or down payment. The CAR is what failed,
+    // so neither `age` (which reads as the applicant's age) nor `monthly_income` will do.
+    case 'VEHICLE_NOT_ELIGIBLE':
+      return 'vehicle';
   }
 }
 

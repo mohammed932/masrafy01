@@ -50,6 +50,15 @@ class FiguresUnavailableReasons {
   /// Also emitted since v22 and also missing a sentence until now.
   static const String surrogateProductRetired = 'SURROGATE_PRODUCT_RETIRED';
 
+  /// The bank prices off a GRID — down payment against term against insurance — and states
+  /// no cell for this combination, having chosen refusal over a fallback rate. There is no
+  /// safe fallback for a price, so the honest answer is that this bank does not quote it.
+  static const String noRateForAnswer = 'NO_RATE_FOR_ANSWER';
+
+  /// The bank finances no car of this model year, country of origin, or at this down
+  /// payment. Separate from every income reason: nothing about the applicant was refused.
+  static const String vehicleNotEligible = 'VEHICLE_NOT_ELIGIBLE';
+
   /// Every code, so a test can assert none is left without a sentence.
   static const List<String> all = [
     noRecognisedIncome,
@@ -62,6 +71,8 @@ class FiguresUnavailableReasons {
     productRuleGateFailed,
     noMaxLoanForAnswer,
     surrogateProductRetired,
+    noRateForAnswer,
+    vehicleNotEligible,
   ];
 }
 
@@ -131,6 +142,10 @@ String figuresUnavailableLabel(
       return l10n.results_unavailable_no_max_for_answer;
     case FiguresUnavailableReasons.surrogateProductRetired:
       return l10n.results_unavailable_product_retired;
+    case FiguresUnavailableReasons.noRateForAnswer:
+      return l10n.results_unavailable_no_rate_for_answer;
+    case FiguresUnavailableReasons.vehicleNotEligible:
+      return l10n.results_unavailable_vehicle_not_eligible;
     case FiguresUnavailableReasons.productRuleGateFailed:
       // Reachable only when no gate code came with it — a build that predates one of the
       // conditions, or an older application replayed.

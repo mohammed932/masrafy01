@@ -219,5 +219,8 @@
   "SURROGATE_FACT_QUESTION_NOT_ELIGIBLE": "This product cannot work an income out from that question. It is part of what the customer is asking for, or of their existing debts, rather than something about them a bank can price.",
   "SURROGATE_FACT_WIDEN_REQUIRED": "That question must be answered by everyone who is asked it, so starting to ask it here would refuse every application for this loan type until the questionnaire is published again. Ask it under Questionnaires instead, or make it optional first.",
   "PRODUCT_ASK_BLUEPRINT_OWNED": "This question comes with the product, so it cannot be removed here — it would come back on the next release. Switch the whole product off instead if it should not be sold.",
-  "PRODUCT_ASK_READ_BY_OWN_RULE": "This product’s own calculation still reads that answer. Take it out of the calculation first, then stop reading the question."
+  "PRODUCT_ASK_READ_BY_OWN_RULE": "This product’s own calculation still reads that answer. Take it out of the calculation first, then stop reading the question.",
+  "NO_RATE_FOR_ANSWER": "This bank states no rate for that combination of down payment, term and insurance, so no figures can be shown.",
+  "VEHICLE_NOT_ELIGIBLE": "This bank does not finance a car of that model year, origin, or at that down payment.",
+  "FACT_GRID_INVALID": "This program’s rate grid cannot be saved as it stands — check that every axis names a question the applicant is asked, that each cell fills one box per axis, and that every figure is set."
 }

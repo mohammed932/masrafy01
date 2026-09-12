@@ -576,6 +576,22 @@ model BankOffer {
   /// financed amount below the LTV ceiling, which RAISES what the customer has to find, and
   /// this is the only field that says so.
   requiredDownPaymentEGP  Decimal?  @db.Decimal(13, 2)
+
+  /// The longest term this program would have written for THIS VEHICLE — the ceiling its
+  /// `tenor.maxMonthsByFact` table imposed, before the applicant's age or the program's own
+  /// floor touched the term.
+  ///
+  /// Frozen for the reason `collateralCeilingEGP` above is, and to the same end: the pair
+  /// (this, `effectiveTenorMonths`) is what lets a surface say "this bank finances a 2016 car
+  /// for at most 48 months, and your age brought that to 44". The second number alone reads
+  /// as an unexplained cut, and re-deriving the first later is not available — the bank's
+  /// table, the applicant's answers and the platform's reading of both can all move
+  /// (Principle I / A6).
+  ///
+  /// `null` when the program states no vehicle table, and on every offer written before this
+  /// column. Absent is NOT zero: a zero ceiling would say the bank finances this car for no
+  /// time at all.
+  vehicleMaxTenorMonths   Int?
   createdAt               DateTime  @default(now()) @db.Timestamptz(6)
   erasedAt                DateTime? @db.Timestamptz(6)
 

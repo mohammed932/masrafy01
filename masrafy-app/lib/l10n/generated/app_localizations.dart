@@ -4469,6 +4469,18 @@ abstract class AppLocalizations {
   /// **'هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.'**
   String get results_unavailable_no_max_for_answer;
 
+  /// No description provided for @results_unavailable_no_rate_for_answer.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك لا يحدد سعر فائدة للدفعة المقدمة ومدة السداد والتأمين التي اخترتها.'**
+  String get results_unavailable_no_rate_for_answer;
+
+  /// No description provided for @results_unavailable_vehicle_not_eligible.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك لا يموّل سيارة بسنة الصنع أو بلد المنشأ أو الدفعة المقدمة المذكورة.'**
+  String get results_unavailable_vehicle_not_eligible;
+
   /// No description provided for @results_unavailable_product_retired.
   ///
   /// In ar, this message translates to:

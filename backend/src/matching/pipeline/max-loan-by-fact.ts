@@ -43,7 +43,16 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { SurrogateFactValue } from '../types';
-import { factAnswerHasKey, factLookupKeys } from './fact-value';
+import { factLookupKeys } from './fact-value';
+// The two matching predicates live in `fact-grid.ts`, which is this table generalised to N
+// axes. Imported rather than duplicated: a second copy is how a cap table and a rate grid
+// come to disagree about what a multi-pick answer matches, on one customer, in money.
+import {
+  keyMatchesAnswer,
+  toGridDecimal as toDecimal,
+  viaClass,
+  type FactGridKey,
+} from './fact-grid';
 
 /**
  * What happens to an applicant whose answer this table has no row for.
@@ -119,61 +128,22 @@ export type MaxLoanByFactResolution =
   | { matched: true; maxAmountEGP: Decimal; rowIndex: number }
   | { matched: false; action: MaxLoanNoMatchAction; reason: MaxLoanNoMatchReason };
 
-function toDecimal(raw: string | null | undefined): Decimal | null {
-  if (raw === null || raw === undefined || raw.trim() === '') return null;
-  try {
-    const value = new Decimal(raw);
-    return value.isFinite() ? value : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
- * Does this row's key match the answer?
+ * This table's row, as the shared matcher reads a key.
  *
  * A row that states neither a `rowKey` nor a band edge matches NOTHING. Deliberately: an
  * empty row is a half-typed one, and treating it as a wildcard would cap every applicant at
- * whatever figure happened to sit beside it.
+ * whatever figure happened to sit beside it. This shape cannot express the EXPLICIT wildcard
+ * a `FactGridCell` can (`null`), which is why it never returns one — the stored rows have no
+ * way to say "any", and reading one into them would change what every stored table means.
  */
-function rowMatches(row: MaxLoanByFactRow, answer: SurrogateFactValue): boolean {
-  if (answer.kind !== 'numeric') {
-    // One key, several (a multi-pick), or the presence of a text answer — all decided by
-    // `factLookupKeys`, so this axis and the income table read a multi-pick the same way.
-    return row.rowKey !== undefined && factAnswerHasKey(answer, row.rowKey);
-  }
-  const from = toDecimal(row.fromInclusive);
-  const to = toDecimal(row.toExclusive);
-  if (from === null && to === null) return false;
-  if (from !== null && answer.value.lessThan(from)) return false;
-  if (to !== null && answer.value.greaterThanOrEqualTo(to)) return false;
-  return true;
+function rowKeyOf(row: MaxLoanByFactRow): FactGridKey {
+  if (row.rowKey !== undefined) return { key: row.rowKey };
+  return { fromInclusive: row.fromInclusive, toExclusive: row.toExclusive };
 }
 
-/**
- * One answer as the axis reads it: itself, or the class it is filed under.
- *
- * `undefined` out means "this axis cannot be read for this applicant" — either there was no
- * answer, or there was one and it is filed under nothing. The caller decides which of those
- * matters; for the ROW axis both end at `onNoMatch`, and for the COLUMN axis both fall
- * through to the column-agnostic rows, exactly as an unanswered second axis already did.
- */
-function viaClass(
-  answer: SurrogateFactValue | undefined,
-  via: 'answer' | 'parentClass' | undefined,
-  parentKeyByValue: Readonly<Record<string, string>> | undefined,
-): SurrogateFactValue | undefined {
-  if (answer === undefined) return undefined;
-  if (via !== 'parentClass') return answer;
-  // Only a key-shaped answer has a class. A numeric axis keyed by class is refused at save,
-  // so that half is belt-and-braces rather than a reachable shape. A multi-pick offers
-  // several keys: the FIRST one that is filed under a class is the class read, in the order
-  // `factLookupKeys` states, so an applicant whose second pick is unfiled is still priced.
-  for (const key of factLookupKeys(answer)) {
-    const parentKey = parentKeyByValue?.[key];
-    if (parentKey !== undefined) return { kind: 'choice', optionCode: parentKey };
-  }
-  return undefined;
+function rowMatches(row: MaxLoanByFactRow, answer: SurrogateFactValue): boolean {
+  return keyMatchesAnswer(rowKeyOf(row), answer);
 }
 
 /**

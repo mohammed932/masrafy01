@@ -57,3 +57,66 @@ export function carDetailsFrom(
   }
   return body;
 }
+
+/**
+ * The share of the purchase the applicant is putting down, as a GRID AXIS.
+ *
+ * The rate cascade has banded on this number since feature 002 (`rateByDownPaymentPercent`),
+ * but only as a fixed field on `ApplicantContext`. A grid axis names a FACT, so the same
+ * figure needs a key — and it is the same figure, from the same single Decimal division, not
+ * a second one (Principle I: two divisions of the same two numbers is a drift waiting to
+ * happen, and this one decides a price).
+ */
+export const CAR_DOWN_PAYMENT_PERCENT_FACT_KEY = 'car_down_payment_percent';
+
+/**
+ * The term the loan is repaid over, as a GRID AXIS.
+ *
+ * Every bank's auto card prices tenor against something else — a down payment, an origin —
+ * and a grid cannot read a term it has no key for. It is the CLAMPED term, not the requested
+ * one, for the reason FR-008o.3 states.
+ */
+export const TENOR_MONTHS_FACT_KEY = 'tenor_months';
+
+/**
+ * Facts the ENGINE computes per quote rather than reading from an answer.
+ *
+ * Reserved so an operator cannot author a question under one of these keys and have a
+ * customer's answer silently overwrite a figure the engine works out — the same guarantee
+ * `DERIVED_FACT_KEYS` gives the bank axes, and for the same reason.
+ *
+ * They are deliberately NOT reported by the fact-reader surfaces: those exist to answer
+ * "which QUESTION must this applicant be asked", and neither of these has a question. A grid
+ * naming one demands nothing of the questionnaire.
+ */
+export const GRID_ONLY_FACT_KEYS: readonly string[] = [
+  CAR_DOWN_PAYMENT_PERCENT_FACT_KEY,
+  TENOR_MONTHS_FACT_KEY,
+];
+
+export function isGridOnlyFactKey(key: string): boolean {
+  return GRID_ONLY_FACT_KEYS.includes(key);
+}
+
+/**
+ * The applicant's answered facts plus the two the engine derives, ready for a grid.
+ *
+ * Written LAST so a computed value always wins: if an operator ever does register a fact
+ * under one of these keys, the engine's own figure is the one that prices the loan.
+ */
+export function withGridFacts(
+  facts: Readonly<Record<string, SurrogateFactValue>>,
+  derived: { downPaymentPercent?: number | undefined; tenorMonths?: number | undefined },
+): Readonly<Record<string, SurrogateFactValue>> {
+  const out: Record<string, SurrogateFactValue> = { ...facts };
+  if (derived.downPaymentPercent !== undefined && Number.isFinite(derived.downPaymentPercent)) {
+    out[CAR_DOWN_PAYMENT_PERCENT_FACT_KEY] = {
+      kind: 'numeric',
+      value: new Decimal(derived.downPaymentPercent),
+    };
+  }
+  if (derived.tenorMonths !== undefined && Number.isFinite(derived.tenorMonths)) {
+    out[TENOR_MONTHS_FACT_KEY] = { kind: 'numeric', value: new Decimal(derived.tenorMonths) };
+  }
+  return out;
+}

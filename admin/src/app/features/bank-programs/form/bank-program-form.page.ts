@@ -77,10 +77,12 @@ import type {
   IncomeAssumptionConfig,
   IncomeBand,
   IncomeKeyTableRow,
+  PricingConfig,
   ProgramNameIncomeRule,
   ProgramType,
   RateBandMap,
   RateBasis,
+  TenorConfig,
 } from '../bank-programs.types';
 import {
   factKeyOf,
@@ -244,6 +246,51 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
     previous = edge;
   }
   return null;
+}
+
+/**
+ * The `pricing` keys this form owns — the only ones it may rewrite on a save.
+ *
+ * The update is a FULL REPLACEMENT (`UpdateBankProgramDto extends CreateBankProgramDto`), so
+ * whatever the payload omits is deleted. This form draws one tier table out of eight, which
+ * meant a save from any step silently deleted `rateByTenor`, `rateByDownPaymentPercent`,
+ * `rateByAssetValueBand`, `rateByEmploymentType`, `rateBySeniority`, `rateByTransferType`,
+ * both spreads and all six waiver fields — a whole price book destroyed by an operator
+ * correcting a typo three steps away, with nothing on screen to say so.
+ *
+ * Stated as what the form EDITS rather than as a list of what to carry, and that direction is
+ * the point: a field added to `PricingConfig` tomorrow is carried automatically, where a
+ * carry-list would have to be remembered and would silently go stale. The same reasoning and
+ * the same fix as `maxLoanAdjustments`, applied to the rest of the block.
+ */
+const PRICING_KEYS_EDITED_HERE = [
+  'isVariableRate',
+  'rateBasis',
+  'baseRatePercent',
+  'currentEffectiveRatePercent',
+  'variableRateNote',
+  'rateByLoanAmountBand',
+] as const;
+type CarriedPricing = Omit<PricingConfig, (typeof PRICING_KEYS_EDITED_HERE)[number]>;
+
+/** The `tenor` keys this form owns. Same hazard: `maxMonthsByEmploymentType` had no editor
+ *  and no carry, so a seeded per-employment ceiling died on the first wizard save. */
+const TENOR_KEYS_EDITED_HERE = ['minMonths', 'maxMonths'] as const;
+type CarriedTenor = Omit<TenorConfig, (typeof TENOR_KEYS_EDITED_HERE)[number]>;
+
+/** Everything the stored config holds that this form does not edit, ready to send back. */
+function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]>(
+  stored: T | undefined,
+  edited: K,
+): Omit<T, K[number]> {
+  const out: Record<string, unknown> = {};
+  if (stored === undefined) return out as Omit<T, K[number]>;
+  for (const [key, value] of Object.entries(stored)) {
+    if ((edited as readonly string[]).includes(key)) continue;
+    if (value === undefined) continue;
+    out[key] = value;
+  }
+  return out as Omit<T, K[number]>;
 }
 
 @Component({
@@ -5296,6 +5343,13 @@ export class BankProgramFormPage implements OnInit {
     BankProgramResponse['loanLimits']['maxLoanAdjustments']
   > | null>(null);
 
+  /** Carried, never edited — see `PRICING_KEYS_EDITED_HERE` / `TENOR_KEYS_EDITED_HERE`. */
+  private readonly carriedPricing = signal<CarriedPricing>({});
+  private readonly carriedTenor = signal<CarriedTenor>({});
+  /** The loan-amount bands as STORED, kept only to carry each band's `derivation` chain
+   *  through a save that did not change its figure — see `serializeRateBands`. */
+  private readonly storedRateBands = signal<RateBandMap>({});
+
   /**
    * A DBR cap per kind of applicant — "50% salaried / 40% self-employed".
    *
@@ -6462,11 +6516,27 @@ export class BankProgramFormPage implements OnInit {
   /** Rows → wire map keyed by the integer floor amount (FR-008p floor-≤ resolver). */
   private serializeRateBands(): RateBandMap {
     const out: RateBandMap = {};
+    const stored = this.storedRateBands();
     for (const row of this.rateBandsArray.controls) {
       const min = String(row.get('minAmountEGP')?.value ?? '').trim();
       const rate = String(row.get('ratePercent')?.value ?? '').trim();
       if (min === '' || rate === '') continue;
-      out[String(Number(min))] = { value: rate };
+      const key = String(Number(min));
+      // A band's `derivation` records how its figure was arrived at ("25.5% minus 1% because
+      // the car is over 4M"). The editor cannot author one, so emitting `{value}` alone
+      // deleted every stored chain on any save — and the detail page renders them, so the
+      // explanation vanished from a screen an operator reads.
+      //
+      // Carried only while the figure is UNCHANGED. A reworded rate makes its old chain a
+      // false statement about a number that has moved, and the backend refuses one anyway:
+      // `validateDerivationChains` holds `|source + delta − value| ≤ 0.0001`. Dropping it is
+      // then the honest outcome, not a loss.
+      const previous = stored[key];
+      const derivation =
+        previous !== undefined && trimZeros(previous.value) === trimZeros(rate)
+          ? previous.derivation
+          : undefined;
+      out[key] = derivation === undefined ? { value: rate } : { value: rate, derivation };
     }
     return out;
   }
@@ -6694,7 +6764,9 @@ export class BankProgramFormPage implements OnInit {
       operatorNotes: dc.operatorNotes ?? undefined,
       operatorTips: dc.operatorTips,
       requiredDocuments: dc.requiredDocuments,
-      tenor: { minMonths: tn.minMonths, maxMonths: tn.maxMonths },
+      // The carried keys go FIRST so an edited one can never be overwritten by a stale
+      // stored copy of itself — the spread order is the guarantee, not the key list.
+      tenor: { ...this.carriedTenor(), minMonths: tn.minMonths, maxMonths: tn.maxMonths },
       loanLimits: {
         minAmountEGP: ll.minAmountEGP,
         maxAmountEGP: ll.maxAmountEGP,
@@ -6716,6 +6788,8 @@ export class BankProgramFormPage implements OnInit {
           : {}),
       },
       pricing: {
+        // Carried first, for the reason `tenor` above states.
+        ...this.carriedPricing(),
         isVariableRate: pr.isVariableRate,
         rateBasis: pr.rateBasis,
         baseRatePercent: pr.isVariableRate ? undefined : (pr.baseRatePercent ?? undefined),
@@ -6870,6 +6944,8 @@ export class BankProgramFormPage implements OnInit {
         ? null
         : initial.loanLimits.maxLoanAdjustments.map((adjustment) => ({ ...adjustment })),
     );
+    this.carriedPricing.set(carriedKeysOf(initial.pricing, PRICING_KEYS_EDITED_HERE));
+    this.carriedTenor.set(carriedKeysOf(initial.tenor, TENOR_KEYS_EDITED_HERE));
 
     // Percent strings arrive as Prisma `Decimal(_, 4)` — `24.0000` for a flat 24%.
     // Trimmed for DISPLAY only, on the string, so the value the admin reads back is
@@ -6887,6 +6963,7 @@ export class BankProgramFormPage implements OnInit {
 
     this.rateBandsArray.clear();
     const bands = initial.pricing.rateByLoanAmountBand;
+    this.storedRateBands.set(bands ?? {});
     if (bands) {
       Object.entries(bands)
         .sort(([a], [b]) => Number(a) - Number(b))

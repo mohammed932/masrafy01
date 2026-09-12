@@ -1359,11 +1359,6 @@ export class BankProgramDetailPage {
       [pr.rateBySeniority, $localize`:@@bpd.rate.by_seniority:Rate by seniority`, null],
       [pr.rateByTenor, $localize`:@@bpd.rate.by_tenor:Rate by term`, null],
       [
-        pr.rateByTenorAndCustomerType,
-        $localize`:@@bpd.rate.by_tenor_customer:Rate by term and customer`,
-        null,
-      ],
-      [
         pr.rateByDownPaymentPercent,
         $localize`:@@bpd.rate.by_down_payment:Rate by down payment`,
         null,

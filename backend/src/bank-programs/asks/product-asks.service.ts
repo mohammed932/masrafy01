@@ -560,7 +560,13 @@ export class ProductAsksService {
     // than after it. A bank program reading the fact is now also a statement about what its
     // applicants are ASKED, not only about a hard delete.
     const bankReaders = args.readers.filter(
-      (reader) => reader.source === 'bank_program' || reader.source === 'bank_program_cap',
+      (reader) =>
+        reader.source === 'bank_program' ||
+        reader.source === 'bank_program_cap' ||
+        // A rate grid or a vehicle term ceiling. Same reasoning as the cap: take the answer
+        // away and the grid misses, `onNoMatch: 'useFallback'` carries on down the cascade,
+        // and the applicant is priced off a rate the bank never stated for them.
+        reader.source === 'bank_program_grid',
     );
     if (bankReaders.length > 0) {
       return { ok: false, reason: 'fact_still_read', meta: { readBy: [...bankReaders] } };

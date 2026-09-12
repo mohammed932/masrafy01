@@ -31,6 +31,8 @@ import {
 import {
   factsReadByIncomeRule,
   factsReadByLoanLimits,
+  factsReadByPricing,
+  factsReadByTenor,
 } from '../src/matching/pipeline/fact-readers';
 import { bankAxisByFactKey } from '../src/matching/pipeline/bank-relationship';
 import { narrowAskedQuestions } from '../src/questionnaire/validation/question-scope';
@@ -103,6 +105,8 @@ async function main(): Promise<void> {
           productCategory: true,
           incomeAssumption: true,
           loanLimits: true,
+          pricing: true,
+          tenor: true,
         },
       }),
     ]);
@@ -153,6 +157,13 @@ async function main(): Promise<void> {
           );
           for (const key of factsReadByIncomeRule(effective)) loud.add(key);
           for (const key of factsReadByLoanLimits(program.loanLimits)) viaCap.add(key);
+          // A grid axis counts as SILENT for the same reason a cap fact does: under
+          // `onNoMatch: 'useFallback'` the miss is swallowed — the cascade simply carries on
+          // to the next level and the applicant is priced off a rate the bank did not state
+          // for them, with nothing reported. Under `reject` it is loud, but the honest
+          // classification is the quieter of the two, so a finding is never under-stated.
+          for (const key of factsReadByPricing(program.pricing)) viaCap.add(key);
+          for (const key of factsReadByTenor(program.tenor)) viaCap.add(key);
         }
         const needed = new Set<string>([...loud, ...viaCap]);
         const silentOnly = new Set([...viaCap].filter((key) => !loud.has(key)));

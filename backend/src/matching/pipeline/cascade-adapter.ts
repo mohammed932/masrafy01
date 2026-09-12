@@ -24,15 +24,34 @@ import {
   type BankProgramConfig,
 } from '../../bank-programs/cascade/cascade.evaluator';
 import { coarseEmploymentType } from './employment-type';
+import { withGridFacts } from './car-details';
+import type { SurrogateFactValue } from '../types';
 
-export function buildApplicantContext(profile: ApplicantProfile): ApplicantContext {
+/**
+ * What a grid needs on top of the cascade's own fixed fields.
+ *
+ * `facts` is per PROGRAM (a derived axis like `bank_relationship` is a different answer at
+ * every bank), which is why the caller supplies it rather than this module deriving it.
+ */
+export interface CascadeExtras {
+  /** The term the loan is REPAID over, when it is not the one that was asked for (FR-008o.3). */
+  tenorMonths?: number;
+  facts?: Readonly<Record<string, SurrogateFactValue>>;
+  parentKeyByValue?: Readonly<Record<string, string>>;
+}
+
+export function buildApplicantContext(
+  profile: ApplicantProfile,
+  extras: CascadeExtras = {},
+): ApplicantContext {
   const downPaymentPercent = computeDownPaymentPercent(profile);
+  const tenorMonths = extras.tenorMonths ?? profile.preferredTenorMonths;
   return {
     employmentType: coarseEmploymentType(profile.employment.employmentType),
     transferType: profile.employment.salaryTransferType,
     propertyType: profile.mortgageDetails?.propertyType,
     seniorityYears: Math.floor(profile.employment.monthsInJob / 12),
-    tenorMonths: profile.preferredTenorMonths,
+    tenorMonths,
     downPaymentPercent,
     assetValueEGP: profile.assets.declaredAssetsValueEGP
       ? Number(profile.assets.declaredAssetsValueEGP.toString())
@@ -47,6 +66,11 @@ export function buildApplicantContext(profile: ApplicantProfile): ApplicantConte
     assetsValueEGP: profile.assets.declaredAssetsValueEGP
       ? Number(profile.assets.declaredAssetsValueEGP.toString())
       : undefined,
+    // The two derived axes are added HERE, beside the single Decimal division that produces
+    // the down-payment share, so the figure a grid bands on and the figure
+    // `rateByDownPaymentPercent` bands on are the same number and cannot drift (Principle I).
+    facts: withGridFacts(extras.facts ?? {}, { downPaymentPercent, tenorMonths }),
+    ...(extras.parentKeyByValue !== undefined ? { parentKeyByValue: extras.parentKeyByValue } : {}),
   };
 }
 
@@ -69,14 +93,39 @@ export interface CascadeBundle {
   tenor: TenorResult;
   loanLimit: LoanLimitResult;
   steps: CascadeTraceStep[];
+  /**
+   * The context the three evaluators were given.
+   *
+   * Returned so a caller that needs the DERIVED grid facts — the down-payment share and the
+   * term — reads the ones that actually priced the loan instead of computing a second set.
+   * `quote.ts` needs them for the vehicle term ceiling, which is resolved between the two
+   * cascade passes.
+   */
+  ctx: ApplicantContext;
 }
 
+/**
+ * @param extras.tenorMonths the term to evaluate against, when it is not the one the
+ *   applicant asked for. `rateByTenor` and a grid's tenor axis are both keyed by the term,
+ *   and the term a loan is REPAID over is not always the term that was requested — the
+ *   program's ceiling, its floor and the applicant's age at maturity can all move it.
+ *   Pricing the requested term and repaying a clamped one quotes one loan and writes
+ *   another (FR-008o.3), so `quoteProgram` resolves the term first and calls this with it.
+ *
+ *   `evaluateTenor` and `evaluateLoanLimit` read no term, so passing it changes only the
+ *   pricing half; both are still computed here rather than split out, because the caller
+ *   needs one bundle and the two are pure map lookups.
+ *
+ * @param extras.facts / extras.parentKeyByValue what a `rateByFact` grid reads. Omitted by a
+ *   caller with no grid to serve, which is every caller of a program that states none.
+ */
 export function runCascade(
   snapshot: BankProgramSnapshot,
   profile: ApplicantProfile,
+  extras: CascadeExtras = {},
 ): CascadeBundle {
   const config = toCascadeConfig(snapshot);
-  const ctx = buildApplicantContext(profile);
+  const ctx = buildApplicantContext(profile, extras);
 
   const pricing = evaluatePricing(config, ctx);
   const tenor = evaluateTenor(config, ctx);
@@ -87,6 +136,7 @@ export function runCascade(
     tenor,
     loanLimit,
     steps: [...pricing.trace, ...tenor.trace, ...loanLimit.trace],
+    ctx,
   };
 }
 
