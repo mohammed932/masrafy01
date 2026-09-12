@@ -959,6 +959,7 @@
   "offer_limited_by_program_max": "Capped by this program's maximum",
   "offer_limited_by_program_row": "Capped by this program's limit for your answers",
   "offer_limited_by_collateral": "Capped by what your collateral supports",
+  "offer_limited_by_vehicle": "Shortened to the longest term this bank finances a car like yours for",
   "results_unavailable_no_max_for_answer": "This bank sets no limit for the answers you gave.",
   "results_unavailable_no_rate_for_answer": "This bank sets no rate for the down payment, term and insurance you chose.",
   "results_unavailable_vehicle_not_eligible": "This bank does not finance a car of this model year, origin, or at this down payment.",

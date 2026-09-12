@@ -255,6 +255,99 @@ const CAR_DOWN_PAYMENT_Q: SeedQuestion = {
 };
 
 /**
+ * The car itself: where it was built, what year it is, and whether it will be insured.
+ *
+ * ─── Why the platform asks the COUNTRY and not the bank's grouping ────────────
+ *
+ * ADIB's used-car card groups "German / Japanese / American" on one row and "Korean / French
+ * / Czech / Spanish / Italian" on another; the next bank will group differently, and the doc
+ * already prints two ADIB sheets that disagree with each other. So the platform asks the one
+ * thing that is a fact about the car — where it was built — and each bank states which
+ * countries share a row in its own table (Principle II / A1). Exactly the governorate
+ * precedent: 27 of them, and every bank tiers them its own way.
+ *
+ * Codes are stated rather than slugged from the label, for the reason `GREEN_BUYER_TYPE_Q`
+ * states: they are the keys a bank's grid is written against, and a reworded label must not
+ * move a row.
+ *
+ * ─── Why REQUIRED, and what that costs ────────────────────────────────────────
+ *
+ * All three are asked of every car applicant, including the ones applying to a programme that
+ * reads none of them — the same trade `practice_governorate` made, recorded there rather than
+ * hidden. The alternative is worse: a grid that reads an unanswered axis refuses at the END of
+ * the flow (`VEHICLE_NOT_ELIGIBLE` naming the fact), so the customer fills in a whole
+ * application to be told to go back. Asked up front, it is one tap.
+ *
+ * Insurance in particular cannot be defaulted in either direction. On ADIB's card the
+ * no-insurance column sits 0.65–0.80pp ABOVE the insured one in every single cell, so
+ * assuming "insured" under-quotes and assuming "uninsured" over-quotes — and the under-quote
+ * is the dangerous one, because the debt burden and the whole affordability loop are measured
+ * against that instalment and then frozen.
+ */
+const CAR_ORIGIN_Q: SeedQuestion = {
+  code: 'car_origin',
+  questionEn: 'Where was the car built?',
+  questionAr: 'أين صُنعت السيارة؟',
+  helperTextEn: 'Some banks finance a car for longer, or at a better rate, depending on where it was made.',
+  helperTextAr: 'بعض البنوك تموّل السيارة لمدة أطول أو بسعر أفضل حسب بلد الصنع.',
+  options: [
+    { code: 'germany', labelEn: 'Germany', labelAr: 'ألمانيا' },
+    { code: 'japan', labelEn: 'Japan', labelAr: 'اليابان' },
+    { code: 'usa', labelEn: 'United States', labelAr: 'الولايات المتحدة' },
+    { code: 'korea', labelEn: 'South Korea', labelAr: 'كوريا الجنوبية' },
+    { code: 'france', labelEn: 'France', labelAr: 'فرنسا' },
+    { code: 'italy', labelEn: 'Italy', labelAr: 'إيطاليا' },
+    { code: 'spain', labelEn: 'Spain', labelAr: 'إسبانيا' },
+    { code: 'czechia', labelEn: 'Czech Republic', labelAr: 'التشيك' },
+    { code: 'china', labelEn: 'China', labelAr: 'الصين' },
+    { code: 'egypt', labelEn: 'Assembled in Egypt', labelAr: 'مجمّعة في مصر' },
+    { code: 'other_origin', labelEn: 'Somewhere else', labelAr: 'بلد آخر' },
+  ],
+};
+
+/**
+ * The model year, as a NUMBER.
+ *
+ * It replaces `model_year`, which asked the same thing in buckets — "this year's model", "up
+ * to 3 years old" — and those are a CLOCK in disguise: they mean a different year every
+ * January, so they cannot key a bank's table, which prints "from model 2015". Nothing read
+ * the old question.
+ *
+ * No `step`: a year is already whole, and `answer-validation.ts` refuses a value off a stated
+ * step. No unit: a year is not measured in anything.
+ */
+const CAR_MODEL_YEAR_Q: SeedQuestion = {
+  code: 'car_model_year',
+  type: 'NUMERIC',
+  questionEn: "What is the car's model year?",
+  questionAr: 'ما سنة موديل السيارة؟',
+  helperTextEn: 'The year on the licence, such as 2021.',
+  helperTextAr: 'السنة المذكورة في الرخصة، مثل 2021.',
+  numeric: { minValue: '1980', maxValue: '2100' },
+  options: [],
+};
+
+/**
+ * Whether the car will be insured.
+ *
+ * A SEPARATE question from `wants_insurance`, which stays exactly as it is. That one asks
+ * whether the customer wants insurance OFFERS — a cross-sell — and live applications have
+ * answered it under that meaning. Rebinding it here would retroactively reinterpret every one
+ * of those answers as a statement about this car's cover.
+ */
+const CAR_INSURANCE_Q: SeedQuestion = {
+  code: 'car_insurance',
+  questionEn: 'Will the car be insured?',
+  questionAr: 'هل ستكون السيارة مؤمَّنة؟',
+  helperTextEn: 'Some banks require cover, and some price the loan differently with it.',
+  helperTextAr: 'بعض البنوك تشترط التأمين، وبعضها يسعّر القرض بشكل مختلف معه.',
+  options: [
+    { code: 'with_insurance', labelEn: 'Yes, it will be insured', labelAr: 'نعم، ستكون مؤمَّنة' },
+    { code: 'without_insurance', labelEn: 'No', labelAr: 'لا' },
+  ],
+};
+
+/**
  * What the applicant has saved, and how they are buying — the Green Finance pair.
  *
  * OPTIONAL, both of them: they are read by one product, and a required question is enforced
@@ -1410,19 +1503,20 @@ const CAR: CategoryConfig = {
     {
       code: 'vehicle_financing', titleEn: 'About the car', titleAr: 'معلومات السيارة والتمويل',
       questions: [
+        // Kept and now BOUND to a fact: `new` / `used` is exactly what a bank states, the
+        // question is already asked, and live applications have already answered it — so
+        // binding it costs one registry row and reinterprets nothing.
         { code: 'vehicle_condition', questionEn: 'Is the car new or used?', questionAr: 'هل السيارة جديدة أم مستعملة؟', isRequired: false, options: [
           { code: 'new', labelEn: 'New', labelAr: 'جديدة' },
           { code: 'used', labelEn: 'Used', labelAr: 'مستعملة' },
         ] },
-        {
-          code: 'model_year', questionEn: "What is the car's model year?", questionAr: 'ما سنة موديل السيارة؟', isRequired: false,
-          options: [
-            { code: 'current_year_model', labelEn: 'This year model', labelAr: 'موديل السنة الحالية' },
-            { code: 'within_the_last_3_years', labelEn: 'Up to 3 years old', labelAr: 'خلال آخر 3 سنوات' },
-            { code: '3_to_5_years_old', labelEn: '3 to 5 years old', labelAr: 'من 3 إلى 5 سنوات' },
-            { code: 'more_than_5_years_old', labelEn: 'More than 5 years old', labelAr: 'أكثر من 5 سنوات' },
-          ],
-        },
+        // `model_year` USED TO STAND HERE as four age-relative buckets ("this year model",
+        // "up to 3 years old"). It is deliberately absent now, which is what retires it: this
+        // seed deactivates every question outside its own pool. The buckets were a clock in
+        // disguise — they mean a different year every January — so they could never key a
+        // bank's table, which prints "from model 2015". Nothing read it.
+        CAR_MODEL_YEAR_Q,
+        CAR_ORIGIN_Q,
         CAR_PRICE_Q,
         // The Green Finance pair rides the car flow: a solar loan and an e-bike loan are both
         // sold under `car`, and both are quoted off what the applicant has saved.
@@ -1439,7 +1533,7 @@ const CAR: CategoryConfig = {
       // `down_payment` (the shared percentage bucket) is deliberately NOT here: a car
       // applicant states the amount, and the bucket stays a mortgage question.
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [CAR_DOWN_PAYMENT_Q],
+      questions: [CAR_DOWN_PAYMENT_Q, CAR_INSURANCE_Q],
     },
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
@@ -2043,6 +2137,20 @@ async function upsertCarFacts(): Promise<void> {
       labelAr: 'الدفعة المقدمة للسيارة',
       sortOrder: 121,
     },
+    // The three the vehicle rules read. Platform-owned like the two above and for the same
+    // reason: a bank's model-year table, its origin rows and its insurance column are read by
+    // ANY car programme that states one, so filing them under whichever product wanted them
+    // first would make them look like that product's and retiring it would read as retiring
+    // the car's model year.
+    //
+    // `fact key === question code` throughout, which is what lets this loop find the question
+    // by the fact's own key.
+    { key: 'car_model_year', labelEn: 'Car model year', labelAr: 'سنة موديل السيارة', sortOrder: 122 },
+    { key: 'car_origin', labelEn: 'Where the car was built', labelAr: 'بلد صنع السيارة', sortOrder: 123 },
+    { key: 'car_insurance', labelEn: 'Car insurance', labelAr: 'تأمين السيارة', sortOrder: 124 },
+    // Already asked of every car applicant and answered by live applications; bound here so a
+    // bank can state a row against `new` / `used` without a new question.
+    { key: 'vehicle_condition', labelEn: 'New or used', labelAr: 'جديدة أم مستعملة', sortOrder: 125 },
   ] as const;
 
   for (const fact of facts) {

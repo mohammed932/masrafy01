@@ -3799,16 +3799,6 @@
           <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="bpd.gate.car_price" datatype="html"><source>Car price</source><target>سعر السيارة</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="bpd.gate.down_payment" datatype="html"><source>Down payment</source><target>الدفعة المقدمة</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="bpd.gate.card_holding" datatype="html"><source>Card held for</source><target>مدة حيازة البطاقة</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
@@ -4254,6 +4244,48 @@
       <trans-unit id="spt.mech.divided" datatype="html"><source>A number the customer states, divided by a figure the bank states</source><target>رقم يذكره العميل، مقسومًا على رقم يحدده البنك</target></trans-unit>
       <trans-unit id="spt.mech.divided.eg" datatype="html"><source>e.g. a 500,000 down payment ÷ 3.6 → 138,888.89 a month</source><target>مثال: دفعة مقدمة ٥٠٠٬٠٠٠ ÷ ٣٫٦ ← ١٣٨٬٨٨٨٫٨٩ شهريًا</target></trans-unit>
       <trans-unit id="bank_programs.field.ltv.implied" datatype="html"><source>The customer puts in the rest — <x id="INTERPOLATION" equiv-text="{{ impliedDownPaymentPercent() }}"/>% down.</source><target>العميل يدفع الباقي — <x id="INTERPOLATION" equiv-text="{{ impliedDownPaymentPercent() }}"/>٪ مقدمًا.</target></trans-unit>
+      <trans-unit id="bpd.rate.by_grid" datatype="html"><source>Rate from a table of the customer&apos;s answers</source><target>الفائدة من جدول حسب إجابات العميل</target></trans-unit>
+      <trans-unit id="bpd.rate.by_grid_rows" datatype="html"><source><x id="axes" equiv-text="grid.axes?.length ?? 0"/> axis/axes, <x id="cells" equiv-text="grid.cells?.length ?? 0"/> row(s) — this table outranks the rates below</source><target><x id="axes" equiv-text="grid.axes?.length ?? 0"/> محور، <x id="cells" equiv-text="grid.cells?.length ?? 0"/> صف — هذا الجدول يسبق الأسعار أدناه</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.rate_grid" datatype="html"><source>Price this program from a table of the customer&apos;s answers</source><target>سعّر هذا البرنامج من جدول حسب إجابات العميل</target></trans-unit>
+      <trans-unit id="bank_programs.rate_grid.hint" datatype="html"><source> When a row matches, this table sets the rate and every other rate setting on this card is ignored. </source><target>عند مطابقة أي صف، يحدد هذا الجدول سعر الفائدة ويُتجاهل كل إعداد آخر للسعر في هذه البطاقة.</target></trans-unit>
+      <trans-unit id="bank_programs.vehicle_grid.title" datatype="html"><source> Shorter terms for some cars </source><target>مدد أقصر لبعض السيارات</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.vehicle_grid" datatype="html"><source>Limit the term by the car&apos;s model year, where it was built, or the deposit</source><target>حدّد المدة حسب سنة موديل السيارة أو بلد صنعها أو الدفعة المقدمة</target></trans-unit>
+      <trans-unit id="bank_programs.vehicle_grid.hint" datatype="html"><source> The shorter of this and the loan duration wins. A customer no row covers gets the answer you pick at the bottom of the table. </source><target>تُعتمد الأقصر بين هذه المدة ومدة القرض. العميل الذي لا يغطيه أي صف يحصل على الإجابة التي تختارها أسفل الجدول.</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_rate_grid" datatype="html"><source>The rate table needs fixing before you continue — see the message under it.</source><target>جدول الأسعار يحتاج إلى تصحيح قبل المتابعة — راجع الرسالة أسفله.</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_vehicle_grid" datatype="html"><source>The table of shorter terms for some cars needs fixing before you continue — see the message under it.</source><target>جدول المدد الأقصر لبعض السيارات يحتاج إلى تصحيح قبل المتابعة — راجع الرسالة أسفله.</target></trans-unit>
+      <trans-unit id="sim.binding.vehicle" datatype="html"><source>The longest term this bank finances this car for</source><target>أطول مدة يموّل بها هذا البنك هذه السيارة</target></trans-unit>
+      <trans-unit id="fact_grid.axes" datatype="html"><source>What this table is keyed by</source><target>ما الذي يُبنى عليه هذا الجدول</target></trans-unit>
+      <trans-unit id="fact_grid.via_answer" datatype="html"><source> The answer </source><target>الإجابة</target></trans-unit>
+      <trans-unit id="fact_grid.via_class" datatype="html"><source> Its class </source><target>فئتها</target></trans-unit>
+      <trans-unit id="fact_grid.add_axis" datatype="html"><source>Add another axis</source><target>أضف محورًا آخر</target></trans-unit>
+      <trans-unit id="fact_grid.value_months" datatype="html"><source>Longest term (months)</source><target>أطول مدة (بالأشهر)</target></trans-unit>
+      <trans-unit id="fact_grid.value_rate" datatype="html"><source>Rate %</source><target>الفائدة %</target></trans-unit>
+      <trans-unit id="fact_grid.add_cell" datatype="html"><source>Add a row</source><target>أضف صفًا</target></trans-unit>
+      <trans-unit id="fact_grid.band_hint" datatype="html"><source> Ranges include the first number and stop before the last, so 12–61 means one to five years. Leave a box empty to mean “whatever the answer”. </source><target>النطاقات تشمل الرقم الأول وتنتهي قبل الأخير، فمثلاً 12–61 تعني من سنة إلى خمس سنوات. اترك الخانة فارغة لتعني «أي إجابة».</target></trans-unit>
+      <trans-unit id="fact_grid.no_match" datatype="html"><source>If no row matches the customer</source><target>إذا لم يطابق أي صف العميل</target></trans-unit>
+      <trans-unit id="fact_grid.reject_months" datatype="html"><source> This bank does not finance them — say so, with a reason </source><target>هذا البنك لا يموّله — اذكر ذلك مع السبب</target></trans-unit>
+      <trans-unit id="fact_grid.reject_rate" datatype="html"><source> This bank quotes them no price — say so, with a reason </source><target>هذا البنك لا يحدد له سعرًا — اذكر ذلك مع السبب</target></trans-unit>
+      <trans-unit id="fact_grid.fallback_months" datatype="html"><source> Fall back to this program’s own longest term </source><target>ارجع إلى أطول مدة يحددها هذا البرنامج</target></trans-unit>
+      <trans-unit id="fact_grid.fallback_rate" datatype="html"><source> Fall back to this program’s other rate settings </source><target>ارجع إلى إعدادات السعر الأخرى في هذا البرنامج</target></trans-unit>
+      <trans-unit id="fact_grid.uncovered" datatype="html"><source> A customer can ask for <x id="INTERPOLATION" equiv-text="{{ uncovered().length }}"/> term(s) this table prices nothing for: <x id="INTERPOLATION_1" equiv-text="{{ uncoveredLabel() }}"/> months. They will get the answer chosen above — ask the bank what it charges for these. </source><target>يستطيع العميل طلب <x id="INTERPOLATION" equiv-text="{{ uncovered().length }}"/> مدة لا يحدد لها هذا الجدول أي سعر: <x id="INTERPOLATION_1" equiv-text="{{ uncoveredLabel() }}"/> شهرًا. سيحصلون على الإجابة المختارة أعلاه — اسأل البنك عن سعره لهذه المدد.</target></trans-unit>
+      <trans-unit id="fact_grid.pick_fact" datatype="html"><source>Pick a question</source><target>اختر سؤالًا</target></trans-unit>
+      <trans-unit id="fact_grid.any" datatype="html"><source>Any</source><target>أي</target></trans-unit>
+      <trans-unit id="fact_grid.from_aria" datatype="html"><source>Row <x id="row" equiv-text="row"/>, <x id="axis" equiv-text="axis"/>, from — including this number</source><target>الصف <x id="row" equiv-text="row"/>، <x id="axis" equiv-text="axis"/>، من — شاملاً هذا الرقم</target></trans-unit>
+      <trans-unit id="fact_grid.to_aria" datatype="html"><source>Row <x id="row" equiv-text="row"/>, <x id="axis" equiv-text="axis"/>, up to — not including this number</source><target>الصف <x id="row" equiv-text="row"/>، <x id="axis" equiv-text="axis"/>، حتى — غير شامل هذا الرقم</target></trans-unit>
+      <trans-unit id="fact_grid.remove_axis" datatype="html"><source>Remove this axis</source><target>احذف هذا المحور</target></trans-unit>
+      <trans-unit id="fact_grid.remove_cell" datatype="html"><source>Remove row <x id="row" equiv-text="cellIndex + 1"/></source><target>احذف الصف <x id="row" equiv-text="cellIndex + 1"/></target></trans-unit>
+      <trans-unit id="fact_grid.value_months_aria" datatype="html"><source>Row <x id="row" equiv-text="row"/>, longest term in months</source><target>الصف <x id="row" equiv-text="row"/>، أطول مدة بالأشهر</target></trans-unit>
+      <trans-unit id="fact_grid.value_rate_aria" datatype="html"><source>Row <x id="row" equiv-text="row"/>, rate percent</source><target>الصف <x id="row" equiv-text="row"/>، نسبة الفائدة</target></trans-unit>
+      <trans-unit id="fact_grid.err_axes" datatype="html"><source>This table is keyed by nothing — pick at least one question.</source><target>هذا الجدول غير مبني على أي شيء — اختر سؤالًا واحدًا على الأقل.</target></trans-unit>
+      <trans-unit id="fact_grid.err_axis_fact" datatype="html"><source>One axis has no question picked.</source><target>أحد المحاور لم يُختر له سؤال.</target></trans-unit>
+      <trans-unit id="fact_grid.err_axis_dup" datatype="html"><source>Two axes read the same question — the second one narrows nothing.</source><target>محوران يقرآن السؤال نفسه — الثاني لا يضيف تضييقًا.</target></trans-unit>
+      <trans-unit id="fact_grid.err_cells" datatype="html"><source>Add at least one row.</source><target>أضف صفًا واحدًا على الأقل.</target></trans-unit>
+      <trans-unit id="fact_grid.err_arity" datatype="html"><source>A row does not line up with the axes above.</source><target>أحد الصفوف لا يتوافق مع المحاور أعلاه.</target></trans-unit>
+      <trans-unit id="fact_grid.err_wildcard" datatype="html"><source>A row leaves every box empty, so it would price every customer. Fill at least one, or use the setting below.</source><target>أحد الصفوف يترك كل الخانات فارغة، فيُسعّر كل عميل. املأ خانة واحدة على الأقل، أو استخدم الإعداد أدناه.</target></trans-unit>
+      <trans-unit id="fact_grid.err_key" datatype="html"><source>A range needs at least one of its two numbers.</source><target>النطاق يحتاج إلى رقم واحد على الأقل من الاثنين.</target></trans-unit>
+      <trans-unit id="fact_grid.err_months" datatype="html"><source>Every row needs a whole number of months, above zero and up to 480.</source><target>كل صف يحتاج إلى عدد أشهر صحيح أكبر من صفر وحتى 480.</target></trans-unit>
+      <trans-unit id="fact_grid.err_rate" datatype="html"><source>Every row needs a rate above zero.</source><target>كل صف يحتاج إلى سعر أكبر من صفر.</target></trans-unit>
+      <trans-unit id="fact_grid.key_aria" datatype="html"><source>Row <x id="row" equiv-text="cellIndex + 1"/>, <x id="axis" equiv-text="axis"/></source><target>الصف <x id="row" equiv-text="cellIndex + 1"/>، <x id="axis" equiv-text="axis"/></target></trans-unit>
     </body>
   </file>
 </xliff>

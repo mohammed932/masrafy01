@@ -2267,6 +2267,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_limited_by_collateral => 'Capped by what your collateral supports';
 
   @override
+  String get offer_limited_by_vehicle => 'Shortened to the longest term this bank finances a car like yours for';
+
+  @override
   String get results_unavailable_no_max_for_answer => 'This bank sets no limit for the answers you gave.';
 
   @override

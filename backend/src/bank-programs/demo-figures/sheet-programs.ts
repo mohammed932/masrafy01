@@ -24,6 +24,7 @@
 
 import { PRODUCT_RULE_STRATEGY } from '@/matching/types';
 import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
+import type { FactGridDto } from '../dto/sub-configs/fact-grid.dto';
 import type { EstimatedPaths } from './sheet-figures';
 import { ABK_PRACTICE_EDGES, DOWN_PAYMENT_EDGES } from './sheet-figures';
 
@@ -140,6 +141,21 @@ interface Input {
   productCategory?: 'personal' | 'car' | 'mortgage' | 'business';
   /** The share of the asset's price this program finances — 40% against a 60% down payment. */
   ltvCeilingPercent?: string;
+  /**
+   * The bank's own N-axis tables — a rate grid, and a term ceiling read from the car.
+   *
+   * Declared here and used by NO programme, deliberately. The reference's §3 prints two ADIB
+   * rate cards that disagree with each other, two vehicle-age sets it calls "not
+   * reconcilable", and one card whose 40% down-payment row is priced ABOVE its 30% row; §2's
+   * HDB figures have no source sheet at all. Seeding any of it would be an engineer deciding
+   * which of a bank's two sheets is true, frozen onto immutable offers.
+   *
+   * What these two lines buy is that the day a bank confirms a card, loading it is a seed
+   * edit and nothing else — no migration, no engine change, no release. That is the test of
+   * whether the grid was designed right, so the slot exists before the data does.
+   */
+  rateByFact?: FactGridDto;
+  maxMonthsByFact?: FactGridDto;
   /** The bank's own figures, keyed by slot id. Absent on a program with no calculation. */
   stepParams?: Record<string, unknown>;
   /**
@@ -190,7 +206,10 @@ function program(input: Input): ProgramSpec {
     operatorNotes: [`Figures transcribed from ${input.sheet}.`, ...input.notes].join('\n'),
     ...(input.tips ? { operatorTips: input.tips } : {}),
     requiredDocuments: input.requiredDocuments ?? ['national_id', 'utility_bill'],
-    tenor: input.tenor,
+    tenor: {
+      ...input.tenor,
+      ...(input.maxMonthsByFact ? { maxMonthsByFact: input.maxMonthsByFact } : {}),
+    },
     loanLimits: {
       minAmountEGP: input.minAmountEGP,
       maxAmountEGP: input.maxAmountEGP,
@@ -206,6 +225,7 @@ function program(input: Input): ProgramSpec {
       // the notes rather than marked an estimate, because the field is not numeric and
       // `valueSources` addresses numbers.
       rateBasis: 'reducing',
+      ...(input.rateByFact ? { rateByFact: input.rateByFact } : {}),
       // Accepting the "no salary transfer" arrangement is refused unless it is either backed
       // by collateral or PRICED explicitly (`NONE_TRANSFER_UNSAFE`) — an applicant with no
       // transfer is the higher-risk case, and every one of these programs is sold to exactly
@@ -363,6 +383,18 @@ const SCB_ESTIMATED: EstimatedPaths = [
 
 /** App. §4.5 pre-approval, less the two the platform has no key for (application form, BOD declaration). */
 const SCB_DP_DOCUMENTS = ['national_id', 'price_quotation', 'down_payment_receipt'];
+/**
+ * The 20% tier, which alone demands comprehensive cover.
+ *
+ * App. §4.2 prints insurance per tier and says three different things: N/A at 60/50/40,
+ * REQUIRED at 20, and NOTHING AT ALL at 30. The silent one is left on the shared list rather
+ * than guessed either way — a document demanded of an applicant whose bank never asked for it
+ * is a refusal at the branch, and one quietly dropped is a loan that cannot complete.
+ *
+ * The REQUIREMENT only. Insurance as a cost is not modelled: no sheet in the reference prints
+ * a premium, and a made-up figure would be financed into an immutable offer (Principle I/A6).
+ */
+const SCB_DP20_DOCUMENTS = [...SCB_DP_DOCUMENTS, 'car_insurance_policy'];
 /** App. §5.4 — the ownership contract is what proves the unit, the invoice what proves the goods. */
 const SCB_GREEN_DOCUMENTS = [
   'national_id',
@@ -1270,7 +1302,8 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     programNameKey: 'auto_down_payment_income',
     sheet: 'App. §4 — Suez Canal unsecured auto, 20% down payment',
     notes: [
-      'The home must be owned by the applicant or a first-degree relative — now asked and enforced as a condition on this tier alone. Car insurance is still not expressible as a field: `wants_insurance` asks whether the customer wants OFFERS, which is a different question. Recorded here.',
+      'The home must be owned by the applicant or a first-degree relative — now asked and enforced as a condition on this tier alone.',
+      'Comprehensive car insurance is required on this tier and on no other (App. §4.2), and it is now a required DOCUMENT rather than a note. The applicant is also asked outright whether the car will be insured, which a bank pricing from a rate table can read as an axis; this programme does not, because Suez Canal prints one rate and not a grid.',
       'Ban on sale until the loan is settled.',
       'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
       'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
@@ -1301,7 +1334,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       // first-degree relative. Its four sibling tiers state no such condition.
       cond__homeowned: { applies: true },
     },
-    requiredDocuments: SCB_DP_DOCUMENTS,
+    requiredDocuments: SCB_DP20_DOCUMENTS,
     estimated: SCB_ESTIMATED,
   }),
   program({

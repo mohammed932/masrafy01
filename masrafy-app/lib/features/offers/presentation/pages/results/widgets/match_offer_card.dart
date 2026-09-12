@@ -180,6 +180,12 @@ class MatchOfferCard extends StatelessWidget {
         'program_max' => l.offer_limited_by_program_max,
         'program_max_by_fact' => l.offer_limited_by_program_row,
         'collateral_ceiling' => l.offer_limited_by_collateral,
+        // The one TERM constraint that does get a caption, and the exception is deliberate.
+        // The others are self-evident from the term itself or from the customer's own age;
+        // "this bank finances a car this old for a shorter time" is a fact about the CAR that
+        // nothing else on the card mentions, and it is one the customer can act on — a newer
+        // car, or a bigger deposit where the bank's table keys on that too.
+        'vehicle_tenor_cap' => l.offer_limited_by_vehicle,
         _ => null,
       };
 

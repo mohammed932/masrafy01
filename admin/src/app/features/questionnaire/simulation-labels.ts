@@ -32,6 +32,8 @@ export function bindingConstraintLabel(constraint: string): string {
       return $localize`:@@sim.binding.collateral:What the applicant's collateral supports`;
     case 'program_max_by_fact':
       return $localize`:@@sim.binding.program_max_by_fact:The program's maximum for this answer`;
+    case 'vehicle_tenor_cap':
+      return $localize`:@@sim.binding.vehicle:The longest term this bank finances this car for`;
     case 'requested_amount':
       return $localize`:@@sim.binding.requested:Nothing — the full request was priced`;
     default:

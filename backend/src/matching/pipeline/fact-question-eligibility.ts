@@ -30,7 +30,12 @@
  */
 import { DERIVED_FACT_KEYS } from './surrogate-fact-registry';
 import { I_SCORE_FACT_KEY } from './product-template';
-import { CAR_DOWN_PAYMENT_FACT_KEY, CAR_PRICE_FACT_KEY, GRID_ONLY_FACT_KEYS } from './car-details';
+import {
+  CAR_DOWN_PAYMENT_FACT_KEY,
+  CAR_PRICE_FACT_KEY,
+  GRID_ONLY_FACT_KEYS,
+  VEHICLE_FACT_KEYS,
+} from './car-details';
 
 /**
  * Fact keys nothing may be created under.
@@ -51,6 +56,9 @@ export const RESERVED_FACT_KEYS: readonly string[] = [
   // repaid over. A grid can key on either; neither has a question, and a customer answer
   // overwriting a figure the engine computed would be silently wrong (`car-details.ts`).
   ...GRID_ONLY_FACT_KEYS,
+  // The car's own properties — model year, origin, insurance, condition. Read by any car
+  // programme that states a vehicle table, so none belongs to one product.
+  ...VEHICLE_FACT_KEYS,
 ];
 
 export function isReservedFactKey(factKey: string): boolean {

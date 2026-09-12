@@ -89,6 +89,25 @@ export const TENOR_MONTHS_FACT_KEY = 'tenor_months';
  * "which QUESTION must this applicant be asked", and neither of these has a question. A grid
  * naming one demands nothing of the questionnaire.
  */
+/**
+ * The three the VEHICLE rules read, plus the condition question that was already asked.
+ *
+ * Platform facts like `car_price`: a bank's model-year table, its origin rows and its
+ * insurance column belong to any car programme that states one, so none of them is a
+ * product's to repoint or delete (`RESERVED_FACT_KEYS`).
+ */
+export const CAR_MODEL_YEAR_FACT_KEY = 'car_model_year';
+export const CAR_ORIGIN_FACT_KEY = 'car_origin';
+export const CAR_INSURANCE_FACT_KEY = 'car_insurance';
+export const VEHICLE_CONDITION_FACT_KEY = 'vehicle_condition';
+
+export const VEHICLE_FACT_KEYS: readonly string[] = [
+  CAR_MODEL_YEAR_FACT_KEY,
+  CAR_ORIGIN_FACT_KEY,
+  CAR_INSURANCE_FACT_KEY,
+  VEHICLE_CONDITION_FACT_KEY,
+];
+
 export const GRID_ONLY_FACT_KEYS: readonly string[] = [
   CAR_DOWN_PAYMENT_PERCENT_FACT_KEY,
   TENOR_MONTHS_FACT_KEY,

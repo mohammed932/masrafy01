@@ -96,6 +96,12 @@ import {
   registryFacts,
 } from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
+import {
+  FactGridEditorComponent,
+  emptyFactGrid,
+  factGridErrorFor,
+} from '@shared/ui/fact-grid-editor.component';
+import type { FactGridConfig } from '@shared/ui/fact-grid-editor.component';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { catalogRuleIsProductBacked, catalogRuleOf } from '@shared/income-rule/catalog-rule';
 import { nameChangeLoss, type NameChangeLoss } from './name-change-losses';
@@ -145,7 +151,7 @@ import {
 } from '@shared/ui';
 
 /** The one remaining genuine opt-in — see `BankProgramFormPage.toggles`. */
-type ToggleKey = 'tieredRates';
+type ToggleKey = 'tieredRates' | 'rateGrid' | 'vehicleGrid';
 
 /**
  * Wizard steps, in order.
@@ -158,7 +164,14 @@ type ToggleKey = 'tieredRates';
 // `StepId` — and which steps a given program walks — lives in `wizard-step-plan.ts`.
 
 /** A step verdict that lives in a signal rather than in a form control. */
-type StepIssue = 'basis' | 'nameCategory' | 'incomeRule' | 'dbrBands' | 'dbrOverride';
+type StepIssue =
+  | 'basis'
+  | 'nameCategory'
+  | 'incomeRule'
+  | 'dbrBands'
+  | 'dbrOverride'
+  | 'rateGrid'
+  | 'vehicleGrid';
 
 interface WizardStep {
   readonly id: StepId;
@@ -270,12 +283,13 @@ const PRICING_KEYS_EDITED_HERE = [
   'currentEffectiveRatePercent',
   'variableRateNote',
   'rateByLoanAmountBand',
+  'rateByFact',
 ] as const;
 type CarriedPricing = Omit<PricingConfig, (typeof PRICING_KEYS_EDITED_HERE)[number]>;
 
 /** The `tenor` keys this form owns. Same hazard: `maxMonthsByEmploymentType` had no editor
  *  and no carry, so a seeded per-employment ceiling died on the first wizard save. */
-const TENOR_KEYS_EDITED_HERE = ['minMonths', 'maxMonths'] as const;
+const TENOR_KEYS_EDITED_HERE = ['minMonths', 'maxMonths', 'maxMonthsByFact'] as const;
 type CarriedTenor = Omit<TenorConfig, (typeof TENOR_KEYS_EDITED_HERE)[number]>;
 
 /** Everything the stored config holds that this form does not edit, ready to send back. */
@@ -316,6 +330,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
     AdditionalIncomeEditorComponent,
     IncomeBasisCardsComponent,
     IncomeAssumptionSectionComponent,
+    FactGridEditorComponent,
     MoneyInputDirective,
     WizardStepsComponent,
   ],
@@ -1288,6 +1303,31 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     >Charge a different rate per loan-amount band</label
                   >
 
+                  <!-- THE GRID. A separate switch from the band table above, and they are
+                       genuinely different things: that one is one axis (the amount) and this
+                       one is up to four. The grid outranks every other rate setting when it
+                       matches, which the hint says outright rather than leaving an operator
+                       to discover it from a quote. -->
+                  <label
+                    nz-checkbox
+                    [nzChecked]="toggles.rateGrid()"
+                    (nzCheckedChange)="setToggle('rateGrid', $event)"
+                    i18n="@@bank_programs.toggle.rate_grid"
+                    >Price this program from a table of the customer's answers</label
+                  >
+                  @if (toggles.rateGrid() && rateByFact(); as grid) {
+                    <p class="field-hint" i18n="@@bank_programs.rate_grid.hint">
+                      When a row matches, this table sets the rate and every other rate
+                      setting on this card is ignored.
+                    </p>
+                    <app-fact-grid-editor
+                      [config]="grid"
+                      (configChange)="rateByFact.set($event)"
+                      [facts]="incomeFacts()"
+                      valueKind="ratePercent"
+                    />
+                  }
+
                   @if (toggles.tieredRates()) {
                     <div class="bands">
                       @if (rateBandsArray.length === 0) {
@@ -1768,6 +1808,37 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                       [flatCapPercent]="dbrFlatCap()"
                       [showTitle]="false"
                     ></app-dbr-bands-editor>
+                  </div>
+
+                  <!-- THE VEHICLE TERM CEILING. On the requirements card and not beside the
+                       loan duration on the money step, because it is a CONDITION — "this bank
+                       does not finance a car this old for that long" — and it can refuse
+                       outright, which nothing else on the money step does. It composes with
+                       the duration above by taking the lower of the two, never replacing it. -->
+                  <div class="dbr-bands">
+                    <h3 class="dbr-bands-title" i18n="@@bank_programs.vehicle_grid.title">
+                      Shorter terms for some cars
+                    </h3>
+                    <label
+                      nz-checkbox
+                      [nzChecked]="toggles.vehicleGrid()"
+                      (nzCheckedChange)="setToggle('vehicleGrid', $event)"
+                      i18n="@@bank_programs.toggle.vehicle_grid"
+                      >Limit the term by the car's model year, where it was built, or the
+                      deposit</label
+                    >
+                    @if (toggles.vehicleGrid() && maxMonthsByFact(); as grid) {
+                      <p class="field-hint" i18n="@@bank_programs.vehicle_grid.hint">
+                        The shorter of this and the loan duration wins. A customer no row
+                        covers gets the answer you pick at the bottom of the table.
+                      </p>
+                      <app-fact-grid-editor
+                        [config]="grid"
+                        (configChange)="maxMonthsByFact.set($event)"
+                        [facts]="incomeFacts()"
+                        valueKind="months"
+                      />
+                    }
                   </div>
 
                   <!-- A cap that depends on WHO the applicant is rather than on what they
@@ -3652,6 +3723,11 @@ export class BankProgramFormPage implements OnInit {
     // And for the DBR band table, which lives in a signal, not a control: a broken table
     // would sail past Continue and only fail on the server (`DBR_BANDS_INVALID`).
     if (id === 'requirements' && this.dbrBandsError() !== null) out.push('dbrBands');
+    // The two grids, same reason as the DBR table one line up: both live in a signal rather
+    // than a control, so without this Continue walks past a broken table and the save comes
+    // back `FACT_GRID_INVALID` from the server three steps later.
+    if (id === 'money' && this.rateGridError() !== null) out.push('rateGrid');
+    if (id === 'requirements' && this.vehicleGridError() !== null) out.push('vehicleGrid');
     // The rule's own cap, same card, same reason and one step further: its control carries no
     // validator at all, so an out-of-range figure used to pass Continue AND Save and come back
     // as `INCOME_RULE_DBR_OVERRIDE_INVALID` from the server. Gated on the field being on screen
@@ -3826,6 +3902,10 @@ export class BankProgramFormPage implements OnInit {
           return $localize`:@@bank_programs.step.issue_dbr_bands:The caps by income band need fixing before you continue — see the message on the table.`;
         case 'dbrOverride':
           return $localize`:@@bank_programs.step.issue_dbr_override:The cap for the calculation's figure must be greater than 0 and at most 100.`;
+        case 'rateGrid':
+          return $localize`:@@bank_programs.step.issue_rate_grid:The rate table needs fixing before you continue — see the message under it.`;
+        case 'vehicleGrid':
+          return $localize`:@@bank_programs.step.issue_vehicle_grid:The table of shorter terms for some cars needs fixing before you continue — see the message under it.`;
       }
     }
     // A cross-field verdict (tenor min > max, rate bands out of order) leaves
@@ -3925,7 +4005,26 @@ export class BankProgramFormPage implements OnInit {
    */
   readonly toggles = {
     tieredRates: signal(false),
+    rateGrid: signal(false),
+    vehicleGrid: signal(false),
   } as const;
+
+  /**
+   * The two N-axis tables, and the errors that block Continue.
+   *
+   * Held as signals rather than form controls for the reason `maxLoanByFact` is: what an
+   * operator edits is a nested object with a variable number of axes and rows, which a
+   * `FormGroup` can only express as a `FormArray` of `FormArray`s that has to be rebuilt on
+   * every axis change.
+   */
+  readonly rateByFact = signal<FactGridConfig | null>(null);
+  readonly maxMonthsByFact = signal<FactGridConfig | null>(null);
+  readonly rateGridError = computed(() =>
+    this.toggles.rateGrid() ? factGridErrorFor(this.rateByFact(), 'ratePercent') : null,
+  );
+  readonly vehicleGridError = computed(() =>
+    this.toggles.vehicleGrid() ? factGridErrorFor(this.maxMonthsByFact(), 'months') : null,
+  );
 
   /**
    * Income-assumption fields follow the program TYPE rather than a separate
@@ -6403,6 +6502,17 @@ export class BankProgramFormPage implements OnInit {
     if (key === 'tieredRates' && value && this.rateBandsArray.length === 0) {
       this.addRateBand();
     }
+    // Same reasoning for the two grids: switching one on with nothing in it renders a table
+    // of no rows and no affordance. Seeded only when there is nothing there, so switching
+    // off and back on does not destroy what was typed — the toggle hides a table, it does
+    // not delete one. What DOES delete it is a save while the toggle is off, which is the
+    // operator's own statement that this program prices no such table.
+    if (key === 'rateGrid' && value && this.rateByFact() === null) {
+      this.rateByFact.set(emptyFactGrid());
+    }
+    if (key === 'vehicleGrid' && value && this.maxMonthsByFact() === null) {
+      this.maxMonthsByFact.set(emptyFactGrid());
+    }
   }
 
   get rateBandsArray(): FormArray {
@@ -6766,7 +6876,16 @@ export class BankProgramFormPage implements OnInit {
       requiredDocuments: dc.requiredDocuments,
       // The carried keys go FIRST so an edited one can never be overwritten by a stale
       // stored copy of itself — the spread order is the guarantee, not the key list.
-      tenor: { ...this.carriedTenor(), minMonths: tn.minMonths, maxMonths: tn.maxMonths },
+      tenor: {
+        ...this.carriedTenor(),
+        minMonths: tn.minMonths,
+        maxMonths: tn.maxMonths,
+        // Omitted when the switch is off, which a full-replacement PUT reads as "delete it".
+        // That is the intended meaning here and only here: the operator turned it off.
+        ...(this.toggles.vehicleGrid() && this.maxMonthsByFact() !== null
+          ? { maxMonthsByFact: this.maxMonthsByFact()! }
+          : {}),
+      },
       loanLimits: {
         minAmountEGP: ll.minAmountEGP,
         maxAmountEGP: ll.maxAmountEGP,
@@ -6799,6 +6918,9 @@ export class BankProgramFormPage implements OnInit {
         variableRateNote: pr.variableRateNote ?? undefined,
         ...(this.toggles.tieredRates() && this.rateBandsArray.length > 0
           ? { rateByLoanAmountBand: this.serializeRateBands() }
+          : {}),
+        ...(this.toggles.rateGrid() && this.rateByFact() !== null
+          ? { rateByFact: this.rateByFact()! }
           : {}),
       },
       eligibility: {
@@ -6946,6 +7068,17 @@ export class BankProgramFormPage implements OnInit {
     );
     this.carriedPricing.set(carriedKeysOf(initial.pricing, PRICING_KEYS_EDITED_HERE));
     this.carriedTenor.set(carriedKeysOf(initial.tenor, TENOR_KEYS_EDITED_HERE));
+    // The two grids are now EDITED here, so they are read out of the stored row into their
+    // own signals rather than carried blind. The toggle follows the data: a program that
+    // states a grid opens with the switch on, which is what stops a save silently deleting
+    // a table the operator never saw.
+    const storedRateGrid = (initial.pricing as { rateByFact?: FactGridConfig }).rateByFact;
+    const storedVehicleGrid = (initial.tenor as { maxMonthsByFact?: FactGridConfig })
+      .maxMonthsByFact;
+    this.rateByFact.set(storedRateGrid ?? null);
+    this.maxMonthsByFact.set(storedVehicleGrid ?? null);
+    this.toggles.rateGrid.set(storedRateGrid !== undefined);
+    this.toggles.vehicleGrid.set(storedVehicleGrid !== undefined);
 
     // Percent strings arrive as Prisma `Decimal(_, 4)` — `24.0000` for a flat 24%.
     // Trimmed for DISPLAY only, on the string, so the value the admin reads back is

@@ -109,6 +109,7 @@ class OfferEntity extends Equatable {
     this.collateralCeilingEGP,
     this.bindingConstraint,
     this.requiredDownPaymentEGP,
+    this.vehicleMaxTenorMonths,
     this.dbrPercent,
     this.dbrCapPercent,
     this.isSaved = false,
@@ -148,6 +149,12 @@ class OfferEntity extends Equatable {
 
   /// Car offers: what the customer has to put in.
   final double? requiredDownPaymentEGP;
+
+  /// The longest term this bank writes for THIS car — its model-year / origin /
+  /// down-payment table's ceiling, before the customer's age or the programme's own floor
+  /// touched the term. Read beside `effectiveTenorMonths`: on its own, a shortened term reads
+  /// as an unexplained cut. Null on every offer no vehicle table applied to.
+  final int? vehicleMaxTenorMonths;
 
   /// Where this offer's installment lands on the debt-burden scale, and the cap
   /// it was measured against.
@@ -193,6 +200,7 @@ class OfferEntity extends Equatable {
         collateralCeilingEGP,
         bindingConstraint,
         requiredDownPaymentEGP,
+        vehicleMaxTenorMonths,
         dbrPercent,
         dbrCapPercent,
         isSaved,

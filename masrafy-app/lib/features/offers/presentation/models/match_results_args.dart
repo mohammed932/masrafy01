@@ -124,6 +124,7 @@ class MatchOffer {
     this.collateralCeiling,
     this.bindingConstraint,
     this.requiredDownPayment,
+    this.vehicleMaxTenorMonths,
     this.dbrPct,
     this.dbrCapPct,
     this.isTopPick = false,
@@ -199,6 +200,11 @@ class MatchOffer {
   /// Car offers: what the customer puts in — the price less the cash this offer pays out.
   final int? requiredDownPayment;
 
+  /// The longest term this bank writes for THIS car, from its own model-year / origin /
+  /// down-payment table. Carried beside the term actually offered: on its own a shortened
+  /// term reads as an unexplained cut. Null wherever no vehicle table applied.
+  final int? vehicleMaxTenorMonths;
+
   /// Debt-burden ratio this offer lands at, and the cap it was measured
   /// against — e.g. `48.9` against `60.0`.
   final double? dbrPct;
@@ -265,6 +271,7 @@ class MatchOffer {
       collateralCeiling: e.collateralCeilingEGP?.round(),
       bindingConstraint: e.bindingConstraint,
       requiredDownPayment: e.requiredDownPaymentEGP?.round(),
+      vehicleMaxTenorMonths: e.vehicleMaxTenorMonths,
       dbrPct: e.dbrPercent,
       dbrCapPct: e.dbrCapPercent,
       isTopPick: isTopPick,

@@ -4463,6 +4463,12 @@ abstract class AppLocalizations {
   /// **'محدود بما يدعمه ضمانك'**
   String get offer_limited_by_collateral;
 
+  /// No description provided for @offer_limited_by_vehicle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تقصير المدة إلى أطول مدة يموّل بها هذا البنك سيارة مثل سيارتك'**
+  String get offer_limited_by_vehicle;
+
   /// No description provided for @results_unavailable_no_max_for_answer.
   ///
   /// In ar, this message translates to:

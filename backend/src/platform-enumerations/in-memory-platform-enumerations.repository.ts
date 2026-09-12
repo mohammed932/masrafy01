@@ -366,6 +366,15 @@ export class InMemoryPlatformEnumerationsRepository
       'Home ownership contract',
     );
     this.add('required_document', 'proforma_invoice', 'فاتورة مبدئية', 'Proforma invoice');
+    // Mirrors migration `20260912090100_car_insurance_document`. Same reason as the four
+    // above: a programme naming a key this stub does not hold is refused here while saving
+    // cleanly against a real database.
+    this.add(
+      'required_document',
+      'car_insurance_policy',
+      'وثيقة تأمين السيارة',
+      'Car insurance policy',
+    );
   }
 
   private verify(): void {

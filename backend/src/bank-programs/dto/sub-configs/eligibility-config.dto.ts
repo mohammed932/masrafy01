@@ -154,12 +154,15 @@ export class EligibilityConfigDto {
   // Numeric / typed eligibility (FR-005 continued)
   @IsOptional() @IsInt() @Min(0) minimumCreditCardHoldingMonths?: number;
   @IsOptional() @IsBoolean() competitorCardMustBeUnsecured?: boolean;
-  @IsOptional()
-  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2, nullable: true })
-  eligibleCarPriceMinEGP?: string;
-  @IsOptional()
-  @DecimalRange({ min: '0', max: '100', precision: 7, scale: 4, nullable: true })
-  eligibleDownPaymentPercent?: string;
+  // `eligibleCarPriceMinEGP` and `eligibleDownPaymentPercent` stood here, accepted on the
+  // wire, rendered on the detail page and read by NO engine code — `checkEligibility` never
+  // looked at either, and neither did `quote.ts`. Two boxes an operator could fill that
+  // changed nothing, which is the same failure `rateByTenorAndCustomerType` was deleted for.
+  //
+  // Both are expressible for real now and better: a car-price floor is a grid axis or
+  // `loanLimits.minAmountEGP`, and the down-payment share is `ltvCeilingPercent`'s
+  // complement, which the engine HAS read since v27.0.0. No migration went with the removal
+  // — no stored program carried either key (measured: 0 of 36).
   @IsOptional() @IsString() clubClass?: string;
   @IsOptional() @IsString() compoundClass?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) companyType?: string[];

@@ -1316,18 +1316,6 @@ export class BankProgramDetailPage {
         value: `${this.money(e.minAssetsValueEGP)} ${this.egpLabel}`,
       });
     }
-    if (e.eligibleCarPriceMinEGP) {
-      rows.push({
-        label: $localize`:@@bpd.gate.car_price:Car price`,
-        value: `${this.money(e.eligibleCarPriceMinEGP)} ${this.egpLabel}`,
-      });
-    }
-    if (e.eligibleDownPaymentPercent) {
-      rows.push({
-        label: $localize`:@@bpd.gate.down_payment:Down payment`,
-        value: `${e.eligibleDownPaymentPercent}%`,
-      });
-    }
     if (e.minimumCreditCardHoldingMonths !== undefined) {
       rows.push({
         label: $localize`:@@bpd.gate.card_holding:Card held for`,
@@ -1345,6 +1333,27 @@ export class BankProgramDetailPage {
    */
   protected rateTables(p: BankProgramResponse): Array<{ label: string; rows: string[] }> {
     const pr = p.pricing;
+    // The N-axis grid FIRST, because that is where it sits in the cascade: when a row of it
+    // matches, every table below is ignored. Listing it last — or not at all, which is what
+    // happened before it had a line here — would let an operator read the tables underneath
+    // as the price and be wrong for every applicant the grid covers.
+    //
+    // Rendered as a count rather than expanded: a four-axis table is not a two-column list,
+    // and a half-rendering of one is worse than an honest summary with the editor a click
+    // away. It is `unknown`-shaped on this page, which fetches no fact registry and could not
+    // name the axes without one.
+    const grid = (pr as { rateByFact?: { axes?: unknown[]; cells?: unknown[] } }).rateByFact;
+    const gridBlock =
+      grid === undefined
+        ? []
+        : [
+            {
+              label: $localize`:@@bpd.rate.by_grid:Rate from a table of the customer's answers`,
+              rows: [
+                $localize`:@@bpd.rate.by_grid_rows:${grid.axes?.length ?? 0}:axes: axis/axes, ${grid.cells?.length ?? 0}:cells: row(s) — this table outranks the rates below`,
+              ],
+            },
+          ];
     const axes: Array<[RateBandMap | undefined, string, EnumerationType | null]> = [
       [
         pr.rateByEmploymentType,
@@ -1366,19 +1375,21 @@ export class BankProgramDetailPage {
       [pr.rateByAssetValueBand, $localize`:@@bpd.rate.by_asset:Rate by asset value`, null],
       [pr.rateByLoanAmountBand, $localize`:@@bpd.rate.by_amount:Rate by loan amount`, null],
     ];
-    return axes.flatMap(([map, label, registry]) => {
-      const entries = Object.entries(map ?? {});
-      if (entries.length === 0) return [];
-      return [
-        {
-          label,
-          rows: entries.map(
-            ([key, band]) =>
-              `${registry ? this.enumLabel(registry, key) : this.humanKey(key)} → ${band.value}%`,
-          ),
-        },
-      ];
-    });
+    return gridBlock.concat(
+      axes.flatMap(([map, label, registry]) => {
+        const entries = Object.entries(map ?? {});
+        if (entries.length === 0) return [];
+        return [
+          {
+            label,
+            rows: entries.map(
+              ([key, band]) =>
+                `${registry ? this.enumLabel(registry, key) : this.humanKey(key)} → ${band.value}%`,
+            ),
+          },
+        ];
+      }),
+    );
   }
 
   /** The fee and insurance waivers, each row shown only when this bank stated it. */

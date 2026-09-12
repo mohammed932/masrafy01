@@ -174,8 +174,6 @@ export interface EligibilityConfig {
   requiresNoDocuments: boolean;
   minimumCreditCardHoldingMonths?: number;
   competitorCardMustBeUnsecured?: boolean;
-  eligibleCarPriceMinEGP?: string;
-  eligibleDownPaymentPercent?: string;
   clubClass?: string;
   compoundClass?: string;
   companyType?: string[];

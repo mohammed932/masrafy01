@@ -190,7 +190,6 @@ export const salesfloorEgp2026: SeedCatalog = {
         requiresFRMUVerification: false,
         requiresQualitativeReview: false,
         requiresNoDocuments: false,
-        eligibleDownPaymentPercent: '30.0000',
       },
       incomeAssumption: { strategy: 'declared' },
       fees: feesAt('2.5000'),

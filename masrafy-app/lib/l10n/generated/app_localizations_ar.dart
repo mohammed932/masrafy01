@@ -2272,6 +2272,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_limited_by_collateral => 'محدود بما يدعمه ضمانك';
 
   @override
+  String get offer_limited_by_vehicle => 'تم تقصير المدة إلى أطول مدة يموّل بها هذا البنك سيارة مثل سيارتك';
+
+  @override
   String get results_unavailable_no_max_for_answer => 'هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.';
 
   @override

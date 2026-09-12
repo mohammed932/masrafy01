@@ -1386,6 +1386,7 @@
   "offer_limited_by_program_max": "محدود بالحد الأقصى لهذا البرنامج",
   "offer_limited_by_program_row": "محدود بحد البرنامج لإجاباتك",
   "offer_limited_by_collateral": "محدود بما يدعمه ضمانك",
+  "offer_limited_by_vehicle": "تم تقصير المدة إلى أطول مدة يموّل بها هذا البنك سيارة مثل سيارتك",
   "results_unavailable_no_max_for_answer": "هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.",
   "results_unavailable_no_rate_for_answer": "هذا البنك لا يحدد سعر فائدة للدفعة المقدمة ومدة السداد والتأمين التي اخترتها.",
   "results_unavailable_vehicle_not_eligible": "هذا البنك لا يموّل سيارة بسنة الصنع أو بلد المنشأ أو الدفعة المقدمة المذكورة.",

@@ -504,11 +504,22 @@ function buildAnswers(spec: AppSpec): Record<string, AnswerValue> {
 
     // Vehicle
     vehicle_condition: { optionCode: spec.category === 'car' ? byStrength('new', 'new', 'used') : 'new' },
-    model_year: {
+    // `model_year` (four age-relative buckets) was retired with the questions that replaced
+    // it: a bucket meaning "up to 3 years old" is a different year every January, so it could
+    // never key a bank's table. The model year is now a NUMBER, and the two other things a
+    // vehicle rule reads are asked outright.
+    car_model_year: {
+      numericValue:
+        spec.category === 'car' ? byStrength('2024', '2021', '2016') : '2024',
+    },
+    car_origin: {
+      optionCode: spec.category === 'car' ? byStrength('germany', 'japan', 'china') : 'germany',
+    },
+    car_insurance: {
       optionCode:
         spec.category === 'car'
-          ? byStrength('current_year_model', 'within_the_last_3_years', 'more_than_5_years_old')
-          : 'current_year_model',
+          ? byStrength('with_insurance', 'with_insurance', 'without_insurance')
+          : 'with_insurance',
     },
     vehicle_price: { optionCode: vehiclePriceAnswer(spec.category === 'car' ? spec.amountEGP * 1.25 : 700_000) },
 
