@@ -112,7 +112,16 @@ interface Input {
   sheet: string;
   notes: string[];
   tips?: string[];
-  tenor: {
+  /**
+   * ABSENT means this programme states no duration of its own and reads the surrogate
+   * product's (`effectiveTenor`). Six of Suez Canal Bank's seven auto programmes do exactly
+   * that; `SCB-CAR-GREEN_POWER` lends to 120 months and states its own.
+   *
+   * Legal only under a catalog name whose product states a default — the save refuses a
+   * programme with neither (`PROGRAM_RANGE_INVALID`), so a spec that drops this without the
+   * product declaring `tenorDefaults` fails loudly at seed time rather than quoting nothing.
+   */
+  tenor?: {
     minMonths: number;
     maxMonths: number;
     maxMonthsByEmploymentType?: Record<string, number>;
@@ -206,8 +215,11 @@ function program(input: Input): ProgramSpec {
     operatorNotes: [`Figures transcribed from ${input.sheet}.`, ...input.notes].join('\n'),
     ...(input.tips ? { operatorTips: input.tips } : {}),
     requiredDocuments: input.requiredDocuments ?? ['national_id', 'utility_bill'],
+    // An EMPTY object when the spec states no months: `tenor` is a required column, and the
+    // two months inside it are what is optional. That is the shape that means "read the
+    // product's", and the one the wizard posts when an operator picks the same thing.
     tenor: {
-      ...input.tenor,
+      ...(input.tenor ?? {}),
       ...(input.maxMonthsByFact ? { maxMonthsByFact: input.maxMonthsByFact } : {}),
     },
     loanLimits: {
@@ -1175,7 +1187,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     bankName: SCB,
     programType: 'income_surrogate',
     productCategory: 'car',
-    tenor: { minMonths: 6, maxMonths: 84 },
+    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
     ratePercent: SCB_RATE,
     adminFeePercent: SCB_ADMIN_FEE,
     ageMin: 21,
@@ -1210,7 +1222,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     bankName: SCB,
     programType: 'income_surrogate',
     productCategory: 'car',
-    tenor: { minMonths: 6, maxMonths: 84 },
+    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
     ratePercent: SCB_RATE,
     adminFeePercent: SCB_ADMIN_FEE,
     ageMin: 21,
@@ -1245,7 +1257,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     bankName: SCB,
     programType: 'income_surrogate',
     productCategory: 'car',
-    tenor: { minMonths: 6, maxMonths: 84 },
+    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
     ratePercent: SCB_RATE,
     adminFeePercent: SCB_ADMIN_FEE,
     ageMin: 21,
@@ -1279,7 +1291,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     bankName: SCB,
     programType: 'income_surrogate',
     productCategory: 'car',
-    tenor: { minMonths: 6, maxMonths: 84 },
+    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
     ratePercent: SCB_RATE,
     adminFeePercent: SCB_ADMIN_FEE,
     ageMin: 21,
@@ -1315,7 +1327,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     bankName: SCB,
     programType: 'income_surrogate',
     productCategory: 'car',
-    tenor: { minMonths: 6, maxMonths: 84 },
+    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
     ratePercent: SCB_RATE,
     adminFeePercent: SCB_ADMIN_FEE,
     ageMin: 21,
@@ -1385,7 +1397,7 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       'Golf cars, scooters and e-bikes. Sold to owners of a delivered unit in a pre-approved compound — now asked and enforced as one condition. The compound LIST itself is still not a field, so the answer is the applicant\u2019s word for it rather than a lookup.',
       'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
     ],
-    tenor: { minMonths: 6, maxMonths: 84 },
+    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
     bankName: SCB,
     programType: 'income_surrogate',
     productCategory: 'car',

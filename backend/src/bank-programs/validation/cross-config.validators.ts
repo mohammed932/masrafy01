@@ -115,7 +115,7 @@ export interface RangeViolation {
 }
 
 interface RangeCheckable {
-  tenor: { minMonths: number; maxMonths: number };
+  tenor: { minMonths?: number; maxMonths?: number };
   loanLimits: { minAmountEGP: string; maxAmountEGP: string };
   eligibility: { ageMin: number; ageMax: number };
 }
@@ -126,10 +126,36 @@ interface RangeCheckable {
  *
  * "Inverted" is `min > max`. "Empty" is an amount ceiling of zero — a program that can
  * never lend. Single-point ranges (`min === max`) are legitimate and pass.
+ *
+ * THE DURATION IS NOW OPTIONAL, and this function is what keeps "optional" from meaning
+ * "absent is fine". Both months blank is how a program says "read the surrogate product's"
+ * (`effectiveTenor`), so it is legal only when a product actually stands behind the
+ * program's catalog name — `productStatesTenor`. Blank with nothing behind it would reach
+ * the engine as a loan with no term, which `quoteProgram` reports as `tenor.maxMonths` at a
+ * customer; refusing it here means the operator hears it while they are still on the screen
+ * that can fix it.
+ *
+ * A HALF-STATED PAIR is refused in both directions. A floor read off the product and a
+ * ceiling typed by the bank is a range neither of them stated, and it would also sail past
+ * the inversion check below — `undefined > 84` is `false`, which is exactly how a bad range
+ * gets saved looking valid.
  */
-export function validateRanges(dto: RangeCheckable): RangeViolation | undefined {
-  if (dto.tenor.minMonths > dto.tenor.maxMonths) {
-    return { field: 'tenor', min: dto.tenor.minMonths, max: dto.tenor.maxMonths };
+export function validateRanges(
+  dto: RangeCheckable,
+  opts?: { productStatesTenor?: boolean },
+): RangeViolation | undefined {
+  const minMonths = dto.tenor.minMonths;
+  const maxMonths = dto.tenor.maxMonths;
+  const statesMin = minMonths !== undefined;
+  const statesMax = maxMonths !== undefined;
+  if (statesMin !== statesMax) {
+    return { field: 'tenor', min: minMonths ?? null, max: maxMonths ?? null };
+  }
+  if (!statesMin && !statesMax && opts?.productStatesTenor !== true) {
+    return { field: 'tenor', min: null, max: null };
+  }
+  if (statesMin && statesMax && minMonths > maxMonths) {
+    return { field: 'tenor', min: minMonths, max: maxMonths };
   }
   if (dto.eligibility.ageMin > dto.eligibility.ageMax) {
     return { field: 'eligibility', min: dto.eligibility.ageMin, max: dto.eligibility.ageMax };

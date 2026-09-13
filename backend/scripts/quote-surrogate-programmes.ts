@@ -27,6 +27,11 @@ import {
   type LinkedProduct,
 } from '../src/matching/pipeline/income-rule-inherit';
 import { normalizeIncomeAssumption } from '../src/matching/pipeline/income-rule-normalize';
+import {
+  asTenorDefaults,
+  effectiveTenor,
+  type StoredTenor,
+} from '../src/matching/pipeline/tenor-inherit';
 import { evaluateProductRule, type ProductRule } from '../src/matching/pipeline/product-rule';
 import type { IncomeAssumptionConfig, SurrogateFactValue } from '../src/matching/types';
 
@@ -143,6 +148,7 @@ async function main(): Promise<void> {
       key: true,
       incomeRule: true,
       surrogateProductKey: true,
+      tenorDefaults: true,
       active: true,
       deprecatedAt: true,
     },
@@ -156,6 +162,7 @@ async function main(): Promise<void> {
       active: row.active,
       deprecatedAt: row.deprecatedAt,
       rule: asRule(row.incomeRule),
+      tenorDefaults: asTenorDefaults(row.tenorDefaults),
     });
   }
   const catalog = new Map<string, CatalogRuleResolution>();
@@ -179,7 +186,7 @@ async function main(): Promise<void> {
 
   const programs = await prisma.bankProgram.findMany({
     where: { programType: 'income_surrogate' },
-    select: { programCode: true, programNameKey: true, incomeAssumption: true },
+    select: { programCode: true, programNameKey: true, incomeAssumption: true, tenor: true },
     orderBy: { programCode: 'asc' },
   });
 
@@ -199,6 +206,21 @@ async function main(): Promise<void> {
       const outcome = withheld
         ? { ok: false as const, reason: 'surrogate_product_retired' }
         : evaluateProductRule(rule, { facts: applicant.facts, parentKeyByValue });
+      // The DURATION, resolved the way `toBankProgramSnapshot` resolves it. Printed beside the
+      // income because the two inherit through the same product link, and a change claiming to
+      // move no money has to be able to show the TERM did not move either.
+      const resolvedTenor = effectiveTenor(
+        program.tenor as unknown as StoredTenor | undefined,
+        resolution?.tenorDefaults,
+      );
+      const term =
+        resolvedTenor?.minMonths === undefined || resolvedTenor.maxMonths === undefined
+          ? 'term=NONE'
+          : `term=${resolvedTenor.minMonths}-${resolvedTenor.maxMonths}` +
+            (program.tenor !== null &&
+            (program.tenor as { minMonths?: number }).minMonths !== undefined
+              ? ''
+              : '(product)');
       const verdict = outcome.ok
         ? `OK ${outcome.kind} ${outcome.valueEGP.toFixed(2)}`
         : `-- ${outcome.reason}` +
@@ -207,7 +229,7 @@ async function main(): Promise<void> {
             ? ` gate=${outcome.gateReasonCode}`
             : '');
       console.log(
-        `${program.programCode}\t${program.programNameKey ?? '-'}\t${applicant.name}\t${verdict}`,
+        `${program.programCode}\t${program.programNameKey ?? '-'}\t${applicant.name}\t${verdict}\t${term}`,
       );
     }
   }

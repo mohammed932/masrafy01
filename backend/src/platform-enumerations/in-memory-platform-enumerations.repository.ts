@@ -87,7 +87,9 @@ export class InMemoryPlatformEnumerationsRepository
    * Nothing to resolve, so no product link is walked here. If this stub ever seeds a
    * catalog name, it must resolve `surrogateProductKey` the way the Postgres repository
    * does — including the switched-off case, which resolves to a `withheld` marker rather
-   * than to an absent rule — or a linked name will silently read as ruleless.
+   * than to an absent rule — or a linked name will silently read as ruleless. It must also
+   * carry the product's `tenorDefaults` onto the resolution, or a program that states no
+   * duration of its own reads as having none at all rather than as inheriting one.
    */
   async programNameIncomeRules(): Promise<CatalogIncomeRules> {
     return new Map();
@@ -149,6 +151,21 @@ export class InMemoryPlatformEnumerationsRepository
   /** Read-only stub, exactly as the rule write above. */
   async setSurrogateProductCapDefaults(): Promise<never> {
     throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /** Read-only stub, exactly as the two writes above. */
+  async setSurrogateProductTenorDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /**
+   * Empty, not a throw, for the same reason `programFigureKeysUnderProduct` below is: it
+   * backs a REFUSAL, and "no program is reading this product's duration" is the true answer
+   * in a registry holding no programs. A throw would turn a safety check into an outage on
+   * the fallback path.
+   */
+  async programsInheritingTenor(): Promise<string[]> {
+    return [];
   }
 
   /**

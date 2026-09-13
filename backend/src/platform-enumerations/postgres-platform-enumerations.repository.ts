@@ -52,6 +52,8 @@ import {
   type EnumerationTypeDefinitions,
 } from './platform-enumerations.repository';
 import type { EnumerationTypeDef } from '@prisma/client';
+import { asTenorDefaults, statesOwnTenor } from '@/matching/pipeline/tenor-inherit';
+import type { StoredTenor, TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 
 /** Prisma row → the domain shape, keeping Prisma's type out of the service layer (A8). */
 function toTypeDefinition(row: EnumerationTypeDef): EnumerationTypeDefinition {
@@ -791,7 +793,13 @@ export class PostgresPlatformEnumerationsRepository
             where: {
               idx_platform_enumeration_type_key: { type: 'surrogate_product', key: productKey },
             },
-            select: { key: true, active: true, deprecatedAt: true, incomeRule: true },
+            select: {
+              key: true,
+              active: true,
+              deprecatedAt: true,
+              incomeRule: true,
+              tenorDefaults: true,
+            },
           });
 
     // The catalog rule the programs inherit their structure from, resolved exactly as the quote
@@ -805,6 +813,7 @@ export class PostgresPlatformEnumerationsRepository
             active: productRow.active,
             deprecatedAt: productRow.deprecatedAt,
             rule: asIncomeRule(productRow.incomeRule),
+            tenorDefaults: asTenorDefaults(productRow.tenorDefaults),
           };
     const catalogRule = catalogRuleOf(
       effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked),
@@ -878,6 +887,7 @@ export class PostgresPlatformEnumerationsRepository
         type: true,
         key: true,
         incomeRule: true,
+        tenorDefaults: true,
         surrogateProductKey: true,
         active: true,
         deprecatedAt: true,
@@ -901,6 +911,7 @@ export class PostgresPlatformEnumerationsRepository
         active: row.active,
         deprecatedAt: row.deprecatedAt,
         rule: asIncomeRule(row.incomeRule),
+        tenorDefaults: asTenorDefaults(row.tenorDefaults),
       });
     }
 
@@ -947,6 +958,9 @@ export class PostgresPlatformEnumerationsRepository
     // Read with the rule and not on a follow-up query: every screen that renders a product's
     // grid renders the amounts in it, and the two are one answer to one question.
     capDefaults: true,
+    // Read with the rule for the same reason: a product's screen renders the duration it
+    // hands its programs on the same step as the figures, and one read answers both.
+    tenorDefaults: true,
     valueSources: true,
     surrogateProductKey: true,
   } as const;
@@ -1018,6 +1032,55 @@ export class PostgresPlatformEnumerationsRepository
       select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
     });
     return toProgramNameIncomeRuleRow(row);
+  }
+
+  /**
+   * A surrogate product's default loan duration — the months every program under it falls
+   * back to.
+   *
+   * `Prisma.DbNull` for the cleared state, like every other nullable JSON column here:
+   * `JsonNull` would store the JSON literal `null`, which reads back as present-but-empty
+   * and would give "states no duration" two spellings.
+   */
+  async setSurrogateProductTenorDefaults(
+    key: string,
+    tenor: TenorDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: {
+        tenorDefaults:
+          tenor === null ? Prisma.DbNull : ({ ...tenor } as unknown as Prisma.InputJsonValue),
+        updatedBy,
+      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
+    });
+    return toProgramNameIncomeRuleRow(row);
+  }
+
+  /**
+   * The programs reading this product's duration, found the same two hops
+   * `programFigureKeysUnderProduct` walks: `programNameKey` is not an FK, so the names are
+   * read first and the programs with one `IN`.
+   *
+   * "Reading it" is "states neither month". A half-stated pair counts as STATED and is not
+   * listed — it is refused by its own save and is a different problem from this one.
+   */
+  async programsInheritingTenor(productKey: string): Promise<string[]> {
+    const names = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name', surrogateProductKey: productKey },
+      select: { key: true },
+    });
+    if (names.length === 0) return [];
+    const rows = await this.prisma.bankProgram.findMany({
+      where: { programNameKey: { in: names.map((n) => n.key) } },
+      select: { programCode: true, tenor: true },
+      orderBy: { programCode: 'asc' },
+    });
+    return rows
+      .filter((row) => !statesOwnTenor(row.tenor as unknown as StoredTenor | undefined))
+      .map((row) => row.programCode);
   }
 
   /**
@@ -1154,6 +1217,7 @@ export class PostgresPlatformEnumerationsRepository
         friendlyName: true,
         friendlyNameAr: true,
         incomeAssumption: true,
+        tenor: true,
         // The bank's own row, because `bank_program` stores only `bankId`. One extra join
         // on a list that is at most a handful of programmes per name.
         bank: { select: { nameEnglish: true, nameArabic: true } },
@@ -1178,6 +1242,7 @@ export class PostgresPlatformEnumerationsRepository
         // legacy program as reading something the catalog never states.
         strategy: normalizeIncomeAssumption(config).strategy,
         ownAmounts: !inheritsCatalogAmounts(config),
+        ownTenor: statesOwnTenor(row.tenor as unknown as StoredTenor | undefined),
       };
     });
   }
@@ -2269,6 +2334,7 @@ function toProgramNameIncomeRuleRow(row: {
   incomeRule: unknown;
   templateSpec?: unknown;
   capDefaults?: unknown;
+  tenorDefaults?: unknown;
   valueSources: unknown;
   surrogateProductKey?: string | null;
 }): ProgramNameIncomeRuleRow {
@@ -2283,6 +2349,9 @@ function toProgramNameIncomeRuleRow(row: {
         : (row.incomeRule as IncomeAssumptionConfig),
     templateSpec: asProductTemplate(row.templateSpec),
     capDefaults: asCapDefaultRows(row.capDefaults),
+    // Through the SAME reader the quote path uses, so the product screen and the engine
+    // cannot disagree about whether a half-written blob counts as a stated duration.
+    tenorDefaults: asTenorDefaults(row.tenorDefaults) ?? null,
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
     surrogateProductKey: row.surrogateProductKey ?? null,
   };

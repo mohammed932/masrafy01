@@ -17,6 +17,7 @@ import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import type { IncomeAssumptionConfig } from '@/matching/types';
+import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 
 export type EnumerationType =
   | 'transfer_type'
@@ -727,6 +728,34 @@ export abstract class PlatformEnumerationsRepository {
   ): Promise<ProgramNameIncomeRuleRow>;
 
   /**
+   * Write (or clear, with `null`) a surrogate product's default loan duration.
+   *
+   * Its own method for the reason the cap defaults have one: a term is not part of the
+   * calculation and is not compiled from the form, so folding it into the rule write would
+   * make a duration edit read as a rule change in the audit log.
+   */
+  abstract setSurrogateProductTenorDefaults(
+    key: string,
+    tenor: TenorDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Every bank program reading this product's default duration — i.e. stating none of its
+   * own. Two hops, product -> names -> programs, like `programFigureKeysUnderProduct`.
+   *
+   * Backs the one refusal that protects them (`SURROGATE_PRODUCT_TENOR_IN_USE`), so it is
+   * UNCACHED: a stale answer here lets an operator clear a duration out from under a live
+   * program, and a loan with no term cannot be priced at all.
+   *
+   * NOT filtered by `programType`, unlike `programsUnderName`. A catalog name can carry both
+   * a payslip and a no-payslip program (`doctor` does), and every one of them stores a
+   * `tenor` — so a surrogate-only count would miss exactly the programs that then stop
+   * quoting.
+   */
+  abstract programsInheritingTenor(productKey: string): Promise<string[]>;
+
+  /**
    * Which `stepParams` boxes each bank program under this product has actually typed into.
    *
    * Backs the one refusal that protects live figures: recompiling a changed form can stop
@@ -780,6 +809,15 @@ export interface ProgramNameIncomeRuleRow {
    * disagree with the file that declares it.
    */
   capDefaults: MaxLoanByFactRow[] | null;
+  /**
+   * `surrogate_product` only — the loan duration every bank program under it falls back to.
+   * `null` when the product states none, which is the state every product ships in.
+   *
+   * INHERITED, not copied, which is the whole difference from `capDefaults` one field up: a
+   * program that states no months of its own reads these at quote time, so a change here
+   * moves every one of them.
+   */
+  tenorDefaults: TenorDefaults | null;
   valueSources: Record<string, 'team_estimated'>;
   /**
    * `program_name` only — the product this name takes its calculation from.
@@ -858,4 +896,12 @@ export interface ProgramUnderName {
   strategy: string;
   /** `false` when it takes the catalog's figures. */
   ownAmounts: boolean;
+  /**
+   * `false` when it states no loan duration of its own and reads the product's.
+   *
+   * A SEPARATE axis from `ownAmounts`, not a second reading of it: `amounts` says whose
+   * tables the income figures come from, and a bank that types its own tables has not
+   * thereby said anything about how long it lends for. Both directions occur.
+   */
+  ownTenor: boolean;
 }

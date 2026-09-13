@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -76,7 +77,15 @@ export class PricingConfigDto {
    * expressible for real now, which is why the dead one goes rather than staying beside it:
    * two ways to say one thing, one of which silently does nothing, is worse than either.
    */
-  @IsOptional() @ValidateNested() @Type(() => FactGridDto) rateByFact?: FactGridDto;
+  // `@ValidateIf`, not `@IsOptional()`: that one skips validation for `null` as well as for
+  // absent, so `rateByFact: null` sailed through the pipe and the service then read `.axes`
+  // off it and threw an untyped 500. Absent means "not stating one"; `null` is a client bug
+  // and now gets a typed `VALIDATION_FAILED` naming the field. Same defect and same fix as
+  // `dropClearedPolicy` (v26.2.0).
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  rateByFact?: FactGridDto;
   @IsOptional() @IsObject() rateByDownPaymentPercent?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByAssetValueBand?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByLoanAmountBand?: Record<string, RateBandLike>;

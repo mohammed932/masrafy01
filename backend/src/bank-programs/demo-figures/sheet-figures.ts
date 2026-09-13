@@ -69,6 +69,19 @@ export interface CatalogFigureSet {
   baselineDbrPercent?: string;
   /** `incomeRule.stepParams`, keyed by the slot ids `compileTemplate` emits. */
   stepParams: Record<string, unknown>;
+  /**
+   * The loan duration every bank program under this product falls back to.
+   *
+   * Declared only where the sheets agree on one. It is INHERITED, not copied, so a product
+   * stating months its banks do not all lend over would be re-pricing their book — and a
+   * bank that genuinely differs states its own and is untouched.
+   *
+   * Written INDEPENDENTLY of the figures plan below: the figures are skipped on a product
+   * that already holds some (an operator may have typed them), but a duration nobody has
+   * ever stated is not an operator's work to protect. It is still idempotent — it writes
+   * only when the stored pair differs.
+   */
+  tenorDefaults?: { minMonths: number; maxMonths: number };
   /** Rooted at `incomeRule.`, exactly as the catalog write expects them. */
   estimated?: EstimatedPaths;
 }
@@ -428,6 +441,12 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     sheet:
       'App. §4.3 — the down payment read as 36 months of saving at 10% of income; ' +
       'App. §5.2 — savings ÷ 36 ÷ 10% for an instalment buyer, ÷ 60 ÷ 20% for a cash buyer',
+    // Six of Suez Canal Bank's seven auto programmes lend over 6–84 months — all five
+    // down-payment tiers and Micro Mobility — so the months are a property of the product
+    // rather than something six operators happened to type the same way. Those six state
+    // nothing of their own and read this; `SCB-CAR-GREEN_POWER` lends to 120 and states its
+    // own, which is the case the whole mechanism exists to get right.
+    tenorDefaults: { minMonths: 6, maxMonths: 84 },
     stepParams: {
       // The catalog default IS the published formula: `income = down payment ÷ 3.6`. One
       // bank sells it today and states the same figure on its own programmes, exactly as the

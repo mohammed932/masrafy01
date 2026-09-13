@@ -33,6 +33,8 @@ import {
 } from '@/matching/pipeline/income-rule-inherit';
 import { stripForeignMethodConfig } from '@/bank-programs/validation/income-rule.validator';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
+import { asTenorDefaults, effectiveTenor, statesOwnTenor } from '@/matching/pipeline/tenor-inherit';
+import { validateRanges } from '@/bank-programs/validation/cross-config.validators';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 
 /** The `professor` catalog rule, as the seed writes it. */
@@ -517,5 +519,120 @@ describe('withStoredStructure — a figures-only catalog write', () => {
     } as unknown as IncomeAssumptionConfig;
 
     expect(withStoredStructure(rule, stored)).toBe(rule);
+  });
+});
+
+/**
+ * The DURATION half of the same link, and the reason it is pinned here rather than in a file
+ * of its own: it is the same product, reached through the same resolution, and the property
+ * that matters is the one the tables above have — the bank's own always wins.
+ *
+ * Five things, each of which fails silently if it breaks:
+ *
+ *   1. A program stating no months reads the product's. That is the whole feature: six of
+ *      Suez Canal Bank's seven auto programmes state nothing and lend over 6-84.
+ *   2. A program stating its own is UNTOUCHED. `SCB-CAR-GREEN_POWER` lends to 120 against a
+ *      product that says 84, and a default that overrode it would silently reprice a book.
+ *   3. A HALF-STATED pair counts as stated and is left alone. Completing it would hide a
+ *      broken half behind a number that looks deliberate; the save refuses it separately.
+ *   4. Both sides blank invents nothing. A term nobody stated must surface as the stated
+ *      misconfiguration `quoteProgram` already reports, never as a guess (FR-020).
+ *   5. The per-applicant ceilings are the bank's alone and survive every branch. A blank grid
+ *      there means "this bank does not cap by that", not "nobody has said yet".
+ */
+describe('surrogate product default loan duration', () => {
+  const PRODUCT = { minMonths: 6, maxMonths: 84 } as const;
+
+  it('is read by a program that states no months of its own', () => {
+    expect(effectiveTenor({}, PRODUCT)).toEqual({ minMonths: 6, maxMonths: 84 });
+    expect(effectiveTenor(undefined, PRODUCT)).toEqual({ minMonths: 6, maxMonths: 84 });
+  });
+
+  it("never overrides the bank's own — Green Power lends to 120 against a product that says 84", () => {
+    const own = { minMonths: 6, maxMonths: 120 };
+    expect(effectiveTenor(own, PRODUCT)).toBe(own);
+  });
+
+  it('leaves a half-stated pair alone rather than completing it', () => {
+    const half = { maxMonths: 60 };
+    expect(effectiveTenor(half, PRODUCT)).toBe(half);
+    expect(statesOwnTenor(half)).toBe(true);
+  });
+
+  it('invents no months when neither side states any', () => {
+    const blank = {};
+    expect(effectiveTenor(blank, undefined)).toBe(blank);
+    expect(effectiveTenor(undefined, undefined)).toBeUndefined();
+  });
+
+  it("carries the bank's own per-applicant ceilings through an inherited duration", () => {
+    const resolved = effectiveTenor(
+      { maxMonthsByEmploymentType: { self_employed: 48 } } as never,
+      PRODUCT,
+    );
+    expect(resolved).toEqual({
+      minMonths: 6,
+      maxMonths: 84,
+      maxMonthsByEmploymentType: { self_employed: 48 },
+    });
+  });
+
+  it('returns the same object when nothing is inherited, like every merge in this module', () => {
+    const own = { minMonths: 12, maxMonths: 60 };
+    expect(effectiveTenor(own, PRODUCT)).toBe(own);
+  });
+
+  it('reads a half-written stored blob as no default at all', () => {
+    expect(asTenorDefaults({ minMonths: 6 })).toBeUndefined();
+    expect(asTenorDefaults(null)).toBeUndefined();
+    expect(asTenorDefaults({ minMonths: 6, maxMonths: 84 })).toEqual(PRODUCT);
+  });
+});
+
+/**
+ * The save-time refusals that keep "optional" from meaning "absent is fine".
+ *
+ * Blank is legal ONLY under a product that states a duration; blank with nothing behind it
+ * would reach the engine as a loan with no term. And a half-stated pair is refused in both
+ * directions — it would otherwise sail past the inversion check, because `undefined > 84` is
+ * `false`, which is exactly how a bad range gets saved looking valid.
+ */
+describe('validateRanges — the duration', () => {
+  const REST = {
+    loanLimits: { minAmountEGP: '1000', maxAmountEGP: '100000' },
+    eligibility: { ageMin: 21, ageMax: 60 },
+  };
+
+  it('accepts both months blank when a product states a default', () => {
+    expect(validateRanges({ ...REST, tenor: {} }, { productStatesTenor: true })).toBeUndefined();
+  });
+
+  it('refuses both months blank when nothing stands behind the name', () => {
+    expect(validateRanges({ ...REST, tenor: {} }, { productStatesTenor: false })).toEqual({
+      field: 'tenor',
+      min: null,
+      max: null,
+    });
+  });
+
+  it('refuses a half-stated pair even under a product that states a default', () => {
+    expect(
+      validateRanges({ ...REST, tenor: { maxMonths: 84 } }, { productStatesTenor: true }),
+    ).toEqual({ field: 'tenor', min: null, max: 84 });
+    expect(
+      validateRanges({ ...REST, tenor: { minMonths: 6 } }, { productStatesTenor: true }),
+    ).toEqual({ field: 'tenor', min: 6, max: null });
+  });
+
+  it('still refuses an inverted range', () => {
+    expect(validateRanges({ ...REST, tenor: { minMonths: 84, maxMonths: 6 } })).toEqual({
+      field: 'tenor',
+      min: 84,
+      max: 6,
+    });
+  });
+
+  it('accepts a stated range with no product behind it, as every program does today', () => {
+    expect(validateRanges({ ...REST, tenor: { minMonths: 6, maxMonths: 84 } })).toBeUndefined();
   });
 });

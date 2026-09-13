@@ -294,6 +294,20 @@ export class SurrogateProductNoCapException extends DomainException {
   }
 }
 
+/**
+ * A surrogate product's default loan duration was cleared while programs are reading it.
+ *
+ * `programCodes` is carried as well as the count, because "give each of them its own
+ * duration first" is only actionable if the operator is told which ones. Capped by the
+ * caller, not here — the list is for a person to read, and a screen that prints forty codes
+ * has stopped helping.
+ */
+export class SurrogateProductTenorInUseException extends DomainException {
+  constructor(meta: { count: number; programCodes: string[] }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_TENOR_IN_USE, meta);
+  }
+}
+
 export class EnumerationRegistryUnavailableException extends DomainException {
   constructor() {
     super(ERROR_CODES.ENUMERATION_REGISTRY_UNAVAILABLE);

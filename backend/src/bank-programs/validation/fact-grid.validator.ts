@@ -35,11 +35,16 @@ export type FactGridViolationReason =
   | 'cell_arity_mismatch'
   | 'cell_all_wildcard'
   | 'cell_key_invalid'
+  | 'cell_key_on_numeric_axis'
+  | 'cell_band_on_choice_axis'
+  | 'cell_key_unknown'
   | 'cell_value_invalid'
   | 'no_match_invalid';
 
 export interface FactGridViolation {
   reason: FactGridViolationReason;
+  /** The option codes the axis does accept, so a refusal names the alternatives. */
+  legalKeys?: string[];
   /** `pricing.rateByFact` or `tenor.maxMonthsByFact` — the field an operator must go and fix. */
   fieldPath: string;
   factKey?: string;
@@ -78,8 +83,17 @@ export function validateFactGrid(args: {
   fieldPath: string;
   valueKind: FactGridValueKind;
   registry: readonly SurrogateFactBinding[];
+  /**
+   * The option codes of each axis's bound question, by FACT key.
+   *
+   * Optional, and absent means "the caller could not look them up" — in which case the
+   * unknown-key check is SKIPPED rather than failing everything. A validator that refuses a
+   * legal table because its own lookup was unavailable tells an operator their card is
+   * unsavable with nothing to fix, which is the direction that must never happen.
+   */
+  optionCodesByFact?: Readonly<Record<string, readonly string[]>>;
 }): FactGridViolation | undefined {
-  const { config, fieldPath, valueKind, registry } = args;
+  const { config, fieldPath, valueKind, registry, optionCodesByFact } = args;
   const fail = (
     reason: FactGridViolationReason,
     extra: Omit<FactGridViolation, 'reason' | 'fieldPath'> = {},
@@ -137,6 +151,42 @@ export function validateFactGrid(args: {
       if (key !== null) named += 1;
     }
     if (named === 0) return fail('cell_all_wildcard', { cellIndex });
+
+    // The three checks the two-axis table this generalises has always made
+    // (`max-loan-by-fact.validator.ts`: row_key_on_numeric_fact, band_on_choice_fact,
+    // unknown_row_key) and which this one shipped without.
+    //
+    // Every one of them is a table that SAVES cleanly, RENDERS correctly, and then matches
+    // nobody: a key on a numeric axis, a band on a choice axis and a mistyped option code all
+    // resolve to `no_matching_row`, and under `onNoMatch: 'useFallback'` that silently drops
+    // the applicant to the next cascade level — the bank's own printed figure never used,
+    // nothing reported, and the fallback rate frozen onto an immutable offer.
+    for (const [axisIndex, key] of keys.entries()) {
+      if (key === null || key === undefined) continue;
+      const axis = axes[axisIndex];
+      if (axis === undefined) continue;
+      const factKey = axis.factKey;
+      // A derived or grid-only axis is a NUMBER by construction and has no option list.
+      const numericByConstruction = isGridOnlyFactKey(factKey) || isDerivedFactKey(factKey);
+      const bound = registry.find((f) => f.key === factKey);
+      const isNumericAxis = numericByConstruction || bound?.type === 'NUMERIC';
+      const isChoiceAxis = !numericByConstruction && bound !== undefined && !isNumericAxis;
+
+      if ('key' in key) {
+        if (isNumericAxis) return fail('cell_key_on_numeric_axis', { cellIndex, factKey });
+        const legal = optionCodesByFact?.[factKey];
+        // A CLASS-keyed axis is keyed by the class list, not the answer's own options, so
+        // the option codes are not the legal set and the check does not apply.
+        if (isChoiceAxis && axis.via !== 'parentClass' && legal !== undefined) {
+          if (!legal.includes(key.key)) {
+            return fail('cell_key_unknown', { cellIndex, factKey, legalKeys: [...legal] });
+          }
+        }
+      } else if (isChoiceAxis) {
+        return fail('cell_band_on_choice_axis', { cellIndex, factKey });
+      }
+    }
+
     if (!valueValid(cell.value, valueKind)) return fail('cell_value_invalid', { cellIndex });
   }
 

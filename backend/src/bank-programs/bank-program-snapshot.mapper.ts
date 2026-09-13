@@ -9,16 +9,27 @@
 import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
-import { catalogRuleOf, effectiveIncomeRule } from '@/matching/pipeline/income-rule-inherit';
+import {
+  catalogRuleOf,
+  catalogTenorOf,
+  effectiveIncomeRule,
+} from '@/matching/pipeline/income-rule-inherit';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
+import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
+import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
 
 /** The row plus the optional joined bank, as `findAllActive` returns it. */
 export type BankProgramRow = BankProgram & { bank?: { isFeatured: boolean } | null };
 
 /**
- * Every catalog program name's income rule, keyed by `programNameKey`. Read once
+ * Every catalog program name's resolution, keyed by `programNameKey`. Read once
  * per request by the caller and handed in, because this function is called in a
  * `.map()` over the whole active book and must not do IO.
+ *
+ * It carries TWO things a program can inherit — the income rule, and the surrogate
+ * product's default loan duration — on one map rather than two, because both are read off
+ * the same product row through the same link and a second map would be a second chance for
+ * the two to disagree about which product a name is filed under.
  *
  * OPTIONAL, and omitting it is not a silent fallback: a program on `amounts:'catalog'`
  * mapped without the map keeps its (stripped) tables, which is no table, and the
@@ -53,7 +64,17 @@ export function toBankProgramSnapshot(
     version: p.version,
     requiredDocuments: (p.requiredDocuments as string[]) ?? [],
     createdAt: p.createdAt,
-    tenor: p.tenor as unknown as BankProgramSnapshot['tenor'],
+    // The DURATION, the program's own when it states one and the product's when it does
+    // not. Merged here, on the one line the engine reads a term from, so a snapshot cannot
+    // tell a term the bank typed from one it is reading off the product — the same property
+    // the income rule two fields down relies on.
+    //
+    // `effectiveTenor` returns the SAME object when nothing is inherited, which is every
+    // program on this database today, so the common path allocates nothing.
+    tenor: effectiveTenor(
+      p.tenor as unknown as StoredTenor | undefined,
+      catalogTenorOf(catalog),
+    ) as unknown as BankProgramSnapshot['tenor'],
     loanLimits: p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
     pricing: p.pricing as unknown as BankProgramSnapshot['pricing'],
     eligibility: normalizeEligibility(p.eligibility),

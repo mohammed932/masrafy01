@@ -1,3 +1,4 @@
+import type { FactGridConfig } from '@shared/ui/fact-grid.rules';
 /**
  * TypeScript types mirroring the backend bank-program contract.
  * Decimals transported as canonical strings (research.md R1).
@@ -26,11 +27,19 @@ export interface RateBandValue {
 export type RateBandMap = Record<string, RateBandValue>;
 
 export interface TenorConfig {
-  minMonths: number;
-  maxMonths: number;
+  /**
+   * ABSENT on both means this program states no duration of its own and reads the surrogate
+   * product's. Optional rather than nullable: `null` is refused by the server's DTO, and the
+   * save path OMITS the pair rather than sending a spelling that would be rejected.
+   *
+   * Never one without the other — that is a range neither the bank nor the product stated,
+   * and both the form's cross-field validator and the server refuse it.
+   */
+  minMonths?: number;
+  maxMonths?: number;
   maxMonthsByEmploymentType?: Record<string, number>;
-  /** The vehicle term ceiling, mirroring the backend. Carried, not yet authored — see `rateByFact`. */
-  maxMonthsByFact?: unknown;
+  /** The vehicle term ceiling, mirroring the backend — authored by the same editor. */
+  maxMonthsByFact?: FactGridConfig;
 }
 
 export interface LoanLimitsConfig {
@@ -119,12 +128,11 @@ export interface PricingConfig {
   /**
    * The N-axis rate grid, mirroring the backend's `pricing.rateByFact`.
    *
-   * `unknown`-shaped on purpose for now: nothing in the admin AUTHORS one yet, and the
-   * wizard's carry-through (`PRICING_KEYS_EDITED_HERE`) sends back whatever it read. Typing
-   * it here before an editor exists would be a second declaration of a shape only the
-   * backend can currently produce.
+   * Typed against the editor's own mirror rather than left `unknown`: the wizard AUTHORS one
+   * now (`app-fact-grid-editor`), so the shape has a single admin-side declaration and a
+   * mis-shaped payload is a compile error rather than a 422 from the server.
    */
-  rateByFact?: unknown;
+  rateByFact?: FactGridConfig;
   rateByDownPaymentPercent?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;
@@ -916,6 +924,15 @@ export interface IncomeBand {
  * are no longer one: they differ by half at every band and in rate, tenor, age, maximum and
  * cap, which is why each now has its own product and its own catalog name.
  */
+/**
+ * A loan duration in months. Both ends or neither — a floor from one place and a ceiling from
+ * another is a range nobody stated.
+ */
+export interface TenorDefaults {
+  minMonths: number;
+  maxMonths: number;
+}
+
 export interface ProgramUnderName {
   programCode: string;
   friendlyName: string;
@@ -926,6 +943,13 @@ export interface ProgramUnderName {
   bankNameAr: string | null;
   /** `false` when it takes the catalog's figures instead of typing its own. */
   ownAmounts: boolean;
+  /**
+   * `false` when it states no loan duration of its own and reads the product's.
+   *
+   * A separate axis from `ownAmounts`: a bank that types its own income tables has said
+   * nothing about how long it lends for, and both directions occur.
+   */
+  ownTenor: boolean;
 }
 
 export interface ProgramNameIncomeRule {
@@ -967,6 +991,14 @@ export interface ProgramNameIncomeRule {
      * is the state every product ships in.
      */
     capDefaults: MaxLoanByFactRow[] | null;
+    /**
+     * The loan duration a program under this name falls back to when it states none.
+     *
+     * INHERITED, unlike `capDefaults` directly above — which is why the two are drawn
+     * differently: a blank cap grid on a new program is a set of boxes to fill, a blank
+     * duration is a live statement that this bank lends over the product's months.
+     */
+    tenorDefaults: TenorDefaults | null;
   } | null;
 }
 
@@ -1203,6 +1235,14 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
   cap: ProductCapShape | null;
   /** The amounts every new program starts that grid from. `null` = none stated yet. */
   capDefaults: MaxLoanByFactRow[] | null;
+  /**
+   * The loan duration every program under this product falls back to. `null` = none, and
+   * each program must then state its own.
+   *
+   * INHERITED, not copied: changing it moves every program that states no months, and
+   * clearing it is refused while any does (`SURROGATE_PRODUCT_TENOR_IN_USE`).
+   */
+  tenorDefaults: TenorDefaults | null;
   /** The form it was compiled from, or `null` when it was authored by hand. */
   template: ProductTemplate | null;
   valueSources: ValueSourceMap;

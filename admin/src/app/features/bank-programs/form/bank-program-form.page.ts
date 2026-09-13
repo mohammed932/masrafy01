@@ -83,6 +83,7 @@ import type {
   RateBandMap,
   RateBasis,
   TenorConfig,
+  TenorDefaults,
 } from '../bank-programs.types';
 import {
   factKeyOf,
@@ -171,7 +172,8 @@ type StepIssue =
   | 'dbrBands'
   | 'dbrOverride'
   | 'rateGrid'
-  | 'vehicleGrid';
+  | 'vehicleGrid'
+  | 'tenor';
 
 interface WizardStep {
   readonly id: StepId;
@@ -226,11 +228,25 @@ interface ReviewGroup {
  * Cross-field guard for the tenor group: maximum duration must be ≥ minimum.
  * Surfaced inline in the Loan-duration section (error key `minGtMax`) so the
  * dual-handle range + precise inputs can't be saved in an inverted state.
+ *
+ * BOTH BLANK IS LEGAL and returns null: that is how a program says "read the surrogate
+ * product's duration". Whether a product actually stands behind it is a step verdict
+ * (`signalIssues('money')`), not a control error — the answer lives in a response this group
+ * cannot see, and a control that refuses on it would refuse before the name is even picked.
+ *
+ * A HALF-STATED pair is refused here (`halfStated`). It would otherwise pass both the
+ * inversion check below — `typeof undefined === 'number'` is false — and the required check
+ * that no longer exists, leaving a range neither the bank nor the product stated.
  */
 function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
   const min = group.get('minMonths')?.value;
   const max = group.get('maxMonths')?.value;
-  if (typeof min === 'number' && typeof max === 'number' && max < min) {
+  const statesMin = typeof min === 'number';
+  const statesMax = typeof max === 'number';
+  if (statesMin !== statesMax) {
+    return { halfStated: true };
+  }
+  if (statesMin && statesMax && max < min) {
     return { minGtMax: true };
   }
   return null;
@@ -1074,8 +1090,8 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                         >
                           @if (impliedDownPaymentPercent() !== null) {
                             <span i18n="@@bank_programs.field.ltv.implied"
-                              >The customer puts in the rest —
-                              {{ impliedDownPaymentPercent() }}% down.</span
+                              >The customer puts in the rest — {{ impliedDownPaymentPercent() }}%
+                              down.</span
                             >
                           } @else {
                             <span i18n="@@bank_programs.field.ltv.hint"
@@ -1107,58 +1123,112 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     </p>
                   </div>
                 </header>
-                <div class="grid">
-                  <nz-form-item>
-                    <nz-form-label
-                      [nzFor]="'minMonths'"
-                      nzRequired
-                      i18n="@@bank_programs.field.min_months"
-                      >Minimum months</nz-form-label
+                <!-- THREE STATES, and two would be a lie. Empty boxes under a product that
+                     states a duration do not mean "left to fill in", they mean this bank
+                     lends over the product's months — so that state renders as a STATEMENT
+                     with a verb, not as an empty pair of inputs. Same shape, same two verbs
+                     and the same tag as the I-Score tier row one step to the left. -->
+                @if (tenorInherits()) {
+                  <div class="tenor-inherited">
+                    <p class="tenor-inherited-value" id="tenor-from-product">
+                      <span class="tenor-months"
+                        >{{ formatMonths(productTenor()?.minMonths ?? 0) }} –
+                        {{ formatMonths(productTenor()?.maxMonths ?? 0) }}</span
+                      >
+                      <span class="tag" i18n="@@bank_programs.tenor.from_product"
+                        >The product’s duration applies</span
+                      >
+                    </p>
+                    <p class="tenor-inherited-note" i18n="@@bank_programs.tenor.from_product_note">
+                      This bank has not stated a duration of its own, so it lends over the months
+                      the product states. Change them there and this program follows.
+                    </p>
+                    <button
+                      nz-button
+                      nzType="default"
+                      type="button"
+                      (click)="stateOwnTenor()"
+                      aria-describedby="tenor-from-product"
+                      i18n="@@bank_programs.tenor.set_own"
                     >
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-number
-                        id="minMonths"
-                        class="num-field"
-                        formControlName="minMonths"
-                        [nzMin]="1"
-                        [nzMax]="600"
-                        [nzStep]="1"
-                        [nzPrecision]="0"
-                      ></nz-input-number>
-                      <span class="field-hint">≈ {{ minMonthsHint() }}</span>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item>
-                    <nz-form-label
-                      [nzFor]="'maxMonths'"
-                      nzRequired
-                      i18n="@@bank_programs.field.max_months"
-                      >Maximum months</nz-form-label
+                      Set this bank’s own duration
+                    </button>
+                  </div>
+                } @else {
+                  <div class="grid">
+                    <nz-form-item>
+                      <nz-form-label
+                        [nzFor]="'minMonths'"
+                        nzRequired
+                        i18n="@@bank_programs.field.min_months"
+                        >Minimum months</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-number
+                          id="minMonths"
+                          class="num-field"
+                          formControlName="minMonths"
+                          [nzMin]="1"
+                          [nzMax]="600"
+                          [nzStep]="1"
+                          [nzPrecision]="0"
+                        ></nz-input-number>
+                        <span class="field-hint">≈ {{ minMonthsHint() }}</span>
+                      </nz-form-control>
+                    </nz-form-item>
+                    <nz-form-item>
+                      <nz-form-label
+                        [nzFor]="'maxMonths'"
+                        nzRequired
+                        i18n="@@bank_programs.field.max_months"
+                        >Maximum months</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-number
+                          id="maxMonths"
+                          class="num-field"
+                          formControlName="maxMonths"
+                          [nzMin]="1"
+                          [nzMax]="600"
+                          [nzStep]="1"
+                          [nzPrecision]="0"
+                        ></nz-input-number>
+                        <span class="field-hint">≈ {{ maxMonthsHint() }}</span>
+                        @if (
+                          tenorGroup.hasError('minGtMax') &&
+                          tenorGroup.controls['maxMonths']?.touched
+                        ) {
+                          <span
+                            class="field-error"
+                            role="alert"
+                            i18n="@@bank_programs.tenor.min_gt_max"
+                            >Maximum must be greater than or equal to minimum.</span
+                          >
+                        }
+                        @if (tenorGroup.hasError('halfStated')) {
+                          <span
+                            class="field-error"
+                            role="alert"
+                            i18n="@@bank_programs.tenor.half_stated"
+                            >Fill both months, or clear both to follow the product’s duration.</span
+                          >
+                        }
+                      </nz-form-control>
+                    </nz-form-item>
+                  </div>
+                  @if (tenorInheritable()) {
+                    <button
+                      nz-button
+                      nzType="link"
+                      type="button"
+                      class="tenor-back"
+                      (click)="backToProductTenor()"
+                      i18n="@@bank_programs.tenor.back_to_product"
                     >
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-number
-                        id="maxMonths"
-                        class="num-field"
-                        formControlName="maxMonths"
-                        [nzMin]="1"
-                        [nzMax]="600"
-                        [nzStep]="1"
-                        [nzPrecision]="0"
-                      ></nz-input-number>
-                      <span class="field-hint">≈ {{ maxMonthsHint() }}</span>
-                      @if (
-                        tenorGroup.hasError('minGtMax') && tenorGroup.controls['maxMonths']?.touched
-                      ) {
-                        <span
-                          class="field-error"
-                          role="alert"
-                          i18n="@@bank_programs.tenor.min_gt_max"
-                          >Maximum must be greater than or equal to minimum.</span
-                        >
-                      }
-                    </nz-form-control>
-                  </nz-form-item>
-                </div>
+                      Back to the product’s duration
+                    </button>
+                  }
+                }
               </section>
               <!-- Rate, bands and fees continue on the same step. The band table's own note
                    — "loans under X fall outside every band" — is about the minimum loan
@@ -1317,8 +1387,8 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                   >
                   @if (toggles.rateGrid() && rateByFact(); as grid) {
                     <p class="field-hint" i18n="@@bank_programs.rate_grid.hint">
-                      When a row matches, this table sets the rate and every other rate
-                      setting on this card is ignored.
+                      When a row matches, this table sets the rate and every other rate setting on
+                      this card is ignored.
                     </p>
                     <app-fact-grid-editor
                       [config]="grid"
@@ -1829,8 +1899,8 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     >
                     @if (toggles.vehicleGrid() && maxMonthsByFact(); as grid) {
                       <p class="field-hint" i18n="@@bank_programs.vehicle_grid.hint">
-                        The shorter of this and the loan duration wins. A customer no row
-                        covers gets the answer you pick at the bottom of the table.
+                        The shorter of this and the loan duration wins. A customer no row covers
+                        gets the answer you pick at the bottom of the table.
                       </p>
                       <app-fact-grid-editor
                         [config]="grid"
@@ -2274,6 +2344,59 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
         label.option-row {
           transition: none;
         }
+      }
+
+      /* THE INHERITED DURATION — a statement with a verb, not a disabled pair of inputs.
+         Rendering it as greyed-out boxes would say "left to fill in" about the one state
+         that is a live decision, and a disabled control also drops out of the group's
+         validity, so the step would report itself complete with two empty required fields. */
+      .tenor-inherited {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+      }
+
+      .tenor-inherited-value {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+      }
+
+      .tenor-months {
+        font-size: var(--text-lg);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
+      }
+
+      /* The chip says WHOSE months these are. Primary ink on a muted ground rather than
+         accent-on-accent: the pair above is the figure, and a coloured chip beside it would
+         compete with the thing it is labelling. */
+      .tenor-inherited .tag {
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-muted);
+        font-size: var(--text-xs);
+        font-weight: var(--font-medium);
+        color: var(--color-text-secondary);
+      }
+
+      /* SECONDARY, not tertiary: it states that editing the product moves this program,
+         which is the sentence an operator has to read. Tertiary measures 3.83:1 here. */
+      .tenor-inherited-note {
+        margin: 0;
+        max-inline-size: 60ch;
+        font-size: var(--text-sm);
+        line-height: var(--line-height-base);
+        color: var(--color-text-secondary);
+      }
+
+      /* Logical properties only — never margin-left (A19). */
+      .tenor-back {
+        margin-block-start: var(--space-2);
+        padding-inline: 0;
       }
 
       .field-hint {
@@ -3727,6 +3850,13 @@ export class BankProgramFormPage implements OnInit {
     // than a control, so without this Continue walks past a broken table and the save comes
     // back `FACT_GRID_INVALID` from the server three steps later.
     if (id === 'money' && this.rateGridError() !== null) out.push('rateGrid');
+    // The DURATION, which is a verdict and not a control error for one reason: blank is legal
+    // exactly when a surrogate product stands behind the program's name, and that answer
+    // lives in a response the control cannot see. Without this the step would report every
+    // control valid while the server refuses the save with `PROGRAM_RANGE_INVALID` — and the
+    // rail's alert is gated on the count being above zero, so Continue would refuse with an
+    // EMPTY banner, which is the bug this list was collapsed to make unrepresentable.
+    if (id === 'money' && (this.tenorUnanswered() || this.tenorGroup.invalid)) out.push('tenor');
     if (id === 'requirements' && this.vehicleGridError() !== null) out.push('vehicleGrid');
     // The rule's own cap, same card, same reason and one step further: its control carries no
     // validator at all, so an out-of-range figure used to pass Continue AND Save and come back
@@ -3906,6 +4036,8 @@ export class BankProgramFormPage implements OnInit {
           return $localize`:@@bank_programs.step.issue_rate_grid:The rate table needs fixing before you continue — see the message under it.`;
         case 'vehicleGrid':
           return $localize`:@@bank_programs.step.issue_vehicle_grid:The table of shorter terms for some cars needs fixing before you continue — see the message under it.`;
+        case 'tenor':
+          return $localize`:@@bank_programs.step.issue_tenor:Say how long this bank lends for — both months, or neither if it follows the product's duration.`;
       }
     }
     // A cross-field verdict (tenor min > max, rate bands out of order) leaves
@@ -4167,15 +4299,18 @@ export class BankProgramFormPage implements OnInit {
        */
       isShariaCompliant: new FormControl(false, { nonNullable: true }),
     }),
-    tenor: this.fb.nonNullable.group(
+    // NOT `Validators.required`, and not `nonNullable`, on the two months. Blank is a real
+    // answer now — it means "read the surrogate product's duration" — and a required control
+    // would refuse the one state the product's default exists to make possible. Requiredness
+    // did not disappear: it moved to `signalIssues('money')`, which can see whether a product
+    // stands behind the name and a control cannot.
+    tenor: this.fb.group(
       {
-        minMonths: new FormControl(12, {
-          nonNullable: true,
-          validators: [Validators.required, Validators.min(1), Validators.max(600)],
+        minMonths: new FormControl<number | null>(12, {
+          validators: [Validators.min(1), Validators.max(600)],
         }),
-        maxMonths: new FormControl(60, {
-          nonNullable: true,
-          validators: [Validators.required, Validators.min(1), Validators.max(600)],
+        maxMonths: new FormControl<number | null>(60, {
+          validators: [Validators.min(1), Validators.max(600)],
         }),
       },
       { validators: [tenorRangeValidator] },
@@ -5235,7 +5370,13 @@ export class BankProgramFormPage implements OnInit {
           },
           {
             label: $localize`:@@bank_programs.review.duration:Duration`,
-            value: `${this.formatMonths(v.tenor.minMonths)} – ${this.formatMonths(v.tenor.maxMonths)}`,
+            // Says WHOSE months these are, not only what they are. A program reading the
+            // product's is the normal state for six of Suez Canal Bank's seven auto
+            // programmes, and a review that printed "6 years" without saying where it came
+            // from would read as something this bank had typed.
+            value: this.tenorInherits()
+              ? $localize`:@@bank_programs.review.duration_inherited:${this.formatMonths(this.productTenor()?.minMonths ?? 0)}:min: – ${this.formatMonths(this.productTenor()?.maxMonths ?? 0)}:max: · the product's`
+              : `${this.formatMonths(v.tenor.minMonths ?? 0)} – ${this.formatMonths(v.tenor.maxMonths ?? 0)}`,
           },
         ],
       },
@@ -5757,6 +5898,82 @@ export class BankProgramFormPage implements OnInit {
   readonly productCapDefaults = computed<readonly MaxLoanByFactRow[]>(() =>
     this.editProgramCode() ? [] : (this.catalogRule()?.surrogateProduct?.capDefaults ?? []),
   );
+
+  // --- the product's default loan duration -------------------------------------------------
+  //
+  // The THIRD state this card has to be able to draw, and the reason two would be a lie: a
+  // program with empty duration boxes is not a program with something left to fill in, it is a
+  // program lending over the product's months. Mirrors the I-Score tier row one step to the
+  // left (`product-rule-editor.component.ts`), down to the two verbs.
+
+  /**
+   * The months the product states, or `null` when it states none.
+   *
+   * A property of the NAME's product, like `productCap` above, so it rides the rule payload
+   * this page already fetches on load and on every name re-pick. Changing the name can
+   * therefore change whether this card has three states or one, with no second request.
+   */
+  readonly productTenor = computed<TenorDefaults | null>(
+    () => this.catalogRule()?.surrogateProduct?.tenorDefaults ?? null,
+  );
+
+  /** Could this program read a duration if it stated none? */
+  readonly tenorInheritable = computed<boolean>(() => this.productTenor() !== null);
+
+  /**
+   * Is it reading the product's right now — i.e. has this bank stated nothing?
+   *
+   * Reads the CONTROLS, not the stored row, so the card follows the operator's two verbs
+   * immediately rather than after a save.
+   */
+  readonly tenorInherits = computed<boolean>(() => {
+    if (!this.tenorInheritable()) return false;
+    const v = this.tenorValue();
+    // `== null` on purpose: the control holds `null` when cleared, and the raw value is
+    // `undefined` before the group has ever been patched. Both mean "this bank states none".
+    return v.minMonths == null && v.maxMonths == null;
+  });
+
+  /**
+   * Blank with NOTHING behind it — the one state this card must refuse.
+   *
+   * Not a control error: whether a product stands behind the name lives in a response the
+   * control cannot see, and a validator that refused on it would fire before the name has
+   * been picked. It is a step verdict instead (`signalIssues('money')`).
+   */
+  readonly tenorUnanswered = computed<boolean>(() => {
+    if (this.tenorInheritable()) return false;
+    const v = this.tenorValue();
+    return v.minMonths == null || v.maxMonths == null;
+  });
+
+  /**
+   * Take a COPY of the product's months for this bank to edit.
+   *
+   * A copy, deliberately, exactly as the I-Score row's `stateOwnBands` is: from here the bank
+   * states its own and stops following the product, which is what the operator asked for by
+   * pressing the button.
+   */
+  protected stateOwnTenor(): void {
+    const product = this.productTenor();
+    if (product === null) return;
+    this.form.controls.tenor.patchValue({
+      minMonths: product.minMonths,
+      maxMonths: product.maxMonths,
+    });
+    this.form.controls.tenor.markAsDirty();
+  }
+
+  /**
+   * Give the months back to the product.
+   *
+   * CLEARS both controls rather than storing the product's figures — a stored copy would stop
+   * following, which is the opposite of what the button says.
+   */
+  protected backToProductTenor(): void {
+    this.form.controls.tenor.patchValue({ minMonths: null, maxMonths: null });
+    this.form.controls.tenor.markAsDirty();
+  }
 
   /**
    * The BANK's figures, by step id and gate id. A signal for the same reason `incomeKeyTable`
@@ -6878,8 +7095,12 @@ export class BankProgramFormPage implements OnInit {
       // stored copy of itself — the spread order is the guarantee, not the key list.
       tenor: {
         ...this.carriedTenor(),
-        minMonths: tn.minMonths,
-        maxMonths: tn.maxMonths,
+        // OMITTED, not nulled and not zeroed, when this bank states no duration of its own:
+        // absent is what the server reads as "read the surrogate product's". A `null` is
+        // refused by the DTO and a `0` would be a term of no months.
+        ...(tn.minMonths === null || tn.maxMonths === null
+          ? {}
+          : { minMonths: tn.minMonths, maxMonths: tn.maxMonths }),
         // Omitted when the switch is off, which a full-replacement PUT reads as "delete it".
         // That is the intended meaning here and only here: the operator turned it off.
         ...(this.toggles.vehicleGrid() && this.maxMonthsByFact() !== null
@@ -6893,9 +7114,7 @@ export class BankProgramFormPage implements OnInit {
         // Blank means "this program states no share", which is an absent field rather than a
         // zero: a zero would be a cap of nothing, and `ltvCeilingFor` refuses it anyway.
         ...(ll.ltvCeilingPercent ? { ltvCeilingPercent: ll.ltvCeilingPercent } : {}),
-        ...(ll.minDownPaymentPercent
-          ? { minDownPaymentPercent: ll.minDownPaymentPercent }
-          : {}),
+        ...(ll.minDownPaymentPercent ? { minDownPaymentPercent: ll.minDownPaymentPercent } : {}),
         // Omitted rather than sent as `null` when there is no table: `forbidNonWhitelisted`
         // accepts an absent optional field and the backend reads absence as "no cap table".
         ...(this.maxLoanByFact() !== null ? { maxLoanByFact: this.maxLoanByFact()! } : {}),
@@ -7036,9 +7255,12 @@ export class BankProgramFormPage implements OnInit {
     this.identityGroup.controls.programCode?.disable();
     if (initial.bankId) this.bankIdControl.setValue(initial.bankId);
 
+    // `?? null` and not a default pair: a stored program with no months of its own is
+    // reading the product's, and seeding 12/60 here would silently claim those months as
+    // this bank's on the first Save of a screen the operator opened to change a fee.
     this.tenorGroup.patchValue({
-      minMonths: initial.tenor.minMonths,
-      maxMonths: initial.tenor.maxMonths,
+      minMonths: initial.tenor.minMonths ?? null,
+      maxMonths: initial.tenor.maxMonths ?? null,
     });
     this.loanLimitsGroup.patchValue({
       minAmountEGP: initial.loanLimits.minAmountEGP,

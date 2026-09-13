@@ -270,22 +270,38 @@ const CAR_DOWN_PAYMENT_Q: SeedQuestion = {
  * states: they are the keys a bank's grid is written against, and a reworded label must not
  * move a row.
  *
- * ─── Why REQUIRED, and what that costs ────────────────────────────────────────
+ * ─── Why OPTIONAL, having first made them required ────────────────────────────
  *
- * All three are asked of every car applicant, including the ones applying to a programme that
- * reads none of them — the same trade `practice_governorate` made, recorded there rather than
- * hidden. The alternative is worse: a grid that reads an unanswered axis refuses at the END of
- * the flow (`VEHICLE_NOT_ELIGIBLE` naming the fact), so the customer fills in a whole
- * application to be told to go back. Asked up front, it is one tap.
+ * They shipped REQUIRED, on the reasoning that a grid reading an unanswered axis refuses at
+ * the END of the flow, so asking up front is one tap instead of a wasted application. That
+ * reasoning is sound and the decision was still wrong, because of what `car` contains.
  *
- * Insurance in particular cannot be defaulted in either direction. On ADIB's card the
- * no-insurance column sits 0.65–0.80pp ABOVE the insured one in every single cell, so
- * assuming "insured" under-quotes and assuming "uninsured" over-quotes — and the under-quote
- * is the dangerous one, because the debt burden and the whole affordability loop are measured
- * against that instalment and then frozen.
+ * The `car` loan type is not only cars. Both Suez Canal GREEN FINANCE programmes are sold
+ * under it — a solar installation for a flat, and an e-bike — and a required question cannot
+ * be narrowed away from them. `question-scope.ts`'s `isCore` keeps any question whose fact no
+ * live `surrogate_product_ask` row points at (clause 4), which is true of all three, so the
+ * per-programme narrowing does not drop them however the catalog name is picked. A solar
+ * applicant was being made to state the model year, country of origin and insurance status of
+ * a car they are not buying, and could not submit without inventing all three.
+ *
+ * There is no gate available either: `enabledWhen` names exactly ONE option code of ONE other
+ * question, and no question asks what is being bought — the catalog NAME carries that, and the
+ * name is not a question.
+ *
+ * So: optional, and the cost moves rather than disappearing. A programme that states a vehicle
+ * table and meets an unanswered axis answers `VEHICLE_NOT_ELIGIBLE` carrying `missingFactKeys`,
+ * which the mobile card already renders as the list of questions to go back and answer. That
+ * is a worse first experience for a car buyer than being asked up front — and it is the only
+ * option that does not refuse a solar applicant outright for a question about a car.
+ *
+ * Insurance still cannot be DEFAULTED in either direction, and optional is not a default: on
+ * ADIB's card the no-insurance column sits 0.65–0.80pp ABOVE the insured one in every cell, so
+ * assuming "insured" under-quotes and assuming "uninsured" over-quotes. Unanswered stays
+ * unanswered, and a programme that needs it says so.
  */
 const CAR_ORIGIN_Q: SeedQuestion = {
   code: 'car_origin',
+  isRequired: false,
   questionEn: 'Where was the car built?',
   questionAr: 'أين صُنعت السيارة؟',
   helperTextEn: 'Some banks finance a car for longer, or at a better rate, depending on where it was made.',
@@ -318,6 +334,7 @@ const CAR_ORIGIN_Q: SeedQuestion = {
  */
 const CAR_MODEL_YEAR_Q: SeedQuestion = {
   code: 'car_model_year',
+  isRequired: false,
   type: 'NUMERIC',
   questionEn: "What is the car's model year?",
   questionAr: 'ما سنة موديل السيارة؟',
@@ -337,6 +354,7 @@ const CAR_MODEL_YEAR_Q: SeedQuestion = {
  */
 const CAR_INSURANCE_Q: SeedQuestion = {
   code: 'car_insurance',
+  isRequired: false,
   questionEn: 'Will the car be insured?',
   questionAr: 'هل ستكون السيارة مؤمَّنة؟',
   helperTextEn: 'Some banks require cover, and some price the loan differently with it.',

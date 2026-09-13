@@ -858,6 +858,30 @@ model PlatformEnumeration {
   /// the grid's rows in place and every box empty. That is the state every product
   /// ships in.
   capDefaults         Json?
+  /// `surrogate_product` ONLY — the loan duration every bank program selling this
+  /// product falls back to. Shape: `{ "minMonths": number, "maxMonths": number }`.
+  ///
+  /// WHY IT IS INHERITED AND NOT COPIED, unlike `capDefaults` one field up. A term is
+  /// a statement about the product itself — six of Suez Canal Bank's seven auto
+  /// programmes lend over the same 6–84 months because that is what the product is,
+  /// not because six operators happened to type the same pair. So a bank program that
+  /// states nothing READS this at quote time (`effectiveTenor`, merged in
+  /// `toBankProgramSnapshot`), and a change here moves every one of them. A bank that
+  /// disagrees states its own and wins — `SCB-CAR-GREEN_POWER` lends to 120 months and
+  /// is untouched by this.
+  ///
+  /// NOT the per-applicant ceilings. `tenor.maxMonthsByEmploymentType` and
+  /// `tenor.maxMonthsByFact` stay the bank's alone: a blank grid there is a stated
+  /// "this bank does not cap by that", not "nobody has said yet" — the same distinction
+  /// that keeps `SLOTS_INHERITED_WHEN_BLANK` to one member.
+  ///
+  /// BOTH MONTHS OR NEITHER. A floor from the product and a ceiling from the bank is a
+  /// range neither of them stated; the save path refuses a half-stated pair on both
+  /// sides (`PROGRAM_RANGE_INVALID`).
+  ///
+  /// NULL = this product states no duration, and every bank program under it must state
+  /// its own. That is the state every product ships in.
+  tenorDefaults       Json?
   /// `surrogate_product` and `program_name` — estimated-value markers for the
   /// figures in `incomeRule`,
   /// the same sparse map `bank_program.valueSources` carries and with the same

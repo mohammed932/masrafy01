@@ -46,6 +46,7 @@ import type { IncomeAssumptionConfig } from '../types';
 import type { GateParams, ProductRule, StepParams } from './product-rule';
 import { allWaySlots, wayOwnedSlots, waysOfRule } from './product-rule-ways';
 import { SLOT } from './product-template';
+import type { TenorDefaults } from './tenor-inherit';
 
 /**
  * The figure-bearing keys. The legacy five are included because a catalog rule
@@ -189,12 +190,37 @@ export type CatalogRuleResolution =
        * asked of a program at all — see `IncomeRuleValidationOptions.surrogateProductKey`.
        */
       readonly productKey?: string;
+      /**
+       * The product's default loan duration, for a program that states none of its own.
+       *
+       * Rides here rather than on a map of its own because this resolution is ALREADY the
+       * single seam the product link reaches the snapshot mapper through: every caller
+       * either hands the map to `toBankProgramSnapshot` or `.get()`s from it, so carrying a
+       * second field costs no call site and cannot get out of step with the rule beside it.
+       *
+       * Absent for a name holding its own (grandfathered) rule: only a PRODUCT states a
+       * duration. Also absent — and this is a real if narrow gap, stated rather than
+       * papered over — for a product that has typed a duration but holds no calculation
+       * yet, because there is no arm of this type for a resolution with no rule. Nothing
+       * inherits in that window, and nothing quotes either: the rule is what makes a
+       * program quote at all, so the gap has no reader.
+       */
+      readonly tenorDefaults?: TenorDefaults;
     }
   | {
       readonly withheld: 'surrogate_product_retired';
       readonly productKey: string;
       /** Absent when the switched-off product holds no calculation at all. */
       readonly rule?: IncomeAssumptionConfig;
+      /**
+       * Carried on the withheld arm too, symmetrically with the rule beside it and for the
+       * same reason: switching a product off is a decision about what QUOTES, not about
+       * what is configured. `quoteProgram` refuses on the marker before it prices anything,
+       * so what the duration resolves to there is moot — but a snapshot that silently lost
+       * its term the moment a product was switched off would make the admin read-back
+       * surfaces disagree with the save path about what the program is set to.
+       */
+      readonly tenorDefaults?: TenorDefaults;
     };
 
 /**
@@ -225,6 +251,8 @@ export interface LinkedProduct {
   readonly active: boolean;
   readonly deprecatedAt: Date | null;
   readonly rule: IncomeAssumptionConfig | undefined;
+  /** The default loan duration, when this product states one. */
+  readonly tenorDefaults: TenorDefaults | undefined;
 }
 
 export function effectiveProgramNameRule(
@@ -232,14 +260,19 @@ export function effectiveProgramNameRule(
   product: LinkedProduct | undefined,
 ): CatalogRuleResolution | undefined {
   if (product !== undefined) {
+    const tenor =
+      product.tenorDefaults === undefined ? {} : { tenorDefaults: product.tenorDefaults };
     if (!product.active || product.deprecatedAt !== null) {
       return {
         withheld: 'surrogate_product_retired',
         productKey: product.key,
         ...(product.rule !== undefined ? { rule: product.rule } : {}),
+        ...tenor,
       };
     }
-    if (product.rule !== undefined) return { rule: product.rule, productKey: product.key };
+    if (product.rule !== undefined) {
+      return { rule: product.rule, productKey: product.key, ...tenor };
+    }
   }
   const rule = own ?? undefined;
   return rule === undefined ? undefined : { rule };
@@ -253,6 +286,18 @@ export function effectiveProgramNameRule(
  */
 export function productKeyOf(resolution: CatalogRuleResolution | undefined): string | undefined {
   return resolution?.productKey;
+}
+
+/**
+ * The default loan duration a resolution holds, whether or not the rule is withheld.
+ *
+ * The sibling of `catalogRuleOf`, and the ONE way to read it, so no caller has to know
+ * that a switched-off product still carries one.
+ */
+export function catalogTenorOf(
+  resolution: CatalogRuleResolution | undefined,
+): TenorDefaults | undefined {
+  return resolution?.tenorDefaults;
 }
 
 /**

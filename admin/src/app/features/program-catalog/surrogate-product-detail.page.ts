@@ -107,6 +107,7 @@ import {
   type ProductAsksBoard,
   type ProductAskServed,
   type SurrogateProductDetail,
+  type TenorDefaults,
   type ProductBlueprint,
   type ProgramUnderName,
 } from '@features/bank-programs/bank-programs.types';
@@ -1063,6 +1064,83 @@ interface ReadList {
                   </section>
                 }
 
+                <!-- THE DEFAULT LOAN DURATION.
+                     Beside the cap above rather than beside the grid below, because it
+                     behaves like the cap and not like the grid: it is READ by every program
+                     that states none, so a change here moves them, where the grid's amounts
+                     are a copy taken once. Two boxes and not one field, because the two ends
+                     are two decisions a sheet prints separately. -->
+                @if (isPipeline()) {
+                  <section class="dbr-cap">
+                    <h3 class="dbr-cap-title" i18n="@@spd.tenor.title">
+                      Loan duration for every program selling this
+                    </h3>
+                    <p class="dbr-cap-lede" i18n="@@spd.tenor.lede">
+                      How long a customer can borrow over. Every bank selling this product uses
+                      these months unless it states its own on its program. Leave them empty and
+                      each bank must state its own.
+                    </p>
+                    <div class="tenor-fields">
+                      <app-figure-field
+                        fieldId="product-tenor-min"
+                        unit="months"
+                        [label]="tenorMinLabel"
+                        [value]="tenorMinValue() ?? ''"
+                        (valueChange)="setTenorMin($event)"
+                        [ariaLabel]="tenorMinAria"
+                        [placeholderNote]="tenorBlankNote"
+                      ></app-figure-field>
+                      <app-figure-field
+                        fieldId="product-tenor-max"
+                        unit="months"
+                        [label]="tenorMaxLabel"
+                        [value]="tenorMaxValue() ?? ''"
+                        (valueChange)="setTenorMax($event)"
+                        [ariaLabel]="tenorMaxAria"
+                        [placeholderNote]="tenorBlankNote"
+                      ></app-figure-field>
+                    </div>
+                    @if (tenorError(); as problem) {
+                      <p class="dbr-cap-error" role="alert">
+                        @switch (problem) {
+                          @case ('range') {
+                            <span i18n="@@spd.tenor.err_range"
+                              >Each figure must be a whole number of months between 1 and 480.</span
+                            >
+                          }
+                          @case ('inverted') {
+                            <span i18n="@@spd.tenor.err_inverted"
+                              >The longest term must be at least the shortest.</span
+                            >
+                          }
+                          @case ('half') {
+                            <span i18n="@@spd.tenor.err_half"
+                              >State both months or neither — one on its own is a range nobody
+                              set.</span
+                            >
+                          }
+                        }
+                      </p>
+                    }
+                    @if (tenorReaders(); as readers) {
+                      <p class="tenor-readers" [class.is-warn]="tenorClearBlocked()">
+                        @if (tenorClearBlocked()) {
+                          <span i18n="@@spd.tenor.readers_clear"
+                            >{{ readers }} bank program(s) have no duration of their own and are
+                            using these months. Emptying the boxes would leave them unable to quote,
+                            so it will be refused — give each of them its own duration first.</span
+                          >
+                        } @else {
+                          <span i18n="@@spd.tenor.readers"
+                            >{{ readers }} bank program(s) state no duration of their own and use
+                            these months.</span
+                          >
+                        }
+                      </p>
+                    }
+                  </section>
+                }
+
                 <!-- THE MAXIMUM-LOAN GRID.
                      Here rather than on each bank's wizard because the GRID is the product's:
                      which answers it caps on, and in what order, is one statement shared by
@@ -1097,8 +1175,9 @@ interface ReadList {
                   } @else {
                     <span i18n="@@spd.reach"
                       >A change here reaches {{ p.usedBy.length }} catalog name(s): the tables go to
-                      every bank program under them that takes catalog amounts, and the debt burden
-                      and the I-Score tiers go to every one that states none of its own.</span
+                      every bank program under them that takes catalog amounts, and the debt burden,
+                      the loan duration and the I-Score tiers go to every one that states none of
+                      its own.</span
                     >
                   }
                 </p>
@@ -1751,6 +1830,31 @@ interface ReadList {
         font-size: var(--text-sm);
         line-height: 1.6;
         color: var(--text-secondary);
+      }
+
+      /* Side by side down to the narrowest column this panel gets: the two ends of one range
+         read as one decision, and stacked they read as two unrelated numbers. */
+      .tenor-fields {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+
+      /* SECONDARY, like the lede above it and for the same reason: it states how many live
+         programs a change here moves, which is the sentence an operator has to read. */
+      .tenor-readers {
+        margin: 0;
+        max-inline-size: 60ch;
+        font-size: var(--text-sm);
+        line-height: 1.6;
+        color: var(--text-secondary);
+      }
+
+      /* Not an error — nothing is wrong. It says the clear will be refused, which is a
+         consequence of a state the operator has not asked for yet. */
+      .tenor-readers.is-warn {
+        color: var(--text-primary);
+        font-weight: var(--font-medium);
       }
 
       .dbr-cap-error {
@@ -2757,10 +2861,98 @@ export class SurrogateProductDetailPage {
     this.markDirty();
   }
 
+  // --- the product's default loan duration -----------------------------------------------
+  //
+  // Its own column (`platform_enumeration.tenorDefaults`), not part of the rule blob: a
+  // repayment term is not a statement about income, and the engine reads it from a different
+  // field on the program. What it shares with the cap above is the thing that matters here —
+  // a program stating none of its own READS it, so a change moves live quotes.
+
+  /** The stored months as text, or `null` when the product states none. */
+  protected readonly tenorMinValue = signal<string | null>(null);
+  protected readonly tenorMaxValue = signal<string | null>(null);
+
+  protected readonly tenorMinLabel = $localize`:@@spd.tenor.min:Shortest`;
+  protected readonly tenorMaxLabel = $localize`:@@spd.tenor.max:Longest`;
+  protected readonly tenorMinAria = $localize`:@@spd.tenor.min_aria:Shortest term every program selling this product lends over, in months`;
+  protected readonly tenorMaxAria = $localize`:@@spd.tenor.max_aria:Longest term every program selling this product lends over, in months`;
+  protected readonly tenorBlankNote = $localize`:@@spd.tenor.blank_note:Blank — each bank states its own.`;
+
+  /**
+   * `null` when there is nothing to say, otherwise WHICH of the three things is wrong.
+   *
+   * Three and not one, because the fixes are different: a figure out of range is retyped, an
+   * inverted pair is swapped, and a half-stated pair is a box somebody forgot. Mirrors the
+   * server (`SurrogateProductTenorDto` plus the inversion check in the service) and must not
+   * out-refuse it — an empty pair is legal here and is the state every product ships in.
+   */
+  protected readonly tenorError = computed<'range' | 'inverted' | 'half' | null>(() => {
+    const min = (this.tenorMinValue() ?? '').trim();
+    const max = (this.tenorMaxValue() ?? '').trim();
+    if (min === '' && max === '') return null;
+    if (min === '' || max === '') return 'half';
+    const lo = Number(min);
+    const hi = Number(max);
+    const legal = (n: number) => Number.isInteger(n) && n >= 1 && n <= 480;
+    if (!legal(lo) || !legal(hi)) return 'range';
+    return lo > hi ? 'inverted' : null;
+  });
+
+  /**
+   * How many bank programs are reading these months right now.
+   *
+   * Counted off the response this screen already has — `names[].programs[].ownTenor` — rather
+   * than asked for separately: it is the same walk step ③ renders, and a second endpoint
+   * answering "who is affected" would be a second answer.
+   */
+  protected readonly tenorReaders = computed<number>(
+    () =>
+      this.product()
+        ?.names.flatMap((n) => n.programs)
+        .filter((prog) => !prog.ownTenor).length ?? 0,
+  );
+
+  /**
+   * Would emptying the boxes be refused?
+   *
+   * Says it BEFORE the server has to, on the screen where the boxes are. Only a CLEAR is
+   * refused — changing the months is free and deliberately so, which is why this fires on the
+   * transition to empty and not on any edit.
+   */
+  protected readonly tenorClearBlocked = computed<boolean>(() => {
+    if (this.tenorReaders() === 0) return false;
+    if (this.product()?.tenorDefaults == null) return false;
+    return (this.tenorMinValue() ?? '').trim() === '' && (this.tenorMaxValue() ?? '').trim() === '';
+  });
+
+  protected setTenorMin(raw: string): void {
+    const value = raw.trim();
+    this.tenorMinValue.set(value === '' ? null : value);
+    this.tenorDirty = true;
+    this.markDirty();
+  }
+
+  protected setTenorMax(raw: string): void {
+    const value = raw.trim();
+    this.tenorMaxValue.set(value === '' ? null : value);
+    this.tenorDirty = true;
+    this.markDirty();
+  }
+
+  /**
+   * Its own flag beside `capDirty`, for the same reason that one exists: the duration is a
+   * SECOND write, and sending it on every Save would refuse a product whose duration nobody
+   * has touched the moment programs are reading it.
+   */
+  private tenorDirty = false;
+
   protected readonly ruleBlocked = computed(() => {
     // An out-of-range cap is refused by the server, so Save is held here too — on a screen
     // where the field is in view rather than three steps away.
     if (this.dbrCapError()) return true;
+    // Same, for the duration: a half-stated or inverted pair is refused, and a refusal that
+    // arrives after Save is a refusal about a field the operator has scrolled past.
+    if (this.tenorError() !== null) return true;
     if (!this.isPipeline()) return false;
     if (
       productRuleHasError({
@@ -3810,6 +4002,10 @@ export class SurrogateProductDetailPage {
       // write never fired — the grid took the figures, the Save succeeded, and nothing was
       // stored. Both the flag and the rows are taken here, while they still mean something.
       const capRows = this.capDirty ? (this.capConfig()?.rows ?? []) : null;
+      // Same rule, same reason: read while the flag still means something. `undefined` is
+      // "not touching it" and `null` is the clear, which is a real operation the server can
+      // refuse — so the two must not collapse into one.
+      const tenor = this.tenorDirty ? this.tenorFromForm() : undefined;
 
       const res = await this.api.setSurrogateProductIncomeRule(p.key, {
         incomeRule: this.ruleFromForm(),
@@ -3822,6 +4018,14 @@ export class SurrogateProductDetailPage {
       if (capRows !== null) {
         const capRes = await this.api.setSurrogateProductCapDefaults(p.key, { rows: capRows });
         this.absorb(capRes.data);
+      }
+
+      // THIRD, and only when the boxes moved. Its own column and its own refusal — a clear
+      // is rejected while programs are reading it — so folding it into either write above
+      // would make a duration edit read as a rule or a grid change in the audit log.
+      if (tenor !== undefined) {
+        const tenorRes = await this.api.setSurrogateProductTenorDefaults(p.key, { tenor });
+        this.absorb(tenorRes.data);
       }
     } catch (err) {
       this.saveError.set(this.localizedError(err));
@@ -3842,6 +4046,19 @@ export class SurrogateProductDetailPage {
    * rule verbatim as soon as any one of the three keys is present, so sending `steps` alone
    * would drop the stored gates and output rather than keeping them.
    */
+  /**
+   * The duration to POST: the pair, or `null` to clear it.
+   *
+   * Both or neither by construction — `tenorError` holds Save on a half-stated pair, so by
+   * the time this runs the two boxes agree about whether anything was stated.
+   */
+  private tenorFromForm(): TenorDefaults | null {
+    const min = (this.tenorMinValue() ?? '').trim();
+    const max = (this.tenorMaxValue() ?? '').trim();
+    if (min === '' || max === '') return null;
+    return { minMonths: Number(min), maxMonths: Number(max) };
+  }
+
   private ruleFromForm(): IncomeAssumptionConfig {
     const strategy = this.ruleGroup.controls.strategy.getRawValue();
     const shape = incomeMethodShape(strategy, this.facts());
@@ -3962,6 +4179,16 @@ export class SurrogateProductDetailPage {
     );
     this.capConfig.set(this.capConfigFromProduct(data));
     this.capDirty = false;
+    // Plain signals seeded from the response, never `toSignal(control.valueChanges)`: the
+    // cap one field up was written that way once and read back EMPTY over a stored value,
+    // because `reset` above runs with `emitEvent: false` and the value never reached the box.
+    this.tenorMinValue.set(
+      data.tenorDefaults === null ? null : String(data.tenorDefaults.minMonths),
+    );
+    this.tenorMaxValue.set(
+      data.tenorDefaults === null ? null : String(data.tenorDefaults.maxMonths),
+    );
+    this.tenorDirty = false;
     this.dirty.set(false);
   }
 

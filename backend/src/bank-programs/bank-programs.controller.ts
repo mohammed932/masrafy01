@@ -29,6 +29,7 @@ import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductActiveDto,
   SetSurrogateProductCapDefaultsDto,
+  SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductTemplateDto,
 } from './dto/program-name-income-rule.dto';
 import { BankProgramsService } from './bank-programs.service';
@@ -233,6 +234,46 @@ export class BankProgramsController {
     @Req() req: Request,
   ) {
     return ok(await this.service.setSurrogateProductCapDefaults(key, body, this.actor(user, req)));
+  }
+
+  /**
+   * Declared with the rest of the `surrogate-products` block and BEFORE `@Get(':programCode')`,
+   * for the reason the whole block states: a single-segment param route would otherwise
+   * swallow these.
+   */
+  @Put('surrogate-products/:key/tenor-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default loan duration",
+    description:
+      'The months every bank program under this product falls back to when it states none ' +
+      'of its own. INHERITED, not copied: a change here moves every one of them, unlike the ' +
+      'cap defaults beside it. A bank that states its own duration always wins. `tenor: ' +
+      'null` clears it, and that is the one refusal — clearing leaves an inheriting program ' +
+      'with no term at all, and a loan with no term cannot be priced.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'SURROGATE_PRODUCT_TENOR_IN_USE — the clear was refused because bank programs are ' +
+      'reading this duration. Meta carries `count` and `programCodes`.',
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'PROGRAM_RANGE_INVALID — the minimum is above the maximum (`meta.field` is ' +
+      '`tenorDefaults`).',
+  })
+  async setSurrogateProductTenorDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductTenorDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.setSurrogateProductTenorDefaults(key, body, this.actor(user, req)),
+    );
   }
 
   /**

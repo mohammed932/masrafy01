@@ -1,17 +1,43 @@
-import { IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import {
+  IsInt,
+  IsObject,
+  IsOptional,
+  Max,
+  Min,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { FactGridDto } from './fact-grid.dto';
 
 export class TenorConfigDto {
+  /**
+   * ABSENT means "this bank states no duration of its own — read the surrogate product's"
+   * (`effectiveTenor`). A number means this bank's own, and the bank's own always wins.
+   *
+   * `@ValidateIf` rather than `@IsOptional()` for the same reason `maxMonthsByFact` below
+   * gives: `@IsOptional()` skips `null` as well as absent, so `null` would slip the pipe and
+   * land in the column as a stored non-number. There is no "clear" spelling to preserve here
+   * — the program save is a full replacement, so absent already IS the clear — which makes
+   * `null` meaningless and refusing it the honest answer.
+   *
+   * BOTH MONTHS OR NEITHER. A floor read off the product and a ceiling typed by the bank is
+   * a range neither of them stated, so `validateRanges` refuses a half-stated pair — and it
+   * refuses both blank when no product stands behind the program's catalog name, because a
+   * loan with no term cannot be priced.
+   */
+  @ValidateIf((_, value) => value !== undefined)
   @IsInt()
   @Min(1)
   @Max(480)
-  minMonths!: number;
+  minMonths?: number;
 
+  /** Absent means "read the product's" — see `minMonths`. */
+  @ValidateIf((_, value) => value !== undefined)
   @IsInt()
   @Min(1)
   @Max(480)
-  maxMonths!: number;
+  maxMonths?: number;
 
   /** Keys validated against `employment_type` enumeration at service layer. */
   @IsOptional()
@@ -28,7 +54,12 @@ export class TenorConfigDto {
    * compose with it, and a bank that caps the self-employed at 84 months means that as well
    * as, not instead of, "this car is too old for ten years".
    */
-  @IsOptional()
+  // `@ValidateIf`, not `@IsOptional()`: that one skips validation for `null` as well as for
+  // absent, so `maxMonthsByFact: null` sailed through the pipe and the service then read `.axes`
+  // off it and threw an untyped 500. Absent means "not stating one"; `null` is a client bug
+  // and now gets a typed `VALIDATION_FAILED` naming the field. Same defect and same fix as
+  // `dropClearedPolicy` (v26.2.0).
+  @ValidateIf((_, value) => value !== undefined)
   @ValidateNested()
   @Type(() => FactGridDto)
   maxMonthsByFact?: FactGridDto;

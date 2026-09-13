@@ -20,6 +20,7 @@ import type {
   ProductAsksBoard,
   SurrogateProductDetail,
   SurrogateProductSummary,
+  TenorDefaults,
   SurrogateProductTemplateResponse,
   ProductBlueprint,
   ValueSourceMap,
@@ -352,6 +353,25 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/cap-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The loan duration every bank program under this product falls back to.
+   *
+   * INHERITED, not copied: a change here moves every program that states no months of its
+   * own. `tenor: null` clears it, and that is the one call the server can refuse — clearing
+   * leaves an inheriting program with no term at all (`SURROGATE_PRODUCT_TENOR_IN_USE`).
+   */
+  async setSurrogateProductTenorDefaults(
+    key: string,
+    payload: { tenor: TenorDefaults | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/tenor-defaults`,
         payload,
       ),
     );

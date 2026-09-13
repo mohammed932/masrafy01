@@ -71,6 +71,8 @@ interface Tally {
   refused: string[];
   compoundsFiled: number;
   blanks: string[];
+  /** Products whose default loan duration this run stated or changed. */
+  tenorWritten: string[];
 }
 
 /** `{path: 'team_estimated'}`, the shape both write paths take. */
@@ -139,6 +141,7 @@ async function main(): Promise<void> {
       refused: [],
       compoundsFiled: 0,
       blanks: [],
+      tenorWritten: [],
     };
 
     // 1. The banks the sheets belong to. Reported, never created: a bank row carries a name
@@ -174,6 +177,40 @@ async function main(): Promise<void> {
         );
         continue;
       }
+      // THE DEFAULT DURATION, written independently of the figures plan above and therefore
+      // before its `skip`. The figures are protected because an operator may have typed them;
+      // a duration nobody has ever stated is not somebody's work to protect, and skipping it
+      // on every already-seeded product would mean the default never reached the one database
+      // that matters. Idempotent: it writes only when the stored pair differs, so a re-run
+      // reports nothing.
+      if (set.tenorDefaults !== undefined && row !== null) {
+        const stored = row.tenorDefaults;
+        const same =
+          stored !== null &&
+          stored.minMonths === set.tenorDefaults.minMonths &&
+          stored.maxMonths === set.tenorDefaults.maxMonths;
+        if (!same) {
+          const months = `${set.tenorDefaults.minMonths}–${set.tenorDefaults.maxMonths} months`;
+          if (dry) {
+            tally.tenorWritten.push(set.productKey);
+            console.log(`${TAG} tenor   ${pad(set.productKey)} would state ${months}`);
+          } else {
+            try {
+              await programs.setSurrogateProductTenorDefaults(
+                set.productKey,
+                { tenor: set.tenorDefaults },
+                programActor,
+              );
+              tally.tenorWritten.push(set.productKey);
+              console.log(`${TAG} tenor   ${pad(set.productKey)} ${months}`);
+            } catch (error) {
+              tally.refused.push(set.productKey);
+              console.error(`${TAG} ✗ ${pad(set.productKey)} tenor — ${describe(error)}`);
+            }
+          }
+        }
+      }
+
       if (action.kind === 'skip') {
         tally.productsSkipped.push(set.productKey);
         console.log(
@@ -406,7 +443,8 @@ async function main(): Promise<void> {
     );
 
     console.log(
-      `${TAG} ${tally.productsWritten.length} products written · ` +
+      `${TAG} ${tally.tenorWritten.length} durations written · ` +
+        `${tally.productsWritten.length} products written · ` +
         `${tally.productsSkipped.length} untouched · ${tally.productsAbsent.length} absent · ` +
         `${tally.namesCreated.length} names created · ${tally.namesReused.length} reused · ` +
         `${tally.programsCreated.length} programs created · ${tally.programsUpdated.length} updated · ` +

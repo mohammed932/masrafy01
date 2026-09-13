@@ -1,0 +1,18 @@
+-- The loan duration a bank program selling this product falls back to.
+--
+-- ADDITIVE AND NULLABLE, AND NOTHING IS BACKFILLED. `bank_program.tenor` has been NOT
+-- NULL with two REQUIRED months since it was written, so EVERY program on this database
+-- states its own duration and not one of them can inherit today. Absent therefore has to
+-- be the case that changes nothing — a backfill here would be a term nobody stated
+-- reaching programs that already answered the question.
+--
+-- WHY A COLUMN AND NOT A KEY IN `incomeRule`. That blob is `IncomeAssumptionConfig`, read
+-- by the income RESOLVER; a repayment term is not a statement about income, and folding it
+-- in would make `persistableIncomeAssumption`, `stripForeignMethodConfig`,
+-- `carryStoredPolicy` and `dropClearedPolicy` each learn about a key none of them is
+-- about. And not `capDefaults`, whose whole contract is that it is COPIED ONCE at program
+-- create: this is read live, so one column would mean two mechanisms.
+--
+-- No quote moves when this lands. `toBankProgramSnapshot` inherits only when a program's
+-- own `minMonths` AND `maxMonths` are both absent, which no stored row is.
+ALTER TABLE "platform_enumeration" ADD COLUMN "tenorDefaults" JSONB;

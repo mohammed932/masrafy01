@@ -21,6 +21,7 @@ import { ProductAsksRepository } from './asks/product-asks.repository';
 import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductCapDefaultsDto,
+  SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductTemplateDto,
   type ProgramNameIncomeRuleResponseDto,
   type SurrogateProductDetailDto,
@@ -37,6 +38,7 @@ import {
   DerivationArithmeticMismatchException,
   MaxLoanByFactInvalidException,
   SurrogateProductNoCapException,
+  SurrogateProductTenorInUseException,
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
   AdditionalIncomeInvalidException,
@@ -123,6 +125,7 @@ import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
   catalogRuleOf,
+  catalogTenorOf,
   dropClearedPolicy,
   effectiveIncomeRule,
   productKeyOf,
@@ -131,6 +134,7 @@ import {
   withStoredStructure,
   type CatalogRuleResolution,
 } from '@/matching/pipeline/income-rule-inherit';
+import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 import {
   compileTemplate,
   validateTemplate,
@@ -553,7 +557,15 @@ export class BankProgramsService {
     }
 
     // FR-014 (feature 010) — no inverted or empty amount / tenor / age range.
-    const rangeViolation = validateRanges(dto);
+    //
+    // `productStatesTenor` is what makes a BLANK duration legal: it means "read the
+    // surrogate product's" (`effectiveTenor`), which is only true of a program whose catalog
+    // name has a product standing behind it that states one. Read off the SAME resolution
+    // the income figures were merged from, so the two cannot disagree about which product
+    // this program sits under.
+    const rangeViolation = validateRanges(dto, {
+      productStatesTenor: catalogTenorOf(opts.catalogResolution) !== undefined,
+    });
     if (rangeViolation) {
       throw new ProgramRangeInvalidException(rangeViolation);
     }
@@ -645,16 +657,30 @@ export class BankProgramsService {
     // axis names no fact would otherwise save and then quote its `onNoMatch` at every
     // applicant, which reads as "this bank has no price" rather than as a table to fix.
     const gridRegistry = await this.enums.surrogateFactRegistry();
-    for (const [config, fieldPath, valueKind] of [
+    const grids = [
       [dto.pricing?.rateByFact, 'pricing.rateByFact', 'ratePercent'],
       [dto.tenor?.maxMonthsByFact, 'tenor.maxMonthsByFact', 'months'],
-    ] as const) {
+    ] as const;
+    // The option codes of every axis a grid names, looked up ONCE. Needed for the
+    // unknown-key check: a mistyped option code saves cleanly and then matches nobody.
+    const gridOptionCodes: Record<string, readonly string[]> = {};
+    for (const [config] of grids) {
+      for (const axis of config?.axes ?? []) {
+        const factKey = axis?.factKey;
+        if (typeof factKey !== 'string' || factKey in gridOptionCodes) continue;
+        const questionCode = gridRegistry.find((f) => f.key === factKey)?.questionCode;
+        if (questionCode === undefined) continue;
+        gridOptionCodes[factKey] = await this.enums.questionOptionCodes(questionCode);
+      }
+    }
+    for (const [config, fieldPath, valueKind] of grids) {
       if (config === undefined) continue;
       const violation = validateFactGrid({
         config,
         fieldPath,
         valueKind,
         registry: gridRegistry,
+        optionCodesByFact: gridOptionCodes,
       });
       if (violation) throw new FactGridInvalidException(violation);
     }
@@ -1823,6 +1849,7 @@ export class BankProgramsService {
         bankNameEn: p.bankNameEn,
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
+        ownTenor: p.ownTenor,
       })),
     }));
 
@@ -1843,6 +1870,11 @@ export class BankProgramsService {
       // to render the grid they are filed under.
       cap: capShapeOf(row.key, row.templateSpec?.blueprintKey) ?? null,
       capDefaults: row.capDefaults,
+      // The DURATION this product hands its programs. Beside `capDefaults` because the
+      // screen renders the two on the same step, and deliberately NOT folded into it: one is
+      // copied once at create and the other is read live, and a reader of this response has
+      // to be able to tell which.
+      tenorDefaults: row.tenorDefaults,
       template: row.templateSpec,
       valueSources: row.valueSources,
       names,
@@ -2057,6 +2089,91 @@ export class BankProgramsService {
             before: row.capDefaults?.length ?? null,
             after: stored?.length ?? null,
             figuresChanged: stableJson(row.capDefaults ?? null) !== stableJson(stored ?? null),
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * Set (or clear, with `null`) a surrogate product's default loan duration.
+   *
+   * INHERITED, not copied, which is the whole difference from the cap defaults above. A
+   * program that states no months of its own reads these at quote time (`effectiveTenor`,
+   * merged in `toBankProgramSnapshot`), so changing them moves every one of them — the same
+   * live posture the debt-burden cap and the I-Score tiers already have, and the operator's
+   * explicit decision.
+   *
+   * THE CLEAR IS THE ONE REFUSAL, and it is not caution about live figures — a change moves
+   * live quotes here and is allowed. It is about what the two do to a program that states
+   * nothing: a change gives it different months, a clear gives it NONE, and a loan with no
+   * term cannot be priced at all. Every inheriting program would stop quoting, reported to a
+   * customer as `tenor.maxMonths`. So the clear is refused and the programs are NAMED, which
+   * is what makes "give each of them its own duration first" something an operator can act
+   * on.
+   *
+   * Counted across every program under this product's names, not only the surrogate ones: a
+   * catalog name can carry both kinds, and each stores a `tenor`.
+   */
+  async setSurrogateProductTenorDefaults(
+    key: string,
+    dto: SetSurrogateProductTenorDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored: TenorDefaults | null =
+      dto.tenor === null
+        ? null
+        : { minMonths: dto.tenor.minMonths, maxMonths: dto.tenor.maxMonths };
+
+    // Inverted is refused here as well as on a bank program's own save: both months are in
+    // range individually and the DTO cannot compare them, and a product stating 84–6 would
+    // hand every program under it a range that can never lend.
+    if (stored !== null && stored.minMonths > stored.maxMonths) {
+      throw new ProgramRangeInvalidException({
+        field: 'tenorDefaults',
+        min: stored.minMonths,
+        max: stored.maxMonths,
+      });
+    }
+
+    if (stored === null && row.tenorDefaults !== null) {
+      const inheriting = await this.enums.programsInheritingTenor(key);
+      if (inheriting.length > 0) {
+        throw new SurrogateProductTenorInUseException({
+          count: inheriting.length,
+          // Capped for a person to read. The count is the honest total either way, and a
+          // dialog printing forty codes has stopped being a list and become a wall.
+          programCodes: inheriting.slice(0, 20),
+        });
+      }
+    }
+
+    const saved = await this.enums.setSurrogateProductTenorDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      // A FK to STAFF_ACCOUNT — "the staff member this was done to", never the row it was
+      // about. The product's id travels in the payload, as every other
+      // PLATFORM_ENUMERATION_UPDATED writer sends it.
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full, not a count. There are two numbers, they are the whole
+        // decision, and they move live quotes — so the log has to be able to answer "what
+        // were the months yesterday" without a second lookup.
+        changes: {
+          tenorDefaults: {
+            before: row.tenorDefaults,
+            after: stored,
           },
         },
       },
@@ -2430,6 +2547,7 @@ export class BankProgramsService {
         bankNameEn: p.bankNameEn,
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
+        ownTenor: p.ownTenor,
       })),
       surrogateProduct:
         product === null || productRow === null
@@ -2447,6 +2565,10 @@ export class BankProgramsService {
               // product an operator renamed — on a seeded row the key IS the blueprint key.
               cap: capShapeOf(product.key, product.templateSpec?.blueprintKey) ?? null,
               capDefaults: product.capDefaults,
+              // What a program under this name falls back to when it states no duration of
+              // its own. The bank wizard renders it read-only in that state and offers to
+              // copy it, exactly as it does the product's I-Score tiers.
+              tenorDefaults: product.tenorDefaults,
             },
     };
   }
@@ -2568,9 +2690,13 @@ export class BankProgramsService {
     if (violation) throw incomeRuleException(violation);
 
     const snapshot: BankProgramSnapshot = {
-      // No catalog map: whatever income rule the mapper resolves is replaced by the
-      // draft below, so reading the catalog twice would be work with no reader.
-      ...toBankProgramSnapshot(program),
+      // The catalog map IS passed, even though the income rule the mapper resolves from it
+      // is replaced by the draft below. It is not redundant work: the map also carries the
+      // product's default DURATION, and the comment under the overlay is the reason that
+      // matters — tenor stays as SAVED here, so a program that states none of its own and
+      // reads the product's would otherwise reach `quoteProgram` with no term at all and
+      // the panel would report `tenor.maxMonths` at a program that is correctly set up.
+      ...toBankProgramSnapshot(program, catalogRules),
       // The overlay, and the ONLY thing overlaid: pricing, fees, tenor, limits and
       // the DBR band table all stay as saved, so the figures the panel shows are this
       // program's figures rather than a hypothetical program's.

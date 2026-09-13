@@ -163,6 +163,16 @@ interface TenorPlan {
   readonly months: number;
   /** In the order they applied, so the caller reports the same binding it always did. */
   readonly constraints: readonly BindingConstraint[];
+  /**
+   * Which ceiling drove the term BELOW the program's own floor, when one did.
+   *
+   * `null` whenever the term is sellable. It exists because the two ceilings are not
+   * interchangeable in a refusal: telling a 34-year-old that "no available term keeps you
+   * within this program's age limit" is a false statement about them when what happened is
+   * that their bank finances a car this old for twelve months and the programme's floor is
+   * twenty-four.
+   */
+  readonly belowFloorCause: BindingConstraint | null;
 }
 
 /**
@@ -235,7 +245,12 @@ function resolveTenor(input: {
   }
   if (ceiling !== null) constraints.push(ceiling);
 
-  return { requested: input.requested, months, constraints };
+  // The floor is applied BEFORE the two ceilings, so either of them can push the term back
+  // under it. Which one did is the difference between two refusals a customer reads very
+  // differently, so it travels rather than being guessed at the return site.
+  const belowFloorCause = months < input.minMonths ? ceiling : null;
+
+  return { requested: input.requested, months, constraints, belowFloorCause };
 }
 
 export function quoteProgram(input: QuoteInput): QuoteOutcome {
@@ -522,10 +537,14 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const tenorMonths = tenorPlan.months;
   for (const constraint of tenorPlan.constraints) noteConstraint(constraint);
 
-  // Only the age ceiling can reach here now: the requested term was raised to
-  // `minTenor` above, so a term still under the floor means the age cap ate it.
+  // A term still under the floor means one of the two CEILINGS pushed it back there — the
+  // floor stretch runs before both. Which one is what the customer is told: the vehicle table
+  // is a fact about the car they can act on, and reporting it as an age limit is a sentence
+  // about them that is not true.
   if (tenorMonths < 1 || tenorMonths < minTenor) {
-    return { ok: false, unavailable: { reason: 'AGE_AT_MATURITY' } };
+    return tenorPlan.belowFloorCause === 'vehicle_tenor_cap'
+      ? { ok: false, unavailable: { reason: 'VEHICLE_NOT_ELIGIBLE' } }
+      : { ok: false, unavailable: { reason: 'AGE_AT_MATURITY' } };
   }
 
   // ── 3b. Collateral ceiling → the income it implies ──────────────────────

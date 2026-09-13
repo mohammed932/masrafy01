@@ -40,6 +40,31 @@ export type {
 
 /** The term axis, by fact key — the engine derives it per quote, so it has no question. */
 const TENOR_FACT_KEY = 'tenor_months';
+const DOWN_PAYMENT_PERCENT_FACT_KEY = 'car_down_payment_percent';
+
+/**
+ * The two axes the engine works out per quote, offered in the picker beside the real facts.
+ *
+ * They are NOT in the fact registry and never will be — a registry fact is a question bound to
+ * an answer, and neither of these has one: the share is money divided by money and the term is
+ * what the loan is repaid over. `RESERVED_FACT_KEYS` exists to stop an operator ever creating
+ * a question under either key.
+ *
+ * Offered here anyway, because leaving them out made the control unable to express the table
+ * the whole feature was built for: ADIB's card is down payment x term x insurance, and two of
+ * those three are these. The picker read the registry alone, so an operator could key a grid
+ * on a car's origin but not on the deposit — and the editor's own tenor-coverage panel, which
+ * only fires when an axis reads the term, could never fire at all.
+ *
+ * Both are NUMERIC, which is what makes the cells render as band edges rather than pickers.
+ */
+const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
+  {
+    key: DOWN_PAYMENT_PERCENT_FACT_KEY,
+    label: $localize`:@@fact_grid.axis_down_payment:Down payment (% of the price)`,
+  },
+  { key: TENOR_FACT_KEY, label: $localize`:@@fact_grid.axis_tenor:Loan term (months)` },
+];
 
 /**
  * A table this bank prices — or shortens a term — by, keyed on up to four of its applicants'
@@ -95,7 +120,7 @@ const TENOR_FACT_KEY = 'tenor_months';
               nzShowSearch
               [nzPlaceHolder]="axisPlaceholder"
             >
-              @for (fact of facts(); track fact.key) {
+              @for (fact of axisChoices(); track fact.key) {
                 <nz-option [nzValue]="fact.key" [nzLabel]="fact.label"></nz-option>
               }
             </nz-select>
@@ -427,6 +452,21 @@ export class FactGridEditorComponent {
   readonly error = computed(() => factGridErrorFor(this.config(), this.valueKind()));
 
   /**
+   * What the axis picker offers: the two derived axes first, then the registry.
+   *
+   * First because they are the two every auto card is laid out by, and a picker that buries
+   * them under thirty questions is one an operator scrolls past. A tenor grid drops the term
+   * itself — keying the ceiling on the term computes the thing it is deciding, which the
+   * server refuses as `axis_circular`, so it is not offered rather than offered and refused.
+   */
+  readonly axisChoices = computed(() => {
+    const derived = DERIVED_AXES.filter(
+      (a) => !(this.valueKind() === 'months' && a.key === TENOR_FACT_KEY),
+    );
+    return [...derived, ...this.facts().map((f) => ({ key: f.key, label: f.label }))];
+  });
+
+  /**
    * The terms a customer can pick that no row covers.
    *
    * Only computed when an axis actually reads the term — on a grid keyed by origin and model
@@ -448,12 +488,19 @@ export class FactGridEditorComponent {
   }
 
   factLabel(key: string): string {
-    return this.facts().find((f) => f.key === key)?.label ?? key;
+    return this.axisChoices().find((f) => f.key === key)?.label ?? key;
+  }
+
+  private isDerivedAxis(key: string | undefined): boolean {
+    return key !== undefined && DERIVED_AXES.some((a) => a.key === key);
   }
 
   /** A choice axis renders pickers; a numeric one renders band edges. */
   isChoiceAxis(index: number): boolean {
     const key = this.config().axes[index]?.factKey;
+    // Both derived axes are numbers — a percentage and a month count — so they render band
+    // edges. Answered before the registry lookup, which would never find them.
+    if (this.isDerivedAxis(key)) return false;
     const fact = this.facts().find((f) => f.key === key);
     // Unknown while the registry loads, and a NUMERIC-shaped fallback is the safe one: the
     // band inputs accept anything an operator types, where an empty option list would offer
@@ -463,6 +510,9 @@ export class FactGridEditorComponent {
 
   axisHasClasses(index: number): boolean {
     const key = this.config().axes[index]?.factKey;
+    // A number is filed under no class, so the answer/class toggle is not offered — and the
+    // server refuses `parentClass` on a numeric axis outright (`axis_class_on_numeric`).
+    if (this.isDerivedAxis(key)) return false;
     const fact = this.facts().find((f) => f.key === key);
     return (fact?.question?.parentOptions?.length ?? 0) > 0;
   }

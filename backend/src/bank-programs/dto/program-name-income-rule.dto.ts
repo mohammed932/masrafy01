@@ -15,8 +15,12 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsInt,
   IsObject,
   IsOptional,
+  Max,
+  Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -24,6 +28,7 @@ import type { IncomeAssumptionConfig } from '@/matching/types';
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { TemplateStarter } from '@/matching/pipeline/product-template-starters';
 import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
+import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 import type { BlueprintCap } from '../blueprints/product-blueprint.types';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
 import { MaxLoanByFactRowDto } from './sub-configs/loan-limits-config.dto';
@@ -67,6 +72,13 @@ export interface ProgramUnderNameDto {
   bankNameAr: string | null;
   /** `false` when it takes the catalog's figures instead of typing its own. */
   ownAmounts: boolean;
+  /**
+   * `false` when it states no loan duration of its own and reads the surrogate product's.
+   *
+   * A separate axis from `ownAmounts`: `amounts` says whose income tables a program quotes
+   * from, and a bank that types its own tables has said nothing about how long it lends for.
+   */
+  ownTenor: boolean;
 }
 
 export class SetProgramNameIncomeRuleDto {
@@ -152,6 +164,15 @@ export interface ProgramNameIncomeRuleResponseDto {
      * a platform whose offers are immutable (Principle I / A6).
      */
     capDefaults: MaxLoanByFactRow[] | null;
+    /**
+     * The loan duration a program under this name falls back to when it states none.
+     *
+     * INHERITED, unlike `capDefaults` directly above — which is why both travel and why the
+     * wizard renders them differently: a blank cap grid on a new program is a set of boxes
+     * to fill, a blank duration is a live statement that this bank lends over the product's
+     * months.
+     */
+    tenorDefaults: TenorDefaults | null;
   } | null;
 }
 
@@ -213,6 +234,15 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
   cap: ProductCapShapeDto | null;
   /** The default amounts, as `PUT :key/cap-defaults` last stored them. `null` = none. */
   capDefaults: MaxLoanByFactRow[] | null;
+  /**
+   * The default loan duration, as `PUT :key/tenor-defaults` last stored it. `null` = none,
+   * and every program under this product must then state its own.
+   *
+   * INHERITED, not copied: a program that states no months reads these at quote time, so
+   * changing them moves every one of them and clearing them is refused while any does
+   * (`SURROGATE_PRODUCT_TENOR_IN_USE`).
+   */
+  tenorDefaults: TenorDefaults | null;
   /**
    * The friendly form the calculation was compiled from, or `null` when it was authored
    * through the raw step editor.
@@ -324,6 +354,45 @@ export class SetSurrogateProductCapDefaultsDto {
   @ValidateNested({ each: true })
   @Type(() => MaxLoanByFactRowDto)
   rows!: MaxLoanByFactRowDto[];
+}
+
+/**
+ * The default loan duration a surrogate product hands every program under it.
+ *
+ * BOTH MONTHS OR NEITHER, and `null` is the clear. Three states and not four: a product
+ * either states a duration or it does not, and a half-stated one is a range nobody stated.
+ * Expressed as a nested object rather than two nullable scalars precisely so the pair cannot
+ * come apart on the wire.
+ *
+ * Clearing is REFUSED while any program is reading it (`SURROGATE_PRODUCT_TENOR_IN_USE`) —
+ * unlike CHANGING it, which is free and moves every one of them. The asymmetry is what the
+ * two do to a program that states nothing: a change gives it different months, a clear gives
+ * it none, and a loan with no term cannot be priced.
+ */
+export class SurrogateProductTenorDto {
+  @ApiProperty({ minimum: 1, maximum: 480 })
+  @IsInt()
+  @Min(1)
+  @Max(480)
+  minMonths!: number;
+
+  @ApiProperty({ minimum: 1, maximum: 480 })
+  @IsInt()
+  @Min(1)
+  @Max(480)
+  maxMonths!: number;
+}
+
+export class SetSurrogateProductTenorDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductTenorDto,
+    nullable: true,
+    description: 'Null clears the default duration.',
+  })
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductTenorDto)
+  tenor!: SurrogateProductTenorDto | null;
 }
 
 /**

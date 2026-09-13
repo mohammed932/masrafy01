@@ -378,6 +378,22 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_NO_CAP: 'SURROGATE_PRODUCT_NO_CAP',
   /**
+   * A surrogate product's default loan duration was CLEARED while bank programs are reading
+   * it. Meta: `{ count, programCodes }`.
+   *
+   * Only the clear is refused — CHANGING the months is free and moves every program that
+   * states none of its own, which is the whole point of a default and the same live posture
+   * the debt-burden cap and the I-Score tiers already have. The difference is what the two
+   * do when they go away: a cleared cap changes a number, a cleared duration leaves those
+   * programs with no term at all, and a loan with no term cannot be priced — every one of
+   * them would stop quoting, reported to a CUSTOMER as `tenor.maxMonths`.
+   *
+   * NOT `SURROGATE_PRODUCT_IN_USE`, which is retired-but-retained and whose sentence in both
+   * dictionaries is about catalog NAMES being linked to the product. Reusing it would print
+   * the wrong words at an operator whose actual problem is six programmes with no duration.
+   */
+  SURROGATE_PRODUCT_TENOR_IN_USE: 'SURROGATE_PRODUCT_TENOR_IN_USE',
+  /**
    * The question an operator ticked on a product's step ① is already answered by MORE THAN
    * ONE surrogate fact.
    *
@@ -1088,6 +1104,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_PRODUCT_NOT_FOUND: 404,
   SURROGATE_PRODUCT_CAP_ONLY: 422,
   SURROGATE_PRODUCT_NO_CAP: 422,
+  // 409, like `SURROGATE_PRODUCT_IN_USE` above: the request is well-formed and the product
+  // exists — what refuses it is the state of the programmes underneath.
+  SURROGATE_PRODUCT_TENOR_IN_USE: 409,
   // 409: the request is well-formed and the rows exist — the platform's own data is in a
   // shape that has no single right answer, and only an operator can pick one.
   SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,

@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsString } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsString, ValidateIf } from 'class-validator';
 import { FACT_GRID_NO_MATCH_ACTIONS } from '../../../matching/pipeline/fact-grid';
 import type {
   FactGridAxis,
