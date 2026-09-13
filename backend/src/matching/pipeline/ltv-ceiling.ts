@@ -24,7 +24,8 @@
  */
 import { Decimal } from '@prisma/client/runtime/library';
 
-import type { CarDetails, LoanLimitsConfig } from '../types';
+import type { CarDetails, LoanLimitsConfig, SurrogateFactValue } from '../types';
+import { resolveFactGrid, type FactGridConfig } from './fact-grid';
 
 const ONE_HUNDRED = new Decimal(100);
 
@@ -51,6 +52,62 @@ export function ltvCeilingFor(
   if (percent === null || percent.lessThanOrEqualTo(0) || percent.greaterThan(ONE_HUNDRED)) {
     return null;
   }
+  const price = carDetails?.carValueEGP;
+  if (price === undefined || !price.isFinite() || price.lessThanOrEqualTo(0)) return null;
+  return price.mul(percent).div(ONE_HUNDRED).toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+}
+
+/**
+ * What a fact-keyed financed-share table says about this applicant.
+ *
+ * A SIBLING of `ltvCeilingFor` rather than a rewrite of it. The scalar path above is read by
+ * every program that predates this and by any build that cannot read a grid, so it stays
+ * byte-identical and keeps its own tests; this answers the newer question beside it.
+ *
+ * Four outcomes and not two, because "the bank states no table", "a row matched", "no row
+ * matched and the bank said fall back" and "no row matched and the bank said refuse" are four
+ * different things to do, and collapsing any pair of them is a silent decision on a customer.
+ */
+export type LtvByFactOutcome =
+  | { kind: 'none' }
+  | { kind: 'percent'; value: Decimal }
+  | { kind: 'fallback' }
+  | { kind: 'refused'; missingFactKeys: readonly string[] };
+
+export function ltvByFactFor(args: {
+  grid: FactGridConfig | undefined;
+  facts: Readonly<Record<string, SurrogateFactValue>>;
+  parentKeyByValue?: Readonly<Record<string, string>>;
+}): LtvByFactOutcome {
+  const { grid, facts, parentKeyByValue } = args;
+  if (grid === undefined) return { kind: 'none' };
+
+  const hit = resolveFactGrid({
+    config: grid,
+    facts,
+    ...(parentKeyByValue !== undefined ? { parentKeyByValue } : {}),
+  });
+
+  if (!hit.matched) {
+    // `reject` is a STATED refusal the bank chose, and it is what lets one row carry a
+    // condition the rest of the table does not: a band whose only rows name a homeowner
+    // refuses a renter IN THAT BAND and prices them in every other one.
+    return hit.action === 'reject'
+      ? { kind: 'refused', missingFactKeys: hit.missingFactKeys }
+      : { kind: 'fallback' };
+  }
+
+  // The same window the scalar is held to. A share outside (0, 100] is not a share, and a
+  // table that states one is not a table to guess from — hand it back to the scalar rather
+  // than capping at a figure nobody wrote.
+  if (hit.value.lessThanOrEqualTo(0) || hit.value.greaterThan(ONE_HUNDRED)) {
+    return { kind: 'fallback' };
+  }
+  return { kind: 'percent', value: hit.value };
+}
+
+/** The share applied to a price, rounded to the piastre like every other money figure. */
+export function ltvAmountFor(percent: Decimal, carDetails: CarDetails | undefined): Decimal | null {
   const price = carDetails?.carValueEGP;
   if (price === undefined || !price.isFinite() || price.lessThanOrEqualTo(0)) return null;
   return price.mul(percent).div(ONE_HUNDRED).toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);

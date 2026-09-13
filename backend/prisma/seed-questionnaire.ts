@@ -322,6 +322,37 @@ const CAR_ORIGIN_Q: SeedQuestion = {
 };
 
 /**
+ * What the car runs on.
+ *
+ * Its OWN question and not an option on `car_origin` above: that one asks where the car was
+ * BUILT, and a list mixing eleven countries with a drivetrain is one question answering two
+ * things — an applicant with a Chinese electric car could only pick one of the two facts a
+ * bank's table reads.
+ *
+ * OPTIONAL, like the three car questions around it and for the reason they state: the `car`
+ * loan type also sells the two Green Finance programmes — a solar install and an e-bike — and
+ * a required fuel question would refuse a solar applicant over a question about an engine.
+ * A bank that prices an electric car differently states a wildcard row beside its named ones,
+ * so an applicant who skips this is still priced rather than refused.
+ *
+ * Option codes are STATED, not slugged from the labels: they are the keys a bank's grid is
+ * written against, and a reworded label must never move a column.
+ */
+const CAR_FUEL_TYPE_Q: SeedQuestion = {
+  code: 'car_fuel_type',
+  isRequired: false,
+  questionEn: 'What does the car run on?',
+  questionAr: 'ما نوع وقود السيارة؟',
+  helperTextEn: 'Some banks price an electric or hybrid car differently.',
+  helperTextAr: 'بعض البنوك تسعّر السيارات الكهربائية أو الهجينة بشكل مختلف.',
+  options: [
+    { code: 'petrol_diesel', labelEn: 'Petrol or diesel', labelAr: 'بنزين أو ديزل' },
+    { code: 'hybrid', labelEn: 'Hybrid', labelAr: 'هجينة' },
+    { code: 'electric', labelEn: 'Fully electric', labelAr: 'كهربائية بالكامل' },
+  ],
+};
+
+/**
  * The model year, as a NUMBER.
  *
  * It replaces `model_year`, which asked the same thing in buckets — "this year's model", "up
@@ -1535,6 +1566,7 @@ const CAR: CategoryConfig = {
         // bank's table, which prints "from model 2015". Nothing read it.
         CAR_MODEL_YEAR_Q,
         CAR_ORIGIN_Q,
+        CAR_FUEL_TYPE_Q,
         CAR_PRICE_Q,
         // The Green Finance pair rides the car flow: a solar loan and an e-bike loan are both
         // sold under `car`, and both are quoted off what the applicant has saved.
@@ -2169,6 +2201,12 @@ async function upsertCarFacts(): Promise<void> {
     // Already asked of every car applicant and answered by live applications; bound here so a
     // bank can state a row against `new` / `used` without a new question.
     { key: 'vehicle_condition', labelEn: 'New or used', labelAr: 'جديدة أم مستعملة', sortOrder: 125 },
+    {
+      key: 'car_fuel_type',
+      labelEn: 'What the car runs on',
+      labelAr: 'نوع وقود السيارة',
+      sortOrder: 126,
+    },
   ] as const;
 
   for (const fact of facts) {

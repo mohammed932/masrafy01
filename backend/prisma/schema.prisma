@@ -325,6 +325,21 @@ model BankProgram {
   incomeAssumption    Json
   fees                Json
 
+  /// Whose PLAN tables this program prices, lends and finances by: its own, or the
+  /// surrogate product's (`platform_enumeration.planDefaults`).
+  ///
+  /// ABSENT READS AS `'own'`, and that is the whole reason this field exists rather than
+  /// letting a blank grid mean "inherit". `tenor.maxMonthsByFact` is optional today and a
+  /// blank one ALREADY means something — its own docstring says so: "a blank grid there is
+  /// a stated 'this bank does not cap by that', not 'nobody has said yet'". Overloading it
+  /// would mean the first product table an operator types silently hands every program
+  /// under it a ceiling it never had.
+  ///
+  /// The sibling of `incomeAssumption.amounts`, and read the same way: it does not describe
+  /// the tables, it selects whose apply. A stated grid on the program still wins slot by
+  /// slot, so "took the product's plans and typed my own rate" is expressible.
+  plansSource         String?  @db.VarChar(16)
+
   /// Feature 011 — sparse map of config dot-path → 'team_estimated'
   /// (`{"pricing.baseRatePercent": "team_estimated"}`).
   ///
@@ -882,6 +897,28 @@ model PlatformEnumeration {
   /// NULL = this product states no duration, and every bank program under it must state
   /// its own. That is the state every product ships in.
   tenorDefaults       Json?
+  /// `surrogate_product` only — the PLAN tables every bank program selling this product
+  /// falls back to, shape
+  /// `{ rateByFact?, minMonthsByFact?, maxMonthsByFact?, ltvCeilingByFact?, minAmountByFact? }`,
+  /// each one a `FactGridConfig` keyed by the share the applicant puts down.
+  ///
+  /// INHERITED, like `tenorDefaults` one field up and unlike `capDefaults` two up — but
+  /// only by a program that has SAID SO (`bank_program.plansSource = 'product'`). The
+  /// duration could be inherited by absence because both months were required until
+  /// v29.1.0, so "states neither" was unreachable and free to redefine; a blank grid is
+  /// reachable today and already means "this bank does not price by that".
+  ///
+  /// That selector is also what makes this column safe to hang on the product at all.
+  /// `down_payment_income` is sold under TWO catalog names — the down-payment programmes
+  /// and Green Finance, which finances a solar install and an e-bike. A car-price financed
+  /// share reaching every program by default would reach those two; under a selector they
+  /// never opt in.
+  ///
+  /// The five slots are INDEPENDENTLY optional, unlike `tenorDefaults`' both-or-neither:
+  /// those two months are one range, these are five separate statements.
+  ///
+  /// NULL is the state every product ships in.
+  planDefaults        Json?
   /// `surrogate_product` and `program_name` — estimated-value markers for the
   /// figures in `incomeRule`,
   /// the same sparse map `bank_program.valueSources` carries and with the same

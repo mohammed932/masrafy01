@@ -67,6 +67,24 @@ const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
 ];
 
 /**
+ * What to call one axis of a grid.
+ *
+ * Exported because a CLOSED grid still has to be describable: the product screen folds its
+ * five plan tables and states what each one holds, and a caller reading the registry alone
+ * would silently drop BOTH derived axes — including the deposit, which is the axis every one
+ * of those tables is keyed by first. A second copy of these two labels in the caller is the
+ * drift this list was collapsed into one place to prevent.
+ *
+ * An axis with no fact picked yet, or one naming a fact this session cannot resolve, answers
+ * the empty string: it names nothing, and a raw slug is worse than saying nothing at all.
+ */
+export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): string {
+  const derived = DERIVED_AXES.find((axis) => axis.key === key);
+  if (derived !== undefined) return derived.label;
+  return facts.find((fact) => fact.key === key)?.label ?? '';
+}
+
+/**
  * A table this bank prices — or shortens a term — by, keyed on up to four of its applicants'
  * own answers.
  *
@@ -111,53 +129,59 @@ const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
            column order below, so an operator lays the table out the way their sheet reads. -->
       <section class="fgd__axes">
         <h4 class="fgd__micro" i18n="@@fact_grid.axes">What this table is keyed by</h4>
-        @for (axis of config().axes; track $index) {
-          <div class="fgd__axis">
-            <nz-select
-              class="fgd__fact"
-              [ngModel]="axis.factKey"
-              (ngModelChange)="setAxisFact($index, $event)"
-              nzShowSearch
-              [nzPlaceHolder]="axisPlaceholder"
-            >
-              @for (fact of axisChoices(); track fact.key) {
-                <nz-option [nzValue]="fact.key" [nzLabel]="fact.label"></nz-option>
+        <!-- ONE wrapping row, not a column of one select each. These ARE the table's
+             columns and they read left to right below, so stacked they described a
+             left-to-right thing top to bottom — three 32px selects and three detached
+             bins, ~200px of chrome before the first figure. -->
+        <div class="fgd__axis-list">
+          @for (axis of config().axes; track $index) {
+            <div class="fgd__axis">
+              <nz-select
+                class="fgd__fact"
+                [ngModel]="axis.factKey"
+                (ngModelChange)="setAxisFact($index, $event)"
+                nzShowSearch
+                [nzPlaceHolder]="axisPlaceholder"
+              >
+                @for (fact of axisChoices(); track fact.key) {
+                  <nz-option [nzValue]="fact.key" [nzLabel]="fact.label"></nz-option>
+                }
+              </nz-select>
+              @if (axisHasClasses($index)) {
+                <nz-radio-group
+                  [ngModel]="axis.via ?? 'answer'"
+                  (ngModelChange)="setAxisVia($index, $event)"
+                  nzSize="small"
+                >
+                  <label nz-radio-button nzValue="answer" i18n="@@fact_grid.via_answer">
+                    The answer
+                  </label>
+                  <label nz-radio-button nzValue="parentClass" i18n="@@fact_grid.via_class">
+                    Its class
+                  </label>
+                </nz-radio-group>
               }
-            </nz-select>
-            @if (axisHasClasses($index)) {
-              <nz-radio-group
-                [ngModel]="axis.via ?? 'answer'"
-                (ngModelChange)="setAxisVia($index, $event)"
-                nzSize="small"
-              >
-                <label nz-radio-button nzValue="answer" i18n="@@fact_grid.via_answer">
-                  The answer
-                </label>
-                <label nz-radio-button nzValue="parentClass" i18n="@@fact_grid.via_class">
-                  Its class
-                </label>
-              </nz-radio-group>
-            }
-            @if (config().axes.length > 1) {
-              <button
-                nz-button
-                nzType="text"
-                nzSize="small"
-                type="button"
-                [attr.aria-label]="removeAxisAria"
-                (click)="removeAxis($index)"
-              >
-                <span nz-icon nzType="delete"></span>
-              </button>
-            }
-          </div>
-        }
-        @if (config().axes.length < maxAxes) {
-          <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addAxis()">
-            <span nz-icon nzType="plus"></span>
-            <span i18n="@@fact_grid.add_axis">Add another axis</span>
-          </button>
-        }
+              @if (config().axes.length > 1) {
+                <button
+                  nz-button
+                  nzType="text"
+                  nzSize="small"
+                  type="button"
+                  [attr.aria-label]="removeAxisAria"
+                  (click)="removeAxis($index)"
+                >
+                  <span nz-icon nzType="delete"></span>
+                </button>
+              }
+            </div>
+          }
+          @if (config().axes.length < maxAxes) {
+            <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addAxis()">
+              <span nz-icon nzType="plus"></span>
+              <span i18n="@@fact_grid.add_axis">Add another axis</span>
+            </button>
+          }
+        </div>
       </section>
 
       <!-- ② THE CELLS. One row per combination the bank's card prints. A box left blank is
@@ -170,18 +194,30 @@ const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
                 <th>{{ factLabel(axis.factKey) }}</th>
               }
               <th class="fgd__value-head">
-                @if (valueKind() === 'months') {
-                  <span i18n="@@fact_grid.value_months">Longest term (months)</span>
-                } @else {
-                  <span i18n="@@fact_grid.value_rate">Rate %</span>
+                @switch (valueKind()) {
+                  @case ('months') {
+                    <span i18n="@@fact_grid.value_months">Longest term (months)</span>
+                  }
+                  @case ('sharePercent') {
+                    <span i18n="@@fact_grid.value_share">Financed share %</span>
+                  }
+                  @case ('amountEGP') {
+                    <span i18n="@@fact_grid.value_amount">Smallest loan (EGP)</span>
+                  }
+                  @default {
+                    <span i18n="@@fact_grid.value_rate">Rate %</span>
+                  }
                 }
               </th>
-              <th></th>
+              <!-- Deliberately unnamed: the column holds one Remove button per row and each
+                   carries its own label naming the row it deletes, so a heading here would be
+                   announced before every one of them and add nothing. -->
+              <th class="fgd__act-head"></th>
             </tr>
           </thead>
           <tbody>
             @for (cell of config().cells; track $index; let cellIndex = $index) {
-              <tr>
+              <tr [class.is-group-start]="startsGroup(cellIndex)">
                 @for (axis of config().axes; track $index; let axisIndex = $index) {
                   <td>
                     @if (isChoiceAxis(axisIndex)) {
@@ -220,7 +256,7 @@ const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
                     }
                   </td>
                 }
-                <td>
+                <td class="fgd__value-cell">
                   <input
                     nz-input
                     class="fgd__value"
@@ -268,25 +304,51 @@ const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
           nzSize="small"
         >
           <label nz-radio nzValue="reject">
-            @if (valueKind() === 'months') {
-              <span i18n="@@fact_grid.reject_months">
-                This bank does not finance them — say so, with a reason
-              </span>
-            } @else {
-              <span i18n="@@fact_grid.reject_rate">
-                This bank quotes them no price — say so, with a reason
-              </span>
+            @switch (valueKind()) {
+              @case ('months') {
+                <span i18n="@@fact_grid.reject_months">
+                  This bank does not finance them — say so, with a reason
+                </span>
+              }
+              @case ('sharePercent') {
+                <span i18n="@@fact_grid.reject_share">
+                  This bank finances no part of the price for them — say so, with a reason
+                </span>
+              }
+              @case ('amountEGP') {
+                <span i18n="@@fact_grid.reject_amount">
+                  This bank writes no loan for them — say so, with a reason
+                </span>
+              }
+              @default {
+                <span i18n="@@fact_grid.reject_rate">
+                  This bank quotes them no price — say so, with a reason
+                </span>
+              }
             }
           </label>
           <label nz-radio nzValue="useFallback">
-            @if (valueKind() === 'months') {
-              <span i18n="@@fact_grid.fallback_months">
-                Fall back to this program’s own longest term
-              </span>
-            } @else {
-              <span i18n="@@fact_grid.fallback_rate">
-                Fall back to this program’s other rate settings
-              </span>
+            @switch (valueKind()) {
+              @case ('months') {
+                <span i18n="@@fact_grid.fallback_months">
+                  Fall back to this program’s own longest term
+                </span>
+              }
+              @case ('sharePercent') {
+                <span i18n="@@fact_grid.fallback_share">
+                  Fall back to this program’s own financed share
+                </span>
+              }
+              @case ('amountEGP') {
+                <span i18n="@@fact_grid.fallback_amount">
+                  Fall back to this program’s own smallest loan
+                </span>
+              }
+              @default {
+                <span i18n="@@fact_grid.fallback_rate">
+                  Fall back to this program’s other rate settings
+                </span>
+              }
             }
           </label>
         </nz-radio-group>
@@ -324,18 +386,25 @@ const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
         color: var(--color-text-secondary);
       }
       .fgd__axes {
-        display: grid;
-        gap: var(--space-2);
-        justify-items: start;
+        display: block;
+      }
+      /* The axes ARE the columns below, so they lay out the way the columns do. Stacked,
+         three of them cost ~200px of chrome above the first figure and put three detached
+         bins in a column of their own. */
+      .fgd__axis-list {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
       }
       .fgd__axis {
         display: flex;
         align-items: center;
-        gap: var(--space-2);
+        gap: var(--space-1);
         flex-wrap: wrap;
       }
       .fgd__fact {
-        min-width: 15rem;
+        min-width: 13rem;
       }
       /* The table scrolls in ITS OWN box. Four axes of band edges is ~70rem, and without
          this the PAGE scrolls sideways — which the house measures at 0 on every screen, and
@@ -350,14 +419,44 @@ const DERIVED_AXES: ReadonlyArray<{ key: string; label: string }> = [
       .fgd__table th,
       .fgd__table td {
         padding: var(--space-2);
-        border-block-end: 1px solid var(--color-border-default);
         text-align: start;
         vertical-align: middle;
       }
-      .fgd__table th {
+      /* A rule under every row draws twenty lines through a table whose rows come in five
+         groups of four — the deposit band repeats down the first column and the eye has to
+         count to find where one band ends. So the row divider goes SUBTLE and the boundary
+         between one first-axis value and the next carries the strong one: five blocks,
+         readable without reading a single figure.
+
+         Derived from the cells themselves and never stored: a table somebody has left out
+         of order shows as fragmented groups, which is the truth about it. */
+      .fgd__table tbody td {
+        border-block-end: 1px solid var(--border-subtle);
+      }
+      .fgd__table tbody tr.is-group-start:not(:first-child) td {
+        border-block-start: 1px solid var(--color-border-default);
+      }
+      .fgd__table thead th {
+        padding-block-end: var(--space-2);
+        border-block-end: 1px solid var(--color-border-default);
         font-size: var(--text-xs);
         font-weight: var(--font-semibold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
         color: var(--color-text-secondary);
+      }
+      /* Its figures are end-aligned and tabular, so the heading follows them — and the
+         column shrinks to the input so "end" lands on the input's own edge rather than at
+         the far side of a column stretched by the axes beside it. Specificity has to beat
+         the .fgd__table th rule, which sets start on every heading. */
+      .fgd__table th.fgd__value-head,
+      .fgd__table td.fgd__value-cell {
+        inline-size: 1%;
+        white-space: nowrap;
+        text-align: end;
+      }
+      .fgd__act-head {
+        inline-size: 1%;
       }
       .fgd__key {
         min-width: 11rem;
@@ -482,13 +581,39 @@ export class FactGridEditorComponent {
 
   valueAria(cellIndex: number): string {
     const row = cellIndex + 1;
-    return this.valueKind() === 'months'
-      ? $localize`:@@fact_grid.value_months_aria:Row ${row}:row:, longest term in months`
-      : $localize`:@@fact_grid.value_rate_aria:Row ${row}:row:, rate percent`;
+    switch (this.valueKind()) {
+      case 'months':
+        return $localize`:@@fact_grid.value_months_aria:Row ${row}:row:, longest term in months`;
+      case 'sharePercent':
+        return $localize`:@@fact_grid.value_share_aria:Row ${row}:row:, financed share percent`;
+      case 'amountEGP':
+        return $localize`:@@fact_grid.value_amount_aria:Row ${row}:row:, smallest loan in pounds`;
+      default:
+        return $localize`:@@fact_grid.value_rate_aria:Row ${row}:row:, rate percent`;
+    }
   }
 
   factLabel(key: string): string {
     return this.axisChoices().find((f) => f.key === key)?.label ?? key;
+  }
+
+  /**
+   * Whether this row opens a new block — its FIRST axis states something different from the
+   * row above it.
+   *
+   * The rate card this control was built for prints twenty rows over five deposit bands, so
+   * the first column repeats itself four times running and a rule under every row gives the
+   * eye nothing to count by. The strong divider moves to the boundary, and the table reads
+   * as the five plans it is.
+   *
+   * Derived, never stored, and never a sort: a table left out of order shows as fragmented
+   * blocks, which is the truth about it and is the one thing re-ordering here would hide.
+   */
+  startsGroup(cellIndex: number): boolean {
+    if (cellIndex === 0) return true;
+    const cells = this.config().cells;
+    const key = (i: number): string => JSON.stringify(cells[i]?.keys[0] ?? null);
+    return key(cellIndex) !== key(cellIndex - 1);
   }
 
   private isDerivedAxis(key: string | undefined): boolean {
@@ -626,9 +751,16 @@ export class FactGridEditorComponent {
       case 'CELL_KEY_INVALID':
         return $localize`:@@fact_grid.err_key:A range needs at least one of its two numbers.`;
       case 'CELL_VALUE_INVALID':
-        return this.valueKind() === 'months'
-          ? $localize`:@@fact_grid.err_months:Every row needs a whole number of months, above zero and up to 480.`
-          : $localize`:@@fact_grid.err_rate:Every row needs a rate above zero.`;
+        switch (this.valueKind()) {
+          case 'months':
+            return $localize`:@@fact_grid.err_months:Every row needs a whole number of months, above zero and up to 480.`;
+          case 'sharePercent':
+            return $localize`:@@fact_grid.err_share:Every row needs a share above zero and at most 100.`;
+          case 'amountEGP':
+            return $localize`:@@fact_grid.err_amount:Every row needs an amount above zero.`;
+          default:
+            return $localize`:@@fact_grid.err_rate:Every row needs a rate above zero.`;
+        }
     }
   }
 

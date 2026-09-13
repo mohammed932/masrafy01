@@ -68,7 +68,7 @@ const CASES: readonly Case[] = [
   // ---- the two self-employed conditions, on every SCB auto programme and CAE compound ----
   {
     what: 'a business under two years',
-    programCode: 'SCB-CAR-DP60',
+    programCode: 'SCB-CAR-DOWN_PAYMENT',
     change: { business_months: pick('under_12m') },
     expectGate: 'BUSINESS_TOO_NEW',
   },
@@ -80,7 +80,7 @@ const CASES: readonly Case[] = [
   },
   {
     what: 'a self-employed applicant who is not self-employed — the EXEMPTION',
-    programCode: 'SCB-CAR-DP60',
+    programCode: 'SCB-CAR-DOWN_PAYMENT',
     change: {
       business_months: pick('not_self_employed'),
       self_employed_licence: pick('not_self_employed'),
@@ -89,7 +89,7 @@ const CASES: readonly Case[] = [
   },
   {
     what: 'missing papers',
-    programCode: 'SCB-CAR-DP60',
+    programCode: 'SCB-CAR-DOWN_PAYMENT',
     change: { self_employed_licence: pick('no') },
     expectGate: 'SELF_EMPLOYED_DOCS_MISSING',
   },
@@ -106,19 +106,18 @@ const CASES: readonly Case[] = [
     change: { hospital_sector: pick('not_at_a_hospital') },
     expectGate: null,
   },
-  // ---- the 20% tier's home-ownership condition, and its four siblings that lack it ----
-  {
-    what: 'a renter on the 20% tier',
-    programCode: 'SCB-CAR-DP20',
-    change: { home_ownership: pick('rented_or_other') },
-    expectGate: 'OWNERSHIP_NOT_CONFIRMED',
-  },
-  {
-    what: 'the same renter on the 30% tier, which states no such condition',
-    programCode: 'SCB-CAR-DP30',
-    change: { home_ownership: pick('rented_or_other') },
-    expectGate: null,
-  },
+  // ---- the 20% tier's home-ownership rule, which is no longer a GATE ----
+  //
+  // It was `cond__homeowned` on `SCB-CAR-DP20` while the five tiers were five programmes, and
+  // this pair proved it fired there and on no sibling. Merged into one programme a gate could
+  // not do that job — a condition applies per PROGRAMME and not per deposit, so switched on it
+  // would refuse a renter putting 60% down, whom this bank accepts.
+  //
+  // The rule moved onto the axis it was always about: the product's financed-share table
+  // states rows for an owner and a relative's home in the 20-30% band and none for a renter,
+  // so the refusal binds in that band alone. That is not a gate and this harness cannot see
+  // it — `npm run quote:car-plans` carries the replacement pair (a renter refused at 25% down,
+  // the same renter priced at 65%) and it is the one that must be read beside this file.
   // ---- Green Finance's compound condition ----
   {
     what: 'a Green applicant with no approved compound',
@@ -127,8 +126,8 @@ const CASES: readonly Case[] = [
     expectGate: 'GATE_NOT_MET',
   },
   {
-    what: 'the same answer on a down-payment tier, which states no such condition',
-    programCode: 'SCB-CAR-DP40',
+    what: 'the same answer on the down-payment programme, which states no such condition',
+    programCode: 'SCB-CAR-DOWN_PAYMENT',
     change: { unit_approved_compound: pick('no') },
     expectGate: null,
   },

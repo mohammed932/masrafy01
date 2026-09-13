@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { DecimalRange } from '../../../common/decorators/decimal-range.decorator';
@@ -20,6 +21,7 @@ import {
   MAX_LOAN_ADJUSTMENT_KINDS,
   type MaxLoanAdjustmentKind,
 } from '../../../matching/pipeline/max-loan-adjustments';
+import { FactGridDto } from './fact-grid.dto';
 
 /** Fact keys become dot-path segments in stored config, so keep them boring. */
 const FACT_KEY = /^[a-z0-9][a-z0-9_]{0,60}$/;
@@ -203,6 +205,33 @@ export class LoanLimitsConfigDto {
   @IsOptional()
   @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })
   ltvCeilingPercent?: string;
+
+  /**
+   * The financed share stated against the applicant's own answers — the deposit they put
+   * down, and who owns the home they live in.
+   *
+   * Read FIRST by `ltv-ceiling.ts`, with `ltvCeilingPercent` above as the fallback, and the
+   * scalar is kept beside it deliberately: an absent scalar is NOT a conservative cap, it is
+   * no cap at all, so a build that cannot read a grid must still find a number.
+   *
+   * `@ValidateIf`, not `@IsOptional()`: that one skips `null` as well as absent, so
+   * `ltvCeilingByFact: null` would slip the pipe and the service would read `.axes` off it
+   * and throw an untyped 500. Same defect and same fix as `rateByFact`.
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  ltvCeilingByFact?: FactGridDto;
+
+  /**
+   * The program's FLOOR stated per answer, composed by `max` against `minAmountEGP` so it
+   * only ever raises it. `onNoMatch: 'useFallback'` means the program's own minimum applies,
+   * which is what every program without one does today.
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  minAmountByFact?: FactGridDto;
 
   /** Minimum down-payment percent (feature 008). Auto + mortgage programs. */
   @IsOptional()

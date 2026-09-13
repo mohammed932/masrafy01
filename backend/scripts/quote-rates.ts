@@ -33,6 +33,7 @@ import {
   type CatalogRuleResolution,
   type LinkedProduct,
 } from '../src/matching/pipeline/income-rule-inherit';
+import { asTenorDefaults } from '../src/matching/pipeline/tenor-inherit';
 import { toBankProgramSnapshot, type BankProgramRow } from '../src/bank-programs/bank-program-snapshot.mapper';
 import { runCascade } from '../src/matching/pipeline/cascade-adapter';
 import { quoteProgram } from '../src/matching/pipeline/quote';
@@ -164,6 +165,13 @@ async function main(): Promise<void> {
       type: true,
       key: true,
       incomeRule: true,
+      // The DURATION a product hands down. Selected here for the same reason
+      // `quote-surrogate-programmes.ts` selects it: without it `effectiveTenor` sees no
+      // default, and every programme that states no months of its own reaches `quoteProgram`
+      // with no term at all and reports `PROGRAM_MISCONFIGURED` — which is not the production
+      // read path, and would make this harness lie about exactly the rows a tenor change
+      // touches.
+      tenorDefaults: true,
       surrogateProductKey: true,
       active: true,
       deprecatedAt: true,
@@ -178,6 +186,7 @@ async function main(): Promise<void> {
       active: row.active,
       deprecatedAt: row.deprecatedAt,
       rule: asRule(row.incomeRule),
+      tenorDefaults: asTenorDefaults(row.tenorDefaults),
     });
   }
   const catalog = new Map<string, CatalogRuleResolution>();

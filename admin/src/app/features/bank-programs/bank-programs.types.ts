@@ -40,6 +40,8 @@ export interface TenorConfig {
   maxMonthsByEmploymentType?: Record<string, number>;
   /** The vehicle term ceiling, mirroring the backend — authored by the same editor. */
   maxMonthsByFact?: FactGridConfig;
+  /** The term floor against the same answers. Composed by `max`, so it only raises. */
+  minMonthsByFact?: FactGridConfig;
 }
 
 export interface LoanLimitsConfig {
@@ -51,6 +53,10 @@ export interface LoanLimitsConfig {
   maxByEmploymentType?: Record<string, string>;
   maxTopUpEGP?: string;
   ltvCeilingPercent?: string;
+  /** The financed share keyed by the applicant's answers. Read before the scalar above. */
+  ltvCeilingByFact?: FactGridConfig;
+  /** The program's floor keyed by the same answers. Composed by `max`, so it only raises. */
+  minAmountByFact?: FactGridConfig;
   minDownPaymentPercent?: string;
   qualitativeReviewMaxEGP?: string;
   otherCitiesMaxEGP?: string;
@@ -950,7 +956,35 @@ export interface ProgramUnderName {
    * nothing about how long it lends for, and both directions occur.
    */
   ownTenor: boolean;
+  /**
+   * True when this program reads the product's PLAN tables rather than its own.
+   *
+   * The INVERSE of `ownTenor` above, deliberately: a duration is inherited by stating
+   * nothing, and plans are inherited by saying so.
+   */
+  followsPlans: boolean;
 }
+
+/**
+ * The PLAN tables a surrogate product hands the programs that opted in.
+ *
+ * Five independently optional grids, all keyed by the share the applicant puts down: the
+ * rate, the two ends of the term, the financed share and the floor. One plan is a row across
+ * them — "20% down, 10%, 6-60 months, we finance 80%, not under a million".
+ */
+export interface PlanDefaults {
+  rateByFact?: FactGridConfig;
+  minMonthsByFact?: FactGridConfig;
+  maxMonthsByFact?: FactGridConfig;
+  ltvCeilingByFact?: FactGridConfig;
+  minAmountByFact?: FactGridConfig;
+}
+
+/**
+ * Whose plan tables a program reads. ABSENT READS AS `'own'` — every program written before
+ * the field existed carries its own figures, so absence must change nothing.
+ */
+export type PlansSource = 'product' | 'own';
 
 export interface ProgramNameIncomeRule {
   programNameKey: string;
@@ -999,6 +1033,8 @@ export interface ProgramNameIncomeRule {
      * duration is a live statement that this bank lends over the product's months.
      */
     tenorDefaults: TenorDefaults | null;
+    /** The product's default PLAN tables, or `null` when it states none. */
+    planDefaults: PlanDefaults | null;
   } | null;
 }
 
@@ -1243,6 +1279,8 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
    * clearing it is refused while any does (`SURROGATE_PRODUCT_TENOR_IN_USE`).
    */
   tenorDefaults: TenorDefaults | null;
+  /** The default PLAN tables every program that opted in reads. */
+  planDefaults: PlanDefaults | null;
   /** The form it was compiled from, or `null` when it was authored by hand. */
   template: ProductTemplate | null;
   valueSources: ValueSourceMap;
@@ -1516,6 +1554,8 @@ export interface BankProgramCreatePayload {
   programType: ProgramType;
   productCategory: string;
   isShariaCompliant?: boolean;
+  /** Whose plan tables this program reads. Omit for this bank's own. */
+  plansSource?: PlansSource;
   operatorNotes?: string;
   operatorTips?: string[];
   requiredDocuments?: string[];
@@ -1558,6 +1598,8 @@ export interface BankProgramResponse {
   productCategory: string;
   active: boolean;
   isShariaCompliant: boolean;
+  /** Whose plan tables this program reads. Absent reads as `'own'`. */
+  plansSource?: PlansSource | null;
   version: number;
   operatorNotes?: string | null;
   operatorTips: string[];

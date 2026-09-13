@@ -158,6 +158,11 @@ export class InMemoryPlatformEnumerationsRepository
     throw new Error('in-memory enumeration registry is read-only');
   }
 
+  /** Read-only stub, exactly as the three writes above. */
+  async setSurrogateProductPlanDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
   /**
    * Empty, not a throw, for the same reason `programFigureKeysUnderProduct` below is: it
    * backs a REFUSAL, and "no program is reading this product's duration" is the true answer

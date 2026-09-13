@@ -21,6 +21,7 @@ import type {
   SurrogateProductDetail,
   SurrogateProductSummary,
   TenorDefaults,
+  PlanDefaults,
   SurrogateProductTemplateResponse,
   ProductBlueprint,
   ValueSourceMap,
@@ -372,6 +373,29 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/tenor-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The PLAN tables every bank program that opted in falls back to — the rate, the two ends
+   * of the term, the financed share and the floor, each keyed by the deposit the applicant
+   * puts down.
+   *
+   * INHERITED, but only by a program whose `plansSource` is `product`: a blank grid on a
+   * program already means "this bank does not price by that", so absence is never read as
+   * consent. `plans: null` clears them, and unlike the duration above that is NOT refused —
+   * a cleared table leaves each program on its own rate, floor and share, all of which still
+   * exist, so nothing stops quoting.
+   */
+  async setSurrogateProductPlanDefaults(
+    key: string,
+    payload: { plans: PlanDefaults | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/plan-defaults`,
         payload,
       ),
     );

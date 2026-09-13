@@ -82,6 +82,20 @@ export interface CatalogFigureSet {
    * only when the stored pair differs.
    */
   tenorDefaults?: { minMonths: number; maxMonths: number };
+  /**
+   * The PLAN tables every bank program selling this product falls back to — the rate, the
+   * longest term, the financed share and the floor, each keyed by the share the applicant
+   * puts down.
+   *
+   * INHERITED like `tenorDefaults` above, but only by a program that has SAID SO
+   * (`plansSource: 'product'`). A blank grid on a program already means "this bank does not
+   * price by that", so inheriting by absence would hand every program under this product a
+   * table it never chose.
+   *
+   * Written independently of the figures plan below, and idempotent: it writes only when the
+   * stored blob differs.
+   */
+  planDefaults?: Record<string, unknown>;
   /** Rooted at `incomeRule.`, exactly as the catalog write expects them. */
   estimated?: EstimatedPaths;
 }
@@ -188,6 +202,114 @@ export const ABK_PRACTICE_EDGES = [
  * of its own option list renders "N keys have no row" on the editor, and an applicant whose key
  * is missing is answered `no_matching_row`, which stops the rule.
  */
+/** A half-open deposit band, as a grid key. `null` on the upper edge means "and above". */
+function dpBand(
+  from: string,
+  to: string | null,
+): { fromInclusive: string; toExclusive: string | null } {
+  return { fromInclusive: from, toExclusive: to };
+}
+
+/**
+ * Suez Canal Bank's auto card, as the five plan tables the one merged programme reads.
+ *
+ * The DEPOSIT is the axis every one of them keys on, which is what makes them one card
+ * rather than four unrelated tables: a row says "put this much down and here is the rate, the
+ * term, the share we finance and the floor".
+ *
+ * EVERY RATE HERE IS AN ILLUSTRATION. No Suez Canal slide publishes a profit rate — the
+ * programme's own `baseRatePercent` has been a stated placeholder since the sheet was loaded
+ * — so every cell below is marked `team_estimated` and the activation gate reads it.
+ *
+ * ─── The rate grid's three axes, and the order they resolve in ────────────────
+ *
+ * Deposit, then where the car was built, then what it runs on. A cell naming the ORIGIN
+ * outranks one naming the FUEL (`specificity` weights axis 0 highest and counts down), so a
+ * Chinese electric car is priced by the Chinese row. That is a stated order, not an accident,
+ * and it is the conservative one: the origin premium is the larger adjustment.
+ *
+ * The bare `[band, null, null]` row is what prices everybody the two named rows do not reach
+ * — including an applicant who skipped the optional origin or fuel question. Without it those
+ * applicants would fall to `onNoMatch` and be refused for not answering something optional.
+ */
+const SCB_AUTO_PLANS: Record<string, unknown> = {
+  rateByFact: {
+    axes: [
+      { factKey: 'car_down_payment_percent' },
+      { factKey: 'car_origin' },
+      { factKey: 'car_fuel_type' },
+    ],
+    cells: [
+      [dpBand('20', '30'), '10', '12', '9'],
+      [dpBand('30', '40'), '9', '11', '8'],
+      [dpBand('40', '50'), '8', '10', '7'],
+      [dpBand('50', '60'), '7', '9', '6'],
+      [dpBand('60', null), '6', '8', '5'],
+    ].flatMap(([band, base, china, green]) => [
+      { keys: [band, null, null], value: base },
+      { keys: [band, { key: 'china' }, null], value: china },
+      { keys: [band, null, { key: 'electric' }], value: green },
+      { keys: [band, null, { key: 'hybrid' }], value: green },
+    ]),
+    // A deposit below the lowest tier is a loan this bank does not write, and a rate is the
+    // one figure there is no safe fallback for.
+    onNoMatch: 'reject',
+  },
+
+  /**
+   * The share financed, and the ONE place the 20% tier's home-ownership rule now lives.
+   *
+   * It was a programme-wide gate (`cond__homeowned`) on the tier that carried it. Merged into
+   * one programme that gate would refuse a renter putting 60% down, whom this bank accepts —
+   * so the rule moves onto the axis it was always about: the 20–30% band states rows for an
+   * owner and for a relative's home and NONE for a renter, and `reject` therefore binds in
+   * that band alone. Every other band names no owner at all and prices everybody.
+   */
+  ltvCeilingByFact: {
+    axes: [{ factKey: 'car_down_payment_percent' }, { factKey: 'home_ownership' }],
+    cells: [
+      { keys: [dpBand('20', '30'), { key: 'owned_by_me' }], value: '80' },
+      { keys: [dpBand('20', '30'), { key: 'owned_by_relative' }], value: '80' },
+      { keys: [dpBand('30', '40'), null], value: '70' },
+      { keys: [dpBand('40', '50'), null], value: '60' },
+      { keys: [dpBand('50', '60'), null], value: '50' },
+      { keys: [dpBand('60', null), null], value: '40' },
+    ],
+    onNoMatch: 'reject',
+  },
+
+  /** App. §4.2 — 6–84 months across the card; the shortest tier is held to less. */
+  maxMonthsByFact: {
+    axes: [{ factKey: 'car_down_payment_percent' }],
+    cells: [
+      { keys: [dpBand('20', '30')], value: '60' },
+      { keys: [dpBand('30', '40')], value: '72' },
+      { keys: [dpBand('40', null)], value: '84' },
+    ],
+    // A term CEILING has a safe fallback and a rate does not: the programme's own 6–84 still
+    // applies, which is what every programme without a table does.
+    onNoMatch: 'useFallback',
+  },
+
+  /**
+   * App. §4.2 — the 20% tier alone starts at a million; the rest start at 100,000.
+   *
+   * Stated only where it DIFFERS. The floor composes by `max` against the programme's own, so
+   * a band that says nothing leaves the 100,000 standing — four identical rows would be four
+   * places to change one number.
+   */
+  minAmountByFact: {
+    axes: [{ factKey: 'car_down_payment_percent' }],
+    cells: [{ keys: [dpBand('20', '30')], value: '1000000' }],
+    onNoMatch: 'useFallback',
+  },
+
+  // `minMonthsByFact` is deliberately ABSENT. Every tier on this card starts at 6 months,
+  // which is already the product's own `tenorDefaults.minMonths` — a table stating 6 five
+  // times would add no information and would shadow the product's floor if it ever moved.
+  // The field exists for a bank whose card really does differ.
+};
+
 export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   {
     productKey: 'armed_forces_grades',
@@ -447,6 +569,7 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // nothing of their own and read this; `SCB-CAR-GREEN_POWER` lends to 120 and states its
     // own, which is the case the whole mechanism exists to get right.
     tenorDefaults: { minMonths: 6, maxMonths: 84 },
+    planDefaults: SCB_AUTO_PLANS,
     stepParams: {
       // The catalog default IS the published formula: `income = down payment ÷ 3.6`. One
       // bank sells it today and states the same figure on its own programmes, exactly as the

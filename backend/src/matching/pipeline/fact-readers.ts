@@ -177,6 +177,13 @@ export function factsReadByLoanLimits(raw: unknown): Set<string> {
     }
   }
 
+  // The two fact-keyed tables that also live on `loanLimits`: the financed share and the
+  // per-band floor. Reported here for the reason `factsReadByPricing` writes out below — an
+  // axis no reader names is invisible to the narrowing rule, the check script, the
+  // fact-delete guard and the untick guard at the same time.
+  for (const key of gridAxisKeys(raw.ltvCeilingByFact)) keys.add(key);
+  for (const key of gridAxisKeys(raw.minAmountByFact)) keys.add(key);
+
   return keys;
 }
 
@@ -198,10 +205,12 @@ export function factsReadByPricing(raw: unknown): Set<string> {
   return gridAxisKeys(raw.rateByFact);
 }
 
-/** Every fact key a bank program's TENOR ceiling reads. */
+/** Every fact key a bank program's TENOR ceiling and floor read. */
 export function factsReadByTenor(raw: unknown): Set<string> {
   if (!isRecord(raw)) return new Set<string>();
-  return gridAxisKeys(raw.maxMonthsByFact);
+  const keys = gridAxisKeys(raw.maxMonthsByFact);
+  for (const key of gridAxisKeys(raw.minMonthsByFact)) keys.add(key);
+  return keys;
 }
 
 /**

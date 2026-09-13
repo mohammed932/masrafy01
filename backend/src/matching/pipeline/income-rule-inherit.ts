@@ -47,6 +47,7 @@ import type { GateParams, ProductRule, StepParams } from './product-rule';
 import { allWaySlots, wayOwnedSlots, waysOfRule } from './product-rule-ways';
 import { SLOT } from './product-template';
 import type { TenorDefaults } from './tenor-inherit';
+import type { PlanDefaults } from './plan-inherit';
 
 /**
  * The figure-bearing keys. The legacy five are included because a catalog rule
@@ -206,6 +207,7 @@ export type CatalogRuleResolution =
        * program quote at all, so the gap has no reader.
        */
       readonly tenorDefaults?: TenorDefaults;
+      readonly planDefaults?: PlanDefaults;
     }
   | {
       readonly withheld: 'surrogate_product_retired';
@@ -221,6 +223,7 @@ export type CatalogRuleResolution =
        * surfaces disagree with the save path about what the program is set to.
        */
       readonly tenorDefaults?: TenorDefaults;
+      readonly planDefaults?: PlanDefaults;
     };
 
 /**
@@ -253,6 +256,8 @@ export interface LinkedProduct {
   readonly rule: IncomeAssumptionConfig | undefined;
   /** The default loan duration, when this product states one. */
   readonly tenorDefaults: TenorDefaults | undefined;
+  /** The default plan tables, when this product states any. */
+  readonly planDefaults?: PlanDefaults | undefined;
 }
 
 export function effectiveProgramNameRule(
@@ -262,16 +267,21 @@ export function effectiveProgramNameRule(
   if (product !== undefined) {
     const tenor =
       product.tenorDefaults === undefined ? {} : { tenorDefaults: product.tenorDefaults };
+    // Conditional spread so the key is ABSENT, never `undefined` — the shape `tenorDefaults`
+    // beside it already uses, and what keeps a resolution comparable by key.
+    const plans =
+      product.planDefaults === undefined ? {} : { planDefaults: product.planDefaults };
     if (!product.active || product.deprecatedAt !== null) {
       return {
         withheld: 'surrogate_product_retired',
         productKey: product.key,
         ...(product.rule !== undefined ? { rule: product.rule } : {}),
         ...tenor,
+        ...plans,
       };
     }
     if (product.rule !== undefined) {
-      return { rule: product.rule, productKey: product.key, ...tenor };
+      return { rule: product.rule, productKey: product.key, ...tenor, ...plans };
     }
   }
   const rule = own ?? undefined;
@@ -298,6 +308,18 @@ export function catalogTenorOf(
   resolution: CatalogRuleResolution | undefined,
 ): TenorDefaults | undefined {
   return resolution?.tenorDefaults;
+}
+
+/**
+ * The default plan tables a resolution holds, whether or not the rule is withheld.
+ *
+ * The sibling of `catalogTenorOf`, and the ONE way to read them, so no caller has to know
+ * that a switched-off product still carries them.
+ */
+export function catalogPlansOf(
+  resolution: CatalogRuleResolution | undefined,
+): PlanDefaults | undefined {
+  return resolution?.planDefaults;
 }
 
 /**

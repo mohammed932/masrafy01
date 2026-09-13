@@ -32,6 +32,8 @@ import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 import type { BlueprintCap } from '../blueprints/product-blueprint.types';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
 import { MaxLoanByFactRowDto } from './sub-configs/loan-limits-config.dto';
+import { FactGridDto } from './sub-configs/fact-grid.dto';
+import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
 
 /**
  * The maximum-loan GRID a surrogate product declares — the axes and the row and column
@@ -79,6 +81,14 @@ export interface ProgramUnderNameDto {
    * from, and a bank that types its own tables has said nothing about how long it lends for.
    */
   ownTenor: boolean;
+  /**
+   * True when this program reads the product's PLAN tables.
+   *
+   * The INVERSE of `ownTenor` beside it, and deliberately so: a duration is inherited by
+   * stating nothing, and plans are inherited by saying so. Naming both `own*` would hide
+   * that the two answer opposite questions.
+   */
+  followsPlans: boolean;
 }
 
 export class SetProgramNameIncomeRuleDto {
@@ -173,6 +183,8 @@ export interface ProgramNameIncomeRuleResponseDto {
      * months.
      */
     tenorDefaults: TenorDefaults | null;
+    /** The product's default PLAN tables, or `null` when it states none. */
+    planDefaults: PlanDefaults | null;
   } | null;
 }
 
@@ -243,6 +255,15 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
    * (`SURROGATE_PRODUCT_TENOR_IN_USE`).
    */
   tenorDefaults: TenorDefaults | null;
+  /**
+   * The default PLAN tables — the rate, the term ceiling, the financed share and the floor —
+   * every program that opted in reads (`bank_program.plansSource = 'product'`).
+   *
+   * INHERITED like the duration above, but only by a program that SAID SO: a blank grid on a
+   * program already means "this bank does not price by that", so inheriting by absence would
+   * hand every program under this product a table it never chose.
+   */
+  planDefaults: PlanDefaults | null;
   /**
    * The friendly form the calculation was compiled from, or `null` when it was authored
    * through the raw step editor.
@@ -393,6 +414,41 @@ export class SetSurrogateProductTenorDefaultsDto {
   @ValidateNested()
   @Type(() => SurrogateProductTenorDto)
   tenor!: SurrogateProductTenorDto | null;
+}
+
+/**
+ * The default PLAN tables a surrogate product hands the programs that opted in.
+ *
+ * Five INDEPENDENTLY optional grids, unlike the duration above's both-or-neither: those two
+ * months are one range, these are five separate statements, and a product stating a rate
+ * table and no floor has said one thing and declined to say another.
+ *
+ * The shallow shape is deliberate and matches `FactGridDto`'s own reasoning: the checks that
+ * matter — whether an axis names a fact the registry can serve, whether a cell's key is an
+ * option the bound question actually carries, and whether its figure is legal for that slot's
+ * value kind — are questions about the registry and the whole table, and they run at the
+ * service layer.
+ */
+export class SurrogateProductPlansDto {
+  @IsOptional() @ValidateNested() @Type(() => FactGridDto) rateByFact?: FactGridDto;
+  @IsOptional() @ValidateNested() @Type(() => FactGridDto) minMonthsByFact?: FactGridDto;
+  @IsOptional() @ValidateNested() @Type(() => FactGridDto) maxMonthsByFact?: FactGridDto;
+  @IsOptional() @ValidateNested() @Type(() => FactGridDto) ltvCeilingByFact?: FactGridDto;
+  @IsOptional() @ValidateNested() @Type(() => FactGridDto) minAmountByFact?: FactGridDto;
+}
+
+export class SetSurrogateProductPlanDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductPlansDto,
+    nullable: true,
+    description: 'Null clears the default plan tables.',
+  })
+  // `@ValidateIf` skipping only `null`, the mirror of the bank-side choice: here `null` IS
+  // meaningful — it is the clear — so it must reach the service rather than be refused.
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductPlansDto)
+  plans!: SurrogateProductPlansDto | null;
 }
 
 /**

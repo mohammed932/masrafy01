@@ -53,6 +53,11 @@ import {
 } from './platform-enumerations.repository';
 import type { EnumerationTypeDef } from '@prisma/client';
 import { asTenorDefaults, statesOwnTenor } from '@/matching/pipeline/tenor-inherit';
+import {
+  asPlanDefaults,
+  inheritsProductPlans,
+  type PlanDefaults,
+} from '@/matching/pipeline/plan-inherit';
 import type { StoredTenor, TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 
 /** Prisma row → the domain shape, keeping Prisma's type out of the service layer (A8). */
@@ -799,6 +804,7 @@ export class PostgresPlatformEnumerationsRepository
               deprecatedAt: true,
               incomeRule: true,
               tenorDefaults: true,
+              planDefaults: true,
             },
           });
 
@@ -814,6 +820,7 @@ export class PostgresPlatformEnumerationsRepository
             deprecatedAt: productRow.deprecatedAt,
             rule: asIncomeRule(productRow.incomeRule),
             tenorDefaults: asTenorDefaults(productRow.tenorDefaults),
+            planDefaults: asPlanDefaults(productRow.planDefaults),
           };
     const catalogRule = catalogRuleOf(
       effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked),
@@ -888,6 +895,7 @@ export class PostgresPlatformEnumerationsRepository
         key: true,
         incomeRule: true,
         tenorDefaults: true,
+        planDefaults: true,
         surrogateProductKey: true,
         active: true,
         deprecatedAt: true,
@@ -912,6 +920,7 @@ export class PostgresPlatformEnumerationsRepository
         deprecatedAt: row.deprecatedAt,
         rule: asIncomeRule(row.incomeRule),
         tenorDefaults: asTenorDefaults(row.tenorDefaults),
+        planDefaults: asPlanDefaults(row.planDefaults),
       });
     }
 
@@ -961,6 +970,9 @@ export class PostgresPlatformEnumerationsRepository
     // Read with the rule for the same reason: a product's screen renders the duration it
     // hands its programs on the same step as the figures, and one read answers both.
     tenorDefaults: true,
+    // Read with the duration beside it: the product's screen edits the plan tables on the
+    // same step, and one read answers both.
+    planDefaults: true,
     valueSources: true,
     surrogateProductKey: true,
   } as const;
@@ -1042,6 +1054,28 @@ export class PostgresPlatformEnumerationsRepository
    * `JsonNull` would store the JSON literal `null`, which reads back as present-but-empty
    * and would give "states no duration" two spellings.
    */
+  /**
+   * A surrogate product's default PLAN tables. `Prisma.DbNull` for the cleared state, for the
+   * reason the duration setter below gives: `JsonNull` would store the JSON literal `null`
+   * and give "states no plans" two spellings.
+   */
+  async setSurrogateProductPlanDefaults(
+    key: string,
+    plans: PlanDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: {
+        planDefaults:
+          plans === null ? Prisma.DbNull : (plans as unknown as Prisma.InputJsonValue),
+        updatedBy,
+      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
+    });
+    return toProgramNameIncomeRuleRow(row);
+  }
+
   async setSurrogateProductTenorDefaults(
     key: string,
     tenor: TenorDefaults | null,
@@ -1218,6 +1252,7 @@ export class PostgresPlatformEnumerationsRepository
         friendlyNameAr: true,
         incomeAssumption: true,
         tenor: true,
+        plansSource: true,
         // The bank's own row, because `bank_program` stores only `bankId`. One extra join
         // on a list that is at most a handful of programmes per name.
         bank: { select: { nameEnglish: true, nameArabic: true } },
@@ -1243,6 +1278,7 @@ export class PostgresPlatformEnumerationsRepository
         strategy: normalizeIncomeAssumption(config).strategy,
         ownAmounts: !inheritsCatalogAmounts(config),
         ownTenor: statesOwnTenor(row.tenor as unknown as StoredTenor | undefined),
+        followsPlans: inheritsProductPlans(row.plansSource),
       };
     });
   }
@@ -2335,6 +2371,7 @@ function toProgramNameIncomeRuleRow(row: {
   templateSpec?: unknown;
   capDefaults?: unknown;
   tenorDefaults?: unknown;
+  planDefaults?: unknown;
   valueSources: unknown;
   surrogateProductKey?: string | null;
 }): ProgramNameIncomeRuleRow {
@@ -2352,6 +2389,9 @@ function toProgramNameIncomeRuleRow(row: {
     // Through the SAME reader the quote path uses, so the product screen and the engine
     // cannot disagree about whether a half-written blob counts as a stated duration.
     tenorDefaults: asTenorDefaults(row.tenorDefaults) ?? null,
+    // Through the SAME reader the quote path uses, for the same reason: a slot that is not
+    // grid-shaped is dropped there, and the screen must not show a table the engine ignores.
+    planDefaults: asPlanDefaults(row.planDefaults) ?? null,
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
     surrogateProductKey: row.surrogateProductKey ?? null,
   };

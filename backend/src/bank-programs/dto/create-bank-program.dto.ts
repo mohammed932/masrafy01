@@ -21,6 +21,7 @@ import { EligibilityConfigDto } from './sub-configs/eligibility-config.dto';
 import { PerformanceCriteriaConfigDto } from './sub-configs/performance-criteria-config.dto';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
 import { FeesConfigDto } from './sub-configs/fees-config.dto';
+import { PLANS_SOURCES, type PlansSource } from '../../matching/pipeline/plan-inherit';
 
 const PROGRAM_TYPES = ['income_proof', 'income_surrogate'] as const;
 export type ProgramType = (typeof PROGRAM_TYPES)[number];
@@ -59,6 +60,16 @@ export class CreateBankProgramDto {
 
   /** Feature 008: Sharia / Islamic banking flag. Pricing semantics + UI labels shift. */
   @IsOptional() @IsBoolean() isShariaCompliant?: boolean;
+
+  /**
+   * Whose PLAN tables this program reads: its own, or the surrogate product's.
+   *
+   * ABSENT READS AS `'own'` — every program written before this field existed carries its
+   * own figures, so the absent case must be the one that changes nothing. `@IsOptional()` is
+   * right here rather than `@ValidateIf`: there is no "clear" spelling to preserve, because
+   * the save is a full replacement and absent already IS `'own'`.
+   */
+  @IsOptional() @IsIn(PLANS_SOURCES) plansSource?: PlansSource;
 
   @IsOptional() @IsString() @MaxLength(4000) operatorNotes?: string;
 

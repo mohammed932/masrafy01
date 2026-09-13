@@ -46,7 +46,7 @@ import { factsForProgram } from './bank-relationship';
 import { resolveFactGrid } from './fact-grid';
 import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
-import { ltvCeilingFor } from './ltv-ceiling';
+import { ltvAmountFor, ltvByFactFor, ltvCeilingFor } from './ltv-ceiling';
 import { applyMaxLoanAdjustments } from './max-loan-adjustments';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
@@ -344,12 +344,38 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     }
   }
 
+  // The term FLOOR this plan states, composed by `max` so it only ever RAISES the program's
+  // own. A floor that could lower one would let a table undercut a minimum the bank typed,
+  // which is the direction `minAmountByFact` below is also refused.
+  const planMinGrid = program.tenor?.minMonthsByFact;
+  let planMinMonths = minTenor;
+  if (planMinGrid !== undefined) {
+    const hit = resolveFactGrid({
+      config: planMinGrid,
+      facts: firstPass.ctx.facts ?? programFacts,
+      ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+    });
+    if (hit.matched) {
+      planMinMonths = Math.max(minTenor, Math.ceil(hit.value.toNumber()));
+    } else if (hit.action === 'reject') {
+      // Same refusal and the same reason code as the ceiling one above: a plan that states
+      // no shortest term for this applicant is a plan this bank does not sell them.
+      return {
+        ok: false,
+        unavailable: {
+          reason: 'VEHICLE_NOT_ELIGIBLE',
+          ...(hit.missingFactKeys.length > 0 ? { missingFactKeys: [...hit.missingFactKeys] } : {}),
+        },
+      };
+    }
+  }
+
   // Resolved ONCE and read twice: here, to price the loan on the right term, and at step 3
   // to report which constraint bound it. Two computations of one term is exactly how the
   // priced loan and the reported loan come apart.
   const tenorPlan = resolveTenor({
     requested: Math.floor(input.overrideTenorMonths ?? profile.preferredTenorMonths),
-    minMonths: minTenor,
+    minMonths: planMinMonths,
     maxMonths: cascadeMaxTenor,
     maxAge: program.eligibility?.maxAge,
     age: profile.age,
@@ -652,14 +678,62 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // A no-op for every program that states no LTV and every applicant who stated no car —
   // `ltvCeilingFor` answers `null` rather than zero, because a zero cap is a blank card with
   // no stated reason.
-  const ltvCeilingEGP = ltvCeilingFor(program.loanLimits, profile.carDetails);
+  //
+  // The TABLE is read first and the scalar is its fallback. Both exist on purpose: the grid
+  // is the more specific statement, and the scalar has to survive beside it because an
+  // absent scalar is not a conservative cap — `ltvCeilingFor` answers `null`, and `null`
+  // means NO CLAMP AT ALL. A build that cannot read a grid must still find a number here.
+  const ltvByFact = ltvByFactFor({
+    grid: program.loanLimits?.ltvCeilingByFact,
+    // The CASCADE's facts, not the bare answered ones: the deposit SHARE these tables key on
+    // is derived per quote by `withGridFacts` and exists nowhere else. Reading `programFacts`
+    // here left every axis unresolved, so no cell matched and `reject` refused every
+    // applicant — measured, not reasoned about. It is also the same set the rate banded on,
+    // which is what keeps one plan row stating one customer's rate, term and share.
+    facts: cascade.ctx.facts ?? programFacts,
+    ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+  });
+  if (ltvByFact.kind === 'refused') {
+    // One band of a table can carry a condition the rest does not — a deposit tier sold only
+    // to somebody who owns their home states rows for an owner and none for a renter. The
+    // refusal therefore binds IN THAT BAND, and the same applicant is priced normally in
+    // every other one. Listed with a stated reason, never filtered (A33).
+    return {
+      ok: false,
+      unavailable: {
+        reason: 'VEHICLE_NOT_ELIGIBLE',
+        ...(ltvByFact.missingFactKeys.length > 0
+          ? { missingFactKeys: [...ltvByFact.missingFactKeys] }
+          : {}),
+      },
+    };
+  }
+  const ltvCeilingEGP =
+    ltvByFact.kind === 'percent'
+      ? ltvAmountFor(ltvByFact.value, profile.carDetails)
+      : ltvCeilingFor(program.loanLimits, profile.carDetails);
   if (ltvCeilingEGP !== null && ltvCeilingEGP.lessThan(programMax)) {
     programMax = ltvCeilingEGP;
     noteConstraint('ltv_ceiling');
   }
 
   // ── 4. Amount: clamp down to the program ceiling ────────────────────────
-  const minAmount = toFiniteDecimal(program.loanLimits?.minAmountEGP) ?? new Decimal(0);
+  // The FLOOR, and the table that can raise it. Composed by `max`, never by replacement: a
+  // plan states the minimum for its own band, and a band that states none leaves the
+  // program's own standing. `onNoMatch` is deliberately not read here — `useFallback` and a
+  // miss are the same thing for a floor, which is "the program's own applies", and `reject`
+  // on a floor would refuse an applicant a band above them already prices.
+  let minAmount = toFiniteDecimal(program.loanLimits?.minAmountEGP) ?? new Decimal(0);
+  const minAmountGrid = program.loanLimits?.minAmountByFact;
+  if (minAmountGrid !== undefined) {
+    const hit = resolveFactGrid({
+      config: minAmountGrid,
+      // Same facts as the share above, and for the same reason.
+      facts: cascade.ctx.facts ?? programFacts,
+      ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+    });
+    if (hit.matched && hit.value.greaterThan(minAmount)) minAmount = round2(hit.value);
+  }
   let cash = round2(input.overrideAmountEGP ?? profile.requestedAmountEGP);
   if (cash.greaterThan(programMax)) {
     cash = round2(programMax);

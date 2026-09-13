@@ -100,12 +100,23 @@ export const CAR_MODEL_YEAR_FACT_KEY = 'car_model_year';
 export const CAR_ORIGIN_FACT_KEY = 'car_origin';
 export const CAR_INSURANCE_FACT_KEY = 'car_insurance';
 export const VEHICLE_CONDITION_FACT_KEY = 'vehicle_condition';
+/**
+ * What the car runs on. A platform fact like the four above, and for the same reason: a bank
+ * that prices an electric car differently states that on its own programme, and the answer
+ * belongs to every car programme rather than to one product.
+ *
+ * Deliberately NOT an option on `car_origin`. That question asks where the car was BUILT, and
+ * a list mixing eleven countries with a drivetrain is one question answering two things — the
+ * shape `isCore`'s fourth clause and the origin question's own docblock both argue against.
+ */
+export const CAR_FUEL_TYPE_FACT_KEY = 'car_fuel_type';
 
 export const VEHICLE_FACT_KEYS: readonly string[] = [
   CAR_MODEL_YEAR_FACT_KEY,
   CAR_ORIGIN_FACT_KEY,
   CAR_INSURANCE_FACT_KEY,
   VEHICLE_CONDITION_FACT_KEY,
+  CAR_FUEL_TYPE_FACT_KEY,
 ];
 
 export const GRID_ONLY_FACT_KEYS: readonly string[] = [

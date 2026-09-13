@@ -70,10 +70,12 @@ const PRE_EXISTING_NAMES: Readonly<Record<string, string>> = { compound_owner_4:
 describe('the seed names, for every surrogate program, a way its product offers', () => {
   const surrogate = SHEET_PROGRAMS.filter((p) => p.dto.programType === 'income_surrogate');
 
-  it('seeds twenty surrogate programs and four payslip ones', () => {
-    // Thirteen, plus the seven Suez Canal auto programmes — five down-payment tiers off one
-    // product and two Green Finance ones off the other.
-    expect(surrogate).toHaveLength(20);
+  it('seeds sixteen surrogate programs and four payslip ones', () => {
+    // Thirteen, plus the three Suez Canal auto programmes — ONE down-payment programme
+    // reading the product's five plans, and two Green Finance ones. It was seven until the
+    // plan tables existed: each down-payment tier needed its own programme only because the
+    // share financed was a scalar and a different share had nowhere else to live.
+    expect(surrogate).toHaveLength(16);
     expect(SHEET_PROGRAMS.length - surrogate.length).toBe(4);
   });
 

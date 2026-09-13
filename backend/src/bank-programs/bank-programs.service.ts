@@ -22,6 +22,7 @@ import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
+  SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
   type ProgramNameIncomeRuleResponseDto,
   type SurrogateProductDetailDto,
@@ -95,6 +96,7 @@ import {
 } from './validation/cross-config.validators';
 import { validateDbrBands } from './validation/dbr-bands.validator';
 import { validateFactGrid } from './validation/fact-grid.validator';
+import type { FactGridConfig } from '@/matching/pipeline/fact-grid';
 import {
   catalogIncomeRulePaths,
   estimatedPaths,
@@ -283,6 +285,10 @@ export class BankProgramsService {
           // the same gate every other program passes through.
           active: !createdWithEstimates,
           isShariaCompliant: dto.isShariaCompliant ?? false,
+          // Written on every save, `null` when absent. The PUT is a full replacement, so an
+          // omitted field has to mean "this bank's own" — leave it untouched and a program
+          // that once took the product's plans could never be given back its own.
+          plansSource: dto.plansSource ?? null,
           operatorNotes: dto.operatorNotes,
           operatorTips: dto.operatorTips,
           requiredDocuments: dto.requiredDocuments,
@@ -386,6 +392,7 @@ export class BankProgramsService {
           productCategory: source.productCategory,
           active: false,
           isShariaCompliant: source.isShariaCompliant,
+          plansSource: source.plansSource,
           operatorNotes: source.operatorNotes,
           operatorTips: source.operatorTips,
           requiredDocuments: source.requiredDocuments,
@@ -652,14 +659,21 @@ export class BankProgramsService {
       }
     }
 
-    // The N-axis grids, both of them, against the same fact registry the income rule is held
-    // to. Runs BEFORE the enumeration sweep for the reason `validateRanges` does: a grid whose
-    // axis names no fact would otherwise save and then quote its `onNoMatch` at every
+    // The N-axis grids, all five of them, against the same fact registry the income rule is
+    // held to. Runs BEFORE the enumeration sweep for the reason `validateRanges` does: a grid
+    // whose axis names no fact would otherwise save and then quote its `onNoMatch` at every
     // applicant, which reads as "this bank has no price" rather than as a table to fix.
+    //
+    // Each states its OWN value kind, and the share is not `'ratePercent'`: that kind allows
+    // up to 999.9999, while `ltvCeilingFor` answers `null` above 100 — so a financed share
+    // typed as a rate would save cleanly, render correctly and then cap NOTHING.
     const gridRegistry = await this.enums.surrogateFactRegistry();
     const grids = [
       [dto.pricing?.rateByFact, 'pricing.rateByFact', 'ratePercent'],
       [dto.tenor?.maxMonthsByFact, 'tenor.maxMonthsByFact', 'months'],
+      [dto.tenor?.minMonthsByFact, 'tenor.minMonthsByFact', 'months'],
+      [dto.loanLimits?.ltvCeilingByFact, 'loanLimits.ltvCeilingByFact', 'sharePercent'],
+      [dto.loanLimits?.minAmountByFact, 'loanLimits.minAmountByFact', 'amountEGP'],
     ] as const;
     // The option codes of every axis a grid names, looked up ONCE. Needed for the
     // unknown-key check: a mistyped option code saves cleanly and then matches nobody.
@@ -1453,6 +1467,10 @@ export class BankProgramsService {
           programType: dto.programType,
           productCategory: dto.productCategory,
           isShariaCompliant: dto.isShariaCompliant ?? false,
+          // `?? null`, never left undefined: this PUT is a full replacement, so an omitted
+          // field means "this bank's own". Writing nothing would leave a program that once
+          // took the product's plans unable to be given its own back.
+          plansSource: dto.plansSource ?? null,
           operatorNotes: dto.operatorNotes ?? null,
           operatorTips: dto.operatorTips ?? [],
           requiredDocuments: dto.requiredDocuments ?? [],
@@ -1850,6 +1868,7 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        followsPlans: p.followsPlans,
       })),
     }));
 
@@ -1875,6 +1894,7 @@ export class BankProgramsService {
       // copied once at create and the other is read live, and a reader of this response has
       // to be able to tell which.
       tenorDefaults: row.tenorDefaults,
+      planDefaults: row.planDefaults,
       template: row.templateSpec,
       valueSources: row.valueSources,
       names,
@@ -2173,6 +2193,89 @@ export class BankProgramsService {
         changes: {
           tenorDefaults: {
             before: row.tenorDefaults,
+            after: stored,
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * The product's default PLAN tables — the rate, the term ceiling, the financed share and
+   * the floor every program that opted in reads.
+   *
+   * NO CLEAR REFUSAL, unlike the duration above, and the asymmetry is the point. A cleared
+   * duration leaves an inheriting program with NO term and it cannot be priced at all; a
+   * cleared plan table leaves it on its own `baseRatePercent`, `minAmountEGP` and
+   * `ltvCeilingPercent`, every one of which still exists. Nothing stops quoting, so refusing
+   * would be a gate over a state that is merely a change.
+   *
+   * Each grid is validated against the same fact registry a bank program's own is held to,
+   * and with the same value kinds — a share is `sharePercent` and not `ratePercent`, because
+   * the latter allows 999.9999 and a share above 100 caps nothing.
+   */
+  async setSurrogateProductPlanDefaults(
+    key: string,
+    dto: SetSurrogateProductPlanDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored = dto.plans === null ? null : ({ ...dto.plans } as Record<string, unknown>);
+
+    if (stored !== null) {
+      const gridRegistry = await this.enums.surrogateFactRegistry();
+      const slots = [
+        ['rateByFact', 'ratePercent'],
+        ['maxMonthsByFact', 'months'],
+        ['minMonthsByFact', 'months'],
+        ['ltvCeilingByFact', 'sharePercent'],
+        ['minAmountByFact', 'amountEGP'],
+      ] as const;
+      const optionCodes: Record<string, readonly string[]> = {};
+      for (const [slot] of slots) {
+        const config = stored[slot] as FactGridConfig | undefined;
+        for (const axis of config?.axes ?? []) {
+          const factKey = axis?.factKey;
+          if (typeof factKey !== 'string' || factKey in optionCodes) continue;
+          const questionCode = gridRegistry.find((f) => f.key === factKey)?.questionCode;
+          if (questionCode === undefined) continue;
+          optionCodes[factKey] = await this.enums.questionOptionCodes(questionCode);
+        }
+      }
+      for (const [slot, valueKind] of slots) {
+        const config = stored[slot] as FactGridConfig | undefined;
+        if (config === undefined) continue;
+        const violation = validateFactGrid({
+          config,
+          fieldPath: `planDefaults.${slot}`,
+          valueKind,
+          registry: gridRegistry,
+          optionCodesByFact: optionCodes,
+        });
+        if (violation) throw new FactGridInvalidException(violation);
+      }
+    }
+
+    const saved = await this.enums.setSurrogateProductPlanDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full. These tables move live quotes for every program that
+        // opted in, so the log has to answer "what did this price yesterday" on its own.
+        changes: {
+          planDefaults: {
+            before: row.planDefaults ?? null,
             after: stored,
           },
         },
@@ -2548,6 +2651,7 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        followsPlans: p.followsPlans,
       })),
       surrogateProduct:
         product === null || productRow === null
@@ -2569,6 +2673,7 @@ export class BankProgramsService {
               // its own. The bank wizard renders it read-only in that state and offers to
               // copy it, exactly as it does the product's I-Score tiers.
               tenorDefaults: product.tenorDefaults,
+              planDefaults: product.planDefaults,
             },
     };
   }

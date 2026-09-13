@@ -84,6 +84,9 @@ import type {
   RateBasis,
   TenorConfig,
   TenorDefaults,
+  PlanDefaults,
+  PlansSource,
+  LoanLimitsConfig,
 } from '../bank-programs.types';
 import {
   factKeyOf,
@@ -305,8 +308,37 @@ type CarriedPricing = Omit<PricingConfig, (typeof PRICING_KEYS_EDITED_HERE)[numb
 
 /** The `tenor` keys this form owns. Same hazard: `maxMonthsByEmploymentType` had no editor
  *  and no carry, so a seeded per-employment ceiling died on the first wizard save. */
-const TENOR_KEYS_EDITED_HERE = ['minMonths', 'maxMonths', 'maxMonthsByFact'] as const;
+// `minMonthsByFact` joins the moment the field exists, or the first wizard save deletes a
+// seeded one — the same hazard the docstring above records for `maxMonthsByEmploymentType`.
+/**
+ * The `loanLimits` keys this form owns. Everything else on that blob is CARRIED.
+ *
+ * It had no carry list at all: the payload hand-enumerated seven keys, so `maxByCDTier`,
+ * `maxByPropertyType`, `maxByTransferType`, `maxByEmploymentType`, `maxTopUpEGP` and
+ * `otherCitiesMaxEGP` — all of them on the DTO, none of them edited here — were deleted by
+ * any save from any step. Latent on today's data (no stored row carries one), and the two new
+ * plan grids must not become the seventh and eighth.
+ */
+const LOAN_LIMIT_KEYS_EDITED_HERE = [
+  'minAmountEGP',
+  'maxAmountEGP',
+  'qualitativeReviewMaxEGP',
+  'ltvCeilingPercent',
+  'minDownPaymentPercent',
+  'maxLoanByFact',
+  'maxLoanAdjustments',
+  'ltvCeilingByFact',
+  'minAmountByFact',
+] as const;
+
+const TENOR_KEYS_EDITED_HERE = [
+  'minMonths',
+  'maxMonths',
+  'maxMonthsByFact',
+  'minMonthsByFact',
+] as const;
 type CarriedTenor = Omit<TenorConfig, (typeof TENOR_KEYS_EDITED_HERE)[number]>;
+type CarriedLoanLimits = Omit<LoanLimitsConfig, (typeof LOAN_LIMIT_KEYS_EDITED_HERE)[number]>;
 
 /** Everything the stored config holds that this form does not edit, ready to send back. */
 function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]>(
@@ -1373,19 +1405,70 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     >Charge a different rate per loan-amount band</label
                   >
 
+                  <!-- WHOSE PLAN TABLES. Three states, and two would be a lie: a program
+                       reading the product's tables is not one with "no table yet", it is one
+                       priced by a card stated somewhere else. The inheriting state renders as
+                       a STATEMENT with a verb and no inputs at all — never disabled ones,
+                       which drop a control out of group validity. -->
+                  @if (plansInheritable()) {
+                    @if (plansInherits()) {
+                      <div class="tenor-inherited">
+                        <p class="tenor-inherited-value" id="plans-from-product">
+                          <span i18n="@@bank_programs.plans.from_product_value"
+                            >{{ productPlanCount() }} table(s) — the rate, the term, the share
+                            financed and the smallest loan, by the deposit</span
+                          >
+                          <span class="tag" i18n="@@bank_programs.plans.from_product"
+                            >The product's plans apply</span
+                          >
+                        </p>
+                        <p class="field-hint" i18n="@@bank_programs.plans.from_product_note">
+                          This bank has not stated plans of its own, so it prices, lends and
+                          finances on the product's. Change them there and this program follows.
+                        </p>
+                        <button
+                          nz-button
+                          nzType="default"
+                          nzSize="small"
+                          type="button"
+                          aria-describedby="plans-from-product"
+                          (click)="stateOwnPlans()"
+                          i18n="@@bank_programs.plans.set_own"
+                        >
+                          Set this bank's own plans
+                        </button>
+                      </div>
+                    } @else {
+                      <p class="field-hint">
+                        <button
+                          nz-button
+                          nzType="link"
+                          nzSize="small"
+                          type="button"
+                          (click)="backToProductPlans()"
+                          i18n="@@bank_programs.plans.back_to_product"
+                        >
+                          Back to the product's plans
+                        </button>
+                      </p>
+                    }
+                  }
+
                   <!-- THE GRID. A separate switch from the band table above, and they are
                        genuinely different things: that one is one axis (the amount) and this
                        one is up to four. The grid outranks every other rate setting when it
                        matches, which the hint says outright rather than leaving an operator
                        to discover it from a quote. -->
-                  <label
-                    nz-checkbox
-                    [nzChecked]="toggles.rateGrid()"
-                    (nzCheckedChange)="setToggle('rateGrid', $event)"
-                    i18n="@@bank_programs.toggle.rate_grid"
-                    >Price this program from a table of the customer's answers</label
-                  >
-                  @if (toggles.rateGrid() && rateByFact(); as grid) {
+                  @if (!plansInherits()) {
+                    <label
+                      nz-checkbox
+                      [nzChecked]="toggles.rateGrid()"
+                      (nzCheckedChange)="setToggle('rateGrid', $event)"
+                      i18n="@@bank_programs.toggle.rate_grid"
+                      >Price this program from a table of the customer's answers</label
+                    >
+                  }
+                  @if (!plansInherits() && toggles.rateGrid() && rateByFact(); as grid) {
                     <p class="field-hint" i18n="@@bank_programs.rate_grid.hint">
                       When a row matches, this table sets the rate and every other rate setting on
                       this card is ignored.
@@ -5586,6 +5669,7 @@ export class BankProgramFormPage implements OnInit {
   /** Carried, never edited — see `PRICING_KEYS_EDITED_HERE` / `TENOR_KEYS_EDITED_HERE`. */
   private readonly carriedPricing = signal<CarriedPricing>({});
   private readonly carriedTenor = signal<CarriedTenor>({});
+  private readonly carriedLoanLimits = signal<CarriedLoanLimits>({});
   /** The loan-amount bands as STORED, kept only to carry each band's `derivation` chain
    *  through a save that did not change its figure — see `serializeRateBands`. */
   private readonly storedRateBands = signal<RateBandMap>({});
@@ -5913,6 +5997,67 @@ export class BankProgramFormPage implements OnInit {
    * this page already fetches on load and on every name re-pick. Changing the name can
    * therefore change whether this card has three states or one, with no second request.
    */
+  // --- the product's PLAN tables, and whose this program reads ---
+
+  /**
+   * Whose plan tables this program reads. ABSENT READS AS `'own'`.
+   *
+   * A signal and not a control, like the grids themselves: it is one word with two values and
+   * a whole `FormControl` for it would put a second authority beside the verbs below.
+   */
+  readonly plansSource = signal<PlansSource>('own');
+
+  readonly productPlans = computed<PlanDefaults | null>(
+    () => this.catalogRule()?.surrogateProduct?.planDefaults ?? null,
+  );
+
+  /** Could this program read the product's tables if it said so? */
+  readonly plansInheritable = computed<boolean>(() => this.productPlans() !== null);
+
+  /** Is it reading them right now? */
+  readonly plansInherits = computed<boolean>(
+    () => this.plansInheritable() && this.plansSource() === 'product',
+  );
+
+  /** How many tables the product states, for the statement in the inheriting card. */
+  readonly productPlanCount = computed<number>(() => Object.keys(this.productPlans() ?? {}).length);
+
+  /**
+   * Take the product's tables as this bank's own — a COPY, exactly as `stateOwnTenor` is.
+   *
+   * The grids are copied into this program's own signals so the first edit changes this
+   * bank's figures and nothing else. Nothing is shared by reference: a stored copy that went
+   * on following the product would be neither of the two things the operator can pick.
+   */
+  stateOwnPlans(): void {
+    const plans = this.productPlans();
+    if (plans !== null) {
+      if (plans.rateByFact !== undefined) this.rateByFact.set(structuredClone(plans.rateByFact));
+      if (plans.maxMonthsByFact !== undefined) {
+        this.maxMonthsByFact.set(structuredClone(plans.maxMonthsByFact));
+      }
+    }
+    this.plansSource.set('own');
+    this.markPlansDirty();
+  }
+
+  /**
+   * Back to the product's tables — CLEARS this bank's own rather than storing a copy.
+   *
+   * A copy would stop following, which is the opposite of what the button says.
+   */
+  backToProductPlans(): void {
+    this.rateByFact.set(null);
+    this.maxMonthsByFact.set(null);
+    this.plansSource.set('product');
+    this.markPlansDirty();
+  }
+
+  private markPlansDirty(): void {
+    // A signal write is not a form change, so the save button is told explicitly.
+    this.form.markAsDirty();
+  }
+
   readonly productTenor = computed<TenorDefaults | null>(
     () => this.catalogRule()?.surrogateProduct?.tenorDefaults ?? null,
   );
@@ -7088,6 +7233,10 @@ export class BankProgramFormPage implements OnInit {
       programType: id.programType,
       productCategory: id.productCategory,
       isShariaCompliant: id.isShariaCompliant,
+      // Stated on every save. Omitting it would read as "this bank's own" on a
+      // full-replacement PUT — right for a program that states its own tables, and WRONG for
+      // one the operator has just put on the product's.
+      plansSource: this.plansSource(),
       operatorNotes: dc.operatorNotes ?? undefined,
       operatorTips: dc.operatorTips,
       requiredDocuments: dc.requiredDocuments,
@@ -7103,11 +7252,14 @@ export class BankProgramFormPage implements OnInit {
           : { minMonths: tn.minMonths, maxMonths: tn.maxMonths }),
         // Omitted when the switch is off, which a full-replacement PUT reads as "delete it".
         // That is the intended meaning here and only here: the operator turned it off.
-        ...(this.toggles.vehicleGrid() && this.maxMonthsByFact() !== null
+        ...(!this.plansInherits() && this.toggles.vehicleGrid() && this.maxMonthsByFact() !== null
           ? { maxMonthsByFact: this.maxMonthsByFact()! }
           : {}),
       },
       loanLimits: {
+        // Carried FIRST so an edited key can never be overwritten by a stale stored copy of
+        // itself — the spread order is the guarantee, not the key list.
+        ...this.carriedLoanLimits(),
         minAmountEGP: ll.minAmountEGP,
         maxAmountEGP: ll.maxAmountEGP,
         qualitativeReviewMaxEGP: ll.qualitativeReviewMaxEGP ?? undefined,
@@ -7138,7 +7290,10 @@ export class BankProgramFormPage implements OnInit {
         ...(this.toggles.tieredRates() && this.rateBandsArray.length > 0
           ? { rateByLoanAmountBand: this.serializeRateBands() }
           : {}),
-        ...(this.toggles.rateGrid() && this.rateByFact() !== null
+        // OMITTED while this program reads the product's tables — the snapshot mapper fills
+        // it, and storing a copy would stop it following, which is the opposite of what the
+        // operator picked.
+        ...(!this.plansInherits() && this.toggles.rateGrid() && this.rateByFact() !== null
           ? { rateByFact: this.rateByFact()! }
           : {}),
       },
@@ -7290,6 +7445,7 @@ export class BankProgramFormPage implements OnInit {
     );
     this.carriedPricing.set(carriedKeysOf(initial.pricing, PRICING_KEYS_EDITED_HERE));
     this.carriedTenor.set(carriedKeysOf(initial.tenor, TENOR_KEYS_EDITED_HERE));
+    this.carriedLoanLimits.set(carriedKeysOf(initial.loanLimits, LOAN_LIMIT_KEYS_EDITED_HERE));
     // The two grids are now EDITED here, so they are read out of the stored row into their
     // own signals rather than carried blind. The toggle follows the data: a program that
     // states a grid opens with the switch on, which is what stops a save silently deleting
@@ -7300,6 +7456,9 @@ export class BankProgramFormPage implements OnInit {
     this.rateByFact.set(storedRateGrid ?? null);
     this.maxMonthsByFact.set(storedVehicleGrid ?? null);
     this.toggles.rateGrid.set(storedRateGrid !== undefined);
+    // Whose plan tables this program reads. ABSENT READS AS `'own'` — every program written
+    // before the field existed carries its own figures.
+    this.plansSource.set(initial.plansSource === 'product' ? 'product' : 'own');
     this.toggles.vehicleGrid.set(storedVehicleGrid !== undefined);
 
     // Percent strings arrive as Prisma `Decimal(_, 4)` — `24.0000` for a flat 24%.

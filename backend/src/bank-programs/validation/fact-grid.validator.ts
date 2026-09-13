@@ -54,8 +54,8 @@ export interface FactGridViolation {
 
 const MAX_AXES = 4;
 
-/** What the figure in a cell means, which is the only thing that differs between the two grids. */
-export type FactGridValueKind = 'ratePercent' | 'months';
+/** What the figure in a cell means, which is the only thing that differs between the grids. */
+export type FactGridValueKind = 'ratePercent' | 'months' | 'sharePercent' | 'amountEGP';
 
 function keyShapeValid(key: FactGridKey): boolean {
   if (key === null) return true;
@@ -75,6 +75,13 @@ function valueValid(raw: unknown, kind: FactGridValueKind): boolean {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return false;
   if (kind === 'ratePercent') return n <= 999.9999;
+  // A SHARE of something, so at most all of it. Its own kind rather than `ratePercent`,
+  // whose ceiling is 999.9999: a financed share typed as a rate would save cleanly, render
+  // correctly and then CAP NOTHING, because `ltvCeilingFor` answers `null` for anything
+  // above 100. A refusal an operator can still act on beats a silent no-op on a customer.
+  if (kind === 'sharePercent') return n <= 100;
+  // Money, to the piastre. No integer rule and no 480 ceiling — both belong to `months`.
+  if (kind === 'amountEGP') return n <= 99999999999.99;
   return Number.isInteger(n) && n <= 480;
 }
 

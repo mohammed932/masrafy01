@@ -55,6 +55,7 @@ import {
   programFingerprint,
 } from './sheet-figures.plan';
 import type { EstimatedPaths } from './sheet-figures';
+import { stableJson } from '../../common/stable-json.util';
 
 const TAG = '[seed-sheet-figures]';
 const PROGRAM_NAME_TYPE = 'program_name';
@@ -73,6 +74,7 @@ interface Tally {
   blanks: string[];
   /** Products whose default loan duration this run stated or changed. */
   tenorWritten: string[];
+  plansWritten: string[];
 }
 
 /** `{path: 'team_estimated'}`, the shape both write paths take. */
@@ -142,6 +144,7 @@ async function main(): Promise<void> {
       compoundsFiled: 0,
       blanks: [],
       tenorWritten: [],
+      plansWritten: [],
     };
 
     // 1. The banks the sheets belong to. Reported, never created: a bank row carries a name
@@ -212,6 +215,35 @@ async function main(): Promise<void> {
             } catch (error) {
               tally.refused.push(set.productKey);
               console.error(`${TAG} ✗ ${pad(set.productKey)} tenor — ${describe(error)}`);
+            }
+          }
+        }
+      }
+
+      // THE DEFAULT PLAN TABLES, written on the same terms as the duration above and for the
+      // same reason: the figures are protected because an operator may have typed them, and a
+      // plan table nobody has ever stated is not somebody's work to protect. Idempotent — it
+      // writes only when the stored blob differs, compared key-order-stably because the
+      // stored copy comes back in the reader's slot order and the seed states its own.
+      if (set.planDefaults !== undefined && row !== null) {
+        const same = stableJson(row.planDefaults ?? null) === stableJson(set.planDefaults);
+        if (!same) {
+          const slots = Object.keys(set.planDefaults).length;
+          if (dry) {
+            tally.plansWritten.push(set.productKey);
+            console.log(`${TAG} plans   ${pad(set.productKey)} would state ${slots} table(s)`);
+          } else {
+            try {
+              await programs.setSurrogateProductPlanDefaults(
+                set.productKey,
+                { plans: set.planDefaults as never },
+                programActor,
+              );
+              tally.plansWritten.push(set.productKey);
+              console.log(`${TAG} plans   ${pad(set.productKey)} ${slots} table(s)`);
+            } catch (error) {
+              tally.refused.push(set.productKey);
+              console.error(`${TAG} ✗ ${pad(set.productKey)} plans — ${describe(error)}`);
             }
           }
         }
@@ -344,7 +376,11 @@ async function main(): Promise<void> {
       // numbers are already right should keep reporting "same" rather than churn on a link
       // the migration beside this one repairs for rows that predate it.
       const bankId = bankIdByName.get(spec.dto.bankName);
-      const body = { ...spec.dto, ...(bankId ? { bankId } : {}), valueSources: marks(spec.estimated) };
+      const body = {
+        ...spec.dto,
+        ...(bankId ? { bankId } : {}),
+        valueSources: marks(spec.estimated),
+      };
       const action = planProgram({
         programCode: spec.programCode,
         stored:
@@ -456,7 +492,8 @@ async function main(): Promise<void> {
     );
 
     console.log(
-      `${TAG} ${tally.tenorWritten.length} durations written · ` +
+      `${TAG} ${tally.plansWritten.length} plan table sets written · ` +
+        `${tally.tenorWritten.length} durations written · ` +
         `${tally.productsWritten.length} products written · ` +
         `${tally.productsSkipped.length} untouched · ${tally.productsAbsent.length} absent · ` +
         `${tally.namesCreated.length} names created · ${tally.namesReused.length} reused · ` +

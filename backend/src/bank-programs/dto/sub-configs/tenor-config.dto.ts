@@ -63,4 +63,19 @@ export class TenorConfigDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   maxMonthsByFact?: FactGridDto;
+
+  /**
+   * A term FLOOR against the same answers, composed by `max` against `minMonths` above, so
+   * it only ever RAISES the floor — a bank's own minimum can never be undercut by a table.
+   *
+   * Its own field rather than a second figure on `maxMonthsByFact`'s cells: the two compose
+   * in opposite directions, and one row carrying both would have to mean "no floor" and "no
+   * ceiling" with the same blank.
+   *
+   * `@ValidateIf`, not `@IsOptional()` — see `maxMonthsByFact` above.
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  minMonthsByFact?: FactGridDto;
 }

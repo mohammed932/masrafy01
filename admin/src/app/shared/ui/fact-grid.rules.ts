@@ -43,8 +43,8 @@ export interface FactGridConfig {
   onNoMatch: 'useFallback' | 'reject';
 }
 
-/** What the figure in a cell means — the only thing that differs between the two grids. */
-export type FactGridValueKind = 'ratePercent' | 'months';
+/** What the figure in a cell means — the only thing that differs between the grids. */
+export type FactGridValueKind = 'ratePercent' | 'months' | 'sharePercent' | 'amountEGP';
 
 /** The subset of the backend's reasons this editor can see before a save. */
 export type FactGridError =
@@ -84,7 +84,13 @@ function valueValid(raw: string, kind: FactGridValueKind): boolean {
   if (typeof raw !== 'string' || raw.trim() === '') return false;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return false;
-  return kind === 'ratePercent' ? n <= 999.9999 : Number.isInteger(n) && n <= 480;
+  if (kind === 'ratePercent') return n <= 999.9999;
+  // Mirrors the server's own bound exactly. A share above 100 is not a share, and the
+  // engine's ceiling reader answers `null` above it — so the refusal has to be here, where
+  // the operator can still see the box they typed it in.
+  if (kind === 'sharePercent') return n <= 100;
+  if (kind === 'amountEGP') return n <= 99999999999.99;
+  return Number.isInteger(n) && n <= 480;
 }
 
 /**

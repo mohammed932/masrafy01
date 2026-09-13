@@ -227,6 +227,24 @@ export interface LoanLimitsConfig {
    * page derives `100 − LTV` when it is absent — one figure, one authority.
    */
   minDownPaymentPercent?: string;
+  /**
+   * The financed share stated against the applicant's own answers — the deposit they are
+   * putting down, and who owns the home they live in.
+   *
+   * Read FIRST by `pipeline/ltv-ceiling.ts`, with `ltvCeilingPercent` above as the fallback.
+   * That order is load-bearing in both directions: a grid is the more specific statement, and
+   * the scalar has to survive beside it because a build that cannot read a grid reads the
+   * scalar — and an absent scalar means NO CLAMP AT ALL, not a conservative one.
+   */
+  ltvCeilingByFact?: FactGridConfig;
+  /**
+   * The program's FLOOR stated per answer. Composed by `max` against `minAmountEGP`, so it
+   * only ever RAISES the floor — a bank's own minimum can never be undercut by a table.
+   *
+   * `onNoMatch: 'useFallback'` means the program's own `minAmountEGP` applies, which is what
+   * every program without one does today.
+   */
+  minAmountByFact?: FactGridConfig;
   qualitativeReviewMaxEGP?: string;
 }
 
@@ -241,6 +259,14 @@ export interface TenorConfig {
    * `cascade.evaluator.ts`'s `TenorConfig`.
    */
   maxMonthsByFact?: FactGridConfig;
+  /**
+   * A term FLOOR against the same answers, composed by `max` against `minMonths`.
+   *
+   * The sibling of `maxMonthsByFact`, and stated separately rather than as one row with two
+   * figures because the two compose in opposite directions and a single half-filled row would
+   * have to mean both "no floor" and "no ceiling" at once.
+   */
+  minMonthsByFact?: FactGridConfig;
 }
 
 export interface EligibilityConfig {

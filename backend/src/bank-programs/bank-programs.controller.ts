@@ -30,6 +30,7 @@ import {
   SetSurrogateProductActiveDto,
   SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
+  SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
 } from './dto/program-name-income-rule.dto';
 import { BankProgramsService } from './bank-programs.service';
@@ -273,6 +274,41 @@ export class BankProgramsController {
   ) {
     return ok(
       await this.service.setSurrogateProductTenorDefaults(key, body, this.actor(user, req)),
+    );
+  }
+
+  /**
+   * Declared in the same block and before `@Get(':programCode')`, for the same reason.
+   */
+  @Put('surrogate-products/:key/plan-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default plan tables",
+    description:
+      'The rate, the longest term, the financed share and the floor every bank program that ' +
+      'opted in falls back to, each keyed by the share the applicant puts down. INHERITED, ' +
+      'but only by a program whose `plansSource` is `product` — a blank grid on a program ' +
+      'already means "this bank does not price by that", so absence is never read as ' +
+      'consent. `plans: null` clears them, and unlike the duration beside it that is NOT ' +
+      'refused: a cleared table leaves each program on its own rate, floor and share, all ' +
+      'of which still exist, so nothing stops quoting.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'FACT_GRID_INVALID — a grid names a fact the registry cannot serve, a key the bound ' +
+      "question does not carry, or a figure outside its slot's value kind (`meta.fieldPath` " +
+      'is `planDefaults.<slot>`).',
+  })
+  async setSurrogateProductPlanDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductPlanDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.setSurrogateProductPlanDefaults(key, body, this.actor(user, req)),
     );
   }
 

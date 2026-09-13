@@ -165,6 +165,14 @@ interface Input {
    */
   rateByFact?: FactGridDto;
   maxMonthsByFact?: FactGridDto;
+  minMonthsByFact?: FactGridDto;
+  ltvCeilingByFact?: FactGridDto;
+  minAmountByFact?: FactGridDto;
+  /**
+   * Whose PLAN tables this programme reads. ABSENT IS `'own'`, so every programme in this
+   * file that does not say otherwise is untouched by the mechanism existing.
+   */
+  plansSource?: 'product' | 'own';
   /** The bank's own figures, keyed by slot id. Absent on a program with no calculation. */
   stepParams?: Record<string, unknown>;
   /**
@@ -212,6 +220,9 @@ function program(input: Input): ProgramSpec {
     programType: input.programType,
     productCategory: input.productCategory ?? 'personal',
     isShariaCompliant: false,
+    // Omitted when absent rather than sent as `'own'`: absent and `'own'` are the same
+    // answer, and one spelling is what keeps the seed's fingerprint stable.
+    ...(input.plansSource ? { plansSource: input.plansSource } : {}),
     operatorNotes: [`Figures transcribed from ${input.sheet}.`, ...input.notes].join('\n'),
     ...(input.tips ? { operatorTips: input.tips } : {}),
     requiredDocuments: input.requiredDocuments ?? ['national_id', 'utility_bill'],
@@ -221,11 +232,14 @@ function program(input: Input): ProgramSpec {
     tenor: {
       ...(input.tenor ?? {}),
       ...(input.maxMonthsByFact ? { maxMonthsByFact: input.maxMonthsByFact } : {}),
+      ...(input.minMonthsByFact ? { minMonthsByFact: input.minMonthsByFact } : {}),
     },
     loanLimits: {
       minAmountEGP: input.minAmountEGP,
       maxAmountEGP: input.maxAmountEGP,
       ...(input.ltvCeilingPercent ? { ltvCeilingPercent: input.ltvCeilingPercent } : {}),
+      ...(input.ltvCeilingByFact ? { ltvCeilingByFact: input.ltvCeilingByFact } : {}),
+      ...(input.minAmountByFact ? { minAmountByFact: input.minAmountByFact } : {}),
       ...(input.maxLoanByFact ? { maxLoanByFact: input.maxLoanByFact } : {}),
       ...(input.maxLoanAdjustments ? { maxLoanAdjustments: input.maxLoanAdjustments } : {}),
     },
@@ -396,12 +410,20 @@ const SCB_ESTIMATED: EstimatedPaths = [
 /** App. §4.5 pre-approval, less the two the platform has no key for (application form, BOD declaration). */
 const SCB_DP_DOCUMENTS = ['national_id', 'price_quotation', 'down_payment_receipt'];
 /**
- * The 20% tier, which alone demands comprehensive cover.
+ * The list the ONE merged down-payment programme carries, insurance included.
  *
  * App. §4.2 prints insurance per tier and says three different things: N/A at 60/50/40,
- * REQUIRED at 20, and NOTHING AT ALL at 30. The silent one is left on the shared list rather
- * than guessed either way — a document demanded of an applicant whose bank never asked for it
- * is a refusal at the branch, and one quietly dropped is a loan that cannot complete.
+ * REQUIRED at 20, and NOTHING AT ALL at 30. While the five tiers were five programmes the
+ * silent one was left on the shared list rather than guessed either way, and the 20% tier
+ * carried cover on its own.
+ *
+ * MERGED, THAT DISTINCTION IS NOT EXPRESSIBLE. `requiredDocuments` is one array per
+ * programme with no way to key it by the deposit — unlike the rate, the term, the share and
+ * the floor, which all moved onto the plan table. So it is demanded of everyone, which
+ * over-demands it of four tiers out of five. The alternative is dropping it, and the original
+ * reasoning decides between them: a document demanded of an applicant whose bank never asked
+ * for it is a refusal at the branch, and one quietly dropped is a loan that cannot complete.
+ * The over-demand is the lesser, and the programme's notes say so out loud.
  *
  * The REQUIREMENT only. Insurance as a cost is not modelled: no sheet in the reference prints
  * a premium, and a made-up figure would be financed into an immutable offer (Principle I/A6).
@@ -1160,34 +1182,70 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
   // -------------------------------------------------------------------------
   // Suez Canal Bank — the unsecured auto programmes and Green Finance
   //
-  // Seven programmes off two mechanisms. The five down-payment programmes are ONE product
-  // sold five ways: the same `income = down payment ÷ 3.6`, and what separates them is the
-  // share of the car's price the bank will finance (60% down → 40% financed) plus the
-  // floors and the conditions each tier carries. Green Finance is the same arithmetic over
-  // what the applicant has SAVED, with a second column for a cash buyer.
+  // Three programmes off two mechanisms. The down-payment card is ONE programme reading the
+  // product's five PLANS: the same `income = down payment ÷ 3.6`, and what separates the
+  // tiers — the share of the car's price the bank finances (60% down → 40% financed), the
+  // longest term, the floor and the 20% tier's home-ownership rule — is stated once on the
+  // product, keyed by the deposit the applicant types. It was five programmes until the plan
+  // tables existed, because a programme was the only thing that could carry a different
+  // share. Green Finance is the same arithmetic over what the applicant has SAVED, with a
+  // second column for a cash buyer.
   //
   // No rate is published on any of these slides, so the rate and the admin fee below are the
   // team's placeholders and every one of them is marked an estimate.
   // -------------------------------------------------------------------------
   program({
-    programCode: 'SCB-CAR-DP60',
-    friendlyName: 'Auto Loan — 60% Down Payment',
-    friendlyNameAr: 'قرض سيارة — مقدم 60%',
+    programCode: 'SCB-CAR-DOWN_PAYMENT',
+    friendlyName: 'Auto Loan — Down Payment as Income',
+    friendlyNameAr: 'قرض سيارة — الدفعة المقدمة كدخل',
     programNameKey: 'auto_down_payment_income',
-    sheet: 'App. §4 — Suez Canal unsecured auto, 60% down payment',
+    sheet: 'App. §4 — Suez Canal unsecured auto, all five down-payment tiers',
     notes: [
-      'No car insurance and no ban on sale on this programme.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
-      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+      'ONE programme, five plans. The sheet prints five down-payment tiers that differ only ' +
+        'in the share financed, the longest term and — on the 20% tier alone — the floor and ' +
+        'the home-ownership condition. All five now live in the product\u2019s plan tables, ' +
+        'keyed by the deposit the applicant states, so the customer is quoted the tier their ' +
+        'own deposit lands in rather than five cards to choose between.',
+      'Comprehensive car insurance is required on the 20% tier and on no other (App. §4.2). ' +
+        'A required-document list is one array per programme with no way to key it by the ' +
+        'deposit, so it is demanded of everyone here. That over-demands it of four tiers out ' +
+        'of five, and the alternative — dropping it — is a 20% loan that cannot complete at ' +
+        'the branch. The over-demand is the lesser of the two and this note is the record of ' +
+        'the choice.',
+      'Ban on sale until the loan is settled applies at 50/40/30/20% down and NOT at 60% ' +
+        '(App. §4.2). No field expresses it at any tier, and merged it cannot be stated per ' +
+        'tier at all — recorded here.',
+      'The 12-month service requirement is waived at 40% and 50% down when the I-Score shows ' +
+        'regular repayment over the last six months. No field expresses a conditional ' +
+        'waiver — recorded here.',
+      'The sheet requires 24 months in business for a self-employed applicant and a valid ' +
+        'commercial register and tax card. Both are asked and enforced as conditions — each ' +
+        'carries an "I do not run a business" answer, so a salaried applicant, whom this ' +
+        'programme also accepts, passes rather than being refused for not answering.',
+      'The home address must match the National ID and the I-Score, or the National ID and ' +
+        'the driving licence; otherwise a utility bill no older than three months or an ' +
+        'external verification is required. Not enforced — recorded here.',
+      'The slides state no profit rate, no fee and no rate basis; the figures here are ' +
+        'placeholders the team chose, marked as estimates, and are priced on the reducing ' +
+        'annuity. Every rate in the product\u2019s plan table is an estimate for the same ' +
+        'reason.',
     ],
     minAmountEGP: '100000',
     maxAmountEGP: '5000000',
+    // THE FALLBACK SHARE, and it is not decoration. `ltvCeilingFor` answers `null` when no
+    // scalar is stored, and `null` is NO CLAMP AT ALL — so a build that cannot read the plan
+    // table must still find a number here or it would finance the whole car. 40% is the
+    // lowest tier the sheet prints, so the fallback under-quotes rather than over-quotes.
     ltvCeilingPercent: '40',
     bankName: SCB,
     programType: 'income_surrogate',
     productCategory: 'car',
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
+    // No duration of its own: it reads the product's 6-84 (`down_payment_income`), and the
+    // plan table shortens it per tier.
+    //
+    // And no plan tables of its own either — it reads the product's, which is the mechanism
+    // demonstrating itself: five tiers stated once, on the screen an operator edits.
+    plansSource: 'product',
     ratePercent: SCB_RATE,
     adminFeePercent: SCB_ADMIN_FEE,
     ageMin: 21,
@@ -1199,153 +1257,12 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     minMonthsInJob: 6,
     dbrCapPercent: '50',
     wayId: 'primary',
+    // `cond__homeowned` is deliberately ABSENT, where the 20% tier carried it. A condition
+    // applies per PROGRAMME and not per deposit, so switched on here it would refuse a renter
+    // putting 60% down — whom this bank accepts. The rule moved onto the axis it was always
+    // about: the product's financed-share table states rows for an owner and for a relative's
+    // home in the 20-30% band and none for a renter, so the refusal binds in that band alone.
     stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
-    requiredDocuments: SCB_DP_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
-  }),
-  program({
-    programCode: 'SCB-CAR-DP50',
-    friendlyName: 'Auto Loan — 50% Down Payment',
-    friendlyNameAr: 'قرض سيارة — مقدم 50%',
-    programNameKey: 'auto_down_payment_income',
-    sheet: 'App. §4 — Suez Canal unsecured auto, 50% down payment',
-    notes: [
-      'Ban on sale until the loan is settled.',
-      'The 12-month service requirement is waived when the I-Score shows regular repayment over the last six months. No field expresses a conditional waiver — recorded here.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
-      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
-    ],
-    minAmountEGP: '100000',
-    maxAmountEGP: '5000000',
-    ltvCeilingPercent: '50',
-    bankName: SCB,
-    programType: 'income_surrogate',
-    productCategory: 'car',
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 21,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '6000',
-    minMonthlyIncomeSelfEmployedEGP: '15000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
-    requiredDocuments: SCB_DP_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
-  }),
-  program({
-    programCode: 'SCB-CAR-DP40',
-    friendlyName: 'Auto Loan — 40% Down Payment',
-    friendlyNameAr: 'قرض سيارة — مقدم 40%',
-    programNameKey: 'auto_down_payment_income',
-    sheet: 'App. §4 — Suez Canal unsecured auto, 40% down payment',
-    notes: [
-      'Ban on sale until the loan is settled.',
-      'The 12-month service requirement is waived when the I-Score shows regular repayment over the last six months. No field expresses a conditional waiver — recorded here.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
-      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
-    ],
-    minAmountEGP: '100000',
-    maxAmountEGP: '5000000',
-    ltvCeilingPercent: '60',
-    bankName: SCB,
-    programType: 'income_surrogate',
-    productCategory: 'car',
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 21,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '6000',
-    minMonthlyIncomeSelfEmployedEGP: '15000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
-    requiredDocuments: SCB_DP_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
-  }),
-  program({
-    programCode: 'SCB-CAR-DP30',
-    friendlyName: 'Auto Loan — 30% Down Payment',
-    friendlyNameAr: 'قرض سيارة — مقدم 30%',
-    programNameKey: 'auto_down_payment_income',
-    sheet: 'App. §4 — Suez Canal unsecured auto, 30% down payment',
-    notes: [
-      'Ban on sale until the loan is settled.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
-      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
-    ],
-    minAmountEGP: '100000',
-    maxAmountEGP: '5000000',
-    ltvCeilingPercent: '70',
-    bankName: SCB,
-    programType: 'income_surrogate',
-    productCategory: 'car',
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 21,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '6000',
-    minMonthlyIncomeSelfEmployedEGP: '15000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    wayId: 'primary',
-    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
-    requiredDocuments: SCB_DP_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
-  }),
-  program({
-    programCode: 'SCB-CAR-DP20',
-    friendlyName: 'Auto Loan — 20% Down Payment',
-    friendlyNameAr: 'قرض سيارة — مقدم 20%',
-    programNameKey: 'auto_down_payment_income',
-    sheet: 'App. §4 — Suez Canal unsecured auto, 20% down payment',
-    notes: [
-      'The home must be owned by the applicant or a first-degree relative — now asked and enforced as a condition on this tier alone.',
-      'Comprehensive car insurance is required on this tier and on no other (App. §4.2), and it is now a required DOCUMENT rather than a note. The applicant is also asked outright whether the car will be insured, which a bank pricing from a rate table can read as an axis; this programme does not, because Suez Canal prints one rate and not a grid.',
-      'Ban on sale until the loan is settled.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid commercial register and tax card. Both are now asked and enforced as conditions — each carries an "I do not run a business" answer, so a salaried applicant, whom this programme also accepts, passes rather than being refused for not answering.',
-      'The home address must match the National ID and the I-Score, or the National ID and the driving licence; otherwise a utility bill no older than three months or an external verification is required. Not enforced — recorded here.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
-    ],
-    minAmountEGP: '1000000',
-    maxAmountEGP: '5000000',
-    ltvCeilingPercent: '80',
-    bankName: SCB,
-    programType: 'income_surrogate',
-    productCategory: 'car',
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 21,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '6000',
-    minMonthlyIncomeSelfEmployedEGP: '15000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    wayId: 'primary',
-    stepParams: {
-      primary: divisor(SCB_DP_DIVISOR),
-      ...SCB_SELF_EMPLOYED_GATES,
-      // The 20% tier alone: the home lived in must be owned by the applicant or a
-      // first-degree relative. Its four sibling tiers state no such condition.
-      cond__homeowned: { applies: true },
-    },
     requiredDocuments: SCB_DP20_DOCUMENTS,
     estimated: SCB_ESTIMATED,
   }),

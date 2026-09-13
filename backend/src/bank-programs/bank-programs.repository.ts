@@ -43,6 +43,8 @@ export interface BankProgramCreate {
   productCategory: string;
   active?: boolean;
   isShariaCompliant?: boolean;
+  /** `'product'` or `'own'`; `null`/absent both mean `'own'` (`plansSourceOf`). */
+  plansSource?: string | null;
   operatorNotes?: string | null;
   operatorTips?: readonly string[];
   requiredDocuments?: readonly string[];
@@ -70,6 +72,9 @@ export interface BankProgramUpdate {
   productCategory?: string;
   active?: boolean;
   isShariaCompliant?: boolean;
+  /** `null` writes "this bank's own", which is what an absent field on a full-replacement
+   * PUT has to mean — otherwise a program could take the product's plans and never go back. */
+  plansSource?: string | null;
   operatorNotes?: string | null;
   operatorTips?: readonly string[];
   requiredDocuments?: readonly string[];
@@ -258,6 +263,7 @@ export class BankProgramRepository {
         productCategory: input.productCategory,
         active: input.active ?? true,
         isShariaCompliant: input.isShariaCompliant ?? false,
+        plansSource: input.plansSource ?? null,
         operatorNotes: input.operatorNotes ?? null,
         operatorTips: [
           ...(input.operatorTips ?? []),
@@ -309,6 +315,7 @@ export class BankProgramRepository {
     if (data.productCategory !== undefined) prismaData.productCategory = data.productCategory;
     if (data.active !== undefined) prismaData.active = data.active;
     if (data.isShariaCompliant !== undefined) prismaData.isShariaCompliant = data.isShariaCompliant;
+    if (data.plansSource !== undefined) prismaData.plansSource = data.plansSource;
     if (data.operatorNotes !== undefined) prismaData.operatorNotes = data.operatorNotes;
     if (data.operatorTips !== undefined) {
       prismaData.operatorTips = [

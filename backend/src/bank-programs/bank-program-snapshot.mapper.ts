@@ -10,6 +10,7 @@ import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
+  catalogPlansOf,
   catalogRuleOf,
   catalogTenorOf,
   effectiveIncomeRule,
@@ -17,6 +18,11 @@ import {
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
 import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
+import {
+  effectivePlanLoanLimits,
+  effectivePlanPricing,
+  effectivePlanTenor,
+} from '@/matching/pipeline/plan-inherit';
 
 /** The row plus the optional joined bank, as `findAllActive` returns it. */
 export type BankProgramRow = BankProgram & { bank?: { isFeatured: boolean } | null };
@@ -51,6 +57,12 @@ export function toBankProgramSnapshot(
   // carries the marker below, which `quoteProgram` refuses on before pricing anything.
   const catalog = p.programNameKey === null ? undefined : catalogRules?.get(p.programNameKey);
   const catalogRule = catalogRuleOf(catalog);
+  // The PLAN tables, and the programme's own answer about whose apply. Read once here
+  // because the four of them live in three different blobs below, and because an absent
+  // `plansSource` means `'own'` — so a programme that has never heard of this reads exactly
+  // what it reads today.
+  const catalogPlans = catalogPlansOf(catalog);
+  const plansSource = p.plansSource;
   return {
     id: p.id,
     programCode: p.programCode,
@@ -71,12 +83,29 @@ export function toBankProgramSnapshot(
     //
     // `effectiveTenor` returns the SAME object when nothing is inherited, which is every
     // program on this database today, so the common path allocates nothing.
-    tenor: effectiveTenor(
-      p.tenor as unknown as StoredTenor | undefined,
-      catalogTenorOf(catalog),
-    ) as unknown as BankProgramSnapshot['tenor'],
-    loanLimits: p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
-    pricing: p.pricing as unknown as BankProgramSnapshot['pricing'],
+    //
+    // The PLAN grids merge on the same three lines the blobs are read on, for the same
+    // reason: a snapshot must not be able to tell a table the bank typed from one it is
+    // reading off the product. Each helper returns the SAME object when nothing is
+    // inherited, which is every program on this database today.
+    tenor: effectivePlanTenor(
+      effectiveTenor(
+        p.tenor as unknown as StoredTenor | undefined,
+        catalogTenorOf(catalog),
+      ) as unknown as BankProgramSnapshot['tenor'],
+      plansSource,
+      catalogPlans,
+    ),
+    loanLimits: effectivePlanLoanLimits(
+      p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
+      plansSource,
+      catalogPlans,
+    ),
+    pricing: effectivePlanPricing(
+      p.pricing as unknown as BankProgramSnapshot['pricing'],
+      plansSource,
+      catalogPlans,
+    ),
     eligibility: normalizeEligibility(p.eligibility),
     // Canonical BEFORE the snapshot leaves this module (FR-014). The resolver also
     // normalizes — the function is idempotent — but doing it here means every

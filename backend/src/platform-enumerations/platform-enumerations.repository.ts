@@ -18,6 +18,7 @@ import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit
 import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
 
 export type EnumerationType =
   | 'transfer_type'
@@ -756,6 +757,22 @@ export abstract class PlatformEnumerationsRepository {
   abstract programsInheritingTenor(productKey: string): Promise<string[]>;
 
   /**
+   * A surrogate product's default PLAN tables — the rate, the term ceiling, the financed
+   * share and the floor every program that opted in falls back to.
+   *
+   * `null` clears them. Unlike the duration above there is NO clear refusal, and that is a
+   * decision rather than an omission: a cleared duration leaves a program with no term and it
+   * cannot be priced at all, where a cleared plan table leaves it on its own
+   * `baseRatePercent`, `minAmountEGP` and `ltvCeilingPercent` — every one of which still
+   * exists. Nothing stops quoting, so nothing needs refusing.
+   */
+  abstract setSurrogateProductPlanDefaults(
+    key: string,
+    plans: PlanDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
    * Which `stepParams` boxes each bank program under this product has actually typed into.
    *
    * Backs the one refusal that protects live figures: recompiling a changed form can stop
@@ -818,6 +835,8 @@ export interface ProgramNameIncomeRuleRow {
    * moves every one of them.
    */
   tenorDefaults: TenorDefaults | null;
+  /** The product's default PLAN tables, or `null` when it states none. */
+  planDefaults: PlanDefaults | null;
   valueSources: Record<string, 'team_estimated'>;
   /**
    * `program_name` only — the product this name takes its calculation from.
@@ -904,4 +923,6 @@ export interface ProgramUnderName {
    * thereby said anything about how long it lends for. Both directions occur.
    */
   ownTenor: boolean;
+  /** True when this program reads the product's PLAN tables rather than its own. */
+  followsPlans: boolean;
 }
