@@ -150,10 +150,16 @@ async function main(): Promise<void> {
     const wanted = [...new Set(SHEET_PROGRAMS.map((spec) => spec.dto.bankName))];
     const banks = await prisma.bank.findMany({
       where: { nameEnglish: { in: wanted } },
-      select: { nameEnglish: true },
+      select: { id: true, nameEnglish: true },
     });
-    const haveBanks = new Set(banks.map((bank) => bank.nameEnglish));
-    const missingBanks = wanted.filter((name) => !haveBanks.has(name));
+    //    The ID, not only the name. `bank_program.bankName` is a deprecated denormalised
+    //    string and `bankId` is the relation the bank's own page lists by, so a program
+    //    created with the name alone is live, active and quoting while its bank reads
+    //    "0 programs" — which is exactly what every program this command created used to be.
+    //    The lookup was already here to report a missing bank; carrying its id costs the
+    //    seed nothing and is the one place that knows both halves.
+    const bankIdByName = new Map(banks.map((bank) => [bank.nameEnglish, bank.id]));
+    const missingBanks = wanted.filter((name) => !bankIdByName.has(name));
     if (missingBanks.length > 0) {
       console.error(`${TAG} these banks do not exist: ${missingBanks.join(', ')}`);
       console.error(`${TAG} run \`npm run seed:banks\` first — it holds all of them.`);
@@ -331,7 +337,14 @@ async function main(): Promise<void> {
     // 4. The bank programs.
     for (const spec of SHEET_PROGRAMS) {
       const stored = await programRepo.findByProgramCode(spec.programCode);
-      const body = { ...spec.dto, valueSources: marks(spec.estimated) };
+      // `bankId` is resolved from the bank this spec names, never left to the DTO: the spec
+      // files hold sheet figures and the name printed on the sheet, and have no id to give.
+      // Every name was proved to resolve at step 1, so the map cannot miss here. It is NOT in
+      // `programFingerprint`, deliberately — that compares the FIGURES, and a program whose
+      // numbers are already right should keep reporting "same" rather than churn on a link
+      // the migration beside this one repairs for rows that predate it.
+      const bankId = bankIdByName.get(spec.dto.bankName);
+      const body = { ...spec.dto, ...(bankId ? { bankId } : {}), valueSources: marks(spec.estimated) };
       const action = planProgram({
         programCode: spec.programCode,
         stored:
