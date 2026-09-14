@@ -40,6 +40,16 @@ interface Case {
   expectRate: string | null;
   expectMax: string | null;
   expectReason?: string;
+  /**
+   * The term ceiling the deposit's plan row states, and the constraint that must bind.
+   *
+   * Both were PRINTED by this harness and asserted by nothing, which is the difference
+   * between a report and a test: deleting the product's `maxMonthsByFact` outright, or
+   * losing the financed-share grid so the flat scalar clamped instead, still came back
+   * 13/13. A column nobody compares is decoration.
+   */
+  expectTerm?: number;
+  expectBinding?: string;
 }
 
 const P = '1000000';
@@ -47,10 +57,10 @@ const BIG = '3000000';
 
 const CASES: Case[] = [
   // deposit band -> rate, and the financed share the amount is capped at.
-  { price: BIG, what: '20% down, owner, petrol', down: '600000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '10', expectMax: '2400000' },
+  { price: BIG, what: '20% down, owner, petrol', down: '600000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '10', expectMax: '2400000', expectTerm: 60, expectBinding: 'ltv_ceiling' },
   { price: BIG, what: '25% down, relative owns home', down: '750000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_relative', tenor: 84, expectRate: '10', expectMax: '2400000' },
-  { price: P, what: '35% down, owner', down: '350000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '9', expectMax: '700000' },
-  { price: P, what: '45% down, owner', down: '450000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '600000' },
+  { price: P, what: '35% down, owner', down: '350000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '9', expectMax: '700000', expectTerm: 72, expectBinding: 'ltv_ceiling' },
+  { price: P, what: '45% down, owner', down: '450000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '600000', expectTerm: 84, expectBinding: 'ltv_ceiling' },
   { price: P, what: '55% down, owner', down: '550000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '7', expectMax: '500000' },
   { price: P, what: '65% down, owner', down: '650000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '6', expectMax: '400000' },
   // the car-type columns
@@ -163,12 +173,37 @@ async function main(): Promise<void> {
         verdict = `FAIL rate expected ${c.expectRate}`;
       } else if (c.expectMax !== null && !new Decimal(max).equals(new Decimal(c.expectMax))) {
         verdict = `FAIL max expected ${c.expectMax}`;
+      } else if (c.expectTerm !== undefined && out.quote.effectiveTenorMonths !== c.expectTerm) {
+        verdict = `FAIL term expected ${c.expectTerm}`;
+      } else if (c.expectBinding !== undefined && binding !== c.expectBinding) {
+        verdict = `FAIL binding expected ${c.expectBinding}`;
       }
     }
     if (verdict !== 'OK') failures += 1;
     console.log(`${c.what} | ${rate} | ${max} | ${term} | ${binding} | ${reason} | ${verdict}`);
   }
-  console.log(`\n# ${CASES.length - failures}/${CASES.length} cases as stated`);
+  // THE COLLAPSE, ASSERTED — the pairing the design doc named and nothing carried.
+  //
+  // `seed:sheet-figures` reports "unchanged" only for codes IN the seed file, so a run that
+  // says "0 written / 0 refused" and "SCB-CAR-DOWN_PAYMENT identical to what is stored" is
+  // entirely consistent with all five retired tiers still sitting live beside it — quoting,
+  // ranked, and invisible to every report anybody reads. The seed cannot see them because it
+  // has no delete; this is the only place that looks.
+  const survivors = await prisma.bankProgram.findMany({
+    where: { programCode: { startsWith: 'SCB-CAR-DP' } },
+    select: { programCode: true, active: true },
+  });
+  if (survivors.length > 0) {
+    failures += 1;
+    console.log(
+      `\n# COLLAPSE FAILED — ${survivors.length} retired tier(s) still present: ` +
+        survivors.map((p) => `${p.programCode}${p.active ? ' (ACTIVE)' : ''}`).join(', '),
+    );
+  } else {
+    console.log('\n# collapse: no SCB-CAR-DP% tier survives');
+  }
+
+  console.log(`# ${CASES.length - failures}/${CASES.length} cases as stated`);
   await prisma.$disconnect();
   if (failures > 0) process.exit(1);
 }

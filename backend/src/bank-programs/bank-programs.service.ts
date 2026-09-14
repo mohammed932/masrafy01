@@ -99,6 +99,7 @@ import { validateFactGrid } from './validation/fact-grid.validator';
 import type { FactGridConfig } from '@/matching/pipeline/fact-grid';
 import {
   catalogIncomeRulePaths,
+  catalogPlanDefaultsPaths,
   estimatedPaths,
   newlyEstimatedPaths,
   pruneValueSources,
@@ -137,6 +138,7 @@ import {
   type CatalogRuleResolution,
 } from '@/matching/pipeline/income-rule-inherit';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import { plansSourceOf } from '@/matching/pipeline/plan-inherit';
 import {
   compileTemplate,
   validateTemplate,
@@ -1162,6 +1164,13 @@ export class BankProgramsService {
       active: program.active,
       isShariaCompliant: program.isShariaCompliant,
       version: program.version,
+      // NORMALISED through the engine's own reader, never handed out raw. The stored column
+      // is a nullable string and every value that is not `'product'` — NULL included — means
+      // "this bank's own"; resolving that here is what stops a client inventing a third
+      // reading of it. The field must be present on the wire: this form saves by full
+      // replacement and posts the value back, so an absent one reads as `'own'` and detaches
+      // the program from the product's plans on a save that changed nothing else.
+      plansSource: plansSourceOf(program.plansSource),
       operatorNotes: program.operatorNotes ?? null,
       operatorTips: program.operatorTips,
       requiredDocuments: program.requiredDocuments,
@@ -1971,6 +1980,7 @@ export class BankProgramsService {
       row.valueSources,
       rule,
       row.incomeRule,
+      row.planDefaults,
     );
 
     // ADVANCED IS ONE-WAY, and this is where it happens.
@@ -2446,6 +2456,7 @@ export class BankProgramsService {
       row.valueSources,
       compiled,
       row.incomeRule,
+      row.planDefaults,
     );
 
     await this.enums.setSurrogateProductIncomeRule(key, compiled, valueSources, actor.id, template);
@@ -2492,11 +2503,21 @@ export class BankProgramsService {
     stored: Record<string, 'team_estimated'> | null | undefined,
     rule: IncomeAssumptionConfig | null,
     previousRule: IncomeAssumptionConfig | null,
+    /**
+     * The product's stored PLAN tables, when this is a product write.
+     *
+     * They are written by a DIFFERENT endpoint, so the markers that describe them and the
+     * tables themselves never arrive in the same request — which is why the allowed set is
+     * built from what is STORED rather than from anything submitted here. A catalog NAME
+     * passes `undefined`: a name has no plan tables of its own.
+     */
+    plans?: unknown,
   ): Record<string, 'team_estimated'> {
     const stating = submittedRaw !== undefined;
     const submitted = submittedRaw ?? stored ?? {};
-    const allowed = catalogIncomeRulePaths(rule);
-    const previously = catalogIncomeRulePaths(previousRule);
+    const planPaths = catalogPlanDefaultsPaths(plans);
+    const allowed = new Set([...catalogIncomeRulePaths(rule), ...planPaths]);
+    const previously = new Set([...catalogIncomeRulePaths(previousRule), ...planPaths]);
 
     for (const [path, value] of Object.entries(submitted)) {
       if (value !== 'team_estimated') {

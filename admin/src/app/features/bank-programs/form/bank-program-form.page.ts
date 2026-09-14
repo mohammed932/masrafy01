@@ -1426,17 +1426,38 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                           This bank has not stated plans of its own, so it prices, lends and
                           finances on the product's. Change them there and this program follows.
                         </p>
-                        <button
-                          nz-button
-                          nzType="default"
-                          nzSize="small"
-                          type="button"
-                          aria-describedby="plans-from-product"
-                          (click)="stateOwnPlans()"
-                          i18n="@@bank_programs.plans.set_own"
-                        >
-                          Set this bank's own plans
-                        </button>
+                        <div class="plans-verbs">
+                          <button
+                            nz-button
+                            nzType="default"
+                            nzSize="small"
+                            type="button"
+                            aria-describedby="plans-from-product"
+                            (click)="stateOwnPlans()"
+                            i18n="@@bank_programs.plans.set_own"
+                          >
+                            Set this bank's own plans
+                          </button>
+                          <!-- THE THIRD VERB, and it is a different decision from the one
+                               beside it. "Set this bank's own" COPIES the product's tables so
+                               they can be edited; this states that the bank prices and caps by
+                               nothing at all. Both land on plansSource 'own' — the difference
+                               is whether the tables come with it — and without this the only
+                               way to say "I do not cap by the deposit" was to take a copy and
+                               then delete it table by table, on a card with editors for two of
+                               the five. -->
+                          <button
+                            nz-button
+                            nzType="link"
+                            nzSize="small"
+                            type="button"
+                            aria-describedby="plans-from-product"
+                            (click)="stateNoPlans()"
+                            i18n="@@bank_programs.plans.state_none"
+                          >
+                            This bank states no plans
+                          </button>
+                        </div>
                       </div>
                     } @else {
                       <p class="field-hint">
@@ -1976,9 +1997,8 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                       nz-checkbox
                       [nzChecked]="toggles.vehicleGrid()"
                       (nzCheckedChange)="setToggle('vehicleGrid', $event)"
-                      i18n="@@bank_programs.toggle.vehicle_grid"
-                      >Limit the term by the car's model year, where it was built, or the
-                      deposit</label
+                      i18n="@@bank_programs.toggle.vehicle_grid2"
+                      >Limit the term by the car's model year or where it was built</label
                     >
                     @if (toggles.vehicleGrid() && maxMonthsByFact(); as grid) {
                       <p class="field-hint" i18n="@@bank_programs.vehicle_grid.hint">
@@ -2437,6 +2457,16 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
         display: flex;
         flex-direction: column;
         align-items: flex-start;
+        gap: var(--space-2);
+      }
+
+      /* Two verbs on one row, wrapping rather than shrinking: they are peers of different
+         weights — one takes a copy to edit, one declines the whole card — and a link beside a
+         button is what says that without a second heading. */
+      .plans-verbs {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
         gap: var(--space-2);
       }
 
@@ -4234,6 +4264,23 @@ export class BankProgramFormPage implements OnInit {
    */
   readonly rateByFact = signal<FactGridConfig | null>(null);
   readonly maxMonthsByFact = signal<FactGridConfig | null>(null);
+
+  /**
+   * The three plan tables this form has no EDITOR for, held so it can still carry them.
+   *
+   * They are on `LOAN_LIMIT_KEYS_EDITED_HERE` / `TENOR_KEYS_EDITED_HERE`, which means
+   * `carriedKeysOf` strips them out of the carried spread — so without a signal to re-emit
+   * them, a full-replacement save DELETES a table a seed or the API wrote. That is the
+   * seventh-and-eighth hazard the docstring above those lists names, arrived at from the
+   * other direction: naming a key as this form's is only safe if this form sends it back.
+   *
+   * No editor is deliberate (a bank authoring its own financed-share table is a seed edit
+   * today). Held, hydrated and re-sent unchanged is exactly what `maxLoanAdjustments` does
+   * one block down, and for the same reason.
+   */
+  readonly ltvCeilingByFact = signal<FactGridConfig | null>(null);
+  readonly minAmountByFact = signal<FactGridConfig | null>(null);
+  readonly minMonthsByFact = signal<FactGridConfig | null>(null);
   readonly rateGridError = computed(() =>
     this.toggles.rateGrid() ? factGridErrorFor(this.rateByFact(), 'ratePercent') : null,
   );
@@ -6036,6 +6083,24 @@ export class BankProgramFormPage implements OnInit {
       if (plans.maxMonthsByFact !== undefined) {
         this.maxMonthsByFact.set(structuredClone(plans.maxMonthsByFact));
       }
+      // ALL FIVE, not the two with editors. Copying a subset is the whole loss: the three
+      // below cap the financed share, floor the loan and floor the term, so a copy that
+      // skipped them turned "take these as your own" into "drop three of them" — and the
+      // programme fell back to a flat scalar share, a 100,000 floor and the product's
+      // outer term, silently, on an immutable offer.
+      if (plans.ltvCeilingByFact !== undefined) {
+        this.ltvCeilingByFact.set(structuredClone(plans.ltvCeilingByFact));
+      }
+      if (plans.minAmountByFact !== undefined) {
+        this.minAmountByFact.set(structuredClone(plans.minAmountByFact));
+      }
+      if (plans.minMonthsByFact !== undefined) {
+        this.minMonthsByFact.set(structuredClone(plans.minMonthsByFact));
+      }
+      // The toggles follow the copy, or the two tables that DO have editors are held in
+      // signals nothing renders and nothing emits — a copy that saves as a delete.
+      this.toggles.rateGrid.set(this.rateByFact() !== null);
+      this.toggles.vehicleGrid.set(this.maxMonthsByFact() !== null);
     }
     this.plansSource.set('own');
     this.markPlansDirty();
@@ -6049,7 +6114,36 @@ export class BankProgramFormPage implements OnInit {
   backToProductPlans(): void {
     this.rateByFact.set(null);
     this.maxMonthsByFact.set(null);
+    // All five again, and here the completeness is load-bearing in the other direction: a
+    // grid left on the programme WINS over the product's even under `plansSource: 'product'`
+    // (`plan-inherit.ts`), so a partial clear leaves the card saying "the product's plans
+    // apply" over a share this bank is still stating for itself.
+    this.ltvCeilingByFact.set(null);
+    this.minAmountByFact.set(null);
+    this.minMonthsByFact.set(null);
+    this.toggles.rateGrid.set(false);
+    this.toggles.vehicleGrid.set(false);
     this.plansSource.set('product');
+    this.markPlansDirty();
+  }
+
+  /**
+   * The explicit opt-out: this bank prices, lends and caps by nothing the deposit says.
+   *
+   * `'own'` with no grid, which `plan-inherit.ts` documents as exactly this state. It is not
+   * the same as the button above it — that one takes a COPY to edit — and it is not the same
+   * as a blank product either: a product may state five tables and a bank still decline all
+   * five, which is the case the selector exists to make sayable at all.
+   */
+  stateNoPlans(): void {
+    this.rateByFact.set(null);
+    this.maxMonthsByFact.set(null);
+    this.ltvCeilingByFact.set(null);
+    this.minAmountByFact.set(null);
+    this.minMonthsByFact.set(null);
+    this.toggles.rateGrid.set(false);
+    this.toggles.vehicleGrid.set(false);
+    this.plansSource.set('own');
     this.markPlansDirty();
   }
 
@@ -7255,6 +7349,13 @@ export class BankProgramFormPage implements OnInit {
         ...(!this.plansInherits() && this.toggles.vehicleGrid() && this.maxMonthsByFact() !== null
           ? { maxMonthsByFact: this.maxMonthsByFact()! }
           : {}),
+        // Re-sent unchanged. No toggle and no editor: this form owns the key (it is on
+        // `TENOR_KEYS_EDITED_HERE`, so it is not carried) but never authors it, so the only
+        // job here is to give back what was read. Dropped while inheriting, for the reason
+        // the line above is: the mapper fills it, and a stored copy stops following.
+        ...(!this.plansInherits() && this.minMonthsByFact() !== null
+          ? { minMonthsByFact: this.minMonthsByFact()! }
+          : {}),
       },
       loanLimits: {
         // Carried FIRST so an edited key can never be overwritten by a stale stored copy of
@@ -7275,6 +7376,13 @@ export class BankProgramFormPage implements OnInit {
         // authored by a seed or the API alive through an unrelated edit.
         ...(this.maxLoanAdjustments() !== null
           ? { maxLoanAdjustments: this.maxLoanAdjustments()! }
+          : {}),
+        // The two plan tables with no editor, re-sent unchanged — see the tenor block above.
+        ...(!this.plansInherits() && this.ltvCeilingByFact() !== null
+          ? { ltvCeilingByFact: this.ltvCeilingByFact()! }
+          : {}),
+        ...(!this.plansInherits() && this.minAmountByFact() !== null
+          ? { minAmountByFact: this.minAmountByFact()! }
           : {}),
       },
       pricing: {
@@ -7456,6 +7564,17 @@ export class BankProgramFormPage implements OnInit {
     this.rateByFact.set(storedRateGrid ?? null);
     this.maxMonthsByFact.set(storedVehicleGrid ?? null);
     this.toggles.rateGrid.set(storedRateGrid !== undefined);
+    // The three with no editor. Read out for the same reason and re-sent unchanged; there is
+    // no toggle because there is nothing to switch — presence on the stored row IS the state.
+    this.ltvCeilingByFact.set(
+      (initial.loanLimits as { ltvCeilingByFact?: FactGridConfig }).ltvCeilingByFact ?? null,
+    );
+    this.minAmountByFact.set(
+      (initial.loanLimits as { minAmountByFact?: FactGridConfig }).minAmountByFact ?? null,
+    );
+    this.minMonthsByFact.set(
+      (initial.tenor as { minMonthsByFact?: FactGridConfig }).minMonthsByFact ?? null,
+    );
     // Whose plan tables this program reads. ABSENT READS AS `'own'` — every program written
     // before the field existed carries its own figures.
     this.plansSource.set(initial.plansSource === 'product' ? 'product' : 'own');

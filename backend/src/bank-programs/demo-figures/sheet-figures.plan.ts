@@ -1,4 +1,5 @@
 import { stableJson } from '@/common/stable-json.util';
+import { plansSourceOf } from '@/matching/pipeline/plan-inherit';
 import {
   isGateConfigured,
   isStepConfigured,
@@ -119,6 +120,18 @@ export function programFingerprint(program: {
   fees?: unknown;
   valueSources?: unknown;
   requiredDocuments?: unknown;
+  /**
+   * Whose PLAN tables the programme reads, and it belongs in the fingerprint precisely because
+   * it is not a figure.
+   *
+   * Every other field here is something the seed WRITES. This one the seed also writes, and it
+   * is the only field on a programme that decides which of two sets of figures apply without
+   * appearing in either. Left out, a programme flipped from `'product'` to `'own'` — which
+   * drops it to its placeholder base rate, its flat financed share and its lower floor —
+   * fingerprints as IDENTICAL, so the seed reports "identical to what is stored" over a
+   * programme quoting four different numbers and never restores it.
+   */
+  plansSource?: unknown;
 }): string {
   return stableJson({
     tenor: program.tenor,
@@ -129,6 +142,10 @@ export function programFingerprint(program: {
     fees: program.fees,
     valueSources: program.valueSources,
     requiredDocuments: program.requiredDocuments,
+    // NORMALISED, not raw: the column is nullable and NULL, absent and any unrecognised
+    // string all mean `'own'` to the engine (`plan-inherit.ts`), so comparing the raw value
+    // would report drift between two rows that quote identically.
+    plansSource: plansSourceOf(program.plansSource),
   });
 }
 

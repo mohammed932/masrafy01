@@ -170,7 +170,11 @@ So `sheet-programs.ts:1172-1351` collapses to one entry; `Input` gains `ltvByFac
 
 **The proof** is `seed:sheet-figures` reporting **0 written / 0 refused** and `SCB-CAR-DOWN_PAYMENT` "identical to what is stored" — that is what catches a one-byte disagreement between the migration's INSERT and the seed's DTO. One hole to know about: `unchanged` is only reported for codes *in the seed file*, so it does **not** prove the four are gone. Pair it with `SELECT count(*) FROM bank_program WHERE "programCode" LIKE 'SCB-CAR-DP%'` — must be 0.
 
-Seeded figures (the operator's illustration; no slide publishes a rate, so every cell is marked `team_estimated`):
+Seeded figures (the operator's illustration). No slide publishes a rate, so the twenty rate
+cells and the three term ceilings are marked `team_estimated`; the five financed shares, the
+1,000,000 floor and every band edge are the sheet's own and are deliberately NOT marked.
+*(Corrected 2026-09-14 — the original text claimed every cell was marked, and none was: see
+the audit section at the end.)*
 
 | Down payment | Finances | Term | Rate: petrol/other | Chinese | Electric/hybrid | Floor |
 |---|---|---|---|---|---|---|
@@ -314,3 +318,108 @@ both ways on live rows. Seeds re-run 0 written / 0 refused.
 
 **Not done, stated:** no browser was driven (no browser tool in this session), so the Plans card,
 the wizard's three-state row and every contrast figure are unmeasured in light, dark and RTL.
+
+
+---
+
+## Audit and corrections (2026-09-14)
+
+The two docs above were audited against the working tree, the live database and the seeds,
+dimension by dimension. **The engine, the seeded figure table, the migrations' guards and the
+merge are as described** — the D7 table matches the stored tables cell for cell, `car_fuel_type`
+is live in snapshot v177 with the stated option codes, and the collapse landed with its audit
+trail. Six defects sat at the edges, and three of them mattered:
+
+### Fixed
+
+1. **`plansSource` never left the API.** `toResponse` omitted it and the response DTO had no such
+   field, so the wizard read it back as `undefined` → `'own'` and posted that on *every* save.
+   Opening `SCB-CAR-DOWN_PAYMENT` and pressing Save — the form is not dirty-gated — dropped it off
+   the product's plans: rate 5–12% → the 24% placeholder, financed share → the flat `'40'`, floor
+   1,000,000 → 100,000, term 60 → 84, frozen onto immutable offers. Plan inheritance was
+   write-only. Now on the DTO and normalised through `plansSourceOf`.
+2. **The three editor-less grids were stripped on save.** They sit on `LOAN_LIMIT_KEYS_EDITED_HERE`
+   / `TENOR_KEYS_EDITED_HERE` — which *removes* them from the carried spread — while
+   `payloadFromForm` never emitted them; and `stateOwnPlans()` copied two of five into signals
+   whose toggles `absorb` had left false, so "Set this bank's own plans" saved as a delete of all
+   five. They now have signals, are hydrated, are re-sent unchanged, and both verbs cover all five
+   slots off `PLAN_SLOTS`.
+3. **`migrate deploy` aborted on any database still holding the five tiers.** The collapse requires
+   `planDefaults` on the product; only `seed:sheet-figures` wrote it; the documented order runs the
+   migration first and Prisma applies both in one pass. Fresh databases escaped via the early
+   return; the upgrade path — the only reason the migration exists — failed and left Prisma with a
+   failed migration. `20260913150000` now writes the product's plan tables itself, guarded and
+   idempotent, byte-identical to `CATALOG_FIGURES` (the v27.1.0 "pasted, so there is no window"
+   precedent). Deviation 1 is unchanged: the migration still deletes, the seed still creates.
+4. **Inherited grid axes were invisible to four guards.** `narrowingScopeFor` fetched
+   `planDefaults` and never used it, under a comment — *"a grid is the BANK's own table and is
+   never inherited from the catalog"* — that this change falsified. Measured: `car_fuel_type` and
+   `car_origin` reported **zero** readers; `home_ownership` reported one instead of two. Both
+   `narrowingScopeFor` and `surrogateFactReaders` now resolve through `effectivePlan*` first, and
+   `check:question-scope` was taught the same (it built a `LinkedProduct` missing both
+   `tenorDefaults` and `planDefaults`).
+5. **`quote:rates` was blind to plan defaults** — the same defect, one field over, as the harness
+   fix this change reports landing first, and the harness the byte-identical evidence rests on. It
+   reported the merged programme at a flat 24% over 84 months. Fixed; it now reads 8% and 6% from
+   the plan grid.
+6. **Thirty plan figures carried no provenance** while the doc, the seed's docblock and FR-032 all
+   implied otherwise: `planDefaults` was unreachable by any marker path. New
+   `catalogPlanDefaultsPaths` rooted at `planDefaults`, and 23 markers seeded — the 20 invented
+   rates and the 3 invented term ceilings, not the published shares, floor or band edges.
+
+Smaller, also fixed: the plan-defaults DTO accepted `null` for a grid slot and 500'd
+(`@IsOptional` skips `null`); the migration's "one distinct value" guard omitted `valueSources`
+(the column holding the estimate markers) and its per-share guard used `NOT IN` over a nullable
+extraction, so a tier with **no** share — meaning no clamp at all — slipped through; the five
+`BANK_PROGRAM_DELETED` payloads carried 11 keys and now carry 27; `plansSource` was invisible to
+`programFingerprint`, so a flipped programme fingerprinted as identical and was never restored;
+and `quote:car-plans` printed the terms and the binding without asserting either, and asserted
+nothing about the collapse — the pairing D7 line 171 named and nothing carried.
+
+### UI corrections
+
+The plans card was well built and needed corrections rather than a repaint. The *Shortest term*
+row opened a table headed **LONGEST TERM (MONTHS)** whose boxes announced "longest term in
+months" (`months` was one value kind for two fields; it now takes a `monthsBound`). The readers
+line counted the opted-in set while saying "state no plans of their own" — a different population,
+and the one the opt-out exists for. `spd.reach` enumerated three live-inherited things and omitted
+the five new ones. The band-mismatch advisory compared band *sets*, so it fired permanently on the
+only product that has plans (the term table deliberately states one row where the rate table
+states three); it is now coverage-based and scoped to tables whose miss is a **refusal**, which is
+the only case that turns a priced customer away. The blocking error rendered at 3.81:1;
+`.link-btn:hover` resolved to the resting colour via a token no palette defines; the five-row list
+carried no `role="list"`; and `amountEGP` cells had no `appMoneyInput`, so a seven-digit floor
+rendered ungrouped. Clearing a plan table now asks first, naming how many programmes read it —
+the server stays permissive, which is a deviation from D5's `SURROGATE_PRODUCT_PLANS_IN_USE` and
+is recorded here rather than left silent. The wizard gained the third verb D5 required,
+**"This bank states no plans"**.
+
+### Deviations now recorded that were not
+
+Three `effectivePlan*` functions rather than one `effectivePlans` (better — the tables live in
+three JSON columns — but D1/D9 name a symbol that does not exist); the wizard's plans row sits
+inside the pricing card rather than its own `#card-plans`, so the Review step's Edit cannot
+deep-link to it; `toggles.rateGrid` was retained; `maxMonthsByFact` is seeded `useFallback` where
+D2's table says `reject` (the safer choice); the `check:conditions` replacement for the
+DP20-vs-DP30 pair lives in a different harness; and the `quote-rates.ts` fix did **not** land in
+its own commit, which is where the before/after baselines were supposed to be taken from.
+
+### Verified
+
+Backend **1584** tests (was 1569 — plan-inheritance identity and malformed-blob reads, the new
+grids' axes in `fact-readers`, and the byte-identical regression case D9 asked for), admin **364**,
+`tsc` clean both sides, lint at the pre-existing set on every touched file, `check:codes` **225**
+in sync, `check:income-proof` clean at 17 across 11, `check:parent-keys` clean at 98,
+`check:conditions` 13/13, `check:question-scope` showing only the pre-existing parked item.
+`quote:rates` and `quote:surrogate` **byte-identical** across the whole change,
+`quote:car-plans` **13/13** plus the new collapse assertion, seeds re-run **0 written / 0 refused
+/ 0 published**. The destructive migration was exercised on real rows in a rolled-back
+transaction: five tiers rebuilt, all guards passed, five audit events written, five rows deleted,
+end state asserted, database left untouched. The Arabic bundle builds with all 13 new ids carrying
+targets and five orphans dropped.
+
+**Not done, stated:** no browser was driven — no browser tool in this session — so the corrected
+column heading, the confirmation dialog, the new verb and every contrast figure are unmeasured in
+light, dark and RTL; the fused plan-rows editor D5 designed is still not built (Deviation 2
+stands, and it remains the real simplification); and `countOffersReferencing` still returns a
+hardcoded `0` at the source, guarded against only inside the migration.

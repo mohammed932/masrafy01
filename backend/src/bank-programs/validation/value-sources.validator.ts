@@ -92,6 +92,32 @@ export function catalogIncomeRulePaths(rule: unknown): Set<string> {
   return paths;
 }
 
+/**
+ * The markable paths of a surrogate product's PLAN tables, rooted at `planDefaults`.
+ *
+ * A third root, and it exists because the figures it covers are the ones most likely to be a
+ * guess. The five plan tables set the rate, the term ceiling, the share of the car's price the
+ * bank finances and the smallest loan it writes — and on the one card that uses them today NO
+ * published slide states a rate at all, so every cell is the team's illustration. Without a
+ * root they were unmarkable: `MARKABLE_CONFIG_ROOTS` is the set of blobs a BANK PROGRAM
+ * carries, `catalogIncomeRulePaths` is rooted at `incomeRule`, and `planDefaults` is neither —
+ * so thirty invented figures read as bank-stated, which is the opposite of what FR-032 is for.
+ *
+ * Deliberately NOT a member of `MARKABLE_CONFIG_ROOTS`, for the reason `incomeRule` is not:
+ * that list is what a program's own marker validation accepts, and a program has no
+ * `planDefaults` of its own — the tables it reads are the product's.
+ *
+ * Cells are addressed by INDEX, because a grid cell has no key to address it by (a key table's
+ * rows do, which is why that one walks by key). Inserting a cell therefore shifts which figure
+ * a marker describes. That is a real limitation of the grid shape rather than of this walk, and
+ * it is why the seed lists the paths rather than an operator typing them.
+ */
+export function catalogPlanDefaultsPaths(plans: unknown): Set<string> {
+  const paths = new Set<string>();
+  walkMarkable(plans, 'planDefaults', false, paths);
+  return paths;
+}
+
 function walkMarkable(
   rootValue: unknown,
   rootPrefix: string,

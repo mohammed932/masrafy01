@@ -432,4 +432,165 @@ describe('quoteProgram', () => {
       ).toBe('BELOW_PROGRAM_MIN_AMOUNT');
     });
   });
+
+  /**
+   * THE PLAN GRIDS — the three clamps added with product plan tables, and the one case that
+   * matters most: a programme carrying NONE of them must be byte-identical to before.
+   *
+   * All three read a grid ahead of an existing scalar (`ltvCeilingByFact` before
+   * `ltvCeilingPercent`) or compose into an existing bound by `max` (`minAmountByFact` into
+   * the floor, `minMonthsByFact` into the term floor). Each is absent on 31 of 32 live
+   * programmes, so the regression that matters is the one nothing on a screen would show:
+   * an added read path that quietly moves a figure for every programme that does not use it.
+   */
+  describe('plan grids', () => {
+    const deposit = {
+      carDetails: { carValueEGP: new Decimal('1000000'), downPaymentEGP: new Decimal('250000') },
+    };
+
+    it('moves NOTHING on a programme that carries none of the new grids', () => {
+      const before = expectQuoted(
+        quoteProgram({ profile: profileFixture(deposit), program: programFixture() }),
+      );
+      // The same programme, stated with the new keys explicitly absent — which is what every
+      // stored row is. Byte-for-byte on every figure the offer freezes.
+      const after = expectQuoted(
+        quoteProgram({
+          profile: profileFixture(deposit),
+          program: programFixture({
+            // Spelled out in full: `programFixture` merges SHALLOWLY, so a partial blob here
+            // would drop the maximum and report PROGRAM_MISCONFIGURED rather than test anything.
+            loanLimits: {
+              minAmountEGP: '10000',
+              maxAmountEGP: '1000000',
+              ltvCeilingByFact: undefined,
+              minAmountByFact: undefined,
+            },
+            tenor: { minMonths: 6, maxMonths: 84, minMonthsByFact: undefined },
+          }),
+        }),
+      );
+      expect(after.offeredAmountEGP.toFixed(2)).toBe(before.offeredAmountEGP.toFixed(2));
+      expect(after.cashToCustomerEGP.toFixed(2)).toBe(before.cashToCustomerEGP.toFixed(2));
+      expect(after.monthlyInstallmentEGP.toFixed(2)).toBe(before.monthlyInstallmentEGP.toFixed(2));
+      expect(after.effectiveRatePercent.toFixed(4)).toBe(before.effectiveRatePercent.toFixed(4));
+      expect(after.effectiveTenorMonths).toBe(before.effectiveTenorMonths);
+      expect(after.totalPayableEGP.toFixed(2)).toBe(before.totalPayableEGP.toFixed(2));
+      expect(after.bindingConstraint).toBe(before.bindingConstraint);
+    });
+
+    it('caps the amount by the financed share the grid states, not the scalar', () => {
+      // A salary big enough that the debt burden is NOT what binds — otherwise both the grid
+      // and the scalar sit above the affordability ceiling and the test proves nothing.
+      const rich = {
+        ...deposit,
+        requestedAmountEGP: new Decimal('1000000'),
+        employment: {
+          employmentType: 'salaried' as const,
+          monthlyNetSalaryEGP: new Decimal('400000'),
+          monthsInJob: 48,
+          salaryTransferType: 'payroll_cat_a' as const,
+          companyName: 'Acme',
+          companyType: 'private' as const,
+        },
+      };
+      const quote = expectQuoted(
+        quoteProgram({
+          profile: profileFixture(rich),
+          program: programFixture({
+            loanLimits: {
+              minAmountEGP: '10000',
+              maxAmountEGP: '1000000',
+              // The scalar would allow 400 000; the grid says 80% of the price for this band.
+              ltvCeilingPercent: '40',
+              ltvCeilingByFact: {
+                axes: [{ factKey: 'car_down_payment_percent' }],
+                cells: [{ keys: [{ fromInclusive: '20', toExclusive: '30' }], value: '80' }],
+                onNoMatch: 'reject',
+              },
+            },
+          }),
+        }),
+      );
+      expect(quote.bindingConstraint).toBe('ltv_ceiling');
+      expect(quote.maxAffordableAmountEGP.toFixed(2)).toBe('800000.00');
+
+      // The same applicant with the SCALAR alone: 40% of the price, half as much. This is the
+      // pair that proves the grid is read FIRST rather than merely read.
+      const scalarOnly = expectQuoted(
+        quoteProgram({
+          profile: profileFixture(rich),
+          program: programFixture({
+            loanLimits: {
+              minAmountEGP: '10000',
+              maxAmountEGP: '1000000',
+              ltvCeilingPercent: '40',
+            },
+          }),
+        }),
+      );
+      expect(scalarOnly.maxAffordableAmountEGP.toFixed(2)).toBe('400000.00');
+    });
+
+    it('refuses a deposit the financed-share table states no row for', () => {
+      const reason = expectUnavailable(
+        quoteProgram({
+          profile: profileFixture({
+            carDetails: {
+              carValueEGP: new Decimal('1000000'),
+              downPaymentEGP: new Decimal('150000'),
+            },
+          }),
+          program: programFixture({
+            loanLimits: {
+              minAmountEGP: '10000',
+              maxAmountEGP: '1000000',
+              ltvCeilingByFact: {
+                axes: [{ factKey: 'car_down_payment_percent' }],
+                cells: [{ keys: [{ fromInclusive: '20', toExclusive: '30' }], value: '80' }],
+                onNoMatch: 'reject',
+              },
+            },
+          }),
+        }),
+      );
+      expect(reason).toBe('VEHICLE_NOT_ELIGIBLE');
+    });
+
+    it('only ever RAISES the floor — a grid below the programme’s own changes nothing', () => {
+      const raised = quoteProgram({
+        profile: profileFixture(deposit),
+        program: programFixture({
+          loanLimits: {
+            maxAmountEGP: '1000000',
+            minAmountEGP: '100000',
+            minAmountByFact: {
+              axes: [{ factKey: 'car_down_payment_percent' }],
+              cells: [{ keys: [{ fromInclusive: '20', toExclusive: '30' }], value: '1000000' }],
+              onNoMatch: 'useFallback',
+            },
+          },
+        }),
+      });
+      expect(expectUnavailable(raised)).toBe('BELOW_PROGRAM_MIN_AMOUNT');
+
+      const lowered = expectQuoted(
+        quoteProgram({
+          profile: profileFixture(deposit),
+          program: programFixture({
+            loanLimits: {
+              maxAmountEGP: '1000000',
+              minAmountEGP: '100000',
+              minAmountByFact: {
+                axes: [{ factKey: 'car_down_payment_percent' }],
+                cells: [{ keys: [{ fromInclusive: '20', toExclusive: '30' }], value: '1' }],
+                onNoMatch: 'useFallback',
+              },
+            },
+          }),
+        }),
+      );
+      expect(lowered.offeredAmountEGP.greaterThan(0)).toBe(true);
+    });
+  });
 });

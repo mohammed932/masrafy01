@@ -219,7 +219,11 @@ function dpBand(
  *
  * EVERY RATE HERE IS AN ILLUSTRATION. No Suez Canal slide publishes a profit rate — the
  * programme's own `baseRatePercent` has been a stated placeholder since the sheet was loaded
- * — so every cell below is marked `team_estimated` and the activation gate reads it.
+ * — so all twenty rate cells are marked `team_estimated`, and so are the three term ceilings,
+ * because §4.2 prints 6–84 months for every tier and shortening two of them is this team's
+ * illustration too. The shares, the floor and the band edges are the sheet's own and are NOT
+ * marked: claiming a published figure is a guess is the same defect as the reverse. The list
+ * lives in this product's `estimated` below, generated from these tables rather than typed.
  *
  * ─── The rate grid's three axes, and the order they resolve in ────────────────
  *
@@ -581,7 +585,47 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       alt__cash_buyer: divisor('12'),
       iscore_band: iscoreTiers(),
     },
-    estimated: [...I_SCORE_ESTIMATED],
+    // THE PLAN FIGURES THIS TEAM INVENTED, marked as such — and only those.
+    //
+    // Twenty rates because no Suez Canal slide publishes a profit rate at all, and three term
+    // ceilings because App. §4.2 prints 6–84 months for EVERY tier: shortening the shortest
+    // deposits to 60 and 72 is this team's illustration, not the bank's policy.
+    //
+    // Deliberately NOT marked: the five financed shares (§4.2 prints 60% down → 40% financed
+    // and its four siblings), the 1,000,000 floor on the 20% tier (§4.2 again), and every band
+    // EDGE — all published, and marking a stated figure as a guess is the same defect as the
+    // reverse. The edges ARE markable paths (`fromInclusive` / `toExclusive` are numeric
+    // leaves), which is why they are excluded by being listed out rather than by a wildcard.
+    //
+    // Addressed by cell INDEX, because a grid cell has no key to be addressed by. Inserting a
+    // cell shifts what each of these describes, so the list is generated from the tables above
+    // rather than typed by hand.
+    estimated: [
+      ...I_SCORE_ESTIMATED,
+      'planDefaults.rateByFact.cells.0.value',
+      'planDefaults.rateByFact.cells.1.value',
+      'planDefaults.rateByFact.cells.2.value',
+      'planDefaults.rateByFact.cells.3.value',
+      'planDefaults.rateByFact.cells.4.value',
+      'planDefaults.rateByFact.cells.5.value',
+      'planDefaults.rateByFact.cells.6.value',
+      'planDefaults.rateByFact.cells.7.value',
+      'planDefaults.rateByFact.cells.8.value',
+      'planDefaults.rateByFact.cells.9.value',
+      'planDefaults.rateByFact.cells.10.value',
+      'planDefaults.rateByFact.cells.11.value',
+      'planDefaults.rateByFact.cells.12.value',
+      'planDefaults.rateByFact.cells.13.value',
+      'planDefaults.rateByFact.cells.14.value',
+      'planDefaults.rateByFact.cells.15.value',
+      'planDefaults.rateByFact.cells.16.value',
+      'planDefaults.rateByFact.cells.17.value',
+      'planDefaults.rateByFact.cells.18.value',
+      'planDefaults.rateByFact.cells.19.value',
+      'planDefaults.maxMonthsByFact.cells.0.value',
+      'planDefaults.maxMonthsByFact.cells.1.value',
+      'planDefaults.maxMonthsByFact.cells.2.value',
+    ],
   },
 
   {

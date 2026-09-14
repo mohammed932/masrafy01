@@ -34,6 +34,7 @@ import {
   type LinkedProduct,
 } from '../src/matching/pipeline/income-rule-inherit';
 import { asTenorDefaults } from '../src/matching/pipeline/tenor-inherit';
+import { asPlanDefaults } from '../src/matching/pipeline/plan-inherit';
 import { toBankProgramSnapshot, type BankProgramRow } from '../src/bank-programs/bank-program-snapshot.mapper';
 import { runCascade } from '../src/matching/pipeline/cascade-adapter';
 import { quoteProgram } from '../src/matching/pipeline/quote';
@@ -172,6 +173,13 @@ async function main(): Promise<void> {
       // read path, and would make this harness lie about exactly the rows a tenor change
       // touches.
       tenorDefaults: true,
+      // The PLAN tables a product hands down — the rate grid above all, which is what this
+      // harness exists to print. Omitting it is the same defect one field over: the snapshot
+      // mapper merges nothing, the cascade falls past `rateByFact`, and every programme on
+      // `plansSource: 'product'` is reported at its placeholder `baseRatePercent` with a flat
+      // term ceiling. A harness that cannot see the grid it is measuring is worse than no
+      // harness, because its output looks like evidence.
+      planDefaults: true,
       surrogateProductKey: true,
       active: true,
       deprecatedAt: true,
@@ -187,6 +195,7 @@ async function main(): Promise<void> {
       deprecatedAt: row.deprecatedAt,
       rule: asRule(row.incomeRule),
       tenorDefaults: asTenorDefaults(row.tenorDefaults),
+      planDefaults: asPlanDefaults(row.planDefaults),
     });
   }
   const catalog = new Map<string, CatalogRuleResolution>();

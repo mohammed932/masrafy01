@@ -5,6 +5,7 @@ import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { LoanCategory, PlatformEnumeration, QuestionType } from '@prisma/client';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
+  catalogPlansOf,
   catalogRuleOf,
   effectiveIncomeRule,
   effectiveProgramNameRule,
@@ -17,7 +18,13 @@ import type {
 } from '@/matching/pipeline/income-rule-inherit';
 import { asLoanCategory, sortCategories } from '@/common/loan-category.util';
 import { basesOfFlags, flagsOfBases, type IncomeBasis } from '@/common/income-basis.util';
-import { factKeyOf, type IncomeAssumptionConfig } from '@/matching/types';
+import {
+  factKeyOf,
+  type IncomeAssumptionConfig,
+  type LoanLimitsConfig,
+  type PricingConfig,
+  type TenorConfig,
+} from '@/matching/types';
 import { SURROGATE_FACTS_BY_STRATEGY } from '@/matching/pipeline/surrogate-fact-bindings';
 import {
   factReaders,
@@ -55,6 +62,9 @@ import type { EnumerationTypeDef } from '@prisma/client';
 import { asTenorDefaults, statesOwnTenor } from '@/matching/pipeline/tenor-inherit';
 import {
   asPlanDefaults,
+  effectivePlanLoanLimits,
+  effectivePlanPricing,
+  effectivePlanTenor,
   inheritsProductPlans,
   type PlanDefaults,
 } from '@/matching/pipeline/plan-inherit';
@@ -701,7 +711,7 @@ export class PostgresPlatformEnumerationsRepository
    * property that matters: a new op that names a fact is covered the day it is added.
    */
   async surrogateFactReaders(key: string): Promise<FactReader[]> {
-    const [programs, rules] = await Promise.all([
+    const [programs, rules, planRows] = await Promise.all([
       this.prisma.bankProgram.findMany({
         where: {
           OR: [
@@ -716,6 +726,8 @@ export class PostgresPlatformEnumerationsRepository
         },
         select: {
           programCode: true,
+          programNameKey: true,
+          plansSource: true,
           incomeAssumption: true,
           loanLimits: true,
           pricing: true,
@@ -731,8 +743,53 @@ export class PostgresPlatformEnumerationsRepository
         },
         select: { type: true, key: true, incomeRule: true },
       }),
+      // A THIRD read, and it is not the one above with more columns. That one is filtered to
+      // rows carrying an income rule, and a catalog name that reads its product's carries
+      // none of its own — so the link from a programme to the plan tables it actually prices
+      // from would be filtered out of the very query meant to find its readers.
+      this.prisma.platformEnumeration.findMany({
+        where: { type: { in: ['program_name', 'surrogate_product'] } },
+        select: { type: true, key: true, surrogateProductKey: true, planDefaults: true },
+      }),
     ]);
-    return factReaders(key, { programs, rules });
+
+    // WHOSE TABLES EACH PROGRAMME READS, resolved before the walk. A programme on
+    // `plansSource: 'product'` stores no grid at all — its rate, term ceiling, financed share
+    // and floor live on the product — so walking the raw row reports no reader and the guard
+    // lets an operator delete or untick a fact a live programme prices off. The narrowing in
+    // `narrowingScopeFor` merges for the same reason; this is the delete side of it.
+    const plansByProduct = new Map<string, PlanDefaults | undefined>();
+    for (const row of planRows) {
+      if (row.type !== 'surrogate_product') continue;
+      plansByProduct.set(row.key, asPlanDefaults(row.planDefaults));
+    }
+    const plansByName = new Map<string, PlanDefaults | undefined>();
+    for (const row of planRows) {
+      if (row.type !== 'program_name' || row.surrogateProductKey === null) continue;
+      plansByName.set(row.key, plansByProduct.get(row.surrogateProductKey));
+    }
+
+    const resolved = programs.map((program) => {
+      const plans =
+        program.programNameKey === null ? undefined : plansByName.get(program.programNameKey);
+      const src = program.plansSource;
+      return {
+        programCode: program.programCode,
+        incomeAssumption: program.incomeAssumption,
+        loanLimits: effectivePlanLoanLimits(
+          (program.loanLimits ?? {}) as unknown as LoanLimitsConfig,
+          src,
+          plans,
+        ),
+        pricing: effectivePlanPricing(
+          (program.pricing ?? {}) as unknown as PricingConfig,
+          src,
+          plans,
+        ),
+        tenor: effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
+      };
+    });
+    return factReaders(key, { programs: resolved, rules });
   }
 
   /**
@@ -780,7 +837,15 @@ export class PostgresPlatformEnumerationsRepository
         // All four surfaces. A column left out here is a fact the narrowing cannot see, and
         // the question behind it is then dropped from the served questionnaire while the
         // programme goes on reading the answer (`fact-readers.ts`).
-        select: { incomeAssumption: true, loanLimits: true, pricing: true, tenor: true },
+        // `plansSource` rides with them: the grids a programme reads may be the PRODUCT's, and
+        // which copy applies is the only thing that column says.
+        select: {
+          incomeAssumption: true,
+          loanLimits: true,
+          pricing: true,
+          tenor: true,
+          plansSource: true,
+        },
       }),
     ]);
 
@@ -822,9 +887,11 @@ export class PostgresPlatformEnumerationsRepository
             tenorDefaults: asTenorDefaults(productRow.tenorDefaults),
             planDefaults: asPlanDefaults(productRow.planDefaults),
           };
-    const catalogRule = catalogRuleOf(
-      effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked),
-    );
+    const resolution = effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked);
+    const catalogRule = catalogRuleOf(resolution);
+    // The product's PLAN tables, resolved once for the whole name. Per-programme below,
+    // because whether they apply is the PROGRAMME's `plansSource`, not the name's.
+    const plans = catalogPlansOf(resolution);
 
     const needed = new Set<string>();
     for (const program of programs) {
@@ -833,12 +900,36 @@ export class PostgresPlatformEnumerationsRepository
         catalogRule,
       );
       for (const key of factsReadByIncomeRule(effective)) needed.add(key);
-      for (const key of factsReadByLoanLimits(program.loanLimits)) needed.add(key);
-      // The grid surfaces. `effectiveIncomeRule` has no equivalent for them — a grid is the
-      // BANK's own table and is never inherited from the catalog — so they are read straight
-      // off the stored row.
-      for (const key of factsReadByPricing(program.pricing)) needed.add(key);
-      for (const key of factsReadByTenor(program.tenor)) needed.add(key);
+      // THE GRID SURFACES, RESOLVED FIRST. They used to be read straight off the stored row on
+      // the grounds that "a grid is the BANK's own table and is never inherited from the
+      // catalog" — true until plan defaults existed, and false the moment they did. A
+      // programme on `plansSource: 'product'` stores NO grid: its rate, term ceiling,
+      // financed share and floor all live on the product, so reading the raw row reports no
+      // axes at all and every question behind one is dropped from the served questionnaire
+      // while the programme goes on reading the answer. `fact-readers.ts` says an axis no
+      // reader reports is invisible to this function, `check:question-scope`, the fact-delete
+      // guard and the ask-untick guard AT ONCE — so the merge happens here, exactly as
+      // `effectiveIncomeRule` above merges the income rule, and for the same reason.
+      const src = program.plansSource;
+      for (const key of factsReadByLoanLimits(
+        effectivePlanLoanLimits(
+          (program.loanLimits ?? {}) as unknown as LoanLimitsConfig,
+          src,
+          plans,
+        ),
+      )) {
+        needed.add(key);
+      }
+      for (const key of factsReadByPricing(
+        effectivePlanPricing((program.pricing ?? {}) as unknown as PricingConfig, src, plans),
+      )) {
+        needed.add(key);
+      }
+      for (const key of factsReadByTenor(
+        effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
+      )) {
+        needed.add(key);
+      }
     }
 
     const factBoundQuestionCodes: string[] = [];

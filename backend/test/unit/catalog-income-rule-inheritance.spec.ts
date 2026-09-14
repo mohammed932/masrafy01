@@ -25,6 +25,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  asPlanDefaults,
+  effectivePlanLoanLimits,
+  effectivePlanPricing,
+  effectivePlanTenor,
+  plansSourceOf,
+} from '@/matching/pipeline/plan-inherit';
+import type { FactGridConfig } from '@/matching/pipeline/fact-grid';
+import type { LoanLimitsConfig, PricingConfig, TenorConfig } from '@/matching/types';
+import {
   withStoredStructure,
   effectiveIncomeRule,
   inheritsCatalogAmounts,
@@ -634,5 +643,82 @@ describe('validateRanges — the duration', () => {
 
   it('accepts a stated range with no product behind it, as every program does today', () => {
     expect(validateRanges({ ...REST, tenor: { minMonths: 6, maxMonths: 84 } })).toBeUndefined();
+  });
+});
+
+/**
+ * PLAN INHERITANCE — the five tables a surrogate product hands down.
+ *
+ * `plan-inherit.ts` shipped with nine exported symbols and no test at all, and the two
+ * properties the design leans on hardest are both invisible when they break: a merge that
+ * returns a NEW object on the common path costs an allocation per programme per quote and
+ * nothing fails, and a blob reader that THROWS on a malformed column takes down the book for
+ * every other bank rather than the one product whose column is wrong.
+ *
+ * The third is the direction of the default. `plansSource` absent must read as `'own'`,
+ * because every row written before the column existed carries its own figures — a default of
+ * `'product'` would silently re-point the whole book at somebody else's tables.
+ */
+describe('the plan tables a product hands down', () => {
+  const GRID: FactGridConfig = {
+    axes: [{ factKey: 'car_down_payment_percent' }],
+    cells: [{ keys: [{ fromInclusive: '20', toExclusive: '30' }], value: '10' }],
+    onNoMatch: 'reject',
+  };
+
+  it('reads absent, null and an unrecognised value as this bank’s own', () => {
+    expect(plansSourceOf(undefined)).toBe('own');
+    expect(plansSourceOf(null)).toBe('own');
+    expect(plansSourceOf('')).toBe('own');
+    expect(plansSourceOf('tomorrows-spelling')).toBe('own');
+    expect(plansSourceOf('product')).toBe('product');
+  });
+
+  it('reads a malformed blob as ABSENT rather than throwing', () => {
+    expect(asPlanDefaults(null)).toBeUndefined();
+    expect(asPlanDefaults('a string')).toBeUndefined();
+    expect(asPlanDefaults(42)).toBeUndefined();
+    expect(asPlanDefaults({})).toBeUndefined();
+    // Shaped like a slot but not like a grid: dropped, and the rest still read.
+    expect(asPlanDefaults({ rateByFact: { axes: [], cells: [] } })).toBeUndefined();
+    expect(asPlanDefaults({ rateByFact: 'nonsense', ltvCeilingByFact: GRID })).toEqual({
+      ltvCeilingByFact: GRID,
+    });
+  });
+
+  it('returns the SAME OBJECT when nothing is inherited', () => {
+    const pricing = { baseRatePercent: '24' } as unknown as PricingConfig;
+    const tenor = { minMonths: 6, maxMonths: 84 } as unknown as TenorConfig;
+    const limits = { minAmountEGP: '100000' } as unknown as LoanLimitsConfig;
+    const plans = { rateByFact: GRID, ltvCeilingByFact: GRID, minMonthsByFact: GRID };
+
+    // Not opted in — the 31 programmes that state their own take this path on every quote.
+    expect(effectivePlanPricing(pricing, 'own', plans)).toBe(pricing);
+    expect(effectivePlanTenor(tenor, 'own', plans)).toBe(tenor);
+    expect(effectivePlanLoanLimits(limits, 'own', plans)).toBe(limits);
+    // Opted in, but the product states nothing.
+    expect(effectivePlanPricing(pricing, 'product', undefined)).toBe(pricing);
+    expect(effectivePlanTenor(tenor, 'product', undefined)).toBe(tenor);
+    expect(effectivePlanLoanLimits(limits, 'product', undefined)).toBe(limits);
+  });
+
+  it('hands the product’s tables down only to a programme that opted in', () => {
+    const pricing = {} as unknown as PricingConfig;
+    const limits = {} as unknown as LoanLimitsConfig;
+    const plans = { rateByFact: GRID, ltvCeilingByFact: GRID, minAmountByFact: GRID };
+
+    expect(effectivePlanPricing(pricing, 'product', plans).rateByFact).toEqual(GRID);
+    expect(effectivePlanLoanLimits(limits, 'product', plans).ltvCeilingByFact).toEqual(GRID);
+    expect(effectivePlanLoanLimits(limits, 'product', plans).minAmountByFact).toEqual(GRID);
+    expect(effectivePlanPricing(pricing, 'own', plans).rateByFact).toBeUndefined();
+  });
+
+  it('lets a grid the PROGRAMME states win over the product’s, even while inheriting', () => {
+    const own: FactGridConfig = { ...GRID, cells: [{ keys: [null], value: '99' }] };
+    const pricing = { rateByFact: own } as unknown as PricingConfig;
+    const merged = effectivePlanPricing(pricing, 'product', { rateByFact: GRID });
+    expect(merged.rateByFact).toBe(own);
+    // Nothing was inherited, so the object is handed back untouched.
+    expect(merged).toBe(pricing);
   });
 });

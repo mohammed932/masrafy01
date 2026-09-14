@@ -1,4 +1,5 @@
 import type { ProgramType } from './create-bank-program.dto';
+import type { PlansSource } from '../../matching/pipeline/plan-inherit';
 
 export interface DeprecatedKeyDescriptor {
   fieldPath: string;
@@ -22,6 +23,18 @@ export class BankProgramResponseDto {
   active!: boolean;
   isShariaCompliant!: boolean;
   version!: number;
+
+  /**
+   * Whose PLAN tables this program reads — its own, or the surrogate product's.
+   *
+   * On the wire it is never absent: the service normalises the stored value through
+   * `plansSourceOf` so a client reads exactly what the engine reads. That matters more here
+   * than on most fields, because the wizard performs a FULL-REPLACEMENT save and posts this
+   * back. Omitting it from the response made every save read the stored `'product'` as
+   * `'own'` and silently detach the program from the product's rate, term, financed-share
+   * and floor tables — on a form the operator had only opened.
+   */
+  plansSource!: PlansSource;
   operatorNotes?: string | null;
   operatorTips!: string[];
   requiredDocuments!: string[];

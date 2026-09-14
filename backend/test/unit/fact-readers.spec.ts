@@ -13,7 +13,9 @@ import {
   factReaders,
   factsReadByIncomeRule,
   factsReadByLoanLimits,
+  factsReadByPricing,
   factsReadByProgram,
+  factsReadByTenor,
 } from '@/matching/pipeline/fact-readers';
 
 describe('factsReadByIncomeRule', () => {
@@ -181,5 +183,78 @@ describe('factReaders', () => {
 
   it('finds nothing for a fact nobody reads', () => {
     expect(factReaders('nobody_reads_this', rows)).toEqual([]);
+  });
+});
+
+/**
+ * THE PLAN GRIDS — three surfaces added with the plan tables, and the reason they are pinned.
+ *
+ * An axis no reader reports is invisible to `narrowingScopeFor`, `check:question-scope`, the
+ * fact-delete guard and the ask-untick guard AT ONCE: the question behind it is dropped from
+ * the served questionnaire while the programme goes on reading the answer, and the operator
+ * who deletes the fact is told nobody reads it. Four guards, one omission, and nothing fails
+ * loudly — which is why this is a test and not a comment.
+ */
+describe('the plan grids', () => {
+  const grid = (factKey: string): unknown => ({
+    axes: [{ factKey }],
+    cells: [{ keys: [{ fromInclusive: '20', toExclusive: '30' }], value: '10' }],
+    onNoMatch: 'reject',
+  });
+
+  it('reads the financed-share table’s axes', () => {
+    expect([...factsReadByLoanLimits({ ltvCeilingByFact: grid('home_ownership') })]).toEqual([
+      'home_ownership',
+    ]);
+  });
+
+  it('reads the smallest-loan table’s axes', () => {
+    expect([...factsReadByLoanLimits({ minAmountByFact: grid('car_origin') })]).toEqual([
+      'car_origin',
+    ]);
+  });
+
+  it('reads BOTH new loanLimits grids at once, beside the cap table', () => {
+    const keys = [
+      ...factsReadByLoanLimits({
+        maxLoanByFact: { factKey: 'employer_coding', rows: [] },
+        ltvCeilingByFact: grid('home_ownership'),
+        minAmountByFact: grid('car_origin'),
+      }),
+    ];
+    expect(new Set(keys)).toEqual(new Set(['employer_coding', 'home_ownership', 'car_origin']));
+  });
+
+  it('reads the SHORTEST-term table’s axes, not only the longest', () => {
+    expect([...factsReadByTenor({ minMonthsByFact: grid('car_fuel_type') })]).toEqual([
+      'car_fuel_type',
+    ]);
+    const both = [
+      ...factsReadByTenor({
+        maxMonthsByFact: grid('car_model_year'),
+        minMonthsByFact: grid('car_fuel_type'),
+      }),
+    ];
+    expect(new Set(both)).toEqual(new Set(['car_model_year', 'car_fuel_type']));
+  });
+
+  it('reads the rate grid’s axes, including the fuel axis', () => {
+    expect([...factsReadByPricing({ rateByFact: grid('car_fuel_type') })]).toEqual([
+      'car_fuel_type',
+    ]);
+  });
+
+  it('unions all four surfaces for one programme', () => {
+    const keys = [
+      ...factsReadByProgram({
+        incomeAssumption: { strategy: 'fact:military_grade' },
+        loanLimits: { ltvCeilingByFact: grid('home_ownership') },
+        pricing: { rateByFact: grid('car_fuel_type') },
+        tenor: { minMonthsByFact: grid('car_origin') },
+      }),
+    ];
+    expect(new Set(keys)).toEqual(
+      new Set(['military_grade', 'home_ownership', 'car_fuel_type', 'car_origin']),
+    );
   });
 });

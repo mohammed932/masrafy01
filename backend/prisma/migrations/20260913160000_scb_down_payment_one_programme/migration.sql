@@ -72,11 +72,22 @@ BEGIN
 
   -- The five shares are exactly the five the sheet prints, and they are now rows of the
   -- product's table. A sixth figure would mean the table is short one row.
-  SELECT count(*) INTO bad FROM "bank_program"
-   WHERE "programCode" = ANY(doomed)
-     AND ("programCode", "loanLimits" ->> 'ltvCeilingPercent') NOT IN
-         (('SCB-CAR-DP20','80'),('SCB-CAR-DP30','70'),('SCB-CAR-DP40','60'),
-          ('SCB-CAR-DP50','50'),('SCB-CAR-DP60','40'));
+  -- `IS DISTINCT FROM` over the pair, not `NOT IN`. A tier whose `ltvCeilingPercent` is
+  -- ABSENT extracts as NULL, and `NOT IN` over a row containing NULL is NULL — never true —
+  -- so it would pass this guard silently. An absent share is the worst case there is:
+  -- `ltvCeilingFor` answers `null` and `null` is NO CLAMP AT ALL, i.e. the bank finances the
+  -- whole car. Collapsing that onto a band value is exactly the silent discard the guards
+  -- around it exist to refuse.
+  SELECT count(*) INTO bad FROM "bank_program" p
+   WHERE p."programCode" = ANY(doomed)
+     AND NOT EXISTS (
+       SELECT 1 FROM (VALUES
+         ('SCB-CAR-DP20','80'),('SCB-CAR-DP30','70'),('SCB-CAR-DP40','60'),
+         ('SCB-CAR-DP50','50'),('SCB-CAR-DP60','40')
+       ) AS expected(code, share)
+        WHERE expected.code = p."programCode"
+          AND expected.share IS NOT DISTINCT FROM (p."loanLimits" ->> 'ltvCeilingPercent')
+     );
   IF bad > 0 THEN
     RAISE EXCEPTION 'scb_down_payment_one_programme: % tier(s) state a financed share the product''s plan table does not hold', bad;
   END IF;
@@ -84,9 +95,15 @@ BEGIN
   -- EVERYTHING THE COLLAPSE ASSUMES IS COMMON, ASSERTED. An operator hand-editing one tier is
   -- exactly what this must not silently discard: if the five disagree about eligibility,
   -- pricing, fees, the term or the ceiling, they are not one programme and this file is wrong.
+  -- `valueSources` is in the list, and it is not padding. It is the column holding the
+  -- `team_estimated` markers, and these five carry seven of them: an operator who had
+  -- CONFIRMED one tier's placeholder rate as the bank's real figure would have removed a
+  -- marker on that tier alone, and a collapse that ignored this column would have thrown that
+  -- decision away without a word. Provenance is a figure about the figures.
   SELECT count(*) INTO variants FROM (
     SELECT DISTINCT "eligibility"::text, "pricing"::text, "fees"::text, "tenor"::text,
-                    "performanceCriteria"::text, "loanLimits" ->> 'maxAmountEGP'
+                    "performanceCriteria"::text, "valueSources"::text,
+                    "loanLimits" ->> 'maxAmountEGP'
       FROM "bank_program" WHERE "programCode" = ANY(doomed)
   ) AS distinct_shapes;
   IF variants <> 1 THEN
@@ -148,7 +165,31 @@ BEGIN
       'minAmountEGP', p."loanLimits" ->> 'minAmountEGP',
       'requiredDocuments', to_jsonb(p."requiredDocuments"),
       'incomeAssumption', p."incomeAssumption",
-      'operatorNotes', p."operatorNotes"
+      'operatorNotes', p."operatorNotes",
+      -- THE WHOLE ROW, not the fields this file happens to have opinions about. The six
+      -- blobs below were ASSERTED identical across the five a few lines up, so recording
+      -- them costs five near-copies of one configuration — and that is the point: the
+      -- assertion is a claim made at delete time, and a payload that omits what it claimed
+      -- leaves nobody able to check it afterwards. `bankProgramId` is nulled by the delete,
+      -- so this payload is the only thing that survives; a partial one is a partial record
+      -- of a row that cannot be re-read (Principle VI: the audit log is append-only, and it
+      -- is append-only in order to be sufficient).
+      'id', p."id",
+      'version', p."version",
+      'bankId', p."bankId",
+      'programNameKey', p."programNameKey",
+      'productCategory', p."productCategory",
+      'programType', p."programType",
+      'active', p."active",
+      'loanLimits', p."loanLimits",
+      'tenor', p."tenor",
+      'pricing', p."pricing",
+      'fees', p."fees",
+      'eligibility', p."eligibility",
+      'performanceCriteria', p."performanceCriteria",
+      'valueSources', p."valueSources",
+      'createdAt', p."createdAt",
+      'updatedAt', p."updatedAt"
     )
   FROM "bank_program" AS p WHERE p."programCode" = ANY(doomed);
 

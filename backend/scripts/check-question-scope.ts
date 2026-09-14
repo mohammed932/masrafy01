@@ -23,11 +23,19 @@ import type { LoanCategory } from '@prisma/client';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
 import {
+  catalogPlansOf,
   catalogRuleOf,
   effectiveIncomeRule,
   effectiveProgramNameRule,
   type LinkedProduct,
 } from '../src/matching/pipeline/income-rule-inherit';
+import {
+  asPlanDefaults,
+  effectivePlanLoanLimits,
+  effectivePlanPricing,
+  effectivePlanTenor,
+} from '../src/matching/pipeline/plan-inherit';
+import { asTenorDefaults } from '../src/matching/pipeline/tenor-inherit';
 import {
   factsReadByIncomeRule,
   factsReadByLoanLimits,
@@ -36,7 +44,12 @@ import {
 } from '../src/matching/pipeline/fact-readers';
 import { bankAxisByFactKey } from '../src/matching/pipeline/bank-relationship';
 import { narrowAskedQuestions } from '../src/questionnaire/validation/question-scope';
-import type { IncomeAssumptionConfig } from '../src/matching/types';
+import type {
+  IncomeAssumptionConfig,
+  LoanLimitsConfig,
+  PricingConfig,
+  TenorConfig,
+} from '../src/matching/types';
 
 interface Finding {
   kind: 'HIDDEN' | 'PARKED' | 'UNASSIGNED' | 'UNBOUND' | 'ASK_MISSING';
@@ -74,7 +87,18 @@ async function main(): Promise<void> {
       }),
       prisma.platformEnumeration.findMany({
         where: { type: 'surrogate_product' },
-        select: { key: true, active: true, deprecatedAt: true, incomeRule: true },
+        // The DURATION and the PLAN tables a product hands down. `scripts/` is outside the
+        // `tsc` include, so a `LinkedProduct` short of a required field compiles silently —
+        // which is exactly how this check came to derive its requirement from a product it
+        // could only half see.
+        select: {
+          key: true,
+          active: true,
+          deprecatedAt: true,
+          incomeRule: true,
+          tenorDefaults: true,
+          planDefaults: true,
+        },
       }),
       prisma.platformEnumeration.findMany({
         where: { type: 'surrogate_fact' },
@@ -107,6 +131,7 @@ async function main(): Promise<void> {
           loanLimits: true,
           pricing: true,
           tenor: true,
+          plansSource: true,
         },
       }),
     ]);
@@ -130,10 +155,15 @@ async function main(): Promise<void> {
               active: productRow.active,
               deprecatedAt: productRow.deprecatedAt,
               rule: asRule(productRow.incomeRule),
+              tenorDefaults: asTenorDefaults(productRow.tenorDefaults),
+              planDefaults: asPlanDefaults(productRow.planDefaults),
             };
-      const catalogRule = catalogRuleOf(
-        effectiveProgramNameRule(asRule(name.incomeRule), linked),
-      );
+      const resolution = effectiveProgramNameRule(asRule(name.incomeRule), linked);
+      const catalogRule = catalogRuleOf(resolution);
+      // The product's plan tables. A programme on `plansSource: 'product'` stores no grid of
+      // its own, so deriving what it reads off the raw row reports nothing and this check
+      // would pass by seeing nothing rather than by finding nothing wrong.
+      const plans = catalogPlansOf(resolution);
 
       const scope = await repo.narrowingScopeFor(name.key);
 
@@ -156,14 +186,31 @@ async function main(): Promise<void> {
             catalogRule,
           );
           for (const key of factsReadByIncomeRule(effective)) loud.add(key);
-          for (const key of factsReadByLoanLimits(program.loanLimits)) viaCap.add(key);
+          const src = program.plansSource;
+          for (const key of factsReadByLoanLimits(
+            effectivePlanLoanLimits(
+              (program.loanLimits ?? {}) as unknown as LoanLimitsConfig,
+              src,
+              plans,
+            ),
+          )) {
+            viaCap.add(key);
+          }
           // A grid axis counts as SILENT for the same reason a cap fact does: under
           // `onNoMatch: 'useFallback'` the miss is swallowed — the cascade simply carries on
           // to the next level and the applicant is priced off a rate the bank did not state
           // for them, with nothing reported. Under `reject` it is loud, but the honest
           // classification is the quieter of the two, so a finding is never under-stated.
-          for (const key of factsReadByPricing(program.pricing)) viaCap.add(key);
-          for (const key of factsReadByTenor(program.tenor)) viaCap.add(key);
+          for (const key of factsReadByPricing(
+            effectivePlanPricing((program.pricing ?? {}) as unknown as PricingConfig, src, plans),
+          )) {
+            viaCap.add(key);
+          }
+          for (const key of factsReadByTenor(
+            effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
+          )) {
+            viaCap.add(key);
+          }
         }
         const needed = new Set<string>([...loud, ...viaCap]);
         const silentOnly = new Set([...viaCap].filter((key) => !loud.has(key)));

@@ -5,6 +5,7 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { MoneyInputDirective } from '../../core/directives/money-input.directive';
 import { DeleteOutline, PlusOutline, WarningOutline } from '@ant-design/icons-angular/icons';
 import type { RegistryFact } from '../../features/bank-programs/bank-programs.types';
 import {
@@ -115,6 +116,7 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
   standalone: true,
   imports: [
     FormsModule,
+    MoneyInputDirective,
     NzButtonModule,
     NzIconModule,
     NzInputModule,
@@ -196,7 +198,11 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
               <th class="fgd__value-head">
                 @switch (valueKind()) {
                   @case ('months') {
-                    <span i18n="@@fact_grid.value_months">Longest term (months)</span>
+                    @if (monthsBound() === 'min') {
+                      <span i18n="@@fact_grid.value_months_min">Shortest term (months)</span>
+                    } @else {
+                      <span i18n="@@fact_grid.value_months">Longest term (months)</span>
+                    }
                   }
                   @case ('sharePercent') {
                     <span i18n="@@fact_grid.value_share">Financed share %</span>
@@ -257,9 +263,18 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
                   </td>
                 }
                 <td class="fgd__value-cell">
+                  <!-- GROUPED only when the cell holds money (A27). amountEGP is the first
+                       money-typed kind this editor has ever had, and a seven-digit floor
+                       rendered as 1000000 is the one figure here where an extra zero is
+                       invisible: it composes by max, so it silently raises the smallest loan
+                       the bank will write. A rate, a share and a month count are not money and
+                       keep their ungrouped digits; the directive reports the same raw string
+                       either way, so nothing downstream changes. -->
                   <input
                     nz-input
                     class="fgd__value"
+                    appMoneyInput
+                    [appMoneyInput]="valueKind() === 'amountEGP'"
                     [ngModel]="cell.value"
                     (ngModelChange)="setValue(cellIndex, $event)"
                     [attr.aria-label]="valueAria(cellIndex)"
@@ -330,9 +345,15 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
           <label nz-radio nzValue="useFallback">
             @switch (valueKind()) {
               @case ('months') {
-                <span i18n="@@fact_grid.fallback_months">
-                  Fall back to this program’s own longest term
-                </span>
+                @if (monthsBound() === 'min') {
+                  <span i18n="@@fact_grid.fallback_months_min">
+                    Fall back to this program’s own shortest term
+                  </span>
+                } @else {
+                  <span i18n="@@fact_grid.fallback_months">
+                    Fall back to this program’s own longest term
+                  </span>
+                }
               }
               @case ('sharePercent') {
                 <span i18n="@@fact_grid.fallback_share">
@@ -518,6 +539,21 @@ export class FactGridEditorComponent {
   readonly facts = input.required<readonly RegistryFact[]>();
   readonly valueKind = input.required<FactGridValueKind>();
 
+  /**
+   * Which END of the term a `months` table states. Default `'max'`, which is every caller
+   * that predates the plan tables.
+   *
+   * `months` was one kind for one field until `tenor.minMonthsByFact` existed, so every label
+   * on it says "longest" — and a row titled *Shortest term* opened a table headed *LONGEST
+   * TERM (MONTHS)* whose boxes announced themselves as "longest term in months". One screen
+   * contradicting itself about the figure an operator is typing.
+   *
+   * A bound rather than a free label: what changes between the two is one word in four places,
+   * and a caller-supplied string would let two hosts describe one field differently — and
+   * would have to be translated by whoever passed it.
+   */
+  readonly monthsBound = input<'max' | 'min'>('max');
+
   readonly maxAxes = MAX_GRID_AXES;
   readonly axisPlaceholder = $localize`:@@fact_grid.pick_fact:Pick a question`;
   readonly anyPlaceholder = $localize`:@@fact_grid.any:Any`;
@@ -583,7 +619,9 @@ export class FactGridEditorComponent {
     const row = cellIndex + 1;
     switch (this.valueKind()) {
       case 'months':
-        return $localize`:@@fact_grid.value_months_aria:Row ${row}:row:, longest term in months`;
+        return this.monthsBound() === 'min'
+          ? $localize`:@@fact_grid.value_months_min_aria:Row ${row}:row:, shortest term in months`
+          : $localize`:@@fact_grid.value_months_aria:Row ${row}:row:, longest term in months`;
       case 'sharePercent':
         return $localize`:@@fact_grid.value_share_aria:Row ${row}:row:, financed share percent`;
       case 'amountEGP':

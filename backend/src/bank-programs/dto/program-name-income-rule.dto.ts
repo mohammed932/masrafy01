@@ -430,11 +430,37 @@ export class SetSurrogateProductTenorDefaultsDto {
  * service layer.
  */
 export class SurrogateProductPlansDto {
-  @IsOptional() @ValidateNested() @Type(() => FactGridDto) rateByFact?: FactGridDto;
-  @IsOptional() @ValidateNested() @Type(() => FactGridDto) minMonthsByFact?: FactGridDto;
-  @IsOptional() @ValidateNested() @Type(() => FactGridDto) maxMonthsByFact?: FactGridDto;
-  @IsOptional() @ValidateNested() @Type(() => FactGridDto) ltvCeilingByFact?: FactGridDto;
-  @IsOptional() @ValidateNested() @Type(() => FactGridDto) minAmountByFact?: FactGridDto;
+  // `@ValidateIf(value !== undefined)`, never a bare `@IsOptional()`. That decorator skips
+  // `null` as well as absent, so `{"plans":{"ltvCeilingByFact":null}}` walked straight past the
+  // pipe — and the service's `config === undefined` test does not catch `null` either, so a
+  // null slot reached `validateFactGrid` and was dereferenced. An untyped 500 on a request that
+  // states no grid at all. There is no "clear one slot" spelling to preserve here: the whole
+  // blob is replaced on every save, so an ABSENT slot already is the clear, and `null` says
+  // nothing a caller needs to be able to say.
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  rateByFact?: FactGridDto;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  minMonthsByFact?: FactGridDto;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  maxMonthsByFact?: FactGridDto;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  ltvCeilingByFact?: FactGridDto;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  minAmountByFact?: FactGridDto;
 }
 
 export class SetSurrogateProductPlanDefaultsDto {

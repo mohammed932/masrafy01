@@ -58,6 +58,7 @@ import {
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -1182,7 +1183,11 @@ type PlanSlotKey = keyof PlanDefaults;
                         down.
                       </p>
 
-                      <ul class="plan-list">
+                      <!-- role="list" restated because list-style: none strips list semantics
+                           in Safari/VoiceOver, which is why the three sibling lists on this
+                           page carry it too. Five rows announced as five is the whole point of
+                           closing them. -->
+                      <ul class="plan-list" role="list">
                         @for (slot of planSlots; track slot.key) {
                           <li class="plan-slot">
                             @if (planGrid(slot.key); as grid) {
@@ -1229,6 +1234,7 @@ type PlanSlotKey = keyof PlanDefaults;
                                     (configChange)="setPlanGrid(slot.key, $event)"
                                     [facts]="facts()"
                                     [valueKind]="slot.valueKind"
+                                    [monthsBound]="slot.monthsBound"
                                   />
                                   <p class="plan-body-foot">
                                     <button
@@ -1275,9 +1281,14 @@ type PlanSlotKey = keyof PlanDefaults;
 
                       @if (planReaders(); as readers) {
                         <p class="tenor-readers">
-                          <span i18n="@@spd.plans.readers"
-                            >{{ readers }} bank program(s) state no plans of their own and use
-                            these.</span
+                          <!-- WHO IS COUNTED, said accurately. followsPlans is the OPTED-IN
+                               set, and "states no plans of its own" is a different population:
+                               a program can state none AND not read these, which is the
+                               explicit opt-out this whole field exists to make sayable. The
+                               old wording described the opt-out as if it were inheritance. -->
+                          <span i18n="@@spd.plans.readers2"
+                            >{{ readers }} bank program(s) read these plans. A change here reaches
+                            all of them.</span
                           >
                         </p>
                       }
@@ -1317,11 +1328,16 @@ type PlanSlotKey = keyof PlanDefaults;
                       >Nothing sells this yet, so a change here reaches no bank.</span
                     >
                   } @else {
-                    <span i18n="@@spd.reach"
+                    <!-- The plan tables are named, and named SEPARATELY, because they are the
+                         one thing on this page that does not reach by absence: a program reads
+                         them only when it says it does. Listing them beside "states none of its
+                         own" would have made the page contradict the mechanism it configures. -->
+                    <span i18n="@@spd.reach2"
                       >A change here reaches {{ p.usedBy.length }} catalog name(s): the tables go to
                       every bank program under them that takes catalog amounts, and the debt burden,
                       the loan duration and the I-Score tiers go to every one that states none of
-                      its own.</span
+                      its own. The plans by deposit go only to the programs that asked for
+                      them.</span
                     >
                   }
                 </p>
@@ -2046,10 +2062,14 @@ type PlanSlotKey = keyof PlanDefaults;
         font-weight: var(--font-medium);
       }
 
+      /* --error is #C1666B, which measures 3.81:1 on this card's ground in light mode — under
+         AA, on the one sentence an operator MUST read to get Save back. --error-strong is the
+         same hue at a weight that clears it, and it is the token the theme already defines for
+         exactly this: error text, as opposed to an error border or wash. */
       .fb-error {
         margin: 0;
         font-size: var(--text-sm);
-        color: var(--error);
+        color: var(--error-strong);
       }
 
       /* ─── THE FIVE PLAN TABLES, AS FIVE ROWS ────────────────────────────────────────
@@ -2215,8 +2235,11 @@ type PlanSlotKey = keyof PlanDefaults;
         text-underline-offset: 0.2em;
       }
 
+      /* --primary-strong is defined by no palette in this theme, so the fallback resolved to
+         --primary — the resting colour — and hover was a no-op on every verb in this card.
+         --primary-hover is the token that exists, and it moves in both themes. */
       .link-btn:hover {
-        color: var(--primary-strong, var(--primary));
+        color: var(--primary-hover);
       }
 
       .link-btn:focus-visible {
@@ -3098,6 +3121,8 @@ export class SurrogateProductDetailPage {
   protected readonly productBase = PRODUCT_BASE;
 
   private readonly api = inject(BankProgramsApiService);
+  /** Via NzModalService so the scrim covers the whole viewport, never the panel (A34). */
+  private readonly modal = inject(NzModalService);
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly enumTypes = inject(EnumerationTypesService);
   private readonly lookups = inject(LookupsApiService);
@@ -3254,6 +3279,7 @@ export class SurrogateProductDetailPage {
     {
       key: 'rateByFact' as const,
       valueKind: 'ratePercent' as const,
+      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.rate:Interest rate`,
       empty: $localize`:@@spd.plans.rate_empty:No rate table — each bank prices from its own rate.`,
       add: $localize`:@@spd.plans.rate_add:State a rate table`,
@@ -3262,6 +3288,9 @@ export class SurrogateProductDetailPage {
     {
       key: 'maxMonthsByFact' as const,
       valueKind: 'months' as const,
+      // WHICH END OF THE TERM. Both month tables share one value kind, whose labels all said
+      // "longest" — so the Shortest-term row opened a table headed LONGEST TERM (MONTHS).
+      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.max_months:Longest term`,
       empty: $localize`:@@spd.plans.max_months_empty:No table — each bank lends over its own longest term.`,
       add: $localize`:@@spd.plans.max_months_add:State a longest-term table`,
@@ -3270,6 +3299,7 @@ export class SurrogateProductDetailPage {
     {
       key: 'minMonthsByFact' as const,
       valueKind: 'months' as const,
+      monthsBound: 'min' as const,
       title: $localize`:@@spd.plans.min_months:Shortest term`,
       empty: $localize`:@@spd.plans.min_months_empty:No table — each bank lends from its own shortest term.`,
       add: $localize`:@@spd.plans.min_months_add:State a shortest-term table`,
@@ -3278,6 +3308,7 @@ export class SurrogateProductDetailPage {
     {
       key: 'ltvCeilingByFact' as const,
       valueKind: 'sharePercent' as const,
+      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.ltv:Share of the price financed`,
       empty: $localize`:@@spd.plans.ltv_empty:No table — each bank finances its own share.`,
       add: $localize`:@@spd.plans.ltv_add:State a financed-share table`,
@@ -3286,6 +3317,7 @@ export class SurrogateProductDetailPage {
     {
       key: 'minAmountByFact' as const,
       valueKind: 'amountEGP' as const,
+      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.floor:Smallest loan`,
       empty: $localize`:@@spd.plans.floor_empty:No table — each bank writes from its own smallest loan.`,
       add: $localize`:@@spd.plans.floor_add:State a smallest-loan table`,
@@ -3315,14 +3347,48 @@ export class SurrogateProductDetailPage {
     this.setPlanGrid(slot, emptyFactGrid());
   }
 
+  /**
+   * Remove one plan table — CONFIRMED while programs are reading it.
+   *
+   * The server does not refuse this, deliberately: a cleared plan table leaves an inheriting
+   * program on its own rate, floor and financed share, every one of which still exists, so
+   * nothing stops quoting and a refusal would be a gate over what is merely a change.
+   *
+   * But "nothing stops quoting" is not "nothing happens", and that is why this asks. On the one
+   * product that has plans, removing the rate table re-prices every reader from the 5-12% its
+   * rows state to the program's own placeholder base rate; removing the financed share halves
+   * what a 20%-down buyer can borrow; removing the floor drops the smallest loan by a factor of
+   * ten. All of it silent, all of it frozen onto immutable offers (Principle I / A6). A dialog
+   * naming the count is the cheapest honest thing between "refuse it" and "say nothing".
+   *
+   * Only when somebody is reading. Clearing a table nobody has opted into is a change to a
+   * draft, and a dialog there would teach the operator to click through this one.
+   */
   protected clearPlanGrid(slot: PlanSlotKey): void {
-    const next = { ...(this.planValue() ?? {}) };
-    delete next[slot];
-    // An object with no table left is `null`, not `{}` — two spellings of "states no plans"
-    // is how one of them stops being recognised.
-    this.planValue.set(Object.keys(next).length === 0 ? null : next);
-    this.plansDirty = true;
-    this.markDirty();
+    const commit = (): void => {
+      const next = { ...(this.planValue() ?? {}) };
+      delete next[slot];
+      // An object with no table left is `null`, not `{}` — two spellings of "states no plans"
+      // is how one of them stops being recognised.
+      this.planValue.set(Object.keys(next).length === 0 ? null : next);
+      this.plansDirty = true;
+      this.markDirty();
+    };
+
+    const readers = this.planReaders();
+    if (readers === 0) {
+      commit();
+      return;
+    }
+    const title = $localize`:@@spd.plans.remove_confirm_title:Remove this table?`;
+    const body = $localize`:@@spd.plans.remove_confirm_body:${readers}:readers: bank program(s) read these plans. Each one falls back to its own figure for this table, which changes what it quotes. Nothing is saved until you press Save.`;
+    this.modal.confirm({
+      nzTitle: title,
+      nzContent: body,
+      nzOkText: $localize`:@@spd.plans.remove_confirm_ok:Remove the table`,
+      nzCancelText: $localize`:@@spd.plans.remove_confirm_cancel:Keep it`,
+      nzOnOk: commit,
+    });
   }
 
   /**
@@ -3403,43 +3469,62 @@ export class SurrogateProductDetailPage {
   }
 
   /**
-   * The tables whose deposit bands do not line up with the rate table's.
+   * A deposit this product PRICES that another table would REFUSE.
    *
    * Advisory and never a gate — the server validates each table on its own, and a mirror that
    * refused more than the server would tell an operator their card is unsavable with nothing
    * to fix. It exists because the one thing five separate tables cannot show by being looked
-   * at is that a plan added to one of them is missing from another: a deposit that prices but
-   * is not capped is a real hole, and nothing else on this screen would say so.
+   * at is that a plan added to one of them is missing from another.
+   *
+   * COVERAGE, not set-equality, and the difference is whether anybody reads it. Comparing band
+   * SETS made this line permanent on the only product that has plans: the term table
+   * deliberately states one row for 40% and up where the rate table states three, and the floor
+   * table deliberately states one row at all — both because they say something only where they
+   * DIFFER. A warning that is always on is a warning nobody reads, and it costs the one thing
+   * this line exists to say.
+   *
+   * Scoped to tables whose miss is a REFUSAL, which is the whole hazard. On `useFallback` an
+   * uncovered deposit takes the program's own figure, which is what a coarser table MEANS; on
+   * `reject` it is an applicant who is quoted a rate by one table and turned away by another.
    */
   protected readonly planBandMismatch = computed<string | null>(() => {
     const plans = this.planValue();
     const rate = plans?.rateByFact;
     if (plans === null || rate === undefined) return null;
-    const bandsOf = (grid: FactGridConfig): string =>
-      [
-        ...new Set(
-          grid.cells
-            .map((c) => c.keys[0])
-            .filter(
-              (k): k is { fromInclusive?: string; toExclusive?: string | null } =>
-                k !== null && k !== undefined && !('key' in k),
-            )
-            .map((k) => `${k.fromInclusive ?? ''}-${k.toExclusive ?? ''}`),
-        ),
-      ]
-        .sort()
-        .join(' ');
-    const reference = bandsOf(rate);
+
+    /** The deposit bands of a grid's first axis, as numeric intervals. `null` upper = no end. */
+    const bandsOf = (grid: FactGridConfig): { from: number; to: number | null }[] =>
+      grid.cells
+        .map((c) => c.keys[0])
+        .filter(
+          (k): k is { fromInclusive?: string; toExclusive?: string | null } =>
+            k !== null && k !== undefined && !('key' in k),
+        )
+        .map((k) => ({
+          from: Number(k.fromInclusive ?? '0'),
+          to: k.toExclusive === null || k.toExclusive === undefined ? null : Number(k.toExclusive),
+        }))
+        .filter((b) => Number.isFinite(b.from) && (b.to === null || Number.isFinite(b.to)));
+
+    const covers = (outer: { from: number; to: number | null }, inner: typeof outer): boolean =>
+      outer.from <= inner.from &&
+      (outer.to === null || (inner.to !== null && outer.to >= inner.to));
+
+    const priced = bandsOf(rate);
     const off = this.planSlots
       .filter((slot) => slot.key !== 'rateByFact')
       .filter((slot) => {
         const grid = plans[slot.key];
-        return grid !== undefined && bandsOf(grid) !== reference;
+        // A table that falls back is not refusing anybody — a band it does not state is the
+        // program's own figure, stated by omission.
+        if (grid === undefined || grid.onNoMatch !== 'reject') return false;
+        const bands = bandsOf(grid);
+        return priced.some((p) => !bands.some((b) => covers(b, p)));
       })
       .map((slot) => slot.title);
     if (off.length === 0) return null;
     const names = off.join(', ');
-    return $localize`:@@spd.plans.mismatch:${names}:names: use different deposit bands from the rate table. A deposit priced by one and not covered by another falls back to the bank's own figure — check that is what you meant.`;
+    return $localize`:@@spd.plans.mismatch2:A deposit this product prices is not covered by ${names}:names:, which turns that customer away instead of quoting them. Add the missing rows, or let that table fall back to the bank's own figure.`;
   });
 
   /**
@@ -4337,7 +4422,7 @@ export class SurrogateProductDetailPage {
       case 0:
         return $localize`:@@spd.cap_asks:The questions this product puts to the applicant, the answers they pick from, the classes a bank keys its table by, and the amount each one carries.`;
       case 1:
-        return $localize`:@@spd.cap_rule:What the bank reads instead of a payslip, and the figures every bank filing under this product starts from.`;
+        return $localize`:@@spd.cap_rule2:What the bank reads instead of a payslip, the figures every bank filing under this product starts from, and the plans a bank can choose to price by.`;
       default:
         return $localize`:@@spd.cap_uses:Every catalog name selling this product, and the bank programs underneath.`;
     }
