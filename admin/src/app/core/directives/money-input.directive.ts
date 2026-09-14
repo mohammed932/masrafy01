@@ -40,10 +40,20 @@ export class MoneyInputDirective implements ControlValueAccessor {
   @Input() set appMoneyInput(value: boolean | '' | undefined) {
     this.grouping = value !== false;
     // Re-render whatever is on screen under the new setting.
-    this.el.value = displayValue(this.el.value, this.grouping);
+    this.el.value = displayValue(this.el.value, this.grouping, this.signed);
+  }
+
+  /**
+   * Keep a leading minus. Off by default: every money, percentage and month field in the
+   * admin states a non-negative figure, and only a signed DELTA needs this.
+   */
+  @Input() set appMoneyInputSigned(value: boolean | '' | undefined) {
+    this.signed = value !== false && value !== undefined;
+    this.el.value = displayValue(this.el.value, this.grouping, this.signed);
   }
 
   private grouping = true;
+  private signed = false;
   private readonly elRef = inject<ElementRef<HTMLInputElement>>(ElementRef);
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
@@ -53,7 +63,7 @@ export class MoneyInputDirective implements ControlValueAccessor {
   }
 
   writeValue(value: string | null): void {
-    this.el.value = displayValue(value ?? '', this.grouping);
+    this.el.value = displayValue(value ?? '', this.grouping, this.signed);
   }
 
   registerOnChange(fn: (value: string) => void): void {
@@ -73,11 +83,16 @@ export class MoneyInputDirective implements ControlValueAccessor {
     const previous = this.el.value;
     const caret = this.el.selectionStart ?? previous.length;
     const digitsBeforeCaret = previous.slice(0, caret).replace(/\D/g, '').length;
-    const formatted = displayValue(previous, this.grouping);
+    const formatted = displayValue(previous, this.grouping, this.signed);
     this.el.value = formatted;
-    const next = caretAfterDigit(formatted, digitsBeforeCaret);
+    // A lone minus has no digit to sit after, so the offset rule would park the caret in
+    // front of it and the next keystroke would land on the wrong side of the sign.
+    const next =
+      this.signed && digitsBeforeCaret === 0 && formatted.startsWith('-')
+        ? 1
+        : caretAfterDigit(formatted, digitsBeforeCaret);
     this.el.setSelectionRange(next, next);
-    this.onChange(toRaw(previous));
+    this.onChange(toRaw(previous, this.signed));
   }
 
   @HostListener('blur')

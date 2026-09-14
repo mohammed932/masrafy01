@@ -148,6 +148,7 @@ section.dashboard {
 .ant-pagination-item-active a {
   color: var(--primary-visible);
 }
+
 .ant-pagination-item-active {
   background: transparent;
   border-color: var(--primary-visible);
@@ -161,6 +162,26 @@ section.dashboard {
 .ant-pagination-disabled .ant-pagination-item-link,
 .ant-pagination-disabled button {
   color: var(--color-text-disabled);
+}
+
+// ============================================================================
+// NG-ZORRO radio + checkbox LABELS — the same hardcoded ink, one control over.
+//
+// `.ant-radio-wrapper` and `.ant-checkbox-wrapper` ship `rgba(0, 0, 0, 0.85)` as
+// a LITERAL, exactly as pagination does, so in dark mode the words beside every
+// radio and checkbox are black ink on a near-black ground: measured at 1.10:1
+// against `--bg-surface` (#15101C) — invisible, not merely dim.
+//
+// It is not one screen's problem. The free-form grid editor's "If no row matches
+// the customer" radios and the plan card's "When no band fits" radios sit on the
+// SAME product page, and both were unreadable; the bank-program form's checkbox
+// measured identically. Tokens rather than a `[data-theme='dark']` patch, for the
+// reason the block above gives: the token flips with the theme, while a second
+// literal would leave the same defect one theme away.
+// ============================================================================
+.ant-radio-wrapper,
+.ant-checkbox-wrapper {
+  color: var(--color-text-primary);
 }
 
 // Fingers, not cursors. antd's compact pager is a 24px box, which is half the

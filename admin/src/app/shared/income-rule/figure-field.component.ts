@@ -24,7 +24,12 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
     @if (label()) {
       <label class="ff__label" [for]="fieldId()">{{ label() }}</label>
     }
-    <span class="ff__field" [class.is-narrow]="!money()" [class.has-default]="!!placeholder()">
+    <span
+      class="ff__field"
+      [class.is-narrow]="!money()"
+      [class.has-default]="!!placeholder()"
+      [class.is-quiet]="tone() === 'quiet'"
+    >
       <!-- Money groups its thousands (A27); a percentage or a multiplier does not, and a
            kind this screen cannot prove groups anyway — it changes nothing on a two-digit
            month count and saves a misread on a seven-digit floor. -->
@@ -36,6 +41,7 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
         class="ff__input"
         appMoneyInput
         [appMoneyInput]="money()"
+        [appMoneyInputSigned]="signed()"
         type="text"
         [attr.inputmode]="money() ? null : 'decimal'"
         [id]="fieldId()"
@@ -99,6 +105,22 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
          reads as a money field somebody gave up on. */
       .ff__field.is-narrow {
         inline-size: 9rem;
+      }
+
+      /* BLANK IS AN ANSWER, and a filled slab around an em-dash is not how it looks.
+         A solid field with a ground reads as an input holding a value, so a cell whose
+         emptiness MEANS something ("this table says nothing for that band, so each bank's
+         own figure stands") draws as an outline on no ground. The edge stays, because it is
+         still somewhere to type; it firms to solid the moment the caret lands in it, so the
+         field being edited is never the faintest one on the row. */
+      .ff__field.is-quiet {
+        border-style: dashed;
+        background: none;
+      }
+
+      .ff__field.is-quiet:focus-within {
+        border-style: solid;
+        background: var(--color-surface-elevated);
       }
 
       /* Hover firms the edge; the BRAND colour is held back for focus. Ten condition rows
@@ -199,6 +221,22 @@ export class FigureFieldComponent {
   readonly label = input<string | null>(null);
   /** Accessible name, used only when there is no visible label. */
   readonly ariaLabel = input<string | null>(null);
+
+  /**
+   * `quiet` draws the field as an outline on no ground — for a cell where BLANK is a real
+   * answer rather than a zero nobody has typed yet.
+   *
+   * Additive and defaulted to `default`, so every existing caller renders exactly as before.
+   */
+  readonly tone = input<'default' | 'quiet'>('default');
+
+  /**
+   * Allow a leading minus. Off by default — every other figure in the admin is non-negative.
+   *
+   * A signed DELTA needs it: without it the field strips the sign, so "1 point under the
+   * base" is displayed AND SAVED as one point over, which moves the rate the wrong way.
+   */
+  readonly signed = input<boolean>(false);
 
   /**
    * A figure to show in grey when the field is empty — the surrogate product's own amount.

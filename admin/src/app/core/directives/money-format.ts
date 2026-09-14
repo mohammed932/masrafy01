@@ -6,23 +6,36 @@
  * JIT into a test about string formatting, which is why the repo's specs import pure modules
  * only. Same reason the directive re-exports them: no caller has to know they moved.
  */
-/** Strip to a canonical numeric string: digits with at most one decimal point, no separators. */
-export function toRaw(value: string): string {
+/**
+ * Strip to a canonical numeric string: digits with at most one decimal point, no separators.
+ *
+ * `signed` keeps ONE leading minus, and is off by default so every existing caller — money,
+ * a percentage, a month count, all of which the admin only ever states as non-negative —
+ * behaves byte for byte as before. It exists because a DELTA is signed by design: the plan
+ * card states "electric cars price 1 point under the base" as `-1`, and a field that drops
+ * the sign does not merely display it wrong, it saves `+1` and moves the rate the other way.
+ */
+export function toRaw(value: string, signed = false): string {
+  const negative = signed && value.trimStart().startsWith('-');
   const cleaned = value.replace(/[^\d.]/g, '');
   const dot = cleaned.indexOf('.');
-  if (dot === -1) return cleaned;
-  return cleaned.slice(0, dot) + '.' + cleaned.slice(dot + 1).replace(/\./g, '');
+  const digits =
+    dot === -1 ? cleaned : cleaned.slice(0, dot) + '.' + cleaned.slice(dot + 1).replace(/\./g, '');
+  return negative ? '-' + digits : digits;
 }
 
-/** "1000000" → "1,000,000"; keeps any decimal part intact. */
-export function group(value: string): string {
-  const raw = toRaw(value);
-  if (raw === '') return '';
+/** "1000000" → "1,000,000"; keeps any decimal part intact, and a leading sign when asked. */
+export function group(value: string, signed = false): string {
+  const signedRaw = toRaw(value, signed);
+  const negative = signedRaw.startsWith('-');
+  const raw = negative ? signedRaw.slice(1) : signedRaw;
+  if (raw === '') return negative ? '-' : '';
   const dot = raw.indexOf('.');
   const intPart = dot === -1 ? raw : raw.slice(0, dot);
   const fracPart = dot === -1 ? null : raw.slice(dot + 1);
   const intGrouped = intPart === '' ? '0' : Number(intPart).toLocaleString('en-US');
-  return fracPart === null ? intGrouped : `${intGrouped}.${fracPart}`;
+  const body = fracPart === null ? intGrouped : `${intGrouped}.${fracPart}`;
+  return negative ? '-' + body : body;
 }
 
 /**
@@ -32,8 +45,8 @@ export function group(value: string): string {
  * the only value accessor for every money field in the admin (A27), and "does a percentage
  * stay ungrouped" is exactly the kind of thing that should fail a test rather than a screen.
  */
-export function displayValue(raw: string, grouping: boolean): string {
-  return grouping ? group(raw) : toRaw(raw);
+export function displayValue(raw: string, grouping: boolean, signed = false): string {
+  return grouping ? group(raw, signed) : toRaw(raw, signed);
 }
 
 /**

@@ -293,7 +293,7 @@ both ways on live rows. Seeds re-run 0 written / 0 refused.
 2. **Five grid editors on the product page, not one fused plan-rows control.** The fused design's
    safety value — that a plan added to one table and missing from another is invisible — is
    covered by a band-mismatch advisory (`role="status"`, never a gate). The fused editor remains
-   the better UX and is not built.
+   the better UX and is not built. **Closed 2026-09-14 — see "The fused plan table" below.**
 3. **`minMonthsByFact` is implemented but not seeded.** Every tier on this card starts at 6
    months, which is already the product's `tenorDefaults.minMonths`; a table saying 6 five times
    would shadow that floor if it ever moved.
@@ -421,5 +421,367 @@ targets and five orphans dropped.
 **Not done, stated:** no browser was driven — no browser tool in this session — so the corrected
 column heading, the confirmation dialog, the new verb and every contrast figure are unmeasured in
 light, dark and RTL; the fused plan-rows editor D5 designed is still not built (Deviation 2
-stands, and it remains the real simplification); and `countOffersReferencing` still returns a
-hardcoded `0` at the source, guarded against only inside the migration.
+stands, and it remains the real simplification — **now closed, below**); and
+`countOffersReferencing` still returns a hardcoded `0` at the source, guarded against only inside
+the migration.
+
+
+---
+
+## The fused plan table (2026-09-14)
+
+Deviation 2 closed. The operator's report was the card itself:
+
+> PLANS BY DEPOSIT
+> › Interest rate — 20 row(s), by Down payment (% of the price) · Where the car was built · What the car runs on
+> › Longest term — 3 row(s), by Down payment (% of the price)
+>   Shortest term — No table — each bank lends from its own shortest term.
+> › Share of the price financed — 6 row(s), by Down payment (% of the price) · Who owns the home lived in
+> › Smallest loan — 1 row(s), by Down payment (% of the price)
+
+— *"make it very simple, it is very confusing to admin and also for me"*.
+
+Five disclosures, each keyed by the same deposit bands, each describing itself in its own
+dialect, and no line anywhere saying what an operator holds in their head: **put 30% down and
+the rate is 9%, we lend over 72 months, we finance 70%.** Reading one plan meant opening four
+and joining them by eye on a number labelled in none of them.
+
+### What it is now
+
+One table. The deposit band is the row; everything a plan states is a column across it. The real
+`down_payment_income` card, rendered from the stored blob:
+
+| Deposit | Rate | Chinese | Electric | Hybrid | Longest term | We finance | Home owned by me | By a relative | Smallest loan |
+|---|---|---|---|---|---|---|---|---|---|
+| 20 – under 30% | 10 | 12 | 9 | 9 | 60 | · | 80 | 80 | 1,000,000 |
+| 30 – under 40% | 9 | 11 | 8 | 8 | 72 | 70 | · | · | · |
+| 40 – under 50% | 8 | 10 | 7 | 7 | **84** ⎫ | 60 | · | · | · |
+| 50 – under 60% | 7 | 9 | 6 | 6 | *(spans 3)* ⎬ | 50 | · | · | · |
+| 60% and above | 6 | 8 | 5 | 5 | ⎭ | 40 | · | · | · |
+
+Three renderings in there are load-bearing rather than decorative.
+
+**The 84 is ONE input spanning three rows**, captioned with the band it covers and carrying a
+Split verb. That is the honest drawing of `maxMonthsByFact`'s single `[40, ∞) → 84` cell. Drawn
+per row it would read as three independent figures and a keystroke would silently move all
+three.
+
+**A blank cell is blank, never a zero.** Four empty floors and four empty "We finance" cells mean
+*this table says nothing for that band, so the bank's own figure stands* — which for the floor
+and both term ends is the normal answer, not a gap.
+
+**A named case is a COLUMN, derived from the keys the stored table already holds.** The Chinese
+and electric rate columns appear because `rateByFact` states those keys; the two home-ownership
+columns appear because `ltvCeilingByFact` does. No option code is written into admin source —
+nothing in this control knows what a Chinese car is. The 20–30 band's blank "We finance" beside
+two filled owner columns **is** the band-scoped refusal of a renter, finally legible.
+
+### The grids are the state
+
+New pure `admin/src/app/shared/ui/plan-rows.rules.ts` and its editor
+`plan-rows-editor.component.ts`. `planRowsFrom(grids)` projects; every verb is a pure
+`PlanDefaults → PlanDefaults` writer; the component holds no copy. There is nothing to
+round-trip and nothing to drift — the property the fused design was wanted for holds **by
+construction**, which the testing policy would not have given us any other way.
+
+### The write-back is minimal, and that is not tidiness
+
+`valueSources` marks a figure an estimate by PATH, and a grid cell has no key, so the path is an
+INDEX — `planDefaults.rateByFact.cells.7.value`, 23 of them seeded here. A writer that re-emitted
+each grid in a tidy normal form (expanding that covering 84 into three) would silently move what
+every later marker describes, and the FR-033 activation gate would start calling published
+figures guesses and guesses published. So stored cells are reused **by reference**, a changed
+figure replaces one cell **in place**, a newly stated one is **appended**, and the only
+index-shifting act is clearing a figure — which is what today's Remove row already is. A covering
+band is never split behind the operator's back; `splitPlanCell` is a verb they press, and its
+confirm says how many figures it becomes.
+
+The writers return the **caller's own object** when nothing moved, so the host's dirty flag stays
+put on a re-typed number: a Save with no edit re-posts nothing.
+
+### The fallback is a choice of editor, never a refusal
+
+`planRowsFrom` returns `null` — and the five free-form editors take over under a sentence saying
+why — when a grid is not keyed first by `car_down_payment_percent`, reads it through a class,
+states a key or a wildcard where a band belongs, splits an extra axis by a range, or holds two
+figures for one (row, column). Gaps and coarser bands are fine: those are what rowspan and blank
+are for. The Advanced list is also the only door to the FIRST table on a product that states
+none, so it stays reachable while the card above is drawing.
+
+**`planRowsErrorFor` is `factGridErrorFor` over each present grid and nothing more.** Band gaps,
+a band the rate prices that a `reject` sibling refuses, a deposit and a share that miss 100 — all
+advice (`role="status"`), never a gate. The server accepts every one, and a mirror that refuses
+what the server accepts is the `productRuleHasError` defect this repo has already shipped once.
+
+`DOWN_PAYMENT_PERCENT_FACT_KEY` and `TENOR_FACT_KEY` move from the editor component into
+`fact-grid.rules.ts`, because a rules module may not import a component — that drags Angular's
+JIT compiler into a unit test, the defect `fact-grid.rules.ts`'s own header records.
+
+### Two defects found by running it, not by reading it
+
+- **`appendPlanBand` created no band.** It closed every open-ended cell at the new edge and
+  stopped — so adding a band at 70% moved the card's ceiling down to 60–70 and the 70%+ band,
+  holding no cell in any table, was derived by nothing and vanished on the next read. It now also
+  appends a copy of each closed cell starting at the new edge: a tier starts from the one below
+  and is edited, the same reasoning that makes a new case copy the base figure.
+- **The forced-open Advanced list.** Copied from the five-row list's rule (a table that blocks
+  Save must not be hideable), it threw the operator out of the card and into the editor they had
+  just been moved off — including on the very first click of "Also state: Shortest term", whose
+  new table is legitimately blank. Narrowed to "the card could not be drawn": every error the
+  projection survives is a box visible in the card itself, and every error it does not leaves
+  `planTable()` null, which already forces the list.
+
+### Verified
+
+Against the **real database**, through the rules module over the stored `planDefaults`
+(md5 `1cb679c2ae185ff80a28892139a8342b`): 5 rows × 9 columns matching the D7 table cell for cell,
+no blocking error, no advice; re-typing a figure returns the caller's object; changing the 30–40
+Chinese rate rewrites **cell index 5 in place** with keys byte-identical, leaves the other 19
+cells reference-identical and the three sibling tables untouched by reference; a blank floor
+**appends** at index 1 and clearing it returns the blob **byte-identical to stored**; the edge
+move rewrites `fromInclusive` and `toExclusive` across all four tables at once; removing a band
+closes the hole; adding a case copies the base per band and removing that column drops the axis
+again, back to the stored blob byte for byte; the last table out leaves `null`, never `{}`; a
+grid keyed by `car_origin` falls back with `not_keyed_by_deposit` and a duplicated band with
+`overlapping_bands`; and the stored blob is never mutated.
+
+`tsc` clean, admin **364** tests green, production build green, `ng build --configuration=development-ar`
+green with **0** of the 47 new ids untranslated (all carry `ar` targets built from the source's own
+`<x/>` elements, never a literal `{$INTERPOLATION}`), no existing source reworded so no target
+orphaned, and lint on every touched file down to the one pre-existing repo-wide `*Page`
+class-suffix convention.
+
+**Not done, stated:** no browser was driven — no browser tool in this session — so the table's
+rowspan, the case picker, the confirmations and every contrast figure are unmeasured in light,
+dark and RTL; the bank-program wizard is untouched, so it still has no editor for the three
+grids it can only inherit or ignore (`PlanColumn` has no `inherited` flag yet, and adding one is
+additive when the wizard adopts the control); and no unit test was added, per the repo's testing
+policy — the probe above is the evidence, and it was run against live rows rather than fixtures.
+
+
+---
+
+## Narrowing it: one column per figure (2026-09-14, second pass)
+
+The fused table above was faithful to the storage and too wide to read. The operator's words:
+*"make it more simple and innovated ui/ux"*, and — the constraint that decides the trade —
+*"the auto loan surrogate is very critical and must be simple for admin to handle it."*
+
+**Audited: 10 columns, two header rows, a four-select footer, three tool rows, 71 interactive
+controls, 43 of them figure boxes.**
+
+### What the live rows said
+
+Measured, not assumed:
+
+| table | stored cases | what they actually are |
+|---|---|---|
+| `rateByFact` | china, electric, hybrid | **a constant move off the base on every band** — +2, −1, −1. Fifteen of the twenty cells were one sentence typed five times. |
+| `ltvCeilingByFact` | owned_by_me, owned_by_relative | **not cases at all.** Stated only in the 20–30 band, where the base is blank, and equal. That is one CONDITION on one row — *in this band we lend to home owners only* — which nine columns state nowhere. |
+
+So `planSlotShapeOf` derives one of three readings per table, on every read, stored nowhere:
+
+- **simple** — every case is the same move off the base. Said ONCE under the heading as an
+  editable delta chip; typing a base figure CASCADES to the cases in the same write, so the
+  column cannot silently widen back underneath the operator mid-edit.
+- **condition** — the cases sit exactly where the base is blank and agree. One chip on the row
+  it binds, naming the answers it covers and — when the table refuses a miss — deriving the
+  answer it therefore **turns away** (`options − stated`). *Only for I own it · A close relative
+  owns it — not Rented, or neither.* That sentence was unsayable before.
+- **detailed** — anything else keeps a column per case, because nothing shorter would be true.
+
+### The card now
+
+**6 columns, one header row, no footer. 43 figure boxes → 18.**
+
+| | Rate | Longest term | Shortest term | We finance | Smallest loan |
+|---|---|---|---|---|---|
+| | *Chinese +2 · Hybrid −1 · Fully electric −1* | | *(ghost)* | | |
+| 20% up to 30% | 10 | 60 | — | 80 · *only for owners — not renters* | 1,000,000 |
+| 30% up to 40% | 9 | 72 | — | 70 | — |
+| 40% up to 50% | 8 | **84** (spans 3) | — | 60 | — |
+| 50% up to 60% | 7 | | — | 50 | — |
+| 60% and above | 6 | | — | 40 | — |
+
+Also in this pass:
+
+- **The four `onNoMatch` selects are gone** — a 14rem select each, in a table footer, for a
+  decision nobody changes twice. One sentence per column that flips on a click:
+  *no band fits → turn away*.
+- **A table this product does not state keeps a narrow GHOST column** rather than vanishing, so
+  the card is the same six columns on every product and the way to start one is where the
+  figure would be. The three tool rows collapse to one.
+- **Every figure box is now `app-figure-field`** — the house field shell, the unit *inside* the
+  box, and a real placeholder note, so a blank cell announces *"Blank — this table says nothing
+  for that band, so each bank's own figure stands"* instead of reading as a zero.
+- **A ladder bar under the deposit**, drawing where each band sits on 0–100%. A hole or an
+  overlap in the card is then visible without reading a figure — the one thing neither five
+  stacked tables nor nine columns could show.
+- **A worked example in money.** Type a car price once and every financed share says what it
+  means: *finances 800,000 · they put 200,000 down*. Stored nowhere, sent nowhere, empty by
+  default. It exists because a share is the one figure on this card an operator cannot
+  sanity-check by looking at it.
+
+### Four tokens that were painting nothing
+
+`--color-primary`, `--color-primary-hover`, `--duration-fast` and `--ease-out` are defined by no
+palette in this theme, so those declarations were invalid at computed-value time: the *Edit one
+table at a time* link rendered in body ink rather than as a link, and the chevron never
+animated. The house spellings are `--primary`, `--primary-hover`, `--motion-duration-fast`,
+`--motion-easing-standard`. (`--font-regular` in the first draft of the editor was the same
+defect; it is `--font-weight-regular`.) Contrast held to the measured house rule throughout —
+`--text-tertiary` is 3.83:1 on a card in light mode, so every label that must be read is
+secondary, and the advice panel keeps primary ink on the warning wash, which is 2.53:1 as ink.
+
+### Verified
+
+Against the live rows again: the card draws **6 columns**, the rate reads `simple` with deltas
+`+2 / −1 / −1`, the financed share reads `condition` with `only owned_by_me/owned_by_relative`
+on the 20–30 band alone, and the term's covering 84 still spans three rows. Typing `9.5` into
+the 30–40 rate moves **exactly four cells** — base 9.5, Chinese 11.5, electric 8.5, hybrid 8.5 —
+with the cell count unchanged at 20, **every untouched cell identical by reference**, every
+touched cell's `keys` array reused by reference, the three sibling tables untouched by
+reference, and **every estimate marker still describing the figure it was written about**.
+Moving the Chinese delta to +3 rewrites all five bands and nothing else; typing into the
+conditional share writes **both** owner cells and it still reads as a condition afterwards; a
+no-op still returns the caller's own object; the stored blob is never mutated. Every earlier
+property re-checked and still holding.
+
+`tsc` clean, admin **364** tests, production build green, `ar` build green with **0** of the
+16 new ids untranslated (9 reworded sources re-targeted, 10 orphans dropped) and the untranslated
+total **364 = exact HEAD parity**; lint clean on both new files, the page down to the one
+pre-existing repo-wide `*Page` convention.
+
+**Not done, stated:** still no browser in this session, so the ladder bar, the delta chips, the
+ghost column and every contrast figure are unmeasured in light, dark and RTL; a case that is
+NOT a uniform delta can be read and kept but not authored from the card (it needs the free-form
+editor, and the card falls back to a column per case for that table); and the money example
+assumes the price is the whole basis, which is true of this product and would need saying
+differently on one where it is not.
+
+## Three tabs, and a header with nothing in it (2026-09-14, third pass)
+
+The second pass fixed the WIDTH — ten columns to six, 43 figure boxes to 18. The operator's
+verdict was still *"still very very ugly … make it organized and you can split it in steps and
+make ui/ux pretty and easy"*. The width was never the problem.
+
+### The audit, measured from the code
+
+**Root cause of the ragged header: `thead th { vertical-align: bottom }` over variable-height
+stacks.** The RATE heading was name + three editable delta chips + a verbs row, about five
+lines; LONGEST TERM was name + two links; the ghost SHORTEST TERM was name + a button.
+Bottom-aligning stacks five, three and two lines tall put the six column NAMES at six different
+y-positions. That is exactly what the screenshot was pointing at.
+
+**~18 interactive controls lived inside the table header**: 3 delta inputs, 3 delta deletes,
+4 no-match toggles, 4 "+ a case", 4 delete-the-whole-table buttons — one of the last a pixel
+from "+ a case", carrying only an `aria-label`, and removing an entire priced table.
+
+Also found: prose (`.prt__tag`, `.prt__money`, `.prt__covers-text`) rendered as stacked blocks
+inside `<td>`s, so the row carrying the ownership condition stood half again as tall as its
+neighbours; a blank cell drawn as a filled field around an em-dash, which reads as a disabled
+input holding a value; the ladder painted as a gradient with **no track**, so at 3px under a
+field it read as an underline artifact; the ghost column printing five em-dashes to say one
+thing once; and `no band fits → turn away` repeated four times in `--primary`, making the most
+repeated and least-read text on the card the most saturated.
+
+### The shape
+
+Three tabs on `app-rail-tabs appearance="segmented"` — the same component, same appearance, as
+the owned-lists rail one section up this page. **Not a nested stepper**, and not for the reason
+the income screen gives: there IS an order here (bands before figures). The rail wins on the
+other half — an operator returns to change ONE rate, and a stepper makes that a three-step walk
+with a second Back/Next pair a few hundred pixels under the page's own, while hiding the three
+counts a rail shows at once. Figures opens, because that is where nearly every edit lands.
+
+- **① Deposit steps** — the ladder as a real track with a segment per band, one row per band
+  (edge, tail, a read-only identity summary composed from `planSlotCell`), and Add a band. The
+  unpainted leading track is the one gap the projection can produce, and it is now captioned:
+  *Nothing is stated below 20%. A customer putting less down is turned away.*
+- **② Figures** — the table. Header is one flat line of names with **zero** controls. The
+  deposit cell became a chip button that jumps to ① and lands the caret on that band. Every
+  figure cell gets a fixed-height sub-line (condition · money · covering caption, joined and
+  truncated, full text on the accessible name and on ③), so rows match whether or not a cell
+  has anything to add. The ghost column is ONE spanning cell, not five dashes.
+- **③ Exceptions** — the deltas as editable rows, the conditions as sentences, the four
+  no-match decisions as plain radios said once, and the tables with **`Remove this table`** as
+  a worded button. The unlabelled header bin is gone.
+
+`plan-rows.rules.ts` was **not touched** (mtime confirms it), so every property the writers were
+measured against in the previous two passes still holds by construction.
+
+### Two defects found by running it, not by reading it
+
+1. **The shared figure field cannot hold a negative, and silently saves the wrong sign.**
+   Moving the delta from a bare `<input>` onto `app-figure-field` routed it through
+   `MoneyInputDirective`, whose `toRaw()` strips everything but digits and a dot — so `-1`
+   displayed as `1` AND wrote back `1`, moving the rate the opposite way. `toRaw`/`group`/
+   `displayValue` gain an optional `signed` (default off, so every existing caller is byte
+   identical), the directive an `appMoneyInputSigned`, the field a `signed` input; the caret
+   rule gains a case for a lone minus, which has no digit to sit after.
+2. **ng-zorro hardcodes `rgba(0, 0, 0, 0.85)` on `.ant-radio-wrapper` and
+   `.ant-checkbox-wrapper`**, with no dark override — measured **1.10:1** on `--bg-surface`
+   (#15101C): invisible, not dim. Not this card's problem alone: the free-form grid editor's
+   own "If no row matches" radios sit on the SAME page and measured identically, as did the
+   bank-program form's checkbox. Fixed with tokens beside the pagination block that records
+   the same defect class.
+
+### Verified in a browser — the first pass on this card that was
+
+Playwright + Chromium are already devDependencies and both servers were up, so the "no browser
+in this session" line that every previous pass carried did not apply.
+
+**48 runs** — {light, dark} × {en, forced RTL} × {1440, 1024, 720, 360} × three tabs:
+page overflow **0**, card overflow **0**, console errors **0** beyond the app's own 401 session
+probe, and **every text node in the card at or above AA in both themes** (colours resolved
+through a parser that throws on an unparsed value rather than guessing).
+
+The audit's own numbers, re-measured: controls inside `thead` **18 → 0**; thead height **35px**;
+column-name tops **one** distinct value; row heights **one** distinct value (85px); 33 tab stops
+in the card. Cascade on screen: typing 9.5 into the 30–40 rate left the other bands at 10 and 8
+and the three deltas reading as deltas. The band chip opened ① with focus on `plan-band-1`. The
+ghost column is one cell with `rowspan="5"`. The split button takes focus and is never hidden.
+The live `planDefaults` blob came out **byte-identical** (md5 `d9f887dd…`, 3216 B) — nothing was
+saved.
+
+Rules-level properties re-run against the live blob: 5 rows, rate `simple` with `+2 / −1 / −1`,
+share `condition` on the 20–30 band alone, the covering 84 spanning 3; one keystroke moves
+**exactly 4 cells** with the count unchanged at 20, 16 untouched cells identical **by
+reference**, keys arrays reused by reference, sibling tables untouched by reference; a delta
+move rewrites all 5 bands and nothing else; every no-op returns the caller's own object; the
+stored blob is never mutated.
+
+`tsc` clean, admin **364** tests, production build green, `ar` build **364 warnings / 341 unique
+ids = exact HEAD parity** measured against a worktree of HEAD, with the id set identical in both
+directions and **0** of the 29 new ids untranslated (5 orphans dropped). Lint on all four touched
+TypeScript files is 2 findings of the `<label nz-radio>` class the existing grid editor already
+has 4 of.
+
+### Found, measured, NOT fixed
+
+**Every enabled ng-zorro button in the admin focuses with no visible indicator at all.** antd's
+`.ant-btn, .ant-btn:active, .ant-btn:focus { outline: 0 }` beats the global `*:focus-visible` on
+source order — measured on /banks, /questionnaire and this page (`outline-style: none`, no
+shadow), which is SC 2.4.7 failing on the most common control in the app. It is 1 of the 33 tab
+stops in this card. A targeted `.ant-btn:focus-visible` override with `!important` was written
+and **did not take** — the rule is last in the sheet, antd's carries no `!important`, and the
+width still computed `0px` while the identical declaration works on every other element. That
+needs its own investigation, so the rule was reverted rather than shipped with a comment
+claiming a fix that is not happening.
+
+### The harness was wrong twice, both times in the direction of a false failure
+
+A scripted `element.focus()` does not reliably satisfy `:focus-visible`, so the first focus
+sweep reported rings missing on controls that have them; it was redone with real `Tab` presses.
+And Angular escapes Arabic in the bundle with **uppercase** hex (`ح`), while the first
+bundle check generated lowercase — it reported 10 of 12 targets missing, and the two it "found"
+were the two whose code points happen to be all digits. Re-run case-insensitively: 28 of 29
+present, the 29th being `chip_range`, whose target is `<x/>–<x/>%` and carries no word.
+
+### Not done, stated
+
+The Arabic bundle was verified by BUILD and by grepping the built chunks, not by serving it —
+its dev server still cannot authenticate (CORS allows :5173 only), so RTL was measured with
+`dir=rtl` forced on the en bundle, which is this repo's standing fallback. A case that is not a
+uniform delta can still be read and removed but not authored from the card. And no unit test was
+added, per the repo's testing policy — the evidence is the probe and the browser runs above.

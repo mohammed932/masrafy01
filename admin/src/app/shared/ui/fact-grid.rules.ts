@@ -16,6 +16,18 @@
  * the registry is still loading, say — fails towards ACCEPTING and lets the server answer.
  */
 
+/**
+ * The two axes the ENGINE works out per quote, so neither has a question behind it: the share
+ * of the price already paid, and the term the loan is repaid over.
+ *
+ * They live here rather than on the editor that draws their labels, because a rule module may
+ * not import a component — that pulls Angular's JIT compiler into a unit test, which is the
+ * defect this file's own header records. `RESERVED_FACT_KEYS` on the server stops an operator
+ * ever creating a question under either key, so these two strings cannot drift.
+ */
+export const DOWN_PAYMENT_PERCENT_FACT_KEY = 'car_down_payment_percent';
+export const TENOR_FACT_KEY = 'tenor_months';
+
 /** Mirrors the backend `FactGridAxis`. */
 export interface FactGridAxis {
   factKey: string;

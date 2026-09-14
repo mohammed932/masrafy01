@@ -70,7 +70,24 @@ import {
 } from '@shared/ui';
 import type { MaxLoanByFactConfig, ProductCapShape, RailTabItem, WizardStepItem } from '@shared/ui';
 import { FactGridEditorComponent, factGridAxisLabel } from '@shared/ui/fact-grid-editor.component';
-import { emptyFactGrid, factGridErrorFor, type FactGridConfig } from '@shared/ui/fact-grid.rules';
+import {
+  emptyFactGrid,
+  type FactGridConfig,
+  type FactGridValueKind,
+} from '@shared/ui/fact-grid.rules';
+import {
+  PlanRowsEditorComponent,
+  type PlanRemoveRequest,
+} from '@shared/ui/plan-rows-editor.component';
+import {
+  planRowsErrorFor,
+  planRowsFrom,
+  planRowsWhyNot,
+  planSlotMonthsBound,
+  planSlotValueKind,
+  type PlanIncompatibleReason,
+  type PlanSlotKey,
+} from '@shared/ui/plan-rows.rules';
 import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.component';
 import {
   ParentClassBoardComponent,
@@ -163,9 +180,6 @@ interface ReadList {
   readonly pricedOn: string | null;
 }
 
-/** One of the five plan tables, by the key it is stored under. */
-type PlanSlotKey = keyof PlanDefaults;
-
 @Component({
   selector: 'app-surrogate-product-detail-page',
   standalone: true,
@@ -188,6 +202,7 @@ type PlanSlotKey = keyof PlanDefaults;
     ProductRuleEditorComponent,
     MaxLoanByFactEditorComponent,
     FactGridEditorComponent,
+    PlanRowsEditorComponent,
     FigureFieldComponent,
   ],
   providers: [
@@ -1183,88 +1198,22 @@ type PlanSlotKey = keyof PlanDefaults;
                         down.
                       </p>
 
-                      <!-- role="list" restated because list-style: none strips list semantics
-                           in Safari/VoiceOver, which is why the three sibling lists on this
-                           page carry it too. Five rows announced as five is the whole point of
-                           closing them. -->
-                      <ul class="plan-list" role="list">
-                        @for (slot of planSlots; track slot.key) {
-                          <li class="plan-slot">
-                            @if (planGrid(slot.key); as grid) {
-                              <!-- aria-controls is set only while the region exists: the body
-                                   is not rendered when the row is closed, and an id that is
-                                   not in the document is a dangling reference. -->
-                              <button
-                                type="button"
-                                class="plan-row"
-                                (click)="togglePlanSlot(slot.key)"
-                                [attr.aria-expanded]="planSlotOpen(slot.key)"
-                                [attr.aria-disabled]="planSlotLocked(slot.key) ? true : null"
-                                [attr.aria-controls]="
-                                  planSlotOpen(slot.key) ? 'plan-body-' + slot.key : null
-                                "
-                              >
-                                <!-- Inline SVG, not nz-icon: a projected icon resolves the
-                                     NEAREST NzIconPatchService, so a glyph patched here can be
-                                     shadowed by whichever shell it renders inside (v19.1.0). -->
-                                <svg
-                                  class="chev"
-                                  viewBox="0 0 16 16"
-                                  width="12"
-                                  height="12"
-                                  aria-hidden="true"
-                                  focusable="false"
-                                >
-                                  <path
-                                    d="M6 3.5 10.5 8 6 12.5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.6"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                  />
-                                </svg>
-                                <span class="plan-row-title">{{ slot.title }}</span>
-                                <span class="plan-row-state">{{ planSummary(slot.key) }}</span>
-                              </button>
-                              @if (planSlotOpen(slot.key)) {
-                                <div class="plan-body" [id]="'plan-body-' + slot.key">
-                                  <app-fact-grid-editor
-                                    [config]="grid"
-                                    (configChange)="setPlanGrid(slot.key, $event)"
-                                    [facts]="facts()"
-                                    [valueKind]="slot.valueKind"
-                                    [monthsBound]="slot.monthsBound"
-                                  />
-                                  <p class="plan-body-foot">
-                                    <button
-                                      type="button"
-                                      class="link-btn"
-                                      (click)="clearPlanGrid(slot.key)"
-                                      [attr.aria-label]="slot.removeAria"
-                                      i18n="@@spd.plans.remove"
-                                    >
-                                      Remove this table
-                                    </button>
-                                  </p>
-                                </div>
-                              }
-                            } @else {
-                              <div class="plan-row is-empty">
-                                <span class="plan-row-title">{{ slot.title }}</span>
-                                <button
-                                  type="button"
-                                  class="link-btn plan-row-add"
-                                  (click)="addPlanGrid(slot.key)"
-                                >
-                                  {{ slot.add }}
-                                </button>
-                                <span class="plan-row-state">{{ slot.empty }}</span>
-                              </div>
-                            }
-                          </li>
-                        }
-                      </ul>
+                      <!-- ONE PLAN PER LINE. The deposit band is the row and everything a
+                           plan states is a column across it, which is how the bank's own card
+                           reads: "put 30% down, the rate is 9%, we lend over 72 months, we
+                           finance 70%". Five collapsed tables said the same thing in four
+                           dialects and made an operator join them on a number labelled in
+                           none of them. -->
+                      @if (planTable() !== null) {
+                        <app-plan-rows-editor
+                          [grids]="planValue()"
+                          [facts]="facts()"
+                          (gridsChange)="onPlanGrids($event)"
+                          (removeRequest)="onPlanRemove($event)"
+                        />
+                      } @else if (planWhyNotLabel() !== '') {
+                        <p class="plan-fallback-note" role="status">{{ planWhyNotLabel() }}</p>
+                      }
 
                       @if (planError(); as broken) {
                         <p class="fb-error" role="alert">
@@ -1274,9 +1223,129 @@ type PlanSlotKey = keyof PlanDefaults;
                           >
                         </p>
                       }
+                      <!-- ONE TABLE AT A TIME. The shape the card above cannot draw, and the
+                           only door to the FIRST table on a product that states none.
 
-                      @if (planBandMismatch(); as note) {
-                        <p class="plan-mismatch" role="status">{{ note }}</p>
+                           Forced open, with its own toggle refusing, whenever a table blocks
+                           Save — the rule planSlotLocked already applies one level down: a
+                           half-typed table must not be hideable. -->
+                      @if (planTable() !== null) {
+                        <button
+                          type="button"
+                          class="plan-advanced-toggle"
+                          (click)="toggleAdvanced()"
+                          [attr.aria-expanded]="planAdvancedOpen()"
+                          [attr.aria-controls]="planAdvancedOpen() ? 'plan-advanced' : null"
+                        >
+                          <svg
+                            class="chev"
+                            viewBox="0 0 16 16"
+                            width="12"
+                            height="12"
+                            aria-hidden="true"
+                            focusable="false"
+                          >
+                            <path
+                              d="M6 3.5 10.5 8 6 12.5"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.6"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                          <span i18n="@@spd.plans.advanced">Edit one table at a time</span>
+                        </button>
+                      }
+
+                      @if (planAdvancedOpen()) {
+                        <div class="plan-advanced" id="plan-advanced">
+                          <!-- role="list" restated because list-style: none strips list semantics
+                           in Safari/VoiceOver, which is why the three sibling lists on this
+                           page carry it too. Five rows announced as five is the whole point of
+                           closing them. -->
+                          <ul class="plan-list" role="list">
+                            @for (slot of planSlots; track slot.key) {
+                              <li class="plan-slot">
+                                @if (planGrid(slot.key); as grid) {
+                                  <!-- aria-controls is set only while the region exists: the body
+                                   is not rendered when the row is closed, and an id that is
+                                   not in the document is a dangling reference. -->
+                                  <button
+                                    type="button"
+                                    class="plan-row"
+                                    (click)="togglePlanSlot(slot.key)"
+                                    [attr.aria-expanded]="planSlotOpen(slot.key)"
+                                    [attr.aria-disabled]="planSlotLocked(slot.key) ? true : null"
+                                    [attr.aria-controls]="
+                                      planSlotOpen(slot.key) ? 'plan-body-' + slot.key : null
+                                    "
+                                  >
+                                    <!-- Inline SVG, not nz-icon: a projected icon resolves the
+                                     NEAREST NzIconPatchService, so a glyph patched here can be
+                                     shadowed by whichever shell it renders inside (v19.1.0). -->
+                                    <svg
+                                      class="chev"
+                                      viewBox="0 0 16 16"
+                                      width="12"
+                                      height="12"
+                                      aria-hidden="true"
+                                      focusable="false"
+                                    >
+                                      <path
+                                        d="M6 3.5 10.5 8 6 12.5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.6"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                      />
+                                    </svg>
+                                    <span class="plan-row-title">{{ slot.title }}</span>
+                                    <span class="plan-row-state">{{ planSummary(slot.key) }}</span>
+                                  </button>
+                                  @if (planSlotOpen(slot.key)) {
+                                    <div class="plan-body" [id]="'plan-body-' + slot.key">
+                                      <app-fact-grid-editor
+                                        [config]="grid"
+                                        (configChange)="setPlanGrid(slot.key, $event)"
+                                        [facts]="facts()"
+                                        [valueKind]="slotValueKind(slot.key)"
+                                        [monthsBound]="slotMonthsBound(slot.key)"
+                                      />
+                                      <p class="plan-body-foot">
+                                        <button
+                                          type="button"
+                                          class="link-btn"
+                                          (click)="clearPlanGrid(slot.key)"
+                                          [attr.aria-label]="slot.removeAria"
+                                          i18n="@@spd.plans.remove"
+                                        >
+                                          Remove this table
+                                        </button>
+                                      </p>
+                                    </div>
+                                  }
+                                } @else {
+                                  <div class="plan-row is-empty">
+                                    <span class="plan-row-title">{{ slot.title }}</span>
+                                    <button
+                                      type="button"
+                                      class="link-btn plan-row-add"
+                                      (click)="addPlanGrid(slot.key)"
+                                    >
+                                      {{ slot.add }}
+                                    </button>
+                                    <span class="plan-row-state">{{ slot.empty }}</span>
+                                  </div>
+                                }
+                              </li>
+                            }
+                          </ul>
+                          @if (planBandMismatch(); as note) {
+                            <p class="plan-mismatch" role="status">{{ note }}</p>
+                          }
+                        </div>
                       }
 
                       @if (planReaders(); as readers) {
@@ -2212,6 +2281,55 @@ type PlanSlotKey = keyof PlanDefaults;
          above it. It reports that two tables disagree about which deposits they cover, which
          the five tables cannot show by being looked at, and which a CLOSED list cannot show
          at all — so it is the one line here that had to survive the fold. */
+      /* The sentence that replaces the fused card when the stored shape cannot be drawn as
+         one. Secondary, not tertiary: it is a sentence somebody has to read to know why the
+         screen changed shape, and tertiary measures 3.83:1 on this ground in light mode. */
+      .plan-fallback-note {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      .plan-advanced-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-block-start: var(--space-3);
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        font-size: var(--text-sm);
+        color: var(--primary);
+        cursor: pointer;
+      }
+      .plan-advanced-toggle:hover {
+        color: var(--primary-hover);
+      }
+      .plan-advanced-toggle:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+      .plan-advanced-toggle .chev {
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      :host-context([dir='rtl']) .plan-advanced-toggle .chev {
+        transform: scaleX(-1);
+      }
+      .plan-advanced-toggle[aria-expanded='true'] .chev {
+        transform: rotate(90deg);
+      }
+      :host-context([dir='rtl']) .plan-advanced-toggle[aria-expanded='true'] .chev {
+        transform: scaleX(-1) rotate(90deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .plan-advanced-toggle .chev {
+          transition: none;
+        }
+      }
+      .plan-advanced {
+        margin-block-start: var(--space-3);
+      }
       .plan-mismatch {
         margin: 0;
         max-inline-size: 60ch;
@@ -3278,8 +3396,6 @@ export class SurrogateProductDetailPage {
   protected readonly planSlots = [
     {
       key: 'rateByFact' as const,
-      valueKind: 'ratePercent' as const,
-      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.rate:Interest rate`,
       empty: $localize`:@@spd.plans.rate_empty:No rate table — each bank prices from its own rate.`,
       add: $localize`:@@spd.plans.rate_add:State a rate table`,
@@ -3287,10 +3403,6 @@ export class SurrogateProductDetailPage {
     },
     {
       key: 'maxMonthsByFact' as const,
-      valueKind: 'months' as const,
-      // WHICH END OF THE TERM. Both month tables share one value kind, whose labels all said
-      // "longest" — so the Shortest-term row opened a table headed LONGEST TERM (MONTHS).
-      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.max_months:Longest term`,
       empty: $localize`:@@spd.plans.max_months_empty:No table — each bank lends over its own longest term.`,
       add: $localize`:@@spd.plans.max_months_add:State a longest-term table`,
@@ -3298,8 +3410,6 @@ export class SurrogateProductDetailPage {
     },
     {
       key: 'minMonthsByFact' as const,
-      valueKind: 'months' as const,
-      monthsBound: 'min' as const,
       title: $localize`:@@spd.plans.min_months:Shortest term`,
       empty: $localize`:@@spd.plans.min_months_empty:No table — each bank lends from its own shortest term.`,
       add: $localize`:@@spd.plans.min_months_add:State a shortest-term table`,
@@ -3307,8 +3417,6 @@ export class SurrogateProductDetailPage {
     },
     {
       key: 'ltvCeilingByFact' as const,
-      valueKind: 'sharePercent' as const,
-      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.ltv:Share of the price financed`,
       empty: $localize`:@@spd.plans.ltv_empty:No table — each bank finances its own share.`,
       add: $localize`:@@spd.plans.ltv_add:State a financed-share table`,
@@ -3316,14 +3424,27 @@ export class SurrogateProductDetailPage {
     },
     {
       key: 'minAmountByFact' as const,
-      valueKind: 'amountEGP' as const,
-      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.floor:Smallest loan`,
       empty: $localize`:@@spd.plans.floor_empty:No table — each bank writes from its own smallest loan.`,
       add: $localize`:@@spd.plans.floor_add:State a smallest-loan table`,
       removeAria: $localize`:@@spd.plans.floor_remove_aria:Remove the smallest-loan table`,
     },
   ];
+
+  /**
+   * What a figure in each table MEANS, and which end of the term the two month tables state.
+   *
+   * Read from the rules module rather than restated beside the words above, because the
+   * fused table and the free-form list have to agree about it — and the kind is what decides
+   * whether a box refuses 120 as a share or accepts it as a rate.
+   */
+  protected slotValueKind(slot: PlanSlotKey): FactGridValueKind {
+    return planSlotValueKind(slot);
+  }
+
+  protected slotMonthsBound(slot: PlanSlotKey): 'max' | 'min' {
+    return planSlotMonthsBound(slot);
+  }
 
   /**
    * Plain signal seeded from the response, never `toSignal(control.valueChanges)`: the cap
@@ -3392,6 +3513,107 @@ export class SurrogateProductDetailPage {
   }
 
   /**
+   * ONE PLAN PER LINE — the five tables projected into the card a bank actually prints.
+   *
+   * Derived, never stored: `planValue` stays the state and this is a read of it, so there is
+   * no second copy of the plans to drift. `null` means the stored shape cannot be drawn as
+   * one table — a grid keyed by something other than the deposit, two figures for one band —
+   * and the free-form list below takes over, which is a fallback and never a refusal.
+   */
+  protected readonly planTable = computed(() => planRowsFrom(this.planValue()));
+
+  /** Why the fused table could not be drawn, said in words above the list that replaces it. */
+  protected readonly planWhyNot = computed<PlanIncompatibleReason | null>(() =>
+    planRowsWhyNot(this.planValue()),
+  );
+
+  protected planWhyNotLabel(): string {
+    switch (this.planWhyNot()) {
+      case null:
+      case 'no_plans':
+        return '';
+      case 'not_keyed_by_deposit':
+        return $localize`:@@spd.plans.why_not_deposit:One of these tables is keyed by something other than the deposit, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'deposit_via_class':
+        return $localize`:@@spd.plans.why_not_class:One table reads the deposit through a class rather than the number, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'key_on_deposit_axis':
+      case 'wildcard_deposit':
+        return $localize`:@@spd.plans.why_not_band:One table states something other than a deposit range in its first column, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'band_on_extra_axis':
+        return $localize`:@@spd.plans.why_not_extra_band:One table splits a second column by a range rather than by an answer, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'overlapping_bands':
+        return $localize`:@@spd.plans.why_not_overlap:Two rows of one table cover the same deposit, so there is no single figure to show. Each table is below on its own.`;
+      case 'edge_not_numeric':
+        return $localize`:@@spd.plans.why_not_number:A deposit range has something in it that is not a number. Each table is below on its own.`;
+      case 'too_many_bands':
+        return $localize`:@@spd.plans.why_not_many:These tables state more deposit bands than one card can show. Each table is below on its own.`;
+    }
+  }
+
+  /**
+   * Whatever the fused table cannot say, said one table at a time.
+   *
+   * Open by force ONLY when the card above could not be drawn — and not, as the five-row
+   * list does one level down, whenever a table blocks Save. The rule there is that a
+   * half-typed table must not be hideable, and it still holds: every error the projection
+   * survives is a box visible IN the card above, so the operator fixes it where they are
+   * rather than being thrown into the editor they were moved off. An error the projection
+   * does NOT survive leaves `planTable()` null, which is the first clause.
+   *
+   * It is also the only door to the FIRST table on a product that states none, which is why
+   * it stays reachable while the card above is drawing fine.
+   */
+  private readonly advancedOpen = signal(false);
+
+  protected planAdvancedOpen(): boolean {
+    return this.planTable() === null || this.advancedOpen();
+  }
+
+  protected toggleAdvanced(): void {
+    this.advancedOpen.set(!this.advancedOpen());
+  }
+
+  /**
+   * The fused table wrote something back.
+   *
+   * The writers return the CALLER'S OWN object when a keystroke changed no figure, so the
+   * identity test is what keeps the form from going dirty on a re-typed number — the
+   * difference between a Save that writes nothing and one that re-posts the plans.
+   */
+  protected onPlanGrids(next: PlanDefaults | null): void {
+    if (next === this.planValue()) return;
+    this.planValue.set(next);
+    this.plansDirty = true;
+    this.markDirty();
+  }
+
+  /**
+   * A delete from inside the fused table — CONFIRMED while programs are reading these plans.
+   *
+   * The same rule `clearPlanGrid` states: the server does not refuse any of this, because
+   * every figure removed leaves the program's own standing, so nothing stops quoting. But
+   * "nothing stops quoting" is not "nothing happens" — a removed band re-prices everybody in
+   * it — and a dialog naming the count is the cheapest honest thing between refusing and
+   * saying nothing. Nobody reading means nobody is re-priced, and a dialog there would teach
+   * the operator to click through this one.
+   */
+  protected onPlanRemove(request: PlanRemoveRequest): void {
+    const commit = (): void => this.onPlanGrids(request.next);
+    const readers = this.planReaders();
+    if (readers === 0) {
+      commit();
+      return;
+    }
+    this.modal.confirm({
+      nzTitle: $localize`:@@spd.plan_table.remove_title:Remove ${request.what}:what:?`,
+      nzContent: $localize`:@@spd.plan_table.remove_body:${request.figuresLost}:figures: figure(s) go, and ${readers}:readers: bank program(s) read these plans. Each one falls back to its own figure, which changes what it quotes. Nothing is saved until you press Save.`,
+      nzOkText: $localize`:@@spd.plan_table.remove_ok:Remove it`,
+      nzCancelText: $localize`:@@spd.plans.remove_confirm_cancel:Keep it`,
+      nzOnOk: commit,
+    });
+  }
+
+  /**
    * Which slots are open, and the ONE that is open whether the operator likes it or not.
    *
    * The list is closed by default because five open tables measured 3 801px of a 5 237px
@@ -3402,16 +3624,9 @@ export class SurrogateProductDetailPage {
   private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set());
 
   /** The first slot with something wrong in it, or null. Gates Save, and forces its row open. */
-  protected readonly erroredPlanSlot = computed<PlanSlotKey | null>(() => {
-    const plans = this.planValue();
-    if (plans === null) return null;
-    for (const slot of this.planSlots) {
-      const grid = plans[slot.key];
-      if (grid === undefined) continue;
-      if (factGridErrorFor(grid, slot.valueKind) !== null) return slot.key;
-    }
-    return null;
-  });
+  protected readonly erroredPlanSlot = computed<PlanSlotKey | null>(
+    () => planRowsErrorFor(this.planValue())?.slot ?? null,
+  );
 
   /** The first thing wrong with any stated table, or `null`. Gates Save. */
   protected readonly planError = computed<string | null>(() => {
