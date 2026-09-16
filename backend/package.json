@@ -41,7 +41,8 @@
     "quote:surrogate": "tsx scripts/quote-surrogate-programmes.ts",
     "quote:rates": "tsx scripts/quote-rates.ts",
     "check:question-scope": "tsx scripts/check-question-scope.ts",
-    "quote:car-plans": "tsx scripts/quote-car-plans.ts"
+    "quote:car-plans": "tsx scripts/quote-car-plans.ts",
+    "quote:cae-auto": "tsx scripts/quote-cae-auto.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",
