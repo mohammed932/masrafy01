@@ -27,11 +27,37 @@ SET "labelEn" = 'Auto Loan — Savings as Income',
     "updatedAt" = now()
 WHERE "type" = 'surrogate_product' AND "key" = 'savings_income';
 
--- Assert the end state rather than assume it: a product row that is not there at all would
--- otherwise make this migration a silent no-op on a database the seed has never run against.
+-- Assert the end state rather than assume it — but only for the rows that are actually THERE.
+--
+-- These two products are written by `seed:blueprints`, which runs AFTER `migrate deploy` in the
+-- documented order (`migrate deploy → build → seed:questionnaire → seed:blueprints → ...`). So on
+-- a fresh database this file legitimately finds nothing: demanding 2 made the whole chain
+-- unreplayable, and `migrate reset` and every new environment stopped here with
+-- `expected 2 ... found 0`. Nothing is lost by passing — a database with no product row has no
+-- stale label to correct, and the seed creates the row with the label the registry carries.
+--
+-- This is the posture the very next migration takes for the same two rows:
+-- `20260909090000_auto_product_one_two_ways` merges them and opens with
+-- "A fresh database is seeded straight into the merged state and this file finds nothing to do",
+-- returning on a NOTICE rather than raising.
+--
+-- A HALF-state still raises: every product row of these two keys that exists must carry the auto
+-- label, or the UPDATEs above did not do what this file says they do.
 DO $$
-DECLARE renamed int;
+DECLARE
+  present int;
+  renamed int;
 BEGIN
+  SELECT count(*) INTO present
+  FROM "platform_enumeration"
+  WHERE "type" = 'surrogate_product'
+    AND "key" IN ('down_payment_income', 'savings_income');
+
+  IF present = 0 THEN
+    RAISE NOTICE 'auto_products_labels: neither auto product exists — nothing to relabel (fresh database, seed has not run)';
+    RETURN;
+  END IF;
+
   SELECT count(*) INTO renamed
   FROM "platform_enumeration"
   WHERE "type" = 'surrogate_product'
@@ -39,7 +65,7 @@ BEGIN
     AND "labelEn" LIKE 'Auto Loan — %'
     AND "labelAr" LIKE 'قرض سيارة — %';
 
-  IF renamed <> 2 THEN
-    RAISE EXCEPTION 'expected 2 auto surrogate products carrying the auto label, found %', renamed;
+  IF renamed <> present THEN
+    RAISE EXCEPTION 'expected all % auto surrogate product(s) to carry the auto label, found %', present, renamed;
   END IF;
 END $$;

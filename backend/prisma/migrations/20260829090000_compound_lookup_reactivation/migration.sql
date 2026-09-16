@@ -42,6 +42,30 @@ BEGIN;
 DELETE FROM "platform_enumeration"
  WHERE "type" = 'compound' AND "key" = 'test_compund';
 
+-- 1b ── the three superseded CLASSES, BY EXPLICIT KEY.
+--
+-- `20260823130000` created `compound_class_a|b|c` and nothing ever removed them.
+-- On the database this migration was first written against they had been deleted
+-- by hand, outside any migration — which is why step 7's guard expects exactly six
+-- live classes. On a FRESH database they survive, the guard counts nine, and the
+-- whole chain is unreplayable: `migrate reset` and every new environment stop here.
+--
+-- Deleting them is what the header above already argues for. Under six classes the
+-- key `compound_class_a` names the THIRD tier, not the top one, so a row left alive
+-- makes a stored `keyTable` naming it resolve to a SILENTLY WRONG figure — frozen
+-- onto `bank_offer.collateralCeilingEGP`, where Principle I / A6 make it
+-- uncorrectable. Gone, it resolves to `no_matching_row`, which stops the rule and
+-- reports itself. Loud beats quietly wrong.
+--
+-- BY EXPLICIT KEY, never "any class the new set does not name", for step 1's
+-- reason: a generic delete in a migration that runs unattended in every environment
+-- is destruction by default. Ordered BEFORE step 6, so any compound still filed
+-- under one of these is FOLDED onto the catch-all rather than left dangling — a
+-- compound is never deleted here, only re-filed.
+DELETE FROM "platform_enumeration"
+ WHERE "type" = 'compound_category'
+   AND "key" IN ('compound_class_a','compound_class_b','compound_class_c');
+
 -- 2 ── the six classes.
 --
 -- `sortOrder` 1..6, dense and DISTINCT: `getActiveMembers` orders
