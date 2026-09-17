@@ -69,7 +69,7 @@ import {
   WizardStepsComponent,
 } from '@shared/ui';
 import type { MaxLoanByFactConfig, ProductCapShape, RailTabItem, WizardStepItem } from '@shared/ui';
-import { FactGridEditorComponent, factGridAxisLabel } from '@shared/ui/fact-grid-editor.component';
+import { FactGridEditorComponent } from '@shared/ui/fact-grid-editor.component';
 import { emptyFactGrid, factGridErrorFor, type FactGridConfig } from '@shared/ui/fact-grid.rules';
 import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.component';
 import {
@@ -569,7 +569,46 @@ type PlanSlotKey = keyof PlanDefaults;
                               Nothing yet — tap a question below and this product reads its answer.
                             </p>
                           }
+                        } @else if (
+                          section.key === 'rest' && askQuery().length === 0 && !askRestExpanded()
+                        ) {
+                          <!-- Collapsed by default: the whole question pool minus what this
+                               product already reads is almost never what the operator came to
+                               browse — they came with one question in mind and the search box
+                               above finds it in a keystroke. A pager reaching page 9 of an
+                               always-open grid was the loudest thing on the step for a section
+                               that exists to be searched, not paged through. "Browse" stays one
+                               click away for the rarer case of actually wanting to scan it —
+                               nothing here removes the capability, only its default weight. -->
+                          <p class="ask-collapsed">
+                            <span i18n="@@spd.ask.rest_collapsed"
+                              >{{ section.total }} more questions in the shared pool. Search above
+                              to find one, or</span
+                            >
+                            <button
+                              type="button"
+                              class="linkish"
+                              (click)="toggleAskRestExpanded()"
+                              i18n="@@spd.ask.rest_browse"
+                            >
+                              browse all {{ section.total }}
+                            </button>
+                          </p>
                         } @else {
+                          @if (
+                            section.key === 'rest' && askRestExpanded() && askQuery().length === 0
+                          ) {
+                            <p class="ask-sec-note">
+                              <button
+                                type="button"
+                                class="linkish"
+                                (click)="toggleAskRestExpanded()"
+                                i18n="@@spd.ask.rest_collapse"
+                              >
+                                Hide the rest
+                              </button>
+                            </p>
+                          }
                           @if (section.key === 'unasked') {
                             <p class="ask-sec-note" i18n="@@spd.ask.unasked_note">
                               This product reads these, but nobody applying for this loan type is
@@ -629,7 +668,28 @@ type PlanSlotKey = keyof PlanDefaults;
                                         Ask it here
                                       </button>
                                       @if (card.detachBlocked) {
-                                        <span class="ask-why">{{ detachWhy(card) }}</span>
+                                        <!-- Progressive disclosure, matching the "asked"
+                                             card's own refused-glyph pattern below: the reason
+                                             is real (a live calculation still reads this
+                                             answer) but a full sentence repeated down every
+                                             row in this section was the loudest thing on the
+                                             screen for the one card in six that needs it. The
+                                             icon is focusable so the reason still reaches a
+                                             keyboard or screen-reader user, not only a mouse. -->
+                                        <span
+                                          class="ask-why-hint"
+                                          nz-tooltip
+                                          [nzTooltipTitle]="detachWhy(card)"
+                                          tabindex="0"
+                                          role="img"
+                                          [attr.aria-label]="detachWhy(card)"
+                                        >
+                                          <span
+                                            nz-icon
+                                            nzType="exclamation-circle"
+                                            nzTheme="outline"
+                                          ></span>
+                                        </span>
                                       } @else {
                                         <button
                                           type="button"
@@ -1250,17 +1310,42 @@ type PlanSlotKey = keyof PlanDefaults;
                                 </div>
                               }
                             } @else {
-                              <div class="plan-row is-empty">
-                                <span class="plan-row-title">{{ slot.title }}</span>
-                                <button
-                                  type="button"
-                                  class="link-btn plan-row-add"
-                                  (click)="addPlanGrid(slot.key)"
+                              <!-- THE SAME ROW, in the state before there is a table. It was
+                                   a third layout — a title, a link in the middle of the row
+                                   and a sentence under both — so one row in five neither
+                                   looked nor behaved like its neighbours. A button like the
+                                   others: the click states the table and opens it, and the
+                                   verb that used to be the link is the row's accessible
+                                   name, which is where a verb belongs when the whole row is
+                                   the control. -->
+                              <button
+                                type="button"
+                                class="plan-row is-empty"
+                                (click)="addPlanGrid(slot.key)"
+                                [attr.aria-label]="slot.add"
+                              >
+                                <!-- Drawn, and to the chevron's own stroke: the two glyphs
+                                     sit in the same column down the list, so a typographic
+                                     plus beside an authored chevron would read as a slip. -->
+                                <svg
+                                  class="plan-add"
+                                  viewBox="0 0 16 16"
+                                  width="12"
+                                  height="12"
+                                  aria-hidden="true"
+                                  focusable="false"
                                 >
-                                  {{ slot.add }}
-                                </button>
-                                <span class="plan-row-state">{{ slot.empty }}</span>
-                              </div>
+                                  <path
+                                    d="M8 3.5v9M3.5 8h9"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.6"
+                                    stroke-linecap="round"
+                                  />
+                                </svg>
+                                <span class="plan-row-title">{{ slot.title }}</span>
+                                <span class="plan-row-state">{{ planNotSet }}</span>
+                              </button>
                             }
                           </li>
                         }
@@ -1286,10 +1371,19 @@ type PlanSlotKey = keyof PlanDefaults;
                                a program can state none AND not read these, which is the
                                explicit opt-out this whole field exists to make sayable. The
                                old wording described the opt-out as if it were inheritance. -->
-                          <span i18n="@@spd.plans.readers2"
-                            >{{ readers }} bank program(s) read these plans. A change here reaches
-                            all of them.</span
-                          >
+                          <!-- Split rather than "program(s)": it sits two lines under a row
+                               that now says "1 row" correctly, and one of the two being a
+                               parenthesised plural is what makes the pair look unfinished. -->
+                          @if (readers === 1) {
+                            <span i18n="@@spd.plans.readers_one"
+                              >1 bank program reads these plans. A change here reaches it.</span
+                            >
+                          } @else {
+                            <span i18n="@@spd.plans.readers_many"
+                              >{{ readers }} bank programs read these plans. A change here reaches
+                              all of them.</span
+                            >
+                          }
                         </p>
                       }
                     </section>
@@ -2095,16 +2189,15 @@ type PlanSlotKey = keyof PlanDefaults;
         border-block-start: 1px solid var(--border-subtle);
       }
 
-      /* Title and state on two lines rather than one: the state runs to a full sentence on
-         an unstated row ("No rate table — each bank prices from its own rate.") and to
-         three axis names on a stated one, and either of those beside a title on one line
-         is a row that wraps differently at every width. The chevron sits in a fixed
-         leading column so the titles align down the list whether a row has one or not. */
+      /* ONE LINE: glyph, title, state — the settings-row shape, with the state on the end
+         edge where a list of them reads as a column. It took two lines only because the
+         state was a sentence or three chained question names; now it is "20 rows" or "Not
+         set", both of which sit beside a title at any width. The glyph column is fixed so
+         the titles align down the list whether the row holds a chevron or a plus. */
       .plan-row {
         display: grid;
         grid-template-columns: 12px minmax(0, 1fr) auto;
         column-gap: var(--space-3);
-        row-gap: var(--space-1);
         align-items: center;
         inline-size: 100%;
         min-block-size: 44px;
@@ -2181,17 +2274,28 @@ type PlanSlotKey = keyof PlanDefaults;
         color: var(--text-primary);
       }
 
-      .plan-row-add {
-        grid-area: 1 / 3;
+      /* The plus shares the chevron's column, ink and size — one glyph column down the
+         list, whether the row opens a table or states one. */
+      .plan-add {
+        grid-area: 1 / 1;
+        flex: none;
+        color: var(--text-secondary);
       }
 
-      /* SECONDARY, not tertiary. On an unstated row it says what the bank does instead,
-         which is a sentence somebody has to read before deciding to add a table — and
-         tertiary measures 3.83:1 on this ground in light mode. */
+      button.plan-row:hover .plan-add,
+      button.plan-row:hover .chev {
+        color: var(--text-primary);
+      }
+
+      /* SECONDARY, not tertiary: it is the value of the row, read on every pass, and
+         tertiary measures 3.83:1 on this ground in light mode. Tabular figures because
+         five of these stack into a column of counts, and proportional digits make a
+         column of numbers look ragged at the one place it should look like a column. */
       .plan-row-state {
-        grid-area: 2 / 2 / 2 / 4;
+        grid-area: 1 / 3;
+        text-align: end;
         font-size: var(--text-sm);
-        line-height: 1.6;
+        font-variant-numeric: tabular-nums;
         color: var(--text-secondary);
       }
 
@@ -2787,6 +2891,23 @@ type PlanSlotKey = keyof PlanDefaults;
         color: var(--color-text-secondary);
       }
 
+      /* The default state of "Not read yet": one quiet line instead of a grid the operator
+         almost never scrolls. Same dashed-hairline posture as .ask-nomatch — nothing is
+         wrong here either, the pool is just resting until somebody searches it. */
+      .ask-collapsed {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-4);
+        border: 1px dashed var(--border-subtle);
+        border-radius: var(--radius-md);
+        max-inline-size: 72ch;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+
       .ask-sec {
         display: flex;
         flex-direction: column;
@@ -3080,13 +3201,6 @@ type PlanSlotKey = keyof PlanDefaults;
         white-space: nowrap;
       }
 
-      .ask-why {
-        font-size: var(--text-xs);
-        line-height: var(--leading-relaxed);
-        /* Live ink, measured: this is the whole information the card carries. */
-        color: var(--color-text-secondary);
-      }
-
       .ask-acts {
         display: flex;
         flex-wrap: wrap;
@@ -3275,13 +3389,23 @@ export class SurrogateProductDetailPage {
    * that differs between them is the value kind and the words — and five copies is five
    * places for one of them to drift out of step with the server's own list.
    */
+  /**
+   * What an unstated row says — once, instead of five sentences saying it five ways.
+   *
+   * Each row used to carry its own ("No table — each bank lends from its own shortest
+   * term."), which is the block's own lede — "A bank selling this product falls back to each
+   * of these while its own program states nothing in its place" — repeated per row, in the
+   * widest possible form, on the rows that hold the least. The rule is stated above the list;
+   * the row states the STATE.
+   */
+  protected readonly planNotSet = $localize`:@@spd.plans.not_set:Not set`;
+
   protected readonly planSlots = [
     {
       key: 'rateByFact' as const,
       valueKind: 'ratePercent' as const,
       monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.rate:Interest rate`,
-      empty: $localize`:@@spd.plans.rate_empty:No rate table — each bank prices from its own rate.`,
       add: $localize`:@@spd.plans.rate_add:State a rate table`,
       removeAria: $localize`:@@spd.plans.rate_remove_aria:Remove the rate table`,
     },
@@ -3292,7 +3416,6 @@ export class SurrogateProductDetailPage {
       // "longest" — so the Shortest-term row opened a table headed LONGEST TERM (MONTHS).
       monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.max_months:Longest term`,
-      empty: $localize`:@@spd.plans.max_months_empty:No table — each bank lends over its own longest term.`,
       add: $localize`:@@spd.plans.max_months_add:State a longest-term table`,
       removeAria: $localize`:@@spd.plans.max_months_remove_aria:Remove the longest-term table`,
     },
@@ -3301,7 +3424,6 @@ export class SurrogateProductDetailPage {
       valueKind: 'months' as const,
       monthsBound: 'min' as const,
       title: $localize`:@@spd.plans.min_months:Shortest term`,
-      empty: $localize`:@@spd.plans.min_months_empty:No table — each bank lends from its own shortest term.`,
       add: $localize`:@@spd.plans.min_months_add:State a shortest-term table`,
       removeAria: $localize`:@@spd.plans.min_months_remove_aria:Remove the shortest-term table`,
     },
@@ -3310,7 +3432,6 @@ export class SurrogateProductDetailPage {
       valueKind: 'sharePercent' as const,
       monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.ltv:Share of the price financed`,
-      empty: $localize`:@@spd.plans.ltv_empty:No table — each bank finances its own share.`,
       add: $localize`:@@spd.plans.ltv_add:State a financed-share table`,
       removeAria: $localize`:@@spd.plans.ltv_remove_aria:Remove the financed-share table`,
     },
@@ -3319,7 +3440,6 @@ export class SurrogateProductDetailPage {
       valueKind: 'amountEGP' as const,
       monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.floor:Smallest loan`,
-      empty: $localize`:@@spd.plans.floor_empty:No table — each bank writes from its own smallest loan.`,
       add: $localize`:@@spd.plans.floor_add:State a smallest-loan table`,
       removeAria: $localize`:@@spd.plans.floor_remove_aria:Remove the smallest-loan table`,
     },
@@ -3345,6 +3465,10 @@ export class SurrogateProductDetailPage {
 
   protected addPlanGrid(slot: PlanSlotKey): void {
     this.setPlanGrid(slot, emptyFactGrid());
+    // Open it on the same click. Adding a table and leaving it closed asked for a second
+    // click before anything could be typed into the thing that had just been created — and
+    // the row it left behind said "1 row" about a table with nothing in it yet.
+    this.openPlanSlots.set(new Set(this.openPlanSlots()).add(slot));
   }
 
   /**
@@ -3446,26 +3570,29 @@ export class SurrogateProductDetailPage {
   }
 
   /**
-   * What a closed row says its table holds: how many rows, and which answers they are keyed
-   * by. Derived from the stored grid rather than stated beside it, so it cannot go stale —
-   * the mistake a second list saying what a table contains would make on its first edit.
+   * What a closed row says its table holds: HOW MANY ROWS, and nothing else.
    *
-   * An axis with no fact picked yet contributes no name, correctly: it names nothing.
+   * It used to chain the axis names on as well — "20 row(s), by Down payment (% of the
+   * price) · Where the car was built · What the car runs on" — which is three question
+   * SENTENCES joined with separators. That was the longest string on the step, it wrapped at
+   * every width, and it is the whole reason the row was laid out on two lines. The axes are
+   * named authoritatively ONE CLICK AWAY, in the column headers of the table the row opens,
+   * so the closed row was restating something already stated and paying a line for it.
+   *
+   * Derived from the stored grid rather than kept beside it, so it cannot go stale — the
+   * mistake a second list saying what a table contains would make on its first edit.
+   *
+   * Two flat messages rather than one with `row(s)` in it: a parenthesised plural is a
+   * translator's problem printed at the customer, and Arabic does not form a plural that way
+   * at all.
    */
   protected planSummary(slot: PlanSlotKey): string {
     const grid = this.planGrid(slot);
     if (grid === null) return '';
-    const rows = String(grid.cells.length);
-    const known = this.facts();
-    // Through the editor's own labeller, never the registry alone: the deposit and the term
-    // are DERIVED axes with no question behind them, so a registry lookup answers nothing for
-    // the one axis every plan table is keyed by first.
-    const axes = grid.axes
-      .map((axis) => factGridAxisLabel(axis.factKey, known))
-      .filter((label) => label !== '')
-      .join(' · ');
-    if (axes === '') return $localize`:@@spd.plans.summary_rows:${rows}:rows: row(s)`;
-    return $localize`:@@spd.plans.summary:${rows}:rows: row(s), by ${axes}:axes:`;
+    const rows = grid.cells.length;
+    return rows === 1
+      ? $localize`:@@spd.plans.rows_one:1 row`
+      : $localize`:@@spd.plans.rows_many:${String(rows)}:rows: rows`;
   }
 
   /**
@@ -3850,6 +3977,21 @@ export class SurrogateProductDetailPage {
   }
 
   /**
+   * "Not read yet" collapses to a one-line count by default — 66 unrelated questions from the
+   * whole pool was the single biggest source of always-visible clutter on this step, and
+   * almost never what the operator came to browse; they came with one question in mind and
+   * typed it. This toggle is the escape hatch for the rarer case of actually wanting to scan
+   * the pool, so browsing stays possible — nothing here removes a capability, only its default
+   * visibility. Reset on every loan-type switch: a newly opened tab is a different pool, and a
+   * toggle left on from the last one would show a full grid nobody asked for.
+   */
+  protected readonly askRestExpanded = signal(false);
+
+  protected toggleAskRestExpanded(): void {
+    this.askRestExpanded.update((v) => !v);
+  }
+
+  /**
    * The in-flight overlay, in both directions, keyed by what each write is addressed by.
    *
    * An overlay rather than a patched copy of the board, because the truth here lives in a
@@ -3955,6 +4097,7 @@ export class SurrogateProductDetailPage {
   protected pickAskCategory(id: string): void {
     if (!isLoanCategory(id)) return;
     this.askCategory.set(id);
+    this.askRestExpanded.set(false);
     // Mirrored onto the URL beside `?step=`, so a pasted link and a reload land on the loan
     // type the operator was looking at. `replaceUrl`, or flipping tabs fills the back button
     // with filter states.
