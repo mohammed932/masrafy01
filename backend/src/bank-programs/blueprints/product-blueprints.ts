@@ -887,6 +887,103 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     },
   },
 
+  {
+    key: 'deposit_secured_ceiling',
+    group: 'ceiling',
+    labelEn: 'Secured Against a Deposit',
+    labelAr: 'تمويل بضمان وديعة',
+    /**
+     * A loan secured against a certificate or time deposit the customer pledges, sold by TWO
+     * banks off one mechanism — Suez Canal's Semi-Covered auto loan and Crédit Agricole's
+     * Secured Against Deposits (programme codes 0706 / 0707 / 0730).
+     *
+     * ─── Why a CEILING and not an income ──────────────────────────────────────
+     *
+     * `pledged_collateral_share` already reads the same pledge and is deliberately NOT
+     * reused: that one is `group: 'income'` — it derives a monthly income from a share of the
+     * pledge and then runs the whole debt-burden cascade over it. This one is the opposite
+     * arithmetic on the same collateral. Both sheets state a share of the DEPOSIT as the loan
+     * itself ("up to 100% of the CD, where 90% of the loan is secured"; "95% from the pledged
+     * Deposit"), and both waive the income test outright — Crédit Agricole's page reads
+     * "Minimum Income: Waived · Debt Burden Ratio: Not Applicable" down the whole column.
+     * One product cannot hold both without `outputKind` meaning two different things.
+     *
+     * ─── The DBR question, and why no engine change was needed ────────────────
+     *
+     * The obvious worry is that these sheets state no DBR while `quoteProgram` checks one, so
+     * a `dbrApplies: false` flag looks necessary. It is not. `product-rule-ceiling.ts` already
+     * converts a ceiling into the currency the pipeline speaks — `installment = PMT(ceiling)`,
+     * then `recognisedIncome = installment × 100 ÷ baselineDbrPercent` — and the round trip is
+     * LOSSLESS: with no obligations the amount comes back as the ceiling, to the cent, which
+     * the golden vectors already assert. No baseline is stated here, so the programme's own
+     * `dbrCapPercent` is the baseline and the haircut ratio is exactly 1.
+     *
+     * What remains, and is stated rather than hidden: with obligations the conversion answers
+     * `ceiling − PV(obligations)`. For a fully secured facility a bank may intend the deposit
+     * to cover the exposure and ignore other debts entirely. The sheets say the income TEST is
+     * waived, which is not the same as saying obligations are ignored, so deducting is the
+     * conservative reading and the one taken here.
+     *
+     * ─── The column ───────────────────────────────────────────────────────────
+     *
+     * Crédit Agricole prices the share by how often the customer pays: monthly 95% of the
+     * pledge, quarterly 90%, semi-annual 85%, annual 80% — the security margin rising as the
+     * gap between payments does. Monthly leads, so it takes the bare `primary` slot and a bank
+     * selling only a monthly facility fills one box.
+     */
+    asks: [
+      // The pledge itself is ALREADY a fact, minted by `pledged_collateral_share`, and is
+      // reused rather than re-asked: two questions about one certificate would be two answers
+      // the two products could disagree about. A shared fact belongs to the platform, which is
+      // also what stops either product's removal taking the other's only axis with it.
+      { kind: 'platformFact', factKey: 'pledged_free_amount', alsoAskIn: PERSONAL_AND_CAR },
+      {
+        kind: 'choice',
+        factKey: 'payment_frequency',
+        questionEn: 'How often would you repay?',
+        questionAr: 'كل قد إيه تحب تسدد؟',
+        helperEn: 'A loan secured against a deposit can be repaid less often than monthly.',
+        helperAr: 'القرض بضمان وديعة يمكن سداده على فترات أطول من الشهر.',
+        categories: PERSONAL_AND_CAR,
+        list: {
+          typeKey: 'payment_frequency',
+          labelEn: 'Payment frequency',
+          labelAr: 'دورية السداد',
+          values: [
+            { key: 'monthly', labelEn: 'Monthly', labelAr: 'شهريًا' },
+            { key: 'quarterly', labelEn: 'Every three months', labelAr: 'كل ثلاثة أشهر' },
+            { key: 'semi_annual', labelEn: 'Every six months', labelAr: 'كل ستة أشهر' },
+            { key: 'annual', labelEn: 'Once a year', labelAr: 'مرة في السنة' },
+          ],
+        },
+      },
+    ],
+    template: {
+      version: 1,
+      outputKind: 'maxAmount',
+      // Declared like every other rule-bearing product, and deliberately left with NO tiers
+      // seeded — which is not the same thing as switching it off.
+      //
+      // The compiled shape is `coalesce [iscore_band, {const:'100'}]`, so a product that
+      // states no tier table multiplies by exactly 1. That is the behaviour a secured
+      // facility wants: the collateral IS the security, and haircutting a pledge the customer
+      // has actually put up because of a bureau score would quote less than the certificate
+      // is worth. Switching the mechanism OFF instead would have made this the single
+      // exception to a platform-wide invariant for a numerically identical result, and left a
+      // bank that DOES want to tier by score with no slot to type into.
+      iScore: true,
+      primary: {
+        kind: 'shareOf',
+        fact: 'pledged_free_amount',
+        column: {
+          fact: 'payment_frequency',
+          branches: ['monthly', 'quarterly', 'semi_annual', 'annual'],
+        },
+      },
+      conditions: [],
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Only caps the loan — no income is worked out at all
   // -------------------------------------------------------------------------

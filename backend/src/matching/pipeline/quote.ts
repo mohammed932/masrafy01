@@ -48,6 +48,7 @@ import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
 import { ltvAmountFor, ltvByFactFor, ltvCeilingFor } from './ltv-ceiling';
 import { applyMaxLoanAdjustments } from './max-loan-adjustments';
+import { CAR_AGE_YEARS_FACT_KEY } from './car-details';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -307,6 +308,50 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     // ceiling under the floor. Reported as an offending path, same as a
     // missing one: both make the program unquotable until an admin fixes it.
     problems.push('tenor.minMonths');
+  }
+
+  // ── 1a½. Is this car too OLD to finance at all ──────────────────────────
+  //
+  // A standalone refusal, not a clamp: "German from 2015, maximum 8 years back" says nothing
+  // about the TERM, it says the bank will not write this loan. Run before the term ceiling
+  // below, which assumes the car is eligible and only differs on how long to finance it.
+  //
+  // `car_age_years` is engine-derived (`withGridFacts`, read against the clock once per
+  // quote) and absent whenever `car_model_year` was never answered — that question is
+  // optional, so a skipped one must not refuse here. The grid's own `useFallback` /
+  // `reject` split is read the same way: an applicant this table has nothing to say about
+  // (unanswered origin or dealer) gets `useFallback`, meaning "no extra restriction", never
+  // a refusal for having skipped an optional question.
+  const ageGrid = program.tenor?.maxVehicleAgeYearsByFact;
+  if (ageGrid !== undefined) {
+    const carAgeFact = (firstPass.ctx.facts ?? programFacts)[CAR_AGE_YEARS_FACT_KEY];
+    if (carAgeFact !== undefined && carAgeFact.kind === 'numeric' && carAgeFact.value.isFinite()) {
+      const hit = resolveFactGrid({
+        config: ageGrid,
+        facts: firstPass.ctx.facts ?? programFacts,
+        ...(input.parentKeyByValue !== undefined
+          ? { parentKeyByValue: input.parentKeyByValue }
+          : {}),
+      });
+      if (hit.matched && carAgeFact.value.greaterThan(hit.value)) {
+        return { ok: false, unavailable: { reason: 'VEHICLE_NOT_ELIGIBLE' } };
+      }
+      if (!hit.matched && hit.action === 'reject') {
+        return {
+          ok: false,
+          unavailable: {
+            reason: 'VEHICLE_NOT_ELIGIBLE',
+            ...(hit.missingFactKeys.length > 0
+              ? { missingFactKeys: [...hit.missingFactKeys] }
+              : {}),
+          },
+        };
+      }
+      // `!hit.matched && hit.action === 'useFallback'`: this table has nothing to say about
+      // this applicant's origin/dealer combination, so no extra age restriction applies.
+    }
+    // `carAgeFact === undefined`: the model year was never answered. The car's age is
+    // unknown, not zero, and an age table is not the place to demand an optional answer.
   }
 
   // ── 1b. The term ceiling this VEHICLE carries ───────────────────────────

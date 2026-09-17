@@ -166,6 +166,8 @@ interface Input {
   rateByFact?: FactGridDto;
   maxMonthsByFact?: FactGridDto;
   minMonthsByFact?: FactGridDto;
+  /** A used-car age ceiling in years, keyed the same way as `maxMonthsByFact`. */
+  maxVehicleAgeYearsByFact?: FactGridDto;
   ltvCeilingByFact?: FactGridDto;
   minAmountByFact?: FactGridDto;
   /**
@@ -173,6 +175,14 @@ interface Input {
    * file that does not say otherwise is untouched by the mechanism existing.
    */
   plansSource?: 'product' | 'own';
+  /**
+   * Whose FIGURES this programme quotes from. Absent is `'own'` — the bank's own tables.
+   *
+   * `'catalog'` means it states none and reads the product's, merged by `effectiveIncomeRule`
+   * on every quote rather than copied once. Only legal where the product's figures are the
+   * bank's own published ones; a bank with a table of its own states it here instead.
+   */
+  amounts?: 'own' | 'catalog';
   /** The bank's own figures, keyed by slot id. Absent on a program with no calculation. */
   stepParams?: Record<string, unknown>;
   /**
@@ -233,6 +243,9 @@ function program(input: Input): ProgramSpec {
       ...(input.tenor ?? {}),
       ...(input.maxMonthsByFact ? { maxMonthsByFact: input.maxMonthsByFact } : {}),
       ...(input.minMonthsByFact ? { minMonthsByFact: input.minMonthsByFact } : {}),
+      ...(input.maxVehicleAgeYearsByFact
+        ? { maxVehicleAgeYearsByFact: input.maxVehicleAgeYearsByFact }
+        : {}),
     },
     loanLimits: {
       minAmountEGP: input.minAmountEGP,
@@ -306,9 +319,20 @@ function program(input: Input): ProgramSpec {
     incomeAssumption: (surrogate
       ? {
           strategy: PRODUCT_RULE_STRATEGY,
-          amounts: 'own',
+          // DEFAULTS TO `'own'`, which is what every programme in this file but two means:
+          // the bank states its own figures. `'catalog'` is for a programme whose sheet
+          // prints no table of its own and reads the product's — the deposit-secured pair,
+          // where the four shares ARE the published figures and duplicating them per bank
+          // would be two places to change one number.
+          amounts: input.amounts ?? 'own',
           ...(input.wayId !== undefined ? { wayId: input.wayId } : {}),
-          stepParams: input.stepParams ?? {},
+          // OMITTED on `'catalog'`, not sent empty. `persistableIncomeAssumption` strips
+          // every figure key from a programme that inherits, so a `{}` sent here is stored
+          // as nothing — and `programFingerprint` then compares a sent `stepParams: {}`
+          // against a stored absence and reports a difference on every run. The seed rewrote
+          // both deposit-secured programmes, with a new version and an audit event, every
+          // time it was run; measured, not reasoned about.
+          ...(input.amounts === 'catalog' ? {} : { stepParams: input.stepParams ?? {} }),
           ...(input.additionalIncome ? { additionalIncome: input.additionalIncome } : {}),
         }
       : { strategy: 'declared' }) as CreateBankProgramDto['incomeAssumption'],
@@ -1451,6 +1475,87 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
   // the New Car programme rather than invented as a second card quoting identical money.
   // ───────────────────────────────────────────────────────────────────────────
   program({
+    programCode: 'SCB-PER-SEMI_COVERED',
+    friendlyName: 'Semi-Covered Loan',
+    friendlyNameAr: 'قرض بضمان جزئي',
+    sheet: 'App. \u00a74 \u2014 Suez Canal Semi-Covered, secured against a certificate of deposit',
+    notes: [
+      'The sixth programme on the Suez Canal auto card, and the only one that is not sold ' +
+        'against a down payment. The loan is a share of a certificate the customer pledges, ' +
+        'so the whole eligibility column of \u00a74.1 reads "Not Required" \u2014 no minimum age, no ' +
+        'length of service, no minimum salary.',
+      'App. \u00a74.2 states it as "up to 100% of the CD amount, where 90% of the loan is secured ' +
+        'and the rest is treated unsecured", and allows the secured portion to drop to 80% ' +
+        'for semi-annual or annual payment. The SPLIT between the secured and unsecured legs ' +
+        'is not modelled \u2014 no field expresses a two-leg facility \u2014 so this programme quotes ' +
+        'the share of the pledge and says so here.',
+      'A collateral lien form is required, and is the one document this programme needs that ' +
+        'the four down-payment tiers do not. There is no registry key for it \u2014 recorded here.',
+      'The rate is a placeholder: no Suez Canal slide prints one. Marked as an estimate.',
+    ],
+    bankName: SCB,
+    programType: 'income_surrogate',
+    productCategory: 'personal',
+    programNameKey: 'deposit_secured',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    minAmountEGP: '100000',
+    maxAmountEGP: '5000000',
+    ratePercent: SCB_RATE,
+    adminFeePercent: SCB_ADMIN_FEE,
+    // \u00a74.1's eligibility column is "Not Required" throughout. The platform has no way to
+    // state "no age limit", so the widest legal band stands in and the note above says why.
+    ageMin: 21,
+    ageMax: 65,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    amounts: 'catalog',
+    // Suez Canal prints no share of its own \u2014 \u00a74.2 gives a ceiling ("up to 100%") and a
+    // floor for the long payment gaps, not a table. It takes the product's four, which are
+    // Credit Agricole's published figures, and the note records that this is a borrowing.
+    stepParams: {},
+    estimated: SCB_ESTIMATED,
+  }),
+  program({
+    programCode: 'CAE-PER-DEPOSIT_SECURED',
+    friendlyName: 'Secured Against Deposits',
+    friendlyNameAr: 'تمويل بضمان الودائع',
+    sheet: 'CAE Auto Loans Product Guide \u2014 Secured Against Deposits (0706 / 0707 / 0730)',
+    notes: [
+      'Three programme codes on one page \u2014 Against CD (0707), Against TD (0706) and Against ' +
+        'Floating CD (0730). ONE programme here: the guide states one Program Features table ' +
+        'and one financing-percentage table for all three, and what differs is which ' +
+        'instrument is pledged, not a figure the engine prices.',
+      'Income, business seniority, debt burden and internal verification are all WAIVED on ' +
+        'this page. The programme still carries a 50% debt-burden cap because a ceiling ' +
+        'product converts through it at a ratio of exactly 1 \u2014 with no obligations the ' +
+        'amount comes back as the pledge share, to the cent.',
+      'Tenor follows the pledged instrument: the guide allows up to 5 years against a ' +
+        'deposit of 25 KEGP and up to 7 years above 100 KEGP. That is a term keyed by the ' +
+        'pledge AMOUNT, which `tenor.maxMonthsByFact` could express \u2014 not seeded, because ' +
+        'the guide gives two points and not a table, and the gap between them is a guess.',
+      'Minors may borrow against a deposit held in their name, with an indemnity letter and ' +
+        'a birth certificate. Not modelled \u2014 the platform has no applicant under 21.',
+      'The rate is a placeholder: the guide prints none. Marked as an estimate.',
+    ],
+    bankName: CAE,
+    programType: 'income_surrogate',
+    productCategory: 'personal',
+    programNameKey: 'deposit_secured',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    minAmountEGP: '15000',
+    maxAmountEGP: '10000000',
+    ratePercent: CAE_RATE,
+    adminFeePercent: CAE_ADMIN_FEE,
+    ageMin: 21,
+    ageMax: 65,
+    dbrCapPercent: '50',
+    wayId: 'primary',
+    amounts: 'catalog',
+    // Takes the product's four shares \u2014 they ARE this bank's published table.
+    stepParams: {},
+    estimated: CAE_ESTIMATED,
+  }),
+  program({
     programCode: 'CAE-CAR-NEW_CAR',
     friendlyName: 'Auto Loan — New Car',
     friendlyNameAr: 'قرض سيارة — جديدة',
@@ -1504,6 +1609,30 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       // A deposit under the lowest tier is a loan this bank does not write.
       onNoMatch: 'reject',
     },
+    /**
+     * The Chinese-car term rule, printed as a General Condition on every page of the guide:
+     * "Finance all Chinese cars for 60 months except for Chinese cars sold by Ghabbour &
+     * Mansour Company tenor to reach 84 Months".
+     *
+     * Two axes, because it is two facts: where the car was BUILT and who is SELLING it. Only
+     * the Chinese rows are stated — `useFallback` leaves every other origin on the
+     * programme's own 6-84, which is what the guide says about them (nothing).
+     *
+     * `useFallback` and NOT `reject`, unlike the origin ceiling on the same programme. A term
+     * has a safe fallback and a loan ceiling does not: an applicant who skips the optional
+     * dealer question should be financed over the programme's own term, not refused. The
+     * wildcard Chinese row is what makes that safe in the other direction — a Chinese car
+     * with no dealer stated still lands on 60, so the extension has to be claimed, never
+     * assumed.
+     */
+    maxMonthsByFact: {
+      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      cells: [
+        { keys: [{ key: 'china' }, null], value: '60' },
+        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+      ],
+      onNoMatch: 'useFallback',
+    },
     maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
     ratePercent: CAE_RATE,
     adminFeePercent: CAE_ADMIN_FEE,
@@ -1524,13 +1653,16 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       'Its own programme and not a tier of the new-car card: the minimum age is 25 rather ' +
         'than 21, the loan term is measured from the manufacturing date, and the guide ' +
         'prints a vehicle-age table the new-car pages have no equivalent of.',
-      'THE AGE TABLE IS NOT ENFORCED YET, and that is stated rather than half-built. The ' +
-        'guide allows a car 12 years back for a luxury brand, 8 for a European, Japanese or ' +
-        'Korean one, 8 for a Chinese car sold through Mansour & Ghabbour and 5 for any other ' +
-        'Chinese car. "Years back" is measured from TODAY, and the only fact the platform ' +
-        'holds is `car_model_year` — an absolute year. A table of model years would mean a ' +
-        'different thing every January and would silently start financing a car a year too ' +
-        'old. What it needs is an engine-derived car-age axis, which is its own change.',
+      'The age table is enforced for European, Japanese, Korean and every other origin at ' +
+        '8 years back, and for a Chinese car at 5 unless it is sold through Ghabbour & ' +
+        'Mansour — the same dealer exception the term rule states, read here as "back to ' +
+        'the general 8" rather than "60 becomes 84". "Luxury" gets no row: the guide names ' +
+        'it as a BRAND TIER and `car_origin` has no option for one — the same gap the ' +
+        'origin loan ceiling states above it. A luxury car is priced and termed as ' +
+        'whichever of the eleven origins it was actually built in.',
+      '`car_age_years` is engine-derived — `car_model_year` read against the clock once per ' +
+        'quote, never stored — so a model-year table cannot go stale under a frozen offer ' +
+        '(Principle V / A6) the way a table of absolute years would have.',
       'The maximum loan by origin IS enforced, and it is the half of that table that does ' +
         'not rot: 7,000,000 for a European, Japanese or Korean car and 4,000,000 otherwise.',
       'Both deposit tiers finance up to 60% of the price — the guide states one share for ' +
@@ -1558,6 +1690,64 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       axes: [{ factKey: 'car_down_payment_percent' }],
       cells: [{ keys: [dpBand('40', null)], value: '60' }],
       onNoMatch: 'reject',
+    },
+    /**
+     * The Chinese-car term rule, printed as a General Condition on every page of the guide:
+     * "Finance all Chinese cars for 60 months except for Chinese cars sold by Ghabbour &
+     * Mansour Company tenor to reach 84 Months".
+     *
+     * Two axes, because it is two facts: where the car was BUILT and who is SELLING it. Only
+     * the Chinese rows are stated — `useFallback` leaves every other origin on the
+     * programme's own 6-84, which is what the guide says about them (nothing).
+     *
+     * `useFallback` and NOT `reject`, unlike the origin ceiling on the same programme. A term
+     * has a safe fallback and a loan ceiling does not: an applicant who skips the optional
+     * dealer question should be financed over the programme's own term, not refused. The
+     * wildcard Chinese row is what makes that safe in the other direction — a Chinese car
+     * with no dealer stated still lands on 60, so the extension has to be claimed, never
+     * assumed.
+     */
+    maxMonthsByFact: {
+      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      cells: [
+        { keys: [{ key: 'china' }, null], value: '60' },
+        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+      ],
+      onNoMatch: 'useFallback',
+    },
+    /**
+     * The used-car age table — a REFUSAL, not a term. Same axes as the term grid above and
+     * safely so: the applicant's age is compared OUTSIDE this grid (`quote.ts`), never as a
+     * third axis inside it, so origin and dealer alone decide which cell wins.
+     *
+     * NO WILDCARD ROW — `validateFactGrid` refuses a cell naming no axis at all
+     * (`cell_all_wildcard`), so "8 for everyone" has to be TEN origin rows rather than one,
+     * exactly like `CAE_MAX_LOAN_BY_ORIGIN` above it. This is also the safer shape: a
+     * banded age axis sharing space with a origin wildcard would have let a Chinese car
+     * aged 6-8 slip through on the general row (verified against `resolveFactGrid`'s
+     * specificity ordering while designing this, not assumed) — enumerating origins avoids
+     * the question rather than relying on getting a wildcard-and-band interaction right.
+     *
+     * `useFallback` here means "this table has nothing to say about this applicant" — an
+     * unanswered origin or dealer is not refused, matching the optional questions it reads.
+     */
+    maxVehicleAgeYearsByFact: {
+      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      cells: [
+        { keys: [{ key: 'germany' }, null], value: '8' },
+        { keys: [{ key: 'japan' }, null], value: '8' },
+        { keys: [{ key: 'korea' }, null], value: '8' },
+        { keys: [{ key: 'france' }, null], value: '8' },
+        { keys: [{ key: 'italy' }, null], value: '8' },
+        { keys: [{ key: 'spain' }, null], value: '8' },
+        { keys: [{ key: 'czechia' }, null], value: '8' },
+        { keys: [{ key: 'usa' }, null], value: '8' },
+        { keys: [{ key: 'egypt' }, null], value: '8' },
+        { keys: [{ key: 'other_origin' }, null], value: '8' },
+        { keys: [{ key: 'china' }, null], value: '5' },
+        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '8' },
+      ],
+      onNoMatch: 'useFallback',
     },
     maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
     ratePercent: CAE_RATE,
@@ -1611,10 +1801,26 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     // for petrol, so `reject` refuses a petrol car HERE while the petrol card prices it
     // normally — the programme stays listed with a reason (Principle V / A33), never filtered.
     maxMonthsByFact: {
-      axes: [{ factKey: 'car_fuel_type' }],
+      // THREE axes, because this one table answers two questions at once: which fuels the
+      // programme is sold against at all, and how long a Chinese one is financed for.
+      //
+      // `specificity()` is a bitmask with axis 0 most significant, so the cells are tried
+      // 3-stated, then 2-stated, then 1-stated: a Chinese electric car from Ghabbour lands on
+      // 84, any other Chinese electric car on 60, and every other electric car on the
+      // programme's own 84. Stating the Chinese rows for BOTH fuels is not duplication — a
+      // wildcard on axis 0 would also match petrol, and petrol matching anything at all is
+      // what this grid exists to prevent.
+      axes: [{ factKey: 'car_fuel_type' }, { factKey: 'car_origin' }, { factKey: 'car_dealer' }],
       cells: [
-        { keys: [{ key: 'electric' }], value: '84' },
-        { keys: [{ key: 'hybrid' }], value: '84' },
+        { keys: [{ key: 'electric' }, null, null], value: '84' },
+        { keys: [{ key: 'hybrid' }, null, null], value: '84' },
+        { keys: [{ key: 'electric' }, { key: 'china' }, null], value: '60' },
+        { keys: [{ key: 'hybrid' }, { key: 'china' }, null], value: '60' },
+        {
+          keys: [{ key: 'electric' }, { key: 'china' }, { key: 'ghabbour_mansour' }],
+          value: '84',
+        },
+        { keys: [{ key: 'hybrid' }, { key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
       ],
       onNoMatch: 'reject',
     },

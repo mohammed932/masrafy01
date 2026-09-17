@@ -40,9 +40,15 @@ interface Case {
   down: string;
   origin: string;
   fuel: string;
+  /** Who is selling it. Absent means the applicant skipped the optional question. */
+  dealer?: string;
+  /** The model year, relative to the year the script runs — never a frozen literal. */
+  ageYears?: number;
   tenor: number;
   /** The financed share the amount must be capped at, or the ceiling the origin states. */
   expectMax: string | null;
+  /** The term the vehicle table clamps to, where the Chinese rule applies. */
+  expectTerm?: number;
   /**
    * Always `program_max_by_fact` on this bank, and that is worth knowing rather than
    * hiding behind an expectation.
@@ -85,6 +91,31 @@ const CASES: Case[] = [
   { programCode: 'CAE-CAR-EV', what: 'electric, 50% down -> finances 50%', price: '1000000', down: '500000', origin: 'china', fuel: 'electric', tenor: 84, expectMax: '500000', expectBinding: 'program_max_by_fact' },
   { programCode: 'CAE-CAR-EV', what: 'hybrid accepted on the same terms', price: '1000000', down: '350000', origin: 'japan', fuel: 'hybrid', tenor: 84, expectMax: '650000', expectBinding: 'program_max_by_fact' },
   { programCode: 'CAE-CAR-EV', what: 'PETROL refused on the EV card', price: '1000000', down: '350000', origin: 'germany', fuel: 'petrol_diesel', tenor: 84, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' },
+
+  // ── The Chinese-car term rule, printed on every page of the guide ──
+  // A German car is untouched by it; a Chinese one drops to 60 unless Ghabbour is selling.
+  { programCode: 'CAE-CAR-NEW_CAR', what: 'German car keeps the full 84', price: '1000000', down: '400000', origin: 'germany', fuel: 'petrol_diesel', dealer: 'other_authorized', tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact', expectTerm: 84 },
+  { programCode: 'CAE-CAR-NEW_CAR', what: 'Chinese car -> 60 months', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'other_authorized', tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact', expectTerm: 60 },
+  { programCode: 'CAE-CAR-NEW_CAR', what: 'Chinese via GHABBOUR -> 84 months', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'ghabbour_mansour', tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact', expectTerm: 84 },
+  // The extension must be CLAIMED, never assumed: a skipped dealer question is still 60.
+  { programCode: 'CAE-CAR-NEW_CAR', what: 'Chinese, dealer unanswered -> still 60', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact', expectTerm: 60 },
+  { programCode: 'CAE-CAR-USED_CAR', what: 'Chinese used car -> 60 months', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'other_authorized', tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact', expectTerm: 60 },
+  // On the EV card the same rule rides a grid that ALSO refuses petrol — three axes, one table.
+  { programCode: 'CAE-CAR-EV', what: 'Chinese electric -> 60 months', price: '1000000', down: '350000', origin: 'china', fuel: 'electric', dealer: 'other_authorized', tenor: 84, expectMax: '650000', expectBinding: 'program_max_by_fact', expectTerm: 60 },
+  { programCode: 'CAE-CAR-EV', what: 'Chinese electric via GHABBOUR -> 84', price: '1000000', down: '350000', origin: 'china', fuel: 'electric', dealer: 'ghabbour_mansour', tenor: 84, expectMax: '650000', expectBinding: 'program_max_by_fact', expectTerm: 84 },
+  { programCode: 'CAE-CAR-EV', what: 'petrol from Ghabbour is STILL refused', price: '1000000', down: '350000', origin: 'china', fuel: 'petrol_diesel', dealer: 'ghabbour_mansour', tenor: 84, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' },
+
+  // ── Used-car age eligibility: a REFUSAL, independent of the tenor rule above ──
+  // 8 years for every origin, 5 for a Chinese car unless Ghabbour is selling (then 8).
+  { programCode: 'CAE-CAR-USED_CAR', what: 'German, 8yo -> at the limit, still priced', price: '1000000', down: '400000', origin: 'germany', fuel: 'petrol_diesel', ageYears: 8, tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
+  { programCode: 'CAE-CAR-USED_CAR', what: 'German, 9yo -> too old, refused', price: '1000000', down: '400000', origin: 'germany', fuel: 'petrol_diesel', ageYears: 9, tenor: 84, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' },
+  // The case a naive wildcard-plus-age-band design would have leaked: 6 years exceeds
+  // China's OWN 5-year limit even though it is inside every other origin's 8-year one.
+  { programCode: 'CAE-CAR-USED_CAR', what: 'Chinese, non-Ghabbour, 5yo -> at ITS OWN limit, priced', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'other_authorized', ageYears: 5, tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
+  { programCode: 'CAE-CAR-USED_CAR', what: 'Chinese, non-Ghabbour, 6yo -> refused (would pass on a leaky wildcard)', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'other_authorized', ageYears: 6, tenor: 84, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' },
+  { programCode: 'CAE-CAR-USED_CAR', what: 'Chinese via GHABBOUR, 8yo -> extended, priced', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'ghabbour_mansour', ageYears: 8, tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
+  // The model year is optional — skipping it must not refuse.
+  { programCode: 'CAE-CAR-USED_CAR', what: 'model year unanswered -> not refused', price: '1000000', down: '400000', origin: 'germany', fuel: 'petrol_diesel', tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
 ];
 
 function profileFor(c: Case): ApplicantProfile {
@@ -113,6 +144,10 @@ function profileFor(c: Case): ApplicantProfile {
       car_down_payment: num(c.down),
       car_origin: pick(c.origin),
       car_fuel_type: pick(c.fuel),
+      ...(c.dealer !== undefined ? { car_dealer: pick(c.dealer) } : {}),
+      ...(c.ageYears !== undefined
+        ? { car_model_year: num(String(new Date().getFullYear() - c.ageYears)) }
+        : {}),
       i_score: num('700'),
     },
     carDetails: {
@@ -163,7 +198,7 @@ async function main(): Promise<void> {
   }
 
   console.log('# Crédit Agricole auto book, quoted through the real read path');
-  console.log('# programme | case | maxAmount | binding | reason | VERDICT');
+  console.log('# programme | case | maxAmount | term | reason | VERDICT');
   let failures = 0;
   for (const c of CASES) {
     const snapshot = snapshots.get(c.programCode);
@@ -171,6 +206,7 @@ async function main(): Promise<void> {
     const out = quoteProgram({ profile: profileFor(c), program: snapshot, skipEligibility: true });
     const max = out.ok ? out.quote.maxAffordableAmountEGP.toString() : '-';
     const binding = out.ok ? (out.quote.bindingConstraint ?? '-') : '-';
+    const term = out.ok ? String(out.quote.effectiveTenorMonths) : '-';
     const reason = out.ok ? '-' : out.unavailable.reason;
 
     let verdict = 'OK';
@@ -182,10 +218,12 @@ async function main(): Promise<void> {
       verdict = `FAIL max expected ${c.expectMax}`;
     } else if (c.expectBinding !== undefined && binding !== c.expectBinding) {
       verdict = `FAIL binding expected ${c.expectBinding}`;
+    } else if (c.expectTerm !== undefined && out.ok && out.quote.effectiveTenorMonths !== c.expectTerm) {
+      verdict = `FAIL term expected ${c.expectTerm} got ${out.quote.effectiveTenorMonths}`;
     }
     if (verdict !== 'OK') failures += 1;
     console.log(
-      `${c.programCode.replace('CAE-CAR-', '').padEnd(9)} | ${c.what.padEnd(42)} | ${max.padStart(9)} | ${binding.padEnd(16)} | ${reason.padEnd(21)} | ${verdict}`,
+      `${c.programCode.replace('CAE-CAR-', '').padEnd(9)} | ${c.what.padEnd(40)} | ${max.padStart(8)} | ${term.padStart(3)} | ${reason.padEnd(21)} | ${verdict}`,
     );
   }
   console.log(`\n# ${CASES.length - failures}/${CASES.length} cases as stated`);
