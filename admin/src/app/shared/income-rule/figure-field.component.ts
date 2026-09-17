@@ -29,6 +29,7 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
       [class.is-narrow]="!money()"
       [class.has-default]="!!placeholder()"
       [class.is-quiet]="tone() === 'quiet'"
+      [class.is-blank]="tone() === 'blank'"
     >
       <!-- Money groups its thousands (A27); a percentage or a multiplier does not, and a
            kind this screen cannot prove groups anyway — it changes nothing on a two-digit
@@ -120,6 +121,29 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
 
       .ff__field.is-quiet:focus-within {
         border-style: solid;
+        background: var(--color-surface-elevated);
+      }
+
+      /* AN EMPTY CELL LOOKS EMPTY. The quiet tone keeps a dashed edge because it stands on its
+         own -- one blank field in a row of filled ones still has to say "type here". In a
+         GRID of them the edge is the wrong signal: four dashed boxes down one column read
+         as four disabled inputs holding a dash, and the column reads as broken rather than
+         as unstated. This one drops the edge until the pointer or the caret arrives, so the
+         cell is blank at rest and a field the moment it is reached -- including by the
+         keyboard, which is why :focus-within and not :hover alone. */
+      .ff__field.is-blank {
+        border-color: transparent;
+        background: none;
+      }
+
+      /* Only the GROUND comes back. The edge is left to the two rules below, which is not a
+         tidiness point: .ff__field.is-blank:focus-within out-specifies .ff__field:focus-within,
+         so setting a border-color here won the cascade and a focused blank cell got a plain
+         grey edge plus the halo -- and the halo measures 1.24:1, which the design system names
+         a review block wherever it is the only indicator. Saying nothing about the edge lets
+         the hover rule paint it strong and the focus rule paint it brand. */
+      .ff__field.is-blank:hover,
+      .ff__field.is-blank:focus-within {
         background: var(--color-surface-elevated);
       }
 
@@ -226,9 +250,14 @@ export class FigureFieldComponent {
    * `quiet` draws the field as an outline on no ground — for a cell where BLANK is a real
    * answer rather than a zero nobody has typed yet.
    *
+   * `blank` goes one further and drops the edge too until the field is hovered or focused.
+   * It is for a GRID of possibly-empty cells, where a dashed box per empty cell stacks into
+   * a column of what read as disabled inputs; one on its own still wants the edge, which is
+   * why this is a third tone rather than a change to `quiet`.
+   *
    * Additive and defaulted to `default`, so every existing caller renders exactly as before.
    */
-  readonly tone = input<'default' | 'quiet'>('default');
+  readonly tone = input<'default' | 'quiet' | 'blank'>('default');
 
   /**
    * Allow a leading minus. Off by default — every other figure in the admin is non-negative.

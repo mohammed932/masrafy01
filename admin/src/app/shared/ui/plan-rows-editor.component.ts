@@ -60,12 +60,12 @@ export interface PlanRemoveRequest {
   readonly next: PlanDefaults | null;
 }
 
-/** One rendered column: a whole table narrowed to one figure, one of its cases, or a gap. */
+/** One rendered column: a whole table narrowed to one figure, or one of its cases. */
 interface CardColumn {
   readonly slot: PlanSlotKey;
-  /** Index into `PlanTable.columns`, or −1 for a table this product does not state. */
+  /** Index into `PlanTable.columns`. */
   readonly columnIndex: number;
-  readonly kind: 'one' | 'case' | 'ghost';
+  readonly kind: 'one' | 'case';
   /** True on the first column of a slot — the one that carries the heading. */
   readonly leads: boolean;
   readonly cases: readonly PlanCase[];
@@ -316,7 +316,29 @@ interface ConditionRow {
                   </div>
                 }
 
-                <!-- The table scrolls in ITS OWN box: six columns is wider than a phone, and
+                <!-- AN ILLUSTRATION, AND SAID TO BE ONE. Typed here, stored nowhere, sent
+                     nowhere, and it turns every share into the money it means. Empty by
+                     default, because a share is the one figure on this card an operator
+                     cannot sanity-check by looking at it.
+
+                     ABOVE the table, because it annotates it: a control you set before
+                     reading is useless below what it changes, and it sat under 460px of
+                     rows where nobody looking at a share would find it. -->
+                <div class="prt__price">
+                  <label class="prt__micro" for="prt-price" i18n="@@spd.plan_table.price"
+                    >Show it for a car at</label
+                  >
+                  <app-figure-field
+                    fieldId="prt-price"
+                    [value]="price()"
+                    (valueChange)="price.set($event)"
+                    unit="EGP"
+                    [money]="true"
+                    [ariaLabel]="priceAria"
+                  />
+                </div>
+
+                <!-- The table scrolls in ITS OWN box: five columns is wider than a phone, and
                      the house measures page overflow at 0 on every screen. -->
                 <div class="prt__scroll">
                   <table class="prt__table">
@@ -328,11 +350,7 @@ interface ConditionRow {
                           >
                         </th>
                         @for (column of cardColumns(); track $index) {
-                          <th
-                            class="prt__head"
-                            [class.is-ghost]="column.kind === 'ghost'"
-                            scope="col"
-                          >
+                          <th class="prt__head" scope="col">
                             <span class="prt__head-name">{{ headName(column) }}</span>
                           </th>
                         }
@@ -356,25 +374,13 @@ interface ConditionRow {
                             >
                               {{ bandChip(row.band) }}
                             </button>
+                            @if (rowMoney(r); as money) {
+                              <span class="prt__money">{{ money }}</span>
+                            }
                           </th>
 
                           @for (column of cardColumns(); track $index; let c = $index) {
-                            @if (column.kind === 'ghost') {
-                              @if (r === 0) {
-                                <td class="prt__cell is-ghost" [attr.rowspan]="t.rows.length">
-                                  <button
-                                    nz-button
-                                    nzType="dashed"
-                                    nzSize="small"
-                                    type="button"
-                                    (click)="onAddSlot(column.slot)"
-                                  >
-                                    <span nz-icon nzType="plus" aria-hidden="true"></span>
-                                    <span i18n="@@spd.plan_table.state_it">State it</span>
-                                  </button>
-                                </td>
-                              }
-                            } @else if (showsCell(r, c)) {
+                            @if (showsCell(r, c)) {
                               <td class="prt__cell" [attr.rowspan]="spanOf(r, c)">
                                 <app-figure-field
                                   [fieldId]="'plan-' + column.slot + '-' + c + '-' + r"
@@ -382,7 +388,7 @@ interface ConditionRow {
                                   (valueChange)="onFigure(r, c, $event)"
                                   [unit]="unitOf(column.slot)"
                                   [money]="isMoney(column.slot)"
-                                  [tone]="cellValue(r, c) === '' ? 'quiet' : 'default'"
+                                  [tone]="cellValue(r, c) === '' ? 'blank' : 'default'"
                                   [ariaLabel]="cellAria(r, c)"
                                   placeholder="—"
                                   [placeholderNote]="blankNote"
@@ -432,23 +438,24 @@ interface ConditionRow {
                   </table>
                 </div>
 
-                <!-- AN ILLUSTRATION, AND SAID TO BE ONE. Typed here, stored nowhere, sent
-                     nowhere, and it turns every share into the money it means. Empty by
-                     default, because a share is the one figure on this card an operator
-                     cannot sanity-check by looking at it. -->
-                <div class="prt__add">
-                  <label class="prt__micro" for="prt-price" i18n="@@spd.plan_table.price"
-                    >Show it for a car at</label
-                  >
-                  <app-figure-field
-                    fieldId="prt-price"
-                    [value]="price()"
-                    (valueChange)="price.set($event)"
-                    unit="EGP"
-                    [money]="true"
-                    [ariaLabel]="priceAria"
-                  />
-                </div>
+                <!-- WHAT IS NOT HERE, SAID IN WORDS. The unstated tables used to be ghost
+                     columns inside the table; they are one sentence under it now, and the
+                     button goes to the list that can start any of them. -->
+                @if (unstatedSlots(); as waiting) {
+                  @if (waiting.length > 0) {
+                    <p class="prt__foot">
+                      <span>{{ unstatedLabel() }}</span>
+                      <button
+                        type="button"
+                        class="prt__link"
+                        (click)="goCases()"
+                        i18n="@@spd.plan_table.see_tables"
+                      >
+                        See every table
+                      </button>
+                    </p>
+                  }
+                }
               </div>
             }
 
@@ -879,14 +886,6 @@ interface ConditionRow {
         white-space: nowrap;
       }
 
-      /* Secondary like every other heading, NOT tertiary. Tertiary measures 3.83:1 on a card
-         in light mode, and this one names a table an operator may be about to start; the
-         dashed box and the State it button carry the not-stated signal, so the ink does not
-         have to and must not. */
-      .prt__head.is-ghost .prt__head-name {
-        color: var(--color-text-secondary);
-      }
-
       .prt__table tbody td,
       .prt__table tbody th {
         border-block-end: 1px solid var(--border-subtle);
@@ -898,6 +897,36 @@ interface ConditionRow {
 
       .prt__dep {
         white-space: nowrap;
+      }
+
+      /* The deposit, in money, on the row it belongs to. It used to be half a sentence
+         inside the We-finance CELL, which put the deposit the customer pays in the column
+         about what the bank lends and left the band -- the thing the figure is derived
+         from -- saying nothing. */
+      .prt__money {
+        display: block;
+        margin-block-start: var(--space-1);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-variant-numeric: tabular-nums;
+        font-weight: var(--font-normal);
+      }
+
+      .prt__price {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+        flex-wrap: wrap;
+      }
+
+      .prt__foot {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+        margin: 0;
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
       }
 
       .prt__bandchip {
@@ -945,11 +974,6 @@ interface ConditionRow {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-
-      .prt__cell.is-ghost {
-        text-align: center;
-        vertical-align: middle;
       }
 
       .prt__dep-head,
@@ -1070,12 +1094,18 @@ interface ConditionRow {
         font-weight: var(--font-semibold);
       }
 
+      /* CAPPED, because the bin belongs to the row. The auto inline-start margin below pushes
+         the delete to the end of the row, and the row was the card's full width -- so on a
+         1440 screen the bin for "China +2" sat 740px from the field it removes, over empty
+         ground, aligned with four other bins for four other things. Capped at 46rem it is
+         still end-aligned and still one straight column, and it is beside its own figure. */
       .prt__row,
       .prt__cond {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
         gap: var(--space-2) var(--space-3);
+        max-inline-size: 46rem;
         padding-block: var(--space-2);
         border-block-end: 1px solid var(--border-subtle);
       }
@@ -1266,10 +1296,23 @@ export class PlanRowsEditorComponent {
     let n = 0;
     t.rows.forEach((_row, r) => {
       this.cardColumns().forEach((column, c) => {
-        if (column.kind !== 'ghost' && this.showsCell(r, c)) n += 1;
+        if (this.showsCell(r, c)) n += 1;
       });
     });
     return n;
+  }
+
+  /** The tables this product does not state — no column, one sentence, one way in. */
+  protected readonly unstatedSlots = computed<readonly PlanSlotKey[]>(() => {
+    const t = this.table();
+    if (t === null) return [];
+    return PLAN_SLOTS.filter((slot) => !t.slots.includes(slot));
+  });
+
+  protected unstatedLabel(): string {
+    const names = this.unstatedSlots().map((slot) => this.headNameOf(slot));
+    const list = names.join(' · ');
+    return $localize`:@@spd.plan_table.unstated:Not stated here, so each bank's own figure stands: ${list}:tables:.`;
   }
 
   private exceptionCount(): number {
@@ -1287,12 +1330,18 @@ export class PlanRowsEditorComponent {
   });
 
   /**
-   * The columns actually drawn: one per figure, except where a table's cases cannot be said
-   * in one line — then that table alone keeps a column per case.
+   * The columns actually drawn: one per STATED figure, except where a table's cases cannot
+   * be said in one line — then that table alone keeps a column per case.
    *
-   * A table this product does not state keeps a narrow GHOST column rather than vanishing, so
-   * the card is the same six columns on every product and the way to start one is where the
-   * figure would be.
+   * An unstated table draws NO column. It used to keep a narrow ghost one holding a dashed
+   * "State it", on the reasoning that the card should be the same width on every product and
+   * the way to start a table should be where its figure would go. Measured, that column cost
+   * 119px of a 1062px table to hold one button — and, because it was a single cell spanning
+   * every row, it carried no bottom border, so it BROKE the row rule of every row in the
+   * table into two disconnected segments. A table of five plans that does not draw five rows
+   * is a worse trade than a column that is not there. The same button lives on the Exceptions
+   * tab's Tables list, which names all five slots whether they are stated or not, and the
+   * note under this table says how many are waiting and takes the operator to it.
    */
   protected readonly cardColumns = computed<readonly CardColumn[]>(() => {
     const t = this.table();
@@ -1300,17 +1349,7 @@ export class PlanRowsEditorComponent {
     const out: CardColumn[] = [];
     for (const slot of PLAN_SLOTS) {
       const shape = this.shapes().get(slot);
-      if (shape === undefined) {
-        out.push({
-          slot,
-          columnIndex: -1,
-          kind: 'ghost',
-          leads: true,
-          cases: [],
-          conditional: false,
-        });
-        continue;
-      }
+      if (shape === undefined) continue;
       if (shape.kind === 'detailed') {
         shape.columns.forEach((columnIndex, index) => {
           out.push({
@@ -1567,7 +1606,7 @@ export class PlanRowsEditorComponent {
   private cellOf(rowIndex: number, columnIndex: number) {
     const t = this.table();
     const column = this.cardColumns()[columnIndex];
-    if (t === null || column === undefined || column.kind === 'ghost') return null;
+    if (t === null || column === undefined) return null;
     if (column.kind === 'case') return t.rows[rowIndex]?.cells[column.columnIndex] ?? null;
     const shape = this.shapes().get(column.slot);
     return shape === undefined ? null : planSlotCell(t, shape, rowIndex);
@@ -1623,8 +1662,6 @@ export class PlanRowsEditorComponent {
       ? this.onlyForShort(rowIndex, columnIndex)
       : this.onlyForLabel(rowIndex, columnIndex);
     if (only !== null) parts.push(only);
-    const money = this.moneyLine(rowIndex, columnIndex);
-    if (money !== null) parts.push(money);
     if (this.isCovering(rowIndex, columnIndex)) {
       parts.push(this.coversLabel(rowIndex, columnIndex));
     }
@@ -1688,16 +1725,27 @@ export class PlanRowsEditorComponent {
    * it is empty until somebody asks for it. It exists because a share is the one figure on
    * this card an operator cannot sanity-check by looking at it.
    */
-  protected moneyLine(rowIndex: number, columnIndex: number): string | null {
-    const column = this.cardColumns()[columnIndex];
-    if (column === undefined || column.slot !== 'ltvCeilingByFact') return null;
+  protected rowMoney(rowIndex: number): string | null {
     const price = Number(this.price());
     if (!Number.isFinite(price) || price <= 0) return null;
-    const share = Number(this.cellValue(rowIndex, columnIndex));
-    if (!Number.isFinite(share) || share <= 0) return null;
+    const row = this.table()?.rows[rowIndex];
+    if (row === undefined) return null;
+
+    const from = Number(row.band.fromInclusive);
+    if (!Number.isFinite(from) || from < 0) return null;
+    const down = Math.round((price * from) / 100);
+
+    // The share is the row's own, read through the column the table actually draws — not
+    // assumed to be at any index, because a slot the product does not state draws none.
+    const c = this.cardColumns().findIndex(
+      (column) => column.slot === 'ltvCeilingByFact' && column.leads,
+    );
+    const share = c < 0 ? Number.NaN : Number(this.cellValue(rowIndex, c));
+    if (!Number.isFinite(share) || share <= 0) {
+      return $localize`:@@spd.plan_table.money_down:deposit ${group(String(down))}:down:`;
+    }
     const financed = Math.round((price * share) / 100);
-    const down = Math.round(price - financed);
-    return $localize`:@@spd.plan_table.money_line:finances ${group(String(financed))}:financed: · they put ${group(String(down))}:down: down`;
+    return $localize`:@@spd.plan_table.money_row:deposit ${group(String(down))}:down: · finances ${group(String(financed))}:financed:`;
   }
 
   // ─── ACCESSIBLE NAMES ──────────────────────────────────────────────────────
@@ -1840,7 +1888,7 @@ export class PlanRowsEditorComponent {
   protected onFigure(rowIndex: number, columnIndex: number, raw: string): void {
     const t = this.table();
     const column = this.cardColumns()[columnIndex];
-    if (t === null || column === undefined || column.kind === 'ghost') return;
+    if (t === null || column === undefined) return;
     if (column.kind === 'case') {
       this.emit(setPlanFigure(this.grids(), t, rowIndex, column.columnIndex, raw));
       return;
