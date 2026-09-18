@@ -465,40 +465,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   },
 
   {
-    productKey: 'deposit_secured_ceiling',
-    sheet: "CAE Auto Loans Product Guide \u2014 Secured Against Deposits, 'Financing percentage'",
-    /**
-     * The one table in this whole reference that needs no estimate marker.
-     *
-     * Credit Agricole prints the four shares outright \u2014 95% monthly, 90% quarterly, 85%
-     * semi-annual, 80% annual \u2014 beside the security margin each one leaves (5/10/15/20%).
-     * They are the bank's own figures, so none is marked `team_estimated`: claiming a
-     * published number is a guess is the same defect as the reverse.
-     *
-     * No `iscore_band`, because this product's template states `iScore: false`. A secured
-     * facility is not scaled by a bureau score \u2014 see the blueprint's own note.
-     */
-    /**
-     * The debt burden the shares above were calibrated against, stated rather than left to
-     * the programme's own cap by accident.
-     *
-     * `product-rule-ceiling.ts` converts a ceiling into an income by dividing the instalment
-     * it implies by THIS number, and the affordability check then multiplies by whichever cap
-     * actually applies — so the haircut is `applicable ÷ baseline` and 50 against a programme
-     * capped at 50 is a ratio of exactly 1. Omitting it would have fallen back to the same
-     * figure today and quietly stopped being 1 the day either programme changed its cap, on a
-     * product where the whole point is that the pledge is the security.
-     */
-    baselineDbrPercent: '50',
-    stepParams: {
-      primary: percent('95'),
-      primary__quarterly: percent('90'),
-      primary__semi_annual: percent('85'),
-      primary__annual: percent('80'),
-    },
-  },
-
-  {
     productKey: 'compound_owner',
     sheet:
       'spec §7 (class table) · App. B FABMISR (down-payment brackets) · App. A §2 + CAE (share of paid)',
@@ -778,16 +744,6 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'حاملو الشهادات والودائع',
     productKey: 'pledged_collateral_share',
     categories: [LoanCategory.personal],
-  },
-  {
-    // Sold under `car` as well as `personal`: Suez Canal's Semi-Covered sits on the auto card
-    // beside the five down-payment tiers, and Credit Agricole's is booked against a car as
-    // readily as against anything else. The pledge does not care what is being bought.
-    key: 'deposit_secured',
-    labelEn: 'Secured Against a Deposit',
-    labelAr: 'تمويل بضمان وديعة',
-    productKey: 'deposit_secured_ceiling',
-    categories: [LoanCategory.personal, LoanCategory.car],
   },
   {
     key: 'teachers_predefined',
