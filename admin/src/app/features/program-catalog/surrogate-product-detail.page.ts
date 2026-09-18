@@ -1299,6 +1299,7 @@ type PlanSlotKey = keyof PlanDefaults;
                                     [valueKind]="slot.valueKind"
                                     [monthsBound]="slot.monthsBound"
                                     [hideAxes]="true"
+                                    [maxVisibleRows]="3"
                                     [hideAxesLabel]="slot.key === 'rateByFact'"
                                     [maxVisibleRows]="slot.key === 'rateByFact' ? 2 : null"
                                   />
@@ -3485,7 +3486,7 @@ export class SurrogateProductDetailPage {
    * show by being looked at is that their deposit bands disagree, so comparing two of them
    * side by side is exactly the reason somebody opens this list.
    */
-  private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set());
+  private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set(['rateByFact']));
 
   /** The first slot with something wrong in it, or null. Gates Save, and forces its row open. */
   protected readonly erroredPlanSlot = computed<PlanSlotKey | null>(() => {

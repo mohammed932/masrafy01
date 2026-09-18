@@ -490,7 +490,7 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
       .fgd__table td.fgd__value-cell {
         inline-size: 1%;
         white-space: nowrap;
-        text-align: end;
+        text-align: start;
       }
       .fgd__act-head {
         inline-size: 1%;
@@ -508,7 +508,7 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
         width: 7rem;
         /* Figures line up column to column, which is how a mistyped edge is seen. */
         font-variant-numeric: tabular-nums;
-        text-align: end;
+        text-align: start;
       }
       .fgd__dash {
         color: var(--color-text-secondary);
