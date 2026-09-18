@@ -317,76 +317,6 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
         <span nz-icon nzType="plus"></span>
         <span i18n="@@fact_grid.add_cell">Add a row</span>
       </button>
-      <p class="fgd__hint" i18n="@@fact_grid.band_hint">
-        Ranges include the first number and stop before the last, so 12–61 means one to five years.
-        Leave a box empty to mean “whatever the answer”.
-      </p>
-
-      <!-- ③ WHAT HAPPENS TO SOMEBODY NO ROW COVERS. Never defaulted: see the backend's
-           FACT_GRID_NO_MATCH_ACTIONS. -->
-      <section class="fgd__nomatch">
-        <h4 class="fgd__micro" i18n="@@fact_grid.no_match">If no row matches the customer</h4>
-        <nz-radio-group
-          [ngModel]="config().onNoMatch"
-          (ngModelChange)="setOnNoMatch($event)"
-          nzSize="small"
-        >
-          <label nz-radio nzValue="reject">
-            @switch (valueKind()) {
-              @case ('months') {
-                <span i18n="@@fact_grid.reject_months">
-                  This bank does not finance them — say so, with a reason
-                </span>
-              }
-              @case ('sharePercent') {
-                <span i18n="@@fact_grid.reject_share">
-                  This bank finances no part of the price for them — say so, with a reason
-                </span>
-              }
-              @case ('amountEGP') {
-                <span i18n="@@fact_grid.reject_amount">
-                  This bank writes no loan for them — say so, with a reason
-                </span>
-              }
-              @default {
-                <span i18n="@@fact_grid.reject_rate">
-                  This bank quotes them no price — say so, with a reason
-                </span>
-              }
-            }
-          </label>
-          <label nz-radio nzValue="useFallback">
-            @switch (valueKind()) {
-              @case ('months') {
-                @if (monthsBound() === 'min') {
-                  <span i18n="@@fact_grid.fallback_months_min">
-                    Fall back to this program’s own shortest term
-                  </span>
-                } @else {
-                  <span i18n="@@fact_grid.fallback_months">
-                    Fall back to this program’s own longest term
-                  </span>
-                }
-              }
-              @case ('sharePercent') {
-                <span i18n="@@fact_grid.fallback_share">
-                  Fall back to this program’s own financed share
-                </span>
-              }
-              @case ('amountEGP') {
-                <span i18n="@@fact_grid.fallback_amount">
-                  Fall back to this program’s own smallest loan
-                </span>
-              }
-              @default {
-                <span i18n="@@fact_grid.fallback_rate">
-                  Fall back to this program’s other rate settings
-                </span>
-              }
-            }
-          </label>
-        </nz-radio-group>
-      </section>
 
       <!-- ④ COVERAGE. The one thing the table above cannot show by being looked at. -->
       @if (uncovered().length > 0) {
@@ -845,9 +775,6 @@ export class FactGridEditorComponent {
     });
   }
 
-  setOnNoMatch(onNoMatch: 'useFallback' | 'reject'): void {
-    this.config.set({ ...this.config(), onNoMatch });
-  }
 
   errorLabel(error: FactGridError): string {
     switch (error) {

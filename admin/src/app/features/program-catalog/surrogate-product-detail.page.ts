@@ -1303,17 +1303,6 @@ type PlanSlotKey = keyof PlanDefaults;
                                     [hideAxesLabel]="slot.key === 'rateByFact'"
                                     [maxVisibleRows]="slot.key === 'rateByFact' ? 2 : null"
                                   />
-                                  <p class="plan-body-foot">
-                                    <button
-                                      type="button"
-                                      class="link-btn"
-                                      (click)="clearPlanGrid(slot.key)"
-                                      [attr.aria-label]="slot.removeAria"
-                                      i18n="@@spd.plans.remove"
-                                    >
-                                      Remove this table
-                                    </button>
-                                  </p>
                                 </div>
                               }
                             } @else {
@@ -1419,25 +1408,13 @@ type PlanSlotKey = keyof PlanDefaults;
                   </section>
                 }
 
-                <p class="reach">
-                  @if (p.usedBy.length === 0) {
+                @if (p.usedBy.length === 0) {
+                  <p class="reach">
                     <span i18n="@@spd.reach_none"
                       >Nothing sells this yet, so a change here reaches no bank.</span
                     >
-                  } @else {
-                    <!-- The plan tables are named, and named SEPARATELY, because they are the
-                         one thing on this page that does not reach by absence: a program reads
-                         them only when it says it does. Listing them beside "states none of its
-                         own" would have made the page contradict the mechanism it configures. -->
-                    <span i18n="@@spd.reach2"
-                      >A change here reaches {{ p.usedBy.length }} catalog name(s): the tables go to
-                      every bank program under them that takes catalog amounts, and the debt burden,
-                      the loan duration and the I-Score tiers go to every one that states none of
-                      its own. The plans by deposit go only to the programs that asked for
-                      them.</span
-                    >
-                  }
-                </p>
+                  </p>
+                }
 
                 <ng-container [ngTemplateOutlet]="ruleActions"></ng-container>
               </section>

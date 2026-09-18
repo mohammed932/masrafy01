@@ -59,9 +59,9 @@ export type FactGridError =
 
 export const MAX_GRID_AXES = 4;
 
-/** An empty grid in the shape the editor starts from: one axis, one cell, a stated refusal. */
+/** An empty grid in the shape the editor starts from: one axis, one cell, falling back to the program's own figure for an answer no row covers. */
 export function emptyFactGrid(): FactGridConfig {
-  return { axes: [{ factKey: '' }], cells: [{ keys: [null], value: '' }], onNoMatch: 'reject' };
+  return { axes: [{ factKey: '' }], cells: [{ keys: [null], value: '' }], onNoMatch: 'useFallback' };
 }
 
 function keyIsStated(key: FactGridKey): boolean {
