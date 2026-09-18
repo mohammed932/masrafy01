@@ -1477,9 +1477,12 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
 
                   <!-- THE GRID. A separate switch from the band table above, and they are
                        genuinely different things: that one is one axis (the amount) and this
-                       one is up to four. The grid outranks every other rate setting when it
-                       matches, which the hint says outright rather than leaving an operator
-                       to discover it from a quote. -->
+                       one is keyed by down payment — the only axis this card has ever sold
+                       against, so the general N-axis controls are withheld (lockAxisToDownPayment,
+                       see fact-grid-editor.component.ts) rather than offering a second or
+                       third question nobody asked for. The grid outranks every other rate
+                       setting when it matches, which the hint says outright rather than
+                       leaving an operator to discover it from a quote. -->
                   @if (!plansInherits()) {
                     <label
                       nz-checkbox
@@ -1499,6 +1502,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                       (configChange)="rateByFact.set($event)"
                       [facts]="incomeFacts()"
                       valueKind="ratePercent"
+                      [lockAxisToDownPayment]="true"
                     />
                   }
 

@@ -38,6 +38,8 @@ import {
   Component,
   LOCALE_ID,
   computed,
+  effect,
+  untracked,
   inject,
   signal,
   viewChild,
@@ -392,19 +394,21 @@ type PlanSlotKey = keyof PlanDefaults;
                        read as a band's own air rather than as a strip that stopped short.
                        aria-hidden on the label: the tablist keeps its own accessible name,
                        so announcing the same words twice would be the only thing it added. -->
-                  <div class="ask-rail">
-                    <!-- The tablist's own accessible name, rendered. One string, so the word
+                  @if (!soleCategory()) {
+                    <div class="ask-rail">
+                      <!-- The tablist's own accessible name, rendered. One string, so the word
                          on screen and the word a screen reader hears cannot drift. -->
-                    <p class="ask-rail-label" aria-hidden="true">{{ asksAria }}</p>
-                    <app-rail-tabs
-                      [uniform]="true"
-                      idPrefix="spd-asks"
-                      [items]="askTabItems()"
-                      [activeId]="askCategory()"
-                      [ariaLabel]="asksAria"
-                      (select)="pickAskCategory($event)"
-                    />
-                  </div>
+                      <p class="ask-rail-label" aria-hidden="true">{{ asksAria }}</p>
+                      <app-rail-tabs
+                        [uniform]="true"
+                        idPrefix="spd-asks"
+                        [items]="askTabItems()"
+                        [activeId]="askCategory()"
+                        [ariaLabel]="asksAria"
+                        (select)="pickAskCategory($event)"
+                      />
+                    </div>
+                  }
 
                   <div
                     class="ask-stage"
@@ -1127,7 +1131,9 @@ type PlanSlotKey = keyof PlanDefaults;
                      screen was rebuilt to remove (v25.1.0). -->
                 @if (isPipeline()) {
                   <section class="step-sec">
-                    <h2 class="sub" i18n="@@spd.sec.inherited">What every bank falls back to</h2>
+                    <h2 class="sub" i18n="@@spd.sec.inherited">
+                      Defaults for every bank that sells this product
+                    </h2>
                     <p class="sec-lede" i18n="@@spd.sec.inherited_lede">
                       A bank selling this product falls back to each of these while its own program
                       states nothing in its place, so a change here moves live quotes.
@@ -1238,9 +1244,7 @@ type PlanSlotKey = keyof PlanDefaults;
                     <section class="fb-block">
                       <h3 class="fb-title" i18n="@@spd.plans.title">Plans by deposit</h3>
                       <p class="fb-lede" i18n="@@spd.plans.lede">
-                        What the bank charges, how long it lends, how much of the price it finances
-                        and the smallest loan it writes — each by the deposit the customer puts
-                        down.
+                        What the bank charges, by the deposit the customer puts down.
                       </p>
 
                       <!-- role="list" restated because list-style: none strips list semantics
@@ -1285,7 +1289,6 @@ type PlanSlotKey = keyof PlanDefaults;
                                   />
                                 </svg>
                                 <span class="plan-row-title">{{ slot.title }}</span>
-                                <span class="plan-row-state">{{ planSummary(slot.key) }}</span>
                               </button>
                               @if (planSlotOpen(slot.key)) {
                                 <div class="plan-body" [id]="'plan-body-' + slot.key">
@@ -1295,6 +1298,9 @@ type PlanSlotKey = keyof PlanDefaults;
                                     [facts]="facts()"
                                     [valueKind]="slot.valueKind"
                                     [monthsBound]="slot.monthsBound"
+                                    [hideAxes]="true"
+                                    [hideAxesLabel]="slot.key === 'rateByFact'"
+                                    [maxVisibleRows]="slot.key === 'rateByFact' ? 2 : null"
                                   />
                                   <p class="plan-body-foot">
                                     <button
@@ -1358,10 +1364,6 @@ type PlanSlotKey = keyof PlanDefaults;
                             remove the row.</span
                           >
                         </p>
-                      }
-
-                      @if (planBandMismatch(); as note) {
-                        <p class="plan-mismatch" role="status">{{ note }}</p>
                       }
 
                       @if (planReaders(); as readers) {
@@ -2310,19 +2312,6 @@ type PlanSlotKey = keyof PlanDefaults;
          destructive verb one pixel from the control that merely opens the thing. */
       .plan-body-foot {
         margin: 0;
-      }
-
-      /* Advice, not a refusal — a status line, inked like the lede rather than like the error
-         above it. It reports that two tables disagree about which deposits they cover, which
-         the five tables cannot show by being looked at, and which a CLOSED list cannot show
-         at all — so it is the one line here that had to survive the fold. */
-      .plan-mismatch {
-        margin: 0;
-        max-inline-size: 60ch;
-        font-size: var(--text-sm);
-        line-height: 1.6;
-        color: var(--text-primary);
-        font-weight: var(--font-medium);
       }
 
       /* A verb, drawn as a link because it is one — never a second primary button beside the
@@ -3400,6 +3389,13 @@ export class SurrogateProductDetailPage {
    */
   protected readonly planNotSet = $localize`:@@spd.plans.not_set:Not set`;
 
+  /**
+   * Only the rate table is offered here — the other four PLAN slots
+   * (`maxMonthsByFact` / `minMonthsByFact` / `ltvCeilingByFact` / `minAmountByFact`) are
+   * deliberately withdrawn from this screen on the operator's explicit call. The `PlanDefaults`
+   * shape and the server's handling of those keys are untouched, so a program that already
+   * reads one of them keeps doing so; this list only decides what an operator can SEE and edit.
+   */
   protected readonly planSlots = [
     {
       key: 'rateByFact' as const,
@@ -3408,40 +3404,6 @@ export class SurrogateProductDetailPage {
       title: $localize`:@@spd.plans.rate:Interest rate`,
       add: $localize`:@@spd.plans.rate_add:State a rate table`,
       removeAria: $localize`:@@spd.plans.rate_remove_aria:Remove the rate table`,
-    },
-    {
-      key: 'maxMonthsByFact' as const,
-      valueKind: 'months' as const,
-      // WHICH END OF THE TERM. Both month tables share one value kind, whose labels all said
-      // "longest" — so the Shortest-term row opened a table headed LONGEST TERM (MONTHS).
-      monthsBound: 'max' as const,
-      title: $localize`:@@spd.plans.max_months:Longest term`,
-      add: $localize`:@@spd.plans.max_months_add:State a longest-term table`,
-      removeAria: $localize`:@@spd.plans.max_months_remove_aria:Remove the longest-term table`,
-    },
-    {
-      key: 'minMonthsByFact' as const,
-      valueKind: 'months' as const,
-      monthsBound: 'min' as const,
-      title: $localize`:@@spd.plans.min_months:Shortest term`,
-      add: $localize`:@@spd.plans.min_months_add:State a shortest-term table`,
-      removeAria: $localize`:@@spd.plans.min_months_remove_aria:Remove the shortest-term table`,
-    },
-    {
-      key: 'ltvCeilingByFact' as const,
-      valueKind: 'sharePercent' as const,
-      monthsBound: 'max' as const,
-      title: $localize`:@@spd.plans.ltv:Share of the price financed`,
-      add: $localize`:@@spd.plans.ltv_add:State a financed-share table`,
-      removeAria: $localize`:@@spd.plans.ltv_remove_aria:Remove the financed-share table`,
-    },
-    {
-      key: 'minAmountByFact' as const,
-      valueKind: 'amountEGP' as const,
-      monthsBound: 'max' as const,
-      title: $localize`:@@spd.plans.floor:Smallest loan`,
-      add: $localize`:@@spd.plans.floor_add:State a smallest-loan table`,
-      removeAria: $localize`:@@spd.plans.floor_remove_aria:Remove the smallest-loan table`,
     },
   ];
 
@@ -3594,65 +3556,6 @@ export class SurrogateProductDetailPage {
       ? $localize`:@@spd.plans.rows_one:1 row`
       : $localize`:@@spd.plans.rows_many:${String(rows)}:rows: rows`;
   }
-
-  /**
-   * A deposit this product PRICES that another table would REFUSE.
-   *
-   * Advisory and never a gate — the server validates each table on its own, and a mirror that
-   * refused more than the server would tell an operator their card is unsavable with nothing
-   * to fix. It exists because the one thing five separate tables cannot show by being looked
-   * at is that a plan added to one of them is missing from another.
-   *
-   * COVERAGE, not set-equality, and the difference is whether anybody reads it. Comparing band
-   * SETS made this line permanent on the only product that has plans: the term table
-   * deliberately states one row for 40% and up where the rate table states three, and the floor
-   * table deliberately states one row at all — both because they say something only where they
-   * DIFFER. A warning that is always on is a warning nobody reads, and it costs the one thing
-   * this line exists to say.
-   *
-   * Scoped to tables whose miss is a REFUSAL, which is the whole hazard. On `useFallback` an
-   * uncovered deposit takes the program's own figure, which is what a coarser table MEANS; on
-   * `reject` it is an applicant who is quoted a rate by one table and turned away by another.
-   */
-  protected readonly planBandMismatch = computed<string | null>(() => {
-    const plans = this.planValue();
-    const rate = plans?.rateByFact;
-    if (plans === null || rate === undefined) return null;
-
-    /** The deposit bands of a grid's first axis, as numeric intervals. `null` upper = no end. */
-    const bandsOf = (grid: FactGridConfig): { from: number; to: number | null }[] =>
-      grid.cells
-        .map((c) => c.keys[0])
-        .filter(
-          (k): k is { fromInclusive?: string; toExclusive?: string | null } =>
-            k !== null && k !== undefined && !('key' in k),
-        )
-        .map((k) => ({
-          from: Number(k.fromInclusive ?? '0'),
-          to: k.toExclusive === null || k.toExclusive === undefined ? null : Number(k.toExclusive),
-        }))
-        .filter((b) => Number.isFinite(b.from) && (b.to === null || Number.isFinite(b.to)));
-
-    const covers = (outer: { from: number; to: number | null }, inner: typeof outer): boolean =>
-      outer.from <= inner.from &&
-      (outer.to === null || (inner.to !== null && outer.to >= inner.to));
-
-    const priced = bandsOf(rate);
-    const off = this.planSlots
-      .filter((slot) => slot.key !== 'rateByFact')
-      .filter((slot) => {
-        const grid = plans[slot.key];
-        // A table that falls back is not refusing anybody — a band it does not state is the
-        // program's own figure, stated by omission.
-        if (grid === undefined || grid.onNoMatch !== 'reject') return false;
-        const bands = bandsOf(grid);
-        return priced.some((p) => !bands.some((b) => covers(b, p)));
-      })
-      .map((slot) => slot.title);
-    if (off.length === 0) return null;
-    const names = off.join(', ');
-    return $localize`:@@spd.plans.mismatch2:A deposit this product prices is not covered by ${names}:names:, which turns that customer away instead of quoting them. Add the missing rows, or let that table fall back to the bank's own figure.`;
-  });
 
   /**
    * How many bank programs are reading these tables right now.
@@ -4090,6 +3993,20 @@ export class SurrogateProductDetailPage {
           ? $localize`:@@spd.ask.tab_warn:${tab.unasked}:COUNT: read but not asked here`
           : undefined,
     }));
+  });
+
+  /**
+   * The one loan type this product is sold under, or `null` when it is sold under several
+   * (or none yet). With only one there is nothing to switch, so the rail is hidden and the
+   * open tab is pinned to it.
+   */
+  protected readonly soleCategory = computed<LoanCategory | null>(() => {
+    const board = this.asksBoard();
+    if (!board) return null;
+    const sold = new Set(board.served.map((row) => row.category));
+    if (sold.size !== 1) return null;
+    const [only] = [...sold];
+    return only !== undefined && isLoanCategory(only) ? only : null;
   });
 
   protected readonly askCategoryLabel = computed(() => categoryLabel(this.askCategory()));
@@ -4701,6 +4618,13 @@ export class SurrogateProductDetailPage {
    * open. This also makes the back button work.
    */
   private watchAskCategory(): void {
+    effect(
+      () => {
+        const only = this.soleCategory();
+        if (only !== null && untracked(this.askCategory) !== only) this.askCategory.set(only);
+      },
+      { allowSignalWrites: true },
+    );
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       const raw = params.get('loan');
       this.askCategory.set(raw !== null && isLoanCategory(raw) ? raw : 'personal');

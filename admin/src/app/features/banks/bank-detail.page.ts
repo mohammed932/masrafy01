@@ -1141,16 +1141,17 @@ interface PortfolioHealth {
       }
       .prog-head {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: var(--space-2);
         min-inline-size: 0;
       }
       .prog-name {
+        flex: 0 1 auto;
+        min-inline-size: 0;
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
       }
       .tag.sharia {
         flex: none;

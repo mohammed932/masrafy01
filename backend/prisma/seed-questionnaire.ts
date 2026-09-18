@@ -2221,7 +2221,7 @@ async function upsertCarFacts(): Promise<void> {
     { key: 'car_price', labelEn: 'Car price', labelAr: 'سعر السيارة', sortOrder: 120 },
     {
       key: 'car_down_payment',
-      labelEn: 'Car down payment',
+      labelEn: 'Car Down payment',
       labelAr: 'الدفعة المقدمة للسيارة',
       sortOrder: 121,
     },
