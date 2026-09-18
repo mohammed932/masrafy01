@@ -365,13 +365,19 @@ export class BlueprintService {
           // product it belongs to may simply not be built yet, and refusing here would block
           // a create over a question this product does not read.
           if (id === undefined) break;
-          await this.questionnaire.setQuestionCategoriesBulk(
+          // ADD, not replace. The plan computes the union at PLAN time off
+          // `existing.categoriesByQuestion`, so a whole-set write here silently DROPPED any
+          // assignment made in the gap between planning and running — a gap that is a whole
+          // HTTP round trip, not two browser tabs. The additive write ignores what is already
+          // there, so the plan needs no change; and `publishNeeded` now follows what actually
+          // moved, where before a run that widened nothing still cut a questionnaire version.
+          const widened = await this.questionnaire.addQuestionCategoriesBulk(
             [{ questionId: id, categories: step.categories as LoanCategory[] }],
             actor.staffId,
             { publish: false },
           );
           created.widened.push(step.questionCode);
-          publishNeeded = true;
+          if (widened.added.length > 0) publishNeeded = true;
           break;
         }
 

@@ -110,9 +110,13 @@ export interface BuildBoardInput {
  *
  * Moved here verbatim from the board component, fallback and all. That fallback is the
  * load-bearing half: the basis rides on the (name, loan type) assignment row, and a name
- * offered under NO loan type has none — which is every name on the day it is created, since
- * a create now assigns no category. So the answer the operator gave on the create form is
- * not readable from the assignments at all.
+ * offered under NO loan type has none — so the answer the operator gave on the create form
+ * is not readable from the assignments at all.
+ *
+ * It is no longer EVERY new name — the create flow asks which loan types the name is offered
+ * under and writes them in the same insert as the row, so a name is born with rows to read.
+ * The fallback still stands, because a name can still be parked: un-tick every loan type on
+ * its own page and the assignments are gone while the name is not.
  *
  * The product LINK is where that answer survives, and it is the same thing the server infers
  * from when the first assignment row is born (`bornBasisFlags`) — so the board says what the

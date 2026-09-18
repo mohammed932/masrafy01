@@ -23,6 +23,7 @@ import {
   CreateQuestionDto,
   CreateQuestionWithOptionsDto,
   ReorderQuestionsDto,
+  AddQuestionCategoriesBulkDto,
   SetQuestionCategoriesBulkDto,
   SetQuestionCategoriesDto,
   UpdateGroupDto,
@@ -139,6 +140,21 @@ export class AdminQuestionnaireController {
     @CurrentUser() user: JwtPayload,
   ) {
     return ok(await this.service.setQuestionCategoriesBulk(dto.assignments, user.sub));
+  }
+
+  // Also a static segment, and declared beside its sibling above rather than after the
+  // `:id` routes for the same defensive reason.
+  @Post('questions/categories/add')
+  @ApiOperation({
+    summary: 'ADD loan categories to many questions (one transaction, at most one publish)',
+    description:
+      'Widens each question’s category set; it can never narrow one — there is no field here that expresses a removal. Publishes only if something actually moved. Backs the catalog-name flow’s “what applicants are asked” step, where un-asking a question would stop asking it for every program of that loan type.',
+  })
+  async addCategoriesBulk(
+    @Body() dto: AddQuestionCategoriesBulkDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return ok(await this.service.addQuestionCategoriesBulk(dto.assignments, user.sub));
   }
 
   @Put('questions/:id/categories')

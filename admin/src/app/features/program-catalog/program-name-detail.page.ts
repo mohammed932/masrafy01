@@ -12,6 +12,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import {
   ArrowLeftOutline,
@@ -19,7 +20,22 @@ import {
   CloseCircleOutline,
   ExclamationCircleOutline,
 } from '@ant-design/icons-angular/icons';
-import { PageHeaderComponent, WizardStepsComponent, type WizardStepItem } from '@shared/ui';
+import {
+  LoanCategorySwitchesComponent,
+  PageHeaderComponent,
+  WizardStepsComponent,
+  type WizardStepItem,
+} from '@shared/ui';
+import { AskedQuestionsEditorComponent } from '@shared/questions/asked-questions-editor.component';
+import {
+  type AskableQuestion,
+  type AskedPicks,
+  type AskedRow,
+} from '@shared/questions/asked-questions.rules';
+import {
+  QuestionnaireApiService,
+  type QuestionRow,
+} from '@features/questionnaire/questionnaire.api.service';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { catalogRuleOf } from '@shared/income-rule/catalog-rule';
@@ -76,6 +92,8 @@ import { PRODUCT_BASE } from './program-catalog.paths';
     PageHeaderComponent,
     WizardStepsComponent,
     IncomeAssumptionSectionComponent,
+    LoanCategorySwitchesComponent,
+    AskedQuestionsEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -274,49 +292,15 @@ import { PRODUCT_BASE } from './program-catalog.paths';
                   </p>
                 </header>
 
-                <ul class="gates" role="list">
-                  @for (c of categories; track c) {
-                    <li>
-                      <div class="gate" [class.on]="isOffered(c)">
-                        <button
-                          type="button"
-                          role="switch"
-                          class="switch"
-                          [attr.aria-checked]="isOffered(c)"
-                          [attr.aria-label]="offerLabel(n, c)"
-                          [attr.aria-busy]="savingOffer()"
-                          (click)="toggleOffered(c)"
-                        >
-                          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
-                          <span class="switch-text">
-                            <!-- The LOAN TYPE, not the sentence. Four rows each opening
-                                 with the program name repeated it four times under an H1
-                                 that already says it, and pushed every title to two
-                                 lines. The full sentence stays on the aria-label, where a
-                                 screen reader has no H1 in view to lean on. -->
-                            <span class="switch-title">{{ categoryNameOf(c) }}</span>
-                            <span class="switch-hint">
-                              @if (isOffered(c)) {
-                                <!-- Says WHO sees the effect and WHERE. "Banks can sell it"
-                                   described a business fact the admin cannot see; the name
-                                   appearing in a picker is the thing they can go and check.
-                                   "of this type" rather than the type's name: the row IS the
-                                   type, and interpolating it forced "a Auto Loan". -->
-                                <span i18n="@@pnd.gate_on_hint"
-                                  >A bank adding a program of this type can pick this name.</span
-                                >
-                              } @else {
-                                <span i18n="@@pnd.gate_off_hint"
-                                  >No bank program can pick this name here.</span
-                                >
-                              }
-                            </span>
-                          </span>
-                        </button>
-                      </div>
-                    </li>
-                  }
-                </ul>
+                <!-- Extracted on the second use: the create flow asks the same question,
+                     and the component owns the WORDS as well as the markup, so an operator
+                     reads the same sentence while creating a name as while editing it. -->
+                <app-loan-category-switches
+                  [value]="n.categories"
+                  [busy]="savingOffer()"
+                  [subject]="nameOf(n)"
+                  (toggled)="toggleOffered($event)"
+                />
 
                 @if (offeredCount() === 0) {
                   <!-- Not a validation error — the row is saved and legal. It is a
@@ -329,6 +313,53 @@ import { PRODUCT_BASE } from './program-catalog.paths';
                     >
                   </p>
                 }
+              </section>
+            }
+
+            @case (2) {
+              <!-- ── STEP 3 · What applicants are asked ────────────────────────
+                   The screen carried a third step once and lost it with approval
+                   scoring: a per-loan-type list the name "suggests scoring on", read
+                   by nothing. This one writes the axis the engine actually asks from
+                   — the question-to-loan-type table, the same rows the "Who gets asked
+                   what" screen sets — so the decision an operator makes while creating a name is
+                   editable afterwards in the same words and the same control.
+
+                   ADD-ONLY here, as on the create flow: that table is global, so
+                   un-ticking would stop asking the question for every program of that
+                   loan type. Each tick writes on its own, because the name exists and
+                   there is no Finish to batch into. -->
+              <section class="card is-bare stage-card">
+                <header class="stage-head">
+                  <h2 class="stage-title" i18n="@@pnd.asks_title">
+                    What are these applicants asked?
+                  </h2>
+                  <p class="stage-sub" i18n="@@pnd.asks_sub">
+                    One tab per loan type this name is offered under. Ticking a question asks it of
+                    every applicant of that loan type.
+                  </p>
+                </header>
+
+                @if (asksError(); as err) {
+                  <p class="stage-warn" role="alert">
+                    <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+                    <span>{{ err }}</span>
+                  </p>
+                }
+
+                <app-asked-questions-editor
+                  [pool]="pool()"
+                  [offered]="n.categories"
+                  [category]="askCategory()"
+                  [picks]="noPicks"
+                  [search]="askSearch()"
+                  [isAr]="isAr"
+                  [busy]="savingAsk().size > 0"
+                  [saving]="savingAsk()"
+                  (categorySelect)="setAskCategory($event)"
+                  (searchChange)="askSearch.set($event)"
+                  (add)="askToAdd($event)"
+                />
               </section>
             }
           }
@@ -380,7 +411,7 @@ import { PRODUCT_BASE } from './program-catalog.paths';
               <span i18n="@@pnd.step_back">Back</span>
             </button>
             <span class="stepnav-spacer"></span>
-            @if (stepIndex() < 1) {
+            @if (stepIndex() < stepLabels.length - 1) {
               <button nz-button nzType="primary" type="button" (click)="goToStep(stepIndex() + 1)">
                 <span>{{ nextStepLabel() }}</span>
                 <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
@@ -895,9 +926,11 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly productBase = PRODUCT_BASE;
 
   private readonly api = inject(LookupsApiService);
+  private readonly questionnaire = inject(QuestionnaireApiService);
+  private readonly modal = inject(NzModalService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly isAr = inject(LOCALE_ID).startsWith('ar');
+  protected readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   protected readonly routeKey = signal<string>(this.route.snapshot.paramMap.get('key') ?? '');
   protected readonly name = signal<ProgramNameRow | null>(null);
@@ -974,17 +1007,28 @@ export class ProgramNameDetailPage implements OnInit {
   // Which step is on stage lives in the URL, so a colleague pasting a link and a reload
   // after a save both land where the operator was rather than back at step one.
 
+  /**
+   * DECLARED BEFORE `stepIndex`, and that is load-bearing rather than tidy.
+   *
+   * `initialStep()` clamps a pasted `?step=` against this list's length, and class fields
+   * initialise in source order — so with the signal above it, `this.stepLabels` was
+   * `undefined` at the moment it was read. It survived because the clamp short-circuits:
+   * with no `?step=` at all, `Number.isInteger(NaN)` is false and the length is never
+   * reached. EVERY deep link that named a step threw — including the one this feature's own
+   * create flow sends every freshly created name to.
+   */
+  protected readonly stepLabels: readonly string[] = [
+    $localize`:@@pnd.step_income:How the income is worked out`,
+    $localize`:@@pnd.step_offered:Where it is offered`,
+    $localize`:@@pnd.step_asks:What applicants are asked`,
+  ];
+
   protected readonly stepIndex = signal<number>(this.initialStep());
 
   /** The four loan types, for the assignment step's `@for`. Order is the platform's. */
   protected readonly categories = LOAN_CATEGORIES;
 
   protected readonly stepsAria = $localize`:@@pnd.steps_aria:Setting up this program name`;
-
-  private readonly stepLabels: readonly string[] = [
-    $localize`:@@pnd.step_income:How the income is worked out`,
-    $localize`:@@pnd.step_offered:Where it is offered`,
-  ];
 
   /**
    * The rail's status per step, and the one place the two answers are compared.
@@ -1015,6 +1059,15 @@ export class ProgramNameDetailPage implements OnInit {
       label: this.stepLabels[1] ?? '',
       status: this.offeredCount() > 0 ? 'done' : 'invalid',
     },
+    {
+      id: 'asks',
+      label: this.stepLabels[2] ?? '',
+      // Never `invalid`, and never `todo`: what a loan type asks is a fact this step
+      // reports and can widen, not an answer this name owes. It is unreachable while the
+      // name is offered nowhere, because there is nothing to put a tab on.
+      status: 'done',
+      disabled: this.offeredCount() === 0,
+    },
   ]);
 
   /** One sentence under the rail: what this step decides, and what it does not. */
@@ -1024,7 +1077,10 @@ export class ProgramNameDetailPage implements OnInit {
         ? $localize`:@@pnd.step_income_cap_linked:Taken from a surrogate product, so every name using that product stays in step. Edited there, not here.`
         : $localize`:@@pnd.step_income_cap:Set once for the name. Every bank selling it on a surrogate basis reads this one figure.`;
     }
-    return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
+    if (this.stepIndex() === 1) {
+      return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
+    }
+    return $localize`:@@pnd.step_asks_cap:Ticking one asks it of every applicant of that loan type, for every program name. Nothing here can stop a question being asked.`;
   });
 
   protected nextStepLabel(): string {
@@ -1033,6 +1089,7 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected goToStep(index: number): void {
     const next = Math.min(Math.max(index, 0), this.stepLabels.length - 1);
+    if (next === 2) void this.loadPool();
     if (next === this.stepIndex()) return;
     this.stepIndex.set(next);
     void this.router.navigate([], {
@@ -1048,15 +1105,124 @@ export class ProgramNameDetailPage implements OnInit {
     return Number.isInteger(raw) && raw >= 1 && raw <= this.stepLabels.length ? raw - 1 : 0;
   }
 
-  /** The same question asked about any category — what the assignment step renders. */
-  protected isOffered(category: LoanCategory): boolean {
-    return this.name()?.categories.includes(category) ?? false;
-  }
-
   /** How many of the four are on. Drives the rail's status and its caption. */
   protected readonly offeredCount = computed(() => this.name()?.categories.length ?? 0);
 
+  // --- Step 3 · what applicants are asked ------------------------------------
+
+  /**
+   * The global question pool, read on first arrival at step 3 and not before.
+   *
+   * A third read on a page that already makes two (the row and the income rule), and the
+   * heaviest of them — every active question with every answer. Deferring it keeps the two
+   * steps that do not need it off its latency, and the step that does shows a shimmer while
+   * it lands like every other async surface here.
+   */
+  protected readonly pool = signal<readonly AskableQuestion[]>([]);
+  protected readonly poolLoading = signal(false);
+  protected readonly asksError = signal<string | null>(null);
+  private poolRequested = false;
+  /** Ids with a write in flight. This page writes per tap; the create flow batches. */
+  protected readonly savingAsk = signal<ReadonlySet<string>>(new Set<string>());
+  protected readonly askSearch = signal('');
+  private readonly askTab = signal<LoanCategory | null>(null);
+  /**
+   * Nothing is "pending" on this page: a tick is written at once and comes back in the
+   * pool, so the board's session-pick layer is always empty here. One frozen instance
+   * rather than a fresh `new Map()` per change detection, which would make the editor's
+   * `computed`s recompute on every tick of the app.
+   */
+  protected readonly noPicks: AskedPicks = new Map<LoanCategory, ReadonlySet<string>>();
+
+  /** Clamped to a loan type the name is actually offered under — see the create flow. */
+  protected readonly askCategory = computed<LoanCategory>(() => {
+    const on = this.name()?.categories ?? [];
+    const picked = this.askTab();
+    if (picked !== null && on.includes(picked)) return picked;
+    return on[0] ?? 'personal';
+  });
+
+  protected setAskCategory(category: LoanCategory): void {
+    this.askTab.set(category);
+  }
+
+  /**
+   * A tick, written immediately. ADD-ONLY, and confirmed when the question is required.
+   *
+   * Requiredness is enforced from the live assignment table while customers are served a
+   * frozen snapshot, so widening a required question refuses every application already in
+   * flight in that loan type until it is answered.
+   */
+  protected askToAdd(row: AskedRow): void {
+    if (!row.isRequired) {
+      void this.writeAsk(row.id);
+      return;
+    }
+    const type = categoryLabel(this.askCategory());
+    this.modal.confirm({
+      nzTitle: $localize`:@@pnd.req_title:Ask “${row.label}:QUESTION:” of every ${type}:TYPE: applicant?`,
+      nzContent: $localize`:@@pnd.req_body:It must be answered, so every ${type}:TYPE: application already in progress has to answer it before it can be submitted.`,
+      nzOkText: $localize`:@@pnd.req_ok:Ask it`,
+      nzCancelText: $localize`:@@pnd.req_cancel:Leave it`,
+      nzOnOk: () => {
+        void this.writeAsk(row.id);
+        // `nzOnOk` must RETURN TRUE: a void handler is read as a cancel, and the modal
+        // then reports the operator's confirmation as a dismissal.
+        return true;
+      },
+    });
+  }
+
+  /**
+   * ADD-ONLY on the wire, not just in the UI. `setQuestionCategories` would replace the
+   * whole set from a copy of the pool this page read minutes ago — so a loan type somebody
+   * else ticked in between would be silently un-asked. The add endpoint has no field that
+   * can express a removal.
+   *
+   * No optimistic patch: the write returns what actually moved, and the pool is re-read
+   * from it. A tick that the server folded into "already asked" must not leave a row
+   * looking added.
+   */
+  private async writeAsk(questionId: string): Promise<void> {
+    if (this.savingAsk().has(questionId)) return;
+    this.savingAsk.update((set) => new Set([...set, questionId]));
+    this.asksError.set(null);
+    try {
+      await this.questionnaire.addQuestionCategoriesBulk([
+        { questionId, categories: [this.askCategory()] },
+      ]);
+      this.poolRequested = false;
+      await this.loadPool();
+    } catch (err) {
+      this.asksError.set(this.localizedError(err));
+    } finally {
+      this.savingAsk.update((set) => {
+        const next = new Set(set);
+        next.delete(questionId);
+        return next;
+      });
+    }
+  }
+
+  private async loadPool(): Promise<void> {
+    if (this.poolRequested) return;
+    this.poolRequested = true;
+    this.poolLoading.set(true);
+    try {
+      const tree = await this.questionnaire.tree();
+      this.pool.set(tree.flatMap((g) => g.questions).map(toAskable));
+    } catch (err) {
+      this.asksError.set(this.localizedError(err));
+      this.pool.set([]);
+    } finally {
+      this.poolLoading.set(false);
+    }
+  }
+
   ngOnInit(): void {
+    // A deep link can land straight on step 3 — `newNameLanding` sends every freshly
+    // created name there — so the pool read cannot wait for a click on the rail.
+    if (this.stepIndex() === 2) void this.loadPool();
     void this.load();
     // A separate read, deliberately not awaited with the other: the income rule comes
     // from the bank-programs API and the row from the lookups API, so a slow or failing
@@ -1072,22 +1238,6 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected usageLabel(row: ProgramNameRow): string {
     return $localize`:@@pnd.usage_value:${row.usage.programs}:PROGRAMS: bank programs · ${row.usage.banks}:BANKS: banks`;
-  }
-
-  protected categoryNameOf(category: LoanCategory): string {
-    return categoryLabel(category);
-  }
-
-  /**
-   * Quotes the name when the caller has the row. "Offered as a Personal Loan" read
-   * as a property of nothing in particular on a page that already shows the name in
-   * the H1 — spelling out who does the offering is what makes the switch a sentence.
-   */
-  protected offerLabel(row: ProgramNameRow, category: LoanCategory): string {
-    // "as a ${category}" cannot be made grammatical for every label in every locale
-    // ("a Auto Loan"), and this string is now read aloud rather than shown — the row's
-    // visible title is the loan type on its own.
-    return $localize`:@@pnd.gate_label:Offer “${this.nameOf(row)}:name:” under ${categoryLabel(category)}:category:`;
   }
 
   // --- Writes ----------------------------------------------------------------
@@ -1380,4 +1530,25 @@ export class ProgramNameDetailPage implements OnInit {
   private patch(patch: Partial<ProgramNameRow>): void {
     this.name.update((n) => (n ? { ...n, ...patch } : n));
   }
+}
+
+/**
+ * A pool row in the shape the board reasons about. The same projection the create flow
+ * makes — written out in both places rather than shared through the rules module, which
+ * stays free of the questionnaire API's wire types so it can be exercised without them.
+ */
+function toAskable(q: QuestionRow): AskableQuestion {
+  return {
+    id: q.id,
+    code: q.code,
+    labelEn: q.questionEn,
+    labelAr: q.questionAr,
+    isActive: q.isActive,
+    isRequired: q.isRequired,
+    categories: q.categories,
+    gateSourceCode: q.enabledWhen?.questionCode ?? null,
+    haystack: [q.questionEn, q.questionAr, q.code, ...q.options.map((o) => o.labelEn)]
+      .join(' ')
+      .toLowerCase(),
+  };
 }

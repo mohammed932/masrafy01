@@ -831,10 +831,6 @@
       <trans-unit id="pnd.missing_title" datatype="html"><source>No program name matches “<x id="INTERPOLATION" equiv-text="routeKey()"/>”.</source><target>لا يوجد اسم برنامج مطابق لـ «<x id="INTERPOLATION" equiv-text="routeKey()"/>».</target></trans-unit>
       <trans-unit id="pnd.missing_body" datatype="html"><source>It may have been renamed or deprecated. Open it from the catalog instead.</source><target>ربما أُعيد تسميته أو أُلغي. افتحه من الكتالوج بدلاً من ذلك.</target></trans-unit>
       <trans-unit id="pnd.missing_cta" datatype="html"><source>Back to the catalog</source><target>العودة إلى الكتالوج</target></trans-unit>
-      <trans-unit id="pnd.gate_label" datatype="html">
-        <source>Offer “<x id="name" equiv-text="this.nameOf(row)"/>” under <x id="category" equiv-text="categoryLabel(category)"/></source>
-        <target>اعرض «<x id="name" equiv-text="this.nameOf(row)"/>» تحت <x id="category" equiv-text="categoryLabel(category)"/></target>
-      </trans-unit>
       <trans-unit id="pnd.gate_on_hint" datatype="html">
         <source>A bank adding a program of this type can pick this name.</source>
         <target>يمكن لأي بنك يضيف برنامجًا من هذا النوع أن يختار هذا الاسم.</target>
@@ -3200,16 +3196,9 @@
       <trans-unit id="pcn.next" datatype="html"><source>Next</source><target>التالي</target></trans-unit>
       <trans-unit id="pcn.next_hint" datatype="html"><source>Next: <x id="STEP" equiv-text="label"/></source><target>التالي: <x id="STEP" equiv-text="label"/></target></trans-unit>
       <trans-unit id="pcn.eyebrow" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
-      <trans-unit id="pcn.subtitle" datatype="html"><source>A catalog name banks file their programs under. It starts offered under no loan type — you pick those next, on its own page.</source><target>اسم في الكتالوج تُدرِج البنوك برامجها تحته. يبدأ غير معروض تحت أي نوع تمويل — تختارها بعد ذلك من صفحته الخاصة.</target></trans-unit>
       <trans-unit id="pcn.back" datatype="html"><source>Back to the catalog</source><target>العودة إلى الكتالوج</target></trans-unit>
       <trans-unit id="pcn.steps_aria" datatype="html"><source>Adding a program name</source><target>إضافة اسم برنامج</target></trans-unit>
-      <trans-unit id="pcn.step_name" datatype="html"><source>What it is called</source><target>ما اسمه</target></trans-unit>
-      <trans-unit id="pcn.basis_read" datatype="html"><source>Program type</source><target>نوع البرنامج</target></trans-unit>
-      <trans-unit id="pcn.step_basis" datatype="html"><source>How the income is proved</source><target>كيف يُثبَت الدخل</target></trans-unit>
       <trans-unit id="pcn.step_source" datatype="html"><source>Where the figure comes from</source><target>من أين يأتي الرقم</target></trans-unit>
-      <trans-unit id="pcn.cap_name" datatype="html"><source>Both languages. The customer app shows the one they read.</source><target>باللغتين. يعرض تطبيق العميل اللغة التي يقرأ بها.</target></trans-unit>
-      <trans-unit id="pcn.cap_basis" datatype="html"><source>It can be changed later, on the name’s own page.</source><target>يمكن تغييره لاحقًا من صفحة الاسم الخاصة.</target></trans-unit>
-      <trans-unit id="pcn.cap_source_payslip" datatype="html"><source>Nothing to set — the bank reads the salary it is paid.</source><target>لا شيء لضبطه — يقرأ البنك الراتب المُحوَّل إليه.</target></trans-unit>
       <trans-unit id="pcn.cap_source_surrogate" datatype="html"><source>The calculation every bank filing under this name will quote from.</source><target>طريقة الحساب التي سيُسعِّر منها كل بنك يُدرِج برنامجه تحت هذا الاسم.</target></trans-unit>
       <trans-unit id="pcn.name_h" datatype="html"><source>What is this program called?</source><target>ما اسم هذا البرنامج؟</target></trans-unit>
       <trans-unit id="pcn.key_preview" datatype="html"><source>Filed under</source><target>مُدرَج تحت</target></trans-unit>
@@ -3217,10 +3206,6 @@
       <trans-unit id="pcn.eg_ar" datatype="html"><source>مثال: أطباء — عيادة</source><target>مثال: أطباء — عيادة</target></trans-unit>
       <trans-unit id="pcn.basis_h" datatype="html"><source>How does the bank prove the income?</source><target>كيف يُثبِت البنك الدخل؟</target></trans-unit>
       <trans-unit id="pcn.basis_aria" datatype="html"><source>How the bank proves the income</source><target>كيف يُثبِت البنك الدخل</target></trans-unit>
-      <trans-unit id="pcn.effect_payslip" datatype="html"><source>Pick this and the name is sold against a salary the bank can see. Name it next, and the last step has nothing to set.</source><target>اختر هذا فيُباع الاسم مقابل راتب يراه البنك. سمِّه في الخطوة التالية، ولا شيء لضبطه في الخطوة الأخيرة.</target></trans-unit>
-      <trans-unit id="pcn.effect_no_payslip" datatype="html"><source>Pick this and the last step asks which of the platform's calculations the name quotes from.</source><target>اختر هذا وستسألك الخطوة الأخيرة عن أي طرق حساب المنصّة يُسعِّر منها الاسم.</target></trans-unit>
-      <trans-unit id="pcn.src_payslip_h" datatype="html"><source>The payslip itself</source><target>كشف الراتب نفسه</target></trans-unit>
-      <trans-unit id="pcn.src_payslip_body" datatype="html"><source>Every bank filing a program under this name reads the salary paid into the account. There is nothing to set here.</source><target>كل بنك يُدرِج برنامجًا تحت هذا الاسم يقرأ الراتب المُحوَّل إلى الحساب. لا شيء لضبطه هنا.</target></trans-unit>
       <trans-unit id="pcn.src_h" datatype="html"><source>Which calculation does it quote from?</source><target>من أي طريقة حساب يُسعِّر؟</target></trans-unit>
       <trans-unit id="pcn.picks_aria" datatype="html"><source>Calculations already on the platform</source><target>طرق الحساب الموجودة على المنصة</target></trans-unit>
       <trans-unit id="pcn.block_name" datatype="html"><source>Give it a name in both languages.</source><target>اكتب له اسمًا باللغتين.</target></trans-unit>
@@ -3228,8 +3213,6 @@
       <trans-unit id="pcn.block_basis" datatype="html"><source>Say how the income is proved.</source><target>حدِّد كيف يُثبَت الدخل.</target></trans-unit>
       <trans-unit id="pcn.block_product" datatype="html"><source>Pick the calculation this name quotes from.</source><target>اختر طريقة الحساب التي يُسعِّر منها هذا الاسم.</target></trans-unit>
       <trans-unit id="spt.back_product" datatype="html"><source>Back to the product</source><target>العودة إلى المنتج</target></trans-unit>
-      <trans-unit id="pcn.summary_payslip" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, sold against a payslip.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُباعًا مقابل كشف راتب.</target></trans-unit>
-      <trans-unit id="pcn.summary_link" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, quoting from “<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>”.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، مُسعِّرًا من «<x id="PRODUCT" equiv-text="this.linkedLabel(plan.link.key)"/>».</target></trans-unit>
       <trans-unit id="max_loan_by_fact.enable" datatype="html"><source>Cap the maximum by an answer</source><target>تحديد الحد الأقصى حسب إجابة</target></trans-unit>
       <trans-unit id="max_loan_by_fact.enable_hint" datatype="html"><source> Only if this bank’s maximum changes with an answer — property type, city, school, branch or down-payment bracket. </source><target>فقط إذا كان الحد الأقصى لهذا البنك يتغير حسب إجابة — نوع الوحدة أو المدينة أو المدرسة أو الفرع أو شريحة المقدَّم.</target></trans-unit>
       <trans-unit id="max_loan_by_fact.keyed_by" datatype="html"><source>Keyed by</source><target>مبني على</target></trans-unit>
@@ -4451,6 +4434,74 @@
         <source>A change here reaches <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> catalog name(s), and every bank program under them that has not stated its own figure in place of it.</source>
         <target>يصل هذا التغيير إلى <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> من أسماء الكتالوج، وإلى كل برنامج بنكي تحتها لم يذكر رقمه الخاص بدلًا منه.</target>
       </trans-unit>
+          <trans-unit id="pcn.offered_h" datatype="html"><source> Which loan types is this name offered under? </source><target>تحت أي أنواع تمويل يُعرض هذا الاسم؟</target></trans-unit>
+      <trans-unit id="pcn.offered_lede" datatype="html"><source> A bank building a program can only pick this name under a loan type that is on here. The next step asks what each of those loan types&apos; applicants answer. </source><target>لا يستطيع البنك اختيار هذا الاسم عند بناء برنامج إلا تحت نوع تمويل مُفعَّل هنا. والخطوة التالية تسأل عمّا يُجيب عنه المتقدمون في كل نوع منها.</target></trans-unit>
+      <trans-unit id="pcn.asks_h" datatype="html"><source>What are these applicants asked?</source><target>عمّ يُسأل هؤلاء المتقدمون؟</target></trans-unit>
+      <trans-unit id="pcn.asks_unavailable" datatype="html"><source> The question pool could not be read, so this step cannot be shown. The name will still be created — set what its applicants are asked on its own page afterwards. </source><target>تعذّرت قراءة بنك الأسئلة، فلا يمكن عرض هذه الخطوة. سيُنشأ الاسم على أي حال — حدِّد ما يُسأل عنه متقدموه من صفحته بعد ذلك.</target></trans-unit>
+      <trans-unit id="pcn.skip_open" datatype="html"><source> Skip — open the program </source><target>تخطَّ — افتح البرنامج</target></trans-unit>
+      <trans-unit id="pcn.subtitle2" datatype="html"><source>A catalog name banks file their programs under. Four answers: what it is, where its figure comes from, which loan types sell it, and what those applicants are asked.</source><target>اسم في الكتالوج تُدرج البنوك برامجها تحته. أربع إجابات: ما هو، ومن أين يأتي رقمه، وأي أنواع تمويل تبيعه، وعمّ يُسأل متقدموها.</target></trans-unit>
+      <trans-unit id="pcn.retry_questions" datatype="html"><source>Try the questions again</source><target>أعد محاولة الأسئلة</target></trans-unit>
+      <trans-unit id="pcn.effect_payslip2" datatype="html"><source>The bank reads the salary paid into the account, so there is nothing to work out — this name walks three steps.</source><target>يقرأ البنك الراتب المُحوَّل إلى الحساب، فلا شيء يُحتسب — هذا الاسم يمر بثلاث خطوات.</target></trans-unit>
+      <trans-unit id="pcn.effect_no_payslip2" datatype="html"><source>The figure is worked out from something else, so one more step asks which of the platform&apos;s calculations it quotes from.</source><target>يُحتسب الرقم من شيء آخر، فتُضاف خطوة تسأل عن أي حسبة من حسبات المنصة يقتبس منها.</target></trans-unit>
+      <trans-unit id="pcn.step_program" datatype="html"><source>What it is</source><target>ما هو</target></trans-unit>
+      <trans-unit id="pcn.step_offered" datatype="html"><source>Where it is offered</source><target>أين يُعرض</target></trans-unit>
+      <trans-unit id="pcn.step_asks" datatype="html"><source>What applicants are asked</source><target>عمّ يُسأل المتقدمون</target></trans-unit>
+      <trans-unit id="pcn.cap_program" datatype="html"><source>Both can be changed later, on the name&apos;s own page.</source><target>يمكن تغيير كليهما لاحقًا من صفحة الاسم نفسه.</target></trans-unit>
+      <trans-unit id="pcn.cap_offered" datatype="html"><source><x id="ON" equiv-text="this.offered().length"/> of 4 loan types are on. This is what a bank&apos;s program picker filters on.</source><target><x id="ON" equiv-text="this.offered().length"/> من 4 أنواع تمويل مُفعَّلة. هذا ما يُرشِّح عليه منتقي البرامج في البنك.</target></trans-unit>
+      <trans-unit id="pcn.cap_asks" datatype="html"><source>Ticking one asks it of every applicant of that loan type. Nothing here can stop a question being asked.</source><target>تأشير سؤال يجعله يُطرح على كل متقدم في نوع التمويل هذا. ولا شيء هنا يوقف طرح سؤال.</target></trans-unit>
+      <trans-unit id="pcn.block_offered" datatype="html"><source>Turn on at least one loan type — a name offered under none can be picked by no bank.</source><target>فعِّل نوع تمويل واحدًا على الأقل — اسم لا يُعرض تحت أي نوع لا يستطيع أي بنك اختياره.</target></trans-unit>
+      <trans-unit id="pcn.made_not_asked" datatype="html"><source>The name is created and offered. Only the questions are left — retry, or open the program and finish there.</source><target>أُنشئ الاسم وأصبح معروضًا. لم تبق إلا الأسئلة — أعد المحاولة، أو افتح البرنامج وأكمل هناك.</target></trans-unit>
+      <trans-unit id="pcn.summary_plain" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>”, offered under <x id="COUNT" equiv-text="this.offered().length"/> of 4 loan types. Nothing else changes.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>»، معروضًا تحت <x id="COUNT" equiv-text="this.offered().length"/> من 4 أنواع تمويل. ولا شيء آخر يتغيّر.</target></trans-unit>
+      <trans-unit id="pcn.summary_asks" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>” and asks <x id="COUNT" equiv-text="adds"/> more questions of the loan types you picked.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>» ويطرح <x id="COUNT" equiv-text="adds"/> أسئلة إضافية على أنواع التمويل التي اخترتها.</target></trans-unit>
+      <trans-unit id="pcn.summary_asks_one" datatype="html"><source>Creates “<x id="NAME" equiv-text="name"/>” and asks one more question of the loan types you picked.</source><target>يُنشئ «<x id="NAME" equiv-text="name"/>» ويطرح سؤالًا واحدًا إضافيًا على أنواع التمويل التي اخترتها.</target></trans-unit>
+      <trans-unit id="pcn.req_title" datatype="html"><source>Ask “<x id="QUESTION" equiv-text="row.label"/>” of every <x id="TYPE" equiv-text="type"/> applicant?</source><target>هل يُطرح «<x id="QUESTION" equiv-text="row.label"/>» على كل متقدم في <x id="TYPE" equiv-text="type"/>؟</target></trans-unit>
+      <trans-unit id="pcn.req_body" datatype="html"><source>It must be answered, so every <x id="TYPE" equiv-text="type"/> application already in progress has to answer it before it can be submitted.</source><target>إجابته إلزامية، فكل طلب <x id="TYPE" equiv-text="type"/> قيد التنفيذ سيلزمه الإجابة عنه قبل أن يُرسَل.</target></trans-unit>
+      <trans-unit id="pcn.req_ok" datatype="html"><source>Ask it</source><target>اطرحه</target></trans-unit>
+      <trans-unit id="pcn.req_cancel" datatype="html"><source>Leave it</source><target>اتركه</target></trans-unit>
+      <trans-unit id="pnd.asks_title" datatype="html"><source> What are these applicants asked? </source><target>عمّ يُسأل هؤلاء المتقدمون؟</target></trans-unit>
+      <trans-unit id="pnd.asks_sub" datatype="html"><source> One tab per loan type this name is offered under. Ticking a question asks it of every applicant of that loan type. </source><target>تبويب لكل نوع تمويل يُعرض تحته هذا الاسم. وتأشير سؤال يجعله يُطرح على كل متقدم في نوع التمويل ذاك.</target></trans-unit>
+      <trans-unit id="pnd.step_asks" datatype="html"><source>What applicants are asked</source><target>عمّ يُسأل المتقدمون</target></trans-unit>
+      <trans-unit id="pnd.step_asks_cap" datatype="html"><source>Ticking one asks it of every applicant of that loan type, for every program name. Nothing here can stop a question being asked.</source><target>تأشير سؤال يجعله يُطرح على كل متقدم في نوع التمويل هذا، ولكل أسماء البرامج. ولا شيء هنا يوقف طرح سؤال.</target></trans-unit>
+      <trans-unit id="pnd.req_title" datatype="html"><source>Ask “<x id="QUESTION" equiv-text="row.label"/>” of every <x id="TYPE" equiv-text="type"/> applicant?</source><target>هل يُطرح «<x id="QUESTION" equiv-text="row.label"/>» على كل متقدم في <x id="TYPE" equiv-text="type"/>؟</target></trans-unit>
+      <trans-unit id="pnd.req_body" datatype="html"><source>It must be answered, so every <x id="TYPE" equiv-text="type"/> application already in progress has to answer it before it can be submitted.</source><target>إجابته إلزامية، فكل طلب <x id="TYPE" equiv-text="type"/> قيد التنفيذ سيلزمه الإجابة عنه قبل أن يُرسَل.</target></trans-unit>
+      <trans-unit id="pnd.req_ok" datatype="html"><source>Ask it</source><target>اطرحه</target></trans-unit>
+      <trans-unit id="pnd.req_cancel" datatype="html"><source>Leave it</source><target>اتركه</target></trans-unit>
+      <trans-unit id="askq.no_types" datatype="html"><source> Pick at least one loan type first — what applicants are asked is set per loan type. </source><target>اختر نوع تمويل واحدًا على الأقل أولًا — ما يُسأل عنه المتقدمون يُحدَّد لكل نوع تمويل.</target></trans-unit>
+      <trans-unit id="askq.reach" datatype="html"><source>These are the questions every <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> applicant answers — not only this program.</source><target>هذه هي الأسئلة التي يُجيب عنها كل متقدم في <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> — وليس هذا البرنامج وحده.</target></trans-unit>
+      <trans-unit id="askq.reach_narrow" datatype="html"><source>Each applicant is then asked only the ones a bank program behind this name reads.</source><target>ثم لا يُسأل كل متقدم إلا عمّا يقرأه برنامج بنكي تحت هذا الاسم.</target></trans-unit>
+      <trans-unit id="askq.count" datatype="html"><source>asked here</source><target>مطروح هنا</target></trans-unit>
+      <trans-unit id="askq.adding" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="{{ addingHere() }}"/> you added</source><target>+<x id="INTERPOLATION" equiv-text="{{ addingHere() }}"/> أضفتها</target></trans-unit>
+      <trans-unit id="askq.search_aria" datatype="html"><source>Search the question pool</source><target>ابحث في بنك الأسئلة</target></trans-unit>
+      <trans-unit id="askq.search_ph" datatype="html"><source>Search questions, answers or codes</source><target>ابحث في الأسئلة أو الإجابات أو الأكواد</target></trans-unit>
+      <trans-unit id="askq.sec_asked" datatype="html"><source>Asked in this loan type</source><target>مطروح في نوع التمويل هذا</target></trans-unit>
+      <trans-unit id="askq.sec_asked_empty" datatype="html"><source> Nothing is asked here yet. Tick a question below and every applicant of this loan type will be asked it. </source><target>لا شيء مطروح هنا بعد. أشِّر سؤالًا بالأسفل ليُطرح على كل متقدم في نوع التمويل هذا.</target></trans-unit>
+      <trans-unit id="askq.tag_added" datatype="html"><source>Added by you</source><target>أضفته أنت</target></trans-unit>
+      <trans-unit id="askq.tag_required" datatype="html"><source>Required</source><target>إلزامي</target></trans-unit>
+      <trans-unit id="askq.sec_rest" datatype="html"><source>Not asked here</source><target>غير مطروح هنا</target></trans-unit>
+      <trans-unit id="askq.no_match" datatype="html"><source>Nothing in the pool matches “<x id="INTERPOLATION" equiv-text="{{ search() }}"/>”.</source><target>لا شيء في بنك الأسئلة يطابق «<x id="INTERPOLATION" equiv-text="{{ search() }}"/>».</target></trans-unit>
+      <trans-unit id="askq.clear" datatype="html"><source> Clear the search </source><target>امسح البحث</target></trans-unit>
+      <trans-unit id="askq.sec_rest_empty" datatype="html"><source>Every question in the pool is already asked for this loan type.</source><target>كل أسئلة بنك الأسئلة مطروحة بالفعل لنوع التمويل هذا.</target></trans-unit>
+      <trans-unit id="askq.tag_parked" datatype="html"><source>Switched off — asks nobody</source><target>مُطفأ — لا يُسأل لأحد</target></trans-unit>
+      <trans-unit id="askq.remove_hint" datatype="html"><source>To stop a question being asked, change it where every loan type&apos;s questions are set —</source><target>لإيقاف طرح سؤال، غيِّره حيث تُحدَّد أسئلة كل أنواع التمويل —</target></trans-unit>
+      <trans-unit id="askq.remove_link" datatype="html"><source>Who gets asked what</source><target>مَن يُسأل عن ماذا</target></trans-unit>
+      <trans-unit id="askq.rail_aria" datatype="html"><source>Loan types this name is offered under</source><target>أنواع التمويل التي يُعرض تحتها هذا الاسم</target></trans-unit>
+      <trans-unit id="askq.tab_count" datatype="html"><source>questions asked</source><target>سؤالًا مطروحًا</target></trans-unit>
+      <trans-unit id="askq.also_adds" datatype="html"><source>Also adds <x id="QUESTIONS" equiv-text="row.alsoAdds.join(&apos; · &apos;)"/></source><target>يضيف أيضًا <x id="QUESTIONS" equiv-text="row.alsoAdds.join(&apos; · &apos;)"/></target></trans-unit>
+      <trans-unit id="askq.add_aria" datatype="html"><source>Ask <x id="QUESTION" equiv-text="row.label"/> of every <x id="TYPE" equiv-text="this.categoryName()"/> applicant</source><target>اطرح <x id="QUESTION" equiv-text="row.label"/> على كل متقدم في <x id="TYPE" equiv-text="this.categoryName()"/></target></trans-unit>
+      <trans-unit id="lcs.aria_on_unnamed" datatype="html"><source>Offered under <x id="TYPE" equiv-text="type"/>. Turn off.</source><target>معروض تحت <x id="TYPE" equiv-text="type"/>. أوقِف.</target></trans-unit>
+      <trans-unit id="lcs.aria_off_unnamed" datatype="html"><source>Not offered under <x id="TYPE" equiv-text="type"/>. Turn on.</source><target>غير معروض تحت <x id="TYPE" equiv-text="type"/>. فعِّل.</target></trans-unit>
+      <trans-unit id="lcs.aria_on" datatype="html"><source><x id="NAME" equiv-text="name"/> is offered under <x id="TYPE" equiv-text="type"/>. Turn off.</source><target>«<x id="NAME" equiv-text="name"/>» معروض تحت <x id="TYPE" equiv-text="type"/>. أوقِف.</target></trans-unit>
+      <trans-unit id="lcs.aria_off" datatype="html"><source><x id="NAME" equiv-text="name"/> is not offered under <x id="TYPE" equiv-text="type"/>. Turn on.</source><target>«<x id="NAME" equiv-text="name"/>» غير معروض تحت <x id="TYPE" equiv-text="type"/>. فعِّل.</target></trans-unit>
+      <trans-unit id="askq.reach_blank" datatype="html"><source>Nothing is ticked. You pick what these applicants are asked.</source><target>لا شيء مؤشَّر. أنت من يختار ما يُطرح على هؤلاء المتقدمين.</target></trans-unit>
+      <trans-unit id="askq.reach_blank_global" datatype="html"><source>A tick asks it of every <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> applicant, not only this program — and a question this loan type already asks stays asked whether you tick it or not.</source><target>التأشير يطرح السؤال على كل متقدم في <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/>، وليس على هذا البرنامج وحده — والسؤال الذي يطرحه نوع التمويل هذا بالفعل يظل مطروحًا سواء أشَّرته أم لا.</target></trans-unit>
+      <trans-unit id="askq.count_ticked" datatype="html"><source>ticked</source><target>مؤشَّر</target></trans-unit>
+      <trans-unit id="askq.sec_ticked" datatype="html"><source>Ticked by you</source><target>أشَّرتها أنت</target></trans-unit>
+      <trans-unit id="askq.sec_ticked_empty" datatype="html"><source> Nothing ticked yet. Tick a question below to have it asked. </source><target>لا شيء مؤشَّر بعد. أشِّر سؤالًا بالأسفل ليُطرح.</target></trans-unit>
+      <trans-unit id="askq.tag_already" datatype="html"><source>Already asked anyway</source><target>مطروح بالفعل على أي حال</target></trans-unit>
+      <trans-unit id="askq.sec_not_ticked" datatype="html"><source>Not ticked</source><target>غير مؤشَّر</target></trans-unit>
+      <trans-unit id="askq.sec_not_ticked_empty" datatype="html"><source>You have ticked every question in the pool.</source><target>أشَّرت كل سؤال في بنك الأسئلة.</target></trans-unit>
+      <trans-unit id="askq.remove_aria" datatype="html"><source>Untick <x id="QUESTION" equiv-text="row.label"/></source><target>ألغِ تأشير <x id="QUESTION" equiv-text="row.label"/></target></trans-unit>
+      <trans-unit id="askq.tab_count_ticked" datatype="html"><source>questions ticked</source><target>سؤال مؤشَّر</target></trans-unit>
     </body>
   </file>
 </xliff>

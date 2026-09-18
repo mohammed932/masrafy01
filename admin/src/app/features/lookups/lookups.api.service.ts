@@ -200,6 +200,13 @@ export interface CreateEnumerationRequest {
    * category it starts under. Omitted means `['payslip']` server-side.
    */
   incomeBases?: IncomeBasis[];
+  /**
+   * `program_name` only — the loan types the new name is offered under, written in the SAME
+   * atomic insert as the row itself, each carrying the `incomeBases` above as its own basis
+   * flags. Omitted or `[]` creates a PARKED name: it exists, and no bank's program picker
+   * can reach it under any loan type.
+   */
+  categories?: LoanCategory[];
   sortOrder?: number;
   /**
    * `program_name` only — the surrogate product the new name works its income out from.

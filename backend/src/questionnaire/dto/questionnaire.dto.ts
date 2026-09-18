@@ -177,6 +177,44 @@ export class SetQuestionCategoriesBulkDto {
   assignments!: QuestionCategoryAssignmentDto[];
 }
 
+/**
+ * One question the caller wants WIDENED into more loan types.
+ *
+ * Deliberately not `QuestionCategoryAssignmentDto` above, although the fields match: on that
+ * one the array IS the new set and `[]` PARKS the question, which is a destructive gesture.
+ * Here the array is a set of categories to ADD and `[]` would be a request to do nothing, so
+ * the validation that is right for one is wrong for the other — `@ArrayMinSize(1)` refuses the
+ * empty entry at the door instead of letting it read as "park".
+ */
+export class AddQuestionCategoriesAssignmentDto {
+  @ApiProperty() @IsString() @Length(1, 30) questionId!: string;
+  @ApiProperty({ enum: LoanCategory, isArray: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
+  @IsEnum(LoanCategory, { each: true })
+  categories!: LoanCategory[];
+}
+
+/**
+ * ADD loan types to many questions in ONE transaction + AT MOST ONE publish.
+ *
+ * The add-only counterpart of `SetQuestionCategoriesBulkDto`, and a separate route rather than
+ * a flag on that one: a flag would make the destructive branch the default for any client that
+ * drops the field, and would put the "this cannot un-ask a question" guarantee in a body value
+ * instead of in the URL, where it can be read, granted and logged. Nothing here can express a
+ * removal.
+ */
+export class AddQuestionCategoriesBulkDto {
+  @ApiProperty({ type: [AddQuestionCategoriesAssignmentDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => AddQuestionCategoriesAssignmentDto)
+  assignments!: AddQuestionCategoriesAssignmentDto[];
+}
+
 export class UpdateQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 500) questionAr?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 500) questionEn?: string;
