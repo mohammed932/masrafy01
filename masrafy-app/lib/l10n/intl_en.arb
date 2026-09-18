@@ -191,7 +191,7 @@
   "@signup_age_verified": {
     "placeholders": {
       "years": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -219,7 +219,7 @@
   "@otp_subtitle": {
     "placeholders": {
       "destination": {
-        "type": "String"
+        "type": "Object"
       }
     }
   },
@@ -228,7 +228,7 @@
   "@otp_attempts_left": {
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -238,7 +238,7 @@
   "@otp_expiry_notice": {
     "placeholders": {
       "minutes": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
