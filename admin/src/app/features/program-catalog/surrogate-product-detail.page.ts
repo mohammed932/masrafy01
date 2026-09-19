@@ -71,8 +71,25 @@ import {
   WizardStepsComponent,
 } from '@shared/ui';
 import type { MaxLoanByFactConfig, ProductCapShape, RailTabItem, WizardStepItem } from '@shared/ui';
-import { FactGridEditorComponent } from '@shared/ui/fact-grid-editor.component';
-import { emptyFactGrid, factGridErrorFor, type FactGridConfig } from '@shared/ui/fact-grid.rules';
+import { FactGridEditorComponent, factGridAxisLabel } from '@shared/ui/fact-grid-editor.component';
+import {
+  emptyFactGrid,
+  type FactGridConfig,
+  type FactGridValueKind,
+} from '@shared/ui/fact-grid.rules';
+import {
+  PlanRowsEditorComponent,
+  type PlanRemoveRequest,
+} from '@shared/ui/plan-rows-editor.component';
+import {
+  planRowsErrorFor,
+  planRowsFrom,
+  planRowsWhyNot,
+  planSlotMonthsBound,
+  planSlotValueKind,
+  type PlanIncompatibleReason,
+  type PlanSlotKey,
+} from '@shared/ui/plan-rows.rules';
 import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.component';
 import {
   ParentClassBoardComponent,
@@ -165,9 +182,6 @@ interface ReadList {
   readonly pricedOn: string | null;
 }
 
-/** One of the five plan tables, by the key it is stored under. */
-type PlanSlotKey = keyof PlanDefaults;
-
 @Component({
   selector: 'app-surrogate-product-detail-page',
   standalone: true,
@@ -190,6 +204,7 @@ type PlanSlotKey = keyof PlanDefaults;
     ProductRuleEditorComponent,
     MaxLoanByFactEditorComponent,
     FactGridEditorComponent,
+    PlanRowsEditorComponent,
     FigureFieldComponent,
   ],
   providers: [
@@ -1046,85 +1061,214 @@ type PlanSlotKey = keyof PlanDefaults;
             }
             @case (1) {
               <section class="panel" [attr.aria-label]="steps()[1]?.label ?? ''">
-                <!-- ─── ① THE CALCULATION ────────────────────────────────────────────────
-                     Step ② used to be seven blocks stacked on one scroll with nothing
-                     naming the difference between them. Measured on this product it was
-                     5 237px, and the reader had to hold in their head which of the seven
-                     a bank READS live and which it merely COPIES when it is created — a
-                     distinction each block re-explained in a lede of its own, three times
-                     in near-identical words.
+                <!-- ─── ① PLANS BY DEPOSIT ──────────────────────────────────────────────
+                     FIRST, and under a heading of its own. It used to be the LAST of three
+                     blocks inside "what every bank falls back to", labelled by an h3 drawn at
+                     12px uppercase -- the smallest type on the page naming the biggest control
+                     on it, and the same treatment as the single per-cent box two blocks up.
+                     Measured, an operator reached it 1 500px down a 2 869px step.
 
-                     Three named sections say it once: what the product works out, what
-                     every bank falls back to, and what a new program starts from. -->
-                <section class="step-sec">
-                  <h2 class="sub" i18n="@@spd.sec.calc">The calculation</h2>
+                     It is grouped with those two by STORAGE (all three are inherited), which
+                     is a fact about the database and not about the work. The work here is
+                     pricing a car loan, and this is the table that does it. -->
+                @if (isPipeline()) {
+                  <!-- FIVE TABLES AS FIVE ROWS.
+                         Open, the five measured 3 801px of a 5 237px step — 73% of it — and
+                         repeated the same scaffolding four times over: an axis picker, a
+                         column header, the identical twenty-word sentence about how a range
+                         reads, and a two-radio "If no row matches the customer", once per
+                         table. The chrome was louder than the figures.
 
-                  @if (hasTemplate()) {
-                    <!-- Authored through the form: say what it does in words, and offer the
-                         form. The steps stay reachable below, but they are not the door. -->
-                    <div class="from-form">
-                      <p class="from-form-lede">
-                        <span i18n="@@spd.form.lede"
-                          >This calculation was built from a form, so it can be changed by answering
-                          the same questions again.</span
+                         Closed, each row STATES what its table holds, which is what an
+                         operator scans this list for, and one is opened to change it. A row
+                         with something wrong in it is FORCED open and its toggle refuses:
+                         a table that blocks Save must not be hideable. -->
+                  <section class="step-sec">
+                    <h2 class="sub" i18n="@@spd.plans.title">Plans by deposit</h2>
+                    <p class="sec-lede" i18n="@@spd.plans.lede">
+                      What the bank charges, how long it lends, how much of the price it finances
+                      and the smallest loan it writes — each by the deposit the customer puts down.
+                    </p>
+
+                    <!-- ONE PLAN PER LINE. The deposit band is the row and everything a
+                           plan states is a column across it, which is how the bank's own card
+                           reads: "put 30% down, the rate is 9%, we lend over 72 months, we
+                           finance 70%". Five collapsed tables said the same thing in four
+                           dialects and made an operator join them on a number labelled in
+                           none of them. -->
+                    @if (planTable() !== null) {
+                      <app-plan-rows-editor
+                        [grids]="planValue()"
+                        [facts]="facts()"
+                        (gridsChange)="onPlanGrids($event)"
+                        (removeRequest)="onPlanRemove($event)"
+                      />
+                    } @else if (planWhyNotLabel() !== '') {
+                      <p class="plan-fallback-note" role="status">{{ planWhyNotLabel() }}</p>
+                    }
+
+                    @if (planError(); as broken) {
+                      <p class="fb-error" role="alert">
+                        <span i18n="@@spd.plans.err"
+                          >The {{ broken }} table has a row that is not finished — fill it in, or
+                          remove the row.</span
                         >
                       </p>
-                      <a
-                        class="from-form-cta"
-                        [routerLink]="[productBase, key, 'calculation']"
-                        i18n="@@spd.form.edit"
-                        >Change how the income is worked out</a
-                      >
-                    </div>
-                  } @else if (isPipeline()) {
-                    <p class="notice" role="status">
-                      <span i18n="@@spd.form.handbuilt"
-                        >This calculation was built step by step rather than from a form, so there
-                        is no form to open for it.</span
-                      >
-                    </p>
-                  }
+                    }
+                    <!-- ONE TABLE AT A TIME. The shape the card above cannot draw, and the
+                           only door to the FIRST table on a product that states none.
 
-                  @if (!isPipeline()) {
-                    <p class="notice" role="status">
-                      <span i18n="@@spd.structure.offer">
-                        This product works its income out from a single figure. Answer three
-                        questions and we will build the calculation for you.
-                      </span>
-                      <a
-                        class="linkish"
-                        [routerLink]="[productBase, key, 'calculation']"
-                        i18n="@@spd.structure.form"
-                        >Build it from a form</a
+                           Forced open, with its own toggle refusing, whenever a table blocks
+                           Save — the rule planSlotLocked already applies one level down: a
+                           half-typed table must not be hideable. -->
+                    @if (planTable() !== null) {
+                      <button
+                        type="button"
+                        class="plan-advanced-toggle"
+                        (click)="toggleAdvanced()"
+                        [attr.aria-expanded]="planAdvancedOpen()"
+                        [attr.aria-controls]="planAdvancedOpen() ? 'plan-advanced' : null"
                       >
-                    </p>
-                  }
+                        <svg
+                          class="chev"
+                          viewBox="0 0 16 16"
+                          width="12"
+                          height="12"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path
+                            d="M6 3.5 10.5 8 6 12.5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                        <span i18n="@@spd.plans.advanced">Edit one table at a time</span>
+                      </button>
+                    }
 
-                  <form [formGroup]="ruleGroup">
-                    <app-income-assumption-section
-                      variant="catalog"
-                      [group]="ruleGroup"
-                      [keyTable]="ruleKeyTable()"
-                      (keyTableChange)="onKeyTable($event)"
-                      [bands]="ruleBands()"
-                      (bandsChange)="onBands($event)"
-                      [ruleSteps]="ruleSteps()"
-                      [ruleGates]="ruleGates()"
-                      [ruleOutput]="ruleOutput()"
-                      [stepFigures]="stepFigures()"
-                      (stepFiguresChange)="onStepFigures($event)"
-                      (stepFiguresTouched)="markDirty()"
-                    ></app-income-assumption-section>
-                  </form>
-                </section>
+                    @if (planAdvancedOpen()) {
+                      <div class="plan-advanced" id="plan-advanced">
+                        <!-- role="list" restated because list-style: none strips list semantics
+                           in Safari/VoiceOver, which is why the three sibling lists on this
+                           page carry it too. Five rows announced as five is the whole point of
+                           closing them. -->
+                        <ul class="plan-list" role="list">
+                          @for (slot of planSlots; track slot.key) {
+                            <li class="plan-slot">
+                              @if (planGrid(slot.key); as grid) {
+                                <!-- aria-controls is set only while the region exists: the body
+                                   is not rendered when the row is closed, and an id that is
+                                   not in the document is a dangling reference. -->
+                                <button
+                                  type="button"
+                                  class="plan-row"
+                                  (click)="togglePlanSlot(slot.key)"
+                                  [attr.aria-expanded]="planSlotOpen(slot.key)"
+                                  [attr.aria-disabled]="planSlotLocked(slot.key) ? true : null"
+                                  [attr.aria-controls]="
+                                    planSlotOpen(slot.key) ? 'plan-body-' + slot.key : null
+                                  "
+                                >
+                                  <!-- Inline SVG, not nz-icon: a projected icon resolves the
+                                     NEAREST NzIconPatchService, so a glyph patched here can be
+                                     shadowed by whichever shell it renders inside (v19.1.0). -->
+                                  <svg
+                                    class="chev"
+                                    viewBox="0 0 16 16"
+                                    width="12"
+                                    height="12"
+                                    aria-hidden="true"
+                                    focusable="false"
+                                  >
+                                    <path
+                                      d="M6 3.5 10.5 8 6 12.5"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="1.6"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                    />
+                                  </svg>
+                                  <span class="plan-row-title">{{ slot.title }}</span>
+                                  <span class="plan-row-state">{{ planSummary(slot.key) }}</span>
+                                </button>
+                                @if (planSlotOpen(slot.key)) {
+                                  <div class="plan-body" [id]="'plan-body-' + slot.key">
+                                    <app-fact-grid-editor
+                                      [config]="grid"
+                                      (configChange)="setPlanGrid(slot.key, $event)"
+                                      [facts]="facts()"
+                                      [valueKind]="slotValueKind(slot.key)"
+                                      [monthsBound]="slotMonthsBound(slot.key)"
+                                    />
+                                    <p class="plan-body-foot">
+                                      <button
+                                        type="button"
+                                        class="link-btn"
+                                        (click)="clearPlanGrid(slot.key)"
+                                        [attr.aria-label]="slot.removeAria"
+                                        i18n="@@spd.plans.remove"
+                                      >
+                                        Remove this table
+                                      </button>
+                                    </p>
+                                  </div>
+                                }
+                              } @else {
+                                <div class="plan-row is-empty">
+                                  <span class="plan-row-title">{{ slot.title }}</span>
+                                  <button
+                                    type="button"
+                                    class="link-btn plan-row-add"
+                                    (click)="addPlanGrid(slot.key)"
+                                  >
+                                    {{ slot.add }}
+                                  </button>
+                                  <span class="plan-row-state">{{ slot.empty }}</span>
+                                </div>
+                              }
+                            </li>
+                          }
+                        </ul>
+                        @if (planBandMismatch(); as note) {
+                          <p class="plan-mismatch" role="status">{{ note }}</p>
+                        }
+                      </div>
+                    }
+
+                    @if (planReaders(); as readers) {
+                      <p class="tenor-readers">
+                        <!-- WHO IS COUNTED, said accurately. followsPlans is the OPTED-IN
+                               set, and "states no plans of its own" is a different population:
+                               a program can state none AND not read these, which is the
+                               explicit opt-out this whole field exists to make sayable. The
+                               old wording described the opt-out as if it were inheritance. -->
+                        <span i18n="@@spd.plans.readers2"
+                          >{{ readers }} bank program(s) read these plans. A change here reaches all
+                          of them.</span
+                        >
+                      </p>
+                    }
+                  </section>
+                }
 
                 <!-- ─── ② WHAT EVERY BANK FALLS BACK TO ──────────────────────────────────
-                     The three below are here rather than on each bank's wizard for the one
-                     reason they share: each is a single statement about this product that
-                     every program selling it reads unless it states its own, so a change
-                     here moves live quotes. That promise was written out three times in
-                     three ledes; it is said ONCE by this section and each block now states
-                     only what its own figure IS.
+                     Two figures, and they are here rather than on each bank's wizard for the
+                     one reason they share: each is a single statement about this product that
+                     every program selling it reads unless it states its own, so a change here
+                     moves live quotes. That promise is said ONCE, by the lede.
+
+                     THREE BOXES ON ONE LINE, not three blocks down a scroll. Each carried an
+                     h3 micro-label plus a two-line lede above a 9rem field -- ~110px of prose
+                     over a 44px control, twice, saying between them what the section's own
+                     lede already says. The labels are the fields' own now, which is what
+                     figure-field's own label input is for and what the two month boxes already
+                     did; each keeps its error line and its reader count, because those carry
+                     refusals nothing else states.
 
                      Grouped by a heading, spacing and hairlines — never a card. The panel
                      is already a container and a box inside a box is the nesting this
@@ -1140,35 +1284,18 @@ type PlanSlotKey = keyof PlanDefaults;
                     </p>
 
                     <section class="fb-block">
-                      <h3 class="fb-title" i18n="@@spd.dbr.title">Debt burden</h3>
-                      <p class="fb-lede" i18n="@@spd.dbr.lede">
-                        The share of the figure worked out here that may go to instalments. Leave it
-                        empty and each bank's own cap applies.
-                      </p>
-                      <app-figure-field
-                        fieldId="product-dbr-cap"
-                        unit="%"
-                        [value]="dbrCapValue() ?? ''"
-                        (valueChange)="setDbrCap($event)"
-                        [ariaLabel]="dbrCapAriaLabel"
-                        [placeholderNote]="dbrCapBlankNote"
-                      ></app-figure-field>
-                      @if (dbrCapError()) {
-                        <p class="fb-error" role="alert" i18n="@@spd.dbr.error">
-                          The cap must be greater than 0 and at most 100.
-                        </p>
-                      }
-                    </section>
-
-                    <!-- Two boxes and not one field, because the two ends are two decisions
-                         a sheet prints separately. -->
-                    <section class="fb-block">
-                      <h3 class="fb-title" i18n="@@spd.tenor.title">Loan duration</h3>
-                      <p class="fb-lede" i18n="@@spd.tenor.lede">
-                        How long a customer can borrow over. Leave both empty and each bank must
-                        state its own.
-                      </p>
-                      <div class="tenor-fields">
+                      <div class="fb-row">
+                        <app-figure-field
+                          fieldId="product-dbr-cap"
+                          unit="%"
+                          [label]="dbrCapLabel"
+                          [value]="dbrCapValue() ?? ''"
+                          (valueChange)="setDbrCap($event)"
+                          [ariaLabel]="dbrCapAriaLabel"
+                          [placeholderNote]="dbrCapBlankNote"
+                        ></app-figure-field>
+                        <!-- Two boxes and not one field, because the two ends are two
+                             decisions a sheet prints separately. -->
                         <app-figure-field
                           fieldId="product-tenor-min"
                           unit="months"
@@ -1188,6 +1315,11 @@ type PlanSlotKey = keyof PlanDefaults;
                           [placeholderNote]="tenorBlankNote"
                         ></app-figure-field>
                       </div>
+                      @if (dbrCapError()) {
+                        <p class="fb-error" role="alert" i18n="@@spd.dbr.error">
+                          The cap must be greater than 0 and at most 100.
+                        </p>
+                      }
                       @if (tenorError(); as problem) {
                         <p class="fb-error" role="alert">
                           @switch (problem) {
@@ -1229,156 +1361,6 @@ type PlanSlotKey = keyof PlanDefaults;
                         </p>
                       }
                     </section>
-
-                    <!-- FIVE TABLES AS FIVE ROWS.
-                         Open, the five measured 3 801px of a 5 237px step — 73% of it — and
-                         repeated the same scaffolding four times over: an axis picker, a
-                         column header, the identical twenty-word sentence about how a range
-                         reads, and a two-radio "If no row matches the customer", once per
-                         table. The chrome was louder than the figures.
-
-                         Closed, each row STATES what its table holds, which is what an
-                         operator scans this list for, and one is opened to change it. A row
-                         with something wrong in it is FORCED open and its toggle refuses:
-                         a table that blocks Save must not be hideable. -->
-                    <section class="fb-block">
-                      <h3 class="fb-title" i18n="@@spd.plans.title">Plans by deposit</h3>
-                      <p class="fb-lede" i18n="@@spd.plans.lede">
-                        What the bank charges, by the deposit the customer puts down.
-                      </p>
-
-                      <!-- role="list" restated because list-style: none strips list semantics
-                           in Safari/VoiceOver, which is why the three sibling lists on this
-                           page carry it too. Five rows announced as five is the whole point of
-                           closing them. -->
-                      <ul class="plan-list" role="list">
-                        @for (slot of planSlots; track slot.key) {
-                          <li class="plan-slot">
-                            @if (planGrid(slot.key); as grid) {
-                              <!-- aria-controls is set only while the region exists: the body
-                                   is not rendered when the row is closed, and an id that is
-                                   not in the document is a dangling reference. -->
-                              <button
-                                type="button"
-                                class="plan-row"
-                                (click)="togglePlanSlot(slot.key)"
-                                [attr.aria-expanded]="planSlotOpen(slot.key)"
-                                [attr.aria-disabled]="planSlotLocked(slot.key) ? true : null"
-                                [attr.aria-controls]="
-                                  planSlotOpen(slot.key) ? 'plan-body-' + slot.key : null
-                                "
-                              >
-                                <!-- Inline SVG, not nz-icon: a projected icon resolves the
-                                     NEAREST NzIconPatchService, so a glyph patched here can be
-                                     shadowed by whichever shell it renders inside (v19.1.0). -->
-                                <svg
-                                  class="chev"
-                                  viewBox="0 0 16 16"
-                                  width="12"
-                                  height="12"
-                                  aria-hidden="true"
-                                  focusable="false"
-                                >
-                                  <path
-                                    d="M6 3.5 10.5 8 6 12.5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.6"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                  />
-                                </svg>
-                                <span class="plan-row-title">{{ slot.title }}</span>
-                              </button>
-                              @if (planSlotOpen(slot.key)) {
-                                <div class="plan-body" [id]="'plan-body-' + slot.key">
-                                  <app-fact-grid-editor
-                                    [config]="grid"
-                                    (configChange)="setPlanGrid(slot.key, $event)"
-                                    [facts]="facts()"
-                                    [valueKind]="slot.valueKind"
-                                    [monthsBound]="slot.monthsBound"
-                                    [hideAxes]="true"
-                                    [maxVisibleRows]="3"
-                                    [hideAxesLabel]="slot.key === 'rateByFact'"
-                                    [maxVisibleRows]="slot.key === 'rateByFact' ? 2 : null"
-                                  />
-                                </div>
-                              }
-                            } @else {
-                              <!-- THE SAME ROW, in the state before there is a table. It was
-                                   a third layout — a title, a link in the middle of the row
-                                   and a sentence under both — so one row in five neither
-                                   looked nor behaved like its neighbours. A button like the
-                                   others: the click states the table and opens it, and the
-                                   verb that used to be the link is the row's accessible
-                                   name, which is where a verb belongs when the whole row is
-                                   the control. -->
-                              <button
-                                type="button"
-                                class="plan-row is-empty"
-                                (click)="addPlanGrid(slot.key)"
-                                [attr.aria-label]="slot.add"
-                              >
-                                <!-- Drawn, and to the chevron's own stroke: the two glyphs
-                                     sit in the same column down the list, so a typographic
-                                     plus beside an authored chevron would read as a slip. -->
-                                <svg
-                                  class="plan-add"
-                                  viewBox="0 0 16 16"
-                                  width="12"
-                                  height="12"
-                                  aria-hidden="true"
-                                  focusable="false"
-                                >
-                                  <path
-                                    d="M8 3.5v9M3.5 8h9"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.6"
-                                    stroke-linecap="round"
-                                  />
-                                </svg>
-                                <span class="plan-row-title">{{ slot.title }}</span>
-                                <span class="plan-row-state">{{ planNotSet }}</span>
-                              </button>
-                            }
-                          </li>
-                        }
-                      </ul>
-
-                      @if (planError(); as broken) {
-                        <p class="fb-error" role="alert">
-                          <span i18n="@@spd.plans.err"
-                            >The {{ broken }} table has a row that is not finished — fill it in, or
-                            remove the row.</span
-                          >
-                        </p>
-                      }
-
-                      @if (planReaders(); as readers) {
-                        <p class="tenor-readers">
-                          <!-- WHO IS COUNTED, said accurately. followsPlans is the OPTED-IN
-                               set, and "states no plans of its own" is a different population:
-                               a program can state none AND not read these, which is the
-                               explicit opt-out this whole field exists to make sayable. The
-                               old wording described the opt-out as if it were inheritance. -->
-                          <!-- Split rather than "program(s)": it sits two lines under a row
-                               that now says "1 row" correctly, and one of the two being a
-                               parenthesised plural is what makes the pair look unfinished. -->
-                          @if (readers === 1) {
-                            <span i18n="@@spd.plans.readers_one"
-                              >1 bank program reads these plans. A change here reaches it.</span
-                            >
-                          } @else {
-                            <span i18n="@@spd.plans.readers_many"
-                              >{{ readers }} bank programs read these plans. A change here reaches
-                              all of them.</span
-                            >
-                          }
-                        </p>
-                      }
-                    </section>
                   </section>
                 }
 
@@ -1407,6 +1389,110 @@ type PlanSlotKey = keyof PlanDefaults;
                     ></app-max-loan-by-fact-editor>
                   </section>
                 }
+
+                <!-- ─── ④ THE CALCULATION ───────────────────────────────────────────────
+                     LAST, and folded. The steps are the LIBRARY's: they are authored by a form
+                     on another screen, they are the same for every bank selling this product,
+                     and an operator opens this page to move a rate, not to re-read the
+                     arithmetic. What is editable here is the figures those steps start from --
+                     so the toggle says how many steps there are and whether one of them is
+                     unfinished, and nothing is hidden without being reported.
+
+                     Forced open, with the toggle refusing, whenever it blocks Save: the rule
+                     planSlotLocked already applies to a half-typed table one section up. -->
+                <section class="step-sec">
+                  <h2 class="sub" i18n="@@spd.sec.calc">The calculation</h2>
+
+                  @if (isPipeline()) {
+                    <button
+                      type="button"
+                      class="plan-advanced-toggle"
+                      (click)="toggleCalc()"
+                      [attr.aria-expanded]="calcOpen()"
+                      [attr.aria-controls]="calcOpen() ? 'calc-body' : null"
+                      [attr.aria-disabled]="calcBlocked() ? true : null"
+                    >
+                      <svg
+                        class="chev"
+                        viewBox="0 0 16 16"
+                        width="12"
+                        height="12"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path
+                          d="M6 3.5 10.5 8 6 12.5"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                      <span>{{ calcToggleLabel() }}</span>
+                    </button>
+                  }
+
+                  @if (calcOpen()) {
+                    <div class="calc-body" id="calc-body">
+                      @if (hasTemplate()) {
+                        <!-- Authored through the form: say what it does in words, and offer the
+                         form. The steps stay reachable below, but they are not the door. -->
+                        <p class="notice" role="status">
+                          <span i18n="@@spd.form.lede"
+                            >This calculation was built from a form, so it can be changed by
+                            answering the same questions again.</span
+                          >
+                          <a
+                            class="linkish"
+                            [routerLink]="[productBase, key, 'calculation']"
+                            i18n="@@spd.form.edit"
+                            >Change how the income is worked out</a
+                          >
+                        </p>
+                      } @else if (isPipeline()) {
+                        <p class="notice" role="status">
+                          <span i18n="@@spd.form.handbuilt"
+                            >This calculation was built step by step rather than from a form, so
+                            there is no form to open for it.</span
+                          >
+                        </p>
+                      }
+
+                      @if (!isPipeline()) {
+                        <p class="notice" role="status">
+                          <span i18n="@@spd.structure.offer">
+                            This product works its income out from a single figure. Answer three
+                            questions and we will build the calculation for you.
+                          </span>
+                          <a
+                            class="linkish"
+                            [routerLink]="[productBase, key, 'calculation']"
+                            i18n="@@spd.structure.form"
+                            >Build it from a form</a
+                          >
+                        </p>
+                      }
+
+                      <form [formGroup]="ruleGroup">
+                        <app-income-assumption-section
+                          variant="catalog"
+                          [group]="ruleGroup"
+                          [keyTable]="ruleKeyTable()"
+                          (keyTableChange)="onKeyTable($event)"
+                          [bands]="ruleBands()"
+                          (bandsChange)="onBands($event)"
+                          [ruleSteps]="ruleSteps()"
+                          [ruleGates]="ruleGates()"
+                          [ruleOutput]="ruleOutput()"
+                          [stepFigures]="stepFigures()"
+                          (stepFiguresChange)="onStepFigures($event)"
+                          (stepFiguresTouched)="markDirty()"
+                        ></app-income-assumption-section>
+                      </form>
+                    </div>
+                  }
+                </section>
 
                 @if (p.usedBy.length === 0) {
                   <p class="reach">
@@ -1636,12 +1722,15 @@ type PlanSlotKey = keyof PlanDefaults;
         gap: var(--space-2);
       }
 
+      /* --accent measures 3.42:1 on this ground in light mode, and this is the line that
+         says WHAT the page is. --accent-visible is the palette's own answer to exactly
+         this: the same hue, taken to a step that can be read. */
       .eyebrow {
         margin: 0;
         font-size: var(--text-xs);
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--accent);
+        color: var(--accent-visible);
       }
 
       .title {
@@ -1810,43 +1899,12 @@ type PlanSlotKey = keyof PlanDefaults;
         outline: 2px solid var(--accent);
         outline-offset: 2px;
       }
-      .from-form {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-4);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        background: var(--bg-surface);
-      }
-      .from-form-lede {
-        margin: 0;
-        flex: 1 1 20rem;
-        min-inline-size: 0;
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-        line-height: var(--line-height-base);
-      }
-      .from-form-cta {
-        display: inline-flex;
-        align-items: center;
-        min-block-size: var(--size-field);
-        padding-inline: var(--space-4);
-        border-radius: var(--radius-field);
-        background: var(--primary);
-        color: var(--text-on-primary);
-        font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
-        text-decoration: none;
-      }
-      .from-form-cta:hover {
-        background: var(--primary-hover);
-      }
-      .from-form-cta:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
+      /* THE FILLED BLUE BUTTON IS GONE, and so is the box it sat in. It was a card inside
+         the panel -- the nesting this screen's own comment says it was rebuilt to remove --
+         and it carried the loudest element on a 2 869px step for the rarest action on it:
+         re-answering the form that built the calculation. Meanwhile Save, the only thing an
+         operator presses every visit, was grey and 2 800px below. A sentence and a text link
+         say the same thing; the filled primary is Save's alone. */
       .structure[open] > summary {
         margin-block-end: var(--space-4);
       }
@@ -2113,6 +2171,22 @@ type PlanSlotKey = keyof PlanDefaults;
 
       /* Side by side down to the narrowest column this panel gets: the two ends of one range
          read as one decision, and stacked they read as two unrelated numbers. */
+      /* ONE LINE. Three single figures every bank inherits, so they are read across, not
+         down; they wrap to two and then one on their own, because the row is a flex with no
+         breakpoint and each box states its own width. */
+      .fb-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: var(--space-3) var(--space-5);
+      }
+
+      .calc-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+
       .tenor-fields {
         display: flex;
         flex-wrap: wrap;
@@ -2292,6 +2366,68 @@ type PlanSlotKey = keyof PlanDefaults;
         margin: 0;
       }
 
+      /* Advice, not a refusal — a status line, inked like the lede rather than like the error
+         above it. It reports that two tables disagree about which deposits they cover, which
+         the five tables cannot show by being looked at, and which a CLOSED list cannot show
+         at all — so it is the one line here that had to survive the fold. */
+      /* The sentence that replaces the fused card when the stored shape cannot be drawn as
+         one. Secondary, not tertiary: it is a sentence somebody has to read to know why the
+         screen changed shape, and tertiary measures 3.83:1 on this ground in light mode. */
+      .plan-fallback-note {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      .plan-advanced-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-block-start: var(--space-3);
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        font-size: var(--text-sm);
+        color: var(--primary);
+        cursor: pointer;
+      }
+      .plan-advanced-toggle:hover {
+        color: var(--primary-hover);
+      }
+      .plan-advanced-toggle:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+      .plan-advanced-toggle .chev {
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      :host-context([dir='rtl']) .plan-advanced-toggle .chev {
+        transform: scaleX(-1);
+      }
+      .plan-advanced-toggle[aria-expanded='true'] .chev {
+        transform: rotate(90deg);
+      }
+      :host-context([dir='rtl']) .plan-advanced-toggle[aria-expanded='true'] .chev {
+        transform: scaleX(-1) rotate(90deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .plan-advanced-toggle .chev {
+          transition: none;
+        }
+      }
+      .plan-advanced {
+        margin-block-start: var(--space-3);
+      }
+      .plan-mismatch {
+        margin: 0;
+        max-inline-size: 60ch;
+        font-size: var(--text-sm);
+        line-height: 1.6;
+        color: var(--text-primary);
+        font-weight: var(--font-medium);
+      }
+
       /* A verb, drawn as a link because it is one — never a second primary button beside the
          Save this page already has. */
       .link-btn {
@@ -2339,14 +2475,28 @@ type PlanSlotKey = keyof PlanDefaults;
          NAMES list, and nothing on that tab is saveable — its answers are priced by class.
 
          The hairline stays: it is what separates the footer from the stage. */
+      /* PINNED. Save sat at the foot of a 2 869px step, so an operator who changed a rate
+         near the top scrolled past everything to reach it and past everything to get back.
+         The scroller is main.content and .panel sets no overflow of its own, so sticky
+         resolves against the page and the bar rides the bottom edge of the viewport until
+         the real foot of the panel catches up with it.
+
+         It is the panel's own surface with a hairline above, never a shadow: every shadow
+         token in this theme casts DOWNWARD, and a bar pinned to the bottom needs its lift
+         on the side the content is coming from. */
       .actions {
+        position: sticky;
+        inset-block-end: 0;
+        z-index: 1;
         display: flex;
         align-items: baseline;
         justify-content: flex-end;
         gap: var(--space-4);
         flex-wrap: wrap;
-        padding-block-start: var(--space-4);
+        margin-block-start: calc(var(--space-2) * -1);
+        padding-block: var(--space-4);
         border-block-start: 1px solid var(--border-subtle);
+        background: var(--bg-surface);
       }
 
       .save-hint {
@@ -3308,6 +3458,7 @@ export class SurrogateProductDetailPage {
   /** The stored cap as text, or `null` when the product states none. */
   protected readonly dbrCapValue = signal<string | null>(null);
 
+  protected readonly dbrCapLabel = $localize`:@@spd.dbr.label:Debt burden`;
   protected readonly dbrCapAriaLabel = $localize`:@@spd.dbr.aria:Debt-burden cap for this calculation's figure, per cent`;
   protected readonly dbrCapBlankNote = $localize`:@@spd.dbr.blank_note:Blank — each bank's own cap applies.`;
 
@@ -3367,23 +3518,59 @@ export class SurrogateProductDetailPage {
    */
   protected readonly planNotSet = $localize`:@@spd.plans.not_set:Not set`;
 
-  /**
-   * Only the rate table is offered here — the other four PLAN slots
-   * (`maxMonthsByFact` / `minMonthsByFact` / `ltvCeilingByFact` / `minAmountByFact`) are
-   * deliberately withdrawn from this screen on the operator's explicit call. The `PlanDefaults`
-   * shape and the server's handling of those keys are untouched, so a program that already
-   * reads one of them keeps doing so; this list only decides what an operator can SEE and edit.
-   */
+  /** The five tables, and what each one's figures mean — stated once, not five template blocks. */
   protected readonly planSlots = [
     {
       key: 'rateByFact' as const,
-      valueKind: 'ratePercent' as const,
-      monthsBound: 'max' as const,
       title: $localize`:@@spd.plans.rate:Interest rate`,
+      empty: $localize`:@@spd.plans.rate_empty:No rate table — each bank prices from its own rate.`,
       add: $localize`:@@spd.plans.rate_add:State a rate table`,
       removeAria: $localize`:@@spd.plans.rate_remove_aria:Remove the rate table`,
     },
+    {
+      key: 'maxMonthsByFact' as const,
+      title: $localize`:@@spd.plans.max_months:Longest term`,
+      empty: $localize`:@@spd.plans.max_months_empty:No table — each bank lends over its own longest term.`,
+      add: $localize`:@@spd.plans.max_months_add:State a longest-term table`,
+      removeAria: $localize`:@@spd.plans.max_months_remove_aria:Remove the longest-term table`,
+    },
+    {
+      key: 'minMonthsByFact' as const,
+      title: $localize`:@@spd.plans.min_months:Shortest term`,
+      empty: $localize`:@@spd.plans.min_months_empty:No table — each bank lends from its own shortest term.`,
+      add: $localize`:@@spd.plans.min_months_add:State a shortest-term table`,
+      removeAria: $localize`:@@spd.plans.min_months_remove_aria:Remove the shortest-term table`,
+    },
+    {
+      key: 'ltvCeilingByFact' as const,
+      title: $localize`:@@spd.plans.ltv:Share of the price financed`,
+      empty: $localize`:@@spd.plans.ltv_empty:No table — each bank finances its own share.`,
+      add: $localize`:@@spd.plans.ltv_add:State a financed-share table`,
+      removeAria: $localize`:@@spd.plans.ltv_remove_aria:Remove the financed-share table`,
+    },
+    {
+      key: 'minAmountByFact' as const,
+      title: $localize`:@@spd.plans.floor:Smallest loan`,
+      empty: $localize`:@@spd.plans.floor_empty:No table — each bank writes from its own smallest loan.`,
+      add: $localize`:@@spd.plans.floor_add:State a smallest-loan table`,
+      removeAria: $localize`:@@spd.plans.floor_remove_aria:Remove the smallest-loan table`,
+    },
   ];
+
+  /**
+   * What a figure in each table MEANS, and which end of the term the two month tables state.
+   *
+   * Read from the rules module rather than restated beside the words above, because the
+   * fused table and the free-form list have to agree about it — and the kind is what decides
+   * whether a box refuses 120 as a share or accepts it as a rate.
+   */
+  protected slotValueKind(slot: PlanSlotKey): FactGridValueKind {
+    return planSlotValueKind(slot);
+  }
+
+  protected slotMonthsBound(slot: PlanSlotKey): 'max' | 'min' {
+    return planSlotMonthsBound(slot);
+  }
 
   /**
    * Plain signal seeded from the response, never `toSignal(control.valueChanges)`: the cap
@@ -3456,6 +3643,139 @@ export class SurrogateProductDetailPage {
   }
 
   /**
+   * ONE PLAN PER LINE — the five tables projected into the card a bank actually prints.
+   *
+   * Derived, never stored: `planValue` stays the state and this is a read of it, so there is
+   * no second copy of the plans to drift. `null` means the stored shape cannot be drawn as
+   * one table — a grid keyed by something other than the deposit, two figures for one band —
+   * and the free-form list below takes over, which is a fallback and never a refusal.
+   */
+  protected readonly planTable = computed(() => planRowsFrom(this.planValue()));
+
+  /** Why the fused table could not be drawn, said in words above the list that replaces it. */
+  protected readonly planWhyNot = computed<PlanIncompatibleReason | null>(() =>
+    planRowsWhyNot(this.planValue()),
+  );
+
+  protected planWhyNotLabel(): string {
+    switch (this.planWhyNot()) {
+      case null:
+      case 'no_plans':
+        return '';
+      case 'not_keyed_by_deposit':
+        return $localize`:@@spd.plans.why_not_deposit:One of these tables is keyed by something other than the deposit, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'deposit_via_class':
+        return $localize`:@@spd.plans.why_not_class:One table reads the deposit through a class rather than the number, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'key_on_deposit_axis':
+      case 'wildcard_deposit':
+        return $localize`:@@spd.plans.why_not_band:One table states something other than a deposit range in its first column, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'band_on_extra_axis':
+        return $localize`:@@spd.plans.why_not_extra_band:One table splits a second column by a range rather than by an answer, so the plans cannot be read as one card. Each table is below on its own.`;
+      case 'overlapping_bands':
+        return $localize`:@@spd.plans.why_not_overlap:Two rows of one table cover the same deposit, so there is no single figure to show. Each table is below on its own.`;
+      case 'edge_not_numeric':
+        return $localize`:@@spd.plans.why_not_number:A deposit range has something in it that is not a number. Each table is below on its own.`;
+      case 'too_many_bands':
+        return $localize`:@@spd.plans.why_not_many:These tables state more deposit bands than one card can show. Each table is below on its own.`;
+    }
+  }
+
+  /**
+   * Whatever the fused table cannot say, said one table at a time.
+   *
+   * Open by force ONLY when the card above could not be drawn — and not, as the five-row
+   * list does one level down, whenever a table blocks Save. The rule there is that a
+   * half-typed table must not be hideable, and it still holds: every error the projection
+   * survives is a box visible IN the card above, so the operator fixes it where they are
+   * rather than being thrown into the editor they were moved off. An error the projection
+   * does NOT survive leaves `planTable()` null, which is the first clause.
+   *
+   * It is also the only door to the FIRST table on a product that states none, which is why
+   * it stays reachable while the card above is drawing fine.
+   */
+  private readonly advancedOpen = signal(false);
+
+  /**
+   * The calculation folds. It is the LIBRARY's arithmetic — authored by a form on another
+   * screen, identical for every bank selling this product — while the figures an operator
+   * comes here to move are two sections up. Folded it costs one click; unfolded it cost
+   * every visit ~900px of scroll before the first control anybody was looking for.
+   *
+   * It is never folded when there is no toggle to unfold it (a product with no pipeline has
+   * nothing else in the section), and never folded over something that blocks Save.
+   */
+  private readonly calcExpanded = signal(false);
+
+  protected calcOpen(): boolean {
+    return !this.isPipeline() || this.calcBlocked() || this.calcExpanded();
+  }
+
+  protected toggleCalc(): void {
+    // Refuses while it blocks Save, the same way planSlotLocked refuses on a broken table.
+    if (this.calcBlocked()) return;
+    this.calcExpanded.update((open) => !open);
+  }
+
+  /** What the closed section is hiding, said on the toggle rather than left to a click. */
+  protected calcToggleLabel(): string {
+    const steps = this.ruleSteps().length;
+    if (this.calcBlocked()) {
+      return $localize`:@@spd.calc.toggle_bad:${steps}:steps: steps — one of them is not finished`;
+    }
+    return this.calcExpanded()
+      ? $localize`:@@spd.calc.toggle_open:Hide the ${steps}:steps: steps this product runs`
+      : $localize`:@@spd.calc.toggle:Show the ${steps}:steps: steps this product runs`;
+  }
+
+  protected planAdvancedOpen(): boolean {
+    return this.planTable() === null || this.advancedOpen();
+  }
+
+  protected toggleAdvanced(): void {
+    this.advancedOpen.set(!this.advancedOpen());
+  }
+
+  /**
+   * The fused table wrote something back.
+   *
+   * The writers return the CALLER'S OWN object when a keystroke changed no figure, so the
+   * identity test is what keeps the form from going dirty on a re-typed number — the
+   * difference between a Save that writes nothing and one that re-posts the plans.
+   */
+  protected onPlanGrids(next: PlanDefaults | null): void {
+    if (next === this.planValue()) return;
+    this.planValue.set(next);
+    this.plansDirty = true;
+    this.markDirty();
+  }
+
+  /**
+   * A delete from inside the fused table — CONFIRMED while programs are reading these plans.
+   *
+   * The same rule `clearPlanGrid` states: the server does not refuse any of this, because
+   * every figure removed leaves the program's own standing, so nothing stops quoting. But
+   * "nothing stops quoting" is not "nothing happens" — a removed band re-prices everybody in
+   * it — and a dialog naming the count is the cheapest honest thing between refusing and
+   * saying nothing. Nobody reading means nobody is re-priced, and a dialog there would teach
+   * the operator to click through this one.
+   */
+  protected onPlanRemove(request: PlanRemoveRequest): void {
+    const commit = (): void => this.onPlanGrids(request.next);
+    const readers = this.planReaders();
+    if (readers === 0) {
+      commit();
+      return;
+    }
+    this.modal.confirm({
+      nzTitle: $localize`:@@spd.plan_table.remove_title:Remove ${request.what}:what:?`,
+      nzContent: $localize`:@@spd.plan_table.remove_body:${request.figuresLost}:figures: figure(s) go, and ${readers}:readers: bank program(s) read these plans. Each one falls back to its own figure, which changes what it quotes. Nothing is saved until you press Save.`,
+      nzOkText: $localize`:@@spd.plan_table.remove_ok:Remove it`,
+      nzCancelText: $localize`:@@spd.plans.remove_confirm_cancel:Keep it`,
+      nzOnOk: commit,
+    });
+  }
+
+  /**
    * Which slots are open, and the ONE that is open whether the operator likes it or not.
    *
    * The list is closed by default because five open tables measured 3 801px of a 5 237px
@@ -3466,16 +3786,9 @@ export class SurrogateProductDetailPage {
   private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set(['rateByFact']));
 
   /** The first slot with something wrong in it, or null. Gates Save, and forces its row open. */
-  protected readonly erroredPlanSlot = computed<PlanSlotKey | null>(() => {
-    const plans = this.planValue();
-    if (plans === null) return null;
-    for (const slot of this.planSlots) {
-      const grid = plans[slot.key];
-      if (grid === undefined) continue;
-      if (factGridErrorFor(grid, slot.valueKind) !== null) return slot.key;
-    }
-    return null;
-  });
+  protected readonly erroredPlanSlot = computed<PlanSlotKey | null>(
+    () => planRowsErrorFor(this.planValue())?.slot ?? null,
+  );
 
   /** The first thing wrong with any stated table, or `null`. Gates Save. */
   protected readonly planError = computed<string | null>(() => {
@@ -3534,6 +3847,65 @@ export class SurrogateProductDetailPage {
       ? $localize`:@@spd.plans.rows_one:1 row`
       : $localize`:@@spd.plans.rows_many:${String(rows)}:rows: rows`;
   }
+
+  /**
+   * A deposit this product PRICES that another table would REFUSE.
+   *
+   * Advisory and never a gate — the server validates each table on its own, and a mirror that
+   * refused more than the server would tell an operator their card is unsavable with nothing
+   * to fix. It exists because the one thing five separate tables cannot show by being looked
+   * at is that a plan added to one of them is missing from another.
+   *
+   * COVERAGE, not set-equality, and the difference is whether anybody reads it. Comparing band
+   * SETS made this line permanent on the only product that has plans: the term table
+   * deliberately states one row for 40% and up where the rate table states three, and the floor
+   * table deliberately states one row at all — both because they say something only where they
+   * DIFFER. A warning that is always on is a warning nobody reads, and it costs the one thing
+   * this line exists to say.
+   *
+   * Scoped to tables whose miss is a REFUSAL, which is the whole hazard. On `useFallback` an
+   * uncovered deposit takes the program's own figure, which is what a coarser table MEANS; on
+   * `reject` it is an applicant who is quoted a rate by one table and turned away by another.
+   */
+  protected readonly planBandMismatch = computed<string | null>(() => {
+    const plans = this.planValue();
+    const rate = plans?.rateByFact;
+    if (plans === null || rate === undefined) return null;
+
+    /** The deposit bands of a grid's first axis, as numeric intervals. `null` upper = no end. */
+    const bandsOf = (grid: FactGridConfig): { from: number; to: number | null }[] =>
+      grid.cells
+        .map((c) => c.keys[0])
+        .filter(
+          (k): k is { fromInclusive?: string; toExclusive?: string | null } =>
+            k !== null && k !== undefined && !('key' in k),
+        )
+        .map((k) => ({
+          from: Number(k.fromInclusive ?? '0'),
+          to: k.toExclusive === null || k.toExclusive === undefined ? null : Number(k.toExclusive),
+        }))
+        .filter((b) => Number.isFinite(b.from) && (b.to === null || Number.isFinite(b.to)));
+
+    const covers = (outer: { from: number; to: number | null }, inner: typeof outer): boolean =>
+      outer.from <= inner.from &&
+      (outer.to === null || (inner.to !== null && outer.to >= inner.to));
+
+    const priced = bandsOf(rate);
+    const off = this.planSlots
+      .filter((slot) => slot.key !== 'rateByFact')
+      .filter((slot) => {
+        const grid = plans[slot.key];
+        // A table that falls back is not refusing anybody — a band it does not state is the
+        // program's own figure, stated by omission.
+        if (grid === undefined || grid.onNoMatch !== 'reject') return false;
+        const bands = bandsOf(grid);
+        return priced.some((p) => !bands.some((b) => covers(b, p)));
+      })
+      .map((slot) => slot.title);
+    if (off.length === 0) return null;
+    const names = off.join(', ');
+    return $localize`:@@spd.plans.mismatch2:A deposit this product prices is not covered by ${names}:names:, which turns that customer away instead of quoting them. Add the missing rows, or let that table fall back to the bank's own figure.`;
+  });
 
   /**
    * How many bank programs are reading these tables right now.
@@ -3637,6 +4009,16 @@ export class SurrogateProductDetailPage {
     // And for a plan table with a half-typed row: every one of them is validated on the
     // server, and the same sentence is better read beside the table it is about.
     if (this.planError() !== null) return true;
+    return this.calcBlocked();
+  });
+
+  /**
+   * The calculation section's OWN half of the refusal, split out because that section folds
+   * and a folded section that blocks Save must not hide what is wrong with it. Narrow on
+   * purpose: an out-of-range debt-burden cap is not the calculation's problem and must not
+   * force its disclosure open, or every refusal on the step would open every section.
+   */
+  protected readonly calcBlocked = computed(() => {
     if (!this.isPipeline()) return false;
     if (
       productRuleHasError({

@@ -9,8 +9,10 @@ import { MoneyInputDirective } from '../../core/directives/money-input.directive
 import { DeleteOutline, PlusOutline, WarningOutline } from '@ant-design/icons-angular/icons';
 import type { RegistryFact } from '../../features/bank-programs/bank-programs.types';
 import {
+  DOWN_PAYMENT_PERCENT_FACT_KEY,
   MAX_GRID_AXES,
   REACHABLE_TENOR_MONTHS,
+  TENOR_FACT_KEY,
   cellForAxes,
   factGridErrorFor,
   uncoveredTenors,
@@ -24,8 +26,10 @@ import type {
 } from './fact-grid.rules';
 
 export {
+  DOWN_PAYMENT_PERCENT_FACT_KEY,
   MAX_GRID_AXES,
   REACHABLE_TENOR_MONTHS,
+  TENOR_FACT_KEY,
   emptyFactGrid,
   factGridErrorFor,
   uncoveredTenors,
@@ -38,10 +42,6 @@ export type {
   FactGridKey,
   FactGridValueKind,
 } from './fact-grid.rules';
-
-/** The term axis, by fact key — the engine derives it per quote, so it has no question. */
-const TENOR_FACT_KEY = 'tenor_months';
-const DOWN_PAYMENT_PERCENT_FACT_KEY = 'car_down_payment_percent';
 
 /**
  * The two axes the engine works out per quote, offered in the picker beside the real facts.

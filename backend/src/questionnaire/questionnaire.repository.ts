@@ -280,6 +280,71 @@ export class QuestionnaireRepository {
     return missing;
   }
 
+  /**
+   * `addCategories` for MANY questions in ONE transaction — the write behind the catalog
+   * name flow's "what applicants are asked" step.
+   *
+   * INSERT-ONLY, like its single-question sibling and for the same lost-update reason, which
+   * this caller makes sharper rather than softer: that screen ticks across several loan types
+   * in one gesture and posts them together, so a whole-set write would be one read-modify-write
+   * spanning every question the operator touched.
+   *
+   * ONE `findMany` and ONE `createMany`, not a loop. `setCategoriesBulk` below loops because a
+   * REPLACE needs a `deleteMany` paired with each question's insert; an additive write has no
+   * per-question statement, so a loop would buy nothing and cost a round trip each. One
+   * `createMany` compiles to a single `INSERT ... ON CONFLICT DO NOTHING`, which is atomic on
+   * its own. The worst case one request can carry is the whole pool in every category — on the
+   * order of a few hundred rows at two bound parameters each, against Postgres's 65 535 — so
+   * there is nothing to chunk.
+   *
+   * Duplicate `questionId`s are folded FIRST. The screen is per loan type, so the same question
+   * genuinely arrives twice when it is ticked into two of them; diffed separately against one
+   * pre-read, both entries would report themselves as inserted and the caller's "what moved"
+   * count would double.
+   *
+   * Returns questionId → the categories actually INSERTED, omitting every question that moved
+   * nothing, so `map.size === 0` is the whole no-op test. It cannot be derived from
+   * `createMany`'s count: with `skipDuplicates` that says how many rows landed and not whose,
+   * and `(questionId, category)` is the primary key, so there are no returnable ids either way.
+   */
+  async addCategoriesBulk(
+    assignments: ReadonlyArray<{ questionId: string; categories: readonly LoanCategory[] }>,
+  ): Promise<Map<string, LoanCategory[]>> {
+    const wanted = new Map<string, Set<LoanCategory>>();
+    for (const a of assignments) {
+      const set = wanted.get(a.questionId) ?? new Set<LoanCategory>();
+      for (const category of a.categories) set.add(category);
+      if (set.size > 0) wanted.set(a.questionId, set);
+    }
+    const added = new Map<string, LoanCategory[]>();
+    if (wanted.size === 0) return added;
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.questionLoanCategory.findMany({
+        where: { questionId: { in: [...wanted.keys()] } },
+        select: { questionId: true, category: true },
+      });
+      const held = new Map<string, Set<LoanCategory>>();
+      for (const row of existing) {
+        const set = held.get(row.questionId) ?? new Set<LoanCategory>();
+        set.add(row.category);
+        held.set(row.questionId, set);
+      }
+      const rows: { questionId: string; category: LoanCategory }[] = [];
+      for (const [questionId, categories] of wanted) {
+        const have = held.get(questionId);
+        const missing = [...categories].filter((category) => !have?.has(category));
+        if (missing.length === 0) continue;
+        added.set(questionId, missing);
+        for (const category of missing) rows.push({ questionId, category });
+      }
+      if (rows.length === 0) return added;
+      await tx.questionLoanCategory.createMany({ data: rows, skipDuplicates: true });
+      // The pre-read diff, never a re-read — see `addCategories` above for why.
+      return added;
+    });
+  }
+
   /** Same as `setCategories`, for many questions in ONE transaction (column actions). */
   setCategoriesBulk(
     assignments: ReadonlyArray<{ questionId: string; categories: readonly LoanCategory[] }>,

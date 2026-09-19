@@ -602,6 +602,52 @@ export class QuestionnaireService {
     return { added, published: true };
   }
 
+  /**
+   * `addQuestionCategories` for MANY questions in ONE transaction + AT MOST ONE publish.
+   *
+   * The write behind the catalog-name flow's "what applicants are asked" step, where an
+   * operator walks the loan types the name is offered under and ticks what each one asks. A
+   * per-tick write there would cut a questionnaire version per tick — each a full copy of the
+   * pool — for a name that has not been created yet and may be cancelled out of.
+   *
+   * VALIDATES EVERY ID BEFORE ANY WRITE, like `setQuestionCategoriesBulk` above: one bad id
+   * refuses the whole request rather than leaving half a tick list applied, which is the state
+   * an operator cannot see and cannot repair.
+   *
+   * Returns WHAT MOVED, not the tree. `draftTree()` is an N+1 over every active question and
+   * this caller renders none of it; what it needs is whether to say "3 added, 1 already asked"
+   * and whether a version was cut. Sorted, so one set always serialises one way.
+   */
+  async addQuestionCategoriesBulk(
+    assignments: ReadonlyArray<{ questionId: string; categories: LoanCategory[] }>,
+    actor: string,
+    opts: { publish?: boolean } = {},
+  ): Promise<{
+    added: { questionId: string; categories: LoanCategory[] }[];
+    published: boolean;
+  }> {
+    const known = new Set((await this.repo.questions()).map((q) => q.id));
+    for (const a of assignments) {
+      if (!known.has(a.questionId)) {
+        throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId: a.questionId });
+      }
+    }
+    const moved = await this.repo.addCategoriesBulk(
+      assignments.map((a) => ({
+        questionId: a.questionId,
+        categories: dedupeCategories(a.categories),
+      })),
+    );
+    const added = [...moved.entries()].map(([questionId, categories]) => ({
+      questionId,
+      categories: sortCategories(categories),
+    }));
+    if (added.length === 0) return { added: [], published: false };
+    if (opts.publish === false) return { added, published: false };
+    await this.publish(actor);
+    return { added, published: true };
+  }
+
   async updateQuestion(
     id: string,
     dto: UpdateQuestionDto,

@@ -10,26 +10,48 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
-import { FormPageComponent, IncomeBasisCardsComponent, WizardStepsComponent } from '@shared/ui';
+import { categoryLabel, type LoanCategory } from '@core/loan-category';
+import {
+  FormPageComponent,
+  IncomeBasisCardsComponent,
+  LoanCategorySwitchesComponent,
+  WizardStepsComponent,
+} from '@shared/ui';
 import type { WizardStepItem } from '@shared/ui/wizard-steps.component';
+import { AskedQuestionsEditorComponent } from '@shared/questions/asked-questions-editor.component';
+import {
+  pendingAdds,
+  type AskableQuestion,
+  type AskedPicks,
+  type AskedRow,
+} from '@shared/questions/asked-questions.rules';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import { slugify, uniqueSlug } from '@shared/lookups/slug';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import type { SurrogateProductSummary } from '@features/bank-programs/bank-programs.types';
+import {
+  QuestionnaireApiService,
+  type QuestionRow,
+} from '@features/questionnaire/questionnaire.api.service';
 import { ENUM_TYPE } from './program-name-row';
 import { CATALOG_BASE, newNameLanding, surrogateBoardLink } from './program-catalog.paths';
 import {
-  LAST_STEP,
   RESERVED_NAME_KEYS,
   barBlock,
   blockReason,
+  isLastStep,
+  newNameStepIds,
   savePlan,
+  stepIdAt,
+  stepIndexOf,
   stepStatuses,
   type NewNameBlock,
   type NewNameDraft,
+  type NewNameStepId,
   type ProductChoice,
 } from './new-program-name';
 
@@ -44,6 +66,8 @@ import {
     FormPageComponent,
     WizardStepsComponent,
     IncomeBasisCardsComponent,
+    LoanCategorySwitchesComponent,
+    AskedQuestionsEditorComponent,
   ],
   template: `
     <app-form-page
@@ -72,11 +96,13 @@ import {
         />
 
         <form [formGroup]="form" class="stage" (ngSubmit)="primary()">
-          <!-- ══ STEP 1 — HOW THE INCOME IS PROVED ══════════════════════════ -->
-          <!-- FIRST, because everything step 3 shows branches on it and because the board's
-               chip answers exactly this question — so arriving from a chip opens on step 2
-               with this one behind, answered, rather than on a question already settled. -->
-          @if (stepIndex() === 0) {
+          <!-- ══ STEP ① — WHAT IT IS ════════════════════════════════════════
+               The income basis and the two labels on ONE step. They were two, and each
+               held one question: the basis was two cards and nothing else, the name two
+               fields and nothing else — and the board's chip had usually answered the
+               first before the operator arrived. The basis still leads, inside the step,
+               because it decides whether there is a calculation step at all. -->
+          @if (step() === 'program') {
             <section class="step">
               <h2 class="step-h" i18n="@@pcn.basis_h">How does the bank prove the income?</h2>
               <app-income-basis-cards
@@ -86,28 +112,8 @@ import {
                 groupName="pcn-income-basis"
                 (picked)="pickBasis($event)"
               />
-            </section>
-          }
 
-          <!-- ══ STEP 2 — WHAT IT IS CALLED ═════════════════════════════════ -->
-          @if (stepIndex() === 1) {
-            <section class="step">
-              <h2 class="step-h" i18n="@@pcn.name_h">What is this program called?</h2>
-              <!-- The step-1 answer, read back. It is the platform's own word for the type
-                   ("Income proof" / "Surrogate") and not a description of the document, so
-                   the chip here matches the board's chips and the wire value behind them.
-                   Absent rather than guessed when nothing is picked: this step is reachable
-                   with the basis unanswered (a deep link with no basis query param clamps to
-                   it), and
-                   a chip naming the default would report a decision nobody made. -->
-              @if (basis(); as b) {
-                <p class="basis-read">
-                  <span class="basis-read-label" i18n="@@pcn.basis_read">Program type</span>
-                  <span class="basis-tag" [class.is-surrogate]="b === 'no_payslip'">{{
-                    basisLabel(b)
-                  }}</span>
-                </p>
-              }
+              <h2 class="step-h sub" i18n="@@pcn.name_h">What is this program called?</h2>
               <!-- One name in two locales is ONE decision, so the pair sits on one row.
                    Stacked, they read as two unrelated fields. -->
               <div class="pair">
@@ -131,83 +137,146 @@ import {
                     [placeholder]="labelArPlaceholder"
                   />
                 </label>
+                <label class="field sort">
+                  <span class="field-label" i18n="@@lookups.field.sortOrder">Sort order</span>
+                  <input nz-input type="number" formControlName="sortOrder" min="0" />
+                  <span class="field-hint" i18n="@@lookups.field.sortOrderHint"
+                    >controls the order in dropdowns</span
+                  >
+                </label>
               </div>
-              <!-- The key is DERIVED and permanent, so it is previewed rather than typed:
-                   staff curating this list had no way to judge what a key should read, and
-                   a key typed by hand is immutable the moment it is saved. -->
+
+              <!-- DERIVED, never typed: staff curating this list had no way to judge what
+                   a key should read, and a key typed by hand is immutable the moment it is
+                   saved. -->
               @if (keyPreview(); as key) {
                 <p class="key">
                   <span i18n="@@pcn.key_preview">Filed under</span>
-                  <code>{{ key }}</code>
+                  <code dir="ltr">{{ key }}</code>
                 </p>
               }
-
-              <label class="field sort">
-                <span class="field-label" i18n="@@lookups.field.sortOrder">Sort order</span>
-                <input nz-input type="number" formControlName="sortOrder" min="0" />
-                <span class="field-hint" i18n="@@lookups.field.sortOrderHint"
-                  >controls the order in dropdowns</span
-                >
-              </label>
             </section>
           }
 
-          <!-- ══ STEP 3 — WHERE THE FIGURE COMES FROM ═══════════════════════ -->
-          @if (stepIndex() === 2) {
+          <!-- ══ STEP ② — WHERE THE FIGURE COMES FROM (surrogate only) ═══════
+               A step only a no-payslip name walks. The payslip branch used to render a
+               sentence here and no control — a step that could not be answered, could not
+               be wrong, and could not be skipped. The sentence it stated now sits on the
+               income card above, which is what it was about. -->
+          @if (step() === 'calculation') {
             <section class="step">
-              @if (basis() === 'payslip') {
-                <!-- Answered, not absent. The payslip branch has one fewer DECISION; it does
-                     not have one fewer fact, and a step that vanishes is what made the two
-                     paths read as two different products. -->
-                <h2 class="step-h" i18n="@@pcn.src_payslip_h">The payslip itself</h2>
-                <p class="lede" i18n="@@pcn.src_payslip_body">
-                  Every bank filing a program under this name reads the salary paid into the
-                  account. There is nothing to set here.
+              <h2 class="step-h" i18n="@@pcn.src_h">Which calculation does it quote from?</h2>
+
+              @if (products().length === 0) {
+                <!-- Not a dead end and not a hidden control: every calculation on the
+                     platform is switched off, so there is genuinely nothing to quote from,
+                     and the operator is told where the switch is. -->
+                <p class="notice" role="status">
+                  <span i18n="@@pcn.src_all_off"
+                    >Every calculation is switched off, so there is nothing for a no-payslip name to
+                    quote from. Turn one back on in the catalog, then come back.</span
+                  >
+                </p>
+                <p class="key">
+                  <a
+                    [routerLink]="surrogateBoard.commands"
+                    [queryParams]="surrogateBoard.queryParams"
+                    i18n="@@pcn.src_all_off_link"
+                    >Open the calculations</a
+                  >
                 </p>
               } @else {
-                <h2 class="step-h" i18n="@@pcn.src_h">Which calculation does it quote from?</h2>
+                <div class="picks" role="radiogroup" [attr.aria-label]="picksAria">
+                  @for (p of products(); track p.key) {
+                    <button
+                      type="button"
+                      class="pick"
+                      role="radio"
+                      [class.on]="pickedProductKey() === p.key"
+                      [attr.aria-checked]="pickedProductKey() === p.key"
+                      (click)="pickedProductKey.set(p.key)"
+                    >
+                      <span class="pick-name">{{ productLabel(p) }}</span>
+                      <span class="pick-meta">{{ productReads(p) }}</span>
+                    </button>
+                  }
+                </div>
+              }
+            </section>
+          }
 
-                @if (products().length === 0) {
-                  <!-- Not a dead end and not a hidden control: every calculation on the
-                       platform is switched off, so there is genuinely nothing to quote from,
-                       and the operator is told where the switch is. -->
-                  <p class="notice" role="status">
-                    <span i18n="@@pcn.src_all_off"
-                      >Every calculation is switched off, so there is nothing for a no-payslip name
-                      to quote from. Turn one back on in the catalog, then come back.</span
-                    >
-                  </p>
-                  <p class="key">
-                    <a
-                      [routerLink]="surrogateBoard.commands"
-                      [queryParams]="surrogateBoard.queryParams"
-                      i18n="@@pcn.src_all_off_link"
-                      >Open the calculations</a
-                    >
-                  </p>
-                } @else {
-                  <div class="picks" role="radiogroup" [attr.aria-label]="picksAria">
-                    @for (p of products(); track p.key) {
-                      <button
-                        type="button"
-                        class="pick"
-                        role="radio"
-                        [class.on]="pickedProductKey() === p.key"
-                        [attr.aria-checked]="pickedProductKey() === p.key"
-                        (click)="pickedProductKey.set(p.key)"
-                      >
-                        <span class="pick-name">{{ productLabel(p) }}</span>
-                        <span class="pick-meta">{{ productReads(p) }}</span>
-                      </button>
-                    }
-                  </div>
-                }
+          <!-- ══ STEP ③ — WHERE IT IS OFFERED ═══════════════════════════════
+               Moved in from the name's own page, which is where a freshly created name
+               used to be dropped to answer it. All four loan types at once: the
+               assignment is ONE decision with four parts. -->
+          @if (step() === 'offered') {
+            <section class="step">
+              <h2 class="step-h" i18n="@@pcn.offered_h">
+                Which loan types is this name offered under?
+              </h2>
+              <p class="lede" i18n="@@pcn.offered_lede">
+                A bank building a program can only pick this name under a loan type that is on here.
+                The next step asks what each of those loan types' applicants answer.
+              </p>
+              <app-loan-category-switches [value]="offered()" (toggled)="toggleOffered($event)" />
+            </section>
+          }
+
+          <!-- ══ STEP ④ — WHAT APPLICANTS ARE ASKED ═════════════════════════
+               One tab per loan type the name is offered under, which is the operator's
+               "some loan types are not in this program" made literal. ADD-ONLY: a tick
+               widens the question's loan types, which is global — see the editor. -->
+          @if (step() === 'asks') {
+            <section class="step">
+              <h2 class="step-h" i18n="@@pcn.asks_h">What are these applicants asked?</h2>
+              @if (poolError()) {
+                <p class="notice" role="status" i18n="@@pcn.asks_unavailable">
+                  The question pool could not be read, so this step cannot be shown. The name will
+                  still be created — set what its applicants are asked on its own page afterwards.
+                </p>
+              } @else {
+                <!-- BLANK START. The name does not exist yet, so nothing on this board is
+                     a statement about it: it opens with nothing ticked and every tick is the
+                     operator's own. The questions this loan type already asks are listed in
+                     the second group wearing a tag that says so — they stay asked whether or
+                     not they are ticked here, because the question-to-loan-type table is
+                     global and this board is add-only. -->
+                <app-asked-questions-editor
+                  [pool]="pool()"
+                  [offered]="offered()"
+                  [category]="askCategory()"
+                  [picks]="picks()"
+                  [search]="askSearch()"
+                  [isAr]="isAr"
+                  [busy]="submitting()"
+                  [blankStart]="true"
+                  (categorySelect)="setAskCategory($event)"
+                  (searchChange)="askSearch.set($event)"
+                  (add)="askToAdd($event)"
+                  (remove)="askToRemove($event)"
+                />
               }
             </section>
           }
 
           @if (errorMessage(); as message) {
-            <p class="error" role="alert">{{ message }}</p>
+            <div class="error" role="alert">
+              <p class="error-text">{{ message }}</p>
+              <!-- TWO exits, because the name already exists and only the additive half
+                   failed. Trapping an operator on a create screen over a write they can
+                   redo in two clicks on another one is the worse answer, and the button
+                   beside this one is already a retry. -->
+              @if (createdName() !== null) {
+                <button
+                  type="button"
+                  class="error-out"
+                  (click)="openCreated()"
+                  i18n="@@pcn.skip_open"
+                >
+                  Skip — open the program
+                </button>
+              }
+            </div>
           }
         </form>
       </div>
@@ -459,12 +528,35 @@ import {
         color: var(--color-text-primary);
       }
       .error {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
         margin: 0;
         padding: var(--space-2) var(--space-3);
         border-radius: var(--radius-md);
         background: var(--color-error-bg);
         color: var(--color-error);
         font-size: var(--text-sm);
+      }
+      .error-text {
+        margin: 0;
+      }
+      .error-out {
+        min-block-size: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        font-weight: var(--font-weight-semibold);
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .error-out:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
       }
       @media (prefers-reduced-motion: reduce) {
         .step,
@@ -480,10 +572,12 @@ import {
 export class NewProgramNamePage {
   private readonly lookups = inject(LookupsApiService);
   private readonly programs = inject(BankProgramsApiService);
+  private readonly questionnaire = inject(QuestionnaireApiService);
   private readonly errors = inject(ErrorCodeService);
+  private readonly modal = inject(NzModalService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly isAr = inject(LOCALE_ID).startsWith('ar');
+  protected readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   /** Program names must fit `bank_program.friendlyName`. */
   protected readonly nameMax = 120;
@@ -508,10 +602,12 @@ export class NewProgramNamePage {
   /**
    * `null` is the UNANSWERED state, and it is reachable on purpose. Seeded from the chip the
    * operator was standing on, which is what lets ONE button serve both sides of the board;
-   * `all`, absent or junk all read as "no opinion", never as payslip.
+   * absent or junk reads as "no opinion", never as payslip.
    */
   protected readonly basis = signal<IncomeBasis | null>(this.initialBasis());
   protected readonly pickedProductKey = signal<string | null>(null);
+  /** The loan types the name will be offered under, written in the same insert as the row. */
+  protected readonly offered = signal<readonly LoanCategory[]>([]);
   /**
    * The calculations this name could quote from — LIVE ones only, and cap-only products
    * excluded.
@@ -523,15 +619,35 @@ export class NewProgramNamePage {
    */
   protected readonly products = signal<readonly SurrogateProductSummary[]>([]);
 
+  /** The global question pool, read on first arrival at the offer step and not before. */
+  protected readonly pool = signal<readonly AskableQuestion[]>([]);
+  protected readonly poolError = signal(false);
+  private poolRequested = false;
+  /** What the operator has ticked, per loan type, before anything is written. */
+  protected readonly picks = signal<AskedPicks>(new Map<LoanCategory, ReadonlySet<string>>());
+  protected readonly askSearch = signal('');
+  private readonly askTab = signal<LoanCategory | null>(null);
+
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
-  protected readonly stepIndex = signal(this.initialStep());
+  /**
+   * The name, once the FIRST write has landed.
+   *
+   * The recovery signal for a two-write finish, and it is the whole reason a retry is safe:
+   * the key is minted with a collision suffix, so re-running write 1 after it succeeded would
+   * create `doctors_2` rather than retrying. This flow carried the same guard once before,
+   * for a product-then-name pair, and lost it when the second write went away.
+   */
+  protected readonly createdName = signal<{ id: string; key: string } | null>(null);
+
+  protected readonly stepId = signal<NewNameStepId>('program');
 
   protected readonly eyebrow = $localize`:@@pcn.eyebrow:Program catalog`;
   protected readonly title = $localize`:@@program_catalog.dialog.add:Add program`;
-  protected readonly subtitle = $localize`:@@pcn.subtitle:A catalog name banks file their programs under. It starts offered under no loan type — you pick those next, on its own page.`;
+  protected readonly subtitle = $localize`:@@pcn.subtitle2:A catalog name banks file their programs under. Four answers: what it is, where its figure comes from, which loan types sell it, and what those applicants are asked.`;
   protected readonly backLabel = $localize`:@@pcn.back:Back to the catalog`;
   protected readonly submitLabel = $localize`:@@program_catalog.dialog.add_cta:Add program`;
+  protected readonly retryLabel = $localize`:@@pcn.retry_questions:Try the questions again`;
   protected readonly nextLabel = $localize`:@@pcn.next:Next`;
   protected readonly stepsAria = $localize`:@@pcn.steps_aria:Adding a program name`;
   protected readonly basisAria = $localize`:@@pcn.basis_aria:How the bank proves the income`;
@@ -545,15 +661,18 @@ export class NewProgramNamePage {
    * What each answer commits the operator to, said on the card before it is picked.
    *
    * The host's, not the component's: the program wizard's version of this line names ITS
-   * later steps, which is true there and meaningless here.
+   * later steps, which is true there and meaningless here. Reworded when the payslip branch
+   * stopped having a step of its own — it used to promise "the last step has nothing to set",
+   * and the payslip answer now REMOVES a step rather than emptying one.
    */
   protected readonly basisEffects: Partial<Record<IncomeBasis, string>> = {
-    payslip: $localize`:@@pcn.effect_payslip:Pick this and the name is sold against a salary the bank can see. Name it next, and the last step has nothing to set.`,
-    no_payslip: $localize`:@@pcn.effect_no_payslip:Pick this and the last step asks which of the platform's calculations the name quotes from.`,
+    payslip: $localize`:@@pcn.effect_payslip2:The bank reads the salary paid into the account, so there is nothing to work out — this name walks three steps.`,
+    no_payslip: $localize`:@@pcn.effect_no_payslip2:The figure is worked out from something else, so one more step asks which of the platform's calculations it quotes from.`,
   };
 
   constructor() {
     void this.loadProducts();
+    this.stepId.set(this.initialStep());
   }
 
   // --- the draft -------------------------------------------------------------
@@ -572,6 +691,7 @@ export class NewProgramNamePage {
       labelAr: v.labelAr ?? '',
       basis: this.basis(),
       product: this.productChoice(),
+      offered: this.offered(),
     };
   });
 
@@ -580,51 +700,71 @@ export class NewProgramNamePage {
     return key === '' ? null : key;
   });
 
+  /** The steps THIS name walks — three on a payslip basis, four on a surrogate one. */
+  protected readonly stepIds = computed(() => newNameStepIds(this.basis()));
+
+  /**
+   * The id the operator is standing on, kept valid when the list reshapes under them.
+   *
+   * It can only reshape while they are on `program` — the one id both lists carry — so this
+   * never moves anybody; it exists so that a pasted `?step=` or a basis flipped from a
+   * deep link cannot leave the page pointing at a step that is not on the rail.
+   */
+  protected readonly step = computed<NewNameStepId>(() => {
+    const ids = this.stepIds();
+    const at = this.stepId();
+    return ids.includes(at) ? at : 'program';
+  });
+
+  protected readonly stepIndex = computed(() => stepIndexOf(this.stepIds(), this.step()));
+
+  private readonly stepLabels: Readonly<Record<NewNameStepId, string>> = {
+    program: $localize`:@@pcn.step_program:What it is`,
+    calculation: $localize`:@@pcn.step_source:Where the figure comes from`,
+    offered: $localize`:@@pcn.step_offered:Where it is offered`,
+    asks: $localize`:@@pcn.step_asks:What applicants are asked`,
+  };
+
   protected readonly steps = computed<WizardStepItem[]>(() => {
     const statuses = stepStatuses(this.draft());
-    return [
-      $localize`:@@pcn.step_basis:How the income is proved`,
-      $localize`:@@pcn.step_name:What it is called`,
-      $localize`:@@pcn.step_source:Where the figure comes from`,
-    ].map((label, i) => ({
-      id: `s${i}`,
-      label,
-      status: statuses[i]!.status,
-      disabled: statuses[i]!.disabled,
+    return this.stepIds().map((id) => ({
+      id,
+      label: this.stepLabels[id],
+      status: statuses[id].status,
+      disabled: statuses[id].disabled,
     }));
   });
 
   protected stepCaption(): string {
-    switch (this.stepIndex()) {
-      case 0:
-        return $localize`:@@pcn.cap_basis:It can be changed later, on the name's own page.`;
-      case 1:
-        return $localize`:@@pcn.cap_name:Both languages. The customer app shows the one they read.`;
-      default:
-        return this.basis() === 'payslip'
-          ? $localize`:@@pcn.cap_source_payslip:Nothing to set — the bank reads the salary it is paid.`
-          : $localize`:@@pcn.cap_source_surrogate:The calculation every bank filing under this name will quote from.`;
+    switch (this.step()) {
+      case 'program':
+        return $localize`:@@pcn.cap_program:Both can be changed later, on the name's own page.`;
+      case 'calculation':
+        return $localize`:@@pcn.cap_source_surrogate:The calculation every bank filing under this name will quote from.`;
+      case 'offered':
+        return $localize`:@@pcn.cap_offered:${this.offered().length}:ON: of 4 loan types are on. This is what a bank's program picker filters on.`;
+      case 'asks':
+        return $localize`:@@pcn.cap_asks:Ticking one asks it of every applicant of that loan type. Nothing here can stop a question being asked.`;
     }
   }
 
-  protected readonly isLast = computed(() => this.stepIndex() >= LAST_STEP);
+  protected readonly isLast = computed(() => isLastStep(this.stepIds(), this.step()));
 
   /**
    * The bar's primary, which is the CURRENT STEP's action rather than a create button that
    * spends most of the flow greyed out.
    *
-   * A create-only primary made step 1 a dead end: pick an income basis and the only enabled
-   * control left in the footer was Cancel, so moving on meant knowing to click the rail. And
-   * the reason beside it named the labels — a field two steps away and not on screen.
+   * A create-only primary made step ① a dead end: answer it and the only enabled control left
+   * in the footer was Cancel, so moving on meant knowing to click the rail.
    *
-   * Keyed on the STEP and not on whether the draft happens to be finished. Keyed on
-   * completeness it flipped to Create under the operator's hand mid-flow — which skipped the
-   * step whose whole job is to read back what will be written on the payslip branch, and left
-   * a step you could leave backwards but not forwards once the Previous button existed.
+   * Once the name EXISTS the button stops being a create at all — the only thing left is the
+   * question write, which is what failed. Saying "Add program" there would offer to make a
+   * second one.
    */
-  protected readonly primaryLabel = computed(() =>
-    this.isLast() ? this.submitLabel : this.nextLabel,
-  );
+  protected readonly primaryLabel = computed(() => {
+    if (this.createdName() !== null) return this.retryLabel;
+    return this.isLast() ? this.submitLabel : this.nextLabel;
+  });
 
   protected primary(): void {
     if (this.isLast()) {
@@ -642,9 +782,14 @@ export class NewProgramNamePage {
    *
    * The rule is `barBlock`'s; the wording is this screen's. `blockReason` still guards the
    * write itself in `doSave`, so a step-scoped message can never widen what is savable.
+   *
+   * SILENT once the name exists. `barBlock` on the last step reports the whole draft, which
+   * would keep naming form refusals for a name that has already been created — and would
+   * re-block the retry the moment the operator touched a field between attempts.
    */
   protected blockText(): string | null {
-    const reason: NewNameBlock = barBlock(this.draft(), this.stepIndex());
+    if (this.createdName() !== null) return null;
+    const reason: NewNameBlock = barBlock(this.draft(), this.step(), this.stepIds());
     switch (reason) {
       case 'labels':
         return $localize`:@@pcn.block_name:Give it a name in both languages.`;
@@ -652,6 +797,8 @@ export class NewProgramNamePage {
         return $localize`:@@pcn.block_name_latin:The English name needs at least one letter or digit — it becomes the key.`;
       case 'basis':
         return $localize`:@@pcn.block_basis:Say how the income is proved.`;
+      case 'offered':
+        return $localize`:@@pcn.block_offered:Turn on at least one loan type — a name offered under none can be picked by no bank.`;
       case 'product':
         // Two different sentences, because they are two different problems and only one of
         // them is the operator's to fix here: nothing PICKED, versus nothing to pick.
@@ -667,26 +814,125 @@ export class NewProgramNamePage {
   protected hint(): string | null {
     // Keyed on the step, like the button it sits beside: a step whose primary MOVES says where
     // it moves to, and the summary of what will be written belongs on the step that writes it.
-    // On that step an unfinished draft is reported by `blockText` instead, so this line is
-    // never a summary of a plan the operator cannot yet save.
     if (!this.isLast()) {
-      const next = this.stepIndex() + 1;
-      const label = this.steps()[next]?.label;
-      return label === undefined ? null : $localize`:@@pcn.next_hint:Next: ${label}:STEP:`;
+      const next = this.stepIds()[this.stepIndex() + 1];
+      return next === undefined
+        ? null
+        : $localize`:@@pcn.next_hint:Next: ${this.stepLabels[next]}:STEP:`;
+    }
+    if (this.createdName() !== null) {
+      return $localize`:@@pcn.made_not_asked:The name is created and offered. Only the questions are left — retry, or open the program and finish there.`;
     }
     const name = this.formValue().labelEn ?? '';
-    const plan = savePlan(this.draft());
-    if (plan.link.kind === 'existing') {
-      return $localize`:@@pcn.summary_link:Creates “${name}:NAME:”, quoting from “${this.linkedLabel(plan.link.key)}:PRODUCT:”.`;
+    const adds = this.pendingCount();
+    // One string per count rather than "question(s)". The parenthesised plural is the one
+    // form that is wrong in BOTH languages at once — and in Arabic it is not even a form,
+    // since the noun changes rather than taking a suffix.
+    if (adds === 0) {
+      return $localize`:@@pcn.summary_plain:Creates “${name}:NAME:”, offered under ${this.offered().length}:COUNT: of 4 loan types. Nothing else changes.`;
     }
-    return $localize`:@@pcn.summary_payslip:Creates “${name}:NAME:”, sold against a payslip.`;
+    if (adds === 1) {
+      return $localize`:@@pcn.summary_asks_one:Creates “${name}:NAME:” and asks one more question of the loan types you picked.`;
+    }
+    return $localize`:@@pcn.summary_asks:Creates “${name}:NAME:” and asks ${adds}:COUNT: more questions of the loan types you picked.`;
+  }
+
+  // --- the questions step ----------------------------------------------------
+
+  /**
+   * Which tab is on stage, CLAMPED to a loan type the name is actually offered under.
+   *
+   * Derived rather than stored, because the offer set can move under it: un-tick the loan
+   * type whose tab is open on the step before, and a stored value would point the board at a
+   * category the name is no longer sold under — which the rail does not draw, so the panel
+   * would render a list belonging to no visible tab.
+   */
+  protected readonly askCategory = computed<LoanCategory>(() => {
+    const on = this.offered();
+    const picked = this.askTab();
+    if (picked !== null && on.includes(picked)) return picked;
+    return on[0] ?? 'personal';
+  });
+
+  protected setAskCategory(category: LoanCategory): void {
+    this.askTab.set(category);
+  }
+
+  protected readonly pendingCount = computed(
+    () => pendingAdds(this.pool(), this.offered(), this.picks()).length,
+  );
+
+  protected toggleOffered(category: LoanCategory): void {
+    const on = this.offered();
+    this.offered.set(on.includes(category) ? on.filter((c) => c !== category) : [...on, category]);
+    // The pool backs the NEXT step, and reading it here rather than on arrival means the
+    // step is already populated when the operator gets to it. Once only — a second visit
+    // must not discard ticks by re-reading over them.
+    void this.loadPool();
+  }
+
+  /**
+   * A tick. Add-only, and confirmed when it is a REQUIRED question.
+   *
+   * Requiredness is enforced from the live assignment table while customers are served a
+   * frozen snapshot, so widening a required question refuses every application already in
+   * flight in that loan type until it is answered. Naming that consequence is the difference
+   * between a decision and an accident; "are you sure" would be neither.
+   */
+  protected askToAdd(row: AskedRow): void {
+    // A question the loan type ALREADY asks is confirmed by nobody: the tick writes nothing
+    // (`pendingAdds` drops it), so every application in flight has already had to answer it
+    // and the sentence below would be describing a consequence this click cannot have. Only
+    // reachable on the blank-start board, which is the one place such a row is tickable.
+    if (!row.isRequired || row.alreadyAsked) {
+      this.commitAdd(row.id);
+      return;
+    }
+    const type = categoryLabel(this.askCategory());
+    this.modal.confirm({
+      nzTitle: $localize`:@@pcn.req_title:Ask “${row.label}:QUESTION:” of every ${type}:TYPE: applicant?`,
+      nzContent: $localize`:@@pcn.req_body:It must be answered, so every ${type}:TYPE: application already in progress has to answer it before it can be submitted.`,
+      nzOkText: $localize`:@@pcn.req_ok:Ask it`,
+      nzCancelText: $localize`:@@pcn.req_cancel:Leave it`,
+      nzOnOk: () => {
+        this.commitAdd(row.id);
+        return true;
+      },
+    });
+  }
+
+  /**
+   * Take one of this session's own ticks back.
+   *
+   * No confirmation and no consequence to name: nothing has been written, and what is being
+   * undone is a pick made on this screen minutes ago. The required-question warning belongs
+   * to the tick, which is the direction that can break an application in flight.
+   *
+   * A gate SOURCE dragged in by another tick is not protected here either — `pendingAdds`
+   * closes the chain again at Finish, so un-ticking a source while its dependent is still
+   * ticked cannot ship a gate with nothing behind it.
+   */
+  protected askToRemove(row: AskedRow): void {
+    const category = this.askCategory();
+    const set = new Set(this.picks().get(category) ?? []);
+    if (!set.delete(row.id)) return;
+    const next = new Map(this.picks());
+    next.set(category, set);
+    this.picks.set(next);
+  }
+
+  private commitAdd(questionId: string): void {
+    const category = this.askCategory();
+    const next = new Map(this.picks());
+    const set = new Set(next.get(category) ?? []);
+    set.add(questionId);
+    next.set(category, set);
+    this.picks.set(next);
   }
 
   // --- rendering helpers -----------------------------------------------------
 
-  /** Arabic primary — a picker that fell back to English keys would be the one place an
-   * operator has to read a slug. */
-  /** The platform's word for the income type picked on step 1. */
+  /** The platform's word for the income type picked on step ①. */
   protected basisLabel(basis: IncomeBasis): string {
     return incomeBasisLabel(basis);
   }
@@ -712,15 +958,18 @@ export class NewProgramNamePage {
       : $localize`:@@pcn.product_reads_income:An assumed income, ${ways}:WAYS:`;
   }
 
-  private linkedLabel(key: string): string {
-    const known = this.products().find((p) => p.key === key);
-    return known ? this.productLabel(known) : key;
-  }
-
   // --- navigation ------------------------------------------------------------
 
   protected pickBasis(basis: IncomeBasis): void {
     this.basis.set(basis);
+    // Mirrored to the URL, not just held in a signal. The step LIST depends on it now, so a
+    // reload with `?step=` and no `?basis=` would resolve the number against the wrong list.
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { basis },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   /**
@@ -729,11 +978,14 @@ export class NewProgramNamePage {
    * initial value is read from the snapshot so a reload lands where the operator was.
    */
   protected goToStep(index: number): void {
-    if (index === 2 && this.basis() === null) return;
-    this.stepIndex.set(index);
+    const ids = this.stepIds();
+    const id = stepIdAt(ids, index);
+    if (id !== 'program' && this.basis() === null) return;
+    this.stepId.set(id);
+    if (id === 'offered' || id === 'asks') void this.loadPool();
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { step: index + 1 },
+      queryParams: { step: stepIndexOf(ids, id) + 1 },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
@@ -751,20 +1003,18 @@ export class NewProgramNamePage {
   }
 
   /**
-   * A pasted `?step=3` must not land on an empty form: clamp to the first step that still
+   * A pasted `?step=4` must not land on an empty form: clamp to the first step that still
    * owes an answer, so a deep link is a shortcut and never a skip.
    *
-   * With no `?step=` at all the landing depends on whether the CHIP already answered step 1:
-   * seeded, the screen opens on the name, because opening on a question that is already
-   * answered is what makes a step read as skippable — and it is the chip's whole job to save
-   * that click. Unseeded (the board's `All`), it opens on the basis radios, which is the one
-   * thing that must be asked before the form branches.
+   * With no `?step=` at all the screen opens on `program` either way — it now holds the
+   * basis AND the labels, so there is nothing left for the chip to skip past.
    */
-  private initialStep(): number {
+  private initialStep(): NewNameStepId {
+    const ids = newNameStepIds(this.initialBasis());
     const raw = Number(this.route.snapshot.queryParamMap.get('step'));
-    if (!Number.isFinite(raw) || raw === 0) return this.basis() === null ? 0 : 1;
-    const wanted = Math.min(Math.max(raw - 1, 0), 2);
-    return this.basis() === null ? Math.min(wanted, 1) : wanted;
+    if (!Number.isFinite(raw) || raw <= 0) return 'program';
+    if (this.initialBasis() === null) return 'program';
+    return stepIdAt(ids, raw - 1);
   }
 
   // --- save ------------------------------------------------------------------
@@ -774,34 +1024,57 @@ export class NewProgramNamePage {
     void this.doSave();
   }
 
+  /**
+   * TWO writes, name first, and the order is not arbitrary.
+   *
+   * A name created without its question widening is a state the operator lands in and can
+   * finish in two clicks; a question widening written for a name that was never created is a
+   * silent, irreversible change to every program of that loan type — and every questionnaire
+   * write publishes, so there is nothing to roll back to.
+   *
+   * The second write is idempotent by construction: it is recomputed from the same picks and
+   * cannot narrow anything, so a retry re-sends the same set and the server answers "nothing
+   * moved" without cutting a version.
+   */
   private async doSave(): Promise<void> {
-    if (this.submitting() || blockReason(this.draft()) !== null) return;
+    if (this.submitting()) return;
+    if (this.createdName() === null && blockReason(this.draft()) !== null) return;
     this.submitting.set(true);
     this.errorMessage.set(null);
     try {
-      const plan = savePlan(this.draft());
-      const v = this.form.getRawValue();
-      // ONE write. This flow used to be able to create a PRODUCT first and then the name
-      // linked to it, which needed a recorded key so a retry could not mint a second
-      // product. A product is not created here any more, so the two-write ordering, the
-      // recovery signal and the reason both existed are gone with it.
-      const link = plan.link.kind === 'existing' ? plan.link.key : null;
+      if (this.createdName() === null) {
+        const plan = savePlan(this.draft());
+        const v = this.form.getRawValue();
+        const link = plan.link.kind === 'existing' ? plan.link.key : null;
 
-      const name = await this.lookups.create({
-        type: ENUM_TYPE,
-        key: await this.uniqueKey(v.labelEn),
-        labelEn: v.labelEn,
-        labelAr: v.labelAr,
-        sortOrder: v.sortOrder,
-        // Sent on every path. A create that assigns no loan categories stores none of this,
-        // but it is what SURROGATE_PRODUCT_REQUIRED reads on the way in — dropping it would
-        // turn the server's one guard against a name that quotes nothing into a no-op.
-        incomeBases: [...plan.incomeBases],
-        // Absent, never '' or null: the DTO refuses both spellings.
-        ...(link !== null ? { surrogateProductKey: link } : {}),
-      });
+        const name = await this.lookups.create({
+          type: ENUM_TYPE,
+          key: await this.uniqueKey(v.labelEn),
+          labelEn: v.labelEn,
+          labelAr: v.labelAr,
+          sortOrder: v.sortOrder,
+          // Sent on every path: it is what SURROGATE_PRODUCT_REQUIRED reads on the way in,
+          // AND what the server writes as each category row's own basis flags.
+          incomeBases: [...plan.incomeBases],
+          // In the SAME atomic insert as the row. The name is born offered rather than
+          // parked, which is what the whole third step is for.
+          categories: [...plan.categories],
+          // Absent, never '' or null: the DTO refuses both spellings.
+          ...(link !== null ? { surrogateProductKey: link } : {}),
+        });
+        this.createdName.set({ id: name.id, key: name.key });
+      }
 
-      const landing = newNameLanding(name.key);
+      const adds = pendingAdds(this.pool(), this.offered(), this.picks());
+      // Never an empty body: the endpoint refuses one, and a request that changes nothing
+      // would still be a round trip nobody asked for.
+      if (adds.length > 0) {
+        await this.questionnaire.addQuestionCategoriesBulk(
+          adds.map((a) => ({ questionId: a.questionId, categories: [...a.categories] })),
+        );
+      }
+
+      const landing = newNameLanding(this.createdName()?.key ?? '');
       void this.router.navigate(landing.commands, { queryParams: landing.queryParams });
     } catch (err) {
       const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })
@@ -812,37 +1085,40 @@ export class NewProgramNamePage {
           envelope?.meta,
         ),
       );
-      // The picked product may have been retired from under us between load and save. Re-read
-      // rather than pre-check: the server is the rule, and a stale pick would repeat the same
-      // refusal on every retry.
-      await this.loadProducts();
-      const picked = this.pickedProductKey();
-      if (picked !== null && !this.products().some((p) => p.key === picked)) {
-        this.pickedProductKey.set(null);
+      if (this.createdName() === null) {
+        // The picked product may have been retired from under us between load and save.
+        // Re-read rather than pre-check: the server is the rule, and a stale pick would
+        // repeat the same refusal on every retry.
+        await this.loadProducts();
+        const picked = this.pickedProductKey();
+        if (picked !== null && !this.products().some((p) => p.key === picked)) {
+          this.pickedProductKey.set(null);
+        }
       }
     } finally {
       this.submitting.set(false);
     }
   }
 
+  /** Leave the half-finished flow for the name that DOES exist, rather than being trapped. */
+  protected openCreated(): void {
+    const made = this.createdName();
+    if (made === null) return;
+    const landing = newNameLanding(made.key);
+    void this.router.navigate(landing.commands, { queryParams: landing.queryParams });
+  }
+
   /**
-   * Free key for a derived slug: `doctors`, else `doctors_2`, `doctors_3`…
+   * The key for the NAME, avoiding both the taken ones and the two the router would eat.
    *
    * Two values may legitimately share an English label, and the key is not typeable — so a
    * raw ENUMERATION_KEY_DUPLICATE here would name a field the operator never saw. The server
    * still enforces the unique; this only keeps the ordinary case from surfacing as an
    * unactionable error.
    *
-   * Program names are additionally held off the RESERVED keys: `/program-catalog/new` and
-   * `/program-catalog/products` are literal segments declared before the single-segment
-   * `:key`, so a name keyed `new` would be saved, listed, and impossible to open.
-   */
-  /**
-   * The key for the NAME, avoiding both the taken ones and the two the router would eat.
-   *
-   * One type now, where it took a `type` parameter and served two: this flow no longer
-   * creates a product, so the only key it mints is a catalog name's — and the reserved set
-   * applied to that one alone.
+   * `/program-catalog/new` and `/program-catalog/products` are literal segments declared
+   * before the single-segment `:key`, so a name keyed `new` would be saved, listed, and
+   * impossible to open.
    */
   private async uniqueKey(label: string): Promise<string> {
     try {
@@ -869,4 +1145,48 @@ export class NewProgramNamePage {
       this.products.set([]);
     }
   }
+
+  /**
+   * The global question pool, read ONCE and only once the operator is heading for it.
+   *
+   * Not in the constructor beside the products: it is the whole pool with every answer, and
+   * the first two steps neither show nor need it. Not re-read on a second visit either —
+   * the ticks made in between live in this page's own signals, and a re-read would draw the
+   * board again as though they had not happened.
+   */
+  private async loadPool(): Promise<void> {
+    if (this.poolRequested) return;
+    this.poolRequested = true;
+    try {
+      const tree = await this.questionnaire.tree();
+      this.pool.set(tree.flatMap((g) => g.questions).map(toAskable));
+      this.poolError.set(false);
+    } catch {
+      this.poolError.set(true);
+      this.pool.set([]);
+    }
+  }
+}
+
+/**
+ * A pool row in the shape the board reasons about.
+ *
+ * The haystack is built ONCE per read rather than per keystroke: search runs on every
+ * character over every question, and lower-casing 83 rows' worth of wording and answers
+ * inside the filter is work repeated for nothing.
+ */
+function toAskable(q: QuestionRow): AskableQuestion {
+  return {
+    id: q.id,
+    code: q.code,
+    labelEn: q.questionEn,
+    labelAr: q.questionAr,
+    isActive: q.isActive,
+    isRequired: q.isRequired,
+    categories: q.categories,
+    gateSourceCode: q.enabledWhen?.questionCode ?? null,
+    haystack: [q.questionEn, q.questionAr, q.code, ...q.options.map((o) => o.labelEn)]
+      .join(' ')
+      .toLowerCase(),
+  };
 }

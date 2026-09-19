@@ -43,3 +43,4 @@ export {
 } from './form-drawer.component';
 export { FormPageComponent } from './form-page.component';
 export { IncomeBasisCardsComponent } from './income-basis-cards.component';
+export { LoanCategorySwitchesComponent } from './loan-category-switches.component';

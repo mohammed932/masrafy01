@@ -39,12 +39,15 @@ export function surrogateBoardLink(): { commands: string[]; queryParams: Params 
 export const CATALOG_NEW = `${CATALOG_BASE}/new`;
 
 /**
- * Where a freshly created name lands: its own page, at "Where it is offered".
+ * Where a freshly created name lands: its own page, at "What applicants are asked".
  *
- * Step 2 rather than step 1 because a new name is PARKED (`categories: []`), which is the
- * only step of that rail reading `invalid` on a fresh row — so the flow ends on the next
- * decision rather than on the list it was started from.
+ * The LAST step, not the second. It used to be the second because a new name was born
+ * PARKED — offered under no loan type — so the flow ended on the one decision the create
+ * screen had not asked. The create screen asks all of them now, so the only thing left on
+ * arrival is the one step a create can legitimately leave unfinished: the question widening
+ * is additive, so adding nothing is a real answer, and it is also where an operator lands
+ * when that second write failed and they chose to finish here instead of retrying.
  */
 export function newNameLanding(key: string): { commands: string[]; queryParams: Params } {
-  return { commands: [CATALOG_BASE, key], queryParams: { step: 2 } };
+  return { commands: [CATALOG_BASE, key], queryParams: { step: 3 } };
 }

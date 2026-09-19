@@ -231,6 +231,17 @@ export interface QuestionCategoryAssignment {
   questionId: string;
   categories: LoanCategory[];
 }
+
+/**
+ * One row of a bulk WIDENING: the array is added to that question's set, never replaces it.
+ * Same fields as `QuestionCategoryAssignment` and deliberately a separate type — the two
+ * carry opposite meanings for the same shape, and `[]` is a park on one and a no-op on the
+ * other, so a value must never be passed to the wrong call by accident.
+ */
+export interface QuestionCategoryAdd {
+  questionId: string;
+  categories: LoanCategory[];
+}
 export interface CreateOptionBody {
   labelAr: string;
   labelEn: string;
@@ -386,6 +397,25 @@ export class QuestionnaireApiService {
    */
   setQuestionCategoriesBulk(assignments: QuestionCategoryAssignment[]): Promise<GroupTreeRow[]> {
     return this.post<GroupTreeRow[]>(`/questionnaire/questions/categories`, { assignments });
+  }
+
+  /**
+   * ADD loan types to many questions at once — the write behind a catalog name's
+   * "what applicants are asked" step.
+   *
+   * A different endpoint from `setQuestionCategoriesBulk`, not the same one used carefully:
+   * that one REPLACES each question's set, so a stale copy of the pool would un-ask a
+   * question for loan types nobody touched. Nothing in this body can express a removal.
+   * One transaction, and a publish only if something actually moved — so re-sending an
+   * unchanged tick list cuts no version.
+   */
+  addQuestionCategoriesBulk(
+    assignments: QuestionCategoryAdd[],
+  ): Promise<{ added: QuestionCategoryAdd[]; published: boolean }> {
+    return this.post<{ added: QuestionCategoryAdd[]; published: boolean }>(
+      `/questionnaire/questions/categories/add`,
+      { assignments },
+    );
   }
 
   createOption(questionId: string, body: CreateOptionBody): Promise<OptionRow> {
