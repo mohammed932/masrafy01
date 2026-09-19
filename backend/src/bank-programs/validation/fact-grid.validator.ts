@@ -55,7 +55,7 @@ export interface FactGridViolation {
 const MAX_AXES = 4;
 
 /** What the figure in a cell means, which is the only thing that differs between the grids. */
-export type FactGridValueKind = 'ratePercent' | 'months' | 'sharePercent' | 'amountEGP';
+export type FactGridValueKind = 'ratePercent' | 'months' | 'sharePercent' | 'amountEGP' | 'years';
 
 function keyShapeValid(key: FactGridKey): boolean {
   if (key === null) return true;
@@ -82,6 +82,10 @@ function valueValid(raw: unknown, kind: FactGridValueKind): boolean {
   if (kind === 'sharePercent') return n <= 100;
   // Money, to the piastre. No integer rule and no 480 ceiling — both belong to `months`.
   if (kind === 'amountEGP') return n <= 99999999999.99;
+  // A vehicle age in whole years, not `months`: reusing that kind would accept "500 years"
+  // as a valid ceiling under a label that says months, the same silent-wrong-unit trap
+  // `sharePercent` exists to keep `ratePercent` from becoming.
+  if (kind === 'years') return Number.isInteger(n) && n <= 60;
   return Number.isInteger(n) && n <= 480;
 }
 

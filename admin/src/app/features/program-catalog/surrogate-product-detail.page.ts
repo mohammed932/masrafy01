@@ -38,6 +38,8 @@ import {
   Component,
   LOCALE_ID,
   computed,
+  effect,
+  untracked,
   inject,
   signal,
   viewChild,
@@ -407,19 +409,21 @@ interface ReadList {
                        read as a band's own air rather than as a strip that stopped short.
                        aria-hidden on the label: the tablist keeps its own accessible name,
                        so announcing the same words twice would be the only thing it added. -->
-                  <div class="ask-rail">
-                    <!-- The tablist's own accessible name, rendered. One string, so the word
+                  @if (!soleCategory()) {
+                    <div class="ask-rail">
+                      <!-- The tablist's own accessible name, rendered. One string, so the word
                          on screen and the word a screen reader hears cannot drift. -->
-                    <p class="ask-rail-label" aria-hidden="true">{{ asksAria }}</p>
-                    <app-rail-tabs
-                      [uniform]="true"
-                      idPrefix="spd-asks"
-                      [items]="askTabItems()"
-                      [activeId]="askCategory()"
-                      [ariaLabel]="asksAria"
-                      (select)="pickAskCategory($event)"
-                    />
-                  </div>
+                      <p class="ask-rail-label" aria-hidden="true">{{ asksAria }}</p>
+                      <app-rail-tabs
+                        [uniform]="true"
+                        idPrefix="spd-asks"
+                        [items]="askTabItems()"
+                        [activeId]="askCategory()"
+                        [ariaLabel]="asksAria"
+                        (select)="pickAskCategory($event)"
+                      />
+                    </div>
+                  }
 
                   <div
                     class="ask-stage"
@@ -584,7 +588,46 @@ interface ReadList {
                               Nothing yet — tap a question below and this product reads its answer.
                             </p>
                           }
+                        } @else if (
+                          section.key === 'rest' && askQuery().length === 0 && !askRestExpanded()
+                        ) {
+                          <!-- Collapsed by default: the whole question pool minus what this
+                               product already reads is almost never what the operator came to
+                               browse — they came with one question in mind and the search box
+                               above finds it in a keystroke. A pager reaching page 9 of an
+                               always-open grid was the loudest thing on the step for a section
+                               that exists to be searched, not paged through. "Browse" stays one
+                               click away for the rarer case of actually wanting to scan it —
+                               nothing here removes the capability, only its default weight. -->
+                          <p class="ask-collapsed">
+                            <span i18n="@@spd.ask.rest_collapsed"
+                              >{{ section.total }} more questions in the shared pool. Search above
+                              to find one, or</span
+                            >
+                            <button
+                              type="button"
+                              class="linkish"
+                              (click)="toggleAskRestExpanded()"
+                              i18n="@@spd.ask.rest_browse"
+                            >
+                              browse all {{ section.total }}
+                            </button>
+                          </p>
                         } @else {
+                          @if (
+                            section.key === 'rest' && askRestExpanded() && askQuery().length === 0
+                          ) {
+                            <p class="ask-sec-note">
+                              <button
+                                type="button"
+                                class="linkish"
+                                (click)="toggleAskRestExpanded()"
+                                i18n="@@spd.ask.rest_collapse"
+                              >
+                                Hide the rest
+                              </button>
+                            </p>
+                          }
                           @if (section.key === 'unasked') {
                             <p class="ask-sec-note" i18n="@@spd.ask.unasked_note">
                               This product reads these, but nobody applying for this loan type is
@@ -644,7 +687,28 @@ interface ReadList {
                                         Ask it here
                                       </button>
                                       @if (card.detachBlocked) {
-                                        <span class="ask-why">{{ detachWhy(card) }}</span>
+                                        <!-- Progressive disclosure, matching the "asked"
+                                             card's own refused-glyph pattern below: the reason
+                                             is real (a live calculation still reads this
+                                             answer) but a full sentence repeated down every
+                                             row in this section was the loudest thing on the
+                                             screen for the one card in six that needs it. The
+                                             icon is focusable so the reason still reaches a
+                                             keyboard or screen-reader user, not only a mouse. -->
+                                        <span
+                                          class="ask-why-hint"
+                                          nz-tooltip
+                                          [nzTooltipTitle]="detachWhy(card)"
+                                          tabindex="0"
+                                          role="img"
+                                          [attr.aria-label]="detachWhy(card)"
+                                        >
+                                          <span
+                                            nz-icon
+                                            nzType="exclamation-circle"
+                                            nzTheme="outline"
+                                          ></span>
+                                        </span>
                                       } @else {
                                         <button
                                           type="button"
@@ -1211,7 +1275,9 @@ interface ReadList {
                      screen was rebuilt to remove (v25.1.0). -->
                 @if (isPipeline()) {
                   <section class="step-sec">
-                    <h2 class="sub" i18n="@@spd.sec.inherited">What every bank falls back to</h2>
+                    <h2 class="sub" i18n="@@spd.sec.inherited">
+                      Defaults for every bank that sells this product
+                    </h2>
                     <p class="sec-lede" i18n="@@spd.sec.inherited_lede">
                       A bank selling this product falls back to each of these while its own program
                       states nothing in its place, so a change here moves live quotes.
@@ -1428,23 +1494,13 @@ interface ReadList {
                   }
                 </section>
 
-                <p class="reach">
-                  @if (p.usedBy.length === 0) {
+                @if (p.usedBy.length === 0) {
+                  <p class="reach">
                     <span i18n="@@spd.reach_none"
                       >Nothing sells this yet, so a change here reaches no bank.</span
                     >
-                  } @else {
-                    <!-- SHORT, because each section now states its own reach beside its own
-                         control: the duration counts the programs using its months, the plans
-                         count the ones that opted in. This line is the only statement about
-                         catalog NAMES, so it keeps that and the one mechanism no section above
-                         it owns — the tables a program takes with catalog amounts. -->
-                    <span i18n="@@spd.reach3"
-                      >A change here reaches {{ p.usedBy.length }} catalog name(s), and every bank
-                      program under them that has not stated its own figure in place of it.</span
-                    >
-                  }
-                </p>
+                  </p>
+                }
 
                 <ng-container [ngTemplateOutlet]="ruleActions"></ng-container>
               </section>
@@ -2187,16 +2243,15 @@ interface ReadList {
         border-block-start: 1px solid var(--border-subtle);
       }
 
-      /* Title and state on two lines rather than one: the state runs to a full sentence on
-         an unstated row ("No rate table — each bank prices from its own rate.") and to
-         three axis names on a stated one, and either of those beside a title on one line
-         is a row that wraps differently at every width. The chevron sits in a fixed
-         leading column so the titles align down the list whether a row has one or not. */
+      /* ONE LINE: glyph, title, state — the settings-row shape, with the state on the end
+         edge where a list of them reads as a column. It took two lines only because the
+         state was a sentence or three chained question names; now it is "20 rows" or "Not
+         set", both of which sit beside a title at any width. The glyph column is fixed so
+         the titles align down the list whether the row holds a chevron or a plus. */
       .plan-row {
         display: grid;
         grid-template-columns: 12px minmax(0, 1fr) auto;
         column-gap: var(--space-3);
-        row-gap: var(--space-1);
         align-items: center;
         inline-size: 100%;
         min-block-size: 44px;
@@ -2273,17 +2328,28 @@ interface ReadList {
         color: var(--text-primary);
       }
 
-      .plan-row-add {
-        grid-area: 1 / 3;
+      /* The plus shares the chevron's column, ink and size — one glyph column down the
+         list, whether the row opens a table or states one. */
+      .plan-add {
+        grid-area: 1 / 1;
+        flex: none;
+        color: var(--text-secondary);
       }
 
-      /* SECONDARY, not tertiary. On an unstated row it says what the bank does instead,
-         which is a sentence somebody has to read before deciding to add a table — and
-         tertiary measures 3.83:1 on this ground in light mode. */
+      button.plan-row:hover .plan-add,
+      button.plan-row:hover .chev {
+        color: var(--text-primary);
+      }
+
+      /* SECONDARY, not tertiary: it is the value of the row, read on every pass, and
+         tertiary measures 3.83:1 on this ground in light mode. Tabular figures because
+         five of these stack into a column of counts, and proportional digits make a
+         column of numbers look ragged at the one place it should look like a column. */
       .plan-row-state {
-        grid-area: 2 / 2 / 2 / 4;
+        grid-area: 1 / 3;
+        text-align: end;
         font-size: var(--text-sm);
-        line-height: 1.6;
+        font-variant-numeric: tabular-nums;
         color: var(--text-secondary);
       }
 
@@ -2942,6 +3008,23 @@ interface ReadList {
         color: var(--color-text-secondary);
       }
 
+      /* The default state of "Not read yet": one quiet line instead of a grid the operator
+         almost never scrolls. Same dashed-hairline posture as .ask-nomatch — nothing is
+         wrong here either, the pool is just resting until somebody searches it. */
+      .ask-collapsed {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-4);
+        border: 1px dashed var(--border-subtle);
+        border-radius: var(--radius-md);
+        max-inline-size: 72ch;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+
       .ask-sec {
         display: flex;
         flex-direction: column;
@@ -3235,13 +3318,6 @@ interface ReadList {
         white-space: nowrap;
       }
 
-      .ask-why {
-        font-size: var(--text-xs);
-        line-height: var(--leading-relaxed);
-        /* Live ink, measured: this is the whole information the card carries. */
-        color: var(--color-text-secondary);
-      }
-
       .ask-acts {
         display: flex;
         flex-wrap: wrap;
@@ -3431,6 +3507,18 @@ export class SurrogateProductDetailPage {
    * that differs between them is the value kind and the words — and five copies is five
    * places for one of them to drift out of step with the server's own list.
    */
+  /**
+   * What an unstated row says — once, instead of five sentences saying it five ways.
+   *
+   * Each row used to carry its own ("No table — each bank lends from its own shortest
+   * term."), which is the block's own lede — "A bank selling this product falls back to each
+   * of these while its own program states nothing in its place" — repeated per row, in the
+   * widest possible form, on the rows that hold the least. The rule is stated above the list;
+   * the row states the STATE.
+   */
+  protected readonly planNotSet = $localize`:@@spd.plans.not_set:Not set`;
+
+  /** The five tables, and what each one's figures mean — stated once, not five template blocks. */
   protected readonly planSlots = [
     {
       key: 'rateByFact' as const,
@@ -3504,6 +3592,10 @@ export class SurrogateProductDetailPage {
 
   protected addPlanGrid(slot: PlanSlotKey): void {
     this.setPlanGrid(slot, emptyFactGrid());
+    // Open it on the same click. Adding a table and leaving it closed asked for a second
+    // click before anything could be typed into the thing that had just been created — and
+    // the row it left behind said "1 row" about a table with nothing in it yet.
+    this.openPlanSlots.set(new Set(this.openPlanSlots()).add(slot));
   }
 
   /**
@@ -3691,7 +3783,7 @@ export class SurrogateProductDetailPage {
    * show by being looked at is that their deposit bands disagree, so comparing two of them
    * side by side is exactly the reason somebody opens this list.
    */
-  private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set());
+  private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set(['rateByFact']));
 
   /** The first slot with something wrong in it, or null. Gates Save, and forces its row open. */
   protected readonly erroredPlanSlot = computed<PlanSlotKey | null>(
@@ -3731,26 +3823,29 @@ export class SurrogateProductDetailPage {
   }
 
   /**
-   * What a closed row says its table holds: how many rows, and which answers they are keyed
-   * by. Derived from the stored grid rather than stated beside it, so it cannot go stale —
-   * the mistake a second list saying what a table contains would make on its first edit.
+   * What a closed row says its table holds: HOW MANY ROWS, and nothing else.
    *
-   * An axis with no fact picked yet contributes no name, correctly: it names nothing.
+   * It used to chain the axis names on as well — "20 row(s), by Down payment (% of the
+   * price) · Where the car was built · What the car runs on" — which is three question
+   * SENTENCES joined with separators. That was the longest string on the step, it wrapped at
+   * every width, and it is the whole reason the row was laid out on two lines. The axes are
+   * named authoritatively ONE CLICK AWAY, in the column headers of the table the row opens,
+   * so the closed row was restating something already stated and paying a line for it.
+   *
+   * Derived from the stored grid rather than kept beside it, so it cannot go stale — the
+   * mistake a second list saying what a table contains would make on its first edit.
+   *
+   * Two flat messages rather than one with `row(s)` in it: a parenthesised plural is a
+   * translator's problem printed at the customer, and Arabic does not form a plural that way
+   * at all.
    */
   protected planSummary(slot: PlanSlotKey): string {
     const grid = this.planGrid(slot);
     if (grid === null) return '';
-    const rows = String(grid.cells.length);
-    const known = this.facts();
-    // Through the editor's own labeller, never the registry alone: the deposit and the term
-    // are DERIVED axes with no question behind them, so a registry lookup answers nothing for
-    // the one axis every plan table is keyed by first.
-    const axes = grid.axes
-      .map((axis) => factGridAxisLabel(axis.factKey, known))
-      .filter((label) => label !== '')
-      .join(' · ');
-    if (axes === '') return $localize`:@@spd.plans.summary_rows:${rows}:rows: row(s)`;
-    return $localize`:@@spd.plans.summary:${rows}:rows: row(s), by ${axes}:axes:`;
+    const rows = grid.cells.length;
+    return rows === 1
+      ? $localize`:@@spd.plans.rows_one:1 row`
+      : $localize`:@@spd.plans.rows_many:${String(rows)}:rows: rows`;
   }
 
   /**
@@ -4145,6 +4240,21 @@ export class SurrogateProductDetailPage {
   }
 
   /**
+   * "Not read yet" collapses to a one-line count by default — 66 unrelated questions from the
+   * whole pool was the single biggest source of always-visible clutter on this step, and
+   * almost never what the operator came to browse; they came with one question in mind and
+   * typed it. This toggle is the escape hatch for the rarer case of actually wanting to scan
+   * the pool, so browsing stays possible — nothing here removes a capability, only its default
+   * visibility. Reset on every loan-type switch: a newly opened tab is a different pool, and a
+   * toggle left on from the last one would show a full grid nobody asked for.
+   */
+  protected readonly askRestExpanded = signal(false);
+
+  protected toggleAskRestExpanded(): void {
+    this.askRestExpanded.update((v) => !v);
+  }
+
+  /**
    * The in-flight overlay, in both directions, keyed by what each write is addressed by.
    *
    * An overlay rather than a patched copy of the board, because the truth here lives in a
@@ -4245,11 +4355,26 @@ export class SurrogateProductDetailPage {
     }));
   });
 
+  /**
+   * The one loan type this product is sold under, or `null` when it is sold under several
+   * (or none yet). With only one there is nothing to switch, so the rail is hidden and the
+   * open tab is pinned to it.
+   */
+  protected readonly soleCategory = computed<LoanCategory | null>(() => {
+    const board = this.asksBoard();
+    if (!board) return null;
+    const sold = new Set(board.served.map((row) => row.category));
+    if (sold.size !== 1) return null;
+    const [only] = [...sold];
+    return only !== undefined && isLoanCategory(only) ? only : null;
+  });
+
   protected readonly askCategoryLabel = computed(() => categoryLabel(this.askCategory()));
 
   protected pickAskCategory(id: string): void {
     if (!isLoanCategory(id)) return;
     this.askCategory.set(id);
+    this.askRestExpanded.set(false);
     // Mirrored onto the URL beside `?step=`, so a pasted link and a reload land on the loan
     // type the operator was looking at. `replaceUrl`, or flipping tabs fills the back button
     // with filter states.
@@ -4853,6 +4978,13 @@ export class SurrogateProductDetailPage {
    * open. This also makes the back button work.
    */
   private watchAskCategory(): void {
+    effect(
+      () => {
+        const only = this.soleCategory();
+        if (only !== null && untracked(this.askCategory) !== only) this.askCategory.set(only);
+      },
+      { allowSignalWrites: true },
+    );
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       const raw = params.get('loan');
       this.askCategory.set(raw !== null && isLoanCategory(raw) ? raw : 'personal');

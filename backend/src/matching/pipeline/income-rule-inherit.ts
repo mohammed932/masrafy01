@@ -144,14 +144,17 @@ export function inheritsCatalogAmounts(config: IncomeAssumptionConfig): boolean 
  * somehow does, the product wins, because the product is the thing the operator was
  * looking at when they edited it.
  *
- *   both absent    → undefined   the map omits the key, and
- *                                `PROGRAM_NAME_INCOME_PROOF_MISSING` still fires
- *   product absent → own         every payslip name, and every no-payslip name that
- *                                predates the archetypes. Unchanged behaviour.
- *   own null       → product     the linked case
- *   both present   → product     see above; should be unreachable
- *   product OFF    → withheld    the product is switched off, so the platform states
- *                                that there is no calculation — see below
+ *   both absent           → undefined   the map omits the key, and
+ *                                       `PROGRAM_NAME_INCOME_PROOF_MISSING` still fires
+ *   product absent        → own         every payslip name, and every no-payslip name
+ *                                       that predates the archetypes. Unchanged behaviour.
+ *   own null              → product     the linked case
+ *   both present           → product     see above; should be unreachable
+ *   product OFF            → withheld    the product is switched off, so the platform
+ *                                       states that there is no calculation — see below
+ *   product ON, no rule,
+ *   states a default       → defaults    the product has typed a duration or a plan
+ *                                       table but no calculation yet — see below
  *
  * `undefined` and not `null` on the empty case: the caller is building a Map that the
  * bank-level merge reads with `.get()`, and `effectiveIncomeRule` already spells "no
@@ -181,6 +184,35 @@ export function inheritsCatalogAmounts(config: IncomeAssumptionConfig): boolean 
  * exactly as it did before. Only the quote reads the marker, and it refuses on it before
  * any figure is priced. Dropping the rule here would make switching a product off silently
  * change what an operator is allowed to SAVE, which nobody asked for.
+ *
+ * A DEFAULTS-ONLY resolution is the third arm, and it closes a gap `tenorDefaults`'s own
+ * doc used to name as unreachable: an ACTIVE, linked product that states a duration or a
+ * plan table but holds no calculation. The old code fell through to `own ?? undefined`,
+ * and `own` is always `null` here — `PROGRAM_NAME_RULE_LINKED` refuses a linked name its
+ * own rule regardless of whether the product it links to currently holds one — so the
+ * result was `undefined` and both defaults were dropped on the floor. A payslip auto book
+ * (ADIB, HDB, CAE) sells the SAME plan shape across banks with different figures; without
+ * this arm the product's plan tables can never reach a payslip programme, because a
+ * payslip name's product legitimately has no `rule` to hang them on.
+ *
+ * `rule` is typed `undefined` here, never omitted, so `catalogRuleOf`'s `resolution?.rule`
+ * keeps compiling across all three arms and keeps answering `undefined` for this one — the
+ * accessor's existing contract ("the ONE way to read a resolution's figures") needs no new
+ * case, because there are none to read.
+ *
+ * `productKeyOf` DOES return a key for this arm, same as it does for `withheld` — and that
+ * has one live consequence downstream: `validateChosenWay` (income-rule.validator.ts) reads
+ * `opts.surrogateProductKey` to decide whether "exactly one way" is enforced on a bank
+ * program's OWN multi-way rule. A product-key now being present here for a product that
+ * supplies no structure is not a special case for that check — its own doc already frames
+ * the gate as "is a product standing behind this name", not "does the product currently
+ * hold figures", and a bank hand-authoring a multi-way rule under a linked name is exactly
+ * the case that check exists to hold to a choice.
+ *
+ * Nothing to carry is still `undefined` — a product neither active-with-a-rule nor stating
+ * a default is exactly today's `undefined` case and must go on being one: an empty
+ * resolution here would put a productKey on a name that inherits nothing, which is a fact
+ * `productKeyOf`'s callers are entitled to read as "something is inherited".
  */
 export type CatalogRuleResolution =
   | {
@@ -200,11 +232,9 @@ export type CatalogRuleResolution =
        * second field costs no call site and cannot get out of step with the rule beside it.
        *
        * Absent for a name holding its own (grandfathered) rule: only a PRODUCT states a
-       * duration. Also absent — and this is a real if narrow gap, stated rather than
-       * papered over — for a product that has typed a duration but holds no calculation
-       * yet, because there is no arm of this type for a resolution with no rule. Nothing
-       * inherits in that window, and nothing quotes either: the rule is what makes a
-       * program quote at all, so the gap has no reader.
+       * duration. A product that has typed a duration or a plan table but holds no
+       * calculation yet resolves to the THIRD arm below instead of this one — see
+       * "DEFAULTS-ONLY resolution" above `CatalogRuleResolution`.
        */
       readonly tenorDefaults?: TenorDefaults;
       readonly planDefaults?: PlanDefaults;
@@ -222,6 +252,18 @@ export type CatalogRuleResolution =
        * its term the moment a product was switched off would make the admin read-back
        * surfaces disagree with the save path about what the program is set to.
        */
+      readonly tenorDefaults?: TenorDefaults;
+      readonly planDefaults?: PlanDefaults;
+    }
+  | {
+      /**
+       * An active, linked product with no calculation of its own — see the "DEFAULTS-ONLY
+       * resolution" paragraph above `CatalogRuleResolution`. Typed `undefined` rather than
+       * omitted so every reader that does `resolution?.rule` keeps compiling unchanged and
+       * keeps answering "no rule here", which is the true answer for this arm.
+       */
+      readonly rule?: undefined;
+      readonly productKey: string;
       readonly tenorDefaults?: TenorDefaults;
       readonly planDefaults?: PlanDefaults;
     };
@@ -283,6 +325,15 @@ export function effectiveProgramNameRule(
     if (product.rule !== undefined) {
       return { rule: product.rule, productKey: product.key, ...tenor, ...plans };
     }
+    // ACTIVE, linked, and holding no calculation. `own` is `null` here on every real row
+    // (a linked name cannot hold its own rule — `PROGRAM_NAME_RULE_LINKED`), so falling
+    // through to the last line below would answer `undefined` and drop both defaults —
+    // the gap the DEFAULTS-ONLY arm's doc names. Return it only when there is something
+    // to carry, or a product that is simply unconfigured (no rule, no defaults either)
+    // starts reporting a productKey for a resolution that inherits nothing.
+    if (tenor.tenorDefaults !== undefined || plans.planDefaults !== undefined) {
+      return { productKey: product.key, ...tenor, ...plans };
+    }
   }
   const rule = own ?? undefined;
   return rule === undefined ? undefined : { rule };
@@ -291,8 +342,9 @@ export function effectiveProgramNameRule(
 /**
  * The surrogate product a resolution reads from, or `undefined` for a name's own rule.
  *
- * Withheld or not: a switched-off product is still the product the name is filed under, and
- * the save path validates a program under it exactly as before (see `CatalogRuleResolution`).
+ * Withheld, defaults-only, or holding a rule: a linked product is still the product the
+ * name is filed under in all three cases, and the save path validates a program under it
+ * exactly as before (see `CatalogRuleResolution`).
  */
 export function productKeyOf(resolution: CatalogRuleResolution | undefined): string | undefined {
   return resolution?.productKey;

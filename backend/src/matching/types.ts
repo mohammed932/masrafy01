@@ -267,6 +267,19 @@ export interface TenorConfig {
    * have to mean both "no floor" and "no ceiling" at once.
    */
   minMonthsByFact?: FactGridConfig;
+  /**
+   * The oldest a used car may be, in years, keyed against the same answers a term ceiling
+   * reads — origin, dealer. Deliberately its OWN field rather than a second column on
+   * `maxMonthsByFact`: that grid's cell is a TERM ceiling and this one is an AGE ceiling
+   * compared against a different fact (`car_age_years`, not `car_model_year` directly), so a
+   * shared cell could not state "84 months, 8 years old" without inventing a two-part value
+   * no other grid on the platform carries.
+   *
+   * Read in `quote.ts` as a standalone REFUSAL check, not a clamp: an eligible car's term is
+   * untouched by this field, and an ineligible one is refused (`VEHICLE_NOT_ELIGIBLE`)
+   * regardless of what term was asked for — there is no "too old, but only for 84 months".
+   */
+  maxVehicleAgeYearsByFact?: FactGridConfig;
 }
 
 export interface EligibilityConfig {

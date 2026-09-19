@@ -205,11 +205,12 @@ export function factsReadByPricing(raw: unknown): Set<string> {
   return gridAxisKeys(raw.rateByFact);
 }
 
-/** Every fact key a bank program's TENOR ceiling and floor read. */
+/** Every fact key a bank program's TENOR ceiling, floor and vehicle-age refusal read. */
 export function factsReadByTenor(raw: unknown): Set<string> {
   if (!isRecord(raw)) return new Set<string>();
   const keys = gridAxisKeys(raw.maxMonthsByFact);
   for (const key of gridAxisKeys(raw.minMonthsByFact)) keys.add(key);
+  for (const key of gridAxisKeys(raw.maxVehicleAgeYearsByFact)) keys.add(key);
   return keys;
 }
 

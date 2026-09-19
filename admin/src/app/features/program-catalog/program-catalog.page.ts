@@ -40,7 +40,13 @@ import {
   type RailTabItem,
   type StatStripItem,
 } from '@shared/ui';
-import { canonicalCategories, categoryLabel, type LoanCategory } from '@core/loan-category';
+import {
+  LOAN_CATEGORIES,
+  canonicalCategories,
+  categoryLabel,
+  isLoanCategory,
+  type LoanCategory,
+} from '@core/loan-category';
 import { incomeBasisLabel } from '@core/income-basis';
 import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
 import {
@@ -59,6 +65,7 @@ import {
   buildBoard,
   isNoPayslip as isNoPayslipName,
   type BasisFilter,
+  type CategoryFilter,
   type ProductCard,
 } from './catalog-board';
 import { CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
@@ -265,6 +272,21 @@ const ENUM_TYPE = 'program_name';
             id="basis-panel-no_payslip"
             aria-labelledby="basis-tab-no_payslip"
           >
+            <!-- A calculation is sold under whichever loan types the names selling it are
+                 offered under — several at once, routinely (the compound guarantee sells
+                 under Personal, Car AND Mortgage from one product). So this is a facet over
+                 the panel, not a second tablist: picking one narrows both lanes below
+                 (product cards and the names taking no product's calculation) without
+                 changing which OBJECT is on screen, unlike the basis rail above it. -->
+            <app-rail-tabs
+              appearance="pill"
+              idPrefix="cat"
+              [items]="categoryChips()"
+              [activeId]="categoryFilter()"
+              [ariaLabel]="categoryFilterAria"
+              (select)="setCategory(asCategory($event))"
+            />
+
             <section class="lane-group">
               @if (products().length > 0) {
                 <ul class="cards" role="list">
@@ -275,6 +297,17 @@ const ENUM_TYPE = 'program_name';
                     />
                   }
                 </ul>
+              } @else if (surrogateFilterActive()) {
+                <!-- Distinct from the "nothing exists yet" state below: the search box or the
+                     loan-type chip narrowed a non-empty board to zero, and "start one from a
+                     shape" would send the operator to build a duplicate of a product that is
+                     already there, just not under this chip. -->
+                <div class="board-empty">
+                  <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                  <p i18n="@@program_catalog.surrogate.no_match">
+                    No calculation matches this filter.
+                  </p>
+                </div>
               } @else {
                 <div class="board-empty">
                   <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
@@ -286,34 +319,6 @@ const ENUM_TYPE = 'program_name';
               }
             </section>
 
-            @if (unlinked().length > 0) {
-              <section class="lane-group">
-                <h2 class="lane-head">
-                  <span
-                    nz-icon
-                    nzType="exclamation-circle"
-                    nzTheme="outline"
-                    aria-hidden="true"
-                  ></span>
-                  <span i18n="@@program_catalog.unlinked.head"
-                    >Not taking a product's calculation</span
-                  >
-                  <span class="lane-n">{{ unlinked().length }}</span>
-                </h2>
-                <p class="lane-note" i18n="@@program_catalog.unlinked.note">
-                  Sold without a payslip, but not pointed at one of the calculations above. Open a
-                  name to see how it works its income out.
-                </p>
-                <ul class="cards" role="list">
-                  @for (u of unlinked(); track u.row.id) {
-                    <ng-container
-                      [ngTemplateOutlet]="nameCard"
-                      [ngTemplateOutletContext]="{ r: u.row, unlinked: u.state }"
-                    />
-                  }
-                </ul>
-              </section>
-            }
           </div>
         }
 
@@ -524,6 +529,22 @@ const ENUM_TYPE = 'program_name';
             </span>
             <span class="config">
               <span class="q-count">{{ reads(c.product) }}</span>
+              <!-- Which loan TYPES this calculation is sold under — the union of every
+                   selling name's own assignment, not a fact about the product itself (one
+                   product routinely sells under several: the compound guarantee sells under
+                   Personal, Car and Mortgage at once). Absence means no selling name has been
+                   assigned a loan type yet, which the "No catalog name sells this yet" tag
+                   below already says. -->
+              @if (c.categories.length > 0) {
+                <span class="cats">
+                  @for (cat of c.categories; track cat) {
+                    <span class="cat" [style.--cat-accent]="'var(--color-cat-' + cat + ')'">
+                      <span class="cat-dot" aria-hidden="true"></span>
+                      {{ label(cat) }}
+                    </span>
+                  }
+                </span>
+              }
             </span>
           </a>
 
@@ -1248,6 +1269,7 @@ export class ProgramCatalogPage implements OnInit {
       products: this.productRows(),
       search: this.search(),
       isAr: this.isAr,
+      category: this.categoryFilter(),
     }),
   );
 
@@ -1331,6 +1353,66 @@ export class ProgramCatalogPage implements OnInit {
         countLabel: this.surrogateCountLabel,
         accent: 'var(--color-income-surrogate)',
       },
+    ];
+  });
+
+  /**
+   * Which loan type narrows the no-payslip panel — `'all'` or one of the four. Lives in
+   * `?cat=` beside `?basis=`, same posture: the signal is the source of truth, the URL
+   * mirrors it with `replaceUrl` so flipping a chip does not fill the back button.
+   *
+   * A facet, like the basis rail above it, and for the same reason: a calculation is
+   * routinely sold under several loan types at once (the compound guarantee sells under
+   * Personal, Car and Mortgage from one product), so it has no single lane to sit in either.
+   */
+  protected readonly categoryFilter = signal<CategoryFilter>(this.initialCategory());
+
+  protected setCategory(next: CategoryFilter): void {
+    this.categoryFilter.set(next);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      // `null` drops the param rather than writing `cat=all` into every pasted link.
+      queryParams: { cat: next === 'all' ? null : next },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** The rail speaks ids as strings; this is the one place `'all'` and the four rejoin the union. */
+  protected asCategory(id: string): CategoryFilter {
+    return isLoanCategory(id) ? id : 'all';
+  }
+
+  private initialCategory(): CategoryFilter {
+    return this.asCategory(this.route.snapshot.queryParamMap.get('cat') ?? '');
+  }
+
+  protected readonly categoryFilterAria = $localize`:@@program_catalog.category.aria:Filter by loan type`;
+
+  /** Search box text OR a picked category — either can be why a lane reads as empty. */
+  protected readonly surrogateFilterActive = computed(
+    () => this.search().trim() !== '' || this.categoryFilter() !== 'all',
+  );
+
+  protected readonly categoryChips = computed<RailTabItem[]>(() => {
+    const counts = this.board().categoryCounts;
+    // Same unit as the surrogate basis chip above it — this rail only ever narrows that
+    // same set of cards, never a different kind of object.
+    const countLabel = this.surrogateCountLabel;
+    return [
+      {
+        id: 'all',
+        label: $localize`:@@program_catalog.category.all:All`,
+        count: counts.all,
+        countLabel,
+      },
+      ...LOAN_CATEGORIES.map((cat) => ({
+        id: cat,
+        label: categoryLabel(cat),
+        count: counts[cat],
+        countLabel,
+        accent: `var(--color-cat-${cat})`,
+      })),
     ];
   });
 

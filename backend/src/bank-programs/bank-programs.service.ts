@@ -674,6 +674,7 @@ export class BankProgramsService {
       [dto.pricing?.rateByFact, 'pricing.rateByFact', 'ratePercent'],
       [dto.tenor?.maxMonthsByFact, 'tenor.maxMonthsByFact', 'months'],
       [dto.tenor?.minMonthsByFact, 'tenor.minMonthsByFact', 'months'],
+      [dto.tenor?.maxVehicleAgeYearsByFact, 'tenor.maxVehicleAgeYearsByFact', 'years'],
       [dto.loanLimits?.ltvCeilingByFact, 'loanLimits.ltvCeilingByFact', 'sharePercent'],
       [dto.loanLimits?.minAmountByFact, 'loanLimits.minAmountByFact', 'amountEGP'],
     ] as const;

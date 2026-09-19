@@ -203,7 +203,7 @@ export const ABK_PRACTICE_EDGES = [
  * is missing is answered `no_matching_row`, which stops the rule.
  */
 /** A half-open deposit band, as a grid key. `null` on the upper edge means "and above". */
-function dpBand(
+export function dpBand(
   from: string,
   to: string | null,
 ): { fromInclusive: string; toExclusive: string | null } {

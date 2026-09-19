@@ -42,6 +42,13 @@ export interface TenorConfig {
   maxMonthsByFact?: FactGridConfig;
   /** The term floor against the same answers. Composed by `max`, so it only raises. */
   minMonthsByFact?: FactGridConfig;
+  /**
+   * The oldest a used car may be, in years, against the same answers. No wizard editor yet —
+   * same footing as `ltvCeilingByFact` / `minAmountByFact` before it — but typed here so the
+   * field rides through `carriedKeysOf`'s generic spread with the type saying what is
+   * actually in the object, rather than silently narrower than the runtime blob.
+   */
+  maxVehicleAgeYearsByFact?: FactGridConfig;
 }
 
 export interface LoanLimitsConfig {

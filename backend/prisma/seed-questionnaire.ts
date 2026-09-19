@@ -353,6 +353,43 @@ const CAR_FUEL_TYPE_Q: SeedQuestion = {
 };
 
 /**
+ * Who is selling the car.
+ *
+ * Its own question, and it exists for ONE published rule: every page of the Credit Agricole
+ * auto guide carries the same General Condition — "Finance all Chinese cars for 60 months
+ * except for Chinese cars sold by Ghabbour & Mansour Company tenor to reach 84 Months". The
+ * term a Chinese car is financed over therefore depends on the DEALER, and `car_origin`
+ * cannot answer that: it says where the car was built, not who is selling it.
+ *
+ * NOT an option on `car_origin`, for the reason that question's own docblock gives about fuel:
+ * a list mixing eleven countries with a dealership is one question answering two things, and
+ * an applicant buying a Chinese car from Ghabbour could only pick one of the two facts a
+ * bank's grid reads.
+ *
+ * OPTIONAL, like the four car questions around it. The `car` loan type also sells the two
+ * Green Finance programmes and the deposit-secured pair, and a required dealer question would
+ * refuse a solar applicant over a showroom. Safe because a grid states a wildcard row beside
+ * its named ones — an applicant who skips this is still priced, just not given the Ghabbour
+ * extension they never claimed.
+ *
+ * Option codes are STATED, not slugged: they are the keys a bank's grid is written against,
+ * and a reworded label must never move a column.
+ */
+const CAR_DEALER_Q: SeedQuestion = {
+  code: 'car_dealer',
+  isRequired: false,
+  questionEn: 'Who are you buying the car from?',
+  questionAr: 'من أين تشتري السيارة؟',
+  helperTextEn: 'Some banks finance a car for longer when it is bought through certain dealers.',
+  helperTextAr: 'بعض البنوك تموّل السيارة لمدة أطول عند شرائها من وكلاء معيّنين.',
+  options: [
+    { code: 'ghabbour_mansour', labelEn: 'Ghabbour or Mansour', labelAr: 'غبور أو منصور' },
+    { code: 'other_authorized', labelEn: 'Another authorised dealer', labelAr: 'وكيل معتمد آخر' },
+    { code: 'individual_seller', labelEn: 'A private seller', labelAr: 'بائع فرد' },
+  ],
+};
+
+/**
  * The model year, as a NUMBER.
  *
  * It replaces `model_year`, which asked the same thing in buckets — "this year's model", "up
@@ -1567,6 +1604,7 @@ const CAR: CategoryConfig = {
         CAR_MODEL_YEAR_Q,
         CAR_ORIGIN_Q,
         CAR_FUEL_TYPE_Q,
+        CAR_DEALER_Q,
         CAR_PRICE_Q,
         // The Green Finance pair rides the car flow: a solar loan and an e-bike loan are both
         // sold under `car`, and both are quoted off what the applicant has saved.
@@ -2183,7 +2221,7 @@ async function upsertCarFacts(): Promise<void> {
     { key: 'car_price', labelEn: 'Car price', labelAr: 'سعر السيارة', sortOrder: 120 },
     {
       key: 'car_down_payment',
-      labelEn: 'Car down payment',
+      labelEn: 'Car Down payment',
       labelAr: 'الدفعة المقدمة للسيارة',
       sortOrder: 121,
     },
@@ -2206,6 +2244,15 @@ async function upsertCarFacts(): Promise<void> {
       labelEn: 'What the car runs on',
       labelAr: 'نوع وقود السيارة',
       sortOrder: 126,
+    },
+    // Read by the term grids only: Credit Agricole finances a Chinese car over 60 months
+    // unless Ghabbour or Mansour is selling it, and that is a fact about the SALE rather
+    // than about the car, so no other axis can carry it.
+    {
+      key: 'car_dealer',
+      labelEn: 'Who is selling the car',
+      labelAr: 'جهة بيع السيارة',
+      sortOrder: 127,
     },
   ] as const;
 
