@@ -236,6 +236,22 @@ function cardCategories(names: readonly EnumerationRow[]): readonly LoanCategory
   return canonicalCategories(names.flatMap(rowCategories));
 }
 
+/**
+ * Is this name sold on that income basis under that loan type?
+ *
+ * The basis is stored PER loan type (`incomeBasesByCategory`), so "offered under Personal" and
+ * "sold without a payslip" are two facts, and a name can be payslip under one loan type and
+ * no-payslip under another. Counting a name under a loan type on its category alone put it in
+ * both segments' chips for a loan type where it is only sold one way. `'all'` asks the plain
+ * question: sold that way anywhere.
+ */
+export function soldWith(row: EnumerationRow, basis: IncomeBasis, category: CategoryFilter): boolean {
+  if (category === 'all') return basesOf(row).includes(basis);
+  if (!rowCategories(row).includes(category)) return false;
+  const per = row.incomeBasesByCategory?.[category];
+  return per && per.length > 0 ? per.includes(basis) : basesOf(row).includes(basis);
+}
+
 function matchesCategory(
   categories: readonly LoanCategory[],
   filter: CategoryFilter,
@@ -256,9 +272,7 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const liveMatching = q ? live.filter((r) => nameMatches(r, q)) : live;
 
   const searchedProofNames = liveMatching.filter(isPayslip);
-  const proofNames = searchedProofNames.filter((r) =>
-    matchesCategory(rowCategories(r), categoryFilter),
-  );
+  const proofNames = searchedProofNames.filter((r) => soldWith(r, 'payslip', categoryFilter));
 
   const cards: ProductCard[] = input.products.map((product) => {
     const names: EnumerationRow[] = [];
@@ -308,25 +322,35 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
       categories: rowCategories(row),
     }));
 
-  const products = searchedProducts.filter((c) => matchesCategory(c.categories, categoryFilter));
-  const unlinked = searchedUnlinked.filter((u) => matchesCategory(u.categories, categoryFilter));
+  // A calculation stays on stage under a loan type when some name selling it is sold WITHOUT a
+  // payslip there. With no loan type picked every card stays, including one nothing sells yet —
+  // that is the actionable state, and hiding it would hide the card somebody has to fix.
+  const products =
+    categoryFilter === 'all'
+      ? searchedProducts
+      : searchedProducts.filter((c) => c.names.some((r) => soldWith(r, 'no_payslip', categoryFilter)));
+  const unlinked = searchedUnlinked.filter((u) => soldWith(u.row, 'no_payslip', categoryFilter));
 
   const deprecated = q
     ? input.names.filter((r) => r.deprecatedAt && nameMatches(r, q))
     : input.names.filter((r) => r.deprecatedAt);
 
+  // Payslip counts NAMES (that is what its cards are). Surrogate counts CALCULATIONS (that is
+  // what its cards are), narrowed by the loan type the names selling each one are sold under
+  // WITHOUT a payslip. Each chip equals the cards under it; the earlier attempt to count every
+  // no-payslip name pulled legacy catalog entries (doctor, pharmacy, ...) into a panel that is
+  // about calculations.
   const payslip = searchedProofNames.length;
   const noPayslip = searchedProducts.length;
 
   const categoryCounts = { all: noPayslip } as Record<CategoryFilter, number>;
-  for (const cat of LOAN_CATEGORIES) {
-    categoryCounts[cat] = searchedProducts.filter((c) => c.categories.includes(cat)).length;
-  }
-
   const proofCategoryCounts = { all: payslip } as Record<CategoryFilter, number>;
   for (const cat of LOAN_CATEGORIES) {
+    categoryCounts[cat] = searchedProducts.filter((c) =>
+      c.names.some((r) => soldWith(r, 'no_payslip', cat)),
+    ).length;
     proofCategoryCounts[cat] = searchedProofNames.filter((r) =>
-      rowCategories(r).includes(cat),
+      soldWith(r, 'payslip', cat),
     ).length;
   }
 

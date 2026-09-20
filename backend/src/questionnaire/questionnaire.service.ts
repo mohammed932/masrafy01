@@ -146,6 +146,42 @@ export class QuestionnaireService {
     return toCustomerSnapshot(version.snapshot, category, scope);
   }
 
+  /**
+   * What an applicant of one catalog name is actually served, per loan type the name is
+   * offered under — read off `activeSnapshot`, the customer read itself, so the admin
+   * reports the narrowing being SERVED and not a second opinion about it. Same counting
+   * as the surrogate product's ask board. An unknown or retired name serves nothing.
+   */
+  async servedForProgramName(programNameKey: string): Promise<
+    {
+      category: LoanCategory;
+      categoryTotal: number;
+      categoryRequired: number;
+      servedTotal: number;
+      servedRequired: number;
+      servedQuestionCodes: string[];
+    }[]
+  > {
+    const member = (await this.enums.getActiveMembers('program_name')).find(
+      (m) => m.key === programNameKey,
+    );
+    if (member === undefined) return [];
+    const out = [];
+    for (const category of sortCategories(member.categories)) {
+      const whole = countServed(await this.activeSnapshot(category));
+      const narrowed = countServed(await this.activeSnapshot(category, programNameKey));
+      out.push({
+        category,
+        categoryTotal: whole.total,
+        categoryRequired: whole.required,
+        servedTotal: narrowed.total,
+        servedRequired: narrowed.required,
+        servedQuestionCodes: narrowed.codes,
+      });
+    }
+    return out;
+  }
+
   // ---- Groups -------------------------------------------------------------
   async createGroup(dto: CreateGroupDto, actor: string) {
     const existing = new Set((await this.repo.groupCodes()).map((g) => g.code));
@@ -1797,5 +1833,18 @@ function toCustomerSnapshot(
         })),
       })),
     })),
+  };
+}
+
+/** Question counts off a customer snapshot's shape (a projection of stored JSON). */
+function countServed(snapshot: unknown): { total: number; required: number; codes: string[] } {
+  const groups =
+    (snapshot as { groups?: { questions?: { code?: unknown; isRequired?: unknown }[] }[] })
+      .groups ?? [];
+  const questions = groups.flatMap((g) => g.questions ?? []);
+  return {
+    total: questions.length,
+    required: questions.filter((q) => q.isRequired === true).length,
+    codes: questions.map((q) => String(q.code)),
   };
 }

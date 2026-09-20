@@ -1,15 +1,24 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { CheckOutline, SearchOutline } from '@ant-design/icons-angular/icons';
+import { CheckOutline, SearchOutline, UserOutline } from '@ant-design/icons-angular/icons';
 import { RailTabsComponent, type RailTabItem } from '@shared/ui/rail-tabs.component';
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import {
   askedSections,
   askedTabs,
+  groupRows,
   type AskableQuestion,
   type AskedPicks,
   type AskedRow,
+  type ServedCount,
 } from './asked-questions.rules';
 
 /**
@@ -42,7 +51,7 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, NzIconModule, RailTabsComponent],
-  providers: [provideNzIconsPatch([CheckOutline, SearchOutline])],
+  providers: [provideNzIconsPatch([CheckOutline, SearchOutline, UserOutline])],
   template: `
     @if (tabs().length === 0) {
       <p class="none" role="status" i18n="@@askq.no_types">
@@ -83,6 +92,15 @@ import {
         }
       </p>
 
+      @if (servedHere(); as sv) {
+        <!-- What a tick costs an applicant of THIS name, counted off the snapshot the customer
+             is actually served (same figure the surrogate product board reports). -->
+        <p class="served" role="status">
+          <span nz-icon nzType="user" nzTheme="outline" aria-hidden="true"></span>
+          <span>{{ servedText(sv) }}</span>
+        </p>
+      }
+
       <div class="head">
         <p class="count">
           <strong class="tabular">{{ sections().asked.length }}</strong>
@@ -108,15 +126,66 @@ import {
         </label>
       </div>
 
+      @if (pinned().length > 0) {
+        <!-- The questions an applicant of THIS name is actually served, on top. Everything
+             else this loan type asks sits below, folded by section, so the list an operator
+             reads first is the one that matters for the name they are on. -->
+        <p class="sec" [id]="'askq-sec-pinned-' + category()">
+          @if (pinnedIsServed()) {
+            <span i18n="@@askq.sec_pinned">Asked of this name's applicants</span>
+          } @else {
+            <span i18n="@@askq.sec_pinned_req">Required of {{ categoryName() }} applicants</span>
+          }
+          <span class="sec-n tabular">{{ pinned().length }}</span>
+        </p>
+        <ul class="grid" [attr.aria-labelledby]="'askq-sec-pinned-' + category()">
+          @for (row of pinnedShown(); track row.id) {
+            <li>
+              <p class="card is-on">
+                <span class="tick" aria-hidden="true">
+                  <span nz-icon nzType="check" nzTheme="outline"></span>
+                </span>
+                <span class="text">
+                  <span class="label">{{ row.label }}</span>
+                  @if (optionsLine(row); as line) {
+                    <span class="opts">{{ line }}</span>
+                  }
+                  <span class="meta">
+                    @if (row.isRequired) {
+                      <span class="tag" i18n="@@askq.tag_required">Required</span>
+                    }
+                    @if (typeLabel(row); as t) {
+                      <span class="tag is-type">{{ t }}</span>
+                    }
+                  </span>
+                </span>
+              </p>
+            </li>
+          }
+        </ul>
+        @if (pinned().length > PINNED_ROWS) {
+          <button
+            type="button"
+            class="link pinned-toggle"
+            [attr.aria-expanded]="pinnedAll()"
+            (click)="pinnedAll.set(!pinnedAll())"
+          >
+            {{ pinnedToggleLabel() }}
+          </button>
+        }
+      }
+
       <p class="sec" [id]="'askq-sec-asked-' + category()">
         @if (blankStart()) {
           <span i18n="@@askq.sec_ticked">Ticked by you</span>
+        } @else if (pinned().length > 0) {
+          <span i18n="@@askq.sec_asked_also">Also asked in this loan type</span>
         } @else {
           <span i18n="@@askq.sec_asked">Asked in this loan type</span>
         }
-        <span class="sec-n tabular">{{ sections().asked.length }}</span>
+        <span class="sec-n tabular">{{ askedRest().length }}</span>
       </p>
-      @if (sections().asked.length === 0) {
+      @if (askedRest().length === 0) {
         @if (blankStart()) {
           <p class="sec-empty" i18n="@@askq.sec_ticked_empty">
             Nothing ticked yet. Tick a question below to have it asked.
@@ -128,8 +197,16 @@ import {
           </p>
         }
       } @else {
+        @for (g of askedGroups(); track g.key) {
+        <details class="grp">
+          @if (g.title) {
+            <summary class="grp-title">
+              <span>{{ g.title }}</span>
+              <span class="sec-n tabular">{{ g.rows.length }}</span>
+            </summary>
+          }
         <ul class="grid" [attr.aria-labelledby]="'askq-sec-asked-' + category()">
-          @for (row of sections().asked; track row.id) {
+          @for (row of g.rows; track row.id) {
             <li>
               <!-- Pressable ONLY on a blank-start board, where every row in this list is a
                    tick of the operator's own that has not been written yet, so taking it back
@@ -150,7 +227,13 @@ import {
                   </span>
                   <span class="text">
                     <span class="label">{{ row.label }}</span>
+                    @if (optionsLine(row); as line) {
+                      <span class="opts">{{ line }}</span>
+                    }
                     <span class="meta">
+                    @if (typeLabel(row); as t) {
+                      <span class="tag is-type">{{ t }}</span>
+                    }
                       @if (row.isRequired) {
                         <span class="tag" i18n="@@askq.tag_required">Required</span>
                       }
@@ -167,7 +250,13 @@ import {
                   </span>
                   <span class="text">
                     <span class="label">{{ row.label }}</span>
+                    @if (optionsLine(row); as line) {
+                      <span class="opts">{{ line }}</span>
+                    }
                     <span class="meta">
+                    @if (typeLabel(row); as t) {
+                      <span class="tag is-type">{{ t }}</span>
+                    }
                       @if (row.justPicked) {
                         <span class="tag is-new" i18n="@@askq.tag_added">Added by you</span>
                       }
@@ -181,6 +270,8 @@ import {
             </li>
           }
         </ul>
+        </details>
+        }
       }
 
       <p class="sec is-quiet" [id]="'askq-sec-rest-' + category()">
@@ -211,8 +302,16 @@ import {
           }
         </p>
       } @else {
+        @for (g of restGroups(); track g.key) {
+        <details class="grp" [attr.open]="search().trim() !== '' ? '' : null">
+          @if (g.title) {
+            <summary class="grp-title">
+              <span>{{ g.title }}</span>
+              <span class="sec-n tabular">{{ g.rows.length }}</span>
+            </summary>
+          }
         <ul class="grid is-quiet" [attr.aria-labelledby]="'askq-sec-rest-' + category()">
-          @for (row of sections().rest; track row.id) {
+          @for (row of g.rows; track row.id) {
             <li>
               <button
                 type="button"
@@ -228,7 +327,13 @@ import {
                 </span>
                 <span class="text">
                   <span class="label">{{ row.label }}</span>
+                    @if (optionsLine(row); as line) {
+                      <span class="opts">{{ line }}</span>
+                    }
                   <span class="meta">
+                    @if (typeLabel(row); as t) {
+                      <span class="tag is-type">{{ t }}</span>
+                    }
                     @if (!row.isActive) {
                       <span class="tag" i18n="@@askq.tag_parked">Switched off — asks nobody</span>
                     } @else {
@@ -245,6 +350,8 @@ import {
             </li>
           }
         </ul>
+        </details>
+        }
       }
 
       <p class="foot">
@@ -496,6 +603,80 @@ import {
         color: var(--text-primary);
       }
 
+      .served {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-4);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--border-default);
+        border-inline-start: 3px solid var(--primary);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+      }
+
+      .grp {
+        margin: 0 0 var(--space-4);
+      }
+      .grp-title {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-block-end: var(--space-2);
+        padding-block: var(--space-1);
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        list-style: none;
+      }
+      .grp-title::-webkit-details-marker {
+        display: none;
+      }
+      .grp-title::before {
+        content: '';
+        inline-size: 0.45rem;
+        block-size: 0.45rem;
+        border-inline-end: 2px solid currentColor;
+        border-block-end: 2px solid currentColor;
+        transform: rotate(-45deg);
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .grp[open] > .grp-title::before {
+        transform: rotate(45deg);
+      }
+      :host-context([dir='rtl']) .grp:not([open]) > .grp-title::before {
+        transform: rotate(135deg);
+      }
+      .grp-title:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
+      }
+
+      .opts {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+        line-height: var(--leading-snug);
+      }
+      .tag.is-type {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--border-default);
+      }
+
+      .pinned-toggle {
+        margin-block-start: var(--space-3);
+      }
+
       .foot {
         display: flex;
         flex-wrap: wrap;
@@ -559,6 +740,12 @@ export class AskedQuestionsEditorComponent {
    */
   readonly blankStart = input<boolean>(false);
 
+  /**
+   * What an applicant of the name on this page is served, per loan type — `null` on the create
+   * flow, where the name does not exist yet and there is nothing to count.
+   */
+  readonly served = input<readonly ServedCount[] | null>(null);
+
   readonly add = output<AskedRow>();
   /** A pick taken back. Emitted on a blank-start board only; nothing else can un-tick. */
   readonly remove = output<AskedRow>();
@@ -577,6 +764,80 @@ export class AskedQuestionsEditorComponent {
       this.blankStart(),
     ),
   );
+
+  /**
+   * Served rows pinned to the top: the asked questions an applicant of this name actually
+   * answers. Only when the name narrows anything — a name with no programs behind it is served
+   * the whole list, and pinning all of it would just repeat the section below.
+   */
+  protected readonly pinned = computed<readonly AskedRow[]>(() => {
+    if (this.blankStart()) return [];
+    const row = this.served()?.find((r) => r.category === this.category());
+    const codes = row?.servedQuestionCodes;
+    const narrowed = row !== undefined && codes !== undefined && row.servedTotal < row.categoryTotal;
+    const asked = this.sections().asked;
+    if (narrowed) {
+      const wanted = new Set(codes);
+      return asked.filter((r) => wanted.has(r.code)).sort((a, b) => Number(b.isRequired) - Number(a.isRequired));
+    }
+    // Nothing narrows this name (no bank program behind it yet), so it is served the whole
+    // list. Lead with the REQUIRED ones instead — the part every applicant must answer —
+    // and leave the optional rest folded below.
+    return asked.filter((r) => r.isRequired && r.isActive);
+  });
+  /** True when the pinned list is what this name's applicants are served, not just required. */
+  protected readonly pinnedIsServed = computed(() => {
+    const row = this.served()?.find((r) => r.category === this.category());
+    return row !== undefined && row.servedQuestionCodes !== undefined && row.servedTotal < row.categoryTotal;
+  });
+  /** Three rows of two on first sight; the rest one click away. */
+  protected readonly PINNED_ROWS = 6;
+  protected readonly pinnedAll = signal(false);
+  protected readonly pinnedShown = computed(() =>
+    this.pinnedAll() ? this.pinned() : this.pinned().slice(0, this.PINNED_ROWS),
+  );
+  protected pinnedToggleLabel(): string {
+    return this.pinnedAll()
+      ? $localize`:@@askq.pinned_less:Show fewer`
+      : $localize`:@@askq.pinned_more:Show all ${this.pinned().length}:COUNT:`;
+  }
+  protected readonly askedRest = computed(() => {
+    const top = new Set(this.pinned().map((r) => r.id));
+    return this.sections().asked.filter((r) => !top.has(r.id));
+  });
+  protected readonly askedGroups = computed(() => groupRows(this.askedRest()));
+  protected readonly restGroups = computed(() => groupRows(this.sections().rest));
+
+  protected readonly servedHere = computed(
+    () => this.served()?.find((r) => r.category === this.category()) ?? null,
+  );
+
+  protected servedText(sv: ServedCount): string {
+    return $localize`:@@askq.served:An applicant who picks this name answers ${sv.servedTotal}:SERVED: of ${sv.categoryTotal}:TOTAL: ${this.categoryName()}:TYPE: questions, ${sv.servedRequired}:REQUIRED: of them required.`;
+  }
+
+  protected typeLabel(row: AskedRow): string | null {
+    switch (row.type) {
+      case 'SINGLE_SELECT':
+        return $localize`:@@askq.type_single:Pick one`;
+      case 'MULTI_SELECT':
+        return $localize`:@@askq.type_multi:Pick several`;
+      case 'NUMERIC':
+        return $localize`:@@askq.type_number:Number`;
+      case 'TEXT':
+        return $localize`:@@askq.type_text:Text`;
+      default:
+        return null;
+    }
+  }
+
+  /** First few answers, so a card says what the applicant chooses between. */
+  protected optionsLine(row: AskedRow): string | null {
+    if (row.options.length === 0) return null;
+    const shown = row.options.slice(0, 3).join(' · ');
+    const more = row.options.length - 3;
+    return more > 0 ? `${shown} · +${more}` : shown;
+  }
 
   protected readonly tabs = computed(() =>
     askedTabs(this.pool(), this.offered(), this.picks(), this.blankStart()),

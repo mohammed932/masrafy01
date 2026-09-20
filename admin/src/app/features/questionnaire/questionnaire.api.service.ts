@@ -108,6 +108,8 @@ export interface QuestionRow {
    */
   categories: LoanCategory[];
 }
+export type { ServedCount } from '@shared/questions/asked-questions.rules';
+import type { ServedCount } from '@shared/questions/asked-questions.rules';
 export interface GroupTreeRow {
   id: string;
   code: string;
@@ -312,6 +314,13 @@ export class QuestionnaireApiService {
   }
 
   // ---- Questionnaire authoring (one global pool) ------------------------
+  /** How many questions an applicant of one catalog name is served, per loan type. */
+  servedForName(programNameKey: string): Promise<ServedCount[]> {
+    return this.get<ServedCount[]>(
+      `/questionnaire/served?programNameKey=${encodeURIComponent(programNameKey)}`,
+    );
+  }
+
   tree(): Promise<GroupTreeRow[]> {
     return this.get<GroupTreeRow[]>(`/questionnaire/tree`);
   }

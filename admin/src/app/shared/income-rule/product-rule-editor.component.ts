@@ -1528,6 +1528,13 @@ export class ProductRuleEditorComponent {
   readonly layout = input<'full' | 'inline'>('full');
 
   /**
+   * Leave the Conditions group off the rail. A condition applies only where a bank turns it on,
+   * so a catalog page has nothing to say in it — the rows are still in the rule and still saved
+   * untouched, they are just not offered here.
+   */
+  readonly hideConditions = input<boolean>(false);
+
+  /**
    * The slots one list keys, or `null` for "every slot" — which is every caller but the
    * product page's per-list mounts, so their behaviour is unchanged by construction.
    */
@@ -2382,18 +2389,7 @@ export class ProductRuleEditorComponent {
         rows: adjs,
       });
     }
-    if (conditions.length > 0) {
-      groups.push({
-        key: 'condition',
-        title: $localize`:@@product_rule.group.conditions:Conditions`,
-        hint:
-          this.variant() === 'catalog'
-            ? $localize`:@@product_rule.group.conditions_hint_catalog:A condition applies only where a bank turns it on, so leaving these alone refuses nobody.`
-            : $localize`:@@product_rule.group.conditions_hint_program:Turn on only the ones this bank applies. Blank means the customer is never refused for it.`,
-        count: this.countLabel(conditions),
-        rows: conditions,
-      });
-    }
+    
     return groups;
   });
 

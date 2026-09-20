@@ -26,15 +26,16 @@ import {
   WizardStepsComponent,
   type WizardStepItem,
 } from '@shared/ui';
-import { AskedQuestionsEditorComponent } from '@shared/questions/asked-questions-editor.component';
+import { toAskablePool } from '@shared/questions/to-askable';
+import { CompactAskedQuestionsComponent } from '@shared/questions/compact-asked-questions.component';
 import {
   type AskableQuestion,
+  type ServedCount,
   type AskedPicks,
   type AskedRow,
 } from '@shared/questions/asked-questions.rules';
 import {
   QuestionnaireApiService,
-  type QuestionRow,
 } from '@features/questionnaire/questionnaire.api.service';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
@@ -93,7 +94,7 @@ import { PRODUCT_BASE } from './program-catalog.paths';
     WizardStepsComponent,
     IncomeAssumptionSectionComponent,
     LoanCategorySwitchesComponent,
-    AskedQuestionsEditorComponent,
+    CompactAskedQuestionsComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -348,15 +349,19 @@ import { PRODUCT_BASE } from './program-catalog.paths';
                   </p>
                 }
 
-                <app-asked-questions-editor
+                <!-- Not the full board: what is REQUIRED, what was added in this visit, and a
+                     search that suggests the rest. The whole pool grouped by section is one
+                     click away by searching, not the first thing on the screen. -->
+                <app-compact-asked-questions
                   [pool]="pool()"
                   [offered]="n.categories"
                   [category]="askCategory()"
-                  [picks]="noPicks"
+                  [picks]="sessionPicks()"
                   [search]="askSearch()"
                   [isAr]="isAr"
                   [busy]="savingAsk().size > 0"
-                  [saving]="savingAsk()"
+                  [removable]="false"
+                  [served]="served()"
                   (categorySelect)="setAskCategory($event)"
                   (searchChange)="askSearch.set($event)"
                   (add)="askToAdd($event)"
@@ -1120,6 +1125,8 @@ export class ProgramNameDetailPage implements OnInit {
    * it lands like every other async surface here.
    */
   protected readonly pool = signal<readonly AskableQuestion[]>([]);
+  /** What an applicant of this name is served per loan type; empty until the read lands. */
+  protected readonly served = signal<readonly ServedCount[]>([]);
   protected readonly poolLoading = signal(false);
   protected readonly asksError = signal<string | null>(null);
   private poolRequested = false;
@@ -1133,7 +1140,8 @@ export class ProgramNameDetailPage implements OnInit {
    * rather than a fresh `new Map()` per change detection, which would make the editor's
    * `computed`s recompute on every tick of the app.
    */
-  protected readonly noPicks: AskedPicks = new Map<LoanCategory, ReadonlySet<string>>();
+  /** Questions ticked during THIS visit, per loan type — what "You added" lists. */
+  protected readonly sessionPicks = signal<AskedPicks>(new Map<LoanCategory, ReadonlySet<string>>());
 
   /** Clamped to a loan type the name is actually offered under — see the create flow. */
   protected readonly askCategory = computed<LoanCategory>(() => {
@@ -1189,9 +1197,11 @@ export class ProgramNameDetailPage implements OnInit {
     this.savingAsk.update((set) => new Set([...set, questionId]));
     this.asksError.set(null);
     try {
-      await this.questionnaire.addQuestionCategoriesBulk([
-        { questionId, categories: [this.askCategory()] },
-      ]);
+      const category = this.askCategory();
+      await this.questionnaire.addQuestionCategoriesBulk([{ questionId, categories: [category] }]);
+      const next = new Map(this.sessionPicks());
+      next.set(category, new Set([...(next.get(category) ?? []), questionId]));
+      this.sessionPicks.set(next);
       this.poolRequested = false;
       await this.loadPool();
     } catch (err) {
@@ -1205,13 +1215,24 @@ export class ProgramNameDetailPage implements OnInit {
     }
   }
 
+  /** Advisory: a failed read leaves the callout off rather than blocking the board. */
+  private async loadServed(): Promise<void> {
+    const key = this.routeKey();
+    try {
+      this.served.set(await this.questionnaire.servedForName(key));
+    } catch {
+      this.served.set([]);
+    }
+  }
+
   private async loadPool(): Promise<void> {
     if (this.poolRequested) return;
     this.poolRequested = true;
     this.poolLoading.set(true);
     try {
       const tree = await this.questionnaire.tree();
-      this.pool.set(tree.flatMap((g) => g.questions).map(toAskable));
+      this.pool.set(toAskablePool(tree));
+      void this.loadServed();
     } catch (err) {
       this.asksError.set(this.localizedError(err));
       this.pool.set([]);
@@ -1539,23 +1560,3 @@ export class ProgramNameDetailPage implements OnInit {
   }
 }
 
-/**
- * A pool row in the shape the board reasons about. The same projection the create flow
- * makes — written out in both places rather than shared through the rules module, which
- * stays free of the questionnaire API's wire types so it can be exercised without them.
- */
-function toAskable(q: QuestionRow): AskableQuestion {
-  return {
-    id: q.id,
-    code: q.code,
-    labelEn: q.questionEn,
-    labelAr: q.questionAr,
-    isActive: q.isActive,
-    isRequired: q.isRequired,
-    categories: q.categories,
-    gateSourceCode: q.enabledWhen?.questionCode ?? null,
-    haystack: [q.questionEn, q.questionAr, q.code, ...q.options.map((o) => o.labelEn)]
-      .join(' ')
-      .toLowerCase(),
-  };
-}

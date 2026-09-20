@@ -664,6 +664,7 @@ type ConditionOp = (typeof CONDITION_OPS)[number];
                 } @else {
                   <app-product-rule-editor
                     variant="catalog"
+                    [hideConditions]="true"
                     [steps]="compiledSteps()"
                     [gates]="compiledGates()"
                     [output]="compiledOutput()"

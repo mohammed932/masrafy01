@@ -581,7 +581,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       primary: divisor('3.6'),
       // The savings way, both columns. A default for EVERY way is the compound precedent: a
       // program on catalog amounts is pruned to the one way it picked before it quotes.
-      alt: divisor('3.6'),
+      // The instalment column's default is 6 on the operator's instruction (2026-09-20) — the
+      // sheet's own arithmetic there is ÷ 3.6, so a bank that wants the sheet's figure states it.
+      alt: divisor('6'),
       alt__cash_buyer: divisor('12'),
       iscore_band: iscoreTiers(),
     },

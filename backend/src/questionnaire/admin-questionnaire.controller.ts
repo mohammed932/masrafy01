@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -53,6 +54,14 @@ export class AdminQuestionnaireController {
   @ApiOperation({ summary: 'Editable working tree of the global pool (groups → questions → options)' })
   async tree() {
     return ok(await this.service.draftTree());
+  }
+
+  @Get('served')
+  @ApiOperation({
+    summary: 'How many questions an applicant of one program name is served, per loan type',
+  })
+  async served(@Query('programNameKey') programNameKey: string) {
+    return ok(await this.service.servedForProgramName(programNameKey ?? ''));
   }
 
   @Post('groups')

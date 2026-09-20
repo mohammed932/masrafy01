@@ -3162,7 +3162,7 @@
       <trans-unit id="program_catalog.proof.head" datatype="html"><source>Sold against a payslip</source><target>تُباع مقابل كشف راتب</target></trans-unit>
       <trans-unit id="program_catalog.surrogate.head" datatype="html"><source>Worked out without a payslip</source><target>تُحسب بدون كشف راتب</target></trans-unit>
       <trans-unit id="program_catalog.proof.count" datatype="html"><source>program names</source><target>أسماء برامج</target></trans-unit>
-      <trans-unit id="program_catalog.surrogate.count" datatype="html"><source>calculations and names</source><target>حسابات وأسماء</target></trans-unit>
+      <trans-unit id="program_catalog.surrogate.count" datatype="html"><source>calculations</source><target>حسابات</target></trans-unit>
       <trans-unit id="program_catalog.proof.empty" datatype="html"><source>
                   No name is sold against a payslip yet. Add a program name and it starts here.
                 </source><target>
@@ -4465,6 +4465,57 @@
       <trans-unit id="pnd.req_body" datatype="html"><source>It must be answered, so every <x id="TYPE" equiv-text="type"/> application already in progress has to answer it before it can be submitted.</source><target>إجابته إلزامية، فكل طلب <x id="TYPE" equiv-text="type"/> قيد التنفيذ سيلزمه الإجابة عنه قبل أن يُرسَل.</target></trans-unit>
       <trans-unit id="pnd.req_ok" datatype="html"><source>Ask it</source><target>اطرحه</target></trans-unit>
       <trans-unit id="pnd.req_cancel" datatype="html"><source>Leave it</source><target>اتركه</target></trans-unit>
+      <trans-unit id="caq.no_types" datatype="html"><source>
+        Pick at least one loan type first — what applicants are asked is set per loan type.
+      </source><target>
+        اختر نوع تمويل واحدًا على الأقل أولًا — الأسئلة تُحدَّد لكل نوع تمويل.
+      </target></trans-unit>
+      <trans-unit id="caq.check_h" datatype="html"><source>Needed to price <x id="INTERPOLATION" equiv-text="{{ typeName() }}"/></source><target>المطلوب لتسعير <x id="INTERPOLATION" equiv-text="{{ typeName() }}"/></target></trans-unit>
+      <trans-unit id="caq.check_ok" datatype="html"><source>Everything the quote reads is asked. Ready.</source><target>كل ما يقرؤه التسعير مطروح. جاهز.</target></trans-unit>
+      <trans-unit id="caq.check_bad" datatype="html"><source>Applicants of this type cannot be priced until these are asked.</source><target>لا يمكن تسعير المتقدمين لهذا النوع قبل طرح هذه الأسئلة.</target></trans-unit>
+      <trans-unit id="caq.check_add" datatype="html"><source>
+                    Ask it
+                  </source><target>
+                    اطرحه
+                  </target></trans-unit>
+      <trans-unit id="caq.req_h" datatype="html"><source>Also required of <x id="INTERPOLATION" equiv-text="{{ typeName() }}"/> applicants</source><target>مطلوب أيضًا من متقدمي <x id="INTERPOLATION" equiv-text="{{ typeName() }}"/></target></trans-unit>
+      <trans-unit id="caq.req_none" datatype="html"><source>No other question is required.</source><target>لا يوجد سؤال إلزامي آخر.</target></trans-unit>
+      <trans-unit id="caq.tag_required" datatype="html"><source>Required</source><target>إلزامي</target></trans-unit>
+      <trans-unit id="caq.mine_h" datatype="html"><source>You added</source><target>ما أضفته</target></trans-unit>
+      <trans-unit id="caq.mine_none" datatype="html"><source>Nothing added. Search below to ask another.</source><target>لم تضف شيئًا. ابحث أدناه لطرح سؤال آخر.</target></trans-unit>
+      <trans-unit id="caq.search_aria" datatype="html"><source>Search the question pool</source><target>ابحث في بنك الأسئلة</target></trans-unit>
+      <trans-unit id="caq.search_ph" datatype="html"><source>Search the <x id="INTERPOLATION" equiv-text="{{ poolSize() }}"/> questions by wording, answer or code</source><target>ابحث في <x id="INTERPOLATION" equiv-text="{{ poolSize() }}"/> سؤالًا بالصياغة أو الإجابة أو الرمز</target></trans-unit>
+      <trans-unit id="caq.no_match" datatype="html"><source>Nothing else matches “<x id="INTERPOLATION" equiv-text="{{ search() }}"/>”.</source><target>لا شيء آخر يطابق «<x id="INTERPOLATION" equiv-text="{{ search() }}"/>».</target></trans-unit>
+      <trans-unit id="caq.tag_off" datatype="html"><source>Switched off</source><target>معطّل</target></trans-unit>
+      <trans-unit id="caq.tag_already" datatype="html"><source>Already asked</source><target>مطروح بالفعل</target></trans-unit>
+      <trans-unit id="caq.rail_aria" datatype="html"><source>Loan types this name is offered under</source><target>أنواع التمويل المتاح تحتها هذا الاسم</target></trans-unit>
+      <trans-unit id="caq.state_asked" datatype="html"><source>Asked</source><target>مطروح</target></trans-unit>
+      <trans-unit id="caq.state_picked" datatype="html"><source>Added by you</source><target>أضفته</target></trans-unit>
+      <trans-unit id="caq.state_not_asked" datatype="html"><source>Not asked yet</source><target>غير مطروح بعد</target></trans-unit>
+      <trans-unit id="caq.state_unavailable" datatype="html"><source>Not in the question pool</source><target>غير موجود في بنك الأسئلة</target></trans-unit>
+      <trans-unit id="caq.add_aria" datatype="html"><source>Ask <x id="QUESTION" equiv-text="row.label"/> of every <x id="TYPE" equiv-text="this.typeName()"/> applicant</source><target>اطرح <x id="QUESTION" equiv-text="row.label"/> على كل متقدم <x id="TYPE" equiv-text="this.typeName()"/></target></trans-unit>
+      <trans-unit id="caq.remove_aria" datatype="html"><source>Untick <x id="QUESTION" equiv-text="row.label"/></source><target>ألغِ تحديد <x id="QUESTION" equiv-text="row.label"/></target></trans-unit>
+      <trans-unit id="pcn.block_core" datatype="html"><source>A loan type cannot be priced yet — ask the missing questions listed on the last step.</source><target>لا يمكن تسعير أحد أنواع التمويل بعد — اطرح الأسئلة الناقصة المذكورة في الخطوة الأخيرة.</target></trans-unit>
+      <trans-unit id="caq.tag_gated" datatype="html"><source>Only if it applies</source><target>فقط عند الانطباق</target></trans-unit>
+      <trans-unit id="caq.range" datatype="html"><source><x id="FROM" equiv-text="from"/>–<x id="TO" equiv-text="to"/> of <x id="TOTAL" equiv-text="this.required().length"/></source><target><x id="FROM" equiv-text="from"/>–<x id="TO" equiv-text="to"/> من <x id="TOTAL" equiv-text="this.required().length"/></target></trans-unit>
+      <trans-unit id="caq.pager_aria" datatype="html"><source>Required questions, pages</source><target>الأسئلة الإلزامية، الصفحات</target></trans-unit>
+      <trans-unit id="caq.prev" datatype="html"><source>Previous page</source><target>الصفحة السابقة</target></trans-unit>
+      <trans-unit id="caq.next" datatype="html"><source>Next page</source><target>الصفحة التالية</target></trans-unit>
+      <trans-unit id="caq.suggested_h" datatype="html"><source>Suggested questions</source><target>أسئلة مقترحة</target></trans-unit>
+      <trans-unit id="caq.results_h" datatype="html"><source>Results</source><target>النتائج</target></trans-unit>
+      <trans-unit id="caq.no_suggestions" datatype="html"><source>No other question to suggest.</source><target>لا يوجد سؤال آخر لاقتراحه.</target></trans-unit>
+      <trans-unit id="caq.tab_count" datatype="html"><source>questions asked</source><target>أسئلة مطروحة</target></trans-unit>
+      <trans-unit id="caq.total" datatype="html"><source><x id="TYPE" equiv-text="this.typeName()"/> applicants are asked <x id="TOTAL" equiv-text="this.askedTotal()"/> questions in all — <x id="REQUIRED" equiv-text="this.requiredTotal()"/> required, <x id="OPTIONAL" equiv-text="this.optionalTotal()"/> optional. Required ones and your additions are listed here; the optional ones are in the suggestions below. Each applicant is then asked only what a bank program behind this name reads.</source><target>يُطرح على متقدمي <x id="TYPE" equiv-text="this.typeName()"/> <x id="TOTAL" equiv-text="this.askedTotal()"/> سؤالًا إجمالًا — <x id="REQUIRED" equiv-text="this.requiredTotal()"/> إلزامي و<x id="OPTIONAL" equiv-text="this.optionalTotal()"/> اختياري. الأسئلة الإلزامية وما أضفته مذكورة هنا، والاختيارية في الاقتراحات أدناه. ثم يُسأل كل متقدم فقط عمّا يقرؤه برنامج بنكي تحت هذا الاسم.</target></trans-unit>
+      <trans-unit id="askq.sec_pinned_req" datatype="html"><source>Required of <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> applicants</source><target>إلزامية على متقدمي <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/></target></trans-unit>
+      <trans-unit id="askq.pinned_less" datatype="html"><source>Show fewer</source><target>عرض أقل</target></trans-unit>
+      <trans-unit id="askq.pinned_more" datatype="html"><source>Show all <x id="COUNT" equiv-text="this.pinned().length"/></source><target>عرض الكل (<x id="COUNT" equiv-text="this.pinned().length"/>)</target></trans-unit>
+      <trans-unit id="askq.sec_pinned" datatype="html"><source>Asked of this name's applicants</source><target>المطروحة على متقدمي هذا الاسم</target></trans-unit>
+      <trans-unit id="askq.sec_asked_also" datatype="html"><source>Also asked in this loan type</source><target>مطروحة أيضًا في نوع التمويل هذا</target></trans-unit>
+      <trans-unit id="askq.served" datatype="html"><source>An applicant who picks this name answers <x id="SERVED" equiv-text="sv.servedTotal"/> of <x id="TOTAL" equiv-text="sv.categoryTotal"/> <x id="TYPE" equiv-text="this.categoryName()"/> questions, <x id="REQUIRED" equiv-text="sv.servedRequired"/> of them required.</source><target>المتقدم الذي يختار هذا الاسم يجيب على <x id="SERVED" equiv-text="sv.servedTotal"/> من <x id="TOTAL" equiv-text="sv.categoryTotal"/> سؤالًا (<x id="TYPE" equiv-text="this.categoryName()"/>)، منها <x id="REQUIRED" equiv-text="sv.servedRequired"/> إلزامية.</target></trans-unit>
+      <trans-unit id="askq.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
+      <trans-unit id="askq.type_multi" datatype="html"><source>Pick several</source><target>اختيار متعدد</target></trans-unit>
+      <trans-unit id="askq.type_number" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
+      <trans-unit id="askq.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
       <trans-unit id="askq.no_types" datatype="html"><source> Pick at least one loan type first — what applicants are asked is set per loan type. </source><target>اختر نوع تمويل واحدًا على الأقل أولًا — ما يُسأل عنه المتقدمون يُحدَّد لكل نوع تمويل.</target></trans-unit>
       <trans-unit id="askq.reach" datatype="html"><source>These are the questions every <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> applicant answers — not only this program.</source><target>هذه هي الأسئلة التي يُجيب عنها كل متقدم في <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> — وليس هذا البرنامج وحده.</target></trans-unit>
       <trans-unit id="askq.reach_narrow" datatype="html"><source>Each applicant is then asked only the ones a bank program behind this name reads.</source><target>ثم لا يُسأل كل متقدم إلا عمّا يقرأه برنامج بنكي تحت هذا الاسم.</target></trans-unit>

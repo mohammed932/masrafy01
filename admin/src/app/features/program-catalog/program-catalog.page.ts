@@ -63,12 +63,13 @@ import {
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import {
   buildBoard,
+  soldWith,
   isNoPayslip as isNoPayslipName,
   type BasisFilter,
   type CategoryFilter,
   type ProductCard,
 } from './catalog-board';
-import { CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
+import { CATALOG_BASE, CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
 
 const ENUM_TYPE = 'program_name';
 
@@ -309,25 +310,24 @@ const ENUM_TYPE = 'program_name';
                     />
                   }
                 </ul>
-              } @else if (surrogateFilterActive()) {
-                <!-- Distinct from the "nothing exists yet" state below: the search box or the
-                     loan-type chip narrowed a non-empty board to zero, and "start one from a
-                     shape" would send the operator to build a duplicate of a product that is
-                     already there, just not under this chip. -->
-                <div class="board-empty">
-                  <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
-                  <p i18n="@@program_catalog.surrogate.no_match">
-                    No calculation matches this filter.
-                  </p>
-                </div>
-              } @else {
-                <div class="board-empty">
-                  <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
-                  <p i18n="@@program_catalog.surrogate.empty">
-                    No calculation for a customer with no payslip yet. Start one from a shape and
-                    the questions it asks are built with it.
-                  </p>
-                </div>
+              }
+              @if (products().length === 0) {
+                @if (surrogateFilterActive()) {
+                  <div class="board-empty">
+                    <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                    <p i18n="@@program_catalog.surrogate.no_match">
+                      No calculation matches this filter.
+                    </p>
+                  </div>
+                } @else {
+                  <div class="board-empty">
+                    <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                    <p i18n="@@program_catalog.surrogate.empty">
+                      No calculation for a customer with no payslip yet. Start one from a shape and
+                      the questions it asks are built with it.
+                    </p>
+                  </div>
+                }
               }
             </section>
 
@@ -567,11 +567,13 @@ const ENUM_TYPE = 'program_name';
                    disabled ink token sits under 4.5:1 for a sentence somebody must read. -->
               <span class="tag warn" i18n="@@sp.unused">No catalog name sells this yet</span>
             }
-            <!-- The names that DO sell this are not listed here: the card's own link opens
-                 the product, where step 3 lists them with what each one is offered under.
-                 A chip row repeating a near-identical key beside the product title read as
-                 a duplicate of the heading. A stored link with NO name behind it still
-                 shows — rendering one chip fewer would hide exactly the case worth seeing. -->
+            <!-- The names that sell this, EXCEPT one that only repeats the product's own title —
+                 that read as a duplicate of the heading. A name an operator just added under
+                 a different label is exactly what they came back to the board to find, so it
+                 shows, as a chip that opens that name. -->
+            @for (n of soldNames(c).shown; track n.id) {
+              <a class="name-chip" [routerLink]="[nameBase, n.key]">{{ nameOf(n) }}</a>
+            }
             @for (k of c.orphanNameKeys; track k) {
               <span class="name-chip is-orphan" [attr.title]="orphanTitle">{{ k }}</span>
             }
@@ -1240,6 +1242,7 @@ export class ProgramCatalogPage implements OnInit {
   private readonly productRows = signal<readonly SurrogateProductSummary[]>([]);
 
   protected readonly productBase = PRODUCT_BASE;
+  protected readonly nameBase = CATALOG_BASE;
 
   /**
    * Add a program name, opening on the basis the operator is standing in front of.
@@ -1714,7 +1717,7 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly surrogateHead = $localize`:@@program_catalog.surrogate.head:Worked out without a payslip`;
   // A bare number on a tab is announced as part of its name with no unit — "Income proof 10".
   protected readonly proofCountLabel = $localize`:@@program_catalog.proof.count:program names`;
-  protected readonly surrogateCountLabel = $localize`:@@program_catalog.surrogate.count:calculations and names`;
+  protected readonly surrogateCountLabel = $localize`:@@program_catalog.surrogate.count:calculations`;
   protected readonly orphanTitle = $localize`:@@program_catalog.product.orphan:A name points at this calculation, but that name is no longer on the board.`;
 
   /**
@@ -1724,6 +1727,17 @@ export class ProgramCatalogPage implements OnInit {
   private readonly facts = computed(() =>
     registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
   );
+
+  /**
+   * The names on a calculation card: those sold WITHOUT a payslip under the loan type on stage,
+   * which is exactly what the segment chip counts — so the number on the chip is the number of
+   * names on screen, chips and name cards together. No de-duplication against the card's own
+   * title: dropping a name that reads like the heading made the count one short.
+   */
+  protected soldNames(c: ProductCard): { shown: readonly EnumerationRow[] } {
+    const cat = this.categoryFilter();
+    return { shown: c.names.filter((n) => soldWith(n, 'no_payslip', cat)) };
+  }
 
   protected productName(c: ProductCard): string {
     return this.isAr ? c.product.labelAr : c.product.labelEn;
