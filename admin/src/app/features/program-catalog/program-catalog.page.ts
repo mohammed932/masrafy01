@@ -177,21 +177,16 @@ const ENUM_TYPE = 'program_name';
              the flow opens on. A CALCULATION is not a second capability: step 3 of that flow
              starts one from a shape, and the two product screens keep their own links to the
              picker for the rarer errand of making one that no name sells yet. -->
-        <!-- Withheld on the Surrogate chip: a no-payslip PRODUCT is seeded, never created
-             (v22.0.0 — seed:blueprints), so the only thing this button could add
-             while that chip is on is a catalog NAME, which is not what the chip lists. -->
-        @if (basisFilter() !== 'no_payslip') {
-          <a
-            nz-button
-            nzType="primary"
-            class="add-btn"
-            [routerLink]="newNameLink().commands"
-            [queryParams]="newNameLink().queryParams"
-          >
-            <span nz-icon nzType="plus" nzTheme="outline"></span>
-            <span i18n="@@program_catalog.dialog.add">Add program</span>
-          </a>
-        }
+        <a
+          nz-button
+          nzType="primary"
+          class="add-btn"
+          [routerLink]="newNameLink().commands"
+          [queryParams]="newNameLink().queryParams"
+        >
+          <span nz-icon nzType="plus" nzTheme="outline"></span>
+          <span i18n="@@program_catalog.dialog.add">Add program</span>
+        </a>
       </div>
 
       @if (loading()) {

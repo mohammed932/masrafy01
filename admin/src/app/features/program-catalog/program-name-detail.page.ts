@@ -246,6 +246,7 @@ import { PRODUCT_BASE } from './program-catalog.paths';
                   @if (!linked()) {
                     <app-income-assumption-section
                       variant="catalog"
+                      [declaredOnly]="payslipOnly()"
                       [group]="ruleGroup"
                       [keyTable]="ruleKeyTable()"
                       (keyTableChange)="onRuleKeyTable($event)"
@@ -1385,6 +1386,12 @@ export class ProgramNameDetailPage implements OnInit {
   private readonly effectiveRule = computed<IncomeAssumptionConfig | null>(() =>
     catalogRuleOf(this.rule()),
   );
+
+  /** True when no loan type sells this name without a payslip. */
+  protected readonly payslipOnly = computed(() => {
+    const n = this.name();
+    return n !== null && !Object.values(n.bases).some((b) => b.includes('no_payslip'));
+  });
 
   /** The product key this name links to, or `null` when it states its own rule. */
   protected readonly linked = computed<string | null>(
