@@ -1934,6 +1934,16 @@ export class ProductRuleEditorComponent {
 
   /** The ways that hold figures and are not the one being picked, in their own words. */
   private waysLosingFigures(wayId: string): string[] {
+    // NOTHING OF THIS BANK'S IS AT RISK while it is still on the catalog's figures, so there
+    // is nothing to confirm. The two notices beside this one — the "has amounts" row tag and
+    // the "Clear the other ways" line — have always been gated on `figuresAreOwn`, and this
+    // was the one place that was not: it counted the catalog's PRE-FILL as work about to be
+    // lost. On every product whose catalog fills more than one way — the auto product fills
+    // both, the compound guarantee four of five — that put a red destructive dialog in front
+    // of the operator's very first pick, naming figures nobody had typed and the product can
+    // supply again. Once the bank has typed its own, the confirmation is back, because then
+    // switching really does delete work.
+    if (!this.figuresAreOwn()) return [];
     return filledWayIds(this.steps(), this.figures(), this.waysAre())
       .filter((id) => id !== wayId)
       .map((id) => {

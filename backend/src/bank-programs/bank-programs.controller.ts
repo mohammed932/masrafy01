@@ -29,6 +29,7 @@ import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductActiveDto,
   SetSurrogateProductCapDefaultsDto,
+  SetSurrogateProductLoanAmountDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
@@ -274,6 +275,44 @@ export class BankProgramsController {
   ) {
     return ok(
       await this.service.setSurrogateProductTenorDefaults(key, body, this.actor(user, req)),
+    );
+  }
+
+  /**
+   * Declared in the same block and before `@Get(':programCode')`, for the same reason.
+   */
+  @Put('surrogate-products/:key/loan-amount-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default loan size",
+    description:
+      'The floor and ceiling every bank program under this product falls back to when it ' +
+      'states none of its own. INHERITED, not copied, exactly as the duration beside it: a ' +
+      'change here moves every one of them, and a bank that states its own always wins. ' +
+      '`loanAmounts: null` clears it, and that is the one refusal — clearing leaves an ' +
+      'inheriting program with no size at all, and a loan with no size cannot be quoted.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE — the clear was refused because bank programs ' +
+      'are reading these amounts. Meta carries `count` and `programCodes`.',
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'PROGRAM_RANGE_INVALID — the minimum is above the maximum, or the maximum is zero ' +
+      '(`meta.field` is `loanAmountDefaults`).',
+  })
+  async setSurrogateProductLoanAmountDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductLoanAmountDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.setSurrogateProductLoanAmountDefaults(key, body, this.actor(user, req)),
     );
   }
 

@@ -18,6 +18,7 @@ import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit
 import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
 import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
 
 export type EnumerationType =
@@ -757,6 +758,26 @@ export abstract class PlatformEnumerationsRepository {
   abstract programsInheritingTenor(productKey: string): Promise<string[]>;
 
   /**
+   * Write (or clear, with `null`) a surrogate product's default loan size.
+   *
+   * Its own method on exactly the terms `setSurrogateProductTenorDefaults` above has one: a
+   * size is not part of the calculation and is not compiled from the form, so folding it in
+   * would make an amount edit read as a rule change in the audit log.
+   */
+  abstract setSurrogateProductLoanAmountDefaults(
+    key: string,
+    loanAmounts: LoanAmountDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Every bank program reading this product's default loan size — i.e. stating none of its
+   * own. The sibling of `programsInheritingTenor` in every respect, including being UNCACHED
+   * and unfiltered by `programType`.
+   */
+  abstract programsInheritingLoanAmounts(productKey: string): Promise<string[]>;
+
+  /**
    * A surrogate product's default PLAN tables — the rate, the term ceiling, the financed
    * share and the floor every program that opted in falls back to.
    *
@@ -835,6 +856,13 @@ export interface ProgramNameIncomeRuleRow {
    * moves every one of them.
    */
   tenorDefaults: TenorDefaults | null;
+  /**
+   * `surrogate_product` only — the loan SIZE every bank program under it falls back to.
+   * `null` when the product states none, which is the state every product ships in.
+   *
+   * INHERITED, not copied, on exactly the terms `tenorDefaults` one field up is.
+   */
+  loanAmountDefaults: LoanAmountDefaults | null;
   /** The product's default PLAN tables, or `null` when it states none. */
   planDefaults: PlanDefaults | null;
   valueSources: Record<string, 'team_estimated'>;
@@ -923,6 +951,14 @@ export interface ProgramUnderName {
    * thereby said anything about how long it lends for. Both directions occur.
    */
   ownTenor: boolean;
+  /**
+   * `false` when it states no loan SIZE of its own and reads the product's.
+   *
+   * A THIRD axis, separate from both above it: `ownAmounts` is whose income tables the
+   * figures come from, and a bank that types its own income tables — or its own months —
+   * has not thereby said what it lends BETWEEN.
+   */
+  ownLoanAmounts: boolean;
   /** True when this program reads the product's PLAN tables rather than its own. */
   followsPlans: boolean;
 }

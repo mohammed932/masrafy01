@@ -10,6 +10,7 @@ import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
+  catalogLoanAmountsOf,
   catalogPlansOf,
   catalogRuleOf,
   catalogTenorOf,
@@ -18,6 +19,8 @@ import {
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
 import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
+import { effectiveLoanAmounts } from '@/matching/pipeline/loan-amount-inherit';
+import type { StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
 import {
   effectivePlanLoanLimits,
   effectivePlanPricing,
@@ -96,8 +99,14 @@ export function toBankProgramSnapshot(
       plansSource,
       catalogPlans,
     ),
+    // The SIZE, on the same terms as the duration above and merged on the same one line the
+    // engine reads a floor and a ceiling from. `effectiveLoanAmounts` returns the SAME
+    // object when nothing is inherited, which is every program on this database today.
     loanLimits: effectivePlanLoanLimits(
-      p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
+      effectiveLoanAmounts(
+        p.loanLimits as unknown as StoredLoanLimits | undefined,
+        catalogLoanAmountsOf(catalog),
+      ) as unknown as BankProgramSnapshot['loanLimits'],
       plansSource,
       catalogPlans,
     ),

@@ -52,8 +52,17 @@ export interface TenorConfig {
 }
 
 export interface LoanLimitsConfig {
-  minAmountEGP: string;
-  maxAmountEGP: string;
+  /**
+   * ABSENT on both means this program states no loan size of its own and reads the surrogate
+   * product's, exactly as the two months on `TenorConfig` above do. Optional rather than
+   * nullable: `null` is refused by the server's DTO, and the save path OMITS the pair rather
+   * than sending a spelling that would be rejected.
+   *
+   * Never one without the other — that is a range neither the bank nor the product stated,
+   * and the step verdict and the server both refuse it.
+   */
+  minAmountEGP?: string;
+  maxAmountEGP?: string;
   maxByCDTier?: Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
   maxByPropertyType?: Record<string, string>;
   maxByTransferType?: Record<string, string>;
@@ -946,6 +955,17 @@ export interface TenorDefaults {
   maxMonths: number;
 }
 
+/**
+ * The loan SIZE a program under this product falls back to when it states none.
+ *
+ * The sibling of `TenorDefaults`: both amounts or neither, inherited live rather than copied
+ * at create. DECIMAL STRINGS, never numbers — this is money (Principle I).
+ */
+export interface LoanAmountDefaults {
+  minAmountEGP: string;
+  maxAmountEGP: string;
+}
+
 export interface ProgramUnderName {
   programCode: string;
   friendlyName: string;
@@ -963,6 +983,11 @@ export interface ProgramUnderName {
    * nothing about how long it lends for, and both directions occur.
    */
   ownTenor: boolean;
+  /**
+   * `false` when it states no loan SIZE of its own and reads the product's — a third axis
+   * again, independent of both above it.
+   */
+  ownLoanAmounts: boolean;
   /**
    * True when this program reads the product's PLAN tables rather than its own.
    *
@@ -1040,6 +1065,11 @@ export interface ProgramNameIncomeRule {
      * duration is a live statement that this bank lends over the product's months.
      */
     tenorDefaults: TenorDefaults | null;
+    /**
+     * The loan SIZE a program under this name falls back to when it states none, on exactly
+     * the terms the duration above is inherited: live, not copied at create.
+     */
+    loanAmountDefaults: LoanAmountDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
   } | null;
@@ -1286,6 +1316,14 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
    * clearing it is refused while any does (`SURROGATE_PRODUCT_TENOR_IN_USE`).
    */
   tenorDefaults: TenorDefaults | null;
+  /**
+   * The loan SIZE every program under this product falls back to. `null` = none, and each
+   * program must then state its own.
+   *
+   * INHERITED on exactly the terms the duration above is, and cleared under the same refusal
+   * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
+   */
+  loanAmountDefaults: LoanAmountDefaults | null;
   /** The default PLAN tables every program that opted in reads. */
   planDefaults: PlanDefaults | null;
   /** The form it was compiled from, or `null` when it was authored by hand. */

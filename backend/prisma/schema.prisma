@@ -897,6 +897,31 @@ model PlatformEnumeration {
   /// NULL = this product states no duration, and every bank program under it must state
   /// its own. That is the state every product ships in.
   tenorDefaults       Json?
+  /// `surrogate_product` ONLY — the loan SIZE every bank program selling this product
+  /// falls back to. Shape: `{ "minAmountEGP": string, "maxAmountEGP": string }`.
+  ///
+  /// The sibling of `tenorDefaults` one field up, on the same terms and for the same
+  /// reason: what a product lends between is a statement about the product, not a pair
+  /// every operator retypes. A program that states no amounts READS these at quote time
+  /// (`effectiveLoanAmounts`, merged in `toBankProgramSnapshot`), and a change here moves
+  /// every one of them. A bank that lends other sizes states its own and wins.
+  ///
+  /// DECIMAL STRINGS, never numbers (Principle I). These are money and are read straight
+  /// into `Prisma.Decimal`; a JSON number would be the one float on a money path.
+  ///
+  /// NOT the per-answer floor. `planDefaults.minAmountByFact` states a floor for ONE
+  /// deposit band and nothing for the others, and composes by `max` against this pair
+  /// rather than replacing it — which is why flattening that table into this one would be
+  /// wrong: `down_payment_income`'s single 1,000,000 cell is the 20–30% band's floor, not
+  /// the product's.
+  ///
+  /// BOTH AMOUNTS OR NEITHER, exactly as the duration above: a floor from the product and
+  /// a ceiling from the bank is a range neither of them stated, and the save path refuses
+  /// a half-stated pair on both sides (`PROGRAM_RANGE_INVALID`).
+  ///
+  /// NULL = this product states no amounts, and every bank program under it must state its
+  /// own. That is the state every product ships in.
+  loanAmountDefaults  Json?
   /// `surrogate_product` only — the PLAN tables every bank program selling this product
   /// falls back to, shape
   /// `{ rateByFact?, minMonthsByFact?, maxMonthsByFact?, ltvCeilingByFact?, minAmountByFact? }`,

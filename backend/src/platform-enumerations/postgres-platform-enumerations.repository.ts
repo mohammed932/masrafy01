@@ -61,6 +61,11 @@ import {
 import type { EnumerationTypeDef } from '@prisma/client';
 import { asTenorDefaults, statesOwnTenor } from '@/matching/pipeline/tenor-inherit';
 import {
+  asLoanAmountDefaults,
+  statesOwnLoanAmounts,
+} from '@/matching/pipeline/loan-amount-inherit';
+import type { LoanAmountDefaults, StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
+import {
   asPlanDefaults,
   effectivePlanLoanLimits,
   effectivePlanPricing,
@@ -869,6 +874,7 @@ export class PostgresPlatformEnumerationsRepository
               deprecatedAt: true,
               incomeRule: true,
               tenorDefaults: true,
+              loanAmountDefaults: true,
               planDefaults: true,
             },
           });
@@ -886,6 +892,7 @@ export class PostgresPlatformEnumerationsRepository
             rule: asIncomeRule(productRow.incomeRule),
             tenorDefaults: asTenorDefaults(productRow.tenorDefaults),
             planDefaults: asPlanDefaults(productRow.planDefaults),
+            loanAmountDefaults: asLoanAmountDefaults(productRow.loanAmountDefaults),
           };
     const resolution = effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked);
     const catalogRule = catalogRuleOf(resolution);
@@ -986,6 +993,7 @@ export class PostgresPlatformEnumerationsRepository
         key: true,
         incomeRule: true,
         tenorDefaults: true,
+        loanAmountDefaults: true,
         planDefaults: true,
         surrogateProductKey: true,
         active: true,
@@ -1012,6 +1020,7 @@ export class PostgresPlatformEnumerationsRepository
         rule: asIncomeRule(row.incomeRule),
         tenorDefaults: asTenorDefaults(row.tenorDefaults),
         planDefaults: asPlanDefaults(row.planDefaults),
+        loanAmountDefaults: asLoanAmountDefaults(row.loanAmountDefaults),
       });
     }
 
@@ -1061,6 +1070,7 @@ export class PostgresPlatformEnumerationsRepository
     // Read with the rule for the same reason: a product's screen renders the duration it
     // hands its programs on the same step as the figures, and one read answers both.
     tenorDefaults: true,
+    loanAmountDefaults: true,
     // Read with the duration beside it: the product's screen edits the plan tables on the
     // same step, and one read answers both.
     planDefaults: true,
@@ -1158,8 +1168,7 @@ export class PostgresPlatformEnumerationsRepository
     const row = await this.prisma.platformEnumeration.update({
       where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
       data: {
-        planDefaults:
-          plans === null ? Prisma.DbNull : (plans as unknown as Prisma.InputJsonValue),
+        planDefaults: plans === null ? Prisma.DbNull : (plans as unknown as Prisma.InputJsonValue),
         updatedBy,
       },
       select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
@@ -1192,6 +1201,48 @@ export class PostgresPlatformEnumerationsRepository
    * "Reading it" is "states neither month". A half-stated pair counts as STATED and is not
    * listed — it is refused by its own save and is a different problem from this one.
    */
+  async setSurrogateProductLoanAmountDefaults(
+    key: string,
+    loanAmounts: LoanAmountDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: {
+        loanAmountDefaults:
+          loanAmounts === null
+            ? Prisma.DbNull
+            : ({ ...loanAmounts } as unknown as Prisma.InputJsonValue),
+        updatedBy,
+      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
+    });
+    return toProgramNameIncomeRuleRow(row);
+  }
+
+  /**
+   * The programs reading this product's loan size, found exactly as `programsInheritingTenor`
+   * below finds the ones reading its duration, and with the same reading of "reading it":
+   * states NEITHER amount. A half-stated pair counts as stated and is a different problem.
+   */
+  async programsInheritingLoanAmounts(productKey: string): Promise<string[]> {
+    const names = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name', surrogateProductKey: productKey },
+      select: { key: true },
+    });
+    if (names.length === 0) return [];
+    const rows = await this.prisma.bankProgram.findMany({
+      where: { programNameKey: { in: names.map((n) => n.key) } },
+      select: { programCode: true, loanLimits: true },
+      orderBy: { programCode: 'asc' },
+    });
+    return rows
+      .filter(
+        (row) => !statesOwnLoanAmounts(row.loanLimits as unknown as StoredLoanLimits | undefined),
+      )
+      .map((row) => row.programCode);
+  }
+
   async programsInheritingTenor(productKey: string): Promise<string[]> {
     const names = await this.prisma.platformEnumeration.findMany({
       where: { type: 'program_name', surrogateProductKey: productKey },
@@ -1343,6 +1394,7 @@ export class PostgresPlatformEnumerationsRepository
         friendlyNameAr: true,
         incomeAssumption: true,
         tenor: true,
+        loanLimits: true,
         plansSource: true,
         // The bank's own row, because `bank_program` stores only `bankId`. One extra join
         // on a list that is at most a handful of programmes per name.
@@ -1369,6 +1421,9 @@ export class PostgresPlatformEnumerationsRepository
         strategy: normalizeIncomeAssumption(config).strategy,
         ownAmounts: !inheritsCatalogAmounts(config),
         ownTenor: statesOwnTenor(row.tenor as unknown as StoredTenor | undefined),
+        ownLoanAmounts: statesOwnLoanAmounts(
+          row.loanLimits as unknown as StoredLoanLimits | undefined,
+        ),
         followsPlans: inheritsProductPlans(row.plansSource),
       };
     });
@@ -2462,6 +2517,7 @@ function toProgramNameIncomeRuleRow(row: {
   templateSpec?: unknown;
   capDefaults?: unknown;
   tenorDefaults?: unknown;
+  loanAmountDefaults?: unknown;
   planDefaults?: unknown;
   valueSources: unknown;
   surrogateProductKey?: string | null;
@@ -2480,6 +2536,8 @@ function toProgramNameIncomeRuleRow(row: {
     // Through the SAME reader the quote path uses, so the product screen and the engine
     // cannot disagree about whether a half-written blob counts as a stated duration.
     tenorDefaults: asTenorDefaults(row.tenorDefaults) ?? null,
+    // Through the SAME reader the quote path uses, for the reason the duration above gives.
+    loanAmountDefaults: asLoanAmountDefaults(row.loanAmountDefaults) ?? null,
     // Through the SAME reader the quote path uses, for the same reason: a slot that is not
     // grid-shaped is dropped there, and the screen must not show a table the engine ignores.
     planDefaults: asPlanDefaults(row.planDefaults) ?? null,

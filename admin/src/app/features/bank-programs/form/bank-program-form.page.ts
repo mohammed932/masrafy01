@@ -83,6 +83,7 @@ import type {
   RateBandMap,
   RateBasis,
   TenorConfig,
+  LoanAmountDefaults,
   TenorDefaults,
   PlanDefaults,
   PlansSource,
@@ -134,11 +135,10 @@ import {
 } from './wizard-step-plan';
 import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
 import { BanksApiService } from '../../banks/banks.api.service';
-import { additionalIncomeSources } from '../additional-income-sources';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
+import { newProgramDefaults } from './new-program-defaults';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
-  AdditionalIncomeEditorComponent,
   DbrBandsEditorComponent,
   WizardStepsComponent,
   capConfigFrom,
@@ -146,7 +146,6 @@ import {
   dbrBandsErrorFor,
   IncomeBasisCardsComponent,
   type AdditionalIncomeConfig,
-  type AdditionalIncomeOption,
   type DbrBandsError,
   type MaxLoanByFactConfig,
   type MaxLoanByFactRow,
@@ -176,7 +175,8 @@ type StepIssue =
   | 'dbrOverride'
   | 'rateGrid'
   | 'vehicleGrid'
-  | 'tenor';
+  | 'tenor'
+  | 'loanAmounts';
 
 interface WizardStep {
   readonly id: StepId;
@@ -375,7 +375,6 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
     NzSwitchModule,
     DbrBandsEditorComponent,
     FigureFieldComponent,
-    AdditionalIncomeEditorComponent,
     IncomeBasisCardsComponent,
     IncomeAssumptionSectionComponent,
     FactGridEditorComponent,
@@ -992,22 +991,14 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     ></app-income-assumption-section>
                   </div>
 
-                  <!-- Money the applicant earns BESIDE whatever the rule or the payslip
-                       says — rent, certificate returns, allowances — each counted at this
-                       bank's own weight. Here rather than under Eligibility because it is
-                       part of what income this bank recognises, and the operator is already
-                       looking at the rest of that answer. -->
-                  @if (additionalIncomeOptions().length > 0) {
-                    <div class="income-band">
-                      <h3 class="band-label" i18n="@@bank_programs.income.additional">
-                        Other money the bank counts
-                      </h3>
-                      <app-additional-income-editor
-                        [options]="additionalIncomeOptions()"
-                        [(config)]="additionalIncome"
-                      />
-                    </div>
-                  }
+                  <!-- "Other money the bank counts" used to sit here: five weights and a
+                       ceiling, on a step whose whole subject is the ONE figure the product
+                       states this program reads. Nothing on a new program ever filled it,
+                       and on an existing one it invited an edit to a table that no longer
+                       belongs to this wizard. What is STORED is untouched — the read
+                       hydrates the additionalIncome signal and payloadFromForm sends it
+                       back unchanged, so a program that carries weights keeps them and the
+                       engine keeps reading them. -->
                 }
               </section>
             }
@@ -1044,52 +1035,97 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     </button>
                   </p>
                 }
-                <div class="grid">
-                  <nz-form-item [class.is-locked]="amountsLocked()">
-                    <nz-form-label
-                      [nzFor]="'minAmountEGP'"
-                      nzRequired
-                      i18n="@@bank_programs.field.min_amount"
-                      >Minimum amount</nz-form-label
+                <!-- THREE STATES, the same three the Loan duration card below draws and for
+                     the same reason: empty boxes under a product that states a size do not
+                     mean "left to fill in", they mean this bank lends the product's amounts
+                     — so that state renders as a STATEMENT with a verb, not as an empty
+                     pair of inputs. Same shape, same two verbs and the same tag. -->
+                @if (loanAmountsInherit()) {
+                  <div class="tenor-inherited">
+                    <p class="tenor-inherited-value" id="amounts-from-product">
+                      <span class="tenor-months"
+                        >{{ formatMoney(productLoanAmounts()?.minAmountEGP) }} –
+                        {{ formatMoney(productLoanAmounts()?.maxAmountEGP) }} EGP</span
+                      >
+                      <span class="tag" i18n="@@bank_programs.amount.from_product"
+                        >The product’s amounts apply</span
+                      >
+                    </p>
+                    <p class="tenor-inherited-note" i18n="@@bank_programs.amount.from_product_note">
+                      This bank has not stated amounts of its own, so it lends the sizes the product
+                      states. Change them there and this program follows.
+                    </p>
+                    <button
+                      nz-button
+                      nzType="default"
+                      type="button"
+                      (click)="stateOwnLoanAmounts()"
+                      aria-describedby="amounts-from-product"
+                      i18n="@@bank_programs.amount.set_own"
                     >
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="EGP" class="money-group">
-                        <input
-                          nz-input
-                          appMoneyInput
-                          id="minAmountEGP"
-                          formControlName="minAmountEGP"
-                          inputmode="numeric"
-                          placeholder="50,000"
-                          [attr.disabled]="amountsLocked() ? '' : null"
-                          [attr.aria-disabled]="amountsLocked()"
-                        />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item [class.is-locked]="amountsLocked()">
-                    <nz-form-label
-                      [nzFor]="'maxAmountEGP'"
-                      nzRequired
-                      i18n="@@bank_programs.field.max_amount"
-                      >Maximum amount</nz-form-label
+                      Set this bank’s own amounts
+                    </button>
+                  </div>
+                } @else {
+                  <div class="grid">
+                    <nz-form-item [class.is-locked]="amountsLocked()">
+                      <nz-form-label
+                        [nzFor]="'minAmountEGP'"
+                        nzRequired
+                        i18n="@@bank_programs.field.min_amount"
+                        >Minimum amount</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-group nzAddOnAfter="EGP" class="money-group">
+                          <input
+                            nz-input
+                            appMoneyInput
+                            id="minAmountEGP"
+                            formControlName="minAmountEGP"
+                            inputmode="numeric"
+                            placeholder="50,000"
+                            [attr.disabled]="amountsLocked() ? '' : null"
+                            [attr.aria-disabled]="amountsLocked()"
+                          />
+                        </nz-input-group>
+                      </nz-form-control>
+                    </nz-form-item>
+                    <nz-form-item [class.is-locked]="amountsLocked()">
+                      <nz-form-label
+                        [nzFor]="'maxAmountEGP'"
+                        nzRequired
+                        i18n="@@bank_programs.field.max_amount"
+                        >Maximum amount</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-group nzAddOnAfter="EGP" class="money-group">
+                          <input
+                            nz-input
+                            appMoneyInput
+                            id="maxAmountEGP"
+                            formControlName="maxAmountEGP"
+                            inputmode="numeric"
+                            placeholder="1,500,000"
+                            [attr.disabled]="amountsLocked() ? '' : null"
+                            [attr.aria-disabled]="amountsLocked()"
+                          />
+                        </nz-input-group>
+                      </nz-form-control>
+                    </nz-form-item>
+                  </div>
+                  @if (loanAmountsInheritable()) {
+                    <button
+                      nz-button
+                      nzType="link"
+                      type="button"
+                      class="tenor-back"
+                      (click)="backToProductLoanAmounts()"
+                      i18n="@@bank_programs.amount.back_to_product"
                     >
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="EGP" class="money-group">
-                        <input
-                          nz-input
-                          appMoneyInput
-                          id="maxAmountEGP"
-                          formControlName="maxAmountEGP"
-                          inputmode="numeric"
-                          placeholder="1,500,000"
-                          [attr.disabled]="amountsLocked() ? '' : null"
-                          [attr.aria-disabled]="amountsLocked()"
-                        />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                </div>
+                      Back to the product’s amounts
+                    </button>
+                  }
+                }
 
                 <!-- The share of the asset's price this program finances. Shown on a car or
                      a mortgage program only: on a personal loan there is no price to take a
@@ -1281,7 +1317,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     <nz-form-item>
                       <nz-form-label
                         [nzFor]="'baseRatePercent'"
-                        nzRequired
+                        [nzRequired]="!ratePricedByTable()"
                         i18n="@@bank_programs.field.base_rate"
                         >Base rate</nz-form-label
                       >
@@ -1293,8 +1329,24 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                             formControlName="baseRatePercent"
                             inputmode="decimal"
                             placeholder="24.0000"
+                            [attr.aria-describedby]="
+                              ratePricedByTable() ? 'baseRateTableHint' : null
+                            "
                           />
                         </nz-input-group>
+                        <!-- SAID, not merely un-asterisked. A box that stopped being required
+                             without saying why reads as one somebody forgot to fill; this one
+                             is blank because the table below prices every applicant and the
+                             save does not want a figure here. -->
+                        @if (ratePricedByTable()) {
+                          <p id="baseRateTableHint" class="field-hint is-read">
+                            <span i18n="@@bank_programs.field.base_rate.priced_by_table"
+                              >The rate table prices every applicant, so this is not needed. An
+                              answer it does not cover is refused rather than priced from
+                              here.</span
+                            >
+                          </p>
+                        }
                       </nz-form-control>
                     </nz-form-item>
                   }
@@ -3752,21 +3804,12 @@ export class BankProgramFormPage implements OnInit {
   /**
    * This program's additional-income policy. `null` = it counts none, which is every program
    * written before the field existed.
+   *
+   * CARRIED, never edited here: the editor is off this wizard, so this holds exactly what the
+   * read gave it and `payloadFromForm` sends exactly that back. Dropping the signal would
+   * make a full-replacement PUT delete a table the operator never saw.
    */
   readonly additionalIncome = signal<AdditionalIncomeConfig | null>(null);
-
-  /**
-   * The sources of money the applicant also receives — and ONLY those.
-   *
-   * Every rule of the derivation, and the seventeen-row table it replaces, is written out
-   * once in `additional-income-sources.ts`. Restated here it would be the second copy.
-   */
-  protected readonly additionalIncomeOptions = computed<AdditionalIncomeOption[]>(() =>
-    additionalIncomeSources(
-      this.incomeFacts(),
-      (this.additionalIncome()?.sources ?? []).map((source) => source.factKey),
-    ),
-  );
 
   private readonly banksApi = inject(BanksApiService);
   private readonly localeIsAr = inject(LOCALE_ID).toLowerCase().startsWith('ar');
@@ -3974,6 +4017,12 @@ export class BankProgramFormPage implements OnInit {
     // rail's alert is gated on the count being above zero, so Continue would refuse with an
     // EMPTY banner, which is the bug this list was collapsed to make unrepresentable.
     if (id === 'money' && (this.tenorUnanswered() || this.tenorGroup.invalid)) out.push('tenor');
+    // The SIZE, a verdict for exactly the reason the duration above is one: blank is legal
+    // precisely when a surrogate product stands behind the name and states amounts, and that
+    // answer lives in a response no control can see. This is where the requiredness the two
+    // amount controls used to carry went — a `Validators.required` would refuse the one
+    // state the product's default exists to make possible.
+    if (id === 'money' && this.loanAmountsUnanswered()) out.push('loanAmounts');
     if (id === 'requirements' && this.vehicleGridError() !== null) out.push('vehicleGrid');
     // The rule's own cap, same card, same reason and one step further: its control carries no
     // validator at all, so an out-of-range figure used to pass Continue AND Save and come back
@@ -4155,6 +4204,8 @@ export class BankProgramFormPage implements OnInit {
           return $localize`:@@bank_programs.step.issue_vehicle_grid:The table of shorter terms for some cars needs fixing before you continue — see the message under it.`;
         case 'tenor':
           return $localize`:@@bank_programs.step.issue_tenor:Say how long this bank lends for — both months, or neither if it follows the product's duration.`;
+        case 'loanAmounts':
+          return $localize`:@@bank_programs.step.issue_loan_amounts:Say how much this bank lends — both amounts, or neither if it follows the product's.`;
       }
     }
     // A cross-field verdict (tenor min > max, rate bands out of order) leaves
@@ -4440,24 +4491,24 @@ export class BankProgramFormPage implements OnInit {
     // stands behind the name and a control cannot.
     tenor: this.fb.group(
       {
-        minMonths: new FormControl<number | null>(12, {
+        minMonths: new FormControl<number | null>(newProgramDefaults().tenor.minMonths, {
           validators: [Validators.min(1), Validators.max(600)],
         }),
-        maxMonths: new FormControl<number | null>(60, {
+        maxMonths: new FormControl<number | null>(newProgramDefaults().tenor.maxMonths, {
           validators: [Validators.min(1), Validators.max(600)],
         }),
       },
       { validators: [tenorRangeValidator] },
     ),
     loanLimits: this.fb.nonNullable.group({
-      minAmountEGP: new FormControl('50000', {
-        nonNullable: true,
-        validators: [Validators.required],
-      }),
-      maxAmountEGP: new FormControl('1500000', {
-        nonNullable: true,
-        validators: [Validators.required],
-      }),
+      // NOT `Validators.required`, and not `nonNullable`, on either amount — the same move
+      // the two months above made and for the same reason. Blank is a real answer now: it
+      // means "read the surrogate product's size" (`effectiveLoanAmounts`), and a required
+      // control would refuse the one state the product's default exists to make possible.
+      // Requiredness did not disappear; it moved to `signalIssues('money')`, which can see
+      // whether a product stands behind the name and a control cannot.
+      minAmountEGP: new FormControl<string | null>(newProgramDefaults().loanLimits.minAmountEGP),
+      maxAmountEGP: new FormControl<string | null>(newProgramDefaults().loanLimits.maxAmountEGP),
       // Not rendered — the "Optional ceilings" disclosure that edited it is
       // gone. The control stays so an EXISTING program's ceiling survives an
       // edit: `payloadFromForm` reads the form, and update is a
@@ -4489,14 +4540,22 @@ export class BankProgramFormPage implements OnInit {
       minDownPaymentPercent: new FormControl<string | null>(null),
     }),
     pricing: this.fb.nonNullable.group({
-      isVariableRate: new FormControl(false, { nonNullable: true }),
+      isVariableRate: new FormControl(newProgramDefaults().pricing.isVariableRate, {
+        nonNullable: true,
+      }),
       // Declining unless the sheet says otherwise: it is what every program in the book is
       // priced at, and a new program that copies an existing one must not change basis by
       // arriving on a screen.
-      rateBasis: new FormControl<RateBasis>('reducing', { nonNullable: true }),
-      baseRatePercent: new FormControl<string | null>('24.0'),
-      currentEffectiveRatePercent: new FormControl<string | null>(null),
-      variableRateNote: new FormControl<string | null>(null),
+      rateBasis: new FormControl<RateBasis>(newProgramDefaults().pricing.rateBasis, {
+        nonNullable: true,
+      }),
+      baseRatePercent: new FormControl<string | null>(newProgramDefaults().pricing.baseRatePercent),
+      currentEffectiveRatePercent: new FormControl<string | null>(
+        newProgramDefaults().pricing.currentEffectiveRatePercent,
+      ),
+      variableRateNote: new FormControl<string | null>(
+        newProgramDefaults().pricing.variableRateNote,
+      ),
       rateByLoanAmountBands: new FormArray<FormGroup>([], {
         validators: [rateBandsOrder],
       }),
@@ -4565,7 +4624,9 @@ export class BankProgramFormPage implements OnInit {
        * saved before this field existed means, so the default has to be the one that
        * changes nothing about a legacy program on read-back.
        */
-      amounts: new FormControl<'catalog' | 'own'>('own', { nonNullable: true }),
+      amounts: new FormControl<'catalog' | 'own'>(newProgramDefaults().incomeAssumptionAmounts, {
+        nonNullable: true,
+      }),
       /**
        * Which of the product's ways this bank sells, when the product holds them as
        * alternatives. `null` everywhere else, and on every program saved before the field
@@ -4662,10 +4723,26 @@ export class BankProgramFormPage implements OnInit {
   private readonly tenorValue = toSignal(this.form.controls.tenor.valueChanges, {
     initialValue: this.form.controls.tenor.getRawValue(),
   });
+  /**
+   * The same, for the two amounts: the Loan amount card has three states like the duration
+   * card, and the statement has to follow the two verbs immediately rather than after a save.
+   */
+  private readonly loanLimitsValue = toSignal(this.form.controls.loanLimits.valueChanges, {
+    initialValue: this.form.controls.loanLimits.getRawValue(),
+  });
   /** Years-equivalent hint under the Minimum months input ("≈ 1 yr"). */
   readonly minMonthsHint = computed(() => this.formatMonths(this.tenorValue().minMonths ?? 0));
   /** Years-equivalent hint under the Maximum months input ("≈ 7 yr"). */
   readonly maxMonthsHint = computed(() => this.formatMonths(this.tenorValue().maxMonths ?? 0));
+
+  /**
+   * Grouped digits for the template, which cannot reach the module-level `money`.
+   *
+   * A thin delegate rather than a second implementation: the Loan amount card's inherited
+   * statement and the review row must group identically, and two formatters is how they
+   * stop doing that.
+   */
+  readonly formatMoney = (raw: string | null | undefined): string => money(raw);
 
   /** Months → years label: 84 → "7 yr", 18 → "1 yr 6 mo", 1 → "1 mo". */
   readonly formatMonths = (total: number): string => {
@@ -5500,7 +5577,13 @@ export class BankProgramFormPage implements OnInit {
         rows: [
           {
             label: $localize`:@@bank_programs.review.amount:Loan amount`,
-            value: `${money(v.loanLimits.minAmountEGP)} – ${money(v.loanLimits.maxAmountEGP)} EGP`,
+            // Says WHOSE amounts these are, for the reason the duration row below says whose
+            // months: a program reading the product's is a normal state, and a review that
+            // printed the figures without saying where they came from would read as
+            // something this bank had typed. Blank on both sides printed " –  EGP".
+            value: this.loanAmountsInherit()
+              ? $localize`:@@bank_programs.review.amount_inherited:${money(this.productLoanAmounts()?.minAmountEGP)}:min: – ${money(this.productLoanAmounts()?.maxAmountEGP)}:max: EGP · the product's`
+              : `${money(v.loanLimits.minAmountEGP)} – ${money(v.loanLimits.maxAmountEGP)} EGP`,
           },
           {
             label: $localize`:@@bank_programs.review.duration:Duration`,
@@ -6056,7 +6139,7 @@ export class BankProgramFormPage implements OnInit {
    * A signal and not a control, like the grids themselves: it is one word with two values and
    * a whole `FormControl` for it would put a second authority beside the verbs below.
    */
-  readonly plansSource = signal<PlansSource>('own');
+  readonly plansSource = signal<PlansSource>(newProgramDefaults().plansSource);
 
   readonly productPlans = computed<PlanDefaults | null>(
     () => this.catalogRule()?.surrogateProduct?.planDefaults ?? null,
@@ -6069,6 +6152,26 @@ export class BankProgramFormPage implements OnInit {
   readonly plansInherits = computed<boolean>(
     () => this.plansInheritable() && this.plansSource() === 'product',
   );
+
+  /**
+   * Is every applicant priced by a rate TABLE rather than by the flat base rate?
+   *
+   * Mirrors the server's `aRateGridPrices` exactly, and has to: that check is what decides
+   * whether a blank base rate saves, so a wizard that asterisked the field anyway would be
+   * demanding a figure the save does not want — and one the table outranks for everybody.
+   *
+   * BOTH HALVES, as on the server. A grid must apply — this program's own, or the product's
+   * when it reads the product's plans — and it must REFUSE on no-match: `useFallback` sends
+   * an unmatched applicant down the cascade to this very box, so a blank one there is a
+   * quote that fails, not a quote the table priced.
+   */
+  readonly ratePricedByTable = computed<boolean>(() => {
+    // The own grid only counts when it is switched on and would actually be sent — the same
+    // three conditions `payloadFromForm` spreads it under.
+    const own = !this.plansInherits() && this.toggles.rateGrid() ? this.rateByFact() : null;
+    const grid = own ?? (this.plansInherits() ? (this.productPlans()?.rateByFact ?? null) : null);
+    return grid?.onNoMatch === 'reject';
+  });
 
   /** How many tables the product states, for the statement in the inheriting card. */
   readonly productPlanCount = computed<number>(() => Object.keys(this.productPlans() ?? {}).length);
@@ -6191,6 +6294,22 @@ export class BankProgramFormPage implements OnInit {
   });
 
   /**
+   * The same one state the SIZE must refuse: blank with nothing behind it.
+   *
+   * A half-stated pair is refused in both directions and on both sides (`validateRanges`),
+   * so it is reported here too — one amount typed and the other left empty is a range
+   * neither this bank nor the product stated.
+   */
+  readonly loanAmountsUnanswered = computed<boolean>(() => {
+    const v = this.loanLimitsValue();
+    const blankMin = isBlankAmountValue(v.minAmountEGP);
+    const blankMax = isBlankAmountValue(v.maxAmountEGP);
+    if (blankMin !== blankMax) return true;
+    if (!blankMin && !blankMax) return false;
+    return !this.loanAmountsInheritable();
+  });
+
+  /**
    * Take a COPY of the product's months for this bank to edit.
    *
    * A copy, deliberately, exactly as the I-Score row's `stateOwnBands` is: from here the bank
@@ -6216,6 +6335,55 @@ export class BankProgramFormPage implements OnInit {
   protected backToProductTenor(): void {
     this.form.controls.tenor.patchValue({ minMonths: null, maxMonths: null });
     this.form.controls.tenor.markAsDirty();
+  }
+
+  // ── The product's loan SIZE ──────────────────────────────────────────────
+  // The twin of the four members above it, and deliberately drawn from the same template:
+  // what a product lends between is a statement about the product, so a bank that says
+  // nothing lends those sizes, and the card renders that state as a STATEMENT with a verb
+  // rather than as two empty boxes. Everything the duration's own comments say about why a
+  // copy is a copy and a clear is a clear applies here unchanged.
+
+  readonly productLoanAmounts = computed<LoanAmountDefaults | null>(
+    () => this.catalogRule()?.surrogateProduct?.loanAmountDefaults ?? null,
+  );
+
+  /** Could this program read a size if it stated none? */
+  readonly loanAmountsInheritable = computed<boolean>(() => this.productLoanAmounts() !== null);
+
+  /**
+   * Is it reading the product's right now — i.e. has this bank stated nothing?
+   *
+   * Reads the CONTROLS for the reason `tenorInherits` does: the card has to follow the two
+   * verbs immediately, not after a save. Blank is `null` from a clear and `''` from a money
+   * input the operator emptied by hand, and both mean "this bank states none".
+   */
+  readonly loanAmountsInherit = computed<boolean>(() => {
+    if (!this.loanAmountsInheritable()) return false;
+    const v = this.loanLimitsValue();
+    return isBlankAmountValue(v.minAmountEGP) && isBlankAmountValue(v.maxAmountEGP);
+  });
+
+  /**
+   * Take a COPY of the product's amounts for this bank to edit — `stateOwnTenor`'s twin.
+   */
+  protected stateOwnLoanAmounts(): void {
+    const product = this.productLoanAmounts();
+    if (product === null) return;
+    this.form.controls.loanLimits.patchValue({
+      minAmountEGP: product.minAmountEGP,
+      maxAmountEGP: product.maxAmountEGP,
+    });
+    this.form.controls.loanLimits.markAsDirty();
+  }
+
+  /**
+   * Give the amounts back to the product — CLEARS both rather than storing a copy, because a
+   * stored copy would stop following, which is the opposite of what the button says.
+   */
+  protected backToProductLoanAmounts(): void {
+    this.form.controls.loanLimits.patchValue({ minAmountEGP: null, maxAmountEGP: null });
+    this.form.controls.loanLimits.markAsDirty();
   }
 
   /**
@@ -7365,8 +7533,18 @@ export class BankProgramFormPage implements OnInit {
         // Carried FIRST so an edited key can never be overwritten by a stale stored copy of
         // itself — the spread order is the guarantee, not the key list.
         ...this.carriedLoanLimits(),
-        minAmountEGP: ll.minAmountEGP,
-        maxAmountEGP: ll.maxAmountEGP,
+        // OMITTED, not nulled and not zeroed, when this bank states no size of its own:
+        // absent is what the server reads as "read the surrogate product's"
+        // (`effectiveLoanAmounts`). A `null` is refused by the DTO and a `0` would be a floor
+        // of nothing — and a stored COPY of the product's figures would stop following it,
+        // which is the opposite of what the card's verb says. Exactly the two months' own
+        // spread one block up.
+        ...(isBlankAmountValue(ll.minAmountEGP) || isBlankAmountValue(ll.maxAmountEGP)
+          ? {}
+          : {
+              minAmountEGP: ll.minAmountEGP as string,
+              maxAmountEGP: ll.maxAmountEGP as string,
+            }),
         qualitativeReviewMaxEGP: ll.qualitativeReviewMaxEGP ?? undefined,
         // Blank means "this program states no share", which is an absent field rather than a
         // zero: a zero would be a cap of nothing, and `ltvCeilingFor` refuses it anyway.
@@ -7836,6 +8014,17 @@ function cloneStepFigures(
       },
     ]),
   );
+}
+
+/**
+ * An amount nobody has typed: `null` from a clear, `undefined` before the group is patched,
+ * or the empty string a money input is left holding when its digits are deleted by hand.
+ *
+ * Its own function because the Loan amount card's three states all turn on it, and "blank"
+ * spelled three ways at three call sites is how one of them ends up meaning something else.
+ */
+function isBlankAmountValue(raw: string | null | undefined): boolean {
+  return raw === null || raw === undefined || raw.trim() === '';
 }
 
 function trimZeros<T extends string | null | undefined>(raw: T): T {

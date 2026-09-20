@@ -21,6 +21,7 @@ import { ProductAsksRepository } from './asks/product-asks.repository';
 import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductCapDefaultsDto,
+  SetSurrogateProductLoanAmountDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
@@ -39,6 +40,7 @@ import {
   DerivationArithmeticMismatchException,
   MaxLoanByFactInvalidException,
   SurrogateProductNoCapException,
+  SurrogateProductLoanAmountsInUseException,
   SurrogateProductTenorInUseException,
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
@@ -126,7 +128,10 @@ import {
 } from './validation/max-loan-by-fact.validator';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
+import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
 import {
+  catalogLoanAmountsOf,
+  catalogPlansOf,
   catalogRuleOf,
   catalogTenorOf,
   dropClearedPolicy,
@@ -138,7 +143,7 @@ import {
   type CatalogRuleResolution,
 } from '@/matching/pipeline/income-rule-inherit';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
-import { plansSourceOf } from '@/matching/pipeline/plan-inherit';
+import { inheritsProductPlans, plansSourceOf } from '@/matching/pipeline/plan-inherit';
 import {
   compileTemplate,
   validateTemplate,
@@ -528,7 +533,10 @@ export class BankProgramsService {
         );
       }
     } else {
-      if (!baseRatePercent || baseRatePercent.length === 0) {
+      if (
+        (!baseRatePercent || baseRatePercent.length === 0) &&
+        !this.aRateGridPrices(dto, catalogResolution)
+      ) {
         throw new InvalidVariableRateConfigurationException(
           'baseRate',
           'baseRate is REQUIRED when isVariableRate=false',
@@ -574,6 +582,8 @@ export class BankProgramsService {
     // this program sits under.
     const rangeViolation = validateRanges(dto, {
       productStatesTenor: catalogTenorOf(opts.catalogResolution) !== undefined,
+      // The SIZE, on the same terms and read off the same resolution.
+      productStatesLoanAmounts: catalogLoanAmountsOf(opts.catalogResolution) !== undefined,
     });
     if (rangeViolation) {
       throw new ProgramRangeInvalidException(rangeViolation);
@@ -1878,6 +1888,7 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        ownLoanAmounts: p.ownLoanAmounts,
         followsPlans: p.followsPlans,
       })),
     }));
@@ -1904,6 +1915,9 @@ export class BankProgramsService {
       // copied once at create and the other is read live, and a reader of this response has
       // to be able to tell which.
       tenorDefaults: row.tenorDefaults,
+      // The SIZE it hands them, on the same terms as the duration above: read live, not
+      // copied, and a reader has to be able to tell it from `capDefaults`.
+      loanAmountDefaults: row.loanAmountDefaults,
       planDefaults: row.planDefaults,
       template: row.templateSpec,
       valueSources: row.valueSources,
@@ -2204,6 +2218,123 @@ export class BankProgramsService {
         changes: {
           tenorDefaults: {
             before: row.tenorDefaults,
+            after: stored,
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * Is every applicant this program quotes priced by a rate TABLE rather than by the flat
+   * base rate?
+   *
+   * What this exists to stop: a flat rate that can never price anything being demanded
+   * anyway. `auto_down_payment_income` prices from `rateByFact` — 10/9/8/7/6 by the deposit,
+   * and `onNoMatch: 'reject'` — so the cascade reaches `baseRatePercent` for nobody, and the
+   * old unconditional check forced the operator to type a figure with no effect on any
+   * quote. A number an operator curates and that moves nothing is the defect this codebase
+   * deletes on sight; requiring one is the same defect with a 422 in front of it.
+   *
+   * BOTH HALVES ARE LOAD-BEARING, and neither is enough alone:
+   *
+   *  - A grid must APPLY. Its own (`pricing.rateByFact`), or the product's when this program
+   *    reads the product's plans — which is exactly what `effectivePlanPricing` merges, read
+   *    here off the same resolution the duration and the size are checked against, so the
+   *    save path and the engine cannot disagree about which table prices this program.
+   *
+   *  - That grid must REFUSE on no-match. `useFallback` hands an unmatched applicant back to
+   *    the rest of the pricing cascade, which ends at `baseRatePercent` — so a blank one
+   *    there is not "priced by the table", it is a quote that reaches `PROGRAM_MISCONFIGURED`
+   *    for whoever the table does not cover. Only `reject` guarantees the flat rate is
+   *    unreachable, and it is a STATED refusal (`NO_RATE_FOR_ANSWER`) rather than a silence.
+   */
+  private aRateGridPrices(
+    dto: CreateBankProgramDto | UpdateBankProgramDto,
+    catalogResolution: CatalogRuleResolution | undefined,
+  ): boolean {
+    const own = dto.pricing.rateByFact;
+    const grid =
+      own ??
+      (inheritsProductPlans(dto.plansSource)
+        ? catalogPlansOf(catalogResolution)?.rateByFact
+        : undefined);
+    return grid?.onNoMatch === 'reject';
+  }
+
+  /**
+   * Set (or clear, with `null`) a surrogate product's default loan size.
+   *
+   * The sibling of `setSurrogateProductTenorDefaults` above, on the same terms and with the
+   * same one refusal: a CHANGE is free and moves every inheriting program, a CLEAR would
+   * leave them with no size at all, which cannot be quoted — so it is refused and the
+   * programs are NAMED, which is what makes "give each of them its own amounts first"
+   * something an operator can act on.
+   *
+   * Counted across every program under this product's names, not only the surrogate ones:
+   * a catalog name can carry both kinds, and each stores a `loanLimits`.
+   */
+  async setSurrogateProductLoanAmountDefaults(
+    key: string,
+    dto: SetSurrogateProductLoanAmountDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored: LoanAmountDefaults | null =
+      dto.loanAmounts === null
+        ? null
+        : {
+            minAmountEGP: dto.loanAmounts.minAmountEGP,
+            maxAmountEGP: dto.loanAmounts.maxAmountEGP,
+          };
+
+    // Inverted is refused here as well as on a bank program's own save: both amounts are in
+    // range individually and the DTO cannot compare them, and a product stating 3,000,000 to
+    // 1,000,000 would hand every program under it a range that can never lend. Compared as
+    // Decimals, never as numbers or strings — '900000' > '1000000' is TRUE lexically.
+    if (stored !== null) {
+      const min = new Decimal(stored.minAmountEGP);
+      const max = new Decimal(stored.maxAmountEGP);
+      if (max.lessThanOrEqualTo(0) || min.greaterThan(max)) {
+        throw new ProgramRangeInvalidException({
+          field: 'loanAmountDefaults',
+          min: stored.minAmountEGP,
+          max: stored.maxAmountEGP,
+        });
+      }
+    }
+
+    if (stored === null && row.loanAmountDefaults !== null) {
+      const inheriting = await this.enums.programsInheritingLoanAmounts(key);
+      if (inheriting.length > 0) {
+        throw new SurrogateProductLoanAmountsInUseException({
+          count: inheriting.length,
+          // Capped for a person to read, exactly as the duration's refusal caps it.
+          programCodes: inheriting.slice(0, 20),
+        });
+      }
+    }
+
+    const saved = await this.enums.setSurrogateProductLoanAmountDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full, for the reason the duration logs both: two figures that
+        // move live quotes, and the log must answer "what were they yesterday" on its own.
+        changes: {
+          loanAmountDefaults: {
+            before: row.loanAmountDefaults,
             after: stored,
           },
         },
@@ -2673,6 +2804,7 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        ownLoanAmounts: p.ownLoanAmounts,
         followsPlans: p.followsPlans,
       })),
       surrogateProduct:
@@ -2695,6 +2827,9 @@ export class BankProgramsService {
               // its own. The bank wizard renders it read-only in that state and offers to
               // copy it, exactly as it does the product's I-Score tiers.
               tenorDefaults: product.tenorDefaults,
+              // The same, for the SIZE: a program under this name that states no amounts
+              // lends between these, and the wizard renders that state as a statement.
+              loanAmountDefaults: product.loanAmountDefaults,
               planDefaults: product.planDefaults,
             },
     };

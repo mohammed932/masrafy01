@@ -20,6 +20,7 @@ import type {
   ProductAsksBoard,
   SurrogateProductDetail,
   SurrogateProductSummary,
+  LoanAmountDefaults,
   TenorDefaults,
   PlanDefaults,
   SurrogateProductTemplateResponse,
@@ -373,6 +374,26 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/tenor-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The loan SIZE every bank program under this product falls back to.
+   *
+   * The sibling of the duration above in every respect: inherited rather than copied, a
+   * change moves every program that states no amounts of its own, and `loanAmounts: null`
+   * is the one call the server can refuse — clearing leaves an inheriting program with no
+   * size at all (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
+   */
+  async setSurrogateProductLoanAmountDefaults(
+    key: string,
+    payload: { loanAmounts: LoanAmountDefaults | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/loan-amount-defaults`,
         payload,
       ),
     );

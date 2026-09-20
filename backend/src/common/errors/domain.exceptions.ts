@@ -308,6 +308,19 @@ export class SurrogateProductTenorInUseException extends DomainException {
   }
 }
 
+/**
+ * A surrogate product's default loan size was cleared while programs are reading it.
+ *
+ * The sibling of `SurrogateProductTenorInUseException`, carrying the codes for the same
+ * reason: "give each of them its own amounts first" is only actionable if the operator is
+ * told which ones.
+ */
+export class SurrogateProductLoanAmountsInUseException extends DomainException {
+  constructor(meta: { count: number; programCodes: string[] }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE, meta);
+  }
+}
+
 export class EnumerationRegistryUnavailableException extends DomainException {
   constructor() {
     super(ERROR_CODES.ENUMERATION_REGISTRY_UNAVAILABLE);

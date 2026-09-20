@@ -393,6 +393,7 @@ export const ERROR_CODES = {
    * the wrong words at an operator whose actual problem is six programmes with no duration.
    */
   SURROGATE_PRODUCT_TENOR_IN_USE: 'SURROGATE_PRODUCT_TENOR_IN_USE',
+  SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE: 'SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE',
   /**
    * The question an operator ticked on a product's step ① is already answered by MORE THAN
    * ONE surrogate fact.
@@ -1107,6 +1108,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // 409, like `SURROGATE_PRODUCT_IN_USE` above: the request is well-formed and the product
   // exists — what refuses it is the state of the programmes underneath.
   SURROGATE_PRODUCT_TENOR_IN_USE: 409,
+  SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE: 409,
   // 409: the request is well-formed and the rows exist — the platform's own data is in a
   // shape that has no single right answer, and only an operator can pick one.
   SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,

@@ -29,10 +29,12 @@ import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { TemplateStarter } from '@/matching/pipeline/product-template-starters';
 import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
 import type { BlueprintCap } from '../blueprints/product-blueprint.types';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
 import { MaxLoanByFactRowDto } from './sub-configs/loan-limits-config.dto';
 import { FactGridDto } from './sub-configs/fact-grid.dto';
+import { DecimalRange } from '../../common/decorators/decimal-range.decorator';
 import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
 
 /**
@@ -81,6 +83,14 @@ export interface ProgramUnderNameDto {
    * from, and a bank that types its own tables has said nothing about how long it lends for.
    */
   ownTenor: boolean;
+  /**
+   * `false` when it states no loan SIZE of its own and reads the surrogate product's.
+   *
+   * A third axis again: whose income tables (`ownAmounts`), how long (`ownTenor`) and how
+   * much (`ownLoanAmounts`) are three separate statements, and a program can inherit any
+   * one of them without the others.
+   */
+  ownLoanAmounts: boolean;
   /**
    * True when this program reads the product's PLAN tables.
    *
@@ -183,6 +193,14 @@ export interface ProgramNameIncomeRuleResponseDto {
      * months.
      */
     tenorDefaults: TenorDefaults | null;
+    /**
+     * The loan SIZE a program under this name falls back to when it states none.
+     *
+     * INHERITED on exactly the terms the duration above is, and rendered the same way: a
+     * blank pair on a new program is a live statement that this bank lends the sizes the
+     * product states, not two boxes somebody forgot.
+     */
+    loanAmountDefaults: LoanAmountDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
   } | null;
@@ -255,6 +273,14 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
    * (`SURROGATE_PRODUCT_TENOR_IN_USE`).
    */
   tenorDefaults: TenorDefaults | null;
+  /**
+   * The default loan size, as `PUT :key/loan-amount-defaults` last stored it. `null` = none,
+   * and every program under this product must then state its own.
+   *
+   * INHERITED on the same terms as the duration above, and cleared under the same refusal
+   * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
+   */
+  loanAmountDefaults: LoanAmountDefaults | null;
   /**
    * The default PLAN tables — the rate, the term ceiling, the financed share and the floor —
    * every program that opted in reads (`bank_program.plansSource = 'product'`).
@@ -414,6 +440,40 @@ export class SetSurrogateProductTenorDefaultsDto {
   @ValidateNested()
   @Type(() => SurrogateProductTenorDto)
   tenor!: SurrogateProductTenorDto | null;
+}
+
+/**
+ * The default loan SIZE a surrogate product hands every program under it.
+ *
+ * The sibling of `SurrogateProductTenorDto` in every respect: both amounts or neither,
+ * `null` is the clear, and the pair is a nested object precisely so it cannot come apart on
+ * the wire. Clearing is refused while any program is reading it
+ * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`) for the reason the duration's clear is: a change
+ * gives an inheriting program different sizes, a clear gives it none, and a loan with no
+ * size cannot be quoted.
+ *
+ * DECIMAL STRINGS (Principle I) — money never travels as a JSON number.
+ */
+export class SurrogateProductLoanAmountsDto {
+  @ApiProperty({ example: '1000000' })
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  minAmountEGP!: string;
+
+  @ApiProperty({ example: '3000000' })
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  maxAmountEGP!: string;
+}
+
+export class SetSurrogateProductLoanAmountDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductLoanAmountsDto,
+    nullable: true,
+    description: 'Null clears the default loan size.',
+  })
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductLoanAmountsDto)
+  loanAmounts!: SurrogateProductLoanAmountsDto | null;
 }
 
 /**

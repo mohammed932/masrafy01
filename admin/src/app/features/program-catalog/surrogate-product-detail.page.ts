@@ -130,6 +130,7 @@ import {
   type ProductAsksBoard,
   type ProductAskServed,
   type SurrogateProductDetail,
+  type LoanAmountDefaults,
   type TenorDefaults,
   type ProductBlueprint,
   type ProgramUnderName,
@@ -1356,6 +1357,71 @@ interface ReadList {
                             <span i18n="@@spd.tenor.readers"
                               >{{ readers }} bank program(s) state no duration of their own and use
                               these months.</span
+                            >
+                          }
+                        </p>
+                      }
+
+                      <!-- THE SIZE, on its own row rather than squeezed onto the one above:
+                           five boxes across wrapped into a ragged second line at card width,
+                           and these two are one decision that has to read as a pair. Two
+                           boxes and not one field, for the reason the months are two: the
+                           ends are two figures a sheet prints separately. -->
+                      <div class="fb-row">
+                        <app-figure-field
+                          fieldId="product-amount-min"
+                          unit="EGP"
+                          [label]="amountMinLabel"
+                          [value]="amountMinValue() ?? ''"
+                          (valueChange)="setAmountMin($event)"
+                          [ariaLabel]="amountMinAria"
+                          [placeholderNote]="amountBlankNote"
+                        ></app-figure-field>
+                        <app-figure-field
+                          fieldId="product-amount-max"
+                          unit="EGP"
+                          [label]="amountMaxLabel"
+                          [value]="amountMaxValue() ?? ''"
+                          (valueChange)="setAmountMax($event)"
+                          [ariaLabel]="amountMaxAria"
+                          [placeholderNote]="amountBlankNote"
+                        ></app-figure-field>
+                      </div>
+                      @if (amountError(); as problem) {
+                        <p class="fb-error" role="alert">
+                          @switch (problem) {
+                            @case ('range') {
+                              <span i18n="@@spd.amount.err_range"
+                                >Each amount must be a figure above zero, to at most two
+                                decimals.</span
+                              >
+                            }
+                            @case ('inverted') {
+                              <span i18n="@@spd.amount.err_inverted"
+                                >The largest loan must be at least the smallest.</span
+                              >
+                            }
+                            @case ('half') {
+                              <span i18n="@@spd.amount.err_half"
+                                >State both amounts or neither — one on its own is a range nobody
+                                set.</span
+                              >
+                            }
+                          }
+                        </p>
+                      }
+                      @if (amountReaders(); as readers) {
+                        <p class="tenor-readers" [class.is-warn]="amountClearBlocked()">
+                          @if (amountClearBlocked()) {
+                            <span i18n="@@spd.amount.readers_clear"
+                              >{{ readers }} bank program(s) have no amounts of their own and are
+                              using these. Emptying the boxes would leave them unable to quote, so
+                              it will be refused — give each of them its own amounts first.</span
+                            >
+                          } @else {
+                            <span i18n="@@spd.amount.readers"
+                              >{{ readers }} bank program(s) state no amounts of their own and use
+                              these.</span
                             >
                           }
                         </p>
@@ -3999,6 +4065,86 @@ export class SurrogateProductDetailPage {
    */
   private tenorDirty = false;
 
+  // ── The loan SIZE every bank falls back to ───────────────────────────────
+  // The duration's twin, drawn from the same template throughout: both amounts or neither,
+  // inherited live rather than copied, and a CLEAR is the one move the server can refuse.
+
+  protected readonly amountMinValue = signal<string | null>(null);
+  protected readonly amountMaxValue = signal<string | null>(null);
+
+  // "Smallest"/"Largest" and not "Smallest loan", which is what the plan table's own floor
+  // column is called one section down. Two identically-labelled money boxes on one screen
+  // that mean different things — a flat default and a per-deposit-band floor — is the
+  // collision; bare adjectives also make these read as the months' peers, which they are.
+  protected readonly amountMinLabel = $localize`:@@spd.amount.min:Smallest`;
+  protected readonly amountMaxLabel = $localize`:@@spd.amount.max:Largest`;
+  protected readonly amountMinAria = $localize`:@@spd.amount.min_aria:Smallest loan every program selling this product lends, in EGP`;
+  protected readonly amountMaxAria = $localize`:@@spd.amount.max_aria:Largest loan every program selling this product lends, in EGP`;
+  protected readonly amountBlankNote = $localize`:@@spd.amount.blank_note:Blank — each bank states its own.`;
+
+  /**
+   * `null` when there is nothing to say, otherwise WHICH of the three things is wrong —
+   * mirroring `tenorError` exactly, including that an empty pair is legal and is the state
+   * every product ships in.
+   *
+   * Compared as NUMBERS, never as strings: '900000' > '1000000' is true lexically, which is
+   * how an inverted pair passes a check that looks right.
+   */
+  protected readonly amountError = computed<'range' | 'inverted' | 'half' | null>(() => {
+    const min = (this.amountMinValue() ?? '').trim();
+    const max = (this.amountMaxValue() ?? '').trim();
+    if (min === '' && max === '') return null;
+    if (min === '' || max === '') return 'half';
+    const legal = (raw: string) => /^\d+(\.\d{1,2})?$/.test(raw) && Number(raw) <= 99999999999.99;
+    if (!legal(min) || !legal(max)) return 'range';
+    const lo = Number(min);
+    const hi = Number(max);
+    // A ceiling of zero is a program that can never lend — refused by the server too.
+    if (hi <= 0) return 'range';
+    return lo > hi ? 'inverted' : null;
+  });
+
+  /**
+   * How many bank programs are reading these amounts right now.
+   *
+   * Counted off `names[].programs[].ownLoanAmounts`, NOT `ownAmounts`: that one is the
+   * income-FIGURES axis (whose tables a program quotes from), a different question with a
+   * confusingly similar name. Counting it here reported programs that had typed their own
+   * sizes as reading these.
+   */
+  protected readonly amountReaders = computed<number>(
+    () =>
+      this.product()
+        ?.names.flatMap((n) => n.programs)
+        .filter((prog) => !prog.ownLoanAmounts).length ?? 0,
+  );
+
+  /** Would emptying the boxes be refused? Says it BEFORE the server has to. */
+  protected readonly amountClearBlocked = computed<boolean>(() => {
+    if (this.amountReaders() === 0) return false;
+    if (this.product()?.loanAmountDefaults == null) return false;
+    return (
+      (this.amountMinValue() ?? '').trim() === '' && (this.amountMaxValue() ?? '').trim() === ''
+    );
+  });
+
+  protected setAmountMin(raw: string): void {
+    const value = raw.trim();
+    this.amountMinValue.set(value === '' ? null : value);
+    this.amountDirty = true;
+    this.markDirty();
+  }
+
+  protected setAmountMax(raw: string): void {
+    const value = raw.trim();
+    this.amountMaxValue.set(value === '' ? null : value);
+    this.amountDirty = true;
+    this.markDirty();
+  }
+
+  /** Its own flag beside `tenorDirty`, and for the same reason: it is a separate write. */
+  private amountDirty = false;
+
   protected readonly ruleBlocked = computed(() => {
     // An out-of-range cap is refused by the server, so Save is held here too — on a screen
     // where the field is in view rather than three steps away.
@@ -4006,6 +4152,8 @@ export class SurrogateProductDetailPage {
     // Same, for the duration: a half-stated or inverted pair is refused, and a refusal that
     // arrives after Save is a refusal about a field the operator has scrolled past.
     if (this.tenorError() !== null) return true;
+    // And for the loan size, on exactly the same terms.
+    if (this.amountError() !== null) return true;
     // And for a plan table with a half-typed row: every one of them is validated on the
     // server, and the same sentence is better read beside the table it is about.
     if (this.planError() !== null) return true;
@@ -5112,6 +5260,9 @@ export class SurrogateProductDetailPage {
       // Same rule, same reason: read while the flag still means something. `absorb` below
       // re-seeds the screen and clears it, so asking afterwards always answers "no".
       const plans = this.plansDirty ? this.planValue() : undefined;
+      // Same rule, same reason, for the SIZE: `undefined` is "not touching it" and `null` is
+      // the clear, which the server can refuse.
+      const loanAmounts = this.amountDirty ? this.amountsFromForm() : undefined;
 
       const res = await this.api.setSurrogateProductIncomeRule(p.key, {
         incomeRule: this.ruleFromForm(),
@@ -5141,6 +5292,16 @@ export class SurrogateProductDetailPage {
       if (plans !== undefined) {
         const planRes = await this.api.setSurrogateProductPlanDefaults(p.key, { plans });
         this.absorb(planRes.data);
+      }
+
+      // FIFTH, and only when the boxes moved. Its own column and its own refusal, exactly as
+      // the duration's write above — folding it in would make an amount edit read as a rule
+      // change in the audit log.
+      if (loanAmounts !== undefined) {
+        const amountRes = await this.api.setSurrogateProductLoanAmountDefaults(p.key, {
+          loanAmounts,
+        });
+        this.absorb(amountRes.data);
       }
     } catch (err) {
       this.saveError.set(this.localizedError(err));
@@ -5172,6 +5333,20 @@ export class SurrogateProductDetailPage {
     const max = (this.tenorMaxValue() ?? '').trim();
     if (min === '' || max === '') return null;
     return { minMonths: Number(min), maxMonths: Number(max) };
+  }
+
+  /**
+   * The amounts to PUT, or `null` for the clear.
+   *
+   * Sent as the STRINGS the operator typed, never `Number`-ed: these are money (Principle I),
+   * and a round trip through a float is exactly the precision this platform stores decimals
+   * to avoid.
+   */
+  private amountsFromForm(): LoanAmountDefaults | null {
+    const min = (this.amountMinValue() ?? '').trim();
+    const max = (this.amountMaxValue() ?? '').trim();
+    if (min === '' || max === '') return null;
+    return { minAmountEGP: min, maxAmountEGP: max };
   }
 
   private ruleFromForm(): IncomeAssumptionConfig {
@@ -5304,6 +5479,9 @@ export class SurrogateProductDetailPage {
       data.tenorDefaults === null ? null : String(data.tenorDefaults.maxMonths),
     );
     this.tenorDirty = false;
+    this.amountMinValue.set(data.loanAmountDefaults?.minAmountEGP ?? null);
+    this.amountMaxValue.set(data.loanAmountDefaults?.maxAmountEGP ?? null);
+    this.amountDirty = false;
     this.planValue.set(data.planDefaults);
     this.plansDirty = false;
     this.dirty.set(false);

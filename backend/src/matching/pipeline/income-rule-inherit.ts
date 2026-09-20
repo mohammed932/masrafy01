@@ -48,6 +48,7 @@ import { allWaySlots, wayOwnedSlots, waysOfRule } from './product-rule-ways';
 import { SLOT } from './product-template';
 import type { TenorDefaults } from './tenor-inherit';
 import type { PlanDefaults } from './plan-inherit';
+import type { LoanAmountDefaults } from './loan-amount-inherit';
 
 /**
  * The figure-bearing keys. The legacy five are included because a catalog rule
@@ -238,6 +239,8 @@ export type CatalogRuleResolution =
        */
       readonly tenorDefaults?: TenorDefaults;
       readonly planDefaults?: PlanDefaults;
+      /** The product's default loan size, for a program that states none — see `tenorDefaults`. */
+      readonly loanAmountDefaults?: LoanAmountDefaults;
     }
   | {
       readonly withheld: 'surrogate_product_retired';
@@ -254,6 +257,8 @@ export type CatalogRuleResolution =
        */
       readonly tenorDefaults?: TenorDefaults;
       readonly planDefaults?: PlanDefaults;
+      /** The product's default loan size, for a program that states none — see `tenorDefaults`. */
+      readonly loanAmountDefaults?: LoanAmountDefaults;
     }
   | {
       /**
@@ -266,6 +271,8 @@ export type CatalogRuleResolution =
       readonly productKey: string;
       readonly tenorDefaults?: TenorDefaults;
       readonly planDefaults?: PlanDefaults;
+      /** The product's default loan size, for a program that states none — see `tenorDefaults`. */
+      readonly loanAmountDefaults?: LoanAmountDefaults;
     };
 
 /**
@@ -300,6 +307,8 @@ export interface LinkedProduct {
   readonly tenorDefaults: TenorDefaults | undefined;
   /** The default plan tables, when this product states any. */
   readonly planDefaults?: PlanDefaults | undefined;
+  /** The default loan size, when this product states one. */
+  readonly loanAmountDefaults?: LoanAmountDefaults | undefined;
 }
 
 export function effectiveProgramNameRule(
@@ -311,8 +320,13 @@ export function effectiveProgramNameRule(
       product.tenorDefaults === undefined ? {} : { tenorDefaults: product.tenorDefaults };
     // Conditional spread so the key is ABSENT, never `undefined` — the shape `tenorDefaults`
     // beside it already uses, and what keeps a resolution comparable by key.
-    const plans =
-      product.planDefaults === undefined ? {} : { planDefaults: product.planDefaults };
+    const plans = product.planDefaults === undefined ? {} : { planDefaults: product.planDefaults };
+    // NOT named `amounts`: that word already means the catalog/own FIGURES axis everywhere
+    // else in this file, and a second sense of it here would read as the same decision.
+    const loanAmounts =
+      product.loanAmountDefaults === undefined
+        ? {}
+        : { loanAmountDefaults: product.loanAmountDefaults };
     if (!product.active || product.deprecatedAt !== null) {
       return {
         withheld: 'surrogate_product_retired',
@@ -320,10 +334,11 @@ export function effectiveProgramNameRule(
         ...(product.rule !== undefined ? { rule: product.rule } : {}),
         ...tenor,
         ...plans,
+        ...loanAmounts,
       };
     }
     if (product.rule !== undefined) {
-      return { rule: product.rule, productKey: product.key, ...tenor, ...plans };
+      return { rule: product.rule, productKey: product.key, ...tenor, ...plans, ...loanAmounts };
     }
     // ACTIVE, linked, and holding no calculation. `own` is `null` here on every real row
     // (a linked name cannot hold its own rule — `PROGRAM_NAME_RULE_LINKED`), so falling
@@ -331,8 +346,12 @@ export function effectiveProgramNameRule(
     // the gap the DEFAULTS-ONLY arm's doc names. Return it only when there is something
     // to carry, or a product that is simply unconfigured (no rule, no defaults either)
     // starts reporting a productKey for a resolution that inherits nothing.
-    if (tenor.tenorDefaults !== undefined || plans.planDefaults !== undefined) {
-      return { productKey: product.key, ...tenor, ...plans };
+    if (
+      tenor.tenorDefaults !== undefined ||
+      plans.planDefaults !== undefined ||
+      loanAmounts.loanAmountDefaults !== undefined
+    ) {
+      return { productKey: product.key, ...tenor, ...plans, ...loanAmounts };
     }
   }
   const rule = own ?? undefined;
@@ -372,6 +391,17 @@ export function catalogPlansOf(
   resolution: CatalogRuleResolution | undefined,
 ): PlanDefaults | undefined {
   return resolution?.planDefaults;
+}
+
+/**
+ * The default loan size a resolution holds, whether or not the rule is withheld.
+ *
+ * The sibling of `catalogTenorOf` in every respect — see it.
+ */
+export function catalogLoanAmountsOf(
+  resolution: CatalogRuleResolution | undefined,
+): LoanAmountDefaults | undefined {
+  return resolution?.loanAmountDefaults;
 }
 
 /**
