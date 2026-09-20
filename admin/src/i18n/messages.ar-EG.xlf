@@ -3168,6 +3168,11 @@
                 </source><target>
                   لا يوجد اسم يُباع مقابل كشف راتب بعد. أضف اسم برنامج وسيظهر هنا.
                 </target></trans-unit>
+      <trans-unit id="program_catalog.proof.no_match" datatype="html"><source>
+                    No payslip program name matches this filter.
+                  </source><target>
+                    لا يوجد اسم برنامج بكشف راتب مطابق لهذا الفلتر.
+                  </target></trans-unit>
       <trans-unit id="program_catalog.surrogate.empty" datatype="html"><source>
                   No calculation for a customer with no payslip yet. Start one from a shape and
                   the questions it asks are built with it.

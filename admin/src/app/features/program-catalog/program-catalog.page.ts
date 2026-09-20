@@ -245,6 +245,17 @@ const ENUM_TYPE = 'program_name';
             id="basis-panel-payslip"
             aria-labelledby="basis-tab-payslip"
           >
+            <!-- Same ?cat= facet as the no-payslip panel: a name is offered under one or
+                 more loan types, so this narrows the list without changing what is on stage. -->
+            <app-rail-tabs
+              appearance="pill"
+              idPrefix="cat-proof"
+              [items]="proofCategoryChips()"
+              [activeId]="categoryFilter()"
+              [ariaLabel]="categoryFilterAria"
+              (select)="setCategory(asCategory($event))"
+            />
+
             @if (proofNames().length > 0) {
               <ul class="cards" role="list">
                 @for (r of proofNames(); track r.id) {
@@ -257,9 +268,15 @@ const ENUM_TYPE = 'program_name';
             } @else {
               <div class="board-empty">
                 <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
+                @if (surrogateFilterActive()) {
+                  <p i18n="@@program_catalog.proof.no_match">
+                    No payslip program name matches this filter.
+                  </p>
+                } @else {
                 <p i18n="@@program_catalog.proof.empty">
                   No name is sold against a payslip yet. Add a program name and it starts here.
                 </p>
+                }
               </div>
             }
           </section>
@@ -1394,11 +1411,19 @@ export class ProgramCatalogPage implements OnInit {
     () => this.search().trim() !== '' || this.categoryFilter() !== 'all',
   );
 
-  protected readonly categoryChips = computed<RailTabItem[]>(() => {
-    const counts = this.board().categoryCounts;
-    // Same unit as the surrogate basis chip above it — this rail only ever narrows that
-    // same set of cards, never a different kind of object.
-    const countLabel = this.surrogateCountLabel;
+  protected readonly categoryChips = computed<RailTabItem[]>(() =>
+    this.chipsFor(this.board().categoryCounts, this.surrogateCountLabel),
+  );
+
+  protected readonly proofCategoryChips = computed<RailTabItem[]>(() =>
+    this.chipsFor(this.board().proofCategoryCounts, this.proofCountLabel),
+  );
+
+  /** One chip per loan type; the unit matches the basis chip above, since it narrows that set. */
+  private chipsFor(
+    counts: Readonly<Record<CategoryFilter, number>>,
+    countLabel: string,
+  ): RailTabItem[] {
     return [
       {
         id: 'all',
@@ -1414,7 +1439,7 @@ export class ProgramCatalogPage implements OnInit {
         accent: `var(--color-cat-${cat})`,
       })),
     ];
-  });
+  }
 
   protected readonly stats = computed<StatStripItem[]>(() => {
     const all = this.rows();

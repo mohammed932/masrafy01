@@ -128,6 +128,12 @@ export interface CatalogBoard {
    * can exceed the sum of the four.
    */
   readonly categoryCounts: Readonly<Record<CategoryFilter, number>>;
+  /**
+   * The same counts for the payslip panel: how many payslip names are offered under each loan
+   * type, taken after search and before the `category` facet. A name offered under several
+   * types is counted under each, so the four can sum past `all`.
+   */
+  readonly proofCategoryCounts: Readonly<Record<CategoryFilter, number>>;
 }
 
 export interface BuildBoardInput {
@@ -137,8 +143,7 @@ export interface BuildBoardInput {
   readonly search: string;
   /**
    * Narrow the no-payslip panel to one loan category. `'all'` or omitted = every card.
-   * Payslip names and the deprecated tail are unaffected — the facet only makes sense
-   * where the board renders CALCULATIONS, which are sold under several categories at once.
+   * Narrows payslip names by their own `categories` too; the deprecated tail is unaffected.
    */
   readonly category?: CategoryFilter;
   /** Which locale's label the search matches against first. Both are always searched. */
@@ -250,7 +255,10 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const live = input.names.filter((r) => !r.deprecatedAt);
   const liveMatching = q ? live.filter((r) => nameMatches(r, q)) : live;
 
-  const proofNames = liveMatching.filter(isPayslip);
+  const searchedProofNames = liveMatching.filter(isPayslip);
+  const proofNames = searchedProofNames.filter((r) =>
+    matchesCategory(rowCategories(r), categoryFilter),
+  );
 
   const cards: ProductCard[] = input.products.map((product) => {
     const names: EnumerationRow[] = [];
@@ -307,12 +315,19 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
     ? input.names.filter((r) => r.deprecatedAt && nameMatches(r, q))
     : input.names.filter((r) => r.deprecatedAt);
 
-  const payslip = proofNames.length;
+  const payslip = searchedProofNames.length;
   const noPayslip = searchedProducts.length;
 
   const categoryCounts = { all: noPayslip } as Record<CategoryFilter, number>;
   for (const cat of LOAN_CATEGORIES) {
     categoryCounts[cat] = searchedProducts.filter((c) => c.categories.includes(cat)).length;
+  }
+
+  const proofCategoryCounts = { all: payslip } as Record<CategoryFilter, number>;
+  for (const cat of LOAN_CATEGORIES) {
+    proofCategoryCounts[cat] = searchedProofNames.filter((r) =>
+      rowCategories(r).includes(cat),
+    ).length;
   }
 
   return {
@@ -322,5 +337,6 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
     deprecated,
     counts: { payslip, no_payslip: noPayslip },
     categoryCounts,
+    proofCategoryCounts,
   };
 }
