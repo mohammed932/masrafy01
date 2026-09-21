@@ -30,6 +30,7 @@ import {
   SetSurrogateProductActiveDto,
   SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductLoanAmountDefaultsDto,
+  SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
@@ -275,6 +276,41 @@ export class BankProgramsController {
   ) {
     return ok(
       await this.service.setSurrogateProductTenorDefaults(key, body, this.actor(user, req)),
+    );
+  }
+
+  /**
+   * Declared in the same block and before `@Get(':programCode')`, for the same reason.
+   */
+  @Put('surrogate-products/:key/iscore-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default I-Score tiers",
+    description:
+      'The share of the worked-out figure every bank program under this product counts at ' +
+      'each bureau score, when it states no table of its own. INHERITED, not copied, ' +
+      'exactly as the duration beside it: a change here moves every one of them, and a bank ' +
+      'that scores differently states its own and wins — including a flat 100% table, which ' +
+      'is how it opts out. `tiers: null` clears them, and there is NO refusal for that: ' +
+      'cleared tiers leave a program multiplying by 100%, which is a priceable quote.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'INCOME_RULE_BANDS_INVALID — the tiers must start at 0, leave the top range open and ' +
+      'have no gap or overlap (`meta.reason` is `first_band_not_zero`, `last_band_not_open`, ' +
+      '`gap`, `overlap`, `unordered` or `edge_not_decimal`). INCOME_RULE_EMPTY when the ' +
+      'table is present but has no rows — send `null` to clear it instead.',
+  })
+  async setSurrogateProductIScoreDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductIScoreDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.setSurrogateProductIScoreDefaults(key, body, this.actor(user, req)),
     );
   }
 

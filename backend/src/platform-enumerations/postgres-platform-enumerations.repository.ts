@@ -60,6 +60,7 @@ import {
 } from './platform-enumerations.repository';
 import type { EnumerationTypeDef } from '@prisma/client';
 import { asTenorDefaults, statesOwnTenor } from '@/matching/pipeline/tenor-inherit';
+import { asIScoreTiers, statesOwnTiers, type IScoreTiers } from '@/matching/pipeline/iscore';
 import {
   asLoanAmountDefaults,
   statesOwnLoanAmounts,
@@ -876,6 +877,7 @@ export class PostgresPlatformEnumerationsRepository
               tenorDefaults: true,
               loanAmountDefaults: true,
               planDefaults: true,
+              iScoreDefaults: true,
             },
           });
 
@@ -893,6 +895,7 @@ export class PostgresPlatformEnumerationsRepository
             tenorDefaults: asTenorDefaults(productRow.tenorDefaults),
             planDefaults: asPlanDefaults(productRow.planDefaults),
             loanAmountDefaults: asLoanAmountDefaults(productRow.loanAmountDefaults),
+            iScoreDefaults: asIScoreTiers(productRow.iScoreDefaults),
           };
     const resolution = effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked);
     const catalogRule = catalogRuleOf(resolution);
@@ -995,6 +998,7 @@ export class PostgresPlatformEnumerationsRepository
         tenorDefaults: true,
         loanAmountDefaults: true,
         planDefaults: true,
+        iScoreDefaults: true,
         surrogateProductKey: true,
         active: true,
         deprecatedAt: true,
@@ -1021,6 +1025,7 @@ export class PostgresPlatformEnumerationsRepository
         tenorDefaults: asTenorDefaults(row.tenorDefaults),
         planDefaults: asPlanDefaults(row.planDefaults),
         loanAmountDefaults: asLoanAmountDefaults(row.loanAmountDefaults),
+        iScoreDefaults: asIScoreTiers(row.iScoreDefaults),
       });
     }
 
@@ -1074,6 +1079,9 @@ export class PostgresPlatformEnumerationsRepository
     // Read with the duration beside it: the product's screen edits the plan tables on the
     // same step, and one read answers both.
     planDefaults: true,
+    // Read with them for the same reason: the product's screen states its I-Score tiers on
+    // the same step as the debt-burden cap they scale, and one read answers both.
+    iScoreDefaults: true,
     valueSources: true,
     surrogateProductKey: true,
   } as const;
@@ -1225,6 +1233,53 @@ export class PostgresPlatformEnumerationsRepository
    * below finds the ones reading its duration, and with the same reading of "reading it":
    * states NEITHER amount. A half-stated pair counts as stated and is a different problem.
    */
+  async setSurrogateProductIScoreDefaults(
+    key: string,
+    tiers: IScoreTiers | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: {
+        iScoreDefaults:
+          tiers === null ? Prisma.DbNull : ({ ...tiers } as unknown as Prisma.InputJsonValue),
+        updatedBy,
+      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
+    });
+    return toProgramNameIncomeRuleRow(row);
+  }
+
+  /**
+   * The programs reading this product's tiers, found the same two hops the duration and the
+   * loan size are: `programNameKey` is not an FK, so the names are read first and the
+   * programs with one `IN`.
+   *
+   * "Reading them" is "states no table of its own", which `statesOwnTiers` decides through
+   * the SAME reader the quote path uses — an empty `{ bands: [] }` counts as unstated there
+   * and must count as unstated here, or the reach line would omit a program the change moves.
+   */
+  async programsInheritingIScoreTiers(productKey: string): Promise<string[]> {
+    const names = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name', surrogateProductKey: productKey },
+      select: { key: true },
+    });
+    if (names.length === 0) return [];
+    const rows = await this.prisma.bankProgram.findMany({
+      where: { programNameKey: { in: names.map((n) => n.key) } },
+      select: { programCode: true, incomeAssumption: true },
+      orderBy: { programCode: 'asc' },
+    });
+    return rows
+      .filter(
+        (row) =>
+          !statesOwnTiers(
+            asIScoreTiers((row.incomeAssumption as { iScoreTiers?: unknown } | null)?.iScoreTiers),
+          ),
+      )
+      .map((row) => row.programCode);
+  }
+
   async programsInheritingLoanAmounts(productKey: string): Promise<string[]> {
     const names = await this.prisma.platformEnumeration.findMany({
       where: { type: 'program_name', surrogateProductKey: productKey },
@@ -1425,6 +1480,13 @@ export class PostgresPlatformEnumerationsRepository
           row.loanLimits as unknown as StoredLoanLimits | undefined,
         ),
         followsPlans: inheritsProductPlans(row.plansSource),
+        // A FOURTH axis, and the newest: whose bureau-score tiers. Read through the SAME
+        // reader the quote path uses, so an empty `{ bands: [] }` counts as unstated here
+        // exactly as it does there — otherwise the product screen's reader count would omit
+        // a program its own change moves.
+        ownIScoreTiers: statesOwnTiers(
+          asIScoreTiers((row.incomeAssumption as { iScoreTiers?: unknown } | null)?.iScoreTiers),
+        ),
       };
     });
   }
@@ -2519,6 +2581,7 @@ function toProgramNameIncomeRuleRow(row: {
   tenorDefaults?: unknown;
   loanAmountDefaults?: unknown;
   planDefaults?: unknown;
+  iScoreDefaults?: unknown;
   valueSources: unknown;
   surrogateProductKey?: string | null;
 }): ProgramNameIncomeRuleRow {
@@ -2541,6 +2604,10 @@ function toProgramNameIncomeRuleRow(row: {
     // Through the SAME reader the quote path uses, for the same reason: a slot that is not
     // grid-shaped is dropped there, and the screen must not show a table the engine ignores.
     planDefaults: asPlanDefaults(row.planDefaults) ?? null,
+    // Through the SAME reader the quote path uses, for the reason the three above give: a
+    // blob that is not `{ bands: [...] }` with a row in it is no table there, and the screen
+    // must not render tiers the engine will multiply nothing by.
+    iScoreDefaults: asIScoreTiers(row.iScoreDefaults) ?? null,
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
     surrogateProductKey: row.surrogateProductKey ?? null,
   };

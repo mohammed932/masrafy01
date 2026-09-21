@@ -29,9 +29,13 @@ import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { TemplateStarter } from '@/matching/pipeline/product-template-starters';
 import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import type { IScoreTiers } from '@/matching/pipeline/iscore';
 import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
 import type { BlueprintCap } from '../blueprints/product-blueprint.types';
-import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
+import {
+  IncomeAssumptionConfigDto,
+  IncomeBandDto,
+} from './sub-configs/income-assumption-config.dto';
 import { MaxLoanByFactRowDto } from './sub-configs/loan-limits-config.dto';
 import { FactGridDto } from './sub-configs/fact-grid.dto';
 import { DecimalRange } from '../../common/decorators/decimal-range.decorator';
@@ -83,6 +87,14 @@ export interface ProgramUnderNameDto {
    * from, and a bank that types its own tables has said nothing about how long it lends for.
    */
   ownTenor: boolean;
+  /**
+   * `false` when it states no I-SCORE TIERS of its own and reads the surrogate product's.
+   *
+   * A fourth axis, on exactly the terms the three around it are: whose income tables, how
+   * long, how much, and what a bureau score is worth are four separate statements, and a
+   * program can inherit any one of them without the others.
+   */
+  ownIScoreTiers: boolean;
   /**
    * `false` when it states no loan SIZE of its own and reads the surrogate product's.
    *
@@ -203,6 +215,11 @@ export interface ProgramNameIncomeRuleResponseDto {
     loanAmountDefaults: LoanAmountDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
+    /**
+     * The product's default I-SCORE TIERS, or `null` when it states none — in which case
+     * every program under it multiplies by 100%.
+     */
+    iScoreDefaults: IScoreTiers | null;
   } | null;
 }
 
@@ -290,6 +307,17 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
    * hand every program under this product a table it never chose.
    */
   planDefaults: PlanDefaults | null;
+  /**
+   * The default I-SCORE TIERS, as `PUT :key/iscore-defaults` last stored them. `null` = none,
+   * and every program under this product then multiplies by 100%.
+   *
+   * INHERITED like the duration above, and by ABSENCE rather than by opting in: a blank table
+   * has never meant "this bank declines to score" — the compiled multiplier answered a blank
+   * with a literal 100% long before the tiers were statable — so a blank means "nobody has
+   * stated them". Cleared under NO refusal, unlike the duration: cleared tiers leave a
+   * program multiplying by 100%, which is a priceable quote.
+   */
+  iScoreDefaults: IScoreTiers | null;
   /**
    * The friendly form the calculation was compiled from, or `null` when it was authored
    * through the raw step editor.
@@ -521,6 +549,42 @@ export class SurrogateProductPlansDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   minAmountByFact?: FactGridDto;
+}
+
+/**
+ * The default I-SCORE TIER TABLE a surrogate product hands every program under it.
+ *
+ * Rows are `IncomeBandDto`, the same shape the tables were stored in when they lived in
+ * `incomeRule.stepParams.iscore_band` — `incomeEGP` carries a PERCENTAGE, not money. The
+ * misnaming is kept so the v30.3.0 migration was a MOVE rather than a rewrite of nine
+ * products' figures.
+ *
+ * Shape only here. That the table starts at 0, leaves its top open and has no gap is decided
+ * once in `validateIScoreTiers`, which the program save runs through too — so a table cannot
+ * be accepted by one door and refused by the other.
+ */
+export class SurrogateProductIScoreTiersDto {
+  @ApiProperty({ type: [IncomeBandDto] })
+  @IsArray()
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => IncomeBandDto)
+  bands!: IncomeBandDto[];
+}
+
+export class SetSurrogateProductIScoreDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductIScoreTiersDto,
+    nullable: true,
+    description: 'Null clears the default tiers; every program under it then multiplies by 100%.',
+  })
+  // `@ValidateIf` skipping only `null`, exactly as the plan tables below: `null` IS
+  // meaningful — it is the clear — so it must reach the service rather than be skipped
+  // unvalidated by a bare `@IsOptional()` (the trap recorded at v26.2.0).
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductIScoreTiersDto)
+  tiers!: SurrogateProductIScoreTiersDto | null;
 }
 
 export class SetSurrogateProductPlanDefaultsDto {

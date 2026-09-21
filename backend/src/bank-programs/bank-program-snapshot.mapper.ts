@@ -10,12 +10,14 @@ import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
+  catalogIScoreOf,
   catalogLoanAmountsOf,
   catalogPlansOf,
   catalogRuleOf,
   catalogTenorOf,
   effectiveIncomeRule,
 } from '@/matching/pipeline/income-rule-inherit';
+import { asIScoreTiers, effectiveIScoreTiers } from '@/matching/pipeline/iscore';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
 import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
@@ -132,6 +134,25 @@ export function toBankProgramSnapshot(
       ? { incomeRuleWithheld: catalog.withheld }
       : {}),
     fees: p.fees as unknown as BankProgramSnapshot['fees'],
+    // The I-SCORE TIERS, merged on the one line the engine reads them from, for the reason
+    // the duration and the plan grids above are merged here: a snapshot must not be able to
+    // tell a table the bank typed from one it is reading off the product.
+    //
+    // Read off the RAW stored blob, deliberately, and not off the merged
+    // `incomeAssumption` a few lines up. `effectiveIncomeRule` inherits `stepParams` whole
+    // key on `amounts: 'catalog'`, so reading the merged rule would let a program on
+    // catalog amounts pick up tiers through a second route and disagree with this one —
+    // which is the per-slot inheritance this field was created to replace.
+    //
+    // `undefined` when neither side states a table, which `resolveIScoreFactor` answers
+    // with a 100% multiplier — the same answer the deleted `coalesce` step gave.
+    ...(() => {
+      const tiers = effectiveIScoreTiers(
+        asIScoreTiers((p.incomeAssumption as { iScoreTiers?: unknown } | null)?.iScoreTiers),
+        catalogIScoreOf(catalog),
+      );
+      return tiers === undefined ? {} : { iScoreTiers: tiers };
+    })(),
     performanceCriteria: p.performanceCriteria as unknown as
       | BankProgramSnapshot['performanceCriteria']
       | undefined,

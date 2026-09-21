@@ -100,6 +100,10 @@ import type { PlanDefaults } from '../bank-programs/bank-programs.types';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
 import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
+import {
+  IncomeBandsEditorComponent,
+  incomeBandsErrorFor,
+} from '@shared/income-rule/income-bands-editor.component';
 import { listFigureState, type ListFigureState } from '@shared/income-rule/figure-slots';
 import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
 import { incomeKeyTableErrorFor, productRuleHasError } from '@shared/income-rule/income-rule.rules';
@@ -207,6 +211,7 @@ interface ReadList {
     FactGridEditorComponent,
     PlanRowsEditorComponent,
     FigureFieldComponent,
+    IncomeBandsEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -1426,6 +1431,43 @@ interface ReadList {
                           }
                         </p>
                       }
+
+                      <!-- WHAT EACH BUREAU SCORE IS WORTH. In this group and not in the
+                           calculation below, because that is what it now is: a default every
+                           bank selling this product falls back to, exactly like the cap and
+                           the months above it.
+
+                           It WAS four steps in the calculation until v30.3.0, which is why
+                           the operator used to state it in the rule editor's band slot. That
+                           slot is gone, and this is where the statement moved — so a product
+                           whose tiers the migration carried across stays editable. -->
+                      <div class="fb-tiers">
+                        <h3 class="fb-tiers-title" i18n="@@spd.iscore.title">
+                          What each I-Score is worth
+                        </h3>
+                        <p class="sec-lede" i18n="@@spd.iscore.lede">
+                          One row per score range, with the share of the worked-out figure counted
+                          at that score. Every bank selling this product reads these unless it
+                          states its own. The table must start at 0 and leave its top range open, so
+                          every score is covered.
+                        </p>
+                        <app-income-bands-editor
+                          [bands]="iScoreTiers()"
+                          (bandsChange)="setIScoreTiers($event)"
+                          [unit]="iScoreRangeUnit"
+                          [valueLabel]="iScoreValueLabel"
+                          [coverAll]="true"
+                        ></app-income-bands-editor>
+                        @if (iScoreReaders(); as readers) {
+                          <p class="tenor-readers">
+                            <span i18n="@@spd.iscore.readers"
+                              >{{ readers }} bank program(s) state no tiers of their own and use
+                              these. Emptying the table leaves them counting every figure in
+                              full.</span
+                            >
+                          </p>
+                        }
+                      </div>
                     </section>
                   </section>
                 }
@@ -2261,6 +2303,30 @@ interface ReadList {
 
       /* SECONDARY, like the lede above it and for the same reason: it states how many live
          programs a change here moves, which is the sentence an operator has to read. */
+      /* The tier table and its heading, set as the fourth statement in the defaults group
+         rather than as a card: the panel is already a container and a box inside a box is
+         the nesting this screen was rebuilt to remove (v25.1.0). Separated from the rows
+         above by space alone, like every other sub-statement here. */
+      .fb-tiers {
+        margin-block-start: var(--space-5);
+        /* AND a bottom margin, which the three statements above this one do not need: they
+           are followed by more content inside the block, where this is its LAST child. Its
+           reader line ended flush with the block's own bottom edge (measured: both at
+           892.06px), so the sentence butted straight against the next section's hairline
+           with no breathing space -- it read as clipped text. */
+        margin-block-end: var(--space-5);
+      }
+      /* Same ramp and ink as .sub, one step down: it names a table inside a section that
+         already has a heading. */
+      .fb-tiers-title {
+        margin: 0 0 var(--space-2);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+
       .tenor-readers {
         margin: 0;
         max-inline-size: 60ch;
@@ -3524,6 +3590,49 @@ export class SurrogateProductDetailPage {
   /** The stored cap as text, or `null` when the product states none. */
   protected readonly dbrCapValue = signal<string | null>(null);
 
+  /**
+   * The I-SCORE TIERS this product hands every bank selling it.
+   *
+   * A PLAIN SIGNAL seeded from the response, never `toSignal(control.valueChanges)` — the
+   * v26.2.0 bug where the debt-burden cap beside it read back EMPTY over a stored value,
+   * because `absorb` resets with `emitEvent: false` so the stored figure never reached the
+   * box. The save wrote it, the audit recorded it, the reload showed nothing.
+   *
+   * Stored in its OWN COLUMN (`platform_enumeration.iScoreDefaults`), not on the rule blob:
+   * the tiers stopped being part of the calculation at v30.3.0, and folding them back in
+   * would make a tier edit read as a rule change in the audit log.
+   */
+  protected readonly iScoreTiers = signal<IncomeBand[]>([]);
+
+  /** Its own dirty flag, read BEFORE the first write — the trap `save()` already documents. */
+  protected iScoreDirty = false;
+
+  protected readonly iScoreRangeUnit = $localize`:@@spd.iscore.unit:score`;
+  protected readonly iScoreValueLabel = $localize`:@@spd.iscore.value:Percentage (%)`;
+
+  protected setIScoreTiers(bands: IncomeBand[]): void {
+    this.iScoreTiers.set(bands);
+    this.iScoreDirty = true;
+    // BOTH flags, and the second is what took a browser to notice. `iScoreDirty` decides
+    // whether the tier WRITE fires; `dirty()` is what enables Save at all
+    // (`!dirty() || saving() || ruleBlocked()`). Without this the operator types a table and
+    // the button stays dead with nothing saying why — the exact shape of defect v26.2.0
+    // recorded against this screen, and every sibling setter here calls `markDirty()`.
+    this.markDirty();
+  }
+
+  /**
+   * Does the table on screen have a shape error? Gates Save.
+   *
+   * v26.2.0's defect 2 in one line: judging whether a table HAS rows and never its shape left
+   * Save enabled with the editor's own error on screen and the refusal arriving later.
+   */
+  protected readonly iScoreError = computed<boolean>(() => {
+    const bands = this.iScoreTiers();
+    if (bands.length === 0) return false;
+    return incomeBandsErrorFor(bands, { coverAll: true }) !== null;
+  });
+
   protected readonly dbrCapLabel = $localize`:@@spd.dbr.label:Debt burden`;
   protected readonly dbrCapAriaLabel = $localize`:@@spd.dbr.aria:Debt-burden cap for this calculation's figure, per cent`;
   protected readonly dbrCapBlankNote = $localize`:@@spd.dbr.blank_note:Blank — each bank's own cap applies.`;
@@ -4024,6 +4133,22 @@ export class SurrogateProductDetailPage {
    * than asked for separately: it is the same walk step ③ renders, and a second endpoint
    * answering "who is affected" would be a second answer.
    */
+  /**
+   * How many programs read these tiers — i.e. state none of their own.
+   *
+   * The sibling of `tenorReaders` below, and the only warning an operator gets before a live
+   * figure moves. There is no `iScoreClearBlocked` beside it, deliberately: emptying the
+   * table is never refused, because it leaves every reader counting the figure in full, which
+   * is a priceable quote. A cleared DURATION leaves them unable to quote at all, which is
+   * why that one has a refusal and this one has a sentence.
+   */
+  protected readonly iScoreReaders = computed<number>(
+    () =>
+      this.product()
+        ?.names.flatMap((n) => n.programs)
+        .filter((prog) => !prog.ownIScoreTiers).length ?? 0,
+  );
+
   protected readonly tenorReaders = computed<number>(
     () =>
       this.product()
@@ -4149,6 +4274,11 @@ export class SurrogateProductDetailPage {
     // An out-of-range cap is refused by the server, so Save is held here too — on a screen
     // where the field is in view rather than three steps away.
     if (this.dbrCapError()) return true;
+    // Same, for the TIERS: a table with a gap, or one that does not start at 0 and leave its
+    // top open, is refused by `validateIScoreTiers`. Judged by SHAPE and not by presence —
+    // v26.2.0's defect 2, where a cleared tier figure left Save enabled with the editor's own
+    // error on screen.
+    if (this.iScoreError()) return true;
     // Same, for the duration: a half-stated or inverted pair is refused, and a refusal that
     // arrives after Save is a refusal about a field the operator has scrolled past.
     if (this.tenorError() !== null) return true;
@@ -5263,6 +5393,14 @@ export class SurrogateProductDetailPage {
       // Same rule, same reason, for the SIZE: `undefined` is "not touching it" and `null` is
       // the clear, which the server can refuse.
       const loanAmounts = this.amountDirty ? this.amountsFromForm() : undefined;
+      // Same rule, same reason, for the TIERS: `undefined` is "not touching it" and `null`
+      // is the clear, which the server accepts — a cleared table leaves every reader
+      // counting the figure in full, which is a priceable quote.
+      const iScoreTiers = this.iScoreDirty
+        ? this.iScoreTiers().length === 0
+          ? null
+          : { bands: this.iScoreTiers().map((band) => ({ ...band })) }
+        : undefined;
 
       const res = await this.api.setSurrogateProductIncomeRule(p.key, {
         incomeRule: this.ruleFromForm(),
@@ -5302,6 +5440,17 @@ export class SurrogateProductDetailPage {
           loanAmounts,
         });
         this.absorb(amountRes.data);
+      }
+
+      // SIXTH, and only when the table moved. Its own column, like the four writes above,
+      // and for the reason each of them states: folding a tier edit into the rule write
+      // would make it read as a change to the calculation in the audit log, which it is not
+      // — the tiers stopped being part of the calculation at v30.3.0.
+      if (iScoreTiers !== undefined) {
+        const iScoreRes = await this.api.setSurrogateProductIScoreDefaults(p.key, {
+          tiers: iScoreTiers,
+        });
+        this.absorb(iScoreRes.data);
       }
     } catch (err) {
       this.saveError.set(this.localizedError(err));
@@ -5484,6 +5633,11 @@ export class SurrogateProductDetailPage {
     this.amountDirty = false;
     this.planValue.set(data.planDefaults);
     this.plansDirty = false;
+    // A plain signal seeded from the response, for the reason the duration two fields up
+    // spells out: `toSignal(control.valueChanges)` read back EMPTY over a stored value at
+    // v26.2.0, because the reset above runs with `emitEvent: false`.
+    this.iScoreTiers.set((data.iScoreDefaults?.bands ?? []).map((band) => ({ ...band })));
+    this.iScoreDirty = false;
     this.dirty.set(false);
   }
 

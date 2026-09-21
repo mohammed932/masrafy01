@@ -2260,6 +2260,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.';
 
   @override
+  String get reason_requested_below_program_min_amount =>
+      'المبلغ المطلوب أقل مما يقرضه هذا البنك. اطلب مبلغًا أكبر لعرض أرقامه.';
+
+  @override
   String get reason_age_at_maturity =>
       'لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.';
 

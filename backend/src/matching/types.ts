@@ -25,6 +25,7 @@ import type { FactGridConfig } from './pipeline/fact-grid';
 import type { MaxLoanAdjustment } from './pipeline/max-loan-adjustments';
 import type { RateBasis } from './pipeline/rate-basis';
 import type { AdditionalIncomeConfig } from './pipeline/additional-income';
+import type { IScoreTiers, IScoreTiersSource } from './pipeline/iscore';
 
 // ---------------------------------------------------------------------------
 // Applicant Profile
@@ -537,6 +538,23 @@ export interface IncomeAssumptionConfig {
   additionalIncome?: AdditionalIncomeConfig;
 
   /**
+   * THIS BANK's I-Score tier table — the share of the worked-out figure it counts at each
+   * score. Absent means the bank states none, and the surrogate product's table applies
+   * (`effectiveIScoreTiers`); absent on both sides multiplies by 100%.
+   *
+   * A bank POLICY like `additionalIncome` above, and stored on this blob for the same
+   * reason `dbrCapPercentOverride` is: it is a statement about the income figure, not one
+   * of the method's own tables. So it survives `stripForeignMethodConfig` on EVERY strategy
+   * — which is the whole of what made the tiers reachable by a payslip program — and it is
+   * carried across a figures-only write by `carryStoredPolicy`.
+   *
+   * NOT read by the income resolver. `quoteProgram` reads the RESOLVED pair off
+   * `BankProgramSnapshot.iScoreTiers`, so the two sides are merged once, in the mapper,
+   * like every other inherited field.
+   */
+  iScoreTiers?: IScoreTiers;
+
+  /**
    * WHERE the figures below come from. Program rules only — a catalog name's own
    * rule is the source, so it never carries this.
    *
@@ -803,6 +821,23 @@ export interface BankProgramSnapshot {
   fees: FeesConfig;
 
   /**
+   * The I-SCORE TIER TABLE in force for this program, and whose it is — the program's own
+   * when it states one, the surrogate product's when it does not, `undefined` when neither
+   * does (which resolves to a 100% multiplier).
+   *
+   * RESOLVED, exactly like `tenor` and `loanLimits` above: `toBankProgramSnapshot` merges
+   * the two sides on the one line the engine reads tiers from, so the engine cannot tell a
+   * table the bank typed from one it is reading off the product. That is why `source` rides
+   * along — the offer freezes it, and an admin looking at 80% cannot otherwise tell which
+   * of the two answered.
+   *
+   * On EVERY program type. Until v30.3.0 the multiplier was four steps inside a surrogate
+   * product's `incomeRule`, so 54 of 71 programs could not state a table at all — see
+   * `pipeline/iscore.ts`.
+   */
+  iScoreTiers?: { readonly tiers: IScoreTiers; readonly source: IScoreTiersSource };
+
+  /**
    * Set when the platform is withholding the calculation rather than the bank having
    * misconfigured one — today, only because the surrogate product the program's catalog
    * name links to is switched off.
@@ -894,6 +929,22 @@ export interface Offer {
    */
   incomeOrigin: IncomeOrigin | null;
   incomeSurrogateStrategy: IncomeAssumptionStrategy | null;
+  /**
+   * The I-SCORE MULTIPLIER this offer was priced at, as a percentage, and whose tier table
+   * produced it (`program` or `product`).
+   *
+   * Frozen for the reason `incomeOrigin` above is, and as sharply: the tiers are stated per
+   * product and overridden per bank, and either can be retyped afterwards. An offer whose
+   * amount a tier table cut by 20% would otherwise read as an unexplained cut, and
+   * re-deriving the figure needs the score, the table AND the program's state as they all
+   * were (Principle I / A6).
+   *
+   * BOTH `null` when no table was in force or the applicant left the optional question
+   * blank. `100` is a REAL answer meaning "measured, and their score cost them nothing" —
+   * absent is not `100`, and a reader must render the absence rather than assume a value.
+   */
+  iScoreFactorPercent: Decimal | null;
+  iScoreTiersSource: 'program' | 'product' | null;
   /**
    * The collateral ceiling this offer was priced against, when a product rule derived one.
    * `null` for every income-based program — absent, not zero, because a zero would say the
@@ -1019,7 +1070,21 @@ export type BindingConstraint = (typeof BINDING_CONSTRAINTS)[number];
 export const FIGURES_UNAVAILABLE_REASONS = [
   'NO_RECOGNISED_INCOME',
   'OBLIGATIONS_EXCEED_ALLOWANCE',
+  /** The DBR-affordable amount landed under the programme's floor. */
   'BELOW_PROGRAM_MIN_AMOUNT',
+  /**
+   * The applicant ASKED for less than this programme writes — or a collateral ceiling
+   * clamped the request under its floor — with the debt burden never in question.
+   *
+   * Split from `BELOW_PROGRAM_MIN_AMOUNT` above, which keeps its original meaning. The two
+   * read almost identically on a card and are opposite in what they ask of the applicant:
+   * this one wants a BIGGER request, that one wants smaller obligations. While they shared
+   * one code `reasonToCheckCode` mapped both to `dbr_exceeded`, so somebody asking for
+   * 5,000 where the cheapest bank writes 15,000 was told their debt burden was too high
+   * and offered `REDUCE_OBLIGATIONS` — advice that cannot work, for a cause they were
+   * never told.
+   */
+  'REQUESTED_BELOW_PROGRAM_MIN_AMOUNT',
   'AGE_AT_MATURITY',
   'PROGRAM_MISCONFIGURED',
   /**
@@ -1190,6 +1255,19 @@ export interface Quote {
   incomeResolution: IncomeResolution | null;
   /** Whether `dbrCapPercent` above came from the program or the rule (FR-012). */
   dbrCapSource: 'program_default' | 'rule_override';
+  /**
+   * The I-SCORE MULTIPLIER this quote was priced at, as a percentage, and whose table
+   * produced it. Both ABSENT when no table was in force or the applicant left the optional
+   * question blank — which is not the same fact as a table that resolved to 100%, and is
+   * why this is absent rather than defaulted (see `pipeline/iscore.ts`).
+   *
+   * Reported so the apply path can FREEZE the pair on the immutable offer, for the reason
+   * `dbrCapPercent` is frozen: the tiers are stated per product and overridden per bank,
+   * and either can be retyped after the offer is written (Principle I / A6). Re-deriving it
+   * later would need the score, the table and the program's state as they all were.
+   */
+  iScoreFactorPercent?: Decimal;
+  iScoreTiersSource?: IScoreTiersSource;
   /** Itemised, always — fees are never folded in silently (FR-031). */
   feesBreakdown: FeesBreakdown;
   cascadeTrace: CascadeTrace;

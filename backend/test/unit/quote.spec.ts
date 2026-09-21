@@ -572,7 +572,10 @@ describe('quoteProgram', () => {
           },
         }),
       });
-      expect(expectUnavailable(raised)).toBe('BELOW_PROGRAM_MIN_AMOUNT');
+      // The REQUEST-side reason: the grid lifted the floor above what was asked for, and
+      // no debt burden was measured. The affordability-side case keeps
+      // `BELOW_PROGRAM_MIN_AMOUNT` — see the test above.
+      expect(expectUnavailable(raised)).toBe('REQUESTED_BELOW_PROGRAM_MIN_AMOUNT');
 
       const lowered = expectQuoted(
         quoteProgram({

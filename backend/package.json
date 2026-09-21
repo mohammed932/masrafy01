@@ -40,6 +40,7 @@
     "blueprint:retemplate": "node dist/bank-programs/blueprints/blueprint-retemplate.command.js",
     "check:conditions": "tsx scripts/check-sheet-conditions.ts",
     "quote:surrogate": "tsx scripts/quote-surrogate-programmes.ts",
+    "quote:iscore": "tsx scripts/quote-iscore.ts",
     "quote:rates": "tsx scripts/quote-rates.ts",
     "check:question-scope": "tsx scripts/check-question-scope.ts",
     "quote:car-plans": "tsx scripts/quote-car-plans.ts",

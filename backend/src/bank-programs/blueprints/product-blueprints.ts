@@ -109,13 +109,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      // EVERY income-bearing product adjusts by I-Score (operator decision, 2026-09-06): the
-      // multiplier compiles LAST inside the rule, so it lands before `resolveDbrCap` picks a
-      // band, and a bank that states no table multiplies by 100% — no figure moves until a bank
-      // types one. Declared on the template rather than as a program-level field because two
-      // sources of one multiplier would be two authorities (`uplift.scope` documents that trap).
-      // The three cap-only products guess no income and have nothing to multiply.
-      iScore: true,
       primary: { kind: 'choiceTable', fact: 'military_grade' },
       conditions: [],
     },
@@ -170,7 +163,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      iScore: true,
       primary: { kind: 'choiceTable', fact: 'academic_rank' },
       // A bank that publishes one column leaves the second blank and reads the first. The
       // column exists because one sheet prints two.
@@ -235,7 +227,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      iScore: true,
       primary: { kind: 'numberBand', fact: 'years_in_practice' },
       // Keyed by the TIER, not by the governorate. One bank groups Cairo and Alexandria
       // against everywhere else, another groups eight governorates against everywhere else,
@@ -294,7 +285,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      iScore: true,
       primary: { kind: 'numberBand', fact: 'years_in_practice' },
       // `not_at_a_hospital` is in the allow-list on purpose: the exclusion is about a
       // GOVERNMENT hospital, and everyone else is already priced out by the years band and
@@ -326,7 +316,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      iScore: true,
       primary: { kind: 'shareOf', fact: 'credit_card_limit' },
       conditions: [],
     },
@@ -395,7 +384,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      iScore: true,
       // The genuine same-unit `minOf` the design keeps inside the rule: income against
       // income, three times the instalment or a share of the loan, whichever is lower.
       primary: { kind: 'multipleOf', fact: 'car_loan_installment' },
@@ -466,7 +454,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      iScore: true,
       primary: { kind: 'shareOf', fact: 'pledged_free_amount' },
       conditions: [
         {
@@ -664,7 +651,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'maxAmount',
-      iScore: true,
       // Five ways, in the order the ways were added and never reordered — the slot ids a
       // bank's figures are filed under are positional (`primary`, `alt`, `alt__<fact>`).
       //
@@ -877,7 +863,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'maxAmount',
-      iScore: true,
       primary: { kind: 'choiceTable', fact: 'school_stage' },
       secondColumn: {
         fact: 'school_type',
@@ -1090,7 +1075,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      iScore: true,
       // The sheet's own sentence: the down payment is N months of saving, and the saving is
       // a share of income — so income = down payment ÷ (months × share). ONE divisor, and it
       // is the number the sheet prints. Way 1 keeps the bare `primary` slot the five

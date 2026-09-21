@@ -74,12 +74,10 @@ const STEPS: RuleStep[] = [
     op: 'coalesce',
     of: [{ step: 'primary_pick' }, { step: 'alt__unit_paid_to_date_pick' }],
   },
-  // The four steps `emitIScore` compiles, in the order it emits them. Present in the fixture
-  // because the slot they own is the one exception to "a blank box wants the product's figure".
-  { id: 'iscore_src', op: 'factNumber', fact: 'i_score', optional: true },
-  { id: 'iscore_band', op: 'bandTable', of: { step: 'iscore_src' } },
-  { id: 'iscore_factor', op: 'coalesce', of: [{ step: 'iscore_band' }, { const: '100' }] },
-  { id: 'iscore_applied', op: 'percentOf', of: [{ step: 'basis' }, { step: 'iscore_factor' }] },
+  // The four steps `emitIScore` compiled stood here, because the slot they owned was the one
+  // exception to "a blank box wants the product's figure". They are gone as of v30.3.0 — the
+  // compiler emits no I-Score step at all and the tiers are program-level policy — so the
+  // fixture is a real compiled shape again rather than one carrying a slot nothing emits.
   {
     id: 'cond__paidenough__bound',
     op: 'percentOf',
@@ -131,13 +129,6 @@ const CATALOG: Record<string, StepFigures> = {
   cond__ownedlongenough: { minValue: '18' },
   cond__unitworthenough: { minValue: '1000000' },
   cond__paidenough__bound: { scalar: { unit: 'percent', value: '30' } },
-  iscore_band: {
-    bands: [
-      { fromInclusive: '0', toExclusive: '550', incomeEGP: '80' },
-      { fromInclusive: '550', toExclusive: '700', incomeEGP: '100' },
-      { fromInclusive: '700', toExclusive: null, incomeEGP: '110' },
-    ],
-  },
 };
 
 /** What `ABK-PERSONAL-7110` actually saved. */
@@ -448,37 +439,42 @@ describe('one default, one stored shape', () => {
   });
 });
 
-describe('the I-Score slot is inherited, not filled in', () => {
+describe('no slot reads the product’s figures when it is blank', () => {
   const SHAPES = slotShapes(STEPS, GATES);
 
-  it('is never offered as a blank box wanting the product’s figure', () => {
-    // The engine reads the product's tiers for a bank that states none, so "fill it from the
-    // product" would move the figure into this bank's own `stepParams` and change nothing
-    // about the quote — turning a live default into a copy, on page load, unannounced.
+  /**
+   * The I-SCORE EXCEPTION that this block used to assert is gone (v30.3.0).
+   *
+   * There was exactly one slot the engine read off the product when a bank left it blank —
+   * the I-Score tier table, `SLOTS_INHERITED_WHEN_BLANK`'s only member — so the screen had to
+   * leave it alone rather than offer to fill it in. The tiers are program-level policy now
+   * and are not a slot at all, so the exception has nothing left to apply to.
+   *
+   * The TRAP it existed to avoid is still real and is worth an assertion, because the new
+   * I-Score card on the wizard's Requirements step had to avoid it too: writing the product's
+   * figures into this bank's own on page OPEN turns a live default into a frozen copy,
+   * dirties a form the operator only opened to read, and leaves the bank on yesterday's
+   * figures the day the product's change. What makes that safe here is that `slotsMissingDefault`
+   * only ever REPORTS — the operator presses a button to copy.
+   */
+  it('offers every blank slot the product states a figure for', () => {
     const missing = slotsMissingDefault(SHAPES, {}, CATALOG);
+    const ids = missing.map((slot) => slot.id);
 
-    expect(missing.map((slot) => slot.id)).not.toContain('iscore_band');
-    // Every other blank slot the product states a figure for is still offered.
-    expect(missing.map((slot) => slot.id)).toContain('cond__unitworthenough');
+    // No slot is held back any more, so the condition bound and the way figures are all here.
+    expect(ids).toContain('cond__unitworthenough');
+    expect(ids).toContain('cond__ownedlongenough');
+    // And nothing names a retired I-Score slot, on either side of the comparison.
+    expect(ids).not.toContain('iscore_band');
+    expect([...SHAPES.keys()]).not.toContain('iscore_band');
   });
 
-  it('is not re-cut onto the product’s ranges while the bank states nothing', () => {
-    expect(bandsToRelock(SHAPES, {}, CATALOG).map((slot) => slot.id)).not.toContain('iscore_band');
-  });
-
-  it('IS re-cut once the bank has typed its own tiers', () => {
-    // Then it is a table like any other: the ranges are still the product's, and a stored
-    // table cut on ranges the product no longer publishes is one the editor cannot draw.
+  it('re-cuts every stored band table onto the product’s ranges', () => {
+    // Unchanged behaviour, asserted on a slot that still exists: a stored table cut on ranges
+    // the product no longer publishes is one the editor cannot draw.
     const own: Record<string, StepFigures> = {
-      iscore_band: { bands: [{ fromInclusive: '0', toExclusive: '600', incomeEGP: '90' }] },
+      alt__unit_paid_to_date: { scalar: { unit: 'percent', value: '15' } },
     };
-
-    const relocked = bandsToRelock(SHAPES, own, CATALOG);
-
-    expect(relocked.map((slot) => slot.id)).toContain('iscore_band');
-    // Three ranges, the product's, carrying this bank's 90 against the one range it matches.
-    const bands = relocked.find((slot) => slot.id === 'iscore_band')?.bands;
-    expect(bands?.map((band) => band.fromInclusive)).toEqual(['0', '550', '700']);
-    expect(bands?.map((band) => band.incomeEGP)).toEqual(['80', '100', '110']);
+    expect(bandsToRelock(SHAPES, own, CATALOG).map((slot) => slot.id)).not.toContain('iscore_band');
   });
 });

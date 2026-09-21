@@ -983,6 +983,8 @@ export interface ProgramUnderName {
    * nothing about how long it lends for, and both directions occur.
    */
   ownTenor: boolean;
+  /** `false` when it states no I-Score tiers of its own and reads the product's. */
+  ownIScoreTiers: boolean;
   /**
    * `false` when it states no loan SIZE of its own and reads the product's — a third axis
    * again, independent of both above it.
@@ -1072,6 +1074,8 @@ export interface ProgramNameIncomeRule {
     loanAmountDefaults: LoanAmountDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
+    /** The product's default I-Score tiers, or `null` when it states none. */
+    iScoreDefaults: IScoreTiers | null;
   } | null;
 }
 
@@ -1287,13 +1291,20 @@ export interface SurrogateProductTemplateResponse {
 export const I_SCORE_FACT_KEY = 'i_score';
 
 /**
- * The slot the I-Score TIER TABLE lives in (`SLOT.iScoreBand` on the server).
+ * An I-SCORE TIER TABLE — the share of the worked-out figure counted at each bureau score.
  *
- * Named rather than spelled out at each use, because three separate decisions key off it: the
- * table must cover every score, its figures are percentages, and a bank that states none
- * reads the product's (`withInheritedSlots`).
+ * Rows are `IncomeBand`, misnamed `incomeEGP` and all: the field carries a PERCENTAGE here,
+ * and the naming is kept because the v30.3.0 migration MOVED nine products' stored tables out
+ * of `incomeAssumption.stepParams.iscore_band` rather than rewriting them.
+ *
+ * It was a rule SLOT until then (`I_SCORE_BAND_SLOT`, deleted with it), reachable only by a
+ * program whose rule is a step pipeline — 17 of 71. It is program-level policy now, so every
+ * program type states one: `incomeAssumption.iScoreTiers` on a bank program, `iScoreDefaults`
+ * on the surrogate product it falls back to.
  */
-export const I_SCORE_BAND_SLOT = 'iscore_band';
+export interface IScoreTiers {
+  bands: IncomeBand[];
+}
 
 /** A surrogate product's own workspace: the calculation, and everything reachable from it. */
 export interface SurrogateProductDetail extends SurrogateProductSummary {
@@ -1326,6 +1337,11 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
   loanAmountDefaults: LoanAmountDefaults | null;
   /** The default PLAN tables every program that opted in reads. */
   planDefaults: PlanDefaults | null;
+  /**
+   * The I-Score TIERS every program under this product falls back to, or `null` when it
+   * states none — in which case those programs multiply by 100%.
+   */
+  iScoreDefaults: IScoreTiers | null;
   /** The form it was compiled from, or `null` when it was authored by hand. */
   template: ProductTemplate | null;
   valueSources: ValueSourceMap;
@@ -1547,6 +1563,12 @@ export interface IncomeAssumptionConfig {
    * keep whatever is stored, so the two cannot be merged. A response never carries it.
    */
   dbrCapPercentOverride?: string | null;
+  /**
+   * THIS BANK's I-Score tiers. Absent = it states none and the product's apply; `null` CLEARS
+   * a stored table, which is how "back to the product's tiers" is spelled — absent and `null`
+   * cannot mean the same thing on a partial write.
+   */
+  iScoreTiers?: IScoreTiers | null;
   /** FR-013 — `required_document` keys this method demands. Warning only. */
   requiredDocuments?: string[];
   /** How a surrogate figure combines with a declared salary. Absent = replace. */

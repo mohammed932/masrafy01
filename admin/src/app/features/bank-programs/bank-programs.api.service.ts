@@ -22,6 +22,7 @@ import type {
   SurrogateProductSummary,
   LoanAmountDefaults,
   TenorDefaults,
+  IScoreTiers,
   PlanDefaults,
   SurrogateProductTemplateResponse,
   ProductBlueprint,
@@ -374,6 +375,30 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/tenor-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The I-SCORE TIERS every bank program under this product falls back to.
+   *
+   * INHERITED, not copied, like the duration above: a change here moves every program that
+   * states no tiers of its own, and a bank that scores differently states its own and wins —
+   * including a flat 100% table, which is how it opts out.
+   *
+   * `tiers: null` clears them and is NEVER refused, unlike the duration's clear: cleared
+   * tiers leave a program multiplying by 100%, which is a priceable quote. It still moves
+   * live figures, which is why the card that calls this says how many programs are reading
+   * them before the operator saves.
+   */
+  async setSurrogateProductIScoreDefaults(
+    key: string,
+    payload: { tiers: IScoreTiers | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/iscore-defaults`,
         payload,
       ),
     );

@@ -4256,6 +4256,12 @@ abstract class AppLocalizations {
   /// **'المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.'**
   String get reason_below_program_min_amount;
 
+  /// Backend REQUESTED_BELOW_PROGRAM_MIN_AMOUNT reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ المطلوب أقل مما يقرضه هذا البنك. اطلب مبلغًا أكبر لعرض أرقامه.'**
+  String get reason_requested_below_program_min_amount;
+
   /// Backend AGE_AT_MATURITY reason code
   ///
   /// In ar, this message translates to:

@@ -560,6 +560,26 @@ model BankOffer {
   /// token (`byMilitaryGrade`, …). `null` on a declared-income offer and on every
   /// offer predating this column.
   incomeSurrogateStrategy String?   @db.VarChar(32)
+  /// The I-SCORE MULTIPLIER this offer was priced at, as a percentage — `80.0000`,
+  /// `100.0000`, `110.0000`. The figure `resolveIScoreFactor` returned for the score the
+  /// applicant typed, against the tier table in force at match time.
+  ///
+  /// Frozen for the reason `dbrCapPercent` beside it is, and as sharply: the tiers are
+  /// stated per product and overridden per bank, and either can move afterwards. An offer
+  /// whose amount was cut 20% by a tier table that has since been retyped would otherwise
+  /// read as an unexplained cut — and re-deriving it later needs the score, the table AND
+  /// the program's state as they were (Principle I / A6).
+  ///
+  /// `100.0000` is a REAL answer — "measured, and this applicant's score cost them
+  /// nothing". `null` means no table was in force, the applicant left the question blank,
+  /// or the offer predates this column; absent is not `100`.
+  iScoreFactorPercent     Decimal?  @db.Decimal(7, 4)
+  /// Whose tier table produced `iScoreFactorPercent` — `program` or `product`.
+  ///
+  /// The sibling of `incomeOrigin` above and recorded for the same reason: an admin looking
+  /// at 80% cannot otherwise tell whether this bank states that tier or is reading the
+  /// product's. `null` whenever `iScoreFactorPercent` is.
+  iScoreTiersSource       String?   @db.VarChar(16)
   /// The COLLATERAL CEILING a product rule derived for this applicant — what the unit,
   /// the membership or the vehicle supports, before their existing payments are taken off.
   ///
@@ -897,6 +917,31 @@ model PlatformEnumeration {
   /// NULL = this product states no duration, and every bank program under it must state
   /// its own. That is the state every product ships in.
   tenorDefaults       Json?
+  /// `surrogate_product` ONLY — the I-SCORE TIER TABLE every bank program selling this
+  /// product falls back to. Shape: `{ "bands": [{ fromInclusive, toExclusive, incomeEGP }] }`,
+  /// where `incomeEGP` carries a PERCENTAGE of the worked-out figure, not money.
+  ///
+  /// The shape is `StepParams` verbatim and the misnamed `incomeEGP` is kept deliberately:
+  /// every one of these tables was migrated out of `incomeRule.stepParams.iscore_band`, and
+  /// re-keying the field would have made the migration a rewrite of nine products' figures
+  /// instead of a move. `bandFor` is the reader either way.
+  ///
+  /// WHY IT IS INHERITED AND NOT COPIED, on exactly the terms `tenorDefaults` one field up
+  /// states: the bureau score is a property of the APPLICANT, not of a bank's product, so
+  /// one statement per product reaches every bank selling it and a change here moves all of
+  /// them. A bank that scores differently states its own on the program and wins — including
+  /// a flat 100% table, which is how it opts out.
+  ///
+  /// WHY IT IS NOT A STEP ANY MORE. Until v30.3.0 this was four compiled steps inside
+  /// `incomeRule` (`iscore_src` → `iscore_band` → `coalesce(…,100)` → `percentOf`), which
+  /// made the multiplier reachable ONLY by a `strategy: 'steps'` program — 17 of 71. The
+  /// score is a platform fact about the person and every program quotes against one, so it
+  /// is program-level policy now, read once by `quote.ts` through `resolveIScoreFactor`.
+  ///
+  /// NULL = this product states no tiers, and a program under it that states none either
+  /// multiplies by 100% — the same answer the old `coalesce` gave. That is the state every
+  /// product ships in EXCEPT the nine the migration carried over.
+  iScoreDefaults      Json?
   /// `surrogate_product` ONLY — the loan SIZE every bank program selling this product
   /// falls back to. Shape: `{ "minAmountEGP": string, "maxAmountEGP": string }`.
   ///

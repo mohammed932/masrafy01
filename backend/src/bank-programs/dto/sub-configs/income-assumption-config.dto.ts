@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -86,6 +87,28 @@ export class IncomeBandDto {
   @IsString()
   @Matches(DECIMAL_STRING, { message: 'incomeEGP must be a decimal string' })
   incomeEGP!: string;
+}
+
+/**
+ * An I-SCORE TIER TABLE — the share of the worked-out figure this bank counts at each score.
+ *
+ * The rows are `IncomeBandDto` verbatim, misnamed `incomeEGP` and all, and that is
+ * deliberate: every stored table was MOVED out of `incomeAssumption.stepParams.iscore_band`
+ * by migration rather than rewritten, and `bandFor` is the reader either way. Re-keying the
+ * field would have turned a move into a rewrite of nine products' figures for no gain in
+ * meaning. `incomeEGP` carries a PERCENTAGE here — `80`, `100`, `110`.
+ *
+ * Shape only at this boundary. That the table starts at 0, leaves its top open and has no
+ * gap is decided once in `validateIScoreTiers`, which is the authority the program save and
+ * the product save both run through.
+ */
+export class IScoreTiersDto {
+  @ApiProperty({ type: [IncomeBandDto] })
+  @IsArray()
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => IncomeBandDto)
+  bands!: IncomeBandDto[];
 }
 
 /** The single number a scalar method applies, plus the unit it is applied in. */
@@ -311,6 +334,23 @@ export class IncomeAssumptionConfigDto {
   @IsString()
   @Matches(DECIMAL_STRING, { message: 'dbrCapPercentOverride must be a decimal string' })
   dbrCapPercentOverride?: string;
+
+  /**
+   * THIS BANK's I-Score tiers. Absent means it states none and the surrogate product's
+   * table applies; `null` CLEARS a stored table, which is how the admin's "back to the
+   * product's tiers" action is spelled — absent and `null` cannot mean the same thing on a
+   * partial write (`dropClearedPolicy`).
+   *
+   * `@ValidateIf` rather than a bare `@IsOptional()`: that one skips `null` as well as
+   * absent, so a cleared table would sail past the nested validation and reach the
+   * validator as a `null` it has no arm for — the trap recorded at v26.2.0 and again at
+   * v29.1.0.
+   */
+  @ApiPropertyOptional({ type: () => IScoreTiersDto, nullable: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @ValidateNested()
+  @Type(() => IScoreTiersDto)
+  iScoreTiers?: IScoreTiersDto | null;
 
   /**
    * Money the applicant earns beside the basic figure, counted at this bank's weight per

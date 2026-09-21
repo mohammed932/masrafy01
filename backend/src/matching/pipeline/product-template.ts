@@ -349,7 +349,19 @@ export interface ProductTemplate {
    * ceiling is a bank setting, configured on `loanLimits.maxLoanAdjustments`.
    */
   share?: TemplateShare;
-  /** Multiply by the bank's bureau-score table. Unanswered or unstated both mean 100%. */
+  /**
+   * RETIRED at v30.3.0 and accepted on the way IN only, so a stored `templateSpec` written
+   * before then still parses and a template round-trip is not a structural change on a
+   * product nobody touched.
+   *
+   * It used to emit four steps that multiplied the output by the bank's bureau-score table.
+   * The bureau score is a property of the APPLICANT, not of one product's arithmetic, and
+   * expressing it here made the multiplier reachable only by a `strategy: 'steps'` program —
+   * 17 of 71. It is program-level policy now: `platform_enumeration.iScoreDefaults`, the
+   * program's own `incomeAssumption.iScoreTiers`, and one reader in `pipeline/iscore.ts`.
+   *
+   * Compiles to NOTHING. Setting it has no effect, and `emitIScore` is gone.
+   */
   iScore?: boolean;
   conditions: TemplateCondition[];
 }
@@ -376,10 +388,12 @@ export const SLOT = {
   upliftOn: 'uplift_on',
   share: 'share',
   shareOn: 'share_on',
-  iScoreSrc: 'iscore_src',
-  iScoreBand: 'iscore_band',
-  iScoreFactor: 'iscore_factor',
-  iScoreApplied: 'iscore_applied',
+  // `iscore_src` / `iscore_band` / `iscore_factor` / `iscore_applied` stood here until
+  // v30.3.0. They are NOT retired-but-retained like the flag above: an id in this object is
+  // a slot a bank's FIGURES are keyed by, and leaving four that nothing emits would make
+  // `slotsMissingDefault` and the admin's figure editors offer boxes no rule reads. The nine
+  // products' tables were MOVED to `iScoreDefaults` by migration, not orphaned — see
+  // `20260921090100_iscore_out_of_the_rule`.
 } as const;
 
 /** The `factNumber` step that reads one fact. Shared when two mechanisms read the same one. */
@@ -784,10 +798,11 @@ export function compileTemplate(template: ProductTemplate): ProductRule {
     head = emitShare(out, head, template.share);
   }
 
-  // 7. I-Score LAST — see the note on emission order above.
-  if (template.iScore === true) head = emitIScore(out, head);
-
-  // 8. Conditions, plus any figure a condition needs to compare against.
+  // 7. Conditions, plus any figure a condition needs to compare against.
+  //
+  // Step 7 used to be I-Score, emitted LAST of the arithmetic so it landed before
+  // `resolveDbrCap` picked a band. `quoteProgram` step 2a applies the multiplier at exactly
+  // that point now, so the ordering property survives the move (v30.3.0).
   for (const condition of template.conditions ?? []) emitCondition(out, condition, head);
 
   const baseline = template.baselineDbrPercent;
@@ -1010,35 +1025,6 @@ function emitShare(out: Emission, head: string, share: TemplateShare): string {
     branches: [choice.otherwiseOption, choice.whenOption],
   });
   return SLOT.share;
-}
-
-/**
- * Multiply by the bank's bureau-score table, falling back to 100%.
- *
- * TWO ways of ending up at 100%, and both are required:
- *
- *   the applicant did not give a score   `iscore_src` is `optional`, so an absent answer
- *                                        reads as unconfigured instead of stopping the rule
- *   this bank states no table            `iscore_band` is unconfigured on its own
- *
- * Either way the step is left unset, the `coalesce` skips it and takes the literal 100, and
- * `percentOf` multiplies by one. Without the `optional` flag the first case would kill
- * every quote for the product the moment one applicant skipped an optional question.
- */
-function emitIScore(out: Emission, head: string): string {
-  out.steps.push({ id: SLOT.iScoreSrc, op: 'factNumber', fact: I_SCORE_FACT_KEY, optional: true });
-  out.steps.push({ id: SLOT.iScoreBand, op: 'bandTable', of: { step: SLOT.iScoreSrc } });
-  out.steps.push({
-    id: SLOT.iScoreFactor,
-    op: 'coalesce',
-    of: [{ step: SLOT.iScoreBand }, { const: '100' }],
-  });
-  out.steps.push({
-    id: SLOT.iScoreApplied,
-    op: 'percentOf',
-    of: [{ step: head }, { step: SLOT.iScoreFactor }],
-  });
-  return SLOT.iScoreApplied;
 }
 
 /**

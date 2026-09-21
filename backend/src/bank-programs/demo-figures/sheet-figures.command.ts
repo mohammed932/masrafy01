@@ -75,6 +75,7 @@ interface Tally {
   /** Products whose default loan duration this run stated or changed. */
   tenorWritten: string[];
   plansWritten: string[];
+  iScoreWritten: string[];
 }
 
 /** `{path: 'team_estimated'}`, the shape both write paths take. */
@@ -145,6 +146,7 @@ async function main(): Promise<void> {
       blanks: [],
       tenorWritten: [],
       plansWritten: [],
+      iScoreWritten: [],
     };
 
     // 1. The banks the sheets belong to. Reported, never created: a bank row carries a name
@@ -244,6 +246,36 @@ async function main(): Promise<void> {
             } catch (error) {
               tally.refused.push(set.productKey);
               console.error(`${TAG} ✗ ${pad(set.productKey)} plans — ${describe(error)}`);
+            }
+          }
+        }
+      }
+
+      // THE DEFAULT I-SCORE TIERS, written on the same terms as the duration and the plan
+      // tables above and for the same reason: the figures are protected because an operator
+      // may have typed them, and tiers nobody has ever stated are not somebody's work to
+      // protect. Idempotent — it writes only when the stored table differs, compared
+      // key-order-stably because the stored copy comes back in the driver's key order and
+      // the seed states its own.
+      if (set.iScoreDefaults !== undefined && row !== null) {
+        const same = stableJson(row.iScoreDefaults ?? null) === stableJson(set.iScoreDefaults);
+        if (!same) {
+          const tiers = (set.iScoreDefaults['bands'] as unknown[] | undefined)?.length ?? 0;
+          if (dry) {
+            tally.iScoreWritten.push(set.productKey);
+            console.log(`${TAG} iscore  ${pad(set.productKey)} would state ${tiers} tier(s)`);
+          } else {
+            try {
+              await programs.setSurrogateProductIScoreDefaults(
+                set.productKey,
+                { tiers: set.iScoreDefaults as never },
+                programActor,
+              );
+              tally.iScoreWritten.push(set.productKey);
+              console.log(`${TAG} iscore  ${pad(set.productKey)} ${tiers} tier(s)`);
+            } catch (error) {
+              tally.refused.push(set.productKey);
+              console.error(`${TAG} ✗ ${pad(set.productKey)} iscore — ${describe(error)}`);
             }
           }
         }
@@ -493,6 +525,7 @@ async function main(): Promise<void> {
 
     console.log(
       `${TAG} ${tally.plansWritten.length} plan table sets written · ` +
+        `${tally.iScoreWritten.length} I-Score tier tables written · ` +
         `${tally.tenorWritten.length} durations written · ` +
         `${tally.productsWritten.length} products written · ` +
         `${tally.productsSkipped.length} untouched · ${tally.productsAbsent.length} absent · ` +

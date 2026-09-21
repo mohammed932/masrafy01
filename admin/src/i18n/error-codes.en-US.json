@@ -147,6 +147,7 @@
   "NO_RECOGNISED_INCOME": "No recognised income, so no figures can be produced.",
   "OBLIGATIONS_EXCEED_ALLOWANCE": "Existing monthly payments already use up the allowed debt burden.",
   "BELOW_PROGRAM_MIN_AMOUNT": "The affordable amount is below this program's minimum.",
+  "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT": "You asked for less than this program lends. Ask for a larger amount to see it.",
   "AGE_AT_MATURITY": "No permitted term keeps the applicant within the program's age limit.",
   "INDICATIVE_ESTIMATE_NOT_AN_OFFER": "These figures are an indicative estimate, not a binding offer.",
   "CUSTOMER_PHONE_ALREADY_REGISTERED": "This mobile number is already registered.",

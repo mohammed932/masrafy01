@@ -96,7 +96,24 @@ export interface CatalogFigureSet {
    * stored blob differs.
    */
   planDefaults?: Record<string, unknown>;
-  /** Rooted at `incomeRule.`, exactly as the catalog write expects them. */
+  /**
+   * The I-SCORE TIER TABLE every bank program under this product falls back to.
+   *
+   * Written INDEPENDENTLY of the figures plan below and on exactly the terms the duration
+   * and the plans are: the figures are skipped on a product that already holds some, because
+   * an operator may have typed them, but tiers nobody has ever stated are not somebody's
+   * work to protect. Idempotent — it writes only when the stored table differs.
+   *
+   * Its own field rather than a `stepParams` slot, because that is where the tiers stopped
+   * living at v30.3.0: they are a column now, so a seed that still wrote the slot would
+   * plant a figure keyed by a step id nothing emits.
+   */
+  iScoreDefaults?: Record<string, unknown>;
+  /**
+   * Rooted at `incomeRule.`, exactly as the catalog write expects them — EXCEPT the I-Score
+   * tier paths, which are rooted at `iScoreDefaults.` because that is the column they are
+   * about (see `I_SCORE_ESTIMATED`).
+   */
   estimated?: EstimatedPaths;
 }
 
@@ -175,14 +192,28 @@ const I_SCORE_TIER_PERCENTS = ['80', '100', '110'] as const;
 /** The number a savings sheet divides by — see `sheet-programs.ts#divisor`. */
 const divisor = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
 
-/** The tier table, as the `iscore_band` slot holds it. */
+/**
+ * The tier table, as `platform_enumeration.iScoreDefaults` holds it.
+ *
+ * It used to be the `iscore_band` slot inside `incomeRule.stepParams`, which is why the rows
+ * still carry `incomeEGP` for a percentage: the v30.3.0 migration MOVED the nine stored
+ * tables rather than rewriting them, and this has to state exactly what that migration left
+ * behind or a rebuilt database would diverge from a migrated one.
+ */
 function iscoreTiers(): ReturnType<typeof bands> {
   return bands(I_SCORE_TIER_EDGES, I_SCORE_TIER_PERCENTS);
 }
 
-/** Every tier figure is an estimate — no bank has published one (§10.10). */
+/**
+ * Every tier figure is an estimate — no bank has published one (§10.10).
+ *
+ * Rooted at `iScoreDefaults.` and NOT at `incomeRule.`, unlike every other path in this
+ * file: the tiers live in their own column now, and a marker still naming
+ * `incomeRule.stepParams.iscore_band.…` would point at a path that no longer exists, which
+ * reads on screen as "this figure is bank-stated".
+ */
 const I_SCORE_ESTIMATED: EstimatedPaths = I_SCORE_TIER_EDGES.map(
-  (_edge, index) => `incomeRule.stepParams.iscore_band.bands.${index}.incomeEGP`,
+  (_edge, index) => `iScoreDefaults.bands.${index}.incomeEGP`,
 );
 
 /** ABK's own brackets for years in practice — 3–5 · 5–8 · 8–11 · 11–14 · 14–20 · 20+. */
@@ -318,6 +349,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   {
     productKey: 'armed_forces_grades',
     sheet: 'App. A §11 — Egyptian Armed Forces',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       primary: {
         keyTable: [
@@ -336,8 +370,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('officer', '15000'),
         ],
       },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [...I_SCORE_ESTIMATED],
   },
@@ -345,6 +377,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   {
     productKey: 'academic_rank_table',
     sheet: 'App. C PROFESSOR (both columns) · App. A §10 (section head)',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       primary: {
         keyTable: [
@@ -371,8 +406,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('dean', '300000'),
         ],
       },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [
       ...I_SCORE_ESTIMATED,
@@ -390,6 +423,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // said. Each bank states its own, which its card says.
     productKey: 'doctors_clinic_owner',
     sheet: 'App. C DOCTOR — years × governorate tier',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       // The sheet's "major governorates" are Cairo, Giza, Alexandria, Assiut, Minya, Qalyubia,
       // Gharbia and Dakahlia — the union of the platform's `major` and `secondary` classes. So
@@ -410,8 +446,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
         '150000',
         '240000',
       ]),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [...I_SCORE_ESTIMATED],
   },
@@ -424,19 +458,21 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // and which every rule-bearing product states identically.
     productKey: 'doctors_in_practice',
     sheet: "spec §10.10 — I-Score tiers only; the years table is each bank's own",
-    stepParams: {
-      iscore_band: iscoreTiers(),
-    },
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
+    stepParams: {},
     estimated: [...I_SCORE_ESTIMATED],
   },
 
   {
     productKey: 'card_limit_share',
     sheet: 'App. A §6 — net monthly income is half the competitor card limit',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       primary: percent('50'),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [...I_SCORE_ESTIMATED],
   },
@@ -444,11 +480,12 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   {
     productKey: 'auto_loan_crosssell',
     sheet: 'App. A §4 — three times the instalment or 10% of the loan, whichever is less',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       primary: times('3'),
       alt: percent('10'),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [...I_SCORE_ESTIMATED],
   },
@@ -456,10 +493,11 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   {
     productKey: 'pledged_collateral_share',
     sheet: 'App. A §3 — 30% of the free amount of the collateral',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       primary: percent('30'),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [...I_SCORE_ESTIMATED],
   },
@@ -472,6 +510,22 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // to be told which one it was worked out at or the engine cannot turn it back into a
     // monthly figure.
     baselineDbrPercent: '50',
+    // NO `iScoreDefaults`, and this is the one product that is deliberately without.
+    //
+    // It carried an `iscore_band` slot here until v30.3.0 and that slot was INERT: this
+    // product holds no calculation on a seeded database — it is cap-only, and its
+    // programmes read a ceiling out of `loanLimits.maxLoanByFact` — so there was no
+    // `iscore_applied` step for the figure to reach, and it was an orphan nothing
+    // multiplied. Moving it to the column would turn that dead figure LIVE: the
+    // defaults-only resolution carries `iScoreDefaults` to every programme under the
+    // name, and CAE-PER-COMPOUND_OWNER would start scaling its applicant's declared
+    // salary by 80% or 110% against an illustration no bank supplied. Measured on the
+    // real database: a dry seed run reported `iscore compound_owner would state 3
+    // tier(s)`, and it is the only line this change added to that run.
+    //
+    // The `I_SCORE_ESTIMATED` markers stay in this entry's `estimated` list: they are
+    // paths, they name nothing now, and `pruneValueSources` drops a marker with no
+    // figure behind it.
     stepParams: {
       primary: {
         keyTable: [
@@ -545,8 +599,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       // earliest (before 2021). A bank pricing to a later year states its own, and EG Bank's
       // own program does.
       cond__unitworthenough: { minValue: '1000000' },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [
       ...I_SCORE_ESTIMATED,
@@ -574,6 +626,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // own, which is the case the whole mechanism exists to get right.
     tenorDefaults: { minMonths: 6, maxMonths: 84 },
     planDefaults: SCB_AUTO_PLANS,
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       // The catalog default IS the published formula: `income = down payment ÷ 3.6`. One
       // bank sells it today and states the same figure on its own programmes, exactly as the
@@ -585,7 +640,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       // sheet's own arithmetic there is ÷ 3.6, so a bank that wants the sheet's figure states it.
       alt: divisor('6'),
       alt__cash_buyer: divisor('12'),
-      iscore_band: iscoreTiers(),
     },
     // THE PLAN FIGURES THIS TEAM INVENTED, marked as such — and only those.
     //
@@ -635,6 +689,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     sheet: 'App. B — CAE Teachers, Predefined Limit (codes 0760-22 / 0760-23)',
     // The sheet waives the income check and prints no percentage; a ceiling still needs one.
     baselineDbrPercent: '50',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    iScoreDefaults: iscoreTiers(),
     stepParams: {
       primary: {
         keyTable: [
@@ -650,8 +707,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('stage_secondary', '600000'),
         ],
       },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: ['incomeRule.output.baselineDbrPercent', ...I_SCORE_ESTIMATED],
   },

@@ -134,6 +134,10 @@ import {
   type StepId,
 } from './wizard-step-plan';
 import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
+import {
+  IncomeBandsEditorComponent,
+  incomeBandsErrorFor,
+} from '@shared/income-rule/income-bands-editor.component';
 import { BanksApiService } from '../../banks/banks.api.service';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
 import { newProgramDefaults } from './new-program-defaults';
@@ -172,6 +176,7 @@ type StepIssue =
   | 'nameCategory'
   | 'incomeRule'
   | 'dbrBands'
+  | 'iScoreTiers'
   | 'dbrOverride'
   | 'rateGrid'
   | 'vehicleGrid'
@@ -375,6 +380,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
     NzSwitchModule,
     DbrBandsEditorComponent,
     FigureFieldComponent,
+    IncomeBandsEditorComponent,
     IncomeBasisCardsComponent,
     IncomeAssumptionSectionComponent,
     FactGridEditorComponent,
@@ -2129,6 +2135,77 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     </ul>
                   </div>
 
+                  <!-- WHAT THE BUREAU SCORE IS WORTH. On this card and not on the money
+                       step, beside the three debt-burden caps, because it is the other half
+                       of the same sentence: those decide what share of the income may go to
+                       an instalment, this decides what share of the income counts at all.
+                       The product screen already states its cap and its tiers on one step
+                       for exactly that reason (v26.2.0).
+
+                       EVERY PROGRAM TYPE reaches it. Until v30.3.0 the tiers were four steps
+                       inside a surrogate product's calculation, so this row could only ever
+                       have appeared on the Calculation step — which a payslip program does
+                       not walk at all. 54 of 71 programs could not state a table. Nothing
+                       here asks what kind of program this is. -->
+                  <div class="dbr-bands">
+                    <h3 class="dbr-bands-title" i18n="@@bank_programs.eligibility.iscore">
+                      What each I-Score is worth
+                    </h3>
+                    <!-- THREE STATES, because two would be a lie. Blank with a product table
+                         behind it is not "this bank does not score" — it is quoting the
+                         product's tiers, and the engine reads them there. So both directions
+                         are offered as what they are rather than as an empty box and a full
+                         one: taking a copy stops following the product, and giving it back is
+                         the only way to follow again. Neither is left to be inferred from
+                         typing. -->
+                    @if (iScoreInherits()) {
+                      <p class="dbr-emp-note">
+                        <ng-container i18n="@@bank_programs.eligibility.iscore.note_inherited"
+                          >The product's tiers apply. A score this table does not raise or lower
+                          counts the figure in full.</ng-container
+                        >
+                      </p>
+                      <p class="take-default-line">
+                        <button
+                          type="button"
+                          class="take-default"
+                          (click)="stateOwnIScoreTiers()"
+                          i18n="@@bank_programs.eligibility.iscore.set_own"
+                        >
+                          Set this bank's own tiers
+                        </button>
+                      </p>
+                    } @else if (iScoreInheritable()) {
+                      <p class="take-default-line">
+                        <button
+                          type="button"
+                          class="take-default"
+                          (click)="backToProductIScoreTiers()"
+                          i18n="@@bank_programs.eligibility.iscore.back_to_product"
+                        >
+                          Back to the product's tiers
+                        </button>
+                      </p>
+                    } @else {
+                      <p class="dbr-emp-note">
+                        <ng-container i18n="@@bank_programs.eligibility.iscore.note_none"
+                          >Leave it empty and every applicant's figure counts in full, whatever
+                          their score. Type a table only where this bank scores
+                          differently.</ng-container
+                        >
+                      </p>
+                    }
+                    <app-income-bands-editor
+                      [bands]="iScoreTiers()"
+                      (bandsChange)="setIScoreTiers($event)"
+                      [unit]="iScoreRangeUnit"
+                      [valueLabel]="iScoreValueLabel"
+                      [lockedEdges]="iScoreLockedEdges()"
+                      [inherited]="iScoreInherits()"
+                      [coverAll]="true"
+                    ></app-income-bands-editor>
+                  </div>
+
                   <!-- The narrowest cap of the four, and the one that beats the other three —
                        so it closes the card, continuing the broad-to-narrow order the three
                        above already read in (flat, then by income, then by applicant).
@@ -2483,6 +2560,45 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
         color: var(--color-text-secondary);
         line-height: var(--line-height-base);
       }
+      /* The two verbs on the I-Score row -- take a copy, or give the table back. A text
+         button, matching the rule editor's own .take-default exactly, because it is the
+         same affordance: an offer beside a figure, not an action on the card. */
+      .take-default-line {
+        margin: 0 0 var(--space-2);
+      }
+      .take-default {
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        font-size: var(--text-xs);
+        color: var(--color-brand-primary);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .take-default:hover {
+        color: var(--color-tonal-accent);
+      }
+      .take-default:active {
+        color: var(--color-brand-primary);
+      }
+      /* Replaced, never removed: the halo alone measures 1.24:1 in light mode, which is
+         under SC 1.4.11's 3:1 for a non-text indicator. */
+      .take-default:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+      /* A pointer target can be 20px of underlined text; a thumb cannot. */
+      @media (hover: none) {
+        .take-default {
+          min-block-size: 44px;
+          display: inline-flex;
+          align-items: center;
+        }
+      }
+
       /* Same ramp and the same ink as .band-label. It was tertiary, which measures
          3.83:1 against the filled card it sits on — under AA at 12px, and this is the
          only thing naming the two tables under it. */
@@ -4006,6 +4122,9 @@ export class BankProgramFormPage implements OnInit {
     // And for the DBR band table, which lives in a signal, not a control: a broken table
     // would sail past Continue and only fail on the server (`DBR_BANDS_INVALID`).
     if (id === 'requirements' && this.dbrBandsError() !== null) out.push('dbrBands');
+    // Without this, Continue stays enabled with the editor's own error on screen and the
+    // server's refusal arrives three steps later — v26.2.0's defect 2, which cost a release.
+    if (id === 'requirements' && this.iScoreTiersError()) out.push('iScoreTiers');
     // The two grids, same reason as the DBR table one line up: both live in a signal rather
     // than a control, so without this Continue walks past a broken table and the save comes
     // back `FACT_GRID_INVALID` from the server three steps later.
@@ -6259,6 +6378,94 @@ export class BankProgramFormPage implements OnInit {
     this.form.markAsDirty();
   }
 
+  /**
+   * THIS BANK's I-Score tiers — the share of the worked-out figure it counts at each bureau
+   * score. Empty = it states none, and the product's apply (or 100% when neither does).
+   *
+   * A signal rather than a form control, exactly like `dbrBands` above and for the same
+   * reason: the bands editor owns its own row-level validation and emits whole lists, and a
+   * `FormArray` of range rows would be a second statement of what the rows are.
+   */
+  readonly iScoreTiers = signal<IncomeBand[]>([]);
+
+  /**
+   * The RANGE column's unit is a SCORE, not money — this is the one band table on the
+   * platform whose edges are not EGP, and unlabelled it reads as pounds like every other
+   * range on every other screen.
+   */
+  protected readonly iScoreRangeUnit = $localize`:@@bank_programs.eligibility.iscore.unit:score`;
+  protected readonly iScoreValueLabel = $localize`:@@bank_programs.eligibility.iscore.value:Percentage (%)`;
+
+  /** The tiers this program would read if it stated none. */
+  readonly productIScoreTiers = computed<IncomeBand[]>(
+    () => this.catalogRule()?.surrogateProduct?.iScoreDefaults?.bands ?? [],
+  );
+
+  /** Could this program read a table if it stated none? */
+  readonly iScoreInheritable = computed<boolean>(() => this.productIScoreTiers().length > 0);
+
+  /**
+   * Is it reading the product's right now — i.e. has this bank stated nothing?
+   *
+   * Reads the SIGNAL and not the stored row, so the card follows the operator's two verbs
+   * immediately rather than after a save, exactly as `tenorInherits` below does.
+   */
+  readonly iScoreInherits = computed<boolean>(
+    () => this.iScoreInheritable() && this.iScoreTiers().length === 0,
+  );
+
+  /**
+   * The RANGES are the product's and only the percentages are this bank's, when a product
+   * states a table. A bank re-cutting the score bands would be a second opinion about what
+   * a bureau score means, which is a platform fact — so the edges lock and the value column
+   * does not (the same bargain `lockedBandsFor` strikes in the rule editor).
+   *
+   * `null` when no product states one: then the bank is authoring the whole table.
+   */
+  readonly iScoreLockedEdges = computed<IncomeBand[] | null>(() =>
+    this.iScoreInheritable() ? this.productIScoreTiers() : null,
+  );
+
+  /** Take a copy of the product's tiers for this bank to edit. */
+  protected stateOwnIScoreTiers(): void {
+    const source = this.productIScoreTiers();
+    if (source.length === 0) return;
+    // A COPY, deliberately: from here the bank states its own and stops following the
+    // product, which is what the operator asked for by pressing the button.
+    this.iScoreTiers.set(source.map((band) => ({ ...band })));
+    this.form.markAsDirty();
+  }
+
+  /** Give the table back, so the product's applies again. */
+  protected backToProductIScoreTiers(): void {
+    // EMPTIED, not stored as an empty array: the save omits the key entirely when this is
+    // empty, and an absent key is what makes the product's table apply.
+    this.iScoreTiers.set([]);
+    this.form.markAsDirty();
+  }
+
+  protected setIScoreTiers(bands: IncomeBand[]): void {
+    this.iScoreTiers.set(bands);
+    this.form.markAsDirty();
+  }
+
+  /**
+   * Does the table on screen have a shape error? Gates Continue and Save.
+   *
+   * The lesson of v26.2.0's defect 2, applied here from the start: judging only whether a
+   * table HAS rows left Continue enabled with the editor's own error on screen and the
+   * server's refusal arriving three steps later.
+   */
+  readonly iScoreTiersError = computed<boolean>(() => {
+    const bands = this.iScoreTiers();
+    if (bands.length === 0) return false;
+    // `coverAll`, and this is the one table on the platform that asks for it. Everywhere else
+    // a value past the end is `no_matching_band`, a stated reason the customer is told; on a
+    // MULTIPLIER a gap would hand that score a 100% nobody typed. Mirrors the server's own
+    // `validateIScoreTiers`, which is what actually refuses the save.
+    return incomeBandsErrorFor(bands, { coverAll: true }) !== null;
+  });
+
   readonly productTenor = computed<TenorDefaults | null>(
     () => this.catalogRule()?.surrogateProduct?.tenorDefaults ?? null,
   );
@@ -7448,6 +7655,12 @@ export class BankProgramFormPage implements OnInit {
         // Carried on BOTH branches: what other money a bank counts is its own policy, not a
         // figure it inherited, so a program on the catalog's amounts still states it.
         ...(this.additionalIncome() ? { additionalIncome: this.additionalIncome()! } : {}),
+        // The TIERS, on both branches for the same reason and one more: `amounts` says whose
+        // TABLES the figures come from, and what a bureau score is worth is not one of those
+        // tables. OMITTED when empty rather than sent as `null` or `[]` — the program PUT is
+        // a full replacement, so absent already IS the clear, and absent is what makes the
+        // product's tiers apply again.
+        ...(this.iScoreTiers().length > 0 ? { iScoreTiers: { bands: this.iScoreTiers() } } : {}),
       };
     }
 
@@ -7457,6 +7670,10 @@ export class BankProgramFormPage implements OnInit {
       ...way,
       ...(shape === 'keyTable' ? { keyTable: this.incomeKeyTable() } : {}),
       ...(shape === 'bands' ? { bands: this.incomeBands() } : {}),
+      // See the `catalog` branch above. NOT gated on `shape`, unlike the three policy fields
+      // there: a payslip program's shape is `none` and it is exactly the program this row was
+      // built to reach.
+      ...(this.iScoreTiers().length > 0 ? { iScoreTiers: { bands: this.iScoreTiers() } } : {}),
       // A step pipeline sends ONLY its figures. The steps, gates and output belong to the
       // catalog name and are merged in on every read — sending a copy would make the link a
       // one-time copy, and the server strips them anyway.
@@ -7809,6 +8026,16 @@ export class BankProgramFormPage implements OnInit {
       minAssetsValueEGP: initial.eligibility.minAssetsValueEGP ?? null,
     });
     this.dbrBands.set(initial.eligibility.dbrBands ?? []);
+    // The bank's OWN tiers, or empty — which is what makes the product's apply. Read off the
+    // stored blob and written straight back out, so a save never silently wipes a table the
+    // operator did not touch (the contract `dbrBands` above follows).
+    //
+    // NOT pre-filled from the product when empty. That was v26.2.0's unannounced bug in the
+    // other direction: opening the wizard copied the product's tiers into the bank's own
+    // figures and dirtied the form on page load, turning a live default into a frozen copy.
+    this.iScoreTiers.set(
+      (initial.incomeAssumption?.iScoreTiers?.bands ?? []).map((band) => ({ ...band })),
+    );
     this.dbrByEmployment.set({ ...(initial.eligibility.dbrCapPercentByEmploymentType ?? {}) });
     this.setArr('eligibility.acceptedEmploymentTypes', initial.eligibility.acceptedEmploymentTypes);
     this.setArr('eligibility.acceptedTransferTypes', initial.eligibility.acceptedTransferTypes);

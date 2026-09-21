@@ -217,6 +217,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-09-21 v30.3.0 — I-Score becomes program-level policy: every programme can state a bureau-score table, payslip ones included. (DBR was already on all 71.)
 - 2026-09-15 v30.2.1 — step ② of the auto-loan product leads with the plan table, and the frame around it stops shouting over it.
 - 2026-09-14 v30.2.0 — the plans card is three tabs, and its table header has nothing in it that can be pressed.
 - 2026-09-14 v30.1.0 — a car finance plan is ONE LINE on screen, not five collapsed tables.

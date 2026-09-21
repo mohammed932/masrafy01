@@ -36,16 +36,22 @@
  *               on it keeps working against the program object alone
  *   never       requiredDocuments / combinationRule — bank policy, which is why a
  *               bank on catalog amounts still has its own
- *   when blank  dbrCapPercentOverride, and the I-Score tier table. Both are stated by
- *               the PRODUCT and overridden per bank, so a bank that states neither
- *               reads the product's — see `withInheritedDbrCap` / `withInheritedSlots`
+ *   when blank  dbrCapPercentOverride — stated by the PRODUCT and overridden per bank,
+ *               so a bank that states none reads the product's (`withInheritedDbrCap`)
+ *
+ * The I-SCORE TIER TABLE used to be the second member of that last group, inherited one
+ * `stepParams` slot deep by `withInheritedSlots`. It is not part of an income rule any more
+ * (v30.3.0): the tiers ride `CatalogRuleResolution.iScoreDefaults` beside the duration and
+ * the plan tables, and resolve against the program's own table in the snapshot mapper
+ * through `effectiveIScoreTiers`. `SLOTS_INHERITED_WHEN_BLANK` had exactly one member and
+ * is gone with it — there is no longer any slot at which a blank means "read the product's".
  */
 
 import { isProductRuleStrategy } from '../types';
 import type { IncomeAssumptionConfig } from '../types';
-import type { GateParams, ProductRule, StepParams } from './product-rule';
+import type { ProductRule } from './product-rule';
 import { allWaySlots, wayOwnedSlots, waysOfRule } from './product-rule-ways';
-import { SLOT } from './product-template';
+import type { IScoreTiers } from './iscore';
 import type { TenorDefaults } from './tenor-inherit';
 import type { PlanDefaults } from './plan-inherit';
 import type { LoanAmountDefaults } from './loan-amount-inherit';
@@ -88,33 +94,16 @@ const POLICY_KEYS = [
   'dbrCapPercentOverride',
   'requiredDocuments',
   'combinationRule',
+  // The I-Score TIERS, here for exactly the reason the cap above is: part of the rule blob,
+  // posted by some screens and not others, and gone for good with nothing to say so if a
+  // figures-only write drops it. `null` is its clear spelling, which `dropClearedPolicy`
+  // turns into an absent key — and absent is what makes the product's tiers apply again.
+  'iScoreTiers',
 ] as const satisfies ReadonlyArray<keyof IncomeAssumptionConfig>;
-
-/**
- * The figure slots a program inherits from the product WHEN IT STATES NONE OF ITS OWN,
- * whatever `amounts` says. Exactly one member, and the narrowness is the point.
- *
- * A blank slot normally means "this bank does not sell this way" / "does not apply this
- * condition" — a stated decision the product must not override, which is why the rest of
- * `stepParams` is inherited whole-key and only on `amounts: 'catalog'`.
- *
- * The I-Score table is not like that. The score is a PLATFORM fact about the applicant,
- * every rule-bearing product carries the four steps, and the compiled shape answers a
- * blank table with `{const:'100'}` — so a blank here has never meant "declined", it has
- * meant "nobody has stated the tiers". Reading the product's tiers in that state is what
- * lets a product state them once for every bank selling it, and a bank that disagrees
- * types its own (including a flat 100%, which is how it opts out).
- */
-const SLOTS_INHERITED_WHEN_BLANK: ReadonlySet<string> = new Set([SLOT.iScoreBand]);
 
 /** A percentage nobody stated: absent, null, or whitespace. */
 function isBlankOverride(value: string | null | undefined): boolean {
   return value === null || value === undefined || value.trim() === '';
-}
-
-/** A band slot nobody stated: the key is absent, or its table has no rows. */
-function slotStatesNoBands(figures: StepParams | undefined): boolean {
-  return figures === undefined || (figures.bands?.length ?? 0) === 0;
 }
 
 /**
@@ -241,6 +230,15 @@ export type CatalogRuleResolution =
       readonly planDefaults?: PlanDefaults;
       /** The product's default loan size, for a program that states none — see `tenorDefaults`. */
       readonly loanAmountDefaults?: LoanAmountDefaults;
+      /**
+       * The product's I-Score tier table, for a program that states none of its own.
+       *
+       * Rides here for the reason `tenorDefaults` above states — this resolution is already
+       * the single seam the product link reaches the snapshot mapper through — and it is the
+       * field that replaced per-slot `stepParams` inheritance when the tiers stopped being
+       * four steps inside the rule (v30.3.0).
+       */
+      readonly iScoreDefaults?: IScoreTiers;
     }
   | {
       readonly withheld: 'surrogate_product_retired';
@@ -259,6 +257,8 @@ export type CatalogRuleResolution =
       readonly planDefaults?: PlanDefaults;
       /** The product's default loan size, for a program that states none — see `tenorDefaults`. */
       readonly loanAmountDefaults?: LoanAmountDefaults;
+      /** The product's I-Score tiers, for a program that states none — see arm 1. */
+      readonly iScoreDefaults?: IScoreTiers;
     }
   | {
       /**
@@ -273,6 +273,8 @@ export type CatalogRuleResolution =
       readonly planDefaults?: PlanDefaults;
       /** The product's default loan size, for a program that states none — see `tenorDefaults`. */
       readonly loanAmountDefaults?: LoanAmountDefaults;
+      /** The product's I-Score tiers, for a program that states none — see arm 1. */
+      readonly iScoreDefaults?: IScoreTiers;
     };
 
 /**
@@ -309,6 +311,8 @@ export interface LinkedProduct {
   readonly planDefaults?: PlanDefaults | undefined;
   /** The default loan size, when this product states one. */
   readonly loanAmountDefaults?: LoanAmountDefaults | undefined;
+  /** The default I-Score tier table, when this product states one. */
+  readonly iScoreDefaults?: IScoreTiers | undefined;
 }
 
 export function effectiveProgramNameRule(
@@ -327,6 +331,12 @@ export function effectiveProgramNameRule(
       product.loanAmountDefaults === undefined
         ? {}
         : { loanAmountDefaults: product.loanAmountDefaults };
+    // The TIERS, on the same terms as the three defaults above: a statement about the
+    // product that a program reads when it states none of its own. Carried on every arm,
+    // including the withheld one, for the reason `tenorDefaults` names — switching a
+    // product off is a decision about what QUOTES, not about what is configured.
+    const iScore =
+      product.iScoreDefaults === undefined ? {} : { iScoreDefaults: product.iScoreDefaults };
     if (!product.active || product.deprecatedAt !== null) {
       return {
         withheld: 'surrogate_product_retired',
@@ -335,10 +345,18 @@ export function effectiveProgramNameRule(
         ...tenor,
         ...plans,
         ...loanAmounts,
+        ...iScore,
       };
     }
     if (product.rule !== undefined) {
-      return { rule: product.rule, productKey: product.key, ...tenor, ...plans, ...loanAmounts };
+      return {
+        rule: product.rule,
+        productKey: product.key,
+        ...tenor,
+        ...plans,
+        ...loanAmounts,
+        ...iScore,
+      };
     }
     // ACTIVE, linked, and holding no calculation. `own` is `null` here on every real row
     // (a linked name cannot hold its own rule — `PROGRAM_NAME_RULE_LINKED`), so falling
@@ -349,9 +367,10 @@ export function effectiveProgramNameRule(
     if (
       tenor.tenorDefaults !== undefined ||
       plans.planDefaults !== undefined ||
-      loanAmounts.loanAmountDefaults !== undefined
+      loanAmounts.loanAmountDefaults !== undefined ||
+      iScore.iScoreDefaults !== undefined
     ) {
-      return { productKey: product.key, ...tenor, ...plans, ...loanAmounts };
+      return { productKey: product.key, ...tenor, ...plans, ...loanAmounts, ...iScore };
     }
   }
   const rule = own ?? undefined;
@@ -405,6 +424,17 @@ export function catalogLoanAmountsOf(
 }
 
 /**
+ * The default I-Score tiers a resolution holds, whether or not the rule is withheld.
+ *
+ * The sibling of `catalogTenorOf` in every respect — see it.
+ */
+export function catalogIScoreOf(
+  resolution: CatalogRuleResolution | undefined,
+): IScoreTiers | undefined {
+  return resolution?.iScoreDefaults;
+}
+
+/**
  * The rule to quote on: the program's own object, with the catalog name's figures
  * merged in when it inherits.
  *
@@ -435,7 +465,7 @@ export function effectiveIncomeRule(
   // reads it unless it states one itself.
   const withCap = withInheritedDbrCap(withStructure, catalogRule);
 
-  if (!inheritsCatalogAmounts(program)) return withInheritedSlots(withCap, catalogRule);
+  if (!inheritsCatalogAmounts(program)) return withCap;
 
   const merged: IncomeAssumptionConfig = { ...withCap };
   for (const key of AMOUNT_KEYS) {
@@ -469,41 +499,6 @@ function withInheritedDbrCap(
   if (!isBlankOverride(program.dbrCapPercentOverride)) return program;
   if (isBlankOverride(catalogRule.dbrCapPercentOverride)) return program;
   return { ...program, dbrCapPercentOverride: catalogRule.dbrCapPercentOverride };
-}
-
-/**
- * The product's I-Score tiers, for a program on its OWN amounts that states none.
- *
- * The one per-slot exception to whole-key `stepParams` inheritance, and the note above
- * `SLOTS_INHERITED_WHEN_BLANK` is the argument for it. Scoped by that set rather than by a
- * predicate over the steps: "which slots does a blank mean nothing at" is a decision about
- * the platform's own facts, not something to re-derive from a rule's shape.
- *
- * Both sides must be product rules — a single-fact rule has no `stepParams` to speak of —
- * and the merge is one slot deep, so a bank's other figures are untouched. `amounts:
- * 'catalog'` never reaches here: that program already takes the product's whole map.
- *
- * Returns the SAME object when there is nothing to inherit.
- */
-function withInheritedSlots(
-  program: IncomeAssumptionConfig,
-  catalogRule: IncomeAssumptionConfig,
-): IncomeAssumptionConfig {
-  if (!isProductRuleStrategy(program.strategy)) return program;
-  if (!isProductRuleStrategy(catalogRule.strategy)) return program;
-
-  let params: Record<string, StepParams & GateParams> | undefined;
-  for (const slot of SLOTS_INHERITED_WHEN_BLANK) {
-    const fromProduct = catalogRule.stepParams?.[slot];
-    if (slotStatesNoBands(fromProduct)) continue;
-    if (!slotStatesNoBands(program.stepParams?.[slot])) continue;
-    params ??= { ...(program.stepParams ?? {}) };
-    // The product's own array, handed on by reference: every consumer of an effective rule
-    // reads it (the resolver, the validator, the check panel) and none of them writes to it.
-    // The admin screens copy before they edit — `cloneStepFigures` on the way in.
-    params[slot] = fromProduct as StepParams & GateParams;
-  }
-  return params === undefined ? program : { ...program, stepParams: params };
 }
 
 /**

@@ -37,6 +37,7 @@ import type {
 } from '../types';
 import { runCascade, type CascadeBundle, type CascadeExtras } from './cascade-adapter';
 import { resolveAssumedIncome } from './income-resolver';
+import { applyIScoreFactor, iScoreOf, resolveIScoreFactor } from './iscore';
 import { calculateFees } from './fees';
 import { calculateEffectiveLoanAmount, calculateMonthlyInstallment } from './pmt';
 import { calculateDbr, calculateMaxLoanFromDbr, resolveDbrCap } from './dbr';
@@ -519,7 +520,10 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // military grade" would be a confusing thing to tell its applicant.
   // A ceiling is not an income and cannot be judged as one yet: the figure it implies
   // needs the rate and the FINAL tenor, and step 3 has not run. Deferred to step 3b.
-  const ceilingAmountEGP =
+  // `let`, because step 2a below scales it by the applicant's I-Score. Its NULL-ness never
+  // moves — that is decided by `origin` alone — so every `ceilingAmountEGP === null` test
+  // downstream reads exactly what it always did.
+  let ceilingAmountEGP =
     incomeResolution?.origin === 'ceiling' ? (incomeResolution.ceilingAmountEGP ?? null) : null;
 
   if (isSurrogateProgram && incomeResolution && incomeResolution.origin === 'none') {
@@ -564,6 +568,44 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   let recognisedIncomeEGP = incomeResolution
     ? incomeResolution.incomeEGP
     : (declaredIncomeEGP ?? new Decimal(0));
+
+  // ── 2a. The bureau score ────────────────────────────────────────────────
+  //
+  // HERE, and the position is the whole of why the v30.3.0 refactor moves no money. Until
+  // then this was four compiled steps INSIDE a surrogate product's rule, applied to the
+  // rule's output before `output.from` read it — so it landed after the arithmetic and
+  // before the additional income and the debt-burden band. This is the same point.
+  //
+  // Both quantities, and `school_stage_ceiling` is why: it is the one seeded product whose
+  // output is a `maxAmount`, and its tiers scaled that ceiling while they lived in the
+  // rule. Scaling only the income would have silently dropped I-Score for it.
+  //
+  // ON EVERY PROGRAM TYPE, which is the point of the move. `shouldConsultIncomeRule` never
+  // reads a rule for a payslip applicant who declared a salary, so nothing stored inside
+  // the rule could ever have reached them — 54 of 71 programs could not state a table at
+  // all. Nothing here asks what `programType` is.
+  //
+  // A 100% factor returns the SAME Decimal (`applyIScoreFactor` short-circuits), so a
+  // program with no tiers — every program on this database but seventeen — allocates
+  // nothing and is arithmetically untouched.
+  const iScore = resolveIScoreFactor(program.iScoreTiers, iScoreOf(profile));
+  const incomeBeforeIScore = recognisedIncomeEGP;
+  recognisedIncomeEGP = applyIScoreFactor(recognisedIncomeEGP, iScore.factorPercent);
+  if (ceilingAmountEGP !== null) {
+    ceilingAmountEGP = applyIScoreFactor(ceilingAmountEGP, iScore.factorPercent);
+  }
+  // DID THE MULTIPLIER MOVE THE FIGURE? Step 5 needs to know, because the resolver picked a
+  // debt-burden BAND against the figure as it stood before this line, and `dbrBands` are
+  // keyed BY INCOME — a multiplier that carries an applicant over a band edge would
+  // otherwise leave them capped as the person they were before their score was read.
+  //
+  // This is the property `iscore-before-dbr.spec.ts` exists to pin. It used to hold
+  // structurally: the multiplier was four steps INSIDE the rule, so the resolver's own
+  // `resolveDbrCap` already saw the multiplied figure. Moving the multiply out here made it a
+  // property that has to be maintained, so it is measured rather than assumed — compared on
+  // the FIGURES and not on `factorPercent`, because a 100% table and no table at all must
+  // both count as "nothing moved" and neither should trigger a re-resolve.
+  const iScoreMovedIncome = !recognisedIncomeEGP.equals(incomeBeforeIScore);
 
   // ── 2b. Money earned beside the basic figure ────────────────────────────
   //
@@ -799,7 +841,9 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return {
       ok: false,
       unavailable: {
-        reason: 'BELOW_PROGRAM_MIN_AMOUNT',
+        // The REQUEST-side reason, not the affordability one below: nothing about this
+        // applicant's debt burden has been measured yet at this point in the pipeline.
+        reason: 'REQUESTED_BELOW_PROGRAM_MIN_AMOUNT',
         // The amount this program could have written, which here is the clamped request
         // itself — the DBR figures do not exist yet and reporting a zero for them would
         // state a cap nobody measured.
@@ -853,6 +897,15 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // the one the total falls in. Without this an applicant whose rent carries them over a band
   // edge is capped as the person they were before their rent was counted.
   //
+  // A figure the I-SCORE multiplier moved re-resolves for exactly that reason, and it is the
+  // one case the v30.3.0 refactor CREATED. While the multiplier lived inside the rule the
+  // resolver's own `resolveDbrCap` already saw the multiplied figure, so the ordering held
+  // structurally; applied at step 2a it does not, and an applicant whose score carries them
+  // over a band edge would be capped as the person they were before it was read. No program
+  // states both a tier table and income bands today (measured: 0 of 71), so nothing on this
+  // database moves — which is exactly why this had to be reasoned about rather than tested
+  // into existence. `iscore-before-dbr.spec.ts` pins it.
+  //
   // WHICH override travels is not the same question in the two cases. A ceiling IS
   // rule-derived, so the rule's own cap applies. An income the additional-income policy
   // merely topped up may have come from a payslip, and the rule override must not attach to
@@ -864,7 +917,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       ? program.incomeAssumption?.dbrCapPercentOverride
       : undefined;
   const capResolution =
-    ceilingAmountEGP !== null || reResolveForAdditional
+    ceilingAmountEGP !== null || reResolveForAdditional || iScoreMovedIncome
       ? resolveDbrCap(
           {
             dbrCapPercent: program.eligibility.dbrCapPercent,
@@ -1064,6 +1117,17 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       // engine did not make.
       incomeResolution,
       dbrCapSource,
+      // The MULTIPLIER, frozen for the reason `dbrCapPercent` above is: the tiers are stated
+      // per product and overridden per bank, and either can be retyped after this offer is
+      // written. Both keys absent when `source` is null — no table was in force, or the
+      // applicant left the optional question blank — because that is a different fact from a
+      // table measured at 100% and the offer's own docstring says so.
+      ...(iScore.source !== null
+        ? {
+            iScoreFactorPercent: iScore.factorPercent,
+            iScoreTiersSource: iScore.source,
+          }
+        : {}),
       feesBreakdown: priced.fees.breakdown,
       cascadeTrace: buildCascadeTrace(cascade),
     },

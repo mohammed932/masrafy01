@@ -63,11 +63,15 @@ describe('productRuleHasError', () => {
 });
 
 describe('band tables are judged by their SHAPE, not just their presence', () => {
+  // The fixture was the four compiled I-Score steps until v30.3.0, because that slot was the
+  // only one `coverAll` applied to. It is a plain band slot now: no STEP demands total
+  // coverage any more, and the tier table that does is program-level policy checked by the
+  // wizard's own `iScoreTiersError` (and by `incomeBandsErrorFor`'s own spec).
   const STEPS: RuleStep[] = [
     { id: 'basis', op: 'constant' },
-    { id: 'iscore_band', op: 'bandTable', of: { step: 'basis' } },
-    { id: 'iscore_factor', op: 'coalesce', of: [{ step: 'iscore_band' }, { const: '100' }] },
-    { id: 'out', op: 'percentOf', of: [{ step: 'basis' }, { step: 'iscore_factor' }] },
+    { id: 'share_band', op: 'bandTable', of: { step: 'basis' } },
+    { id: 'share_factor', op: 'coalesce', of: [{ step: 'share_band' }, { const: '100' }] },
+    { id: 'out', op: 'percentOf', of: [{ step: 'basis' }, { step: 'share_factor' }] },
   ];
   const FILLED: StepFigures = { valueEGP: '1000' };
   const tiers = (rows: Array<[string, string | null, string]>): StepFigures => ({
@@ -78,14 +82,14 @@ describe('band tables are judged by their SHAPE, not just their presence', () =>
     })),
   });
 
-  it('accepts a tier table that covers every score', () => {
+  it('accepts a well-formed range table', () => {
     expect(
       productRuleHasError({
         steps: STEPS,
         gates: [],
         figures: {
           basis: FILLED,
-          iscore_band: tiers([
+          share_band: tiers([
             ['0', '550', '80'],
             ['550', '700', '100'],
             ['700', null, '110'],
@@ -95,44 +99,48 @@ describe('band tables are judged by their SHAPE, not just their presence', () =>
     ).toBe(false);
   });
 
-  it('refuses a tier figure left blank, which the server answers INCOME_RULE_INCOME_INVALID', () => {
+  it('refuses a figure left blank, which the server answers INCOME_RULE_INCOME_INVALID', () => {
     // Found by clearing one box in a browser: the row had figures, so `stepIsConfigured` read
     // it as configured, Continue stayed enabled and the refusal arrived three steps later.
     expect(
       productRuleHasError({
         steps: STEPS,
         gates: [],
-        figures: { basis: FILLED, iscore_band: tiers([['0', null, '']]) },
+        figures: { basis: FILLED, share_band: tiers([['0', null, '']]) },
       }),
     ).toBe(true);
   });
 
-  it('refuses a tier table that does not cover every score', () => {
+  it('does NOT demand total coverage of a step band table', () => {
+    // The inversion this file used to assert. On a STEP, a value past the end is
+    // `no_matching_band` — a stated reason the customer is told — so a table that starts
+    // above zero or closes its top is legal. Only the I-SCORE tier table must answer every
+    // value, because its figure multiplies rather than supplies, and that table is no longer
+    // a step: it is checked by `iScoreTiersError` on the wizard's Requirements step.
     expect(
       productRuleHasError({
         steps: STEPS,
         gates: [],
-        figures: { basis: FILLED, iscore_band: tiers([['550', null, '100']]) },
+        figures: { basis: FILLED, share_band: tiers([['550', null, '100']]) },
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       productRuleHasError({
         steps: STEPS,
         gates: [],
-        figures: { basis: FILLED, iscore_band: tiers([['0', '900', '100']]) },
+        figures: { basis: FILLED, share_band: tiers([['0', '900', '100']]) },
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('leaves an EMPTY tier table alone — the product states those', () => {
+  it('leaves an EMPTY band table alone — an optional slot this bank has not filled', () => {
     expect(
       productRuleHasError({ steps: STEPS, gates: [], figures: { basis: FILLED } }),
     ).toBe(false);
   });
 
   it('does not demand total coverage of an ordinary range table', () => {
-    // A years table closing its top band is legal and common; only the multiplier must cover
-    // everything (`coverAll`).
+    // A years table closing its top band is legal and common.
     const years: RuleStep[] = [
       { id: 'src__years', op: 'factNumber', fact: 'years_in_practice' },
       { id: 'primary', op: 'bandTable', of: { step: 'src__years' } },

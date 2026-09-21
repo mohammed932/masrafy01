@@ -23,6 +23,7 @@ import {
   SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductLoanAmountDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
+  SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
   type ProgramNameIncomeRuleResponseDto,
@@ -114,6 +115,7 @@ import {
   collectIncomeRuleWarnings,
   stripForeignMethodConfig,
   validateIncomeRule,
+  validateIScoreTiers,
   type IncomeRuleValidationContext,
   type IncomeRuleViolation,
   type IncomeRuleWarning,
@@ -143,6 +145,7 @@ import {
   type CatalogRuleResolution,
 } from '@/matching/pipeline/income-rule-inherit';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import type { IScoreTiers } from '@/matching/pipeline/iscore';
 import { inheritsProductPlans, plansSourceOf } from '@/matching/pipeline/plan-inherit';
 import {
   compileTemplate,
@@ -1888,6 +1891,7 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        ownIScoreTiers: p.ownIScoreTiers,
         ownLoanAmounts: p.ownLoanAmounts,
         followsPlans: p.followsPlans,
       })),
@@ -1919,6 +1923,10 @@ export class BankProgramsService {
       // copied, and a reader has to be able to tell it from `capDefaults`.
       loanAmountDefaults: row.loanAmountDefaults,
       planDefaults: row.planDefaults,
+      // The TIERS it hands them, beside the duration and on the same terms: read live, so a
+      // change here moves every program that states none of its own. This is the screen that
+      // states them, so it renders what it is handing out.
+      iScoreDefaults: row.iScoreDefaults,
       template: row.templateSpec,
       valueSources: row.valueSources,
       names,
@@ -2335,6 +2343,66 @@ export class BankProgramsService {
         changes: {
           loanAmountDefaults: {
             before: row.loanAmountDefaults,
+            after: stored,
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * Set (or clear, with `null`) a surrogate product's default I-SCORE TIER TABLE.
+   *
+   * NO CLEAR REFUSAL, on exactly the reasoning `setSurrogateProductPlanDefaults` below
+   * states: a cleared duration leaves an inheriting program with NO term and it cannot be
+   * priced at all, where cleared tiers leave it multiplying by 100% — which is a priceable
+   * quote and was the answer for every program on this platform before v26.2.0. Nothing
+   * stops quoting, so refusing would be a gate over a state that is merely a change.
+   *
+   * It IS a change that moves live figures, though, for every program under this product
+   * that states no tiers of its own — up to −20% at a score under 550 and +10% over 700 on
+   * the seeded illustration. That is the operator's explicit live-inheritance decision, and
+   * what this method owes it is the audit record below (before AND after, in full) and the
+   * reach count the screen shows before the save.
+   *
+   * Validated through `validateIScoreTiers`, the SAME authority a bank program's own table
+   * runs through, so a table cannot be accepted by one door and refused by the other. That
+   * is where `coverAll` lives: a tier table must start at 0 and leave its top open, because
+   * a score it misses would multiply by a figure the operator never typed.
+   */
+  async setSurrogateProductIScoreDefaults(
+    key: string,
+    dto: SetSurrogateProductIScoreDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored: IScoreTiers | null =
+      dto.tiers === null ? null : { bands: dto.tiers.bands.map((b) => ({ ...b })) };
+
+    const violation = validateIScoreTiers(stored);
+    if (violation) throw incomeRuleException(violation);
+
+    const saved = await this.enums.setSurrogateProductIScoreDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full, for the reason the duration and the loan size log both:
+        // these figures move live quotes with no refusal in front of them, so the log has to
+        // answer "what were they yesterday" on its own.
+        changes: {
+          iScoreDefaults: {
+            before: row.iScoreDefaults,
             after: stored,
           },
         },
@@ -2804,6 +2872,7 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        ownIScoreTiers: p.ownIScoreTiers,
         ownLoanAmounts: p.ownLoanAmounts,
         followsPlans: p.followsPlans,
       })),
@@ -2831,6 +2900,10 @@ export class BankProgramsService {
               // lends between these, and the wizard renders that state as a statement.
               loanAmountDefaults: product.loanAmountDefaults,
               planDefaults: product.planDefaults,
+              // The I-Score TIERS a program under this name falls back to when it states
+              // none. The wizard renders that state as a statement and offers to copy them,
+              // exactly as it does the duration two fields up.
+              iScoreDefaults: product.iScoreDefaults,
             },
     };
   }

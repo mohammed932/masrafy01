@@ -240,12 +240,16 @@ import {
         <h3 class="sec is-quiet" id="caq-add-h">
           <span class="sec-t">
             @if (search().trim() === '') {
-              <span i18n="@@caq.suggested_h">Suggested questions</span>
+              <span i18n="@@caq.add_another_h">Add another question</span>
             } @else {
               <span i18n="@@caq.results_h">Results</span>
             }
           </span>
-          <span class="sec-n tabular">{{ matches().length }}</span>
+          <!-- Only while searching. With an empty box the list is deliberately empty, and a
+               0 beside "Add another question" reads as "there are none". -->
+          @if (search().trim() !== '') {
+            <span class="sec-n tabular">{{ matches().length }}</span>
+          }
         </h3>
         <label class="search">
           <span class="sr-only" i18n="@@caq.search_aria">Search the question pool</span>
@@ -261,7 +265,10 @@ import {
         @if (matches().length === 0) {
           <p class="empty">
             @if (search().trim() === '') {
-              <span i18n="@@caq.no_suggestions">No other question to suggest.</span>
+              <span i18n="@@caq.search_to_add"
+                >Everything required is listed above. Search the {{ poolSize() }} questions to
+                ask one more.</span
+              >
             } @else {
               <span i18n="@@caq.no_match">Nothing else matches “{{ search() }}”.</span>
             }
@@ -689,12 +696,17 @@ export class CompactAskedQuestionsComponent {
     Math.max(0, this.askedTotal() - this.requiredTotal()),
   );
 
+  /**
+   * No count on the chip. It carried "how many questions this loan type asks in total",
+   * which is the one number this screen is not about: the board below lists what is
+   * REQUIRED and what you picked, so a chip reading 63 invited the operator to go looking
+   * for sixty-three rows that were never meant to be on the page. The total still has a
+   * home — the name's own page reports "asked here".
+   */
   protected readonly railItems = computed<RailTabItem[]>(() =>
     this.tabs().map((tab) => ({
       id: tab.category,
       label: categoryLabel(tab.category),
-      count: this.totals().find((t) => t.category === tab.category)?.asked ?? tab.asked,
-      countLabel: $localize`:@@caq.tab_count:questions asked`,
     })),
   );
 
@@ -757,6 +769,13 @@ export class CompactAskedQuestionsComponent {
    * something; the rest are already asked and are listed after them.
    */
   protected readonly matches = computed(() => {
+    // An EMPTY box suggests nothing. It used to fall through to `askedSections` with a
+    // blank term, which matches everything — so the whole remaining pool sat under
+    // "Suggested questions", paginated, and the screen read as a list of sixty-odd
+    // questions to work through. What this step is for is the REQUIRED set plus whatever
+    // the operator deliberately adds; the rest is reachable by typing, which is what the
+    // section comment above has claimed all along.
+    if (this.search().trim() === '') return [];
     const found = askedSections(
       this.pool(),
       this.category(),
@@ -819,7 +838,7 @@ export class CompactAskedQuestionsComponent {
   }
 
   protected totalText(): string {
-    return $localize`:@@caq.total:${this.typeName()}:TYPE: applicants are asked ${this.askedTotal()}:TOTAL: questions in all — ${this.requiredTotal()}:REQUIRED: required, ${this.optionalTotal()}:OPTIONAL: optional. Required ones and your additions are listed here; the optional ones are in the suggestions below. Each applicant is then asked only what a bank program behind this name reads.`;
+    return $localize`:@@caq.total:${this.typeName()}:TYPE: applicants are asked ${this.askedTotal()}:TOTAL: questions in all — ${this.requiredTotal()}:REQUIRED: required, ${this.optionalTotal()}:OPTIONAL: optional. Required ones and your additions are listed here; search to ask an optional one. Each applicant is then asked only what a bank program behind this name reads.`;
   }
 
   protected typeName(): string {

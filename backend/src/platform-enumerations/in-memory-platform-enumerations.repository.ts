@@ -168,6 +168,11 @@ export class InMemoryPlatformEnumerationsRepository
     throw new Error('in-memory enumeration registry is read-only');
   }
 
+  /** Read-only stub, exactly as the five writes above. */
+  async setSurrogateProductIScoreDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
   /**
    * Empty, not a throw, for the same reason `programFigureKeysUnderProduct` below is: it
    * backs a REFUSAL, and "no program is reading this product's duration" is the true answer
@@ -180,6 +185,15 @@ export class InMemoryPlatformEnumerationsRepository
 
   /** Empty, not a throw — see `programsInheritingTenor` directly above. */
   async programsInheritingLoanAmounts(): Promise<string[]> {
+    return [];
+  }
+
+  /**
+   * Empty, not a throw — see `programsInheritingTenor` above. It backs no refusal, only the
+   * product screen's reach line, and "no program reads these tiers" is the true answer in a
+   * registry holding no programs.
+   */
+  async programsInheritingIScoreTiers(): Promise<string[]> {
     return [];
   }
 

@@ -259,6 +259,11 @@ export class EngineService {
       // the offer is about to become immutable.
       incomeOrigin: quote.incomeResolution?.origin ?? null,
       incomeSurrogateStrategy: quote.incomeResolution ? quote.incomeResolution.strategy : null,
+      // The I-Score multiplier, carried straight off the quote for the reason the two above
+      // are: re-resolving it here could reach a different answer against a table an operator
+      // is editing, and the offer is about to become immutable.
+      iScoreFactorPercent: quote.iScoreFactorPercent ?? null,
+      iScoreTiersSource: quote.iScoreTiersSource ?? null,
       // The ceiling, when the rule derived one. Same reasoning as the two above: it is the
       // output of a pipeline over a table, an uplift and the applicant's own answers, every
       // one of which can move after the offer is written.
@@ -330,9 +335,17 @@ export class EngineService {
  */
 export function reasonToCheckCode(reason: FiguresUnavailableReason): string {
   switch (reason) {
+    // Both are a debt-burden outcome: the allowance is gone, or what it left was under
+    // the programme's floor. `REDUCE_OBLIGATIONS` is advice the applicant can act on.
     case 'OBLIGATIONS_EXCEED_ALLOWANCE':
     case 'BELOW_PROGRAM_MIN_AMOUNT':
       return 'dbr_exceeded';
+    // The request itself was under the floor, with the debt burden never in question, so
+    // this is the AMOUNT check — `ADJUST_LOAN_AMOUNT`, and `AMOUNT_OUT_OF_RANGE` as the
+    // primary reason. Mapped to `dbr_exceeded` until now, which told somebody asking for
+    // 5,000 where the cheapest bank writes 15,000 to go and reduce their obligations.
+    case 'REQUESTED_BELOW_PROGRAM_MIN_AMOUNT':
+      return 'loan_amount';
     case 'NO_RECOGNISED_INCOME':
     // Both surrogate reasons are an income problem from the applicant's side —
     // the check that could not be satisfied is the same one. They stay SEPARATE

@@ -845,7 +845,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home_cat_mortgage => 'Mortgage';
 
   @override
-  String get home_cat_car => 'Car loan';
+  String get home_cat_car => 'Auto loan';
 
   @override
   String get home_cat_business => 'Business';
@@ -2303,6 +2303,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get reason_below_program_min_amount =>
       'The affordable amount is below this program\'s minimum.';
+
+  @override
+  String get reason_requested_below_program_min_amount =>
+      'You asked for less than this bank lends. Ask for a larger amount to see its figures.';
 
   @override
   String get reason_age_at_maturity =>
