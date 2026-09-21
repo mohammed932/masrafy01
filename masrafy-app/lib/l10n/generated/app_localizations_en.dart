@@ -689,14 +689,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'We will only show programs the bank accepts on that basis.';
 
   @override
-  String get loan_setup_income_proof_title => 'With a payslip';
+  String get loan_setup_income_proof_title => 'Income proof';
 
   @override
   String get loan_setup_income_proof_desc =>
       'You have a payslip or a salary transfer from your employer.';
 
   @override
-  String get loan_setup_income_surrogate_title => 'Without a payslip';
+  String get loan_setup_income_surrogate_title => 'Surrogate';
 
   @override
   String get loan_setup_income_surrogate_desc =>

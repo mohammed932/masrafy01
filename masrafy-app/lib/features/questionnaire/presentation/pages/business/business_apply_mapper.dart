@@ -25,7 +25,7 @@ ApplyRequest mapBusinessAnswersToApplyRequest(
     loanPurpose: 'business',
     requestedAmountEGP: money.requestedAmountEGP,
     preferredTenorMonths: money.tenorMonths,
-    priority: _priority(pickedOption(answers, 'priority_factor')),
+    priority: mapPriority(pickedOption(answers, 'priority_factor')),
     employment: EmploymentPayload(
       employmentType: 'business_owner',
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
@@ -55,11 +55,3 @@ int _monthsInBusiness(String? bucket) => switch (bucket) {
       _ => 24,
     };
 
-/// `priority_factor` seed code → backend `priority` enum
-/// (`lowest_installment | lowest_interest | fastest_approval | least_paperwork`).
-String _priority(String? code) => switch (code) {
-      'flexible_repayment' || 'highest_financing_amount' => 'lowest_installment',
-      'lowest_interest_rate' => 'lowest_interest',
-      'least_documentation_required' => 'least_paperwork',
-      _ => 'fastest_approval',
-    };

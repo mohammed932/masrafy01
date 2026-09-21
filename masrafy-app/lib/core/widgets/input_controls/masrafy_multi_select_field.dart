@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_helper.dart';
 import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 import 'package:app/core/widgets/input_controls/masrafy_multi_select_sheet.dart';
 
@@ -28,6 +29,7 @@ class MasrafyMultiSelectField<T> extends StatelessWidget {
     required this.values,
     required this.onChanged,
     this.hint,
+    this.helper,
     this.sheetTitle,
     this.searchHint,
     this.applyLabel,
@@ -40,6 +42,12 @@ class MasrafyMultiSelectField<T> extends StatelessWidget {
 
   /// Question / field prompt shown above the field (uppercased).
   final String label;
+
+  /// Optional sub-label between [label] and the field — see
+  /// [MasrafyFieldHelper]. Same slot the single-select and the questionnaire's
+  /// numeric and free-text fields give `Question.helperText*`, so a helper an
+  /// operator writes reads the same wherever the question's type lands it.
+  final String? helper;
   final List<MasrafyMultiSelectOption<T>> options;
   final List<T> values;
   final ValueChanged<List<T>> onChanged;
@@ -103,6 +111,7 @@ class MasrafyMultiSelectField<T> extends StatelessWidget {
                 letterSpacing: 0.5,
               ),
         ),
+        MasrafyFieldHelper(helper),
         Gap(MasrafyFieldMetrics.labelGap),
         GestureDetector(
           onTap: isEnabled ? () => _open(context) : null,

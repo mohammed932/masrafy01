@@ -38,13 +38,6 @@ import { LoanCategory } from '@prisma/client';
 import type { BlueprintCap, ProductBlueprint } from './product-blueprint.types';
 
 const PERSONAL_AND_CAR = [LoanCategory.personal, LoanCategory.car] as const;
-const ALL_CATEGORIES = [
-  LoanCategory.personal,
-  LoanCategory.car,
-  LoanCategory.mortgage,
-  LoanCategory.business,
-] as const;
-
 /**
  * The three city tiers, as migration `20260901120000` cut them.
  *
@@ -843,7 +836,11 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         factKey: 'school_stage',
         questionEn: 'Which stage do you teach?',
         questionAr: 'ما المرحلة التي تدرّسها؟',
-        categories: PERSONAL_AND_CAR,
+        // Personal only: this product's catalog name (`teachers_predefined`) is
+        // assigned to personal and its one live programme
+        // (`CAE-PER-TEACHERS_PREDEFINED`) is personal. Asking a car applicant
+        // which stage they teach reads as a mistake and feeds no ceiling.
+        categories: [LoanCategory.personal],
         list: {
           typeKey: 'school_stage',
           labelEn: 'School stages',
@@ -862,7 +859,10 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionAr: 'هل المدرسة دولية أم وطنية؟',
         helperEn: 'International means an American diploma, an international Bachelor, or IGCSE.',
         helperAr: 'الدولية تعني الدبلومة الأمريكية أو البكالوريا الدولية أو IGCSE.',
-        categories: PERSONAL_AND_CAR,
+        // Personal only, matching `school_type_cap` — the same fact, and the two
+        // programmes that read it are both personal. Left at personal+car, the
+        // seed re-widened it on every run and put it back on the car form.
+        categories: [LoanCategory.personal],
         list: {
           typeKey: 'school_type',
           labelEn: 'School types',
@@ -903,7 +903,13 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionAr: 'كيف تصنّف جهة عملك في البنك؟',
         helperEn: 'Your bank can tell you. Leave it if you do not know.',
         helperAr: 'يمكن للبنك إخبارك. اتركه إذا لم تكن متأكدًا.',
-        categories: ALL_CATEGORIES,
+        // The ONE loan type that reads it. This said all four, which is what put
+        // "How is your employer coded at the bank?" on the car, mortgage and
+        // business forms — where no live programme caps by `employer_coding`.
+        // Only `ABK-PER-SALARIED_CODING` does, and it is personal. A cap question
+        // belongs to the loan types whose programmes quote that cap; anywhere else
+        // it is a question the applicant cannot act on and nothing reads.
+        categories: [LoanCategory.personal],
         list: {
           typeKey: 'employer_coding',
           labelEn: 'Employer coding',
@@ -935,7 +941,11 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         factKey: 'school_type',
         questionEn: 'Is the school international or national?',
         questionAr: 'هل المدرسة دولية أم وطنية؟',
-        categories: PERSONAL_AND_CAR,
+        // Personal only, for the reason `employer_coding` above is: the one live
+        // programme that caps by `school_type` is `CAE-PER-TEACHERS_STANDARD`.
+        // Asking a car applicant whether their school is international offers no
+        // "I do not teach" answer and feeds no cap.
+        categories: [LoanCategory.personal],
         list: {
           typeKey: 'school_type',
           labelEn: 'School types',

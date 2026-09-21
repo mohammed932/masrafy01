@@ -1325,7 +1325,7 @@ abstract class AppLocalizations {
   /// Income basis income_proof — customer-facing name. Never render the raw value
   ///
   /// In ar, this message translates to:
-  /// **'بكشف راتب'**
+  /// **'إثبات الدخل'**
   String get loan_setup_income_proof_title;
 
   /// Income basis income_proof — what it means
@@ -1337,7 +1337,7 @@ abstract class AppLocalizations {
   /// Income basis income_surrogate — customer-facing name. Never render the raw value
   ///
   /// In ar, this message translates to:
-  /// **'بدون كشف راتب'**
+  /// **'بديل الدخل'**
   String get loan_setup_income_surrogate_title;
 
   /// Income basis income_surrogate — what it means

@@ -43,7 +43,7 @@ ApplyRequest mapCarAnswersToApplyRequest(
     loanPurpose: 'car',
     requestedAmountEGP: money.requestedAmountEGP,
     preferredTenorMonths: money.tenorMonths,
-    priority: _priority(pickedOption(answers, 'priority_factor')),
+    priority: mapPriority(pickedOption(answers, 'priority_factor')),
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
@@ -98,11 +98,3 @@ const Map<String, String> _employmentType = {
   'retired': 'retired',
 };
 
-/// `priority_factor` seed code → backend `priority` enum
-/// (`lowest_installment | lowest_interest | fastest_approval | least_paperwork`).
-String _priority(String? code) => switch (code) {
-      'lowest_down_payment' || 'lowest_monthly_installment' => 'lowest_installment',
-      'lowest_interest_rate' => 'lowest_interest',
-      'financing_without_a_guarantor' => 'least_paperwork',
-      _ => 'fastest_approval',
-    };

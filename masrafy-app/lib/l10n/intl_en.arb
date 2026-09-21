@@ -273,7 +273,7 @@
   "@loan_setup_step_income_helper": {
     "description": "Loan setup wizard step 2 — one-liner explaining that the answer filters programs"
   },
-  "loan_setup_income_proof_title": "With a payslip",
+  "loan_setup_income_proof_title": "Income proof",
   "@loan_setup_income_proof_title": {
     "description": "Income basis income_proof — customer-facing name. Never render the raw value"
   },
@@ -281,7 +281,7 @@
   "@loan_setup_income_proof_desc": {
     "description": "Income basis income_proof — what it means"
   },
-  "loan_setup_income_surrogate_title": "Without a payslip",
+  "loan_setup_income_surrogate_title": "Surrogate",
   "@loan_setup_income_surrogate_title": {
     "description": "Income basis income_surrogate — customer-facing name. Never render the raw value"
   },

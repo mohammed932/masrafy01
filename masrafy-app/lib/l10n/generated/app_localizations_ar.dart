@@ -687,14 +687,14 @@ class AppLocalizationsAr extends AppLocalizations {
       'نعرض لك البرامج التي يقبلها البنك بهذه الطريقة فقط.';
 
   @override
-  String get loan_setup_income_proof_title => 'بكشف راتب';
+  String get loan_setup_income_proof_title => 'إثبات الدخل';
 
   @override
   String get loan_setup_income_proof_desc =>
       'لديك كشف راتب أو تحويل راتب من جهة عملك.';
 
   @override
-  String get loan_setup_income_surrogate_title => 'بدون كشف راتب';
+  String get loan_setup_income_surrogate_title => 'بديل الدخل';
 
   @override
   String get loan_setup_income_surrogate_desc =>

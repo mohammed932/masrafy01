@@ -33,7 +33,7 @@ ApplyRequest mapMortgageAnswersToApplyRequest(
     loanPurpose: 'mortgage',
     requestedAmountEGP: money.requestedAmountEGP,
     preferredTenorMonths: money.tenorMonths,
-    priority: _priority(pickedOption(answers, 'priority_factor')),
+    priority: mapPriority(pickedOption(answers, 'priority_factor')),
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
@@ -106,13 +106,3 @@ String _propertyType(String? code) => code == 'villa' ? 'villa' : 'apartment';
 String _constructionStage(String? code) =>
     code == 'officially_registered' ? 'ready' : 'under_construction';
 
-/// `priority_factor` seed code → backend `priority` enum
-/// (`lowest_installment | lowest_interest | fastest_approval | least_paperwork`).
-String _priority(String? code) => switch (code) {
-      'lowest_monthly_installment' ||
-      'longest_repayment_period' ||
-      'lowest_down_payment' =>
-        'lowest_installment',
-      'lowest_administrative_fees' => 'least_paperwork',
-      _ => 'fastest_approval',
-    };
