@@ -1474,8 +1474,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Added up from the payments you listed above.';
 
   @override
+  String get q_dyn_cannot_submit =>
+      'We can’t price this loan type yet — a question it needs is missing. Please try another, or contact support.';
+
+  @override
   String get q_dyn_money_missing =>
-      'Fill in the amount, repayment period, income and current installments to see your offers.';
+      'Answer the questions marked required to see your offers.';
 
   @override
   String q_personal_years(Object years) {

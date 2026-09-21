@@ -49,7 +49,9 @@ class MatchResultsArgs {
       MatchResultsArgs(
         loanTypeKey: loanTypeKey,
         amount: double.tryParse(request.requestedAmountEGP) ?? 0,
-        durationMonths: request.preferredTenorMonths,
+        // 0 when the loan type never asked for a term: the header then shows no duration
+        // rather than one nobody chose, and each offer carries its own effective term.
+        durationMonths: request.preferredTenorMonths ?? 0,
         request: request,
       );
 

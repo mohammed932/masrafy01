@@ -11,6 +11,7 @@ import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
 import 'package:app/core/widgets/keyboard/masrafy_keyboard_inset.dart';
+import 'package:app/core/widgets/common/masrafy_toast.dart';
 import 'package:app/features/matching/data/models/request/apply_request.dart';
 import 'package:app/features/offers/presentation/models/match_results_args.dart';
 import 'package:app/features/questionnaire/domain/enums/loan_category.dart';
@@ -86,6 +87,7 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
+    final l = AppLocalizations.of(context);
 
     return BlocConsumer<QuestionnaireCubit, QuestionnaireState>(
       listenWhen: (prev, curr) =>
@@ -93,8 +95,25 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
           (!prev.submitted && curr.submitted),
       listener: (ctx, state) {
         if (state.submitted) {
+          // `buildRequest` throws when the published questionnaire cannot produce a
+          // priceable payload — a loan type that stopped asking one of the four bound
+          // money figures, say. That used to escape as an unhandled exception from
+          // inside this listener, which aborts the listener and leaves the route
+          // un-pushed: the customer taps Finish and the screen does nothing at all,
+          // forever, with the reason only visible in a device log.
+          //
+          // Caught here so the failure is SAID. `check:money` is what stops a snapshot
+          // like that shipping; this is what happens when one did anyway.
+          final ApplyRequest request;
+          try {
+            request = widget.buildRequest(state);
+          } catch (_) {
+            ctx.read<QuestionnaireCubit>().submissionHandled();
+            MasrafyToast.error(ctx, l.q_dyn_cannot_submit);
+            return;
+          }
           final args = MatchResultsArgs.fromRequest(
-            request: widget.buildRequest(state),
+            request: request,
             loanTypeKey: widget.category.code,
           );
           // Disarmed BEFORE routing: the flag is a one-shot, so coming back and
@@ -201,9 +220,10 @@ class _StepCta extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final cubit = context.read<QuestionnaireCubit>();
-    // The last step additionally requires every money binding to resolve.
+    // The last step additionally requires every question the snapshot marks required —
+    // in ANY step — to hold an acceptable answer.
     final canProceed = state.isLastStep ? state.canFinish : state.canAdvance;
-    final blocked = state.isLastStep && state.missingMoneyFigures.isNotEmpty;
+    final blocked = state.isLastStep && state.unansweredRequired.isNotEmpty;
 
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(24.w, 8.h, 24.w, 12.h),

@@ -238,7 +238,10 @@ export class EngineService {
       // principal (cash + financed fees) is `effectiveLoanAmountEGP`.
       requestedLoanAmountEGP: quote.cashToCustomerEGP,
       effectiveLoanAmountEGP: quote.offeredAmountEGP,
-      requestedTenorMonths: args.profile.preferredTenorMonths,
+      // No term asked for -> the offer records the one actually written, so a reader is
+      // never shown a request the customer did not make.
+      requestedTenorMonths:
+        args.profile.preferredTenorMonths ?? quote.effectiveTenorMonths,
       effectiveTenorMonths: quote.effectiveTenorMonths,
       feesBreakdown: quote.feesBreakdown,
       requiredDocuments: args.program.requiredDocuments,

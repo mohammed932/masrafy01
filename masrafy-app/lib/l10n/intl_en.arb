@@ -627,7 +627,8 @@
     }
   },
   "q_dyn_obligations_total_helper": "Added up from the payments you listed above.",
-  "q_dyn_money_missing": "Fill in the amount, repayment period, income and current installments to see your offers.",
+  "q_dyn_cannot_submit": "We can’t price this loan type yet — a question it needs is missing. Please try another, or contact support.",
+  "q_dyn_money_missing": "Answer the questions marked required to see your offers.",
   "q_personal_years": "{years} years",
   "q_personal_step1_title": "Financing Details",
   "q_personal_step2_title": "Employment & Income",

@@ -420,7 +420,11 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // to report which constraint bound it. Two computations of one term is exactly how the
   // priced loan and the reported loan come apart.
   const tenorPlan = resolveTenor({
-    requested: Math.floor(input.overrideTenorMonths ?? profile.preferredTenorMonths),
+    // No term asked for -> the programme's own ceiling, which `resolveTenor` then clamps
+    // against the age and vehicle caps exactly as it would a customer's request.
+    requested: Math.floor(
+      input.overrideTenorMonths ?? profile.preferredTenorMonths ?? cascadeMaxTenor,
+    ),
     minMonths: planMinMonths,
     maxMonths: cascadeMaxTenor,
     maxAge: program.eligibility?.maxAge,

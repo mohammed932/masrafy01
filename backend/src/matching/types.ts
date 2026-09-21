@@ -84,7 +84,8 @@ export interface ApplicantProfile {
   age: number;
   loanPurpose: string;
   requestedAmountEGP: Decimal;
-  preferredTenorMonths: number;
+  /** Absent = quote at each programme's own maximum term. See `ApplyRequestDto`. */
+  preferredTenorMonths?: number;
   priority: ApplicationPriority;
   nationalId?: string;
   employment: EmploymentProfile;

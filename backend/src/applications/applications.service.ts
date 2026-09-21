@@ -491,7 +491,11 @@ export class ApplicationsService {
           result.status === 'matched' ? ApplicationStatus.matched : ApplicationStatus.no_match,
         priority: dto.priority,
         requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
-        preferredTenorMonths: dto.preferredTenorMonths,
+        // The column is NOT NULL and the customer may not have been asked. Falling back to
+        // the term the engine actually wrote keeps the row readable — and the offers carry
+        // their own `effectiveTenorMonths`, which is the figure anyone auditing reads.
+        preferredTenorMonths:
+          dto.preferredTenorMonths ?? result.offers[0]?.effectiveTenorMonths ?? 0,
         loanPurpose: dto.loanPurpose,
         // Snapshot of the age the engine actually priced on (derived, not stored
         // on the customer — Principle XXXVII / A31).

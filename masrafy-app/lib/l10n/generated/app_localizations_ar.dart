@@ -1445,8 +1445,12 @@ class AppLocalizationsAr extends AppLocalizations {
       'محسوب من الأقساط التي أدخلتها أعلاه.';
 
   @override
+  String get q_dyn_cannot_submit =>
+      'لا يمكن تسعير هذا النوع حاليًا — ينقصه سؤال مطلوب. جرّب نوعًا آخر أو تواصل مع الدعم.';
+
+  @override
   String get q_dyn_money_missing =>
-      'أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.';
+      'أجب عن الأسئلة الإلزامية لعرض العروض المتاحة.';
 
   @override
   String q_personal_years(Object years) {

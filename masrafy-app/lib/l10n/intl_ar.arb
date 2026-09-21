@@ -939,7 +939,8 @@
   "@q_dyn_obligations_total_helper": {
     "description": "Helper under the read-only derived obligations total"
   },
-  "q_dyn_money_missing": "أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.",
+  "q_dyn_cannot_submit": "لا يمكن تسعير هذا النوع حاليًا — ينقصه سؤال مطلوب. جرّب نوعًا آخر أو تواصل مع الدعم.",
+  "q_dyn_money_missing": "أجب عن الأسئلة الإلزامية لعرض العروض المتاحة.",
   "q_personal_years": "{years} سنة",
   "q_personal_step1_title": "بيانات التمويل",
   "q_personal_step2_title": "العمل والدخل",

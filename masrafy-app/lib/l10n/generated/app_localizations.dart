@@ -2744,10 +2744,16 @@ abstract class AppLocalizations {
   /// **'محسوب من الأقساط التي أدخلتها أعلاه.'**
   String get q_dyn_obligations_total_helper;
 
+  /// No description provided for @q_dyn_cannot_submit.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تسعير هذا النوع حاليًا — ينقصه سؤال مطلوب. جرّب نوعًا آخر أو تواصل مع الدعم.'**
+  String get q_dyn_cannot_submit;
+
   /// No description provided for @q_dyn_money_missing.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.'**
+  /// **'أجب عن الأسئلة الإلزامية لعرض العروض المتاحة.'**
   String get q_dyn_money_missing;
 
   /// No description provided for @q_personal_years.
