@@ -1115,7 +1115,9 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       type: 'NUMERIC',
       questionEn: 'How much do you need?',
       questionAr: 'ما المبلغ الذي تحتاجه؟',
-      numeric: { minValue: '1000', maxValue: '20000000', step: '1000', unitEn: 'EGP', unitAr: 'جنيه' },
+      // 10 000 and not 1 000: the operator raised the floor on 2026-09-21 and the seed was
+      // reasserting 1 000 on every run, which is how an admin edit silently disappears.
+      numeric: { minValue: '10000', maxValue: '20000000', step: '1000', unitEn: 'EGP', unitAr: 'جنيه' },
       options: [],
     },
   },
@@ -1784,6 +1786,148 @@ export interface SeedPool {
 }
 
 /**
+ * The ONLY questions the CAR category asks — every other question in the pool has `'car'`
+ * stripped by `narrowCarCategory` below, whatever its own `categories` array says.
+ *
+ * WHY A WHITELIST AND NOT 37 EDITS. The alternative was deleting `'car'` from each question's
+ * own `categories` array. Three things made that worse: the four additional-income amounts and
+ * the five obligation amounts DERIVE their categories from a source question, so the edit would
+ * live somewhere different for them than for the rest; a question added to the pool later would
+ * silently reappear in the car flow; and the reasoning below would have no home. A positive
+ * list fails CLOSED — a new question is not asked of a car applicant until somebody adds it.
+ *
+ * WHAT IS IN IT, and none of it is a preference. The car flow was cut from 63 questions to
+ * these 23; an applicant under `new_car` is asked 17 of them, the rest narrowed away per
+ * programme name by `question-scope.ts`. Every one is here for a measured reason:
+ *
+ *   the four money bindings    `amount_requested`, `repayment_period_months`, `monthly_income`,
+ *                              `current_installments` — the engine cannot quote without them
+ *                              (`money-field-bindings.ts`)
+ *   the debt-type source       `current_loans` — `current_installments` renders DERIVED and
+ *                              READ-ONLY whenever this is served, so dropping it leaves an
+ *                              applicant unable to state any obligation and the debt burden
+ *                              measured against zero. That is over-lending, not a shorter form
+ *   two obligation amounts     `obligation_other`, `obligation_personal_loan` — read by
+ *                              `auto_down_payment_income`, and the second reason `current_loans`
+ *                              stays: both are gated on it, and a dangling gate never hides
+ *                              its target, so they would turn unconditionally visible
+ *   the car figures            `car_price`, `car_down_payment` — the LTV ceiling; plus
+ *                              `car_dealer`, `car_origin`, `car_fuel_type`, `car_model_year`,
+ *                              `vehicle_condition`, `car_insurance`, each read by a live car
+ *                              programme's rate or term grid. A grid that misses its fact does
+ *                              not report an error: `onNoMatch: 'useProgramMax'` quietly quotes
+ *                              the programme's own maximum instead of the bank's row
+ *   the surrogate facts        `business_months`, `self_employed_licence`, `home_ownership`,
+ *                              `unit_approved_compound`, `green_buyer_type`, `total_savings` —
+ *                              read by `auto_down_payment_income`; the first four by CONDITIONS,
+ *                              which refuse outright when unanswered (v28.0.0)
+ *   the two operator asks      `priority_factor` — losing it drops all four mobile priority
+ *                              mappers to their default arm and freezes the wrong offer order
+ *                              onto immutable rows (Principle V) — and `i_score`
+ *
+ * `check:question-scope` is the standing gate on this list: it fails if any live programme
+ * reads a fact whose question the car category no longer asks.
+ */
+const CAR_ASKS: ReadonlySet<string> = new Set<string>([
+  'amount_requested',
+  'business_months',
+  'car_dealer',
+  'car_down_payment',
+  'car_fuel_type',
+  'car_insurance',
+  'car_model_year',
+  'car_origin',
+  'car_price',
+  'current_installments',
+  'current_loans',
+  'green_buyer_type',
+  'home_ownership',
+  'i_score',
+  'monthly_income',
+  'obligation_other',
+  'obligation_personal_loan',
+  'priority_factor',
+  'repayment_period_months',
+  'self_employed_licence',
+  'total_savings',
+  'unit_approved_compound',
+  'vehicle_condition',
+]);
+
+/**
+ * Strip `'car'` from every question `CAR_ASKS` does not name.
+ *
+ * Runs AFTER every derivation — the additional-income amounts, the obligation amounts and the
+ * bureau score each compute their own categories from a source question, so a narrowing
+ * applied earlier would be undone by whichever of them ran last.
+ */
+/**
+ * Thin steps merged into full ones.
+ *
+ * A group IS a wizard step on the phone, so ten groups meant a customer walking five to
+ * seven screens, several of them holding three questions under a full-height hero. The
+ * content did not change — where it is cut did. Business was the worst: seven steps for
+ * fifteen questions, every one of them thin.
+ *
+ * Applied as a post-merge remap rather than by re-cutting the group blocks in the four
+ * category configs, for the reason `narrowCarCategory` is: the configs are the authored
+ * record of what each loan type asks, and twenty blocks edited by hand is twenty chances
+ * to drop a question. Here the merge is one table, and a question that names a retired
+ * group is a loud failure rather than a silent orphan.
+ *
+ * Titles come from the ABSORBING group and are widened to cover both halves — "About the
+ * financing" cannot head a step that now also asks where the applicant works.
+ */
+const GROUP_MERGES: Readonly<Record<string, string>> = {
+  employment_income: 'financing_info',
+  collateral_gates: 'commitments',
+  financial_info: 'business_financing',
+  obligations_credit: 'business_financing',
+};
+
+/** The widened heading each absorbing group needs once it carries both halves. */
+const MERGED_GROUP_TITLES: Readonly<Record<string, { titleEn: string; titleAr: string }>> = {
+  financing_info: { titleEn: 'About you and the money', titleAr: 'عنك وعن التمويل' },
+  commitments: { titleEn: 'What you already have', titleAr: 'ما لديك بالفعل' },
+  business_financing: { titleEn: 'About your business', titleAr: 'عن نشاطك التجاري' },
+};
+
+/**
+ * Re-point every question in a retired group at its absorbing one, retitle the absorbers,
+ * and drop the retired groups from the order. Mutates the pool in place.
+ */
+function mergeThinGroups(
+  groupOrder: string[],
+  groupByCode: Map<string, SeedGroup>,
+  questionByCode: Map<string, MergedQuestion>,
+): void {
+  for (const [from, to] of Object.entries(GROUP_MERGES)) {
+    if (!groupByCode.has(to)) {
+      throw new Error(`seed-questionnaire: group merge targets unknown group '${to}'`);
+    }
+  }
+  for (const q of questionByCode.values()) {
+    const to = GROUP_MERGES[q.groupCode];
+    if (to !== undefined) q.groupCode = to;
+  }
+  for (const [code, title] of Object.entries(MERGED_GROUP_TITLES)) {
+    const g = groupByCode.get(code);
+    if (g) groupByCode.set(code, { ...g, ...title });
+  }
+  for (const from of Object.keys(GROUP_MERGES)) {
+    groupByCode.delete(from);
+    const at = groupOrder.indexOf(from);
+    if (at !== -1) groupOrder.splice(at, 1);
+  }
+}
+
+function narrowCarCategory(categoriesByQuestion: Record<string, Set<Category>>): void {
+  for (const [code, categories] of Object.entries(categoriesByQuestion)) {
+    if (categories.has('car') && !CAR_ASKS.has(code)) categories.delete('car');
+  }
+}
+
+/**
  * Steps 1–1d: merge the four category configs into ONE global deduped pool.
  * Reads only (the bank + enumeration registries back some option lists); writes
  * nothing, so it is safe to call on its own.
@@ -1999,6 +2143,13 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
     .filter((code) => !obligationBlock.includes(code))
     .reduce((max, code) => Math.max(max, questionOrder.indexOf(code)), -1);
   questionOrder.splice(lastMoneyIndex + 1, 0, ...obligationBlock);
+
+  // The CAR narrowing, applied last so no derivation can undo it — see `CAR_ASKS`.
+  narrowCarCategory(categoriesByQuestion);
+
+  // Steps merged last, after every question has been placed and ordered: the remap only
+  // rewrites `groupCode`, so the order within a merged step is the order built above.
+  mergeThinGroups(groupOrder, groupByCode, questionByCode);
 
   return { groupOrder, groupByCode, questionOrder, questionByCode, categoriesByQuestion };
 }
