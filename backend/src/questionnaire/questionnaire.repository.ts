@@ -106,8 +106,15 @@ export class QuestionnaireRepository {
         });
       }
       if (categories.length > 0) {
+        // SEEDED from the question's own pool position, not 0. Every category asks it where
+        // the pool already puts it, which is where the operator who just typed it expects to
+        // find it — a 0 would put a brand-new question first in four categories at once.
         await tx.questionLoanCategory.createMany({
-          data: categories.map((category) => ({ questionId: created.id, category })),
+          data: categories.map((category) => ({
+            questionId: created.id,
+            category,
+            displayOrder: created.displayOrder,
+          })),
         });
       }
       return created;
@@ -213,6 +220,77 @@ export class QuestionnaireRepository {
     return map;
   }
 
+  /**
+   * Every question's position IN EACH CATEGORY it is asked for.
+   *
+   * Its own read beside `categoryAssignments` rather than a widening of it: five callers want
+   * the SET and two want the ORDER, and a single method returning both would have every one of
+   * them destructuring a shape it does not use. Same table, same round trip class, and both
+   * are admin-side.
+   *
+   * A question absent from the map is asked by no category; a category absent from its entry
+   * is one it is not asked for. Neither is a zero.
+   */
+  async categoryOrders(): Promise<Map<string, Partial<Record<LoanCategory, number>>>> {
+    const rows = await this.prisma.questionLoanCategory.findMany({
+      select: { questionId: true, category: true, displayOrder: true },
+    });
+    const map = new Map<string, Partial<Record<LoanCategory, number>>>();
+    for (const row of rows) {
+      const entry = map.get(row.questionId) ?? {};
+      entry[row.category] = row.displayOrder;
+      map.set(row.questionId, entry);
+    }
+    return map;
+  }
+
+  /**
+   * One category's asked questions, in ITS order — the list the admin drags and the exact
+   * set a reorder must send back.
+   *
+   * Ordered by the join row first and the pool second, which is the same tie-break the
+   * snapshot reader applies: a dense reorder can collide with a row seeded later from the
+   * pool, and a collision has to resolve the same way on both sides or the screen would be
+   * showing an order the applicant does not get.
+   */
+  async questionIdsInCategory(category: LoanCategory): Promise<string[]> {
+    const rows = await this.prisma.questionLoanCategory.findMany({
+      where: { category },
+      select: {
+        questionId: true,
+        displayOrder: true,
+        question: { select: { displayOrder: true, code: true } },
+      },
+    });
+    return rows
+      .sort(
+        (a, b) =>
+          a.displayOrder - b.displayOrder ||
+          a.question.displayOrder - b.question.displayOrder ||
+          a.question.code.localeCompare(b.question.code),
+      )
+      .map((row) => row.questionId);
+  }
+
+  /**
+   * Rewrite ONE category's order in one transaction: `displayOrder` becomes the id's index in
+   * `ids`. The full sequence, never a neighbour shift — the same guarantee `reorderQuestions`
+   * makes about the pool, and the reason the result has no duplicate or gapped positions.
+   *
+   * Scoped by `(questionId, category)`, so a question's place in the other three categories is
+   * untouched. That is the whole point of the column.
+   */
+  reorderCategoryQuestions(category: LoanCategory, ids: readonly string[]): Promise<unknown> {
+    return this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.questionLoanCategory.update({
+          where: { pk_question_loan_category: { questionId: id, category } },
+          data: { displayOrder: index },
+        }),
+      ),
+    );
+  }
+
   categoriesOf(questionId: string): Promise<{ category: LoanCategory }[]> {
     return this.prisma.questionLoanCategory.findMany({
       where: { questionId },
@@ -227,10 +305,33 @@ export class QuestionnaireRepository {
    */
   setCategories(questionId: string, categories: readonly LoanCategory[]): Promise<unknown> {
     return this.prisma.$transaction(async (tx) => {
+      // READ BEFORE THE DELETE. The replace is what makes the written set exactly the
+      // submitted set, but it would also throw away where each surviving category asks this
+      // question — so an operator who unticked one category would silently send the question
+      // back to its pool position in the three they did not touch.
+      const held = new Map(
+        (
+          await tx.questionLoanCategory.findMany({
+            where: { questionId },
+            select: { category: true, displayOrder: true },
+          })
+        ).map((row) => [row.category, row.displayOrder] as const),
+      );
+      const seed =
+        (
+          await tx.question.findUnique({
+            where: { id: questionId },
+            select: { displayOrder: true },
+          })
+        )?.displayOrder ?? 0;
       await tx.questionLoanCategory.deleteMany({ where: { questionId } });
       if (categories.length === 0) return;
       await tx.questionLoanCategory.createMany({
-        data: categories.map((category) => ({ questionId, category })),
+        data: categories.map((category) => ({
+          questionId,
+          category,
+          displayOrder: held.get(category) ?? seed,
+        })),
       });
     });
   }
@@ -269,8 +370,17 @@ export class QuestionnaireRepository {
     );
     const missing = categories.filter((category) => !existing.has(category));
     if (missing.length === 0) return [];
+    // Seeded from the pool position, like every other insert into this table: a question
+    // newly asked by a category lands where the pool already puts it.
+    const seed =
+      (
+        await this.prisma.question.findUnique({
+          where: { id: questionId },
+          select: { displayOrder: true },
+        })
+      )?.displayOrder ?? 0;
     await this.prisma.questionLoanCategory.createMany({
-      data: missing.map((category) => ({ questionId, category })),
+      data: missing.map((category) => ({ questionId, category, displayOrder: seed })),
       skipDuplicates: true,
     });
     // The pre-read set, not a re-read. A concurrent tick of the SAME category makes this a
@@ -330,13 +440,25 @@ export class QuestionnaireRepository {
         set.add(row.category);
         held.set(row.questionId, set);
       }
-      const rows: { questionId: string; category: LoanCategory }[] = [];
+      // The pool positions the new rows are seeded from — one read for every question in the
+      // request, for the reason every other insert into this table seeds: a question newly
+      // asked by a category lands where the pool already puts it, not first.
+      const seeds = new Map(
+        (
+          await tx.question.findMany({
+            where: { id: { in: [...wanted.keys()] } },
+            select: { id: true, displayOrder: true },
+          })
+        ).map((row) => [row.id, row.displayOrder] as const),
+      );
+      const rows: { questionId: string; category: LoanCategory; displayOrder: number }[] = [];
       for (const [questionId, categories] of wanted) {
         const have = held.get(questionId);
         const missing = [...categories].filter((category) => !have?.has(category));
         if (missing.length === 0) continue;
         added.set(questionId, missing);
-        for (const category of missing) rows.push({ questionId, category });
+        for (const category of missing)
+          rows.push({ questionId, category, displayOrder: seeds.get(questionId) ?? 0 });
       }
       if (rows.length === 0) return added;
       await tx.questionLoanCategory.createMany({ data: rows, skipDuplicates: true });
@@ -350,11 +472,39 @@ export class QuestionnaireRepository {
     assignments: ReadonlyArray<{ questionId: string; categories: readonly LoanCategory[] }>,
   ): Promise<unknown> {
     return this.prisma.$transaction(async (tx) => {
+      // The positions every touched question already holds, read ONCE before any delete —
+      // the bulk twin of `setCategories`'s own pre-read, and for the same reason: a column
+      // action that re-ticks a category must not move the question inside the categories it
+      // leaves alone.
+      const ids = assignments.map((a) => a.questionId);
+      const held = new Map<string, Map<LoanCategory, number>>();
+      for (const row of await tx.questionLoanCategory.findMany({
+        where: { questionId: { in: ids } },
+        select: { questionId: true, category: true, displayOrder: true },
+      })) {
+        const entry = held.get(row.questionId) ?? new Map<LoanCategory, number>();
+        entry.set(row.category, row.displayOrder);
+        held.set(row.questionId, entry);
+      }
+      const seeds = new Map(
+        (
+          await tx.question.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, displayOrder: true },
+          })
+        ).map((row) => [row.id, row.displayOrder] as const),
+      );
       for (const a of assignments) {
         await tx.questionLoanCategory.deleteMany({ where: { questionId: a.questionId } });
         if (a.categories.length === 0) continue;
+        const kept = held.get(a.questionId);
+        const seed = seeds.get(a.questionId) ?? 0;
         await tx.questionLoanCategory.createMany({
-          data: a.categories.map((category) => ({ questionId: a.questionId, category })),
+          data: a.categories.map((category) => ({
+            questionId: a.questionId,
+            category,
+            displayOrder: kept?.get(category) ?? seed,
+          })),
         });
       }
     });

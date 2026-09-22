@@ -338,7 +338,7 @@ model BankProgram {
   /// The sibling of `incomeAssumption.amounts`, and read the same way: it does not describe
   /// the tables, it selects whose apply. A stated grid on the program still wins slot by
   /// slot, so "took the product's plans and typed my own rate" is expressible.
-  plansSource         String?  @db.VarChar(16)
+  plansSource String? @db.VarChar(16)
 
   /// Feature 011 — sparse map of config dot-path → 'team_estimated'
   /// (`{"pricing.baseRatePercent": "team_estimated"}`).
@@ -483,22 +483,22 @@ model Application {
 // -----------------------------------------------------------------------------
 
 model BankOffer {
-  id                      String    @id @default(cuid()) @db.VarChar(30)
-  applicationId           String    @db.VarChar(30)
-  programCode             String    @db.VarChar(32)
+  id                      String   @id @default(cuid()) @db.VarChar(30)
+  applicationId           String   @db.VarChar(30)
+  programCode             String   @db.VarChar(32)
   programVersion          Int
-  bankName                String    @db.VarChar(80)
-  programFriendlyName     String    @db.VarChar(120)
+  bankName                String   @db.VarChar(80)
+  programFriendlyName     String   @db.VarChar(120)
   /// Snapshot of the owning bank's `isFeatured` at match time (Constitution
   /// Principle I — BankOffer is immutable; the partner-bank flag is frozen
   /// here so a bank toggling its featured state later doesn't rewrite
   /// history). Surfaced to mobile so the FEATURED chip never goes stale.
-  bankIsFeatured          Boolean   @default(false)
+  bankIsFeatured          Boolean  @default(false)
   /// Snapshot of the program's Sharia-compliance flag at match time. Frozen on
   /// the offer for the same reason as `bankIsFeatured` (Principle I — BankOffer
   /// is immutable): a program later re-flagged must not rewrite past offers.
-  isShariaCompliant       Boolean   @default(false)
-  effectiveRatePercent    Decimal   @db.Decimal(7, 4)
+  isShariaCompliant       Boolean  @default(false)
+  effectiveRatePercent    Decimal  @db.Decimal(7, 4)
   /// How that rate was charged — `reducing` (interest on the outstanding balance) or
   /// `flat` (interest on the original principal for the whole tenor).
   ///
@@ -509,10 +509,10 @@ model BankOffer {
   ///
   /// `null` on every offer written before this column. Absent is NOT "flat": those offers
   /// were all priced by the reducing annuity, which is what `rateBasisOf` answers.
-  rateBasis               String?   @db.VarChar(16)
-  monthlyInstallmentEGP   Decimal   @db.Decimal(13, 2)
-  requestedLoanAmountEGP  Decimal   @db.Decimal(13, 2)
-  effectiveLoanAmountEGP  Decimal   @db.Decimal(13, 2)
+  rateBasis               String?  @db.VarChar(16)
+  monthlyInstallmentEGP   Decimal  @db.Decimal(13, 2)
+  requestedLoanAmountEGP  Decimal  @db.Decimal(13, 2)
+  effectiveLoanAmountEGP  Decimal  @db.Decimal(13, 2)
   requestedTenorMonths    Int
   effectiveTenorMonths    Int
   feesBreakdown           Json
@@ -529,22 +529,22 @@ model BankOffer {
   /// Which engine build priced this offer. Was the active `scoring_engine_version.version`;
   /// that registry existed only to version scoring weights and is gone, so the value now
   /// comes from `MATCHING_ENGINE_VERSION` in `src/matching/types.ts`.
-  engineVersion           String    @db.VarChar(32)
-  requiredDocuments       String[]  @db.VarChar(80)
-  matchReasons            String[]  @db.VarChar(80)
+  engineVersion           String   @db.VarChar(32)
+  requiredDocuments       String[] @db.VarChar(80)
+  matchReasons            String[] @db.VarChar(80)
   cascadeTrace            Json
-  qualitativeReviewBadge  Boolean   @default(false)
-  selfDeclared            Boolean   @default(false)
+  qualitativeReviewBadge  Boolean  @default(false)
+  selfDeclared            Boolean  @default(false)
   /// The applicant's borrowing ceiling at this program, frozen at match time:
   /// income × dbrCapPercent ÷ 100 − obligations, present-valued over the tenor.
   /// Independent of what was requested — compare with `effectiveLoanAmountEGP`
   /// to tell "this is your limit" from "you asked for less than you could have".
-  maxLoanAvailableEGP     Decimal?  @db.Decimal(13, 2)
+  maxLoanAvailableEGP     Decimal? @db.Decimal(13, 2)
   /// (installment + existing obligations) ÷ income × 100 for THIS offer, and the
   /// cap it was measured against (scalar or the resolved band). Frozen with the
   /// offer so a later policy change cannot rewrite why an amount was what it was.
-  dbrPercent              Decimal?  @db.Decimal(6, 2)
-  dbrCapPercent           Decimal?  @db.Decimal(7, 4)
+  dbrPercent              Decimal? @db.Decimal(6, 2)
+  dbrCapPercent           Decimal? @db.Decimal(7, 4)
   /// Feature 011 — WHICH income the quote actually ran on:
   /// `declared` · `surrogate` · `declared_over_surrogate` · `surrogate_over_declared`.
   ///
@@ -555,11 +555,11 @@ model BankOffer {
   ///
   /// `null` means "recorded before provenance existed" — NOT `declared`. Readers
   /// must render the absence rather than assume a value.
-  incomeOrigin            String?   @db.VarChar(32)
+  incomeOrigin            String?  @db.VarChar(32)
   /// The surrogate method that produced the income, when one did — the strategy
   /// token (`byMilitaryGrade`, …). `null` on a declared-income offer and on every
   /// offer predating this column.
-  incomeSurrogateStrategy String?   @db.VarChar(32)
+  incomeSurrogateStrategy String?  @db.VarChar(32)
   /// The I-SCORE MULTIPLIER this offer was priced at, as a percentage — `80.0000`,
   /// `100.0000`, `110.0000`. The figure `resolveIScoreFactor` returned for the score the
   /// applicant typed, against the tier table in force at match time.
@@ -573,13 +573,13 @@ model BankOffer {
   /// `100.0000` is a REAL answer — "measured, and this applicant's score cost them
   /// nothing". `null` means no table was in force, the applicant left the question blank,
   /// or the offer predates this column; absent is not `100`.
-  iScoreFactorPercent     Decimal?  @db.Decimal(7, 4)
+  iScoreFactorPercent     Decimal? @db.Decimal(7, 4)
   /// Whose tier table produced `iScoreFactorPercent` — `program` or `product`.
   ///
   /// The sibling of `incomeOrigin` above and recorded for the same reason: an admin looking
   /// at 80% cannot otherwise tell whether this bank states that tier or is reading the
   /// product's. `null` whenever `iScoreFactorPercent` is.
-  iScoreTiersSource       String?   @db.VarChar(16)
+  iScoreTiersSource       String?  @db.VarChar(16)
   /// The COLLATERAL CEILING a product rule derived for this applicant — what the unit,
   /// the membership or the vehicle supports, before their existing payments are taken off.
   ///
@@ -592,7 +592,7 @@ model BankOffer {
   ///
   /// `null` on every offer of an income-based program, and on every offer predating this
   /// column. Absent is not zero: a zero ceiling would mean the collateral supports nothing.
-  collateralCeilingEGP    Decimal?  @db.Decimal(13, 2)
+  collateralCeilingEGP    Decimal? @db.Decimal(13, 2)
 
   /// WHICH reduction decided this offer's amount — `ltv_ceiling`, `dbr_affordability`,
   /// `program_max`, `collateral_ceiling`, `program_max_by_fact`, `tenor_max`, `tenor_min`,
@@ -602,7 +602,7 @@ model BankOffer {
   /// away, so a customer saw a cut amount with nothing saying what cut it. Frozen here rather
   /// than re-derived at read time: the program's limits, its LTV and the applicant's answers
   /// can all move afterwards (Principle I / A6). `null` on offers predating the column.
-  bindingConstraint       String?   @db.VarChar(32)
+  bindingConstraint String? @db.VarChar(32)
 
   /// The down payment this offer implies: the car's price less the cash it pays out.
   ///
@@ -610,7 +610,7 @@ model BankOffer {
   /// payment is an eligibility floor, not the final one — the debt burden can push the
   /// financed amount below the LTV ceiling, which RAISES what the customer has to find, and
   /// this is the only field that says so.
-  requiredDownPaymentEGP  Decimal?  @db.Decimal(13, 2)
+  requiredDownPaymentEGP Decimal? @db.Decimal(13, 2)
 
   /// The longest term this program would have written for THIS VEHICLE — the ceiling its
   /// `tenor.maxMonthsByFact` table imposed, before the applicant's age or the program's own
@@ -626,9 +626,9 @@ model BankOffer {
   /// `null` when the program states no vehicle table, and on every offer written before this
   /// column. Absent is NOT zero: a zero ceiling would say the bank finances this car for no
   /// time at all.
-  vehicleMaxTenorMonths   Int?
-  createdAt               DateTime  @default(now()) @db.Timestamptz(6)
-  erasedAt                DateTime? @db.Timestamptz(6)
+  vehicleMaxTenorMonths Int?
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  erasedAt              DateTime? @db.Timestamptz(6)
 
   application            Application        @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
   selectedByApplications Application[]      @relation("ApplicationUserSelectedOffer")
@@ -1692,14 +1692,40 @@ model Question {
 // admin's "assign" tab warns on an empty row and `createQuestion` seeds all four
 // by default (nothing silently disappears from the wizard on create).
 model QuestionLoanCategory {
-  questionId String       @db.VarChar(30)
-  category   LoanCategory
-  createdAt  DateTime     @default(now()) @db.Timestamptz(6)
+  questionId   String       @db.VarChar(30)
+  category     LoanCategory
+  /// WHERE this category asks the question — the second axis of the order, beside
+  /// `question.displayOrder`.
+  ///
+  /// That one is the POOL's sequence and is shared: three categories asking the same row
+  /// were served it in the same place, so moving it for one moved it for all. This column
+  /// is the category's own answer, so a question can sit third in mortgage and tenth in
+  /// personal.
+  ///
+  /// WITHIN A STEP. The app renders one step per `question_group` and sorts the questions
+  /// inside it; a position across steps means nothing. The admin list that writes this is
+  /// grouped by step and `toCustomerSnapshot` sorts inside each group.
+  ///
+  /// SEEDED, never zero-by-default in practice: the migration backfilled every existing row
+  /// from `question.displayOrder` (so nothing moved), and every new assignment copies the
+  /// same figure — a question ticked into a category lands where the pool already put it,
+  /// rather than at the end of a list the operator was not looking at.
+  ///
+  /// TIES ARE LEGAL and are broken by `question.displayOrder` then `code` at read time: a
+  /// reorder writes a dense 0…n-1 over one category, and a row seeded later from the pool
+  /// can collide with it. A collision is a stable order, not a wrong one.
+  ///
+  /// FROZEN INTO THE SNAPSHOT (A33) as `categoryOrder`, never re-derived at read time: a
+  /// version served yesterday must go on asking in yesterday's order.
+  displayOrder Int          @default(0)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
 
   question Question @relation("QuestionLoanCategories", fields: [questionId], references: [id], onDelete: Cascade)
 
   @@id([questionId, category], name: "pk_question_loan_category")
   @@index([category], name: "idx_question_loan_category_category")
+  /// The read this table exists for now: one category's asked set, in its own order.
+  @@index([category, displayOrder], name: "idx_question_loan_category_order")
   @@map("question_loan_category")
 }
 

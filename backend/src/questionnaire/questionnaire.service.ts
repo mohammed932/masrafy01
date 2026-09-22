@@ -788,6 +788,54 @@ export class QuestionnaireService {
     return this.draftTree();
   }
 
+  /**
+   * Rewrite the order ONE loan category asks its questions in.
+   *
+   * The category twin of `reorderQuestions` above, and deliberately the same contract: the
+   * body carries that category's WHOLE asked set exactly once, and the write is a dense
+   * rewrite rather than a neighbour shift — which is what guarantees no duplicate or gapped
+   * position comes out of it.
+   *
+   * THE WHOLE SET, not the step being dragged. The admin list is grouped by step because an
+   * order only means something inside one, but a step is a slice of one sequence: accepting
+   * a slice would leave the server guessing where it belongs among the others, and two
+   * concurrent drags in different steps would each renumber from zero.
+   *
+   * IT MOVES ONLY THIS CATEGORY. That is the whole feature — the same question keeps its
+   * place in the other three, and the pool's own order is untouched (the Questions tab still
+   * owns that one).
+   *
+   * Publishes, like every other write on this screen: the category tab saves and publishes
+   * automatically, and an order sitting unpublished would be an order the applicant is not
+   * being asked in.
+   */
+  async reorderCategoryQuestions(category: LoanCategory, ids: string[], actor: string) {
+    const asked = await this.repo.questionIdsInCategory(category);
+    const active = new Set(
+      (await this.repo.questions()).filter((q) => q.isActive).map((q) => q.id),
+    );
+    // Only the ACTIVE ones: a soft-deleted question keeps its join rows, and the admin list
+    // never showed it, so demanding it back would make every reorder fail.
+    const expected = new Set(asked.filter((id) => active.has(id)));
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (!expected.has(id) || seen.has(id)) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'ids', value: id });
+      }
+      seen.add(id);
+    }
+    if (seen.size !== expected.size) {
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+        field: 'ids',
+        expected: expected.size,
+        received: seen.size,
+      });
+    }
+    await this.repo.reorderCategoryQuestions(category, ids);
+    await this.publish(actor);
+    return this.draftTree();
+  }
+
   // ---- Options ------------------------------------------------------------
   async createOption(questionId: string, dto: CreateOptionDto, actor: string) {
     const question = await this.repo.findQuestion(questionId);
@@ -862,6 +910,11 @@ export class QuestionnaireService {
     // Frozen INTO the snapshot: the customer read filters on it, so a later
     // reassignment must not retroactively change what an older version asked.
     const assignments = await this.repo.categoryAssignments();
+    // WHERE each category asks each question, frozen beside the set for the same reason the
+    // set is frozen: a reorder tomorrow must not retroactively change the order a version
+    // served yesterday. Absent on every version published before this existed, which the
+    // reader answers with the pool's order — what those versions were actually served.
+    const categoryOrders = await this.repo.categoryOrders();
     // ONE query for every question's options, not one per question. This runs on every write
     // to a mirrored list, and the snapshot it builds is the largest object in the system.
     const optionsOf = await this.repo.optionsByQuestions(questions.map((q) => q.id));
@@ -885,6 +938,13 @@ export class QuestionnaireService {
           displayOrder: q.displayOrder,
           enabledWhen: q.enabledWhen ?? null,
           categories: sortCategories(assignments.get(q.id) ?? []),
+          // A MAP, not an order on the category list: `categories` is read by name everywhere
+          // (`askedFor`, the admin, the health panel) and turning it into objects would break
+          // every one of them for a field only the serve path sorts by. Emitted only when the
+          // question is asked somewhere, so a parked question carries nothing.
+          ...(Object.keys(categoryOrders.get(q.id) ?? {}).length > 0
+            ? { categoryOrder: categoryOrders.get(q.id) }
+            : {}),
           // Emitted only for the type that owns them, so the payload stays honest.
           ...(q.type === 'NUMERIC' && numeric ? { numeric } : {}),
           ...(q.type === 'TEXT' && text ? { text } : {}),
@@ -1005,6 +1065,10 @@ export class QuestionnaireService {
     const groups = (await this.repo.groups()).filter((g) => g.isActive);
     const questions = (await this.repo.questions()).filter((q) => q.isActive);
     const assignments = await this.repo.categoryAssignments();
+    // Beside `categories` and for the same reason it rides here: the assign tab renders the
+    // rows AND the order it lets an operator drag, and a second fetch would be a second way
+    // for the two to disagree.
+    const categoryOrders = await this.repo.categoryOrders();
     const result = [];
     for (const g of groups) {
       const gQuestions = [];
@@ -1013,7 +1077,12 @@ export class QuestionnaireService {
         // `categories` rides along on the tree rather than on its own endpoint:
         // the assign tab and the pool tab render the same rows, so a second fetch
         // would only give the two tabs two ways to disagree.
-        gQuestions.push({ ...q, options, categories: sortCategories(assignments.get(q.id) ?? []) });
+        gQuestions.push({
+          ...q,
+          options,
+          categories: sortCategories(assignments.get(q.id) ?? []),
+          categoryOrder: categoryOrders.get(q.id) ?? {},
+        });
       }
       result.push({ ...g, questions: gQuestions });
     }
@@ -1777,7 +1846,10 @@ function toCustomerSnapshot(
   const snap = raw as StoredSnapshot;
   const inCategory = (snap.groups ?? []).map((g) => ({
     ...g,
-    questions: (g.questions ?? []).filter((q) => askedFor(q, category)),
+    questions: orderedForCategory(
+      (g.questions ?? []).filter((q) => askedFor(q, category)),
+      category,
+    ),
   }));
 
   // The program-name axis, applied ACROSS groups and in one call: a question's gate may point
@@ -1819,7 +1891,18 @@ function toCustomerSnapshot(
         // fact is not a smaller quote but no quote at all from that program. The app reads
         // requiredness straight off the snapshot, so this line is the whole of it client-side.
         isRequired: q['isRequired'] === true || decision.extraRequired.has(q.code),
-        displayOrder: q['displayOrder'],
+        // THE CATEGORY'S POSITION, emitted into the field the app sorts by — not the pool's.
+        //
+        // The app reads `displayOrder` and sorts the questions of a step by it
+        // (`questionnaire_snapshot_model.dart`). Serving the category's own number here is
+        // what makes a reorder on the admin's category tab reach the applicant with no app
+        // change at all; sending the pool's alongside a second field would be two orders on
+        // the wire and a client choosing between them.
+        //
+        // The array is already in this order (`orderedForCategory` above). The number goes
+        // with it so a client that sorts rather than trusts the array agrees with one that
+        // does not.
+        displayOrder: categoryPositionOf(q, category),
         enabledWhen: q['enabledWhen'] ?? null,
         // Rule blocks travel to the client so the app can enforce bounds locally
         // for immediate feedback. The server remains the authority.
@@ -1834,6 +1917,51 @@ function toCustomerSnapshot(
       })),
     })),
   };
+}
+
+/**
+ * A question's position in ONE category: the frozen per-category order when the version
+ * carries one, the pool's own when it does not.
+ *
+ * THE FALLBACK IS THE WHOLE COMPATIBILITY STORY. Every version published before
+ * `categoryOrder` existed was served the pool's order, and reading its absence as the pool's
+ * order is what makes those versions go on asking in exactly the order they asked in. A zero
+ * default would reorder history.
+ *
+ * No category asked (the admin's whole-pool read) is the pool's order too: there is no
+ * category to have an opinion.
+ */
+function categoryPositionOf(q: { [key: string]: unknown }, category?: LoanCategory): unknown {
+  const pool = q['displayOrder'];
+  if (category === undefined) return pool;
+  const orders = q['categoryOrder'];
+  if (orders === null || typeof orders !== 'object') return pool;
+  const own = (orders as Record<string, unknown>)[category];
+  return typeof own === 'number' ? own : pool;
+}
+
+/**
+ * One group's questions in the order THIS category asks them.
+ *
+ * Sorted, not filtered — the filtering happened a line above. Within a group only, because a
+ * group is a step on the app and a position across steps means nothing.
+ *
+ * TIES BREAK ON THE POOL then the CODE, the same chain `questionIdsInCategory` sorts by, so
+ * the admin list and the served questionnaire cannot disagree about two questions that were
+ * seeded to the same number. A stable, stated order beats a stable-but-accidental one.
+ */
+function orderedForCategory<T extends { code: string; [key: string]: unknown }>(
+  questions: T[],
+  category?: LoanCategory,
+): T[] {
+  if (category === undefined) return questions;
+  const num = (value: unknown): number => (typeof value === 'number' ? value : 0);
+  return [...questions].sort(
+    (a, b) =>
+      num(categoryPositionOf(a, category)) - num(categoryPositionOf(b, category)) ||
+      num(a['displayOrder']) - num(b['displayOrder']) ||
+      a.code.localeCompare(b.code),
+  );
 }
 
 /** Question counts off a customer snapshot's shape (a projection of stored JSON). */

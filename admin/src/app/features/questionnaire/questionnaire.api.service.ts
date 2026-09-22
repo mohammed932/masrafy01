@@ -107,6 +107,16 @@ export interface QuestionRow {
    * the question is kept and editable but asked for no category.
    */
   categories: LoanCategory[];
+  /**
+   * WHERE each category asks this question — the second axis of the order.
+   *
+   * `displayOrder` above is the POOL's one sequence, shared by every category that asks the
+   * row. This is the category's own answer, so the same question can be third in mortgage and
+   * tenth in personal. A category missing from the map is one this question is not asked for;
+   * an absent map is a server that predates the field, and every category then reads the
+   * pool's order — which is what it was served before.
+   */
+  categoryOrder?: Partial<Record<LoanCategory, number>>;
 }
 export type { ServedCount } from '@shared/questions/asked-questions.rules';
 import type { ServedCount } from '@shared/questions/asked-questions.rules';
@@ -380,6 +390,24 @@ export class QuestionnaireApiService {
    */
   reorderQuestions(ids: string[]): Promise<GroupTreeRow[]> {
     return this.post<GroupTreeRow[]>(`/questionnaire/questions/reorder`, { ids });
+  }
+
+  /**
+   * Rewrite the order ONE loan category asks its questions in.
+   *
+   * The category twin of `reorderQuestions` above and the same contract: `ids` is that
+   * category's WHOLE asked set, once each, in its new order — a partial list is rejected,
+   * for the reason a partial pool rewrite is.
+   *
+   * It moves NOTHING in the other three categories and nothing in the pool's own sequence:
+   * the position lives on the assignment row, not on the question. Publishes, like every
+   * write on this screen.
+   */
+  reorderCategoryQuestions(category: LoanCategory, ids: string[]): Promise<GroupTreeRow[]> {
+    return this.post<GroupTreeRow[]>(
+      `/questionnaire/questions/categories/${encodeURIComponent(category)}/reorder`,
+      { ids },
+    );
   }
 
   updateQuestion(id: string, body: UpdateQuestionBody): Promise<QuestionRow> {

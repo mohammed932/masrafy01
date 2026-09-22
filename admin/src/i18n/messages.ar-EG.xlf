@@ -879,6 +879,15 @@
       <trans-unit id="qcat.panel_count" datatype="html"><source>of <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions asked</source><target>من <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا مطروحة</target></trans-unit>
       <trans-unit id="qcat.ask_all" datatype="html"><source>Ask all listed</source><target>اطرح كل المعروض</target></trans-unit>
       <trans-unit id="qcat.remove_all" datatype="html"><source>Remove all listed</source><target>أزل كل المعروض</target></trans-unit>
+      <trans-unit id="qcat.order_mode" datatype="html"><source>Set the order</source><target>ترتيب الأسئلة</target></trans-unit>
+      <trans-unit id="qcat.order_done" datatype="html"><source>Done ordering</source><target>إنهاء الترتيب</target></trans-unit>
+      <trans-unit id="qcat.order_tip" datatype="html"><source>Set the order these questions are asked in, step by step</source><target>حدّد ترتيب طرح هذه الأسئلة، خطوة بخطوة</target></trans-unit>
+      <trans-unit id="qcat.order_lede" datatype="html"><source> Drag a question to move it, or use the arrows. Each step is one screen in the app, so a question can only move within its own. The other categories keep their own order. </source><target>اسحب السؤال لتحريكه، أو استخدم الأسهم. كل خطوة هي شاشة واحدة في التطبيق، لذلك يتحرك السؤال داخل خطوته فقط. وتحتفظ الأنواع الأخرى بترتيبها الخاص.</target></trans-unit>
+      <trans-unit id="qcat.order_filtered" datatype="html"><source> Dragging is off while the list is filtered — the order you'd see isn't the order applicants get. Use the arrows, or clear the search. </source><target>السحب متوقف أثناء تصفية القائمة — الترتيب الظاهر ليس الترتيب الذي يحصل عليه المتقدمون. استخدم الأسهم أو امسح البحث.</target></trans-unit>
+      <trans-unit id="qcat.reorder_aria" datatype="html"><source>Drag to reorder</source><target>اسحب لإعادة الترتيب</target></trans-unit>
+      <trans-unit id="qcat.move_up" datatype="html"><source>Move up</source><target>تحريك لأعلى</target></trans-unit>
+      <trans-unit id="qcat.move_down" datatype="html"><source>Move down</source><target>تحريك لأسفل</target></trans-unit>
+      <trans-unit id="qcat.live_reordered" datatype="html"><source>Order saved for <x id="category" equiv-text="this.label(category)"/></source><target>تم حفظ الترتيب لـ<x id="category" equiv-text="this.label(category)"/></target></trans-unit>
       <trans-unit id="qcat.sec_asked" datatype="html"><source>Asked in this category</source><target>مطروحة في هذا النوع</target></trans-unit>
       <trans-unit id="qcat.sec_not_asked" datatype="html"><source>Not asked here</source><target>غير مطروحة هنا</target></trans-unit>
       <trans-unit id="qcat.none_asked" datatype="html"><source>Nothing is asked here yet — tick a question below to add it.</source><target>لا توجد أسئلة مطروحة هنا بعد — حدّد سؤالًا بالأسفل لإضافته.</target></trans-unit>

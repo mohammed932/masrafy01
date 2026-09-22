@@ -17,7 +17,15 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { CheckOutline, SearchOutline, WarningOutline } from '@ant-design/icons-angular/icons';
+import { DragDropModule } from '@angular/cdk/drag-drop';
+import {
+  ArrowDownOutline,
+  ArrowUpOutline,
+  CheckOutline,
+  HolderOutline,
+  SearchOutline,
+  WarningOutline,
+} from '@ant-design/icons-angular/icons';
 import {
   LOAN_CATEGORIES,
   QuestionnaireApiService,
@@ -68,8 +76,18 @@ interface DanglingBranch {
     NzSpinModule,
     NzIconModule,
     NzToolTipModule,
+    DragDropModule,
   ],
-  providers: [provideNzIconsPatch([CheckOutline, SearchOutline, WarningOutline])],
+  providers: [
+    provideNzIconsPatch([
+      ArrowDownOutline,
+      ArrowUpOutline,
+      CheckOutline,
+      HolderOutline,
+      SearchOutline,
+      WarningOutline,
+    ]),
+  ],
   template: `
     <section class="page">
       <p class="sr-only" role="status" aria-live="polite">{{ status() }}</p>
@@ -192,12 +210,34 @@ interface DanglingBranch {
                 </span>
               </div>
               <div class="ph-acts">
+                <!-- The two verbs of this panel, and the switch between them. Ordering is a
+                     MODE and not a third button beside the bulk actions, because it changes
+                     what every row on the list is: a tick becomes a position, and the rows
+                     the category does not ask stop being on the page at all. -->
+                <button
+                  type="button"
+                  class="ghost"
+                  [class.on]="ordering()"
+                  [attr.aria-pressed]="ordering()"
+                  [disabled]="busy() || askedByStep().length === 0"
+                  (click)="ordering.set(!ordering())"
+                  nz-tooltip
+                  nzTooltipTitle="Set the order these questions are asked in, step by step"
+                  i18n-nzTooltipTitle="@@qcat.order_tip"
+                >
+                  @if (ordering()) {
+                    <span i18n="@@qcat.order_done">Done ordering</span>
+                  } @else {
+                    <span i18n="@@qcat.order_mode">Set the order</span>
+                  }
+                </button>
                 <!-- Bulk actions act on the rows LISTED, not the whole pool: with a
                    search on, "all" meaning "all 41" would be a silent mass edit
                    of rows nobody can see. -->
                 <button
                   type="button"
                   class="ghost"
+                  [hidden]="ordering()"
                   [disabled]="busy()"
                   (click)="setColumn(active(), true)"
                   nz-tooltip
@@ -210,6 +250,7 @@ interface DanglingBranch {
                 <button
                   type="button"
                   class="ghost"
+                  [hidden]="ordering()"
                   [disabled]="busy()"
                   (click)="setColumn(active(), false)"
                   nz-tooltip
@@ -249,7 +290,79 @@ interface DanglingBranch {
             </div>
           </div>
 
-          @if (visible().length === 0) {
+          @if (ordering()) {
+            <!-- ORDER MODE. One column and the steps named, because that is the shape of the
+                 thing being edited: the app pages one step per group and sorts the questions
+                 inside it, so the sequence is only readable when the boundaries are.
+
+                 The rows the category does NOT ask are gone from the page here — they have
+                 no position to set, and leaving them under a "not asked" heading would offer
+                 a drag that means nothing. -->
+            <p class="order-lede" i18n="@@qcat.order_lede">
+              Drag a question to move it, or use the arrows. Each step is one screen in the app, so
+              a question can only move within its own. The other categories keep their own order.
+            </p>
+            @if (filtering()) {
+              <p class="order-note" i18n="@@qcat.order_filtered">
+                Dragging is off while the list is filtered — the order you'd see isn't the order
+                applicants get. Use the arrows, or clear the search.
+              </p>
+            }
+            @for (step of askedByStep(); track step.id) {
+              <p class="sec">
+                <span>{{ step.title }}</span>
+                <span class="sec-n">{{ step.rows.length }}</span>
+              </p>
+              <ul
+                class="olist"
+                cdkDropList
+                [cdkDropListDisabled]="!reorderable()"
+                (cdkDropListDropped)="
+                  dropInStep(step.id, $event.previousIndex, $event.currentIndex)
+                "
+              >
+                @for (q of step.rows; track q.id; let i = $index) {
+                  <li class="orow" cdkDrag cdkDragLockAxis="y" [cdkDragDisabled]="!reorderable()">
+                    <button
+                      type="button"
+                      class="handle"
+                      cdkDragHandle
+                      [disabled]="!reorderable()"
+                      aria-label="Drag to reorder"
+                      i18n-aria-label="@@qcat.reorder_aria"
+                    >
+                      <span nz-icon nzType="holder" nzTheme="outline" aria-hidden="true"></span>
+                    </button>
+                    <span class="ord" aria-hidden="true">{{ i + 1 }}</span>
+                    <span class="orow-text">{{ wordingOf(q) }}</span>
+                    <span class="orow-acts">
+                      <button
+                        type="button"
+                        class="icon-btn"
+                        [disabled]="i === 0 || busy()"
+                        (click)="moveBy(q, -1)"
+                        aria-label="Move up"
+                        i18n-aria-label="@@qcat.move_up"
+                      >
+                        <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
+                      </button>
+                      <button
+                        type="button"
+                        class="icon-btn"
+                        [disabled]="i === step.rows.length - 1 || busy()"
+                        (click)="moveBy(q, 1)"
+                        aria-label="Move down"
+                        i18n-aria-label="@@qcat.move_down"
+                      >
+                        <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
+                      </button>
+                    </span>
+                    <div class="drag-ghost" *cdkDragPlaceholder></div>
+                  </li>
+                }
+              </ul>
+            }
+          } @else if (visible().length === 0) {
             <div class="no-match">
               <p class="nm-title" i18n="@@qcat.no_matches_title">Nothing matches that filter</p>
               <button nz-button (click)="clearFilters()" i18n="@@qcat.clear">Clear</button>
@@ -658,6 +771,125 @@ interface DanglingBranch {
          The heading sits on the page now, so it is a label with a rule under it
          rather than a filled band — a grey band across an open page reads as the
          top of a container that is not there. */
+      /* ── ORDER MODE ────────────────────────────────────────────────────────
+         One column, hairline-separated, with the drag handle and the position on the
+         start edge — the same row anatomy the pool tab's list uses, deliberately: an
+         operator who has reordered the pool already knows how to read this, and a second
+         way of drawing one interaction is a second thing to learn. */
+      .order-lede,
+      .order-note {
+        margin: var(--space-3, 12px) 0 0;
+        max-inline-size: 70ch;
+        font-size: var(--text-sm, 14px);
+        line-height: 1.6;
+        color: var(--qc-text-2);
+      }
+      .order-note {
+        color: var(--qc-muted);
+      }
+      .olist {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border: 1px solid var(--qc-line);
+        border-radius: var(--radius-md, 10px);
+        background: var(--qc-surface);
+      }
+      .orow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2, 8px);
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        border-block-end: 1px solid var(--qc-line);
+        background: var(--qc-surface);
+      }
+      .orow:last-child {
+        border-block-end: 0;
+      }
+      .handle {
+        display: grid;
+        place-items: center;
+        flex: none;
+        inline-size: 28px;
+        block-size: 36px;
+        border: 0;
+        background: none;
+        color: var(--qc-muted);
+        cursor: grab;
+      }
+      .handle:disabled {
+        cursor: default;
+        opacity: 0.4;
+      }
+      /* The position, not a badge to shout with: an outline and tabular figures, so a
+         column of them reads as a sequence rather than as 36 chips. */
+      .ord {
+        display: grid;
+        place-items: center;
+        flex: none;
+        inline-size: 24px;
+        block-size: 24px;
+        border: 1px solid var(--qc-line);
+        border-radius: var(--radius-pill, 999px);
+        font-size: var(--text-xs, 12px);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--qc-text-2);
+      }
+      .orow-text {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+        font-size: var(--text-sm, 14px);
+        color: var(--qc-text);
+      }
+      .orow-acts {
+        display: flex;
+        flex: none;
+        gap: var(--space-1, 4px);
+      }
+      .icon-btn {
+        display: grid;
+        place-items: center;
+        inline-size: 28px;
+        block-size: 28px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm, 6px);
+        background: none;
+        color: var(--qc-text-2);
+        cursor: pointer;
+      }
+      .icon-btn:hover:not(:disabled) {
+        border-color: var(--qc-line);
+        background: color-mix(in srgb, currentColor 6%, transparent);
+      }
+      .icon-btn:disabled {
+        cursor: default;
+        opacity: 0.35;
+      }
+      /* The gap the row leaves behind while it is being carried. */
+      .drag-ghost {
+        block-size: 36px;
+        border: 1px dashed var(--qc-line);
+        border-radius: var(--radius-sm, 6px);
+        background: color-mix(in srgb, var(--qc-accent) 6%, transparent);
+      }
+      .cdk-drag-preview {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2, 8px);
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        border: 1px solid var(--qc-line);
+        border-radius: var(--radius-md, 10px);
+        background: var(--qc-surface);
+        box-shadow: var(--shadow-md, 0 8px 24px rgb(0 0 0 / 12%));
+      }
+      .cdk-drag-placeholder .orow-text,
+      .cdk-drag-placeholder .orow-acts,
+      .cdk-drag-placeholder .handle,
+      .cdk-drag-placeholder .ord {
+        visibility: hidden;
+      }
+
       .sec {
         display: flex;
         align-items: center;
@@ -900,6 +1132,27 @@ export class QuestionCategoriesPage implements OnInit {
 
   /** The flat pool, in the order applicants are asked (same flatten as the pool tab). */
   readonly rows = signal<QuestionRow[]>([]);
+  /**
+   * The STEPS, in the order the app pages them.
+   *
+   * Kept beside the flat rows because this screen now edits an order, and an order only
+   * means something inside a step: the app renders one step per group and sorts the
+   * questions within it, so a position that crossed a step boundary would describe nothing.
+   * The tick list still ignores them — a question is ticked into a category whatever step it
+   * sits in.
+   */
+  readonly groups = signal<ReadonlyArray<{ id: string; titleAr: string; titleEn: string }>>([]);
+  /**
+   * Is the panel in ORDER mode?
+   *
+   * A mode rather than handles on the tick cards, for two reasons the layout makes concrete.
+   * A tick list wants a dense wrapped grid — four short cards a line, so 36 questions are one
+   * screen — and an order list wants one column with the steps shown, because the sequence IS
+   * the content and a wrapped grid has no readable "next". And the two verbs answer different
+   * questions: whether a question is asked at all, and where. Mixing them puts a drag handle
+   * on a card whose next click removes the row it is dragging.
+   */
+  readonly ordering = signal(false);
   readonly loading = signal(true);
   /** Ids with a write in flight — their row's tick is inert until it lands. */
   readonly saving = signal<ReadonlySet<string>>(new Set<string>());
@@ -932,7 +1185,60 @@ export class QuestionCategoriesPage implements OnInit {
    */
   readonly justMoved = signal<string | null>(null);
 
-  readonly asked = computed(() => this.visible().filter((q) => this.has(q, this.active())));
+  /**
+   * What the open category asks, IN ITS OWN ORDER.
+   *
+   * Sorted by the position stored on the assignment row, falling back to the pool's own for
+   * a server that predates the field — the same chain, in the same sequence, that
+   * `orderedForCategory` applies on the serve path and `questionIdsInCategory` applies in the
+   * repository. Three readings of one order is how a screen ends up showing a sequence the
+   * applicant does not get.
+   */
+  readonly asked = computed(() => {
+    const category = this.active();
+    return this.visible()
+      .filter((q) => this.has(q, category))
+      .sort(
+        (a, b) =>
+          this.positionIn(a, category) - this.positionIn(b, category) ||
+          a.displayOrder - b.displayOrder ||
+          a.code.localeCompare(b.code),
+      );
+  });
+
+  /** A question's position in one category: its own when stated, else the pool's. */
+  private positionIn(q: QuestionRow, category: LoanCategory): number {
+    return q.categoryOrder?.[category] ?? q.displayOrder;
+  }
+
+  /**
+   * The asked set, split into the STEPS the app pages — the list order mode drags.
+   *
+   * Empty steps are dropped, exactly as the publish does: a step with nothing to ask never
+   * reaches the applicant, so a heading for it here would name a screen that does not exist.
+   */
+  readonly askedByStep = computed<
+    ReadonlyArray<{ id: string; title: string; rows: QuestionRow[] }>
+  >(() => {
+    const asked = this.asked();
+    return this.groups()
+      .map((g) => ({
+        id: g.id,
+        title: this.isAr ? g.titleAr : g.titleEn,
+        rows: asked.filter((q) => q.groupId === g.id),
+      }))
+      .filter((step) => step.rows.length > 0);
+  });
+
+  /**
+   * Can the list be dragged right now?
+   *
+   * Not while a search is on, for the reason the pool tab states: the order on screen is a
+   * filtered one, so dropping a row between two visible neighbours would put it somewhere the
+   * operator cannot see. The arrows stay live — they move a row one place in the FULL list,
+   * which is a move the operator can still reason about.
+   */
+  readonly reorderable = computed(() => !this.filtering() && !this.busy());
   readonly notAsked = computed(() => this.visible().filter((q) => !this.has(q, this.active())));
 
   /**
@@ -1146,6 +1452,85 @@ export class QuestionCategoriesPage implements OnInit {
     );
   }
 
+  // ---- Order ---------------------------------------------------------------
+  /**
+   * A drag landed inside ONE step.
+   *
+   * The indices are the step's, so the move is applied to the step's own slice and the whole
+   * category is then re-flattened in step order — which is the list the server wants. Moving
+   * within a slice is also what keeps a drag from carrying a question out of the step it is
+   * asked in: the drop lists are per step and never connected, so a row cannot leave its
+   * screen by accident.
+   */
+  async dropInStep(stepId: string, previousIndex: number, currentIndex: number): Promise<void> {
+    if (previousIndex === currentIndex) return;
+    const steps = this.askedByStep();
+    const step = steps.find((s) => s.id === stepId);
+    if (!step) return;
+    const moved = [...step.rows];
+    const [row] = moved.splice(previousIndex, 1);
+    if (!row) return;
+    moved.splice(currentIndex, 0, row);
+    await this.commitOrder(steps.map((s) => (s.id === stepId ? { ...s, rows: moved } : s)));
+  }
+
+  /**
+   * The keyboard twin of the drag, and the only way to move a row while the list is
+   * filtered — the same pair the pool tab ships, for the same reason.
+   *
+   * Clamped INSIDE the step: one step is one screen on the app, and an arrow that carried a
+   * question into the next one would be answering a different question (which step is this
+   * asked in) with the control for this one.
+   */
+  async moveBy(q: QuestionRow, delta: number): Promise<void> {
+    const steps = this.askedByStep();
+    const step = steps.find((s) => s.rows.some((r) => r.id === q.id));
+    if (!step) return;
+    const from = step.rows.findIndex((r) => r.id === q.id);
+    const to = from + delta;
+    if (to < 0 || to >= step.rows.length) return;
+    await this.dropInStep(step.id, from, to);
+  }
+
+  /**
+   * Optimistic, like every other write on this screen: the list re-renders before the round
+   * trip so a dragged row does not snap back under the cursor, and a rejected reorder reloads
+   * the server's truth rather than guessing what it kept.
+   *
+   * Writes the new positions onto the rows in memory rather than re-sorting from the server's
+   * answer, because `asked` sorts by exactly those numbers — without them the list would
+   * repaint in the old order for as long as the request takes.
+   */
+  private async commitOrder(
+    steps: ReadonlyArray<{ id: string; rows: QuestionRow[] }>,
+  ): Promise<void> {
+    const category = this.active();
+    const previous = this.rows();
+    const ordered = steps.flatMap((s) => s.rows);
+    const positions = new Map(ordered.map((q, index) => [q.id, index] as const));
+    this.rows.update((rows) =>
+      rows.map((r) =>
+        positions.has(r.id)
+          ? { ...r, categoryOrder: { ...(r.categoryOrder ?? {}), [category]: positions.get(r.id) } }
+          : r,
+      ),
+    );
+    this.busy.set(true);
+    try {
+      // The WHOLE asked set, in step order — the contract the server holds this to. The
+      // dragged step alone would be a slice the server cannot place.
+      await this.api.reorderCategoryQuestions(category, [...positions.keys()]);
+      this.status.set(
+        $localize`:@@qcat.live_reordered:Order saved for ${this.label(category)}:category:`,
+      );
+    } catch {
+      // Localized toast already shown by the interceptor.
+      this.rows.set(previous);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   // ---- Internals -----------------------------------------------------------
   /**
    * `quiet` re-reads without the spinner — used after a rejected write, where
@@ -1154,7 +1539,12 @@ export class QuestionCategoriesPage implements OnInit {
   private async load(opts: { quiet?: boolean } = {}): Promise<void> {
     if (!opts.quiet) this.loading.set(true);
     try {
-      this.rows.set(flatten(await this.api.tree()));
+      const tree = await this.api.tree();
+      this.rows.set(flatten(tree));
+      // The steps, in the app's own paging order. Taken from the same response as the rows
+      // for the reason `categories` rides on the tree at all: two fetches would be two ways
+      // for the list and its headings to disagree.
+      this.groups.set(tree.map((g) => ({ id: g.id, titleAr: g.titleAr, titleEn: g.titleEn })));
     } finally {
       if (!opts.quiet) this.loading.set(false);
     }
