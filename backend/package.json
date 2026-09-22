@@ -45,6 +45,7 @@
     "check:money": "tsx scripts/check-money-bindings.ts",
     "check:question-scope": "tsx scripts/check-question-scope.ts",
     "quote:car-plans": "tsx scripts/quote-car-plans.ts",
+    "quote:car-insurance": "tsx scripts/quote-car-insurance.ts",
     "quote:cae-auto": "tsx scripts/quote-cae-auto.ts"
   },
   "dependencies": {
