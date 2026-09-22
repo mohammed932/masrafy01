@@ -26,13 +26,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   asPlanDefaults,
+  effectivePlanFees,
   effectivePlanLoanLimits,
   effectivePlanPricing,
   effectivePlanTenor,
   plansSourceOf,
 } from '@/matching/pipeline/plan-inherit';
 import type { FactGridConfig } from '@/matching/pipeline/fact-grid';
-import type { LoanLimitsConfig, PricingConfig, TenorConfig } from '@/matching/types';
+import type { FeesConfig, LoanLimitsConfig, PricingConfig, TenorConfig } from '@/matching/types';
 import {
   withStoredStructure,
   effectiveIncomeRule,
@@ -688,6 +689,12 @@ describe('the plan tables a product hands down', () => {
     expect(asPlanDefaults({ rateByFact: 'nonsense', ltvCeilingByFact: GRID })).toEqual({
       ltvCeilingByFact: GRID,
     });
+    // The SIXTH slot round-trips like the other five. Left off `PLAN_SLOTS` it would be
+    // dropped here silently, and a product's cover table would reach nobody — the failure
+    // would be a disclosure that never appears, which no screen reports.
+    expect(asPlanDefaults({ carInsuranceRateByFact: GRID })).toEqual({
+      carInsuranceRateByFact: GRID,
+    });
   });
 
   it('returns the SAME OBJECT when nothing is inherited', () => {
@@ -704,6 +711,13 @@ describe('the plan tables a product hands down', () => {
     expect(effectivePlanPricing(pricing, 'product', undefined)).toBe(pricing);
     expect(effectivePlanTenor(tenor, 'product', undefined)).toBe(tenor);
     expect(effectivePlanLoanLimits(limits, 'product', undefined)).toBe(limits);
+
+    // The cover table, on the same terms. `fees` is on EVERY programme, so this identity is
+    // the one that keeps 71 programmes allocation-free on every quote.
+    const fees = { adminFeePercent: '1' } as unknown as FeesConfig;
+    expect(effectivePlanFees(fees, 'own', { carInsuranceRateByFact: GRID })).toBe(fees);
+    expect(effectivePlanFees(fees, 'product', undefined)).toBe(fees);
+    expect(effectivePlanFees(fees, 'product', plans)).toBe(fees);
   });
 
   it('hands the product’s tables down only to a programme that opted in', () => {
@@ -715,6 +729,13 @@ describe('the plan tables a product hands down', () => {
     expect(effectivePlanLoanLimits(limits, 'product', plans).ltvCeilingByFact).toEqual(GRID);
     expect(effectivePlanLoanLimits(limits, 'product', plans).minAmountByFact).toEqual(GRID);
     expect(effectivePlanPricing(pricing, 'own', plans).rateByFact).toBeUndefined();
+
+    const fees = {} as unknown as FeesConfig;
+    const withCover = { carInsuranceRateByFact: GRID };
+    expect(effectivePlanFees(fees, 'product', withCover).carInsuranceRateByFact).toEqual(GRID);
+    // A Green Finance programme — a solar install, an e-bike — never opts in, so a car-price
+    // cover table can never reach it. That is the whole reason the selector is explicit.
+    expect(effectivePlanFees(fees, 'own', withCover).carInsuranceRateByFact).toBeUndefined();
   });
 
   it('lets a grid the PROGRAMME states win over the product’s, even while inheriting', () => {
@@ -724,5 +745,11 @@ describe('the plan tables a product hands down', () => {
     expect(merged.rateByFact).toBe(own);
     // Nothing was inherited, so the object is handed back untouched.
     expect(merged).toBe(pricing);
+
+    const ownCover: FactGridConfig = { ...GRID, cells: [{ keys: [null], value: '2' }] };
+    const fees = { carInsuranceRateByFact: ownCover } as unknown as FeesConfig;
+    const mergedFees = effectivePlanFees(fees, 'product', { carInsuranceRateByFact: GRID });
+    expect(mergedFees.carInsuranceRateByFact).toBe(ownCover);
+    expect(mergedFees).toBe(fees);
   });
 });

@@ -21,6 +21,7 @@ import { basesOfFlags, flagsOfBases, type IncomeBasis } from '@/common/income-ba
 import {
   factKeyOf,
   type IncomeAssumptionConfig,
+  type FeesConfig,
   type LoanLimitsConfig,
   type PricingConfig,
   type TenorConfig,
@@ -29,6 +30,7 @@ import { SURROGATE_FACTS_BY_STRATEGY } from '@/matching/pipeline/surrogate-fact-
 import {
   factReaders,
   factsReadByIncomeRule,
+  factsReadByFees,
   factsReadByLoanLimits,
   factsReadByPricing,
   factsReadByTenor,
@@ -70,6 +72,7 @@ import { asRateDefaults, statesOwnRate } from '@/matching/pipeline/rate-inherit'
 import type { RateDefaults, StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
   asPlanDefaults,
+  effectivePlanFees,
   effectivePlanLoanLimits,
   effectivePlanPricing,
   effectivePlanTenor,
@@ -740,6 +743,7 @@ export class PostgresPlatformEnumerationsRepository
           loanLimits: true,
           pricing: true,
           tenor: true,
+          fees: true,
         },
       }),
       this.prisma.platformEnumeration.findMany({
@@ -795,6 +799,9 @@ export class PostgresPlatformEnumerationsRepository
           plans,
         ),
         tenor: effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
+        // The COST surface, resolved on the same terms: a programme inheriting the product's
+        // plans stores no cover table either, and an unresolved one reports no reader.
+        fees: effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
       };
     });
     return factReaders(key, { programs: resolved, rules });
@@ -842,7 +849,7 @@ export class PostgresPlatformEnumerationsRepository
       }),
       this.prisma.bankProgram.findMany({
         where: { active: true, programNameKey },
-        // All four surfaces. A column left out here is a fact the narrowing cannot see, and
+        // All FIVE surfaces. A column left out here is a fact the narrowing cannot see, and
         // the question behind it is then dropped from the served questionnaire while the
         // programme goes on reading the answer (`fact-readers.ts`).
         // `plansSource` rides with them: the grids a programme reads may be the PRODUCT's, and
@@ -852,6 +859,7 @@ export class PostgresPlatformEnumerationsRepository
           loanLimits: true,
           pricing: true,
           tenor: true,
+          fees: true,
           plansSource: true,
         },
       }),
@@ -941,6 +949,11 @@ export class PostgresPlatformEnumerationsRepository
       }
       for (const key of factsReadByTenor(
         effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
+      )) {
+        needed.add(key);
+      }
+      for (const key of factsReadByFees(
+        effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
       )) {
         needed.add(key);
       }

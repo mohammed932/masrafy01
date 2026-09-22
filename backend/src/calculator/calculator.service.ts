@@ -29,6 +29,7 @@ import {
   obligationMonthlyAmountFor,
 } from '@/matching/pipeline/money-field-bindings';
 import { quoteProgram } from '@/matching/pipeline/quote';
+import { carInsuranceDisclosureOf } from '@/matching/pipeline/fees';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import type { ApplicantProfile, BankProgramSnapshot, Quote } from '@/matching/types';
 import {
@@ -102,6 +103,7 @@ export class CalculatorService {
         adminFeeEGP: new Decimal(quote.feesBreakdown.adminFeeEGP).toFixed(2),
         stampDutyEGP: new Decimal(quote.feesBreakdown.stampDutyEGP).toFixed(2),
         lifeInsuranceEGP: new Decimal(quote.feesBreakdown.lifeInsuranceEGP).toFixed(2),
+        ...carInsuranceDisclosureOf(quote.feesBreakdown),
       },
       clamped: {
         amount: !quote.cashToCustomerEGP.equals(requested),

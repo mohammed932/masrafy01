@@ -242,11 +242,11 @@ export function dpBand(
 }
 
 /**
- * Suez Canal Bank's auto card, as the five plan tables the one merged programme reads.
+ * Suez Canal Bank's auto card, as the plan tables the one merged programme reads.
  *
  * The DEPOSIT is the axis every one of them keys on, which is what makes them one card
  * rather than four unrelated tables: a row says "put this much down and here is the rate, the
- * term, the share we finance and the floor".
+ * term, the share we finance, the floor, and whether you must insure it".
  *
  * EVERY RATE HERE IS AN ILLUSTRATION. No Suez Canal slide publishes a profit rate — the
  * programme's own `baseRatePercent` has been a stated placeholder since the sheet was loaded
@@ -336,6 +336,38 @@ const SCB_AUTO_PLANS: Record<string, unknown> = {
   minAmountByFact: {
     axes: [{ factKey: 'car_down_payment_percent' }],
     cells: [{ keys: [dpBand('20', '30')], value: '1000000' }],
+    onNoMatch: 'useFallback',
+  },
+
+  /**
+   * COMPREHENSIVE COVER, and the deposit is what decides whether the bank demands it.
+   *
+   * App. §4.2 and the master review's own summary of this card: *"Insurance mandatory per DP
+   * tier — SCB: N/A at 60/50/40, YES at 30/20"*. So the two lowest deposits carry a row and
+   * the three above carry none — and an ABSENT row is the statement, not an oversight: the
+   * reader treats a miss as "this bank requires no cover at that deposit", which is the whole
+   * mechanism. Nothing in code knows that this bank's edge is 40%.
+   *
+   * This closes half of the loss the v30.0.0 merge had to state. The other half stands: the
+   * car-insurance POLICY is still in `requiredDocuments`, which is one array per programme and
+   * is therefore still demanded of everyone. A document list cannot be band-scoped; a cost
+   * table can.
+   *
+   * THE PERCENTAGE IS THE TEAM'S AND IS MARKED. No slide on this card publishes a premium —
+   * the sheets say only that cover is mandatory on those two tiers — so 1% is an illustration
+   * and both cells are in `estimated` below, exactly as all twenty rate cells are. The band
+   * EDGES are the sheet's own and are not marked.
+   */
+  carInsuranceRateByFact: {
+    axes: [{ factKey: 'car_down_payment_percent' }],
+    cells: [
+      { keys: [dpBand('20', '30')], value: '1' },
+      { keys: [dpBand('30', '40')], value: '1' },
+    ],
+    // Stated because the shape demands one, and never read: `car-insurance.ts` treats every
+    // miss as "no cover required". `useFallback` is the honest spelling of that — a `reject`
+    // here would mean a table of COSTS refusing an applicant the rate and share tables have
+    // already priced.
     onNoMatch: 'useFallback',
   },
 
@@ -681,6 +713,10 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       'planDefaults.maxMonthsByFact.cells.0.value',
       'planDefaults.maxMonthsByFact.cells.1.value',
       'planDefaults.maxMonthsByFact.cells.2.value',
+      // The cover percentage on both tiers that require it. The sheets state THAT cover is
+      // mandatory and never what it costs, so the figure is the team's and says so.
+      'planDefaults.carInsuranceRateByFact.cells.0.value',
+      'planDefaults.carInsuranceRateByFact.cells.1.value',
     ],
   },
 

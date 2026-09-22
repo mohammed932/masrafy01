@@ -134,12 +134,32 @@ class _OfferDetailsView extends StatelessWidget {
     // literals ("1% (EGP 1,500)", "12.5% / year") that contradicted the
     // installment printed inches above them; a fee with no figure is now simply
     // not listed rather than invented.
-    String? feeAmount(String key) {
+    // The figure alone, so a line that is not an EGP one-off can format it its own way.
+    double? feeAmountRaw(String key) {
       final raw = offer.feesBreakdown?[key];
       final value = raw is num ? raw.toDouble() : double.tryParse('$raw');
       if (value == null || value <= 0) return null;
+      return value;
+    }
+
+    String? feeAmount(String key) {
+      final value = feeAmountRaw(key);
+      if (value == null) return null;
       return l.offer_fee_egp(grouped.format(value));
     }
+
+    // COMPREHENSIVE COVER ON THE CAR, when the programme demands it at this deposit.
+    //
+    // TWO rows and not one. A single line cannot honestly carry both figures: the premium is
+    // what the customer pays each policy year and the total is what cover costs over the
+    // whole loan, and collapsing them would make one of the two read as the other — the
+    // difference between 20,000 and 100,000 on the operator's own worked example.
+    //
+    // Read straight off the engine's breakdown like every fee above, so a programme that
+    // demands no cover renders exactly what it renders today: `feeAmount` already drops a
+    // line whose figure is null or zero, and `carInsuranceYears` is absent with it.
+    final carInsuranceYears = offer.feesBreakdown?['carInsuranceYears'];
+    final carInsuranceAnnual = feeAmountRaw('carInsuranceAnnualEGP');
 
     final feeRows = <OfferFeeRow>[
       (
@@ -162,6 +182,22 @@ class _OfferDetailsView extends StatelessWidget {
             value: amount,
             valueColor: colors.warning.active,
           ),
+      if (carInsuranceAnnual != null) ...[
+        (
+          label: l.offer_car_insurance,
+          // Per YEAR, said in the value: a bare amount beside the one-off fees above would
+          // be read as one more one-off, and it is the recurrence that makes it large.
+          value: l.offer_fee_egp_per_year(grouped.format(carInsuranceAnnual)),
+          valueColor: colors.warning.active,
+        ),
+        if (carInsuranceYears is int)
+          if (feeAmount('carInsuranceTotalEGP') case final total?)
+            (
+              label: l.offer_car_insurance_total(carInsuranceYears),
+              value: total,
+              valueColor: colors.warning.active,
+            ),
+      ],
       (
         label: l.offer_early_settlement,
         value: l.offer_early_settlement_value,

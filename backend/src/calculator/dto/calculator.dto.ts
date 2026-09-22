@@ -98,6 +98,18 @@ export class CalculatorFeesDto {
   @ApiProperty() adminFeeEGP!: string;
   @ApiProperty() stampDutyEGP!: string;
   @ApiProperty() lifeInsuranceEGP!: string;
+  /**
+   * Comprehensive cover the programme requires on the car at this deposit — a percent of the
+   * car's PRICE, per policy year, for every year of the loan.
+   *
+   * Optional and all four together: absent on every programme that demands none, which is
+   * every non-car programme. None of them is in `totalFeesEGP` — the customer pays an
+   * insurer, outside the loan, so it inflates no principal and no instalment.
+   */
+  @ApiPropertyOptional() carInsuranceRatePercent?: string;
+  @ApiPropertyOptional() carInsuranceAnnualEGP?: string;
+  @ApiPropertyOptional() carInsuranceYears?: number;
+  @ApiPropertyOptional() carInsuranceTotalEGP?: string;
 }
 
 export class CalculatorClampedDto {

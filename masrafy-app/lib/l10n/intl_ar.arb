@@ -1164,6 +1164,23 @@
   },
   "offer_stamp_duty": "الدمغة",
   "offer_life_insurance": "تأمين الحياة",
+  "offer_car_insurance": "تأمين السيارة (إجباري)",
+  "offer_car_insurance_total": "التأمين على مدى {years, plural, =1{سنة واحدة} =2{سنتين} few{{years} سنوات} other{{years} سنة}}",
+  "@offer_car_insurance_total": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
+  "offer_fee_egp_per_year": "{amount} جنيه / سنة",
+  "@offer_fee_egp_per_year": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_fee_egp": "{amount} جنيه",
   "@offer_fee_egp": {
     "placeholders": {

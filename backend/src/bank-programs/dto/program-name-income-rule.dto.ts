@@ -599,8 +599,8 @@ export class SetSurrogateProductRateDefaultsDto {
 /**
  * The default PLAN tables a surrogate product hands the programs that opted in.
  *
- * Five INDEPENDENTLY optional grids, unlike the duration above's both-or-neither: those two
- * months are one range, these are five separate statements, and a product stating a rate
+ * Six INDEPENDENTLY optional grids, unlike the duration above's both-or-neither: those two
+ * months are one range, these are six separate statements, and a product stating a rate
  * table and no floor has said one thing and declined to say another.
  *
  * The shallow shape is deliberate and matches `FactGridDto`'s own reasoning: the checks that
@@ -641,6 +641,17 @@ export class SurrogateProductPlansDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   minAmountByFact?: FactGridDto;
+
+  /**
+   * Comprehensive cover on the car: a percent of its price, every policy year, keyed on the
+   * deposit. The sixth plan table because an operator reads all six as one row of one card —
+   * "20% down → 10% a year, 6–60 months, we finance 80%, not under a million, insure at 1%" —
+   * and every one of them keys on the same axis.
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  carInsuranceRateByFact?: FactGridDto;
 }
 
 /**

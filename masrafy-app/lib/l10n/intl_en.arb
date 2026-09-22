@@ -821,6 +821,23 @@
   },
   "offer_stamp_duty": "Stamp duty",
   "offer_life_insurance": "Life insurance",
+  "offer_car_insurance": "Car insurance (required)",
+  "offer_car_insurance_total": "Insurance over {years, plural, =1{1 year} other{{years} years}}",
+  "@offer_car_insurance_total": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
+  "offer_fee_egp_per_year": "EGP {amount} / year",
+  "@offer_fee_egp_per_year": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_fee_egp": "EGP {amount}",
   "@offer_fee_egp": {
     "placeholders": {

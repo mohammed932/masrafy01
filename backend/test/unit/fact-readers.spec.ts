@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   factReaders,
+  factsReadByFees,
   factsReadByIncomeRule,
   factsReadByLoanLimits,
   factsReadByPricing,
@@ -187,7 +188,7 @@ describe('factReaders', () => {
 });
 
 /**
- * THE PLAN GRIDS — three surfaces added with the plan tables, and the reason they are pinned.
+ * THE PLAN GRIDS — four surfaces added with the plan tables, and the reason they are pinned.
  *
  * An axis no reader reports is invisible to `narrowingScopeFor`, `check:question-scope`, the
  * fact-delete guard and the ask-untick guard AT ONCE: the question behind it is dropped from
@@ -244,17 +245,59 @@ describe('the plan grids', () => {
     ]);
   });
 
-  it('unions all four surfaces for one programme', () => {
+  it('reads the car-cover table’s axes', () => {
+    // A COST table is still a reader. It changes no price, but its axis is an answer a live
+    // programme keys a figure off — and a fact deleted out from under it makes every cell
+    // miss, which reads as "no cover required". A disclosure that silently stops being made
+    // is worse than one that errors, which is why this surface is in the file at all.
+    expect([...factsReadByFees({ carInsuranceRateByFact: grid('car_origin') })]).toEqual([
+      'car_origin',
+    ]);
+  });
+
+  it('reports nothing for fees that state no cover table', () => {
+    expect([...factsReadByFees({ adminFeePercent: '1' })]).toEqual([]);
+    expect([...factsReadByFees(undefined)]).toEqual([]);
+  });
+
+  it('unions all five surfaces for one programme', () => {
     const keys = [
       ...factsReadByProgram({
         incomeAssumption: { strategy: 'fact:military_grade' },
         loanLimits: { ltvCeilingByFact: grid('home_ownership') },
         pricing: { rateByFact: grid('car_fuel_type') },
         tenor: { minMonthsByFact: grid('car_origin') },
+        fees: { carInsuranceRateByFact: grid('vehicle_condition') },
       }),
     ];
     expect(new Set(keys)).toEqual(
-      new Set(['military_grade', 'home_ownership', 'car_fuel_type', 'car_origin']),
+      new Set([
+        'military_grade',
+        'home_ownership',
+        'car_fuel_type',
+        'car_origin',
+        'vehicle_condition',
+      ]),
     );
+  });
+
+  it('names the cover table’s programme as a grid reader, like the rate table’s', () => {
+    // One `bank_program_grid` entry however many grid surfaces name the fact: the operator
+    // goes to one card to change it.
+    expect(
+      factReaders('car_origin', {
+        programs: [
+          {
+            programCode: 'COVER-1',
+            incomeAssumption: null,
+            loanLimits: null,
+            pricing: null,
+            tenor: null,
+            fees: { carInsuranceRateByFact: grid('car_origin') },
+          },
+        ],
+        rules: [],
+      }),
+    ).toEqual([{ source: 'bank_program_grid', ref: 'COVER-1' }]);
   });
 });

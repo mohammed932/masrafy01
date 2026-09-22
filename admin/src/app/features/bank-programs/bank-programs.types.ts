@@ -1032,9 +1032,10 @@ export interface ProgramUnderName {
 /**
  * The PLAN tables a surrogate product hands the programs that opted in.
  *
- * Five independently optional grids, all keyed by the share the applicant puts down: the
- * rate, the two ends of the term, the financed share and the floor. One plan is a row across
- * them — "20% down, 10%, 6-60 months, we finance 80%, not under a million".
+ * Six independently optional grids, all keyed by the share the applicant puts down: the
+ * rate, the two ends of the term, the financed share, the floor and the cover the bank
+ * demands on the car. One plan is a row across them — "20% down, 10%, 6-60 months, we
+ * finance 80%, not under a million, insure it at 1% a year".
  */
 export interface PlanDefaults {
   rateByFact?: FactGridConfig;
@@ -1042,6 +1043,7 @@ export interface PlanDefaults {
   maxMonthsByFact?: FactGridConfig;
   ltvCeilingByFact?: FactGridConfig;
   minAmountByFact?: FactGridConfig;
+  carInsuranceRateByFact?: FactGridConfig;
 }
 
 /**
@@ -1653,6 +1655,14 @@ export interface FeesConfig {
   payoffBuyoutPercent: string;
   collateralReplacementFeeEGP?: string;
   collateralDecreaseFeeEGP?: string;
+  /**
+   * Comprehensive cover the bank requires on the car: a percent of its PRICE, every policy
+   * year, keyed on the deposit the applicant puts down.
+   *
+   * Declared here rather than reached through a cast at the call site, so the wizard's carry
+   * list and its editor are both typed (A15).
+   */
+  carInsuranceRateByFact?: FactGridConfig;
 }
 
 export interface BankProgramCreatePayload {

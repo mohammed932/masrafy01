@@ -2000,6 +2000,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_life_insurance => 'Life insurance';
 
   @override
+  String get offer_car_insurance => 'Car insurance (required)';
+
+  @override
+  String offer_car_insurance_total(int years) {
+    String _temp0 = intl.Intl.pluralLogic(
+      years,
+      locale: localeName,
+      other: '$years years',
+      one: '1 year',
+    );
+    return 'Insurance over $_temp0';
+  }
+
+  @override
+  String offer_fee_egp_per_year(String amount) {
+    return 'EGP $amount / year';
+  }
+
+  @override
   String offer_fee_egp(String amount) {
     return 'EGP $amount';
   }

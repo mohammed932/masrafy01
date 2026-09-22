@@ -171,6 +171,12 @@ interface Input {
   ltvCeilingByFact?: FactGridDto;
   minAmountByFact?: FactGridDto;
   /**
+   * Comprehensive cover the bank demands on the car, as a percent of its PRICE per policy
+   * year, keyed on the deposit. A slot like the five above and for the same reason: the day
+   * a bank confirms a card, loading it is a seed edit and nothing else.
+   */
+  carInsuranceRateByFact?: FactGridDto;
+  /**
    * Whose PLAN tables this programme reads. ABSENT IS `'own'`, so every programme in this
    * file that does not say otherwise is untouched by the mechanism existing.
    */
@@ -344,6 +350,9 @@ function program(input: Input): ProgramSpec {
       latePaymentFeePercent: '4',
       payoffCashPercent: '12',
       payoffBuyoutPercent: '15',
+      ...(input.carInsuranceRateByFact
+        ? { carInsuranceRateByFact: input.carInsuranceRateByFact }
+        : {}),
     },
   };
   return {

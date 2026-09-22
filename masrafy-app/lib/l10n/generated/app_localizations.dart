@@ -3722,6 +3722,24 @@ abstract class AppLocalizations {
   /// **'تأمين الحياة'**
   String get offer_life_insurance;
 
+  /// No description provided for @offer_car_insurance.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأمين السيارة (إجباري)'**
+  String get offer_car_insurance;
+
+  /// No description provided for @offer_car_insurance_total.
+  ///
+  /// In ar, this message translates to:
+  /// **'التأمين على مدى {years, plural, =1{سنة واحدة} =2{سنتين} few{{years} سنوات} other{{years} سنة}}'**
+  String offer_car_insurance_total(int years);
+
+  /// No description provided for @offer_fee_egp_per_year.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} جنيه / سنة'**
+  String offer_fee_egp_per_year(String amount);
+
   /// No description provided for @offer_fee_egp.
   ///
   /// In ar, this message translates to:

@@ -27,6 +27,7 @@ import type { StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
 import { effectiveRate } from '@/matching/pipeline/rate-inherit';
 import type { StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
+  effectivePlanFees,
   effectivePlanLoanLimits,
   effectivePlanPricing,
   effectivePlanTenor,
@@ -92,7 +93,7 @@ export function toBankProgramSnapshot(
     // `effectiveTenor` returns the SAME object when nothing is inherited, which is every
     // program on this database today, so the common path allocates nothing.
     //
-    // The PLAN grids merge on the same three lines the blobs are read on, for the same
+    // The PLAN grids merge on the same four lines the blobs are read on, for the same
     // reason: a snapshot must not be able to tell a table the bank typed from one it is
     // reading off the product. Each helper returns the SAME object when nothing is
     // inherited, which is every program on this database today.
@@ -151,7 +152,16 @@ export function toBankProgramSnapshot(
     ...(catalog !== undefined && 'withheld' in catalog
       ? { incomeRuleWithheld: catalog.withheld }
       : {}),
-    fees: p.fees as unknown as BankProgramSnapshot['fees'],
+    // The COVER the bank demands on the car, on the same terms as the three merges above:
+    // the programme's own table when it states one, the product's when it does not. Merged
+    // on the one line the engine reads a premium from, and `effectivePlanFees` returns the
+    // SAME object when nothing is inherited — which is every programme on this database
+    // that has not opted in.
+    fees: effectivePlanFees(
+      p.fees as unknown as BankProgramSnapshot['fees'],
+      plansSource,
+      catalogPlans,
+    ),
     // The I-SCORE TIERS, merged on the one line the engine reads them from, for the reason
     // the duration and the plan grids above are merged here: a snapshot must not be able to
     // tell a table the bank typed from one it is reading off the product.

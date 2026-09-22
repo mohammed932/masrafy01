@@ -133,67 +133,67 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
            configure, and a picker with one immovable choice reads as broken rather than as
            simplified. -->
       @if (!lockAxisToDownPayment() && !hideAxes()) {
-      <section class="fgd__axes">
-        <!-- Withheld per caller, not per grid: the heading names what the pickers below
+        <section class="fgd__axes">
+          <!-- Withheld per caller, not per grid: the heading names what the pickers below
              already say for themselves once the table has real column headers under it
              (a caller may still want it on a grid an operator is building from scratch). -->
-        @if (!hideAxesLabel()) {
-          <h4 class="fgd__micro" i18n="@@fact_grid.axes">What this table is keyed by</h4>
-        }
-        <!-- ONE wrapping row, not a column of one select each. These ARE the table's
+          @if (!hideAxesLabel()) {
+            <h4 class="fgd__micro" i18n="@@fact_grid.axes">What this table is keyed by</h4>
+          }
+          <!-- ONE wrapping row, not a column of one select each. These ARE the table's
              columns and they read left to right below, so stacked they described a
              left-to-right thing top to bottom — three 32px selects and three detached
              bins, ~200px of chrome before the first figure. -->
-        <div class="fgd__axis-list">
-          @for (axis of config().axes; track $index) {
-            <div class="fgd__axis">
-              <nz-select
-                class="fgd__fact"
-                [ngModel]="axis.factKey"
-                (ngModelChange)="setAxisFact($index, $event)"
-                nzShowSearch
-                [nzPlaceHolder]="axisPlaceholder"
-              >
-                @for (fact of axisChoices(); track fact.key) {
-                  <nz-option [nzValue]="fact.key" [nzLabel]="fact.label"></nz-option>
+          <div class="fgd__axis-list">
+            @for (axis of config().axes; track $index) {
+              <div class="fgd__axis">
+                <nz-select
+                  class="fgd__fact"
+                  [ngModel]="axis.factKey"
+                  (ngModelChange)="setAxisFact($index, $event)"
+                  nzShowSearch
+                  [nzPlaceHolder]="axisPlaceholder"
+                >
+                  @for (fact of axisChoices(); track fact.key) {
+                    <nz-option [nzValue]="fact.key" [nzLabel]="fact.label"></nz-option>
+                  }
+                </nz-select>
+                @if (axisHasClasses($index)) {
+                  <nz-radio-group
+                    [ngModel]="axis.via ?? 'answer'"
+                    (ngModelChange)="setAxisVia($index, $event)"
+                    nzSize="small"
+                  >
+                    <label nz-radio-button nzValue="answer" i18n="@@fact_grid.via_answer">
+                      The answer
+                    </label>
+                    <label nz-radio-button nzValue="parentClass" i18n="@@fact_grid.via_class">
+                      Its class
+                    </label>
+                  </nz-radio-group>
                 }
-              </nz-select>
-              @if (axisHasClasses($index)) {
-                <nz-radio-group
-                  [ngModel]="axis.via ?? 'answer'"
-                  (ngModelChange)="setAxisVia($index, $event)"
-                  nzSize="small"
-                >
-                  <label nz-radio-button nzValue="answer" i18n="@@fact_grid.via_answer">
-                    The answer
-                  </label>
-                  <label nz-radio-button nzValue="parentClass" i18n="@@fact_grid.via_class">
-                    Its class
-                  </label>
-                </nz-radio-group>
-              }
-              @if (config().axes.length > 1) {
-                <button
-                  nz-button
-                  nzType="text"
-                  nzSize="small"
-                  type="button"
-                  [attr.aria-label]="removeAxisAria"
-                  (click)="removeAxis($index)"
-                >
-                  <span nz-icon nzType="delete"></span>
-                </button>
-              }
-            </div>
-          }
-          @if (config().axes.length < maxAxes) {
-            <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addAxis()">
-              <span nz-icon nzType="plus"></span>
-              <span i18n="@@fact_grid.add_axis">Add another axis</span>
-            </button>
-          }
-        </div>
-      </section>
+                @if (config().axes.length > 1) {
+                  <button
+                    nz-button
+                    nzType="text"
+                    nzSize="small"
+                    type="button"
+                    [attr.aria-label]="removeAxisAria"
+                    (click)="removeAxis($index)"
+                  >
+                    <span nz-icon nzType="delete"></span>
+                  </button>
+                }
+              </div>
+            }
+            @if (config().axes.length < maxAxes) {
+              <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addAxis()">
+                <span nz-icon nzType="plus"></span>
+                <span i18n="@@fact_grid.add_axis">Add another axis</span>
+              </button>
+            }
+          </div>
+        </section>
       }
 
       <!-- ② THE CELLS. One row per combination the bank's card prints. A box left blank is
@@ -218,7 +218,13 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
                     }
                   }
                   @case ('sharePercent') {
-                    <span i18n="@@fact_grid.value_share">Financed share %</span>
+                    @if (shareOf() === 'car_insurance') {
+                      <span i18n="@@fact_grid.value_car_insurance"
+                        >Insurance % of price, per year</span
+                      >
+                    } @else {
+                      <span i18n="@@fact_grid.value_share">Financed share %</span>
+                    }
                   }
                   @case ('amountEGP') {
                     <span i18n="@@fact_grid.value_amount">Smallest loan (EGP)</span>
@@ -501,6 +507,24 @@ export class FactGridEditorComponent {
   readonly monthsBound = input<'max' | 'min'>('max');
 
   /**
+   * What a `sharePercent` table is a share OF. Default `'financed'`, which is every caller
+   * that predates the car-cover table.
+   *
+   * The same defect `monthsBound` exists to prevent, one kind further along: `sharePercent`
+   * was one kind for one field until the cover table used it, so every label on it says
+   * "financed share" — and a card headed *Require insurance on the car* opened a table whose
+   * value column read *FINANCED SHARE %* and whose boxes announced themselves as "financed
+   * share percent". One screen contradicting itself about the figure being typed, and this
+   * one in a direction that matters: 1 as a financed share would be a bank lending 1% of the
+   * car, and 1 as a premium is the cover the customer buys.
+   *
+   * A bound rather than a free label, for the reason stated above: what changes is the noun,
+   * and a caller-supplied string would let two hosts describe one field differently and would
+   * have to be translated by whoever passed it.
+   */
+  readonly shareOf = input<'financed' | 'car_insurance'>('financed');
+
+  /**
    * The rate card is sold by down payment and nothing else — every seeded rate table keys on
    * it alone, and the axis controls (pick a second question, add a third, remove the only
    * one) offer a generality this table has never used and that an operator could reach for
@@ -542,9 +566,7 @@ export class FactGridEditorComponent {
   protected readonly scrollMaxHeightPx = computed<number | null>(() => {
     const rows = this.maxVisibleRows();
     if (rows === null || rows <= 0) return null;
-    return (
-      FactGridEditorComponent.HEADER_HEIGHT_PX + rows * FactGridEditorComponent.ROW_HEIGHT_PX
-    );
+    return FactGridEditorComponent.HEADER_HEIGHT_PX + rows * FactGridEditorComponent.ROW_HEIGHT_PX;
   });
 
   readonly maxAxes = MAX_GRID_AXES;
@@ -630,7 +652,9 @@ export class FactGridEditorComponent {
           ? $localize`:@@fact_grid.value_months_min_aria:Row ${row}:row:, shortest term in months`
           : $localize`:@@fact_grid.value_months_aria:Row ${row}:row:, longest term in months`;
       case 'sharePercent':
-        return $localize`:@@fact_grid.value_share_aria:Row ${row}:row:, financed share percent`;
+        return this.shareOf() === 'car_insurance'
+          ? $localize`:@@fact_grid.value_car_insurance_aria:Row ${row}:row:, insurance percent of the car's price per year`
+          : $localize`:@@fact_grid.value_share_aria:Row ${row}:row:, financed share percent`;
       case 'amountEGP':
         return $localize`:@@fact_grid.value_amount_aria:Row ${row}:row:, smallest loan in pounds`;
       default:
@@ -775,7 +799,6 @@ export class FactGridEditorComponent {
     });
   }
 
-
   errorLabel(error: FactGridError): string {
     switch (error) {
       case 'AXES_EMPTY':
@@ -797,7 +820,9 @@ export class FactGridEditorComponent {
           case 'months':
             return $localize`:@@fact_grid.err_months:Every row needs a whole number of months, above zero and up to 480.`;
           case 'sharePercent':
-            return $localize`:@@fact_grid.err_share:Every row needs a share above zero and at most 100.`;
+            return this.shareOf() === 'car_insurance'
+              ? $localize`:@@fact_grid.err_car_insurance:Every row needs a percent above zero and at most 100.`
+              : $localize`:@@fact_grid.err_share:Every row needs a share above zero and at most 100.`;
           case 'amountEGP':
             return $localize`:@@fact_grid.err_amount:Every row needs an amount above zero.`;
           default:

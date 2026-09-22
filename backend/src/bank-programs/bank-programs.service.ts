@@ -704,6 +704,11 @@ export class BankProgramsService {
       [dto.tenor?.maxVehicleAgeYearsByFact, 'tenor.maxVehicleAgeYearsByFact', 'years'],
       [dto.loanLimits?.ltvCeilingByFact, 'loanLimits.ltvCeilingByFact', 'sharePercent'],
       [dto.loanLimits?.minAmountByFact, 'loanLimits.minAmountByFact', 'amountEGP'],
+      // Comprehensive cover on the car, a percent of the car's PRICE per policy year.
+      // `'sharePercent'` and not `'ratePercent'` for the reason the financed share above is:
+      // this is a share of a price, and a 999.9999 ceiling would accept a premium nobody can
+      // check by eye onto a figure a customer is shown.
+      [dto.fees?.carInsuranceRateByFact, 'fees.carInsuranceRateByFact', 'sharePercent'],
     ] as const;
     // The option codes of every axis a grid names, looked up ONCE. Needed for the
     // unknown-key check: a mistyped option code saves cleanly and then matches nobody.
@@ -2606,6 +2611,7 @@ export class BankProgramsService {
         ['minMonthsByFact', 'months'],
         ['ltvCeilingByFact', 'sharePercent'],
         ['minAmountByFact', 'amountEGP'],
+        ['carInsuranceRateByFact', 'sharePercent'],
       ] as const;
       const optionCodes: Record<string, readonly string[]> = {};
       for (const [slot] of slots) {

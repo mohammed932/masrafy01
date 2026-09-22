@@ -1961,6 +1961,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_life_insurance => 'تأمين الحياة';
 
   @override
+  String get offer_car_insurance => 'تأمين السيارة (إجباري)';
+
+  @override
+  String offer_car_insurance_total(int years) {
+    String _temp0 = intl.Intl.pluralLogic(
+      years,
+      locale: localeName,
+      other: '$years سنة',
+      few: '$years سنوات',
+      two: 'سنتين',
+      one: 'سنة واحدة',
+    );
+    return 'التأمين على مدى $_temp0';
+  }
+
+  @override
+  String offer_fee_egp_per_year(String amount) {
+    return '$amount جنيه / سنة';
+  }
+
+  @override
   String offer_fee_egp(String amount) {
     return '$amount جنيه';
   }

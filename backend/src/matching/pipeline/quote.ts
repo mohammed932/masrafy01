@@ -39,6 +39,7 @@ import { runCascade, type CascadeBundle, type CascadeExtras } from './cascade-ad
 import { resolveAssumedIncome } from './income-resolver';
 import { applyIScoreFactor, iScoreOf, resolveIScoreFactor } from './iscore';
 import { calculateFees } from './fees';
+import { carInsuranceFor } from './car-insurance';
 import { calculateEffectiveLoanAmount, calculateMonthlyInstallment } from './pmt';
 import { calculateDbr, calculateMaxLoanFromDbr, resolveDbrCap } from './dbr';
 import { rateBasisOf } from './rate-basis';
@@ -859,6 +860,32 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
 
   const amountStepEGP = toPositiveDecimal(program.loanLimits.amountStepEGP);
 
+  // ── 4b. Comprehensive cover on the car ──────────────────────────────────
+  //
+  // Resolved ONCE, here, and not inside `priceAt`: it is keyed on the car's PRICE and the
+  // applicant's deposit, neither of which the affordability loop moves, so re-resolving it
+  // per pass would be the same grid walked up to five times for the same answer.
+  //
+  // The facts are `cascade.ctx.facts ?? programFacts`, the same set the financed share above
+  // reads, and for the reason written out there: `car_down_payment_percent` is derived per
+  // quote by `withGridFacts` and exists nowhere else, so reading `programFacts` alone leaves
+  // every axis unresolved and no cell matches.
+  //
+  // It is read off the applicant's OWN deposit, never the `requiredDownPaymentEGP` assembled
+  // at step 7 — that figure is `price − cash paid out` and moves with the loan the engine
+  // chose, so keying cover off it would price the insurance against a deposit the customer
+  // never stated.
+  //
+  // Nothing below reads it except the breakdown. It caps nothing, refuses nobody, and moves
+  // no instalment: see `car-insurance.ts`.
+  const carInsurance = carInsuranceFor({
+    grid: program.fees?.carInsuranceRateByFact,
+    facts: cascade.ctx.facts ?? programFacts,
+    carDetails: profile.carDetails,
+    tenorMonths,
+    ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+  });
+
   // Price at a given cash amount. Note `effectiveLoanAmountEGP: cash` — the
   // life-insurance base is the pre-fee amount, matching the pre-010 engine.
   const priceAt = (amount: Decimal) => {
@@ -868,6 +895,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       annualRatePercent: ratePercent,
       tenorMonths,
       collateralized: program.eligibility?.requiresCollateral ?? false,
+      ...(carInsurance.kind === 'required' ? { carInsurance } : {}),
     });
     const booked = calculateEffectiveLoanAmount(amount, fees.totalFinancedFeesEGP);
     const installment = calculateMonthlyInstallment(

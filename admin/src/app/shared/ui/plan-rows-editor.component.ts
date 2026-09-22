@@ -1324,6 +1324,8 @@ export class PlanRowsEditorComponent {
         return $localize`:@@spd.plan_table.col_ltv:We finance`;
       case 'minAmountByFact':
         return $localize`:@@spd.plan_table.col_floor:Smallest loan`;
+      case 'carInsuranceRateByFact':
+        return $localize`:@@spd.plan_table.col_car_insurance:Insurance`;
     }
   }
 
@@ -1332,7 +1334,20 @@ export class PlanRowsEditorComponent {
     return this.extraLabel(column.slot, this.table()?.columns[column.columnIndex]?.extra ?? []);
   }
 
+  /**
+   * The unit a column's cells carry, by SLOT and not by value kind.
+   *
+   * Two slots share `sharePercent` and mean different things: the financed share is a
+   * one-off portion of the price, and the cover is a percent of the same price charged EVERY
+   * YEAR. Keyed on the value kind alone they would sit side by side reading a bare `%`, and
+   * nothing on the row would say that one of them recurs — the operator would read "60" and
+   * "1" as the same kind of figure. The value kind stays as the fallback for every slot that
+   * has nothing more specific to say.
+   */
   protected unitOf(slot: PlanSlotKey): string | null {
+    if (slot === 'carInsuranceRateByFact') {
+      return $localize`:@@spd.plan_table.unit_percent_per_year:%/yr`;
+    }
     switch (planSlotValueKind(slot)) {
       case 'ratePercent':
       case 'sharePercent':

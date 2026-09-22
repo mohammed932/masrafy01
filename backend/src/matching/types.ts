@@ -789,6 +789,24 @@ export interface FeesConfig {
   feeWaiverPenaltyMinTenorMonths?: number;
   insuranceWaiverPenaltyRatePercent?: string;
   insuranceWaiverPenaltyMinTenorMonths?: number;
+  /**
+   * COMPREHENSIVE COVER ON THE CAR: a percent of the car's PRICE, charged every year, for
+   * every year of the loan — keyed on the deposit the applicant is putting down.
+   *
+   * The table IS the rule. A bank that demands cover below half the price states a row for
+   * `[0, 50)` and none above it; the bank whose edge is 40% types 40. No threshold lives in
+   * code, which is the only shape that survives the second bank: Suez Canal demands it on
+   * its 20% and 30% tiers, HDB on E2/E3 (31%/41% down) and not on E5/E6, and ADIB prices an
+   * insured and an uninsured column at every tier with no insured column at 60% at all.
+   *
+   * `'sharePercent'` (0 < n ≤ 100), never `'ratePercent'`: this is a share of a price, and
+   * that kind's 999.9999 ceiling would accept a figure nobody can check by eye.
+   *
+   * NOT a fee in the `totalFinancedFees` sense — see `calculateFees`. It is money the
+   * customer pays out to an insurer every year, not a charge folded into the principal, so
+   * it changes no installment and no ceiling. Read by `pipeline/car-insurance.ts`.
+   */
+  carInsuranceRateByFact?: FactGridConfig;
 }
 
 export interface DeprecatedKeyWarning {
@@ -873,6 +891,24 @@ export interface FeesBreakdown {
   feeWaiverPenaltyRatePercent?: string;
   insuranceWaiverPenaltyRatePercent?: string;
   effectiveRateAfterPenaltiesPercent: string;
+  /**
+   * Comprehensive cover the programme requires at this applicant's deposit, DISCLOSED.
+   *
+   * All four absent together on every programme that states no table, which is every
+   * non-car programme and every car programme that has not opted in — so the breakdown of
+   * an existing offer is byte-identical to what it was before this field existed.
+   *
+   * They are a DISCLOSURE, not a charge: none of them reaches `totalFinancedFeesEGP`, the
+   * booked principal, the instalment or the debt-burden ratio. The customer pays this to an
+   * insurer, once a policy year, outside the loan.
+   */
+  carInsuranceRatePercent?: string;
+  /** The premium for ONE policy year: the car's price × the rate above. */
+  carInsuranceAnnualEGP?: string;
+  /** Policy years bought, `ceil(tenorMonths / 12)` — a 30-month loan buys three. */
+  carInsuranceYears?: number;
+  /** The annual premium × the years: what cover costs over the whole loan. */
+  carInsuranceTotalEGP?: string;
 }
 
 export interface Offer {
@@ -1328,4 +1364,4 @@ export type ApplicationPriority = (typeof APPLICATION_PRIORITIES)[number];
  * priced this offer — and that is a fact about the code, so it lives in code. Bump it on
  * any change to the quote pipeline. Max 32 chars (`engineVersion` is VarChar(32)).
  */
-export const MATCHING_ENGINE_VERSION = '2.2.0';
+export const MATCHING_ENGINE_VERSION = '2.3.0';

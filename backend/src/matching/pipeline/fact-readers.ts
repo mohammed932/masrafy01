@@ -87,6 +87,16 @@ export interface FactReaderProgramRow {
    */
   pricing: unknown;
   tenor: unknown;
+  /**
+   * `fees.carInsuranceRateByFact`'s axes — the deposit band at which the bank demands
+   * comprehensive cover on the car.
+   *
+   * REQUIRED for the reason the two above are. A cost table is still a reader: its axis is
+   * an answer a live programme keys a figure off, and a fact deleted out from under it makes
+   * every cell miss, which reads as "no cover required" — a disclosure that silently stops
+   * being made is worse than one that errors.
+   */
+  fees: unknown;
 }
 
 export interface FactReaderRuleRow {
@@ -215,6 +225,21 @@ export function factsReadByTenor(raw: unknown): Set<string> {
 }
 
 /**
+ * Every fact key a bank program's FEES read — today, the car-cover table's axes.
+ *
+ * A fourth surface for the reason the third exists, and the reason is not that this table
+ * changes a price: it does not. It is that all four guards derive "what does this program
+ * need" from this file, and a cost keyed on an answer needs that answer as surely as a rate
+ * does. Left out, the deposit question could be narrowed away or the fact deleted, every
+ * cell would miss, and the programme would quietly go back to disclosing nothing — the one
+ * failure this feature exists to end.
+ */
+export function factsReadByFees(raw: unknown): Set<string> {
+  if (!isRecord(raw)) return new Set<string>();
+  return gridAxisKeys(raw.carInsuranceRateByFact);
+}
+
+/**
  * The axes of one grid, minus the ones the engine computes for itself.
  *
  * `car_down_payment_percent` and `tenor_months` are derived per quote and have no question
@@ -241,11 +266,13 @@ export function factsReadByProgram(row: {
   /** Required for the reason `FactReaderProgramRow`'s are. */
   pricing: unknown;
   tenor: unknown;
+  fees: unknown;
 }): Set<string> {
   const keys = factsReadByIncomeRule(row.incomeAssumption);
   for (const key of factsReadByLoanLimits(row.loanLimits)) keys.add(key);
   for (const key of factsReadByPricing(row.pricing)) keys.add(key);
   for (const key of factsReadByTenor(row.tenor)) keys.add(key);
+  for (const key of factsReadByFees(row.fees)) keys.add(key);
   return keys;
 }
 
@@ -275,7 +302,8 @@ export function factReaders(
     }
     if (
       factsReadByPricing(program.pricing).has(factKey) ||
-      factsReadByTenor(program.tenor).has(factKey)
+      factsReadByTenor(program.tenor).has(factKey) ||
+      factsReadByFees(program.fees).has(factKey)
     ) {
       readers.push({ source: 'bank_program_grid', ref: program.programCode });
     }
