@@ -4,12 +4,18 @@ import { BankProgramRepository } from './bank-programs.repository';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 import { MobileBankProgramResponseDto } from './dto/mobile-bank-program.response.dto';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
-import { catalogLoanAmountsOf, catalogTenorOf } from '@/matching/pipeline/income-rule-inherit';
+import {
+  catalogLoanAmountsOf,
+  catalogRateOf,
+  catalogTenorOf,
+} from '@/matching/pipeline/income-rule-inherit';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
 import { effectiveLoanAmounts } from '@/matching/pipeline/loan-amount-inherit';
 import type { StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
 import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
+import { effectiveRate } from '@/matching/pipeline/rate-inherit';
+import type { StoredPricing } from '@/matching/pipeline/rate-inherit';
 
 /**
  * Mobile read-only service. Hand-written allowlist mapper (research.md R5).
@@ -96,9 +102,16 @@ export class BankProgramsMobileService {
       catalogLoanAmountsOf(resolution),
     );
 
-    const baseRate = pricing?.isVariableRate
-      ? pricing?.currentEffectiveRatePercent
-      : pricing?.baseRatePercent;
+    // The PRICE, resolved the same way and for the same reason the size above is: a program
+    // that states no rate of its own publishes the PRODUCT's, not a zero. Since the wizard
+    // stopped asking for a rate, that is the state every programme created from now on is
+    // in, and a bare `?? '0'` here would reach the app as "0% – 0%".
+    const rate = effectiveRate(pricing as StoredPricing | undefined, catalogRateOf(resolution));
+    const baseRate = rate?.isVariableRate
+      ? rate?.currentEffectiveRatePercent
+      : rate?.baseRatePercent;
+    // The SPREADS stay the bank's own — they are a range this bank publishes around its own
+    // price, not part of the one statement a product hands down.
     const minRate = pricing?.spreadMinPercent ?? baseRate ?? '0';
     const maxRate = pricing?.spreadMaxPercent ?? baseRate ?? '0';
 

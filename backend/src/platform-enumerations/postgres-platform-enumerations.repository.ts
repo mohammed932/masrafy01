@@ -66,6 +66,8 @@ import {
   statesOwnLoanAmounts,
 } from '@/matching/pipeline/loan-amount-inherit';
 import type { LoanAmountDefaults, StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
+import { asRateDefaults, statesOwnRate } from '@/matching/pipeline/rate-inherit';
+import type { RateDefaults, StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
   asPlanDefaults,
   effectivePlanLoanLimits,
@@ -876,6 +878,7 @@ export class PostgresPlatformEnumerationsRepository
               incomeRule: true,
               tenorDefaults: true,
               loanAmountDefaults: true,
+              rateDefaults: true,
               planDefaults: true,
               iScoreDefaults: true,
             },
@@ -895,6 +898,7 @@ export class PostgresPlatformEnumerationsRepository
             tenorDefaults: asTenorDefaults(productRow.tenorDefaults),
             planDefaults: asPlanDefaults(productRow.planDefaults),
             loanAmountDefaults: asLoanAmountDefaults(productRow.loanAmountDefaults),
+            rateDefaults: asRateDefaults(productRow.rateDefaults),
             iScoreDefaults: asIScoreTiers(productRow.iScoreDefaults),
           };
     const resolution = effectiveProgramNameRule(asIncomeRule(nameRow.incomeRule), linked);
@@ -997,6 +1001,7 @@ export class PostgresPlatformEnumerationsRepository
         incomeRule: true,
         tenorDefaults: true,
         loanAmountDefaults: true,
+        rateDefaults: true,
         planDefaults: true,
         iScoreDefaults: true,
         surrogateProductKey: true,
@@ -1025,6 +1030,7 @@ export class PostgresPlatformEnumerationsRepository
         tenorDefaults: asTenorDefaults(row.tenorDefaults),
         planDefaults: asPlanDefaults(row.planDefaults),
         loanAmountDefaults: asLoanAmountDefaults(row.loanAmountDefaults),
+        rateDefaults: asRateDefaults(row.rateDefaults),
         iScoreDefaults: asIScoreTiers(row.iScoreDefaults),
       });
     }
@@ -1076,6 +1082,9 @@ export class PostgresPlatformEnumerationsRepository
     // hands its programs on the same step as the figures, and one read answers both.
     tenorDefaults: true,
     loanAmountDefaults: true,
+    // Read with them for the same reason: since the bank-program wizard stopped asking for a
+    // rate, the product's screen is where the price is stated, on the same step as the size.
+    rateDefaults: true,
     // Read with the duration beside it: the product's screen edits the plan tables on the
     // same step, and one read answers both.
     planDefaults: true,
@@ -1298,6 +1307,47 @@ export class PostgresPlatformEnumerationsRepository
       .map((row) => row.programCode);
   }
 
+  async setSurrogateProductRateDefaults(
+    key: string,
+    rate: RateDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: {
+        rateDefaults:
+          rate === null ? Prisma.DbNull : ({ ...rate } as unknown as Prisma.InputJsonValue),
+        updatedBy,
+      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
+    });
+    return toProgramNameIncomeRuleRow(row);
+  }
+
+  /**
+   * The programs reading this product's rate, found the same two hops the duration and the
+   * loan size are: `programNameKey` is not an FK, so the names are read first and the
+   * programs with one `IN`.
+   *
+   * "Reading it" is "states no price of its own", decided by `statesOwnRate` — the SAME
+   * reader the quote path uses, so a program the clear would silence cannot be missed here.
+   */
+  async programsInheritingRate(productKey: string): Promise<string[]> {
+    const names = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name', surrogateProductKey: productKey },
+      select: { key: true },
+    });
+    if (names.length === 0) return [];
+    const rows = await this.prisma.bankProgram.findMany({
+      where: { programNameKey: { in: names.map((n) => n.key) } },
+      select: { programCode: true, pricing: true },
+      orderBy: { programCode: 'asc' },
+    });
+    return rows
+      .filter((row) => !statesOwnRate(row.pricing as unknown as StoredPricing | undefined))
+      .map((row) => row.programCode);
+  }
+
   async programsInheritingTenor(productKey: string): Promise<string[]> {
     const names = await this.prisma.platformEnumeration.findMany({
       where: { type: 'program_name', surrogateProductKey: productKey },
@@ -1450,6 +1500,7 @@ export class PostgresPlatformEnumerationsRepository
         incomeAssumption: true,
         tenor: true,
         loanLimits: true,
+        pricing: true,
         plansSource: true,
         // The bank's own row, because `bank_program` stores only `bankId`. One extra join
         // on a list that is at most a handful of programmes per name.
@@ -1479,6 +1530,10 @@ export class PostgresPlatformEnumerationsRepository
         ownLoanAmounts: statesOwnLoanAmounts(
           row.loanLimits as unknown as StoredLoanLimits | undefined,
         ),
+        // Whose PRICE. Read through the SAME reader the quote path uses, so the product
+        // screen's reader count and the engine cannot disagree about which figure counts as
+        // stated — a program marked variable is judged on its effective rate, not its base.
+        ownRate: statesOwnRate(row.pricing as unknown as StoredPricing | undefined),
         followsPlans: inheritsProductPlans(row.plansSource),
         // A FOURTH axis, and the newest: whose bureau-score tiers. Read through the SAME
         // reader the quote path uses, so an empty `{ bands: [] }` counts as unstated here
@@ -2580,6 +2635,7 @@ function toProgramNameIncomeRuleRow(row: {
   capDefaults?: unknown;
   tenorDefaults?: unknown;
   loanAmountDefaults?: unknown;
+  rateDefaults?: unknown;
   planDefaults?: unknown;
   iScoreDefaults?: unknown;
   valueSources: unknown;
@@ -2601,6 +2657,10 @@ function toProgramNameIncomeRuleRow(row: {
     tenorDefaults: asTenorDefaults(row.tenorDefaults) ?? null,
     // Through the SAME reader the quote path uses, for the reason the duration above gives.
     loanAmountDefaults: asLoanAmountDefaults(row.loanAmountDefaults) ?? null,
+    // Through the SAME reader the quote path uses, for the reason the two above give: a blob
+    // whose selected figure is missing is no price there, and the screen must not show a rate
+    // the engine will not quote.
+    rateDefaults: asRateDefaults(row.rateDefaults) ?? null,
     // Through the SAME reader the quote path uses, for the same reason: a slot that is not
     // grid-shaped is dropped there, and the screen must not show a table the engine ignores.
     planDefaults: asPlanDefaults(row.planDefaults) ?? null,

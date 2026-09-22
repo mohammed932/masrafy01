@@ -395,6 +395,20 @@ export const ERROR_CODES = {
   SURROGATE_PRODUCT_TENOR_IN_USE: 'SURROGATE_PRODUCT_TENOR_IN_USE',
   SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE: 'SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE',
   /**
+   * A surrogate product's default INTEREST RATE was CLEARED while bank programs are reading
+   * it. Meta: `{ count, programCodes }`.
+   *
+   * The third of the family, on exactly the terms `SURROGATE_PRODUCT_TENOR_IN_USE` above
+   * states: only the CLEAR is refused, because a change gives an inheriting program a
+   * different price and a clear gives it none — and a loan with no price is reported to a
+   * customer as `PROGRAM_MISCONFIGURED`.
+   *
+   * It bites harder than its two siblings and that is deliberate: the bank-program wizard
+   * stopped asking for a rate, so "give each of them its own price first" is a seed or an
+   * API call, not a screen. Clearing is a decision to stop selling at this product's price.
+   */
+  SURROGATE_PRODUCT_RATE_IN_USE: 'SURROGATE_PRODUCT_RATE_IN_USE',
+  /**
    * The question an operator ticked on a product's step ① is already answered by MORE THAN
    * ONE surrogate fact.
    *
@@ -1110,6 +1124,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // exists — what refuses it is the state of the programmes underneath.
   SURROGATE_PRODUCT_TENOR_IN_USE: 409,
   SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE: 409,
+  SURROGATE_PRODUCT_RATE_IN_USE: 409,
   // 409: the request is well-formed and the rows exist — the platform's own data is in a
   // shape that has no single right answer, and only an operator can pick one.
   SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,

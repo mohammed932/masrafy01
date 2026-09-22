@@ -22,6 +22,7 @@ import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductLoanAmountDefaultsDto,
+  SetSurrogateProductRateDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
@@ -42,6 +43,7 @@ import {
   MaxLoanByFactInvalidException,
   SurrogateProductNoCapException,
   SurrogateProductLoanAmountsInUseException,
+  SurrogateProductRateInUseException,
   SurrogateProductTenorInUseException,
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
@@ -131,9 +133,12 @@ import {
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
+import { effectiveRate } from '@/matching/pipeline/rate-inherit';
+import type { RateDefaults, StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
   catalogLoanAmountsOf,
   catalogPlansOf,
+  catalogRateOf,
   catalogRuleOf,
   catalogTenorOf,
   dropClearedPolicy,
@@ -538,8 +543,17 @@ export class BankProgramsService {
     } else {
       if (
         (!baseRatePercent || baseRatePercent.length === 0) &&
-        !this.aRateGridPrices(dto, catalogResolution)
+        !this.aRateGridPrices(dto, catalogResolution) &&
+        catalogRateOf(catalogResolution) === undefined
       ) {
+        // THE PRODUCT'S PRICE IS AN ANSWER, which is the arm this check grew when the rate
+        // card was deleted from the wizard (v30.4.0). A program under a name whose product
+        // states a rate is priced by it — `effectiveRate` merges it into the snapshot before
+        // the cascade runs — so demanding a figure here would be demanding one the engine
+        // never reads, the same defect `aRateGridPrices` beside it exists to stop.
+        //
+        // It is NOT relaxed into "a linked product exists": a product that states no rate
+        // leaves the program unpriceable, and that is exactly what this refusal is for.
         throw new InvalidVariableRateConfigurationException(
           'baseRate',
           'baseRate is REQUIRED when isVariableRate=false',
@@ -1164,6 +1178,12 @@ export class BankProgramsService {
     extra: {
       warnings?: Array<{ code: string; meta?: Record<string, unknown> }>;
       deactivatedByEstimate?: boolean;
+      /**
+       * The product's rate, for the screens that read this program back. Passed in rather
+       * than looked up here because this mapper is sync and is called inside a transaction
+       * on three of its five paths; the READ that renders a price is the one that fetches it.
+       */
+      productRate?: RateDefaults | null;
     } = {},
   ): BankProgramResponseDto {
     return {
@@ -1203,6 +1223,10 @@ export class BankProgramsService {
       ) as unknown as Record<string, unknown>,
       fees: program.fees as Record<string, unknown>,
       valueSources: (program.valueSources ?? {}) as Record<string, 'team_estimated'>,
+      // Beside `pricing` and never merged into it — see the field's own doc. Absent when the
+      // caller did not look it up, which is every write path: a save already knows what it
+      // sent, and the screens that render a price are reads.
+      ...(extra.productRate === undefined ? {} : { productRate: extra.productRate }),
       deprecatedKeys,
       warnings: extra.warnings ?? [],
       ...(extra.deactivatedByEstimate ? { deactivatedByEstimate: true } : {}),
@@ -1231,15 +1255,28 @@ export class BankProgramsService {
       acceptedEmploymentType: query.employmentType,
     });
 
+    // Every catalog name's resolution, read ONCE for the page rather than per row: the rate
+    // column is resolved through the product for any programme that states none of its own,
+    // and a lookup inside the map below would be a query per row.
+    const catalogRules = await this.enums.programNameIncomeRules();
+
     // Compute deprecated-key count per row in parallel.
     const enriched = await Promise.all(
       rows.map(async (r) => {
         const deprecatedKeyCount = await this.countDeprecatedKeys(r);
-        const pricing = r.pricing as {
-          isVariableRate?: boolean;
-          baseRatePercent?: string;
-          currentEffectiveRatePercent?: string;
-        };
+        // RESOLVED, not raw: since the wizard stopped asking for a rate, a raw read would
+        // print an empty rate column for every programme priced by its product. The same
+        // function the engine prices with, so the list and the quote cannot disagree.
+        const pricing = effectiveRate(
+          r.pricing as unknown as StoredPricing | undefined,
+          r.programNameKey === null ? undefined : catalogRateOf(catalogRules.get(r.programNameKey)),
+        ) as
+          | {
+              isVariableRate?: boolean;
+              baseRatePercent?: string;
+              currentEffectiveRatePercent?: string;
+            }
+          | undefined;
         return {
           id: r.id,
           programCode: r.programCode,
@@ -1278,7 +1315,15 @@ export class BankProgramsService {
     // possibly months ago. The admin has to see it when they open the program,
     // before a customer meets it.
     const warnings = await this.incomeRuleReadWarnings(program);
-    return this.toResponse(program, deprecatedKeys, { warnings });
+    // What this programme is PRICED at, for the detail screen: its own rate when it states
+    // one, and otherwise the product's, which is where every programme created since the
+    // wizard's rate card was deleted gets its price. Read here rather than merged into
+    // `pricing`, which the form posts back.
+    const productRate =
+      program.programNameKey === null
+        ? null
+        : (catalogRateOf(await this.catalogResolutionFor(program.programNameKey)) ?? null);
+    return this.toResponse(program, deprecatedKeys, { warnings, productRate });
   }
 
   /**
@@ -1893,6 +1938,7 @@ export class BankProgramsService {
         ownTenor: p.ownTenor,
         ownIScoreTiers: p.ownIScoreTiers,
         ownLoanAmounts: p.ownLoanAmounts,
+        ownRate: p.ownRate,
         followsPlans: p.followsPlans,
       })),
     }));
@@ -1922,6 +1968,9 @@ export class BankProgramsService {
       // The SIZE it hands them, on the same terms as the duration above: read live, not
       // copied, and a reader has to be able to tell it from `capDefaults`.
       loanAmountDefaults: row.loanAmountDefaults,
+      // The PRICE it hands them, on the same terms as the size above — and the only place
+      // most programmes under it are priced from, since the wizard stopped asking.
+      rateDefaults: row.rateDefaults,
       planDefaults: row.planDefaults,
       // The TIERS it hands them, beside the duration and on the same terms: read live, so a
       // change here moves every program that states none of its own. This is the screen that
@@ -2343,6 +2392,119 @@ export class BankProgramsService {
         changes: {
           loanAmountDefaults: {
             before: row.loanAmountDefaults,
+            after: stored,
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * Set (or clear, with `null`) a surrogate product's default INTEREST RATE.
+   *
+   * The third sibling of the two above, on the same terms and with the same one refusal: a
+   * CHANGE is free and re-prices every program that states none, a CLEAR would leave them
+   * with no price at all, which cannot be quoted — so it is refused and the programs are
+   * NAMED.
+   *
+   * It is also the SCREEN a price is typed on now. The bank-program wizard's rate card was
+   * deleted, so for every programme under this product that states nothing, this is the one
+   * place the figure exists.
+   *
+   * THE CROSS-FIELD RULE IS THE PROGRAM'S OWN, deliberately reusing
+   * `InvalidVariableRateConfigurationException`: a product that states a variable rate with
+   * no effective figure, or a fixed one with both boxes filled, would hand every program
+   * under it a price the cascade cannot read. One rule, one exception, both sides.
+   *
+   * Counted across every program under this product's names, not only the surrogate ones: a
+   * catalog name can carry both kinds, and each stores a `pricing`.
+   */
+  async setSurrogateProductRateDefaults(
+    key: string,
+    dto: SetSurrogateProductRateDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored: RateDefaults | null =
+      dto.rate === null
+        ? null
+        : {
+            isVariableRate: dto.rate.isVariableRate,
+            ...(dto.rate.baseRatePercent === undefined
+              ? {}
+              : { baseRatePercent: dto.rate.baseRatePercent }),
+            ...(dto.rate.currentEffectiveRatePercent === undefined
+              ? {}
+              : { currentEffectiveRatePercent: dto.rate.currentEffectiveRatePercent }),
+            ...(dto.rate.variableRateNote === undefined
+              ? {}
+              : { variableRateNote: dto.rate.variableRateNote }),
+            ...(dto.rate.rateBasis === undefined ? {} : { rateBasis: dto.rate.rateBasis }),
+          };
+
+    if (stored !== null) {
+      const filled = (value: string | undefined): boolean => value !== undefined && value !== '';
+      if (stored.isVariableRate) {
+        if (!filled(stored.currentEffectiveRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'currentEffectiveRate',
+            'currentEffectiveRate is REQUIRED when isVariableRate=true',
+          );
+        }
+        if (filled(stored.baseRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'baseRate',
+            'baseRate MUST be empty when isVariableRate=true',
+          );
+        }
+      } else {
+        if (!filled(stored.baseRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'baseRate',
+            'baseRate is REQUIRED when isVariableRate=false',
+          );
+        }
+        if (filled(stored.currentEffectiveRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'currentEffectiveRate',
+            'currentEffectiveRate MUST be empty when isVariableRate=false',
+          );
+        }
+      }
+    }
+
+    if (stored === null && row.rateDefaults !== null) {
+      const inheriting = await this.enums.programsInheritingRate(key);
+      if (inheriting.length > 0) {
+        throw new SurrogateProductRateInUseException({
+          count: inheriting.length,
+          // Capped for a person to read, exactly as the duration's refusal caps it.
+          programCodes: inheriting.slice(0, 20),
+        });
+      }
+    }
+
+    const saved = await this.enums.setSurrogateProductRateDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full, for the reason the duration logs both — and with one more
+        // behind it: this is a PRICE, and the log has to answer "what were we quoting
+        // yesterday" without a second lookup.
+        changes: {
+          rateDefaults: {
+            before: row.rateDefaults,
             after: stored,
           },
         },
@@ -2874,6 +3036,7 @@ export class BankProgramsService {
         ownTenor: p.ownTenor,
         ownIScoreTiers: p.ownIScoreTiers,
         ownLoanAmounts: p.ownLoanAmounts,
+        ownRate: p.ownRate,
         followsPlans: p.followsPlans,
       })),
       surrogateProduct:
@@ -2899,6 +3062,9 @@ export class BankProgramsService {
               // The same, for the SIZE: a program under this name that states no amounts
               // lends between these, and the wizard renders that state as a statement.
               loanAmountDefaults: product.loanAmountDefaults,
+              // The PRICE a program under this name is quoted at when it states none of its
+              // own — which is what the wizard renders in place of the rate card it lost.
+              rateDefaults: product.rateDefaults,
               planDefaults: product.planDefaults,
               // The I-Score TIERS a program under this name falls back to when it states
               // none. The wizard renders that state as a statement and offers to copy them,

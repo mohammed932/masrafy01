@@ -55,6 +55,7 @@ import type { IScoreTiers } from './iscore';
 import type { TenorDefaults } from './tenor-inherit';
 import type { PlanDefaults } from './plan-inherit';
 import type { LoanAmountDefaults } from './loan-amount-inherit';
+import type { RateDefaults } from './rate-inherit';
 
 /**
  * The figure-bearing keys. The legacy five are included because a catalog rule
@@ -239,6 +240,14 @@ export type CatalogRuleResolution =
        * four steps inside the rule (v30.3.0).
        */
       readonly iScoreDefaults?: IScoreTiers;
+      /**
+       * The product's INTEREST RATE, for a program that states none of its own.
+       *
+       * Rides here for the reason `tenorDefaults` above states, and it is the field that
+       * replaced the rate card on every bank program's wizard: a price is one statement
+       * about the product, not a figure retyped per bank.
+       */
+      readonly rateDefaults?: RateDefaults;
     }
   | {
       readonly withheld: 'surrogate_product_retired';
@@ -259,6 +268,8 @@ export type CatalogRuleResolution =
       readonly loanAmountDefaults?: LoanAmountDefaults;
       /** The product's I-Score tiers, for a program that states none — see arm 1. */
       readonly iScoreDefaults?: IScoreTiers;
+      /** The product's rate, for a program that states none — see arm 1. */
+      readonly rateDefaults?: RateDefaults;
     }
   | {
       /**
@@ -275,6 +286,8 @@ export type CatalogRuleResolution =
       readonly loanAmountDefaults?: LoanAmountDefaults;
       /** The product's I-Score tiers, for a program that states none — see arm 1. */
       readonly iScoreDefaults?: IScoreTiers;
+      /** The product's rate, for a program that states none — see arm 1. */
+      readonly rateDefaults?: RateDefaults;
     };
 
 /**
@@ -313,6 +326,8 @@ export interface LinkedProduct {
   readonly loanAmountDefaults?: LoanAmountDefaults | undefined;
   /** The default I-Score tier table, when this product states one. */
   readonly iScoreDefaults?: IScoreTiers | undefined;
+  /** The default interest rate, when this product states one. */
+  readonly rateDefaults?: RateDefaults | undefined;
 }
 
 export function effectiveProgramNameRule(
@@ -337,6 +352,10 @@ export function effectiveProgramNameRule(
     // product off is a decision about what QUOTES, not about what is configured.
     const iScore =
       product.iScoreDefaults === undefined ? {} : { iScoreDefaults: product.iScoreDefaults };
+    // The RATE, on the same terms as the three defaults above and carried on every arm for
+    // the same reason: switching a product off is a decision about what QUOTES, not about
+    // what is configured.
+    const rate = product.rateDefaults === undefined ? {} : { rateDefaults: product.rateDefaults };
     if (!product.active || product.deprecatedAt !== null) {
       return {
         withheld: 'surrogate_product_retired',
@@ -346,6 +365,7 @@ export function effectiveProgramNameRule(
         ...plans,
         ...loanAmounts,
         ...iScore,
+        ...rate,
       };
     }
     if (product.rule !== undefined) {
@@ -356,6 +376,7 @@ export function effectiveProgramNameRule(
         ...plans,
         ...loanAmounts,
         ...iScore,
+        ...rate,
       };
     }
     // ACTIVE, linked, and holding no calculation. `own` is `null` here on every real row
@@ -368,9 +389,10 @@ export function effectiveProgramNameRule(
       tenor.tenorDefaults !== undefined ||
       plans.planDefaults !== undefined ||
       loanAmounts.loanAmountDefaults !== undefined ||
-      iScore.iScoreDefaults !== undefined
+      iScore.iScoreDefaults !== undefined ||
+      rate.rateDefaults !== undefined
     ) {
-      return { productKey: product.key, ...tenor, ...plans, ...loanAmounts, ...iScore };
+      return { productKey: product.key, ...tenor, ...plans, ...loanAmounts, ...iScore, ...rate };
     }
   }
   const rule = own ?? undefined;
@@ -432,6 +454,19 @@ export function catalogIScoreOf(
   resolution: CatalogRuleResolution | undefined,
 ): IScoreTiers | undefined {
   return resolution?.iScoreDefaults;
+}
+
+/**
+ * The default INTEREST RATE a resolution holds, whether or not the rule is withheld.
+ *
+ * The sibling of `catalogTenorOf` in every respect — see it. Read by the snapshot mapper to
+ * price a program that states none, and by the save path to decide whether a program may be
+ * saved without a rate at all.
+ */
+export function catalogRateOf(
+  resolution: CatalogRuleResolution | undefined,
+): RateDefaults | undefined {
+  return resolution?.rateDefaults;
 }
 
 /**

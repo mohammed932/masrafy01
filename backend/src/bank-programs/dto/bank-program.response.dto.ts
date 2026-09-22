@@ -1,5 +1,6 @@
 import type { ProgramType } from './create-bank-program.dto';
 import type { PlansSource } from '../../matching/pipeline/plan-inherit';
+import type { RateDefaults } from '../../matching/pipeline/rate-inherit';
 
 export interface DeprecatedKeyDescriptor {
   fieldPath: string;
@@ -41,7 +42,26 @@ export class BankProgramResponseDto {
 
   tenor!: Record<string, unknown>;
   loanLimits!: Record<string, unknown>;
+  /**
+   * The program's OWN pricing blob, exactly as stored — never merged with the product's.
+   *
+   * RAW ON PURPOSE, unlike the list row's resolved figure beside it. The wizard saves by
+   * full replacement and posts this object back: a response carrying the product's rate
+   * would be copied onto the program on the next save, and a programme that was reading its
+   * product's price would silently freeze a copy of it — the same defect `plansSource`'s
+   * docstring records. What the program is actually quoted at rides on `productRate` below,
+   * where nothing posts it back.
+   */
   pricing!: Record<string, unknown>;
+  /**
+   * The surrogate product's rate, when the catalog name this program is filed under links a
+   * product that states one. `null` otherwise.
+   *
+   * READ-ONLY and separate from `pricing` above, so the detail screen can print what the
+   * programme is quoted at while the form keeps posting back only what the programme itself
+   * states. A program whose own rate is blank is priced at this one.
+   */
+  productRate?: RateDefaults | null;
   eligibility!: Record<string, unknown>;
   performanceCriteria?: Record<string, unknown> | null;
   incomeAssumption!: Record<string, unknown>;
@@ -93,10 +113,19 @@ export class BankProgramListRowDto {
   programType!: 'income_proof' | 'income_surrogate';
   active!: boolean;
   isShariaCompliant!: boolean;
+  /**
+   * The rate this program is QUOTED at — its own when it states one, the surrogate
+   * product's when it does not (`effectiveRate`).
+   *
+   * Resolved rather than raw, and only on this read-only list: since the wizard stopped
+   * asking for a rate, a raw column would be blank for every programme priced by its
+   * product, which reads as a programme with no price rather than one priced a level up.
+   *
+   * The DETAIL response deliberately does NOT do this — see `pricing` there.
+   */
   baseRatePercent?: string | null;
   currentEffectiveRatePercent?: string | null;
   deprecatedKeyCount!: number;
   version!: number;
   updatedAt!: string;
 }
-

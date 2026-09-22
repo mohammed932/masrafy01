@@ -84,6 +84,7 @@ import type {
   RateBasis,
   TenorConfig,
   LoanAmountDefaults,
+  RateDefaults,
   TenorDefaults,
   PlanDefaults,
   PlansSource,
@@ -143,7 +144,6 @@ import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed'
 import { newProgramDefaults } from './new-program-defaults';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
-  DbrBandsEditorComponent,
   WizardStepsComponent,
   capConfigFrom,
   capGridFrom,
@@ -378,7 +378,6 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
     NzInputNumberModule,
     NzSelectModule,
     NzSwitchModule,
-    DbrBandsEditorComponent,
     FigureFieldComponent,
     IncomeBandsEditorComponent,
     IncomeBasisCardsComponent,
@@ -1308,137 +1307,230 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                    — "loans under X fall outside every band" — is about the minimum loan
                    amount typed at the top of this step; as two steps that sentence pointed
                    somewhere the operator could not see without navigating. -->
-              <section id="card-pricing" class="card" formGroupName="pricing">
-                <header class="card-head">
-                  <div>
-                    <h2 class="card-title" i18n="@@bank_programs.form.rate.title">Interest rate</h2>
-                    <p class="card-sub" i18n="@@bank_programs.form.rate.sub">
-                      One annual rate. Switch to a band table below if the rate depends on loan
-                      size.
+              <!-- THE PRICE. The card that asked for one is GONE, and what stands here in
+                   its place is a read-back.
+
+                   An interest rate is a statement about the PRODUCT, not a figure every
+                   operator retypes per bank: it is stated once on the product's own screen,
+                   beside the duration and the loan size it already states there, and every
+                   programme selling that product is quoted at it unless it says otherwise
+                   (effectiveRate, merged in toBankProgramSnapshot). So this step no
+                   longer asks — it SAYS, which is the same move the duration card makes when
+                   a programme is reading the product's months.
+
+                   THE CARD SURVIVES FOR ONE STATE, and only one: a name whose product states
+                   no rate at all. Deleting it there would leave the programme with no price
+                   anywhere on the platform and no screen to give it one — a save the server
+                   refuses ("baseRate is REQUIRED") with nothing on screen to fix. That is the
+                   blank-with-nothing-behind-it state the money step already refuses for the
+                   duration, and the honest answer to it is a box, not a silence.
+
+                   The rate TABLES below are untouched. They are a different level of the
+                   pricing cascade and they are the bank's own: a bank that prices this
+                   product differently per band still says so here. -->
+              @if (rateInheritable()) {
+                <section id="card-pricing" class="card">
+                  <header class="card-head">
+                    <div>
+                      <h2 class="card-title" i18n="@@bank_programs.form.rate.title">
+                        Interest rate
+                      </h2>
+                      <p class="card-sub" i18n="@@bank_programs.form.rate.from_product">
+                        Stated once on the product. Change it there and every programme selling the
+                        product moves with it.
+                      </p>
+                    </div>
+                  </header>
+                  <!-- The SAME vocabulary the duration card uses for the same state,
+                       deliberately: a figure, the tag that says whose it is, a note, and a
+                       verb. Two ways of drawing one idea is how an operator learns to read
+                       each card separately instead of at a glance. -->
+                  <div class="tenor-inherited">
+                    <p class="tenor-inherited-value" id="rate-from-product">
+                      <span class="tenor-months">{{ productRateFigure() }}</span>
+                      <span class="tag">{{ productRateBasis() }}</span>
                     </p>
+                    @if (productRateNote(); as note) {
+                      <p class="tenor-inherited-note">{{ note }}</p>
+                    }
+                    <!-- ONLY when this programme carries a price of its own — which, since the
+                         card stopped asking, means a row saved before this change or one a seed
+                         wrote. It is SAID rather than hidden: the card above would otherwise
+                         read as the price this programme quotes, and it is not. One verb, and
+                         it is the giving-back one — there is no "state your own" here, because
+                         stating one is what this step no longer does. -->
+                    @if (!rateInherits()) {
+                      <p class="tenor-inherited-note">
+                        <span i18n="@@bank_programs.form.rate.own"
+                          >This programme prices itself at {{ ownRateFigure() }} and is quoted at
+                          that instead.</span
+                        >
+                      </p>
+                      <button
+                        nz-button
+                        nzType="default"
+                        type="button"
+                        (click)="backToProductRate()"
+                        aria-describedby="rate-from-product"
+                        i18n="@@bank_programs.form.rate.back_to_product"
+                      >
+                        Use the product's rate
+                      </button>
+                    }
                   </div>
-                </header>
-                <div class="grid">
-                  @if (!isVariableRateSignal()) {
-                    <nz-form-item>
-                      <nz-form-label
-                        [nzFor]="'baseRatePercent'"
-                        [nzRequired]="!ratePricedByTable()"
-                        i18n="@@bank_programs.field.base_rate"
-                        >Base rate</nz-form-label
-                      >
-                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                        <nz-input-group nzAddOnAfter="%" class="rate-group">
-                          <input
-                            nz-input
-                            id="baseRatePercent"
-                            formControlName="baseRatePercent"
-                            inputmode="decimal"
-                            placeholder="24.0000"
-                            [attr.aria-describedby]="
-                              ratePricedByTable() ? 'baseRateTableHint' : null
-                            "
-                          />
-                        </nz-input-group>
-                        <!-- SAID, not merely un-asterisked. A box that stopped being required
-                             without saying why reads as one somebody forgot to fill; this one
-                             is blank because the table below prices every applicant and the
-                             save does not want a figure here. -->
-                        @if (ratePricedByTable()) {
-                          <p id="baseRateTableHint" class="field-hint is-read">
-                            <span i18n="@@bank_programs.field.base_rate.priced_by_table"
-                              >The rate table prices every applicant, so this is not needed. An
-                              answer it does not cover is refused rather than priced from
-                              here.</span
-                            >
-                          </p>
-                        }
-                      </nz-form-control>
-                    </nz-form-item>
-                  }
-                  <!-- The basis, beside the rate it qualifies. A percentage on its own does
-                   not say what the customer pays: the same rate over the same tenor buys
-                   22-29% more loan on a declining balance than flat, so this is a radio
-                   pair with the consequence written out, not a checkbox someone can leave
-                   half-read. -->
-                  <nz-form-item class="span-2">
-                    <nz-form-label i18n="@@bank_programs.field.rate_basis"
-                      >How the interest is charged</nz-form-label
-                    >
-                    <nz-form-control>
-                      <div class="rate-basis" role="radiogroup" [attr.aria-label]="rateBasisAria">
-                        <label class="rate-basis-opt">
-                          <input type="radio" formControlName="rateBasis" value="reducing" />
-                          <span class="rate-basis-body">
-                            <span
-                              class="rate-basis-title"
-                              i18n="@@bank_programs.rate_basis.reducing"
-                              >On what is still owed</span
-                            >
-                            <span
-                              class="rate-basis-note"
-                              i18n="@@bank_programs.rate_basis.reducing_note"
-                              >Declining balance. The interest falls as the loan is paid down.</span
-                            >
-                          </span>
-                        </label>
-                        <label class="rate-basis-opt">
-                          <input type="radio" formControlName="rateBasis" value="flat" />
-                          <span class="rate-basis-body">
-                            <span class="rate-basis-title" i18n="@@bank_programs.rate_basis.flat"
-                              >On the full amount</span
-                            >
-                            <span
-                              class="rate-basis-note"
-                              i18n="@@bank_programs.rate_basis.flat_note"
-                              >Flat. The same interest every month, so this rate buys the customer a
-                              smaller loan.</span
-                            >
-                          </span>
-                        </label>
-                      </div>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item class="span-2">
-                    <label
-                      nz-checkbox
-                      formControlName="isVariableRate"
-                      i18n="@@bank_programs.field.is_variable_rate"
-                      >Variable rate (CBE-linked, quarterly reset)</label
-                    >
-                  </nz-form-item>
-                  @if (isVariableRateSignal()) {
-                    <nz-form-item>
-                      <nz-form-label i18n="@@bank_programs.field.current_effective_rate"
-                        >Current effective rate</nz-form-label
-                      >
-                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                        <nz-input-group nzAddOnAfter="%" class="rate-group">
-                          <input
-                            nz-input
-                            formControlName="currentEffectiveRatePercent"
-                            inputmode="decimal"
-                            placeholder="26.5500"
-                          />
-                        </nz-input-group>
-                      </nz-form-control>
-                    </nz-form-item>
+                </section>
+              } @else {
+                <section id="card-pricing" class="card" formGroupName="pricing">
+                  <header class="card-head">
+                    <div>
+                      <h2 class="card-title" i18n="@@bank_programs.form.rate.title">
+                        Interest rate
+                      </h2>
+                      @if (ratePricedByTable()) {
+                        <p class="card-sub" i18n="@@bank_programs.form.rate.sub_table">
+                          Priced from the rate table below. An answer it does not cover is refused
+                          rather than priced from here.
+                        </p>
+                      } @else {
+                        <p class="card-sub" i18n="@@bank_programs.form.rate.sub">
+                          One annual rate. Switch to a band table below if the rate depends on loan
+                          size.
+                        </p>
+                      }
+                    </div>
+                  </header>
+                  <div class="grid">
+                    <!-- THE FLAT RATE IS NOT ASKED FOR when a table prices every applicant.
+                         It used to render disabled-looking with a sentence explaining why it
+                         was not needed — a box, its label, its hint and a variable-rate switch,
+                         four controls for a figure the cascade reaches for nobody. A number an
+                         operator curates and that moves nothing is the defect this codebase
+                         deletes on sight; asking for one behind an explanation is the same
+                         defect with prose in front of it. The card's own sub-line says where
+                         the price comes from instead.
+
+                         Both halves of the test, as on the server (aRateGridPrices): the grid
+                         must APPLY, and it must REFUSE on no-match. useFallback sends an
+                         unmatched applicant back down the cascade to this very figure, so a
+                         table that falls back has not priced everyone and the box stays. -->
+                    @if (!ratePricedByTable() && !isVariableRateSignal()) {
+                      <nz-form-item>
+                        <nz-form-label
+                          [nzFor]="'baseRatePercent'"
+                          nzRequired
+                          i18n="@@bank_programs.field.base_rate"
+                          >Base rate</nz-form-label
+                        >
+                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                          <nz-input-group nzAddOnAfter="%" class="rate-group">
+                            <input
+                              nz-input
+                              id="baseRatePercent"
+                              formControlName="baseRatePercent"
+                              inputmode="decimal"
+                              placeholder="24.0000"
+                            />
+                          </nz-input-group>
+                        </nz-form-control>
+                      </nz-form-item>
+                    }
+                    <!-- The basis, beside the rate it qualifies. A percentage on its own does
+                     not say what the customer pays: the same rate over the same tenor buys
+                     22-29% more loan on a declining balance than flat, so this is a radio
+                     pair with the consequence written out, not a checkbox someone can leave
+                     half-read. -->
                     <nz-form-item class="span-2">
-                      <nz-form-label i18n="@@bank_programs.field.variable_rate_note"
-                        >Disclosure note</nz-form-label
+                      <nz-form-label i18n="@@bank_programs.field.rate_basis"
+                        >How the interest is charged</nz-form-label
                       >
-                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                        <textarea
-                          nz-input
-                          formControlName="variableRateNote"
-                          rows="2"
-                          placeholder="CBE policy rate + 3%, reviewed quarterly"
-                        ></textarea>
+                      <nz-form-control>
+                        <div class="rate-basis" role="radiogroup" [attr.aria-label]="rateBasisAria">
+                          <label class="rate-basis-opt">
+                            <input type="radio" formControlName="rateBasis" value="reducing" />
+                            <span class="rate-basis-body">
+                              <span
+                                class="rate-basis-title"
+                                i18n="@@bank_programs.rate_basis.reducing"
+                                >On what is still owed</span
+                              >
+                              <span
+                                class="rate-basis-note"
+                                i18n="@@bank_programs.rate_basis.reducing_note"
+                                >Declining balance. The interest falls as the loan is paid
+                                down.</span
+                              >
+                            </span>
+                          </label>
+                          <label class="rate-basis-opt">
+                            <input type="radio" formControlName="rateBasis" value="flat" />
+                            <span class="rate-basis-body">
+                              <span class="rate-basis-title" i18n="@@bank_programs.rate_basis.flat"
+                                >On the full amount</span
+                              >
+                              <span
+                                class="rate-basis-note"
+                                i18n="@@bank_programs.rate_basis.flat_note"
+                                >Flat. The same interest every month, so this rate buys the customer
+                                a smaller loan.</span
+                              >
+                            </span>
+                          </label>
+                        </div>
                       </nz-form-control>
                     </nz-form-item>
-                  }
-                </div>
-              </section>
+                    <!-- The RESET RULE goes with the figure it resets. A table-priced
+                         programme has no flat rate for the CBE to move, and the disclosure
+                         note is about that figure — leaving the switch on screen would offer
+                         to make a price variable that is not this programme's price.
+
+                         The BASIS above does NOT go with it, and that is the line between the
+                         two: a table states a percentage and says nothing about how it is
+                         charged, and the same rate buys 22-29% less loan flat than declining.
+                         Dropping the radios would pin every table-priced programme to the
+                         declining annuity by silence (rate-basis.ts). -->
+                    @if (!ratePricedByTable()) {
+                      <nz-form-item class="span-2">
+                        <label
+                          nz-checkbox
+                          formControlName="isVariableRate"
+                          i18n="@@bank_programs.field.is_variable_rate"
+                          >Variable rate (CBE-linked, quarterly reset)</label
+                        >
+                      </nz-form-item>
+                    }
+                    @if (!ratePricedByTable() && isVariableRateSignal()) {
+                      <nz-form-item>
+                        <nz-form-label i18n="@@bank_programs.field.current_effective_rate"
+                          >Current effective rate</nz-form-label
+                        >
+                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                          <nz-input-group nzAddOnAfter="%" class="rate-group">
+                            <input
+                              nz-input
+                              formControlName="currentEffectiveRatePercent"
+                              inputmode="decimal"
+                              placeholder="26.5500"
+                            />
+                          </nz-input-group>
+                        </nz-form-control>
+                      </nz-form-item>
+                      <nz-form-item class="span-2">
+                        <nz-form-label i18n="@@bank_programs.field.variable_rate_note"
+                          >Disclosure note</nz-form-label
+                        >
+                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                          <textarea
+                            nz-input
+                            formControlName="variableRateNote"
+                            rows="2"
+                            placeholder="CBE policy rate + 3%, reviewed quarterly"
+                          ></textarea>
+                        </nz-form-control>
+                      </nz-form-item>
+                    }
+                  </div>
+                </section>
+              }
 
               <!-- Tiered rates: a real shape change (single rate → band table), so it
                stays an opt-in rather than a hidden field. -->
@@ -1990,9 +2082,8 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                   </div>
                 </header>
                 <div class="card-body">
-                  <!-- One number, one switch: stacked rather than side-by-side, so the
-                 cap keeps a hand-sized field instead of stretching half the card,
-                 and the toggle that overrides it reads as the wider decision. -->
+                  <!-- One number: a hand-sized field rather than one stretching half
+                 the card. -->
                   <div class="dbr-grid">
                     <nz-form-item class="dbr-cap" [class.is-muted]="skipDbr">
                       <nz-form-label [nzFor]="'dbrCapPercent'" nzRequired>
@@ -2013,67 +2104,6 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                         </p>
                       </nz-form-control>
                     </nz-form-item>
-
-                    <label
-                      class="option-row"
-                      [class.is-on]="skipDbr"
-                      nz-checkbox
-                      formControlName="skipDbrCheck"
-                    >
-                      <span class="option-text">
-                        <span class="option-title" i18n="@@bank_programs.field.skip_dbr"
-                          >Skip DBR check</span
-                        >
-                        <span class="option-hint" i18n="@@bank_programs.field.skip_dbr.hint">
-                          Secured loans only. The cap above is ignored while matching.
-                        </span>
-                      </span>
-                    </label>
-                  </div>
-
-                  <!-- The cap above is this program's floor for every income; the table
-                 below refines it per income band. Dimmed — never disabled — while
-                 the DBR check is skipped, exactly like the cap field. -->
-                  <div class="dbr-bands" [class.is-muted]="skipDbr">
-                    <h3 class="dbr-bands-title" i18n="@@bank_programs.eligibility.dbr_bands">
-                      Caps by income band
-                    </h3>
-                    <app-dbr-bands-editor
-                      [bands]="dbrBands()"
-                      (bandsChange)="dbrBands.set($event)"
-                      [flatCapPercent]="dbrFlatCap()"
-                      [showTitle]="false"
-                    ></app-dbr-bands-editor>
-                  </div>
-
-                  <!-- THE VEHICLE TERM CEILING. On the requirements card and not beside the
-                       loan duration on the money step, because it is a CONDITION — "this bank
-                       does not finance a car this old for that long" — and it can refuse
-                       outright, which nothing else on the money step does. It composes with
-                       the duration above by taking the lower of the two, never replacing it. -->
-                  <div class="dbr-bands">
-                    <h3 class="dbr-bands-title" i18n="@@bank_programs.vehicle_grid.title">
-                      Shorter terms for some cars
-                    </h3>
-                    <label
-                      nz-checkbox
-                      [nzChecked]="toggles.vehicleGrid()"
-                      (nzCheckedChange)="setToggle('vehicleGrid', $event)"
-                      i18n="@@bank_programs.toggle.vehicle_grid2"
-                      >Limit the term by the car's model year or where it was built</label
-                    >
-                    @if (toggles.vehicleGrid() && maxMonthsByFact(); as grid) {
-                      <p class="field-hint" i18n="@@bank_programs.vehicle_grid.hint">
-                        The shorter of this and the loan duration wins. A customer no row covers
-                        gets the answer you pick at the bottom of the table.
-                      </p>
-                      <app-fact-grid-editor
-                        [config]="grid"
-                        (configChange)="maxMonthsByFact.set($event)"
-                        [facts]="incomeFacts()"
-                        valueKind="months"
-                      />
-                    }
                   </div>
 
                   <!-- A cap that depends on WHO the applicant is rather than on what they
@@ -4849,6 +4879,13 @@ export class BankProgramFormPage implements OnInit {
   private readonly loanLimitsValue = toSignal(this.form.controls.loanLimits.valueChanges, {
     initialValue: this.form.controls.loanLimits.getRawValue(),
   });
+  /**
+   * The same, for the PRICE: the rate card reads back what this programme is quoted at, and
+   * its one verb has to move the card on the click rather than after a save.
+   */
+  private readonly pricingValue = toSignal(this.form.controls.pricing.valueChanges, {
+    initialValue: this.form.controls.pricing.getRawValue(),
+  });
   /** Years-equivalent hint under the Minimum months input ("≈ 1 yr"). */
   readonly minMonthsHint = computed(() => this.formatMonths(this.tenorValue().minMonths ?? 0));
   /** Years-equivalent hint under the Maximum months input ("≈ 7 yr"). */
@@ -5616,25 +5653,41 @@ export class BankProgramFormPage implements OnInit {
     const v = this.form.getRawValue();
     const id = v.identity;
     const bands = this.dbrBands().length;
-    const rateRows: ReviewRow[] = v.pricing.isVariableRate
+    // Says WHOSE rate this is, for the reason the duration and the amount rows say whose
+    // months and whose amounts: a programme quoted at the product's price is the normal state
+    // now that the rate card is gone, and a review printing "24%" without saying where it
+    // came from would read as something this bank typed.
+    const rateRows: ReviewRow[] = this.rateInherits()
       ? [
           {
-            label: $localize`:@@bank_programs.review.rate_variable:Rate (variable)`,
-            value: pct(v.pricing.currentEffectiveRatePercent),
+            label: $localize`:@@bank_programs.review.rate_base:Base rate`,
+            value: $localize`:@@bank_programs.review.rate_inherited:${this.productRateFigure()}:rate: · the product's`,
           },
         ]
-      : [
-          {
-            label: $localize`:@@bank_programs.review.rate_base:Base rate`,
-            value: pct(v.pricing.baseRatePercent),
-          },
-        ];
+      : v.pricing.isVariableRate
+        ? [
+            {
+              label: $localize`:@@bank_programs.review.rate_variable:Rate (variable)`,
+              value: pct(v.pricing.currentEffectiveRatePercent),
+            },
+          ]
+        : [
+            {
+              label: $localize`:@@bank_programs.review.rate_base:Base rate`,
+              value: pct(v.pricing.baseRatePercent),
+            },
+          ];
     // The basis rides WITH the rate, never on its own line elsewhere: a review that shows
     // "24%" and leaves the basis to another screen is the misread §10.6 is about.
+    // The basis rides WITH the rate, never on its own line elsewhere — and off the SAME side
+    // the figure above came from: a programme reading the product's price reads its basis too
+    // (`effectiveRate` replaces the whole statement), so taking this from the form would print
+    // a basis that qualifies a figure the engine is not quoting.
     rateRows.push({
       label: $localize`:@@bank_programs.review.rate_basis:Charged on`,
-      value:
-        v.pricing.rateBasis === 'flat'
+      value: this.rateInherits()
+        ? this.productRateBasis()
+        : v.pricing.rateBasis === 'flat'
           ? $localize`:@@bank_programs.review.rate_basis_flat:The full amount (flat)`
           : $localize`:@@bank_programs.review.rate_basis_reducing:What is still owed (declining)`,
     });
@@ -6542,6 +6595,90 @@ export class BankProgramFormPage implements OnInit {
   protected backToProductTenor(): void {
     this.form.controls.tenor.patchValue({ minMonths: null, maxMonths: null });
     this.form.controls.tenor.markAsDirty();
+  }
+
+  // ── The product's PRICE ─────────────────────────────────────────────────
+  // The third of the family, and the one whose card is GONE: an interest rate is a statement
+  // about the product, stated once on its own screen, and this step reads it back rather than
+  // asking for it again per bank. Everything the duration's members above say about reading
+  // the CONTROLS rather than the stored row applies here unchanged — the one verb this card
+  // has must take effect on the screen, not after a save.
+
+  readonly productRate = computed<RateDefaults | null>(
+    () => this.catalogRule()?.surrogateProduct?.rateDefaults ?? null,
+  );
+
+  /** Could this programme read a price if it stated none? */
+  readonly rateInheritable = computed<boolean>(() => this.productRate() !== null);
+
+  /**
+   * Is it reading the product's right now — i.e. has this bank stated nothing?
+   *
+   * Judged on the ONE figure the programme's own `isVariableRate` selects, which is the one
+   * the pricing cascade would quote and the one the server's `statesOwnRate` reads. A stale
+   * figure in the other box is not a price (the save refuses that pair), so counting it here
+   * would report a programme as pricing itself when the engine is about to read the
+   * product's.
+   */
+  readonly rateInherits = computed<boolean>(() => {
+    if (!this.rateInheritable()) return false;
+    const v = this.pricingValue();
+    const own = v.isVariableRate ? v.currentEffectiveRatePercent : v.baseRatePercent;
+    return own == null || String(own).trim() === '';
+  });
+
+  /** The product's price, as the card prints it. */
+  readonly productRateFigure = computed<string>(() => {
+    const rate = this.productRate();
+    if (rate === null) return '';
+    return pct(rate.isVariableRate ? rate.currentEffectiveRatePercent : rate.baseRatePercent);
+  });
+
+  /**
+   * The BASIS, spelled out beside the figure and never left to another screen.
+   *
+   * Absent reads as declining, which is what `rateBasisOf` answers on the server — so the
+   * card states what the engine will do, not what the column happens to hold.
+   */
+  readonly productRateBasis = computed<string>(() =>
+    this.productRate()?.rateBasis === 'flat'
+      ? $localize`:@@bank_programs.review.rate_basis_flat:The full amount (flat)`
+      : $localize`:@@bank_programs.review.rate_basis_reducing:What is still owed (declining)`,
+  );
+
+  /** The reset rule, when the product prices off one. Empty is rendered as nothing at all. */
+  readonly productRateNote = computed<string>(() => {
+    const rate = this.productRate();
+    return rate?.isVariableRate ? (rate.variableRateNote ?? '') : '';
+  });
+
+  /** What this programme prices itself at, for the one state that says so. */
+  readonly ownRateFigure = computed<string>(() => {
+    const v = this.pricingValue();
+    return pct(v.isVariableRate ? v.currentEffectiveRatePercent : v.baseRatePercent);
+  });
+
+  /**
+   * Give the price back to the product.
+   *
+   * CLEARS the three keys rather than copying the product's figures in, for the reason
+   * `backToProductTenor` clears the months: a stored copy would stop following, which is the
+   * opposite of what the button says. The BASIS goes with them — it qualified a figure this
+   * programme no longer states, and `effectiveRate` replaces the whole statement.
+   *
+   * There is no `stateOwnRate` beside this, deliberately. Stating a price per bank is what
+   * this step stopped doing; the way back is the product's own screen, or a programme that
+   * genuinely prices differently getting a rate TABLE below.
+   */
+  protected backToProductRate(): void {
+    this.pricingGroup.patchValue({
+      isVariableRate: false,
+      baseRatePercent: null,
+      currentEffectiveRatePercent: null,
+      variableRateNote: null,
+      rateBasis: 'reducing',
+    });
+    this.pricingGroup.markAsDirty();
   }
 
   // ── The product's loan SIZE ──────────────────────────────────────────────
@@ -8132,7 +8269,11 @@ export class BankProgramFormPage implements OnInit {
     const msg = this.errorsService.toLocalizedMessage(code as never, envelope?.meta);
     this.notification.error($localize`:@@bank_programs.form.dismiss:Dismiss`, msg);
 
-    if (code === 'INVALID_VARIABLE_RATE_CONFIGURATION') {
+    // ONLY while the rate boxes are on screen. Once the product states a price the card is a
+    // read-back with no inputs, and flagging a control nobody can see would mark the form
+    // invalid with nothing to fix — the same hazard the qualitative-review note below names,
+    // and the reason this refusal cannot simply be wired to the controls any more.
+    if (code === 'INVALID_VARIABLE_RATE_CONFIGURATION' && !this.rateInheritable()) {
       this.pricingGroup.get('currentEffectiveRatePercent')?.setErrors({ variableRate: true });
       this.pricingGroup.get('baseRatePercent')?.setErrors({ variableRate: true });
     }

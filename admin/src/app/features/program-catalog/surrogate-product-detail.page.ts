@@ -135,6 +135,8 @@ import {
   type ProductAskServed,
   type SurrogateProductDetail,
   type LoanAmountDefaults,
+  type RateBasis,
+  type RateDefaults,
   type TenorDefaults,
   type ProductBlueprint,
   type ProgramUnderName,
@@ -1376,6 +1378,7 @@ interface ReadList {
                         <app-figure-field
                           fieldId="product-amount-min"
                           unit="EGP"
+                          [money]="true"
                           [label]="amountMinLabel"
                           [value]="amountMinValue() ?? ''"
                           (valueChange)="setAmountMin($event)"
@@ -1385,6 +1388,7 @@ interface ReadList {
                         <app-figure-field
                           fieldId="product-amount-max"
                           unit="EGP"
+                          [money]="true"
                           [label]="amountMaxLabel"
                           [value]="amountMaxValue() ?? ''"
                           (valueChange)="setAmountMax($event)"
@@ -1430,6 +1434,138 @@ interface ReadList {
                             >
                           }
                         </p>
+                      }
+
+                      <!-- TWO STATES, because on one product of the thirteen a flat rate
+                           prices NOBODY. down_payment_income states a plan rate table keyed
+                           by the deposit, the origin and the fuel, and it REFUSES an answer it
+                           does not cover (onNoMatch: 'reject') — so the cascade never reaches
+                           the figure below it, and a box asking for one would be a number an
+                           operator curates and that moves nothing. The reader line under it was
+                           worse than useless there: it named three programmes and told the
+                           operator they were priced at a figure none of them can ever read.
+
+                           The same rule the wizard's own card applies (ratePricedByTable) and
+                           the same one the server enforces on a bank program's save
+                           (aRateGridPrices): a grid must APPLY and it must REFUSE on no-match.
+                           useFallback sends an unmatched applicant back down the cascade to
+                           this very box, so a table that falls back does NOT price everyone and
+                           the figure is still asked for.
+
+                           Read off the LIVE table (planValue), not the loaded row: the plans
+                           are edited on this same step, and a screen that kept asking for a rate
+                           until the next Save would be describing the product it used to be. -->
+                      @if (ratePricedByPlans()) {
+                        <p class="tenor-readers" i18n="@@spd.rate.priced_by_table">
+                          The plan table above prices every applicant, so a rate here is not needed.
+                          An answer it does not cover is refused rather than priced from here.
+                        </p>
+                      } @else {
+                        <!-- THE PRICE, on its own row under the size. It is here and not on
+                             each bank's wizard for the reason the lede states and the other
+                             figures share: one statement about the product that every program
+                             selling it is quoted at unless it states its own. The wizard's
+                             rate card is GONE, so for most programmes this is the only place
+                             the figure exists.
+
+                             ONE STATEMENT, three controls: the figure, the basis it is charged
+                             on, and — only when it resets — the disclosure. The basis is beside
+                             the figure and not a step away, because a percentage on its own
+                             does not say what the customer pays: the same rate over the same
+                             tenor buys 22-29% more loan declining than flat. -->
+                        <div class="fb-row">
+                          <app-figure-field
+                            fieldId="product-rate"
+                            unit="%"
+                            [label]="rateVariable() ? rateEffectiveLabel : rateLabel"
+                            [value]="rateValue() ?? ''"
+                            (valueChange)="setRate($event)"
+                            [ariaLabel]="rateVariable() ? rateEffectiveAria : rateAria"
+                            [placeholderNote]="rateBlankNote"
+                          ></app-figure-field>
+                          <fieldset class="rate-basis">
+                            <legend class="rate-legend" i18n="@@spd.rate.basis">
+                              How the interest is charged
+                            </legend>
+                            <label class="radio">
+                              <input
+                                type="radio"
+                                name="product-rate-basis"
+                                value="reducing"
+                                [checked]="rateBasisValue() === 'reducing'"
+                                (change)="setRateBasis('reducing')"
+                              />
+                              <span i18n="@@spd.rate.basis_reducing"
+                                >On what is still owed (declining)</span
+                              >
+                            </label>
+                            <label class="radio">
+                              <input
+                                type="radio"
+                                name="product-rate-basis"
+                                value="flat"
+                                [checked]="rateBasisValue() === 'flat'"
+                                (change)="setRateBasis('flat')"
+                              />
+                              <span i18n="@@spd.rate.basis_flat">On the full amount (flat)</span>
+                            </label>
+                          </fieldset>
+                        </div>
+                        <label class="radio rate-variable">
+                          <input
+                            type="checkbox"
+                            [checked]="rateVariable()"
+                            (change)="setRateVariable($event)"
+                          />
+                          <span i18n="@@spd.rate.variable"
+                            >Variable rate (CBE-linked, quarterly reset)</span
+                          >
+                        </label>
+                        @if (rateVariable()) {
+                          <label class="rate-note">
+                            <span class="rate-legend" i18n="@@spd.rate.note">Disclosure note</span>
+                            <textarea
+                              nz-input
+                              rows="2"
+                              [value]="rateNoteValue() ?? ''"
+                              (input)="setRateNote($any($event.target).value)"
+                            ></textarea>
+                          </label>
+                        }
+                        @if (rateError(); as problem) {
+                          <p class="fb-error" role="alert">
+                            @switch (problem) {
+                              @case ('range') {
+                                <span i18n="@@spd.rate.err_range"
+                                  >The rate must be a figure of at most four decimals, above zero
+                                  and below 1000.</span
+                                >
+                              }
+                              @case ('half') {
+                                <span i18n="@@spd.rate.err_half"
+                                  >A variable rate needs the rate it currently sits at — type it, or
+                                  untick the box.</span
+                                >
+                              }
+                            }
+                          </p>
+                        }
+                        @if (rateReaders(); as readers) {
+                          <p class="tenor-readers" [class.is-warn]="rateClearBlocked()">
+                            @if (rateClearBlocked()) {
+                              <span i18n="@@spd.rate.readers_clear"
+                                >{{ readers }} bank program(s) have no rate of their own and are
+                                priced at this one. Emptying the box would leave them unable to
+                                quote, so it will be refused — change the rate here instead.</span
+                              >
+                            } @else {
+                              <span i18n="@@spd.rate.readers"
+                                >{{ readers }} bank program(s) state no rate of their own and are
+                                priced at this one.</span
+                              >
+                            }
+                          </p>
+                        }
                       }
 
                       <!-- WHAT EACH BUREAU SCORE IS WORTH. In this group and not in the
@@ -2340,6 +2476,45 @@ interface ReadList {
       .tenor-readers.is-warn {
         color: var(--text-primary);
         font-weight: var(--font-medium);
+      }
+
+      /* THE PRICE. The basis sits beside the figure it qualifies rather than under it: two
+         answers to one question, on the row the question is asked on. */
+      .rate-basis {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+
+      .rate-legend {
+        display: block;
+        padding: 0;
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+      }
+
+      .radio {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+        cursor: pointer;
+      }
+
+      .rate-variable {
+        margin-block-start: var(--space-1);
+      }
+
+      .rate-note {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        max-inline-size: 42rem;
       }
 
       /* --error is #C1666B, which measures 3.81:1 on this card's ground in light mode — under
@@ -4270,6 +4445,138 @@ export class SurrogateProductDetailPage {
   /** Its own flag beside `tenorDirty`, and for the same reason: it is a separate write. */
   private amountDirty = false;
 
+  // ── The PRICE every bank falls back to ───────────────────────────────────
+  // The third of the family, drawn from the duration's template like the size above it —
+  // and the one that carries the most: the bank-program wizard's rate card was deleted, so
+  // for every programme under this product that states nothing, this is where the price is.
+
+  protected readonly rateValue = signal<string | null>(null);
+  protected readonly rateVariable = signal<boolean>(false);
+  protected readonly rateNoteValue = signal<string | null>(null);
+  protected readonly rateBasisValue = signal<RateBasis>('reducing');
+
+  protected readonly rateLabel = $localize`:@@spd.rate.label:Interest rate`;
+  protected readonly rateEffectiveLabel = $localize`:@@spd.rate.effective_label:Rate right now`;
+  protected readonly rateAria = $localize`:@@spd.rate.aria:Yearly interest rate every program selling this product is quoted at, in percent`;
+  protected readonly rateEffectiveAria = $localize`:@@spd.rate.effective_aria:Rate every program selling this product is quoted at today, in percent, until the next reset`;
+  protected readonly rateBlankNote = $localize`:@@spd.rate.blank_note:Blank — each bank states its own.`;
+
+  /**
+   * Does this product's own PLAN table already price every applicant?
+   *
+   * The twin of the wizard's `ratePricedByTable` and of the server's `aRateGridPrices`, and
+   * it takes both halves of their test: a grid must APPLY, and it must REFUSE on no-match.
+   * `useFallback` hands an unmatched applicant back down the cascade to the flat figure, so a
+   * table that falls back has not priced everyone and the box below it is still a real
+   * question.
+   *
+   * Read off the LIVE `planValue`, not the loaded row, for the reason every other computed on
+   * this screen reads the controls: the plan tables are edited on this same step, and a
+   * section that only noticed after a Save would be describing the product it used to be.
+   */
+  protected readonly ratePricedByPlans = computed<boolean>(
+    () => this.planValue()?.rateByFact?.onNoMatch === 'reject',
+  );
+
+  /**
+   * `null` when there is nothing to say, otherwise WHICH of the two things is wrong.
+   *
+   * An empty box is legal and is the state every product ships in — a CLEAR, refused
+   * separately while programs are reading it. What is not legal is a variable rate with no
+   * figure: the server refuses that pair (`INVALID_VARIABLE_RATE_CONFIGURATION`), and a
+   * refusal that arrives after Save is a refusal about a control the operator has scrolled
+   * past.
+   */
+  protected readonly rateError = computed<'range' | 'half' | null>(() => {
+    // Nothing to be wrong with a box nobody is being asked to fill. Judged here rather than
+    // at the Save gate so the two cannot disagree: a refusal on a field the screen has stopped
+    // showing is a Save blocked with nothing on screen to fix.
+    if (this.ratePricedByPlans()) return null;
+    const raw = (this.rateValue() ?? '').trim();
+    if (raw === '') return this.rateVariable() ? 'half' : null;
+    // Four decimals, matching the column (`DECIMAL(7,4)`) and the DTO's `DecimalRange`.
+    if (!/^\d{1,3}(\.\d{1,4})?$/.test(raw)) return 'range';
+    const value = Number(raw);
+    return !Number.isFinite(value) || value <= 0 ? 'range' : null;
+  });
+
+  /**
+   * How many bank programs are priced at this rate right now.
+   *
+   * Counted off `names[].programs[].ownRate`, the axis the server derives through the same
+   * `statesOwnRate` the quote path uses — so this count and the refusal cannot disagree.
+   */
+  protected readonly rateReaders = computed<number>(
+    () =>
+      this.product()
+        ?.names.flatMap((n) => n.programs)
+        .filter((prog) => !prog.ownRate).length ?? 0,
+  );
+
+  /** Would emptying the box be refused? Says it BEFORE the server has to. */
+  protected readonly rateClearBlocked = computed<boolean>(() => {
+    if (this.rateReaders() === 0) return false;
+    if (this.product()?.rateDefaults == null) return false;
+    return (this.rateValue() ?? '').trim() === '';
+  });
+
+  protected setRate(raw: string): void {
+    const value = raw.trim();
+    this.rateValue.set(value === '' ? null : value);
+    this.rateDirty = true;
+    this.markDirty();
+  }
+
+  protected setRateBasis(basis: RateBasis): void {
+    this.rateBasisValue.set(basis);
+    this.rateDirty = true;
+    this.markDirty();
+  }
+
+  /**
+   * Ticking the box changes WHICH figure the box holds, so the figure is not carried across.
+   *
+   * The server refuses a variable rate carrying a base one and vice versa — the same rule a
+   * bank program's own pricing has always been held to — and silently reinterpreting a fixed
+   * 24% as "what it happens to sit at today" would be stating a reset rule nobody published.
+   */
+  protected setRateVariable(event: Event): void {
+    this.rateVariable.set((event.target as HTMLInputElement).checked);
+    this.rateValue.set(null);
+    this.rateNoteValue.set(null);
+    this.rateDirty = true;
+    this.markDirty();
+  }
+
+  protected setRateNote(raw: string): void {
+    const value = raw.trim();
+    this.rateNoteValue.set(value === '' ? null : value);
+    this.rateDirty = true;
+    this.markDirty();
+  }
+
+  /** Its own flag beside `amountDirty`, and for the same reason: it is a separate write. */
+  private rateDirty = false;
+
+  /**
+   * The box as one statement, or `null` — the CLEAR, which the server can refuse.
+   *
+   * The unused figure is never sent: `isVariableRate` decides which of the two boxes is the
+   * price, and sending both is the one shape the server rejects outright.
+   */
+  private rateFromForm(): RateDefaults | null {
+    const figure = (this.rateValue() ?? '').trim();
+    if (figure === '') return null;
+    const variable = this.rateVariable();
+    const note = (this.rateNoteValue() ?? '').trim();
+    return {
+      isVariableRate: variable,
+      ...(variable ? { currentEffectiveRatePercent: figure } : { baseRatePercent: figure }),
+      ...(variable && note !== '' ? { variableRateNote: note } : {}),
+      rateBasis: this.rateBasisValue(),
+    };
+  }
+
   protected readonly ruleBlocked = computed(() => {
     // An out-of-range cap is refused by the server, so Save is held here too — on a screen
     // where the field is in view rather than three steps away.
@@ -4284,6 +4591,10 @@ export class SurrogateProductDetailPage {
     if (this.tenorError() !== null) return true;
     // And for the loan size, on exactly the same terms.
     if (this.amountError() !== null) return true;
+    // And for the PRICE, on the same terms again — with the sharpest consequence of the
+    // three behind it: a refused rate save leaves every program under this product on
+    // whatever it was quoting before, and the operator has no other screen to fix it on.
+    if (this.rateError() !== null) return true;
     // And for a plan table with a half-typed row: every one of them is validated on the
     // server, and the same sentence is better read beside the table it is about.
     if (this.planError() !== null) return true;
@@ -5396,6 +5707,15 @@ export class SurrogateProductDetailPage {
       // Same rule, same reason, for the TIERS: `undefined` is "not touching it" and `null`
       // is the clear, which the server accepts — a cleared table leaves every reader
       // counting the figure in full, which is a priceable quote.
+      // Same rule, same reason, for the PRICE: `undefined` is "not touching it" and `null`
+      // is the clear, which the server can refuse while programs are priced at it.
+      //
+      // AND NOT AT ALL once the plan table prices everyone. The boxes are off screen in that
+      // state, so a figure typed before the table was made to refuse would otherwise be
+      // written by a Save whose effect the operator can no longer see — and it would price
+      // nobody either way. A stored rate is left where it is rather than cleared: clearing is
+      // a decision, and this is not the screen making it.
+      const rate = this.rateDirty && !this.ratePricedByPlans() ? this.rateFromForm() : undefined;
       const iScoreTiers = this.iScoreDirty
         ? this.iScoreTiers().length === 0
           ? null
@@ -5442,7 +5762,16 @@ export class SurrogateProductDetailPage {
         this.absorb(amountRes.data);
       }
 
-      // SIXTH, and only when the table moved. Its own column, like the four writes above,
+      // SIXTH, and only when the box moved. Its own column and its own refusal, exactly as
+      // the duration's and the size's writes above: a clear is rejected while programs are
+      // priced at it, and folding a rate edit into the rule write would make it read as a
+      // change to the calculation in the audit log — which a price is not.
+      if (rate !== undefined) {
+        const rateRes = await this.api.setSurrogateProductRateDefaults(p.key, { rate });
+        this.absorb(rateRes.data);
+      }
+
+      // SEVENTH, and only when the table moved. Its own column, like the five writes above,
       // and for the reason each of them states: folding a tier edit into the rule write
       // would make it read as a change to the calculation in the audit log, which it is not
       // — the tiers stopped being part of the calculation at v30.3.0.
@@ -5631,6 +5960,19 @@ export class SurrogateProductDetailPage {
     this.amountMinValue.set(data.loanAmountDefaults?.minAmountEGP ?? null);
     this.amountMaxValue.set(data.loanAmountDefaults?.maxAmountEGP ?? null);
     this.amountDirty = false;
+    // The PRICE, seeded from the response for the reason the two above are: which of the two
+    // figures the box holds is decided by the stored flag, never by which key happens to be
+    // filled — a blob carrying both is one the server refused to write.
+    const rate = data.rateDefaults;
+    this.rateVariable.set(rate?.isVariableRate ?? false);
+    this.rateValue.set(
+      rate == null
+        ? null
+        : ((rate.isVariableRate ? rate.currentEffectiveRatePercent : rate.baseRatePercent) ?? null),
+    );
+    this.rateNoteValue.set(rate?.variableRateNote ?? null);
+    this.rateBasisValue.set(rate?.rateBasis ?? 'reducing');
+    this.rateDirty = false;
     this.planValue.set(data.planDefaults);
     this.plansDirty = false;
     // A plain signal seeded from the response, for the reason the duration two fields up

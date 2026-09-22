@@ -33,7 +33,7 @@ import { CanDirective } from '../../../shared/can.directive';
 import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
-import type { BankProgramResponse, RateBandMap } from '../bank-programs.types';
+import type { BankProgramResponse, PricingConfig, RateBandMap } from '../bank-programs.types';
 import { incomeMethodLabel } from '../bank-programs.types';
 import { basisOf, incomeBasisLabel } from '@core/income-basis';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
@@ -386,18 +386,35 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
           <section class="card">
             <h2 class="card-title" i18n="@@bank_programs.section.pricing">Pricing</h2>
             <dl class="kv">
-              @if (!p.pricing.isVariableRate) {
-                <div class="row">
-                  <dt i18n="@@bank_programs.field.base_rate">Base rate</dt>
-                  <dd class="numeric">{{ p.pricing.baseRatePercent }}%</dd>
-                </div>
-              } @else {
-                <div class="row">
-                  <dt i18n="@@bank_programs.field.current_effective_rate">
-                    Current effective rate
-                  </dt>
-                  <dd class="numeric">{{ p.pricing.currentEffectiveRatePercent }}%</dd>
-                </div>
+              <!-- WHAT IT IS QUOTED AT, which is not always what it states. A programme that
+                   states no rate is priced by its product (the wizard stopped asking for one),
+                   and a card reading the stored column alone would print a bare "%" for it. -->
+              @if (quotedPricing(p); as q) {
+                @if (!q.isVariableRate) {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.field.base_rate">Base rate</dt>
+                    <dd class="numeric">
+                      {{ q.baseRatePercent }}%
+                      @if (q.fromProduct) {
+                        <span class="quiet" i18n="@@bpd.rate.from_product">· the product's</span>
+                      }
+                    </dd>
+                  </div>
+                } @else {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.field.current_effective_rate">
+                      Current effective rate
+                    </dt>
+                    <dd class="numeric">
+                      {{ q.currentEffectiveRatePercent }}%
+                      @if (q.fromProduct) {
+                        <span class="quiet" i18n="@@bpd.rate.from_product">· the product's</span>
+                      }
+                    </dd>
+                  </div>
+                }
+              }
+              @if (p.pricing.isVariableRate) {
                 @if (spreadRange(p); as spread) {
                   <div class="row">
                     <dt i18n="@@bpd.field.spread">Spread over the index</dt>
@@ -1179,10 +1196,42 @@ export class BankProgramDetailPage {
 
   /** The one rate a desk quotes: the live one on a variable program, the base one otherwise. */
   protected headlineRate(p: BankProgramResponse): string {
-    const rate = p.pricing.isVariableRate
+    const q = this.quotedPricing(p);
+    const rate = q.isVariableRate ? q.currentEffectiveRatePercent : q.baseRatePercent;
+    return rate ?? '—';
+  }
+
+  /**
+   * The pricing this programme is QUOTED at: its own when it states one, the surrogate
+   * product's when it does not.
+   *
+   * Mirrors the server's `effectiveRate` and takes the same reading of "states one" — the
+   * single figure the programme's own `isVariableRate` selects, because that is the one the
+   * pricing cascade would quote. The whole statement is replaced, basis included: a basis
+   * that qualified a figure the engine is not quoting would misstate the loan by 22-29%.
+   *
+   * `fromProduct` rides on the object so the card can SAY whose price it is printing. A
+   * screen that showed the figure without saying where it came from would read as something
+   * this bank had typed — the same rule the wizard's duration and amount rows follow.
+   */
+  protected quotedPricing(
+    p: BankProgramResponse,
+  ): PricingConfig & { readonly fromProduct: boolean } {
+    const own = p.pricing.isVariableRate
       ? p.pricing.currentEffectiveRatePercent
       : p.pricing.baseRatePercent;
-    return rate ?? '—';
+    const product = p.productRate ?? null;
+    if ((own != null && String(own).trim() !== '') || product === null) {
+      return { ...p.pricing, fromProduct: false };
+    }
+    return {
+      ...p.pricing,
+      isVariableRate: product.isVariableRate,
+      baseRatePercent: product.baseRatePercent,
+      currentEffectiveRatePercent: product.currentEffectiveRatePercent,
+      rateBasis: product.rateBasis,
+      fromProduct: true,
+    };
   }
 
   /**
@@ -1192,7 +1241,7 @@ export class BankProgramDetailPage {
    * program at — saying nothing here would let a flat program read as declining.
    */
   protected rateBasisLabel(p: BankProgramResponse): string {
-    return p.pricing.rateBasis === 'flat'
+    return this.quotedPricing(p).rateBasis === 'flat'
       ? $localize`:@@bank_programs.review.rate_basis_flat:The full amount (flat)`
       : $localize`:@@bank_programs.review.rate_basis_reducing:What is still owed (declining)`;
   }

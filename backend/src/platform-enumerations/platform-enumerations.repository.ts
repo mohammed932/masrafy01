@@ -21,6 +21,7 @@ import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
 import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
 import type { IScoreTiers } from '@/matching/pipeline/iscore';
+import type { RateDefaults } from '@/matching/pipeline/rate-inherit';
 
 export type EnumerationType =
   | 'transfer_type'
@@ -779,6 +780,26 @@ export abstract class PlatformEnumerationsRepository {
   abstract programsInheritingLoanAmounts(productKey: string): Promise<string[]>;
 
   /**
+   * Write (or clear, with `null`) a surrogate product's default INTEREST RATE.
+   *
+   * Its own method on exactly the terms the two above have one: a price is not part of the
+   * calculation and is not compiled from the form, so folding it in would make a rate edit
+   * read as a rule change in the audit log.
+   */
+  abstract setSurrogateProductRateDefaults(
+    key: string,
+    rate: RateDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Every bank program reading this product's default rate — i.e. stating none of its own.
+   * The sibling of `programsInheritingTenor` in every respect, including being UNCACHED and
+   * unfiltered by `programType`.
+   */
+  abstract programsInheritingRate(productKey: string): Promise<string[]>;
+
+  /**
    * A surrogate product's default PLAN tables — the rate, the term ceiling, the financed
    * share and the floor every program that opted in falls back to.
    *
@@ -898,6 +919,15 @@ export interface ProgramNameIncomeRuleRow {
    */
   loanAmountDefaults: LoanAmountDefaults | null;
   /**
+   * `surrogate_product` only — the INTEREST RATE every bank program under it falls back to.
+   * `null` when the product states none, which is the state every product ships in.
+   *
+   * INHERITED, not copied, on exactly the terms `tenorDefaults` above is — and since the
+   * bank-program wizard stopped asking for a rate, it is the only place most programmes
+   * under this product are priced from.
+   */
+  rateDefaults: RateDefaults | null;
+  /**
    * `surrogate_product` only — the I-SCORE TIER TABLE every bank program under it falls back
    * to. `null` when the product states none, which is the state the four cap-only products
    * ship in and the nine rule-bearing ones do not.
@@ -1004,6 +1034,14 @@ export interface ProgramUnderName {
    * has not thereby said what it lends BETWEEN.
    */
   ownLoanAmounts: boolean;
+  /**
+   * `false` when it states no INTEREST RATE of its own and reads the product's.
+   *
+   * A FOURTH axis, separate from the three above it, and read off the one figure the
+   * program's own `isVariableRate` selects — the same reading `statesOwnRate` takes, so the
+   * reader count and the quote cannot disagree about who is inheriting.
+   */
+  ownRate: boolean;
   /** True when this program reads the product's PLAN tables rather than its own. */
   followsPlans: boolean;
 }

@@ -1,0 +1,35 @@
+-- The INTEREST RATE a bank program selling this product falls back to.
+--
+-- The sibling of `20260913090000_surrogate_product_tenor_defaults` and
+-- `20260920120000_surrogate_product_loan_amount_defaults`, on the same terms: a price is a
+-- statement about the product, and until now it was a figure every operator retyped into
+-- every program's wizard — the card that asked for it has been deleted, and this column is
+-- where the answer moved.
+--
+-- ONE STATEMENT, NOT THREE FIELDS. The blob carries the rate, the BASIS it is charged on,
+-- and the variable-rate disclosure together:
+--   `{ "isVariableRate": false, "baseRatePercent": "24.0000", "rateBasis": "reducing" }`
+--   `{ "isVariableRate": true,  "currentEffectiveRatePercent": "26.5500",
+--      "variableRateNote": "CBE policy rate + 3%, reviewed quarterly",
+--      "rateBasis": "reducing" }`
+-- A percentage on its own does not say what the customer pays: the same rate over the same
+-- tenor buys 22–29% more loan on a declining balance than flat (`rate-basis.ts`), and which
+-- of the two figures prices the loan is decided by `isVariableRate`. Splitting them into
+-- separate columns would let a product state a rate on one basis and a reset rule for the
+-- other — half a price, which is not a thing a bank publishes.
+--
+-- ADDITIVE AND NULLABLE, AND NOTHING IS BACKFILLED. `bank_program.pricing` has carried a
+-- required rate since it was written — `baseRate is REQUIRED when isVariableRate=false`,
+-- refused at the save path — so every program on this database states its own price and not
+-- one of them can inherit today. Absent has to be the case that changes nothing; a backfill
+-- would be one bank's figure reaching programs that already answered the question, which is
+-- Principle II / A1 written as a migration.
+--
+-- DECIMAL STRINGS IN THE BLOB, never JSON numbers (Principle I). A rate is money's twin here
+-- — it is read into `Prisma.Decimal` by the pricing cascade — and `asRateDefaults` refuses a
+-- number rather than coercing it.
+--
+-- No quote moves when this lands. `toBankProgramSnapshot` inherits only when a program's own
+-- rate (the one its own `isVariableRate` selects) is blank, which no stored row is, and every
+-- product ships with this column NULL.
+ALTER TABLE "platform_enumeration" ADD COLUMN "rateDefaults" JSONB;

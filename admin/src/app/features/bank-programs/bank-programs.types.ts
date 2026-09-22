@@ -966,6 +966,30 @@ export interface LoanAmountDefaults {
   maxAmountEGP: string;
 }
 
+/**
+ * The INTEREST RATE a program under this product falls back to when it states none.
+ *
+ * ONE STATEMENT, not three fields: the rate, the basis it is charged on and the
+ * variable-rate disclosure travel together, because a percentage on its own does not say
+ * what the customer pays — the same rate over the same tenor buys 22–29% more loan on a
+ * declining balance than flat — and `isVariableRate` decides WHICH figure is the price.
+ *
+ * DECIMAL STRINGS, never numbers (Principle I). Inherited live, like the duration and the
+ * size beside it, and since the bank-program wizard stopped asking for a rate it is where
+ * most programmes are priced from.
+ */
+export interface RateDefaults {
+  isVariableRate: boolean;
+  /** The price when `isVariableRate` is false. */
+  baseRatePercent?: string;
+  /** The price when `isVariableRate` is true. */
+  currentEffectiveRatePercent?: string;
+  /** What the reset is tied to. Only meaningful on a variable rate. */
+  variableRateNote?: string;
+  /** `reducing` (declining balance) or `flat`. Absent reads as `reducing`. */
+  rateBasis?: RateBasis;
+}
+
 export interface ProgramUnderName {
   programCode: string;
   friendlyName: string;
@@ -990,6 +1014,12 @@ export interface ProgramUnderName {
    * again, independent of both above it.
    */
   ownLoanAmounts: boolean;
+  /**
+   * `false` when it states no INTEREST RATE of its own and is priced at the product's — a
+   * fifth axis, and the one most programmes created from now on are on, since the wizard no
+   * longer asks for a rate.
+   */
+  ownRate: boolean;
   /**
    * True when this program reads the product's PLAN tables rather than its own.
    *
@@ -1072,6 +1102,13 @@ export interface ProgramNameIncomeRule {
      * the terms the duration above is inherited: live, not copied at create.
      */
     loanAmountDefaults: LoanAmountDefaults | null;
+    /**
+     * The RATE a program under this name is quoted at when it states none of its own.
+     *
+     * The wizard reads it to say what the programme is priced at in place of the rate card
+     * it no longer has.
+     */
+    rateDefaults: RateDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
     /** The product's default I-Score tiers, or `null` when it states none. */
@@ -1335,6 +1372,15 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
    * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
    */
   loanAmountDefaults: LoanAmountDefaults | null;
+  /**
+   * The INTEREST RATE every program under this product falls back to. `null` = none, and
+   * each program must then state its own — which, since the wizard stopped asking, means a
+   * seed or the API.
+   *
+   * INHERITED on exactly the terms the size above is, and cleared under the same refusal
+   * (`SURROGATE_PRODUCT_RATE_IN_USE`).
+   */
+  rateDefaults: RateDefaults | null;
   /** The default PLAN tables every program that opted in reads. */
   planDefaults: PlanDefaults | null;
   /**
@@ -1673,7 +1719,22 @@ export interface BankProgramResponse {
   requiredDocuments: string[];
   tenor: TenorConfig;
   loanLimits: LoanLimitsConfig;
+  /**
+   * What this program itself states, exactly as stored — never the product's.
+   *
+   * The wizard saves by full replacement and posts this back, so it must stay the
+   * programme's own: a merged rate would be copied onto the row on the next save and a
+   * programme reading its product's price would silently freeze a copy. What it is actually
+   * quoted at is `productRate` below.
+   */
   pricing: PricingConfig;
+  /**
+   * The RATE the surrogate product behind this program's catalog name states, or `null`.
+   *
+   * Read-only, and what a programme with no rate of its own is quoted at. Optional so the
+   * bundle still renders against a backend that has not deployed the field.
+   */
+  productRate?: RateDefaults | null;
   eligibility: EligibilityConfig;
   performanceCriteria?: PerformanceCriteriaConfig | null;
   incomeAssumption: IncomeAssumptionConfig;

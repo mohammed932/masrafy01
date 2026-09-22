@@ -21,6 +21,7 @@ import type {
   SurrogateProductDetail,
   SurrogateProductSummary,
   LoanAmountDefaults,
+  RateDefaults,
   TenorDefaults,
   IScoreTiers,
   PlanDefaults,
@@ -419,6 +420,31 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/loan-amount-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The INTEREST RATE every bank program under this product falls back to — the rate, the
+   * basis it is charged on and the variable-rate disclosure, as ONE statement.
+   *
+   * The sibling of the duration and the size above in every respect: inherited rather than
+   * copied, a change re-prices every program that states none of its own, and `rate: null`
+   * is the one call the server can refuse — clearing leaves an inheriting program with no
+   * price at all (`SURROGATE_PRODUCT_RATE_IN_USE`).
+   *
+   * It is also the only screen a price is typed on: the bank-program wizard's rate card was
+   * deleted, so a program under this product is quoted from here unless a seed or the API
+   * gave it one of its own.
+   */
+  async setSurrogateProductRateDefaults(
+    key: string,
+    payload: { rate: RateDefaults | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/rate-defaults`,
         payload,
       ),
     );

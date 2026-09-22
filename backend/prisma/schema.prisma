@@ -967,6 +967,34 @@ model PlatformEnumeration {
   /// NULL = this product states no amounts, and every bank program under it must state its
   /// own. That is the state every product ships in.
   loanAmountDefaults  Json?
+  /// `surrogate_product` ONLY — the INTEREST RATE every bank program selling this product
+  /// falls back to. Shape:
+  /// `{ isVariableRate: boolean, baseRatePercent?: string, currentEffectiveRatePercent?: string,
+  ///    variableRateNote?: string, rateBasis?: 'reducing' | 'flat' }`.
+  ///
+  /// The third sibling of `tenorDefaults` and `loanAmountDefaults` above, on the same terms:
+  /// a price is a statement about the product, and a bank that prices differently states its
+  /// own on its program and wins. A program that states none READS this at quote time
+  /// (`effectiveRate`, merged in `toBankProgramSnapshot`), and a change here moves every one
+  /// of them.
+  ///
+  /// ONE STATEMENT, NOT THREE. The rate, the BASIS it is charged on and the variable-rate
+  /// disclosure inherit together: a percentage on its own does not say what the customer pays
+  /// (the same rate buys 22–29% more loan reducing than flat), and which of the two figures
+  /// prices the loan is decided by `isVariableRate`. Half of this pair is not a price.
+  ///
+  /// NOT the rate TABLES. `planDefaults.rateByFact` prices by the share the applicant puts
+  /// down and `bank_program.pricing.rateBy*` price by employment, seniority, term and band —
+  /// every one of them sits ABOVE this in `PRICING_CASCADE_ORDER`, and this is the bottom of
+  /// that cascade. A product that states a full `rateByFact` with `onNoMatch: 'reject'` needs
+  /// no figure here at all, and the save path says so rather than demanding one.
+  ///
+  /// DECIMAL STRINGS, never JSON numbers (Principle I) — read into `Prisma.Decimal` by the
+  /// cascade, and `asRateDefaults` refuses a number rather than coercing it.
+  ///
+  /// NULL = this product states no rate, and every bank program under it must state its own.
+  /// That is the state every product ships in.
+  rateDefaults        Json?
   /// `surrogate_product` only — the PLAN tables every bank program selling this product
   /// falls back to, shape
   /// `{ rateByFact?, minMonthsByFact?, maxMonthsByFact?, ltvCeilingByFact?, minAmountByFact? }`,

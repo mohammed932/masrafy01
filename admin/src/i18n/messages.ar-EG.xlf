@@ -1134,11 +1134,16 @@
       <trans-unit id="bank_programs.amount.from_product_note" datatype="html"><source>This bank has not stated amounts of its own, so it lends the sizes the product states. Change them there and this program follows.</source><target>هذا البنك لم يذكر مبالغ خاصة به، فهو يقرض المبالغ التي يذكرها المنتج. غيّرها هناك ويتبعها هذا البرنامج.</target></trans-unit>
       <trans-unit id="bank_programs.amount.set_own" datatype="html"><source>Set this bank’s own amounts</source><target>حدّد مبالغ خاصة بهذا البنك</target></trans-unit>
       <trans-unit id="bank_programs.amount.back_to_product" datatype="html"><source>Back to the product’s amounts</source><target>العودة إلى مبالغ المنتج</target></trans-unit>
+      <trans-unit id="bank_programs.form.rate.sub_table" datatype="html"><source> Priced from the rate table below. An answer it does not cover is refused rather than priced from here. </source><target>يُسعَّر من جدول الأسعار بالأسفل. أي إجابة لا يغطيها الجدول تُرفض بدلًا من تسعيرها من هنا.</target></trans-unit>
       <trans-unit id="bank_programs.field.base_rate.priced_by_table" datatype="html"><source>The rate table prices every applicant, so this is not needed. An answer it does not cover is refused rather than priced from here.</source><target>جدول الأسعار يسعّر كل متقدم، لذا لا حاجة لهذا الحقل. الإجابة التي لا يغطيها الجدول تُرفض بدلًا من تسعيرها من هنا.</target></trans-unit>
       <trans-unit id="bank_programs.step.issue_loan_amounts" datatype="html"><source>Say how much this bank lends — both amounts, or neither if it follows the product&apos;s.</source><target>حدّد كم يقرض هذا البنك — المبلغين معًا، أو لا شيء منهما إذا كان يتبع مبالغ المنتج.</target></trans-unit>
       <trans-unit id="bank_programs.review.amount_inherited" datatype="html"><source><x id="min" equiv-text="money(this.productLoanAmounts()?.minAmountEGP)"/> – <x id="max" equiv-text="money(this.productLoanAmounts()?.maxAmountEGP)"/> EGP · the product&apos;s</source><target><x id="min" equiv-text="money(this.productLoanAmounts()?.minAmountEGP)"/> – <x id="max" equiv-text="money(this.productLoanAmounts()?.maxAmountEGP)"/> جنيه · مبالغ المنتج</target></trans-unit>
       <trans-unit id="bank_programs.tenor.back_to_product" datatype="html"><source>Back to the product’s duration</source><target>العودة إلى مدة المنتج</target></trans-unit>
       <trans-unit id="bank_programs.tenor.half_stated" datatype="html"><source>Fill both months, or clear both to follow the product’s duration.</source><target>املأ المدتين معًا، أو أفرغهما معًا لاتباع مدة المنتج.</target></trans-unit>
+      <trans-unit id="bank_programs.form.rate.from_product" datatype="html"><source>Stated once on the product. Change it there and every programme selling the product moves with it.</source><target>يُذكر مرة واحدة على المنتج. غيّره هناك وتتغيّر معه كل البرامج التي تبيع هذا المنتج.</target></trans-unit>
+      <trans-unit id="bank_programs.form.rate.own" datatype="html"><source>This programme prices itself at <x id="INTERPOLATION" equiv-text="{{ ownRateFigure() }}"/> and is quoted at that instead.</source><target>هذا البرنامج يسعّر نفسه بـ<x id="INTERPOLATION" equiv-text="{{ ownRateFigure() }}"/> ويُعرض بهذا السعر بدلًا من سعر المنتج.</target></trans-unit>
+      <trans-unit id="bank_programs.form.rate.back_to_product" datatype="html"><source>Use the product&apos;s rate</source><target>استخدام سعر المنتج</target></trans-unit>
+      <trans-unit id="bank_programs.review.rate_inherited" datatype="html"><source><x id="rate" equiv-text="this.productRateFigure()"/> · the product&apos;s</source><target><x id="rate" equiv-text="this.productRateFigure()"/> · سعر المنتج</target></trans-unit>
       <trans-unit id="bank_programs.review.duration_inherited" datatype="html"><source><x id="min" equiv-text="this.formatMonths(this.productTenor()?.minMonths ?? 0)"/> – <x id="max" equiv-text="this.formatMonths(this.productTenor()?.maxMonths ?? 0)"/> · the product&apos;s</source><target><x id="min" equiv-text="this.formatMonths(this.productTenor()?.minMonths ?? 0)"/> – <x id="max" equiv-text="this.formatMonths(this.productTenor()?.maxMonths ?? 0)"/> · مدة المنتج</target></trans-unit>
       <trans-unit id="bank_programs.form.core.title_v2" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
       <trans-unit id="bank_programs.form.income_step.sub_v2" datatype="html"><source> How does this bank check what the customer earns? Your answer decides which program names you can pick below. </source><target> كيف يتحقق هذا البنك مما يكسبه العميل؟ إجابتك تحدد أسماء البرامج التي يمكنك اختيارها بالأسفل. </target></trans-unit>
@@ -1712,6 +1717,21 @@
       <trans-unit id="spd.tenor.err_inverted" datatype="html"><source>The longest term must be at least the shortest.</source><target>أطول مدة يجب ألا تقل عن أقصر مدة.</target></trans-unit>
       <trans-unit id="spd.tenor.err_half" datatype="html"><source>State both months or neither — one on its own is a range nobody set.</source><target>اذكر المدتين معًا أو اتركهما فارغتين — واحدة بمفردها مدة لم يحددها أحد.</target></trans-unit>
       <trans-unit id="spd.tenor.readers" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ readers }}"/> bank program(s) state no duration of their own and use these months.</source><target><x id="INTERPOLATION" equiv-text="{{ readers }}"/> برنامج بنكي لا يذكر مدة خاصة به ويستخدم هذه الأشهر.</target></trans-unit>
+      <trans-unit id="spd.rate.label" datatype="html"><source>Interest rate</source><target>سعر الفائدة</target></trans-unit>
+      <trans-unit id="spd.rate.effective_label" datatype="html"><source>Rate right now</source><target>السعر الحالي</target></trans-unit>
+      <trans-unit id="spd.rate.aria" datatype="html"><source>Yearly interest rate every program selling this product is quoted at, in percent</source><target>سعر الفائدة السنوي الذي تُسعَّر به كل البرامج التي تبيع هذا المنتج، بالنسبة المئوية</target></trans-unit>
+      <trans-unit id="spd.rate.effective_aria" datatype="html"><source>Rate every program selling this product is quoted at today, in percent, until the next reset</source><target>السعر الذي تُسعَّر به اليوم كل البرامج التي تبيع هذا المنتج، بالنسبة المئوية، حتى إعادة التسعير التالية</target></trans-unit>
+      <trans-unit id="spd.rate.blank_note" datatype="html"><source>Blank — each bank states its own.</source><target>فارغ — كل بنك يذكر سعره.</target></trans-unit>
+      <trans-unit id="spd.rate.basis" datatype="html"><source>How the interest is charged</source><target>كيف تُحتسب الفائدة</target></trans-unit>
+      <trans-unit id="spd.rate.basis_reducing" datatype="html"><source>On what is still owed (declining)</source><target>على المتبقي من المديونية (متناقصة)</target></trans-unit>
+      <trans-unit id="spd.rate.basis_flat" datatype="html"><source>On the full amount (flat)</source><target>على كامل المبلغ (ثابتة)</target></trans-unit>
+      <trans-unit id="spd.rate.variable" datatype="html"><source>Variable rate (CBE-linked, quarterly reset)</source><target>سعر متغيّر (مرتبط بالبنك المركزي، يُراجع كل ربع سنة)</target></trans-unit>
+      <trans-unit id="spd.rate.note" datatype="html"><source>Disclosure note</source><target>ملاحظة الإفصاح</target></trans-unit>
+      <trans-unit id="spd.rate.err_range" datatype="html"><source>The rate must be a figure of at most four decimals, above zero and below 1000.</source><target>يجب أن يكون السعر رقمًا بأربعة أرقام عشرية على الأكثر، أكبر من صفر وأقل من 1000.</target></trans-unit>
+      <trans-unit id="spd.rate.err_half" datatype="html"><source>A variable rate needs the rate it currently sits at — type it, or untick the box.</source><target>السعر المتغيّر يحتاج إلى السعر الحالي — اكتبه أو أزل علامة الاختيار.</target></trans-unit>
+      <trans-unit id="spd.rate.priced_by_table" datatype="html"><source> The plan table above prices every applicant, so a rate here is not needed. An answer it does not cover is refused rather than priced from here. </source><target>جدول الخطط بالأعلى يسعّر كل متقدم، لذلك لا حاجة إلى سعر هنا. أي إجابة لا يغطيها الجدول تُرفض بدلًا من تسعيرها من هنا.</target></trans-unit>
+      <trans-unit id="spd.rate.readers_clear" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ readers }}"/> bank program(s) have no rate of their own and are priced at this one. Emptying the box would leave them unable to quote, so it will be refused — change the rate here instead.</source><target>هناك <x id="INTERPOLATION" equiv-text="{{ readers }}"/> برنامج بنكي ليس لها سعر خاص بها وتُسعَّر بهذا السعر. إفراغ الحقل سيجعلها غير قادرة على تقديم أي عرض، لذلك سيُرفض — غيّر السعر هنا بدلًا من ذلك.</target></trans-unit>
+      <trans-unit id="spd.rate.readers" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ readers }}"/> bank program(s) state no rate of their own and are priced at this one.</source><target>هناك <x id="INTERPOLATION" equiv-text="{{ readers }}"/> برنامج بنكي لا يذكر سعرًا خاصًا به ويُسعَّر بهذا السعر.</target></trans-unit>
       <trans-unit id="spd.iscore.title" datatype="html"><source>What each I-Score is worth</source><target>قيمة كل درجة آي-سكور</target></trans-unit>
       <trans-unit id="spd.iscore.lede" datatype="html"><source>One row per score range, with the share of the worked-out figure counted at that score. Every bank selling this product reads these unless it states its own. The table must start at 0 and leave its top range open, so every score is covered.</source><target>صف واحد لكل نطاق درجات، مع نسبة الرقم المحتسب التي تُحسب عند تلك الدرجة. كل بنك يبيع هذا المنتج يقرأ هذه الشرائح إلا إذا ذكر شرائحه. يجب أن يبدأ الجدول من 0 وأن يترك نطاقه الأعلى مفتوحًا حتى تُغطى كل درجة.</target></trans-unit>
       <trans-unit id="spd.iscore.readers" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ readers }}"/> bank program(s) state no tiers of their own and use these. Emptying the table leaves them counting every figure in full.</source><target><x id="INTERPOLATION" equiv-text="{{ readers }}"/> برنامج بنكي لا يذكر شرائح خاصة به ويستخدم هذه الشرائح. إفراغ الجدول يجعلها تحسب كل رقم بالكامل.</target></trans-unit>
@@ -3735,6 +3755,7 @@
           <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="bpd.rate.from_product" datatype="html"><source>· the product&apos;s</source><target>· سعر المنتج</target></trans-unit>
       <trans-unit id="bpd.field.spread" datatype="html"><source>Spread over the index</source><target>الهامش فوق المؤشر</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
@@ -4376,14 +4397,11 @@
       <trans-unit id="spd.plan_table.cell_aria" datatype="html"><source><x id="band" equiv-text="band"/>, <x id="column" equiv-text="name"/></source><target><x id="band" equiv-text="band"/>، <x id="column" equiv-text="name"/></target></trans-unit>
       <trans-unit id="spd.plan_table.edge_aria" datatype="html"><source>Band <x id="n" equiv-text="n"/> starts at this percent</source><target>الشريحة <x id="n" equiv-text="n"/> تبدأ عند هذه النسبة</target></trans-unit>
       <trans-unit id="spd.plan_table.remove_row_aria" datatype="html"><source>Remove the <x id="band" equiv-text="label"/> band</source><target>احذف شريحة <x id="band" equiv-text="label"/></target></trans-unit>
-      <trans-unit id="spd.plan_table.remove_table_aria" datatype="html"><source>Remove the <x id="table" equiv-text="name"/> table</source><target>احذف جدول <x id="table" equiv-text="name"/></target></trans-unit>
       <trans-unit id="spd.plan_table.split_aria" datatype="html"><source>State <x id="cell" equiv-text="name"/> band by band</source><target>حدّد <x id="cell" equiv-text="name"/> شريحة بشريحة</target></trans-unit>
-      <trans-unit id="spd.plan_table.no_band_aria" datatype="html"><source>If no band fits the customer — <x id="table" equiv-text="name"/></source><target>إذا لم تنطبق أي شريحة على العميل — <x id="table" equiv-text="name"/></target></trans-unit>
       <trans-unit id="spd.plan_table.advice_no_rate" datatype="html"><source><x id="band" equiv-text="label"/> has no rate, so nobody putting that down is quoted at all.</source><target><x id="band" equiv-text="label"/> ليس لها نسبة، فلا يُسعَّر أي عميل يدفع هذه الدفعة.</target></trans-unit>
       <trans-unit id="spd.plan_table.advice_refused" datatype="html"><source><x id="band" equiv-text="label"/> is priced, but <x id="table" equiv-text="name"/> states nothing for it and turns those customers away.</source><target><x id="band" equiv-text="label"/> مسعّرة، لكن <x id="table" equiv-text="name"/> لا يذكر لها شيئًا فيُرفض هؤلاء العملاء.</target></trans-unit>
       <trans-unit id="spd.plan_table.advice_total" datatype="html"><source><x id="band" equiv-text="label"/> down plus what is financed comes to <x id="total" equiv-text="item.total"/>%, not 100.</source><target><x id="band" equiv-text="label"/> مقدمًا مع ما يُموَّل يبلغ <x id="total" equiv-text="item.total"/>%، وليس 100.</target></trans-unit>
     
-      <trans-unit id="spd.plan_table.state_it" datatype="html"><source>State it</source><target>حدّده</target></trans-unit>
       <trans-unit id="spd.plan_table.price" datatype="html"><source>Show it for a car at</source><target>اعرضها لسيارة بسعر</target></trans-unit>
       <trans-unit id="spd.plan_table.blank_note" datatype="html"><source>Blank — this table says nothing for that band, so each bank&apos;s own figure stands.</source><target>فارغة — هذا الجدول لا يذكر شيئًا لتلك الشريحة، فتسري قيمة كل بنك الخاصة.</target></trans-unit>
       <trans-unit id="spd.plan_table.add_band_aria" datatype="html"><source>The new band starts at this percent</source><target>الشريحة الجديدة تبدأ عند هذه النسبة</target></trans-unit>
@@ -4400,16 +4418,6 @@
   <trans-unit id="spd.plan_table.per_band" datatype="html"><source>band by band</source><target>لكل شريحة على حدة</target></trans-unit>
   <trans-unit id="spd.plan_table.change" datatype="html"><source>Change</source><target>تعديل</target></trans-unit>
   <trans-unit id="spd.plan_table.delta_hint" datatype="html"><source>A minus takes the figure down for that answer and a plus puts it up. It moves every band at once.</source><target>الإشارة السالبة تخفض القيمة لتلك الإجابة والموجبة ترفعها، والتغيير يسري على كل الشرائح دفعة واحدة.</target></trans-unit>
-  <trans-unit id="spd.plan_table.sec_conditions" datatype="html"><source>Conditions</source><target>الشروط</target></trans-unit>
-  <trans-unit id="spd.plan_table.cond_hint" datatype="html"><source>The figure itself is on the Figures tab.</source><target>القيمة نفسها في تبويب الأرقام.</target></trans-unit>
-  <trans-unit id="spd.plan_table.sec_no_match" datatype="html"><source>When no band fits</source><target>عندما لا تنطبق أي شريحة</target></trans-unit>
-  <trans-unit id="spd.plan_table.no_tables" datatype="html"><source>This product states no plans yet.</source><target>هذا المنتج لم يحدد أي خطط بعد.</target></trans-unit>
-  <trans-unit id="spd.plan_table.miss_reject_short" datatype="html"><source>Turn them away</source><target>ارفض الطلب</target></trans-unit>
-  <trans-unit id="spd.plan_table.miss_fallback_short" datatype="html"><source>Use the bank&apos;s own</source><target>استخدم قيمة البنك</target></trans-unit>
-  <trans-unit id="spd.plan_table.sec_tables" datatype="html"><source>Tables</source><target>الجداول</target></trans-unit>
-  <trans-unit id="spd.plan_table.figures_word" datatype="html"><source>figures</source><target>قيمة</target></trans-unit>
-  <trans-unit id="spd.plan_table.remove_table" datatype="html"><source>Remove this table</source><target>احذف هذا الجدول</target></trans-unit>
-  <trans-unit id="spd.plan_table.not_stated" datatype="html"><source>Not stated — each bank&apos;s own figure stands</source><target>غير محدد — تسري قيمة كل بنك</target></trans-unit>
   <trans-unit id="spd.plan_table.pick_slot" datatype="html"><source>Which figure</source><target>أي قيمة</target></trans-unit>
   <trans-unit id="spd.plan_table.pick_slot_aria" datatype="html"><source>Which figure changes with the answer</source><target>أي قيمة تتغير حسب الإجابة</target></trans-unit>
   <trans-unit id="spd.plan_table.tabs_aria" datatype="html"><source>Which part of the plans to edit</source><target>أي جزء من الخطط تريد تعديله</target></trans-unit>
@@ -4445,10 +4453,6 @@
       <trans-unit id="spd.plan_table.money_row" datatype="html">
         <source>deposit <x id="down" equiv-text="group(String(down))"/> · finances <x id="financed" equiv-text="group(String(financed))"/></source>
         <target>مقدَّم <x id="down" equiv-text="group(String(down))"/> · يموّل <x id="financed" equiv-text="group(String(financed))"/></target>
-      </trans-unit>
-      <trans-unit id="spd.plan_table.see_tables" datatype="html">
-        <source> See every table </source>
-        <target> اعرض كل الجداول </target>
       </trans-unit>
       <trans-unit id="spd.plan_table.unstated" datatype="html">
         <source>Not stated here, so each bank&apos;s own figure stands: <x id="tables" equiv-text="list"/>.</source>

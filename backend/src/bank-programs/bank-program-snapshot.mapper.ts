@@ -13,6 +13,7 @@ import {
   catalogIScoreOf,
   catalogLoanAmountsOf,
   catalogPlansOf,
+  catalogRateOf,
   catalogRuleOf,
   catalogTenorOf,
   effectiveIncomeRule,
@@ -23,6 +24,8 @@ import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
 import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
 import { effectiveLoanAmounts } from '@/matching/pipeline/loan-amount-inherit';
 import type { StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
+import { effectiveRate } from '@/matching/pipeline/rate-inherit';
+import type { StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
   effectivePlanLoanLimits,
   effectivePlanPricing,
@@ -112,8 +115,23 @@ export function toBankProgramSnapshot(
       plansSource,
       catalogPlans,
     ),
+    // The PRICE, the program's own when it states one and the product's when it does not —
+    // merged on the one line the engine reads a rate from, for the reason the duration and
+    // the size above are merged here: a snapshot must not be able to tell a rate the bank
+    // typed from one it is reading off the product.
+    //
+    // INSIDE the plan merge, never outside it. `effectivePlanPricing` merges the product's
+    // `rateByFact` TABLE, which sits at the top of `PRICING_CASCADE_ORDER`; this is the flat
+    // figure at the bottom of it. Resolving the bottom first leaves the table free to
+    // override it per applicant, which is the order the cascade itself reads them in.
+    //
+    // `effectiveRate` returns the SAME object when nothing is inherited, which is every
+    // program on this database today, so the common path allocates nothing.
     pricing: effectivePlanPricing(
-      p.pricing as unknown as BankProgramSnapshot['pricing'],
+      effectiveRate(
+        p.pricing as unknown as StoredPricing | undefined,
+        catalogRateOf(catalog),
+      ) as unknown as BankProgramSnapshot['pricing'],
       plansSource,
       catalogPlans,
     ),

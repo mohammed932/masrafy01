@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
 import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { DeleteOutline, PlusOutline, ScissorOutline } from '@ant-design/icons-angular/icons';
 import { FigureFieldComponent } from '../income-rule/figure-field.component';
@@ -12,23 +11,19 @@ import { group } from '../../core/directives/money-format';
 import type { PlanDefaults, RegistryFact } from '../../features/bank-programs/bank-programs.types';
 import {
   addPlanCase,
-  addPlanSlot,
   appendPlanBand,
   planColumnFigureCount,
   planRowsAdviceFor,
   planRowsFrom,
   planSlotCell,
-  planSlotFigureCount,
   planSlotOnlyFor,
   planSlotShapeOf,
   planSlotValueKind,
   removePlanBand,
   removePlanColumn,
-  removePlanSlot,
   setPlanBandEdge,
   setPlanCaseDelta,
   setPlanFigure,
-  setPlanNoMatch,
   setPlanSlotFigure,
   splitPlanCell,
   splitPlanCellCount,
@@ -52,7 +47,7 @@ import type {
  * made, and the quieter of the two.
  */
 export interface PlanRemoveRequest {
-  readonly kind: 'row' | 'column' | 'table';
+  readonly kind: 'row' | 'column';
   /** Already localized — what the dialog names. */
   readonly what: string;
   readonly figuresLost: number;
@@ -105,14 +100,6 @@ interface CaseGroup {
   readonly items: readonly CaseItem[];
 }
 
-/** A figure that applies to some answers only, and therefore turns the rest away. */
-interface ConditionRow {
-  readonly key: string;
-  readonly name: string;
-  readonly band: string;
-  readonly sentence: string;
-}
-
 /**
  * THREE TABS: the deposit steps, the figures, and everything that is an exception to them.
  *
@@ -162,7 +149,6 @@ interface ConditionRow {
     RailTabsComponent,
     NzButtonModule,
     NzIconModule,
-    NzRadioModule,
     NzSelectModule,
   ],
   providers: [provideNzIconsPatch([DeleteOutline, PlusOutline, ScissorOutline])],
@@ -439,20 +425,12 @@ interface ConditionRow {
                 </div>
 
                 <!-- WHAT IS NOT HERE, SAID IN WORDS. The unstated tables used to be ghost
-                     columns inside the table; they are one sentence under it now, and the
-                     button goes to the list that can start any of them. -->
+                     columns inside the table; they are one sentence under it now. Starting
+                     one is "Edit one table at a time" on the page that hosts this card. -->
                 @if (unstatedSlots(); as waiting) {
                   @if (waiting.length > 0) {
                     <p class="prt__foot">
                       <span>{{ unstatedLabel() }}</span>
-                      <button
-                        type="button"
-                        class="prt__link"
-                        (click)="goCases()"
-                        i18n="@@spd.plan_table.see_tables"
-                      >
-                        See every table
-                      </button>
                     </p>
                   }
                 }
@@ -577,104 +555,6 @@ interface ConditionRow {
                     }
                   </section>
                 }
-
-                @if (conditionRows().length > 0) {
-                  <section class="prt__sec">
-                    <h4 class="prt__micro" i18n="@@spd.plan_table.sec_conditions">Conditions</h4>
-                    <ul class="prt__rows" role="list">
-                      @for (row of conditionRows(); track row.key) {
-                        <li class="prt__cond">
-                          <span class="prt__row-name">{{ row.name }}</span>
-                          <span class="prt__cond-band">{{ row.band }}</span>
-                          <span class="prt__cond-text">{{ row.sentence }}</span>
-                        </li>
-                      }
-                    </ul>
-                    <p class="prt__hint" i18n="@@spd.plan_table.cond_hint">
-                      The figure itself is on the Figures tab.
-                    </p>
-                  </section>
-                }
-
-                <section class="prt__sec">
-                  <h4 class="prt__micro" i18n="@@spd.plan_table.sec_no_match">When no band fits</h4>
-                  @if (t.slots.length === 0) {
-                    <p class="prt__hint" i18n="@@spd.plan_table.no_tables">
-                      This product states no plans yet.
-                    </p>
-                  }
-                  <ul class="prt__rows" role="list">
-                    @for (slot of t.slots; track slot) {
-                      <li class="prt__row">
-                        <span class="prt__row-name">{{ headNameOf(slot) }}</span>
-                        <!-- Plain radios, the same two the free-form grid editor offers for
-                             this same never-defaulted decision. Not nz-radio-button: the
-                             segmented form paints its own ground and measures 2.63:1 in dark
-                             mode, where a plain radio's label is body ink. -->
-                        <nz-radio-group
-                          class="prt__radios"
-                          [ngModel]="t.onNoMatch[slot]"
-                          (ngModelChange)="onNoMatchSet(slot, $event)"
-                          [ngModelOptions]="{ standalone: true }"
-                          [attr.aria-label]="noMatchAria(slot)"
-                        >
-                          <label nz-radio nzValue="reject" i18n="@@spd.plan_table.miss_reject_short"
-                            >Turn them away</label
-                          >
-                          <label
-                            nz-radio
-                            nzValue="useFallback"
-                            i18n="@@spd.plan_table.miss_fallback_short"
-                            >Use the bank's own</label
-                          >
-                        </nz-radio-group>
-                      </li>
-                    }
-                  </ul>
-                </section>
-
-                <section class="prt__sec">
-                  <h4 class="prt__micro" i18n="@@spd.plan_table.sec_tables">Tables</h4>
-                  <ul class="prt__rows" role="list">
-                    @for (slot of allSlots; track slot) {
-                      <li class="prt__row">
-                        <span class="prt__row-name">{{ headNameOf(slot) }}</span>
-                        @if (hasSlot(slot)) {
-                          <span class="prt__row-note"
-                            >{{ slotFigures(slot) }}
-                            <span i18n="@@spd.plan_table.figures_word">figures</span></span
-                          >
-                          <!-- A WORD, not a bare bin. This was a 24px icon in the column
-                               heading with nothing but an aria-label on it, one pixel from
-                               "+ a case", and it removes an entire priced table. -->
-                          <button
-                            type="button"
-                            class="prt__danger"
-                            [attr.aria-label]="removeTableAria(slot)"
-                            (click)="askRemoveTable(slot)"
-                            i18n="@@spd.plan_table.remove_table"
-                          >
-                            Remove this table
-                          </button>
-                        } @else {
-                          <span class="prt__row-note" i18n="@@spd.plan_table.not_stated"
-                            >Not stated — each bank's own figure stands</span
-                          >
-                          <button
-                            nz-button
-                            nzType="dashed"
-                            nzSize="small"
-                            type="button"
-                            (click)="onAddSlot(slot)"
-                          >
-                            <span nz-icon nzType="plus" aria-hidden="true"></span>
-                            <span i18n="@@spd.plan_table.state_it">State it</span>
-                          </button>
-                        }
-                      </li>
-                    }
-                  </ul>
-                </section>
               </div>
             }
           }
@@ -1050,30 +930,6 @@ interface ConditionRow {
         border-radius: var(--radius-sm);
       }
 
-      /* --error is a wash-and-dot colour and does not carry as a label on this ground; the
-         house spelling for error INK is --error-strong. */
-      .prt__danger {
-        padding: 0;
-        border: 0;
-        background: none;
-        font: inherit;
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--error-strong);
-        cursor: pointer;
-      }
-
-      .prt__danger:hover {
-        text-decoration: underline;
-        text-underline-offset: 0.2em;
-      }
-
-      .prt__danger:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-        border-radius: var(--radius-sm);
-      }
-
       /* ─── THE EXCEPTIONS TAB ───────────────────────────────────────────────── */
       .prt__sec {
         display: grid;
@@ -1099,8 +955,7 @@ interface ConditionRow {
          1440 screen the bin for "China +2" sat 740px from the field it removes, over empty
          ground, aligned with four other bins for four other things. Capped at 46rem it is
          still end-aligned and still one straight column, and it is beside its own figure. */
-      .prt__row,
-      .prt__cond {
+      .prt__row {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
@@ -1123,26 +978,8 @@ interface ConditionRow {
       }
 
       .prt__row > .prt__x,
-      .prt__row > .prt__danger,
       .prt__row > button[nz-button] {
         margin-inline-start: auto;
-      }
-
-      .prt__cond-band {
-        padding-inline: var(--space-2);
-        padding-block: 1px;
-        border-radius: var(--radius-pill);
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
-        font-size: var(--text-xs);
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-      }
-
-      .prt__cond-text {
-        flex: 1 1 18rem;
-        color: var(--color-text-secondary);
-        font-size: var(--text-xs);
       }
 
       .prt__picker {
@@ -1160,13 +997,6 @@ interface ConditionRow {
 
       .prt__pick {
         min-width: 11rem;
-      }
-
-      .prt__radios {
-        display: inline-flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: var(--space-1) var(--space-4);
       }
 
       /* ─── ADVICE ───────────────────────────────────────────────────────────── */
@@ -1189,8 +1019,7 @@ interface ConditionRow {
       @media (hover: none) {
         .prt__x,
         .prt__split,
-        .prt__link,
-        .prt__danger {
+        .prt__link {
           min-inline-size: 44px;
           min-block-size: 44px;
         }
@@ -1224,8 +1053,6 @@ export class PlanRowsEditorComponent {
 
   /** Figures opens, because that is where nearly every edit lands. */
   protected readonly tab = signal<PlanTab>('figures');
-
-  protected readonly allSlots = PLAN_SLOTS;
 
   protected readonly newBand = signal('');
   /** Typed for the worked example, stored nowhere and sent nowhere. */
@@ -1316,7 +1143,7 @@ export class PlanRowsEditorComponent {
   }
 
   private exceptionCount(): number {
-    return this.caseGroups().reduce((n, g) => n + g.items.length, 0) + this.conditionRows().length;
+    return this.caseGroups().reduce((n, g) => n + g.items.length, 0);
   }
 
   // ─── SHAPE ─────────────────────────────────────────────────────────────────
@@ -1339,9 +1166,8 @@ export class PlanRowsEditorComponent {
    * 119px of a 1062px table to hold one button — and, because it was a single cell spanning
    * every row, it carried no bottom border, so it BROKE the row rule of every row in the
    * table into two disconnected segments. A table of five plans that does not draw five rows
-   * is a worse trade than a column that is not there. The same button lives on the Exceptions
-   * tab's Tables list, which names all five slots whether they are stated or not, and the
-   * note under this table says how many are waiting and takes the operator to it.
+   * is a worse trade than a column that is not there. The note under this table names the
+   * ones that are waiting; starting one is "Edit one table at a time" on the host page.
    */
   protected readonly cardColumns = computed<readonly CardColumn[]>(() => {
     const t = this.table();
@@ -1479,38 +1305,10 @@ export class PlanRowsEditorComponent {
     return out;
   });
 
-  protected readonly conditionRows = computed<readonly ConditionRow[]>(() => {
-    const t = this.table();
-    if (t === null) return [];
-    const out: ConditionRow[] = [];
-    this.cardColumns().forEach((column, c) => {
-      if (!column.conditional) return;
-      t.rows.forEach((row, r) => {
-        const sentence = this.onlyForLabel(r, c);
-        if (sentence === null) return;
-        out.push({
-          key: `${column.slot}:${r}`,
-          name: this.headNameOf(column.slot),
-          band: this.bandLabel(row.band),
-          sentence,
-        });
-      });
-    });
-    return out;
-  });
-
   /** The tables a case can be added to: stated, and not already stating one per band. */
   protected readonly variableSlots = computed<readonly PlanSlotKey[]>(() =>
     (this.table()?.slots ?? []).filter((slot) => this.canVary(slot)),
   );
-
-  protected hasSlot(slot: PlanSlotKey): boolean {
-    return this.table()?.slots.includes(slot) ?? false;
-  }
-
-  protected slotFigures(slot: PlanSlotKey): number {
-    return planSlotFigureCount(this.grids(), slot);
-  }
 
   // ─── LABELS ────────────────────────────────────────────────────────────────
 
@@ -1793,19 +1591,9 @@ export class PlanRowsEditorComponent {
     return $localize`:@@spd.plan_table.remove_row_aria:Remove the ${label}:band: band`;
   }
 
-  protected removeTableAria(slot: PlanSlotKey): string {
-    const name = this.headNameOf(slot);
-    return $localize`:@@spd.plan_table.remove_table_aria:Remove the ${name}:table: table`;
-  }
-
   protected splitAria(rowIndex: number, columnIndex: number): string {
     const name = this.cellAria(rowIndex, columnIndex);
     return $localize`:@@spd.plan_table.split_aria:State ${name}:cell: band by band`;
-  }
-
-  protected noMatchAria(slot: PlanSlotKey): string {
-    const name = this.headNameOf(slot);
-    return $localize`:@@spd.plan_table.no_band_aria:If no band fits the customer — ${name}:table:`;
   }
 
   protected adviceLabel(item: PlanAdvice): string {
@@ -1908,20 +1696,12 @@ export class PlanRowsEditorComponent {
     this.emit(setPlanBandEdge(this.grids(), t, rowIndex, raw));
   }
 
-  protected onNoMatchSet(slot: PlanSlotKey, next: 'reject' | 'useFallback'): void {
-    this.emit(setPlanNoMatch(this.grids(), slot, next));
-  }
-
   protected onSplit(rowIndex: number, columnIndex: number): void {
     const t = this.table();
     const column = this.cardColumns()[columnIndex];
     if (t === null || column === undefined || column.columnIndex < 0) return;
     if (splitPlanCellCount(t, rowIndex, column.columnIndex) < 2) return;
     this.emit(splitPlanCell(this.grids(), t, rowIndex, column.columnIndex));
-  }
-
-  protected onAddSlot(slot: PlanSlotKey): void {
-    this.emit(addPlanSlot(this.grids(), this.table(), slot));
   }
 
   /**
@@ -1967,15 +1747,6 @@ export class PlanRowsEditorComponent {
       what: this.extraLabel(column.slot, column.extra),
       figuresLost: planColumnFigureCount(t, columnIndex),
       next: removePlanColumn(this.grids(), t, columnIndex),
-    });
-  }
-
-  protected askRemoveTable(slot: PlanSlotKey): void {
-    this.removeRequest.emit({
-      kind: 'table',
-      what: this.headNameOf(slot),
-      figuresLost: planSlotFigureCount(this.grids(), slot),
-      next: removePlanSlot(this.grids(), slot),
     });
   }
 

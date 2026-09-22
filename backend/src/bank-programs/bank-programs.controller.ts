@@ -30,6 +30,7 @@ import {
   SetSurrogateProductActiveDto,
   SetSurrogateProductCapDefaultsDto,
   SetSurrogateProductLoanAmountDefaultsDto,
+  SetSurrogateProductRateDefaultsDto,
   SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
@@ -350,6 +351,45 @@ export class BankProgramsController {
     return ok(
       await this.service.setSurrogateProductLoanAmountDefaults(key, body, this.actor(user, req)),
     );
+  }
+
+  /**
+   * Declared in the same block and before `@Get(':programCode')`, for the same reason.
+   */
+  @Put('surrogate-products/:key/rate-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default interest rate",
+    description:
+      'The price every bank program under this product quotes when it states none of its ' +
+      'own — the rate, the basis it is charged on, and the variable-rate disclosure, as ONE ' +
+      'statement. INHERITED, not copied, exactly as the duration and the size beside it: a ' +
+      'change here re-prices every one of them, and a bank that prices differently states ' +
+      'its own and wins. Since the bank-program wizard stopped asking for a rate, this is ' +
+      'where a price is typed. `rate: null` clears it, and that is the one refusal — ' +
+      'clearing leaves an inheriting program with no price at all.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'SURROGATE_PRODUCT_RATE_IN_USE — the clear was refused because bank programs are ' +
+      'priced at this rate. Meta carries `count` and `programCodes`.',
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'INVALID_VARIABLE_RATE_CONFIGURATION — a variable rate with no effective figure, or a ' +
+      'fixed one carrying both (`meta.field` is `baseRate` or `currentEffectiveRate`). The ' +
+      "same rule, and the same code, a bank program's own pricing is held to.",
+  })
+  async setSurrogateProductRateDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductRateDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.service.setSurrogateProductRateDefaults(key, body, this.actor(user, req)));
   }
 
   /**

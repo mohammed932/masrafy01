@@ -321,6 +321,19 @@ export class SurrogateProductLoanAmountsInUseException extends DomainException {
   }
 }
 
+/**
+ * A surrogate product's default interest rate was cleared while programs are reading it.
+ *
+ * The sibling of the two above, carrying the codes for the same reason — and here the list
+ * is the only way an operator can act on it at all: a program's own price is no longer
+ * typed on a screen.
+ */
+export class SurrogateProductRateInUseException extends DomainException {
+  constructor(meta: { count: number; programCodes: string[] }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_RATE_IN_USE, meta);
+  }
+}
+
 export class EnumerationRegistryUnavailableException extends DomainException {
   constructor() {
     super(ERROR_CODES.ENUMERATION_REGISTRY_UNAVAILABLE);

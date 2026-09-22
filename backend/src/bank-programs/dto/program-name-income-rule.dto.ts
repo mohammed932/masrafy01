@@ -15,10 +15,13 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
+  IsString,
   Max,
+  MaxLength,
   Min,
   ValidateIf,
   ValidateNested,
@@ -31,6 +34,8 @@ import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 import type { IScoreTiers } from '@/matching/pipeline/iscore';
 import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
+import type { RateDefaults } from '@/matching/pipeline/rate-inherit';
+import { RATE_BASES, type RateBasis } from '@/matching/pipeline/rate-basis';
 import type { BlueprintCap } from '../blueprints/product-blueprint.types';
 import {
   IncomeAssumptionConfigDto,
@@ -103,6 +108,14 @@ export interface ProgramUnderNameDto {
    * one of them without the others.
    */
   ownLoanAmounts: boolean;
+  /**
+   * `false` when it states no INTEREST RATE of its own and reads the surrogate product's.
+   *
+   * A fifth axis on the same terms as the four around it. It is the one most programmes
+   * created from now on will be on: the bank-program wizard no longer asks for a rate, so a
+   * new program is priced by its product unless a seed or the API states otherwise.
+   */
+  ownRate: boolean;
   /**
    * True when this program reads the product's PLAN tables.
    *
@@ -213,6 +226,14 @@ export interface ProgramNameIncomeRuleResponseDto {
      * product states, not two boxes somebody forgot.
      */
     loanAmountDefaults: LoanAmountDefaults | null;
+    /**
+     * The product's default INTEREST RATE, or `null` when it states none.
+     *
+     * The wizard reads this to say what a program under this name is PRICED at: its rate card
+     * is gone, so a program that states nothing is quoted from here, and the step says so
+     * rather than showing an empty box.
+     */
+    rateDefaults: RateDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
     /**
@@ -298,6 +319,15 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
    * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
    */
   loanAmountDefaults: LoanAmountDefaults | null;
+  /**
+   * The default INTEREST RATE, as `PUT :key/rate-defaults` last stored it. `null` = none,
+   * and every program under this product must then state its own — which, since the wizard
+   * stopped asking, means through a seed or the API.
+   *
+   * INHERITED on the same terms as the duration and the size above, and cleared under the
+   * same refusal (`SURROGATE_PRODUCT_RATE_IN_USE`).
+   */
+  rateDefaults: RateDefaults | null;
   /**
    * The default PLAN tables — the rate, the term ceiling, the financed share and the floor —
    * every program that opted in reads (`bank_program.plansSource = 'product'`).
@@ -502,6 +532,68 @@ export class SetSurrogateProductLoanAmountDefaultsDto {
   @ValidateNested()
   @Type(() => SurrogateProductLoanAmountsDto)
   loanAmounts!: SurrogateProductLoanAmountsDto | null;
+}
+
+/**
+ * The default INTEREST RATE a surrogate product hands every program under it.
+ *
+ * ONE STATEMENT, not three fields side by side, and the nesting is what makes it one: the
+ * rate, the BASIS it is charged on and the variable-rate disclosure cannot come apart on the
+ * wire. A percentage on its own does not say what the customer pays — the same rate over the
+ * same tenor buys 22–29% more loan reducing than flat — and `isVariableRate` decides WHICH
+ * of the two figures is the price.
+ *
+ * The cross-field rule is the one a bank program's own save has always enforced
+ * (`InvalidVariableRateConfigurationException`): variable takes `currentEffectiveRatePercent`
+ * and no base rate, fixed takes `baseRatePercent` and no effective rate. It is checked at the
+ * service layer, where the two fields can be compared.
+ *
+ * Clearing is REFUSED while any program is reading it (`SURROGATE_PRODUCT_RATE_IN_USE`) for
+ * the reason the duration's clear is: a change gives an inheriting program a different price,
+ * a clear gives it NONE, and a loan with no price cannot be quoted at all.
+ */
+export class SurrogateProductRateDto {
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isVariableRate!: boolean;
+
+  @ApiProperty({ example: '24.0000', required: false })
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })
+  baseRatePercent?: string;
+
+  @ApiProperty({ example: '26.5500', required: false })
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })
+  currentEffectiveRatePercent?: string;
+
+  @ApiProperty({ example: 'CBE policy rate + 3%, reviewed quarterly', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  variableRateNote?: string;
+
+  /**
+   * `reducing` or `flat`. An UNKNOWN value is refused here rather than read as a default,
+   * exactly as it is on a bank program's own pricing: at the wire boundary a typo is still
+   * fixable by the person who made it, and absent already means `reducing`.
+   */
+  @ApiProperty({ enum: RATE_BASES, required: false })
+  @IsOptional()
+  @IsIn(RATE_BASES)
+  rateBasis?: RateBasis;
+}
+
+export class SetSurrogateProductRateDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductRateDto,
+    nullable: true,
+    description: 'Null clears the default interest rate.',
+  })
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductRateDto)
+  rate!: SurrogateProductRateDto | null;
 }
 
 /**
