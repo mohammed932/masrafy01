@@ -4645,6 +4645,7 @@
       <trans-unit id="bank_programs.eligibility.iscore.note_shared" datatype="html"><source>Leave it empty and the standard I-Score classes on Manage values apply to this program. Type a table only where this bank scores differently.</source><target>سيبه فاضي وهتتطبق تصنيفات I-Score القياسية من إدارة القيم على البرنامج ده. اكتب جدول بس لو البنك ده بيقيّم بشكل مختلف.</target></trans-unit>
       <trans-unit id="bpd.iscore.from_platform" datatype="html"><source>· the standard I-Score classes</source><target>· تصنيفات I-Score القياسية</target></trans-unit>
       <trans-unit id="spd.iscore.shared_note" datatype="html"><source> Leave it empty and the standard I-Score classes on Manage values apply to every bank selling this product. </source><target>سيبه فاضي وهتتطبق تصنيفات I-Score القياسية من إدارة القيم على كل البنوك اللي بتبيع المنتج ده.</target></trans-unit>
+      <trans-unit id="lookups.value.no_score_range" datatype="html"><source>No score given</source><target>لم يتم إدخال تقييم</target></trans-unit>
     </body>
   </file>
 </xliff>

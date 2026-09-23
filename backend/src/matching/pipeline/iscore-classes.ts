@@ -11,15 +11,20 @@
  *
  * The ranges are the bureau's, inclusive at both ends. The table built from them opens the
  * ends (the lowest band from 0, the highest with no top), so a score outside 300–850 reads as
- * the nearest class. `0%` is a stated figure: the class counts no income, and the program
- * offers nothing.
+ * the nearest class. The class with no range is the bureau's N/A — no score given — and its
+ * percentage is what a blank score counts. `0%` would be a stated figure too: the class
+ * counts no income and the program offers nothing.
+ *
+ * Seeded figures (the operator's bank table, v30.4.0): N/A 85% · below 521 60% ·
+ * 521–625 90% · above 625 100%.
  */
 export interface IScoreClass {
   readonly key: string;
   readonly labelEn: string;
   readonly labelAr: string;
-  readonly rangeFrom: number;
-  readonly rangeTo: number;
+  /** `null` on the one "No I-Score" class — the bureau's N/A, a score nobody gave. */
+  readonly rangeFrom: number | null;
+  readonly rangeTo: number | null;
   readonly incomePercent: string;
 }
 
@@ -27,12 +32,20 @@ export const I_SCORE_CLASS_TYPE = 'i_score_class';
 
 export const I_SCORE_CLASSES: readonly IScoreClass[] = [
   {
+    key: 'no_score',
+    labelEn: 'No I-Score',
+    labelAr: 'لا يوجد تقييم',
+    rangeFrom: null,
+    rangeTo: null,
+    incomePercent: '85',
+  },
+  {
     key: 'defaulted',
     labelEn: 'Defaulted',
     labelAr: 'متعثر',
     rangeFrom: 300,
     rangeTo: 399,
-    incomePercent: '0',
+    incomePercent: '60',
   },
   {
     key: 'high_risk',
@@ -40,7 +53,7 @@ export const I_SCORE_CLASSES: readonly IScoreClass[] = [
     labelAr: 'مخاطر مرتفعة',
     rangeFrom: 400,
     rangeTo: 520,
-    incomePercent: '50',
+    incomePercent: '60',
   },
   {
     key: 'unsatisfactory',
@@ -48,7 +61,7 @@ export const I_SCORE_CLASSES: readonly IScoreClass[] = [
     labelAr: 'غير مرضي',
     rangeFrom: 521,
     rangeTo: 625,
-    incomePercent: '80',
+    incomePercent: '90',
   },
   {
     key: 'satisfactory',
@@ -64,7 +77,7 @@ export const I_SCORE_CLASSES: readonly IScoreClass[] = [
     labelAr: 'جيد جدًا',
     rangeFrom: 701,
     rangeTo: 750,
-    incomePercent: '110',
+    incomePercent: '100',
   },
   {
     key: 'excellent',
@@ -72,6 +85,6 @@ export const I_SCORE_CLASSES: readonly IScoreClass[] = [
     labelAr: 'ممتاز',
     rangeFrom: 751,
     rangeTo: 850,
-    incomePercent: '120',
+    incomePercent: '100',
   },
 ];

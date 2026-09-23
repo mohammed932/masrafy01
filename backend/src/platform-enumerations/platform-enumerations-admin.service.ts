@@ -869,7 +869,11 @@ export class PlatformEnumerationsAdminService {
    * nothing — the same damage as `null` with none of the intent. "No parent" has one spelling.
    */
   /**
-   * The score range, allowed on an `i_score_class` row alone and required there.
+   * The score range, allowed on an `i_score_class` row alone and required on a NEW one.
+   *
+   * The seeded "No I-Score" class is the one row without a range (the bureau's N/A — see
+   * `platformIScoreTiers`). It cannot be made here: a create must name a range, and an edit
+   * that sends no range leaves the stored one — none, on that row — alone.
    *
    * Refused on every other type rather than silently dropped: a caller sending a range to a
    * governorate believes it set something. Both ends, low to high, inclusive — a class with

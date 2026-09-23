@@ -55,6 +55,12 @@ const NEUTRAL_PERCENT = new Decimal(100);
  */
 export interface IScoreTiers {
   readonly bands?: readonly IncomeBand[];
+  /**
+   * The percentage counted when the applicant gave NO score — the bureau's "N/A" (no record,
+   * or the optional question left blank). Stated on the shared table only (v30.4.0: the
+   * I-Score class with no range). Absent = a blank score counts 100%, as it always has.
+   */
+  readonly noScorePercent?: string;
 }
 
 /** Whose table answered — reported, not derived, and frozen onto the offer. */
@@ -147,7 +153,15 @@ export function resolveIScoreFactor(
   score: Decimal | undefined,
 ): IScoreResolution {
   if (resolved === undefined) return NEUTRAL;
-  if (score === undefined) return NEUTRAL;
+  if (score === undefined) {
+    // N/A: no score to place in a band. The table's own no-score figure when it states one
+    // (the shared table's "No I-Score" class), else the neutral 100%.
+    const stated = resolved.tiers.noScorePercent;
+    if (stated === undefined) return NEUTRAL;
+    const factor = new Decimal(stated);
+    if (!factor.isFinite() || factor.lessThan(0)) return NEUTRAL;
+    return { factorPercent: factor, source: resolved.source, tierIndex: null };
+  }
 
   const lookup = bandFor(score, resolved.tiers.bands);
   if (!lookup.matched) return NEUTRAL;

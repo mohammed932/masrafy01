@@ -191,6 +191,12 @@ import { percentText } from '@shared/income-rule/iscore-classes';
                     <span class="parent-line" dir="ltr"
                       >{{ r.rangeFrom }}–{{ r.rangeTo }} · {{ percentOf(r.incomePercent) }}%</span
                     >
+                  } @else if (r.incomePercent !== null && r.incomePercent !== undefined) {
+                    <!-- The "No I-Score" class: what a blank score counts. -->
+                    <span class="parent-line">
+                      <span i18n="@@lookups.value.no_score_range">No score given</span>
+                      · <span dir="ltr">{{ percentOf(r.incomePercent) }}%</span>
+                    </span>
                   }
                 </span>
                 <!-- Filed under nothing is the one class state that costs a quote, so it keeps

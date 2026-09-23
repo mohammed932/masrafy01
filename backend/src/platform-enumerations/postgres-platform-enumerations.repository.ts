@@ -1139,20 +1139,30 @@ export class PostgresPlatformEnumerationsRepository
    * One band per active class in score order, at the class's income percentage. The ends are
    * opened — the lowest band from 0, the highest with no top — because a tier table must cover
    * every score: a score the bureau never prints reads as the nearest class instead of
-   * dropping to 100%. `undefined` when any active class lacks a range or a percentage, or two
-   * classes start on the same score: a half-configured list must not quote as a policy.
+   * dropping to 100%. `undefined` when any active class lacks a percentage, has half a range,
+   * or two classes start on the same score: a half-configured list must not quote as a policy.
+   *
+   * The ONE class with no range at all is the bureau's "N/A" — no score given — and becomes
+   * the table's `noScorePercent`. A second one is ambiguous and also yields `undefined`.
    */
   async platformIScoreTiers(): Promise<IScoreTiers | undefined> {
     const rows = await this.prisma.platformEnumeration.findMany({
       where: { type: I_SCORE_CLASS_TYPE, active: true },
-      select: { rangeFrom: true, incomePercent: true },
+      select: { rangeFrom: true, rangeTo: true, incomePercent: true },
       orderBy: { rangeFrom: 'asc' },
     });
     if (rows.length === 0) return undefined;
     const classes: Array<{ from: number; percent: string }> = [];
+    let noScorePercent: string | undefined;
     for (const row of rows) {
-      // `== null`: absent and null are one state — a row with no range or no percentage.
-      if (row.rangeFrom == null || row.incomePercent == null) return undefined;
+      // `== null`: absent and null are one state throughout.
+      if (row.incomePercent == null) return undefined;
+      if (row.rangeFrom == null && row.rangeTo == null) {
+        if (noScorePercent !== undefined) return undefined;
+        noScorePercent = row.incomePercent.toString();
+        continue;
+      }
+      if (row.rangeFrom == null) return undefined;
       const previous = classes[classes.length - 1];
       if (previous !== undefined && row.rangeFrom <= previous.from) return undefined;
       classes.push({ from: row.rangeFrom, percent: row.incomePercent.toString() });
@@ -1166,6 +1176,7 @@ export class PostgresPlatformEnumerationsRepository
           incomeEGP: cls.percent,
         };
       }),
+      ...(noScorePercent !== undefined ? { noScorePercent } : {}),
     };
   }
 

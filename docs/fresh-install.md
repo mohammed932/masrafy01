@@ -56,7 +56,7 @@ What each step leaves behind, measured on the empty database:
 
 | # | Step | Writes |
 |---|------|--------|
-| 1 | `prisma migrate deploy` | Every table, plus the reference lists: governorates, employment and transfer types, required documents, the 21 catalog program names, the six I-Score classes with their ranges and income percentages (300–399 Defaulted 0% · 400–520 High Risk 50% · 521–625 Unsatisfactory 80% · 626–700 Satisfactory 100% · 701–750 Very Good 110% · 751–850 Excellent 120%) — the shared I-Score table. No questions, banks, programs or products yet. |
+| 1 | `prisma migrate deploy` | Every table, plus the reference lists: governorates, employment and transfer types, required documents, the 21 catalog program names, the I-Score classes with their ranges and income percentages — no score given 85% · 300–520 (Defaulted, High Risk) 60% · 521–625 (Unsatisfactory) 90% · 626+ (Satisfactory, Very Good, Excellent) 100% — the shared I-Score table. No questions, banks, programs or products yet. |
 | 2 | `prisma db seed` | The super_admin (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`). The first login forces a password change. |
 | 3 | `seed:banks` | 14 banks. |
 | 4 | `seed:questionnaire` | 6 groups, 69 questions, each assigned to its loan types, and a published questionnaire version. Auto Loan asks the I-Score question. |
