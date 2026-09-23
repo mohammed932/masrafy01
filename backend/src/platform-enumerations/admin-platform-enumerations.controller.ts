@@ -131,11 +131,7 @@ export class AdminPlatformEnumerationsController {
   @ApiResponse({ status: 404, description: 'ENUMERATION_TYPE_NOT_FOUND' })
   @ApiResponse({ status: 409, description: 'ENUMERATION_TYPE_IN_USE' })
   @ApiResponse({ status: 422, description: 'ENUMERATION_TYPE_SYSTEM_ONLY' })
-  async deleteType(
-    @Param('key') key: string,
-    @CurrentUser() user: JwtPayload,
-    @Ip() ip: string,
-  ) {
+  async deleteType(@Param('key') key: string, @CurrentUser() user: JwtPayload, @Ip() ip: string) {
     await this.service.deleteType(key, { staffId: user.sub, sourceIp: ip ?? null });
     return { success: true, data: { key } };
   }
@@ -436,6 +432,9 @@ export class AdminPlatformEnumerationsController {
           }
         : {}),
       sortOrder: row.sortOrder,
+      rangeFrom: row.rangeFrom,
+      rangeTo: row.rangeTo,
+      incomePercent: row.incomePercent,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

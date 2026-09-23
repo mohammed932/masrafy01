@@ -369,9 +369,13 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
                     @for (r of tiers.rows; track r) {
                       <span class="enum-chip">{{ r }}</span>
                     }
-                    @if (tiers.fromProduct) {
+                    @if (tiers.source === 'product') {
                       <span class="quiet" i18n="@@bpd.iscore.from_product"
                         >· the product's tiers</span
+                      >
+                    } @else if (tiers.source === 'platform') {
+                      <span class="quiet" i18n="@@bpd.iscore.from_platform"
+                        >· the standard I-Score classes</span
                       >
                     }
                   </dd>
@@ -1316,13 +1320,16 @@ export class BankProgramDetailPage {
    */
   protected iScoreTierRows(
     p: BankProgramResponse,
-  ): { readonly rows: string[]; readonly fromProduct: boolean } | null {
+  ): { readonly rows: string[]; readonly source: 'program' | 'product' | 'platform' } | null {
     const own = p.incomeAssumption.iScoreTiers?.bands ?? [];
     const product = p.productIScoreTiers?.bands ?? [];
-    const bands = own.length > 0 ? own : product;
+    // Last, like the server: the I-Score classes on Manage values (v30.4.0).
+    const platform = p.platformIScoreTiers?.bands ?? [];
+    const source = own.length > 0 ? 'program' : product.length > 0 ? 'product' : 'platform';
+    const bands = source === 'program' ? own : source === 'product' ? product : platform;
     if (bands.length === 0) return null;
     return {
-      fromProduct: own.length === 0,
+      source,
       rows: bands.map((band) =>
         band.toExclusive === null
           ? $localize`:@@bpd.iscore.tier_open:from ${band.fromInclusive}:from: → ${band.incomeEGP}:pct:%`

@@ -48,6 +48,7 @@ export interface LookupActiveToggle {
  * Value list for one lookup type — presentational. Owns only its local filter;
  * every mutation is emitted upward so the page keeps the single source of truth.
  */
+import { percentText } from '@shared/income-rule/iscore-classes';
 @Component({
   selector: 'app-lookup-value-list',
   standalone: true,
@@ -183,6 +184,13 @@ export interface LookupActiveToggle {
                       <span class="rank-dot" aria-hidden="true"></span>
                       {{ parentLabel(r.parentKey) }}
                     </span>
+                  }
+                  <!-- An I-Score class's score range, on the same subordinate second line: it
+                       is what the class IS, and the only thing that tells two of them apart. -->
+                  @if (r.rangeFrom !== null && r.rangeFrom !== undefined) {
+                    <span class="parent-line" dir="ltr"
+                      >{{ r.rangeFrom }}–{{ r.rangeTo }} · {{ percentOf(r.incomePercent) }}%</span
+                    >
                   }
                 </span>
                 <!-- Filed under nothing is the one class state that costs a quote, so it keeps
@@ -714,6 +722,11 @@ export class LookupValueListComponent {
 
   /** Whether this type is filed under another list at all. */
   protected readonly showsParent = computed(() => this.parents().length > 0);
+
+  /** An I-Score class's income percentage, without the trailing zeros the API carries. */
+  protected percentOf(raw: string | null | undefined): string {
+    return percentText(raw);
+  }
 
   /**
    * The accent for the class a value is filed under — strongest at the top tier, faintest at

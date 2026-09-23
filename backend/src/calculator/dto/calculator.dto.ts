@@ -83,6 +83,20 @@ export class CalculatorQuoteDto {
   @IsDecimalString({ min: 1, max: 100, scale: 4, allowZero: false })
   dbrCapPercent?: string;
 
+  /**
+   * The customer's I-Score, both modes (v30.4.0). It picks a row of the program's I-Score
+   * table, and that row's percentage scales the income BEFORE the debt-burden cap is taken —
+   * the same `i_score` fact the questionnaire feeds apply and preview, read by the same
+   * `quoteProgram`. Omitted = no score, which every table answers with 100%. The generic
+   * (no-program) quote has no table, so a score there moves nothing.
+   */
+  @ApiPropertyOptional({ example: 701, minimum: 0, maximum: 1000 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  iScore?: number;
+
   // Age is NOT a field here: it drives the age-at-maturity tenor shortening and
   // is DERIVED from the authenticated customer's `birthday` (Principle XXXVII /
   // A31), so the figures shown here can never disagree with the ones apply

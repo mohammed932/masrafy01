@@ -111,6 +111,8 @@ nvm use
 npm install
 npx prisma migrate dev
 npx prisma db seed                  # idempotent super_admin
+# Empty database? The full, ordered seed run (banks → questionnaire → catalog →
+# programs → build → blueprints → sheet-figures) is in docs/fresh-install.md.
 npm run start:dev                   # http://localhost:3000
 
 # Admin

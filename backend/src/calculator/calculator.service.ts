@@ -23,6 +23,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { toBankProgramSnapshot } from '@/bank-programs/bank-program-snapshot.mapper';
 import { DomainException } from '@/common/errors/domain.exceptions';
+import { I_SCORE_FACT_KEY } from '@/matching/pipeline/product-template';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
   CREDIT_CARD_DEBT_TYPE_OPTION,
@@ -178,7 +179,14 @@ export class CalculatorService {
         creditCardMonthlyEGP: creditCardMonthly.toFixed(2),
         dbrCapPercent: cap.toFixed(4),
         dbrBandIndex: u.dbrBandIndex ?? null,
-        maxMonthlyInstallmentEGP: this.maxInstallment(income, cap, obligations).toFixed(2),
+        // The income the cap was taken of — I-Score included — not the figure typed in. The
+        // quote reports it on every "no figures" exit; the typed one is the fallback only for
+        // a refusal that never reached the income step.
+        maxMonthlyInstallmentEGP: this.maxInstallment(
+          u.recognisedIncomeEGP ?? income,
+          cap,
+          obligations,
+        ).toFixed(2),
         maxAffordableAmountEGP: u.maxAffordableAmountEGP.toFixed(2),
         monthlyInstallmentEGP: '0.00',
         tenorMonths: dto.tenorMonths,
@@ -288,6 +296,14 @@ export class CalculatorService {
         hasPreviousRejection: false,
       },
       assets: {},
+      // The score travels as the `i_score` fact, the one `iScoreOf` reads on every path.
+      ...(args.dto.iScore !== undefined
+        ? {
+            surrogateFacts: {
+              [I_SCORE_FACT_KEY]: { kind: 'numeric', value: new Decimal(args.dto.iScore) },
+            },
+          }
+        : {}),
     };
   }
 

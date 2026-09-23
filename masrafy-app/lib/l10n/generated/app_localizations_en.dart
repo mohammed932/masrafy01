@@ -1814,6 +1814,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'We couldn\'t find matching programs for your answers right now.';
 
   @override
+  String offer_partner_bank(String letter) {
+    return 'Partner bank $letter';
+  }
+
+  @override
+  String get offer_partner_bank_generic => 'Partner bank';
+
+  @override
+  String get results_no_rate_title => 'No rate for these details';
+
+  @override
+  String get results_no_rate_body_car =>
+      'None of the banks has a rate for this down payment and car. Most car finance plans need a larger down payment — try raising it, or change the car\'s details.';
+
+  @override
+  String get results_no_rate_body =>
+      'None of the banks has a rate for the answers you gave. Try changing your answers to see offers.';
+
+  @override
+  String get results_edit_answers => 'Edit my answers';
+
+  @override
   String get results_profile_title => 'Complete your profile';
 
   @override

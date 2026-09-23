@@ -981,7 +981,7 @@ export interface Offer {
    * absent is not `100`, and a reader must render the absence rather than assume a value.
    */
   iScoreFactorPercent: Decimal | null;
-  iScoreTiersSource: 'program' | 'product' | null;
+  iScoreTiersSource: 'program' | 'product' | 'platform' | null;
   /**
    * The collateral ceiling this offer was priced against, when a product rule derived one.
    * `null` for every income-based program — absent, not zero, because a zero would say the

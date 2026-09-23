@@ -17,6 +17,7 @@ import type {
 } from './types';
 import { checkEligibility } from './pipeline/eligibility-checker';
 import { applyCompanyTypeAdjustment, resolveAssumedIncome } from './pipeline/income-resolver';
+import { applyIScoreFactor, iScoreOf, resolveIScoreFactor } from './pipeline/iscore';
 import { rankOffers } from './pipeline/ranking';
 import { quoteProgram, shouldConsultIncomeRule } from './pipeline/quote';
 
@@ -240,8 +241,7 @@ export class EngineService {
       effectiveLoanAmountEGP: quote.offeredAmountEGP,
       // No term asked for -> the offer records the one actually written, so a reader is
       // never shown a request the customer did not make.
-      requestedTenorMonths:
-        args.profile.preferredTenorMonths ?? quote.effectiveTenorMonths,
+      requestedTenorMonths: args.profile.preferredTenorMonths ?? quote.effectiveTenorMonths,
       effectiveTenorMonths: quote.effectiveTenorMonths,
       feesBreakdown: quote.feesBreakdown,
       requiredDocuments: args.program.requiredDocuments,
@@ -290,8 +290,15 @@ export class EngineService {
 
     if (failed.has('monthly_income')) {
       const next = profile.employment.monthlyNetSalaryEGP.mul('1.2');
+      // Through each program's own I-Score factor, the step the quote applies before any
+      // figure is compared: a customer whose score earns 110% is 20% short of a program only
+      // after the 110% is counted.
+      const score = iScoreOf(profile);
       const unlocks = programs.filter((p) =>
-        next.greaterThanOrEqualTo(p.eligibility.minMonthlyIncomeEGP),
+        applyIScoreFactor(
+          next,
+          resolveIScoreFactor(p.iScoreTiers, score).factorPercent,
+        ).greaterThanOrEqualTo(p.eligibility.minMonthlyIncomeEGP),
       ).length;
       suggestions.push({
         code: 'INCREASE_INCOME_THRESHOLD',

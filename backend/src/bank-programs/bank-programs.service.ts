@@ -105,6 +105,7 @@ import { validateFactGrid } from './validation/fact-grid.validator';
 import type { FactGridConfig } from '@/matching/pipeline/fact-grid';
 import {
   catalogIncomeRulePaths,
+  catalogIScoreDefaultsPaths,
   catalogPlanDefaultsPaths,
   estimatedPaths,
   newlyEstimatedPaths,
@@ -1238,6 +1239,7 @@ export class BankProgramsService {
       productRate?: RateDefaults | null;
       /** The product's I-Score tiers, on exactly the terms `productRate` above is passed. */
       productIScoreTiers?: IScoreTiers | null;
+      platformIScoreTiers?: IScoreTiers | null;
     } = {},
   ): BankProgramResponseDto {
     return {
@@ -1284,6 +1286,9 @@ export class BankProgramsService {
       ...(extra.productIScoreTiers === undefined
         ? {}
         : { productIScoreTiers: extra.productIScoreTiers }),
+      ...(extra.platformIScoreTiers === undefined
+        ? {}
+        : { platformIScoreTiers: extra.platformIScoreTiers }),
       deprecatedKeys,
       warnings: extra.warnings ?? [],
       ...(extra.deactivatedByEstimate ? { deactivatedByEstimate: true } : {}),
@@ -1385,10 +1390,15 @@ export class BankProgramsService {
         : await this.catalogResolutionFor(program.programNameKey);
     const productRate = catalogRateOf(catalog) ?? null;
     const productIScoreTiers = catalogIScoreOf(catalog) ?? null;
+    // The shared table — the I-Score classes on Manage values — is the last fallback, and the
+    // screens need it for the same reason as the product's: a program that states nothing is
+    // scored on it, and "none" would be a lie.
+    const platformIScoreTiers = (await this.enums.platformIScoreTiers()) ?? null;
     return this.toResponse(program, deprecatedKeys, {
       warnings,
       productRate,
       productIScoreTiers,
+      platformIScoreTiers,
     });
   }
 
@@ -1948,6 +1958,7 @@ export class BankProgramsService {
       readsFactKeys: wayFactKeysOf(p.templateSpec),
       usedBy: p.usedBy,
       capPrograms: capUsage.get(p.key) ?? [],
+      capOnly: isCapOnlyProductKey(p.key),
     }));
   }
 
@@ -2038,6 +2049,7 @@ export class BankProgramsService {
       readsFactKeys: wayFactKeysOf(row.templateSpec),
       usedBy: nameKeys,
       capPrograms: (await this.capUsageByProduct()).get(row.key) ?? [],
+      capOnly: isCapOnlyProductKey(row.key),
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
       // The same two fields the catalog name's response carries, from the same resolver and
       // the same column — this is the screen that AUTHORS the amounts, so it has to be able
@@ -2137,6 +2149,7 @@ export class BankProgramsService {
       rule,
       row.incomeRule,
       row.planDefaults,
+      row.iScoreDefaults,
     );
 
     // ADVANCED IS ONE-WAY, and this is where it happens.
@@ -2904,6 +2917,7 @@ export class BankProgramsService {
       compiled,
       row.incomeRule,
       row.planDefaults,
+      row.iScoreDefaults,
     );
 
     await this.enums.setSurrogateProductIncomeRule(key, compiled, valueSources, actor.id, template);
@@ -2959,10 +2973,12 @@ export class BankProgramsService {
      * passes `undefined`: a name has no plan tables of its own.
      */
     plans?: unknown,
+    /** The product's stored I-Score tiers — another endpoint's table, exactly like `plans`. */
+    iScore?: unknown,
   ): Record<string, 'team_estimated'> {
     const stating = submittedRaw !== undefined;
     const submitted = submittedRaw ?? stored ?? {};
-    const planPaths = catalogPlanDefaultsPaths(plans);
+    const planPaths = [...catalogPlanDefaultsPaths(plans), ...catalogIScoreDefaultsPaths(iScore)];
     const allowed = new Set([...catalogIncomeRulePaths(rule), ...planPaths]);
     const previously = new Set([...catalogIncomeRulePaths(previousRule), ...planPaths]);
 

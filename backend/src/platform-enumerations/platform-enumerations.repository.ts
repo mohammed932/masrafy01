@@ -562,6 +562,13 @@ export abstract class PlatformEnumerationsRepository {
   abstract programNameIncomeRules(): Promise<CatalogIncomeRules>;
 
   /**
+   * The SHARED I-Score table (v30.4.0): the active I-Score classes on Manage values, each at
+   * its income percentage, as a tier table. `undefined` when the list is empty or
+   * half-configured. Also carried on `programNameIncomeRules()` for the quote path.
+   */
+  abstract platformIScoreTiers(): Promise<IScoreTiers | undefined>;
+
+  /**
    * Every ACTIVE registry value that is filed under a parent, as `key → parentKey`.
    *
    * Feeds a product rule's `factParentTable` step: the customer picks a compound by NAME

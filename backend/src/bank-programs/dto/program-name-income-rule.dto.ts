@@ -289,6 +289,12 @@ export interface SurrogateProductSummaryDto {
    * a calculation.
    */
   capPrograms: string[];
+  /**
+   * A cap-only product: it works out no income, so no catalog name may sell it
+   * (`SURROGATE_PRODUCT_CAP_ONLY`). The board says so instead of asking for a name it would
+   * refuse.
+   */
+  capOnly: boolean;
 }
 
 /** A surrogate product's own page: the calculation, and who uses it. */

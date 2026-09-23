@@ -124,6 +124,8 @@ import {
   type SlotDefault,
 } from '@shared/income-rule/catalog-defaults';
 import { gateTitleFor } from '@shared/income-rule/gate-labels';
+import { I_SCORE_CLASS_TYPE, bandsFromIScoreClasses } from '@shared/income-rule/iscore-classes';
+import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import {
   mustPickWayFirst,
   picksBetweenWays,
@@ -2409,11 +2411,28 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                       </p>
                     } @else {
                       <p class="dbr-emp-note">
-                        <ng-container i18n="@@bank_programs.eligibility.iscore.note_none"
-                          >Leave it empty and every applicant's figure counts in full, whatever
-                          their score. Type a table only where this bank scores
+                        <!-- v30.4.0: empty no longer means "counts in full". It means the SHARED
+                             table — the I-Score classes on Manage values — applies. -->
+                        <ng-container i18n="@@bank_programs.eligibility.iscore.note_shared"
+                          >Leave it empty and the standard I-Score classes on Manage values apply to
+                          this program. Type a table only where this bank scores
                           differently.</ng-container
                         >
+                      </p>
+                    }
+                    @if (!iScoreInherits() && iScoreClassBands().length > 0) {
+                      <!-- The six bureau classes from Manage values, as a starting table: one
+                           row per class at 100%, so pressing it moves no figure until the
+                           operator types this bank's factors. -->
+                      <p class="take-default-line">
+                        <button
+                          type="button"
+                          class="take-default"
+                          (click)="useIScoreClasses()"
+                          i18n="@@bank_programs.eligibility.iscore.use_classes"
+                        >
+                          Use the standard I-Score classes
+                        </button>
                       </p>
                     }
                     <app-income-bands-editor
@@ -4099,6 +4118,7 @@ export class BankProgramFormPage implements OnInit {
   private readonly modal = inject(NzModalService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly notification = inject(NzNotificationService);
+  private readonly lookupsApi = inject(LookupsApiService);
   private readonly errorsService = inject(ErrorCodeService);
   readonly enums = inject(PlatformEnumerationsService);
 
@@ -6805,6 +6825,17 @@ export class BankProgramFormPage implements OnInit {
     this.form.markAsDirty();
   }
 
+  /** The I-Score classes on Manage values, as a table — loaded once, `[]` if unreachable. */
+  protected readonly iScoreClassBands = signal<IncomeBand[]>([]);
+
+  /** Replace the table with the standard classes at 100% — see `bandsFromIScoreClasses`. */
+  protected useIScoreClasses(): void {
+    const bands = this.iScoreClassBands();
+    if (bands.length === 0) return;
+    this.iScoreTiers.set(bands.map((band) => ({ ...band })));
+    this.form.markAsDirty();
+  }
+
   /**
    * Does the table on screen have a shape error? Gates Continue and Save.
    *
@@ -7857,6 +7888,13 @@ export class BankProgramFormPage implements OnInit {
   }
 
   ngOnInit(): void {
+    // The I-Score classes, for the "standard classes" button. A failure hides the button and
+    // nothing else: the table is still typed by hand exactly as before.
+    this.lookupsApi
+      .list(I_SCORE_CLASS_TYPE)
+      .then((rows) => this.iScoreClassBands.set(bandsFromIScoreClasses(rows)))
+      .catch(() => this.iScoreClassBands.set([]));
+
     this.enums.preload([
       'transfer_type',
       'employment_type',

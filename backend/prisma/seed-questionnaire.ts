@@ -2291,6 +2291,7 @@ export async function seedQuestionnaire(): Promise<void> {
   await upsertIScoreFact();
   await upsertAdditionalIncomeFacts();
   await upsertCarFacts();
+  await bindSystemFacts();
 
   // ---- 3. Publish ONE global snapshot ---------------------------------------
   await publishVersion();
@@ -2299,6 +2300,44 @@ export async function seedQuestionnaire(): Promise<void> {
   console.log(
     `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global).`,
   );
+}
+
+/**
+ * The four SYSTEM facts, bound to the questions they read — on a database that has none bound.
+ *
+ * Migration `20260815130000_surrogate_fact_registry` created these rows and bound each one by
+ * joining on the question code. That join only finds a question on a database that already
+ * had them: on a FRESH one the migrations run before this seed has written a single question,
+ * so the rows land unbound, `surrogateFactRegistry()` leaves them out, and `seed:blueprints`
+ * then refuses five products with `INCOME_RULE_FACT_UNAVAILABLE` (military grade, academic
+ * rank, years in practice twice, the card limit). This finishes what the migration meant.
+ *
+ * ONLY where nothing is bound: an operator may have re-pointed one on purpose, and a seed
+ * that re-bound it would undo that on every run. The pairs are the migration's, verbatim —
+ * `credit_card_limit` reads `credit_card_total_limit`, not a question of its own name.
+ */
+const SYSTEM_FACT_QUESTIONS: ReadonlyArray<readonly [factKey: string, questionCode: string]> = [
+  ['military_grade', 'military_grade'],
+  ['academic_rank', 'academic_rank'],
+  ['years_in_practice', 'years_in_practice'],
+  ['credit_card_limit', 'credit_card_total_limit'],
+];
+
+async function bindSystemFacts(): Promise<void> {
+  for (const [factKey, questionCode] of SYSTEM_FACT_QUESTIONS) {
+    const question = await prisma.question.findUnique({
+      where: { code: questionCode },
+      select: { id: true },
+    });
+    if (!question) {
+      console.warn(`seed-questionnaire: no '${questionCode}' question — '${factKey}' not bound.`);
+      continue;
+    }
+    await prisma.platformEnumeration.updateMany({
+      where: { type: 'surrogate_fact', key: factKey, boundQuestionId: null },
+      data: { boundQuestionId: question.id, updatedBy: SEED_ACTOR },
+    });
+  }
 }
 
 /**

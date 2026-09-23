@@ -61,20 +61,21 @@ describe('every product offers a way a program can name', () => {
 });
 
 /**
- * Names the seed REUSES rather than creates — `sheet-figures.ts` leaves `compound_owner_4` out of
- * `PROGRAM_NAMES` on purpose (it already exists and is already linked), so its product is stated
- * here from the same knowledge the four compound programs' `wayId`s are written against.
+ * Names the seed REUSES rather than creates. None today: `compound_owner_4` used to be left out
+ * of `PROGRAM_NAMES` on the assumption it already existed, and a database built from the seeds
+ * then had no name for the four compound programmes to be filed under.
  */
-const PRE_EXISTING_NAMES: Readonly<Record<string, string>> = { compound_owner_4: 'compound_owner' };
+const PRE_EXISTING_NAMES: Readonly<Record<string, string>> = {};
 
 describe('the seed names, for every surrogate program, a way its product offers', () => {
   const surrogate = SHEET_PROGRAMS.filter((p) => p.dto.programType === 'income_surrogate');
 
-  it('seeds thirteen surrogate programs and seven payslip ones', () => {
-    // Thirteen. The three Suez Canal auto programmes (one down-payment, two Green Finance)
-    // that quoted from `down_payment_income` were removed with their catalog names
-    // (migration `remove_down_payment_income_programs`); the product itself stays.
-    expect(surrogate).toHaveLength(13);
+  it('seeds seventeen surrogate programs and seven payslip ones', () => {
+    // Seventeen. The three Suez Canal auto programmes that quoted from `down_payment_income`
+    // were removed with their catalog names (migration `remove_down_payment_income_programs`);
+    // the four the operator created in their place under `car_buyers_program` are seeded
+    // (`car-buyers-programs.ts`), so the product is sold on a database built from the seeds.
+    expect(surrogate).toHaveLength(17);
     // Four, plus Credit Agricole's three auto programmes — New Car, Used Car and Electric
     // Vehicle. Payslip, so they hold no way and no product: their deposit tiers live in the
     // programme's OWN financed-share grid rather than a product's plan tables, which is what

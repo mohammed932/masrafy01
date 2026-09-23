@@ -102,6 +102,20 @@ class _MatchResultsView extends StatelessWidget {
                                     .submit(args.request!),
                               );
                             }
+                            if (state.isEmpty && state.noRateForAnswers) {
+                              // Said, not left as "no offers": the answers are
+                              // outside every bank's rate table, which the
+                              // applicant can fix by changing them.
+                              return MasrafyNoItemsState(
+                                icon: Icons.percent_rounded,
+                                title: l.results_no_rate_title,
+                                body: args.loanTypeKey == 'car'
+                                    ? l.results_no_rate_body_car
+                                    : l.results_no_rate_body,
+                                actionLabel: l.results_edit_answers,
+                                onAction: () => ctx.router.maybePop(),
+                              );
+                            }
                             if (state.isEmpty) {
                               return MasrafyNoItemsState(
                                 icon: Icons.search_off_rounded,
@@ -162,10 +176,14 @@ class _ResultsContent extends StatelessWidget {
                 NumberFormat.decimalPattern().format(args.amount),
               ),
             ),
-            (
-              label: l.results_requested_duration,
-              value: l.results_months(args.durationMonths),
-            ),
+            // Only when the applicant asked for one. The car questionnaire
+            // never asks, so its request carries no tenor and the row used to
+            // read "0 months"; each card below states the term it was priced on.
+            if (args.durationMonths > 0)
+              (
+                label: l.results_requested_duration,
+                value: l.results_months(args.durationMonths),
+              ),
           ],
         ),
         for (final offer in offers) ...[
@@ -191,9 +209,13 @@ class _ResultsContent extends StatelessWidget {
                   .copyWith(color: MasrafyColorTheme.of(context).textBase),
             ),
           ),
-          for (final program in unavailable) ...[
+          for (var i = 0; i < unavailable.length; i++) ...[
             Gap(14.h),
-            UnavailableProgramCard(program: program),
+            UnavailableProgramCard(
+              program: unavailable[i],
+              rank: offers.length + i,
+              productLabel: typeLabel,
+            ),
           ],
         ],
       ],

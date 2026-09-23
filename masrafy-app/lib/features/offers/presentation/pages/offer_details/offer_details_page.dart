@@ -96,10 +96,9 @@ class _OfferDetailsView extends StatelessWidget {
     final topInset = MediaQuery.of(context).viewPadding.top;
     final typeLabel = loanTypeLabel(l, summary.loanTypeKey);
     final title = l.offer_title(typeLabel);
-    // The bank behind the offer. Saved-offer / past-application / mock views
-    // carry no bank name; the header already supports an empty subtitle (the
-    // shimmer and error states pump one), so nothing more is needed here.
-    final subtitle = offer.bankName.isNotEmpty ? offer.bankName : '';
+    // The MASKED bank, the same letter the results card showed (see
+    // MasrafyPartnerBankHeading) — never the real bank or its program name.
+    final subtitle = MasrafyPartnerBankHeading.labelFor(l, offer.rank);
     final grouped = NumberFormat.decimalPattern();
 
     // A real, not-yet-applied offer is the only case with a live Apply CTA and
@@ -112,12 +111,6 @@ class _OfferDetailsView extends StatelessWidget {
     // pump the page with no container.
     final tracked =
         offer.bankOfferId.isNotEmpty || offer.applicationId.isNotEmpty;
-    // Bank-facing name of the matched program. Real offers carry the friendly
-    // name (the code is the fallback for programs that never got one);
-    // saved-offer / past-application / mock views carry neither.
-    final programName = offer.programFriendlyName.isNotEmpty
-        ? offer.programFriendlyName
-        : offer.programCode;
 
     // What the bank booked, versus what the wizard asked for. They diverge
     // whenever the program ceiling or the debt-burden cap reduced the ask, and
@@ -263,13 +256,6 @@ class _OfferDetailsView extends StatelessWidget {
                   children: [
                     MatchSummaryCard(
                       rows: [
-                        // Which bank program this is — the hero says only
-                        // "Personal Loan", so without this row two offers from
-                        // two banks render identically. Falls back to the raw
-                        // code, and is dropped entirely on placeholder views
-                        // (saved offers / mocks) that carry neither.
-                        if (programName.isNotEmpty)
-                          (label: l.results_program, value: programName),
                         (label: l.results_loan_type, value: typeLabel),
                         // The ask and the offer are two different numbers
                         // whenever the program ceiling or the debt-burden

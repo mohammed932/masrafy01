@@ -269,9 +269,9 @@ const ENUM_TYPE = 'program_name';
                     No payslip program name matches this filter.
                   </p>
                 } @else {
-                <p i18n="@@program_catalog.proof.empty">
-                  No name is sold against a payslip yet. Add a program name and it starts here.
-                </p>
+                  <p i18n="@@program_catalog.proof.empty">
+                    No name is sold against a payslip yet. Add a program name and it starts here.
+                  </p>
                 }
               </div>
             }
@@ -330,7 +330,6 @@ const ENUM_TYPE = 'program_name';
                 }
               }
             </section>
-
           </div>
         }
 
@@ -561,7 +560,13 @@ const ENUM_TYPE = 'program_name';
           </a>
 
           <div class="sold-as">
-            @if (c.names.length === 0) {
+            @if (c.names.length === 0 && c.product.capOnly) {
+              <!-- NOT the warn tag. A cap-only product works out no income, so the catalog
+                   refuses to let any name sell it (SURROGATE_PRODUCT_CAP_ONLY) — asking for one
+                   was asking for the one thing the operator cannot do. It is sold by a bank
+                   capping its own program by the answer, which the foot line counts. -->
+              <span class="tag" i18n="@@sp.cap_only">Sold as a cap on each bank's program</span>
+            } @else if (c.names.length === 0) {
               <!-- The actionable state, so a warn tag rather than the disabled-ink metadata
                    line it shipped as: a calculation nothing sells quotes for nobody, and the
                    disabled ink token sits under 4.5:1 for a sentence somebody must read. -->

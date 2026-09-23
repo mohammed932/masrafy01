@@ -294,14 +294,19 @@ describe('the multiplier itself', () => {
     expect(out.source).toBeNull();
   });
 
-  it('refuses a non-positive tier figure back to 100%', () => {
-    // A stored `0` would zero the applicant's whole affordability while reading on screen as
-    // a configured tier — the same trap `resolveDbrCap` re-checks its own bounds for.
-    const zeroed = {
-      tiers: { bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '0' }] },
-      source: 'program' as const,
-    };
-    expect(resolveIScoreFactor(zeroed, new Decimal('720')).factorPercent.toString()).toBe('100');
+  it('refuses a NEGATIVE tier figure back to 100%, and keeps a stated 0%', () => {
+    // v30.4.0: 0% is a stated figure — the bureau's Defaulted class counts no income, so the
+    // program offers nothing. A negative figure is still nonsense and still reads as 100%.
+    const tiersAt = (incomeEGP: string) => ({
+      tiers: { bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP }] },
+      source: 'platform' as const,
+    });
+    expect(resolveIScoreFactor(tiersAt('-5'), new Decimal('720')).factorPercent.toString()).toBe(
+      '100',
+    );
+    expect(resolveIScoreFactor(tiersAt('0'), new Decimal('350')).factorPercent.toString()).toBe(
+      '0',
+    );
   });
 
   it('returns the SAME Decimal at 100%, so an unscored quote allocates nothing', () => {

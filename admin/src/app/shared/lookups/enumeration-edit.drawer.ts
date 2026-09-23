@@ -26,6 +26,10 @@ import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookup
 import { EnumerationTypesService } from './enumeration-types.service';
 import { slugify, uniqueSlug } from './slug';
 
+/** The I-Score classes lookup — the one type whose rows carry a score range. */
+const I_SCORE_CLASS_TYPE = 'i_score_class';
+const RANGE_VALIDATORS = [Validators.required, Validators.min(0), Validators.max(1000)];
+
 /**
  * EVERY lookup type is edited by business name only: the machine key is derived
  * from the English label and never typed. Lookups are curated by non-technical
@@ -140,6 +144,72 @@ export interface EnumerationEditDrawerData {
             </nz-form-control>
           </nz-form-item>
         </div>
+
+        @if (isIScoreClass) {
+          <!-- The score range this I-Score class covers, inclusive at both ends. A pair on one
+               row, like the two labels: one range, two ends. -->
+          <div class="field-pair">
+            <nz-form-item>
+              <nz-form-label nzFor="lk-range-from" nzRequired i18n="@@lookups.field.rangeFrom"
+                >Lowest score</nz-form-label
+              >
+              <nz-form-control [nzErrorTip]="rangeTip">
+                <input
+                  nz-input
+                  id="lk-range-from"
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  max="1000"
+                  formControlName="rangeFrom"
+                />
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label nzFor="lk-range-to" nzRequired i18n="@@lookups.field.rangeTo"
+                >Highest score</nz-form-label
+              >
+              <nz-form-control [nzErrorTip]="rangeTip">
+                <input
+                  nz-input
+                  id="lk-range-to"
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  max="1000"
+                  formControlName="rangeTo"
+                />
+              </nz-form-control>
+            </nz-form-item>
+          </div>
+          <nz-form-item>
+            <nz-form-label nzFor="lk-income-pct" nzRequired i18n="@@lookups.field.incomePercent"
+              >Share of the income counted</nz-form-label
+            >
+            <nz-form-control [nzErrorTip]="percentTip">
+              <nz-input-group nzAddOnAfter="%">
+                <input
+                  nz-input
+                  id="lk-income-pct"
+                  type="number"
+                  inputmode="decimal"
+                  min="0"
+                  max="300"
+                  formControlName="incomePercent"
+                />
+              </nz-input-group>
+              <p class="hint" i18n="@@lookups.field.incomePercent.hint">
+                Every bank program that states no I-Score table of its own counts this share of the
+                customer's income at this score. 100 counts it in full, 0 counts nothing and the
+                program offers no loan.
+              </p>
+            </nz-form-control>
+          </nz-form-item>
+          <p class="hint" i18n="@@lookups.field.range.hint">
+            Both ends count: 701 to 750 means a score of 701 and a score of 750 are both in this
+            class. A table already saved on a product or a bank program keeps its own ranges.
+          </p>
+        }
 
         @if (parentType !== null) {
           <!-- The CLASS this row is priced in. REQUIRED, and that is a change: an unclassified
@@ -529,6 +599,10 @@ export class EnumerationEditDrawerComponent {
   protected readonly data = inject<EnumerationEditDrawerData>(NZ_DRAWER_DATA);
 
   private readonly isProgramName = this.data.type === PROGRAM_NAME_TYPE;
+  /** An I-Score class: the one type whose rows carry a score range. */
+  protected readonly isIScoreClass = this.data.type === I_SCORE_CLASS_TYPE;
+  protected readonly rangeTip = $localize`:@@lookups.field.range.required:Enter a whole score from 0 to 1000.`;
+  protected readonly percentTip = $localize`:@@lookups.field.incomePercent.required:Enter a percentage from 0 to 300.`;
   /**
    * Types whose rows are FILED UNDER another list — the registry's generic single-parent
    * scope, read by a rule's `factParentTable` step.
@@ -705,6 +779,21 @@ export class EnumerationEditDrawerComponent {
       nonNullable: true,
       validators: this.enumTypes.parentTypeOf(this.data.type) ? [Validators.required] : [],
     }),
+    rangeFrom: new FormControl<number | null>(this.data.row?.rangeFrom ?? null, {
+      validators: this.data.type === I_SCORE_CLASS_TYPE ? RANGE_VALIDATORS : [],
+    }),
+    rangeTo: new FormControl<number | null>(this.data.row?.rangeTo ?? null, {
+      validators: this.data.type === I_SCORE_CLASS_TYPE ? RANGE_VALIDATORS : [],
+    }),
+    incomePercent: new FormControl<number | null>(
+      this.data.row?.incomePercent == null ? null : Number(this.data.row.incomePercent),
+      {
+        validators:
+          this.data.type === I_SCORE_CLASS_TYPE
+            ? [Validators.required, Validators.min(0), Validators.max(300)]
+            : [],
+      },
+    ),
   });
 
   constructor() {
@@ -857,6 +946,11 @@ export class EnumerationEditDrawerComponent {
     this.submitting.set(true);
     try {
       const v = this.form.getRawValue();
+      const range = this.rangeOf(v.rangeFrom, v.rangeTo, v.incomePercent);
+      if (range === 'invalid') {
+        this.fail('VALIDATION_FAILED');
+        return;
+      }
       if (this.data.mode === 'create') {
         if (!slugify(v.labelEn)) {
           this.fail('VALIDATION_FAILED');
@@ -873,6 +967,7 @@ export class EnumerationEditDrawerComponent {
           // Sent only for a type that HAS a parent axis, and only when one was picked — an
           // empty string is "unfiled", not a key.
           ...(this.parentType !== null && v.parentKey !== '' ? { parentKey: v.parentKey } : {}),
+          ...range,
           sortOrder: v.sortOrder,
         });
       } else if (this.data.row) {
@@ -907,6 +1002,7 @@ export class EnumerationEditDrawerComponent {
           labelEn: v.labelEn,
           labelAr: v.labelAr,
           ...(this.parentType !== null && v.parentKey !== '' ? { parentKey: v.parentKey } : {}),
+          ...range,
           sortOrder: v.sortOrder,
         });
       }
@@ -917,6 +1013,24 @@ export class EnumerationEditDrawerComponent {
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  /**
+   * The range to send: both ends, low to high, on an I-Score class; nothing on any other type.
+   * `'invalid'` stops the save before the server refuses it — a range read backwards is a
+   * class no score can fall in.
+   */
+  private rangeOf(
+    from: number | null,
+    to: number | null,
+    percent: number | null,
+  ): { rangeFrom?: number; rangeTo?: number; incomePercent?: string } | 'invalid' {
+    if (!this.isIScoreClass) return {};
+    if (from === null || to === null || percent === null) return 'invalid';
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from > to) return 'invalid';
+    if (!Number.isFinite(percent) || percent < 0 || percent > 300) return 'invalid';
+    // Up to four decimals, the column's scale — the server refuses more.
+    return { rangeFrom: from, rangeTo: to, incomePercent: String(Math.round(percent * 1e4) / 1e4) };
   }
 
   private fail(code: string): void {

@@ -18,7 +18,7 @@ description: Rules for NestJS/Prisma changes in backend/: migrations, seeds and 
 4. Capture affected quotes BEFORE and AFTER (`npm run quote:surrogate`); "moves no money" must diff identical.
 
 ## Seed order (full reseed)
-`prisma migrate deploy → npm run build → seed:questionnaire → seed:blueprints → seed:sheet-figures → seed:questionnaire`
+`prisma migrate deploy → prisma db seed → seed:banks → seed:questionnaire → seed:catalog → seed:programs → npm run build → seed:blueprints → seed:sheet-figures` (verified on an empty DB 2026-09-23; details in `docs/fresh-install.md`). Never re-run `seed:questionnaire` after `seed:blueprints` — see the gotcha below.
 Re-run each seed: must report 0 written / 0 refused.
 
 ## Gotchas

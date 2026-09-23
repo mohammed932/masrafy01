@@ -310,7 +310,15 @@ export function catalogRuleOf(
  * may not import from a feature module (Principle IX), and the mapper that consumes it
  * re-exports this name so its callers are unchanged.
  */
-export type CatalogIncomeRules = ReadonlyMap<string, CatalogRuleResolution>;
+export type CatalogIncomeRules = ReadonlyMap<string, CatalogRuleResolution> & {
+  /**
+   * The SHARED I-Score table (v30.4.0): the I-Score classes on Manage values, each at its
+   * income percentage. Carried on the map every quote path already loads, so every program
+   * reaches it through `toBankProgramSnapshot` with no call site changed. Absent on a map
+   * built without it (a test, a script) — which quotes exactly as it did before.
+   */
+  readonly platformIScoreTiers?: IScoreTiers;
+};
 
 /** The product row as this module needs to read it: its rule, and whether it is live. */
 export interface LinkedProduct {

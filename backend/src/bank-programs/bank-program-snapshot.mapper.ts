@@ -178,6 +178,7 @@ export function toBankProgramSnapshot(
       const tiers = effectiveIScoreTiers(
         asIScoreTiers((p.incomeAssumption as { iScoreTiers?: unknown } | null)?.iScoreTiers),
         catalogIScoreOf(catalog),
+        catalogRules?.platformIScoreTiers,
       );
       return tiers === undefined ? {} : { iScoreTiers: tiers };
     })(),

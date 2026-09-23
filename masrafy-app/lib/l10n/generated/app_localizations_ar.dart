@@ -1775,6 +1775,28 @@ class AppLocalizationsAr extends AppLocalizations {
       'لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.';
 
   @override
+  String offer_partner_bank(String letter) {
+    return 'البنك الشريك $letter';
+  }
+
+  @override
+  String get offer_partner_bank_generic => 'بنك شريك';
+
+  @override
+  String get results_no_rate_title => 'لا يوجد سعر فائدة لهذه البيانات';
+
+  @override
+  String get results_no_rate_body_car =>
+      'لا يوجد لدى أي بنك سعر فائدة لهذه الدفعة المقدمة وهذه السيارة. معظم برامج تمويل السيارات تتطلب دفعة مقدمة أكبر — جرّب زيادتها أو تغيير بيانات السيارة.';
+
+  @override
+  String get results_no_rate_body =>
+      'لا يوجد لدى أي بنك سعر فائدة للإجابات التي قدمتها. جرّب تغيير إجاباتك لرؤية العروض.';
+
+  @override
+  String get results_edit_answers => 'تعديل إجاباتي';
+
+  @override
   String get results_profile_title => 'أكمل ملفك الشخصي';
 
   @override

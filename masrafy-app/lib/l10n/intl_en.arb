@@ -740,6 +740,19 @@
   "results_subtitle": "Your loan advisor is ready",
   "results_empty_title": "No offers yet",
   "results_empty_body": "We couldn't find matching programs for your answers right now.",
+  "offer_partner_bank": "Partner bank {letter}",
+  "@offer_partner_bank": {
+    "placeholders": {
+      "letter": {
+        "type": "String"
+      }
+    }
+  },
+  "offer_partner_bank_generic": "Partner bank",
+  "results_no_rate_title": "No rate for these details",
+  "results_no_rate_body_car": "None of the banks has a rate for this down payment and car. Most car finance plans need a larger down payment — try raising it, or change the car's details.",
+  "results_no_rate_body": "None of the banks has a rate for the answers you gave. Try changing your answers to see offers.",
+  "results_edit_answers": "Edit my answers",
   "results_profile_title": "Complete your profile",
   "results_profile_body": "Finish your profile to see loan offers.",
   "results_profile_action": "Complete profile",

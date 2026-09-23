@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
+import type { IScoreTiers } from '@/matching/pipeline/iscore';
 import {
   EnumerationMember,
   EnumerationType,
@@ -93,6 +94,11 @@ export class InMemoryPlatformEnumerationsRepository
    */
   async programNameIncomeRules(): Promise<CatalogIncomeRules> {
     return new Map();
+  }
+
+  /** No I-Score classes in this stub: every program quotes at the neutral 100%. */
+  async platformIScoreTiers(): Promise<IScoreTiers | undefined> {
+    return undefined;
   }
 
   /**

@@ -574,7 +574,8 @@ model BankOffer {
   /// nothing". `null` means no table was in force, the applicant left the question blank,
   /// or the offer predates this column; absent is not `100`.
   iScoreFactorPercent     Decimal? @db.Decimal(7, 4)
-  /// Whose tier table produced `iScoreFactorPercent` — `program` or `product`.
+  /// Whose tier table produced `iScoreFactorPercent` — `program`, `product` or `platform`
+  /// (the shared I-Score classes, v30.4.0).
   ///
   /// The sibling of `incomeOrigin` above and recorded for the same reason: an admin looking
   /// at 80% cannot otherwise tell whether this bank states that tier or is reading the
@@ -743,6 +744,15 @@ model PlatformEnumeration {
   systemOnly          Boolean   @default(false)
   parentKey           String?   @db.VarChar(64)
   sortOrder           Int       @default(0)
+  /// The score RANGE an `i_score_class` row covers, inclusive at both ends (v30.4.0) — the
+  /// bureau's own classes, 300–399 Defaulted … 751–850 Excellent. NULL on every other type,
+  /// and the admin service refuses a range on any other type.
+  rangeFrom           Int?
+  rangeTo             Int?
+  /// The share of the income an `i_score_class` counts, as a percentage (`0`, `50`, `100`,
+  /// `120`) — the SHARED I-Score table every program reads when neither it nor its product
+  /// states one. `0` means the class counts no income, so the program offers nothing.
+  incomePercent       Decimal?  @db.Decimal(7, 4)
   /// TWO types read this column, and they mean two different things by it.
   ///
   /// On a `program_name` — the `surrogate_product` row this catalog name takes its

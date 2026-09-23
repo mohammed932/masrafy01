@@ -3380,6 +3380,42 @@ abstract class AppLocalizations {
   /// **'لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.'**
   String get results_empty_body;
 
+  /// No description provided for @offer_partner_bank.
+  ///
+  /// In ar, this message translates to:
+  /// **'البنك الشريك {letter}'**
+  String offer_partner_bank(String letter);
+
+  /// No description provided for @offer_partner_bank_generic.
+  ///
+  /// In ar, this message translates to:
+  /// **'بنك شريك'**
+  String get offer_partner_bank_generic;
+
+  /// No description provided for @results_no_rate_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد سعر فائدة لهذه البيانات'**
+  String get results_no_rate_title;
+
+  /// No description provided for @results_no_rate_body_car.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد لدى أي بنك سعر فائدة لهذه الدفعة المقدمة وهذه السيارة. معظم برامج تمويل السيارات تتطلب دفعة مقدمة أكبر — جرّب زيادتها أو تغيير بيانات السيارة.'**
+  String get results_no_rate_body_car;
+
+  /// No description provided for @results_no_rate_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد لدى أي بنك سعر فائدة للإجابات التي قدمتها. جرّب تغيير إجاباتك لرؤية العروض.'**
+  String get results_no_rate_body;
+
+  /// No description provided for @results_edit_answers.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل إجاباتي'**
+  String get results_edit_answers;
+
   /// No description provided for @results_profile_title.
   ///
   /// In ar, this message translates to:

@@ -504,10 +504,71 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
           typeKey: 'compound',
           labelEn: 'Compounds',
           labelAr: 'الكومباوندات',
-          // The catch-all only. Hundreds of real compounds are loaded by pasting a list —
-          // one bank's table stays six class rows however many are added, which is the whole
-          // point of the two-list design.
+          // The ten compounds the source material names, filed under the class it names each
+          // in (`COMPOUND_CLASSES` in `sheet-figures.ts` — keep the two in step), plus the
+          // catch-all. Hundreds more are loaded by pasting a list — one bank's table stays a
+          // handful of class rows however many are added, which is the whole point of the
+          // two-list design.
+          //
+          // NOT the catch-all alone. A pick-one question needs two options
+          // (`choice_types_need_at_least_two_active_options`), so with one value this product
+          // was refused on every database built from the seeds and never got a calculation.
           values: [
+            { key: 'mivida', labelEn: 'Mivida', labelAr: 'ميفيدا', parentKey: 'compound_tier_aa' },
+            {
+              key: 'palm_hills',
+              labelEn: 'Palm Hills',
+              labelAr: 'بالم هيلز',
+              parentKey: 'compound_tier_aa',
+            },
+            {
+              key: 'new_giza',
+              labelEn: 'New Giza',
+              labelAr: 'نيو جيزة',
+              parentKey: 'compound_tier_aa',
+            },
+            {
+              key: 'sodic_east',
+              labelEn: 'SODIC East',
+              labelAr: 'سوديك إيست',
+              parentKey: 'compound_tier_aa',
+            },
+            {
+              key: 'emaar_mivida',
+              labelEn: 'Emaar Mivida',
+              labelAr: 'إعمار ميفيدا',
+              parentKey: 'compound_tier_aa',
+            },
+            {
+              key: 'mountain_view_icity',
+              labelEn: 'Mountain View iCity',
+              labelAr: 'ماونتن فيو آي سيتي',
+              parentKey: 'compound_tier_ab',
+            },
+            {
+              key: 'hyde_park',
+              labelEn: 'Hyde Park',
+              labelAr: 'هايد بارك',
+              parentKey: 'compound_tier_ab',
+            },
+            {
+              key: 'madinaty',
+              labelEn: 'Madinaty',
+              labelAr: 'مدينتي',
+              parentKey: 'compound_tier_b',
+            },
+            {
+              key: 'al_rehab',
+              labelEn: 'Al Rehab',
+              labelAr: 'الرحاب',
+              parentKey: 'compound_tier_c',
+            },
+            {
+              key: 'dreamland',
+              labelEn: 'Dreamland',
+              labelAr: 'دريم لاند',
+              parentKey: 'compound_tier_c',
+            },
             {
               key: 'compound_other',
               labelEn: 'My compound is not listed',
@@ -792,13 +853,12 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       factKey: 'owned_unit_type',
       columnFactKey: 'loan_is_topup',
       onNoMatch: 'useProgramMax',
-      // OPTION CODES, not the registry keys the list above is built from: a cap row is
-      // matched against the code of the answer the applicant picked (`factAnswerHasKey`),
-      // exactly as `factChoiceTable` is, and the question mirrors its options off the list's
-      // LABELS — so "Twin / Town house" is `twin_or_town_house` here and `twin_house` there.
-      // A row keyed by the registry key matches nobody and shows the bank's real row as
-      // unlisted.
-      rowKeys: ['apartment', 'twin_or_town_house', 'villa'],
+      // OPTION CODES — a cap row is matched against the code of the answer the applicant
+      // picked (`factAnswerHasKey`), exactly as `factChoiceTable` is. The question is minted
+      // mirrored to the `property_type` list above, so its option codes ARE the list keys:
+      // `twin_house`, not the label slug `twin_or_town_house` an early hand-made question
+      // carried (the operator's call, 2026-09-23: a database built from the seeds wins).
+      rowKeys: ['apartment', 'twin_house', 'villa'],
       columnKeys: ['new_loan', 'top_up'],
     },
     openQuestion: 'PAID_SHARE_FORMULA_UNCONFIRMED',
@@ -1096,37 +1156,45 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // `combine` is absent and a program filling both is refused by name.
       waysAre: 'exclusive',
       // The four conditions the sheets print and no field could hold. Each applies only to
-      // the programme whose bank fills its figure, so the five down-payment tiers and the two
-      // Green ones share this list without inheriting each other's rules.
+      // the programme whose bank fills its figure, so the programmes selling this product
+      // share this list without inheriting each other's rules.
+      //
+      // EVERY ANSWER ALLOWED, on the operator's live configuration (2026-09-23): the four
+      // were opened up on the product screen when the product was re-sold through
+      // `car_buyers_program`, and the seed states what the database holds so a database
+      // built from the seeds quotes the same applicants. The sheets' own lists were
+      // narrower — business `24m_or_more` / `not_self_employed`, licence `yes` /
+      // `not_self_employed`, home `owned_by_me` / `owned_by_relative`, compound `yes` — and
+      // narrowing one again is an edit on the product screen, not a release. The conditions
+      // stay (not deleted) because an UNANSWERED fact still refuses before pass/fail.
       conditions: [
         {
           id: 'businessoldenough',
           measure: { of: 'fact', fact: 'business_months' },
-          test: { op: 'oneOf', expect: ['24m_or_more', 'not_self_employed'] },
+          test: {
+            op: 'oneOf',
+            expect: ['under_12m', '12m_to_24m', '24m_or_more', 'not_self_employed'],
+          },
           reasonCode: 'BUSINESS_TOO_NEW',
         },
         {
           id: 'selfemployedpapers',
           measure: { of: 'fact', fact: 'self_employed_licence' },
-          test: { op: 'oneOf', expect: ['yes', 'not_self_employed'] },
+          test: { op: 'oneOf', expect: ['yes', 'no', 'not_self_employed'] },
           reasonCode: 'SELF_EMPLOYED_DOCS_MISSING',
         },
-        // The 20% tier only. `rented_or_other` is the honest no and is NOT allow-listed:
-        // every auto applicant lives somewhere, so all three answers are real and there is
-        // no non-applicant to exempt.
         {
           id: 'homeowned',
           measure: { of: 'fact', fact: 'home_ownership' },
-          test: { op: 'oneOf', expect: ['owned_by_me', 'owned_by_relative'] },
+          test: { op: 'oneOf', expect: ['owned_by_me', 'owned_by_relative', 'rented_or_other'] },
           reasonCode: 'OWNERSHIP_NOT_CONFIRMED',
         },
-        // Both Green programmes. `GATE_NOT_MET` rather than its own code: an unlisted
-        // compound and an undelivered unit are two different refusals folded into one answer,
-        // and neither is one the customer can act on.
+        // `GATE_NOT_MET` rather than its own code: an unlisted compound and an undelivered
+        // unit are two different refusals folded into one answer.
         {
           id: 'unitinapprovedcompound',
           measure: { of: 'fact', fact: 'unit_approved_compound' },
-          test: { op: 'oneOf', expect: ['yes'] },
+          test: { op: 'oneOf', expect: ['yes', 'no', 'no_unit'] },
           reasonCode: 'GATE_NOT_MET',
         },
       ],

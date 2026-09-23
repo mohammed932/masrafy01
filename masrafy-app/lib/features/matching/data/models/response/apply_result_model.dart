@@ -18,6 +18,7 @@ class ApplyResultModel {
     this.unavailablePrograms = const [],
     this.summary,
     this.noMatchPrimaryReason,
+    this.noMatchFailedChecks = const [],
   });
 
   final bool matched;
@@ -30,6 +31,9 @@ class ApplyResultModel {
   final List<UnavailableProgramModel> unavailablePrograms;
   final SummaryModel? summary;
   final String? noMatchPrimaryReason;
+
+  /// `meta.details[].failedChecks`, flattened — one code per program.
+  final List<String> noMatchFailedChecks;
 
   factory ApplyResultModel.fromJson(Map<String, dynamic> json) {
     final success = json['success'] == true;
@@ -57,11 +61,21 @@ class ApplyResultModel {
       );
     }
     final meta = (json['meta'] as Map<String, dynamic>?) ?? const {};
+    final rawDetails = meta['details'];
     return ApplyResultModel(
       matched: false,
       applicationId: (meta['applicationId'] as String?) ?? '',
       offers: const [],
       noMatchPrimaryReason: meta['primaryReason'] as String?,
+      noMatchFailedChecks: [
+        for (final d in (rawDetails is List ? rawDetails : const [])
+            .whereType<Map<String, dynamic>>())
+          for (final c in (d['failedChecks'] is List
+                  ? d['failedChecks'] as List
+                  : const [])
+              .whereType<String>())
+            c,
+      ],
     );
   }
 
@@ -73,6 +87,7 @@ class ApplyResultModel {
             unavailablePrograms.map((p) => p.toEntity()).toList(),
         summary: summary?.toEntity(),
         noMatchPrimaryReason: noMatchPrimaryReason,
+        noMatchFailedChecks: noMatchFailedChecks,
       );
 }
 

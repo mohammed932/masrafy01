@@ -29,6 +29,10 @@ mixin _$MatchingResultsState {
       throw _privateConstructorUsedError;
   String get applicationId => throw _privateConstructorUsedError;
   bool get matched => throw _privateConstructorUsedError;
+
+  /// On a no-match, the check each program failed — see
+  /// `ApplyResultEntity.noMatchFailedChecks`.
+  List<String> get noMatchFailedChecks => throw _privateConstructorUsedError;
   Failure? get error => throw _privateConstructorUsedError;
 
   /// Create a copy of MatchingResultsState
@@ -50,6 +54,7 @@ abstract class $MatchingResultsStateCopyWith<$Res> {
       List<UnavailableProgramEntity> unavailablePrograms,
       String applicationId,
       bool matched,
+      List<String> noMatchFailedChecks,
       Failure? error});
 }
 
@@ -74,6 +79,7 @@ class _$MatchingResultsStateCopyWithImpl<$Res,
     Object? unavailablePrograms = null,
     Object? applicationId = null,
     Object? matched = null,
+    Object? noMatchFailedChecks = null,
     Object? error = freezed,
   }) {
     return _then(_value.copyWith(
@@ -97,6 +103,10 @@ class _$MatchingResultsStateCopyWithImpl<$Res,
           ? _value.matched
           : matched // ignore: cast_nullable_to_non_nullable
               as bool,
+      noMatchFailedChecks: null == noMatchFailedChecks
+          ? _value.noMatchFailedChecks
+          : noMatchFailedChecks // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -119,6 +129,7 @@ abstract class _$$MatchingResultsStateImplCopyWith<$Res>
       List<UnavailableProgramEntity> unavailablePrograms,
       String applicationId,
       bool matched,
+      List<String> noMatchFailedChecks,
       Failure? error});
 }
 
@@ -140,6 +151,7 @@ class __$$MatchingResultsStateImplCopyWithImpl<$Res>
     Object? unavailablePrograms = null,
     Object? applicationId = null,
     Object? matched = null,
+    Object? noMatchFailedChecks = null,
     Object? error = freezed,
   }) {
     return _then(_$MatchingResultsStateImpl(
@@ -163,6 +175,10 @@ class __$$MatchingResultsStateImplCopyWithImpl<$Res>
           ? _value.matched
           : matched // ignore: cast_nullable_to_non_nullable
               as bool,
+      noMatchFailedChecks: null == noMatchFailedChecks
+          ? _value._noMatchFailedChecks
+          : noMatchFailedChecks // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -181,9 +197,11 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
           const <UnavailableProgramEntity>[],
       this.applicationId = '',
       this.matched = false,
+      final List<String> noMatchFailedChecks = const <String>[],
       this.error})
       : _offers = offers,
         _unavailablePrograms = unavailablePrograms,
+        _noMatchFailedChecks = noMatchFailedChecks,
         super._();
 
   @override
@@ -227,12 +245,28 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
   @override
   @JsonKey()
   final bool matched;
+
+  /// On a no-match, the check each program failed — see
+  /// `ApplyResultEntity.noMatchFailedChecks`.
+  final List<String> _noMatchFailedChecks;
+
+  /// On a no-match, the check each program failed — see
+  /// `ApplyResultEntity.noMatchFailedChecks`.
+  @override
+  @JsonKey()
+  List<String> get noMatchFailedChecks {
+    if (_noMatchFailedChecks is EqualUnmodifiableListView)
+      return _noMatchFailedChecks;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_noMatchFailedChecks);
+  }
+
   @override
   final Failure? error;
 
   @override
   String toString() {
-    return 'MatchingResultsState(status: $status, offers: $offers, unavailablePrograms: $unavailablePrograms, applicationId: $applicationId, matched: $matched, error: $error)';
+    return 'MatchingResultsState(status: $status, offers: $offers, unavailablePrograms: $unavailablePrograms, applicationId: $applicationId, matched: $matched, noMatchFailedChecks: $noMatchFailedChecks, error: $error)';
   }
 
   @override
@@ -247,6 +281,8 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
             (identical(other.applicationId, applicationId) ||
                 other.applicationId == applicationId) &&
             (identical(other.matched, matched) || other.matched == matched) &&
+            const DeepCollectionEquality()
+                .equals(other._noMatchFailedChecks, _noMatchFailedChecks) &&
             (identical(other.error, error) || other.error == error));
   }
 
@@ -258,6 +294,7 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
       const DeepCollectionEquality().hash(_unavailablePrograms),
       applicationId,
       matched,
+      const DeepCollectionEquality().hash(_noMatchFailedChecks),
       error);
 
   /// Create a copy of MatchingResultsState
@@ -278,6 +315,7 @@ abstract class _MatchingResultsState extends MatchingResultsState {
       final List<UnavailableProgramEntity> unavailablePrograms,
       final String applicationId,
       final bool matched,
+      final List<String> noMatchFailedChecks,
       final Failure? error}) = _$MatchingResultsStateImpl;
   const _MatchingResultsState._() : super._();
 
@@ -298,6 +336,11 @@ abstract class _MatchingResultsState extends MatchingResultsState {
   String get applicationId;
   @override
   bool get matched;
+
+  /// On a no-match, the check each program failed — see
+  /// `ApplyResultEntity.noMatchFailedChecks`.
+  @override
+  List<String> get noMatchFailedChecks;
   @override
   Failure? get error;
 

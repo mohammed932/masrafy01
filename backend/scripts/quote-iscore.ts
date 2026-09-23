@@ -35,8 +35,14 @@ import {
 } from '../src/matching/pipeline/income-rule-inherit';
 import { asTenorDefaults } from '../src/matching/pipeline/tenor-inherit';
 import { toBankProgramSnapshot } from '../src/bank-programs/bank-program-snapshot.mapper';
+import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
+import type { CatalogIncomeRules } from '../src/matching/pipeline/income-rule-inherit';
 import { quoteProgram } from '../src/matching/pipeline/quote';
-import type { ApplicantProfile, IncomeAssumptionConfig, SurrogateFactValue } from '../src/matching/types';
+import type {
+  ApplicantProfile,
+  IncomeAssumptionConfig,
+  SurrogateFactValue,
+} from '../src/matching/types';
 
 const prisma = new PrismaClient();
 
@@ -126,7 +132,7 @@ function profileAt(score: string | undefined): ApplicantProfile {
 }
 
 /** The repository's own catalog resolution, so a name resolves here as it does in production. */
-async function buildCatalogRules(): Promise<Map<string, CatalogRuleResolution>> {
+async function buildCatalogRules(): Promise<CatalogIncomeRules> {
   const rows = await prisma.platformEnumeration.findMany({
     where: { type: { in: ['program_name', 'surrogate_product'] } },
   });
@@ -163,7 +169,14 @@ async function buildCatalogRules(): Promise<Map<string, CatalogRuleResolution>> 
   if ([...out.values()].filter((r) => catalogRuleOf(r) !== undefined).length === 0) {
     throw new Error('quote-iscore: no catalog name resolved to a rule — the map is wrong');
   }
-  return out;
+  // The SHARED I-Score table (v30.4.0), read through the repository's own method so the
+  // harness scores a program that states no table exactly as production does. Optional-called:
+  // the harness also runs on trees that predate it.
+  const repo = new PostgresPlatformEnumerationsRepository(prisma as never) as unknown as {
+    platformIScoreTiers?: () => Promise<CatalogIncomeRules['platformIScoreTiers']>;
+  };
+  const platformIScoreTiers = await repo.platformIScoreTiers?.();
+  return Object.assign(out, platformIScoreTiers ? { platformIScoreTiers } : {});
 }
 
 async function main(): Promise<void> {

@@ -132,6 +132,7 @@ class MatchOffer {
     this.isTopPick = false,
     this.alreadyApplied = false,
     this.isSaved = false,
+    this.rank = -1,
   });
 
   final int termMonths;
@@ -239,6 +240,11 @@ class MatchOffer {
   /// the offer-details save/heart toggle on open (backend `isSaved` flag).
   final bool isSaved;
 
+  /// 0-based place in the results list, which is what names the masked bank
+  /// ("Partner bank A"). -1 where there is no list behind the offer (saved
+  /// offers, past applications, mocks).
+  final int rank;
+
   /// Build a display offer from a domain [OfferEntity]. Totals are derived on
   /// the entity (installment × term); [isTopPick] marks the top-ranked row.
   factory MatchOffer.fromEntity(
@@ -246,6 +252,7 @@ class MatchOffer {
     required String applicationId,
     required bool isTopPick,
     bool alreadyApplied = false,
+    int rank = -1,
   }) {
     return MatchOffer(
       termMonths: e.effectiveTenorMonths,
@@ -279,6 +286,7 @@ class MatchOffer {
       isTopPick: isTopPick,
       alreadyApplied: alreadyApplied,
       isSaved: e.isSaved,
+      rank: rank,
     );
   }
 }

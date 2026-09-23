@@ -245,7 +245,10 @@ export function narrowAskedQuestions(
   const extraRequired = new Set<string>();
   for (const code of keep) {
     // A source pulled back purely to keep a gate evaluable is not a figure any program reads.
-    if (!isCore(code) && !retainedSet.has(code)) extraRequired.add(code);
+    // A PLATFORM-owned fact (I-Score, the car figures) keeps its own requiredness: it was
+    // core on every name until product-only names emptied the core, and it is optional by
+    // design where it is optional — an unanswered I-Score is a 100% factor, not a refusal.
+    if (!isCore(code) && !retainedSet.has(code) && !platform.has(code)) extraRequired.add(code);
   }
 
   return {

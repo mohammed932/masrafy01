@@ -27,6 +27,7 @@ import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
 import type { FactGridDto } from '../dto/sub-configs/fact-grid.dto';
 import type { EstimatedPaths } from './sheet-figures';
 import { ABK_PRACTICE_EDGES, DOWN_PAYMENT_EDGES, dpBand } from './sheet-figures';
+import { CAR_BUYERS_PROGRAMS } from './car-buyers-programs';
 
 export interface ProgramSpec {
   /**
@@ -486,7 +487,7 @@ const CAE_MAX_LOAN_BY_ORIGIN = {
  */
 const CAE_AUTO_DOCUMENTS = ['national_id', 'proforma_invoice', 'car_insurance_policy'];
 
-export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
+const SPECS: readonly ProgramSpec[] = [
   // -------------------------------------------------------------------------
   // ABK Egypt — Appendix A
   // -------------------------------------------------------------------------
@@ -881,8 +882,8 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       rows: [
         { rowKey: 'apartment', columnKey: 'new_loan', maxAmountEGP: '2000000' },
         { rowKey: 'apartment', columnKey: 'top_up', maxAmountEGP: '3000000' },
-        { rowKey: 'twin_or_town_house', columnKey: 'new_loan', maxAmountEGP: '3000000' },
-        { rowKey: 'twin_or_town_house', columnKey: 'top_up', maxAmountEGP: '3500000' },
+        { rowKey: 'twin_house', columnKey: 'new_loan', maxAmountEGP: '3000000' },
+        { rowKey: 'twin_house', columnKey: 'top_up', maxAmountEGP: '3500000' },
         { rowKey: 'villa', columnKey: 'new_loan', maxAmountEGP: '4000000' },
         { rowKey: 'villa', columnKey: 'top_up', maxAmountEGP: '4500000' },
       ],
@@ -1526,4 +1527,13 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     requiredDocuments: CAE_AUTO_DOCUMENTS,
     estimated: CAE_ESTIMATED,
   }),
+
+  // -------------------------------------------------------------------------
+  // Car Buyers — the programmes selling `down_payment_income` (car_buyers_program)
+  // -------------------------------------------------------------------------
+  ...CAR_BUYERS_PROGRAMS,
 ];
+
+// No programme states an I-Score table of its own: every one reads the shared table — the
+// I-Score classes on Manage values — unless a bank types one (v30.4.0).
+export const SHEET_PROGRAMS: readonly ProgramSpec[] = SPECS;

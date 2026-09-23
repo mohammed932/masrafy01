@@ -64,7 +64,15 @@ import {
 } from './platform-enumerations.repository';
 import type { EnumerationTypeDef } from '@prisma/client';
 import { asTenorDefaults, statesOwnTenor } from '@/matching/pipeline/tenor-inherit';
-import { asIScoreTiers, statesOwnTiers, type IScoreTiers } from '@/matching/pipeline/iscore';
+import {
+  asIScoreTiers,
+  effectiveIScoreTiers,
+  statesOwnTiers,
+  type IScoreTiers,
+} from '@/matching/pipeline/iscore';
+import { I_SCORE_FACT_KEY } from '@/matching/pipeline/product-template';
+import { I_SCORE_CLASS_TYPE } from '@/matching/pipeline/iscore-classes';
+import { Decimal } from '@prisma/client/runtime/library';
 import {
   asLoanAmountDefaults,
   statesOwnLoanAmounts,
@@ -126,6 +134,11 @@ export interface CreateEnumerationInput {
    * service against live products before it gets here; `null`/omitted = states its own rule.
    */
   surrogateProductKey?: string | null;
+  /** `i_score_class` only — the score range, inclusive. Validated by the service. */
+  rangeFrom?: number | null;
+  rangeTo?: number | null;
+  /** `i_score_class` only — the share of the income the class counts, a decimal string. */
+  incomePercent?: string | null;
   createdBy: string;
 }
 
@@ -297,6 +310,11 @@ export interface EnumerationRow {
    */
   hasOwnIncomeRule: boolean;
   sortOrder: number;
+  /** `i_score_class` rows — the score range, inclusive. `null` on every other type. */
+  rangeFrom: number | null;
+  rangeTo: number | null;
+  /** `i_score_class` rows — the income percentage, a decimal string. `null` elsewhere. */
+  incomePercent: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -312,6 +330,9 @@ export interface EnumerationUpdatePatch {
    */
   surrogateProductKey?: string | null;
   sortOrder?: number;
+  rangeFrom?: number | null;
+  rangeTo?: number | null;
+  incomePercent?: string | null;
   active?: boolean;
   /** When `true` AND `deprecatedAt` is currently null, the repository stamps `deprecatedAt = now`
    *  and forces `active = false`. */
@@ -919,6 +940,7 @@ export class PostgresPlatformEnumerationsRepository
     const plans = catalogPlansOf(resolution);
 
     const needed = new Set<string>();
+    const platformTiers = await this.platformIScoreTiers();
     for (const program of programs) {
       const effective = effectiveIncomeRule(
         (program.incomeAssumption ?? {}) as unknown as IncomeAssumptionConfig,
@@ -959,6 +981,21 @@ export class PostgresPlatformEnumerationsRepository
         effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
       )) {
         needed.add(key);
+      }
+      // THE I-SCORE TABLE is a reader too (v30.4.0): the factor it picks scales the income
+      // before the debt-burden cap. Resolved exactly as the snapshot mapper resolves it — the
+      // programme's own table, else its product's — and counted only when some class moves
+      // the figure: a table that is 100% everywhere reads the score and changes nothing, and
+      // asking a question whose answer changes nothing is the noise this narrowing removes.
+      const iScoreTiers = effectiveIScoreTiers(
+        asIScoreTiers((program.incomeAssumption as { iScoreTiers?: unknown } | null)?.iScoreTiers),
+        productRow === null ? undefined : asIScoreTiers(productRow.iScoreDefaults),
+        platformTiers,
+      );
+      if (
+        (iScoreTiers?.tiers.bands ?? []).some((band) => !new Decimal(band.incomeEGP).equals(100))
+      ) {
+        needed.add(I_SCORE_FACT_KEY);
       }
     }
 
@@ -1090,7 +1127,46 @@ export class PostgresPlatformEnumerationsRepository
       );
       if (resolution !== undefined) resolved.set(row.key, resolution);
     }
-    return resolved;
+    // The shared I-Score table rides on the map, so every program that states none — and
+    // whose product states none — quotes against it (`toBankProgramSnapshot`).
+    const platformIScoreTiers = await this.platformIScoreTiers();
+    return Object.assign(resolved, platformIScoreTiers ? { platformIScoreTiers } : {});
+  }
+
+  /**
+   * The SHARED I-Score table (v30.4.0), built from the I-Score classes on Manage values.
+   *
+   * One band per active class in score order, at the class's income percentage. The ends are
+   * opened — the lowest band from 0, the highest with no top — because a tier table must cover
+   * every score: a score the bureau never prints reads as the nearest class instead of
+   * dropping to 100%. `undefined` when any active class lacks a range or a percentage, or two
+   * classes start on the same score: a half-configured list must not quote as a policy.
+   */
+  async platformIScoreTiers(): Promise<IScoreTiers | undefined> {
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: { type: I_SCORE_CLASS_TYPE, active: true },
+      select: { rangeFrom: true, incomePercent: true },
+      orderBy: { rangeFrom: 'asc' },
+    });
+    if (rows.length === 0) return undefined;
+    const classes: Array<{ from: number; percent: string }> = [];
+    for (const row of rows) {
+      // `== null`: absent and null are one state — a row with no range or no percentage.
+      if (row.rangeFrom == null || row.incomePercent == null) return undefined;
+      const previous = classes[classes.length - 1];
+      if (previous !== undefined && row.rangeFrom <= previous.from) return undefined;
+      classes.push({ from: row.rangeFrom, percent: row.incomePercent.toString() });
+    }
+    return {
+      bands: classes.map((cls, index) => {
+        const next = classes[index + 1];
+        return {
+          fromInclusive: index === 0 ? '0' : String(cls.from),
+          toExclusive: next === undefined ? null : String(next.from),
+          incomeEGP: cls.percent,
+        };
+      }),
+    };
   }
 
   async enumerationParentKeys(): Promise<Readonly<Record<string, string>>> {
@@ -2009,6 +2085,9 @@ export class PostgresPlatformEnumerationsRepository
         parentKey: input.parentKey ?? null,
         surrogateProductKey: input.surrogateProductKey ?? null,
         sortOrder: input.sortOrder ?? 0,
+        rangeFrom: input.rangeFrom ?? null,
+        rangeTo: input.rangeTo ?? null,
+        incomePercent: input.incomePercent ?? null,
         active: true,
         systemOnly: false,
         createdBy: input.createdBy,
@@ -2433,6 +2512,9 @@ export class PostgresPlatformEnumerationsRepository
       data.surrogateProductKey = patch.surrogateProductKey;
     }
     if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
+    if (patch.rangeFrom !== undefined) data.rangeFrom = patch.rangeFrom;
+    if (patch.rangeTo !== undefined) data.rangeTo = patch.rangeTo;
+    if (patch.incomePercent !== undefined) data.incomePercent = patch.incomePercent;
 
     if (patch.deprecate === true) {
       data.deprecatedAt = new Date();
@@ -2755,6 +2837,9 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
     surrogateProductKey: row.surrogateProductKey,
     hasOwnIncomeRule: row.incomeRule !== null,
     sortOrder: row.sortOrder,
+    rangeFrom: row.rangeFrom,
+    rangeTo: row.rangeTo,
+    incomePercent: row.incomePercent === null ? null : row.incomePercent.toString(),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

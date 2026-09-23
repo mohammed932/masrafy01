@@ -58,10 +58,14 @@ export interface IScoreTiers {
 }
 
 /** Whose table answered — reported, not derived, and frozen onto the offer. */
-export type IScoreTiersSource = 'program' | 'product';
+export type IScoreTiersSource = 'program' | 'product' | 'platform';
 
 export interface IScoreResolution {
-  /** The multiplier as a PERCENTAGE: `80`, `100`, `110`. Never zero, never negative. */
+  /**
+   * The multiplier as a PERCENTAGE: `50`, `100`, `110`. Never negative. ZERO is a stated
+   * figure (v30.4.0): the bureau's Defaulted class counts no income, so the program offers
+   * nothing — see `resolveIScoreFactor`.
+   */
   readonly factorPercent: Decimal;
   /**
    * Whose table it came from, or `null` when none was in force and the neutral 100% was
@@ -107,10 +111,17 @@ export function statesOwnTiers(tiers: IScoreTiers | undefined | null): boolean {
 export function effectiveIScoreTiers(
   own: IScoreTiers | undefined,
   productDefault: IScoreTiers | undefined,
+  platformDefault?: IScoreTiers,
 ): { readonly tiers: IScoreTiers; readonly source: IScoreTiersSource } | undefined {
   if (statesOwnTiers(own)) return { tiers: own as IScoreTiers, source: 'program' };
   if (statesOwnTiers(productDefault)) {
     return { tiers: productDefault as IScoreTiers, source: 'product' };
+  }
+  // THE SHARED TABLE (v30.4.0): the I-Score classes on Manage values, each with its income
+  // percentage. Last, and only a default — a product or a bank that states a table of its
+  // own is never overridden by it, and an edit to it reaches every program that states none.
+  if (statesOwnTiers(platformDefault)) {
+    return { tiers: platformDefault as IScoreTiers, source: 'platform' };
   }
   return undefined;
 }
@@ -126,9 +137,10 @@ export function effectiveIScoreTiers(
  * the first place. Answering 100% here is the belt to that braces, for legacy and
  * hand-edited rows.
  *
- * A non-positive or non-finite factor is REFUSED back to 100%. A stored `0` would zero the
- * applicant's whole affordability while reading on screen as a configured tier, which is
- * the same trap `resolveDbrCap` re-checks its own bounds for.
+ * A negative or non-finite factor is REFUSED back to 100%. ZERO is not: since v30.4.0 the
+ * bureau's Defaulted class is stated at 0% on the shared table, meaning "counts no income",
+ * and the quote then refuses as `NO_RECOGNISED_INCOME` rather than pricing a loan the
+ * operator said this score must not get.
  */
 export function resolveIScoreFactor(
   resolved: { readonly tiers: IScoreTiers; readonly source: IScoreTiersSource } | undefined,
@@ -141,7 +153,7 @@ export function resolveIScoreFactor(
   if (!lookup.matched) return NEUTRAL;
 
   const factor = lookup.incomeEGP;
-  if (!factor.isFinite() || factor.lessThanOrEqualTo(0)) return NEUTRAL;
+  if (!factor.isFinite() || factor.lessThan(0)) return NEUTRAL;
 
   return { factorPercent: factor, source: resolved.source, tierIndex: lookup.index };
 }

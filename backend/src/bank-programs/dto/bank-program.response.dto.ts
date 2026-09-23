@@ -69,6 +69,11 @@ export class BankProgramResponseDto {
    * whose own `incomeAssumption.iScoreTiers` is blank is scored on this table.
    */
   productIScoreTiers?: IScoreTiers | null;
+  /**
+   * The SHARED I-Score table (v30.4.0) — the I-Score classes on Manage values at their income
+   * percentages. Applies when neither the program nor its product states a table. Read-only.
+   */
+  platformIScoreTiers?: IScoreTiers | null;
   eligibility!: Record<string, unknown>;
   performanceCriteria?: Record<string, unknown> | null;
   incomeAssumption!: Record<string, unknown>;

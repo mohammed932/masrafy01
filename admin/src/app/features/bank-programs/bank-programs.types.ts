@@ -1155,6 +1155,11 @@ export interface SurrogateProductSummary {
    * takes, and for the same reason: a card must not invent a claim from a field nobody sent.
    */
   capPrograms?: string[];
+  /**
+   * Works out no income, so no catalog name may sell it — a bank caps its own program by the
+   * answer instead. Optional on the wire, absent reads as `false`.
+   */
+  capOnly?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -1751,6 +1756,11 @@ export interface BankProgramResponse {
    * the same reason `productRate` is.
    */
   productIScoreTiers?: IScoreTiers | null;
+  /**
+   * The SHARED I-Score table (v30.4.0) — the I-Score classes on Manage values. Applies when
+   * neither the program nor its product states a table.
+   */
+  platformIScoreTiers?: IScoreTiers | null;
   eligibility: EligibilityConfig;
   performanceCriteria?: PerformanceCriteriaConfig | null;
   incomeAssumption: IncomeAssumptionConfig;

@@ -108,6 +108,7 @@ import {
   IncomeBandsEditorComponent,
   incomeBandsErrorFor,
 } from '@shared/income-rule/income-bands-editor.component';
+import { I_SCORE_CLASS_TYPE, bandsFromIScoreClasses } from '@shared/income-rule/iscore-classes';
 import { listFigureState, type ListFigureState } from '@shared/income-rule/figure-slots';
 import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
 import { incomeKeyTableErrorFor, productRuleHasError } from '@shared/income-rule/income-rule.rules';
@@ -1167,7 +1168,23 @@ interface ReadList {
                      It is grouped with those two by STORAGE (all three are inherited), which
                      is a fact about the database and not about the work. The work here is
                      pricing a car loan, and this is the table that does it. -->
-                @if (isPipeline()) {
+                @if (isPipeline() && !plansApply()) {
+                  <!-- NOT OFFERED where it cannot apply. Every plan table is keyed by the share
+                       of a CAR's price put down, so on a product no car loan sells — Compound
+                       Owner is a personal loan against a unit — the five rows were five
+                       invitations to author a table no applicant could ever be matched
+                       against. Said in one sentence instead, naming what the banks price by. -->
+                  <section class="step-sec">
+                    <h2 class="sub" i18n="@@spd.plans.title">Plans by deposit</h2>
+                    <p class="sec-lede plan-na">
+                      <span i18n="@@spd.plans.not_applicable"
+                        >Not used by this product. A plan prices a car loan by the down payment on
+                        the car, and this product is sold as {{ soldCategoriesLabel() }} — so each
+                        bank prices it from its own rate, term and loan amounts.</span
+                      >
+                    </p>
+                  </section>
+                } @else if (isPipeline()) {
                   <!-- FIVE TABLES AS FIVE ROWS.
                          Open, the five measured 3 801px of a 5 237px step — 73% of it — and
                          repeated the same scaffolding four times over: an axis picker, a
@@ -1317,6 +1334,7 @@ interface ReadList {
                               } @else {
                                 <div class="plan-row is-empty">
                                   <span class="plan-row-title">{{ slot.title }}</span>
+                                  <span class="plan-row-state">{{ slot.empty }}</span>
                                   <button
                                     type="button"
                                     class="link-btn plan-row-add"
@@ -1324,7 +1342,6 @@ interface ReadList {
                                   >
                                     {{ slot.add }}
                                   </button>
-                                  <span class="plan-row-state">{{ slot.empty }}</span>
                                 </div>
                               }
                             </li>
@@ -1647,6 +1664,25 @@ interface ReadList {
                           states its own. The table must start at 0 and leave its top range open, so
                           every score is covered.
                         </p>
+                        <p class="sec-lede" i18n="@@spd.iscore.shared_note">
+                          Leave it empty and the standard I-Score classes on Manage values apply to
+                          every bank selling this product.
+                        </p>
+                        @if (iScoreClassBands().length > 0) {
+                          <!-- The six bureau classes from Manage values, at 100% each: a
+                               starting table the operator then types this product's factors
+                               into. It replaces what is on screen; Save is still the only write. -->
+                          <p>
+                            <button
+                              type="button"
+                              class="linkish"
+                              (click)="setIScoreTiers(iScoreClassBandsCopy())"
+                              i18n="@@spd.iscore.use_classes"
+                            >
+                              Use the standard I-Score classes
+                            </button>
+                          </p>
+                        }
                         <app-income-bands-editor
                           [bands]="iScoreTiers()"
                           (bandsChange)="setIScoreTiers($event)"
@@ -2707,6 +2743,29 @@ interface ReadList {
         font-size: var(--text-sm);
         font-variant-numeric: tabular-nums;
         color: var(--text-secondary);
+      }
+
+      /* AN EMPTY ROW has three things to say and the grid above has one free column for two of
+         them, so the verb used to auto-place into the 12px glyph track — one word per line,
+         bleeding under the title. Here the sentence drops under the title as its second line
+         and the verb takes the end edge, where the state sits on a filled row. The glyph track
+         stays, empty, so the titles still align down the list. */
+      .plan-row.is-empty {
+        grid-template-rows: auto auto;
+        row-gap: var(--space-1);
+      }
+      .plan-row.is-empty .plan-row-state {
+        grid-area: 2 / 2;
+        text-align: start;
+      }
+      .plan-row-add {
+        grid-area: 1 / 3 / span 2 / 4;
+        align-self: center;
+        white-space: nowrap;
+      }
+
+      .plan-na {
+        margin-block-end: 0;
       }
 
       .plan-body {
@@ -3902,6 +3961,13 @@ export class SurrogateProductDetailPage {
 
   protected readonly iScoreRangeUnit = $localize`:@@spd.iscore.unit:score`;
   protected readonly iScoreValueLabel = $localize`:@@spd.iscore.value:Percentage (%)`;
+
+  /** The I-Score classes on Manage values, as a table — loaded once, `[]` if unreachable. */
+  protected readonly iScoreClassBands = signal<IncomeBand[]>([]);
+
+  protected iScoreClassBandsCopy(): IncomeBand[] {
+    return this.iScoreClassBands().map((band) => ({ ...band }));
+  }
 
   protected setIScoreTiers(bands: IncomeBand[]): void {
     this.iScoreTiers.set(bands);
@@ -5135,6 +5201,35 @@ export class SurrogateProductDetailPage {
 
   protected readonly askCategoryLabel = computed(() => categoryLabel(this.askCategory()));
 
+  /** The loan types the names selling this product are filed under, as read off the board. */
+  private readonly soldCategories = computed<LoanCategory[]>(() => {
+    const board = this.asksBoard();
+    if (!board) return [];
+    return [...new Set(board.served.map((row) => row.category))].filter(isLoanCategory);
+  });
+
+  /**
+   * Can a plan table mean anything here? Every one is keyed by the share of a CAR's price put
+   * down, so only a product a car loan sells can match an applicant against one.
+   *
+   * Errs toward SHOWING: stated plans are never hidden (a table nobody can see is a table
+   * nobody can clear), and a product whose loan types are not known yet — the board still
+   * loading, or no name selling it — keeps the section, since the answer may be car.
+   */
+  protected readonly plansApply = computed<boolean>(() => {
+    if (this.planValue() !== null) return true;
+    if (this.asksBoard() === null) return true;
+    const sold = this.soldCategories();
+    return sold.length === 0 || sold.includes('car');
+  });
+
+  /** "Personal Loan", or "Personal Loan and Mortgage" — what the not-applicable line names. */
+  protected readonly soldCategoriesLabel = computed(() =>
+    this.soldCategories()
+      .map((category) => categoryLabel(category))
+      .join($localize`:@@spd.plans.categories_joiner: and `),
+  );
+
   protected pickAskCategory(id: string): void {
     if (!isLoanCategory(id)) return;
     this.askCategory.set(id);
@@ -5672,6 +5767,11 @@ export class SurrogateProductDetailPage {
     // type. Without this the fact registry is empty, `readLists()` finds nothing, and every
     // product — including the compound one, which reads two lists — reports reading none.
     void this.enums.load('surrogate_fact');
+    // The I-Score classes, for the "standard classes" button. A failure only hides it.
+    this.lookups
+      .list(I_SCORE_CLASS_TYPE)
+      .then((rows) => this.iScoreClassBands.set(bandsFromIScoreClasses(rows)))
+      .catch(() => this.iScoreClassBands.set([]));
     void this.lookups
       .listTypes()
       .then((s) => this.typeSummaries.set(s))

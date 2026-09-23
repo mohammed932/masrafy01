@@ -3,6 +3,7 @@ import { LoanCategory } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ALL_INCOME_BASES, type IncomeBasis } from '@/common/income-basis.util';
+import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -17,6 +18,7 @@ import {
   IsString,
   Length,
   Matches,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -126,6 +128,33 @@ export class CreateEnumerationDto {
   @IsInt()
   @Min(0)
   sortOrder?: number;
+
+  /**
+   * `i_score_class` only — the score range this class covers, inclusive at both ends. The
+   * service refuses a range on any other type, and a class without one.
+   */
+  @ApiPropertyOptional({ minimum: 0, maximum: 1000, nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  rangeFrom?: number | null;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 1000, nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  rangeTo?: number | null;
+
+  /**
+   * `i_score_class` only — the share of the income this class counts, as a percentage
+   * (`'0'` … `'300'`). The shared I-Score table every program reads by default.
+   */
+  @ApiPropertyOptional({ example: '110', nullable: true })
+  @IsOptional()
+  @IsDecimalString({ min: 0, max: 300, scale: 4 })
+  incomePercent?: string | null;
 }
 
 /**
@@ -476,6 +505,33 @@ export class UpdateEnumerationDto {
   @IsInt()
   @Min(0)
   sortOrder?: number;
+
+  /**
+   * `i_score_class` only — the score range this class covers, inclusive at both ends. The
+   * service refuses a range on any other type, and a class without one.
+   */
+  @ApiPropertyOptional({ minimum: 0, maximum: 1000, nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  rangeFrom?: number | null;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 1000, nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  rangeTo?: number | null;
+
+  /**
+   * `i_score_class` only — the share of the income this class counts, as a percentage
+   * (`'0'` … `'300'`). The shared I-Score table every program reads by default.
+   */
+  @ApiPropertyOptional({ example: '110', nullable: true })
+  @IsOptional()
+  @IsDecimalString({ min: 0, max: 300, scale: 4 })
+  incomePercent?: string | null;
 }
 
 export class EnumerationRowDto {
@@ -583,6 +639,11 @@ export class EnumerationRowDto {
     active: boolean;
   } | null;
   @ApiProperty() sortOrder!: number;
+  /** `i_score_class` rows — the score range, inclusive. `null` on every other type. */
+  @ApiProperty({ nullable: true, type: Number }) rangeFrom!: number | null;
+  @ApiProperty({ nullable: true, type: Number }) rangeTo!: number | null;
+  /** `i_score_class` rows — the income percentage, a decimal string. `null` elsewhere. */
+  @ApiProperty({ nullable: true, type: String }) incomePercent!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 }

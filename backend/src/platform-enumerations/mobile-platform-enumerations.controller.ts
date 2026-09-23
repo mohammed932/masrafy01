@@ -2,7 +2,10 @@ import { Controller, Get, Header, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
-import { DomainException, EnumerationRegistryUnavailableException } from '@/common/errors/domain.exceptions';
+import {
+  DomainException,
+  EnumerationRegistryUnavailableException,
+} from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
   CUSTOMER_READABLE_ENUMERATION_TYPES,
