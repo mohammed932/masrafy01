@@ -600,7 +600,10 @@ export class BankProgramsController {
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a new bank program (admin or super_admin)' })
   @ApiResponse({ status: 201, description: 'Program created.' })
-  @ApiResponse({ status: 409, description: 'PROGRAM_CODE_ALREADY_IN_USE' })
+  @ApiResponse({
+    status: 409,
+    description: 'PROGRAM_CODE_ALREADY_IN_USE | BANK_PROGRAM_NAME_TAKEN',
+  })
   @ApiResponse({
     status: 422,
     description:
@@ -744,7 +747,10 @@ export class BankProgramsController {
   @ApiOperation({ summary: 'Duplicate a program into a new inactive draft (FR-013)' })
   @ApiResponse({ status: 201, description: 'Draft copy created.' })
   @ApiResponse({ status: 404, description: 'BANK_PROGRAM_NOT_FOUND' })
-  @ApiResponse({ status: 409, description: 'PROGRAM_CODE_ALREADY_IN_USE' })
+  @ApiResponse({
+    status: 409,
+    description: 'PROGRAM_CODE_ALREADY_IN_USE | BANK_PROGRAM_NAME_TAKEN',
+  })
   async duplicate(
     @Param('programCode') programCode: string,
     @Body() body: DuplicateBankProgramDto,

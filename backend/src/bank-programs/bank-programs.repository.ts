@@ -135,6 +135,32 @@ export class BankProgramRepository {
     return this.prisma.bankProgram.findUnique({ where: { programCode } });
   }
 
+  /**
+   * Another program this bank sells under the same catalog name in the same loan type, or
+   * `null`. Keyed by `bankId` when the program has one and by `bankName` otherwise — the id is
+   * optional on the DTO, the name never is.
+   */
+  async findSameNameAtBank(args: {
+    bankId: string | null;
+    bankName: string;
+    productCategory: string;
+    programNameKey: string;
+    exceptProgramCode?: string;
+  }): Promise<{ programCode: string } | null> {
+    return this.prisma.bankProgram.findFirst({
+      where: {
+        ...(args.bankId !== null ? { bankId: args.bankId } : { bankName: args.bankName }),
+        productCategory: args.productCategory,
+        programNameKey: args.programNameKey,
+        ...(args.exceptProgramCode !== undefined
+          ? { programCode: { not: args.exceptProgramCode } }
+          : {}),
+      },
+      select: { programCode: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async findManyPaged(filters: ListFilters): Promise<PagedBankPrograms> {
     const where: Prisma.BankProgramWhereInput = {
       ...(filters.bankName

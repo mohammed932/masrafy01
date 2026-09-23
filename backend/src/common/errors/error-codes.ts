@@ -36,6 +36,14 @@ export const ERROR_CODES = {
   // --- Bank programs (feature 002) ---
   BANK_PROGRAM_NOT_FOUND: 'BANK_PROGRAM_NOT_FOUND',
   PROGRAM_CODE_ALREADY_IN_USE: 'PROGRAM_CODE_ALREADY_IN_USE',
+  /**
+   * The bank already sells a program under this catalog name in this loan type. An operator
+   * adds a second one by accident far more often than on purpose, and the two then quote side
+   * by side under one name. Refused on the admin paths only: the sheet seed still loads the
+   * handful of real pairs a bank prints under one name (`allowSharedName`).
+   * meta: { programNameKey, productCategory, existingProgramCode }.
+   */
+  BANK_PROGRAM_NAME_TAKEN: 'BANK_PROGRAM_NAME_TAKEN',
   INVALID_VARIABLE_RATE_CONFIGURATION: 'INVALID_VARIABLE_RATE_CONFIGURATION',
   INVALID_QUALITATIVE_REVIEW_CEILING: 'INVALID_QUALITATIVE_REVIEW_CEILING',
   QUALITATIVE_REVIEW_CEILING_BELOW_BASE: 'QUALITATIVE_REVIEW_CEILING_BELOW_BASE',
@@ -1057,6 +1065,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
 
   BANK_PROGRAM_NOT_FOUND: 404,
   PROGRAM_CODE_ALREADY_IN_USE: 409,
+  BANK_PROGRAM_NAME_TAKEN: 409,
   INVALID_VARIABLE_RATE_CONFIGURATION: 422,
   INVALID_QUALITATIVE_REVIEW_CEILING: 422,
   QUALITATIVE_REVIEW_CEILING_BELOW_BASE: 422,

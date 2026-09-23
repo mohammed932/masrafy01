@@ -1,6 +1,7 @@
 import type { ProgramType } from './create-bank-program.dto';
 import type { PlansSource } from '../../matching/pipeline/plan-inherit';
 import type { RateDefaults } from '../../matching/pipeline/rate-inherit';
+import type { IScoreTiers } from '../../matching/pipeline/iscore';
 
 export interface DeprecatedKeyDescriptor {
   fieldPath: string;
@@ -62,6 +63,12 @@ export class BankProgramResponseDto {
    * states. A program whose own rate is blank is priced at this one.
    */
   productRate?: RateDefaults | null;
+  /**
+   * The surrogate product's default I-Score tiers, when the catalog name links a product that
+   * states them. `null` otherwise. READ-ONLY, on exactly the terms `productRate` is: a program
+   * whose own `incomeAssumption.iScoreTiers` is blank is scored on this table.
+   */
+  productIScoreTiers?: IScoreTiers | null;
   eligibility!: Record<string, unknown>;
   performanceCriteria?: Record<string, unknown> | null;
   incomeAssumption!: Record<string, unknown>;

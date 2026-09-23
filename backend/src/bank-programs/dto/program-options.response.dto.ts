@@ -12,6 +12,13 @@ import { BankProgramType, LoanCategory } from '@prisma/client';
  * which is the third-authority pattern v16.3.0 and v16.4.0 each deleted.
  */
 
+/** The surrogate product (calculation) a no-payslip catalog name quotes from. */
+export class ProgramNameProductDto {
+  @ApiProperty() key!: string;
+  @ApiProperty() labelAr!: string;
+  @ApiProperty() labelEn!: string;
+}
+
 export class ProgramNameOptionDto {
   @ApiProperty({ description: 'Catalog `program_name` key — the value sent back as `programNameKey`' })
   key!: string;
@@ -22,6 +29,15 @@ export class ProgramNameOptionDto {
   /** Active programs behind this (category, income basis, name) triple. Always ≥ 1. */
   @ApiProperty({ description: 'How many banks offer this name on this basis' })
   programCount!: number;
+
+  /**
+   * Under `income_surrogate` only — the product this name takes its calculation from, which
+   * is what the customer is shown in place of the name (the catalog's no-payslip panel lists
+   * the same products). `null` under `income_proof`, and for a legacy name that states its
+   * own rule. The value sent back at apply is still `key`.
+   */
+  @ApiProperty({ type: ProgramNameProductDto, nullable: true })
+  surrogateProduct!: ProgramNameProductDto | null;
 }
 
 export class IncomeTypeOptionDto {

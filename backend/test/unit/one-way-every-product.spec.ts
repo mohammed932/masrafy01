@@ -70,12 +70,11 @@ const PRE_EXISTING_NAMES: Readonly<Record<string, string>> = { compound_owner_4:
 describe('the seed names, for every surrogate program, a way its product offers', () => {
   const surrogate = SHEET_PROGRAMS.filter((p) => p.dto.programType === 'income_surrogate');
 
-  it('seeds sixteen surrogate programs and seven payslip ones', () => {
-    // Thirteen, plus the three Suez Canal auto programmes — ONE down-payment programme
-    // reading the product's five plans, and two Green Finance ones. It was seven until the
-    // plan tables existed: each down-payment tier needed its own programme only because the
-    // share financed was a scalar and a different share had nowhere else to live.
-    expect(surrogate).toHaveLength(16);
+  it('seeds thirteen surrogate programs and seven payslip ones', () => {
+    // Thirteen. The three Suez Canal auto programmes (one down-payment, two Green Finance)
+    // that quoted from `down_payment_income` were removed with their catalog names
+    // (migration `remove_down_payment_income_programs`); the product itself stays.
+    expect(surrogate).toHaveLength(13);
     // Four, plus Credit Agricole's three auto programmes — New Car, Used Car and Electric
     // Vehicle. Payslip, so they hold no way and no product: their deposit tiers live in the
     // programme's OWN financed-share grid rather than a product's plan tables, which is what

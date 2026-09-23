@@ -439,13 +439,16 @@ async function main(): Promise<void> {
       }
       try {
         if (action.kind === 'create') {
-          await programs.create(body, programActor);
+          // A bank's sheet may print two products under one name, so the one-per-name rule
+          // the admin screens enforce does not apply to the sheets themselves.
+          await programs.create(body, programActor, { allowSharedName: true });
           tally.programsCreated.push(spec.programCode);
         } else {
           await programs.update(
             spec.programCode,
             { ...body, version: action.version },
             programActor,
+            { allowSharedName: true },
           );
           tally.programsUpdated.push(spec.programCode);
         }

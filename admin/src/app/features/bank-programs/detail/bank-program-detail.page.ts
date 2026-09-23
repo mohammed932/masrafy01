@@ -33,6 +33,10 @@ import { CanDirective } from '../../../shared/can.directive';
 import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
+import {
+  DuplicateProgramDialog,
+  type DuplicateProgramDialogData,
+} from './duplicate-program.dialog';
 import type { BankProgramResponse, PricingConfig, RateBandMap } from '../bank-programs.types';
 import { incomeMethodLabel } from '../bank-programs.types';
 import { basisOf, incomeBasisLabel } from '@core/income-basis';
@@ -354,6 +358,29 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
                   </dd>
                 </div>
               }
+              <!-- EVERY program, payslip or not: the tiers are program-level policy since
+                   v30.3.0, so leaving the row out on some would read as "cannot state one".
+                   Blank is said in words, because blank is a real answer (every score counts
+                   at 100%), and a table read off the product says whose it is. -->
+              <div class="row">
+                <dt i18n="@@bpd.field.iscore">I-Score tiers</dt>
+                @if (iScoreTierRows(p); as tiers) {
+                  <dd class="chips">
+                    @for (r of tiers.rows; track r) {
+                      <span class="enum-chip">{{ r }}</span>
+                    }
+                    @if (tiers.fromProduct) {
+                      <span class="quiet" i18n="@@bpd.iscore.from_product"
+                        >· the product's tiers</span
+                      >
+                    }
+                  </dd>
+                } @else {
+                  <dd class="quiet" i18n="@@bpd.iscore.none">
+                    None stated — every score counts at 100%
+                  </dd>
+                }
+              </div>
               @if (p.eligibility.skipDbrCheck) {
                 <div class="row">
                   <dt i18n="@@bank_programs.field.skip_dbr">Skip DBR check (secured loans only)</dt>
@@ -1280,6 +1307,30 @@ export class BankProgramDetailPage {
     );
   }
 
+  /**
+   * `0–600 → 80%`, and the open-ended last tier as `from 700 → 110%` — the tiers this
+   * program is SCORED on: its own when it states any, the product's otherwise, `null` when
+   * neither does. Mirrors the server's `effectiveIScoreTiers` (own wins whole, never a merge;
+   * an empty table counts as unstated), so the card cannot name a table the engine does not
+   * read.
+   */
+  protected iScoreTierRows(
+    p: BankProgramResponse,
+  ): { readonly rows: string[]; readonly fromProduct: boolean } | null {
+    const own = p.incomeAssumption.iScoreTiers?.bands ?? [];
+    const product = p.productIScoreTiers?.bands ?? [];
+    const bands = own.length > 0 ? own : product;
+    if (bands.length === 0) return null;
+    return {
+      fromProduct: own.length === 0,
+      rows: bands.map((band) =>
+        band.toExclusive === null
+          ? $localize`:@@bpd.iscore.tier_open:from ${band.fromInclusive}:from: → ${band.incomeEGP}:pct:%`
+          : `${band.fromInclusive}–${band.toExclusive} → ${band.incomeEGP}%`,
+      ),
+    };
+  }
+
   /** The self-employed age window, only when this bank states one of its own. */
   protected selfEmployedAge(p: BankProgramResponse): string | null {
     const min = p.eligibility.ageMinSelfEmployed;
@@ -1870,23 +1921,28 @@ export class BankProgramDetailPage {
   async duplicate(): Promise<void> {
     const p = this.program();
     if (!p || this.duplicating()) return;
+    // The copy needs a name of its own — a bank sells one program per name per loan type —
+    // so the name is picked before anything is created.
     this.duplicating.set(true);
-    try {
-      const res = await this.api.duplicate(p.programCode, {
-        friendlyName: $localize`:@@bank_programs.duplicate.name:${p.friendlyName}:name: (copy)`,
-        friendlyNameAr: p.friendlyNameAr ?? undefined,
-      });
+    const ref = this.modal.create<
+      DuplicateProgramDialog,
+      DuplicateProgramDialogData,
+      string | undefined
+    >({
+      nzContent: DuplicateProgramDialog,
+      nzData: { source: p },
+      nzWidth: 520,
+      nzFooter: null,
+    });
+    ref.afterClose.subscribe((programCode) => {
+      this.duplicating.set(false);
+      if (!programCode) return;
       this.message.success(
         $localize`:@@bank_programs.duplicate.created:Draft copy created — review and activate it.`,
         { nzDuration: 5000 },
       );
-      void this.router.navigate(['/banks/programs', res.data.programCode, 'edit']);
-    } catch (err: unknown) {
-      const code = (err as { error?: { code?: string } }).error?.code ?? 'INTERNAL_ERROR';
-      this.message.error(this.errors.toLocalizedMessage(code as never));
-    } finally {
-      this.duplicating.set(false);
-    }
+      void this.router.navigate(['/banks/programs', programCode, 'edit']);
+    });
   }
 
   openDelete(): void {

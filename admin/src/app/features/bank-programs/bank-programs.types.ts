@@ -1745,6 +1745,12 @@ export interface BankProgramResponse {
    * bundle still renders against a backend that has not deployed the field.
    */
   productRate?: RateDefaults | null;
+  /**
+   * The I-Score tiers the surrogate product behind this program's catalog name states, or
+   * `null`. Read-only, and what a program with no tiers of its own is scored on. Optional for
+   * the same reason `productRate` is.
+   */
+  productIScoreTiers?: IScoreTiers | null;
   eligibility: EligibilityConfig;
   performanceCriteria?: PerformanceCriteriaConfig | null;
   incomeAssumption: IncomeAssumptionConfig;
@@ -1808,6 +1814,8 @@ export interface DuplicateBankProgramPayload {
   programCode?: string;
   friendlyName: string;
   friendlyNameAr?: string;
+  /** The copy's own name — the source's is taken at this bank (`BANK_PROGRAM_NAME_TAKEN`). */
+  programNameKey?: string;
 }
 
 // --- Feature 011: value-source markers + the rule check --------------------

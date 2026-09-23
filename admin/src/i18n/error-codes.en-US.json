@@ -21,6 +21,7 @@
   "SUPER_ADMIN_FLOOR_VIOLATED": "At least one super-admin must remain active.",
   "BANK_PROGRAM_NOT_FOUND": "Bank program not found.",
   "PROGRAM_CODE_ALREADY_IN_USE": "This program code is already in use.",
+  "BANK_PROGRAM_NAME_TAKEN": "This bank already has a program under this name for this loan type. Edit that one instead.",
   "INVALID_VARIABLE_RATE_CONFIGURATION": "Variable-rate configuration is invalid.",
   "INVALID_QUALITATIVE_REVIEW_CEILING": "Qualitative-review ceiling requires the program's eligibility to set requiresQualitativeReview = true.",
   "QUALITATIVE_REVIEW_CEILING_BELOW_BASE": "Qualitative-review ceiling must be strictly greater than the base maximum.",

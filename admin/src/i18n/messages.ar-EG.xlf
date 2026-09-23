@@ -1121,6 +1121,12 @@
       <trans-unit id="bank_programs.field.bank.placeholder" datatype="html"><source>Pick a bank</source><target>اختر بنكًا</target></trans-unit>
       <trans-unit id="bank_programs.err.bank_required" datatype="html"><source>Bank is required.</source><target>البنك مطلوب.</target></trans-unit>
       <trans-unit id="bank_programs.field.friendly_name" datatype="html"><source>Program name</source><target>اسم البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.field.catalog_program" datatype="html"><source>Catalog program</source><target>برنامج الكتالوج</target></trans-unit>
+      <trans-unit id="bank_programs.field.bank_name_en" datatype="html"><source>Name at this bank (English)</source><target>الاسم لدى هذا البنك (بالإنجليزية)</target></trans-unit>
+      <trans-unit id="bank_programs.field.bank_name_ar" datatype="html"><source>Name at this bank (Arabic)</source><target>الاسم لدى هذا البنك (بالعربية)</target></trans-unit>
+      <trans-unit id="bank_programs.field.bank_name_hint" datatype="html"><source> Filled in from the catalog. Change it to what this bank calls the program; customers see it on their offers. </source><target> مأخوذ من الكتالوج. غيّره إلى الاسم الذي يستخدمه هذا البنك للبرنامج؛ يظهر للعملاء في عروضهم. </target></trans-unit>
+      <trans-unit id="bank_programs.err.bank_name_required" datatype="html"><source>Give this program the name the bank uses.</source><target>أدخل الاسم الذي يستخدمه البنك لهذا البرنامج.</target></trans-unit>
+      <trans-unit id="bank_programs.err.bank_name_long" datatype="html"><source>Keep the name to 120 characters.</source><target>لا يزيد الاسم عن 120 حرفًا.</target></trans-unit>
       <trans-unit id="bank_programs.field.friendly_name.placeholder" datatype="html"><source>Select a program</source><target>اختر برنامجًا</target></trans-unit>
       <trans-unit id="bank_programs.field.friendly_name.awaiting_basis" datatype="html"><source>Answer the income question first</source><target>أجب عن سؤال الدخل أولًا</target></trans-unit>
       <trans-unit id="bank_programs.field.friendly_name.show_all" datatype="html"><source>Show <x id="INTERPOLATION" equiv-text="x"/> more names filed under the other income</source><target>اعرض <x id="INTERPOLATION" equiv-text="x"/> أخرى يصنفها الكتالوج تحت الدخل الآخر</target></trans-unit>
@@ -2187,8 +2193,6 @@
       </trans-unit>
       <trans-unit id="spd.step_asks" datatype="html"><source>What it asks</source><target>ما الذي يسأل عنه</target></trans-unit>
       <trans-unit id="spd.cap_asks" datatype="html"><source>The questions this product puts to the applicant, the answers they pick from, the classes a bank keys its table by, and the amount each one carries.</source><target>الأسئلة التي يطرحها هذا المنتج على العميل، والإجابات التي يختار منها، والفئات التي يبني عليها البنك جدوله، والمبلغ الذي تحمله كل منها.</target></trans-unit>
-      <trans-unit id="spd.ask.lede2" datatype="html"><source> Tick a question and this product reads its answer. It is then asked of the <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants who pick one of this product&apos;s program names — and of nobody else, so a tick here is also what keeps it off every other program&apos;s form. </source><target>اختر سؤالًا ليقرأ هذا المنتج إجابته. سيُطرح بعد ذلك على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> الذين يختارون أحد أسماء برامج هذا المنتج — ولا على غيرهم، فاختيارك هنا هو أيضًا ما يمنع ظهوره في نموذج أي برنامج آخر.</target></trans-unit>
-<trans-unit id="spd.ask.served" datatype="html"><source> answers <x id="INTERPOLATION" equiv-text="{{ row.servedTotal }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ row.categoryTotal }}"/> questions, <x id="INTERPOLATION_2" equiv-text="{{ row.servedRequired }}"/> of them required </source><target>يجيب على <x id="INTERPOLATION" equiv-text="{{ row.servedTotal }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ row.categoryTotal }}"/> سؤالًا، <x id="INTERPOLATION_2" equiv-text="{{ row.servedRequired }}"/> منها إلزامية</target></trans-unit>
       <trans-unit id="spd.ask.fixed_note" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> of these come with the product. You can still untick one, and it stays unticked — the predefined library will not put it back. </source><target> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> منها تأتي مع المنتج. يمكنك مع ذلك إلغاء اختيار أي منها، وسيظل ملغى — لن تعيده المكتبة الجاهزة مرة أخرى. </target></trans-unit>
       <trans-unit id="spd.ask.unpublished" datatype="html"><source>The question is attached, but the questionnaire was not published, so nobody is being asked it yet. Tick it again to retry.</source><target>تم ربط السؤال، لكن الاستبيان لم يُنشر، فلا أحد يُسأل عنه بعد. اضغط عليه مرة أخرى لإعادة المحاولة.</target></trans-unit>
       <trans-unit id="spd.ask.dismiss" datatype="html"><source> Dismiss </source><target>إخفاء</target></trans-unit>
@@ -3850,6 +3854,14 @@
           <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="bank_programs.review.iscore" datatype="html"><source>I-Score tiers</source><target>شرائح الآي-سكور</target></trans-unit>
+      <trans-unit id="bank_programs.review.iscore_product" datatype="html"><source>The product&apos;s · <x id="count" equiv-text="this.productIScoreTiers().length"/> tiers</source><target>شرائح المنتج · <x id="count" equiv-text="this.productIScoreTiers().length"/> شرائح</target></trans-unit>
+      <trans-unit id="bank_programs.review.iscore_own" datatype="html"><source><x id="count" equiv-text="this.iScoreTiers().length"/> tiers</source><target><x id="count" equiv-text="this.iScoreTiers().length"/> شرائح</target></trans-unit>
+      <trans-unit id="bank_programs.review.iscore_none" datatype="html"><source>None — every score counts at 100%</source><target>لا توجد — كل درجة تُحتسب بنسبة 100%</target></trans-unit>
+      <trans-unit id="bpd.field.iscore" datatype="html"><source>I-Score tiers</source><target>شرائح الآي-سكور</target></trans-unit>
+      <trans-unit id="bpd.iscore.from_product" datatype="html"><source>· the product&apos;s tiers</source><target>· شرائح المنتج</target></trans-unit>
+      <trans-unit id="bpd.iscore.none" datatype="html"><source>None stated — every score counts at 100%</source><target>لا توجد شرائح — كل درجة تُحتسب بنسبة 100%</target></trans-unit>
+      <trans-unit id="bpd.iscore.tier_open" datatype="html"><source>from <x id="from" equiv-text="band.fromInclusive"/> → <x id="pct" equiv-text="band.incomeEGP"/>%</source><target>من <x id="from" equiv-text="band.fromInclusive"/> فأكثر ← <x id="pct" equiv-text="band.incomeEGP"/>%</target></trans-unit>
       <trans-unit id="bpd.dbr.band_open" datatype="html"><source>above the last band → <x id="cap" equiv-text="band.capPercent"/>%</source><target>أعلى من آخر شريحة ← <x id="cap" equiv-text="band.capPercent"/>%</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
@@ -4354,6 +4366,15 @@
       <trans-unit id="bank_programs.plans.from_product_value" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ productPlanCount() }}"/> table(s) — the rate, the term, the share financed, the smallest loan and the insurance, by the deposit</source><target><x id="INTERPOLATION" equiv-text="{{ productPlanCount() }}"/> جدول — السعر والمدة ونسبة التمويل وأصغر قرض والتأمين، حسب الدفعة المقدمة</target></trans-unit>
       <trans-unit id="bank_programs.plans.from_product" datatype="html"><source>The product&apos;s plans apply</source><target>خطط المنتج هي المطبَّقة</target></trans-unit>
       <trans-unit id="bank_programs.plans.from_product_note" datatype="html"><source>This bank has not stated plans of its own, so it prices, lends and finances on the product&apos;s. Change them there and this program follows.</source><target>هذا البنك لم يذكر خططًا خاصة به، فهو يسعّر ويقرض ويموّل وفق خطط المنتج. غيّرها هناك ويتبعها هذا البرنامج.</target></trans-unit>
+      <trans-unit id="bank_programs.field.product_placeholder" datatype="html"><source>Select a product</source><target>اختر منتجًا</target></trans-unit>
+      <trans-unit id="bank_programs.field.filed_under" datatype="html"><source>Filed under: <x id="INTERPOLATION" equiv-text="{{ names[0]?.label }}"/></source><target>مُدرج تحت: <x id="INTERPOLATION" equiv-text="{{ names[0]?.label }}"/></target></trans-unit>
+      <trans-unit id="bank_programs.field.filed_under_pick" datatype="html"><source>Filed under which of this product&apos;s names</source><target>تحت أي من أسماء هذا المنتج يُدرج</target></trans-unit>
+      <trans-unit id="bank_programs.plans.card_title" datatype="html"><source> Plans by deposit </source><target> الخطط حسب الدفعة المقدمة </target></trans-unit>
+      <trans-unit id="bank_programs.plans.own_tag" datatype="html"><source>This bank&apos;s own plans</source><target>خطط خاصة بهذا البنك</target></trans-unit>
+      <trans-unit id="bank_programs.plans.card_note_inherited" datatype="html"><source>These are the product&apos;s figures. Change any of them and this bank gets its own copy — the product and the other banks on it stay as they are.</source><target>هذه قيم المنتج. غيّر أيًّا منها ويحصل هذا البنك على نسخته الخاصة — ويبقى المنتج والبنوك الأخرى عليه كما هي.</target></trans-unit>
+      <trans-unit id="bank_programs.plans.card_note_own" datatype="html"><source>This bank prices, lends and finances on the figures below. Changing the product no longer moves them.</source><target>هذا البنك يسعّر ويقرض ويموّل وفق القيم أدناه. تغيير المنتج لم يعد يحرّكها.</target></trans-unit>
+      <trans-unit id="bank_programs.plans.card_error" datatype="html"><source> A row of this bank&apos;s plans is not finished — fill it in, or remove the row. </source><target> هناك صف غير مكتمل في خطط هذا البنك — أكمله أو احذف الصف. </target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_plan_card" datatype="html"><source>A row of this bank&apos;s plans is not finished — fill it in, or remove the row.</source><target>هناك صف غير مكتمل في خطط هذا البنك — أكمله أو احذف الصف.</target></trans-unit>
       <trans-unit id="bank_programs.plans.set_own" datatype="html"><source>Set this bank&apos;s own plans</source><target>حدّد خططًا خاصة بهذا البنك</target></trans-unit>
       <trans-unit id="bank_programs.plans.back_to_product" datatype="html"><source>Back to the product&apos;s plans</source><target>ارجع إلى خطط المنتج</target></trans-unit>
       <trans-unit id="spd.plans.title" datatype="html"><source>Plans by deposit</source><target>الخطط حسب الدفعة المقدمة</target></trans-unit>
@@ -4593,6 +4614,22 @@
       <trans-unit id="askq.sec_not_ticked_empty" datatype="html"><source>You have ticked every question in the pool.</source><target>أشَّرت كل سؤال في بنك الأسئلة.</target></trans-unit>
       <trans-unit id="askq.remove_aria" datatype="html"><source>Untick <x id="QUESTION" equiv-text="row.label"/></source><target>ألغِ تأشير <x id="QUESTION" equiv-text="row.label"/></target></trans-unit>
       <trans-unit id="askq.tab_count_ticked" datatype="html"><source>questions ticked</source><target>سؤال مؤشَّر</target></trans-unit>
+      <trans-unit id="bank_programs.duplicate.title" datatype="html"><source>Duplicate this program</source><target>نسخ هذا البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.duplicate.body" datatype="html"><source> The copy is an inactive draft at the same bank and loan type, and needs a program name the bank does not sell yet. </source><target>النسخة مسودة غير مفعّلة في البنك نفسه ونوع التمويل نفسه، وتحتاج إلى اسم برنامج لا يبيعه البنك بعد.</target></trans-unit>
+      <trans-unit id="bank_programs.duplicate.name_label" datatype="html"><source>Program name for the copy</source><target>اسم البرنامج للنسخة</target></trans-unit>
+      <trans-unit id="bank_programs.duplicate.none_free" datatype="html"><source> This bank already sells every program name this one could be copied under. Edit an existing program instead. </source><target>يبيع هذا البنك بالفعل كل أسماء البرامج التي يمكن نسخ هذا البرنامج تحتها. عدّل برنامجًا موجودًا بدلًا من ذلك.</target></trans-unit>
+      <trans-unit id="bank_programs.duplicate.cta" datatype="html"><source> Create copy </source><target>إنشاء النسخة</target></trans-unit>
+      <trans-unit id="bank_programs.duplicate.empty" datatype="html"><source>No free program name</source><target>لا يوجد اسم برنامج متاح</target></trans-unit>
+      <trans-unit id="bank_programs.field.name_taken" datatype="html"><source> — already added for this bank</source><target> — مضاف بالفعل لهذا البنك</target></trans-unit>
+      <trans-unit id="bank_programs.duplicate.created" datatype="html"><source>Draft copy created — review and activate it.</source><target>أُنشئت مسودة النسخة — راجعها ثم فعّلها.</target></trans-unit>
+      <trans-unit id="spd.ask.order_done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
+      <trans-unit id="spd.ask.order_open" datatype="html"><source>Change order</source><target>تغيير الترتيب</target></trans-unit>
+      <trans-unit id="spd.ask.order_lede" datatype="html"><source> Drag a question to move it, or use the arrows. This is the order <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants are asked in, so it also moves for every other <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> program that asks these questions. A question can only move within its own step. </source><target>اسحب السؤال لتحريكه، أو استخدم الأسهم. هذا هو الترتيب الذي تُطرح به الأسئلة على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/>، لذا يتغيّر أيضًا في كل برنامج <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> آخر يطرح هذه الأسئلة. لا يمكن تحريك السؤال إلا داخل خطوته.</target></trans-unit>
+      <trans-unit id="spd.ask.order_loading" datatype="html"><source> Loading the order… </source><target>جارٍ تحميل الترتيب…</target></trans-unit>
+      <trans-unit id="spd.ask.order_drag" datatype="html"><source>Drag to reorder</source><target>اسحب لإعادة الترتيب</target></trans-unit>
+      <trans-unit id="spd.ask.order_up" datatype="html"><source>Move up</source><target>تحريك لأعلى</target></trans-unit>
+      <trans-unit id="spd.ask.order_down" datatype="html"><source>Move down</source><target>تحريك لأسفل</target></trans-unit>
+      <trans-unit id="spd.ask.order_saved" datatype="html"><source>Order saved for <x id="category" equiv-text="categoryLabel(category)"/></source><target>تم حفظ الترتيب لـ<x id="category" equiv-text="categoryLabel(category)"/></target></trans-unit>
     </body>
   </file>
 </xliff>

@@ -64,6 +64,7 @@ import {
   FactGridInvalidException,
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
+  BankProgramNameTakenException,
   ProgramNameKeyNotInCategoryException,
   ProgramNameIncomeProofMismatchException,
   ProgramNameIncomeProofMissingException,
@@ -136,6 +137,7 @@ import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit
 import { effectiveRate } from '@/matching/pipeline/rate-inherit';
 import type { RateDefaults, StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
+  catalogIScoreOf,
   catalogLoanAmountsOf,
   catalogPlansOf,
   catalogRateOf,
@@ -204,6 +206,11 @@ import { stableJson } from '../common/stable-json.util';
  */
 const DRAFT_PROGRAM_SENTINEL = '(draft)';
 
+/** `allowSharedName`: skip the one-program-per-name-per-bank check. The sheet seed only. */
+interface NameAtBankOptions {
+  allowSharedName?: boolean;
+}
+
 @Injectable()
 export class BankProgramsService {
   constructor(
@@ -228,6 +235,7 @@ export class BankProgramsService {
   async create(
     dto: CreateBankProgramDto,
     actor: { id: string; sourceIp: string | null },
+    opts: NameAtBankOptions = {},
   ): Promise<BankProgramResponseDto> {
     // Fail-closed registry availability check.
     if (!(await this.enums.isAvailable())) {
@@ -256,6 +264,14 @@ export class BankProgramsService {
     const existing = await this.repo.findByProgramCode(programCode);
     if (existing) {
       throw new ProgramCodeAlreadyInUseException(programCode);
+    }
+    if (!opts.allowSharedName) {
+      await this.assertNameFreeAtBank({
+        bankId: dto.bankId ?? null,
+        bankName: dto.bankName,
+        productCategory: dto.productCategory,
+        programNameKey: dto.programNameKey,
+      });
     }
 
     // The EFFECTIVE rule — the bank's figures under the catalog's structure — because a
@@ -392,6 +408,14 @@ export class BankProgramsService {
       // Same grandfather rule as `update()`: a straight copy that keeps the
       // source's name and category is not moving anything.
       skipProgramNameCategoryCheck: programNameKey === source.programNameKey,
+    });
+    // The copy sits at the same bank in the same loan type, so a straight copy that keeps the
+    // source's name is exactly the second program under one name this refuses.
+    await this.assertNameFreeAtBank({
+      bankId: source.bankId,
+      bankName: source.bankName,
+      productCategory: source.productCategory,
+      programNameKey,
     });
 
     const program = await this.prisma.$transaction(async (tx) => {
@@ -752,6 +776,29 @@ export class BankProgramsService {
       throw new DeprecatedEnumerationKeyException({
         enumerationType: result.deprecatedKey.enumerationType,
         deprecatedKey: result.deprecatedKey.key,
+      });
+    }
+  }
+
+  /**
+   * ONE program per catalog name, per loan type, per bank. Two programs a bank sells under one
+   * name quote side by side under one title, and nothing on the card says which is which —
+   * almost always an operator who pressed Add twice. The sheet seed opts out
+   * (`allowSharedName`): a few banks really do print two products under one name.
+   */
+  private async assertNameFreeAtBank(args: {
+    bankId: string | null;
+    bankName: string;
+    productCategory: string;
+    programNameKey: string;
+    exceptProgramCode?: string;
+  }): Promise<void> {
+    const taken = await this.repo.findSameNameAtBank(args);
+    if (taken !== null) {
+      throw new BankProgramNameTakenException({
+        programNameKey: args.programNameKey,
+        productCategory: args.productCategory,
+        existingProgramCode: taken.programCode,
       });
     }
   }
@@ -1189,6 +1236,8 @@ export class BankProgramsService {
        * on three of its five paths; the READ that renders a price is the one that fetches it.
        */
       productRate?: RateDefaults | null;
+      /** The product's I-Score tiers, on exactly the terms `productRate` above is passed. */
+      productIScoreTiers?: IScoreTiers | null;
     } = {},
   ): BankProgramResponseDto {
     return {
@@ -1232,6 +1281,9 @@ export class BankProgramsService {
       // caller did not look it up, which is every write path: a save already knows what it
       // sent, and the screens that render a price are reads.
       ...(extra.productRate === undefined ? {} : { productRate: extra.productRate }),
+      ...(extra.productIScoreTiers === undefined
+        ? {}
+        : { productIScoreTiers: extra.productIScoreTiers }),
       deprecatedKeys,
       warnings: extra.warnings ?? [],
       ...(extra.deactivatedByEstimate ? { deactivatedByEstimate: true } : {}),
@@ -1324,11 +1376,20 @@ export class BankProgramsService {
     // one, and otherwise the product's, which is where every programme created since the
     // wizard's rate card was deleted gets its price. Read here rather than merged into
     // `pricing`, which the form posts back.
-    const productRate =
+    // The I-Score tiers ride beside it for the same reason: a programme that states no table
+    // of its own is scored on the product's, and the detail screen has to say so rather than
+    // print "none" over a table the engine is applying. One resolution serves both.
+    const catalog =
       program.programNameKey === null
-        ? null
-        : (catalogRateOf(await this.catalogResolutionFor(program.programNameKey)) ?? null);
-    return this.toResponse(program, deprecatedKeys, { warnings, productRate });
+        ? undefined
+        : await this.catalogResolutionFor(program.programNameKey);
+    const productRate = catalogRateOf(catalog) ?? null;
+    const productIScoreTiers = catalogIScoreOf(catalog) ?? null;
+    return this.toResponse(program, deprecatedKeys, {
+      warnings,
+      productRate,
+      productIScoreTiers,
+    });
   }
 
   /**
@@ -1418,6 +1479,7 @@ export class BankProgramsService {
     programCode: string,
     dto: UpdateBankProgramDto,
     actor: { id: string; sourceIp: string | null },
+    opts: NameAtBankOptions = {},
   ): Promise<BankProgramResponseDto> {
     if (!(await this.enums.isAvailable())) {
       throw new EnumerationRegistryUnavailableException();
@@ -1430,6 +1492,23 @@ export class BankProgramsService {
     const existing = await this.repo.findByProgramCode(programCode);
     if (!existing) {
       throw new BankProgramNotFoundException({ programCode });
+    }
+    // Same posture as the catalog-assignment check: only a program MOVED onto a name the bank
+    // already sells is refused. A pair that predates the rule keeps saving untouched.
+    const bankId = dto.bankId ?? existing.bankId;
+    if (
+      !opts.allowSharedName &&
+      (dto.programNameKey !== existing.programNameKey ||
+        dto.productCategory !== existing.productCategory ||
+        bankId !== existing.bankId)
+    ) {
+      await this.assertNameFreeAtBank({
+        bankId,
+        bankName: dto.bankName,
+        productCategory: dto.productCategory,
+        programNameKey: dto.programNameKey,
+        exceptProgramCode: existing.programCode,
+      });
     }
     const catalogResolution = await this.catalogResolutionFor(
       dto.programNameKey ?? existing.programNameKey,

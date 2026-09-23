@@ -64,6 +64,7 @@ import { map } from 'rxjs';
 import { MoneyInputDirective } from '../../../core/directives/money-input.directive';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
+import type { EnumerationMember } from '../../../core/platform-enumerations/platform-enumerations.types';
 import { categoryLabel, isLoanCategory, type LoanCategory } from '@core/loan-category';
 import { basisOf, incomeBasisLabel, programTypeOf, type IncomeBasis } from '@core/income-basis';
 import { SURROGATE_FACT_BY_METHOD } from '@core/surrogate-facts';
@@ -109,6 +110,8 @@ import {
   factGridErrorFor,
 } from '@shared/ui/fact-grid-editor.component';
 import type { FactGridConfig } from '@shared/ui/fact-grid-editor.component';
+import { PlanRowsEditorComponent } from '@shared/ui/plan-rows-editor.component';
+import { planRowsErrorFor, planRowsFrom } from '@shared/ui/plan-rows.rules';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { catalogRuleIsProductBacked, catalogRuleOf } from '@shared/income-rule/catalog-rule';
 import { nameChangeLoss, type NameChangeLoss } from './name-change-losses';
@@ -182,6 +185,7 @@ type StepIssue =
   | 'rateGrid'
   | 'vehicleGrid'
   | 'carInsuranceGrid'
+  | 'planCard'
   | 'tenor'
   | 'loanAmounts';
 
@@ -412,6 +416,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
     IncomeBasisCardsComponent,
     IncomeAssumptionSectionComponent,
     FactGridEditorComponent,
+    PlanRowsEditorComponent,
     MoneyInputDirective,
     WizardStepsComponent,
   ],
@@ -701,23 +706,104 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     <nz-form-label
                       [nzFor]="'programNameKey'"
                       nzRequired
-                      i18n="@@bank_programs.field.friendly_name"
-                      >Program name</nz-form-label
+                      i18n="@@bank_programs.field.catalog_program"
+                      >Catalog program</nz-form-label
                     >
-                    <nz-form-control [nzErrorTip]="friendlyNameErrorTpl">
-                      <nz-select
-                        id="programNameKey"
-                        formControlName="programNameKey"
-                        nzShowSearch
-                        [nzDisabled]="!basisAnswered()"
-                        [nzDropdownStyle]="dropdownStyle"
-                        [nzNotFoundContent]="emptyPickerLabel()"
-                        [nzPlaceHolder]="namePlaceholder()"
-                      >
-                        @for (opt of programNameOptions(); track opt.value) {
-                          <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+                    <nz-form-control
+                      [nzErrorTip]="friendlyNameErrorTpl"
+                      [nzValidateStatus]="productPickerStatus()"
+                    >
+                      <!-- UNDER NO PAYSLIP THE OPERATOR PICKS THE PRODUCT — "Car buyers", not
+                       the catalog name that sells it. The program is still stored against a
+                       name (programNameKey), so picking a product files it under that
+                       product's name: its only one, or the first, with a second picker below
+                       when there are several. The value is derived FROM the name, so an edit
+                       load and a cancelled re-pick both repaint it (resyncProductPicker). -->
+                      @if (basisAnswered() === 'no_payslip') {
+                        <nz-select
+                          id="programNameKey"
+                          [formControl]="productPicker"
+                          nzShowSearch
+                          [nzDropdownStyle]="dropdownStyle"
+                          [nzNotFoundContent]="emptyPickerLabel()"
+                          [nzPlaceHolder]="productPlaceholder"
+                        >
+                          @for (group of programNameGroups().groups; track group.key) {
+                            <nz-option
+                              [nzValue]="'p:' + group.key"
+                              [nzLabel]="group.label"
+                              [nzDisabled]="group.taken"
+                            ></nz-option>
+                          }
+                          @for (opt of programNameGroups().loose; track opt.value) {
+                            <nz-option
+                              [nzValue]="'n:' + opt.value"
+                              [nzLabel]="opt.label"
+                              [nzDisabled]="opt.taken"
+                            ></nz-option>
+                          }
+                        </nz-select>
+                        @if (pickedProductNames(); as names) {
+                          @if (names.length === 1) {
+                            <p class="field-hint">
+                              <span i18n="@@bank_programs.field.filed_under"
+                                >Filed under: {{ names[0]?.label }}</span
+                              >
+                            </p>
+                          } @else if (names.length > 1) {
+                            <label
+                              class="filed-under-label"
+                              for="programNameKeyUnder"
+                              i18n="@@bank_programs.field.filed_under_pick"
+                              >Filed under which of this product's names</label
+                            >
+                            <nz-select
+                              id="programNameKeyUnder"
+                              formControlName="programNameKey"
+                              [nzDropdownStyle]="dropdownStyle"
+                            >
+                              @for (opt of names; track opt.value) {
+                                <nz-option
+                                  [nzValue]="opt.value"
+                                  [nzLabel]="opt.label"
+                                  [nzDisabled]="opt.taken"
+                                ></nz-option>
+                              }
+                            </nz-select>
+                          }
                         }
-                      </nz-select>
+                      } @else {
+                        <nz-select
+                          id="programNameKey"
+                          formControlName="programNameKey"
+                          nzShowSearch
+                          [nzDisabled]="!basisAnswered()"
+                          [nzDropdownStyle]="dropdownStyle"
+                          [nzNotFoundContent]="emptyPickerLabel()"
+                          [nzPlaceHolder]="namePlaceholder()"
+                        >
+                          @for (opt of programNameGroups().loose; track opt.value) {
+                            <nz-option
+                              [nzValue]="opt.value"
+                              [nzLabel]="opt.label"
+                              [nzDisabled]="opt.taken"
+                            ></nz-option>
+                          }
+                          <!-- Under no payslip, grouped by the calculation each name quotes
+                         from — the shape of the catalog's no-payslip panel. -->
+                          @for (group of programNameGroups().groups; track group.key) {
+                            <nz-option-group [nzLabel]="group.label">
+                              @for (opt of group.options; track opt.value) {
+                                <nz-option
+                                  [nzValue]="opt.value"
+                                  [nzLabel]="opt.label"
+                                  [nzDisabled]="opt.taken"
+                                ></nz-option>
+                              }
+                            </nz-option-group>
+                          }
+                        </nz-select>
+                      }
                       <!-- Required is the only CONTROL error reachable: the value
                        comes from a fixed option list, so it cannot overflow the
                        key length. The name-vs-category mismatch is not a control
@@ -759,37 +845,56 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     </nz-form-control>
                   </nz-form-item>
 
-                  <!-- Loan type is NOT a field here: it arrives decided (query param on
-                   create, the saved row on edit) and is shown in the context chip beside
-                   the page title, alongside the income basis above. -->
-                  <!-- Locked until the income question is answered, like the name picker
-                   above it: step 1 is read top to bottom, and a tickable row sitting under
-                   two dead controls invited the operator to start at the bottom. The value
-                   is never disabled on the CONTROL — an edit-mode program keeps submitting
-                   its saved flag; only the pointer is refused. -->
-                  <label
-                    class="option-row span-2"
-                    [class.is-on]="isSharia"
-                    [class.is-locked]="!basisAnswered()"
-                    nz-checkbox
-                    [nzDisabled]="!basisAnswered()"
-                    formControlName="isShariaCompliant"
-                  >
-                    <span class="option-text">
-                      <span class="option-title" i18n="@@bank_programs.field.sharia"
-                        >Sharia-compliant program</span
+                  <!-- THE BANK'S OWN NAME for the catalog program picked above. The catalog
+                   entry is what this programme inherits (the calculation, the defaults, the
+                   questions the customer is asked); this is what the customer reads on the
+                   offer card. Filled in from the catalog on the pick, and a re-pick only
+                   overwrites it while it still reads the catalog's words
+                   (followsCatalogName), so an edit here survives. -->
+                  @if (programNameKeySignal()) {
+                    <nz-form-item>
+                      <nz-form-label
+                        [nzFor]="'friendlyName'"
+                        nzRequired
+                        i18n="@@bank_programs.field.bank_name_en"
+                        >Name at this bank (English)</nz-form-label
                       >
-                      @if (basisAnswered()) {
-                        <span class="option-hint" i18n="@@bank_programs.field.sharia.hint">
-                          Shown to customers who filter for Islamic finance.
-                        </span>
-                      } @else {
-                        <span class="option-hint" i18n="@@bank_programs.field.sharia.locked">
-                          Answer the income question first.
-                        </span>
-                      }
-                    </span>
-                  </label>
+                      <nz-form-control [nzErrorTip]="bankNameErrorTpl">
+                        <input nz-input id="friendlyName" formControlName="friendlyName" />
+                        <ng-template #bankNameErrorTpl let-control>
+                          @if (control.hasError('required')) {
+                            <span i18n="@@bank_programs.err.bank_name_required"
+                              >Give this program the name the bank uses.</span
+                            >
+                          } @else if (control.hasError('maxlength')) {
+                            <span i18n="@@bank_programs.err.bank_name_long"
+                              >Keep the name to 120 characters.</span
+                            >
+                          }
+                        </ng-template>
+                      </nz-form-control>
+                    </nz-form-item>
+                    <nz-form-item>
+                      <nz-form-label
+                        [nzFor]="'friendlyNameAr'"
+                        i18n="@@bank_programs.field.bank_name_ar"
+                        >Name at this bank (Arabic)</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="bankNameErrorTpl">
+                        <input
+                          nz-input
+                          id="friendlyNameAr"
+                          formControlName="friendlyNameAr"
+                          dir="rtl"
+                          lang="ar"
+                        />
+                      </nz-form-control>
+                    </nz-form-item>
+                    <p class="field-hint span-2" i18n="@@bank_programs.field.bank_name_hint">
+                      Filled in from the catalog. Change it to what this bank calls the program;
+                      customers see it on their offers.
+                    </p>
+                  }
                 </div>
               </section>
             }
@@ -1456,66 +1561,15 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                           </nz-form-control>
                         </nz-form-item>
                       }
-                      <!-- The basis, beside the rate it qualifies. A percentage on its own does
-                     not say what the customer pays: the same rate over the same tenor buys
-                     22-29% more loan on a declining balance than flat, so this is a radio
-                     pair with the consequence written out, not a checkbox someone can leave
-                     half-read. -->
-                      <nz-form-item class="span-2">
-                        <nz-form-label i18n="@@bank_programs.field.rate_basis"
-                          >How the interest is charged</nz-form-label
-                        >
-                        <nz-form-control>
-                          <div
-                            class="rate-basis"
-                            role="radiogroup"
-                            [attr.aria-label]="rateBasisAria"
-                          >
-                            <label class="rate-basis-opt">
-                              <input type="radio" formControlName="rateBasis" value="reducing" />
-                              <span class="rate-basis-body">
-                                <span
-                                  class="rate-basis-title"
-                                  i18n="@@bank_programs.rate_basis.reducing"
-                                  >On what is still owed</span
-                                >
-                                <span
-                                  class="rate-basis-note"
-                                  i18n="@@bank_programs.rate_basis.reducing_note"
-                                  >Declining balance. The interest falls as the loan is paid
-                                  down.</span
-                                >
-                              </span>
-                            </label>
-                            <label class="rate-basis-opt">
-                              <input type="radio" formControlName="rateBasis" value="flat" />
-                              <span class="rate-basis-body">
-                                <span
-                                  class="rate-basis-title"
-                                  i18n="@@bank_programs.rate_basis.flat"
-                                  >On the full amount</span
-                                >
-                                <span
-                                  class="rate-basis-note"
-                                  i18n="@@bank_programs.rate_basis.flat_note"
-                                  >Flat. The same interest every month, so this rate buys the
-                                  customer a smaller loan.</span
-                                >
-                              </span>
-                            </label>
-                          </div>
-                        </nz-form-control>
-                      </nz-form-item>
+                      <!-- HOW THE INTEREST IS CHARGED is not asked. Every programme on the
+                     platform is priced on a declining balance, so the radio pair asked an
+                     operator a question with one answer. The rateBasis control stays in the
+                     form at its 'reducing' default and is still sent, so a stored row keeps
+                     what it says and the server reads the same basis (rate-basis.ts). -->
                       <!-- The RESET RULE goes with the figure it resets. A table-priced
                          programme has no flat rate for the CBE to move, and the disclosure
                          note is about that figure — leaving the switch on screen would offer
-                         to make a price variable that is not this programme's price.
-
-                         The BASIS above does NOT go with it, and that is the line between the
-                         two: a table states a percentage and says nothing about how it is
-                         charged, and the same rate buys 22-29% less loan flat than declining.
-                         Dropping the radios would pin every table-priced programme to the
-                         declining annuity by silence (rate-basis.ts). -->
+                         to make a price variable that is not this programme's price. -->
                       @if (!ratePricedByTable()) {
                         <nz-form-item class="span-2">
                           <label
@@ -1559,27 +1613,90 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     </div>
                   }
 
-                  <!-- THE TABLES that can override the figure above. Introduced by a line
-                       rather than a second card heading: they answer the same question — what
-                       does this programme charge — one level more specific. -->
-                  <p class="field-hint is-read" i18n="@@bank_programs.section.tiered_rates_sub">
-                    Bigger loans often price differently. Each band covers a range of loan amounts
-                    and carries its own rate.
-                  </p>
-                  <label
-                    nz-checkbox
-                    [nzChecked]="toggles.tieredRates()"
-                    (nzCheckedChange)="setToggle('tieredRates', $event)"
-                    i18n="@@bank_programs.toggle.tiered_rates"
-                    >Charge a different rate per loan-amount band</label
-                  >
+                  <!-- A RATE PER LOAN-AMOUNT BAND is not offered. No programme prices by it, so
+                       the switch is not on screen. A programme that already holds bands still
+                       opens with them (autodetectToggles turns the toggle on), so the band
+                       editor below keeps showing them and they are still saved. -->
 
                   <!-- WHOSE PLAN TABLES. Three states, and two would be a lie: a program
                        reading the product's tables is not one with "no table yet", it is one
                        priced by a card stated somewhere else. The inheriting state renders as
                        a STATEMENT with a verb and no inputs at all — never disabled ones,
                        which drop a control out of group validity. -->
-                  @if (plansInheritable()) {
+                  <!-- PLANS BY DEPOSIT — the product's own card, drawn here with the product's
+                       figures as this bank's defaults. The bank edits them in place: the first
+                       change takes a copy and stops following the product; "Back to the
+                       product's plans" follows again. Replaces the statement-and-button card
+                       below, which showed a count of tables and none of their figures. -->
+                  @if (planCardShown()) {
+                    <div class="plan-card">
+                      <h3 class="dbr-bands-title" i18n="@@bank_programs.plans.card_title">
+                        Plans by deposit
+                      </h3>
+                      <p class="tenor-inherited-value">
+                        @if (plansInherits()) {
+                          <span class="tag" i18n="@@bank_programs.plans.from_product"
+                            >The product's plans apply</span
+                          >
+                        } @else {
+                          <span class="tag" i18n="@@bank_programs.plans.own_tag"
+                            >This bank's own plans</span
+                          >
+                        }
+                      </p>
+                      <p class="tenor-inherited-note">
+                        @if (plansInherits()) {
+                          <span i18n="@@bank_programs.plans.card_note_inherited"
+                            >These are the product's figures. Change any of them and this bank gets
+                            its own copy — the product and the other banks on it stay as they
+                            are.</span
+                          >
+                        } @else {
+                          <span i18n="@@bank_programs.plans.card_note_own"
+                            >This bank prices, lends and finances on the figures below. Changing the
+                            product no longer moves them.</span
+                          >
+                        }
+                      </p>
+                      <app-plan-rows-editor
+                        [grids]="planCardGrids()"
+                        [facts]="incomeFacts()"
+                        (gridsChange)="onPlanCardGrids($event)"
+                        (removeRequest)="onPlanCardGrids($event.next)"
+                      />
+                      @if (planCardError()) {
+                        <p class="field-error" role="alert" i18n="@@bank_programs.plans.card_error">
+                          A row of this bank's plans is not finished — fill it in, or remove the
+                          row.
+                        </p>
+                      }
+                      <div class="plans-verbs">
+                        @if (plansInherits()) {
+                          <button
+                            nz-button
+                            nzType="link"
+                            nzSize="small"
+                            type="button"
+                            (click)="stateNoPlans()"
+                            i18n="@@bank_programs.plans.state_none"
+                          >
+                            This bank states no plans
+                          </button>
+                        } @else {
+                          <button
+                            nz-button
+                            nzType="link"
+                            nzSize="small"
+                            type="button"
+                            (click)="backToProductPlans()"
+                            i18n="@@bank_programs.plans.back_to_product"
+                          >
+                            Back to the product's plans
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  } @else if (plansInheritable()) {
                     @if (plansInherits()) {
                       <div class="tenor-inherited">
                         <p class="tenor-inherited-value" id="plans-from-product">
@@ -1657,7 +1774,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                        third question nobody asked for. The grid outranks every other rate
                        setting when it matches, which the hint says outright rather than
                        leaving an operator to discover it from a quote. -->
-                  @if (!plansInherits()) {
+                  @if (!plansInherits() && !planCardShown()) {
                     <label
                       nz-checkbox
                       [nzChecked]="toggles.rateGrid()"
@@ -1666,7 +1783,10 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                       >Price this program from a table of the customer's answers</label
                     >
                   }
-                  @if (!plansInherits() && toggles.rateGrid() && rateByFact(); as grid) {
+                  @if (
+                    !plansInherits() && !planCardShown() && toggles.rateGrid() && rateByFact();
+                    as grid
+                  ) {
                     <p class="field-hint" i18n="@@bank_programs.rate_grid.hint">
                       When a row matches, this table sets the rate and every other rate setting on
                       this card is ignored.
@@ -1957,7 +2077,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                      under 50%, and a number in code would be wrong for one of them. Hidden
                      while this bank reads the product's plans: the table it would edit is
                      not this bank's to change. -->
-                @if (financesAnAsset() && !plansInherits()) {
+                @if (financesAnAsset() && !plansInherits() && !planCardShown()) {
                   <div class="fees-cover">
                     <label
                       nz-checkbox
@@ -2736,6 +2856,30 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
       /* Two verbs on one row, wrapping rather than shrinking: they are peers of different
          weights — one takes a copy to edit, one declines the whole card — and a link beside a
          button is what says that without a second heading. */
+      /* The plan card: the product screen's table, with whose figures they are said above it. */
+      .plan-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-inline-size: 0;
+      }
+      .plan-card .tag {
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-muted);
+        font-size: var(--text-xs);
+        font-weight: var(--font-medium);
+        color: var(--color-text-secondary);
+      }
+
+      /* The second question under the product picker: which of its names. */
+      .filed-under-label {
+        display: block;
+        margin-block: var(--space-3) var(--space-1);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+
       .plans-verbs {
         display: flex;
         flex-wrap: wrap;
@@ -3504,65 +3648,6 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
       .rate-group {
         max-inline-size: 11rem;
       }
-      /* Two peers, side by side: the choice is between two descriptions of one rate, and
-         stacking them puts the second under the fold of a long form. Each carries its own
-         consequence line, because "flat" and "declining" are the two words an operator is
-         most likely to read past. */
-      .rate-basis {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-        gap: var(--space-3);
-        max-inline-size: 42rem;
-      }
-      .rate-basis-opt {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        padding: var(--space-3);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-field);
-        background: var(--color-surface-default);
-        cursor: pointer;
-        transition:
-          border-color var(--motion-fast) var(--ease-standard),
-          background var(--motion-fast) var(--ease-standard);
-      }
-      .rate-basis-opt:hover {
-        border-color: var(--color-accent-strong);
-      }
-      .rate-basis-opt:has(input:checked) {
-        border-color: var(--color-accent-strong);
-        background: var(--color-accent-subtle);
-      }
-      /* The ring goes on the label, not the 13px dot: the label IS the target. */
-      .rate-basis-opt:has(input:focus-visible) {
-        outline: 2px solid var(--color-accent-strong);
-        outline-offset: 2px;
-      }
-      .rate-basis-opt input {
-        margin-block-start: 0.15rem;
-        accent-color: var(--color-accent-strong);
-      }
-      .rate-basis-body {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-      }
-      .rate-basis-title {
-        font-weight: 600;
-        color: var(--color-text-primary);
-      }
-      /* Secondary, not tertiary: this is a sentence somebody has to read to choose. */
-      .rate-basis-note {
-        font-size: 0.8125rem;
-        line-height: 1.45;
-        color: var(--color-text-secondary);
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .rate-basis-opt {
-          transition: none;
-        }
-      }
       nz-input-number.num-field {
         inline-size: 9rem;
       }
@@ -4247,6 +4332,9 @@ export class BankProgramFormPage implements OnInit {
     // server. It is the one grid on this card that changes no figure, and it still must
     // block — a disclosure saved broken is a disclosure that never appears.
     if (id === 'money' && this.carInsuranceGridError() !== null) out.push('carInsuranceGrid');
+    // The plan card, for the same reason as the two grids above: six tables in signals, so a
+    // half-typed row walks past Continue and comes back FACT_GRID_INVALID from the server.
+    if (id === 'money' && this.planCardError()) out.push('planCard');
     // The DURATION, which is a verdict and not a control error for one reason: blank is legal
     // exactly when a surrogate product stands behind the program's name, and that answer
     // lives in a response the control cannot see. Without this the step would report every
@@ -4441,6 +4529,8 @@ export class BankProgramFormPage implements OnInit {
           return $localize`:@@bank_programs.step.issue_vehicle_grid:The table of shorter terms for some cars needs fixing before you continue — see the message under it.`;
         case 'carInsuranceGrid':
           return $localize`:@@bank_programs.step.issue_car_insurance_grid:The car-insurance table needs fixing before you continue — see the message under it.`;
+        case 'planCard':
+          return $localize`:@@bank_programs.step.issue_plan_card:A row of this bank's plans is not finished — fill it in, or remove the row.`;
         case 'tenor':
           return $localize`:@@bank_programs.step.issue_tenor:Say how long this bank lends for — both months, or neither if it follows the product's duration.`;
         case 'loanAmounts':
@@ -5153,7 +5243,6 @@ export class BankProgramFormPage implements OnInit {
 
   protected readonly incomeStepAria = $localize`:@@bank_programs.income.aria:How the bank reads the income`;
   /** Named for a screen reader, which has no card heading in view when it reaches the pair. */
-  protected readonly rateBasisAria = $localize`:@@bank_programs.rate_basis.aria:How the interest is charged`;
 
   /**
    * What the answer COMMITS the operator to, said on the card before it is picked.
@@ -5661,6 +5750,7 @@ export class BankProgramFormPage implements OnInit {
     this.form.controls.identity.controls.programNameKey.setValue(previous ?? '', {
       emitEvent: false,
     });
+    this.resyncProductPicker(previous);
   }
 
   /**
@@ -5940,6 +6030,16 @@ export class BankProgramFormPage implements OnInit {
                 },
               ]
             : []),
+          // Every program type, like the editor it reads back: blank is a real answer
+          // (every score at 100%), and a table followed off the product is said to be one.
+          {
+            label: $localize`:@@bank_programs.review.iscore:I-Score tiers`,
+            value: this.iScoreInherits()
+              ? $localize`:@@bank_programs.review.iscore_product:The product's · ${this.productIScoreTiers().length}:count: tiers`
+              : this.iScoreTiers().length > 0
+                ? $localize`:@@bank_programs.review.iscore_own:${this.iScoreTiers().length}:count: tiers`
+                : $localize`:@@bank_programs.review.iscore_none:None — every score counts at 100%`,
+          },
         ],
       },
       {
@@ -6454,6 +6554,82 @@ export class BankProgramFormPage implements OnInit {
 
   /** How many tables the product states, for the statement in the inheriting card. */
   readonly productPlanCount = computed<number>(() => Object.keys(this.productPlans() ?? {}).length);
+
+  /**
+   * THIS BANK's six tables as the one object the plan card edits, or `null` when it states none.
+   *
+   * Each grid is read under exactly the condition `payloadFromForm` sends it under — a rate or
+   * cover table whose toggle is off is held but not sent, so the card must not draw it either,
+   * or it would show a figure the save drops.
+   */
+  readonly ownPlans = computed<PlanDefaults | null>(() => {
+    const out: PlanDefaults = {};
+    const rate = this.rateByFact();
+    if (this.toggles.rateGrid() && rate !== null) out.rateByFact = rate;
+    const maxMonths = this.maxMonthsByFact();
+    if (this.toggles.vehicleGrid() && maxMonths !== null) out.maxMonthsByFact = maxMonths;
+    const cover = this.carInsuranceRateByFact();
+    if (this.toggles.carInsuranceGrid() && cover !== null) out.carInsuranceRateByFact = cover;
+    const ltv = this.ltvCeilingByFact();
+    if (ltv !== null) out.ltvCeilingByFact = ltv;
+    const minAmount = this.minAmountByFact();
+    if (minAmount !== null) out.minAmountByFact = minAmount;
+    const minMonths = this.minMonthsByFact();
+    if (minMonths !== null) out.minMonthsByFact = minMonths;
+    return Object.keys(out).length > 0 ? out : null;
+  });
+
+  /**
+   * What the plan card draws: the product's tables while this bank reads them, its own after.
+   *
+   * The same card in both states, so the product's figures ARE the defaults the bank sees and
+   * edits in place — the first change takes a copy (`onPlanCardGrids`), exactly what "Set this
+   * bank's own plans" did, without a button between the operator and the figure.
+   */
+  readonly planCardGrids = computed<PlanDefaults | null>(() =>
+    this.plansInherits() ? this.productPlans() : this.ownPlans(),
+  );
+
+  /**
+   * Is the plan card on screen? Only under a product that states plans, and only while the
+   * tables can be drawn as one card. Otherwise the per-table editors below stand, as before —
+   * a program under no such product, or one that stated no plans, sees no change.
+   */
+  readonly planCardShown = computed<boolean>(
+    () => this.plansInheritable() && planRowsFrom(this.planCardGrids()) !== null,
+  );
+
+  /** A half-typed row in this bank's own plans. The product's are checked on its own screen. */
+  readonly planCardError = computed<boolean>(
+    () =>
+      this.planCardShown() && !this.plansInherits() && planRowsErrorFor(this.ownPlans()) !== null,
+  );
+
+  /**
+   * The plan card wrote something back — a figure, a band, a case, or a removal.
+   *
+   * While this bank reads the product's plans, the first change is where it takes its own
+   * copy: cloned whole, because the editor's writers hand back the product's untouched grids
+   * by reference, and the next keystroke would otherwise edit the catalog copy this program
+   * is departing from. No confirm on a removal: nothing is saved until Save, and "Back to the
+   * product's plans" undoes the lot.
+   */
+  onPlanCardGrids(next: PlanDefaults | null): void {
+    if (next === this.planCardGrids()) return;
+    const plans = next === null ? null : structuredClone(next);
+    this.rateByFact.set(plans?.rateByFact ?? null);
+    this.maxMonthsByFact.set(plans?.maxMonthsByFact ?? null);
+    this.carInsuranceRateByFact.set(plans?.carInsuranceRateByFact ?? null);
+    this.ltvCeilingByFact.set(plans?.ltvCeilingByFact ?? null);
+    this.minAmountByFact.set(plans?.minAmountByFact ?? null);
+    this.minMonthsByFact.set(plans?.minMonthsByFact ?? null);
+    // The toggles follow the tables, or a table the card shows is one the save drops.
+    this.toggles.rateGrid.set(this.rateByFact() !== null);
+    this.toggles.vehicleGrid.set(this.maxMonthsByFact() !== null);
+    this.toggles.carInsuranceGrid.set(this.carInsuranceRateByFact() !== null);
+    this.plansSource.set('own');
+    this.markPlansDirty();
+  }
 
   /**
    * Take the product's tables as this bank's own — a COPY, exactly as `stateOwnTenor` is.
@@ -7070,6 +7246,50 @@ export class BankProgramFormPage implements OnInit {
    */
   private readonly programNameMembers = this.enums.membersFor('program_name');
 
+  private readonly bankNameSignal = toSignal(
+    this.form.controls.identity.controls.bankName.valueChanges,
+    { initialValue: this.form.controls.identity.controls.bankName.value },
+  );
+
+  /**
+   * The names this bank already sells in the picked loan type, each with the program that holds
+   * it. The API allows ONE program per name per loan type per bank
+   * (`BANK_PROGRAM_NAME_TAKEN`), so a taken name is listed but cannot be picked — the list says
+   * why instead of the save failing on the last step. The program being edited never counts
+   * against its own name.
+   */
+  private readonly takenNames = signal<ReadonlyMap<string, string>>(new Map());
+  private takenNamesRequest = 0;
+
+  private async loadTakenNames(bankName: string, category: string): Promise<void> {
+    const request = ++this.takenNamesRequest;
+    if (!bankName || !isLoanCategory(category)) {
+      this.takenNames.set(new Map());
+      return;
+    }
+    try {
+      const res = await this.api.list({ bankName, productCategory: category, pageSize: 100 });
+      if (request !== this.takenNamesRequest) return;
+      const own = this.editProgramCode();
+      const taken = new Map<string, string>();
+      for (const row of res.data) {
+        if (row.programNameKey && row.programCode !== own) {
+          taken.set(row.programNameKey, row.programCode);
+        }
+      }
+      this.takenNames.set(taken);
+    } catch {
+      // The API still refuses the duplicate; the list just cannot say so in advance.
+      if (request === this.takenNamesRequest) this.takenNames.set(new Map());
+    }
+  }
+
+  private readonly takenSuffix = $localize`:@@bank_programs.field.name_taken: — already added for this bank`;
+
+  private isTaken(key: string): boolean {
+    return this.takenNames().has(key);
+  }
+
   /**
    * The labels of the name picked LAST, so a re-pick can tell "still following the catalog"
    * from "the bank worded this itself".
@@ -7146,6 +7366,35 @@ export class BankProgramFormPage implements OnInit {
     return bases[0] === basis;
   }
 
+  /**
+   * A no-payslip name with no calculation behind it is not offered here.
+   *
+   * The catalog's no-payslip panel lists CALCULATIONS (surrogate products), each with the names
+   * that sell it, and this picker now says the same thing: under "no payslip" an operator picks
+   * a name that quotes off one of those products. The older names that state a hand-wired rule
+   * of their own (doctor, pharmacy, ...) are parked in the catalog's own "not linked" group and
+   * are not what a new programme is built on, so they are left out of the list — including the
+   * "show the rest" escape. A programme already saved under one keeps it (the current-value
+   * row in programNameOptions).
+   */
+  private isUnlinkedNoPayslip(m: EnumerationMember): boolean {
+    return m.surrogateProductKey == null && this.basisOfName(m.key) === 'no_payslip';
+  }
+
+  /** The one basis the catalog files this name under for the picked loan type, if settled. */
+  private basisOfName(key: string): IncomeBasis | null {
+    const cat = this.productCategorySignal();
+    if (!isLoanCategory(cat)) return null;
+    const bases = this.programNameMembers().find((m) => m.key === key)?.incomeBases?.[cat];
+    return bases && bases.length === 1 ? (bases[0] ?? null) : null;
+  }
+
+  /** Surrogate products by key, for the group headings. */
+  private readonly surrogateProductMembers = this.enums.membersFor('surrogate_product');
+  private readonly surrogateProductsByKey = computed(
+    () => new Map(this.surrogateProductMembers().map((p) => [p.key, p] as const)),
+  );
+
   /** The operator asked to see past the basis filter. Reset whenever the answer changes. */
   private readonly showAllNamesSignal = signal(false);
   protected readonly showAllNames = this.showAllNamesSignal.asReadonly();
@@ -7165,8 +7414,22 @@ export class BankProgramFormPage implements OnInit {
   protected readonly namesHiddenByBasis = computed(() => {
     const basis = this.basisAnswered();
     if (!basis) return 0;
-    return this.namesForCategory().filter((m) => !this.matchesBasis(m.key, basis)).length;
+    return this.offeredNames().filter((m) => !this.shownByDefault(m, basis)).length;
   });
+
+  /** Every name this loan type can offer here — the unlinked no-payslip ones never are. */
+  private readonly offeredNames = computed(() =>
+    this.namesForCategory().filter((m) => !this.isUnlinkedNoPayslip(m)),
+  );
+
+  /**
+   * In the list before "show the rest" is pressed: filed under the answered basis, and — under
+   * no payslip — linked to the calculation it quotes from.
+   */
+  private shownByDefault(m: EnumerationMember, basis: IncomeBasis): boolean {
+    if (!this.matchesBasis(m.key, basis)) return false;
+    return basis !== 'no_payslip' || m.surrogateProductKey != null;
+  }
 
   /**
    * Program-name options, sourced from the live `program_name` registry
@@ -7196,13 +7459,19 @@ export class BankProgramFormPage implements OnInit {
   readonly programNameOptions = computed(() => {
     const basis = this.basisAnswered();
     if (!basis) return [];
-    const byBasis = this.showAllNames()
-      ? this.namesForCategory()
-      : this.namesForCategory().filter((m) => this.matchesBasis(m.key, basis));
-    const opts = byBasis.map((m) => ({
-      value: m.key,
-      label: this.localeIsAr ? m.labelAr : m.labelEn,
-    }));
+    const names = this.showAllNames()
+      ? this.offeredNames()
+      : this.offeredNames().filter((m) => this.shownByDefault(m, basis));
+    const opts = names.map((m) => {
+      const taken = this.isTaken(m.key);
+      const label = this.localeIsAr ? m.labelAr : m.labelEn;
+      return {
+        value: m.key,
+        label: taken ? label + this.takenSuffix : label,
+        productKey: m.surrogateProductKey ?? null,
+        taken,
+      };
+    });
 
     const current = this.programNameKeySignal();
     if (current && !opts.some((o) => o.value === current)) {
@@ -7210,9 +7479,36 @@ export class BankProgramFormPage implements OnInit {
       opts.unshift({
         value: current,
         label: known ? (this.localeIsAr ? known.labelAr : known.labelEn) : current,
+        productKey: known?.surrogateProductKey ?? null,
+        taken: false,
       });
     }
     return opts;
+  });
+
+  /**
+   * The same options, shaped as the catalog shapes them under no payslip: one group per
+   * calculation, headed by the product's name, with the names that sell it inside. A name with
+   * no product (a payslip one reached through "show the rest", or a legacy current value) is
+   * listed ungrouped ahead of the groups. Under payslip there is nothing to group by.
+   */
+  protected readonly programNameGroups = computed(() => {
+    const opts = this.programNameOptions();
+    if (this.basisAnswered() !== 'no_payslip') return { loose: opts, groups: [] };
+    const products = this.surrogateProductsByKey();
+    const loose = opts.filter((o) => o.productKey === null);
+    const byProduct = new Map<string, typeof opts>();
+    for (const o of opts) {
+      if (o.productKey === null) continue;
+      byProduct.set(o.productKey, [...(byProduct.get(o.productKey) ?? []), o]);
+    }
+    const groups = [...byProduct].map(([key, options]) => {
+      const p = products.get(key);
+      const label = p ? (this.localeIsAr ? p.labelAr : p.labelEn) : key;
+      const taken = options.every((o) => o.taken);
+      return { key, label: taken ? label + this.takenSuffix : label, options, taken };
+    });
+    return { loose, groups };
   });
 
   /**
@@ -7314,6 +7610,79 @@ export class BankProgramFormPage implements OnInit {
    * unanswered it names the question that unlocks it, instead of inviting a pick the
    * disabled control will not accept.
    */
+  /**
+   * The PRODUCT picker, shown in place of the name picker under no payslip.
+   *
+   * Its own control and not part of the form: the form stores the NAME, and this is a view of
+   * which product that name belongs to. `p:<product>` for a product, `n:<name>` for a name no
+   * product stands behind (a payslip name reached through "show the rest", or a legacy value),
+   * which is listed on its own exactly as the grouped picker listed it ungrouped.
+   */
+  protected readonly productPicker = new FormControl<string | null>(null);
+  protected readonly productPlaceholder = $localize`:@@bank_programs.field.product_placeholder:Select a product`;
+
+  /** Which picker entry a name belongs to. */
+  private productPickerFor(key: string | null | undefined): string | null {
+    if (!key) return null;
+    const group = this.programNameGroups().groups.find((g) =>
+      g.options.some((o) => o.value === key),
+    );
+    return group ? `p:${group.key}` : `n:${key}`;
+  }
+
+  /**
+   * Repaint the product picker from the stored name. Called by the effect below on every name
+   * change, and by `restoreName` — a cancelled re-pick puts the name back WITHOUT emitting, so
+   * the signal the effect reads never moves and the picker would go on showing the product
+   * the operator backed out of.
+   */
+  private resyncProductPicker(key: string | null | undefined): void {
+    this.productPicker.setValue(this.productPickerFor(key), { emitEvent: false });
+  }
+
+  /** The names that sell the picked product — one is filed under automatically. */
+  protected readonly pickedProductNames = computed(() => {
+    const key = this.programNameKeySignal();
+    const entry = this.productPickerFor(key);
+    if (!entry?.startsWith('p:')) return [];
+    return this.programNameGroups().groups.find((g) => `p:${g.key}` === entry)?.options ?? [];
+  });
+
+  /** Required, said on the product picker: the name control it stands for is not on screen. */
+  protected productPickerStatus(): 'error' | '' {
+    if (this.basisAnswered() !== 'no_payslip') return '';
+    const control = this.form.controls.identity.controls.programNameKey;
+    return control.touched && control.invalid ? 'error' : '';
+  }
+
+  /**
+   * A product was picked: file the program under one of its names. The name it is already
+   * under stays when it belongs to the product; otherwise the first. Setting the name runs the
+   * whole name-change flow — the confirm, the bank's own name, the re-read of the rule — so
+   * nothing about a pick is decided twice.
+   */
+  private onProductPicked(entry: string | null): void {
+    const control = this.form.controls.identity.controls.programNameKey;
+    control.markAsTouched();
+    if (!entry) {
+      control.setValue('');
+      control.markAsDirty();
+      return;
+    }
+    if (entry.startsWith('n:')) {
+      control.setValue(entry.slice(2));
+      control.markAsDirty();
+      return;
+    }
+    const names =
+      this.programNameGroups().groups.find((g) => `p:${g.key}` === entry)?.options ?? [];
+    if (names.some((o) => o.value === control.value)) return;
+    const first = names.find((o) => !o.taken);
+    if (!first) return;
+    control.setValue(first.value);
+    control.markAsDirty();
+  }
+
   protected readonly namePlaceholder = computed(() =>
     this.basisAnswered()
       ? $localize`:@@bank_programs.field.friendly_name.placeholder:Select a program`
@@ -7321,6 +7690,17 @@ export class BankProgramFormPage implements OnInit {
   );
 
   constructor() {
+    // The product picker follows the stored name (an edit load, a re-pick, the list arriving),
+    // and a pick on it files the program under that product's name.
+    effect(() => this.resyncProductPicker(this.programNameKeySignal()));
+    effect(() => {
+      const bankName = this.bankNameSignal();
+      const category = this.productCategorySignal() ?? '';
+      untracked(() => void this.loadTakenNames(bankName, category));
+    });
+    this.productPicker.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((entry) => this.onProductPicked(entry));
     // Bank picker valueChanges → mirror into identity.bankName.
     // Guard inside onBankPicked prevents setValue recursion.
     this.bankIdControl.valueChanges
@@ -7471,7 +7851,6 @@ export class BankProgramFormPage implements OnInit {
       'employment_type',
       'property_type',
       'required_document',
-      'program_name',
       // The fact registry. Preloaded HERE and not left to the income-assumption
       // section, which is the only other host that asks for it: that section renders
       // on step 5, and the max-loan cap table on step 3 reads the same registry — so
@@ -7480,6 +7859,12 @@ export class BankProgramFormPage implements OnInit {
       // named. The detail page already preloads it for the same reason.
       'surrogate_fact',
     ]);
+    // Re-fetched on every visit, never served from the cache: the enumeration service is a
+    // root singleton, so a name created or linked on Program catalog in the same session
+    // (e.g. a new name under a no-payslip product) was missing from the picker until a
+    // full page reload. The calculations ride along for the picker's group headings.
+    void this.enums.refresh('program_name');
+    void this.enums.refresh('surrogate_product');
 
     void this.loadActiveBanks();
 

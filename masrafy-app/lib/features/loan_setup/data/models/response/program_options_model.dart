@@ -72,25 +72,39 @@ class ProgramNameOptionModel {
     required this.labelEn,
     required this.labelAr,
     required this.programCount,
+    this.productLabelEn,
+    this.productLabelAr,
   });
 
-  factory ProgramNameOptionModel.fromJson(Map<String, dynamic> json) =>
-      ProgramNameOptionModel(
-        key: json['key'] as String? ?? '',
-        labelEn: json['labelEn'] as String? ?? '',
-        labelAr: json['labelAr'] as String? ?? '',
-        programCount: (json['programCount'] as num?)?.toInt() ?? 0,
-      );
+  factory ProgramNameOptionModel.fromJson(Map<String, dynamic> json) {
+    final product = json['surrogateProduct'];
+    final productJson = product is Map<String, dynamic> ? product : null;
+    return ProgramNameOptionModel(
+      key: json['key'] as String? ?? '',
+      labelEn: json['labelEn'] as String? ?? '',
+      labelAr: json['labelAr'] as String? ?? '',
+      programCount: (json['programCount'] as num?)?.toInt() ?? 0,
+      productLabelEn: productJson?['labelEn'] as String?,
+      productLabelAr: productJson?['labelAr'] as String?,
+    );
+  }
 
   final String key;
   final String labelEn;
   final String labelAr;
   final int programCount;
 
+  /// The no-payslip product this name quotes from; null under payslip, or from
+  /// a backend that predates the field.
+  final String? productLabelEn;
+  final String? productLabelAr;
+
   ProgramNameOptionEntity toEntity() => ProgramNameOptionEntity(
         key: key,
         labelEn: labelEn,
         labelAr: labelAr,
         programCount: programCount,
+        productLabelEn: productLabelEn,
+        productLabelAr: productLabelAr,
       );
 }

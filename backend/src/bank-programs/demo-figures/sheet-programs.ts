@@ -48,7 +48,6 @@ const ABK = 'ABK Egypt';
 const EGB = 'EG Bank';
 const FAB = 'FABMISR';
 const CAE = 'Crédit Agricole Egypt';
-const SCB = 'Suez Canal Bank';
 
 /** Nothing extra is required of the applicant unless a sheet says so. */
 const NO_REQUIREMENTS = {
@@ -386,29 +385,6 @@ const ABK_PROFESSOR_RANKS = [
 ];
 const percent = (value: string) => ({ scalar: { value, unit: 'percent' as const } });
 const times = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
-/**
- * The number a savings sheet divides by — "36 months of saving, at 10% of income" is 3.6.
- *
- * `unit: 'multiplier'` because the union has two members and this is the one that means "a
- * plain number, not a percentage"; the unit is inert at runtime and the `divide` op is what
- * says the arithmetic (see `product-rule.ts`).
- */
-const divisor = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
-
-/**
- * The two self-employed conditions every Suez Canal auto sheet prints, switched ON.
- *
- * A choice condition applies exactly when the bank states `applies: true` — a gate nobody
- * turned on does not apply — so this pair is what turns "24 months in business, and a valid
- * commercial register and tax card" from a line in `notes` into a refusal the customer is
- * actually told about. Both allow-list the exempting answer, so a SALARIED applicant (whom
- * every one of these programmes accepts) passes in one tap rather than being refused for
- * failing to answer a question about a business they do not have.
- */
-const SCB_SELF_EMPLOYED_GATES = {
-  cond__businessoldenough: { applies: true },
-  cond__selfemployedpapers: { applies: true },
-};
 
 function banded(
   edges: ReadonlyArray<{ fromInclusive: string; toExclusive: string | null }>,
@@ -422,23 +398,6 @@ function banded(
     }),
   };
 }
-
-/**
- * Suez Canal's own divisors: "36 months of saving, and the saving is 10% of income" is 3.6,
- * and the cash buyer's "60 months at 20%" is 12. The sheet prints the first one as
- * `income = down payment ÷ 3.6`, so these are transcriptions, not derivations.
- */
-const SCB_DP_DIVISOR = '3.6';
-const SCB_CASH_DIVISOR = '12';
-
-/** No slide states a rate, a fee or a basis. Placeholders, and every one is marked below. */
-const SCB_RATE = '24';
-const SCB_ADMIN_FEE = '1';
-const SCB_ESTIMATED: EstimatedPaths = [
-  'pricing.baseRatePercent',
-  'pricing.rateByTransferType.none.value',
-  ...ESTIMATED_FEES,
-];
 
 /**
  * Crédit Agricole's auto card — the figures its own product guides print, and the one
@@ -526,36 +485,6 @@ const CAE_MAX_LOAN_BY_ORIGIN = {
  * a migration bought for nothing.
  */
 const CAE_AUTO_DOCUMENTS = ['national_id', 'proforma_invoice', 'car_insurance_policy'];
-
-/** App. §4.5 pre-approval, less the two the platform has no key for (application form, BOD declaration). */
-const SCB_DP_DOCUMENTS = ['national_id', 'price_quotation', 'down_payment_receipt'];
-/**
- * The list the ONE merged down-payment programme carries, insurance included.
- *
- * App. §4.2 prints insurance per tier and says three different things: N/A at 60/50/40,
- * REQUIRED at 20, and NOTHING AT ALL at 30. While the five tiers were five programmes the
- * silent one was left on the shared list rather than guessed either way, and the 20% tier
- * carried cover on its own.
- *
- * MERGED, THAT DISTINCTION IS NOT EXPRESSIBLE. `requiredDocuments` is one array per
- * programme with no way to key it by the deposit — unlike the rate, the term, the share and
- * the floor, which all moved onto the plan table. So it is demanded of everyone, which
- * over-demands it of four tiers out of five. The alternative is dropping it, and the original
- * reasoning decides between them: a document demanded of an applicant whose bank never asked
- * for it is a refusal at the branch, and one quietly dropped is a loan that cannot complete.
- * The over-demand is the lesser, and the programme's notes say so out loud.
- *
- * The REQUIREMENT only. Insurance as a cost is not modelled: no sheet in the reference prints
- * a premium, and a made-up figure would be financed into an immutable offer (Principle I/A6).
- */
-const SCB_DP20_DOCUMENTS = [...SCB_DP_DOCUMENTS, 'car_insurance_policy'];
-/** App. §5.4 — the ownership contract is what proves the unit, the invoice what proves the goods. */
-const SCB_GREEN_DOCUMENTS = [
-  'national_id',
-  'home_ownership_contract',
-  'proforma_invoice',
-  'price_quotation',
-];
 
 export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
   // -------------------------------------------------------------------------
@@ -1297,172 +1226,6 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       ],
     },
     estimated: ['pricing.baseRatePercent', 'fees.adminFeePercent'],
-  }),
-
-  // -------------------------------------------------------------------------
-  // Suez Canal Bank — the unsecured auto programmes and Green Finance
-  //
-  // Three programmes off two mechanisms. The down-payment card is ONE programme reading the
-  // product's five PLANS: the same `income = down payment ÷ 3.6`, and what separates the
-  // tiers — the share of the car's price the bank finances (60% down → 40% financed), the
-  // longest term, the floor and the 20% tier's home-ownership rule — is stated once on the
-  // product, keyed by the deposit the applicant types. It was five programmes until the plan
-  // tables existed, because a programme was the only thing that could carry a different
-  // share. Green Finance is the same arithmetic over what the applicant has SAVED, with a
-  // second column for a cash buyer.
-  //
-  // No rate is published on any of these slides, so the rate and the admin fee below are the
-  // team's placeholders and every one of them is marked an estimate.
-  // -------------------------------------------------------------------------
-  program({
-    programCode: 'SCB-CAR-DOWN_PAYMENT',
-    friendlyName: 'Auto Loan — Down Payment as Income',
-    friendlyNameAr: 'قرض سيارة — الدفعة المقدمة كدخل',
-    programNameKey: 'auto_down_payment_income',
-    sheet: 'App. §4 — Suez Canal unsecured auto, all five down-payment tiers',
-    notes: [
-      'ONE programme, five plans. The sheet prints five down-payment tiers that differ only ' +
-        'in the share financed, the longest term and — on the 20% tier alone — the floor and ' +
-        'the home-ownership condition. All five now live in the product\u2019s plan tables, ' +
-        'keyed by the deposit the applicant states, so the customer is quoted the tier their ' +
-        'own deposit lands in rather than five cards to choose between.',
-      'Comprehensive car insurance is required on the 20% tier and on no other (App. §4.2). ' +
-        'A required-document list is one array per programme with no way to key it by the ' +
-        'deposit, so it is demanded of everyone here. That over-demands it of four tiers out ' +
-        'of five, and the alternative — dropping it — is a 20% loan that cannot complete at ' +
-        'the branch. The over-demand is the lesser of the two and this note is the record of ' +
-        'the choice.',
-      'Ban on sale until the loan is settled applies at 50/40/30/20% down and NOT at 60% ' +
-        '(App. §4.2). No field expresses it at any tier, and merged it cannot be stated per ' +
-        'tier at all — recorded here.',
-      'The 12-month service requirement is waived at 40% and 50% down when the I-Score shows ' +
-        'regular repayment over the last six months. No field expresses a conditional ' +
-        'waiver — recorded here.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid ' +
-        'commercial register and tax card. Both are asked and enforced as conditions — each ' +
-        'carries an "I do not run a business" answer, so a salaried applicant, whom this ' +
-        'programme also accepts, passes rather than being refused for not answering.',
-      'The home address must match the National ID and the I-Score, or the National ID and ' +
-        'the driving licence; otherwise a utility bill no older than three months or an ' +
-        'external verification is required. Not enforced — recorded here.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are ' +
-        'placeholders the team chose, marked as estimates, and are priced on the reducing ' +
-        'annuity. Every rate in the product\u2019s plan table is an estimate for the same ' +
-        'reason.',
-    ],
-    minAmountEGP: '100000',
-    maxAmountEGP: '5000000',
-    // THE FALLBACK SHARE, and it is not decoration. `ltvCeilingFor` answers `null` when no
-    // scalar is stored, and `null` is NO CLAMP AT ALL — so a build that cannot read the plan
-    // table must still find a number here or it would finance the whole car. 40% is the
-    // lowest tier the sheet prints, so the fallback under-quotes rather than over-quotes.
-    ltvCeilingPercent: '40',
-    bankName: SCB,
-    programType: 'income_surrogate',
-    productCategory: 'car',
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`), and the
-    // plan table shortens it per tier.
-    //
-    // And no plan tables of its own either — it reads the product's, which is the mechanism
-    // demonstrating itself: five tiers stated once, on the screen an operator edits.
-    plansSource: 'product',
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 21,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '6000',
-    minMonthlyIncomeSelfEmployedEGP: '15000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    wayId: 'primary',
-    // `cond__homeowned` is deliberately ABSENT, where the 20% tier carried it. A condition
-    // applies per PROGRAMME and not per deposit, so switched on here it would refuse a renter
-    // putting 60% down — whom this bank accepts. The rule moved onto the axis it was always
-    // about: the product's financed-share table states rows for an owner and for a relative's
-    // home in the 20-30% band and none for a renter, so the refusal binds in that band alone.
-    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
-    requiredDocuments: SCB_DP20_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
-  }),
-  program({
-    programCode: 'SCB-CAR-GREEN_POWER',
-    friendlyName: 'Green Power Loan',
-    friendlyNameAr: 'قرض الطاقة الخضراء',
-    sheet: 'App. §5 — Suez Canal Green Finance, Green Power Loan',
-    notes: [
-      'Sold to owners of a delivered unit in a pre-approved compound. Now asked and enforced as one condition — the applicant states whether their home is in a finished, bank-approved compound. The compound LIST itself is still not a field, so the answer is the applicant\u2019s word for it rather than a lookup.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
-    ],
-    tenor: { minMonths: 6, maxMonths: 120 },
-    bankName: SCB,
-    programType: 'income_surrogate',
-    productCategory: 'car',
-    programNameKey: 'green_finance_savings',
-    minAmountEGP: '100000',
-    maxAmountEGP: '1000000',
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 25,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '50000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    // The SAVINGS way of the one auto product (`alt`); the five down-payment programmes sell
-    // `primary`. The cash column hangs off this way alone.
-    wayId: 'alt',
-    stepParams: {
-      alt: divisor(SCB_DP_DIVISOR),
-      alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
-      ...SCB_SELF_EMPLOYED_GATES,
-      // Sold only against a delivered unit in a pre-approved compound. On for the Green pair
-      // and nobody else.
-      cond__unitinapprovedcompound: { applies: true },
-    },
-    requiredDocuments: SCB_GREEN_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
-  }),
-  program({
-    programCode: 'SCB-CAR-MICRO_MOBILITY',
-    friendlyName: 'Micro Mobility',
-    friendlyNameAr: 'التنقل الخفيف',
-    sheet: 'App. §5 — Suez Canal Green Finance, Micro Mobility',
-    notes: [
-      'Golf cars, scooters and e-bikes. Sold to owners of a delivered unit in a pre-approved compound — now asked and enforced as one condition. The compound LIST itself is still not a field, so the answer is the applicant\u2019s word for it rather than a lookup.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
-    ],
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
-    bankName: SCB,
-    programType: 'income_surrogate',
-    productCategory: 'car',
-    programNameKey: 'green_finance_savings',
-    minAmountEGP: '100000',
-    maxAmountEGP: '1000000',
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 25,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '50000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    // The SAVINGS way of the one auto product (`alt`); the five down-payment programmes sell
-    // `primary`. The cash column hangs off this way alone.
-    wayId: 'alt',
-    stepParams: {
-      alt: divisor(SCB_DP_DIVISOR),
-      alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
-      ...SCB_SELF_EMPLOYED_GATES,
-      // Sold only against a delivered unit in a pre-approved compound. On for the Green pair
-      // and nobody else.
-      cond__unitinapprovedcompound: { applies: true },
-    },
-    requiredDocuments: SCB_GREEN_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
   }),
 
   // ───────────────────────────────────────────────────────────────────────────

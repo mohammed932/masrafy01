@@ -753,34 +753,14 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
  *
  * The RULE is that a name is offered only under a loan type whose applicants are already
  * asked every question its product reads — a name offered anywhere else is a program that
- * quotes nothing. Everything here was `personal` until the Suez Canal auto sheets arrived;
- * the two entries below are `car`, and they satisfy the same rule (their questions are in the
- * CAR seed config). The comment said `personal` only, which stopped being true with them.
+ * quotes nothing. The two Suez Canal `car` names that sold `down_payment_income` were removed
+ * with their programmes (migration `remove_down_payment_income_programs`); the product stays,
+ * with nothing selling it.
  *
  * `compound_owner_4` is absent on purpose — it already exists, is already no-payslip and is
  * already linked to `compound_owner`, so this seed has nothing to do to it.
  */
 export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
-  {
-    // The two auto names are the only CAR entries here, and they are what a car applicant
-    // picks between: ONE product, quoted off the down payment under this name and off what
-    // they have saved under the Green one.
-    key: 'auto_down_payment_income',
-    labelEn: 'Auto Loan — Down Payment as Income',
-    labelAr: 'قرض سيارة — الدفعة المقدمة كدخل',
-    productKey: 'down_payment_income',
-    categories: [LoanCategory.car],
-  },
-  {
-    // The SAME product as the down-payment name: one calculation, two ways, and the two Green
-    // programmes pick the savings way. Two names because the applicant still chooses what
-    // they are buying — a car against a down payment, or green goods against savings.
-    key: 'green_finance_savings',
-    labelEn: 'Green Finance',
-    labelAr: 'التمويل الأخضر',
-    productKey: 'down_payment_income',
-    categories: [LoanCategory.car],
-  },
   {
     key: 'armed_forces_no_payslip',
     labelEn: 'Armed Forces',

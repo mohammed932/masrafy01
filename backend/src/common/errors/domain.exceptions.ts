@@ -135,6 +135,16 @@ export class ProgramCodeAlreadyInUseException extends DomainException {
   }
 }
 
+export class BankProgramNameTakenException extends DomainException {
+  constructor(meta: {
+    programNameKey: string;
+    productCategory: string;
+    existingProgramCode: string;
+  }) {
+    super(ERROR_CODES.BANK_PROGRAM_NAME_TAKEN, meta);
+  }
+}
+
 export class InvalidVariableRateConfigurationException extends DomainException {
   constructor(field: 'currentEffectiveRate' | 'baseRate', reason: string) {
     super(ERROR_CODES.INVALID_VARIABLE_RATE_CONFIGURATION, { field, reason });

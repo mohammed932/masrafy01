@@ -21,6 +21,7 @@
   "SUPER_ADMIN_FLOOR_VIOLATED": "يجب أن يبقى مشرف رئيسي واحد فعّال على الأقل.",
   "BANK_PROGRAM_NOT_FOUND": "لم يتم العثور على برنامج البنك.",
   "PROGRAM_CODE_ALREADY_IN_USE": "رمز البرنامج مستخدم بالفعل.",
+  "BANK_PROGRAM_NAME_TAKEN": "لدى هذا البنك برنامج بهذا الاسم لنوع التمويل نفسه بالفعل. عدّل ذلك البرنامج بدلًا من إضافة آخر.",
   "INVALID_VARIABLE_RATE_CONFIGURATION": "إعداد المعدل المتغير غير صالح.",
   "INVALID_QUALITATIVE_REVIEW_CEILING": "لا يمكن تعيين سقف المراجعة النوعية دون تفعيل المراجعة النوعية في معايير الأهلية.",
   "QUALITATIVE_REVIEW_CEILING_BELOW_BASE": "يجب أن يكون سقف المراجعة النوعية أكبر من الحد الأقصى الأساسي.",
