@@ -17,6 +17,7 @@ import type {
   ProductTemplate,
   ProgramNameIncomeRule,
   AskWriteResult,
+  NeededWriteResult,
   ProductAsksBoard,
   SurrogateProductDetail,
   SurrogateProductSummary,
@@ -254,6 +255,24 @@ export class BankProgramsApiService {
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/asks/` +
           encodeURIComponent(questionCode),
         { askIn: [...askIn] },
+      ),
+    );
+  }
+
+  /**
+   * Cover a fact the engine needs for this product — tick its question, or create one when
+   * it has none — or, with `factKey` null, every one that can be covered ("Fix all").
+   * Returns the recomputed board, like the tick above.
+   */
+  async askNeeded(
+    key: string,
+    factKey: string | null,
+  ): Promise<SuccessEnvelope<NeededWriteResult>> {
+    const base = `${this.base}/surrogate-products/${encodeURIComponent(key)}/needed`;
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<NeededWriteResult>>(
+        factKey === null ? base : `${base}/${encodeURIComponent(factKey)}`,
+        {},
       ),
     );
   }

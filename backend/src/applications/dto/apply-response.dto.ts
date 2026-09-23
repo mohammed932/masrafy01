@@ -93,6 +93,13 @@ export interface ApplyNoMatchResponse {
       programsUnlocked: number;
       suggestedValue?: string;
     }>;
+    /**
+     * Every program the engine checked and could not price, WITH its reason — the same list
+     * a matched response carries. On a no-match it is ALL of them, and without it the app
+     * could only say "no offers": the reasons ("your down payment is outside this bank's
+     * table", "no income could be worked out") are what the applicant can act on (FR-022).
+     */
+    unavailablePrograms: UnavailableProgramDto[];
   };
 }
 

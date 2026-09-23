@@ -640,6 +640,7 @@ export class ApplicationsService {
         primaryReason: noMatch.primaryReason,
         details: noMatch.details ?? [],
         suggestions: noMatch.suggestions ?? [],
+        unavailablePrograms: this.readUnavailablePrograms(row.summary),
       },
     };
   }

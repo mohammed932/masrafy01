@@ -586,6 +586,52 @@ export class BankProgramsController {
     return ok(await this.asks.detach(key, factKey, this.actor(user, req)));
   }
 
+  /**
+   * "Fix all": act on every fact the engine needs for this product that is not covered —
+   * tick the ones with a question, create the question for the ones without (optional, in
+   * the product's loan types, shaped by how its tables read it), publish once. Facts that
+   * cannot be acted on come back in `skipped` with their typed reason.
+   *
+   * Declared BEFORE `needed/:factKey` and `:programCode`, and it has to be.
+   */
+  @Put('surrogate-products/:key/needed')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Ask every fact the engine needs for a surrogate product' })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({ status: 409, description: 'PRODUCT_NOT_SOLD_ANYWHERE' })
+  async askAllNeeded(
+    @Param('key') key: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.asks.askNeeded(key, null, this.actor(user, req)));
+  }
+
+  /**
+   * "Ask it" / "Create question" on one fact the engine needs for this product.
+   *
+   * Addressed by the FACT, because that is what the tables and the calculation name — the
+   * question may not exist yet. See `ProductAsksService.askNeeded`.
+   */
+  @Put('surrogate-products/:key/needed/:factKey')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Ask one fact the engine needs for a surrogate product' })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({ status: 409, description: 'PRODUCT_NOT_SOLD_ANYWHERE' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'NEEDED_FACT_SHAPE_UNKNOWN | SURROGATE_FACT_WIDEN_REQUIRED | VALIDATION_FAILED (not needed / already covered)',
+  })
+  async askOneNeeded(
+    @Param('key') key: string,
+    @Param('factKey') factKey: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.asks.askNeeded(key, factKey, this.actor(user, req)));
+  }
+
   @Get(':programCode')
   @ApiOperation({ summary: "Fetch a single bank program's full configuration" })
   @ApiResponse({ status: 200, description: 'Bank program detail.' })

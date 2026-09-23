@@ -1514,6 +1514,51 @@ export interface ProductAsksBoard {
    * exist that the calculation does not read yet. Both are legitimate.
    */
   factsReadByRule: string[];
+  /** Every fact the engine needs answered for this product — see `NeededFact`. */
+  needed: NeededFact[];
+  /** Loan types a live catalog name sells this product in. Empty: nothing can be asked. */
+  soldIn: LoanCategory[];
+}
+
+/**
+ * `asked` covered · `platform` answered by a platform question · `notAsked` a question
+ * exists but this product does not ask it (or not in every loan type it is sold in) ·
+ * `parked` the question is switched off · `noQuestion` / `noFact` nothing to ask yet.
+ */
+export type NeededFactStatus =
+  | 'asked'
+  | 'platform'
+  | 'notAsked'
+  | 'parked'
+  | 'noQuestion'
+  | 'noFact';
+
+export type NeededFactReader =
+  | { kind: 'calculation' }
+  | { kind: 'plan'; table: string }
+  | { kind: 'cap' }
+  | { kind: 'program'; programCode: string; table: string };
+
+/** Mirrors the server's `NeededFactDto` (`bank-programs/dto/product-asks.dto.ts`). */
+export interface NeededFact {
+  factKey: string;
+  status: NeededFactStatus;
+  questionCode: string | null;
+  labelAr: string;
+  labelEn: string;
+  readBy: NeededFactReader[];
+  missingIn: LoanCategory[];
+  shape: 'choice' | 'number' | 'unknown';
+  derivedFrom: string | null;
+  actionable: boolean;
+}
+
+export interface NeededWriteResult {
+  asked: string[];
+  created: string[];
+  skipped: { factKey: string; code: string }[];
+  published: boolean;
+  state: ProductAsksBoard;
 }
 
 export interface AskWriteResult {

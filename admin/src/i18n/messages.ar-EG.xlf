@@ -2199,6 +2199,39 @@
       <trans-unit id="spd.ask.search_ph" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
       <trans-unit id="spd.ask.clear_aria" datatype="html"><source>Clear the search</source><target>إلغاء البحث</target></trans-unit>
       <trans-unit id="spd.ask.load_failed_title" datatype="html"><source> The question list did not load. </source><target>تعذّر تحميل قائمة الأسئلة.</target></trans-unit>
+      <trans-unit id="spd.needed.title" datatype="html"><source> Questions the engine needs </source><target> الأسئلة التي يحتاجها المحرك </target></trans-unit>
+      <trans-unit id="spd.needed.all_asked" datatype="html"><source>Every answer the engine reads for this product is asked (<x id="INTERPOLATION" equiv-text="{{
+                                  neededRowsList().length
+                                }}"/>).</source><target>كل إجابة يقرؤها المحرك لهذا المنتج يُطرح سؤالها (<x id="INTERPOLATION" equiv-text="{{
+                                  neededRowsList().length
+                                }}"/>).</target></trans-unit>
+      <trans-unit id="spd.needed.gaps" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ neededGaps() }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ neededRowsList().length }}"/> answers the engine reads are not asked yet.</source><target><x id="INTERPOLATION" equiv-text="{{ neededGaps() }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ neededRowsList().length }}"/> إجابة يقرؤها المحرك لا يُطرح سؤالها بعد.</target></trans-unit>
+      <trans-unit id="spd.needed.fix_all" datatype="html"><source>Fix all (<x id="INTERPOLATION" equiv-text="{{ neededFixable() }}"/>)</source><target>إصلاح الكل (<x id="INTERPOLATION" equiv-text="{{ neededFixable() }}"/>)</target></trans-unit>
+      <trans-unit id="spd.needed.not_sold" datatype="html"><source> No program name sells this product yet, so there is no loan type to ask these in. Link a program name to it on the catalog first. </source><target> لا يوجد اسم برنامج يبيع هذا المنتج بعد، فلا يوجد نوع قرض تُطرح فيه هذه الأسئلة. اربط اسم برنامج به من الكتالوج أولًا. </target></trans-unit>
+      <trans-unit id="spd.needed.status_asked" datatype="html"><source>Asked</source><target>يُسأل</target></trans-unit>
+      <trans-unit id="spd.needed.status_platform" datatype="html"><source>Platform question</source><target>سؤال من المنصة</target></trans-unit>
+      <trans-unit id="spd.needed.status_platform_missing" datatype="html"><source>Not asked in <x id="INTERPOLATION" equiv-text="{{ neededMissingLabel(row) }}"/></source><target>لا يُسأل في <x id="INTERPOLATION" equiv-text="{{ neededMissingLabel(row) }}"/></target></trans-unit>
+      <trans-unit id="spd.needed.status_not_asked" datatype="html"><source>Not asked in <x id="INTERPOLATION" equiv-text="{{ neededMissingLabel(row) }}"/></source><target>لا يُسأل في <x id="INTERPOLATION" equiv-text="{{ neededMissingLabel(row) }}"/></target></trans-unit>
+      <trans-unit id="spd.needed.status_parked" datatype="html"><source>Question switched off</source><target>السؤال متوقف</target></trans-unit>
+      <trans-unit id="spd.needed.status_no_question" datatype="html"><source>No question yet</source><target>لا يوجد سؤال بعد</target></trans-unit>
+      <trans-unit id="spd.needed.ask" datatype="html"><source> Ask it </source><target> اطرح السؤال </target></trans-unit>
+      <trans-unit id="spd.needed.create" datatype="html"><source> Create question </source><target> أنشئ السؤال </target></trans-unit>
+      <trans-unit id="spd.needed.hide_covered" datatype="html"><source>Hide the ones already asked</source><target>إخفاء ما يُسأل بالفعل</target></trans-unit>
+      <trans-unit id="spd.needed.show_covered" datatype="html"><source>Show the <x id="INTERPOLATION" equiv-text="{{ neededRowsList().length - neededGaps() }}"/> already asked</source><target>عرض <x id="INTERPOLATION" equiv-text="{{ neededRowsList().length - neededGaps() }}"/> تُسأل بالفعل</target></trans-unit>
+      <trans-unit id="spd.needed.result" datatype="html"><source><x id="ASKED" equiv-text="asked.length"/> now asked, <x id="CREATED" equiv-text="created.length"/> question(s) created</source><target>أصبح <x id="ASKED" equiv-text="asked.length"/> يُسأل، وأُنشئ <x id="CREATED" equiv-text="created.length"/> سؤال</target></trans-unit>
+      <trans-unit id="spd.needed.result_skipped" datatype="html"><source>, <x id="SKIPPED" equiv-text="skipped.length"/> left for you to fix</source><target>، و<x id="SKIPPED" equiv-text="skipped.length"/> تُركت لتصلحها بنفسك</target></trans-unit>
+      <trans-unit id="spd.needed.reader_calculation" datatype="html"><source>Calculation</source><target>الحساب</target></trans-unit>
+      <trans-unit id="spd.needed.reader_cap" datatype="html"><source>Loan cap</source><target>حد القرض</target></trans-unit>
+      <trans-unit id="spd.needed.table_rate" datatype="html"><source>Rate table</source><target>جدول الفائدة</target></trans-unit>
+      <trans-unit id="spd.needed.table_max_months" datatype="html"><source>Longest-term table</source><target>جدول أطول مدة</target></trans-unit>
+      <trans-unit id="spd.needed.table_min_months" datatype="html"><source>Shortest-term table</source><target>جدول أقصر مدة</target></trans-unit>
+      <trans-unit id="spd.needed.table_ltv" datatype="html"><source>Financed-share table</source><target>جدول نسبة التمويل</target></trans-unit>
+      <trans-unit id="spd.needed.table_min_amount" datatype="html"><source>Smallest-loan table</source><target>جدول أصغر قرض</target></trans-unit>
+      <trans-unit id="spd.needed.table_insurance" datatype="html"><source>Insurance table</source><target>جدول التأمين</target></trans-unit>
+      <trans-unit id="spd.needed.table_max_loan" datatype="html"><source>Loan cap table</source><target>جدول حد القرض</target></trans-unit>
+      <trans-unit id="spd.needed.table_vehicle_age" datatype="html"><source>Car-age table</source><target>جدول عمر السيارة</target></trans-unit>
+      <trans-unit id="spd.needed.via_down_payment" datatype="html"><source>Through the down-payment share</source><target>عبر نسبة الدفعة المقدمة</target></trans-unit>
+      <trans-unit id="spd.needed.via_car_age" datatype="html"><source>Through the car&apos;s age</source><target>عبر عمر السيارة</target></trans-unit>
       <trans-unit id="spd.ask.load_failed" datatype="html"><source> Nothing has changed — what this product asks could not be read just now, so none of it can be shown or ticked. </source><target>لم يتغيّر شيء — تعذّرت قراءة ما يسأله هذا المنتج الآن، فلا يمكن عرض أي منه أو تحديده.</target></trans-unit>
       <trans-unit id="spd.ask.retry" datatype="html"><source> Try again </source><target>حاول مرة أخرى</target></trans-unit>
       <trans-unit id="spd.ask.sec_asked" datatype="html"><source>Read, and asked here</source><target>يقرأها، وتُطرح هنا</target></trans-unit>

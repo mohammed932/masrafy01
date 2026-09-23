@@ -304,6 +304,18 @@ export class SurrogateProductNoCapException extends DomainException {
   }
 }
 
+export class ProductNotSoldAnywhereException extends DomainException {
+  constructor(meta: { productKey: string }) {
+    super(ERROR_CODES.PRODUCT_NOT_SOLD_ANYWHERE, meta);
+  }
+}
+
+export class NeededFactShapeUnknownException extends DomainException {
+  constructor(meta: { productKey: string; factKey: string }) {
+    super(ERROR_CODES.NEEDED_FACT_SHAPE_UNKNOWN, meta);
+  }
+}
+
 /**
  * A surrogate product's default loan duration was cleared while programs are reading it.
  *

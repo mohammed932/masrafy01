@@ -19,7 +19,7 @@
  * ever carries one.
  */
 import { Injectable } from '@nestjs/common';
-import type { SurrogateAskSource } from '@prisma/client';
+import type { LoanCategory, SurrogateAskSource } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 
 /** One row of a product's ask set, resolved to the keys an operator sees. */
@@ -246,6 +246,46 @@ export class ProductAsksRepository {
       byProduct.set(row.product.key, list);
     }
     return byProduct;
+  }
+
+  /**
+   * Where a product is SOLD, and by which programmes — the two halves of "who needs its
+   * questions answered".
+   *
+   * `soldIn` is the union of the loan types assigned to every live catalog name linked to
+   * the product (the same assignment `question_loan_category` has to match). `programs` are
+   * the active bank programmes under those names, with the columns that can carry a
+   * fact-keyed table of their own.
+   */
+  async sellingOf(productKey: string): Promise<{
+    soldIn: LoanCategory[];
+    programs: Array<{
+      programCode: string;
+      loanLimits: unknown;
+      pricing: unknown;
+      tenor: unknown;
+      fees: unknown;
+    }>;
+  }> {
+    const names = await this.prisma.platformEnumeration.findMany({
+      where: {
+        type: 'program_name',
+        surrogateProductKey: productKey,
+        active: true,
+        deprecatedAt: null,
+      },
+      select: { key: true, loanCategories: { select: { category: true } } },
+    });
+    const soldIn = [...new Set(names.flatMap((n) => n.loanCategories.map((c) => c.category)))];
+    const programs =
+      names.length === 0
+        ? []
+        : await this.prisma.bankProgram.findMany({
+            where: { active: true, programNameKey: { in: names.map((n) => n.key) } },
+            select: { programCode: true, loanLimits: true, pricing: true, tenor: true, fees: true },
+            orderBy: { programCode: 'asc' },
+          });
+    return { soldIn, programs };
   }
 }
 

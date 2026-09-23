@@ -386,6 +386,21 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_NO_CAP: 'SURROGATE_PRODUCT_NO_CAP',
   /**
+   * "Ask it" / "Create question" on a product no live catalog name sells.
+   *
+   * A question is asked per LOAN TYPE, and a product is in a loan type only through the
+   * names that sell it. With none, there is no loan type to ask in — asking in all four
+   * would put the question in front of every applicant for a product nobody can pick.
+   */
+  PRODUCT_NOT_SOLD_ANYWHERE: 'PRODUCT_NOT_SOLD_ANYWHERE',
+  /**
+   * A needed fact whose answer's shape its readers do not settle — read both as options and
+   * as a number, keyed by classes rather than answers, or keyed by fewer than two options /
+   * by keys that are not plain option codes. A question for it needs a person to decide
+   * its type and its answers. `meta.factKey`.
+   */
+  NEEDED_FACT_SHAPE_UNKNOWN: 'NEEDED_FACT_SHAPE_UNKNOWN',
+  /**
    * A surrogate product's default loan duration was CLEARED while bank programs are reading
    * it. Meta: `{ count, programCodes }`.
    *
@@ -1129,6 +1144,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_PRODUCT_NOT_FOUND: 404,
   SURROGATE_PRODUCT_CAP_ONLY: 422,
   SURROGATE_PRODUCT_NO_CAP: 422,
+  PRODUCT_NOT_SOLD_ANYWHERE: 409,
+  NEEDED_FACT_SHAPE_UNKNOWN: 422,
   // 409, like `SURROGATE_PRODUCT_IN_USE` above: the request is well-formed and the product
   // exists — what refuses it is the state of the programmes underneath.
   SURROGATE_PRODUCT_TENOR_IN_USE: 409,

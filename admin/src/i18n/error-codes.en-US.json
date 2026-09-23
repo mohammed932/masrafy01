@@ -211,6 +211,8 @@
   "PROGRAM_NAME_RULE_LINKED": "This name takes its calculation from a surrogate product, so it cannot be edited here. Edit the product instead — the change reaches every name linked to it.",
   "SURROGATE_PRODUCT_CAP_ONLY": "That product only asks a question — it works out no income, so a program name cannot take its calculation from it. Each bank states its own maximum for the answer on its own program.",
   "SURROGATE_PRODUCT_NO_CAP": "This product states no maximum-loan grid, so there are no default amounts to set. The grid comes from the product library.",
+  "PRODUCT_NOT_SOLD_ANYWHERE": "No program name sells this product yet, so there is no loan type to ask the question in. Link a program name to it first.",
+  "NEEDED_FACT_SHAPE_UNKNOWN": "The tables reading this answer don't show what kind of question it needs. Create the question yourself and tick it here.",
   "SURROGATE_PRODUCT_TENOR_IN_USE": "{count} bank program(s) have no loan duration of their own and are using this one. Clearing it would leave them unable to quote. Give each of them its own duration first, or change the months here instead.",
   "SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE": "{count} bank program(s) have no loan amounts of their own and are using these. Clearing them would leave them unable to quote. Give each of them its own amounts first, or change the figures here instead.",
   "SURROGATE_PRODUCT_RATE_IN_USE": "{count} bank program(s) have no interest rate of their own and are priced at this one. Clearing it would leave them unable to quote. Change the rate here instead, or give each of those programs a rate of its own first.",

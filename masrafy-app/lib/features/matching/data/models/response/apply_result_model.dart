@@ -62,10 +62,18 @@ class ApplyResultModel {
     }
     final meta = (json['meta'] as Map<String, dynamic>?) ?? const {};
     final rawDetails = meta['details'];
+    // Every program the engine checked, each WITH its reason. On a no-match that is all of
+    // them, and it is what turns "no offers" into something the applicant can act on. An
+    // older backend omits it, which reads as an empty list — the generic state, as before.
+    final rawUnavailable = meta['unavailablePrograms'];
     return ApplyResultModel(
       matched: false,
       applicationId: (meta['applicationId'] as String?) ?? '',
       offers: const [],
+      unavailablePrograms: (rawUnavailable is List ? rawUnavailable : const [])
+          .whereType<Map<String, dynamic>>()
+          .map(UnavailableProgramModel.fromJson)
+          .toList(),
       noMatchPrimaryReason: meta['primaryReason'] as String?,
       noMatchFailedChecks: [
         for (final d in (rawDetails is List ? rawDetails : const [])

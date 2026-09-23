@@ -159,6 +159,21 @@ export function isGridOnlyFactKey(key: string): boolean {
 }
 
 /**
+ * The ANSWERS each engine-derived key is computed from.
+ *
+ * A grid-only key has no question behind it by design, so every reader that counts facts
+ * skips it — which also hid what it depends on: a rate table keyed on the down-payment share
+ * needs the car's price and the deposit asked, and nothing said so. This is that dependency,
+ * written once beside the keys it describes, from the same computations `withGridFacts` and
+ * `computeDownPaymentPercent` perform. `tenor_months` is absent: the platform supplies the
+ * term, no applicant answer feeds it.
+ */
+export const DERIVED_FACT_INPUTS: Readonly<Record<string, readonly string[]>> = {
+  [CAR_DOWN_PAYMENT_PERCENT_FACT_KEY]: [CAR_PRICE_FACT_KEY, CAR_DOWN_PAYMENT_FACT_KEY],
+  [CAR_AGE_YEARS_FACT_KEY]: [CAR_MODEL_YEAR_FACT_KEY],
+};
+
+/**
  * The applicant's answered facts plus the three the engine derives, ready for a grid.
  *
  * Written LAST so a computed value always wins: if an operator ever does register a fact

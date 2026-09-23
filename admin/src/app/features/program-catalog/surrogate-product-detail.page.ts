@@ -162,6 +162,7 @@ import {
   type AskCard,
   type AskSectionKey,
 } from './product-asks';
+import { neededFixableCount, neededGapCount, neededRows, type NeededRow } from './product-needed';
 
 /** One operator-managed list surfaced on step ①. */
 interface ReadList {
@@ -430,6 +431,177 @@ interface ReadList {
                        read as a band's own air rather than as a strip that stopped short.
                        aria-hidden on the label: the tablist keeps its own accessible name,
                        so announcing the same words twice would be the only thing it added. -->
+                  <!-- WHAT THE ENGINE NEEDS, above the rail because it does not change with
+                       the tab: every answer this product's calculation, plan tables, cap and
+                       selling programmes read, and whether an applicant is asked it. Gaps
+                       lead; covered rows fold into one line so a product with nothing to do
+                       reads as done. The server decides each status (neededFor). -->
+                  @if (neededRowsList().length > 0) {
+                    <section class="need" aria-labelledby="spd-need-title">
+                      <div class="need-head">
+                        <div class="need-heading">
+                          <h3 id="spd-need-title" class="need-title" i18n="@@spd.needed.title">
+                            Questions the engine needs
+                          </h3>
+                          @if (neededGaps() === 0) {
+                            <p class="need-summary is-done">
+                              <span
+                                nz-icon
+                                nzType="check-circle"
+                                nzTheme="outline"
+                                aria-hidden="true"
+                              ></span>
+                              <span i18n="@@spd.needed.all_asked"
+                                >Every answer the engine reads for this product is asked ({{
+                                  neededRowsList().length
+                                }}).</span
+                              >
+                            </p>
+                          } @else {
+                            <p class="need-summary">
+                              <span i18n="@@spd.needed.gaps"
+                                >{{ neededGaps() }} of {{ neededRowsList().length }} answers the
+                                engine reads are not asked yet.</span
+                              >
+                            </p>
+                          }
+                        </div>
+                        @if (neededFixable() > 1) {
+                          <button
+                            nz-button
+                            nzType="primary"
+                            type="button"
+                            [nzLoading]="neededBusy() === '*'"
+                            [disabled]="neededBusy() !== null"
+                            (click)="actOnNeeded(null)"
+                          >
+                            <span i18n="@@spd.needed.fix_all">Fix all ({{ neededFixable() }})</span>
+                          </button>
+                        }
+                      </div>
+
+                      @if (neededSoldIn().length === 0) {
+                        <p class="need-note" i18n="@@spd.needed.not_sold">
+                          No program name sells this product yet, so there is no loan type to ask
+                          these in. Link a program name to it on the catalog first.
+                        </p>
+                      }
+                      @if (neededResult()) {
+                        <p class="need-note">{{ neededResult() }}</p>
+                      }
+
+                      <ul class="need-list">
+                        @for (row of neededVisibleRows(); track row.factKey) {
+                          <li class="need-row" [class.is-gap]="!row.covered">
+                            <div class="need-main">
+                              <span class="need-label">{{ row.label }}</span>
+                              <span class="need-readers">
+                                @for (reader of row.readers; track $index) {
+                                  <span class="need-chip">{{ neededReaderLabel(reader) }}</span>
+                                }
+                                @if (row.derivedFrom && neededDerivedLabels[row.derivedFrom]) {
+                                  <span class="need-via">{{
+                                    neededDerivedLabels[row.derivedFrom]
+                                  }}</span>
+                                }
+                              </span>
+                            </div>
+                            <div class="need-side">
+                              @switch (row.status) {
+                                @case ('asked') {
+                                  <span class="need-status is-ok" i18n="@@spd.needed.status_asked"
+                                    >Asked</span
+                                  >
+                                }
+                                @case ('platform') {
+                                  @if (row.missingIn.length === 0) {
+                                    <span
+                                      class="need-status is-ok"
+                                      i18n="@@spd.needed.status_platform"
+                                      >Platform question</span
+                                    >
+                                  } @else {
+                                    <span
+                                      class="need-status is-gap"
+                                      i18n="@@spd.needed.status_platform_missing"
+                                      >Not asked in {{ neededMissingLabel(row) }}</span
+                                    >
+                                  }
+                                }
+                                @case ('notAsked') {
+                                  <span
+                                    class="need-status is-gap"
+                                    i18n="@@spd.needed.status_not_asked"
+                                    >Not asked in {{ neededMissingLabel(row) }}</span
+                                  >
+                                }
+                                @case ('parked') {
+                                  <span class="need-status is-gap" i18n="@@spd.needed.status_parked"
+                                    >Question switched off</span
+                                  >
+                                }
+                                @default {
+                                  <span
+                                    class="need-status is-gap"
+                                    i18n="@@spd.needed.status_no_question"
+                                    >No question yet</span
+                                  >
+                                }
+                              }
+                              @switch (row.action) {
+                                @case ('ask') {
+                                  <button
+                                    nz-button
+                                    nzSize="small"
+                                    type="button"
+                                    [nzLoading]="neededBusy() === row.factKey"
+                                    [disabled]="neededBusy() !== null"
+                                    (click)="actOnNeeded(row)"
+                                    i18n="@@spd.needed.ask"
+                                  >
+                                    Ask it
+                                  </button>
+                                }
+                                @case ('create') {
+                                  <button
+                                    nz-button
+                                    nzSize="small"
+                                    type="button"
+                                    [nzLoading]="neededBusy() === row.factKey"
+                                    [disabled]="neededBusy() !== null"
+                                    (click)="actOnNeeded(row)"
+                                    i18n="@@spd.needed.create"
+                                  >
+                                    Create question
+                                  </button>
+                                }
+                              }
+                            </div>
+                          </li>
+                        }
+                      </ul>
+
+                      @if (neededGaps() > 0 && neededGaps() < neededRowsList().length) {
+                        <button
+                          type="button"
+                          class="linkish need-toggle"
+                          (click)="toggleNeededCovered()"
+                        >
+                          @if (neededShowCovered()) {
+                            <span i18n="@@spd.needed.hide_covered"
+                              >Hide the ones already asked</span
+                            >
+                          } @else {
+                            <span i18n="@@spd.needed.show_covered"
+                              >Show the {{ neededRowsList().length - neededGaps() }} already
+                              asked</span
+                            >
+                          }
+                        </button>
+                      }
+                    </section>
+                  }
+
                   @if (!soleCategory()) {
                     <div class="ask-rail">
                       <!-- The tablist's own accessible name, rendered. One string, so the word
@@ -3397,6 +3569,131 @@ interface ReadList {
         color: var(--color-text-secondary);
       }
 
+      /* --- step ①: what the engine needs --------------------------------- */
+      .need {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+      }
+      .need-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+      .need-heading {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-inline-size: 0;
+      }
+      .need-title {
+        margin: 0;
+        font-size: var(--text-base);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+      .need-summary {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+      .need-summary.is-done [nz-icon] {
+        color: var(--color-success);
+      }
+      .need-note {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+      .need-list {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border-block-start: 1px solid var(--border-subtle);
+      }
+      .need-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-4);
+        padding-block: var(--space-3);
+        border-block-end: 1px solid var(--border-subtle);
+      }
+      .need-row:last-child {
+        border-block-end: 0;
+      }
+      .need-main {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-inline-size: 0;
+        flex: 1 1 16rem;
+      }
+      .need-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+        overflow-wrap: anywhere;
+      }
+      .need-readers {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1);
+      }
+      .need-chip {
+        padding: var(--space-0-5) var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+      }
+      .need-via {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+      .need-side {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-shrink: 0;
+      }
+      .need-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+      .need-status::before {
+        content: '';
+        inline-size: 0.5rem;
+        block-size: 0.5rem;
+        border-radius: var(--radius-pill);
+        background: var(--color-success);
+      }
+      .need-status.is-gap {
+        color: var(--text-primary);
+      }
+      .need-status.is-gap::before {
+        background: var(--color-warning);
+      }
+      .need-toggle {
+        align-self: flex-start;
+      }
+
       .ask-sec {
         display: flex;
         flex-direction: column;
@@ -5016,6 +5313,24 @@ export class SurrogateProductDetailPage {
   protected readonly askUnpublished = signal(false);
   protected readonly askStatus = signal('');
 
+  // ── What the engine needs ───────────────────────────────────────────────────
+  /** Rows of the "what the engine needs" panel, gaps first. */
+  protected readonly neededRowsList = computed(() => neededRows(this.asksBoard(), this.isAr));
+  protected readonly neededGaps = computed(() => neededGapCount(this.neededRowsList()));
+  protected readonly neededFixable = computed(() => neededFixableCount(this.neededRowsList()));
+  protected readonly neededSoldIn = computed(() => this.asksBoard()?.soldIn ?? []);
+  /** Covered rows fold away: a product with nothing to do should read as one line. */
+  protected readonly neededShowCovered = signal(false);
+  protected readonly neededVisibleRows = computed(() =>
+    this.neededShowCovered() || this.neededGaps() === 0
+      ? this.neededRowsList()
+      : this.neededRowsList().filter((row) => !row.covered),
+  );
+  /** The fact a click is working on, or `*` for "Fix all". */
+  protected readonly neededBusy = signal<string | null>(null);
+  /** What the last click did, said on screen until the next one. */
+  protected readonly neededResult = signal<string>('');
+
   protected readonly asksAria = $localize`:@@spd.ask.rail_aria:Loan type`;
   protected readonly askSearchAria = $localize`:@@spd.ask.search_aria:Search questions`;
   protected readonly askPagerAria = $localize`:@@spd.ask.pager_aria:Question pages`;
@@ -5384,6 +5699,69 @@ export class SurrogateProductDetailPage {
       this.askBusy.set(false);
     }
   }
+
+  protected toggleNeededCovered(): void {
+    this.neededShowCovered.update((on) => !on);
+  }
+
+  protected actOnNeeded(row: NeededRow | null): void {
+    if (this.neededBusy() !== null || this.askBusy()) return;
+    void this.runNeeded(row);
+  }
+
+  private async runNeeded(row: NeededRow | null): Promise<void> {
+    this.neededBusy.set(row?.factKey ?? '*');
+    this.askBusy.set(true);
+    try {
+      const res = await this.api.askNeeded(this.key, row?.factKey ?? null);
+      const { asked, created, skipped } = res.data;
+      this.asksBoard.set(res.data.state);
+      this.asksState.set('ready');
+      void this.enums.refresh('surrogate_fact');
+      void this.load({ silent: true, keepEdits: true });
+      const said =
+        $localize`:@@spd.needed.result:${asked.length}:ASKED: now asked, ${created.length}:CREATED: question(s) created` +
+        (skipped.length > 0
+          ? $localize`:@@spd.needed.result_skipped:, ${skipped.length}:SKIPPED: left for you to fix`
+          : '');
+      this.neededResult.set(said);
+      this.askStatus.set(said);
+    } catch {
+      // The interceptor has already said why (A22).
+    } finally {
+      this.neededBusy.set(null);
+      this.askBusy.set(false);
+    }
+  }
+
+  /** "Rate table", "NATIONAL-CAR-C483 · Rate table", "Calculation", "Loan cap". */
+  protected neededReaderLabel(reader: NeededRow['readers'][number]): string {
+    if (reader.kind === 'calculation') return this.neededCalculationLabel;
+    if (reader.kind === 'cap') return this.neededCapLabel;
+    const table = this.neededTableLabels[reader.table] ?? reader.table;
+    return reader.kind === 'program' ? `${reader.programCode} · ${table}` : table;
+  }
+
+  protected neededMissingLabel(row: NeededRow): string {
+    return row.missingIn.map((category) => categoryLabel(category)).join(', ');
+  }
+
+  protected readonly neededCalculationLabel = $localize`:@@spd.needed.reader_calculation:Calculation`;
+  protected readonly neededCapLabel = $localize`:@@spd.needed.reader_cap:Loan cap`;
+  private readonly neededTableLabels: Readonly<Record<string, string>> = {
+    rateByFact: $localize`:@@spd.needed.table_rate:Rate table`,
+    maxMonthsByFact: $localize`:@@spd.needed.table_max_months:Longest-term table`,
+    minMonthsByFact: $localize`:@@spd.needed.table_min_months:Shortest-term table`,
+    ltvCeilingByFact: $localize`:@@spd.needed.table_ltv:Financed-share table`,
+    minAmountByFact: $localize`:@@spd.needed.table_min_amount:Smallest-loan table`,
+    carInsuranceRateByFact: $localize`:@@spd.needed.table_insurance:Insurance table`,
+    maxLoanByFact: $localize`:@@spd.needed.table_max_loan:Loan cap table`,
+    maxVehicleAgeYearsByFact: $localize`:@@spd.needed.table_vehicle_age:Car-age table`,
+  };
+  protected readonly neededDerivedLabels: Readonly<Record<string, string>> = {
+    car_down_payment_percent: $localize`:@@spd.needed.via_down_payment:Through the down-payment share`,
+    car_age_years: $localize`:@@spd.needed.via_car_age:Through the car's age`,
+  };
 
   /**
    * Absorb one write's board, and re-read what depends on it.
