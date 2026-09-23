@@ -3788,6 +3788,12 @@ abstract class AppLocalizations {
   /// **'حدث خطأ ما. حاول مرة أخرى.'**
   String get offer_proceed_error;
 
+  /// No description provided for @offer_already_proceeded.
+  ///
+  /// In ar, this message translates to:
+  /// **'لقد قدّمت بالفعل على عرض في هذا الطلب.'**
+  String get offer_already_proceeded;
+
   /// No description provided for @offer_national_id_required_title.
   ///
   /// In ar, this message translates to:

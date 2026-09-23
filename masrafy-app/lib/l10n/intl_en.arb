@@ -853,6 +853,7 @@
   "offer_action_soon": "Coming soon",
   "offer_proceed_success": "Your request was sent to the bank.",
   "offer_proceed_error": "Something went wrong. Please try again.",
+  "offer_already_proceeded": "You already applied for an offer on this application.",
   "offer_national_id_required_title": "National ID Required",
   "offer_national_id_required_body": "Upload the front and back of your National ID to continue with this application.",
   "offer_national_id_required_cta": "Upload now",

@@ -38,6 +38,8 @@ import {
 } from '@/matching/pipeline/fact-readers';
 import { isReservedFactKey } from '@/matching/pipeline/fact-question-eligibility';
 import { bankAxisByFactKey } from '@/matching/pipeline/bank-relationship';
+import { CAR_DOWN_PAYMENT_FACT_KEY, CAR_PRICE_FACT_KEY } from '@/matching/pipeline/car-details';
+import { MONEY_FIELD_BINDINGS } from '@/matching/pipeline/money-field-bindings';
 import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import { enabledWhenGate } from '@/questionnaire/validation/question-visibility';
 import { PrismaService } from '@/infra/prisma/prisma.service';
@@ -855,6 +857,7 @@ export class PostgresPlatformEnumerationsRepository
         // `plansSource` rides with them: the grids a programme reads may be the PRODUCT's, and
         // which copy applies is the only thing that column says.
         select: {
+          programType: true,
           incomeAssumption: true,
           loanLimits: true,
           pricing: true,
@@ -974,6 +977,35 @@ export class PostgresPlatformEnumerationsRepository
         productKey !== null && fact.askedByProducts.some((ask) => ask.product.key === productKey);
       if (needed.has(fact.key) || askedByThisProduct) neededQuestionCodes.push(code);
     }
+    // A derived bank axis a programme reads but the registry has no row for: its question is
+    // named by the axis itself. Invisible to the loop above, and until product-only names that
+    // was harmless because an unbound question was always core. It is not core there, so it
+    // has to be NEEDED or a programme's cap table reads an answer nobody was asked for.
+    const registryKeys = new Set(factRows.map((f) => f.key));
+    for (const key of needed) {
+      if (registryKeys.has(key)) continue;
+      const axis = bankAxisByFactKey(key);
+      if (axis !== undefined) neededQuestionCodes.push(axis.questionCode);
+    }
+
+    // See `NarrowingScope.productOnly`. A linked product and no payslip programme in scope:
+    // one payslip programme under the name puts the whole core back.
+    const productOnly =
+      productRow !== null && programs.every((p) => p.programType === 'income_surrogate');
+    // The one money figure a product-only name cannot go without: the principal. The app
+    // derives it as price minus down payment when BOTH car figures are served
+    // (`apply_mapping.dart`), and has nothing to derive it from otherwise — it would refuse
+    // to submit. So unless both are served here, the amount question is served too.
+    if (productOnly) {
+      const codeOf = (key: string): string | undefined =>
+        factRows.find((f) => f.key === key)?.boundQuestion?.code;
+      const neededSet = new Set(neededQuestionCodes);
+      const price = codeOf(CAR_PRICE_FACT_KEY);
+      const down = codeOf(CAR_DOWN_PAYMENT_FACT_KEY);
+      const derivable =
+        price !== undefined && down !== undefined && neededSet.has(price) && neededSet.has(down);
+      if (!derivable) neededQuestionCodes.push(MONEY_FIELD_BINDINGS.requested_amount);
+    }
 
     return {
       programNameKey,
@@ -981,6 +1013,7 @@ export class PostgresPlatformEnumerationsRepository
       askScopedQuestionCodes,
       platformQuestionCodes,
       neededQuestionCodes,
+      productOnly,
     };
   }
 

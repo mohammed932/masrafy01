@@ -205,8 +205,6 @@ class _OfferDetailsView extends StatelessWidget {
       ),
     ];
 
-    void comingSoon() => MasrafyToast.success(context, l.offer_action_soon);
-
     final content = CustomScrollView(
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
@@ -396,55 +394,65 @@ class _OfferDetailsView extends StatelessWidget {
                     ],
                     Gap(25.h),
                     // Already-applied offers (opened from the Applications
-                    // screen) can't be re-applied — hide the Apply CTA
+                    // screen, or saved from an application that has already
+                    // proceeded) can't be re-applied — hide the Apply CTA
                     // entirely; only the Save CTA below remains.
-                    if (!offer.alreadyApplied) ...[
-                      // Real offers (from apply) proceed via select-offer;
-                      // saved-offer / past-application summaries have no
-                      // application to proceed on, so keep the placeholder and
-                      // avoid touching DI (widget tests pump this page directly).
-                      offer.applicationId.isEmpty
-                          ? MasrafyGradientButton(
-                              label: l.offer_apply,
-                              onPressed: comingSoon,
-                            )
-                          : BlocProvider<SelectOfferCubit>(
-                              create: (_) => getIt<SelectOfferCubit>(),
-                              child: BlocConsumer<SelectOfferCubit,
-                                  SelectOfferState>(
-                                listener: (ctx, state) {
-                                  if (state.isSuccess) {
-                                    MasrafyToast.success(
-                                        ctx, l.offer_proceed_success);
-                                    // One-way gate: the backend blocks
-                                    // re-selecting once proceeded, so clear the
-                                    // now-stale wizard/results/details stack.
-                                    ctx.router.replaceAll([
-                                      MainShellRoute(),
-                                      const PreviousApplicationsRoute(),
-                                    ]);
-                                  } else if (state.needsDocuments) {
-                                    // Server-side half of the document gate —
-                                    // reached only when the local pre-check
-                                    // couldn't answer (status still loading, or
-                                    // the read failed). Same warning, same
-                                    // destination, so the two can't drift.
-                                    _promptForNationalId(ctx);
-                                  } else if (state.needsProfile) {
-                                    ctx.router.push(CompleteProfileRoute());
-                                  } else if (state.isError) {
-                                    MasrafyToast.error(
-                                        ctx, l.offer_proceed_error);
-                                  }
-                                },
-                                builder: (ctx, state) => MasrafyGradientButton(
-                                  label: l.offer_apply,
-                                  isLoading: state.isLoading,
-                                  onPressed:
-                                      state.isLoading ? null : () => _apply(ctx),
-                                ),
-                              ),
-                            ),
+                    //
+                    // Every offer with an application behind it proceeds via
+                    // select-offer — fresh results and saved offers alike (the
+                    // saved-offers list carries the applicationId). One with no
+                    // application (a mock preview) has nothing to proceed on, so
+                    // the CTA is not shown rather than faked; that also keeps DI
+                    // untouched for widget tests that pump this page directly.
+                    if (!offer.alreadyApplied &&
+                        offer.applicationId.isNotEmpty) ...[
+                      BlocProvider<SelectOfferCubit>(
+                  create: (_) => getIt<SelectOfferCubit>(),
+                  child: BlocConsumer<SelectOfferCubit,
+                      SelectOfferState>(
+                    listener: (ctx, state) {
+                      if (state.isSuccess) {
+                        MasrafyToast.success(
+                            ctx, l.offer_proceed_success);
+                        // One-way gate: the backend blocks
+                        // re-selecting once proceeded, so clear the
+                        // now-stale wizard/results/details stack.
+                        ctx.router.replaceAll([
+                          MainShellRoute(),
+                          const PreviousApplicationsRoute(),
+                        ]);
+                      } else if (state.alreadyProceeded) {
+                        // A second tap after the first one landed: the
+                        // server keeps the first selection, so say so and
+                        // leave for the applications list, not an error.
+                        MasrafyToast.success(
+                            ctx, l.offer_already_proceeded);
+                        ctx.router.replaceAll([
+                          MainShellRoute(),
+                          const PreviousApplicationsRoute(),
+                        ]);
+                      } else if (state.needsDocuments) {
+                        // Server-side half of the document gate —
+                        // reached only when the local pre-check
+                        // couldn't answer (status still loading, or
+                        // the read failed). Same warning, same
+                        // destination, so the two can't drift.
+                        _promptForNationalId(ctx);
+                      } else if (state.needsProfile) {
+                        ctx.router.push(CompleteProfileRoute());
+                      } else if (state.isError) {
+                        MasrafyToast.error(
+                            ctx, l.offer_proceed_error);
+                      }
+                    },
+                    builder: (ctx, state) => MasrafyGradientButton(
+                      label: l.offer_apply,
+                      isLoading: state.isLoading,
+                      onPressed:
+                          state.isLoading ? null : () => _apply(ctx),
+                    ),
+                  ),
+                ),
                     ],
                   ],
                 ),

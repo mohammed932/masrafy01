@@ -79,8 +79,8 @@ class _SavedOffersViewState extends State<_SavedOffersView> {
               child: BlocConsumer<SavedOffersCubit, SavedOffersState>(
                 listenWhen: (p, c) =>
                     p.removeError != c.removeError && c.removeError != null,
-                listener: (ctx, state) =>
-                    MasrafyToast.error(ctx, _removeMessage(l, state.removeError!)),
+                listener: (ctx, state) => MasrafyToast.error(
+                    ctx, _removeMessage(l, state.removeError!)),
                 builder: (ctx, state) {
                   final cubit = ctx.read<SavedOffersCubit>();
                   if (state.isLoading) return const _SavedOffersShimmer();
@@ -98,7 +98,8 @@ class _SavedOffersViewState extends State<_SavedOffersView> {
                     physics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics(),
                     ),
-                    padding: EdgeInsetsDirectional.fromSTEB(24.w, 17.h, 24.w, 24.h),
+                    padding:
+                        EdgeInsetsDirectional.fromSTEB(24.w, 17.h, 24.w, 24.h),
                     itemCount: state.offers.length,
                     separatorBuilder: (_, __) => Gap(16.h),
                     itemBuilder: (_, i) {
@@ -133,6 +134,8 @@ class _SavedOffersViewState extends State<_SavedOffersView> {
       totalInterest: e.totalInterest,
       totalLoan: e.totalLoan,
       bankOfferId: e.bankOfferId,
+      applicationId: e.applicationId,
+      alreadyApplied: e.alreadyApplied,
       isSaved: true,
     );
     final summary = MatchResultsArgs(

@@ -1196,6 +1196,7 @@
   "offer_action_soon": "قريبًا",
   "offer_proceed_success": "تم إرسال طلبك إلى البنك.",
   "offer_proceed_error": "حدث خطأ ما. حاول مرة أخرى.",
+  "offer_already_proceeded": "لقد قدّمت بالفعل على عرض في هذا الطلب.",
   "offer_national_id_required_title": "الرقم القومي مطلوب",
   "offer_national_id_required_body": "قم برفع صورة الرقم القومي من الأمام والخلف للمتابعة في هذا الطلب.",
   "offer_national_id_required_cta": "ارفع الآن",

@@ -23,6 +23,9 @@ export interface SavedOfferRow {
   effectiveLoanAmountEGP: Decimal;
   bankName: string;
   programFriendlyName: string;
+  applicationId: string;
+  /** The parent application has already proceeded with an offer (select-offer is one-way). */
+  applicationHasSelection: boolean;
 }
 
 /** Ownership guard projection for the save flow. */
@@ -53,7 +56,7 @@ export class SavedOfferRepository {
             effectiveLoanAmountEGP: true,
             bankName: true,
             programFriendlyName: true,
-            application: { select: { category: true } },
+            application: { select: { id: true, category: true, userSelectedBankOfferId: true } },
           },
         },
       },
@@ -69,6 +72,8 @@ export class SavedOfferRepository {
       effectiveLoanAmountEGP: r.bankOffer.effectiveLoanAmountEGP,
       bankName: r.bankOffer.bankName,
       programFriendlyName: r.bankOffer.programFriendlyName,
+      applicationId: r.bankOffer.application.id,
+      applicationHasSelection: r.bankOffer.application.userSelectedBankOfferId !== null,
     }));
   }
 

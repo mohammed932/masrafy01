@@ -2045,6 +2045,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_proceed_error => 'Something went wrong. Please try again.';
 
   @override
+  String get offer_already_proceeded =>
+      'You already applied for an offer on this application.';
+
+  @override
   String get offer_national_id_required_title => 'National ID Required';
 
   @override

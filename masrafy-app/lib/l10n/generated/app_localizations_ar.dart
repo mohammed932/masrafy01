@@ -2008,6 +2008,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_proceed_error => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
+  String get offer_already_proceeded =>
+      'لقد قدّمت بالفعل على عرض في هذا الطلب.';
+
+  @override
   String get offer_national_id_required_title => 'الرقم القومي مطلوب';
 
   @override

@@ -82,6 +82,16 @@ export interface NarrowingScope {
   platformQuestionCodes: readonly string[];
   /** Bound to a fact something in scope reads: a rule, a cap table, or a declared ask. */
   neededQuestionCodes: readonly string[];
+  /**
+   * PRODUCT-ONLY (operator decision, 2026-09-23): the name quotes off a surrogate product and
+   * EVERY active programme under it is `income_surrogate`. The core below is then empty — the
+   * applicant is served exactly what the product and its programmes read, and nothing else,
+   * money bindings included. What the app does in their absence is its own fallback
+   * (`apply_mapping.dart`): no declared income (the product works it out), the programme's
+   * longest term, no stated commitments, and — for a car — the amount as price minus down
+   * payment. Absent = false, which is every payslip or mixed name.
+   */
+  productOnly?: boolean;
 }
 
 export type NarrowingDisabledReason = 'no_name' | 'no_programs' | 'empty_result';
@@ -154,10 +164,11 @@ export function narrowAskedQuestions(
   const needed = new Set(scope.neededQuestionCodes);
 
   const isCore = (code: string): boolean =>
-    NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
-    !factBound.has(code) ||
-    platform.has(code) ||
-    !askScoped.has(code);
+    scope.productOnly !== true &&
+    (NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
+      !factBound.has(code) ||
+      platform.has(code) ||
+      !askScoped.has(code));
 
   const keep = new Set<string>();
   for (const q of questions) {
@@ -183,7 +194,12 @@ export function narrowAskedQuestions(
     for (const q of questions) {
       if (!keep.has(q.code)) continue;
       // Only a question that exists to gate: no fact of its own, and not in the core list.
-      if (factBound.has(q.code) || NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(q.code)) continue;
+      if (
+        factBound.has(q.code) ||
+        (scope.productOnly !== true && NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(q.code))
+      ) {
+        continue;
+      }
       const dependents = dependentsOf.get(q.code);
       if (dependents === undefined || dependents.length === 0) continue;
       if (dependents.some((code) => keep.has(code))) continue;

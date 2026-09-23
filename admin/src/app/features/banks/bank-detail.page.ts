@@ -1190,13 +1190,12 @@ interface PortfolioHealth {
       .prog-head .tag.basis {
         pointer-events: none;
       }
-      /* Pinned to the card's top edge, centred, 4px above it (RTL-safe: auto inline
-         margins, no left/translate). Sits over the card-wide link, inert like before. */
+      /* Pinned to the card's top edge at the END corner (right in LTR, left in RTL —
+         logical inset, no left/translate). Sits over the card-wide link, inert like before. */
       .prog > .tag.basis {
         position: absolute;
         inset-block-start: -10px;
-        inset-inline: 0;
-        margin-inline: auto;
+        inset-inline-end: var(--space-4);
         inline-size: max-content;
         z-index: 2;
         pointer-events: none;

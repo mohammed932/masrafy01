@@ -2077,7 +2077,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                      under 50%, and a number in code would be wrong for one of them. Hidden
                      while this bank reads the product's plans: the table it would edit is
                      not this bank's to change. -->
-                @if (financesAnAsset() && !plansInherits() && !planCardShown()) {
+                @if (isAutoLoan() && !plansInherits() && !planCardShown()) {
                   <div class="fees-cover">
                     <label
                       nz-checkbox
@@ -4673,9 +4673,7 @@ export class BankProgramFormPage implements OnInit {
     this.toggles.vehicleGrid() ? factGridErrorFor(this.maxMonthsByFact(), 'months') : null,
   );
   readonly carInsuranceGridError = computed(() =>
-    this.toggles.carInsuranceGrid()
-      ? factGridErrorFor(this.carInsuranceRateByFact(), 'sharePercent')
-      : null,
+    this.carInsuranceOn() ? factGridErrorFor(this.carInsuranceRateByFact(), 'sharePercent') : null,
   );
 
   /**
@@ -5110,6 +5108,19 @@ export class BankProgramFormPage implements OnInit {
   protected financesAnAsset(): boolean {
     const cat = this.productCategorySignal();
     return cat === 'car' || cat === 'mortgage';
+  }
+
+  /**
+   * An auto loan. Car insurance is asked, priced and saved on these alone (operator decision,
+   * 2026-09-23): a mortgage finances an asset too, but "cover on the car" means nothing there.
+   */
+  protected isAutoLoan(): boolean {
+    return this.productCategorySignal() === 'car';
+  }
+
+  /** The cover toggle as it applies to THIS program — always off off an auto loan. */
+  private carInsuranceOn(): boolean {
+    return this.isAutoLoan() && this.toggles.carInsuranceGrid();
   }
 
   /**
@@ -6569,7 +6580,7 @@ export class BankProgramFormPage implements OnInit {
     const maxMonths = this.maxMonthsByFact();
     if (this.toggles.vehicleGrid() && maxMonths !== null) out.maxMonthsByFact = maxMonths;
     const cover = this.carInsuranceRateByFact();
-    if (this.toggles.carInsuranceGrid() && cover !== null) out.carInsuranceRateByFact = cover;
+    if (this.carInsuranceOn() && cover !== null) out.carInsuranceRateByFact = cover;
     const ltv = this.ltvCeilingByFact();
     if (ltv !== null) out.ltvCeilingByFact = ltv;
     const minAmount = this.minAmountByFact();
@@ -8502,7 +8513,7 @@ export class BankProgramFormPage implements OnInit {
         // The toggle being OFF at save time is the operator's statement that this bank
         // demands no cover — the same contract the two grids above hold, and the reason the
         // key is emitted as `undefined` rather than omitted.
-        ...(this.toggles.carInsuranceGrid() && this.carInsuranceRateByFact()
+        ...(this.carInsuranceOn() && this.carInsuranceRateByFact()
           ? { carInsuranceRateByFact: this.carInsuranceRateByFact() ?? undefined }
           : { carInsuranceRateByFact: undefined }),
       },

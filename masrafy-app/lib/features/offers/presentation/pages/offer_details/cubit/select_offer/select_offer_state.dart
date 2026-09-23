@@ -20,4 +20,9 @@ class SelectOfferState with _$SelectOfferState {
   /// Apply-time documents missing (Constitution v9.1.0) — route to the
   /// apply-documents screen to collect the National ID, then auto-resume.
   bool get needsDocuments => error?.code == 'NATIONAL_ID_REQUIRED';
+
+  /// This application already proceeded with an offer (a second tap, or the
+  /// screen reopened from a stale stack). Not a failure: the request is with
+  /// the bank, so the page treats it like success and leaves.
+  bool get alreadyProceeded => error?.code == 'ALREADY_PROCEEDED';
 }

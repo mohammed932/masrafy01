@@ -48,6 +48,12 @@ async function main(): Promise<void> {
   const retained = new Set(d.gateSourcesRetained);
 
   const reason = (code: string): string => {
+    if (scope.productOnly === true) {
+      if (needed.has(code))
+        return 'NEEDED (product-only name): the product or a programme reads it';
+      if (retained.has(code)) return 'GATE SOURCE: kept so a surviving gate stays evaluable';
+      return '??';
+    }
     if (NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code)) return 'CORE: money/obligation code';
     if (!factBound.has(code)) return 'CORE: bound to no fact';
     if (platform.has(code)) return 'CORE: platform-owned fact (reserved)';
@@ -65,7 +71,9 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n${category} / ${nameKey}`);
-  console.log(`  category pool ${inCategory.length}  ->  served ${d.keep.size}  (dropped ${d.dropped.length})\n`);
+  console.log(
+    `  category pool ${inCategory.length}  ->  served ${d.keep.size}  (dropped ${d.dropped.length})\n`,
+  );
   for (const [r, codes] of [...buckets].sort((a, b) => b[1].length - a[1].length)) {
     console.log(`  ${String(codes.length).padStart(3)}  ${r}`);
     for (const c of codes.sort()) console.log(`         ${c}`);
@@ -74,5 +82,8 @@ async function main(): Promise<void> {
 }
 
 main()
-  .catch((e: unknown) => { console.error(e); process.exitCode = 1; })
+  .catch((e: unknown) => {
+    console.error(e);
+    process.exitCode = 1;
+  })
   .finally(() => void prisma.$disconnect());
