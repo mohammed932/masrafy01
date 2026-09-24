@@ -37,8 +37,12 @@ import {
   type FactReader,
 } from '@/matching/pipeline/fact-readers';
 import { isReservedFactKey } from '@/matching/pipeline/fact-question-eligibility';
-import { bankAxisByFactKey } from '@/matching/pipeline/bank-relationship';
-import { CAR_DOWN_PAYMENT_FACT_KEY, CAR_PRICE_FACT_KEY } from '@/matching/pipeline/car-details';
+import { BANK_AXES, bankAxisByFactKey } from '@/matching/pipeline/bank-relationship';
+import {
+  CAR_DOWN_PAYMENT_FACT_KEY,
+  CAR_MODEL_YEAR_FACT_KEY,
+  CAR_PRICE_FACT_KEY,
+} from '@/matching/pipeline/car-details';
 import { MONEY_FIELD_BINDINGS } from '@/matching/pipeline/money-field-bindings';
 import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import { enabledWhenGate } from '@/questionnaire/validation/question-visibility';
@@ -940,6 +944,8 @@ export class PostgresPlatformEnumerationsRepository
     const plans = catalogPlansOf(resolution);
 
     const needed = new Set<string>();
+    // Facts read by a refusal that an unanswered question skips (see `mustAnswerQuestionCodes`).
+    const mustAnswer = new Set<string>();
     const platformTiers = await this.platformIScoreTiers();
     for (const program of programs) {
       const effective = effectiveIncomeRule(
@@ -972,11 +978,9 @@ export class PostgresPlatformEnumerationsRepository
       )) {
         needed.add(key);
       }
-      for (const key of factsReadByTenor(
-        effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
-      )) {
-        needed.add(key);
-      }
+      const tenor = effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans);
+      for (const key of factsReadByTenor(tenor)) needed.add(key);
+      if (tenor.maxVehicleAgeYearsByFact !== undefined) mustAnswer.add(CAR_MODEL_YEAR_FACT_KEY);
       for (const key of factsReadByFees(
         effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
       )) {
@@ -1024,6 +1028,20 @@ export class PostgresPlatformEnumerationsRepository
       const axis = bankAxisByFactKey(key);
       if (axis !== undefined) neededQuestionCodes.push(axis.questionCode);
     }
+    // The three bank axes are ALWAYS product-scoped (2026-09-24). Their questions are bound
+    // to no registry row on most databases, so the core's "bound to no fact" clause kept all
+    // three on every name — `existing_bank_relationships` read by nothing anywhere, and the
+    // other two read only by the compound-owner product and the doctors' clinic programme.
+    // Counted as fact-bound and product-asked here, each is served exactly where a programme
+    // under the name reads its column (the `needed` pass above), and nowhere else.
+    for (const axis of BANK_AXES) {
+      if (!factBoundQuestionCodes.includes(axis.questionCode)) {
+        factBoundQuestionCodes.push(axis.questionCode);
+      }
+      if (!askScopedQuestionCodes.includes(axis.questionCode)) {
+        askScopedQuestionCodes.push(axis.questionCode);
+      }
+    }
 
     // See `NarrowingScope.productOnly`. A linked product and no payslip programme in scope:
     // one payslip programme under the name puts the whole core back.
@@ -1044,6 +1062,10 @@ export class PostgresPlatformEnumerationsRepository
       if (!derivable) neededQuestionCodes.push(MONEY_FIELD_BINDINGS.requested_amount);
     }
 
+    const mustAnswerQuestionCodes = factRows.flatMap((f) =>
+      mustAnswer.has(f.key) && f.boundQuestion !== null ? [f.boundQuestion.code] : [],
+    );
+
     return {
       programNameKey,
       factBoundQuestionCodes,
@@ -1051,6 +1073,7 @@ export class PostgresPlatformEnumerationsRepository
       platformQuestionCodes,
       neededQuestionCodes,
       productOnly,
+      mustAnswerQuestionCodes,
     };
   }
 

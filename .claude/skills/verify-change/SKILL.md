@@ -14,7 +14,7 @@ Backend (`cd backend`):
 3. `npm run lint` → compare error count to HEAD (see Gotchas)
 4. Touched error codes → `npm run check:codes`
 5. Touched income rules/catalog/parents → `npm run check:income-proof`, `npm run check:parent-keys`
-6. Touched conditions/question scope → `npm run check:conditions`, `npm run check:question-scope`
+6. Touched conditions/question scope/category assignments/a migration on `question*` → `npm run check:conditions`, `npm run check:question-scope`, `npm run check:questionnaire` (seven structural invariants: every debt amount asked where `current_loans` is, debts + duration served under every name, gate sources asked, active ⇔ assigned, snapshot = live, no condition accepting every answer, active fact ⇒ active question)
 7. Touched quoting/rates/programmes → `npm run quote:surrogate` (and `quote:rates`, `quote:car-plans`): capture output BEFORE and AFTER; a change claiming to move no money must diff byte-identical.
 
 Admin (`cd admin`):

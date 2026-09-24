@@ -77,11 +77,17 @@ const Map<String, double> _propertyValueEgp = {
 };
 
 /// `down_payment` bucket → representative fraction of the property value.
+///
+/// Keyed by the option codes the server serves. `more_than_30` never existed
+/// there, and `no_down_payment`, `30_40` and `more_than_40` were missing, so
+/// those three sent a 0% down payment (fixed 2026-09-24).
 const Map<String, double> _downPaymentPct = {
+  'no_down_payment': 0,
   'less_than_10': 0.05,
   '10_20': 0.15,
   '20_30': 0.25,
-  'more_than_30': 0.35,
+  '30_40': 0.35,
+  'more_than_40': 0.45,
 };
 
 /// `employment_status` seed code → the engine's `employmentType` token
@@ -105,4 +111,3 @@ String _propertyType(String? code) => code == 'villa' ? 'villa' : 'apartment';
 /// unconstrained; the engine cascade reads it for a subset of programs).
 String _constructionStage(String? code) =>
     code == 'officially_registered' ? 'ready' : 'under_construction';
-

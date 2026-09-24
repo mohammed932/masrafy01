@@ -39,7 +39,7 @@ const STRATEGIES: readonly IncomeAssumptionStrategy[] = INCOME_ASSUMPTION_STRATE
 
 /** One row of a key table: a registry member and the income the bank assigns it. */
 export class IncomeKeyTableRowDto {
-  @ApiProperty({ example: 'senior_officer', description: 'An ACTIVE registry key.' })
+  @ApiProperty({ example: 'grade_major', description: 'An ACTIVE registry key.' })
   /**
    * A registry key, e.g. `senior_officer`. Membership is checked in the service
    * layer against the ACTIVE members of the method's enumeration

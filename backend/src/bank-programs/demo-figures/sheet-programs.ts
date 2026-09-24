@@ -521,17 +521,12 @@ const SPECS: readonly ProgramSpec[] = [
           money('grade_major', '30000'),
           money('grade_captain', '28000'),
           money('grade_first_lieutenant', '18000'),
-          money('general', '40000'),
-          money('senior_officer', '25000'),
-          money('officer', '15000'),
+          // `general` / `senior_officer` / `officer` retired 2026-09-24 — not on App. A §11,
+          // and `general` shared the Arabic label "لواء" with `grade_major_general`.
         ],
       },
     },
-    estimated: [
-      'incomeAssumption.stepParams.primary.keyTable.general.incomeEGP',
-      'incomeAssumption.stepParams.primary.keyTable.senior_officer.incomeEGP',
-      'incomeAssumption.stepParams.primary.keyTable.officer.incomeEGP',
-    ],
+    estimated: [],
   }),
 
   program({

@@ -29,4 +29,5 @@ Re-run each seed: must report 0 written / 0 refused.
 - `programCode` is immutable; a rename = new code + delete/retire old.
 - Route order in controllers: literal paths before `:param` ones.
 - Matching engine is pure (no HTTP/DB); preview and apply must share the same functions (visibility, order, facts).
+- A migration that changes `question_loan_category` or `question.isActive` must be followed by `npx tsx scripts/publish-questionnaire.ts` (the snapshot is frozen), then `npm run check:questionnaire` — it fails on a forgotten publish, a debt amount missing where `current_loans` is asked, or an active question asked by nobody.
 - Then run `verify-change`.

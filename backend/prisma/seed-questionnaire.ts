@@ -413,27 +413,6 @@ const CAR_MODEL_YEAR_Q: SeedQuestion = {
 };
 
 /**
- * Whether the car will be insured.
- *
- * A SEPARATE question from `wants_insurance`, which stays exactly as it is. That one asks
- * whether the customer wants insurance OFFERS — a cross-sell — and live applications have
- * answered it under that meaning. Rebinding it here would retroactively reinterpret every one
- * of those answers as a statement about this car's cover.
- */
-const CAR_INSURANCE_Q: SeedQuestion = {
-  code: 'car_insurance',
-  isRequired: false,
-  questionEn: 'Will the car be insured?',
-  questionAr: 'هل ستكون السيارة مؤمَّنة؟',
-  helperTextEn: 'Some banks require cover, and some price the loan differently with it.',
-  helperTextAr: 'بعض البنوك تشترط التأمين، وبعضها يسعّر القرض بشكل مختلف معه.',
-  options: [
-    { code: 'with_insurance', labelEn: 'Yes, it will be insured', labelAr: 'نعم، ستكون مؤمَّنة' },
-    { code: 'without_insurance', labelEn: 'No', labelAr: 'لا' },
-  ],
-};
-
-/**
  * What the applicant has saved, and how they are buying — the Green Finance pair.
  *
  * OPTIONAL, both of them: they are read by one product, and a required question is enforced
@@ -474,6 +453,9 @@ const DOWN_PAYMENT_Q: SeedQuestion = {
   code: 'down_payment',
   questionEn: 'How much money can you pay up front?',
   questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
+  // Optional (2026-09-24): no programme reads it — lead data for the bank, not a figure, so
+  // it must not block an applicant.
+  isRequired: false,
   options: DOWN_PAYMENT_OPTIONS,
 };
 
@@ -708,9 +690,9 @@ const HOSPITAL_SECTOR_Q: SeedQuestion = {
 };
 
 // App. A — the 20% down-payment tier is sold only where the home the applicant LIVES in is
-// owned by them or by a first-degree relative. Asked of every auto applicant, because
-// everybody lives somewhere: all three answers are real and `rented_or_other` is the honest
-// no, so this one needs no separate exemption.
+// owned by them or by a first-degree relative. Read by the car programmes' financed-share
+// table (`ltvCeilingByFact`, 20–30% band), not by any condition. Asked of every auto
+// applicant, because everybody lives somewhere: `rented_or_other` is the honest no.
 const HOME_OWNERSHIP_Q: SeedQuestion = {
   code: 'home_ownership',
   questionEn: 'Do you own the home you live in, or does a close relative?',
@@ -720,23 +702,6 @@ const HOME_OWNERSHIP_Q: SeedQuestion = {
     { code: 'owned_by_me', labelEn: 'I own it', labelAr: 'أملكه' },
     { code: 'owned_by_relative', labelEn: 'A close relative owns it', labelAr: 'يملكه قريب من الدرجة الأولى' },
     { code: 'rented_or_other', labelEn: 'Rented, or neither', labelAr: 'مستأجر، أو غير ذلك' },
-  ],
-};
-
-// App. A — both Green Finance programmes are sold only to the owner of a DELIVERED unit in a
-// compound the bank has pre-approved. `no_unit` is the exemption for the auto applicant who
-// owns no unit at all.
-const UNIT_APPROVED_COMPOUND_Q: SeedQuestion = {
-  code: 'unit_approved_compound',
-  questionEn: 'Is your home in a finished, bank-approved compound?',
-  questionAr: 'هل منزلك في كومباوند مكتمل ومعتمد من البنك؟',
-  helperTextEn: 'Finished and handed over, in a compound the bank already finances.',
-  helperTextAr: 'مكتمل ومستلم، وفي كومباوند يموّله البنك بالفعل.',
-  isRequired: true,
-  options: [
-    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
-    { code: 'no', labelEn: 'No, or I am not sure', labelAr: 'لا، أو غير متأكد' },
-    { code: 'no_unit', labelEn: 'I do not own a unit', labelAr: 'لا أملك وحدة' },
   ],
 };
 
@@ -1129,7 +1094,10 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       type: 'NUMERIC',
       questionEn: 'Over how many months do you want to pay it back?',
       questionAr: 'على كم شهر تريد السداد؟',
-      numeric: { minValue: '6', maxValue: '120', step: '6', unitEn: 'months', unitAr: 'شهر' },
+      // 300, not 120: home-purchase programmes run to 240 months, and a question capped at
+      // 120 quoted every mortgage at half its term — a smaller loan and a larger instalment
+      // than the bank would write. Each programme still clamps to its own `tenor.maxMonths`.
+      numeric: { minValue: '6', maxValue: '300', step: '6', unitEn: 'months', unitAr: 'شهر' },
       options: [],
     },
   },
@@ -1142,8 +1110,15 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       // Wording has to hold for a salaried applicant AND a business owner: this
       // one question is what the business bucket `monthly_revenue` was replaced
       // with, and it feeds the DBR for every category.
-      questionEn: 'How much money comes in each month?',
-      questionAr: 'ما إجمالي الدخل الشهري؟',
+      //
+      // NET, and it says so (2026-09-24). The engine reads this as the net salary every DBR
+      // is taken against; "إجمالي" means total/gross, so an applicant answering truthfully
+      // was quoted on a bigger income than the bank uses. The helper covers the business
+      // owner, who otherwise types takings rather than profit.
+      questionEn: 'What is your net monthly income?',
+      questionAr: 'ما صافي دخلك الشهري؟',
+      helperTextEn: 'After tax and deductions. If you run a business, your profit after business costs.',
+      helperTextAr: 'بعد الضرائب والاستقطاعات. لأصحاب الأنشطة: الربح بعد مصروفات النشاط.',
       numeric: { minValue: '1000', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
       options: [],
     },
@@ -1529,7 +1504,8 @@ const MORTGAGE: CategoryConfig = {
           optionsFromEnum: 'governorate', options: [],
         },
         {
-          code: 'property_value', questionEn: 'About how much is the place worth?', questionAr: 'ما القيمة التقريبية للعقار؟',
+          // Optional (2026-09-24): no mortgage programme reads it yet — no LTV is stated.
+          code: 'property_value', questionEn: 'About how much is the place worth?', questionAr: 'ما القيمة التقريبية للعقار؟', isRequired: false,
           options: [
             { code: 'less_than_egp_1_million', labelEn: 'Less than 1 million EGP', labelAr: 'أقل من مليون جنيه' },
             { code: 'egp_1_3_million', labelEn: '1 – 3 million EGP', labelAr: '1 – 3 مليون جنيه' },
@@ -1594,10 +1570,8 @@ const CAR: CategoryConfig = {
         // Kept and now BOUND to a fact: `new` / `used` is exactly what a bank states, the
         // question is already asked, and live applications have already answered it — so
         // binding it costs one registry row and reinterprets nothing.
-        { code: 'vehicle_condition', questionEn: 'Is the car new or used?', questionAr: 'هل السيارة جديدة أم مستعملة؟', isRequired: false, options: [
-          { code: 'new', labelEn: 'New', labelAr: 'جديدة' },
-          { code: 'used', labelEn: 'Used', labelAr: 'مستعملة' },
-        ] },
+        // `vehicle_condition` ("new or used?") USED TO STAND HERE. Nothing read it — the
+        // programme NAME already says new or used — so it went on 2026-09-24.
         // `model_year` USED TO STAND HERE as four age-relative buckets ("this year model",
         // "up to 3 years old"). It is deliberately absent now, which is what retires it: this
         // seed deactivates every question outside its own pool. The buckets were a clock in
@@ -1612,10 +1586,11 @@ const CAR: CategoryConfig = {
         // sold under `car`, and both are quoted off what the applicant has saved.
         TOTAL_SAVINGS_Q,
         GREEN_BUYER_TYPE_Q,
-        // Both Green programmes are sold only against a delivered unit in a pre-approved
-        // compound, and the 20% down-payment tier only where the home is owned by the
-        // applicant or a first-degree relative. Car only — no other loan type sells them.
-        UNIT_APPROVED_COMPOUND_Q,
+        // The 20% down-payment tier is financed only where the home is owned by the applicant
+        // or a first-degree relative — the financed-share table reads this.
+        // `unit_approved_compound` USED TO STAND HERE, for a Suez Canal sheet condition the
+        // car product dropped on 2026-09-24; this seed deactivates every question outside
+        // its pool.
         HOME_OWNERSHIP_Q,
       ],
     },
@@ -1623,7 +1598,8 @@ const CAR: CategoryConfig = {
       // `down_payment` (the shared percentage bucket) is deliberately NOT here: a car
       // applicant states the amount, and the bucket stays a mortgage question.
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [CAR_DOWN_PAYMENT_Q, CAR_INSURANCE_Q],
+      // `car_insurance` went on 2026-09-24: no car programme's grid read it.
+      questions: [CAR_DOWN_PAYMENT_Q],
     },
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
@@ -1653,11 +1629,9 @@ const CAR: CategoryConfig = {
         // three above: an auto loan may be sold off an assumed income, and an unasked fact
         // resolves to `SURROGATE_FACT_MISSING`, never a zero.
         PRACTICE_GOVERNORATE_Q,
-        // The sheet conditions. The reference IS the assignment (`question_loan_category`,
-        // A33). Each is required and carries its own "does not apply to me" answer — see the
-        // block header where they are declared before changing either.
-        BUSINESS_MONTHS_Q,
-        SELF_EMPLOYED_LICENCE_Q,
+        // `business_months` and `self_employed_licence` are NOT here: they were the Suez Canal
+        // auto sheets' conditions, dropped 2026-09-24. Personal keeps them for the compound
+        // product. The reference IS the assignment (`question_loan_category`, A33).
         HOSPITAL_SECTOR_Q,
       ],
     },
@@ -1671,7 +1645,8 @@ const CAR: CategoryConfig = {
       questions: [
         PRIORITY_FACTOR_Q,
         PRIOR_REJECTION_Q,
-        { code: 'wants_insurance', questionEn: 'Do you want car insurance offers?', questionAr: 'هل ترغب في عروض تأمين السيارة؟', isRequired: false, options: YESNO() },
+        // `wants_insurance` ("car insurance offers?") USED TO STAND HERE. `CAR_ASKS` never
+        // listed it, so it was active and asked by nobody; it leaves the pool (2026-09-24).
         NEEDS_CONSULTANT_Q,
       ],
     },
@@ -1697,7 +1672,8 @@ const BUSINESS: CategoryConfig = {
           ],
         },
         {
-          code: 'business_age', questionEn: 'How long has your business been open?', questionAr: 'منذ متى والنشاط يعمل؟',
+          // Optional (2026-09-24): read by no programme's figures, only shown as a match reason.
+          code: 'business_age', questionEn: 'How long has your business been open?', questionAr: 'منذ متى والنشاط يعمل؟', isRequired: false,
           options: [
             { code: 'less_than_1_year', labelEn: 'Less than 1 year', labelAr: 'أقل من سنة' },
             { code: '1_to_2_years', labelEn: '1 to 2 years', labelAr: 'من 1 إلى 2 سنة' },
@@ -1739,9 +1715,12 @@ const BUSINESS: CategoryConfig = {
     },
     {
       code: 'obligations_credit', titleEn: 'Business loans you have', titleAr: 'الالتزامات والحالة الائتمانية',
-      questions: [
-        { code: 'current_facilities', questionEn: 'Does the business have any loans or credit right now?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO() },
-      ],
+      // The itemised debt flow every other loan type has (2026-09-24). It replaces
+      // `current_facilities`, a required yes/no nothing read: a "yes" with commitments of 0
+      // went straight through, and the typed lump sum asked the owner to work out the 5% of
+      // a card limit themselves. The five amounts follow `current_loans` into business
+      // automatically — their categories are derived from it below.
+      questions: [CURRENT_LOANS_Q],
     },
     {
       code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والدعم',
@@ -1807,20 +1786,26 @@ export interface SeedPool {
  *                              READ-ONLY whenever this is served, so dropping it leaves an
  *                              applicant unable to state any obligation and the debt burden
  *                              measured against zero. That is over-lending, not a shorter form
- *   two obligation amounts     `obligation_other`, `obligation_personal_loan` — read by
- *                              `auto_down_payment_income`, and the second reason `current_loans`
- *                              stays: both are gated on it, and a dangling gate never hides
- *                              its target, so they would turn unconditionally visible
+ *   all five obligation amounts `obligation_car_loan`, `credit_card_total_limit`,
+ *                              `obligation_personal_loan`, `obligation_mortgage`,
+ *                              `obligation_other` — one per `current_loans` pick. The list once
+ *                              carried only the last two, so a car applicant who ticked a car
+ *                              loan, a mortgage or a card was never asked its amount and the
+ *                              debt burden counted it as ZERO (fixed 2026-09-24). Each is
+ *                              gated on its pick, so none is seen unless it applies
  *   the car figures            `car_price`, `car_down_payment` — the LTV ceiling; plus
  *                              `car_dealer`, `car_origin`, `car_fuel_type`, `car_model_year`,
- *                              `vehicle_condition`, `car_insurance`, each read by a live car
- *                              programme's rate or term grid. A grid that misses its fact does
+ *                              each read by a live car programme's rate or term grid
+ *                              (`vehicle_condition` and `car_insurance` left 2026-09-24: no grid
+ *                              read either). A grid that misses its fact does
  *                              not report an error: `onNoMatch: 'useProgramMax'` quietly quotes
  *                              the programme's own maximum instead of the bank's row
- *   the surrogate facts        `business_months`, `self_employed_licence`, `home_ownership`,
- *                              `unit_approved_compound`, `green_buyer_type`, `total_savings` —
- *                              read by `auto_down_payment_income`; the first four by CONDITIONS,
- *                              which refuse outright when unanswered (v28.0.0)
+ *   the surrogate facts        `green_buyer_type`, `total_savings` — read by
+ *                              `down_payment_income`'s savings way; and `home_ownership`,
+ *                              read by the car financed-share table
+ *   the applicant type         `employment_status` — CAE's car cards cap a self-employed
+ *                              buyer at 60 months; unasked, the app sent `salaried` for all
+ *                              (added 2026-09-24)
  *   the two operator asks      `priority_factor` — losing it drops all four mobile priority
  *                              mappers to their default arm and freezes the wrong offer order
  *                              onto immutable rows (Principle V) — and `i_score`
@@ -1830,28 +1815,27 @@ export interface SeedPool {
  */
 const CAR_ASKS: ReadonlySet<string> = new Set<string>([
   'amount_requested',
-  'business_months',
   'car_dealer',
   'car_down_payment',
   'car_fuel_type',
-  'car_insurance',
   'car_model_year',
   'car_origin',
   'car_price',
   'current_installments',
+  'credit_card_total_limit',
   'current_loans',
+  'employment_status',
   'green_buyer_type',
   'home_ownership',
   'i_score',
   'monthly_income',
+  'obligation_car_loan',
+  'obligation_mortgage',
   'obligation_other',
   'obligation_personal_loan',
   'priority_factor',
   'repayment_period_months',
-  'self_employed_licence',
   'total_savings',
-  'unit_approved_compound',
-  'vehicle_condition',
 ]);
 
 /**
@@ -2415,7 +2399,7 @@ async function upsertCarFacts(): Promise<void> {
       labelAr: 'الدفعة المقدمة للسيارة',
       sortOrder: 121,
     },
-    // The three the vehicle rules read. Platform-owned like the two above and for the same
+    // The facts the vehicle rules read. Platform-owned like the two above and for the same
     // reason: a bank's model-year table, its origin rows and its insurance column are read by
     // ANY car programme that states one, so filing them under whichever product wanted them
     // first would make them look like that product's and retiring it would read as retiring
@@ -2425,10 +2409,9 @@ async function upsertCarFacts(): Promise<void> {
     // by the fact's own key.
     { key: 'car_model_year', labelEn: 'Car model year', labelAr: 'سنة موديل السيارة', sortOrder: 122 },
     { key: 'car_origin', labelEn: 'Where the car was built', labelAr: 'بلد صنع السيارة', sortOrder: 123 },
-    { key: 'car_insurance', labelEn: 'Car insurance', labelAr: 'تأمين السيارة', sortOrder: 124 },
-    // Already asked of every car applicant and answered by live applications; bound here so a
-    // bank can state a row against `new` / `used` without a new question.
-    { key: 'vehicle_condition', labelEn: 'New or used', labelAr: 'جديدة أم مستعملة', sortOrder: 125 },
+    // `car_insurance` (124) and `vehicle_condition` (125) left on 2026-09-24 with their
+    // questions: no car programme's grid read either. A bank that prices on one again brings
+    // the question back first — `check:question-scope` refuses a grid on an unasked fact.
     {
       key: 'car_fuel_type',
       labelEn: 'What the car runs on',

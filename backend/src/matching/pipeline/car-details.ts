@@ -203,11 +203,12 @@ export function withGridFacts(
   const modelYear = facts[CAR_MODEL_YEAR_FACT_KEY];
   if (modelYear !== undefined && modelYear.kind === 'numeric' && modelYear.value.isFinite()) {
     const ageYears = now.getFullYear() - modelYear.value.toNumber();
-    // A future model year (a typo, or a genuinely upcoming model) is not an age of zero —
-    // it is unanswered as far as an age-eligibility table is concerned, and `useFallback` on
-    // that table is what a bank meant by "this rule does not apply here".
-    if (Number.isFinite(ageYears) && ageYears >= 0) {
-      out[CAR_AGE_YEARS_FACT_KEY] = { kind: 'numeric', value: new Decimal(ageYears) };
+    // Next year's model is sold from the autumn before, so one year ahead is a new car: age 0.
+    // Anything further ahead is no car at all, and gets NO age — the quote refuses it wherever
+    // an age limit applies (`quote.ts`, 1a½), rather than letting a typo like 2100 read as a
+    // car too young for any limit to catch.
+    if (Number.isFinite(ageYears) && ageYears >= -1) {
+      out[CAR_AGE_YEARS_FACT_KEY] = { kind: 'numeric', value: new Decimal(Math.max(0, ageYears)) };
     }
   }
   return out;

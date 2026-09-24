@@ -37,7 +37,9 @@ admin/dist/
 Thumbs.db
 
 # Editors
-.vscode/
+.vscode/*
+!.vscode/launch.json
+*/.vscode/*
 .idea/
 *.swp
 *.swo

@@ -162,7 +162,14 @@ import {
   type AskCard,
   type AskSectionKey,
 } from './product-asks';
-import { neededFixableCount, neededGapCount, neededRows, type NeededRow } from './product-needed';
+import {
+  neededFixableCount,
+  neededGapCount,
+  neededGroups,
+  neededRows,
+  type NeededGroupKey,
+  type NeededRow,
+} from './product-needed';
 
 /** One operator-managed list surfaced on step ①. */
 interface ReadList {
@@ -490,114 +497,159 @@ interface ReadList {
                         <p class="need-note">{{ neededResult() }}</p>
                       }
 
-                      <ul class="need-list">
-                        @for (row of neededVisibleRows(); track row.factKey) {
-                          <li class="need-row" [class.is-gap]="!row.covered">
-                            <div class="need-main">
-                              <span class="need-label">{{ row.label }}</span>
-                              <span class="need-readers">
-                                @for (reader of row.readers; track $index) {
-                                  <span class="need-chip">{{ neededReaderLabel(reader) }}</span>
+                      <!-- A STATUS STRIP: one bordered fold row per group, named by WHO asks
+                           the question — a gap to close, this product, or the platform. Sentence
+                           case and a bordered row, deliberately unlike the uppercase section
+                           heads of the board below: this panel is the verdict on the product,
+                           the board is where questions are ticked, and the two used to read as
+                           one list said twice. Gaps start open, covered groups start folded;
+                           the open state lives in a signal so a board refresh after "Ask it"
+                           does not snap a group shut. -->
+                      @for (group of neededGroupList(); track group.key) {
+                        <details
+                          #fold
+                          class="need-group"
+                          [class.is-action]="group.key === 'action'"
+                          [open]="neededOpen().has(group.key)"
+                          (toggle)="setNeededOpen(group.key, fold.open)"
+                        >
+                          <summary class="need-group-head">
+                            <span class="need-dot" aria-hidden="true"></span>
+                            <h4 class="need-group-title" [id]="'spd-need-' + group.key">
+                              <span class="need-group-count">{{ group.rows.length }}</span>
+                              @switch (group.key) {
+                                @case ('action') {
+                                  <span i18n="@@spd.needed.group_action">Needs your action</span>
                                 }
-                                @if (row.derivedFrom && neededDerivedLabels[row.derivedFrom]) {
-                                  <span class="need-via">{{
-                                    neededDerivedLabels[row.derivedFrom]
-                                  }}</span>
-                                }
-                              </span>
-                            </div>
-                            <div class="need-side">
-                              @switch (row.status) {
-                                @case ('asked') {
-                                  <span class="need-status is-ok" i18n="@@spd.needed.status_asked"
-                                    >Asked</span
+                                @case ('product') {
+                                  <span i18n="@@spd.needed.group_product"
+                                    >Asked by this product</span
                                   >
                                 }
                                 @case ('platform') {
-                                  @if (row.missingIn.length === 0) {
-                                    <span
-                                      class="need-status is-ok"
-                                      i18n="@@spd.needed.status_platform"
-                                      >Platform question</span
-                                    >
-                                  } @else {
-                                    <span
-                                      class="need-status is-gap"
-                                      i18n="@@spd.needed.status_platform_missing"
-                                      >Not asked in {{ neededMissingLabel(row) }}</span
-                                    >
-                                  }
-                                }
-                                @case ('notAsked') {
-                                  <span
-                                    class="need-status is-gap"
-                                    i18n="@@spd.needed.status_not_asked"
-                                    >Not asked in {{ neededMissingLabel(row) }}</span
-                                  >
-                                }
-                                @case ('parked') {
-                                  <span class="need-status is-gap" i18n="@@spd.needed.status_parked"
-                                    >Question switched off</span
-                                  >
-                                }
-                                @default {
-                                  <span
-                                    class="need-status is-gap"
-                                    i18n="@@spd.needed.status_no_question"
-                                    >No question yet</span
+                                  <span i18n="@@spd.needed.group_platform"
+                                    >Asked by the platform</span
                                   >
                                 }
                               }
-                              @switch (row.action) {
-                                @case ('ask') {
-                                  <button
-                                    nz-button
-                                    nzSize="small"
-                                    type="button"
-                                    [nzLoading]="neededBusy() === row.factKey"
-                                    [disabled]="neededBusy() !== null"
-                                    (click)="actOnNeeded(row)"
-                                    i18n="@@spd.needed.ask"
-                                  >
-                                    Ask it
-                                  </button>
-                                }
-                                @case ('create') {
-                                  <button
-                                    nz-button
-                                    nzSize="small"
-                                    type="button"
-                                    [nzLoading]="neededBusy() === row.factKey"
-                                    [disabled]="neededBusy() !== null"
-                                    (click)="actOnNeeded(row)"
-                                    i18n="@@spd.needed.create"
-                                  >
-                                    Create question
-                                  </button>
-                                }
+                            </h4>
+                            <!-- Inline SVG, like the structure fold's chevron and for its
+                                 reason: a projected nz-icon resolves the nearest patch service.
+                                 Points down, so it needs no RTL mirror; it turns to point up. -->
+                            <svg
+                              class="need-chev"
+                              viewBox="0 0 16 16"
+                              width="14"
+                              height="14"
+                              aria-hidden="true"
+                              focusable="false"
+                            >
+                              <path
+                                d="M3.5 6 8 10.5 12.5 6"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.75"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                              />
+                            </svg>
+                          </summary>
+                          <div class="need-body">
+                            @switch (group.key) {
+                              @case ('product') {
+                                <p class="need-group-note" i18n="@@spd.needed.group_product_note">
+                                  This product adds these to the questionnaire. Untick one below to
+                                  stop asking it.
+                                </p>
                               }
-                            </div>
-                          </li>
-                        }
-                      </ul>
-
-                      @if (neededGaps() > 0 && neededGaps() < neededRowsList().length) {
-                        <button
-                          type="button"
-                          class="linkish need-toggle"
-                          (click)="toggleNeededCovered()"
-                        >
-                          @if (neededShowCovered()) {
-                            <span i18n="@@spd.needed.hide_covered"
-                              >Hide the ones already asked</span
-                            >
-                          } @else {
-                            <span i18n="@@spd.needed.show_covered"
-                              >Show the {{ neededRowsList().length - neededGaps() }} already
-                              asked</span
-                            >
-                          }
-                        </button>
+                              @case ('platform') {
+                                <p class="need-group-note" i18n="@@spd.needed.group_platform_note">
+                                  Every applicant in this loan type is asked these, whatever the
+                                  product.
+                                </p>
+                              }
+                            }
+                            <ul class="need-list" [attr.aria-labelledby]="'spd-need-' + group.key">
+                              @for (row of group.rows; track row.factKey) {
+                                <li class="need-row">
+                                  <span class="need-label">{{ row.label }}</span>
+                                  <div class="need-side">
+                                    @if (group.key === 'action') {
+                                      <span class="need-status">
+                                        @switch (row.status) {
+                                          @case ('parked') {
+                                            <span i18n="@@spd.needed.status_parked"
+                                              >Question switched off</span
+                                            >
+                                          }
+                                          @case ('noQuestion') {
+                                            <span i18n="@@spd.needed.status_no_question"
+                                              >No question yet</span
+                                            >
+                                          }
+                                          @case ('noFact') {
+                                            <span i18n="@@spd.needed.status_no_question"
+                                              >No question yet</span
+                                            >
+                                          }
+                                          @default {
+                                            <span i18n="@@spd.needed.status_not_asked"
+                                              >Not asked in {{ neededMissingLabel(row) }}</span
+                                            >
+                                          }
+                                        }
+                                      </span>
+                                    }
+                                    <!-- Where the answer is read, as a count; the engine's own
+                                         names for those places (rate table, financed-share
+                                         table, the programme code) sit one hover or focus
+                                         deeper, where the operator who needs them looks. -->
+                                    <span
+                                      class="need-uses"
+                                      tabindex="0"
+                                      nz-tooltip
+                                      [nzTooltipTitle]="neededUsedIn(row)"
+                                      [attr.aria-label]="neededUsedIn(row)"
+                                      i18n="@@spd.needed.uses"
+                                      >{neededUseCount(row), plural,
+                                        =1 {Read in 1 place}
+                                        other {Read in {{ neededUseCount(row) }} places}
+                                      }</span
+                                    >
+                                    @switch (row.action) {
+                                      @case ('ask') {
+                                        <button
+                                          nz-button
+                                          nzSize="small"
+                                          type="button"
+                                          [nzLoading]="neededBusy() === row.factKey"
+                                          [disabled]="neededBusy() !== null"
+                                          (click)="actOnNeeded(row)"
+                                          i18n="@@spd.needed.ask"
+                                        >
+                                          Ask it
+                                        </button>
+                                      }
+                                      @case ('create') {
+                                        <button
+                                          nz-button
+                                          nzSize="small"
+                                          type="button"
+                                          [nzLoading]="neededBusy() === row.factKey"
+                                          [disabled]="neededBusy() !== null"
+                                          (click)="actOnNeeded(row)"
+                                          i18n="@@spd.needed.create"
+                                        >
+                                          Create question
+                                        </button>
+                                      }
+                                    }
+                                  </div>
+                                </li>
+                              }
+                            </ul>
+                          </div>
+                        </details>
                       }
                     </section>
                   }
@@ -3614,55 +3666,115 @@ interface ReadList {
         font-size: var(--text-xs);
         color: var(--text-secondary);
       }
+      /* A group is a bordered fold row: it has to read as something to open, and as the
+         panel's verdict rather than as another uppercase section of the board below. */
+      .need-group {
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        overflow: hidden;
+      }
+      .need-group-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        cursor: pointer;
+        list-style: none;
+        transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .need-group-head::-webkit-details-marker {
+        display: none;
+      }
+      .need-group-head:hover {
+        background: var(--bg-muted);
+      }
+      .need-group-head:focus-visible {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: -2px;
+      }
+      .need-dot {
+        flex: none;
+        inline-size: 0.5rem;
+        block-size: 0.5rem;
+        border-radius: var(--radius-pill);
+        background: var(--color-success);
+      }
+      .need-group.is-action .need-dot {
+        background: var(--color-warning);
+      }
+      .need-group-title {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        flex: 1 1 auto;
+        min-inline-size: 0;
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
+      }
+      .need-group-count {
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+      }
+      /* The only affordance the row has once the native marker is gone. It rotates rather
+         than swapping glyphs, so the two states read as one object turning. */
+      .need-chev {
+        flex: none;
+        color: var(--color-text-secondary);
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .need-group-head:hover .need-chev {
+        color: var(--color-text-primary);
+      }
+      .need-group[open] .need-chev {
+        transform: rotate(180deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .need-chev,
+        .need-group-head {
+          transition: none;
+        }
+      }
+      .need-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-2) var(--space-3) var(--space-1);
+        border-block-start: 1px solid var(--border-subtle);
+      }
+      .need-group-note {
+        margin: 0;
+        max-inline-size: 72ch;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
       .need-list {
         display: flex;
         flex-direction: column;
         margin: 0;
         padding: 0;
         list-style: none;
-        border-block-start: 1px solid var(--border-subtle);
       }
       .need-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: var(--space-2) var(--space-4);
-        padding-block: var(--space-3);
+        gap: var(--space-1) var(--space-4);
+        padding-block: var(--space-2);
         border-block-end: 1px solid var(--border-subtle);
       }
       .need-row:last-child {
         border-block-end: 0;
       }
-      .need-main {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        min-inline-size: 0;
-        flex: 1 1 16rem;
-      }
       .need-label {
+        flex: 1 1 16rem;
+        min-inline-size: 0;
         font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
-        color: var(--text-primary);
+        color: var(--color-text-primary);
         overflow-wrap: anywhere;
-      }
-      .need-readers {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-1);
-      }
-      .need-chip {
-        padding: var(--space-0-5) var(--space-2);
-        border-radius: var(--radius-pill);
-        background: var(--bg-muted);
-        color: var(--text-secondary);
-        font-size: var(--text-xs);
-      }
-      .need-via {
-        font-size: var(--text-xs);
-        color: var(--text-secondary);
       }
       .need-side {
         display: flex;
@@ -3670,28 +3782,23 @@ interface ReadList {
         gap: var(--space-3);
         flex-shrink: 0;
       }
-      .need-status {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
+      .need-uses {
         font-size: var(--text-xs);
-        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text-secondary);
+        text-decoration: underline dotted;
+        text-underline-offset: 3px;
+        cursor: help;
+        border-radius: var(--radius-sm);
       }
-      .need-status::before {
-        content: '';
-        inline-size: 0.5rem;
-        block-size: 0.5rem;
-        border-radius: var(--radius-pill);
-        background: var(--color-success);
+      .need-uses:focus-visible {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: 2px;
       }
-      .need-status.is-gap {
-        color: var(--text-primary);
-      }
-      .need-status.is-gap::before {
-        background: var(--color-warning);
-      }
-      .need-toggle {
-        align-self: flex-start;
+      .need-status {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
       }
 
       .ask-sec {
@@ -5319,13 +5426,10 @@ export class SurrogateProductDetailPage {
   protected readonly neededGaps = computed(() => neededGapCount(this.neededRowsList()));
   protected readonly neededFixable = computed(() => neededFixableCount(this.neededRowsList()));
   protected readonly neededSoldIn = computed(() => this.asksBoard()?.soldIn ?? []);
-  /** Covered rows fold away: a product with nothing to do should read as one line. */
-  protected readonly neededShowCovered = signal(false);
-  protected readonly neededVisibleRows = computed(() =>
-    this.neededShowCovered() || this.neededGaps() === 0
-      ? this.neededRowsList()
-      : this.neededRowsList().filter((row) => !row.covered),
-  );
+  /** The same rows, grouped by who answers them — gaps, this product, the platform. */
+  protected readonly neededGroupList = computed(() => neededGroups(this.neededRowsList()));
+  /** Which groups are unfolded. Gaps start open; the covered groups start folded. */
+  protected readonly neededOpen = signal<ReadonlySet<NeededGroupKey>>(new Set(['action']));
   /** The fact a click is working on, or `*` for "Fix all". */
   protected readonly neededBusy = signal<string | null>(null);
   /** What the last click did, said on screen until the next one. */
@@ -5700,8 +5804,14 @@ export class SurrogateProductDetailPage {
     }
   }
 
-  protected toggleNeededCovered(): void {
-    this.neededShowCovered.update((on) => !on);
+  protected setNeededOpen(key: NeededGroupKey, open: boolean): void {
+    if (this.neededOpen().has(key) === open) return;
+    this.neededOpen.update((keys) => {
+      const next = new Set(keys);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
   }
 
   protected actOnNeeded(row: NeededRow | null): void {
@@ -5734,12 +5844,48 @@ export class SurrogateProductDetailPage {
     }
   }
 
-  /** "Rate table", "NATIONAL-CAR-C483 · Rate table", "Calculation", "Loan cap". */
-  protected neededReaderLabel(reader: NeededRow['readers'][number]): string {
-    if (reader.kind === 'calculation') return this.neededCalculationLabel;
-    if (reader.kind === 'cap') return this.neededCapLabel;
-    const table = this.neededTableLabels[reader.table] ?? reader.table;
-    return reader.kind === 'program' ? `${reader.programCode} · ${table}` : table;
+  /**
+   * Where one row's answer is read: the product's own places (calculation, cap, tables) and
+   * the bank programmes that also read it. A programme usually reads the same tables its
+   * product does, so tables are said once — listing each twice, bare and behind the
+   * programme code, is what once put eleven chips on a single row.
+   */
+  private neededPlaces(row: NeededRow): { places: string[]; programs: string[] } {
+    const places: string[] = [];
+    const programs: string[] = [];
+    for (const reader of row.readers) {
+      const label =
+        reader.kind === 'calculation'
+          ? this.neededCalculationLabel
+          : reader.kind === 'cap'
+            ? this.neededCapLabel
+            : (this.neededTableLabels[reader.table] ?? reader.table);
+      if (!places.includes(label)) places.push(label);
+      if (reader.kind === 'program' && !programs.includes(reader.programCode)) {
+        programs.push(reader.programCode);
+      }
+    }
+    return { places, programs };
+  }
+
+  /** "Read in N places" — the tables and calculation, not the programmes reading them. */
+  protected neededUseCount(row: NeededRow): number {
+    return this.neededPlaces(row).places.length;
+  }
+
+  /** The tooltip: "Calculation · Rate table · Bank program NATIONAL-CAR-C483". */
+  protected neededUsedIn(row: NeededRow): string {
+    const { places, programs } = this.neededPlaces(row);
+    const parts = [...places];
+    const [onlyProgram] = programs;
+    if (programs.length === 1 && onlyProgram !== undefined) {
+      parts.push($localize`:@@spd.needed.used_program:Bank program ${onlyProgram}:CODE:`);
+    } else if (programs.length > 1) {
+      parts.push($localize`:@@spd.needed.used_programs:${programs.length}:COUNT: bank programs`);
+    }
+    const via = row.derivedFrom ? this.neededDerivedLabels[row.derivedFrom] : undefined;
+    if (via) parts.push(via);
+    return parts.join(' · ');
   }
 
   protected neededMissingLabel(row: NeededRow): string {

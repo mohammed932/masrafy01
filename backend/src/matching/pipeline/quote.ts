@@ -50,7 +50,7 @@ import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
 import { ltvAmountFor, ltvByFactFor, ltvCeilingFor } from './ltv-ceiling';
 import { applyMaxLoanAdjustments } from './max-loan-adjustments';
-import { CAR_AGE_YEARS_FACT_KEY } from './car-details';
+import { CAR_AGE_YEARS_FACT_KEY, CAR_MODEL_YEAR_FACT_KEY } from './car-details';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -352,8 +352,18 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       // `!hit.matched && hit.action === 'useFallback'`: this table has nothing to say about
       // this applicant's origin/dealer combination, so no extra age restriction applies.
     }
-    // `carAgeFact === undefined`: the model year was never answered. The car's age is
-    // unknown, not zero, and an age table is not the place to demand an optional answer.
+    // `carAgeFact === undefined` with a model year GIVEN: it is more than a year ahead of the
+    // clock (`withGridFacts`), which is no car a bank finances. Without this, a typo such as
+    // 2100 skipped the age limit entirely.
+    if (
+      carAgeFact === undefined &&
+      (firstPass.ctx.facts ?? programFacts)[CAR_MODEL_YEAR_FACT_KEY] !== undefined
+    ) {
+      return { ok: false, unavailable: { reason: 'VEHICLE_NOT_ELIGIBLE' } };
+    }
+    // `carAgeFact === undefined` and no model year: never answered. The questionnaire makes it
+    // required on every name whose programmes carry an age limit (`mustAnswerQuestionCodes`),
+    // so this is a preview or an older app build — the age is unknown, not zero.
   }
 
   // ── 1b. The term ceiling this VEHICLE carries ───────────────────────────

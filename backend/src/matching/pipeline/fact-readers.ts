@@ -48,7 +48,7 @@ import { additionalIncomeFactKeys } from './additional-income';
 import { factsReadBy } from './product-rule';
 import type { ProductRule } from './product-rule';
 import { SURROGATE_FACTS_BY_STRATEGY } from './surrogate-fact-bindings';
-import { isGridOnlyFactKey } from './car-details';
+import { CAR_MODEL_YEAR_FACT_KEY, isGridOnlyFactKey } from './car-details';
 import { factKeyOf } from '../types';
 
 /** Where a fact key was found, and what an operator would have to open to remove it. */
@@ -221,6 +221,10 @@ export function factsReadByTenor(raw: unknown): Set<string> {
   const keys = gridAxisKeys(raw.maxMonthsByFact);
   for (const key of gridAxisKeys(raw.minMonthsByFact)) keys.add(key);
   for (const key of gridAxisKeys(raw.maxVehicleAgeYearsByFact)) keys.add(key);
+  // The age table's VALUE is compared with the car's age, which the engine derives from the
+  // model year — no axis names it, so without this line the model year was invisible to every
+  // guard and the refusal quietly skipped for anyone who left it blank.
+  if (isRecord(raw.maxVehicleAgeYearsByFact)) keys.add(CAR_MODEL_YEAR_FACT_KEY);
   return keys;
 }
 

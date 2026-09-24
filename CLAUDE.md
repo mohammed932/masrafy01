@@ -94,7 +94,7 @@ What replaces them, and what a change is now expected to show instead:
   refused, which is what proves a migration wrote exactly what the seed would have.
 - **A browser.** The screens driven on the running app, with page overflow measured at 0 and the
   console watched, in light, dark and RTL.
-- **The checks.** `check:codes`, `check:income-proof`, `check:parent-keys`, `tsc`, lint, and both
+- **The checks.** `check:codes`, `check:income-proof`, `check:parent-keys`, `check:questionnaire`, `tsc`, lint, and both
   locale builds with the untranslated-id count measured against a worktree of HEAD.
 
 If a change makes an existing test wrong, UPDATE that test — do not add a parallel one.
@@ -219,6 +219,9 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-09-24 v30.5.0 — every question checked against its readers and the bank sheets: no-payslip names ask debts, duration and employment type again; employment type no longer dropped on payslip names; mortgage term to 300; net-income wording; duplicate "لواء" grades retired; used-car model year required; `check:questionnaire` guards seven invariants.
+- 2026-09-24 v30.4.2 — a car applicant is asked every debt they tick (car loan, mortgage, card were counted as zero), and car insurance / new-or-used / club branch / existing-bank questions leave car: nothing there reads them.
+- 2026-09-24 v30.4.1 — the auto product stops asking a car buyer about a business and a compound: its four always-pass sheet conditions and three of their questions are removed; home ownership stays for the financed-share table.
 - 2026-09-21 v30.3.0 — I-Score becomes program-level policy: every programme can state a bureau-score table, payslip ones included. (DBR was already on all 71.)
 - 2026-09-15 v30.2.1 — step ② of the auto-loan product leads with the plan table, and the frame around it stops shouting over it.
 - 2026-09-14 v30.2.0 — the plans card is three tabs, and its table header has nothing in it that can be pressed.

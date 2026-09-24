@@ -382,12 +382,8 @@ describe('the slot ids are golden', () => {
       'alt__cash_buyer',
       'alt_pick',
       'basis',
-      // The four sheet conditions. Every one is `oneOf`, which emits a gate and no step, so
-      // all four are pure additions.
-      'cond__businessoldenough',
-      'cond__homeowned',
-      'cond__selfemployedpapers',
-      'cond__unitinapprovedcompound',
+      // The four sheet conditions (`cond__*`) were removed on 2026-09-24. Each was a `oneOf`
+      // gate with no step and no bank figure, so dropping them moves no slot.
       'primary',
       'src__car_down_payment',
       'src__total_savings',
@@ -428,13 +424,10 @@ describe('a fact two products read belongs to neither', () => {
     // read must therefore be filed under NO product, or the second one is refused at its
     // next save naming a fact nobody could see had been deleted.
     expect([...sharedBlueprintFactKeys()].sort()).toEqual([
-      // Both the SCB auto product and the CAE compound programme read the two self-employed
-      // conditions, so neither product owns them — the same rule as `years_in_practice`
-      // below, and the reason it exists.
-      'business_months',
+      // `business_months` and `self_employed_licence` left this list on 2026-09-24: the auto
+      // product dropped its sheet conditions, so only the CAE compound programme reads them.
       'loan_is_topup',
       'school_type',
-      'self_employed_licence',
       // Read by both doctor products since they were split apart — which is exactly the
       // case this rule exists for: switching one off must not take the other's only axis.
       'years_in_practice',

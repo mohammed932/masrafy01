@@ -146,7 +146,7 @@ const SAMPLES: readonly Sample[] = [
     amountEGP: '250000',
     tenorMonths: 36,
     employmentType: 'government_employee',
-    militaryGrade: 'senior_officer',
+    militaryGrade: 'grade_major',
     professorRank: 'assistant_professor',
     yearsInPractice: 3,
     assets: {

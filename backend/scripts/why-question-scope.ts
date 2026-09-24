@@ -10,6 +10,7 @@ import type { LoanCategory } from '@prisma/client';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
 import {
+  ASKED_EVEN_WHEN_PRODUCT_ONLY,
   narrowAskedQuestions,
   NEVER_PRODUCT_SCOPED_QUESTION_CODES,
 } from '../src/questionnaire/validation/question-scope';
@@ -29,8 +30,10 @@ async function main(): Promise<void> {
     groups: { questions: { code: string; enabledWhen?: unknown; categories?: string[] }[] }[];
   };
   const all = snap.groups.flatMap((g) => g.questions);
+  // The service's own rule (`askedFor`): no `categories` array = a pre-v12 snapshot, asked
+  // everywhere; an EMPTY array = parked, asked by nobody.
   const inCategory = all.filter(
-    (q) => !q.categories || q.categories.length === 0 || q.categories.includes(category),
+    (q) => !Array.isArray(q.categories) || q.categories.includes(category),
   );
 
   const scope = await repo.narrowingScopeFor(nameKey);
@@ -49,6 +52,8 @@ async function main(): Promise<void> {
 
   const reason = (code: string): string => {
     if (scope.productOnly === true) {
+      if (ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code))
+        return 'CORE (product-only name): debts, duration or employment type';
       if (needed.has(code))
         return 'NEEDED (product-only name): the product or a programme reads it';
       if (retained.has(code)) return 'GATE SOURCE: kept so a surviving gate stays evaluable';

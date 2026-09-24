@@ -28,6 +28,8 @@
 import { enabledWhenGate } from './question-visibility';
 import {
   DEBT_TYPES_QUESTION_CODE,
+  EMPLOYMENT_TYPE_QUESTION_CODE,
+  MONEY_FIELD_BINDINGS,
   MONEY_FIELD_BINDING_SPECS,
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
 } from '@/matching/pipeline/money-field-bindings';
@@ -59,6 +61,41 @@ export const NEVER_PRODUCT_SCOPED_QUESTION_CODES: ReadonlySet<string> = new Set<
   ...Object.values(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE),
 ]);
 
+/**
+ * The part of the core a PRODUCT-ONLY name still asks (2026-09-24, reversing part of the
+ * 2026-09-23 decision that emptied it).
+ *
+ *   - what the applicant already owes: `current_loans` and every amount it unlocks. Every bank
+ *     sheet behind these names states a DBR (ABK 50%, CAE 50/40, EGBank 50%; spec App. A/B), and
+ *     a DBR is "income × cap − obligations" — with the debts unasked, the engine counted them as
+ *     zero and lent the full cap to anyone who owes money.
+ *   - the loan duration. The plan tables and caps give a CEILING per band, not a term; unasked,
+ *     the app sent the longest one, which is the lowest instalment and the most generous DBR.
+ *   - `employment_status`, for the per-applicant-type rows (CAE compound 40% DBR, ABK card-to-
+ *     loan 84 months for the self-employed).
+ *
+ * Still NOT asked on those names: the declared salary (the product works the income out), the
+ * requested amount where the product derives it, and the stated lump sum (the itemised amounts
+ * above are the figure).
+ */
+export const ASKED_EVEN_WHEN_PRODUCT_ONLY: ReadonlySet<string> = new Set<string>([
+  DEBT_TYPES_QUESTION_CODE,
+  ...Object.values(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE),
+  MONEY_FIELD_BINDINGS.tenor_months,
+  EMPLOYMENT_TYPE_QUESTION_CODE,
+]);
+
+/**
+ * Never removed by the gate clean-up (pass A below), even when every question behind them has
+ * been dropped: the engine reads their OWN answer. `employment_status` gates `military_grade`,
+ * and on every payslip name pass A used to drop it the moment the grade dropped — the app then
+ * sent `salaried` for everyone.
+ */
+const NEVER_A_GATE_ONLY_SOURCE: ReadonlySet<string> = new Set<string>([
+  ...NEVER_PRODUCT_SCOPED_QUESTION_CODES,
+  EMPLOYMENT_TYPE_QUESTION_CODE,
+]);
+
 /** A question, in the shape BOTH the frozen snapshot and the live pool can supply. */
 export interface ScopableQuestion {
   code: string;
@@ -83,15 +120,21 @@ export interface NarrowingScope {
   /** Bound to a fact something in scope reads: a rule, a cap table, or a declared ask. */
   neededQuestionCodes: readonly string[];
   /**
-   * PRODUCT-ONLY (operator decision, 2026-09-23): the name quotes off a surrogate product and
-   * EVERY active programme under it is `income_surrogate`. The core below is then empty — the
-   * applicant is served exactly what the product and its programmes read, and nothing else,
-   * money bindings included. What the app does in their absence is its own fallback
-   * (`apply_mapping.dart`): no declared income (the product works it out), the programme's
-   * longest term, no stated commitments, and — for a car — the amount as price minus down
-   * payment. Absent = false, which is every payslip or mixed name.
+   * PRODUCT-ONLY (operator decision, 2026-09-23; narrowed 2026-09-24): the name quotes off a
+   * surrogate product and EVERY active programme under it is `income_surrogate`. The core is
+   * then `ASKED_EVEN_WHEN_PRODUCT_ONLY` — debts, duration, employment type — plus what the
+   * product and its programmes read. The app's own fallback (`apply_mapping.dart`) still covers
+   * the rest: no declared income (the product works it out) and, for a car, the amount as price
+   * minus down payment. Absent = false, which is every payslip or mixed name.
    */
   productOnly?: boolean;
+  /**
+   * Questions a programme under this name reads through a REFUSAL that is skipped when the
+   * answer is missing — today the vehicle-age limit, which cannot refuse a car whose model year
+   * nobody gave. Required wherever served, whatever their core clause (a platform fact keeps
+   * its own requiredness otherwise). Absent = none.
+   */
+  mustAnswerQuestionCodes?: readonly string[];
 }
 
 export type NarrowingDisabledReason = 'no_name' | 'no_programs' | 'empty_result';
@@ -164,11 +207,12 @@ export function narrowAskedQuestions(
   const needed = new Set(scope.neededQuestionCodes);
 
   const isCore = (code: string): boolean =>
-    scope.productOnly !== true &&
-    (NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
-      !factBound.has(code) ||
-      platform.has(code) ||
-      !askScoped.has(code));
+    scope.productOnly === true
+      ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code)
+      : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
+        !factBound.has(code) ||
+        platform.has(code) ||
+        !askScoped.has(code);
 
   const keep = new Set<string>();
   for (const q of questions) {
@@ -194,10 +238,7 @@ export function narrowAskedQuestions(
     for (const q of questions) {
       if (!keep.has(q.code)) continue;
       // Only a question that exists to gate: no fact of its own, and not in the core list.
-      if (
-        factBound.has(q.code) ||
-        (scope.productOnly !== true && NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(q.code))
-      ) {
+      if (factBound.has(q.code) || NEVER_A_GATE_ONLY_SOURCE.has(q.code)) {
         continue;
       }
       const dependents = dependentsOf.get(q.code);
@@ -249,6 +290,9 @@ export function narrowAskedQuestions(
     // core on every name until product-only names emptied the core, and it is optional by
     // design where it is optional — an unanswered I-Score is a 100% factor, not a refusal.
     if (!isCore(code) && !retainedSet.has(code) && !platform.has(code)) extraRequired.add(code);
+  }
+  for (const code of scope.mustAnswerQuestionCodes ?? []) {
+    if (keep.has(code)) extraRequired.add(code);
   }
 
   return {

@@ -1,5 +1,5 @@
 /**
- * Put the five questions a CAR applicant must be asked back on the `car` category.
+ * Put the four questions a CAR applicant must be asked back on the `car` category.
  *
  * Read the diagnosis before running: `check:money` reports "4 flow(s) a customer cannot
  * finish" because `repayment_period_months`, `monthly_income` and `current_installments`
@@ -13,7 +13,7 @@
  * TARGETED on purpose. `seed:questionnaire` would fix this too and is the durable answer,
  * but it rewrites EVERY question's assignments and deactivates anything outside its own
  * pool — which would discard category or ordering work done by hand in the admin since the
- * last seed. This adds five rows and nothing else.
+ * last seed. This adds four rows and nothing else.
  *
  * It publishes through `QuestionnaireService.publish()` rather than writing a snapshot of
  * its own: which categories ask a question is FROZEN into the snapshot (A33 — never
@@ -33,11 +33,9 @@ const CODES = [
   'monthly_income',
   'current_installments',
   'home_ownership',
-  'unit_approved_compound',
-  // Surfaced by `check:question-scope` once the five above stopped masking them: the same
-  // drift took the two facts the surrogate income rule's gates read.
-  'business_months',
-  'self_employed_licence',
+  // `unit_approved_compound`, `business_months` and `self_employed_licence` were here for the
+  // auto product's sheet conditions, removed 2026-09-24 — no car programme reads them now, and
+  // restoring them would put a commercial-register question back on every car applicant.
 ] as const;
 
 async function main(): Promise<void> {

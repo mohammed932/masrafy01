@@ -172,9 +172,17 @@ describe('the in-practice product reads one thing, and states no cap', () => {
     // table, and a template copied from the clinic-owner one would fail right here rather
     // than silently asking every hospital doctor for a governorate nothing reads.
     const bp = blueprintOf(PRACTICE_KEY);
-    // The years, and the hospital sector its one condition reads. Still no governorate:
-    // that is the clinic-owner product's axis and this sheet prints no city tiers.
-    expect(bp.asks.map((ask) => ask.factKey)).toEqual(['years_in_practice', 'hospital_sector']);
+    // The years, the hospital sector its one condition reads, and the four other-income
+    // amounts its programme weighs (asks since 2026-09-24). Still no governorate: that is the
+    // clinic-owner product's axis and this sheet prints no city tiers.
+    expect(bp.asks.map((ask) => ask.factKey)).toEqual([
+      'years_in_practice',
+      'hospital_sector',
+      'rental_income_monthly',
+      'cd_returns_monthly',
+      'fixed_allowances_monthly',
+      'variable_allowances_monthly',
+    ]);
     expect(bp.template!.secondColumn).toBeUndefined();
     expect(bp.cap).toBeUndefined();
   });

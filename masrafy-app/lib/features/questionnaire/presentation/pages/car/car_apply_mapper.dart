@@ -47,11 +47,10 @@ ApplyRequest mapCarAnswersToApplyRequest(
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-      // `job_tenure` IS asked of a car applicant — it is assigned to personal, car and
-      // mortgage — and this passed `null` regardless, so every car programme's service
-      // floor was checked against the 24-month fallback rather than the answer. All ten
-      // car programmes state `minMonthsInJob: 6`, so an applicant who answered
-      // "Less than 6 months" was quoted as if they had been in the job two years.
+      // `job_tenure` and `salary_transfer` are NOT asked in car (the server's `CAR_ASKS`),
+      // so these fall back to 24 months and `none`. That moves no offer while eligibility is
+      // skipped, and no car programme prices on transfer type. `employment_status` IS asked
+      // in car since 2026-09-24: CAE caps a self-employed buyer at 60 months.
       monthsInJob: monthsFromTenure(pickedOption(answers, 'job_tenure')),
       salaryTransferType: salaryTransferType(
         answerCode: pickedOption(answers, 'salary_transfer'),
@@ -97,4 +96,3 @@ const Map<String, String> _employmentType = {
   'freelancer': 'freelancer',
   'retired': 'retired',
 };
-

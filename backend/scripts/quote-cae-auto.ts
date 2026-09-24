@@ -114,8 +114,13 @@ const CASES: Case[] = [
   { programCode: 'CAE-CAR-USED_CAR', what: 'Chinese, non-Ghabbour, 5yo -> at ITS OWN limit, priced', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'other_authorized', ageYears: 5, tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
   { programCode: 'CAE-CAR-USED_CAR', what: 'Chinese, non-Ghabbour, 6yo -> refused (would pass on a leaky wildcard)', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'other_authorized', ageYears: 6, tenor: 84, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' },
   { programCode: 'CAE-CAR-USED_CAR', what: 'Chinese via GHABBOUR, 8yo -> extended, priced', price: '1000000', down: '400000', origin: 'china', fuel: 'petrol_diesel', dealer: 'ghabbour_mansour', ageYears: 8, tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
-  // The model year is optional — skipping it must not refuse.
+  // Unanswered is not refused by the ENGINE (a preview, an older app build); the questionnaire
+  // makes the model year required on every name whose programmes carry an age limit.
   { programCode: 'CAE-CAR-USED_CAR', what: 'model year unanswered -> not refused', price: '1000000', down: '400000', origin: 'germany', fuel: 'petrol_diesel', tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
+  // Next year's model is a new car (age 0); a year further ahead is no car — it used to read
+  // as "too young for any limit" and pass (2026-09-24).
+  { programCode: 'CAE-CAR-USED_CAR', what: "next year's model -> age 0, priced", price: '1000000', down: '400000', origin: 'germany', fuel: 'petrol_diesel', ageYears: -1, tenor: 84, expectMax: '600000', expectBinding: 'program_max_by_fact' },
+  { programCode: 'CAE-CAR-USED_CAR', what: 'model year 2100 (typo) -> refused', price: '1000000', down: '400000', origin: 'germany', fuel: 'petrol_diesel', ageYears: new Date().getFullYear() - 2100, tenor: 84, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' },
 ];
 
 function profileFor(c: Case): ApplicantProfile {

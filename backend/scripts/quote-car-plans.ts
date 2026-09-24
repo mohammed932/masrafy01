@@ -156,11 +156,18 @@ async function main(): Promise<void> {
     if (r !== undefined) catalog.set(row.key, r);
   }
 
+  // SCB-CAR-DOWN_PAYMENT, the programme this was written against, was removed on 2026-09-23
+  // with every programme under `auto_down_payment_income`. The card lives on as the PRODUCT's
+  // plan tables; any programme on `plansSource: 'product'` quotes from it. Pass another code
+  // to check that one instead. On CRE-CAR-3743 the two 65%-down cases refuse with
+  // REQUESTED_BELOW_PROGRAM_MIN_AMOUNT: a 400,000 loan is under CRE's own 500,000 floor, a
+  // programme limit and not a plan-table fault, so 11/13 is that programme's correct result.
+  const programCode = process.argv[2] ?? 'CRE-CAR-3743';
   const program = await prisma.bankProgram.findUnique({
-    where: { programCode: 'SCB-CAR-DOWN_PAYMENT' },
+    where: { programCode },
     include: { bank: { select: { isFeatured: true } } },
   });
-  if (program === null) throw new Error('SCB-CAR-DOWN_PAYMENT not found — run seed:sheet-figures');
+  if (program === null) throw new Error(`${programCode} not found`);
   const snapshot = toBankProgramSnapshot(program as unknown as BankProgramRow, catalog);
 
   console.log('# Suez Canal down-payment card — car price 1,000,000');

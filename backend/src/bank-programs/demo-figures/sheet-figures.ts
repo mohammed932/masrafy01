@@ -376,12 +376,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('grade_major', '30000'),
           money('grade_captain', '28000'),
           money('grade_first_lieutenant', '18000'),
-          // The three generic grades the list carried before the sheets' seven were added.
-          // Their figures are the ones this repo already ships for them in
-          // `CATALOG_INCOME_RULE.armed_forces`, so no row is invented and none is left blank.
-          money('general', '40000'),
-          money('senior_officer', '25000'),
-          money('officer', '15000'),
+          // The three generic grades (`general`, `senior_officer`, `officer`) were retired on
+          // 2026-09-24: App. A §11 prints these seven only, and `general` was labelled "لواء"
+          // exactly like `grade_major_general` at 40,000 against 75,000.
         ],
       },
     },
