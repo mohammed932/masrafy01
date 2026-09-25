@@ -119,9 +119,11 @@ BEGIN
               WHERE q."code" = ANY(unread) AND c."category" = 'car') THEN
     RAISE EXCEPTION 'car_questions_debts_and_unread: an unread question is still asked in car';
   END IF;
-  IF EXISTS (SELECT 1 FROM "question_loan_category" c JOIN "question" q ON q."id" = c."questionId"
-              WHERE q."code" IN ('car_dealer', 'car_model_year') AND c."category" = 'car')
-     IS DISTINCT FROM true THEN
+  -- Only where they exist: `seed:blueprints` mints both, so a database that has the
+  -- questionnaire but was never blueprint-seeded has neither, and nothing here removed them.
+  IF EXISTS (SELECT 1 FROM "question" WHERE "code" IN ('car_dealer', 'car_model_year'))
+     AND NOT EXISTS (SELECT 1 FROM "question_loan_category" c JOIN "question" q ON q."id" = c."questionId"
+                      WHERE q."code" IN ('car_dealer', 'car_model_year') AND c."category" = 'car') THEN
     RAISE EXCEPTION 'car_questions_debts_and_unread: car_dealer / car_model_year must stay asked in car';
   END IF;
 END $$;
