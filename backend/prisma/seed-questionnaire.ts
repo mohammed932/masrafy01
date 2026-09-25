@@ -959,17 +959,19 @@ const NEEDS_CONSULTANT_Q: SeedQuestion = {
 // They are NUMERIC and therefore NOT scoreable (R9): only single choice carries
 // answer scores, so these are excluded from every program's weight set below.
 /**
- * The credit-bureau score — asked of everyone, answered by whoever wants to.
+ * The credit-bureau score — asked of everyone, and REQUIRED of everyone (2026-09-25).
  *
  * A NUMBER, not a named band, and that is a decision about the FUTURE rather than about the
  * form: today the customer types it, and a real bureau feed will one day send it. Same
  * question, same fact, same bank tables — only the source changes. Stored as a band, every
  * one of those would have to be rewritten.
  *
- * OPTIONAL, and the whole I-Score mechanism is built around that being safe. A bank's
- * multiplier table falls back to 100% when there is no answer, which the compiled rule gets
- * from `RuleStep.optional` — without it one skipped question would stop every quote for the
- * product. `product-template.ts#emitIScore` is where that is guaranteed.
+ * REQUIRED (operator decision, 2026-09-25). It was optional, but since v30.4.0 every one of
+ * the 71 programmes quotes against the shared I-Score table, where a blank is the "No I-Score"
+ * class at 85% — so leaving it blank cost the applicant 15% of their income under a helper
+ * that promised it would not count against them. The engine still reads a blank as that
+ * class (`iscore.ts`): an application stored before this, or sent by an older app build,
+ * carries none.
  *
  * ALL FOUR CATEGORIES: a bureau score is a property of the person, not of the loan.
  */
@@ -979,11 +981,11 @@ const I_SCORE_QUESTION: { groupCode: string; question: SeedQuestion; categories:
   question: {
     code: I_SCORE_FACT_KEY,
     type: 'NUMERIC',
-    questionEn: 'Your I-Score, if you know it',
-    questionAr: 'درجة الآي سكور، إن كنت تعرفها',
-    helperTextEn: 'Leave it blank if you would rather not say. It will not count against you.',
-    helperTextAr: 'اتركها فارغة إن كنت تفضل عدم ذكرها. لن تُحسب ضدك.',
-    isRequired: false,
+    questionEn: 'What is your I-Score?',
+    questionAr: 'ما درجة الآي سكور الخاصة بك؟',
+    helperTextEn: 'From your I-Score credit report, between 300 and 900.',
+    helperTextAr: 'من تقرير الآي سكور الائتماني الخاص بك، بين 300 و900.',
+    isRequired: true,
     // The published Egyptian I-Score range. Bounds are CONTENT — what a person can
     // legitimately type — never scoring (A33).
     numeric: { minValue: '300', maxValue: '900', step: '1' },
@@ -2019,7 +2021,7 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
       questionAr: question.questionAr,
       ...(question.helperTextEn ? { helperTextEn: question.helperTextEn } : {}),
       ...(question.helperTextAr ? { helperTextAr: question.helperTextAr } : {}),
-      isRequired: false,
+      isRequired: question.isRequired ?? true,
       options: [],
     });
     questionOrder.push(question.code);

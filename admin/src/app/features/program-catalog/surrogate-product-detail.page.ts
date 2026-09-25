@@ -442,8 +442,10 @@ interface ReadList {
                        the tab: every answer this product's calculation, plan tables, cap and
                        selling programmes read, and whether an applicant is asked it. Gaps
                        lead; covered rows fold into one line so a product with nothing to do
-                       reads as done. The server decides each status (neededFor). -->
-                  @if (neededRowsList().length > 0) {
+                       reads as done. The server decides each status (neededFor).
+                       Hidden on every product for now (neededPanelShown); flip the signal
+                       to bring it back. -->
+                  @if (neededPanelShown() && neededRowsList().length > 0) {
                     <section class="need" aria-labelledby="spd-need-title">
                       <div class="need-head">
                         <div class="need-heading">
@@ -5421,6 +5423,11 @@ export class SurrogateProductDetailPage {
   protected readonly askStatus = signal('');
 
   // ── What the engine needs ───────────────────────────────────────────────────
+  /**
+   * The panel is switched off on every product. Everything behind it stays wired, so turning
+   * it back on is this one value.
+   */
+  protected readonly neededPanelShown = signal(false);
   /** Rows of the "what the engine needs" panel, gaps first. */
   protected readonly neededRowsList = computed(() => neededRows(this.asksBoard(), this.isAr));
   protected readonly neededGaps = computed(() => neededGapCount(this.neededRowsList()));
