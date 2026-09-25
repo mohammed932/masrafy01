@@ -24,9 +24,10 @@
  * THE FALLBACK IS 100%, not zero and not "unavailable", and the two ways of reaching it are
  * both load-bearing — they are the same two the deleted `coalesce` covered:
  *
- *   the applicant gave no score    the question is OPTIONAL by deliberate design
- *                                  (`seed-questionnaire.ts`: "asked of everyone, answered
- *                                  by whoever wants to"), so a blank must cost nothing
+ *   the applicant gave no score    the question has been REQUIRED since 2026-09-25, but an
+ *                                  application stored before that, or sent by an older app
+ *                                  build, still carries none — and the shared table prices
+ *                                  that as its "No I-Score" class (`noScorePercent`)
  *   nobody stated a table          54 of 71 programs state none as of v30.3.0, and a blank
  *                                  has never meant "declined" — it means unstated
  *
