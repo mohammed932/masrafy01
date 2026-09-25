@@ -73,7 +73,6 @@ Programmes: `ABK-PER-COMPOUND_OWNER` (way `alt__unit_paid_to_date`), `ABK-PERSON
 | How much have you paid for the unit so far? (`how_much_have_you_paid_for_the_unit_so_far`) | number | no | owns=yes | personal | `alt__unit_paid_to_date` way (ABK ×2, CAE); condition `paidenough` | ✓ |
 | How many months ago did you sign the contract? (`how_many_months_ago_did_you_sign_the_contract`) | number | no | owns=yes | personal | condition `ownedlongenough` (ABK ×2) | ✓ |
 | What percentage of the unit do you own? (`what_percentage_of_the_unit_do_you_own`) | number | **yes** | owns=yes | personal | `share` (stated %) on every programme | ✓ |
-| **Do you own more than one unit? (`do_you_own_more_than_one_unit`)** | choice | no | owns=yes | personal | `ABK-PER-COMPOUND_OWNER` cap adjustment **+10 % when "more than one"** | **✗ INACTIVE — not in v174. See GAP 1** |
 | How long has your business been running? (`business_months`) | choice | yes | — | personal, car | condition `businessoldenough` (CAE) | ✓ |
 | Valid commercial register and tax card? (`self_employed_licence`) | choice | yes | — | personal, car | condition `selfemployedpapers` (CAE) | ✓ |
 | Loan with any of these banks? (`existing_bank_loans`) → `loan_is_topup` | multi | no | — | P, C, M | new-loan / top-up column on `primary` and `alt__owned_unit_type`; ABK cap columns | ✓ |
@@ -175,21 +174,11 @@ These three appear on the no-payslip board but their only readers are `income_pr
 
 ## 4. Gaps
 
-### GAP 1 — "Do you own more than one unit?" is switched off while a bank programme still reads it
+### GAP 1 — CLOSED 2026-09-25 (v30.5.1): "Do you own more than one unit?" removed with its reader
 
-- Fact `unit_count_owned` (blueprint `compound_owner`, template `uplift`, `scope: maxLoan`). Reader: `ABK-PER-COMPOUND_OWNER.loanLimits.maxLoanAdjustments` = **+10 % of the ceiling when the answer is "More than one unit"**.
-- Its ask row on `compound_owner` was **detached (tombstoned) on 2026-09-03 18:22** by a super-admin on the product's step ①. The detach was allowed because the blueprint-ask path only checks the product's own rule, not bank programmes' cap tables/adjustments (`product-ask-plan.ts`, step 2 of `planDetach`).
-- The next `seed:questionnaire` then switched the question off (not in the seed pool, and the v28 revive skips detached asks). It is absent from v174.
-- Effect: the +10 % can never fire; ABK compound owners with two units are quoted the single-unit ceiling. No error is raised anywhere.
-
-**Close it through the admin (no code) — order matters:**
-1. `/questionnaire/questions` → un-park **Do you own more than one unit?** (it keeps its gate `owns_compound_unit = yes` and its `personal` assignment). This publishes a new version.
-2. `/program-catalog/products/compound_owner` step ① → tick the question → the ask is revived, so future seed runs keep it live. (Step 1 must come first: attaching a parked question is refused with `SURROGATE_FACT_QUESTION_INACTIVE`.)
-3. Verify: `npm run quote:surrogate` before/after — only `ABK-PER-COMPOUND_OWNER` may move, and only for an applicant answering "More than one unit".
-
-Alternative, if ABK no longer wants the uplift: remove the adjustment from `ABK-PER-COMPOUND_OWNER` in the bank-programme wizard; then nothing reads the fact and "off" is honest.
-
-Known hole, NOT fixed here (code): detaching a blueprint ask should refuse while any bank programme still reads the fact (`fact_still_read` already exists for the delete path). Recorded for a later change.
+- Was: fact `unit_count_owned` (blueprint `compound_owner`, template `uplift`, `scope: maxLoan`), read by `ABK-PER-COMPOUND_OWNER.loanLimits.maxLoanAdjustments` (**+10 % when "More than one unit"**). Its ask was detached on 2026-09-03 and the question switched off, so the +10 % could never fire, and every save of the ABK programme was refused (`adjustment_unknown_fact`: the registry drops a fact whose question is inactive).
+- Operator's call: remove rather than revive. Migration `20260925090000_remove_unit_count_lists` deleted ABK's adjustment, the product's uplift, the fact, the `unit_count_owned` list and the question (unanswered); the blueprint and `sheet-programs.ts` no longer declare any of it. Quotes byte-identical before/after (`quote:surrogate`, `quote:iscore`).
+- The detach hole that let it happen was closed in v29.0.0: `planDetach` now refuses while a live bank programme reads the fact.
 
 ### Observations (not gaps — decisions the operator may want to revisit)
 

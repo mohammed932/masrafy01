@@ -883,16 +883,10 @@ const SPECS: readonly ProgramSpec[] = [
         { rowKey: 'villa', columnKey: 'top_up', maxAmountEGP: '4500000' },
       ],
     },
-    // "Program loan amounts can be increased by 10% in case applicants provide more than one
-    // residential unit" — loan AMOUNTS, so it lifts the cap and not the imputed ceiling (§10.4).
-    maxLoanAdjustments: [
-      {
-        kind: 'upliftPercent',
-        percent: '10',
-        whenFactKey: 'unit_count_owned',
-        whenOptionCode: 'unit_more_than_one',
-      },
-    ],
+    // The sheet also says "Program loan amounts can be increased by 10% in case applicants
+    // provide more than one residential unit". NOT modelled, by operator decision (2026-09-25):
+    // its question had been asked of nobody since 2026-09-03, so the adjustment never fired,
+    // and it went with the `unit_count_owned` list (`20260925090000_remove_unit_count_lists`).
   }),
 
   // -------------------------------------------------------------------------

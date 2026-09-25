@@ -444,7 +444,7 @@ None. Both open items on this sheet are shape problems, not missing questions:
 | Works out | a borrowing CEILING, not an income |
 | Catalog name | `compound_owner_4` — "Compound Owner" (P, no-payslip) |
 | Bank programmes | `EGB-PER-COMPOUND_OWNER` (way `primary`; income floor 10,000 / 25,000) · `FAB-PER-COMPOUND_OWNER` (way `alt`; 10,000 / 15,000) · `ABK-PER-COMPOUND_OWNER`, `CAE-PER-COMPOUND_OWNER` (way `alt__unit_paid_to_date`; CAE caps debt burden at 50% salaried / 40% self-employed) · `ABK-PERSONAL-7110` (legacy row on the same name, way `alt__unit_paid_to_date`, **salaried only**, 6 months, floor 5,000) |
-| Mechanism | five exclusive ways to one ceiling: by compound class · banded by the down payment · a share of everything paid to date · by unit type · a share of the down payment. Plus a second column by new-loan/top-up, an uplift for owning more than one unit, a share by the percentage owned, and three conditions |
+| Mechanism | five exclusive ways to one ceiling: by compound class · banded by the down payment · a share of everything paid to date · by unit type · a share of the down payment. Plus a second column by new-loan/top-up, a share by the percentage owned, and three conditions (the multi-unit uplift was removed on 2026-09-25) |
 
 ### Questions it reads through its facts
 
@@ -457,7 +457,6 @@ None. Both open items on this sheet are shape problems, not missing questions:
 | `what_is_the_contract_price_of_the_unit` | What is the contract price of the unit? | NUMERIC | P C M | no | 0–200,000,000. Read by the `paidenough` and `unitworthenough` conditions |
 | `how_many_months_ago_did_you_sign_the_contract` | How many months ago did you sign the contract? | NUMERIC | P C M | no | 0–600. Read by `ownedlongenough` → `CONTRACT_TOO_NEW` |
 | `what_percentage_of_the_unit_do_you_own` | What percentage of the unit do you own? | NUMERIC | P C M | **yes** | 0–100. "Enter 100 if you own it on your own." Scales the ceiling |
-| `do_you_own_more_than_one_unit` | Do you own more than one unit? | SINGLE_SELECT | P C M | no | **INACTIVE, and its ask row is detached** — see below |
 | `existing_bank_loans` | loan with any of these banks | MULTI_SELECT | P M | no | the second column (`loan_is_topup`) |
 | `current_loans` · `repayment_period_months` | — | — | — | — | **operator-added asks that the rule reads nowhere** |
 
@@ -478,16 +477,12 @@ None. Both open items on this sheet are shape problems, not missing questions:
 
 ### Worth knowing
 
-1. **The multi-unit uplift is off by operator decision, not by accident.** The template declares
-   `uplift { fact: unit_count_owned, whenOption: unit_more_than_one, scope: maxLoan }`, and it
-   currently applies to nobody: `do_you_own_more_than_one_unit` is inactive and the
-   `unit_count_owned` ask is **tombstoned** — `detachedAt` 2026-09-03, `detachedBy` a real admin
-   account. The first draft of this document called that collateral damage and proposed reviving it.
-   It is the opposite: a blueprint ask is tombstoned rather than deleted precisely so that
-   `seed:blueprints` cannot put it back, and the question left the seed's own pool in the same
-   change. Reviving it is an operator's call on this product's screen, not a repair — so nothing
-   here touched it. What is worth flagging is only that the blueprint still declares an uplift that
-   reads a fact no live ask serves, and no screen says so.
+1. **The multi-unit uplift is gone (2026-09-25, v30.5.1).** It was off by operator decision since
+   the `unit_count_owned` ask was tombstoned on 2026-09-03, which left the template's
+   `uplift { fact: unit_count_owned, … }` and ABK's +10% adjustment reading a question nobody was
+   asked. The operator then chose removal over revival: migration
+   `20260925090000_remove_unit_count_lists` deleted the uplift, ABK's adjustment, the fact, the
+   `unit_count_owned` list and the question, and the blueprint no longer declares them.
 2. **Eight compound questions are asked of car and mortgage applicants for nothing.** All the unit
    questions are assigned to P, C and M, but the catalog name is `personal` only, so no car or
    mortgage applicant can ever be quoted from them — and one of the eight
@@ -669,7 +664,7 @@ Listed so the survey is complete against the pool, not because they belong to a 
 
 Inactive rows the survey touched, for the record: `owns_practice` (retired with the doctors split),
 `vehicle_price` (replaced by `car_price`), `do_you_own_the_unit_with_someone_else` (replaced by the
-percentage), `do_you_own_more_than_one_unit` (should be **active** — defect 1), `your_age`
+percentage) and `do_you_own_more_than_one_unit` (both DELETED with their lists on 2026-09-25), `your_age`
 (A31 forbids asking it), `has_credit_card` / `card_usage` / `obligation_credit_card` (superseded by
 the total-limit question), and five `test_*` rows.
 
@@ -724,7 +719,9 @@ sheets' actual rule, and it is the first time the answer has reached it.
 11. `prior_rejection` and `loan_purpose` are asked, carried on the profile, and read by nothing.
 12. Three cap-only products (`company_coding_cap`, `school_type_cap`, `club_branch_cap`) collect
     answers that **no bank programme reads**, because none exists.
-13. The blueprint's multi-unit uplift declares a fact no live ask serves, and no screen reports it.
+13. ~~The blueprint's multi-unit uplift declares a fact no live ask serves, and no screen reports it.~~
+    Closed 2026-09-25 (v30.5.1): the uplift, ABK's +10% adjustment, the fact, the list and the
+    question were removed (`20260925090000_remove_unit_count_lists`).
 
 ## What was verified after the fixes
 

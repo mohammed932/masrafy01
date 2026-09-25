@@ -67,7 +67,8 @@ What each step leaves behind, measured on the empty database:
 | 9 | `seed:sheet-figures` | Each product's figures (tables, amounts, durations, plan tables), the no-payslip catalog names linked to them, and 24 surrogate bank programs. No product or program is given an I-Score table: all of them read the shared one. |
 
 End state: **71 bank programs** (42 payslip, 29 no-payslip), **13 products** (10 with a
-calculation, 3 cap-only), 85 active questions, and every program scored on the shared I-Score
+calculation, 3 cap-only), 85 active questions (measured 2026-09-23; v30.5.1 takes one away — the
+compound blueprint no longer mints "Do you own more than one unit?"), and every program scored on the shared I-Score
 table — edit a class on **Manage values → I-Score classes** and every program that states no
 table of its own follows it.
 

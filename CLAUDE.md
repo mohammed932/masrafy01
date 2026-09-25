@@ -219,6 +219,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-09-25 v30.5.1 — the two dead lookup lists go: "Units owned" (`unit_count_owned`, with ABK's never-firing +10% multi-unit adjustment and the compound product's uplift) and the retired "Unit ownership", both with their switched-off questions; `check:question-scope` and `check:questionnaire` green again.
 - 2026-09-24 v30.5.0 — every question checked against its readers and the bank sheets: no-payslip names ask debts, duration and employment type again; employment type no longer dropped on payslip names; mortgage term to 300; net-income wording; duplicate "لواء" grades retired; used-car model year required; `check:questionnaire` guards seven invariants.
 - 2026-09-24 v30.4.2 — a car applicant is asked every debt they tick (car loan, mortgage, card were counted as zero), and car insurance / new-or-used / club branch / existing-bank questions leave car: nothing there reads them.
 - 2026-09-24 v30.4.1 — the auto product stops asking a car buyer about a business and a compound: its four always-pass sheet conditions and three of their questions are removed; home ownership stays for the financed-share table.

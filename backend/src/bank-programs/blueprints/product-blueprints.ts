@@ -701,23 +701,9 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
-      {
-        kind: 'choice',
-        factKey: 'unit_count_owned',
-        questionEn: 'Do you own more than one unit?',
-        questionAr: 'هل تملك أكثر من وحدة؟',
-        categories: [LoanCategory.personal],
-        enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
-        list: {
-          typeKey: 'unit_count_owned',
-          labelEn: 'Units owned',
-          labelAr: 'عدد الوحدات المملوكة',
-          values: [
-            { key: 'unit_one', labelEn: 'One unit', labelAr: 'وحدة واحدة' },
-            { key: 'unit_more_than_one', labelEn: 'More than one unit', labelAr: 'أكثر من وحدة' },
-          ],
-        },
-      },
+      // NO "Do you own more than one unit?" ask. It fed only the multi-unit uplift below and
+      // ABK's +10% adjustment, was asked of nobody after 2026-09-03, and was removed with its
+      // `unit_count_owned` list on 2026-09-25 (migration `20260925090000_remove_unit_count_lists`).
       // Personal only, both: every programme on this product is personal, and no car
       // programme reads either bank axis (removed from car 2026-09-24).
       // `loan_is_topup` stays: the CAP still keys its column on it. Nobody fills that column
@@ -816,16 +802,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // `coalesce`, so a row that somehow held two ways would quote the FIRST silently where
       // `minOf(skipUnset)` quotes the lower.
       waysAre: 'exclusive',
-      // The sheet says "loan AMOUNTS can be increased by 10%", so it lifts the cap, and the
-      // difference between the two readings is 300,000 on one applicant (§10.4). Declared,
-      // never defaulted — it compiles to nothing here and is configured per bank on
-      // `loanLimits.maxLoanAdjustments`.
-      uplift: {
-        fact: 'unit_count_owned',
-        whenOption: 'unit_more_than_one',
-        otherwiseOption: 'unit_one',
-        scope: 'maxLoan',
-      },
+      // NO multi-unit uplift (removed 2026-09-25 with the `unit_count_owned` list): ABK's
+      // "+10% for more than one unit" read an answer nobody had been asked since 2026-09-03.
       // Ownership shares the imputed figure between the owners in the proportion they own
       // it, which is a statement about what the collateral supports and so belongs inside
       // the rule. The applicant states the percentage; no bank figure is involved, and none
