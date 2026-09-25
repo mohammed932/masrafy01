@@ -38,10 +38,12 @@ export class ProgramOptionsService {
   ) {}
 
   async forCategory(category: LoanCategory): Promise<ProgramOptionsResponseDto> {
-    const [rows, members] = await Promise.all([
+    const [rows, members, products] = await Promise.all([
       this.programs.listActiveScopeRows(),
       this.enums.getActiveMembers('program_name'),
+      this.enums.getActiveMembers('surrogate_product'),
     ]);
+    const productsByKey = new Map(products.map((p) => [p.key, p]));
 
     // Only names the catalog still offers under this category. A program can
     // outlive its archetype's assignment, and `ProgramNameScopeService
@@ -79,11 +81,18 @@ export class ProgramOptionsService {
       for (const [key, member] of offered) {
         const count = byName.get(key);
         if (!count) continue;
+        const product =
+          programType === BankProgramType.income_surrogate && member.surrogateProductKey
+            ? productsByKey.get(member.surrogateProductKey)
+            : undefined;
         programNames.push({
           key,
           labelAr: member.labelAr,
           labelEn: member.labelEn,
           programCount: count,
+          surrogateProduct: product
+            ? { key: product.key, labelAr: product.labelAr, labelEn: product.labelEn }
+            : null,
         });
         programCount += count;
       }

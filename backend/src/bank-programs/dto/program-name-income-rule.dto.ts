@@ -15,10 +15,13 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
+  IsString,
   Max,
+  MaxLength,
   Min,
   ValidateIf,
   ValidateNested,
@@ -29,10 +32,18 @@ import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { TemplateStarter } from '@/matching/pipeline/product-template-starters';
 import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import type { IScoreTiers } from '@/matching/pipeline/iscore';
+import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
+import type { RateDefaults } from '@/matching/pipeline/rate-inherit';
+import { RATE_BASES, type RateBasis } from '@/matching/pipeline/rate-basis';
 import type { BlueprintCap } from '../blueprints/product-blueprint.types';
-import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
+import {
+  IncomeAssumptionConfigDto,
+  IncomeBandDto,
+} from './sub-configs/income-assumption-config.dto';
 import { MaxLoanByFactRowDto } from './sub-configs/loan-limits-config.dto';
 import { FactGridDto } from './sub-configs/fact-grid.dto';
+import { DecimalRange } from '../../common/decorators/decimal-range.decorator';
 import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
 
 /**
@@ -81,6 +92,30 @@ export interface ProgramUnderNameDto {
    * from, and a bank that types its own tables has said nothing about how long it lends for.
    */
   ownTenor: boolean;
+  /**
+   * `false` when it states no I-SCORE TIERS of its own and reads the surrogate product's.
+   *
+   * A fourth axis, on exactly the terms the three around it are: whose income tables, how
+   * long, how much, and what a bureau score is worth are four separate statements, and a
+   * program can inherit any one of them without the others.
+   */
+  ownIScoreTiers: boolean;
+  /**
+   * `false` when it states no loan SIZE of its own and reads the surrogate product's.
+   *
+   * A third axis again: whose income tables (`ownAmounts`), how long (`ownTenor`) and how
+   * much (`ownLoanAmounts`) are three separate statements, and a program can inherit any
+   * one of them without the others.
+   */
+  ownLoanAmounts: boolean;
+  /**
+   * `false` when it states no INTEREST RATE of its own and reads the surrogate product's.
+   *
+   * A fifth axis on the same terms as the four around it. It is the one most programmes
+   * created from now on will be on: the bank-program wizard no longer asks for a rate, so a
+   * new program is priced by its product unless a seed or the API states otherwise.
+   */
+  ownRate: boolean;
   /**
    * True when this program reads the product's PLAN tables.
    *
@@ -183,8 +218,29 @@ export interface ProgramNameIncomeRuleResponseDto {
      * months.
      */
     tenorDefaults: TenorDefaults | null;
+    /**
+     * The loan SIZE a program under this name falls back to when it states none.
+     *
+     * INHERITED on exactly the terms the duration above is, and rendered the same way: a
+     * blank pair on a new program is a live statement that this bank lends the sizes the
+     * product states, not two boxes somebody forgot.
+     */
+    loanAmountDefaults: LoanAmountDefaults | null;
+    /**
+     * The product's default INTEREST RATE, or `null` when it states none.
+     *
+     * The wizard reads this to say what a program under this name is PRICED at: its rate card
+     * is gone, so a program that states nothing is quoted from here, and the step says so
+     * rather than showing an empty box.
+     */
+    rateDefaults: RateDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
+    /**
+     * The product's default I-SCORE TIERS, or `null` when it states none — in which case
+     * every program under it multiplies by 100%.
+     */
+    iScoreDefaults: IScoreTiers | null;
   } | null;
 }
 
@@ -233,6 +289,12 @@ export interface SurrogateProductSummaryDto {
    * a calculation.
    */
   capPrograms: string[];
+  /**
+   * A cap-only product: it works out no income, so no catalog name may sell it
+   * (`SURROGATE_PRODUCT_CAP_ONLY`). The board says so instead of asking for a name it would
+   * refuse.
+   */
+  capOnly: boolean;
 }
 
 /** A surrogate product's own page: the calculation, and who uses it. */
@@ -256,6 +318,23 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
    */
   tenorDefaults: TenorDefaults | null;
   /**
+   * The default loan size, as `PUT :key/loan-amount-defaults` last stored it. `null` = none,
+   * and every program under this product must then state its own.
+   *
+   * INHERITED on the same terms as the duration above, and cleared under the same refusal
+   * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
+   */
+  loanAmountDefaults: LoanAmountDefaults | null;
+  /**
+   * The default INTEREST RATE, as `PUT :key/rate-defaults` last stored it. `null` = none,
+   * and every program under this product must then state its own — which, since the wizard
+   * stopped asking, means through a seed or the API.
+   *
+   * INHERITED on the same terms as the duration and the size above, and cleared under the
+   * same refusal (`SURROGATE_PRODUCT_RATE_IN_USE`).
+   */
+  rateDefaults: RateDefaults | null;
+  /**
    * The default PLAN tables — the rate, the term ceiling, the financed share and the floor —
    * every program that opted in reads (`bank_program.plansSource = 'product'`).
    *
@@ -264,6 +343,17 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
    * hand every program under this product a table it never chose.
    */
   planDefaults: PlanDefaults | null;
+  /**
+   * The default I-SCORE TIERS, as `PUT :key/iscore-defaults` last stored them. `null` = none,
+   * and every program under this product then multiplies by 100%.
+   *
+   * INHERITED like the duration above, and by ABSENCE rather than by opting in: a blank table
+   * has never meant "this bank declines to score" — the compiled multiplier answered a blank
+   * with a literal 100% long before the tiers were statable — so a blank means "nobody has
+   * stated them". Cleared under NO refusal, unlike the duration: cleared tiers leave a
+   * program multiplying by 100%, which is a priceable quote.
+   */
+  iScoreDefaults: IScoreTiers | null;
   /**
    * The friendly form the calculation was compiled from, or `null` when it was authored
    * through the raw step editor.
@@ -417,10 +507,106 @@ export class SetSurrogateProductTenorDefaultsDto {
 }
 
 /**
+ * The default loan SIZE a surrogate product hands every program under it.
+ *
+ * The sibling of `SurrogateProductTenorDto` in every respect: both amounts or neither,
+ * `null` is the clear, and the pair is a nested object precisely so it cannot come apart on
+ * the wire. Clearing is refused while any program is reading it
+ * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`) for the reason the duration's clear is: a change
+ * gives an inheriting program different sizes, a clear gives it none, and a loan with no
+ * size cannot be quoted.
+ *
+ * DECIMAL STRINGS (Principle I) — money never travels as a JSON number.
+ */
+export class SurrogateProductLoanAmountsDto {
+  @ApiProperty({ example: '1000000' })
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  minAmountEGP!: string;
+
+  @ApiProperty({ example: '3000000' })
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  maxAmountEGP!: string;
+}
+
+export class SetSurrogateProductLoanAmountDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductLoanAmountsDto,
+    nullable: true,
+    description: 'Null clears the default loan size.',
+  })
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductLoanAmountsDto)
+  loanAmounts!: SurrogateProductLoanAmountsDto | null;
+}
+
+/**
+ * The default INTEREST RATE a surrogate product hands every program under it.
+ *
+ * ONE STATEMENT, not three fields side by side, and the nesting is what makes it one: the
+ * rate, the BASIS it is charged on and the variable-rate disclosure cannot come apart on the
+ * wire. A percentage on its own does not say what the customer pays — the same rate over the
+ * same tenor buys 22–29% more loan reducing than flat — and `isVariableRate` decides WHICH
+ * of the two figures is the price.
+ *
+ * The cross-field rule is the one a bank program's own save has always enforced
+ * (`InvalidVariableRateConfigurationException`): variable takes `currentEffectiveRatePercent`
+ * and no base rate, fixed takes `baseRatePercent` and no effective rate. It is checked at the
+ * service layer, where the two fields can be compared.
+ *
+ * Clearing is REFUSED while any program is reading it (`SURROGATE_PRODUCT_RATE_IN_USE`) for
+ * the reason the duration's clear is: a change gives an inheriting program a different price,
+ * a clear gives it NONE, and a loan with no price cannot be quoted at all.
+ */
+export class SurrogateProductRateDto {
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isVariableRate!: boolean;
+
+  @ApiProperty({ example: '24.0000', required: false })
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })
+  baseRatePercent?: string;
+
+  @ApiProperty({ example: '26.5500', required: false })
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })
+  currentEffectiveRatePercent?: string;
+
+  @ApiProperty({ example: 'CBE policy rate + 3%, reviewed quarterly', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  variableRateNote?: string;
+
+  /**
+   * `reducing` or `flat`. An UNKNOWN value is refused here rather than read as a default,
+   * exactly as it is on a bank program's own pricing: at the wire boundary a typo is still
+   * fixable by the person who made it, and absent already means `reducing`.
+   */
+  @ApiProperty({ enum: RATE_BASES, required: false })
+  @IsOptional()
+  @IsIn(RATE_BASES)
+  rateBasis?: RateBasis;
+}
+
+export class SetSurrogateProductRateDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductRateDto,
+    nullable: true,
+    description: 'Null clears the default interest rate.',
+  })
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductRateDto)
+  rate!: SurrogateProductRateDto | null;
+}
+
+/**
  * The default PLAN tables a surrogate product hands the programs that opted in.
  *
- * Five INDEPENDENTLY optional grids, unlike the duration above's both-or-neither: those two
- * months are one range, these are five separate statements, and a product stating a rate
+ * Six INDEPENDENTLY optional grids, unlike the duration above's both-or-neither: those two
+ * months are one range, these are six separate statements, and a product stating a rate
  * table and no floor has said one thing and declined to say another.
  *
  * The shallow shape is deliberate and matches `FactGridDto`'s own reasoning: the checks that
@@ -461,6 +647,53 @@ export class SurrogateProductPlansDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   minAmountByFact?: FactGridDto;
+
+  /**
+   * Comprehensive cover on the car: a percent of its price, every policy year, keyed on the
+   * deposit. The sixth plan table because an operator reads all six as one row of one card —
+   * "20% down → 10% a year, 6–60 months, we finance 80%, not under a million, insure at 1%" —
+   * and every one of them keys on the same axis.
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  carInsuranceRateByFact?: FactGridDto;
+}
+
+/**
+ * The default I-SCORE TIER TABLE a surrogate product hands every program under it.
+ *
+ * Rows are `IncomeBandDto`, the same shape the tables were stored in when they lived in
+ * `incomeRule.stepParams.iscore_band` — `incomeEGP` carries a PERCENTAGE, not money. The
+ * misnaming is kept so the v30.3.0 migration was a MOVE rather than a rewrite of nine
+ * products' figures.
+ *
+ * Shape only here. That the table starts at 0, leaves its top open and has no gap is decided
+ * once in `validateIScoreTiers`, which the program save runs through too — so a table cannot
+ * be accepted by one door and refused by the other.
+ */
+export class SurrogateProductIScoreTiersDto {
+  @ApiProperty({ type: [IncomeBandDto] })
+  @IsArray()
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => IncomeBandDto)
+  bands!: IncomeBandDto[];
+}
+
+export class SetSurrogateProductIScoreDefaultsDto {
+  @ApiProperty({
+    type: SurrogateProductIScoreTiersDto,
+    nullable: true,
+    description: 'Null clears the default tiers; every program under it then multiplies by 100%.',
+  })
+  // `@ValidateIf` skipping only `null`, exactly as the plan tables below: `null` IS
+  // meaningful — it is the clear — so it must reach the service rather than be skipped
+  // unvalidated by a bare `@IsOptional()` (the trap recorded at v26.2.0).
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => SurrogateProductIScoreTiersDto)
+  tiers!: SurrogateProductIScoreTiersDto | null;
 }
 
 export class SetSurrogateProductPlanDefaultsDto {

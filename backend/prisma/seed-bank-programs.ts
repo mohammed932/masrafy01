@@ -254,6 +254,8 @@ function compose(args: {
       requiresQualitativeReview: false,
       requiresNoDocuments: false,
     } as unknown as Prisma.InputJsonValue,
+    // No I-Score table of its own: the program reads the shared one, the I-Score classes on
+    // Manage values (v30.4.0), until a bank types its own.
     incomeAssumption: { strategy: 'declared' },
     fees: {
       adminFeePercent: delta.adminFeePercent ?? baseline.fees?.adminFeePercent ?? '1.0000',

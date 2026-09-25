@@ -165,6 +165,62 @@ export interface ProductAsksResponseDto {
    * screen says which is which.
    */
   factsReadByRule: string[];
+  /**
+   * Every fact the ENGINE needs answered for this product — its calculation, its plan
+   * tables, its cap, its selling programmes' own tables, and the answers behind a derived
+   * key — with whether each is covered and what would cover it. See
+   * `matching/pipeline/product-needed-facts.ts`.
+   */
+  needed: NeededFactDto[];
+  /** Loan types a live catalog name sells this product in. Empty: nothing can be asked. */
+  soldIn: LoanCategory[];
+}
+
+/**
+ * `asked` — covered. `platform` — a key the platform answers itself (money, car figures).
+ * `notAsked` — a question exists; the product does not ask it, or not in every loan type it
+ * is sold in. `parked` — the bound question is switched off. `noQuestion` — the fact exists
+ * with no question behind it. `noFact` — read by a table or rule, with no registry row.
+ */
+export type NeededFactStatus =
+  | 'asked'
+  | 'platform'
+  | 'notAsked'
+  | 'parked'
+  | 'noQuestion'
+  | 'noFact';
+
+export type NeededFactReaderDto =
+  | { kind: 'calculation' }
+  | { kind: 'plan'; table: string }
+  | { kind: 'cap' }
+  | { kind: 'program'; programCode: string; table: string };
+
+export interface NeededFactDto {
+  factKey: string;
+  status: NeededFactStatus;
+  questionCode: string | null;
+  labelAr: string;
+  labelEn: string;
+  readBy: NeededFactReaderDto[];
+  /** Loan types it is sold in that do not ask the question yet. */
+  missingIn: LoanCategory[];
+  /** How the answer is read — what an auto-created question would be. */
+  shape: 'choice' | 'number' | 'unknown';
+  /** Needed only because this derived key is read (e.g. `car_down_payment_percent`). */
+  derivedFrom: string | null;
+  /** Whether "Ask it" / "Create question" can act on it right now. */
+  actionable: boolean;
+}
+
+/** What "ask it" / "fix all" did. */
+export interface NeededWriteResultDto {
+  asked: string[];
+  created: string[];
+  /** Facts left alone, with the typed reason. */
+  skipped: Array<{ factKey: string; code: string }>;
+  published: boolean;
+  state: ProductAsksResponseDto;
 }
 
 /** What one click changed, beside the board it produced. */

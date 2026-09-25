@@ -429,10 +429,16 @@ export const CATALOG_INCOME_RULE: Readonly<Record<string, CatalogIncomeRule>> = 
   // `income_proof` with a declared salary, so it never consults the rule.
   armed_forces: {
     strategy: 'byMilitaryGrade',
+    // App. A §11's seven grades (2026-09-24). The three generic ones this used to carry were
+    // retired: `general` read "لواء" in Arabic exactly like `grade_major_general`.
     keyTable: [
-      { key: 'officer', incomeEGP: '15000' },
-      { key: 'senior_officer', incomeEGP: '25000' },
-      { key: 'general', incomeEGP: '40000' },
+      { key: 'grade_major_general', incomeEGP: '75000' },
+      { key: 'grade_brigadier_general', incomeEGP: '60000' },
+      { key: 'grade_colonel', incomeEGP: '45000' },
+      { key: 'grade_lt_colonel', incomeEGP: '40000' },
+      { key: 'grade_major', incomeEGP: '30000' },
+      { key: 'grade_captain', incomeEGP: '28000' },
+      { key: 'grade_first_lieutenant', incomeEGP: '18000' },
     ],
   },
 };

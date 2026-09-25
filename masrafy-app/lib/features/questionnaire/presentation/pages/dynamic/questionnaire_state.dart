@@ -126,27 +126,40 @@ class QuestionnaireState with _$QuestionnaireState {
     return out;
   }
 
-  /// Bound money questions (`MONEY_FIELD_BINDINGS`) that have no usable figure —
-  /// unanswered, non-numeric, or out of the question's own bounds. The engine
-  /// refuses to substitute a default for these (FR-044), so the wizard blocks
-  /// Finish rather than submitting a fabricated figure.
-  List<String> get missingMoneyFigures {
-    final answered = visibleAnswers;
-    final byCode = _questionsByCode;
-    return [
-      for (final code in kMoneyFieldQuestionCodes)
-        if (!_hasUsableFigure(byCode[code], answered[code])) code,
-    ];
+  /// Every VISIBLE question, in any step, that the snapshot marks required and that
+  /// holds no acceptable answer.
+  ///
+  /// Read from the published questionnaire — `isRequired` and `enabledWhen` — and not
+  /// from any list in this app. It replaced `missingMoneyFigures`, which held Finish
+  /// down until four hardcoded codes resolved (`kMoneyFieldQuestionCodes`). That list
+  /// could not see a fifth question an operator made required, and worse, it was silent
+  /// in the one case that mattered: when a loan type stopped ASKING one of the four, the
+  /// question was not on screen to answer, so the button stayed grey forever with no
+  /// field to fill and nothing on the phone able to say why. Car shipped in exactly that
+  /// state.
+  ///
+  /// The guarantee that a quote's four figures are asked at all now lives server-side in
+  /// `check:money`, which fails the build naming the flow and the question. This is the
+  /// client half: it validates what the snapshot says, so an operator changing what is
+  /// required changes the form without an app release.
+  ///
+  /// Spans ALL groups, not just the current one: `canAdvance` gates Next step by step, but
+  /// a cross-group `enabledWhen` can reveal a required question on a step already left
+  /// behind, and Finish is the last moment that can be caught.
+  List<String> get unansweredRequired {
+    final out = <String>[];
+    for (final group in groups) {
+      for (final q in visibleQuestions(group)) {
+        if (!q.isRequired) continue;
+        if (!isAnswerAcceptable(q, answers[q.code])) out.add(q.code);
+      }
+    }
+    return out;
   }
 
-  bool _hasUsableFigure(QuestionEntity? question, QuestionAnswer? answer) {
-    if (question == null || answer is! NumericAnswer) return false;
-    return isAnswerAcceptable(question, answer);
-  }
-
-  /// Finish is allowed only when the step is complete AND every money binding
-  /// resolved.
-  bool get canFinish => canAdvance && missingMoneyFigures.isEmpty;
+  /// Finish is allowed once every required question the customer was actually shown
+  /// holds an acceptable answer.
+  bool get canFinish => canAdvance && unansweredRequired.isEmpty;
 
   /// True when this step asks only OPTIONAL questions and none is answered yet.
   ///

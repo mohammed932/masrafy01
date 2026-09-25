@@ -187,10 +187,21 @@ export class ApplyRequestDto {
   @IsDecimalString({ min: 5000, max: 50_000_000, scale: 2, allowZero: false })
   requestedAmountEGP!: string;
 
+  /**
+   * OPTIONAL. Absent means "the longest term this programme writes": a loan type may not ask
+   * for a term at all — a car flow that asks the price and the deposit has a plan table that
+   * already states the term per deposit band, and making the customer pick one they cannot
+   * see the consequences of is a worse question than no question.
+   *
+   * `quoteProgram` then requests the programme's own ceiling and `resolveTenor` clamps it the
+   * way it clamps any other request, so a programme still reports the constraint that bound
+   * the term. Every caller that DOES send one is byte-identical to before.
+   */
+  @IsOptional()
   @IsInt()
   @Min(6)
   @Max(360)
-  preferredTenorMonths!: number;
+  preferredTenorMonths?: number;
 
   @IsEnum(APPLICATION_PRIORITIES)
   priority!: ApplicationPriority;

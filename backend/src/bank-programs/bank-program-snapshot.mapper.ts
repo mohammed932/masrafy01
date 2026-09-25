@@ -10,15 +10,24 @@ import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
+  catalogIScoreOf,
+  catalogLoanAmountsOf,
   catalogPlansOf,
+  catalogRateOf,
   catalogRuleOf,
   catalogTenorOf,
   effectiveIncomeRule,
 } from '@/matching/pipeline/income-rule-inherit';
+import { asIScoreTiers, effectiveIScoreTiers } from '@/matching/pipeline/iscore';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
 import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
+import { effectiveLoanAmounts } from '@/matching/pipeline/loan-amount-inherit';
+import type { StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
+import { effectiveRate } from '@/matching/pipeline/rate-inherit';
+import type { StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
+  effectivePlanFees,
   effectivePlanLoanLimits,
   effectivePlanPricing,
   effectivePlanTenor,
@@ -84,7 +93,7 @@ export function toBankProgramSnapshot(
     // `effectiveTenor` returns the SAME object when nothing is inherited, which is every
     // program on this database today, so the common path allocates nothing.
     //
-    // The PLAN grids merge on the same three lines the blobs are read on, for the same
+    // The PLAN grids merge on the same four lines the blobs are read on, for the same
     // reason: a snapshot must not be able to tell a table the bank typed from one it is
     // reading off the product. Each helper returns the SAME object when nothing is
     // inherited, which is every program on this database today.
@@ -96,13 +105,34 @@ export function toBankProgramSnapshot(
       plansSource,
       catalogPlans,
     ),
+    // The SIZE, on the same terms as the duration above and merged on the same one line the
+    // engine reads a floor and a ceiling from. `effectiveLoanAmounts` returns the SAME
+    // object when nothing is inherited, which is every program on this database today.
     loanLimits: effectivePlanLoanLimits(
-      p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
+      effectiveLoanAmounts(
+        p.loanLimits as unknown as StoredLoanLimits | undefined,
+        catalogLoanAmountsOf(catalog),
+      ) as unknown as BankProgramSnapshot['loanLimits'],
       plansSource,
       catalogPlans,
     ),
+    // The PRICE, the program's own when it states one and the product's when it does not —
+    // merged on the one line the engine reads a rate from, for the reason the duration and
+    // the size above are merged here: a snapshot must not be able to tell a rate the bank
+    // typed from one it is reading off the product.
+    //
+    // INSIDE the plan merge, never outside it. `effectivePlanPricing` merges the product's
+    // `rateByFact` TABLE, which sits at the top of `PRICING_CASCADE_ORDER`; this is the flat
+    // figure at the bottom of it. Resolving the bottom first leaves the table free to
+    // override it per applicant, which is the order the cascade itself reads them in.
+    //
+    // `effectiveRate` returns the SAME object when nothing is inherited, which is every
+    // program on this database today, so the common path allocates nothing.
     pricing: effectivePlanPricing(
-      p.pricing as unknown as BankProgramSnapshot['pricing'],
+      effectiveRate(
+        p.pricing as unknown as StoredPricing | undefined,
+        catalogRateOf(catalog),
+      ) as unknown as BankProgramSnapshot['pricing'],
       plansSource,
       catalogPlans,
     ),
@@ -122,7 +152,36 @@ export function toBankProgramSnapshot(
     ...(catalog !== undefined && 'withheld' in catalog
       ? { incomeRuleWithheld: catalog.withheld }
       : {}),
-    fees: p.fees as unknown as BankProgramSnapshot['fees'],
+    // The COVER the bank demands on the car, on the same terms as the three merges above:
+    // the programme's own table when it states one, the product's when it does not. Merged
+    // on the one line the engine reads a premium from, and `effectivePlanFees` returns the
+    // SAME object when nothing is inherited — which is every programme on this database
+    // that has not opted in.
+    fees: effectivePlanFees(
+      p.fees as unknown as BankProgramSnapshot['fees'],
+      plansSource,
+      catalogPlans,
+    ),
+    // The I-SCORE TIERS, merged on the one line the engine reads them from, for the reason
+    // the duration and the plan grids above are merged here: a snapshot must not be able to
+    // tell a table the bank typed from one it is reading off the product.
+    //
+    // Read off the RAW stored blob, deliberately, and not off the merged
+    // `incomeAssumption` a few lines up. `effectiveIncomeRule` inherits `stepParams` whole
+    // key on `amounts: 'catalog'`, so reading the merged rule would let a program on
+    // catalog amounts pick up tiers through a second route and disagree with this one —
+    // which is the per-slot inheritance this field was created to replace.
+    //
+    // `undefined` when neither side states a table, which `resolveIScoreFactor` answers
+    // with a 100% multiplier — the same answer the deleted `coalesce` step gave.
+    ...(() => {
+      const tiers = effectiveIScoreTiers(
+        asIScoreTiers((p.incomeAssumption as { iScoreTiers?: unknown } | null)?.iScoreTiers),
+        catalogIScoreOf(catalog),
+        catalogRules?.platformIScoreTiers,
+      );
+      return tiers === undefined ? {} : { iScoreTiers: tiers };
+    })(),
     performanceCriteria: p.performanceCriteria as unknown as
       | BankProgramSnapshot['performanceCriteria']
       | undefined,

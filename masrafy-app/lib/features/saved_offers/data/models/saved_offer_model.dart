@@ -39,6 +39,8 @@ class SavedOfferModel {
     required this.totalRepayableEGP,
     required this.totalInterestEGP,
     required this.totalLabel,
+    this.applicationId = '',
+    this.alreadyApplied = false,
   });
 
   final String bankOfferId;
@@ -56,6 +58,13 @@ class SavedOfferModel {
   final double totalInterestEGP;
   final String totalLabel;
 
+  /// The application the offer belongs to — what Apply proceeds on. Empty from
+  /// a backend that predates the field.
+  final String applicationId;
+
+  /// That application has already proceeded with an offer.
+  final bool alreadyApplied;
+
   factory SavedOfferModel.fromJson(Map<String, dynamic> json) {
     return SavedOfferModel(
       bankOfferId: json['bankOfferId'] as String,
@@ -69,6 +78,8 @@ class SavedOfferModel {
       totalRepayableEGP: _toDouble(json['totalRepayableEGP']),
       totalInterestEGP: _toDouble(json['totalInterestEGP']),
       totalLabel: (json['totalLabel'] as String?) ?? '',
+      applicationId: (json['applicationId'] as String?) ?? '',
+      alreadyApplied: (json['alreadyApplied'] as bool?) ?? false,
     );
   }
 
@@ -84,6 +95,8 @@ class SavedOfferModel {
         totalInterest: totalInterestEGP.round(),
         totalLoan: totalRepayableEGP.round(),
         totalLabel: totalLabel,
+        applicationId: applicationId,
+        alreadyApplied: alreadyApplied,
       );
 
   /// Accepts JSON numbers or numeric strings (money fields are strings).

@@ -40,7 +40,13 @@ import {
   type RailTabItem,
   type StatStripItem,
 } from '@shared/ui';
-import { canonicalCategories, categoryLabel, type LoanCategory } from '@core/loan-category';
+import {
+  LOAN_CATEGORIES,
+  canonicalCategories,
+  categoryLabel,
+  isLoanCategory,
+  type LoanCategory,
+} from '@core/loan-category';
 import { incomeBasisLabel } from '@core/income-basis';
 import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
 import {
@@ -57,11 +63,13 @@ import {
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import {
   buildBoard,
+  soldWith,
   isNoPayslip as isNoPayslipName,
   type BasisFilter,
+  type CategoryFilter,
   type ProductCard,
 } from './catalog-board';
-import { CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
+import { CATALOG_BASE, CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
 
 const ENUM_TYPE = 'program_name';
 
@@ -170,21 +178,16 @@ const ENUM_TYPE = 'program_name';
              the flow opens on. A CALCULATION is not a second capability: step 3 of that flow
              starts one from a shape, and the two product screens keep their own links to the
              picker for the rarer errand of making one that no name sells yet. -->
-        <!-- Withheld on the Surrogate chip: a no-payslip PRODUCT is seeded, never created
-             (v22.0.0 — seed:blueprints), so the only thing this button could add
-             while that chip is on is a catalog NAME, which is not what the chip lists. -->
-        @if (basisFilter() !== 'no_payslip') {
-          <a
-            nz-button
-            nzType="primary"
-            class="add-btn"
-            [routerLink]="newNameLink().commands"
-            [queryParams]="newNameLink().queryParams"
-          >
-            <span nz-icon nzType="plus" nzTheme="outline"></span>
-            <span i18n="@@program_catalog.dialog.add">Add program</span>
-          </a>
-        }
+        <a
+          nz-button
+          nzType="primary"
+          class="add-btn"
+          [routerLink]="newNameLink().commands"
+          [queryParams]="newNameLink().queryParams"
+        >
+          <span nz-icon nzType="plus" nzTheme="outline"></span>
+          <span i18n="@@program_catalog.dialog.add">Add program</span>
+        </a>
       </div>
 
       @if (loading()) {
@@ -238,6 +241,17 @@ const ENUM_TYPE = 'program_name';
             id="basis-panel-payslip"
             aria-labelledby="basis-tab-payslip"
           >
+            <!-- Same ?cat= facet as the no-payslip panel: a name is offered under one or
+                 more loan types, so this narrows the list without changing what is on stage. -->
+            <app-rail-tabs
+              appearance="pill"
+              idPrefix="cat-proof"
+              [items]="proofCategoryChips()"
+              [activeId]="categoryFilter()"
+              [ariaLabel]="categoryFilterAria"
+              (select)="setCategory(asCategory($event))"
+            />
+
             @if (proofNames().length > 0) {
               <ul class="cards" role="list">
                 @for (r of proofNames(); track r.id) {
@@ -250,9 +264,15 @@ const ENUM_TYPE = 'program_name';
             } @else {
               <div class="board-empty">
                 <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
-                <p i18n="@@program_catalog.proof.empty">
-                  No name is sold against a payslip yet. Add a program name and it starts here.
-                </p>
+                @if (surrogateFilterActive()) {
+                  <p i18n="@@program_catalog.proof.no_match">
+                    No payslip program name matches this filter.
+                  </p>
+                } @else {
+                  <p i18n="@@program_catalog.proof.empty">
+                    No name is sold against a payslip yet. Add a program name and it starts here.
+                  </p>
+                }
               </div>
             }
           </section>
@@ -265,6 +285,21 @@ const ENUM_TYPE = 'program_name';
             id="basis-panel-no_payslip"
             aria-labelledby="basis-tab-no_payslip"
           >
+            <!-- A calculation is sold under whichever loan types the names selling it are
+                 offered under — several at once, routinely (the compound guarantee sells
+                 under Personal, Car AND Mortgage from one product). So this is a facet over
+                 the panel, not a second tablist: picking one narrows both lanes below
+                 (product cards and the names taking no product's calculation) without
+                 changing which OBJECT is on screen, unlike the basis rail above it. -->
+            <app-rail-tabs
+              appearance="pill"
+              idPrefix="cat"
+              [items]="categoryChips()"
+              [activeId]="categoryFilter()"
+              [ariaLabel]="categoryFilterAria"
+              (select)="setCategory(asCategory($event))"
+            />
+
             <section class="lane-group">
               @if (products().length > 0) {
                 <ul class="cards" role="list">
@@ -275,45 +310,26 @@ const ENUM_TYPE = 'program_name';
                     />
                   }
                 </ul>
-              } @else {
-                <div class="board-empty">
-                  <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
-                  <p i18n="@@program_catalog.surrogate.empty">
-                    No calculation for a customer with no payslip yet. Start one from a shape and
-                    the questions it asks are built with it.
-                  </p>
-                </div>
+              }
+              @if (products().length === 0) {
+                @if (surrogateFilterActive()) {
+                  <div class="board-empty">
+                    <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                    <p i18n="@@program_catalog.surrogate.no_match">
+                      No calculation matches this filter.
+                    </p>
+                  </div>
+                } @else {
+                  <div class="board-empty">
+                    <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
+                    <p i18n="@@program_catalog.surrogate.empty">
+                      No calculation for a customer with no payslip yet. Start one from a shape and
+                      the questions it asks are built with it.
+                    </p>
+                  </div>
+                }
               }
             </section>
-
-            @if (unlinked().length > 0) {
-              <section class="lane-group">
-                <h2 class="lane-head">
-                  <span
-                    nz-icon
-                    nzType="exclamation-circle"
-                    nzTheme="outline"
-                    aria-hidden="true"
-                  ></span>
-                  <span i18n="@@program_catalog.unlinked.head"
-                    >Not taking a product's calculation</span
-                  >
-                  <span class="lane-n">{{ unlinked().length }}</span>
-                </h2>
-                <p class="lane-note" i18n="@@program_catalog.unlinked.note">
-                  Sold without a payslip, but not pointed at one of the calculations above. Open a
-                  name to see how it works its income out.
-                </p>
-                <ul class="cards" role="list">
-                  @for (u of unlinked(); track u.row.id) {
-                    <ng-container
-                      [ngTemplateOutlet]="nameCard"
-                      [ngTemplateOutletContext]="{ r: u.row, unlinked: u.state }"
-                    />
-                  }
-                </ul>
-              </section>
-            }
           </div>
         }
 
@@ -524,21 +540,45 @@ const ENUM_TYPE = 'program_name';
             </span>
             <span class="config">
               <span class="q-count">{{ reads(c.product) }}</span>
+              <!-- Which loan TYPES this calculation is sold under — the union of every
+                   selling name's own assignment, not a fact about the product itself (one
+                   product routinely sells under several: the compound guarantee sells under
+                   Personal, Car and Mortgage at once). Absence means no selling name has been
+                   assigned a loan type yet, which the "No catalog name sells this yet" tag
+                   below already says. -->
+              @if (c.categories.length > 0) {
+                <span class="cats">
+                  @for (cat of c.categories; track cat) {
+                    <span class="cat" [style.--cat-accent]="'var(--color-cat-' + cat + ')'">
+                      <span class="cat-dot" aria-hidden="true"></span>
+                      {{ label(cat) }}
+                    </span>
+                  }
+                </span>
+              }
             </span>
           </a>
 
           <div class="sold-as">
-            @if (c.names.length === 0) {
+            @if (c.names.length === 0 && c.product.capOnly) {
+              <!-- NOT the warn tag. A cap-only product works out no income, so the catalog
+                   refuses to let any name sell it (SURROGATE_PRODUCT_CAP_ONLY) — asking for one
+                   was asking for the one thing the operator cannot do. It is sold by a bank
+                   capping its own program by the answer, which the foot line counts. -->
+              <span class="tag" i18n="@@sp.cap_only">Sold as a cap on each bank's program</span>
+            } @else if (c.names.length === 0) {
               <!-- The actionable state, so a warn tag rather than the disabled-ink metadata
                    line it shipped as: a calculation nothing sells quotes for nobody, and the
                    disabled ink token sits under 4.5:1 for a sentence somebody must read. -->
               <span class="tag warn" i18n="@@sp.unused">No catalog name sells this yet</span>
             }
-            <!-- The names that DO sell this are not listed here: the card's own link opens
-                 the product, where step 3 lists them with what each one is offered under.
-                 A chip row repeating a near-identical key beside the product title read as
-                 a duplicate of the heading. A stored link with NO name behind it still
-                 shows — rendering one chip fewer would hide exactly the case worth seeing. -->
+            <!-- The names that sell this, EXCEPT one that only repeats the product's own title —
+                 that read as a duplicate of the heading. A name an operator just added under
+                 a different label is exactly what they came back to the board to find, so it
+                 shows, as a chip that opens that name. -->
+            @for (n of soldNames(c).shown; track n.id) {
+              <a class="name-chip" [routerLink]="[nameBase, n.key]">{{ nameOf(n) }}</a>
+            }
             @for (k of c.orphanNameKeys; track k) {
               <span class="name-chip is-orphan" [attr.title]="orphanTitle">{{ k }}</span>
             }
@@ -1207,6 +1247,7 @@ export class ProgramCatalogPage implements OnInit {
   private readonly productRows = signal<readonly SurrogateProductSummary[]>([]);
 
   protected readonly productBase = PRODUCT_BASE;
+  protected readonly nameBase = CATALOG_BASE;
 
   /**
    * Add a program name, opening on the basis the operator is standing in front of.
@@ -1248,6 +1289,7 @@ export class ProgramCatalogPage implements OnInit {
       products: this.productRows(),
       search: this.search(),
       isAr: this.isAr,
+      category: this.categoryFilter(),
     }),
   );
 
@@ -1333,6 +1375,74 @@ export class ProgramCatalogPage implements OnInit {
       },
     ];
   });
+
+  /**
+   * Which loan type narrows the no-payslip panel — `'all'` or one of the four. Lives in
+   * `?cat=` beside `?basis=`, same posture: the signal is the source of truth, the URL
+   * mirrors it with `replaceUrl` so flipping a chip does not fill the back button.
+   *
+   * A facet, like the basis rail above it, and for the same reason: a calculation is
+   * routinely sold under several loan types at once (the compound guarantee sells under
+   * Personal, Car and Mortgage from one product), so it has no single lane to sit in either.
+   */
+  protected readonly categoryFilter = signal<CategoryFilter>(this.initialCategory());
+
+  protected setCategory(next: CategoryFilter): void {
+    this.categoryFilter.set(next);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      // `null` drops the param rather than writing `cat=all` into every pasted link.
+      queryParams: { cat: next === 'all' ? null : next },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** The rail speaks ids as strings; this is the one place `'all'` and the four rejoin the union. */
+  protected asCategory(id: string): CategoryFilter {
+    return isLoanCategory(id) ? id : 'all';
+  }
+
+  private initialCategory(): CategoryFilter {
+    return this.asCategory(this.route.snapshot.queryParamMap.get('cat') ?? '');
+  }
+
+  protected readonly categoryFilterAria = $localize`:@@program_catalog.category.aria:Filter by loan type`;
+
+  /** Search box text OR a picked category — either can be why a lane reads as empty. */
+  protected readonly surrogateFilterActive = computed(
+    () => this.search().trim() !== '' || this.categoryFilter() !== 'all',
+  );
+
+  protected readonly categoryChips = computed<RailTabItem[]>(() =>
+    this.chipsFor(this.board().categoryCounts, this.surrogateCountLabel),
+  );
+
+  protected readonly proofCategoryChips = computed<RailTabItem[]>(() =>
+    this.chipsFor(this.board().proofCategoryCounts, this.proofCountLabel),
+  );
+
+  /** One chip per loan type; the unit matches the basis chip above, since it narrows that set. */
+  private chipsFor(
+    counts: Readonly<Record<CategoryFilter, number>>,
+    countLabel: string,
+  ): RailTabItem[] {
+    return [
+      {
+        id: 'all',
+        label: $localize`:@@program_catalog.category.all:All`,
+        count: counts.all,
+        countLabel,
+      },
+      ...LOAN_CATEGORIES.map((cat) => ({
+        id: cat,
+        label: categoryLabel(cat),
+        count: counts[cat],
+        countLabel,
+        accent: `var(--color-cat-${cat})`,
+      })),
+    ];
+  }
 
   protected readonly stats = computed<StatStripItem[]>(() => {
     const all = this.rows();
@@ -1612,7 +1722,7 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly surrogateHead = $localize`:@@program_catalog.surrogate.head:Worked out without a payslip`;
   // A bare number on a tab is announced as part of its name with no unit — "Income proof 10".
   protected readonly proofCountLabel = $localize`:@@program_catalog.proof.count:program names`;
-  protected readonly surrogateCountLabel = $localize`:@@program_catalog.surrogate.count:calculations and names`;
+  protected readonly surrogateCountLabel = $localize`:@@program_catalog.surrogate.count:calculations`;
   protected readonly orphanTitle = $localize`:@@program_catalog.product.orphan:A name points at this calculation, but that name is no longer on the board.`;
 
   /**
@@ -1622,6 +1732,17 @@ export class ProgramCatalogPage implements OnInit {
   private readonly facts = computed(() =>
     registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
   );
+
+  /**
+   * The names on a calculation card: those sold WITHOUT a payslip under the loan type on stage,
+   * which is exactly what the segment chip counts — so the number on the chip is the number of
+   * names on screen, chips and name cards together. No de-duplication against the card's own
+   * title: dropping a name that reads like the heading made the count one short.
+   */
+  protected soldNames(c: ProductCard): { shown: readonly EnumerationRow[] } {
+    const cat = this.categoryFilter();
+    return { shown: c.names.filter((n) => soldWith(n, 'no_payslip', cat)) };
+  }
 
   protected productName(c: ProductCard): string {
     return this.isAr ? c.product.labelAr : c.product.labelEn;

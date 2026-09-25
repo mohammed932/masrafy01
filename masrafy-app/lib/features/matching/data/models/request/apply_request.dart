@@ -12,7 +12,7 @@ class ApplyRequest {
   const ApplyRequest({
     required this.loanPurpose,
     required this.requestedAmountEGP,
-    required this.preferredTenorMonths,
+    this.preferredTenorMonths,
     required this.priority,
     required this.employment,
     required this.obligations,
@@ -30,7 +30,10 @@ class ApplyRequest {
 
   /// Decimal string, 5000–50,000,000 (Principle I).
   final String requestedAmountEGP;
-  final int preferredTenorMonths;
+  /// Null when the loan type never asks for a term. The field is then OMITTED from the
+  /// JSON and every programme quotes at its own maximum — `ApplyRequestDto` takes no term
+  /// and `resolveTenor` clamps the programme ceiling exactly as it would a request.
+  final int? preferredTenorMonths;
 
   /// One of: lowest_installment | lowest_interest | fastest_approval | least_paperwork.
   final String priority;
@@ -75,7 +78,8 @@ class ApplyRequest {
   Map<String, dynamic> toJson() => {
         'loanPurpose': loanPurpose,
         'requestedAmountEGP': requestedAmountEGP,
-        'preferredTenorMonths': preferredTenorMonths,
+        if (preferredTenorMonths != null)
+          'preferredTenorMonths': preferredTenorMonths,
         'priority': priority,
         'employment': employment.toJson(),
         'obligations': obligations.toJson(),

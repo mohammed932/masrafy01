@@ -306,10 +306,10 @@ describe('planning against a database that already holds some of it', () => {
   });
 
   it('widens a REUSED question to the categories the product needs, keeping the rest', () => {
-    // `practice_governorate` asks where the applicant WORKS. Seeded for personal and car,
-    // but a database that has it under one of the two still leaves the column reading
-    // nothing for the other — and the standard column would then price those applicants,
-    // silently. Widening ADDS: narrowing somebody else's assignment because this product
+    // `practice_governorate` asks where the applicant WORKS. Needed in personal (the only loan
+    // type the doctors' products are sold in, since 2026-09-24), and a database that has it
+    // elsewhere only still leaves the column reading nothing there — and the standard column
+    // would then price those applicants, silently. Widening ADDS: narrowing somebody else's assignment because this product
     // does not need it would break theirs.
     const existing: BlueprintExistingState = {
       ...EMPTY,
@@ -332,13 +332,15 @@ describe('planning against a database that already holds some of it', () => {
     const widened = result.steps.filter((step) => step.op === 'widenCategories');
     expect(
       widened.map((step) => step.op === 'widenCategories' && step.questionCode).sort(),
-    ).toEqual(['existing_bank_loans', 'practice_governorate']);
+      // `existing_bank_loans` is already under personal, and personal is all this product's
+      // top-up axis needs since car was dropped from it (2026-09-24) — so no widen.
+    ).toEqual(['practice_governorate']);
     const governorate = widened.find(
       (step) => step.op === 'widenCategories' && step.questionCode === 'practice_governorate',
     );
     expect(
       governorate && governorate.op === 'widenCategories' && governorate.categories.sort(),
-    ).toEqual(['car', 'mortgage', 'personal']);
+    ).toEqual(['mortgage', 'personal']);
   });
 
   it('does not touch the mortgage governorate question, which asks something else', () => {
@@ -360,18 +362,18 @@ describe('planning against a database that already holds some of it', () => {
 
   it('widens the question behind a DERIVED axis, which has no registry row', () => {
     // A top-up column is computed from the bank the program belongs to, but the answer it is
-    // computed FROM is a question — and that question is seeded for personal and mortgage
-    // only, so the column is unreachable on a car loan.
+    // computed FROM is a question — and a database holding it under mortgage alone leaves the
+    // column unreachable on the personal loans this product is sold as.
     const existing: BlueprintExistingState = {
       ...EMPTY,
       questionCodes: new Set(['existing_bank_loans']),
-      categoriesByQuestion: new Map([['existing_bank_loans', new Set([LoanCategory.personal])]]),
+      categoriesByQuestion: new Map([['existing_bank_loans', new Set([LoanCategory.mortgage])]]),
     };
     const widen = plan('doctors_clinic_owner', existing).steps.find(
       (step) => step.op === 'widenCategories' && step.questionCode === 'existing_bank_loans',
     );
     expect(widen && widen.op === 'widenCategories' && widen.categories.sort()).toEqual([
-      'car',
+      'mortgage',
       'personal',
     ]);
   });

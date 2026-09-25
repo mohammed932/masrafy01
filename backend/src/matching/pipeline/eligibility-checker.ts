@@ -88,9 +88,12 @@ export function checkEligibility(
     'loan_amount',
   );
 
+  // No term asked for cannot be out of range — the quote takes the programme's own
+  // maximum, which is in range by construction.
+  const askedTenor = profile.preferredTenorMonths;
   push(
-    profile.preferredTenorMonths >= program.tenor.minMonths &&
-      profile.preferredTenorMonths <= program.tenor.maxMonths,
+    askedTenor === undefined ||
+      (askedTenor >= program.tenor.minMonths && askedTenor <= program.tenor.maxMonths),
     'tenor',
   );
 

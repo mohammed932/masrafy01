@@ -37,7 +37,9 @@ import type {
 } from '../types';
 import { runCascade, type CascadeBundle, type CascadeExtras } from './cascade-adapter';
 import { resolveAssumedIncome } from './income-resolver';
+import { applyIScoreFactor, iScoreOf, resolveIScoreFactor } from './iscore';
 import { calculateFees } from './fees';
+import { carInsuranceFor } from './car-insurance';
 import { calculateEffectiveLoanAmount, calculateMonthlyInstallment } from './pmt';
 import { calculateDbr, calculateMaxLoanFromDbr, resolveDbrCap } from './dbr';
 import { rateBasisOf } from './rate-basis';
@@ -48,6 +50,7 @@ import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
 import { ltvAmountFor, ltvByFactFor, ltvCeilingFor } from './ltv-ceiling';
 import { applyMaxLoanAdjustments } from './max-loan-adjustments';
+import { CAR_AGE_YEARS_FACT_KEY, CAR_MODEL_YEAR_FACT_KEY } from './car-details';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -309,6 +312,60 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     problems.push('tenor.minMonths');
   }
 
+  // ── 1a½. Is this car too OLD to finance at all ──────────────────────────
+  //
+  // A standalone refusal, not a clamp: "German from 2015, maximum 8 years back" says nothing
+  // about the TERM, it says the bank will not write this loan. Run before the term ceiling
+  // below, which assumes the car is eligible and only differs on how long to finance it.
+  //
+  // `car_age_years` is engine-derived (`withGridFacts`, read against the clock once per
+  // quote) and absent whenever `car_model_year` was never answered — that question is
+  // optional, so a skipped one must not refuse here. The grid's own `useFallback` /
+  // `reject` split is read the same way: an applicant this table has nothing to say about
+  // (unanswered origin or dealer) gets `useFallback`, meaning "no extra restriction", never
+  // a refusal for having skipped an optional question.
+  const ageGrid = program.tenor?.maxVehicleAgeYearsByFact;
+  if (ageGrid !== undefined) {
+    const carAgeFact = (firstPass.ctx.facts ?? programFacts)[CAR_AGE_YEARS_FACT_KEY];
+    if (carAgeFact !== undefined && carAgeFact.kind === 'numeric' && carAgeFact.value.isFinite()) {
+      const hit = resolveFactGrid({
+        config: ageGrid,
+        facts: firstPass.ctx.facts ?? programFacts,
+        ...(input.parentKeyByValue !== undefined
+          ? { parentKeyByValue: input.parentKeyByValue }
+          : {}),
+      });
+      if (hit.matched && carAgeFact.value.greaterThan(hit.value)) {
+        return { ok: false, unavailable: { reason: 'VEHICLE_NOT_ELIGIBLE' } };
+      }
+      if (!hit.matched && hit.action === 'reject') {
+        return {
+          ok: false,
+          unavailable: {
+            reason: 'VEHICLE_NOT_ELIGIBLE',
+            ...(hit.missingFactKeys.length > 0
+              ? { missingFactKeys: [...hit.missingFactKeys] }
+              : {}),
+          },
+        };
+      }
+      // `!hit.matched && hit.action === 'useFallback'`: this table has nothing to say about
+      // this applicant's origin/dealer combination, so no extra age restriction applies.
+    }
+    // `carAgeFact === undefined` with a model year GIVEN: it is more than a year ahead of the
+    // clock (`withGridFacts`), which is no car a bank finances. Without this, a typo such as
+    // 2100 skipped the age limit entirely.
+    if (
+      carAgeFact === undefined &&
+      (firstPass.ctx.facts ?? programFacts)[CAR_MODEL_YEAR_FACT_KEY] !== undefined
+    ) {
+      return { ok: false, unavailable: { reason: 'VEHICLE_NOT_ELIGIBLE' } };
+    }
+    // `carAgeFact === undefined` and no model year: never answered. The questionnaire makes it
+    // required on every name whose programmes carry an age limit (`mustAnswerQuestionCodes`),
+    // so this is a preview or an older app build — the age is unknown, not zero.
+  }
+
   // ── 1b. The term ceiling this VEHICLE carries ───────────────────────────
   //
   // A bank's used-car card prints a table, not a formula: "German from 2015 → 3 years,
@@ -374,7 +431,11 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // to report which constraint bound it. Two computations of one term is exactly how the
   // priced loan and the reported loan come apart.
   const tenorPlan = resolveTenor({
-    requested: Math.floor(input.overrideTenorMonths ?? profile.preferredTenorMonths),
+    // No term asked for -> the programme's own ceiling, which `resolveTenor` then clamps
+    // against the age and vehicle caps exactly as it would a customer's request.
+    requested: Math.floor(
+      input.overrideTenorMonths ?? profile.preferredTenorMonths ?? cascadeMaxTenor,
+    ),
     minMonths: planMinMonths,
     maxMonths: cascadeMaxTenor,
     maxAge: program.eligibility?.maxAge,
@@ -474,7 +535,10 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // military grade" would be a confusing thing to tell its applicant.
   // A ceiling is not an income and cannot be judged as one yet: the figure it implies
   // needs the rate and the FINAL tenor, and step 3 has not run. Deferred to step 3b.
-  const ceilingAmountEGP =
+  // `let`, because step 2a below scales it by the applicant's I-Score. Its NULL-ness never
+  // moves — that is decided by `origin` alone — so every `ceilingAmountEGP === null` test
+  // downstream reads exactly what it always did.
+  let ceilingAmountEGP =
     incomeResolution?.origin === 'ceiling' ? (incomeResolution.ceilingAmountEGP ?? null) : null;
 
   if (isSurrogateProgram && incomeResolution && incomeResolution.origin === 'none') {
@@ -519,6 +583,44 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   let recognisedIncomeEGP = incomeResolution
     ? incomeResolution.incomeEGP
     : (declaredIncomeEGP ?? new Decimal(0));
+
+  // ── 2a. The bureau score ────────────────────────────────────────────────
+  //
+  // HERE, and the position is the whole of why the v30.3.0 refactor moves no money. Until
+  // then this was four compiled steps INSIDE a surrogate product's rule, applied to the
+  // rule's output before `output.from` read it — so it landed after the arithmetic and
+  // before the additional income and the debt-burden band. This is the same point.
+  //
+  // Both quantities, and `school_stage_ceiling` is why: it is the one seeded product whose
+  // output is a `maxAmount`, and its tiers scaled that ceiling while they lived in the
+  // rule. Scaling only the income would have silently dropped I-Score for it.
+  //
+  // ON EVERY PROGRAM TYPE, which is the point of the move. `shouldConsultIncomeRule` never
+  // reads a rule for a payslip applicant who declared a salary, so nothing stored inside
+  // the rule could ever have reached them — 54 of 71 programs could not state a table at
+  // all. Nothing here asks what `programType` is.
+  //
+  // A 100% factor returns the SAME Decimal (`applyIScoreFactor` short-circuits), so a
+  // program with no tiers — every program on this database but seventeen — allocates
+  // nothing and is arithmetically untouched.
+  const iScore = resolveIScoreFactor(program.iScoreTiers, iScoreOf(profile));
+  const incomeBeforeIScore = recognisedIncomeEGP;
+  recognisedIncomeEGP = applyIScoreFactor(recognisedIncomeEGP, iScore.factorPercent);
+  if (ceilingAmountEGP !== null) {
+    ceilingAmountEGP = applyIScoreFactor(ceilingAmountEGP, iScore.factorPercent);
+  }
+  // DID THE MULTIPLIER MOVE THE FIGURE? Step 5 needs to know, because the resolver picked a
+  // debt-burden BAND against the figure as it stood before this line, and `dbrBands` are
+  // keyed BY INCOME — a multiplier that carries an applicant over a band edge would
+  // otherwise leave them capped as the person they were before their score was read.
+  //
+  // This is the property `iscore-before-dbr.spec.ts` exists to pin. It used to hold
+  // structurally: the multiplier was four steps INSIDE the rule, so the resolver's own
+  // `resolveDbrCap` already saw the multiplied figure. Moving the multiply out here made it a
+  // property that has to be maintained, so it is measured rather than assumed — compared on
+  // the FIGURES and not on `factorPercent`, because a 100% table and no table at all must
+  // both count as "nothing moved" and neither should trigger a re-resolve.
+  const iScoreMovedIncome = !recognisedIncomeEGP.equals(incomeBeforeIScore);
 
   // ── 2b. Money earned beside the basic figure ────────────────────────────
   //
@@ -754,7 +856,9 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return {
       ok: false,
       unavailable: {
-        reason: 'BELOW_PROGRAM_MIN_AMOUNT',
+        // The REQUEST-side reason, not the affordability one below: nothing about this
+        // applicant's debt burden has been measured yet at this point in the pipeline.
+        reason: 'REQUESTED_BELOW_PROGRAM_MIN_AMOUNT',
         // The amount this program could have written, which here is the clamped request
         // itself — the DBR figures do not exist yet and reporting a zero for them would
         // state a cap nobody measured.
@@ -766,6 +870,32 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
 
   const amountStepEGP = toPositiveDecimal(program.loanLimits.amountStepEGP);
 
+  // ── 4b. Comprehensive cover on the car ──────────────────────────────────
+  //
+  // Resolved ONCE, here, and not inside `priceAt`: it is keyed on the car's PRICE and the
+  // applicant's deposit, neither of which the affordability loop moves, so re-resolving it
+  // per pass would be the same grid walked up to five times for the same answer.
+  //
+  // The facts are `cascade.ctx.facts ?? programFacts`, the same set the financed share above
+  // reads, and for the reason written out there: `car_down_payment_percent` is derived per
+  // quote by `withGridFacts` and exists nowhere else, so reading `programFacts` alone leaves
+  // every axis unresolved and no cell matches.
+  //
+  // It is read off the applicant's OWN deposit, never the `requiredDownPaymentEGP` assembled
+  // at step 7 — that figure is `price − cash paid out` and moves with the loan the engine
+  // chose, so keying cover off it would price the insurance against a deposit the customer
+  // never stated.
+  //
+  // Nothing below reads it except the breakdown. It caps nothing, refuses nobody, and moves
+  // no instalment: see `car-insurance.ts`.
+  const carInsurance = carInsuranceFor({
+    grid: program.fees?.carInsuranceRateByFact,
+    facts: cascade.ctx.facts ?? programFacts,
+    carDetails: profile.carDetails,
+    tenorMonths,
+    ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
+  });
+
   // Price at a given cash amount. Note `effectiveLoanAmountEGP: cash` — the
   // life-insurance base is the pre-fee amount, matching the pre-010 engine.
   const priceAt = (amount: Decimal) => {
@@ -775,6 +905,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       annualRatePercent: ratePercent,
       tenorMonths,
       collateralized: program.eligibility?.requiresCollateral ?? false,
+      ...(carInsurance.kind === 'required' ? { carInsurance } : {}),
     });
     const booked = calculateEffectiveLoanAmount(amount, fees.totalFinancedFeesEGP);
     const installment = calculateMonthlyInstallment(
@@ -808,6 +939,15 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // the one the total falls in. Without this an applicant whose rent carries them over a band
   // edge is capped as the person they were before their rent was counted.
   //
+  // A figure the I-SCORE multiplier moved re-resolves for exactly that reason, and it is the
+  // one case the v30.3.0 refactor CREATED. While the multiplier lived inside the rule the
+  // resolver's own `resolveDbrCap` already saw the multiplied figure, so the ordering held
+  // structurally; applied at step 2a it does not, and an applicant whose score carries them
+  // over a band edge would be capped as the person they were before it was read. No program
+  // states both a tier table and income bands today (measured: 0 of 71), so nothing on this
+  // database moves — which is exactly why this had to be reasoned about rather than tested
+  // into existence. `iscore-before-dbr.spec.ts` pins it.
+  //
   // WHICH override travels is not the same question in the two cases. A ceiling IS
   // rule-derived, so the rule's own cap applies. An income the additional-income policy
   // merely topped up may have come from a payslip, and the rule override must not attach to
@@ -819,7 +959,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       ? program.incomeAssumption?.dbrCapPercentOverride
       : undefined;
   const capResolution =
-    ceilingAmountEGP !== null || reResolveForAdditional
+    ceilingAmountEGP !== null || reResolveForAdditional || iScoreMovedIncome
       ? resolveDbrCap(
           {
             dbrCapPercent: program.eligibility.dbrCapPercent,
@@ -1019,6 +1159,17 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       // engine did not make.
       incomeResolution,
       dbrCapSource,
+      // The MULTIPLIER, frozen for the reason `dbrCapPercent` above is: the tiers are stated
+      // per product and overridden per bank, and either can be retyped after this offer is
+      // written. Both keys absent when `source` is null — no table was in force, or the
+      // applicant left the optional question blank — because that is a different fact from a
+      // table measured at 100% and the offer's own docstring says so.
+      ...(iScore.source !== null
+        ? {
+            iScoreFactorPercent: iScore.factorPercent,
+            iScoreTiersSource: iScore.source,
+          }
+        : {}),
       feesBreakdown: priced.fees.breakdown,
       cascadeTrace: buildCascadeTrace(cascade),
     },

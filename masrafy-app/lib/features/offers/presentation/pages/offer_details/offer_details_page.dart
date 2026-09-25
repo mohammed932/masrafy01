@@ -96,10 +96,9 @@ class _OfferDetailsView extends StatelessWidget {
     final topInset = MediaQuery.of(context).viewPadding.top;
     final typeLabel = loanTypeLabel(l, summary.loanTypeKey);
     final title = l.offer_title(typeLabel);
-    // The bank behind the offer. Saved-offer / past-application / mock views
-    // carry no bank name; the header already supports an empty subtitle (the
-    // shimmer and error states pump one), so nothing more is needed here.
-    final subtitle = offer.bankName.isNotEmpty ? offer.bankName : '';
+    // The MASKED bank, the same letter the results card showed (see
+    // MasrafyPartnerBankHeading) — never the real bank or its program name.
+    final subtitle = MasrafyPartnerBankHeading.labelFor(l, offer.rank);
     final grouped = NumberFormat.decimalPattern();
 
     // A real, not-yet-applied offer is the only case with a live Apply CTA and
@@ -112,12 +111,6 @@ class _OfferDetailsView extends StatelessWidget {
     // pump the page with no container.
     final tracked =
         offer.bankOfferId.isNotEmpty || offer.applicationId.isNotEmpty;
-    // Bank-facing name of the matched program. Real offers carry the friendly
-    // name (the code is the fallback for programs that never got one);
-    // saved-offer / past-application / mock views carry neither.
-    final programName = offer.programFriendlyName.isNotEmpty
-        ? offer.programFriendlyName
-        : offer.programCode;
 
     // What the bank booked, versus what the wizard asked for. They diverge
     // whenever the program ceiling or the debt-burden cap reduced the ask, and
@@ -134,12 +127,32 @@ class _OfferDetailsView extends StatelessWidget {
     // literals ("1% (EGP 1,500)", "12.5% / year") that contradicted the
     // installment printed inches above them; a fee with no figure is now simply
     // not listed rather than invented.
-    String? feeAmount(String key) {
+    // The figure alone, so a line that is not an EGP one-off can format it its own way.
+    double? feeAmountRaw(String key) {
       final raw = offer.feesBreakdown?[key];
       final value = raw is num ? raw.toDouble() : double.tryParse('$raw');
       if (value == null || value <= 0) return null;
+      return value;
+    }
+
+    String? feeAmount(String key) {
+      final value = feeAmountRaw(key);
+      if (value == null) return null;
       return l.offer_fee_egp(grouped.format(value));
     }
+
+    // COMPREHENSIVE COVER ON THE CAR, when the programme demands it at this deposit.
+    //
+    // TWO rows and not one. A single line cannot honestly carry both figures: the premium is
+    // what the customer pays each policy year and the total is what cover costs over the
+    // whole loan, and collapsing them would make one of the two read as the other — the
+    // difference between 20,000 and 100,000 on the operator's own worked example.
+    //
+    // Read straight off the engine's breakdown like every fee above, so a programme that
+    // demands no cover renders exactly what it renders today: `feeAmount` already drops a
+    // line whose figure is null or zero, and `carInsuranceYears` is absent with it.
+    final carInsuranceYears = offer.feesBreakdown?['carInsuranceYears'];
+    final carInsuranceAnnual = feeAmountRaw('carInsuranceAnnualEGP');
 
     final feeRows = <OfferFeeRow>[
       (
@@ -162,14 +175,28 @@ class _OfferDetailsView extends StatelessWidget {
             value: amount,
             valueColor: colors.warning.active,
           ),
+      if (carInsuranceAnnual != null) ...[
+        (
+          label: l.offer_car_insurance,
+          // Per YEAR, said in the value: a bare amount beside the one-off fees above would
+          // be read as one more one-off, and it is the recurrence that makes it large.
+          value: l.offer_fee_egp_per_year(grouped.format(carInsuranceAnnual)),
+          valueColor: colors.warning.active,
+        ),
+        if (carInsuranceYears is int)
+          if (feeAmount('carInsuranceTotalEGP') case final total?)
+            (
+              label: l.offer_car_insurance_total(carInsuranceYears),
+              value: total,
+              valueColor: colors.warning.active,
+            ),
+      ],
       (
         label: l.offer_early_settlement,
         value: l.offer_early_settlement_value,
         valueColor: colors.success.main,
       ),
     ];
-
-    void comingSoon() => MasrafyToast.success(context, l.offer_action_soon);
 
     final content = CustomScrollView(
       physics: const BouncingScrollPhysics(
@@ -229,13 +256,6 @@ class _OfferDetailsView extends StatelessWidget {
                   children: [
                     MatchSummaryCard(
                       rows: [
-                        // Which bank program this is — the hero says only
-                        // "Personal Loan", so without this row two offers from
-                        // two banks render identically. Falls back to the raw
-                        // code, and is dropped entirely on placeholder views
-                        // (saved offers / mocks) that carry neither.
-                        if (programName.isNotEmpty)
-                          (label: l.results_program, value: programName),
                         (label: l.results_loan_type, value: typeLabel),
                         // The ask and the offer are two different numbers
                         // whenever the program ceiling or the debt-burden
@@ -360,55 +380,65 @@ class _OfferDetailsView extends StatelessWidget {
                     ],
                     Gap(25.h),
                     // Already-applied offers (opened from the Applications
-                    // screen) can't be re-applied — hide the Apply CTA
+                    // screen, or saved from an application that has already
+                    // proceeded) can't be re-applied — hide the Apply CTA
                     // entirely; only the Save CTA below remains.
-                    if (!offer.alreadyApplied) ...[
-                      // Real offers (from apply) proceed via select-offer;
-                      // saved-offer / past-application summaries have no
-                      // application to proceed on, so keep the placeholder and
-                      // avoid touching DI (widget tests pump this page directly).
-                      offer.applicationId.isEmpty
-                          ? MasrafyGradientButton(
-                              label: l.offer_apply,
-                              onPressed: comingSoon,
-                            )
-                          : BlocProvider<SelectOfferCubit>(
-                              create: (_) => getIt<SelectOfferCubit>(),
-                              child: BlocConsumer<SelectOfferCubit,
-                                  SelectOfferState>(
-                                listener: (ctx, state) {
-                                  if (state.isSuccess) {
-                                    MasrafyToast.success(
-                                        ctx, l.offer_proceed_success);
-                                    // One-way gate: the backend blocks
-                                    // re-selecting once proceeded, so clear the
-                                    // now-stale wizard/results/details stack.
-                                    ctx.router.replaceAll([
-                                      MainShellRoute(),
-                                      const PreviousApplicationsRoute(),
-                                    ]);
-                                  } else if (state.needsDocuments) {
-                                    // Server-side half of the document gate —
-                                    // reached only when the local pre-check
-                                    // couldn't answer (status still loading, or
-                                    // the read failed). Same warning, same
-                                    // destination, so the two can't drift.
-                                    _promptForNationalId(ctx);
-                                  } else if (state.needsProfile) {
-                                    ctx.router.push(CompleteProfileRoute());
-                                  } else if (state.isError) {
-                                    MasrafyToast.error(
-                                        ctx, l.offer_proceed_error);
-                                  }
-                                },
-                                builder: (ctx, state) => MasrafyGradientButton(
-                                  label: l.offer_apply,
-                                  isLoading: state.isLoading,
-                                  onPressed:
-                                      state.isLoading ? null : () => _apply(ctx),
-                                ),
-                              ),
-                            ),
+                    //
+                    // Every offer with an application behind it proceeds via
+                    // select-offer — fresh results and saved offers alike (the
+                    // saved-offers list carries the applicationId). One with no
+                    // application (a mock preview) has nothing to proceed on, so
+                    // the CTA is not shown rather than faked; that also keeps DI
+                    // untouched for widget tests that pump this page directly.
+                    if (!offer.alreadyApplied &&
+                        offer.applicationId.isNotEmpty) ...[
+                      BlocProvider<SelectOfferCubit>(
+                  create: (_) => getIt<SelectOfferCubit>(),
+                  child: BlocConsumer<SelectOfferCubit,
+                      SelectOfferState>(
+                    listener: (ctx, state) {
+                      if (state.isSuccess) {
+                        MasrafyToast.success(
+                            ctx, l.offer_proceed_success);
+                        // One-way gate: the backend blocks
+                        // re-selecting once proceeded, so clear the
+                        // now-stale wizard/results/details stack.
+                        ctx.router.replaceAll([
+                          MainShellRoute(),
+                          const PreviousApplicationsRoute(),
+                        ]);
+                      } else if (state.alreadyProceeded) {
+                        // A second tap after the first one landed: the
+                        // server keeps the first selection, so say so and
+                        // leave for the applications list, not an error.
+                        MasrafyToast.success(
+                            ctx, l.offer_already_proceeded);
+                        ctx.router.replaceAll([
+                          MainShellRoute(),
+                          const PreviousApplicationsRoute(),
+                        ]);
+                      } else if (state.needsDocuments) {
+                        // Server-side half of the document gate —
+                        // reached only when the local pre-check
+                        // couldn't answer (status still loading, or
+                        // the read failed). Same warning, same
+                        // destination, so the two can't drift.
+                        _promptForNationalId(ctx);
+                      } else if (state.needsProfile) {
+                        ctx.router.push(CompleteProfileRoute());
+                      } else if (state.isError) {
+                        MasrafyToast.error(
+                            ctx, l.offer_proceed_error);
+                      }
+                    },
+                    builder: (ctx, state) => MasrafyGradientButton(
+                      label: l.offer_apply,
+                      isLoading: state.isLoading,
+                      onPressed:
+                          state.isLoading ? null : () => _apply(ctx),
+                    ),
+                  ),
+                ),
                     ],
                   ],
                 ),

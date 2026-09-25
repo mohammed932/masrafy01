@@ -135,6 +135,16 @@ export class ProgramCodeAlreadyInUseException extends DomainException {
   }
 }
 
+export class BankProgramNameTakenException extends DomainException {
+  constructor(meta: {
+    programNameKey: string;
+    productCategory: string;
+    existingProgramCode: string;
+  }) {
+    super(ERROR_CODES.BANK_PROGRAM_NAME_TAKEN, meta);
+  }
+}
+
 export class InvalidVariableRateConfigurationException extends DomainException {
   constructor(field: 'currentEffectiveRate' | 'baseRate', reason: string) {
     super(ERROR_CODES.INVALID_VARIABLE_RATE_CONFIGURATION, { field, reason });
@@ -294,6 +304,18 @@ export class SurrogateProductNoCapException extends DomainException {
   }
 }
 
+export class ProductNotSoldAnywhereException extends DomainException {
+  constructor(meta: { productKey: string }) {
+    super(ERROR_CODES.PRODUCT_NOT_SOLD_ANYWHERE, meta);
+  }
+}
+
+export class NeededFactShapeUnknownException extends DomainException {
+  constructor(meta: { productKey: string; factKey: string }) {
+    super(ERROR_CODES.NEEDED_FACT_SHAPE_UNKNOWN, meta);
+  }
+}
+
 /**
  * A surrogate product's default loan duration was cleared while programs are reading it.
  *
@@ -305,6 +327,32 @@ export class SurrogateProductNoCapException extends DomainException {
 export class SurrogateProductTenorInUseException extends DomainException {
   constructor(meta: { count: number; programCodes: string[] }) {
     super(ERROR_CODES.SURROGATE_PRODUCT_TENOR_IN_USE, meta);
+  }
+}
+
+/**
+ * A surrogate product's default loan size was cleared while programs are reading it.
+ *
+ * The sibling of `SurrogateProductTenorInUseException`, carrying the codes for the same
+ * reason: "give each of them its own amounts first" is only actionable if the operator is
+ * told which ones.
+ */
+export class SurrogateProductLoanAmountsInUseException extends DomainException {
+  constructor(meta: { count: number; programCodes: string[] }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE, meta);
+  }
+}
+
+/**
+ * A surrogate product's default interest rate was cleared while programs are reading it.
+ *
+ * The sibling of the two above, carrying the codes for the same reason — and here the list
+ * is the only way an operator can act on it at all: a program's own price is no longer
+ * typed on a screen.
+ */
+export class SurrogateProductRateInUseException extends DomainException {
+  constructor(meta: { count: number; programCodes: string[] }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_RATE_IN_USE, meta);
   }
 }
 

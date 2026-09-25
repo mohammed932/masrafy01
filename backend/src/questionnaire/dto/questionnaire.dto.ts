@@ -323,6 +323,22 @@ export class ReorderQuestionsDto {
   ids!: string[];
 }
 
+/**
+ * One loan category's asked questions, in their new order.
+ *
+ * The category rides on the PATH, not in the body: it is what the request is about, and the
+ * route already names the resource being rewritten.
+ */
+export class ReorderCategoryQuestionsDto {
+  @ApiProperty({ type: [String], description: "Question ids in this category's new order" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @Length(1, 30, { each: true })
+  ids!: string[];
+}
+
 export class UpdateOptionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 200) labelAr?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 200) labelEn?: string;
@@ -357,9 +373,8 @@ function HasExactlyOneAnswerValue(validation?: ValidationOptions): PropertyDecor
         validate(_value: unknown, args: ValidationArguments): boolean {
           const dto = args.object as Record<string, unknown>;
           return (
-            ANSWER_VALUE_KEYS.filter(
-              (key) => dto[key] !== undefined && dto[key] !== null,
-            ).length === 1
+            ANSWER_VALUE_KEYS.filter((key) => dto[key] !== undefined && dto[key] !== null)
+              .length === 1
           );
         },
         defaultMessage(): string {
@@ -426,7 +441,10 @@ export class PreviewMatchesDto {
    * show what apply would return, so a shortlist it produces has to survive the
    * apply that follows (A25).
    */
-  @ApiPropertyOptional({ enum: BankProgramType, description: 'Income basis to narrow the matched set to' })
+  @ApiPropertyOptional({
+    enum: BankProgramType,
+    description: 'Income basis to narrow the matched set to',
+  })
   @IsOptional()
   @IsEnum(BankProgramType)
   programType?: BankProgramType;

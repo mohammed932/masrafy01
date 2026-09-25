@@ -32,7 +32,6 @@
  * Change `stepSlot` / `columnSlots` / `gateSlot` and change this file with them.
  */
 import {
-  I_SCORE_BAND_SLOT,
   STEP_OP_SHAPE,
   stepRefs,
   stepTakesFigures,
@@ -152,22 +151,27 @@ function isBlankText(value: string | undefined): boolean {
 }
 
 /**
- * Slots the ENGINE reads from the product when this bank states none — so the screen must
- * leave them alone rather than offering to fill them in.
+ * Slots the ENGINE reads from the product when this bank states none.
  *
- * Mirrors `SLOTS_INHERITED_WHEN_BLANK` in `income-rule-inherit.ts`, and the whole point is
- * that the copy must NOT happen: a blank I-Score table already quotes the product's tiers, so
- * writing them into this bank's figures on open would turn a live default into a frozen copy —
- * dirtying a form the operator only opened to read, and leaving the bank on yesterday's tiers
- * the day the product's change. The row says "the product's tiers apply" instead, with a
- * button for a bank that wants its own.
+ * ALWAYS FALSE as of v30.3.0, and kept as a named function rather than deleted because the
+ * two call sites below read better for it: the question "is this slot inherited when blank"
+ * is one somebody will ask again, and the answer is a decision rather than an absence.
+ *
+ * It mirrored `SLOTS_INHERITED_WHEN_BLANK` in `income-rule-inherit.ts`, which held the
+ * I-Score tier slot and nothing else. Both are gone: the tiers are program-level policy now,
+ * so no slot in a rule reads the product's figures when blank, and a blank way or condition
+ * means "this bank does not sell that" — a stated decision the product must not override.
+ *
+ * The trap it existed to avoid is worth keeping written down, because the new card had to
+ * avoid it too: copying the product's figures into this bank's on OPEN turns a live default
+ * into a frozen copy, dirties a form the operator only opened to read, and leaves the bank
+ * on yesterday's figures the day the product's change.
  */
 function slotInheritsWhenBlank(
-  slotId: string,
-  catalogFigures: Readonly<Record<string, StepFigures>> | undefined,
+  _slotId: string,
+  _catalogFigures: Readonly<Record<string, StepFigures>> | undefined,
 ): boolean {
-  if (slotId !== I_SCORE_BAND_SLOT) return false;
-  return (catalogFigures?.[slotId]?.bands?.length ?? 0) > 0;
+  return false;
 }
 
 /**

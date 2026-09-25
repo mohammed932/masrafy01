@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -17,11 +18,13 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { QuestionnaireService } from './questionnaire.service';
+import { parseCategory } from './category.util';
 import {
   CreateGroupDto,
   CreateOptionDto,
   CreateQuestionDto,
   CreateQuestionWithOptionsDto,
+  ReorderCategoryQuestionsDto,
   ReorderQuestionsDto,
   AddQuestionCategoriesBulkDto,
   SetQuestionCategoriesBulkDto,
@@ -50,9 +53,19 @@ export class AdminQuestionnaireController {
   constructor(private readonly service: QuestionnaireService) {}
 
   @Get('tree')
-  @ApiOperation({ summary: 'Editable working tree of the global pool (groups → questions → options)' })
+  @ApiOperation({
+    summary: 'Editable working tree of the global pool (groups → questions → options)',
+  })
   async tree() {
     return ok(await this.service.draftTree());
+  }
+
+  @Get('served')
+  @ApiOperation({
+    summary: 'How many questions an applicant of one program name is served, per loan type',
+  })
+  async served(@Query('programNameKey') programNameKey: string) {
+    return ok(await this.service.servedForProgramName(programNameKey ?? ''));
   }
 
   @Post('groups')
@@ -155,6 +168,27 @@ export class AdminQuestionnaireController {
     @CurrentUser() user: JwtPayload,
   ) {
     return ok(await this.service.addQuestionCategoriesBulk(dto.assignments, user.sub));
+  }
+
+  // Static up to the category segment, and declared with its siblings above the `:id`
+  // routes for the same defensive reason they are: `questions/...` must never be read as
+  // a question id.
+  @Post('questions/categories/:category/reorder')
+  @ApiOperation({
+    summary: 'Rewrite the order ONE loan category asks its questions in',
+    description:
+      "Body carries that category's WHOLE asked set exactly once, in its new order — a partial list is rejected with VALIDATION_FAILED. It moves nothing in the other categories and nothing in the pool's own order, which the Questions tab still owns. Publishes, like every write on that screen.",
+  })
+  async reorderCategoryQuestions(
+    @Param('category') category: string,
+    @Body() dto: ReorderCategoryQuestionsDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    // Parsed and REFUSED here, never narrowed silently: an unknown category must fail loudly
+    // rather than reorder something (A33's own rule for a category-filtered read).
+    return ok(
+      await this.service.reorderCategoryQuestions(parseCategory(category), dto.ids, user.sub),
+    );
   }
 
   @Put('questions/:id/categories')

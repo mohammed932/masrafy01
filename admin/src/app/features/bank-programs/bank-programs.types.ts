@@ -42,11 +42,27 @@ export interface TenorConfig {
   maxMonthsByFact?: FactGridConfig;
   /** The term floor against the same answers. Composed by `max`, so it only raises. */
   minMonthsByFact?: FactGridConfig;
+  /**
+   * The oldest a used car may be, in years, against the same answers. No wizard editor yet —
+   * same footing as `ltvCeilingByFact` / `minAmountByFact` before it — but typed here so the
+   * field rides through `carriedKeysOf`'s generic spread with the type saying what is
+   * actually in the object, rather than silently narrower than the runtime blob.
+   */
+  maxVehicleAgeYearsByFact?: FactGridConfig;
 }
 
 export interface LoanLimitsConfig {
-  minAmountEGP: string;
-  maxAmountEGP: string;
+  /**
+   * ABSENT on both means this program states no loan size of its own and reads the surrogate
+   * product's, exactly as the two months on `TenorConfig` above do. Optional rather than
+   * nullable: `null` is refused by the server's DTO, and the save path OMITS the pair rather
+   * than sending a spelling that would be rejected.
+   *
+   * Never one without the other — that is a range neither the bank nor the product stated,
+   * and the step verdict and the server both refuse it.
+   */
+  minAmountEGP?: string;
+  maxAmountEGP?: string;
   maxByCDTier?: Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
   maxByPropertyType?: Record<string, string>;
   maxByTransferType?: Record<string, string>;
@@ -939,6 +955,41 @@ export interface TenorDefaults {
   maxMonths: number;
 }
 
+/**
+ * The loan SIZE a program under this product falls back to when it states none.
+ *
+ * The sibling of `TenorDefaults`: both amounts or neither, inherited live rather than copied
+ * at create. DECIMAL STRINGS, never numbers — this is money (Principle I).
+ */
+export interface LoanAmountDefaults {
+  minAmountEGP: string;
+  maxAmountEGP: string;
+}
+
+/**
+ * The INTEREST RATE a program under this product falls back to when it states none.
+ *
+ * ONE STATEMENT, not three fields: the rate, the basis it is charged on and the
+ * variable-rate disclosure travel together, because a percentage on its own does not say
+ * what the customer pays — the same rate over the same tenor buys 22–29% more loan on a
+ * declining balance than flat — and `isVariableRate` decides WHICH figure is the price.
+ *
+ * DECIMAL STRINGS, never numbers (Principle I). Inherited live, like the duration and the
+ * size beside it, and since the bank-program wizard stopped asking for a rate it is where
+ * most programmes are priced from.
+ */
+export interface RateDefaults {
+  isVariableRate: boolean;
+  /** The price when `isVariableRate` is false. */
+  baseRatePercent?: string;
+  /** The price when `isVariableRate` is true. */
+  currentEffectiveRatePercent?: string;
+  /** What the reset is tied to. Only meaningful on a variable rate. */
+  variableRateNote?: string;
+  /** `reducing` (declining balance) or `flat`. Absent reads as `reducing`. */
+  rateBasis?: RateBasis;
+}
+
 export interface ProgramUnderName {
   programCode: string;
   friendlyName: string;
@@ -956,6 +1007,19 @@ export interface ProgramUnderName {
    * nothing about how long it lends for, and both directions occur.
    */
   ownTenor: boolean;
+  /** `false` when it states no I-Score tiers of its own and reads the product's. */
+  ownIScoreTiers: boolean;
+  /**
+   * `false` when it states no loan SIZE of its own and reads the product's — a third axis
+   * again, independent of both above it.
+   */
+  ownLoanAmounts: boolean;
+  /**
+   * `false` when it states no INTEREST RATE of its own and is priced at the product's — a
+   * fifth axis, and the one most programmes created from now on are on, since the wizard no
+   * longer asks for a rate.
+   */
+  ownRate: boolean;
   /**
    * True when this program reads the product's PLAN tables rather than its own.
    *
@@ -968,9 +1032,10 @@ export interface ProgramUnderName {
 /**
  * The PLAN tables a surrogate product hands the programs that opted in.
  *
- * Five independently optional grids, all keyed by the share the applicant puts down: the
- * rate, the two ends of the term, the financed share and the floor. One plan is a row across
- * them — "20% down, 10%, 6-60 months, we finance 80%, not under a million".
+ * Six independently optional grids, all keyed by the share the applicant puts down: the
+ * rate, the two ends of the term, the financed share, the floor and the cover the bank
+ * demands on the car. One plan is a row across them — "20% down, 10%, 6-60 months, we
+ * finance 80%, not under a million, insure it at 1% a year".
  */
 export interface PlanDefaults {
   rateByFact?: FactGridConfig;
@@ -978,6 +1043,7 @@ export interface PlanDefaults {
   maxMonthsByFact?: FactGridConfig;
   ltvCeilingByFact?: FactGridConfig;
   minAmountByFact?: FactGridConfig;
+  carInsuranceRateByFact?: FactGridConfig;
 }
 
 /**
@@ -1033,8 +1099,22 @@ export interface ProgramNameIncomeRule {
      * duration is a live statement that this bank lends over the product's months.
      */
     tenorDefaults: TenorDefaults | null;
+    /**
+     * The loan SIZE a program under this name falls back to when it states none, on exactly
+     * the terms the duration above is inherited: live, not copied at create.
+     */
+    loanAmountDefaults: LoanAmountDefaults | null;
+    /**
+     * The RATE a program under this name is quoted at when it states none of its own.
+     *
+     * The wizard reads it to say what the programme is priced at in place of the rate card
+     * it no longer has.
+     */
+    rateDefaults: RateDefaults | null;
     /** The product's default PLAN tables, or `null` when it states none. */
     planDefaults: PlanDefaults | null;
+    /** The product's default I-Score tiers, or `null` when it states none. */
+    iScoreDefaults: IScoreTiers | null;
   } | null;
 }
 
@@ -1075,6 +1155,11 @@ export interface SurrogateProductSummary {
    * takes, and for the same reason: a card must not invent a claim from a field nobody sent.
    */
   capPrograms?: string[];
+  /**
+   * Works out no income, so no catalog name may sell it — a bank caps its own program by the
+   * answer instead. Optional on the wire, absent reads as `false`.
+   */
+  capOnly?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -1250,13 +1335,20 @@ export interface SurrogateProductTemplateResponse {
 export const I_SCORE_FACT_KEY = 'i_score';
 
 /**
- * The slot the I-Score TIER TABLE lives in (`SLOT.iScoreBand` on the server).
+ * An I-SCORE TIER TABLE — the share of the worked-out figure counted at each bureau score.
  *
- * Named rather than spelled out at each use, because three separate decisions key off it: the
- * table must cover every score, its figures are percentages, and a bank that states none
- * reads the product's (`withInheritedSlots`).
+ * Rows are `IncomeBand`, misnamed `incomeEGP` and all: the field carries a PERCENTAGE here,
+ * and the naming is kept because the v30.3.0 migration MOVED nine products' stored tables out
+ * of `incomeAssumption.stepParams.iscore_band` rather than rewriting them.
+ *
+ * It was a rule SLOT until then (`I_SCORE_BAND_SLOT`, deleted with it), reachable only by a
+ * program whose rule is a step pipeline — 17 of 71. It is program-level policy now, so every
+ * program type states one: `incomeAssumption.iScoreTiers` on a bank program, `iScoreDefaults`
+ * on the surrogate product it falls back to.
  */
-export const I_SCORE_BAND_SLOT = 'iscore_band';
+export interface IScoreTiers {
+  bands: IncomeBand[];
+}
 
 /** A surrogate product's own workspace: the calculation, and everything reachable from it. */
 export interface SurrogateProductDetail extends SurrogateProductSummary {
@@ -1279,8 +1371,30 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
    * clearing it is refused while any does (`SURROGATE_PRODUCT_TENOR_IN_USE`).
    */
   tenorDefaults: TenorDefaults | null;
+  /**
+   * The loan SIZE every program under this product falls back to. `null` = none, and each
+   * program must then state its own.
+   *
+   * INHERITED on exactly the terms the duration above is, and cleared under the same refusal
+   * (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
+   */
+  loanAmountDefaults: LoanAmountDefaults | null;
+  /**
+   * The INTEREST RATE every program under this product falls back to. `null` = none, and
+   * each program must then state its own — which, since the wizard stopped asking, means a
+   * seed or the API.
+   *
+   * INHERITED on exactly the terms the size above is, and cleared under the same refusal
+   * (`SURROGATE_PRODUCT_RATE_IN_USE`).
+   */
+  rateDefaults: RateDefaults | null;
   /** The default PLAN tables every program that opted in reads. */
   planDefaults: PlanDefaults | null;
+  /**
+   * The I-Score TIERS every program under this product falls back to, or `null` when it
+   * states none — in which case those programs multiply by 100%.
+   */
+  iScoreDefaults: IScoreTiers | null;
   /** The form it was compiled from, or `null` when it was authored by hand. */
   template: ProductTemplate | null;
   valueSources: ValueSourceMap;
@@ -1400,6 +1514,51 @@ export interface ProductAsksBoard {
    * exist that the calculation does not read yet. Both are legitimate.
    */
   factsReadByRule: string[];
+  /** Every fact the engine needs answered for this product — see `NeededFact`. */
+  needed: NeededFact[];
+  /** Loan types a live catalog name sells this product in. Empty: nothing can be asked. */
+  soldIn: LoanCategory[];
+}
+
+/**
+ * `asked` covered · `platform` answered by a platform question · `notAsked` a question
+ * exists but this product does not ask it (or not in every loan type it is sold in) ·
+ * `parked` the question is switched off · `noQuestion` / `noFact` nothing to ask yet.
+ */
+export type NeededFactStatus =
+  | 'asked'
+  | 'platform'
+  | 'notAsked'
+  | 'parked'
+  | 'noQuestion'
+  | 'noFact';
+
+export type NeededFactReader =
+  | { kind: 'calculation' }
+  | { kind: 'plan'; table: string }
+  | { kind: 'cap' }
+  | { kind: 'program'; programCode: string; table: string };
+
+/** Mirrors the server's `NeededFactDto` (`bank-programs/dto/product-asks.dto.ts`). */
+export interface NeededFact {
+  factKey: string;
+  status: NeededFactStatus;
+  questionCode: string | null;
+  labelAr: string;
+  labelEn: string;
+  readBy: NeededFactReader[];
+  missingIn: LoanCategory[];
+  shape: 'choice' | 'number' | 'unknown';
+  derivedFrom: string | null;
+  actionable: boolean;
+}
+
+export interface NeededWriteResult {
+  asked: string[];
+  created: string[];
+  skipped: { factKey: string; code: string }[];
+  published: boolean;
+  state: ProductAsksBoard;
 }
 
 export interface AskWriteResult {
@@ -1502,6 +1661,12 @@ export interface IncomeAssumptionConfig {
    * keep whatever is stored, so the two cannot be merged. A response never carries it.
    */
   dbrCapPercentOverride?: string | null;
+  /**
+   * THIS BANK's I-Score tiers. Absent = it states none and the product's apply; `null` CLEARS
+   * a stored table, which is how "back to the product's tiers" is spelled — absent and `null`
+   * cannot mean the same thing on a partial write.
+   */
+  iScoreTiers?: IScoreTiers | null;
   /** FR-013 — `required_document` keys this method demands. Warning only. */
   requiredDocuments?: string[];
   /** How a surrogate figure combines with a declared salary. Absent = replace. */
@@ -1540,6 +1705,14 @@ export interface FeesConfig {
   payoffBuyoutPercent: string;
   collateralReplacementFeeEGP?: string;
   collateralDecreaseFeeEGP?: string;
+  /**
+   * Comprehensive cover the bank requires on the car: a percent of its PRICE, every policy
+   * year, keyed on the deposit the applicant puts down.
+   *
+   * Declared here rather than reached through a cast at the call site, so the wizard's carry
+   * list and its editor are both typed (A15).
+   */
+  carInsuranceRateByFact?: FactGridConfig;
 }
 
 export interface BankProgramCreatePayload {
@@ -1606,7 +1779,33 @@ export interface BankProgramResponse {
   requiredDocuments: string[];
   tenor: TenorConfig;
   loanLimits: LoanLimitsConfig;
+  /**
+   * What this program itself states, exactly as stored — never the product's.
+   *
+   * The wizard saves by full replacement and posts this back, so it must stay the
+   * programme's own: a merged rate would be copied onto the row on the next save and a
+   * programme reading its product's price would silently freeze a copy. What it is actually
+   * quoted at is `productRate` below.
+   */
   pricing: PricingConfig;
+  /**
+   * The RATE the surrogate product behind this program's catalog name states, or `null`.
+   *
+   * Read-only, and what a programme with no rate of its own is quoted at. Optional so the
+   * bundle still renders against a backend that has not deployed the field.
+   */
+  productRate?: RateDefaults | null;
+  /**
+   * The I-Score tiers the surrogate product behind this program's catalog name states, or
+   * `null`. Read-only, and what a program with no tiers of its own is scored on. Optional for
+   * the same reason `productRate` is.
+   */
+  productIScoreTiers?: IScoreTiers | null;
+  /**
+   * The SHARED I-Score table (v30.4.0) — the I-Score classes on Manage values. Applies when
+   * neither the program nor its product states a table.
+   */
+  platformIScoreTiers?: IScoreTiers | null;
   eligibility: EligibilityConfig;
   performanceCriteria?: PerformanceCriteriaConfig | null;
   incomeAssumption: IncomeAssumptionConfig;
@@ -1670,6 +1869,8 @@ export interface DuplicateBankProgramPayload {
   programCode?: string;
   friendlyName: string;
   friendlyNameAr?: string;
+  /** The copy's own name — the source's is taken at this bank (`BANK_PROGRAM_NAME_TAKEN`). */
+  programNameKey?: string;
 }
 
 // --- Feature 011: value-source markers + the rule check --------------------

@@ -2,6 +2,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { describe, expect, it } from 'vitest';
 import { quoteProgram } from '../../src/matching/pipeline/quote';
 import type { DbrBand, Quote, QuoteOutcome } from '../../src/matching/types';
+import type { FactGridConfig } from '../../src/matching/pipeline/fact-grid';
 import { eligibilityFixture, profileFixture, programFixture } from '../helpers/matching';
 
 /** Narrow to the success arm, failing loudly with the reason when it isn't. */
@@ -572,7 +573,10 @@ describe('quoteProgram', () => {
           },
         }),
       });
-      expect(expectUnavailable(raised)).toBe('BELOW_PROGRAM_MIN_AMOUNT');
+      // The REQUEST-side reason: the grid lifted the floor above what was asked for, and
+      // no debt burden was measured. The affordability-side case keeps
+      // `BELOW_PROGRAM_MIN_AMOUNT` — see the test above.
+      expect(expectUnavailable(raised)).toBe('REQUESTED_BELOW_PROGRAM_MIN_AMOUNT');
 
       const lowered = expectQuoted(
         quoteProgram({
@@ -591,6 +595,104 @@ describe('quoteProgram', () => {
         }),
       );
       expect(lowered.offeredAmountEGP.greaterThan(0)).toBe(true);
+    });
+  });
+
+  /**
+   * COMPREHENSIVE COVER ON THE CAR — a cost the offer STATES and never charges.
+   *
+   * Two properties, and the second is the one that could rot silently. The first is that the
+   * premium is the car's PRICE times the rate times the policy years — not the loan's, which
+   * is what every other insurance figure on this platform is a percent of. The second is that
+   * stating it moves NOTHING: the rate, the instalment, the booked principal and the ceiling
+   * are the figures the same programme quoted without a table, to the piastre. A disclosure
+   * that quietly became a charge would show up nowhere else — every screen would still render,
+   * and every number on it would be wrong.
+   */
+  describe('car insurance', () => {
+    const cover = (value: string): FactGridConfig => ({
+      axes: [{ factKey: 'car_down_payment_percent' }],
+      cells: [{ keys: [{ fromInclusive: '0', toExclusive: '50' }], value }],
+      onNoMatch: 'useFallback',
+    });
+    const car = {
+      carDetails: { carValueEGP: new Decimal('2000000'), downPaymentEGP: new Decimal('600000') },
+    };
+
+    it('charges a percent of the CAR’S PRICE, once a policy year, for every year', () => {
+      const quote = expectQuoted(
+        quoteProgram({
+          profile: profileFixture(car),
+          program: programFixture({
+            fees: { adminFeePercent: '0', carInsuranceRateByFact: cover('1') },
+          }),
+        }),
+      );
+      const b = quote.feesBreakdown;
+      // The operator's own worked example: a 2,000,000 car at 1% is 20,000 a year.
+      expect(b.carInsuranceAnnualEGP).toBe('20000.00');
+      expect(b.carInsuranceRatePercent).toBe('1.0000');
+      // Policy years round UP: the term is what the programme clamped to, and a part-year is
+      // still a policy somebody buys.
+      expect(b.carInsuranceYears).toBe(Math.ceil(quote.effectiveTenorMonths / 12));
+      expect(b.carInsuranceTotalEGP).toBe(
+        new Decimal('20000').mul(b.carInsuranceYears ?? 0).toFixed(2),
+      );
+    });
+
+    it('states nothing above the deposit the bank draws the line at', () => {
+      // The SAME programme and the SAME table — only the deposit moves, from 30% to 60%. The
+      // absent row IS the rule, and no threshold exists anywhere in code for it to disagree
+      // with.
+      const quote = expectQuoted(
+        quoteProgram({
+          profile: profileFixture({
+            carDetails: {
+              carValueEGP: new Decimal('2000000'),
+              downPaymentEGP: new Decimal('1200000'),
+            },
+          }),
+          program: programFixture({ fees: { carInsuranceRateByFact: cover('1') } }),
+        }),
+      );
+      expect(quote.feesBreakdown.carInsuranceAnnualEGP).toBeUndefined();
+      expect(quote.feesBreakdown.carInsuranceRatePercent).toBeUndefined();
+      expect(quote.feesBreakdown.carInsuranceYears).toBeUndefined();
+      expect(quote.feesBreakdown.carInsuranceTotalEGP).toBeUndefined();
+    });
+
+    it('states nothing at all when the applicant told us about no car', () => {
+      const quote = expectQuoted(
+        quoteProgram({
+          profile: profileFixture(),
+          program: programFixture({ fees: { carInsuranceRateByFact: cover('1') } }),
+        }),
+      );
+      expect(quote.feesBreakdown.carInsuranceAnnualEGP).toBeUndefined();
+    });
+
+    it('moves no money: the same programme quotes the same figures with and without cover', () => {
+      const bare = expectQuoted(
+        quoteProgram({ profile: profileFixture(car), program: programFixture() }),
+      );
+      const insured = expectQuoted(
+        quoteProgram({
+          profile: profileFixture(car),
+          program: programFixture({ fees: { carInsuranceRateByFact: cover('5') } }),
+        }),
+      );
+      expect(insured.feesBreakdown.carInsuranceAnnualEGP).toBe('100000.00');
+      // Every figure the offer freezes, to the piastre — and `totalFeesEGP` above all, which
+      // is the one a premium would leak into if it were ever added to `totalFinancedFees`.
+      expect(insured.offeredAmountEGP.toFixed(2)).toBe(bare.offeredAmountEGP.toFixed(2));
+      expect(insured.cashToCustomerEGP.toFixed(2)).toBe(bare.cashToCustomerEGP.toFixed(2));
+      expect(insured.monthlyInstallmentEGP.toFixed(2)).toBe(bare.monthlyInstallmentEGP.toFixed(2));
+      expect(insured.totalFeesEGP.toFixed(2)).toBe(bare.totalFeesEGP.toFixed(2));
+      expect(insured.totalPayableEGP.toFixed(2)).toBe(bare.totalPayableEGP.toFixed(2));
+      expect(insured.dbrPercent.toFixed(2)).toBe(bare.dbrPercent.toFixed(2));
+      expect(insured.maxAffordableAmountEGP.toFixed(2)).toBe(
+        bare.maxAffordableAmountEGP.toFixed(2),
+      );
     });
   });
 });

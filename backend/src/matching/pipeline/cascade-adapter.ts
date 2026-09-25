@@ -66,9 +66,11 @@ export function buildApplicantContext(
     assetsValueEGP: profile.assets.declaredAssetsValueEGP
       ? Number(profile.assets.declaredAssetsValueEGP.toString())
       : undefined,
-    // The two derived axes are added HERE, beside the single Decimal division that produces
-    // the down-payment share, so the figure a grid bands on and the figure
+    // The derived axes are added HERE, beside the single Decimal division that produces the
+    // down-payment share, so the figure a grid bands on and the figure
     // `rateByDownPaymentPercent` bands on are the same number and cannot drift (Principle I).
+    // `withGridFacts` takes no clock override from this call site — real time is correct for
+    // every live quote, and a test that needs a fixed one calls it directly.
     facts: withGridFacts(extras.facts ?? {}, { downPaymentPercent, tenorMonths }),
     ...(extras.parentKeyByValue !== undefined ? { parentKeyByValue: extras.parentKeyByValue } : {}),
   };

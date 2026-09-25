@@ -21,6 +21,7 @@
  * nothing at all and is the row somebody has to fix.
  */
 import type { IncomeBasis } from '@core/income-basis';
+import { LOAN_CATEGORIES, canonicalCategories, type LoanCategory } from '@core/loan-category';
 import type { EnumerationRow } from '@features/lookups/lookups.api.service';
 import type { SurrogateProductSummary } from '@features/bank-programs/bank-programs.types';
 
@@ -34,11 +35,29 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
  */
 export type BasisFilter = IncomeBasis;
 
+/**
+ * The loan-category facet inside the no-payslip panel — which product of the four kinds of
+ * loan a calculation is sold under. `'all'` shows every card regardless.
+ *
+ * A CALCULATION carries no loan-type column of its own — that axis lives on the catalog
+ * NAMES that sell it (`bank_program`'s own category, via the name's `categories`
+ * assignment), because one calculation is routinely sold under several names in several
+ * categories (the compound guarantee sells under Personal, Car and Mortgage at once). So a
+ * product's category set is DERIVED, the union of every name selling it, never stored.
+ */
+export type CategoryFilter = LoanCategory | 'all';
+
 /** One surrogate product, with the names that sell it resolved. */
 export interface ProductCard {
   readonly product: SurrogateProductSummary;
   /** Catalog names taking their calculation from it, in board order. */
   readonly names: readonly EnumerationRow[];
+  /**
+   * Loan categories this calculation is sold under — the union of every selling name's own
+   * `categories`, in canonical order. Empty when nothing sells it yet, or when every name
+   * selling it is parked (offered under no loan type).
+   */
+  readonly categories: readonly LoanCategory[];
   /**
    * Linked name keys with no row on this board.
    *
@@ -77,12 +96,16 @@ export type UnlinkedState =
 export interface UnlinkedName {
   readonly row: EnumerationRow;
   readonly state: UnlinkedState;
+  /** The row's own `categories`, canonically ordered — see `ProductCard.categories`. */
+  readonly categories: readonly LoanCategory[];
 }
 
 export interface CatalogBoard {
   /** Names sold against a payslip under at least one loan type they are offered under. */
   readonly proofNames: readonly EnumerationRow[];
+  /** Product cards, already narrowed to `category` when one was passed. */
   readonly products: readonly ProductCard[];
+  /** Unlinked names, already narrowed to `category` when one was passed. */
   readonly unlinked: readonly UnlinkedName[];
   readonly deprecated: readonly EnumerationRow[];
   /**
@@ -94,6 +117,23 @@ export interface CatalogBoard {
    * card plus one chip inside somebody's product card, so nothing is counted twice.
    */
   readonly counts: Readonly<Record<BasisFilter, number>>;
+  /**
+   * How many no-payslip cards (product cards + unlinked names) carry each loan category,
+   * taken after search but BEFORE the `category` facet — the same "count what search left"
+   * rule `counts` follows, so "Auto Loan 0" reads as "nothing here matches" rather than
+   * "there is no such category". `all` is the un-narrowed total, i.e. `counts.no_payslip`.
+   *
+   * A card with NO category (nothing selling it is assigned a loan type yet) is counted in
+   * `all` and in none of the four — it is real, but no chip claims it, which is why `all`
+   * can exceed the sum of the four.
+   */
+  readonly categoryCounts: Readonly<Record<CategoryFilter, number>>;
+  /**
+   * The same counts for the payslip panel: how many payslip names are offered under each loan
+   * type, taken after search and before the `category` facet. A name offered under several
+   * types is counted under each, so the four can sum past `all`.
+   */
+  readonly proofCategoryCounts: Readonly<Record<CategoryFilter, number>>;
 }
 
 export interface BuildBoardInput {
@@ -101,6 +141,11 @@ export interface BuildBoardInput {
   readonly products: readonly SurrogateProductSummary[];
   /** Raw search box text; empty or blank means no filter. */
   readonly search: string;
+  /**
+   * Narrow the no-payslip panel to one loan category. `'all'` or omitted = every card.
+   * Narrows payslip names by their own `categories` too; the deprecated tail is unaffected.
+   */
+  readonly category?: CategoryFilter;
   /** Which locale's label the search matches against first. Both are always searched. */
   readonly isAr: boolean;
 }
@@ -181,8 +226,42 @@ function byLabel(isAr: boolean): (a: ProductCard, b: ProductCard) => number {
     label(a).localeCompare(label(b), isAr ? 'ar' : 'en', { numeric: true, sensitivity: 'base' });
 }
 
+/** A row's own `categories`, canonically ordered. Absent/empty reads as "offered nowhere". */
+function rowCategories(row: EnumerationRow): readonly LoanCategory[] {
+  return canonicalCategories(row.categories ?? []);
+}
+
+/** A product's category set: the union of every selling name's own categories. */
+function cardCategories(names: readonly EnumerationRow[]): readonly LoanCategory[] {
+  return canonicalCategories(names.flatMap(rowCategories));
+}
+
+/**
+ * Is this name sold on that income basis under that loan type?
+ *
+ * The basis is stored PER loan type (`incomeBasesByCategory`), so "offered under Personal" and
+ * "sold without a payslip" are two facts, and a name can be payslip under one loan type and
+ * no-payslip under another. Counting a name under a loan type on its category alone put it in
+ * both segments' chips for a loan type where it is only sold one way. `'all'` asks the plain
+ * question: sold that way anywhere.
+ */
+export function soldWith(row: EnumerationRow, basis: IncomeBasis, category: CategoryFilter): boolean {
+  if (category === 'all') return basesOf(row).includes(basis);
+  if (!rowCategories(row).includes(category)) return false;
+  const per = row.incomeBasesByCategory?.[category];
+  return per && per.length > 0 ? per.includes(basis) : basesOf(row).includes(basis);
+}
+
+function matchesCategory(
+  categories: readonly LoanCategory[],
+  filter: CategoryFilter,
+): boolean {
+  return filter === 'all' || categories.includes(filter);
+}
+
 export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const q = input.search.trim().toLowerCase();
+  const categoryFilter: CategoryFilter = input.category ?? 'all';
 
   // Resolved from EVERY row, deprecated ones included: a deprecated name still linked to a
   // product is still quoting through it, and a card that quietly drops it would answer "what
@@ -192,7 +271,8 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const live = input.names.filter((r) => !r.deprecatedAt);
   const liveMatching = q ? live.filter((r) => nameMatches(r, q)) : live;
 
-  const proofNames = liveMatching.filter(isPayslip);
+  const searchedProofNames = liveMatching.filter(isPayslip);
+  const proofNames = searchedProofNames.filter((r) => soldWith(r, 'payslip', categoryFilter));
 
   const cards: ProductCard[] = input.products.map((product) => {
     const names: EnumerationRow[] = [];
@@ -206,6 +286,7 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
       product,
       names,
       orphanNameKeys,
+      categories: cardCategories(names),
       // Summed over the names, because a program is filed under a NAME and reaches the
       // product through it. Banks are deliberately NOT summed: one bank selling two names
       // under the same product would be counted twice, and there is no per-bank identity on
@@ -218,14 +299,18 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
 
   // A product matches the search on its own name OR on any name that sells it — searching
   // "Doctor" should find the calculation Doctor Loans quotes from, which is not called that.
-  const products = (
+  //
+  // Kept as the SEARCHED-but-not-category-narrowed set: it is what `categoryCounts` below is
+  // taken from, so a chip counts what the search left rather than what the previous chip
+  // pick also excluded — the same "count what search left" rule `counts` already follows.
+  const searchedProducts = (
     q
       ? cards.filter((c) => productMatches(c.product, q) || c.names.some((r) => nameMatches(r, q)))
       : cards
   ).sort(byLabel(input.isAr));
 
   const linked = new Set(input.products.flatMap((p) => p.usedBy));
-  const unlinked: UnlinkedName[] = liveMatching
+  const searchedUnlinked: UnlinkedName[] = liveMatching
     .filter((r) => isNoPayslip(r) && !linked.has(r.key))
     .map((row) => ({
       row,
@@ -234,14 +319,40 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
       // because inventing a "quotes nothing" warning from a field that simply was not sent
       // would send an operator to fix a name that is fine.
       state: row.hasOwnIncomeRule === false ? 'nothing' : 'own_rule',
+      categories: rowCategories(row),
     }));
+
+  // A calculation stays on stage under a loan type when some name selling it is sold WITHOUT a
+  // payslip there. With no loan type picked every card stays, including one nothing sells yet —
+  // that is the actionable state, and hiding it would hide the card somebody has to fix.
+  const products =
+    categoryFilter === 'all'
+      ? searchedProducts
+      : searchedProducts.filter((c) => c.names.some((r) => soldWith(r, 'no_payslip', categoryFilter)));
+  const unlinked = searchedUnlinked.filter((u) => soldWith(u.row, 'no_payslip', categoryFilter));
 
   const deprecated = q
     ? input.names.filter((r) => r.deprecatedAt && nameMatches(r, q))
     : input.names.filter((r) => r.deprecatedAt);
 
-  const payslip = proofNames.length;
-  const noPayslip = products.length + unlinked.length;
+  // Payslip counts NAMES (that is what its cards are). Surrogate counts CALCULATIONS (that is
+  // what its cards are), narrowed by the loan type the names selling each one are sold under
+  // WITHOUT a payslip. Each chip equals the cards under it; the earlier attempt to count every
+  // no-payslip name pulled legacy catalog entries (doctor, pharmacy, ...) into a panel that is
+  // about calculations.
+  const payslip = searchedProofNames.length;
+  const noPayslip = searchedProducts.length;
+
+  const categoryCounts = { all: noPayslip } as Record<CategoryFilter, number>;
+  const proofCategoryCounts = { all: payslip } as Record<CategoryFilter, number>;
+  for (const cat of LOAN_CATEGORIES) {
+    categoryCounts[cat] = searchedProducts.filter((c) =>
+      c.names.some((r) => soldWith(r, 'no_payslip', cat)),
+    ).length;
+    proofCategoryCounts[cat] = searchedProofNames.filter((r) =>
+      soldWith(r, 'payslip', cat),
+    ).length;
+  }
 
   return {
     proofNames,
@@ -249,5 +360,7 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
     unlinked,
     deprecated,
     counts: { payslip, no_payslip: noPayslip },
+    categoryCounts,
+    proofCategoryCounts,
   };
 }

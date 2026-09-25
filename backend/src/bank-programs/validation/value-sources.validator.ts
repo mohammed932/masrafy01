@@ -118,6 +118,21 @@ export function catalogPlanDefaultsPaths(plans: unknown): Set<string> {
   return paths;
 }
 
+/**
+ * The markable paths of a product's stored I-SCORE TIERS, rooted at `iScoreDefaults.` — the
+ * column they have lived in since v30.3.0, whose migration re-rooted every tier marker here.
+ *
+ * The sibling of `catalogPlanDefaultsPaths` for the same reason: the tiers are written by a
+ * different endpoint than the figures, so a figures write has to allow — and KEEP — markers on
+ * a table it never received. Without it every figures save dropped the tier markers silently,
+ * and a seeded one was refused outright (`VALUE_SOURCE_PATH_UNKNOWN`).
+ */
+export function catalogIScoreDefaultsPaths(tiers: unknown): Set<string> {
+  const paths = new Set<string>();
+  walkMarkable(tiers, 'iScoreDefaults', false, paths);
+  return paths;
+}
+
 function walkMarkable(
   rootValue: unknown,
   rootPrefix: string,

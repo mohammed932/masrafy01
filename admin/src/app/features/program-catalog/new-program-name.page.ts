@@ -22,8 +22,10 @@ import {
   WizardStepsComponent,
 } from '@shared/ui';
 import type { WizardStepItem } from '@shared/ui/wizard-steps.component';
-import { AskedQuestionsEditorComponent } from '@shared/questions/asked-questions-editor.component';
+import { toAskablePool } from '@shared/questions/to-askable';
+import { CompactAskedQuestionsComponent } from '@shared/questions/compact-asked-questions.component';
 import {
+  coreProblems,
   pendingAdds,
   type AskableQuestion,
   type AskedPicks,
@@ -35,7 +37,6 @@ import { BankProgramsApiService } from '@features/bank-programs/bank-programs.ap
 import type { SurrogateProductSummary } from '@features/bank-programs/bank-programs.types';
 import {
   QuestionnaireApiService,
-  type QuestionRow,
 } from '@features/questionnaire/questionnaire.api.service';
 import { ENUM_TYPE } from './program-name-row';
 import { CATALOG_BASE, newNameLanding, surrogateBoardLink } from './program-catalog.paths';
@@ -67,7 +68,7 @@ import {
     WizardStepsComponent,
     IncomeBasisCardsComponent,
     LoanCategorySwitchesComponent,
-    AskedQuestionsEditorComponent,
+    CompactAskedQuestionsComponent,
   ],
   template: `
     <app-form-page
@@ -241,7 +242,7 @@ import {
                      the second group wearing a tag that says so — they stay asked whether or
                      not they are ticked here, because the question-to-loan-type table is
                      global and this board is add-only. -->
-                <app-asked-questions-editor
+                <app-compact-asked-questions
                   [pool]="pool()"
                   [offered]="offered()"
                   [category]="askCategory()"
@@ -249,7 +250,6 @@ import {
                   [search]="askSearch()"
                   [isAr]="isAr"
                   [busy]="submitting()"
-                  [blankStart]="true"
                   (categorySelect)="setAskCategory($event)"
                   (searchChange)="askSearch.set($event)"
                   (add)="askToAdd($event)"
@@ -692,6 +692,10 @@ export class NewProgramNamePage {
       basis: this.basis(),
       product: this.productChoice(),
       offered: this.offered(),
+      coreMissing: coreProblems(this.pool(), this.offered(), this.picks(), this.isAr).reduce(
+        (n, p) => n + p.missing.length,
+        0,
+      ),
     };
   });
 
@@ -797,6 +801,8 @@ export class NewProgramNamePage {
         return $localize`:@@pcn.block_name_latin:The English name needs at least one letter or digit — it becomes the key.`;
       case 'basis':
         return $localize`:@@pcn.block_basis:Say how the income is proved.`;
+      case 'core':
+        return $localize`:@@pcn.block_core:A loan type cannot be priced yet — ask the missing questions listed on the last step.`;
       case 'offered':
         return $localize`:@@pcn.block_offered:Turn on at least one loan type — a name offered under none can be picked by no bank.`;
       case 'product':
@@ -1159,7 +1165,7 @@ export class NewProgramNamePage {
     this.poolRequested = true;
     try {
       const tree = await this.questionnaire.tree();
-      this.pool.set(tree.flatMap((g) => g.questions).map(toAskable));
+      this.pool.set(toAskablePool(tree));
       this.poolError.set(false);
     } catch {
       this.poolError.set(true);
@@ -1168,25 +1174,3 @@ export class NewProgramNamePage {
   }
 }
 
-/**
- * A pool row in the shape the board reasons about.
- *
- * The haystack is built ONCE per read rather than per keystroke: search runs on every
- * character over every question, and lower-casing 83 rows' worth of wording and answers
- * inside the filter is work repeated for nothing.
- */
-function toAskable(q: QuestionRow): AskableQuestion {
-  return {
-    id: q.id,
-    code: q.code,
-    labelEn: q.questionEn,
-    labelAr: q.questionAr,
-    isActive: q.isActive,
-    isRequired: q.isRequired,
-    categories: q.categories,
-    gateSourceCode: q.enabledWhen?.questionCode ?? null,
-    haystack: [q.questionEn, q.questionAr, q.code, ...q.options.map((o) => o.labelEn)]
-      .join(' ')
-      .toLowerCase(),
-  };
-}

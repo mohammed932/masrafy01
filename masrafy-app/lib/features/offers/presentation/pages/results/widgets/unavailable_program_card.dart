@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/cards/masrafy_partner_bank_heading.dart';
 import 'package:app/features/matching/domain/entities/apply_result_entity.dart';
 import 'package:app/features/matching/presentation/mappers/figures_unavailable_reason.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
@@ -26,9 +27,21 @@ import 'package:app/l10n/generated/app_localizations.dart';
 /// Visually recessive on purpose — layout-grey fill, hairline border, no CTA — so the
 /// priced offers above stay the focus. Flow-local (Principle XXXII); UI-only.
 class UnavailableProgramCard extends StatelessWidget {
-  const UnavailableProgramCard({super.key, required this.program});
+  const UnavailableProgramCard({
+    super.key,
+    required this.program,
+    required this.rank,
+    required this.productLabel,
+  });
 
   final UnavailableProgramEntity program;
+
+  /// Place in the results list, continuing after the priced offers, so every
+  /// bank on the screen carries its own masked letter.
+  final int rank;
+
+  /// Localized loan-type label, e.g. "Car".
+  final String productLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -55,14 +68,10 @@ class UnavailableProgramCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      program.bankName,
-                      style: text.heading4.copyWith(color: colors.textBase),
-                    ),
-                    Gap(2.h),
-                    Text(
-                      program.programFriendlyName,
-                      style: text.bodySmall.copyWith(color: colors.text.secondary),
+                    // A masked bank, as on the priced cards above.
+                    MasrafyPartnerBankHeading(
+                      label: MasrafyPartnerBankHeading.labelFor(l, rank),
+                      subline: productLabel,
                     ),
                   ],
                 ),

@@ -122,10 +122,15 @@ export const abkEgypt2026: SeedCatalog = {
       // CANONICAL shape (FR-014). `gradeIncomeMap` converted one-for-one (FR-015).
       incomeAssumption: {
         strategy: 'byMilitaryGrade',
+        // App. A §11's seven grades; the three generic keys were retired 2026-09-24.
         keyTable: [
-          { key: 'officer', incomeEGP: '15000' },
-          { key: 'senior_officer', incomeEGP: '25000' },
-          { key: 'general', incomeEGP: '40000' },
+          { key: 'grade_major_general', incomeEGP: '75000' },
+          { key: 'grade_brigadier_general', incomeEGP: '60000' },
+          { key: 'grade_colonel', incomeEGP: '45000' },
+          { key: 'grade_lt_colonel', incomeEGP: '40000' },
+          { key: 'grade_major', incomeEGP: '30000' },
+          { key: 'grade_captain', incomeEGP: '28000' },
+          { key: 'grade_first_lieutenant', incomeEGP: '18000' },
         ],
       },
     }),

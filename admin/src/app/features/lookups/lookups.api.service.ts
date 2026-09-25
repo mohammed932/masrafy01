@@ -98,6 +98,11 @@ export interface EnumerationRow {
    */
   incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
   sortOrder: number;
+  /** `i_score_class` rows — the score range, inclusive. `null` on every other type. */
+  rangeFrom?: number | null;
+  rangeTo?: number | null;
+  /** `i_score_class` rows — the share of the income the class counts, a decimal string. */
+  incomePercent?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -213,6 +218,10 @@ export interface CreateEnumerationRequest {
    * REQUIRED by the server when `incomeBases` includes `no_payslip`.
    */
   surrogateProductKey?: string;
+  /** `i_score_class` only — the score range, inclusive. Required there, refused elsewhere. */
+  rangeFrom?: number;
+  rangeTo?: number;
+  incomePercent?: string;
 }
 
 export interface UpdateEnumerationRequest {
@@ -227,6 +236,9 @@ export interface UpdateEnumerationRequest {
    * re-points. `''` is refused by the server — "not linked" has one spelling.
    */
   surrogateProductKey?: string | null;
+  rangeFrom?: number;
+  rangeTo?: number;
+  incomePercent?: string;
 }
 
 /**

@@ -1,5 +1,5 @@
+// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -18,88 +18,112 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_otp_consumed => 'This code has already been used.';
 
   @override
-  String get auth_otp_attempts_exceeded => 'Too many wrong attempts. Request a new code.';
+  String get auth_otp_attempts_exceeded =>
+      'Too many wrong attempts. Request a new code.';
 
   @override
-  String get auth_otp_rate_limited => 'Too many code requests. Please wait and try again.';
+  String get auth_otp_rate_limited =>
+      'Too many code requests. Please wait and try again.';
 
   @override
-  String get auth_otp_purpose_login_forbidden => 'Login does not require an SMS code. Use your password.';
+  String get auth_otp_purpose_login_forbidden =>
+      'Login does not require an SMS code. Use your password.';
 
   @override
-  String get auth_phone_already_registered => 'This number is already registered. Please log in instead.';
+  String get auth_phone_already_registered =>
+      'This number is already registered. Please log in instead.';
 
   @override
-  String get auth_verified_mobile_token_invalid => 'Verification token is invalid. Restart the signup.';
+  String get auth_verified_mobile_token_invalid =>
+      'Verification token is invalid. Restart the signup.';
 
   @override
-  String get auth_verified_mobile_token_expired => 'Verification token expired. Restart the signup.';
+  String get auth_verified_mobile_token_expired =>
+      'Verification token expired. Restart the signup.';
 
   @override
-  String get auth_verified_mobile_token_consumed => 'Verification token was already used.';
+  String get auth_verified_mobile_token_consumed =>
+      'Verification token was already used.';
 
   @override
   String get auth_social_token_invalid => 'Sign-in failed. Please try again.';
 
   @override
-  String get auth_social_token_expired => 'Sign-in session expired. Please try again.';
+  String get auth_social_token_expired =>
+      'Sign-in session expired. Please try again.';
 
   @override
-  String get auth_social_provider_unavailable => 'The sign-in provider is temporarily unavailable.';
+  String get auth_social_provider_unavailable =>
+      'The sign-in provider is temporarily unavailable.';
 
   @override
   String get auth_social_session_invalid => 'Sign-in session is invalid.';
 
   @override
-  String get auth_social_session_expired => 'Sign-in session expired. Tap the provider button again.';
+  String get auth_social_session_expired =>
+      'Sign-in session expired. Tap the provider button again.';
 
   @override
-  String get auth_social_session_consumed => 'Sign-in session was already used.';
+  String get auth_social_session_consumed =>
+      'Sign-in session was already used.';
 
   @override
-  String get auth_account_locked => 'Account temporarily locked after too many failed attempts. Try again later.';
+  String get auth_account_locked =>
+      'Account temporarily locked after too many failed attempts. Try again later.';
 
   @override
-  String get auth_password_not_set => 'This account has no password. Sign in with Google.';
+  String get auth_password_not_set =>
+      'This account has no password. Sign in with Google.';
 
   @override
-  String get auth_password_same_as_old => 'Pick a new password different from the current one.';
+  String get auth_password_same_as_old =>
+      'Pick a new password different from the current one.';
 
   @override
   String get auth_profile_incomplete => 'Complete your profile to continue.';
 
   @override
-  String get auth_profile_field_immutable => 'This field cannot be changed once set.';
+  String get auth_profile_field_immutable =>
+      'This field cannot be changed once set.';
 
   @override
-  String get auth_profile_id_docs_missing => 'Upload both National ID front and back before completing your profile.';
+  String get auth_profile_id_docs_missing =>
+      'Upload both National ID front and back before completing your profile.';
 
   @override
-  String get auth_national_id_required => 'Upload your National ID (front and back) before applying for a loan.';
+  String get auth_national_id_required =>
+      'Upload your National ID (front and back) before applying for a loan.';
 
   @override
-  String get auth_password_required_for_phone_profile => 'A password is required to complete your profile.';
+  String get auth_password_required_for_phone_profile =>
+      'A password is required to complete your profile.';
 
   @override
-  String get auth_password_forbidden_for_social_profile => 'Accounts using Google sign-in do not set a password.';
+  String get auth_password_forbidden_for_social_profile =>
+      'Accounts using Google sign-in do not set a password.';
 
   @override
-  String get auth_phone_mutation_on_phone_customer_forbidden => 'Mobile number is already set on this account.';
+  String get auth_phone_mutation_on_phone_customer_forbidden =>
+      'Mobile number is already set on this account.';
 
   @override
-  String get auth_password_change_forbidden_for_social => 'Password change is not available for accounts using Google sign-in.';
+  String get auth_password_change_forbidden_for_social =>
+      'Password change is not available for accounts using Google sign-in.';
 
   @override
   String get auth_age_invalid => 'Age must be between 18 and 80.';
 
   @override
-  String get auth_documents_missing => 'Both National ID front and back are required.';
+  String get auth_documents_missing =>
+      'Both National ID front and back are required.';
 
   @override
-  String get auth_documents_not_owned => 'These documents are not associated with your account.';
+  String get auth_documents_not_owned =>
+      'These documents are not associated with your account.';
 
   @override
-  String get auth_bank_program_invalid => 'This offer is no longer available for your profile.';
+  String get auth_bank_program_invalid =>
+      'This offer is no longer available for your profile.';
 
   @override
   String get auth_landing_brand => 'Masrafy';
@@ -147,7 +171,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_forgot_password_field_new_password => 'New password';
 
   @override
-  String get auth_forgot_password_field_confirm_password => 'Confirm new password';
+  String get auth_forgot_password_field_confirm_password =>
+      'Confirm new password';
 
   @override
   String get auth_forgot_password_action_send => 'Send code';
@@ -168,7 +193,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_forgot_password_validation_password_digit => 'need a digit';
 
   @override
-  String get auth_forgot_password_validation_password_mismatch => 'does not match';
+  String get auth_forgot_password_validation_password_mismatch =>
+      'does not match';
 
   @override
   String get auth_phone_signup_title_phone => 'Sign up — Mobile';
@@ -237,7 +263,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_complete_profile_title => 'Complete your profile';
 
   @override
-  String get auth_complete_profile_body => 'We need a few more details before you can apply. This is required by the bank.';
+  String get auth_complete_profile_body =>
+      'We need a few more details before you can apply. This is required by the bank.';
 
   @override
   String get auth_complete_profile_action_cancel => 'Cancel';
@@ -279,22 +306,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_complete_profile_action_continue => 'Continue';
 
   @override
-  String get match_questionnaire_not_published => 'This questionnaire is not available yet. Please try again later.';
+  String get match_questionnaire_not_published =>
+      'This questionnaire is not available yet. Please try again later.';
 
   @override
-  String get match_unknown_question_code => 'Your answers are out of date. Please restart the questionnaire.';
+  String get match_unknown_question_code =>
+      'Your answers are out of date. Please restart the questionnaire.';
 
   @override
-  String get match_unknown_option_code => 'Your answers are out of date. Please restart the questionnaire.';
+  String get match_unknown_option_code =>
+      'Your answers are out of date. Please restart the questionnaire.';
 
   @override
-  String get match_program_no_longer_matches => 'This offer is no longer available for your answers.';
+  String get match_program_no_longer_matches =>
+      'This offer is no longer available for your answers.';
 
   @override
-  String get match_program_name_key_unknown => 'That program is no longer available. Please pick another one.';
+  String get match_program_name_key_unknown =>
+      'That program is no longer available. Please pick another one.';
 
   @override
-  String get match_program_name_not_in_category => 'That program isn\'t offered for this loan type. Please pick another one.';
+  String get match_program_name_not_in_category =>
+      'That program isn\'t offered for this loan type. Please pick another one.';
 
   @override
   String get questionnaire_form_title => 'Tell us about your loan';
@@ -306,7 +339,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get match_preview_title => 'Your matches';
 
   @override
-  String get match_preview_no_matches => 'No programs match your answers yet. Try adjusting them.';
+  String get match_preview_no_matches =>
+      'No programs match your answers yet. Try adjusting them.';
 
   @override
   String get match_preview_section_suggestions => 'Ways to unlock more offers';
@@ -345,13 +379,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get match_generic_error => 'Something went wrong. Please try again.';
 
   @override
-  String get match_network_error => 'No connection. Check your network and try again.';
+  String get match_network_error =>
+      'No connection. Check your network and try again.';
 
   @override
   String get match_preview_adjust_answers => 'Adjust my answers';
 
   @override
-  String get questionnaire_form_submit_hint => 'Answer all required questions to see your matches.';
+  String get questionnaire_form_submit_hint =>
+      'Answer all required questions to see your matches.';
 
   @override
   String match_amount_egp(String value) {
@@ -373,34 +409,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_invalid_credentials => 'Incorrect phone or password.';
 
   @override
-  String get error_network => 'No connection. Check your network and try again.';
+  String get error_network =>
+      'No connection. Check your network and try again.';
 
   @override
   String get error_generic => 'Something went wrong. Please try again.';
 
   @override
-  String get error_image_too_large => 'This image is too large. Please pick a smaller one.';
+  String get error_image_too_large =>
+      'This image is too large. Please pick a smaller one.';
 
   @override
-  String get error_rate_limited => 'Too many attempts. Please wait a moment and try again.';
+  String get error_rate_limited =>
+      'Too many attempts. Please wait a moment and try again.';
 
   @override
   String get onboarding_slide1_title => 'Discover tailored loan offers.';
 
   @override
-  String get onboarding_slide1_body => 'We scan multiple top-tier banks to find the best rates and terms specifically for your profile.';
+  String get onboarding_slide1_body =>
+      'We scan multiple top-tier banks to find the best rates and terms specifically for your profile.';
 
   @override
   String get onboarding_slide2_title => 'Compare offers in seconds.';
 
   @override
-  String get onboarding_slide2_body => 'Personal, car, mortgage and business loans — side by side, with clear rates and limits.';
+  String get onboarding_slide2_body =>
+      'Personal, car, mortgage and business loans — side by side, with clear rates and limits.';
 
   @override
   String get onboarding_slide3_title => 'Apply with confidence.';
 
   @override
-  String get onboarding_slide3_body => 'Get matched, then apply to the offer that fits you best. Free for you, always.';
+  String get onboarding_slide3_body =>
+      'Get matched, then apply to the offer that fits you best. Free for you, always.';
 
   @override
   String get onboarding_next => 'Next';
@@ -534,7 +576,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_national_id_label => 'National ID';
 
   @override
-  String get signup_national_id_hint => '— optional now, needed when you pick an offer';
+  String get signup_national_id_hint =>
+      '— optional now, needed when you pick an offer';
 
   @override
   String get signup_id_front => 'Front side';
@@ -552,10 +595,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_id_unavailable => 'Tap to upload again';
 
   @override
-  String get signup_id_upload_deferred => 'Your account is ready, but the National ID didn\'t upload. Add it from your profile.';
+  String get signup_id_upload_deferred =>
+      'Your account is ready, but the National ID didn\'t upload. Add it from your profile.';
 
   @override
-  String get signup_terms => 'I agree to Masrafy\'s Terms of Service and Privacy Policy, and consent to processing my financial data.';
+  String get signup_terms =>
+      'I agree to Masrafy\'s Terms of Service and Privacy Policy, and consent to processing my financial data.';
 
   @override
   String get signup_cta => 'Create Account';
@@ -570,7 +615,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phone_verification_title => 'Add your phone number';
 
   @override
-  String get phone_verification_subtitle => 'We need your phone to secure your account. We\'ll send you a verification code.';
+  String get phone_verification_subtitle =>
+      'We need your phone to secure your account. We\'ll send you a verification code.';
 
   @override
   String get phone_verification_cta => 'Send verification code';
@@ -639,19 +685,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loan_setup_step_income_heading => 'How do you prove your income?';
 
   @override
-  String get loan_setup_step_income_helper => 'We will only show programs the bank accepts on that basis.';
+  String get loan_setup_step_income_helper =>
+      'We will only show programs the bank accepts on that basis.';
 
   @override
-  String get loan_setup_income_proof_title => 'With a payslip';
+  String get loan_setup_income_proof_title => 'Income proof';
 
   @override
-  String get loan_setup_income_proof_desc => 'You have a payslip or a salary transfer from your employer.';
+  String get loan_setup_income_proof_desc =>
+      'You have a payslip or a salary transfer from your employer.';
 
   @override
-  String get loan_setup_income_surrogate_title => 'Without a payslip';
+  String get loan_setup_income_surrogate_title => 'Surrogate';
 
   @override
-  String get loan_setup_income_surrogate_desc => 'The bank works your income out from other details, such as your grade or years of experience.';
+  String get loan_setup_income_surrogate_desc =>
+      'The bank works your income out from other details, such as your grade or years of experience.';
 
   @override
   String get loan_setup_income_unavailable => 'No bank offers this yet.';
@@ -663,10 +712,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loan_setup_step_program_heading => 'Choose a program';
 
   @override
-  String get loan_setup_step_program_helper => 'These are available for the choices you made.';
+  String get loan_setup_step_program_helper =>
+      'These are available for the choices you made.';
 
   @override
-  String get loan_setup_no_programs => 'No named program here — continue and we will show you every available offer.';
+  String get loan_setup_no_programs =>
+      'No named program here — continue and we will show you every available offer.';
 
   @override
   String loan_setup_bank_count(int count) {
@@ -696,7 +747,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loan_setup_retry => 'Try again';
 
   @override
-  String get loan_setup_no_options => 'No programs are available for this loan type right now.';
+  String get loan_setup_no_options =>
+      'No programs are available for this loan type right now.';
 
   @override
   String get home_continue => 'Continue';
@@ -741,7 +793,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get account_logout_confirm_title => 'Sign out of Masrafy?';
 
   @override
-  String get account_logout_confirm_message => 'You\'ll be returned to the login screen.';
+  String get account_logout_confirm_message =>
+      'You\'ll be returned to the login screen.';
 
   @override
   String get account_logout_confirm_action => 'Sign out';
@@ -759,10 +812,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saved_offers_remove => 'Remove';
 
   @override
-  String get saved_offers_remove_failed => 'Couldn\'t remove the offer. Please try again.';
+  String get saved_offers_remove_failed =>
+      'Couldn\'t remove the offer. Please try again.';
 
   @override
-  String get error_saved_offer_not_found => 'This offer is not in your saved offers.';
+  String get error_saved_offer_not_found =>
+      'This offer is not in your saved offers.';
 
   @override
   String get previous_applications_title => 'Applications';
@@ -771,7 +826,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previous_applications_empty_title => 'No applications yet';
 
   @override
-  String get previous_applications_empty_body => 'Apply for an offer and it will show up here.';
+  String get previous_applications_empty_body =>
+      'Apply for an offer and it will show up here.';
 
   @override
   String get previous_applications_status_applied => 'Applied';
@@ -789,7 +845,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home_cat_mortgage => 'Mortgage';
 
   @override
-  String get home_cat_car => 'Car loan';
+  String get home_cat_car => 'Auto loan';
 
   @override
   String get home_cat_business => 'Business';
@@ -813,7 +869,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_mortgage_title => 'Mortgage application';
 
   @override
-  String get q_mortgage_subtitle => 'We\'ll match you with banks that specialise in your needs';
+  String get q_mortgage_subtitle =>
+      'We\'ll match you with banks that specialise in your needs';
 
   @override
   String get q_mortgage_next => 'Next';
@@ -845,7 +902,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get q_mortgage_q_property_type => 'What type of property would you like to finance?';
+  String get q_mortgage_q_property_type =>
+      'What type of property would you like to finance?';
 
   @override
   String get q_mortgage_hint_property_type => 'Select property type';
@@ -869,10 +927,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_property_other => 'Other';
 
   @override
-  String get q_mortgage_q_in_compound => 'Is the property located within a residential compound?';
+  String get q_mortgage_q_in_compound =>
+      'Is the property located within a residential compound?';
 
   @override
-  String get q_mortgage_q_registration_status => 'What is the property\'s registration status?';
+  String get q_mortgage_q_registration_status =>
+      'What is the property\'s registration status?';
 
   @override
   String get q_opt_reg_registered => 'Officially registered';
@@ -899,10 +959,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_mortgage_address_hint => 'Street, building, area';
 
   @override
-  String get q_mortgage_q_property_value => 'What is the approximate property value?';
+  String get q_mortgage_q_property_value =>
+      'What is the approximate property value?';
 
   @override
-  String get q_mortgage_q_down_payment => 'How much down payment do you currently have? (%)';
+  String get q_mortgage_q_down_payment =>
+      'How much down payment do you currently have? (%)';
 
   @override
   String get q_mortgage_hint_down_payment => 'Down payment';
@@ -920,7 +982,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_dp_over30 => 'More than 30%';
 
   @override
-  String get q_mortgage_q_repayment_period => 'What repayment period suits you?';
+  String get q_mortgage_q_repayment_period =>
+      'What repayment period suits you?';
 
   @override
   String get q_mortgage_repayment_label => 'Repayment period';
@@ -968,16 +1031,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_income_b6 => 'More than EGP 1,000,000';
 
   @override
-  String get q_mortgage_q_salary_transfer => 'Is your salary transferred to a bank account?';
+  String get q_mortgage_q_salary_transfer =>
+      'Is your salary transferred to a bank account?';
 
   @override
-  String get q_mortgage_q_additional_income => 'Do you have additional sources of income?';
+  String get q_mortgage_q_additional_income =>
+      'Do you have additional sources of income?';
 
   @override
-  String get q_mortgage_q_current_loans => 'Do you currently have any loans or financial obligations?';
+  String get q_mortgage_q_current_loans =>
+      'Do you currently have any loans or financial obligations?';
 
   @override
-  String get q_mortgage_q_installments => 'What is the total amount of your monthly installments?';
+  String get q_mortgage_q_installments =>
+      'What is the total amount of your monthly installments?';
 
   @override
   String get q_mortgage_installments_label => 'Monthly installments';
@@ -986,10 +1053,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_mortgage_installments_hint => 'Monthly installment amount';
 
   @override
-  String get q_mortgage_q_prior_rejection => 'Have you ever had a mortgage application rejected?';
+  String get q_mortgage_q_prior_rejection =>
+      'Have you ever had a mortgage application rejected?';
 
   @override
-  String get q_mortgage_q_priority => 'What is most important to you in mortgage financing?';
+  String get q_mortgage_q_priority =>
+      'What is most important to you in mortgage financing?';
 
   @override
   String get q_opt_priority_lowest_installment => 'Lowest monthly installment';
@@ -1007,13 +1076,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_priority_lowest_fees => 'Lowest administrative fees';
 
   @override
-  String get q_mortgage_q_assistance => 'Do you need assistance preparing documents and completing procedures?';
+  String get q_mortgage_q_assistance =>
+      'Do you need assistance preparing documents and completing procedures?';
 
   @override
   String get q_business_title => 'Business Loan Application';
 
   @override
-  String get q_business_subtitle => 'We\'ll match you with banks that specialise in your needs';
+  String get q_business_subtitle =>
+      'We\'ll match you with banks that specialise in your needs';
 
   @override
   String get q_business_next => 'Next';
@@ -1045,7 +1116,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_business_step4_title => 'Preferences & Support';
 
   @override
-  String get q_business_q_activity => 'What type of business or project do you operate?';
+  String get q_business_q_activity =>
+      'What type of business or project do you operate?';
 
   @override
   String get q_business_hint_activity => 'Select business type';
@@ -1069,19 +1141,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_biz_activity_other => 'Other';
 
   @override
-  String get q_business_q_business_age => 'How long has the business been operating?';
+  String get q_business_q_business_age =>
+      'How long has the business been operating?';
 
   @override
   String get q_business_business_age_hint => 'No. of years';
 
   @override
-  String get q_business_q_financing_amount => 'What is the approximate financing amount required?';
+  String get q_business_q_financing_amount =>
+      'What is the approximate financing amount required?';
 
   @override
   String get q_business_financing_amount_hint => 'Financing amount required';
 
   @override
-  String get q_business_q_purpose => 'What is the primary purpose of the financing?';
+  String get q_business_q_purpose =>
+      'What is the primary purpose of the financing?';
 
   @override
   String get q_business_hint_purpose => 'Select purpose';
@@ -1108,25 +1183,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_business_repayment_label => 'Repayment period';
 
   @override
-  String get q_business_q_revenue => 'What is the average monthly business revenue?';
+  String get q_business_q_revenue =>
+      'What is the average monthly business revenue?';
 
   @override
-  String get q_business_q_bank_account => 'Do you have a business bank account?';
+  String get q_business_q_bank_account =>
+      'Do you have a business bank account?';
 
   @override
-  String get q_business_q_registered => 'Is the business officially registered?';
+  String get q_business_q_registered =>
+      'Is the business officially registered?';
 
   @override
   String get q_opt_biz_registration_in_progress => 'Registration in Progress';
 
   @override
-  String get q_business_q_tax => 'Do you have a tax registration or commercial registration?';
+  String get q_business_q_tax =>
+      'Do you have a tax registration or commercial registration?';
 
   @override
-  String get q_business_q_current_facilities => 'Does the business currently have any loans or financing facilities?';
+  String get q_business_q_current_facilities =>
+      'Does the business currently have any loans or financing facilities?';
 
   @override
-  String get q_business_q_installments => 'What is the total amount of current monthly obligations?';
+  String get q_business_q_installments =>
+      'What is the total amount of current monthly obligations?';
 
   @override
   String get q_business_installments_label => 'Monthly obligations';
@@ -1135,10 +1216,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_business_installments_hint => 'Monthly Installment';
 
   @override
-  String get q_business_q_prior_rejection => 'Has the business ever been declined for financing?';
+  String get q_business_q_prior_rejection =>
+      'Has the business ever been declined for financing?';
 
   @override
-  String get q_business_q_priority => 'What is most important to you in business financing?';
+  String get q_business_q_priority =>
+      'What is most important to you in business financing?';
 
   @override
   String get q_opt_biz_priority_fast_approval => 'Fast Approval';
@@ -1156,10 +1239,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_biz_priority_least_paperwork => 'Minimum Documentation';
 
   @override
-  String get q_business_q_consultation => 'Would you like to consult with a business financing expert?';
+  String get q_business_q_consultation =>
+      'Would you like to consult with a business financing expert?';
 
   @override
-  String get q_car_subtitle => 'We\'ll match you with banks that specialise in your needs';
+  String get q_car_subtitle =>
+      'We\'ll match you with banks that specialise in your needs';
 
   @override
   String get q_car_next => 'Next';
@@ -1218,7 +1303,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_car_q_price => 'What is the approximate vehicle price?';
 
   @override
-  String get q_car_q_down_payment => 'How much down payment do you have available?';
+  String get q_car_q_down_payment =>
+      'How much down payment do you have available?';
 
   @override
   String get q_opt_car_dp_none => 'No down payment';
@@ -1254,7 +1340,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_car_income_b4 => 'More than EGP 50,000';
 
   @override
-  String get q_car_q_salary_transfer => 'Is your salary transferred to a bank account?';
+  String get q_car_q_salary_transfer =>
+      'Is your salary transferred to a bank account?';
 
   @override
   String get q_car_q_employer_approved => 'Is your employer approved by banks?';
@@ -1269,7 +1356,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_car_emp_unsure => 'Not sure';
 
   @override
-  String get q_car_q_current_loans => 'Do you currently have obligations or loans?';
+  String get q_car_q_current_loans =>
+      'Do you currently have obligations or loans?';
 
   @override
   String get q_car_installments_label => 'Monthly installments';
@@ -1293,7 +1381,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_car_q_insurance => 'Would you like vehicle insurance offers?';
 
   @override
-  String get q_personal_subtitle => 'We\'ll match you with banks that specialise in your needs';
+  String get q_personal_subtitle =>
+      'We\'ll match you with banks that specialise in your needs';
 
   @override
   String get q_personal_next => 'Next';
@@ -1308,7 +1397,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_personal_select_hint => 'Select an option';
 
   @override
-  String get q_dyn_subtitle => 'We\'ll match you with banks that specialise in your needs';
+  String get q_dyn_subtitle =>
+      'We\'ll match you with banks that specialise in your needs';
 
   @override
   String get q_dyn_select_hint => 'Select an option';
@@ -1323,7 +1413,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_dyn_error_title => 'Something went wrong';
 
   @override
-  String get q_dyn_error_message => 'We couldn\'t load the questionnaire. Please try again.';
+  String get q_dyn_error_message =>
+      'We couldn\'t load the questionnaire. Please try again.';
 
   @override
   String get q_dyn_retry => 'Try again';
@@ -1379,10 +1470,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get q_dyn_obligations_total_helper => 'Added up from the payments you listed above.';
+  String get q_dyn_obligations_total_helper =>
+      'Added up from the payments you listed above.';
 
   @override
-  String get q_dyn_money_missing => 'Fill in the amount, repayment period, income and current installments to see your offers.';
+  String get q_dyn_cannot_submit =>
+      'We can’t price this loan type yet — a question it needs is missing. Please try another, or contact support.';
+
+  @override
+  String get q_dyn_money_missing =>
+      'Answer the questions marked required to see your offers.';
 
   @override
   String q_personal_years(Object years) {
@@ -1423,13 +1520,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_personal_hint_purpose => 'Purpose of the loan';
 
   @override
-  String get q_opt_personal_purpose_home_finishing => 'Home finishing / Renovation';
+  String get q_opt_personal_purpose_home_finishing =>
+      'Home finishing / Renovation';
 
   @override
   String get q_opt_personal_purpose_marriage => 'Marriage';
 
   @override
-  String get q_opt_personal_purpose_appliances => 'Purchasing appliances or furniture';
+  String get q_opt_personal_purpose_appliances =>
+      'Purchasing appliances or furniture';
 
   @override
   String get q_opt_personal_purpose_education => 'Education';
@@ -1447,7 +1546,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_personal_q_employment => 'What is your employment status?';
 
   @override
-  String get q_personal_q_job_tenure => 'How long have you been in your current job?';
+  String get q_personal_q_job_tenure =>
+      'How long have you been in your current job?';
 
   @override
   String get q_personal_hint_job_tenure => 'Current job';
@@ -1483,10 +1583,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_personal_income_b5 => 'More than EGP 100,000';
 
   @override
-  String get q_personal_q_salary_transfer => 'Is your salary transferred to a bank account?';
+  String get q_personal_q_salary_transfer =>
+      'Is your salary transferred to a bank account?';
 
   @override
-  String get q_personal_q_employer_approved => 'Is your employer approved by banks?';
+  String get q_personal_q_employer_approved =>
+      'Is your employer approved by banks?';
 
   @override
   String get q_opt_personal_emp_yes => 'Yes';
@@ -1498,7 +1600,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_personal_emp_unsure => 'Not sure';
 
   @override
-  String get q_personal_q_obligations => 'Do you currently have any loans or financial obligations?';
+  String get q_personal_q_obligations =>
+      'Do you currently have any loans or financial obligations?';
 
   @override
   String get q_personal_hint_obligations => 'Loans or financial obligations';
@@ -1522,7 +1625,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_personal_obligation_other => 'Other';
 
   @override
-  String get q_personal_q_installment => 'What is your approximate total monthly installment amount?';
+  String get q_personal_q_installment =>
+      'What is your approximate total monthly installment amount?';
 
   @override
   String get q_personal_installment_label => 'Monthly installment';
@@ -1534,7 +1638,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_personal_q_credit_card => 'Do you have a credit card?';
 
   @override
-  String get q_personal_q_credit_card_usage => 'If yes, what is your average monthly credit card usage?';
+  String get q_personal_q_credit_card_usage =>
+      'If yes, what is your average monthly credit card usage?';
 
   @override
   String get q_opt_personal_cc_usage_b1 => 'Less than EGP 10,000';
@@ -1549,10 +1654,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_personal_cc_usage_b4 => 'More than EGP 50,000';
 
   @override
-  String get q_personal_q_priority => 'What is the most important factor when choosing financing?';
+  String get q_personal_q_priority =>
+      'What is the most important factor when choosing financing?';
 
   @override
-  String get q_opt_personal_priority_lowest_installment => 'Lowest Monthly Installment';
+  String get q_opt_personal_priority_lowest_installment =>
+      'Lowest Monthly Installment';
 
   @override
   String get q_opt_personal_priority_lowest_interest => 'Lowest Interest Rate';
@@ -1564,10 +1671,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_opt_personal_priority_flexible_repayment => 'Flexible Repayment';
 
   @override
-  String get q_personal_q_prior_rejection => 'Have you ever had a financing application rejected?';
+  String get q_personal_q_prior_rejection =>
+      'Have you ever had a financing application rejected?';
 
   @override
-  String get q_personal_q_assistance => 'Do you need assistance preparing documents and completing procedures?';
+  String get q_personal_q_assistance =>
+      'Do you need assistance preparing documents and completing procedures?';
 
   @override
   String get profile_title => 'Profile';
@@ -1644,16 +1753,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile_id_unavailable => 'Tap to upload again';
 
   @override
-  String get profile_id_upload_failed => 'Couldn\'t upload the ID. Please try again.';
+  String get profile_id_upload_failed =>
+      'Couldn\'t upload the ID. Please try again.';
 
   @override
-  String get profile_save_failed => 'Couldn\'t save your profile. Please try again.';
+  String get profile_save_failed =>
+      'Couldn\'t save your profile. Please try again.';
 
   @override
   String get profile_save_success => 'Your profile has been updated.';
 
   @override
-  String get profile_email_taken => 'This email is already in use by another account.';
+  String get profile_email_taken =>
+      'This email is already in use by another account.';
 
   @override
   String get profile_dob_locked => 'Date of birth can\'t be changed once set.';
@@ -1698,7 +1810,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get results_empty_title => 'No offers yet';
 
   @override
-  String get results_empty_body => 'We couldn\'t find matching programs for your answers right now.';
+  String get results_empty_body =>
+      'We couldn\'t find matching programs for your answers right now.';
+
+  @override
+  String offer_partner_bank(String letter) {
+    return 'Partner bank $letter';
+  }
+
+  @override
+  String get offer_partner_bank_generic => 'Partner bank';
+
+  @override
+  String get results_no_rate_title => 'No rate for these details';
+
+  @override
+  String get results_no_rate_body_car =>
+      'None of the banks has a rate for this down payment and car. Most car finance plans need a larger down payment — try raising it, or change the car\'s details.';
+
+  @override
+  String get results_no_rate_body =>
+      'None of the banks has a rate for the answers you gave. Try changing your answers to see offers.';
+
+  @override
+  String get results_edit_answers => 'Edit my answers';
 
   @override
   String get results_profile_title => 'Complete your profile';
@@ -1747,7 +1882,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get results_unavailable_badge => 'No offer from this bank';
 
   @override
-  String get results_unavailable_generic => 'This bank couldn\'t price an offer for you right now.';
+  String get results_unavailable_generic =>
+      'This bank couldn\'t price an offer for you right now.';
 
   @override
   String results_unavailable_ceiling(String amount) {
@@ -1886,6 +2022,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_life_insurance => 'Life insurance';
 
   @override
+  String get offer_car_insurance => 'Car insurance (required)';
+
+  @override
+  String offer_car_insurance_total(int years) {
+    String _temp0 = intl.Intl.pluralLogic(
+      years,
+      locale: localeName,
+      other: '$years years',
+      one: '1 year',
+    );
+    return 'Insurance over $_temp0';
+  }
+
+  @override
+  String offer_fee_egp_per_year(String amount) {
+    return 'EGP $amount / year';
+  }
+
+  @override
   String offer_fee_egp(String amount) {
     return 'EGP $amount';
   }
@@ -1912,10 +2067,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_proceed_error => 'Something went wrong. Please try again.';
 
   @override
+  String get offer_already_proceeded =>
+      'You already applied for an offer on this application.';
+
+  @override
   String get offer_national_id_required_title => 'National ID Required';
 
   @override
-  String get offer_national_id_required_body => 'Upload the front and back of your National ID to continue with this application.';
+  String get offer_national_id_required_body =>
+      'Upload the front and back of your National ID to continue with this application.';
 
   @override
   String get offer_national_id_required_cta => 'Upload now';
@@ -1924,7 +2084,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apply_docs_title => 'Complete your documents';
 
   @override
-  String get apply_docs_subtitle => 'Add your photo and National ID to send this application to the bank.';
+  String get apply_docs_subtitle =>
+      'Add your photo and National ID to send this application to the bank.';
 
   @override
   String get apply_docs_photo_section => 'Profile photo';
@@ -1936,13 +2097,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apply_docs_cta => 'Continue application';
 
   @override
-  String get apply_docs_upload_error => 'Couldn\'t upload that file. Please try again.';
+  String get apply_docs_upload_error =>
+      'Couldn\'t upload that file. Please try again.';
 
   @override
-  String get auth_profile_photo_required => 'Upload your profile photo before applying for a loan.';
+  String get auth_profile_photo_required =>
+      'Upload your profile photo before applying for a loan.';
 
   @override
-  String get offer_save_success => 'Offer saved. Find it later in Saved Offers.';
+  String get offer_save_success =>
+      'Offer saved. Find it later in Saved Offers.';
 
   @override
   String get offer_save_error => 'Could not save this offer. Please try again.';
@@ -1954,7 +2118,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_removed_success => 'Removed from saved.';
 
   @override
-  String get offer_remove_error => 'Could not remove this offer. Please try again.';
+  String get offer_remove_error =>
+      'Could not remove this offer. Please try again.';
 
   @override
   String get settings_security_title => 'Settings & Security';
@@ -1969,13 +2134,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_biometric_subtitle => 'Face ID / Fingerprint';
 
   @override
-  String get settings_biometric_confirm_reason => 'Confirm your fingerprint or Face ID to turn on biometric login';
+  String get settings_biometric_confirm_reason =>
+      'Confirm your fingerprint or Face ID to turn on biometric login';
 
   @override
-  String get settings_biometric_unavailable => 'Biometric login isn\'t set up on this device yet';
+  String get settings_biometric_unavailable =>
+      'Biometric login isn\'t set up on this device yet';
 
   @override
-  String get biometric_lock_title => 'Unlock Masrafy with Face ID or your fingerprint';
+  String get biometric_lock_title =>
+      'Unlock Masrafy with Face ID or your fingerprint';
 
   @override
   String get biometric_lock_reason => 'Unlock Masrafy';
@@ -1990,7 +2158,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_privacy_policies_title => 'Privacy Policies';
 
   @override
-  String get settings_privacy_policies_subtitle => 'Privacy Policies - Term & Conditions';
+  String get settings_privacy_policies_subtitle =>
+      'Privacy Policies - Term & Conditions';
 
   @override
   String get settings_section_notification_center => 'Notification center';
@@ -2020,13 +2189,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_change_password_title => 'Change Password';
 
   @override
-  String get settings_change_password_subtitle => 'Update your account password';
+  String get settings_change_password_subtitle =>
+      'Update your account password';
 
   @override
   String get change_password_title => 'Change Password';
 
   @override
-  String get change_password_hint => 'Enter your current password, then choose a new one with at least 12 characters including uppercase, lowercase, a number and a symbol.';
+  String get change_password_hint =>
+      'Enter your current password, then choose a new one with at least 12 characters including uppercase, lowercase, a number and a symbol.';
 
   @override
   String get change_password_current_label => 'Current Password';
@@ -2050,31 +2221,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get change_password_action => 'Save';
 
   @override
-  String get change_password_success => 'Password changed. Please sign in with your new password.';
+  String get change_password_success =>
+      'Password changed. Please sign in with your new password.';
 
   @override
-  String get change_password_error_current_incorrect => 'Current password is incorrect.';
+  String get change_password_error_current_incorrect =>
+      'Current password is incorrect.';
 
   @override
-  String get change_password_error_same_as_old => 'New password must be different from the current one.';
+  String get change_password_error_same_as_old =>
+      'New password must be different from the current one.';
 
   @override
-  String get change_password_error_social_forbidden => 'Password change isn\'t available for social sign-in accounts.';
+  String get change_password_error_social_forbidden =>
+      'Password change isn\'t available for social sign-in accounts.';
 
   @override
-  String get change_password_error_policy => 'Password must be at least 12 characters and include uppercase, lowercase, a number and a symbol.';
+  String get change_password_error_policy =>
+      'Password must be at least 12 characters and include uppercase, lowercase, a number and a symbol.';
 
   @override
-  String get change_password_error_breached => 'This password appeared in a known data breach. Please choose a different one.';
+  String get change_password_error_breached =>
+      'This password appeared in a known data breach. Please choose a different one.';
 
   @override
-  String get change_password_error_common => 'This password is too common. Please choose a stronger one.';
+  String get change_password_error_common =>
+      'This password is too common. Please choose a stronger one.';
 
   @override
-  String get change_password_error_breach_check_unavailable => 'We couldn\'t verify your password right now. Please try again in a moment.';
+  String get change_password_error_breach_check_unavailable =>
+      'We couldn\'t verify your password right now. Please try again in a moment.';
 
   @override
-  String get change_password_error_account_inactive => 'Your account is not active. Please contact support.';
+  String get change_password_error_account_inactive =>
+      'Your account is not active. Please contact support.';
 
   @override
   String get change_password_error_mismatch => 'Passwords do not match';
@@ -2083,10 +2263,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgot_password_phone_title => 'Reset your password';
 
   @override
-  String get forgot_password_phone_subtitle => 'Enter your phone number and we\'ll send you a verification code.';
+  String get forgot_password_phone_subtitle =>
+      'Enter your phone number and we\'ll send you a verification code.';
 
   @override
-  String get forgot_password_phone_hint => 'We\'ll send a 6-digit code to your phone to confirm it\'s you.';
+  String get forgot_password_phone_hint =>
+      'We\'ll send a 6-digit code to your phone to confirm it\'s you.';
 
   @override
   String get forgot_password_send_cta => 'Send code';
@@ -2098,19 +2280,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgot_password_new_title => 'Set a new password';
 
   @override
-  String get forgot_password_new_subtitle => 'Choose a strong new password for your account.';
+  String get forgot_password_new_subtitle =>
+      'Choose a strong new password for your account.';
 
   @override
-  String get forgot_password_new_hint => 'Choose a new password with at least 12 characters including uppercase, lowercase, a number and a symbol.';
+  String get forgot_password_new_hint =>
+      'Choose a new password with at least 12 characters including uppercase, lowercase, a number and a symbol.';
 
   @override
   String get forgot_password_reset_cta => 'Reset password';
 
   @override
-  String get forgot_password_success => 'Password reset. Please sign in with your new password.';
+  String get forgot_password_success =>
+      'Password reset. Please sign in with your new password.';
 
   @override
-  String get forgot_password_error_unavailable => 'We couldn\'t reset the password for this number. Please try again or contact support.';
+  String get forgot_password_error_unavailable =>
+      'We couldn\'t reset the password for this number. Please try again or contact support.';
 
   @override
   String get photo_source_title => 'Profile Photo';
@@ -2122,13 +2308,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get photo_source_gallery => 'Choose from Gallery';
 
   @override
-  String get profile_photo_upload_failed => 'Couldn\'t upload the photo. Please try again.';
+  String get profile_photo_upload_failed =>
+      'Couldn\'t upload the photo. Please try again.';
 
   @override
-  String get error_answer_type_mismatch => 'This answer doesn\'t match the question type.';
+  String get error_answer_type_mismatch =>
+      'This answer doesn\'t match the question type.';
 
   @override
-  String get error_answer_out_of_range => 'This number is outside the allowed range.';
+  String get error_answer_out_of_range =>
+      'This number is outside the allowed range.';
 
   @override
   String get error_answer_too_long => 'This answer is too long.';
@@ -2137,40 +2326,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_answer_required => 'Please answer this question.';
 
   @override
-  String get error_money_figure_missing => 'A figure needed for the estimate is missing. Please review your answers.';
+  String get error_money_figure_missing =>
+      'A figure needed for the estimate is missing. Please review your answers.';
 
   @override
-  String get error_calculator_input_invalid => 'Please check the amount, term, income and existing payments.';
+  String get error_calculator_input_invalid =>
+      'Please check the amount, term, income and existing payments.';
 
   @override
-  String get error_calculator_program_inactive => 'This program is not available right now.';
+  String get error_calculator_program_inactive =>
+      'This program is not available right now.';
 
   @override
-  String get error_obligations_total_mismatch => 'Your monthly payments didn\'t add up. Please review your debts and try again.';
+  String get error_obligations_total_mismatch =>
+      'Your monthly payments didn\'t add up. Please review your debts and try again.';
 
   @override
-  String get reason_no_recognised_income => 'We couldn\'t recognise a monthly income for this program.';
+  String get reason_no_recognised_income =>
+      'We couldn\'t recognise a monthly income for this program.';
 
   @override
-  String get reason_obligations_exceed_allowance => 'Your current monthly payments already use up the allowed limit.';
+  String get reason_obligations_exceed_allowance =>
+      'Your current monthly payments already use up the allowed limit.';
 
   @override
-  String get reason_below_program_min_amount => 'The affordable amount is below this program\'s minimum.';
+  String get reason_below_program_min_amount =>
+      'The affordable amount is below this program\'s minimum.';
 
   @override
-  String get reason_age_at_maturity => 'No available term keeps you within this program\'s age limit.';
+  String get reason_requested_below_program_min_amount =>
+      'You asked for less than this bank lends. Ask for a larger amount to see its figures.';
 
   @override
-  String get reason_program_misconfigured => 'This program can\'t be priced right now.';
+  String get reason_age_at_maturity =>
+      'No available term keeps you within this program\'s age limit.';
 
   @override
-  String get reason_surrogate_fact_missing => 'This program needs a detail we haven\'t asked you for yet, so no figures can be shown.';
+  String get reason_program_misconfigured =>
+      'This program can\'t be priced right now.';
 
   @override
-  String get reason_surrogate_no_matching_row => 'This bank\'s table doesn\'t cover your answer, so no figures can be shown.';
+  String get reason_surrogate_fact_missing =>
+      'This program needs a detail we haven\'t asked you for yet, so no figures can be shown.';
 
   @override
-  String get disclaimer_indicative_estimate => 'Indicative estimate — not a binding offer. Final figures come from the bank.';
+  String get reason_surrogate_no_matching_row =>
+      'This bank\'s table doesn\'t cover your answer, so no figures can be shown.';
+
+  @override
+  String get disclaimer_indicative_estimate =>
+      'Indicative estimate — not a binding offer. Final figures come from the bank.';
 
   @override
   String get id_capture_title_front => 'Front side of your ID';
@@ -2179,7 +2384,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get id_capture_title_back => 'Back side of your ID';
 
   @override
-  String get id_capture_hint => 'Place your National ID inside the frame, then tap the shutter.';
+  String get id_capture_hint =>
+      'Place your National ID inside the frame, then tap the shutter.';
 
   @override
   String get id_capture_retry => 'Try again';
@@ -2200,46 +2406,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get id_capture_error => 'Couldn\'t start the camera on this device.';
 
   @override
-  String get id_capture_permission_error => 'Camera access is off. Allow the camera for Masrafy in your device settings, then try again.';
+  String get id_capture_permission_error =>
+      'Camera access is off. Allow the camera for Masrafy in your device settings, then try again.';
 
   @override
-  String get id_capture_capture_error => 'Couldn\'t save that shot. Please take it again.';
+  String get id_capture_capture_error =>
+      'Couldn\'t save that shot. Please take it again.';
 
   @override
-  String get gate_down_payment_below_min => 'The amount you\'ve already paid is below this bank\'s minimum for this program.';
+  String get gate_down_payment_below_min =>
+      'The amount you\'ve already paid is below this bank\'s minimum for this program.';
 
   @override
-  String get gate_unit_price_below_min => 'The unit\'s price is below this bank\'s minimum for the year you signed the contract.';
+  String get gate_unit_price_below_min =>
+      'The unit\'s price is below this bank\'s minimum for the year you signed the contract.';
 
   @override
-  String get gate_contract_too_new => 'This bank needs you to have owned the unit for longer than you have.';
+  String get gate_contract_too_new =>
+      'This bank needs you to have owned the unit for longer than you have.';
 
   @override
-  String get gate_contract_too_old => 'The ownership contract is older than this bank accepts for this program.';
+  String get gate_contract_too_old =>
+      'The ownership contract is older than this bank accepts for this program.';
 
   @override
-  String get gate_ownership_not_confirmed => 'This program needs ownership stated the way this bank requires.';
+  String get gate_ownership_not_confirmed =>
+      'This program needs ownership stated the way this bank requires.';
 
   @override
-  String get gate_multi_unit_not_confirmed => 'You told us you own more than one unit. Confirm which one to use and we can quote this program.';
+  String get gate_multi_unit_not_confirmed =>
+      'You told us you own more than one unit. Confirm which one to use and we can quote this program.';
 
   @override
-  String get gate_self_employed_docs_missing => 'This bank needs a valid trade or practice licence from self-employed customers.';
+  String get gate_self_employed_docs_missing =>
+      'This bank needs a valid trade or practice licence from self-employed customers.';
 
   @override
-  String get gate_business_too_new => 'This bank needs your business to have been running longer than it has.';
+  String get gate_business_too_new =>
+      'This bank needs your business to have been running longer than it has.';
 
   @override
-  String get gate_loan_too_new => 'This bank needs the loan you already have to be further through its term.';
+  String get gate_loan_too_new =>
+      'This bank needs the loan you already have to be further through its term.';
 
   @override
-  String get gate_not_met => 'This program has a condition your answers don\'t meet, so no figures can be shown.';
+  String get gate_not_met =>
+      'This program has a condition your answers don\'t meet, so no figures can be shown.';
 
   @override
   String get collateral_skip_step => 'Skip for now';
 
   @override
-  String get collateral_skip_hint => 'Skip and we still show the program, just without figures until you answer.';
+  String get collateral_skip_hint =>
+      'Skip and we still show the program, just without figures until you answer.';
 
   @override
   String offer_collateral_ceiling(String amount) {
@@ -2252,32 +2471,41 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get offer_limited_by_ltv => 'Capped at this bank\'s share of the car\'s price';
+  String get offer_limited_by_ltv =>
+      'Capped at this bank\'s share of the car\'s price';
 
   @override
   String get offer_limited_by_dbr => 'Capped by what your income supports';
 
   @override
-  String get offer_limited_by_program_max => 'Capped by this program\'s maximum';
+  String get offer_limited_by_program_max =>
+      'Capped by this program\'s maximum';
 
   @override
-  String get offer_limited_by_program_row => 'Capped by this program\'s limit for your answers';
+  String get offer_limited_by_program_row =>
+      'Capped by this program\'s limit for your answers';
 
   @override
-  String get offer_limited_by_collateral => 'Capped by what your collateral supports';
+  String get offer_limited_by_collateral =>
+      'Capped by what your collateral supports';
 
   @override
-  String get offer_limited_by_vehicle => 'Shortened to the longest term this bank finances a car like yours for';
+  String get offer_limited_by_vehicle =>
+      'Shortened to the longest term this bank finances a car like yours for';
 
   @override
-  String get results_unavailable_no_max_for_answer => 'This bank sets no limit for the answers you gave.';
+  String get results_unavailable_no_max_for_answer =>
+      'This bank sets no limit for the answers you gave.';
 
   @override
-  String get results_unavailable_no_rate_for_answer => 'This bank sets no rate for the down payment, term and insurance you chose.';
+  String get results_unavailable_no_rate_for_answer =>
+      'This bank sets no rate for the down payment, term and insurance you chose.';
 
   @override
-  String get results_unavailable_vehicle_not_eligible => 'This bank does not finance a car of this model year, origin, or at this down payment.';
+  String get results_unavailable_vehicle_not_eligible =>
+      'This bank does not finance a car of this model year, origin, or at this down payment.';
 
   @override
-  String get results_unavailable_product_retired => 'This bank is not offering this program right now.';
+  String get results_unavailable_product_retired =>
+      'This bank is not offering this program right now.';
 }

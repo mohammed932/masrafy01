@@ -328,9 +328,18 @@ describe('normalizeIncomeAssumption — idempotence and policy fields', () => {
     expect(ruleOf('ABK-PROFESSORS').keyTable).toEqual(
       normalizeIncomeAssumption(LEGACY_PROFESSORS).keyTable,
     );
-    expect(ruleOf('ABK-MILITARY').keyTable).toEqual(
-      normalizeIncomeAssumption(LEGACY_MILITARY).keyTable,
-    );
+    // ABK-MILITARY no longer matches its legacy three-grade shape on purpose: it was re-keyed
+    // to App. A §11's seven grades on 2026-09-24 (`general` read "لواء" exactly like
+    // `grade_major_general`). What still holds is the canonical shape.
+    expect(ruleOf('ABK-MILITARY').keyTable?.map((row) => row.key)).toEqual([
+      'grade_major_general',
+      'grade_brigadier_general',
+      'grade_colonel',
+      'grade_lt_colonel',
+      'grade_major',
+      'grade_captain',
+      'grade_first_lieutenant',
+    ]);
   });
 
   it('leaves the now-canonical seeds untouched — the normalizer is idempotent on them', () => {

@@ -2,6 +2,9 @@ import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
+import { DomainException } from '@/common/errors/domain.exceptions';
+import { ERROR_CODES } from '@/common/errors/error-codes';
+import { I_SCORE_CLASS_TYPE } from '@/matching/pipeline/iscore-classes';
 import {
   EnumerationCategoriesNotApplicableException,
   EnumerationCategoryNotAssignedException,
@@ -137,6 +140,8 @@ const BULK_CREATE_FORBIDDEN_TYPES = new Set<string>([
   'program_name',
   'surrogate_product',
   'surrogate_fact',
+  // A pasted row carries a key and two labels — never the score range a class is made of.
+  'i_score_class',
 ]);
 
 /**
@@ -622,6 +627,8 @@ export class PlatformEnumerationsAdminService {
         ? dedupeBases(input.incomeBases ?? ['payslip'])
         : [],
       sortOrder: input.sortOrder ?? 0,
+      ...this.resolveRange(input.type, input.rangeFrom, input.rangeTo, true),
+      ...this.resolveIncomePercent(input.type, input.incomePercent, true),
       createdBy: actor.staffId,
     });
     this.repo.invalidateCache(input.type);
@@ -861,6 +868,70 @@ export class PlatformEnumerationsAdminService {
    * it passes the engine's `parentKey IS NOT NULL` filter, so the value looks filed and quotes
    * nothing — the same damage as `null` with none of the intent. "No parent" has one spelling.
    */
+  /**
+   * The score range, allowed on an `i_score_class` row alone and required on a NEW one.
+   *
+   * The seeded "No I-Score" class is the one row without a range (the bureau's N/A — see
+   * `platformIScoreTiers`). It cannot be made here: a create must name a range, and an edit
+   * that sends no range leaves the stored one — none, on that row — alone.
+   *
+   * Refused on every other type rather than silently dropped: a caller sending a range to a
+   * governorate believes it set something. Both ends, low to high, inclusive — a class with
+   * one end is a range nobody can read.
+   */
+  private resolveRange(
+    type: string,
+    rangeFrom: number | null | undefined,
+    rangeTo: number | null | undefined,
+    creating: boolean,
+  ): { rangeFrom?: number | null; rangeTo?: number | null } {
+    const given = (rangeFrom ?? null) !== null || (rangeTo ?? null) !== null;
+    if (type !== I_SCORE_CLASS_TYPE) {
+      if (given) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'rangeFrom', type });
+      }
+      return {};
+    }
+    if (
+      rangeFrom === null ||
+      rangeFrom === undefined ||
+      rangeTo === null ||
+      rangeTo === undefined
+    ) {
+      if (!creating && !given) return {};
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+        field: rangeFrom === null || rangeFrom === undefined ? 'rangeFrom' : 'rangeTo',
+        type,
+      });
+    }
+    if (rangeFrom > rangeTo) {
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'rangeTo', type });
+    }
+    return { rangeFrom, rangeTo };
+  }
+
+  /**
+   * The income percentage, on an `i_score_class` row alone and required there — a class with
+   * no percentage would leave the shared table unbuildable, which quotes every program at
+   * 100% while the screen shows a policy. Refused on every other type, like the range.
+   */
+  private resolveIncomePercent(
+    type: string,
+    incomePercent: string | null | undefined,
+    creating: boolean,
+  ): { incomePercent?: string } {
+    if (type !== I_SCORE_CLASS_TYPE) {
+      if ((incomePercent ?? null) !== null) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'incomePercent', type });
+      }
+      return {};
+    }
+    if (incomePercent === null || (incomePercent === undefined && creating)) {
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'incomePercent', type });
+    }
+    return incomePercent === undefined ? {} : { incomePercent };
+  }
+
   private async resolveParentKey(
     type: string,
     parentKey: string | null | undefined,
@@ -1180,6 +1251,23 @@ export class PlatformEnumerationsAdminService {
     }
 
     if (patch.sortOrder !== undefined) repoPatch.sortOrder = patch.sortOrder;
+    if (patch.incomePercent !== undefined) {
+      Object.assign(
+        repoPatch,
+        this.resolveIncomePercent(existing.type, patch.incomePercent, false),
+      );
+    }
+    if (patch.rangeFrom !== undefined || patch.rangeTo !== undefined) {
+      Object.assign(
+        repoPatch,
+        this.resolveRange(
+          existing.type,
+          patch.rangeFrom !== undefined ? patch.rangeFrom : existing.rangeFrom,
+          patch.rangeTo !== undefined ? patch.rangeTo : existing.rangeTo,
+          false,
+        ),
+      );
+    }
 
     // Retiring a LIST value while values are still filed under it. Refused, because the
     // engine's parent walk (`enumerationParentKeys`) filters the CHILD row's active flag and

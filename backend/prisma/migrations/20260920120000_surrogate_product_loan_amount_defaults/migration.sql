@@ -1,0 +1,25 @@
+-- The loan SIZE a bank program selling this product falls back to.
+--
+-- The sibling of `20260913090000_surrogate_product_tenor_defaults`, on the same terms. What
+-- a product lends between is a statement about the product; today it is a pair every
+-- operator retypes into every program, which is why a new program used to open at a
+-- platform figure (50,000 / 1,500,000) that contradicted the catalog it was filed under.
+--
+-- ADDITIVE AND NULLABLE, AND NOTHING IS BACKFILLED. `bank_program.loanLimits` has carried
+-- two REQUIRED amounts since it was written, so EVERY program on this database states its
+-- own size and not one of them can inherit today. Absent therefore has to be the case that
+-- changes nothing — a backfill here would be a floor nobody stated reaching programs that
+-- already answered the question.
+--
+-- DECIMAL STRINGS IN THE BLOB, never JSON numbers (Principle I). These are money, read
+-- straight into `Prisma.Decimal` by `asLoanAmountDefaults`.
+--
+-- WHY NOT `planDefaults.minAmountByFact`, which already holds an amount. That table states
+-- a floor for ONE deposit band and nothing for the others — `down_payment_income` carries a
+-- single 1,000,000 cell on the 20–30% band — so it is a condition on top of a size, not the
+-- size. It composes by `max` against this pair and does not replace it.
+--
+-- No quote moves when this lands. `toBankProgramSnapshot` inherits only when a program's
+-- own `minAmountEGP` AND `maxAmountEGP` are both absent, which no stored row is, and every
+-- product ships with this column NULL.
+ALTER TABLE "platform_enumeration" ADD COLUMN "loanAmountDefaults" JSONB;
