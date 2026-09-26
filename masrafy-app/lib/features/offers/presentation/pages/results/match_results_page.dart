@@ -79,11 +79,7 @@ class _MatchResultsView extends StatelessWidget {
                   padding:
                       EdgeInsetsDirectional.fromSTEB(24.w, 52.h, 24.w, 24.h),
                   child: args.request == null
-                      ? _ResultsContent(
-                          args: args,
-                          offers: args.offers,
-                          unavailable: const [],
-                        )
+                      ? _ResultsContent(args: args, offers: args.offers)
                       : BlocBuilder<MatchingResultsCubit, MatchingResultsState>(
                           builder: (ctx, state) {
                             if (state.isLoading) {
@@ -116,17 +112,27 @@ class _MatchResultsView extends StatelessWidget {
                                 onAction: () => ctx.router.maybePop(),
                               );
                             }
+                            if (state.isEmpty &&
+                                state.noOfferReasons.isNotEmpty) {
+                              // No offer at all: say what stopped each bank,
+                              // so the applicant can fix it and try again.
+                              return NoOfferReasonsView(
+                                reasons: state.noOfferReasons,
+                                onEditAnswers: () => ctx.router.maybePop(),
+                              );
+                            }
                             if (state.isEmpty) {
                               return MasrafyNoItemsState(
                                 icon: Icons.search_off_rounded,
                                 title: l.results_empty_title,
                                 body: l.results_empty_body,
+                                actionLabel: l.results_edit_answers,
+                                onAction: () => ctx.router.maybePop(),
                               );
                             }
                             return _ResultsContent(
                               args: args,
                               offers: state.offers,
-                              unavailable: state.unavailablePrograms,
                             );
                           },
                         ),
@@ -142,19 +148,10 @@ class _MatchResultsView extends StatelessWidget {
 
 /// Loaded state — the summary card + ranked offer cards (the original layout).
 class _ResultsContent extends StatelessWidget {
-  const _ResultsContent({
-    required this.args,
-    required this.offers,
-    required this.unavailable,
-  });
+  const _ResultsContent({required this.args, required this.offers});
 
   final MatchResultsArgs args;
   final List<MatchOffer> offers;
-
-  /// Programs checked but not priceable, each with its reason (FR-022). Rendered
-  /// BELOW the priced offers: they are real options once the missing detail is
-  /// supplied, so they belong on the shortlist — just not at the top of it.
-  final List<UnavailableProgramEntity> unavailable;
 
   @override
   Widget build(BuildContext context) {
@@ -195,28 +192,6 @@ class _ResultsContent extends StatelessWidget {
               OfferDetailsRoute(offer: offer, summary: args),
             ),
           ),
-        ],
-        // Listed, never hidden, and never shown with a zero (FR-020, FR-022). The
-        // heading is what stops a reader taking these for offers.
-        if (unavailable.isNotEmpty) ...[
-          Gap(28.h),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              l.results_unavailable_section,
-              style: MasrafyTextTheme.of(context)
-                  .heading4
-                  .copyWith(color: MasrafyColorTheme.of(context).textBase),
-            ),
-          ),
-          for (var i = 0; i < unavailable.length; i++) ...[
-            Gap(14.h),
-            UnavailableProgramCard(
-              program: unavailable[i],
-              rank: offers.length + i,
-              productLabel: typeLabel,
-            ),
-          ],
         ],
       ],
     );

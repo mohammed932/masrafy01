@@ -11,6 +11,7 @@ import type { AskableQuestion } from './asked-questions.rules';
  */
 export function toAskable(q: QuestionRow, group?: GroupTreeRow): AskableQuestion {
   const live = q.options.filter((o) => o.isActive);
+  const optIn = q.optInCategories ?? [];
   return {
     id: q.id,
     code: q.code,
@@ -18,7 +19,10 @@ export function toAskable(q: QuestionRow, group?: GroupTreeRow): AskableQuestion
     labelAr: q.questionAr,
     isActive: q.isActive,
     isRequired: q.isRequired,
-    categories: q.categories,
+    // The server's `categories` holds every row; this board reasons about the ORDINARY ones —
+    // asked of every name — so an opt-in row is set apart rather than read as asked.
+    categories: q.categories.filter((c) => !optIn.includes(c)),
+    optInCategories: optIn,
     gateSourceCode: q.enabledWhen?.questionCode ?? null,
     haystack: [q.questionEn, q.questionAr, q.code, ...q.options.map((o) => o.labelEn)]
       .join(' ')

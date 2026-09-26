@@ -1640,6 +1640,12 @@ abstract class AppLocalizations {
   /// **'بحث'**
   String get q_common_search;
 
+  /// No description provided for @q_common_search_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث في الخيارات…'**
+  String get q_common_search_hint;
+
   /// No description provided for @q_mortgage_title.
   ///
   /// In ar, this message translates to:
@@ -3488,29 +3494,23 @@ abstract class AppLocalizations {
   /// **'{count} شهرًا'**
   String results_months(int count);
 
-  /// Heading above the checked-but-not-quotable programs
+  /// Heading above the reasons no bank made an offer
   ///
   /// In ar, this message translates to:
-  /// **'غير متاح لك حاليًا'**
-  String get results_unavailable_section;
+  /// **'ما الذي يمكنك تعديله'**
+  String get results_no_offer_fix_title;
 
-  /// Badge on an unavailable program card
+  /// Shown when no bank made an offer, above the list of reasons the applicant can fix
   ///
   /// In ar, this message translates to:
-  /// **'لا يوجد عرض من هذا البنك'**
-  String get results_unavailable_badge;
+  /// **'إليك ما منع البنوك من تقديم عرض لك. عدّل هذه الإجابات وحاول مرة أخرى.'**
+  String get results_no_offer_body;
 
   /// Fallback for an unrecognised figures-unavailable reason code
   ///
   /// In ar, this message translates to:
   /// **'تعذّر على هذا البنك تقديم عرض لك حاليًا.'**
   String get results_unavailable_generic;
-
-  /// The applicant's ceiling at an unavailable program
-  ///
-  /// In ar, this message translates to:
-  /// **'يمكنك الاقتراض حتى {amount} جنيه من هذا البنك.'**
-  String results_unavailable_ceiling(String amount);
 
   /// No description provided for @results_rate.
   ///

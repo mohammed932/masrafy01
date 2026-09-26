@@ -12,6 +12,7 @@
 import { I_SCORE_FACT_KEY } from '../src/matching/pipeline/product-template';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
 import { bankSlug } from '../src/matching/pipeline/bank-relationship';
+import { frozenCategories } from '../src/questionnaire/frozen-categories';
 import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
@@ -2219,13 +2220,21 @@ export async function seedQuestionnaire(): Promise<void> {
     // set comes from the SAME `categoriesByQuestion` map that pre-assigns each
     // program's scoring below, so the two can never disagree.
     const askedBy = [...(categoriesByQuestion[code] ?? new Set<Category>())];
+    // Ordinary rows only. An OPT-IN row is a program name's "ask this too" — operator data like
+    // `program_name_question_addition`, which this seed does not author and must not delete.
     await prisma.questionLoanCategory.deleteMany({
-      where: { questionId: question.id, category: { notIn: askedBy } },
+      where: { questionId: question.id, category: { notIn: askedBy }, optIn: false },
     });
     if (askedBy.length > 0) {
       await prisma.questionLoanCategory.createMany({
         data: askedBy.map((category) => ({ questionId: question.id, category })),
         skipDuplicates: true,
+      });
+      // The config says EVERY name in these categories asks it — the same statement a global
+      // add makes — so an opt-in row it lists becomes ordinary.
+      await prisma.questionLoanCategory.updateMany({
+        where: { questionId: question.id, category: { in: askedBy }, optIn: true },
+        data: { optIn: false },
       });
     }
   }
@@ -2555,14 +2564,19 @@ async function publishVersion(): Promise<void> {
       // (pre-v12 compatibility in `askedFor`), so `GET /v1/questionnaire?
       // category=car` served the whole 38-question pool — every mortgage and
       // business question included — to a car applicant.
-      const categories = (
-        await prisma.questionLoanCategory.findMany({
-          where: { questionId: q.id },
-          orderBy: { category: 'asc' },
-        })
-      ).map((c) => c.category);
+      //
+      // OPT-IN rows (a program name's "ask this too") are frozen apart, as `optInCategories` —
+      // the shared `frozenCategories`, so this and the service cannot drift on it.
+      const assigned = await prisma.questionLoanCategory.findMany({
+        where: { questionId: q.id },
+        orderBy: { category: 'asc' },
+      });
+      const frozen = frozenCategories(
+        assigned.map((c) => c.category),
+        assigned.filter((c) => c.optIn).map((c) => c.category),
+      );
       qOut.push({
-        code: q.code, type: q.type, categories, questionAr: q.questionAr, questionEn: q.questionEn,
+        code: q.code, type: q.type, ...frozen, questionAr: q.questionAr, questionEn: q.questionEn,
         helperTextAr: q.helperTextAr, helperTextEn: q.helperTextEn, isRequired: q.isRequired,
         displayOrder: q.displayOrder, enabledWhen: q.enabledWhen ?? null,
         // Feature 010 — rule blocks, emitted only for the type that owns them.

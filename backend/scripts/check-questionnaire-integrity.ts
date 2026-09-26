@@ -27,6 +27,13 @@
  *   6. NO DEAD CONDITION — a product condition whose allow-list accepts every answer refuses
  *      nobody, and still forces the question on every applicant. The car product had four.
  *   7. FACT ⇒ QUESTION — an active fact is bound to an active question.
+ *   8. ADDITIONS HAVE A ROW — every question a program name ADDS is active, sits in that loan
+ *      type (ordinary or opt-in), under a name offered in it, and is not also one the name
+ *      SKIPS. An addition without its row asks nothing and looks like a choice that still works.
+ *
+ * OPT-IN rows (`question_loan_category.optIn`, a program name's "ask this too") count as
+ * assigned for 1, 3 and 4 — they are in the category. 5 compares them with the snapshot's
+ * `optInCategories` and the ordinary rows with its `categories`.
  */
 import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
@@ -50,6 +57,8 @@ interface SnapshotQuestion {
   code: string;
   enabledWhen?: unknown;
   categories?: string[];
+  /** Disjoint from `categories`; absent before opt-in rows existed. */
+  optInCategories?: string[];
 }
 
 function gateSourceOf(enabledWhen: unknown): string | null {
@@ -74,14 +83,22 @@ async function main(): Promise<void> {
     },
   });
   const assignments = await prisma.questionLoanCategory.findMany({
-    select: { questionId: true, category: true },
+    select: { questionId: true, category: true, optIn: true },
   });
   const byId = new Map(questions.map((q) => [q.id, q]));
+  /** Every row — "is it in the category at all". */
   const categoriesOf = new Map<string, Set<LoanCategory>>();
-  for (const q of questions) categoriesOf.set(q.code, new Set());
+  /** The opt-in subset, for 5. */
+  const optInOf = new Map<string, Set<LoanCategory>>();
+  for (const q of questions) {
+    categoriesOf.set(q.code, new Set());
+    optInOf.set(q.code, new Set());
+  }
   for (const a of assignments) {
     const q = byId.get(a.questionId);
-    if (q) categoriesOf.get(q.code)!.add(a.category);
+    if (!q) continue;
+    categoriesOf.get(q.code)!.add(a.category);
+    if (a.optIn) optInOf.get(q.code)!.add(a.category);
   }
 
   // 1. DEBTS CLOSED
@@ -126,10 +143,22 @@ async function main(): Promise<void> {
   const inSnapshot = new Set<string>();
   for (const sq of snapshotQuestions) {
     inSnapshot.add(sq.code);
-    const live = [...(categoriesOf.get(sq.code) ?? [])].sort().join(',');
+    const optIn = optInOf.get(sq.code) ?? new Set<LoanCategory>();
+    const live = [...(categoriesOf.get(sq.code) ?? [])]
+      .filter((c) => !optIn.has(c))
+      .sort()
+      .join(',');
     const frozen = Array.isArray(sq.categories) ? [...sq.categories].sort().join(',') : '(all)';
     if (live !== frozen) {
       add('5 snapshot = live', `${sq.code}: published [${frozen}], live [${live}] — publish`);
+    }
+    const liveOptIn = [...optIn].sort().join(',');
+    const frozenOptIn = [...(sq.optInCategories ?? [])].sort().join(',');
+    if (liveOptIn !== frozenOptIn) {
+      add(
+        '5 snapshot = live',
+        `${sq.code}: published opt-in [${frozenOptIn}], live opt-in [${liveOptIn}] — publish`,
+      );
     }
   }
   for (const q of questions) {
@@ -151,15 +180,21 @@ async function main(): Promise<void> {
   ];
   for (const { programNameKey, productCategory } of offered) {
     if (programNameKey === null) continue;
+    const isOptIn = (q: SnapshotQuestion): boolean =>
+      q.optInCategories?.includes(productCategory) === true;
     const inCategory = snapshotQuestions.filter(
-      (q) => !Array.isArray(q.categories) || q.categories.includes(productCategory),
+      (q) => !Array.isArray(q.categories) || q.categories.includes(productCategory) || isOptIn(q),
     );
-    const scope = await repo.narrowingScopeFor(programNameKey);
+    const scope = await repo.narrowingScopeFor(programNameKey, productCategory);
     const decision = narrowAskedQuestions(
-      inCategory.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen ?? null })),
+      inCategory.map((q) => ({
+        code: q.code,
+        enabledWhen: q.enabledWhen ?? null,
+        optIn: isOptIn(q),
+      })),
       scope,
     );
-    const served = decision.narrowed ? decision.keep : new Set(inCategory.map((q) => q.code));
+    const served = decision.keep;
     for (const code of mustServe) {
       const assigned = inCategory.some((q) => q.code === code);
       if (assigned && !served.has(code)) {
@@ -210,9 +245,43 @@ async function main(): Promise<void> {
     if (!q || !q.isActive) add('7 fact ⇒ question', `${f.key}: active fact, bound question inactive`);
   }
 
+  // 8. ADDITIONS HAVE A ROW
+  const additions = await prisma.programNameQuestionAddition.findMany({
+    select: {
+      enumerationId: true,
+      category: true,
+      questionId: true,
+      enumeration: {
+        select: { key: true, loanCategories: { select: { category: true } } },
+      },
+    },
+  });
+  const exclusions = new Set(
+    (
+      await prisma.programNameQuestionExclusion.findMany({
+        select: { enumerationId: true, category: true, questionId: true },
+      })
+    ).map((row) => `${row.enumerationId}|${row.category}|${row.questionId}`),
+  );
+  for (const a of additions) {
+    const q = byId.get(a.questionId);
+    const where = `${a.category}/${a.enumeration.key}`;
+    if (!q) continue; // the FK cascades a deleted question's rows away
+    if (!q.isActive) add('8 additions have a row', `${where}: adds ${q.code}, which is switched off`);
+    if (!categoriesOf.get(q.code)?.has(a.category)) {
+      add('8 additions have a row', `${where}: adds ${q.code}, not in ${a.category} at all`);
+    }
+    if (!a.enumeration.loanCategories.some((c) => c.category === a.category)) {
+      add('8 additions have a row', `${where}: the name is not offered under ${a.category}`);
+    }
+    if (exclusions.has(`${a.enumerationId}|${a.category}|${a.questionId}`)) {
+      add('8 additions have a row', `${where}: ${q.code} is both added and skipped`);
+    }
+  }
+
   console.log('\n[check:questionnaire-integrity]\n');
   if (violations.length === 0) {
-    console.log('  clean — all seven invariants hold.');
+    console.log('  clean — all eight invariants hold.');
   } else {
     for (const v of violations) console.log(`  ✗ [${v.invariant}] ${v.detail}`);
     console.log(`\n  ${violations.length} violation(s).`);

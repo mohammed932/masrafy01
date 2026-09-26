@@ -185,6 +185,41 @@ export class SetEnumerationIncomeBasisDto {
 }
 
 /**
+ * Replace the questions one program name skips under one loan type. The array IS the new set
+ * and MAY be empty — that is "ask this name everything its loan type asks" again.
+ */
+export class SetProgramNameQuestionExclusionsDto {
+  @ApiProperty({ enum: LoanCategory })
+  @IsEnum(LoanCategory)
+  category!: LoanCategory;
+
+  @ApiProperty({ type: [String], maxItems: 500 })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @Length(1, 30, { each: true })
+  questionIds!: string[];
+}
+
+/**
+ * Replace the questions one program name ADDS under one loan type — asked of its applicants
+ * although the loan type does not ask them of every name. The array IS the new set and MAY be
+ * empty ("ask only what the loan type asks" again). The mirror of the exclusions DTO.
+ */
+export class SetProgramNameQuestionAdditionsDto {
+  @ApiProperty({ enum: LoanCategory })
+  @IsEnum(LoanCategory)
+  category!: LoanCategory;
+
+  @ApiProperty({ type: [String], maxItems: 500 })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @Length(1, 30, { each: true })
+  questionIds!: string[];
+}
+
+/**
  * Replace one catalog entry's loan-category assignment. The submitted array IS
  * the new set, not a delta, and MAY be empty — an empty set PARKS the entry:
  * kept and editable, offerable under no category.

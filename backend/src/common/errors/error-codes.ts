@@ -85,6 +85,19 @@ export const ERROR_CODES = {
   /** Loan categories were submitted for an enumeration type that has no such axis. */
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 'ENUMERATION_CATEGORIES_NOT_APPLICABLE',
   /**
+   * A program name may not skip this question: every quote reads it, or a bank program under
+   * the name does (`questionLockReason`). `meta: { questionId, code, reason: 'engine' | 'program' }`.
+   */
+  QUESTION_EXCLUSION_LOCKED: 'QUESTION_EXCLUSION_LOCKED',
+  /**
+   * A program name may not ADD this question for its own applicants: every quote reads it (the
+   * money bindings, the debts, employment type, a platform-owned fact such as I-Score or the car
+   * figures), so whether it is asked is the loan type's call, on `/questionnaire/categories`.
+   * Also raised when a picked question's gate source is one of those.
+   * `meta: { questionId, code }`.
+   */
+  QUESTION_ADDITION_LOCKED: 'QUESTION_ADDITION_LOCKED',
+  /**
    * An income basis was submitted for a (name, loan category) pair that is not
    * assigned — the name is not offered under that loan type, so there is nothing
    * there to describe.
@@ -1110,6 +1123,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_KEY_DUPLICATE: 409,
   ENUMERATION_SYSTEM_ONLY: 403,
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 422,
+  QUESTION_EXCLUSION_LOCKED: 422,
+  QUESTION_ADDITION_LOCKED: 422,
   ENUMERATION_CATEGORY_NOT_ASSIGNED: 422,
   ENUMERATION_QUESTION_UNKNOWN: 422,
   ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE: 422,

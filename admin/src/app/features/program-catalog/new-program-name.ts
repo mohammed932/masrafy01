@@ -18,71 +18,34 @@ export const RESERVED_NAME_KEYS: ReadonlySet<string> = new Set(['new', 'products
  * The decisions behind "add a program name", separated from the screen that asks them.
  *
  * WHY A MODULE OF ITS OWN. Several of the things here are only wrong in states a component
- * test cannot reach: which steps exist for which income basis, what a RETRY does after the
- * first of two writes has already landed, and what the second write's body is. All of it is
- * pure, and none of it is exercisable through a form.
+ * test cannot reach: what a RETRY does after the first of two writes has already landed, and
+ * what the second write's body is. All of it is pure, and none of it is exercisable through a
+ * form.
  *
  * THE FLOW IS WHAT A NAME NEEDS TO BE SELLABLE, in the order the decisions depend on each
- * other: what it is (type + name) · where the figure comes from (surrogate only) · which loan
- * types it is offered under · what those loan types' applicants are asked. It used to stop
- * after the second of those, and a name was born PARKED — offered nowhere, pickable by no
- * bank — with the rest of the setup on two other screens in two other sections.
+ * other: what it is called · which loan types it is offered under · what those loan types'
+ * applicants are asked. It used to stop before the loan types, and a name was born PARKED —
+ * offered nowhere, pickable by no bank — with the rest of the setup on two other screens in
+ * two other sections.
  *
- * THE BASIS LEADS, and that order is load-bearing rather than cosmetic: it decides whether
- * there is a calculation step at all. It shares a step with the labels because on its own it
- * was two cards and nothing else, and the labels were two fields and nothing else — two
- * screens for four fields, one of which the board's own chip had usually already answered.
+ * INCOME PROOF ONLY (v30.8.0). The flow used to open on a second question — how does the bank
+ * prove the income? — and a Surrogate answer grew a step that linked the new name to one of
+ * the platform's calculations. That door is closed rather than pre-answered: a surrogate
+ * program is not something an operator assembles. Each one carries its own questions and its
+ * own equation for the income, both written in code, and the names that sell them are put in
+ * with them by the seeds (`seed:blueprints`, the catalog seed, `seed:sheet-figures`). A name
+ * made here is sold against a payslip, so there is no basis to ask and no calculation to pick.
  */
 
 /**
- * Which product a surrogate name takes its calculation from.
- *
- * ONE VARIANT, because there is one answer: a product that exists. This screen used to be
- * able to MAKE one on the way through — a `{kind:'new'}` carrying the ways and two more
- * labels — and that door is closed: the eleven predefined products are put in by
- * `npm run seed:blueprints`, and an operator's decision about a product is whether it is
- * switched on. A wrapper object rather than a bare string, kept deliberately: `null` is
- * "unanswered" and `{key:''}` is "the picker is open with nothing chosen", and collapsing
- * the two is how an unanswered step comes to read as answered.
+ * The steps, in order — a FIXED list. The one conditional step (`calculation`, walked only by
+ * a surrogate name) went with the Surrogate answer.
  */
-export type ProductChoice = { readonly kind: 'existing'; readonly key: string };
+export type NewNameStepId = 'program' | 'offered' | 'asks';
 
-/**
- * The steps, in canonical order. `calculation` is the only conditional one.
- *
- * A CONDITIONAL LIST, where this screen used to insist on a fixed one. The old argument —
- * "a hidden step makes the two paths different LENGTHS, which is the inconsistency this
- * screen exists to remove" — was written when the payslip branch of that step had a FACT to
- * state ("the bank reads the payslip"). It has no decision and no control, so as a step it
- * was a screen that could not be answered, could not be wrong, and could not be skipped. The
- * fact survives as a line on step ①, beside the card that states it. The bank-program wizard
- * reached the same conclusion first and ships a `calculation` step that exists iff the
- * program is surrogate; the two now read the same.
- */
-export type NewNameStepId = 'program' | 'calculation' | 'offered' | 'asks';
+export const NEW_NAME_STEP_ORDER: readonly NewNameStepId[] = ['program', 'offered', 'asks'];
 
-export const NEW_NAME_STEP_ORDER: readonly NewNameStepId[] = [
-  'program',
-  'calculation',
-  'offered',
-  'asks',
-];
-
-/**
- * The steps a name of this basis walks.
- *
- * An UNANSWERED basis walks the PAYSLIP list, one rule in one direction: an unanswered basis
- * already plans the payslip write in `savePlan`, so the rail GROWS 3 → 4 when the operator
- * picks no-payslip. It can only grow while they are standing on `program`, which is the one
- * id present in both lists, so the reshape moves nobody.
- */
-export function newNameStepIds(basis: IncomeBasis | null): readonly NewNameStepId[] {
-  return basis === 'no_payslip'
-    ? NEW_NAME_STEP_ORDER
-    : NEW_NAME_STEP_ORDER.filter((id) => id !== 'calculation');
-}
-
-/** The position of `id` in that basis's list, or `-1`. */
+/** The position of `id` in the list, or `-1`. */
 export function stepIndexOf(ids: readonly NewNameStepId[], id: NewNameStepId): number {
   return ids.indexOf(id);
 }
@@ -90,8 +53,7 @@ export function stepIndexOf(ids: readonly NewNameStepId[], id: NewNameStepId): n
 /**
  * The step at that position, clamped into range — never `undefined`.
  *
- * What a pasted `?step=9` resolves to, and what keeps the page's own index arithmetic honest
- * when the list is one shorter than the operator's last visit.
+ * What a pasted `?step=9` resolves to.
  */
 export function stepIdAt(ids: readonly NewNameStepId[], index: number): NewNameStepId {
   const at = Math.min(Math.max(index, 0), ids.length - 1);
@@ -112,13 +74,6 @@ export interface NewNameDraft {
   readonly labelEn: string;
   readonly labelAr: string;
   /**
-   * `null` is the UNANSWERED state and is deliberately reachable: a pre-answered question
-   * reads as skippable, and the two bases are peers. Seeded from the board's `?basis=` chip
-   * when there is one.
-   */
-  readonly basis: IncomeBasis | null;
-  readonly product: ProductChoice | null;
-  /**
    * The loan types the name is offered under, written in the SAME insert as the row itself.
    *
    * REQUIRED here, where the server still accepts none. A name offered under nothing is a
@@ -137,25 +92,21 @@ export interface NewNameDraft {
  * `$localize` does not exist — and because the page is the thing that knows how much room the
  * action bar has. The page owns the words; this owns the rule.
  */
-export type NewNameBlock = 'labels' | 'labels_key' | 'basis' | 'product' | 'offered' | 'core' | null;
+export type NewNameBlock = 'labels' | 'labels_key' | 'offered' | 'core' | null;
 
 /**
  * The first unanswered thing, in step order.
  *
  * In STEP ORDER and not by severity: the action bar names one reason, and naming the last of
- * four missing answers sends the operator to the end of a form they have not started.
+ * three missing answers sends the operator to the end of a form they have not started.
  */
 export function blockReason(draft: NewNameDraft): NewNameBlock {
-  // The basis leads because the FORM leads with it, and because it decides whether there is
-  // a calculation step at all.
-  if (draft.basis === null) return 'basis';
   if (draft.labelEn.trim() === '' || draft.labelAr.trim() === '') return 'labels';
   // The key is minted from the English label, so a label with no latin letter or digit slugs
   // to the empty string and the server refuses it as VALIDATION_FAILED. Caught HERE, before
   // the click: the drawer this screen replaces only discovered it after Save, which reports a
   // field the operator did fill in.
   if (slugify(draft.labelEn) === '') return 'labels_key';
-  if (draft.basis === 'no_payslip' && !productSettled(draft)) return 'product';
   if (draft.offered.length === 0) return 'offered';
   // Adding NOTHING is still a real answer (the loan types already ask what they ask) — but a
   // personal, car or mortgage loan type that does not ask what the quote reads cannot be
@@ -178,15 +129,10 @@ export function blockReason(draft: NewNameDraft): NewNameBlock {
 export function stepBlock(draft: NewNameDraft, step: NewNameStepId): NewNameBlock {
   switch (step) {
     case 'program':
-      // Three answers on one step, reported in the order they are read down the page: the
-      // type card sits above the two label fields.
-      if (draft.basis === null) return 'basis';
+      // Reported in the order they are read: both labels, then whether the English one can
+      // become a key.
       if (draft.labelEn.trim() === '' || draft.labelAr.trim() === '') return 'labels';
       return slugify(draft.labelEn) === '' ? 'labels_key' : null;
-    case 'calculation':
-      // Unreachable on a payslip name — that list carries no such step — so this arm only
-      // ever answers for the surrogate branch. Stated rather than left to fall through.
-      return draft.basis === 'no_payslip' && !productSettled(draft) ? 'product' : null;
     case 'offered':
       return draft.offered.length === 0 ? 'offered' : null;
     case 'asks':
@@ -212,20 +158,6 @@ export function barBlock(
 ): NewNameBlock {
   if (isLastStep(ids, step)) return blockReason(draft);
   return stepBlock(draft, step);
-  // No "somewhere to land" clause. There used to be one, because the basis sat on a step the
-  // operator could walk PAST; it now sits on the first step and `stepBlock('program')` gates
-  // every forward move, so the clause guarded nothing. Deleting it is the change.
-}
-
-/**
- * Whether the calculation step has an answer the server would accept.
- *
- * `{key:''}` is NOT settled: the picker is on screen with nothing chosen, and the server
- * would refuse it (`SURROGATE_PRODUCT_REQUIRED`) after the click rather than before it.
- */
-export function productSettled(draft: NewNameDraft): boolean {
-  const choice = draft.product;
-  return choice !== null && choice.key !== '';
 }
 
 /** Whether a step is answered, and whether it can be opened at all. */
@@ -237,13 +169,13 @@ export interface NewNameStepState {
 /**
  * The rail, per step id.
  *
- * A total `Record` and not a positional tuple: the list is conditional now, so an index means
- * different things on the two paths, and `calculation` has to be able to carry a status even
- * on a walk that does not include it.
+ * A total `Record` and not a positional tuple, so a status is looked up by the step it belongs
+ * to rather than by where that step happens to sit.
  *
- * Only `program` is ever reachable before the basis is answered. The name does not depend on
- * the basis — locking the labels behind it would turn a reorder into a gate and stop an
- * operator jotting down the labels they came here with — but everything after it does.
+ * Nothing is ever `disabled`. Every later step used to wait for the income basis, because the
+ * basis decided whether a calculation step existed at all; with one basis there is nothing to
+ * wait for. The labels gate nothing either — locking the loan types behind them would turn an
+ * order into a gate and stop an operator setting up the parts they came here with.
  *
  * Nothing here is ever `invalid`. `invalid` means the operator entered something wrong; every
  * state this form can be in is merely unfinished, and painting an untouched step red on
@@ -258,26 +190,23 @@ export function stepStatuses(
 ): Readonly<Record<NewNameStepId, NewNameStepState>> {
   const named =
     draft.labelEn.trim() !== '' && draft.labelAr.trim() !== '' && slugify(draft.labelEn) !== '';
-  const blind = draft.basis === null;
   return {
-    program: { status: !blind && named ? 'done' : 'todo', disabled: false },
-    calculation: { status: productSettled(draft) ? 'done' : 'todo', disabled: blind },
-    offered: { status: draft.offered.length > 0 ? 'done' : 'todo', disabled: blind },
+    program: { status: named ? 'done' : 'todo', disabled: false },
+    offered: { status: draft.offered.length > 0 ? 'done' : 'todo', disabled: false },
     asks: {
       status: draft.offered.length > 0 && (draft.coreMissing ?? 0) === 0 ? 'done' : 'todo',
-      disabled: blind,
+      disabled: false,
     },
   };
 }
 
-/** How the name links to a calculation, once the draft is settled. */
-export type PlannedLink =
-  /** Payslip: the bank reads the payslip and the name states no calculation. */
-  { readonly kind: 'none' } | { readonly kind: 'existing'; readonly key: string };
-
 export interface SavePlan {
+  /**
+   * Always `['payslip']`, and sent anyway rather than left to the server's default: it is what
+   * the server writes as each category row's own basis flags, and a create leaning on a
+   * default would change meaning the day the default did.
+   */
   readonly incomeBases: readonly IncomeBasis[];
-  readonly link: PlannedLink;
   /** Canonically ordered, so one set always serialises one way. */
   readonly categories: readonly LoanCategory[];
 }
@@ -285,26 +214,11 @@ export interface SavePlan {
 /**
  * What the first write says. ONE write for the name, its loan types AND their income basis.
  *
- * Still a plan rather than a call, and still worth its own module for one rule that only
- * fails silently: a PAYSLIP name must send `surrogateProductKey` ABSENT — never `''` and
- * never `null`. `''` is refused by the DTO and `null` means UNLINK on a patch, so a screen
- * that sent either would either fail on a name that is fine or quietly unlink one that is
- * not. `link: {kind:'none'}` is what carries that, and the page omits the field on it.
- *
- * `incomeBases` is load-bearing twice over: it is what `SURROGATE_PRODUCT_REQUIRED` reads on
- * the way in, and it is what the server writes as each category row's own basis flags. Send
- * it on every plan.
+ * No product link — and not an empty one: `surrogateProductKey` is ABSENT from every create
+ * this screen sends. `''` is refused by the DTO and `null` means UNLINK on a patch, so a body
+ * carrying either would fail on a name that is fine or say something nobody meant; with the
+ * Surrogate answer gone there is nothing it could carry anyway.
  */
 export function savePlan(draft: NewNameDraft): SavePlan {
-  const categories = canonicalCategories([...draft.offered]);
-  if (draft.basis !== 'no_payslip') {
-    return { incomeBases: ['payslip'], link: { kind: 'none' }, categories };
-  }
-  return {
-    incomeBases: ['no_payslip'],
-    // `blockReason` refuses an unsettled draft before this is ever reached, so the empty
-    // key is unreachable rather than a silent default.
-    link: { kind: 'existing', key: draft.product?.key ?? '' },
-    categories,
-  };
+  return { incomeBases: ['payslip'], categories: canonicalCategories([...draft.offered]) };
 }

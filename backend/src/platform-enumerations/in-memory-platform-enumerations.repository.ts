@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import type { IScoreTiers } from '@/matching/pipeline/iscore';
+import type { QuestionLockScope } from '@/questionnaire/validation/question-scope';
 import {
   EnumerationMember,
   EnumerationType,
@@ -125,6 +126,33 @@ export class InMemoryPlatformEnumerationsRepository
    */
   async narrowingScopeFor(): Promise<null> {
     return null;
+  }
+
+  /** No registry, no programmes: only the engine's own inputs lock. */
+  async questionLockScopeFor(): Promise<QuestionLockScope> {
+    return { platformQuestionCodes: [] };
+  }
+
+  async questionExclusions(): Promise<readonly string[]> {
+    return [];
+  }
+
+  async replaceQuestionExclusions(): Promise<null> {
+    return null;
+  }
+
+  async questionAdditions(): Promise<readonly string[]> {
+    return [];
+  }
+
+  async replaceQuestionAdditions(): Promise<null> {
+    return null;
+  }
+
+  async questionAdditionCounts(): Promise<
+    ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
+  > {
+    return new Map();
   }
 
   async enumerationParentKeys(): Promise<Readonly<Record<string, string>>> {

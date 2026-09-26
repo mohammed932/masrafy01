@@ -69,6 +69,8 @@
   "ENUMERATION_BULK_CREATE_NOT_APPLICABLE": "Values of this list cannot be pasted in — they carry settings a pasted line has no column for. Add them one at a time.",
   "ENUMERATION_CREATE_NOT_APPLICABLE": "Values of that kind are set up by the platform, not added here. The predefined no-payslip products and the facts they read come from the product library.",
   "ENUMERATION_CATEGORIES_NOT_APPLICABLE": "This kind of reference value is not assigned to loan types.",
+  "QUESTION_EXCLUSION_LOCKED": "This question cannot be skipped for this program: the loan amount is worked out from its answer.",
+  "QUESTION_ADDITION_LOCKED": "This question is asked for the whole loan type, not per program: every quote reads its answer. Set it on Questionnaire → Categories.",
   "ENUMERATION_CATEGORY_NOT_ASSIGNED": "This name is not offered under this loan type yet, so there is nothing to describe here. Turn the loan type on first.",
   "ENUMERATION_QUESTION_UNKNOWN": "Some of the selected questions no longer exist. Reload the page and try again.",
   "ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE": "This kind of reference value is not answered by a question.",

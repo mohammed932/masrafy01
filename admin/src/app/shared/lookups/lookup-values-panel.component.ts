@@ -303,14 +303,14 @@ export class LookupValuesPanelComponent {
   }
 
   protected openCreate(): void {
-    // A catalog program name is not a value with a label: it states how its income is proved
-    // and, on one of those two answers, which calculation it quotes from — which is a screen,
-    // not a sheet, and it is `/program-catalog/new`.
+    // A catalog program name is not a value with a label: it is born offered under its loan
+    // types, with what their applicants are asked — which is a screen, not a sheet, and it is
+    // `/program-catalog/new`.
     //
     // This panel can genuinely reach `program_name`: it is off the values rail
     // (`onValuesRail: false`), but `retiredDefs()` is deliberately "retired OR off the rail",
-    // so "Show retired lists" surfaces it. Without this branch that door opens a form with no
-    // basis question at all and silently mints a payslip name.
+    // so "Show retired lists" surfaces it. Without this branch that door opens a sheet that
+    // silently mints a name offered under nothing, which no bank can pick.
     if (this.type() === PROGRAM_NAME_TYPE) {
       void this.router.navigate([CATALOG_NEW]);
       return;

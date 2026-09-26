@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
-import 'package:app/core/utils/masrafy_assets.dart';
 import 'package:app/core/widgets/buttons/masrafy_primary_button.dart';
-import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
+import 'package:app/core/widgets/input_controls/masrafy_sheet_search_field.dart';
 
 /// Shared multi-select bottom sheet (Figma `3391:127892`). Returns the
 /// selected list when the user taps the apply button (Save by default),
@@ -15,8 +13,8 @@ import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 /// Visual:
 /// - Header (76h): centered 44×4 `#DEDEDE` drag handle → 24h gap →
 ///   centered title (14sp semibold) → 0.75px `#DEDEDE` bottom divider.
-/// - Content (px16/py24, gap 24h): optional bordered search input with
-///   16r magnifier SVG, then a checkbox list with thin `#DEDEDE`
+/// - Content (px16/py16, gap 8h): optional [MasrafySheetSearchField],
+///   then a checkbox list with thin `#DEDEDE`
 ///   separators between rows.
 /// - Footer (px24/py22, top 0.75px `#DEDEDE`): text [cancelLabel] +
 ///   primary [applyLabel] (filled r24 from `MasrafyPrimaryButton`).
@@ -230,9 +228,9 @@ class _Header extends StatelessWidget {
                 Text(
                   title,
                   style: texts.body.semiBold().copyWith(
-                    color: colors.text.heading,
-                    height: 1.0,
-                  ),
+                        color: colors.text.heading,
+                        height: 1.0,
+                      ),
                 ),
               ],
             ),
@@ -279,14 +277,15 @@ class _Content<T> extends StatelessWidget {
     // Outer container px-16 py-24, gap-24 between search and list
     // (Figma `3391:127893`).
     return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 24.h),
+      padding: EdgeInsets.fromLTRB(16.w, showSearch ? 16.h : 24.h, 16.w, 24.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           if (showSearch) ...[
-            _SearchField(controller: searchCtrl, hint: searchHint),
-            Gap(24.h),
+            MasrafySheetSearchField(controller: searchCtrl, hint: searchHint),
+            // Rows carry their own 19h inset, so a small gap is enough.
+            Gap(8.h),
           ],
           Flexible(
             child: rows.isEmpty
@@ -296,8 +295,8 @@ class _Content<T> extends StatelessWidget {
                       child: Text(
                         emptyMessage,
                         style: texts.body.regular().copyWith(
-                          color: colors.text.secondary,
-                        ),
+                              color: colors.text.secondary,
+                            ),
                       ),
                     ),
                   )
@@ -324,63 +323,6 @@ class _Content<T> extends StatelessWidget {
                       );
                     },
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.hint});
-
-  final TextEditingController controller;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final texts = MasrafyTextTheme.of(context);
-
-    return Container(
-      height: 40.r,
-      padding: EdgeInsets.symmetric(horizontal: 11.w),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(
-          color: colors.border.field,
-          width: MasrafyFieldMetrics.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Row(
-        children: [
-          SvgPicture.asset(
-            MasrafyAssets.kNotifSearch,
-            width: 16.r,
-            height: 16.r,
-            colorFilter: ColorFilter.mode(
-              colors.text.secondary,
-              BlendMode.srcIn,
-            ),
-          ),
-          Gap(4.w),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: texts.bodyLarge.regular().copyWith(
-                color: colors.text.heading,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                hintText: hint,
-                hintStyle: texts.bodyLarge.regular().copyWith(
-                  color: Colors.white.withValues(alpha: 0.25),
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -450,8 +392,8 @@ class _Checkbox extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
     final fill = isSelected
         ? (isLocked
-              ? colors.primary.main.withValues(alpha: 0.4)
-              : colors.primary.main)
+            ? colors.primary.main.withValues(alpha: 0.4)
+            : colors.primary.main)
         : Colors.transparent;
     final borderColor = isSelected ? fill : colors.border.main;
 
@@ -506,8 +448,8 @@ class _Footer extends StatelessWidget {
                   child: Text(
                     cancelLabel,
                     style: texts.bodyLarge.regular().copyWith(
-                      color: colors.text.heading,
-                    ),
+                          color: colors.text.heading,
+                        ),
                   ),
                 ),
               ),

@@ -691,6 +691,7 @@
   "q_common_save": "حفظ",
   "q_common_cancel": "إلغاء",
   "q_common_search": "بحث",
+  "q_common_search_hint": "ابحث في الخيارات…",
   "q_mortgage_title": "طلب تمويل عقاري",
   "q_mortgage_subtitle": "سنطابقك مع البنوك المتخصصة في احتياجاتك",
   "q_mortgage_next": "التالي",
@@ -1091,22 +1092,17 @@
       }
     }
   },
-  "results_unavailable_section": "غير متاح لك حاليًا",
-  "@results_unavailable_section": {
-    "description": "Heading above the checked-but-not-quotable programs"
+  "results_no_offer_fix_title": "ما الذي يمكنك تعديله",
+  "@results_no_offer_fix_title": {
+    "description": "Heading above the reasons no bank made an offer"
   },
-  "results_unavailable_badge": "لا يوجد عرض من هذا البنك",
-  "@results_unavailable_badge": {
-    "description": "Badge on an unavailable program card"
+  "results_no_offer_body": "إليك ما منع البنوك من تقديم عرض لك. عدّل هذه الإجابات وحاول مرة أخرى.",
+  "@results_no_offer_body": {
+    "description": "Shown when no bank made an offer, above the list of reasons the applicant can fix"
   },
   "results_unavailable_generic": "تعذّر على هذا البنك تقديم عرض لك حاليًا.",
   "@results_unavailable_generic": {
     "description": "Fallback for an unrecognised figures-unavailable reason code"
-  },
-  "results_unavailable_ceiling": "يمكنك الاقتراض حتى {amount} جنيه من هذا البنك.",
-  "@results_unavailable_ceiling": {
-    "description": "The applicant's ceiling at an unavailable program",
-    "placeholders": { "amount": { "type": "String" } }
   },
   "results_rate": "الفائدة",
   "results_monthly": "شهريًا",

@@ -17,6 +17,7 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import {
   ArrowDownOutline,
@@ -398,8 +399,9 @@ interface DanglingBranch {
                           class="qcard"
                           role="checkbox"
                           [class.on]="has(q, active())"
+                          [class.some]="optIn(q, active())"
                           [class.landed]="justMoved() === q.id"
-                          [attr.aria-checked]="has(q, active())"
+                          [attr.aria-checked]="optIn(q, active()) ? 'mixed' : has(q, active())"
                           [attr.aria-label]="cellLabel(q, active())"
                           [attr.aria-busy]="saving().has(q.id) || busy()"
                           (click)="toggle(q, active())"
@@ -421,6 +423,10 @@ interface DanglingBranch {
                             @if (q.categories.length === 0) {
                               <span class="row-meta">
                                 <span class="parked-tag" i18n="@@qcat.parked_tag">Parked</span>
+                              </span>
+                            } @else if (optIn(q, active())) {
+                              <span class="row-meta">
+                                <span class="optin-tag">{{ optInText(q, active()) }}</span>
                               </span>
                             }
                           </span>
@@ -1041,6 +1047,20 @@ interface DanglingBranch {
       .qcard[aria-busy='true'] .tick-box {
         opacity: 0.55;
       }
+      /* OPT-IN: in the loan type only for the program names that add it. Half a tick — the
+         box outlined in the accent with a bar, never the filled "asked of everyone" box. */
+      .qcard.some .tick-box {
+        border-color: var(--qc-accent);
+        box-shadow: inset 0 0 0 4px var(--qc-surface);
+        background: color-mix(in srgb, var(--qc-accent) 55%, var(--qc-surface));
+      }
+      .optin-tag {
+        padding: 1px 8px;
+        border-radius: var(--radius-pill, 999px);
+        background: color-mix(in srgb, var(--qc-accent) 12%, transparent);
+        color: var(--qc-accent);
+        font-weight: 600;
+      }
       .tick-icon {
         font-size: 12px;
         line-height: 1;
@@ -1122,6 +1142,7 @@ interface DanglingBranch {
 })
 export class QuestionCategoriesPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
+  private readonly modal = inject(NzModalService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -1197,7 +1218,7 @@ export class QuestionCategoriesPage implements OnInit {
   readonly asked = computed(() => {
     const category = this.active();
     return this.visible()
-      .filter((q) => this.has(q, category))
+      .filter((q) => this.inCategory(q, category))
       .sort(
         (a, b) =>
           this.positionIn(a, category) - this.positionIn(b, category) ||
@@ -1239,7 +1260,9 @@ export class QuestionCategoriesPage implements OnInit {
    * which is a move the operator can still reason about.
    */
   readonly reorderable = computed(() => !this.filtering() && !this.busy());
-  readonly notAsked = computed(() => this.visible().filter((q) => !this.has(q, this.active())));
+  readonly notAsked = computed(() =>
+    this.visible().filter((q) => !this.inCategory(q, this.active())),
+  );
 
   /**
    * The panel's two lists. A pair rather than two blocks in the template so the
@@ -1337,13 +1360,37 @@ export class QuestionCategoriesPage implements OnInit {
     return this.isAr ? q.questionAr : q.questionEn;
   }
 
+  /** Asked of EVERY applicant of the category — an ordinary row. */
   has(q: QuestionRow, category: LoanCategory): boolean {
+    return q.categories.includes(category) && !this.optIn(q, category);
+  }
+
+  /**
+   * In the category only for the program names that ADD it — an opt-in row, written from a
+   * name's own questions step. Drawn half-ticked: it is there, but not asked of everyone.
+   */
+  optIn(q: QuestionRow, category: LoanCategory): boolean {
+    return (q.optInCategories ?? []).includes(category);
+  }
+
+  /** Any row at all — what the order list and the whole-set reorder must carry. */
+  private inCategory(q: QuestionRow, category: LoanCategory): boolean {
     return q.categories.includes(category);
   }
 
-  /** How many questions in the WHOLE pool a category asks (tab counts). */
+  /** The ordinary set — what the category write replaces; opt-in rows ride along server-side. */
+  private ordinaryOf(q: QuestionRow): LoanCategory[] {
+    return q.categories.filter((c) => !this.optIn(q, c));
+  }
+
+  optInText(q: QuestionRow, category: LoanCategory): string {
+    const n = q.addedByNames?.[category] ?? 0;
+    return $localize`:@@qcat.optin_tag:Only programs that add it · ${n}:COUNT:`;
+  }
+
+  /** How many questions in the WHOLE pool a category asks every applicant (tab counts). */
   countOf(category: LoanCategory): number {
-    return this.rows().filter((q) => q.categories.includes(category)).length;
+    return this.rows().filter((q) => this.has(q, category)).length;
   }
 
   /** Share of the pool the open tab asks — the meter's length. */
@@ -1389,18 +1436,50 @@ export class QuestionCategoriesPage implements OnInit {
     // screen-reader user in the middle of the list. The row reports `aria-busy`
     // and stays focusable instead.
     if (this.saving().has(q.id) || this.busy()) return;
-    const before = q.categories;
-    const next = this.has(q, category)
-      ? q.categories.filter((c) => c !== category)
-      : this.canonical([...q.categories, category]);
-    this.patchRow(q.id, next);
+    // An OPT-IN cell asks the question of the names that added it. One click would ask it of
+    // every applicant of the category instead — a different decision, so it is named first.
+    if (this.optIn(q, category)) {
+      const wording = this.wordingOf(q);
+      const cat = this.label(category);
+      const n = q.addedByNames?.[category] ?? 0;
+      this.modal.confirm({
+        nzTitle: $localize`:@@qcat.optin_confirm_title:Ask “${wording}:QUESTION:” of every ${cat}:TYPE: applicant?`,
+        nzContent: $localize`:@@qcat.optin_confirm_body:Today only the programs that added it ask it — ${n}:COUNT: of them. Every ${cat}:TYPE: program will ask it from now on.`,
+        nzOkText: $localize`:@@qcat.optin_confirm_ok:Ask everyone`,
+        nzCancelText: $localize`:@@qcat.optin_confirm_cancel:Leave it`,
+        nzOnOk: () => {
+          void this.write(q, category);
+          return true;
+        },
+      });
+      return;
+    }
+    await this.write(q, category);
+  }
+
+  /**
+   * The flip itself. The body is the ORDINARY set; the server carries every opt-in row over,
+   * turns a listed one ordinary, and keeps an unticked row as opt-in while a program name
+   * still adds it — so the optimistic patch below says the same.
+   */
+  private async write(q: QuestionRow, category: LoanCategory): Promise<void> {
+    const before = { categories: q.categories, optInCategories: q.optInCategories ?? [] };
+    const ordinary = this.ordinaryOf(q);
+    const nextOrdinary = this.has(q, category)
+      ? ordinary.filter((c) => c !== category)
+      : this.canonical([...ordinary, category]);
+    const keptOptIn = before.optInCategories.filter((c) => !nextOrdinary.includes(c));
+    const fallsBack =
+      this.has(q, category) && (q.addedByNames?.[category] ?? 0) > 0 ? [category] : [];
+    const nextOptIn = this.canonical([...keptOptIn, ...fallsBack]);
+    this.patchRow(q.id, this.canonical([...nextOrdinary, ...nextOptIn]), nextOptIn);
     this.markLanded(q.id);
     this.markSaving(q.id, true);
     try {
-      await this.api.setQuestionCategories(q.id, next);
+      await this.api.setQuestionCategories(q.id, nextOrdinary);
     } catch {
       // The toast interceptor already surfaced the typed error (A22).
-      this.patchRow(q.id, [...before]);
+      this.patchRow(q.id, [...before.categories], [...before.optInCategories]);
       await this.load({ quiet: true });
     } finally {
       this.markSaving(q.id, false);
@@ -1418,11 +1497,14 @@ export class QuestionCategoriesPage implements OnInit {
     const changes: QuestionCategoryAssignment[] = [];
     for (const q of this.visible()) {
       if (this.has(q, category) === on) continue;
+      // The ORDINARY set: a program name's opt-in rows ride along on the server, and an opt-in
+      // row this column turns on becomes ordinary like any other tick.
+      const ordinary = this.ordinaryOf(q);
       changes.push({
         questionId: q.id,
         categories: on
-          ? this.canonical([...q.categories, category])
-          : q.categories.filter((c) => c !== category),
+          ? this.canonical([...ordinary, category])
+          : ordinary.filter((c) => c !== category),
       });
     }
     if (changes.length === 0) return;
@@ -1562,8 +1644,14 @@ export class QuestionCategoriesPage implements OnInit {
     }, LAND_ANIMATION_MS);
   }
 
-  private patchRow(id: string, categories: LoanCategory[]): void {
-    this.rows.update((rows) => rows.map((r) => (r.id === id ? { ...r, categories } : r)));
+  private patchRow(id: string, categories: LoanCategory[], optInCategories?: LoanCategory[]): void {
+    this.rows.update((rows) =>
+      rows.map((r) =>
+        r.id === id
+          ? { ...r, categories, ...(optInCategories === undefined ? {} : { optInCategories }) }
+          : r,
+      ),
+    );
   }
 
   private markSaving(id: string, on: boolean): void {

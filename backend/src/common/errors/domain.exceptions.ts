@@ -449,6 +449,20 @@ export class EnumerationCategoriesNotApplicableException extends DomainException
   }
 }
 
+/** A program name tried to skip a question the quote reads (`questionLockReason`). */
+export class QuestionExclusionLockedException extends DomainException {
+  constructor(meta: { questionId: string; code: string; reason: 'engine' | 'program' }) {
+    super(ERROR_CODES.QUESTION_EXCLUSION_LOCKED, meta);
+  }
+}
+
+/** A program name tried to add a question whose asking is the loan type's call (`engine` lock). */
+export class QuestionAdditionLockedException extends DomainException {
+  constructor(meta: { questionId: string; code: string }) {
+    super(ERROR_CODES.QUESTION_ADDITION_LOCKED, meta);
+  }
+}
+
 // NOTE (v25.0.0): `EnumerationQuestionsNotApplicableException` was deleted with the
 // catalog question TEMPLATE. It refused a suggested question set on a type carrying no
 // such axis, and no type carries one now — the rule ceased to exist, so the code went

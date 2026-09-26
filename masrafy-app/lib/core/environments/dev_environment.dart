@@ -1,24 +1,43 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
 import 'base_environment.dart';
 
 class DevEnvironment extends BaseEnvironment {
-  // Android (emulator AND physical device) reaches the host backend over the
-  // host's LAN address: the emulator-only `10.0.2.2` alias doesn't resolve on
-  // physical hardware, and `adb reverse tcp:3000 tcp:3000` never delivers on
-  // this device (the tunnel registers, requests never arrive).
+  // Dev talks to the backend running on the build machine
+  // (`npm run start:dev`, port 3000):
+  // - iOS simulator / desktop / web: `localhost` is the machine itself.
+  // - Android: `MainActivity` answers [resolveHost] — `10.0.2.2` on the
+  //   emulator, and on a physical phone the machine's LAN address, which the
+  //   debug Gradle build captures on every build (`dev_host_ip`). Nothing to
+  //   configure; after switching networks, rebuild.
   //
-  // The default holds the current dev machine's address, but a LAN address dies
-  // the moment either side joins another network ("Network is unreachable"), so
-  // it is overridable without touching this file:
+  // Explicit override, wins over all of the above:
   //
   //   flutter run -t lib/main_dev.dart \
-  //     --dart-define=MASRAFY_API_BASE_URL=http://<host-ip>:3000
-  //
-  // `ipconfig getifaddr en0` prints the host IP to use.
+  //     --dart-define=MASRAFY_API_BASE_URL=http://<host>:3000
+  static const _override = String.fromEnvironment('MASRAFY_API_BASE_URL');
+  static const _channel = MethodChannel('masrafy/dev_host');
+
+  String _host = 'localhost';
+
+  /// Asks the Android side which host reaches the build machine. Call once
+  /// before the first request (done in `configureDependencies`).
+  Future<void> resolveHost() async {
+    if (_override.isNotEmpty || kIsWeb) return;
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      _host = await _channel.invokeMethod<String>('resolve') ?? '10.0.2.2';
+    } on PlatformException {
+      _host = '10.0.2.2';
+    } on MissingPluginException {
+      _host = '10.0.2.2';
+    }
+  }
+
   @override
-  String get baseUrl => const String.fromEnvironment(
-        'MASRAFY_API_BASE_URL',
-        defaultValue: 'http://172.20.10.2:3000',
-      );
+  String get baseUrl =>
+      _override.isNotEmpty ? _override : 'http://$_host:3000';
 
   @override
   bool get isProduction => false;

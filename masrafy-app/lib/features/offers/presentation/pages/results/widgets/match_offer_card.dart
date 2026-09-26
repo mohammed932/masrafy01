@@ -11,11 +11,9 @@ import 'package:app/l10n/generated/app_localizations.dart';
 import '../../../models/match_results_args.dart';
 
 /// A single match card in the offers list (Figma best-match `2040:1304`,
-/// regular `2040:1332`). Leads with the BANK and the program it matched — the
-/// same two lines `UnavailableProgramCard` leads with, so a priced and an
-/// unpriced bank read alike in one list. The top pick is azure-outlined with a
-/// solid CTA; the rest are white with a muted KPI row and an outlined CTA.
-/// Flow-local (Principle XXXII); UI-only.
+/// regular `2040:1332`). Leads with the masked BANK and the loan type + term.
+/// The top pick is azure-outlined with a solid CTA; the rest are white with a
+/// muted KPI row and an outlined CTA. Flow-local (Principle XXXII); UI-only.
 class MatchOfferCard extends StatelessWidget {
   const MatchOfferCard({
     super.key,

@@ -6,6 +6,22 @@ import type { SuccessEnvelope } from '@core/auth/auth.types';
 import type { LoanCategory } from '@core/loan-category';
 import type { IncomeBasis } from '@core/income-basis';
 
+/** Why a program name may not skip a question. See the backend's `questionLockReason`. */
+export type QuestionLockReason = 'engine' | 'program';
+
+/** What the program-name questions board may untick, per loan type. */
+export interface ProgramNameQuestionScope {
+  /** Question IDS the name skips, per loan type it is offered under. */
+  excludedByCategory: Partial<Record<LoanCategory, string[]>>;
+  /**
+   * Question IDS the name ADDS, per loan type — asked of its applicants although the loan type
+   * does not ask them of every name. Absent on an older server: read as none.
+   */
+  addedByCategory?: Partial<Record<LoanCategory, string[]>>;
+  /** Question CODES it may not skip, with the reason. */
+  locks: { code: string; reason: QuestionLockReason }[];
+}
+
 /** One entry's new assignment set, for the bulk write. */
 export interface EnumerationCategoryAssignment {
   id: string;
@@ -379,6 +395,52 @@ export class LookupsApiService {
    * PUT, not PATCH, unlike `update()` above: this replaces a collection whole,
    * and "omitted = unchanged" would make an empty set unexpressible.
    */
+  /** `key` null = the create flow, before the name exists: engine locks only. */
+  async programNameQuestionScope(key: string | null): Promise<ProgramNameQuestionScope> {
+    const params: Record<string, string> = key === null ? {} : { key };
+    const res = await firstValueFrom(
+      this.http.get<SuccessEnvelope<ProgramNameQuestionScope>>(
+        `${this.base}/program-names/question-scope`,
+        { params },
+      ),
+    );
+    return res.data;
+  }
+
+  /** Replace the questions one name skips under one loan type. The array IS the new set. */
+  async setProgramNameQuestionExclusions(
+    key: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+  ): Promise<string[]> {
+    const res = await firstValueFrom(
+      this.http.put<SuccessEnvelope<{ excluded: string[] }>>(
+        `${this.base}/program-names/${encodeURIComponent(key)}/question-exclusions`,
+        { category, questionIds: [...questionIds] },
+      ),
+    );
+    return res.data.excluded;
+  }
+
+  /**
+   * Replace the questions one name ADDS under one loan type. The array IS the new set and may
+   * be empty. The server closes it over gates and, when a question enters the loan type as an
+   * opt-in row for the first time, publishes the questionnaire (`published`).
+   */
+  async setProgramNameQuestionAdditions(
+    key: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+  ): Promise<{ added: string[]; published: boolean }> {
+    const res = await firstValueFrom(
+      this.http.put<SuccessEnvelope<{ added: string[]; published: boolean }>>(
+        `${this.base}/program-names/${encodeURIComponent(key)}/question-additions`,
+        { category, questionIds: [...questionIds] },
+      ),
+    );
+    return res.data;
+  }
+
   async setCategories(id: string, categories: LoanCategory[]): Promise<EnumerationRow> {
     const res = await firstValueFrom(
       this.http.put<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}/categories`, {
@@ -457,14 +519,6 @@ export class LookupsApiService {
   }
 
   /**
-   * Replace ONE (name, loan category) pair's income basis — how the catalog says the
-   * name is meant to be sold there. The array IS the new set and may never be empty:
-   * a pair the catalog describes in no way at all is a pair no screen could render.
-   *
-   * Scoped to the category: a name is legitimately meant for no-payslip lending as
-   * a personal loan and payslip-only as a car loan.
-   */
-  /**
    * Point one income FACT at the question that answers it, or unbind it.
    *
    * `questionCode: null` UNBINDS, which is why the parameter is nullable rather than
@@ -479,20 +533,6 @@ export class LookupsApiService {
     const res = await firstValueFrom(
       this.http.put<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}/bound-question`, {
         questionCode,
-      }),
-    );
-    return res.data;
-  }
-
-  async setIncomeBasis(
-    id: string,
-    category: LoanCategory,
-    bases: IncomeBasis[],
-  ): Promise<EnumerationRow> {
-    const res = await firstValueFrom(
-      this.http.put<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}/income-basis`, {
-        category,
-        bases,
       }),
     );
     return res.data;

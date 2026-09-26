@@ -108,6 +108,14 @@ export interface QuestionRow {
    */
   categories: LoanCategory[];
   /**
+   * The part of `categories` this question sits in only as an OPT-IN row: a program name ADDED
+   * it for its own applicants, so the loan type does not ask it of every name. Absent on a
+   * server that predates opt-in rows — read as none.
+   */
+  optInCategories?: LoanCategory[];
+  /** How many program names add it, per opt-in loan type — "Some programs · 2". */
+  addedByNames?: Partial<Record<LoanCategory, number>>;
+  /**
    * WHERE each category asks this question — the second axis of the order.
    *
    * `displayOrder` above is the POOL's one sequence, shared by every category that asks the
@@ -422,9 +430,20 @@ export class QuestionnaireApiService {
    * Replace which loan categories ONE question is asked for. The array is the new
    * set, not a delta; `[]` parks the question. Auto-publishes, like every other
    * questionnaire write.
+   *
+   * `categories` is the ORDINARY set — asked of every program name. A program name's OPT-IN
+   * rows ride along untouched unless `optInCategories` is sent, which says which of them to
+   * keep (the server never creates one from here).
    */
-  setQuestionCategories(id: string, categories: LoanCategory[]): Promise<QuestionRow> {
-    return this.put<QuestionRow>(`/questionnaire/questions/${id}/categories`, { categories });
+  setQuestionCategories(
+    id: string,
+    categories: LoanCategory[],
+    optInCategories?: LoanCategory[],
+  ): Promise<QuestionRow> {
+    return this.put<QuestionRow>(`/questionnaire/questions/${id}/categories`, {
+      categories,
+      ...(optInCategories === undefined ? {} : { optInCategories }),
+    });
   }
 
   /**

@@ -168,7 +168,7 @@ class _SingleChoiceField extends StatelessWidget {
       options: options,
       value: value,
       showSearch: options.length > 12,
-      searchHint: l.q_common_search,
+      searchHint: l.q_common_search_hint,
       onSelected: (code) => cubit.selectOne(question.code, code),
     );
   }
@@ -207,7 +207,7 @@ class _MultiChoiceField extends StatelessWidget {
       options: options,
       values: values,
       showSearch: options.length > 12,
-      searchHint: l.q_common_search,
+      searchHint: l.q_common_search_hint,
       applyLabel: l.q_common_save,
       cancelLabel: l.q_common_cancel,
       emptyMessage: l.q_dyn_empty,

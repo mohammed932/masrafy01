@@ -40,6 +40,11 @@ interface SnapshotQuestion {
    * per-category assignment and therefore reads as "asked for all categories".
    */
   categories?: string[] | null;
+  /**
+   * The categories it sits in as an OPT-IN row — asked only where a program name adds it.
+   * Disjoint from `categories`; absent on every snapshot published before opt-in rows existed.
+   */
+  optInCategories?: string[] | null;
   /** Frozen branching rule; absent means always shown. */
   enabledWhen?: unknown;
   options: SnapshotOption[];
@@ -245,8 +250,11 @@ export class MatchingPreviewService {
         // into the asked set here while apply's `resolveAnswers` and the
         // customer read both exclude it — the same answers would then score
         // differently before and after apply.
+        // An OPT-IN row is in the category too — answerable here like any other; whether it
+        // was ASKED is the name axis's call below.
         const frozen = q.categories;
-        if (frozen != null && !frozen.includes(category)) continue;
+        const optIn = q.optInCategories?.includes(category) === true;
+        if (frozen != null && !frozen.includes(category) && !optIn) continue;
         questions.push(q);
       }
     }
@@ -256,14 +264,18 @@ export class MatchingPreviewService {
     // stays category-wide, exactly as apply's does — exploring must never 422, and the admin
     // simulator posts whatever answer set it likes.
     const decision = narrowAskedQuestions(
-      questions.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen ?? null })),
+      questions.map((q) => ({
+        code: q.code,
+        enabledWhen: q.enabledWhen ?? null,
+        optIn: q.optInCategories?.includes(category) === true,
+      })),
       programNameKey === undefined
         ? null
-        : await this.enumerations.narrowingScopeFor(programNameKey),
+        : await this.enumerations.narrowingScopeFor(programNameKey, category),
     );
-    /** Was this question SERVED for this request — not merely answerable. */
-    const served = (code: string): boolean =>
-      decision.narrowed ? decision.keep.has(code) : byCode.has(code);
+    /** Was this question SERVED for this request — not merely answerable. `keep` is
+     * authoritative with or without a name, exactly as serve and apply read it. */
+    const served = (code: string): boolean => decision.keep.has(code);
 
     const numeric = new Map<string, string>();
     /**

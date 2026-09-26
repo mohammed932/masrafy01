@@ -202,7 +202,9 @@ export class AdminQuestionnaireController {
     @Body() dto: SetQuestionCategoriesDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return ok(await this.service.setQuestionCategories(id, dto.categories, user.sub));
+    return ok(
+      await this.service.setQuestionCategories(id, dto.categories, user.sub, dto.optInCategories),
+    );
   }
 
   @Get('questions/:id/options')

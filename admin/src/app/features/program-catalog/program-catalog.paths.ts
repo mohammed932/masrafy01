@@ -31,7 +31,8 @@ export function surrogateBoardLink(): { commands: string[]; queryParams: Params 
 }
 
 /**
- * The one screen that adds a catalog name, whichever income basis it is sold on.
+ * The one screen that adds a catalog name — always one sold against a payslip. A surrogate
+ * name comes with its calculation, from code, and is never added here.
  *
  * A literal segment, so it MUST be declared before the single-segment `:key` in
  * `program-catalog.routes.ts` — below it, `new` resolves as a catalog name of that key.

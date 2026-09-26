@@ -161,6 +161,23 @@ class QuestionnaireState with _$QuestionnaireState {
   /// holds an acceptable answer.
   bool get canFinish => canAdvance && unansweredRequired.isEmpty;
 
+  /// The first step, in wizard order, holding a visible required question with no
+  /// acceptable answer — or null when there is none.
+  ///
+  /// An answer on a late step can reveal a required question filed under an earlier one;
+  /// Finish then has nothing on screen to point at. Pressing it takes the customer to this
+  /// step instead of leaving a grey button with every visible field filled.
+  int? get firstStepWithUnansweredRequired {
+    final byCode = _questionsByCode;
+    final visibleSteps = steps;
+    for (var i = 0; i < visibleSteps.length; i++) {
+      for (final q in _visible(visibleSteps[i], byCode)) {
+        if (q.isRequired && !isAnswerAcceptable(q, answers[q.code])) return i;
+      }
+    }
+    return null;
+  }
+
   /// True when this step asks only OPTIONAL questions and none is answered yet.
   ///
   /// A collateral product's questions are a step of their own and every one is optional: a

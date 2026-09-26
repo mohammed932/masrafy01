@@ -148,6 +148,10 @@ export class CreateQuestionDto {
  * Replace one question's loan-category assignment. The submitted array IS the new
  * set (not a delta), and MAY be empty — an empty set parks the question: kept and
  * editable, asked for nothing.
+ *
+ * `categories` is the ORDINARY set — asked of every program name. `optInCategories`, when
+ * sent, says which of the question's OPT-IN rows (a program name's "ask this too") to keep;
+ * absent, they are all kept. It can drop one, never create one.
  */
 export class SetQuestionCategoriesDto {
   @ApiProperty({ enum: LoanCategory, isArray: true })
@@ -155,6 +159,13 @@ export class SetQuestionCategoriesDto {
   @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories!: LoanCategory[];
+
+  @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
+  @IsEnum(LoanCategory, { each: true })
+  optInCategories?: LoanCategory[];
 }
 
 export class QuestionCategoryAssignmentDto {
@@ -164,6 +175,14 @@ export class QuestionCategoryAssignmentDto {
   @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories!: LoanCategory[];
+
+  /** As on `SetQuestionCategoriesDto`: the opt-in rows to keep; absent = all of them. */
+  @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
+  @IsEnum(LoanCategory, { each: true })
+  optInCategories?: LoanCategory[];
 }
 
 /** Reassign many questions in ONE transaction + ONE publish (column actions). */

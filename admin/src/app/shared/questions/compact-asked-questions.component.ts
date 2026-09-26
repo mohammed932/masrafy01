@@ -18,6 +18,7 @@ import {
   CheckOutline,
   ExclamationCircleOutline,
   LeftOutline,
+  LockOutline,
   RightOutline,
   SearchOutline,
   UserOutline,
@@ -29,24 +30,33 @@ import {
   askedTabs,
   coreChecks,
   isValidatedCategory,
+  otherRows,
+  untickLocks,
   type AskableQuestion,
   type AskedPicks,
   type AskedRow,
   type CoreCheck,
+  type OtherRow,
   type ServedCount,
+  type UntickLock,
 } from './asked-questions.rules';
 
 /**
- * The create flow's questions step: only what an applicant WILL be asked, not the pool.
+ * A program name's questions step — on the create flow and on the name's own page.
  *
- * The full board lists every question in the pool under a heading, which on a real database
- * is fifty-odd cards where the operator wanted a handful. This one shows four things and no
- * more: whether the loan type is QUOTABLE (the checklist the engine needs), the questions it
- * already REQUIRES, what the operator has ADDED, and a search to add another. The rest of the
- * pool is reachable only by searching for it.
+ * Three lists, and every tick on them is about THIS program name only:
  *
- * Same rules module as the full board and the same add-only contract: `question_loan_category`
- * is global, so a tick widens a question's loan types and nothing here can un-ask one.
+ *   - the checklist of what the quote needs, for the loan type;
+ *   - "Asked of {type} applicants": what the loan type asks every name. Untick one and this
+ *     name skips it (`program_name_question_exclusion`); the ones the quote reads are locked
+ *     (`untickLocks`);
+ *   - "Other questions": every other live question in the pool. Tick one and this name asks it
+ *     too (`program_name_question_addition`, on an opt-in row) while every other name of the
+ *     loan type goes on as before. A question every quote reads is the loan type's call and is
+ *     shown but not tickable. The search box narrows this list; it never gates it.
+ *
+ * The only loan-type-wide write left here is the checklist's "Ask it", for a question the
+ * quote cannot be priced without. Ten questions a page.
  */
 @Component({
   selector: 'app-compact-asked-questions',
@@ -58,6 +68,7 @@ import {
       CheckCircleOutline,
       ExclamationCircleOutline,
       LeftOutline,
+      LockOutline,
       RightOutline,
       SearchOutline,
       UserOutline,
@@ -126,6 +137,16 @@ import {
                   >
                     Ask it
                   </button>
+                } @else if (c.state === 'picked' && removable()) {
+                  <button
+                    type="button"
+                    class="chk-add"
+                    [disabled]="busy()"
+                    (click)="undoCore(c)"
+                    i18n="@@caq.check_undo"
+                  >
+                    Undo
+                  </button>
                 }
               </li>
             }
@@ -135,32 +156,71 @@ import {
 
       <section aria-labelledby="caq-req-h">
         <h3 class="sec" id="caq-req-h">
-          <span class="sec-t" i18n="@@caq.req_h">Also required of {{ typeName() }} applicants</span>
+          <span class="sec-t" i18n="@@caq.asked_h">Asked of {{ typeName() }} applicants</span>
           <span class="sec-n tabular">{{ required().length }}</span>
         </h3>
+        <p class="hint" i18n="@@caq.asked_hint">
+          Untick a question this program should not ask. Other programs of this loan type still ask
+          it. Locked ones are what the loan amount is worked out from.
+        </p>
+        @if (skipped() > 0) {
+          <p class="hint" role="status">{{ skippedText() }}</p>
+        }
         @if (required().length === 0) {
-          <p class="empty" i18n="@@caq.req_none">No other question is required.</p>
+          <p class="empty" i18n="@@caq.asked_none">No other question is asked.</p>
         } @else {
           <ul class="grid is-paged" [style.--caq-cols]="cols()">
             @for (row of requiredPage(); track row.id) {
               <li>
-                <p class="card is-on">
-                  <span class="tick" aria-hidden="true"
-                    ><span nz-icon nzType="check" nzTheme="outline"></span
-                  ></span>
-                  <span class="text">
-                    <span class="label">{{ row.label }}</span>
-                    <span class="meta">
-                      <span class="tag" i18n="@@caq.tag_required">Required</span>
-                      @if (typeLabel(row); as t) {
-                        <span class="tag is-type">{{ t }}</span>
-                      }
-                      @if (row.gated) {
-                        <span class="tag is-type" i18n="@@caq.tag_gated">Only if it applies</span>
-                      }
+                @if (lockOf(row); as lock) {
+                  <p class="card is-on is-locked">
+                    <span class="tick" aria-hidden="true"
+                      ><span nz-icon nzType="check" nzTheme="outline"></span
+                    ></span>
+                    <span class="text">
+                      <span class="label">{{ row.label }}</span>
+                      <span class="meta">
+                        <span class="tag is-lock"
+                          ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                          >{{ lockLabel(lock) }}</span
+                        >
+                        <ng-container
+                          [ngTemplateOutlet]="rowTags"
+                          [ngTemplateOutletContext]="{ $implicit: row }"
+                        />
+                      </span>
                     </span>
-                  </span>
-                </p>
+                  </p>
+                } @else {
+                  <button
+                    type="button"
+                    class="card"
+                    [class.is-on]="!isSkipped(row)"
+                    [class.is-skipped]="isSkipped(row)"
+                    [attr.aria-pressed]="!isSkipped(row)"
+                    [attr.aria-label]="toggleAria(row)"
+                    [disabled]="busy()"
+                    (click)="toggle(row)"
+                  >
+                    <span class="tick" [class.is-empty]="isSkipped(row)" aria-hidden="true"
+                      ><span nz-icon nzType="check" nzTheme="outline"></span
+                    ></span>
+                    <span class="text">
+                      <span class="label">{{ row.label }}</span>
+                      <span class="meta">
+                        @if (isSkipped(row)) {
+                          <span class="tag is-skip" i18n="@@caq.tag_skipped"
+                            >Not asked by this program</span
+                          >
+                        }
+                        <ng-container
+                          [ngTemplateOutlet]="rowTags"
+                          [ngTemplateOutletContext]="{ $implicit: row }"
+                        />
+                      </span>
+                    </span>
+                  </button>
+                }
               </li>
             }
           </ul>
@@ -178,151 +238,155 @@ import {
         }
       </section>
 
-      <section aria-labelledby="caq-mine-h">
-        <h3 class="sec" id="caq-mine-h">
-          <span class="sec-t" i18n="@@caq.mine_h">You added</span>
-          <span class="sec-n tabular">{{ mine().length }}</span>
-        </h3>
-        @if (mine().length === 0) {
-          <p class="empty" i18n="@@caq.mine_none">Nothing added. Search below to ask another.</p>
+      <ng-template #rowTags let-row>
+        @if (row.isRequired) {
+          <span class="tag" i18n="@@caq.tag_required">Required</span>
         } @else {
-          <ul class="grid">
-            @for (row of mine(); track row.id) {
-              <li>
-                @if (removable()) {
-                  <button
-                    type="button"
-                    class="card is-on is-new"
-                    [disabled]="busy()"
-                    [attr.aria-label]="removeAria(row)"
-                    (click)="remove.emit(row)"
-                  >
-                  <span class="tick" aria-hidden="true"
-                    ><span nz-icon nzType="check" nzTheme="outline"></span
-                  ></span>
-                  <span class="text">
-                    <span class="label">{{ row.label }}</span>
-                    <span class="meta">
-                      @if (row.isRequired) {
-                        <span class="tag" i18n="@@caq.tag_required">Required</span>
-                      }
-                      @if (typeLabel(row); as t) {
-                        <span class="tag is-type">{{ t }}</span>
-                      }
-                    </span>
-                  </span>
-                  </button>
-                } @else {
-                  <p class="card is-on is-new">
-                  <span class="tick" aria-hidden="true"
-                    ><span nz-icon nzType="check" nzTheme="outline"></span
-                  ></span>
-                  <span class="text">
-                    <span class="label">{{ row.label }}</span>
-                    <span class="meta">
-                      @if (row.isRequired) {
-                        <span class="tag" i18n="@@caq.tag_required">Required</span>
-                      }
-                      @if (typeLabel(row); as t) {
-                        <span class="tag is-type">{{ t }}</span>
-                      }
-                    </span>
-                  </span>
-                  </p>
-                }
-              </li>
-            }
-          </ul>
+          <span class="tag" i18n="@@caq.tag_optional">Optional</span>
         }
-      </section>
+        @if (typeLabel(row); as t) {
+          <span class="tag is-type">{{ t }}</span>
+        }
+        @if (row.gated) {
+          <span class="tag is-type" i18n="@@caq.tag_gated">Only if it applies</span>
+        }
+      </ng-template>
 
-      <section aria-labelledby="caq-add-h">
-        <h3 class="sec is-quiet" id="caq-add-h">
-          <span class="sec-t">
-            @if (search().trim() === '') {
-              <span i18n="@@caq.add_another_h">Add another question</span>
-            } @else {
-              <span i18n="@@caq.results_h">Results</span>
-            }
-          </span>
-          <!-- Only while searching. With an empty box the list is deliberately empty, and a
-               0 beside "Add another question" reads as "there are none". -->
-          @if (search().trim() !== '') {
-            <span class="sec-n tabular">{{ matches().length }}</span>
-          }
+      <section aria-labelledby="caq-other-h">
+        <h3 class="sec" id="caq-other-h">
+          <span class="sec-t" i18n="@@caq.other_h">Other questions</span>
+          <span class="sec-n tabular">{{ others().length }}</span>
         </h3>
+        <p class="hint" i18n="@@caq.other_hint">
+          Questions {{ typeName() }} does not ask every applicant. Tick one to ask it of this
+          program's applicants too — no other program changes.
+        </p>
+        @if (addedCount() > 0) {
+          <p class="hint" role="status">{{ addedText() }}</p>
+        }
         <label class="search">
-          <span class="sr-only" i18n="@@caq.search_aria">Search the question pool</span>
+          <span class="sr-only" i18n="@@caq.other_search_aria">Search the other questions</span>
           <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
           <input
             type="search"
             [ngModel]="search()"
             (ngModelChange)="searchChange.emit($event)"
-            placeholder="Search the {{ poolSize() }} questions by wording, answer or code"
-            i18n-placeholder="@@caq.search_ph"
+            placeholder="Search by wording, answer or code"
+            i18n-placeholder="@@caq.other_search_ph"
           />
         </label>
-        @if (matches().length === 0) {
+        @if (others().length === 0) {
           <p class="empty">
             @if (search().trim() === '') {
-              <span i18n="@@caq.search_to_add"
-                >Everything required is listed above. Search the {{ poolSize() }} questions to
-                ask one more.</span
+              <span i18n="@@caq.other_none"
+                >{{ typeName() }} already asks every question in the pool.</span
               >
             } @else {
               <span i18n="@@caq.no_match">Nothing else matches “{{ search() }}”.</span>
             }
           </p>
         } @else {
-          <ul class="grid is-quiet is-paged" [style.--caq-cols]="cols()">
-            @for (row of resultsPage(); track row.id) {
+          <ul class="grid is-paged" [style.--caq-cols]="cols()">
+            @for (row of otherPage(); track row.id) {
               <li>
-                <button
-                  type="button"
-                  class="card"
-                  [class.is-off]="!row.isActive"
-                  [disabled]="!row.isActive || busy()"
-                  [attr.aria-label]="addAria(row)"
-                  (click)="add.emit(row)"
-                >
-                  <span class="tick is-empty" aria-hidden="true"
-                    ><span nz-icon nzType="check" nzTheme="outline"></span
-                  ></span>
-                  <span class="text">
-                    <span class="label">{{ row.label }}</span>
-                    <span class="meta">
-                      @if (!row.isActive) {
-                        <span class="tag" i18n="@@caq.tag_off">Switched off</span>
-                      } @else {
-                        @if (row.alreadyAsked) {
-                          <span class="tag" i18n="@@caq.tag_already">Already asked</span>
-                        }
-                        @if (row.isRequired) {
-                          <span class="tag" i18n="@@caq.tag_required">Required</span>
-                        }
-                        @if (typeLabel(row); as t) {
-                          <span class="tag is-type">{{ t }}</span>
-                        }
-                      }
+                @if (row.loanTypeWide) {
+                  <p class="card is-fixed">
+                    <span class="tick is-empty" aria-hidden="true"
+                      ><span nz-icon nzType="check" nzTheme="outline"></span
+                    ></span>
+                    <span class="text">
+                      <span class="label">{{ row.label }}</span>
+                      <span class="meta">
+                        <span class="tag is-lock"
+                          ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                          ><span i18n="@@caq.tag_loan_type_wide"
+                            >Set for the whole loan type</span
+                          ></span
+                        >
+                        <ng-container
+                          [ngTemplateOutlet]="otherTags"
+                          [ngTemplateOutletContext]="{ $implicit: row }"
+                        />
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </p>
+                } @else if (row.heldByGate) {
+                  <p class="card is-on is-locked">
+                    <span class="tick" aria-hidden="true"
+                      ><span nz-icon nzType="check" nzTheme="outline"></span
+                    ></span>
+                    <span class="text">
+                      <span class="label">{{ row.label }}</span>
+                      <span class="meta">
+                        <span class="tag is-lock"
+                          ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                          >{{ lockLabel('gate') }}</span
+                        >
+                        <span class="tag is-added" i18n="@@caq.tag_added"
+                          >Added for this program</span
+                        >
+                        <ng-container
+                          [ngTemplateOutlet]="otherTags"
+                          [ngTemplateOutletContext]="{ $implicit: row }"
+                        />
+                      </span>
+                    </span>
+                  </p>
+                } @else {
+                  <button
+                    type="button"
+                    class="card"
+                    [class.is-on]="row.added"
+                    [attr.aria-pressed]="row.added"
+                    [attr.aria-label]="otherAria(row)"
+                    [disabled]="busy()"
+                    (click)="toggleOther(row)"
+                  >
+                    <span class="tick" [class.is-empty]="!row.added" aria-hidden="true"
+                      ><span nz-icon nzType="check" nzTheme="outline"></span
+                    ></span>
+                    <span class="text">
+                      <span class="label">{{ row.label }}</span>
+                      <span class="meta">
+                        @if (row.added) {
+                          <span class="tag is-added" i18n="@@caq.tag_added"
+                            >Added for this program</span
+                          >
+                        }
+                        <ng-container
+                          [ngTemplateOutlet]="otherTags"
+                          [ngTemplateOutletContext]="{ $implicit: row }"
+                        />
+                      </span>
+                    </span>
+                  </button>
+                }
               </li>
             }
           </ul>
-          @if (resultsPageCount() > 1) {
+          @if (otherPageCount() > 1) {
             <ng-container
               [ngTemplateOutlet]="pagerTpl"
               [ngTemplateOutletContext]="{
-                key: 'res',
-                page: resPage(),
-                count: resultsPageCount(),
-                label: resultsRange(),
+                key: 'oth',
+                page: otherPageAt(),
+                count: otherPageCount(),
+                label: otherRange(),
               }"
             />
           }
         }
       </section>
+
+      <ng-template #otherTags let-row>
+        <ng-container [ngTemplateOutlet]="rowTags" [ngTemplateOutletContext]="{ $implicit: row }" />
+        @if (row.askedIn.length > 0) {
+          <span class="tag is-type">{{ askedInText(row) }}</span>
+        }
+        @if (!row.added && row.alsoAdds.length > 0) {
+          <span class="tag is-type">{{ alsoAddsText(row) }}</span>
+        }
+      </ng-template>
 
       <ng-template #pagerTpl let-key="key" let-page="page" let-count="count" let-label="label">
         <nav class="pager" [attr.aria-label]="pagerAria">
@@ -562,6 +626,41 @@ import {
         background: transparent;
         box-shadow: inset 0 0 0 1px var(--border-default);
       }
+      .tag.is-lock {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        background: var(--bg-surface);
+        box-shadow: inset 0 0 0 1px var(--border-default);
+        color: var(--text-primary);
+      }
+      .tag.is-skip {
+        background: var(--bg-surface);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+        color: var(--text-primary);
+      }
+      .card.is-locked .tick {
+        background: var(--text-secondary);
+      }
+      .tag.is-added {
+        background: color-mix(in srgb, var(--primary) 12%, var(--bg-surface));
+        color: var(--primary-visible);
+      }
+      .card.is-fixed {
+        background: var(--bg-subtle);
+      }
+      .card.is-fixed .label {
+        color: var(--text-secondary);
+      }
+      /* Not a checkbox anyone can tick: a lighter, dimmed box, so it does not read as the
+         empty-but-live box beside it. The lock chip still says why, in words. */
+      .card.is-fixed .tick.is-empty {
+        box-shadow: inset 0 0 0 1.5px var(--border-default);
+        opacity: 0.6;
+      }
+      .card.is-skipped .label {
+        color: var(--text-secondary);
+      }
 
       .search {
         display: flex;
@@ -654,14 +753,32 @@ export class CompactAskedQuestionsComponent {
   readonly isAr = input<boolean>(false);
   readonly busy = input<boolean>(false);
   /**
-   * Whether "You added" rows can be taken back. True on the create flow, where nothing has been
-   * written yet; false on a name's own page, where a tick is already saved and un-asking it is
-   * not this screen's to do (the assignment is global).
+   * Whether a checklist "Ask it" can be taken back. True on the create flow, where nothing has
+   * been written yet; false on a name's own page, where it is already saved for the whole loan
+   * type and un-asking it is not this screen's to do.
    */
   readonly removable = input<boolean>(true);
   /** What an applicant of the name is served, per loan type — `null` on the create flow. */
   readonly served = input<readonly ServedCount[] | null>(null);
+  /** Question ids THIS name skips under the shown loan type. */
+  readonly excluded = input<ReadonlySet<string>>(new Set<string>());
+  /** Codes it may not skip, from the server (`questionLockReason`). */
+  readonly locks = input<ReadonlyMap<string, 'engine' | 'program'>>(
+    new Map<string, 'engine' | 'program'>(),
+  );
+  readonly exclude = output<AskedRow>();
+  readonly include = output<AskedRow>();
+  /**
+   * Question ids THIS name adds under the shown loan type — asked of its applicants although
+   * the loan type does not ask them of every name. Held by the host, gate chain included.
+   */
+  readonly added = input<ReadonlySet<string>>(new Set<string>());
+  /** Tick in "Other questions": ask it of this name's applicants too. */
+  readonly addHere = output<AskedRow>();
+  /** Untick an added question. */
+  readonly removeHere = output<AskedRow>();
 
+  /** The checklist's loan-type-wide "Ask it", and its undo on the create flow. */
   readonly add = output<AskedRow>();
   readonly remove = output<AskedRow>();
   readonly categorySelect = output<LoanCategory>();
@@ -724,18 +841,29 @@ export class CompactAskedQuestionsComponent {
 
   private readonly coreCodes = computed(() => new Set(this.checks().map((c) => c.code)));
 
-  /** Required and already asked here — minus the ones the checklist above already shows. */
-  protected readonly required = computed(() =>
-    this.all().rest.filter(
-      (r) => r.alreadyAsked && r.isRequired && r.isActive && !this.coreCodes().has(r.code),
-    ),
+  /**
+   * Everything this loan type already asks, required first — minus the ones the checklist above
+   * already shows. Each can be unticked for THIS name unless it is locked.
+   */
+  protected readonly required = computed(() => {
+    const rows = this.all().rest.filter(
+      (r) => r.alreadyAsked && r.isActive && !this.coreCodes().has(r.code),
+    );
+    return [...rows.filter((r) => r.isRequired), ...rows.filter((r) => !r.isRequired)];
+  });
+  /** Which rows cannot be unticked, and why. */
+  private readonly untick = computed(() =>
+    untickLocks(this.pool(), this.category(), this.picks(), this.excluded(), this.locks()),
+  );
+  protected readonly skipped = computed(
+    () => this.required().filter((r) => this.isSkipped(r)).length,
   );
 
-  /** Rows per page, and how many columns they are laid out in. */
-  private static readonly ROWS = 3;
+  /** Ten questions a page at any width; the grid lays them out in one or two columns. */
+  private static readonly PAGE_SIZE = 10;
   private readonly wide = signal(false);
   protected readonly cols = computed(() => (this.wide() ? 2 : 1));
-  private readonly pageSize = computed(() => this.cols() * CompactAskedQuestionsComponent.ROWS);
+  private readonly pageSize = computed(() => CompactAskedQuestionsComponent.PAGE_SIZE);
 
   protected readonly page = signal(0);
   protected readonly pageCount = computed(() =>
@@ -752,59 +880,114 @@ export class CompactAskedQuestionsComponent {
     const to = Math.min(from + size - 1, this.required().length);
     return $localize`:@@caq.range:${from}:FROM:–${to}:TO: of ${this.required().length}:TOTAL:`;
   });
-  protected readonly pagerAria = $localize`:@@caq.pager_aria:Required questions, pages`;
+  protected readonly pagerAria = $localize`:@@caq.pager_aria:Questions, pages`;
   protected readonly prevAria = $localize`:@@caq.prev:Previous page`;
   protected readonly nextAria = $localize`:@@caq.next:Next page`;
 
-  protected goTo(key: 'req' | 'res', next: number): void {
+  protected goTo(key: 'req' | 'oth', next: number): void {
     if (key === 'req') this.page.set(Math.min(Math.max(next, 0), this.pageCount() - 1));
-    else this.resPage.set(Math.min(Math.max(next, 0), this.resultsPageCount() - 1));
+    else this.otherPageAt.set(Math.min(Math.max(next, 0), this.otherPageCount() - 1));
   }
 
-  protected readonly mine = computed(() => this.all().asked);
-
   /**
-   * Suggestions when the box is empty, hits when it is not — the same list, narrowed.
-   * Questions this loan type does NOT ask yet come first: those are the ticks that change
-   * something; the rest are already asked and are listed after them.
+   * "Other questions": every live question this loan type does not ask of every name, the
+   * checklist's own excepted (drawn above). Listed in full — this list is where an extra
+   * question is picked from — and narrowed only when the operator types.
    */
-  protected readonly matches = computed(() => {
-    // An EMPTY box suggests nothing. It used to fall through to `askedSections` with a
-    // blank term, which matches everything — so the whole remaining pool sat under
-    // "Suggested questions", paginated, and the screen read as a list of sixty-odd
-    // questions to work through. What this step is for is the REQUIRED set plus whatever
-    // the operator deliberately adds; the rest is reachable by typing, which is what the
-    // section comment above has claimed all along.
-    if (this.search().trim() === '') return [];
-    const found = askedSections(
+  protected readonly others = computed(() =>
+    otherRows(
       this.pool(),
       this.category(),
       this.picks(),
+      this.added(),
       this.search(),
       this.isAr(),
-      true,
-    ).rest;
-    const shown = new Set(this.required().map((r) => r.id));
-    const rows = found.filter((r) => !shown.has(r.id));
-    return [...rows.filter((r) => !r.alreadyAsked), ...rows.filter((r) => r.alreadyAsked)];
-  });
-
-  protected readonly resPage = signal(0);
-  protected readonly resultsPageCount = computed(() =>
-    Math.max(1, Math.ceil(this.matches().length / this.pageSize())),
+      this.locks(),
+      this.coreCodes(),
+    ),
   );
-  protected readonly resultsPage = computed(() => {
+  /** How many this name adds under the shown loan type — the list's own count, unsearched. */
+  protected readonly addedCount = computed(
+    () => [...this.added()].filter((id) => this.pool().some((q) => q.id === id)).length,
+  );
+
+  protected readonly otherPageAt = signal(0);
+  protected readonly otherPageCount = computed(() =>
+    Math.max(1, Math.ceil(this.others().length / this.pageSize())),
+  );
+  protected readonly otherPage = computed(() => {
     const size = this.pageSize();
-    const at = Math.min(this.resPage(), this.resultsPageCount() - 1);
-    return this.matches().slice(at * size, at * size + size);
+    const at = Math.min(this.otherPageAt(), this.otherPageCount() - 1);
+    return this.others().slice(at * size, at * size + size);
   });
-  protected readonly resultsRange = computed(() => {
+  protected readonly otherRange = computed(() => {
     const size = this.pageSize();
-    const total = this.matches().length;
-    const from = Math.min(this.resPage(), this.resultsPageCount() - 1) * size + 1;
+    const total = this.others().length;
+    const from = Math.min(this.otherPageAt(), this.otherPageCount() - 1) * size + 1;
     return $localize`:@@caq.range:${from}:FROM:–${Math.min(from + size - 1, total)}:TO: of ${total}:TOTAL:`;
   });
-  protected readonly poolSize = computed(() => this.pool().length);
+
+  protected toggleOther(row: OtherRow): void {
+    if (row.loanTypeWide || row.heldByGate) return;
+    if (row.added) this.removeHere.emit(row);
+    else this.addHere.emit(row);
+  }
+
+  protected otherAria(row: OtherRow): string {
+    return row.added
+      ? $localize`:@@caq.exclude_aria:Stop asking ${row.label}:QUESTION: for this program`
+      : $localize`:@@caq.add_here_aria:Ask ${row.label}:QUESTION: of this program's applicants too`;
+  }
+
+  protected askedInText(row: OtherRow): string {
+    const types = row.askedIn.map((c) => categoryLabel(c)).join(' · ');
+    return $localize`:@@caq.tag_asked_in:Asked in ${types}:TYPES:`;
+  }
+
+  protected alsoAddsText(row: OtherRow): string {
+    const names = row.alsoAdds.join(' · ');
+    return $localize`:@@caq.tag_also_adds:Also adds ${names}:QUESTIONS:`;
+  }
+
+  protected addedText(): string {
+    return $localize`:@@caq.added_count:${this.addedCount()}:COUNT: added for this program.`;
+  }
+
+  protected lockOf(row: AskedRow): UntickLock | null {
+    return this.untick().get(row.id) ?? null;
+  }
+
+  /** Unticked for this name, and not held by a lock (a locked row is asked whatever is stored). */
+  protected isSkipped(row: AskedRow): boolean {
+    return this.excluded().has(row.id) && this.lockOf(row) === null;
+  }
+
+  protected toggle(row: AskedRow): void {
+    if (this.lockOf(row) !== null) return;
+    if (this.isSkipped(row)) this.include.emit(row);
+    else this.exclude.emit(row);
+  }
+
+  protected lockLabel(lock: UntickLock): string {
+    switch (lock) {
+      case 'engine':
+        return $localize`:@@caq.lock_engine:Needed for every quote`;
+      case 'program':
+        return $localize`:@@caq.lock_program:Read by a bank program under this name`;
+      default:
+        return $localize`:@@caq.lock_gate:Another asked question depends on it`;
+    }
+  }
+
+  protected skippedText(): string {
+    return $localize`:@@caq.skipped:${this.skipped()}:COUNT: of these are not asked by this program.`;
+  }
+
+  protected toggleAria(row: AskedRow): string {
+    return this.isSkipped(row)
+      ? $localize`:@@caq.include_aria:Ask ${row.label}:QUESTION: again for this program`
+      : $localize`:@@caq.exclude_aria:Stop asking ${row.label}:QUESTION: for this program`;
+  }
 
   constructor() {
     // Two columns from 640px up; one below. Kept in JS rather than CSS because the PAGE SIZE
@@ -819,13 +1002,13 @@ export class CompactAskedQuestionsComponent {
       this.category();
       untracked(() => {
         this.page.set(0);
-        this.resPage.set(0);
+        this.otherPageAt.set(0);
       });
     });
     // A new query is a new list.
     effect(() => {
       this.search();
-      untracked(() => this.resPage.set(0));
+      untracked(() => this.otherPageAt.set(0));
     });
   }
 
@@ -834,11 +1017,21 @@ export class CompactAskedQuestionsComponent {
   );
 
   protected servedText(sv: ServedCount): string {
+    // No bank program under the name yet: the name axis is off, so its unticks and additions
+    // are saved but the applicant is asked what the loan type asks. Saying so beats a count
+    // that silently ignores what the operator just did.
+    if (sv.nameAxisActive === false) {
+      return $localize`:@@caq.served_inactive:No bank program is filed under this name yet, so its applicants are asked what ${this.typeName()}:TYPE: asks. What you untick or add here takes effect once one is.`;
+    }
+    const extra = sv.servedExtra ?? 0;
+    if (extra > 0) {
+      return $localize`:@@caq.served_extra:An applicant who picks this name answers ${sv.servedTotal}:SERVED: questions — ${sv.servedTotal - extra}:OWN: of the ${sv.categoryTotal}:TOTAL: ${this.typeName()}:TYPE: questions, plus ${extra}:EXTRA: asked only for this program — ${sv.servedRequired}:REQUIRED: of them required.`;
+    }
     return $localize`:@@askq.served:An applicant who picks this name answers ${sv.servedTotal}:SERVED: of ${sv.categoryTotal}:TOTAL: ${this.typeName()}:TYPE: questions, ${sv.servedRequired}:REQUIRED: of them required.`;
   }
 
   protected totalText(): string {
-    return $localize`:@@caq.total:${this.typeName()}:TYPE: applicants are asked ${this.askedTotal()}:TOTAL: questions in all — ${this.requiredTotal()}:REQUIRED: required, ${this.optionalTotal()}:OPTIONAL: optional. Required ones and your additions are listed here; search to ask an optional one. Each applicant is then asked only what a bank program behind this name reads.`;
+    return $localize`:@@caq.total:${this.typeName()}:TYPE: applicants are asked ${this.askedTotal()}:TOTAL: questions in all — ${this.requiredTotal()}:REQUIRED: required, ${this.optionalTotal()}:OPTIONAL: optional. Untick any this program should not ask, and tick any of the other questions below to ask it of this program's applicants only. Each applicant is then asked only what a bank program behind this name reads.`;
   }
 
   protected typeName(): string {
@@ -873,6 +1066,12 @@ export class CompactAskedQuestionsComponent {
     if (row) this.add.emit(row);
   }
 
+  /** Takes a checklist tick back — the create flow only, where nothing is written yet. */
+  protected undoCore(c: CoreCheck): void {
+    const row = this.all().asked.find((r) => r.id === c.questionId);
+    if (row) this.remove.emit(row);
+  }
+
   protected typeLabel(row: AskedRow): string | null {
     switch (row.type) {
       case 'SINGLE_SELECT':
@@ -886,13 +1085,5 @@ export class CompactAskedQuestionsComponent {
       default:
         return null;
     }
-  }
-
-  protected addAria(row: AskedRow): string {
-    return $localize`:@@caq.add_aria:Ask ${row.label}:QUESTION: of every ${this.typeName()}:TYPE: applicant`;
-  }
-
-  protected removeAria(row: AskedRow): string {
-    return $localize`:@@caq.remove_aria:Untick ${row.label}:QUESTION:`;
   }
 }

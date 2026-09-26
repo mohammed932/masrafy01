@@ -15,7 +15,7 @@ import type {
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
-import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
+import type { NarrowingScope, QuestionLockScope } from '@/questionnaire/validation/question-scope';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
@@ -610,7 +610,68 @@ export abstract class PlatformEnumerationsRepository {
    * tick does nothing — and, worse, one in which a cap table that started reading a fact is
    * still being quoted without the answer.
    */
-  abstract narrowingScopeFor(programNameKey: string): Promise<NarrowingScope | null>;
+  abstract narrowingScopeFor(
+    programNameKey: string,
+    category?: LoanCategory,
+  ): Promise<NarrowingScope | null>;
+
+  /**
+   * What an operator may NOT untick for a name — the inputs of `questionLockReason`. With no
+   * key (the create flow: the name does not exist yet) or a name with no active programme, the
+   * programme half is empty and only the engine's own inputs lock.
+   */
+  abstract questionLockScopeFor(programNameKey: string | null): Promise<QuestionLockScope>;
+
+  /** Question ids the name skips under one loan type (`program_name_question_exclusion`). */
+  abstract questionExclusions(
+    programNameKey: string,
+    category: LoanCategory,
+  ): Promise<readonly string[]>;
+
+  /**
+   * Replace the name's skipped set for one loan type, in one transaction. Returns the set it
+   * replaced, for the audit event. `null` when the key is not a `program_name`.
+   */
+  abstract replaceQuestionExclusions(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actorId: string | null,
+  ): Promise<{ before: readonly string[] } | null>;
+
+  /**
+   * Question ids the name ADDS under one loan type (`program_name_question_addition`) — asked of
+   * its applicants although the loan type does not ask them of every name.
+   */
+  abstract questionAdditions(
+    programNameKey: string,
+    category: LoanCategory,
+  ): Promise<readonly string[]>;
+
+  /**
+   * Replace the name's added set for one loan type, in ONE transaction: a question the category
+   * does not hold yet goes in as an OPT-IN row (seeded from the pool position, like every other
+   * insert into `question_loan_category`), the name's exclusion of the same question goes, and
+   * the addition rows are replaced. The caller has already validated and gate-closed the ids.
+   *
+   * Returns the set it replaced (for the audit event) and the questions that gained an opt-in
+   * row — non-empty means the snapshot must be republished before anyone is served them.
+   * `null` when the key is not a `program_name`.
+   */
+  abstract replaceQuestionAdditions(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actorId: string | null,
+  ): Promise<{ before: readonly string[]; optInInserted: readonly string[] } | null>;
+
+  /**
+   * How many program names add each question, per loan type — what `/questionnaire/categories`
+   * prints on an opt-in cell ("Some programs · 2").
+   */
+  abstract questionAdditionCounts(): Promise<
+    ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
+  >;
 
   /**
    * One catalog program name, with the two fields its income rule needs.

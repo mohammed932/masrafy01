@@ -16,8 +16,8 @@ import 'package:app/l10n/generated/app_localizations.dart';
 /// screen it opens call the bank the same thing; a view with no list behind it
 /// (a saved offer) reads "Partner bank" with no letter.
 ///
-/// Shared by the results cards, the not-available cards, the offer details
-/// hero and the saved-offers cards (Principle XXXIII).
+/// Shared by the results cards, the offer details hero and the saved-offers
+/// cards (Principle XXXIII); the no-offer rows reuse only [labelFor].
 class MasrafyPartnerBankHeading extends StatelessWidget {
   const MasrafyPartnerBankHeading({
     super.key,

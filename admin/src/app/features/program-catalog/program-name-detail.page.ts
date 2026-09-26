@@ -29,6 +29,9 @@ import {
 import { toAskablePool } from '@shared/questions/to-askable';
 import { CompactAskedQuestionsComponent } from '@shared/questions/compact-asked-questions.component';
 import {
+  additionWithChain,
+  additionsToSave,
+  exclusionsToSave,
   type AskableQuestion,
   type ServedCount,
   type AskedPicks,
@@ -327,18 +330,20 @@ import { PRODUCT_BASE } from './program-catalog.paths';
                    what" screen sets — so the decision an operator makes while creating a name is
                    editable afterwards in the same words and the same control.
 
-                   ADD-ONLY here, as on the create flow: that table is global, so
-                   un-ticking would stop asking the question for every program of that
-                   loan type. Each tick writes on its own, because the name exists and
-                   there is no Finish to batch into. -->
+                   Every tick here is about THIS name: an untick skips a question the
+                   loan type asks (program_name_question_exclusion) and a tick under
+                   "Other questions" asks one it does not (program_name_question_addition).
+                   The loan type's own list is set on Questionnaire, Categories. Each tick
+                   writes on its own, because the name exists and there is no Finish to
+                   batch into. -->
               <section class="card is-bare stage-card">
                 <header class="stage-head">
                   <h2 class="stage-title" i18n="@@pnd.asks_title">
                     What are these applicants asked?
                   </h2>
                   <p class="stage-sub" i18n="@@pnd.asks_sub">
-                    One tab per loan type this name is offered under. Ticking a question asks it of
-                    every applicant of that loan type.
+                    One tab per loan type this name is offered under. What you untick or tick here
+                    applies to this program only.
                   </p>
                 </header>
 
@@ -364,7 +369,14 @@ import { PRODUCT_BASE } from './program-catalog.paths';
                   [served]="served()"
                   (categorySelect)="setAskCategory($event)"
                   (searchChange)="askSearch.set($event)"
+                  [excluded]="excludedHere()"
+                  [locks]="locks()"
+                  [added]="addedHere()"
                   (add)="askToAdd($event)"
+                  (exclude)="setSkipped($event, true)"
+                  (include)="setSkipped($event, false)"
+                  (addHere)="addForName($event)"
+                  (removeHere)="removeForName($event)"
                 />
               </section>
             }
@@ -1086,7 +1098,7 @@ export class ProgramNameDetailPage implements OnInit {
     if (this.stepIndex() === 1) {
       return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
     }
-    return $localize`:@@pnd.step_asks_cap:Ticking one asks it of every applicant of that loan type, for every program name. Nothing here can stop a question being asked.`;
+    return $localize`:@@pnd.step_asks_cap:Ticks and unticks here apply to this program only. The loan type's own list is set on Questionnaire → Categories.`;
   });
 
   protected nextStepLabel(): string {
@@ -1142,6 +1154,25 @@ export class ProgramNameDetailPage implements OnInit {
    */
   /** Questions ticked during THIS visit, per loan type — what "You added" lists. */
   protected readonly sessionPicks = signal<AskedPicks>(new Map<LoanCategory, ReadonlySet<string>>());
+
+  /** Questions this name skips, per loan type — as stored, re-read after every write. */
+  private readonly skipped = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
+    new Map<LoanCategory, ReadonlySet<string>>(),
+  );
+  /** Codes this name may not skip: the engine's inputs and what its bank programs read. */
+  protected readonly locks = signal<ReadonlyMap<string, 'engine' | 'program'>>(
+    new Map<string, 'engine' | 'program'>(),
+  );
+  protected readonly excludedHere = computed<ReadonlySet<string>>(
+    () => this.skipped().get(this.askCategory()) ?? new Set<string>(),
+  );
+  /** Questions this name ADDS, per loan type — as stored, re-read after every write. */
+  private readonly addedByCat = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
+    new Map<LoanCategory, ReadonlySet<string>>(),
+  );
+  protected readonly addedHere = computed<ReadonlySet<string>>(
+    () => this.addedByCat().get(this.askCategory()) ?? new Set<string>(),
+  );
 
   /** Clamped to a loan type the name is actually offered under — see the create flow. */
   protected readonly askCategory = computed<LoanCategory>(() => {
@@ -1215,6 +1246,145 @@ export class ProgramNameDetailPage implements OnInit {
     }
   }
 
+  /**
+   * Untick (or tick again) one question for THIS name, written at once. The loan type's own
+   * assignment is not touched, so its other names keep asking it.
+   */
+  protected async setSkipped(row: AskedRow, skip: boolean): Promise<void> {
+    if (this.savingAsk().has(row.id)) return;
+    const category = this.askCategory();
+    const set = new Set(this.skipped().get(category) ?? []);
+    if (skip) set.add(row.id);
+    else set.delete(row.id);
+    this.savingAsk.update((ids) => new Set([...ids, row.id]));
+    this.asksError.set(null);
+    try {
+      const saved = await this.api.setProgramNameQuestionExclusions(
+        this.routeKey(),
+        category,
+        exclusionsToSave(this.pool(), set, this.locks()),
+      );
+      const next = new Map(this.skipped());
+      next.set(category, new Set(saved));
+      this.skipped.set(next);
+      void this.loadServed();
+    } catch (err) {
+      this.asksError.set(this.localizedError(err));
+      // A lock the page did not know about (a bank program filed since the read): re-read.
+      void this.loadScope();
+    } finally {
+      this.savingAsk.update((ids) => {
+        const next = new Set(ids);
+        next.delete(row.id);
+        return next;
+      });
+    }
+  }
+
+  /**
+   * A tick under "Other questions": this name asks it too, written at once with the gate
+   * sources it needs. Confirmed when REQUIRED, because an application already in progress
+   * under this name then has to answer it before it can be submitted — the same consequence
+   * the loan-type-wide tick names, for one program instead of all of them.
+   */
+  protected addForName(row: AskedRow): void {
+    const question = this.pool().find((q) => q.id === row.id);
+    if (question === undefined) return;
+    const category = this.askCategory();
+    const current = this.addedByCat().get(category) ?? new Set<string>();
+    const ids = additionWithChain(this.pool(), question, category, this.sessionPicks(), current);
+    const write = (): void =>
+      void this.writeAdditions(category, new Set([...current, ...ids]), row.id);
+    if (!row.isRequired) {
+      write();
+      return;
+    }
+    this.modal.confirm({
+      nzTitle: $localize`:@@pnd.add_req_title:Ask “${row.label}:QUESTION:” of this program's applicants?`,
+      nzContent: $localize`:@@pnd.add_req_body:It must be answered, so an application already in progress under this program has to answer it before it can be submitted. No other program changes.`,
+      nzOkText: $localize`:@@pnd.req_ok:Ask it`,
+      nzCancelText: $localize`:@@pnd.req_cancel:Leave it`,
+      nzOnOk: () => {
+        write();
+        return true;
+      },
+    });
+  }
+
+  /** Untick an added question, written at once. A source another added one needs is locked. */
+  protected removeForName(row: AskedRow): void {
+    const category = this.askCategory();
+    const set = new Set(this.addedByCat().get(category) ?? []);
+    if (!set.delete(row.id)) return;
+    void this.writeAdditions(category, set, row.id);
+  }
+
+  /**
+   * Replace this name's added set for one loan type. When the server had to put a question
+   * into the loan type for the first time it republished the questionnaire, and the pool this
+   * page holds no longer says which rows are opt-in — so it is re-read; otherwise only the
+   * served counts move.
+   */
+  private async writeAdditions(
+    category: LoanCategory,
+    set: ReadonlySet<string>,
+    busyId: string,
+  ): Promise<void> {
+    if (this.savingAsk().has(busyId)) return;
+    this.savingAsk.update((ids) => new Set([...ids, busyId]));
+    this.asksError.set(null);
+    try {
+      const saved = await this.api.setProgramNameQuestionAdditions(
+        this.routeKey(),
+        category,
+        additionsToSave(this.pool(), set),
+      );
+      const next = new Map(this.addedByCat());
+      next.set(category, new Set(saved.added));
+      this.addedByCat.set(next);
+      if (saved.published) {
+        this.poolRequested = false;
+        await this.loadPool();
+      } else {
+        void this.loadServed();
+      }
+    } catch (err) {
+      this.asksError.set(this.localizedError(err));
+      void this.loadScope();
+    } finally {
+      this.savingAsk.update((ids) => {
+        const next = new Set(ids);
+        next.delete(busyId);
+        return next;
+      });
+    }
+  }
+
+  private async loadScope(): Promise<void> {
+    try {
+      const scope = await this.api.programNameQuestionScope(this.routeKey());
+      this.locks.set(new Map(scope.locks.map((l) => [l.code, l.reason])));
+      this.skipped.set(
+        new Map(
+          Object.entries(scope.excludedByCategory).map(([category, ids]) => [
+            category as LoanCategory,
+            new Set(ids ?? []),
+          ]),
+        ),
+      );
+      this.addedByCat.set(
+        new Map(
+          Object.entries(scope.addedByCategory ?? {}).map(([category, ids]) => [
+            category as LoanCategory,
+            new Set(ids ?? []),
+          ]),
+        ),
+      );
+    } catch (err) {
+      this.asksError.set(this.localizedError(err));
+    }
+  }
+
   /** Advisory: a failed read leaves the callout off rather than blocking the board. */
   private async loadServed(): Promise<void> {
     const key = this.routeKey();
@@ -1230,7 +1400,7 @@ export class ProgramNameDetailPage implements OnInit {
     this.poolRequested = true;
     this.poolLoading.set(true);
     try {
-      const tree = await this.questionnaire.tree();
+      const [tree] = await Promise.all([this.questionnaire.tree(), this.loadScope()]);
       this.pool.set(toAskablePool(tree));
       void this.loadServed();
     } catch (err) {

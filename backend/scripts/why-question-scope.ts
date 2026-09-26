@@ -27,20 +27,30 @@ async function main(): Promise<void> {
   });
   if (!version) throw new Error('no active questionnaire version');
   const snap = version.snapshot as {
-    groups: { questions: { code: string; enabledWhen?: unknown; categories?: string[] }[] }[];
+    groups: {
+      questions: {
+        code: string;
+        enabledWhen?: unknown;
+        categories?: string[];
+        optInCategories?: string[];
+      }[];
+    }[];
   };
   const all = snap.groups.flatMap((g) => g.questions);
-  // The service's own rule (`askedFor`): no `categories` array = a pre-v12 snapshot, asked
-  // everywhere; an EMPTY array = parked, asked by nobody.
+  const isOptIn = (q: { optInCategories?: string[] }): boolean =>
+    q.optInCategories?.includes(category) === true;
+  // The service's own rule (`askedFor` / `optInFor`): no `categories` array = a pre-v12
+  // snapshot, asked everywhere; an EMPTY array = parked, asked by nobody; an OPT-IN row is in
+  // the category for the names that add it.
   const inCategory = all.filter(
-    (q) => !Array.isArray(q.categories) || q.categories.includes(category),
+    (q) => !Array.isArray(q.categories) || q.categories.includes(category) || isOptIn(q),
   );
 
-  const scope = await repo.narrowingScopeFor(nameKey);
+  const scope = await repo.narrowingScopeFor(nameKey, category);
   if (!scope) throw new Error(`no narrowing scope for ${nameKey}`);
 
   const d = narrowAskedQuestions(
-    inCategory.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen ?? null })),
+    inCategory.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen ?? null, optIn: isOptIn(q) })),
     scope,
   );
 
@@ -49,8 +59,21 @@ async function main(): Promise<void> {
   const platform = new Set(scope.platformQuestionCodes);
   const needed = new Set(scope.neededQuestionCodes);
   const retained = new Set(d.gateSourcesRetained);
+  const added = new Set(scope.addedQuestionCodes ?? []);
+  const optIn = new Set(inCategory.filter(isOptIn).map((q) => q.code));
 
   const reason = (code: string): string => {
+    // An OPT-IN row is never core: it is kept only because this name added it, a programme
+    // reads it, or a kept question branches off it.
+    if (optIn.has(code)) {
+      if (needed.has(code)) return 'NEEDED (opt-in row): a programme under this name reads it';
+      if (added.has(code)) return 'ADDED (opt-in row): the operator ticked it for this name';
+      if (retained.has(code)) return 'GATE SOURCE (opt-in row): a kept question branches off it';
+      return '??';
+    }
+    if (added.has(code) && !needed.has(code)) {
+      return 'ADDED: the operator ticked it for this name';
+    }
     if (scope.productOnly === true) {
       if (ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code))
         return 'CORE (product-only name): debts, duration or employment type';
@@ -84,6 +107,10 @@ async function main(): Promise<void> {
     for (const c of codes.sort()) console.log(`         ${c}`);
   }
   console.log(`\n  dropped (${d.dropped.length}): ${d.dropped.sort().join(', ')}`);
+  const optInDropped = d.dropped.filter((code) => optIn.has(code));
+  if (optInDropped.length > 0) {
+    console.log(`  of which opt-in, not added here: ${optInDropped.sort().join(', ')}`);
+  }
 }
 
 main()

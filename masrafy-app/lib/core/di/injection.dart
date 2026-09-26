@@ -95,6 +95,7 @@ final GetIt getIt = GetIt.instance;
 Future<void> configureDependencies({BaseEnvironment? environment}) async {
   // -- Env + router + storage --------------------------------------------
   final env = environment ?? DevEnvironment();
+  if (env is DevEnvironment) await env.resolveHost();
   getIt.registerSingleton<AppEnv>(AppEnv(env));
   getIt.registerLazySingleton<AppRouter>(AppRouter.new);
   getIt.registerLazySingleton<FlutterSecureStorage>(

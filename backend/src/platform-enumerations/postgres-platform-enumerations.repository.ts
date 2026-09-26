@@ -44,7 +44,7 @@ import {
   CAR_PRICE_FACT_KEY,
 } from '@/matching/pipeline/car-details';
 import { MONEY_FIELD_BINDINGS } from '@/matching/pipeline/money-field-bindings';
-import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
+import type { NarrowingScope, QuestionLockScope } from '@/questionnaire/validation/question-scope';
 import { enabledWhenGate } from '@/questionnaire/validation/question-visibility';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
@@ -854,8 +854,11 @@ export class PostgresPlatformEnumerationsRepository
    * The declared ask set is unioned in as well, so a question an operator ticked before any
    * bank filled a figure is still asked and the product's own board does not lie.
    */
-  async narrowingScopeFor(programNameKey: string): Promise<NarrowingScope | null> {
-    const [nameRow, factRows, programs] = await Promise.all([
+  async narrowingScopeFor(
+    programNameKey: string,
+    category?: LoanCategory,
+  ): Promise<NarrowingScope | null> {
+    const [nameRow, factRows, programs, excludedRows, addedRows] = await Promise.all([
       this.prisma.platformEnumeration.findUnique({
         where: { idx_platform_enumeration_type_key: { type: 'program_name', key: programNameKey } },
         select: { active: true, deprecatedAt: true, incomeRule: true, surrogateProductKey: true },
@@ -891,6 +894,21 @@ export class PostgresPlatformEnumerationsRepository
           plansSource: true,
         },
       }),
+      // The operator's unticks for this loan type. None without a category: a caller that does
+      // not say which loan type it serves gets the programme-read narrowing and nothing more.
+      category === undefined
+        ? Promise.resolve([])
+        : this.prisma.programNameQuestionExclusion.findMany({
+            where: { category, enumeration: { type: 'program_name', key: programNameKey } },
+            select: { question: { select: { code: true } } },
+          }),
+      // The operator's ticks for this loan type — the mirror of the unticks, same rule.
+      category === undefined
+        ? Promise.resolve([])
+        : this.prisma.programNameQuestionAddition.findMany({
+            where: { category, enumeration: { type: 'program_name', key: programNameKey } },
+            select: { question: { select: { code: true } } },
+          }),
     ]);
 
     // Unknown, retired, or backed by nothing: there is no read set to trust, and serving the
@@ -1074,7 +1092,180 @@ export class PostgresPlatformEnumerationsRepository
       neededQuestionCodes,
       productOnly,
       mustAnswerQuestionCodes,
+      excludedQuestionCodes: excludedRows.map((row) => row.question.code),
+      addedQuestionCodes: addedRows.map((row) => row.question.code),
     };
+  }
+
+  async questionLockScopeFor(programNameKey: string | null): Promise<QuestionLockScope> {
+    const scope = programNameKey === null ? null : await this.narrowingScopeFor(programNameKey);
+    if (scope !== null) {
+      return {
+        platformQuestionCodes: scope.platformQuestionCodes,
+        neededQuestionCodes: scope.neededQuestionCodes,
+        mustAnswerQuestionCodes: scope.mustAnswerQuestionCodes ?? [],
+      };
+    }
+    // No programme to read from: the platform's own facts, resolved exactly as the loop in
+    // `narrowingScopeFor` resolves them.
+    const facts = await this.prisma.platformEnumeration.findMany({
+      where: { type: FACT_TYPE },
+      select: { key: true, boundQuestion: { select: { code: true } } },
+    });
+    const platformQuestionCodes = facts.flatMap((fact) => {
+      const code = fact.boundQuestion?.code ?? bankAxisByFactKey(fact.key)?.questionCode;
+      return code !== undefined && isReservedFactKey(fact.key) ? [code] : [];
+    });
+    return { platformQuestionCodes };
+  }
+
+  async questionExclusions(
+    programNameKey: string,
+    category: LoanCategory,
+  ): Promise<readonly string[]> {
+    const rows = await this.prisma.programNameQuestionExclusion.findMany({
+      where: { category, enumeration: { type: 'program_name', key: programNameKey } },
+      select: { questionId: true },
+      orderBy: { questionId: 'asc' },
+    });
+    return rows.map((row) => row.questionId);
+  }
+
+  async replaceQuestionExclusions(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actorId: string | null,
+  ): Promise<{ before: readonly string[] } | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const name = await tx.platformEnumeration.findUnique({
+        where: { idx_platform_enumeration_type_key: { type: 'program_name', key: programNameKey } },
+        select: { id: true },
+      });
+      if (name === null) return null;
+      const before = await tx.programNameQuestionExclusion.findMany({
+        where: { enumerationId: name.id, category },
+        select: { questionId: true },
+        orderBy: { questionId: 'asc' },
+      });
+      await tx.programNameQuestionExclusion.deleteMany({
+        where: { enumerationId: name.id, category },
+      });
+      if (questionIds.length > 0) {
+        await tx.programNameQuestionExclusion.createMany({
+          data: [...new Set(questionIds)].map((questionId) => ({
+            enumerationId: name.id,
+            category,
+            questionId,
+            createdBy: actorId,
+          })),
+        });
+        // A skipped question is not also an ADDED one: the two lists stay apart, so the board
+        // never has to guess which of them a row's tick state came from.
+        await tx.programNameQuestionAddition.deleteMany({
+          where: { enumerationId: name.id, category, questionId: { in: [...questionIds] } },
+        });
+      }
+      return { before: before.map((row) => row.questionId) };
+    });
+  }
+
+  async questionAdditions(
+    programNameKey: string,
+    category: LoanCategory,
+  ): Promise<readonly string[]> {
+    const rows = await this.prisma.programNameQuestionAddition.findMany({
+      where: { category, enumeration: { type: 'program_name', key: programNameKey } },
+      select: { questionId: true },
+      orderBy: { questionId: 'asc' },
+    });
+    return rows.map((row) => row.questionId);
+  }
+
+  async replaceQuestionAdditions(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actorId: string | null,
+  ): Promise<{ before: readonly string[]; optInInserted: readonly string[] } | null> {
+    const ids = [...new Set(questionIds)];
+    return this.prisma.$transaction(async (tx) => {
+      const name = await tx.platformEnumeration.findUnique({
+        where: { idx_platform_enumeration_type_key: { type: 'program_name', key: programNameKey } },
+        select: { id: true },
+      });
+      if (name === null) return null;
+      const before = await tx.programNameQuestionAddition.findMany({
+        where: { enumerationId: name.id, category },
+        select: { questionId: true },
+        orderBy: { questionId: 'asc' },
+      });
+
+      // Into the category as OPT-IN, where it is not there at all yet. A question the category
+      // already holds — ordinary or opt-in — keeps its row as it is: the addition alone is what
+      // makes this name ask it.
+      const held = new Set(
+        (
+          await tx.questionLoanCategory.findMany({
+            where: { category, questionId: { in: ids } },
+            select: { questionId: true },
+          })
+        ).map((row) => row.questionId),
+      );
+      const missing = ids.filter((id) => !held.has(id));
+      if (missing.length > 0) {
+        const seeds = await tx.question.findMany({
+          where: { id: { in: missing } },
+          select: { id: true, displayOrder: true },
+        });
+        await tx.questionLoanCategory.createMany({
+          data: seeds.map((q) => ({
+            questionId: q.id,
+            category,
+            optIn: true,
+            displayOrder: q.displayOrder,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      // An added question is not also a skipped one (see `replaceQuestionExclusions`).
+      if (ids.length > 0) {
+        await tx.programNameQuestionExclusion.deleteMany({
+          where: { enumerationId: name.id, category, questionId: { in: ids } },
+        });
+      }
+      await tx.programNameQuestionAddition.deleteMany({
+        where: { enumerationId: name.id, category },
+      });
+      if (ids.length > 0) {
+        await tx.programNameQuestionAddition.createMany({
+          data: ids.map((questionId) => ({
+            enumerationId: name.id,
+            category,
+            questionId,
+            createdBy: actorId,
+          })),
+        });
+      }
+      return { before: before.map((row) => row.questionId), optInInserted: missing };
+    });
+  }
+
+  async questionAdditionCounts(): Promise<
+    ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
+  > {
+    const rows = await this.prisma.programNameQuestionAddition.groupBy({
+      by: ['questionId', 'category'],
+      _count: { _all: true },
+    });
+    const out = new Map<string, Partial<Record<LoanCategory, number>>>();
+    for (const row of rows) {
+      const entry = out.get(row.questionId) ?? {};
+      entry[row.category] = row._count._all;
+      out.set(row.questionId, entry);
+    }
+    return out;
   }
 
   /**

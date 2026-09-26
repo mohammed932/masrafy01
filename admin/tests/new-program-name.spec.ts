@@ -1,13 +1,12 @@
 /**
- * The "add a program name" draft — which steps a name walks, what refuses Save, what gets
- * written, and what the second write's body is.
+ * The "add a program name" draft — what refuses Save, what gets written, and what the second
+ * write's body is.
  *
- * The cases worth writing are the ones that are only wrong SILENTLY: a payslip plan that
- * sends `surrogateProductKey` at all (the DTO refuses `''` and `null` alike, so the field has
- * to be ABSENT rather than empty), a step list that carries a step the operator's basis does
- * not walk, and — since the flow ends on a question board — a write body that widens a
- * question into a loan type nothing asked for, or drops the gate source a newly asked
- * question branches off.
+ * The cases worth writing are the ones that are only wrong SILENTLY: a plan that sends
+ * `surrogateProductKey` at all (the DTO refuses `''` and `null` alike, and every name this
+ * screen makes is income proof, so the field has to be ABSENT rather than empty), and — since
+ * the flow ends on a question board — a write body that widens a question into a loan type
+ * nothing asked for, or drops the gate source a newly asked question branches off.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -16,8 +15,6 @@ import {
   barBlock,
   blockReason,
   isLastStep,
-  newNameStepIds,
-  productSettled,
   savePlan,
   stepBlock,
   stepIdAt,
@@ -40,8 +37,6 @@ function draft(over: Partial<NewNameDraft> = {}): NewNameDraft {
   return {
     labelEn: 'Doctors',
     labelAr: 'أطباء',
-    basis: 'payslip',
-    product: null,
     // "Everything else is answered", which is what every assertion below that is not ABOUT
     // the offer set already assumes. A name offered under nothing cannot be created.
     offered: ['personal'],
@@ -49,63 +44,36 @@ function draft(over: Partial<NewNameDraft> = {}): NewNameDraft {
   };
 }
 
-const PAYSLIP_STEPS = newNameStepIds('payslip');
-const SURROGATE_STEPS = newNameStepIds('no_payslip');
+const STEPS = NEW_NAME_STEP_ORDER;
 
-describe('newNameStepIds', () => {
-  it('drops the calculation step on a payslip name — three steps, not four', () => {
-    // The payslip branch of that step used to render a sentence and no control: a screen
-    // that could not be answered, could not be wrong, and could not be skipped.
-    expect(PAYSLIP_STEPS).toEqual(['program', 'offered', 'asks']);
-    expect(SURROGATE_STEPS).toEqual(['program', 'calculation', 'offered', 'asks']);
-  });
-
-  it('walks the payslip list while the basis is unanswered', () => {
-    // One rule in one direction: the rail GROWS when no-payslip is picked, and it can only
-    // grow while the operator is standing on `program`, which both lists carry.
-    expect(newNameStepIds(null)).toEqual(PAYSLIP_STEPS);
-  });
-
-  it('keeps every list a subsequence of the canonical order', () => {
-    for (const ids of [PAYSLIP_STEPS, SURROGATE_STEPS]) {
-      const positions = ids.map((id) => NEW_NAME_STEP_ORDER.indexOf(id));
-      expect(positions).toEqual([...positions].sort((a, b) => a - b));
-    }
+describe('NEW_NAME_STEP_ORDER', () => {
+  it('walks three steps and no calculation step — every name made here is income proof', () => {
+    // A Surrogate answer used to grow a fourth step that linked the name to one of the
+    // platform's calculations. A surrogate program is code, so there is nothing to link.
+    expect(STEPS).toEqual(['program', 'offered', 'asks']);
   });
 });
 
 describe('stepIdAt / stepIndexOf / isLastStep', () => {
-  it('clamps a pasted step number into the list the basis actually walks', () => {
-    // `?step=4` on a payslip name names a step that is not on its rail.
-    expect(stepIdAt(PAYSLIP_STEPS, 3)).toBe('asks');
-    expect(stepIdAt(PAYSLIP_STEPS, -2)).toBe('program');
-    expect(stepIdAt(SURROGATE_STEPS, 3)).toBe('asks');
+  it('clamps a pasted step number into the list', () => {
+    // `?step=9` names a step that is not on the rail.
+    expect(stepIdAt(STEPS, 3)).toBe('asks');
+    expect(stepIdAt(STEPS, -2)).toBe('program');
   });
 
-  it('answers -1 for a step the list does not carry, never a position', () => {
-    expect(stepIndexOf(PAYSLIP_STEPS, 'calculation')).toBe(-1);
-    expect(stepIndexOf(SURROGATE_STEPS, 'calculation')).toBe(1);
+  it('answers each step by its position, which is what `?step=` mirrors', () => {
+    expect(stepIndexOf(STEPS, 'program')).toBe(0);
+    expect(stepIndexOf(STEPS, 'asks')).toBe(2);
   });
 
-  it('puts the last step at the end of both lists', () => {
-    expect(isLastStep(PAYSLIP_STEPS, 'asks')).toBe(true);
-    expect(isLastStep(SURROGATE_STEPS, 'asks')).toBe(true);
-    expect(isLastStep(SURROGATE_STEPS, 'offered')).toBe(false);
+  it('puts the last step at the end of the list', () => {
+    expect(isLastStep(STEPS, 'asks')).toBe(true);
+    expect(isLastStep(STEPS, 'offered')).toBe(false);
   });
 });
 
 describe('blockReason', () => {
-  it('asks for the basis first — it leads the form, and it decides the step list', () => {
-    expect(blockReason(draft({ basis: null }))).toBe('basis');
-  });
-
-  it('names the basis even when the labels are empty too', () => {
-    // In STEP ORDER, not by how much is missing. The basis card sits above the label fields
-    // on the same step, so this is also reading order.
-    expect(blockReason(draft({ labelEn: '', labelAr: '', basis: null }))).toBe('basis');
-  });
-
-  it('then the labels, once the basis is answered', () => {
+  it('asks for the labels first — they are the first thing on the form', () => {
     expect(blockReason(draft({ labelEn: '' }))).toBe('labels');
     expect(blockReason(draft({ labelAr: '   ' }))).toBe('labels');
   });
@@ -117,54 +85,24 @@ describe('blockReason', () => {
     expect(blockReason(draft({ labelEn: '،،،' }))).toBe('labels_key');
   });
 
-  it('then the product, but only on the surrogate basis', () => {
-    expect(blockReason(draft({ basis: 'no_payslip' }))).toBe('product');
-    expect(blockReason(draft({ basis: 'payslip' }))).toBeNull();
-  });
-
   it('then the offer set — a name offered under nothing can be picked by no bank', () => {
     expect(blockReason(draft({ offered: [] }))).toBe('offered');
-    // The product still wins: it is the earlier step.
-    expect(blockReason(draft({ basis: 'no_payslip', offered: [] }))).toBe('product');
   });
 
   it('never names the question step — adding nothing there is a real answer', () => {
     // Add-only means the loan types already ask what they ask, and this name is not the
     // only thing that decides it.
     expect(blockReason(draft())).toBeNull();
-    expect(
-      blockReason(draft({ basis: 'no_payslip', product: { kind: 'existing', key: 'car_owner' } })),
-    ).toBeNull();
-  });
-
-  it('holds a surrogate name whose picker is open with nothing chosen', () => {
-    // `{key:''}` is the picker on screen, untouched. Settled, it would be refused by the
-    // server after the click (`SURROGATE_PRODUCT_REQUIRED`) rather than before it.
-    const open = draft({ basis: 'no_payslip', product: { kind: 'existing', key: '' } });
-    expect(blockReason(open)).toBe('product');
-    expect(
-      blockReason(draft({ ...open, product: { kind: 'existing', key: 'car_owner' } })),
-    ).toBeNull();
   });
 });
 
 describe('stepBlock', () => {
   // What the action bar reports, scoped to the step on screen. The global `blockReason` named
   // a field two steps away and left the first step with nothing clickable.
-  it('reports all three of step ①’s answers, in reading order', () => {
-    // The basis and the labels share a step now, so this is the one place the two are
-    // compared — and the order is the order they appear down the page.
-    expect(stepBlock(draft({ basis: null, labelEn: '', labelAr: '' }), 'program')).toBe('basis');
+  it('reports both of step ①’s answers, in reading order', () => {
     expect(stepBlock(draft({ labelEn: '', labelAr: '' }), 'program')).toBe('labels');
     expect(stepBlock(draft({ labelEn: 'أطباء' }), 'program')).toBe('labels_key');
     expect(stepBlock(draft(), 'program')).toBeNull();
-  });
-
-  it('reports the product on the calculation step, which only a surrogate name walks', () => {
-    expect(stepBlock(draft({ basis: 'no_payslip' }), 'calculation')).toBe('product');
-    // Unreachable on a payslip name — that list carries no such step — so the arm answers
-    // null rather than inventing a refusal for a screen nobody is looking at.
-    expect(stepBlock(draft({ basis: 'payslip' }), 'calculation')).toBeNull();
   });
 
   it('reports the offer set on its own step and nowhere else', () => {
@@ -173,10 +111,10 @@ describe('stepBlock', () => {
     expect(stepBlock(draft({ offered: [] }), 'asks')).toBeNull();
   });
 
-  it('agrees with blockReason on step ①, which is what the merge bought', () => {
-    // Before the merge these disagreed: the basis cleared its own step while the global
-    // reason named the labels a step away, so the bar refused with an off-screen field.
-    const unnamed = draft({ basis: 'no_payslip', labelEn: '', labelAr: '' });
+  it('agrees with blockReason on step ①', () => {
+    // The bar on the first step and the create both name the labels, so the operator is
+    // never refused over a field that is not on screen.
+    const unnamed = draft({ labelEn: '', labelAr: '' });
     expect(stepBlock(unnamed, 'program')).toBe('labels');
     expect(blockReason(unnamed)).toBe('labels');
   });
@@ -188,50 +126,26 @@ describe('barBlock', () => {
   it('names the whole draft on the last step, where the button creates', () => {
     // `stepBlock` is null on `asks` whatever the rest says, so without the split the bar
     // offered an enabled control that could neither save nor move.
-    const unnamed = draft({ basis: 'payslip', labelEn: '', labelAr: '' });
+    const unnamed = draft({ labelEn: '', labelAr: '' });
     expect(stepBlock(unnamed, 'asks')).toBeNull();
-    expect(barBlock(unnamed, 'asks', PAYSLIP_STEPS)).toBe('labels');
-    expect(barBlock(draft(), 'asks', PAYSLIP_STEPS)).toBeNull();
-  });
-
-  it('gates every forward move on the first step, so the old landing clause is gone', () => {
-    // There used to be a "somewhere to land" clause, because the basis sat on a step the
-    // operator could walk PAST. It is on step ① now and `stepBlock` gates it there.
-    expect(barBlock(draft({ basis: null }), 'program', PAYSLIP_STEPS)).toBe('basis');
+    expect(barBlock(unnamed, 'asks', STEPS)).toBe('labels');
+    expect(barBlock(draft(), 'asks', STEPS)).toBeNull();
   });
 
   it('otherwise says exactly what the step on screen owes', () => {
-    expect(barBlock(draft({ labelEn: '' }), 'program', PAYSLIP_STEPS)).toBe('labels');
-    expect(barBlock(draft({ offered: [] }), 'offered', PAYSLIP_STEPS)).toBe('offered');
-    expect(barBlock(draft({ basis: 'no_payslip' }), 'calculation', SURROGATE_STEPS)).toBe(
-      'product',
-    );
-  });
-});
-
-describe('productSettled', () => {
-  it('separates unanswered from open-with-nothing-chosen, and settles on a real key', () => {
-    // Three states, and the middle one is why this is a wrapper object rather than a bare
-    // string: `null` is "not asked yet", `{key:''}` is "asked, nothing picked".
-    expect(productSettled(draft({ product: null }))).toBe(false);
-    expect(productSettled(draft({ product: { kind: 'existing', key: '' } }))).toBe(false);
-    expect(productSettled(draft({ product: { kind: 'existing', key: 'car_owner' } }))).toBe(true);
+    expect(barBlock(draft({ labelEn: '' }), 'program', STEPS)).toBe('labels');
+    expect(barBlock(draft({ offered: [] }), 'offered', STEPS)).toBe('offered');
   });
 });
 
 describe('stepStatuses', () => {
-  it('reports every step by id, including one this basis does not walk', () => {
-    // A total Record and not a positional tuple: the list is conditional, so an index means
-    // different things on the two paths.
+  it('reports every step by id', () => {
     const statuses = stepStatuses(draft());
-    expect(Object.keys(statuses).sort()).toEqual(
-      ['asks', 'calculation', 'offered', 'program'].sort(),
-    );
+    expect(Object.keys(statuses).sort()).toEqual(['asks', 'offered', 'program'].sort());
   });
 
-  it('holds step ① open until BOTH the basis and the labels are answered', () => {
+  it('holds step ① open until both labels are answered', () => {
     expect(stepStatuses(draft()).program.status).toBe('done');
-    expect(stepStatuses(draft({ basis: null })).program.status).toBe('todo');
     expect(stepStatuses(draft({ labelEn: '', labelAr: '' })).program.status).toBe('todo');
   });
 
@@ -239,15 +153,11 @@ describe('stepStatuses', () => {
     expect(stepStatuses(draft({ labelEn: 'أطباء' })).program.status).toBe('todo');
   });
 
-  it('leaves every later step unreachable until the basis is answered — and nothing else', () => {
-    const blind = stepStatuses(draft({ labelEn: '', labelAr: '', basis: null }));
-    expect(blind.program.disabled).toBe(false);
-    expect(blind.calculation.disabled).toBe(true);
-    expect(blind.offered.disabled).toBe(true);
-    expect(blind.asks.disabled).toBe(true);
-    const answered = stepStatuses(draft());
-    expect(answered.offered.disabled).toBe(false);
-    expect(answered.asks.disabled).toBe(false);
+  it('leaves every step reachable — nothing on the form gates another', () => {
+    // Every later step used to wait for the income basis; with one basis there is nothing to
+    // wait for, and the labels are an order, not a gate.
+    const blank = stepStatuses(draft({ labelEn: '', labelAr: '', offered: [] }));
+    expect(Object.values(blank).map((s) => s.disabled)).toEqual([false, false, false]);
   });
 
   it('marks the question step done as soon as it has something to render', () => {
@@ -257,33 +167,18 @@ describe('stepStatuses', () => {
   });
 
   it('never reports invalid — every unfinished state here is merely unfinished', () => {
-    const empty = stepStatuses(draft({ labelEn: '', labelAr: '', basis: null, offered: [] }));
-    expect(Object.values(empty).map((s) => s.status)).toEqual(['todo', 'todo', 'todo', 'todo']);
+    const empty = stepStatuses(draft({ labelEn: '', labelAr: '', offered: [] }));
+    expect(Object.values(empty).map((s) => s.status)).toEqual(['todo', 'todo', 'todo']);
   });
 });
 
 describe('savePlan', () => {
   // ONE write for the name, its loan types AND their income basis. What only ever failed
-  // silently is the link: a payslip name must send `surrogateProductKey` ABSENT, never `''`
+  // silently is the link: the create must send `surrogateProductKey` ABSENT, never `''`
   // (refused by the DTO) and never `null` (which means UNLINK on a patch).
-  it('payslip: no link at all — not an empty one', () => {
-    const plan = savePlan(draft());
-    expect(plan.incomeBases).toEqual(['payslip']);
-    expect(plan.link).toEqual({ kind: 'none' });
-  });
-
-  it('an unanswered basis plans the payslip write, never a surrogate one', () => {
-    // Unreachable past blockReason, but the fallthrough must not invent a surrogate name.
-    expect(savePlan(draft({ basis: null })).incomeBases).toEqual(['payslip']);
-    expect(savePlan(draft({ basis: null })).link).toEqual({ kind: 'none' });
-  });
-
-  it('surrogate: one write, carrying the link', () => {
-    const plan = savePlan(
-      draft({ basis: 'no_payslip', product: { kind: 'existing', key: 'car_owner' } }),
-    );
-    expect(plan.incomeBases).toEqual(['no_payslip']);
-    expect(plan.link).toEqual({ kind: 'existing', key: 'car_owner' });
+  it('plans an income-proof name with no link at all — not an empty one', () => {
+    // The exact shape: a plan that grew any link field would fail here, not in production.
+    expect(savePlan(draft())).toEqual({ incomeBases: ['payslip'], categories: ['personal'] });
   });
 
   it('carries the loan types, canonically ordered, so the name is born offered', () => {
@@ -291,14 +186,6 @@ describe('savePlan', () => {
     // flags. A create used to assign none, and every new name was parked.
     const plan = savePlan(draft({ offered: ['mortgage', 'personal'] }));
     expect(plan.categories).toEqual(['personal', 'mortgage']);
-  });
-
-  it('sends the basis on every plan — it is what the server guard reads on the way in', () => {
-    // `SURROGATE_PRODUCT_REQUIRED` reads it, AND `flagsOfBases` writes it onto every
-    // category row. Dropping it would disarm the guard and mislabel the rows at once.
-    expect(
-      savePlan(draft({ basis: 'no_payslip', product: { kind: 'existing', key: 'x' } })).incomeBases,
-    ).toEqual(['no_payslip']);
   });
 });
 

@@ -32,6 +32,9 @@ import {
   SurrogateFactQuestionTypeInvalidException,
   EnumerationSystemOnlyException,
   NotFoundException,
+  ProgramNameKeyNotInCategoryException,
+  QuestionExclusionLockedException,
+  QuestionAdditionLockedException,
   EnumerationBulkCreateNotApplicableException,
   EnumerationBulkInvalidException,
   type EnumerationBulkProblem,
@@ -47,6 +50,11 @@ import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 // `factChoiceTable` and `factParentTable` find a bank's row at all. A second copy here would
 // be the copy that drifts. Pure function, no module involvement, so no DI cycle (A25).
 import { slugify } from '@/questionnaire/slug.util';
+import {
+  questionLockReason,
+  type QuestionLockReason,
+} from '@/questionnaire/validation/question-scope';
+import { enabledWhenGate } from '@/questionnaire/validation/question-visibility';
 import { dedupeCategories } from '@/common/loan-category.util';
 import { dedupeBases, type IncomeBasis } from '@/common/income-basis.util';
 import {
@@ -1431,6 +1439,211 @@ export class PlatformEnumerationsAdminService {
     });
   }
 
+  // ---- Questions a program name skips ---------------------------------------
+
+  /**
+   * What the program-name questions board needs to let an operator untick: the questions this
+   * name already skips, per loan type it is offered under, and every question it may NOT skip
+   * with the reason. With no key (the create flow) nothing is skipped yet and only the engine's
+   * own inputs lock — a name with no bank programme behind it has nothing else that reads.
+   */
+  async programNameQuestionScope(programNameKey: string | null): Promise<{
+    excludedByCategory: Partial<Record<LoanCategory, string[]>>;
+    /** Question IDS the name ADDS, per loan type — `program_name_question_addition`. */
+    addedByCategory: Partial<Record<LoanCategory, string[]>>;
+    locks: { code: string; reason: QuestionLockReason }[];
+  }> {
+    const [pool, lockScope, categories] = await Promise.all([
+      this.questionnaire.questionAssignments(),
+      this.repo.questionLockScopeFor(programNameKey),
+      programNameKey === null
+        ? Promise.resolve<LoanCategory[]>([])
+        : this.repo.memberCategories(PROGRAM_NAME_TYPE, programNameKey),
+    ]);
+    const excludedByCategory: Partial<Record<LoanCategory, string[]>> = {};
+    const addedByCategory: Partial<Record<LoanCategory, string[]>> = {};
+    for (const category of categories) {
+      excludedByCategory[category] = [
+        ...(await this.repo.questionExclusions(programNameKey as string, category)),
+      ];
+      addedByCategory[category] = [
+        ...(await this.repo.questionAdditions(programNameKey as string, category)),
+      ];
+    }
+    // Every question in the pool, asked here or not: the `engine` lock also says which
+    // questions a name may not ADD, and the board needs that for the rows it does not ask yet.
+    const locks = pool.flatMap((q) => {
+      const reason = questionLockReason(q.code, lockScope);
+      return reason === null ? [] : [{ code: q.code, reason }];
+    });
+    return { excludedByCategory, addedByCategory, locks };
+  }
+
+  /**
+   * Replace the questions one name skips under one loan type. The submitted list IS the new
+   * set and may be empty (ask everything again). Every id is checked before anything is
+   * written; a locked one refuses the whole write rather than being dropped in silence.
+   */
+  async setProgramNameQuestionExclusions(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actor: AdminActor,
+  ): Promise<{ excluded: string[] }> {
+    const row = await this.repo.findByTypeAndKey(PROGRAM_NAME_TYPE, programNameKey);
+    if (row === null) throw new NotFoundException();
+    const offered = await this.repo.memberCategories(PROGRAM_NAME_TYPE, programNameKey);
+    if (!offered.includes(category)) {
+      throw new ProgramNameKeyNotInCategoryException({
+        programNameKey,
+        productCategory: category,
+        assignedCategories: [...offered],
+      });
+    }
+    const [pool, lockScope] = await Promise.all([
+      this.questionnaire.questionAssignments(),
+      this.repo.questionLockScopeFor(programNameKey),
+    ]);
+    const byId = new Map(pool.map((q) => [q.id, q]));
+    const next = [...new Set(questionIds)].sort();
+    for (const questionId of next) {
+      const question = byId.get(questionId);
+      if (question === undefined) {
+        throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId });
+      }
+      const reason = questionLockReason(question.code, lockScope);
+      if (reason !== null) {
+        throw new QuestionExclusionLockedException({ questionId, code: question.code, reason });
+      }
+    }
+    const written = await this.repo.replaceQuestionExclusions(
+      programNameKey,
+      category,
+      next,
+      actor.staffId,
+    );
+    if (written === null) throw new NotFoundException();
+    const codeOf = (id: string): string => byId.get(id)?.code ?? id;
+    if (written.before.join(',') !== next.join(',')) {
+      await this.writeAssignmentAudit(
+        row,
+        `excludedQuestions.${category}`,
+        written.before.map(codeOf),
+        next.map(codeOf),
+        actor,
+      );
+    }
+    return { excluded: next };
+  }
+
+  // ---- Questions a program name adds ----------------------------------------
+
+  /**
+   * Replace the questions one name ADDS under one loan type — asked of this name's applicants
+   * although the loan type does not ask them of every name. The mirror of
+   * `setProgramNameQuestionExclusions`: the list IS the new set and may be empty.
+   *
+   * CLOSED OVER GATES here, not trusted from the client: a picked question that appears only
+   * after an answer to another one brings that source with it, transitively, unless the loan
+   * type already asks the source of every name (the name axis keeps such a source whenever a
+   * question behind it is kept). A question added without its source would have a dangling
+   * gate, which `isQuestionVisible` shows unconditionally.
+   *
+   * REFUSED, whole, before anything is written: an unknown id, a switched-off question (asked
+   * of nobody, so an addition would do nothing), and an `engine` question — every quote reads
+   * those, so whether they are asked is the loan type's call, not one name's. The same goes
+   * for an engine question a pick would drag in as its gate source.
+   *
+   * A question the category does not hold yet goes in as an OPT-IN row, which changes the
+   * frozen snapshot — so that write publishes ONE version. Re-picking questions that are
+   * already there publishes nothing.
+   */
+  async setProgramNameQuestionAdditions(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actor: AdminActor,
+  ): Promise<{ added: string[]; published: boolean }> {
+    const row = await this.repo.findByTypeAndKey(PROGRAM_NAME_TYPE, programNameKey);
+    if (row === null) throw new NotFoundException();
+    const offered = await this.repo.memberCategories(PROGRAM_NAME_TYPE, programNameKey);
+    if (!offered.includes(category)) {
+      throw new ProgramNameKeyNotInCategoryException({
+        programNameKey,
+        productCategory: category,
+        assignedCategories: [...offered],
+      });
+    }
+    const [pool, lockScope] = await Promise.all([
+      this.questionnaire.questionAssignments(),
+      this.repo.questionLockScopeFor(programNameKey),
+    ]);
+    const byId = new Map(pool.map((q) => [q.id, q]));
+    const byCode = new Map(pool.map((q) => [q.code, q]));
+    type PoolQuestion = (typeof pool)[number];
+    const askedOfEveryName = (q: PoolQuestion): boolean =>
+      q.categories.includes(category) && !q.optInCategories.includes(category);
+    const assertAddable = (q: PoolQuestion): void => {
+      if (!q.isActive) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+          field: 'questionIds',
+          value: q.id,
+          reason: 'inactive',
+        });
+      }
+      if (questionLockReason(q.code, lockScope) === 'engine') {
+        throw new QuestionAdditionLockedException({ questionId: q.id, code: q.code });
+      }
+    };
+
+    const next = new Set<string>();
+    for (const questionId of new Set(questionIds)) {
+      const question = byId.get(questionId);
+      if (question === undefined) {
+        throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId });
+      }
+      assertAddable(question);
+      next.add(question.id);
+      // Up the gate chain. Bounded by `seen`: the pool editor refuses a cycle, but a loop that
+      // can hang is worse than one that stops early.
+      const seen = new Set<string>([question.id]);
+      let at: PoolQuestion = question;
+      for (;;) {
+        const gate = enabledWhenGate(at);
+        const source = gate === null ? undefined : byCode.get(gate.questionCode);
+        if (source === undefined || seen.has(source.id) || askedOfEveryName(source)) break;
+        seen.add(source.id);
+        assertAddable(source);
+        next.add(source.id);
+        at = source;
+      }
+    }
+
+    const ids = [...next].sort();
+    const written = await this.repo.replaceQuestionAdditions(
+      programNameKey,
+      category,
+      ids,
+      actor.staffId,
+    );
+    if (written === null) throw new NotFoundException();
+    // Serve and preview read the FROZEN snapshot, so a question that just gained an opt-in row
+    // reaches nobody until it is republished.
+    const published = written.optInInserted.length > 0;
+    if (published) await this.questionnaire.publishNow(actor.staffId);
+    const codeOf = (id: string): string => byId.get(id)?.code ?? id;
+    if (written.before.join(',') !== ids.join(',')) {
+      await this.writeAssignmentAudit(
+        row,
+        `addedQuestions.${category}`,
+        written.before.map(codeOf),
+        ids.map(codeOf),
+        actor,
+      );
+    }
+    return { added: ids, published };
+  }
+
   // ---- Loan-category assignment --------------------------------------------
 
   /**
@@ -1719,6 +1932,10 @@ export class PlatformEnumerationsAdminService {
       | 'categories'
       | `questions.${LoanCategory}`
       | `incomeBasis.${LoanCategory}`
+      // Question CODES, not ids: the audit is read by a person, and the code is what the
+      // questionnaire screens print.
+      | `excludedQuestions.${LoanCategory}`
+      | `addedQuestions.${LoanCategory}`
       // Not per category: a fact reads ONE question whoever is asking, which is what
       // makes it a fact rather than a per-product rule.
       | 'boundQuestion',

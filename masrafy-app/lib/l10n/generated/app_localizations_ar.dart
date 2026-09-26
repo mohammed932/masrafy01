@@ -863,6 +863,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_common_search => 'بحث';
 
   @override
+  String get q_common_search_hint => 'ابحث في الخيارات…';
+
+  @override
   String get q_mortgage_title => 'طلب تمويل عقاري';
 
   @override
@@ -1837,19 +1840,15 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get results_unavailable_section => 'غير متاح لك حاليًا';
+  String get results_no_offer_fix_title => 'ما الذي يمكنك تعديله';
 
   @override
-  String get results_unavailable_badge => 'لا يوجد عرض من هذا البنك';
+  String get results_no_offer_body =>
+      'إليك ما منع البنوك من تقديم عرض لك. عدّل هذه الإجابات وحاول مرة أخرى.';
 
   @override
   String get results_unavailable_generic =>
       'تعذّر على هذا البنك تقديم عرض لك حاليًا.';
-
-  @override
-  String results_unavailable_ceiling(String amount) {
-    return 'يمكنك الاقتراض حتى $amount جنيه من هذا البنك.';
-  }
 
   @override
   String get results_rate => 'الفائدة';

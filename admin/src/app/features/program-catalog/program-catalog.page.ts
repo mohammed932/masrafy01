@@ -166,28 +166,23 @@ const ENUM_TYPE = 'program_name';
           <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
         </ng-template>
         <span class="toolbar-spacer"></span>
-        <!-- ONE action, on every chip, and it names the errand rather than the object.
-             It used to change WHICH KIND OF OBJECT it made depending on the filter — a name
-             on two chips, a surrogate product on the third — so the same button in the same
-             place did two different things and neither was discoverable from the other. Then
-             both survived side by side, which only moved the choice earlier: the operator had
-             to know before clicking which of two internal words ("name" / "surrogate
-             product") described what they came to do.
+        <!-- ONE action, and it names the errand rather than the object. It used to change
+             WHICH KIND OF OBJECT it made depending on the filter — a name on two chips, a
+             surrogate product on the third — so the same button in the same place did two
+             different things and neither was discoverable from the other.
 
-             Adding a program covers both bases now, and the chip only decides which answer
-             the flow opens on. A CALCULATION is not a second capability: step 3 of that flow
-             starts one from a shape, and the two product screens keep their own links to the
-             picker for the rarer errand of making one that no name sells yet. -->
-        <a
-          nz-button
-          nzType="primary"
-          class="add-btn"
-          [routerLink]="newNameLink().commands"
-          [queryParams]="newNameLink().queryParams"
-        >
-          <span nz-icon nzType="plus" nzTheme="outline"></span>
-          <span i18n="@@program_catalog.dialog.add">Add program</span>
-        </a>
+             Income proof side ONLY. A program added here is always sold against a payslip:
+             a surrogate program comes with its own questions and its own equation for the
+             income, written in code and put in by the seeds, so the Surrogate side has
+             nothing an operator can add. A button there would open a form for the OTHER
+             side's kind of program. Shown on an empty board too, whatever the tab, because
+             the empty state below says to add the first one. -->
+        @if (canAdd()) {
+          <a nz-button nzType="primary" class="add-btn" [routerLink]="newNameLink">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            <span i18n="@@program_catalog.dialog.add">Add program</span>
+          </a>
+        }
       </div>
 
       @if (loading()) {
@@ -322,9 +317,9 @@ const ENUM_TYPE = 'program_name';
                 } @else {
                   <div class="board-empty">
                     <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
-                    <p i18n="@@program_catalog.surrogate.empty">
-                      No calculation for a customer with no payslip yet. Start one from a shape and
-                      the questions it asks are built with it.
+                    <p i18n="@@program_catalog.surrogate.empty2">
+                      No calculation for a customer with no payslip yet. Each one is built into the
+                      platform with the questions it asks — none can be added here.
                     </p>
                   </div>
                 }
@@ -1250,16 +1245,10 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly nameBase = CATALOG_BASE;
 
   /**
-   * Add a program name, opening on the basis the operator is standing in front of.
-   *
-   * The panel seeds the answer, and now always states one — there is no third, opinionless
-   * state left to send nothing from. The create screen can still change it; this only saves
-   * re-answering the question the tab they are standing on has already answered.
+   * Add a program name. No `?basis=`: the create screen asks no basis any more — every name
+   * it makes is sold against a payslip.
    */
-  protected readonly newNameLink = computed(() => ({
-    commands: [CATALOG_NEW],
-    queryParams: { basis: this.basisFilter() },
-  }));
+  protected readonly newNameLink = CATALOG_NEW;
 
   /** Fixed-length placeholders for the shape-matched loading skeleton. */
   protected readonly skeletonCards = [0, 1, 2, 3, 4, 5];
@@ -1339,6 +1328,16 @@ export class ProgramCatalogPage implements OnInit {
   /** Nothing loaded at all — distinct from "nothing matches the chip", which is per group. */
   protected readonly isEmpty = computed(
     () => this.rows().length === 0 && this.productRows().length === 0,
+  );
+
+  /**
+   * Whether "Add program" is offered: on the Income proof side, which is the only kind a name
+   * made there can be — and on a board with nothing on it at all, whose empty state asks for
+   * the first one and draws no tabs to be on the wrong side of. Not while loading, when every
+   * board reads as empty for a moment.
+   */
+  protected readonly canAdd = computed(
+    () => this.showProof() || (!this.loading() && this.isEmpty()),
   );
 
   /** Used by the name card's accent. */
@@ -1673,10 +1672,10 @@ export class ProgramCatalogPage implements OnInit {
   /**
    * EDIT only — the side sheet keeps the board's counts on screen while a name is renamed.
    *
-   * Creating moved to a screen of its own (`/program-catalog/new`): the create form branches
-   * on the income basis and, on one branch, grows a seven-card shape picker and a second
-   * object's name, which is well past what a sheet holds. Editing did not move — it is a
-   * bounded set of fields, and the list it is edited against is worth keeping in view.
+   * Creating is a screen of its own (`/program-catalog/new`): it also offers the name under
+   * its loan types and sets what their applicants are asked, which is well past what a sheet
+   * holds. Editing did not move — two labels and a sort order, and the list they are edited
+   * against is worth keeping in view.
    */
   private openDrawer(row: EnumerationRow): void {
     const ref = openFormDrawer<EnumerationEditDrawerComponent, EnumerationEditDrawerData, boolean>(
@@ -1689,7 +1688,7 @@ export class ProgramCatalogPage implements OnInit {
           row,
           title: $localize`:@@program_catalog.dialog.edit:Edit program name`,
           submitLabel: $localize`:@@lookups.dialog.save:Save`,
-          subtitle: $localize`:@@program_catalog.dialog.edit_sub:Renames the name everywhere banks already use it, and restates what it is sold against.`,
+          subtitle: $localize`:@@program_catalog.dialog.edit_sub2:Renames the name everywhere banks already use it.`,
         },
       },
     );

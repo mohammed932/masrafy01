@@ -5,6 +5,24 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+/// First private IPv4 of an up, non-loopback interface on the build machine,
+/// preferring Wi-Fi/Ethernet (`en*`). Empty when there is none.
+static String devHostIp() {
+    def candidates = []
+    NetworkInterface.networkInterfaces.each { ni ->
+        if (!ni.up || ni.loopback || ni.virtual) return
+        ni.inetAddresses.each { addr ->
+            if (addr instanceof Inet4Address && addr.siteLocalAddress) {
+                candidates << [ni.name, addr.hostAddress]
+            }
+        }
+    }
+    def pick = candidates.find { it[0] == 'en0' } ?:
+            candidates.find { it[0].startsWith('en') } ?:
+            candidates.find()
+    return pick ? pick[1] : ''
+}
+
 android {
     namespace = "com.masrafy01.app"
     compileSdk = flutter.compileSdkVersion
@@ -31,6 +49,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            // The dev backend runs on the build machine. A physical phone can't
+            // reach it as `localhost` (and `adb reverse` never delivers on the
+            // team's devices), so the debug build carries the machine's current
+            // LAN address; `MainActivity` hands it to `DevEnvironment`.
+            // Recomputed on every build, so switching networks only needs a
+            // rebuild — never an edit.
+            resValue "string", "dev_host_ip", devHostIp()
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.

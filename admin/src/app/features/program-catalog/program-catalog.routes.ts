@@ -47,7 +47,7 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
   },
 
   {
-    // ONE create flow for both income bases — see the screen's own header for why it is a
+    // The create flow, income proof only — see the screen's own header for why it is a
     // screen and not the side sheet it replaces.
     //
     // `new` MUST come before the single-segment `:key` below, for the same reason

@@ -1051,14 +1051,18 @@ model PlatformEnumeration {
   createdBy           String?   @db.VarChar(30)
   updatedBy           String?   @db.VarChar(30)
 
-  loanCategories  PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
-  boundQuestion   Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
+  loanCategories     PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
+  boundQuestion      Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
   /// `surrogate_product` side of the ask set — which facts this product reads.
-  asks            SurrogateProductAsk[]             @relation("SurrogateProductAsks")
+  asks               SurrogateProductAsk[]             @relation("SurrogateProductAsks")
   /// `surrogate_fact` side of the same rows — which products read this fact. This is
   /// the direction `surrogateProductKey` cannot express: it is one column, and a fact
   /// is legitimately read by several products.
-  askedByProducts SurrogateProductAsk[]             @relation("SurrogateFactAskedBy")
+  askedByProducts    SurrogateProductAsk[]             @relation("SurrogateFactAskedBy")
+  /// `program_name` only: questions its loan types ask that THIS name skips.
+  questionExclusions ProgramNameQuestionExclusion[]    @relation("ProgramNameQuestionExclusions")
+  /// `program_name` only: questions THIS name asks beyond what its loan types ask everyone.
+  questionAdditions  ProgramNameQuestionAddition[]     @relation("ProgramNameQuestionAdditions")
 
   @@unique([type, key], name: "idx_platform_enumeration_type_key")
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
@@ -1679,17 +1683,21 @@ model Question {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  group          QuestionGroup          @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
-  options        QuestionOption[]       @relation("QuestionOptions")
-  answers        ApplicationAnswer[]    @relation("QuestionAnswers")
-  loanCategories QuestionLoanCategory[] @relation("QuestionLoanCategories")
+  group                 QuestionGroup                  @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
+  options               QuestionOption[]               @relation("QuestionOptions")
+  answers               ApplicationAnswer[]            @relation("QuestionAnswers")
+  loanCategories        QuestionLoanCategory[]         @relation("QuestionLoanCategories")
   /// Surrogate income FACTS answered by this question — registry rows, not a
   /// property of the question (see `PlatformEnumeration.boundQuestionId`).
-  surrogateFacts PlatformEnumeration[]  @relation("QuestionSurrogateFactBindings")
+  surrogateFacts        PlatformEnumeration[]          @relation("QuestionSurrogateFactBindings")
   /// Lists whose values ARE this question's options, one-for-one by code. Again a
   /// statement the REGISTRY makes about itself, not a field on the question
   /// (see `EnumerationTypeDef.mirrorQuestionId`).
-  mirroredLists  EnumerationTypeDef[]   @relation("QuestionMirroredEnumerationTypes")
+  mirroredLists         EnumerationTypeDef[]           @relation("QuestionMirroredEnumerationTypes")
+  /// Program names that skip this question (`ProgramNameQuestionExclusion`).
+  programNameExclusions ProgramNameQuestionExclusion[] @relation("QuestionProgramNameExclusions")
+  /// Program names that add this question (`ProgramNameQuestionAddition`).
+  programNameAdditions  ProgramNameQuestionAddition[]  @relation("QuestionProgramNameAdditions")
 
   @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")
@@ -1728,6 +1736,17 @@ model QuestionLoanCategory {
   /// FROZEN INTO THE SNAPSHOT (A33) as `categoryOrder`, never re-derived at read time: a
   /// version served yesterday must go on asking in yesterday's order.
   displayOrder Int          @default(0)
+  /// OPT-IN: in this category, but asked only of the program names that ADD it
+  /// (`program_name_question_addition`) or whose bank programs read it. `false` — every row
+  /// before 2026-09-26 — is the ordinary assignment: asked of every name.
+  ///
+  /// Written only by a program name's "tick an extra question", so ticking a car question on
+  /// a Personal name never asks it of every Personal applicant. A global add
+  /// (`/questionnaire/categories`, the product-ask widen, a blueprint) turns the row ordinary.
+  ///
+  /// FROZEN INTO THE SNAPSHOT as `optInCategories`, DISJOINT from `categories`, so a reader
+  /// that does not know the key treats the row as unassigned: not served, not required.
+  optIn        Boolean      @default(false)
   createdAt    DateTime     @default(now()) @db.Timestamptz(6)
 
   question Question @relation("QuestionLoanCategories", fields: [questionId], references: [id], onDelete: Cascade)
@@ -1737,6 +1756,54 @@ model QuestionLoanCategory {
   /// The read this table exists for now: one category's asked set, in its own order.
   @@index([category, displayOrder], name: "idx_question_loan_category_order")
   @@map("question_loan_category")
+}
+
+/// A question a program NAME's applicants are NOT asked, though its loan type asks it.
+///
+/// The operator's untick on the program-name questions board. SUBTRACTIVE and per
+/// (name, category): other names and the global `question_loan_category` assignment are
+/// untouched. BOUNDED, never authoritative: `question-scope.ts` ignores a row whose question
+/// the quote needs — the engine's money/debt inputs, or a fact a bank program under the name
+/// reads — so a bank program filed later that reads an unticked question brings it back
+/// without anyone editing this table. Read LIVE with the rest of the name axis, never frozen
+/// into the snapshot (v29.0.0). Narrows what is ASKED, never what may be ANSWERED (A33).
+model ProgramNameQuestionExclusion {
+  enumerationId String       @db.VarChar(30)
+  category      LoanCategory
+  questionId    String       @db.VarChar(30)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+  createdBy     String?      @db.VarChar(30)
+
+  enumeration PlatformEnumeration @relation("ProgramNameQuestionExclusions", fields: [enumerationId], references: [id], onDelete: Cascade)
+  question    Question            @relation("QuestionProgramNameExclusions", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([enumerationId, category, questionId], name: "pk_program_name_question_exclusion")
+  @@index([questionId], name: "idx_program_name_question_exclusion_question")
+  @@map("program_name_question_exclusion")
+}
+
+/// A question a program NAME's applicants ARE asked, though its loan type does not ask it of
+/// every name — the mirror of `ProgramNameQuestionExclusion`.
+///
+/// The operator's tick on the program-name questions board. ADDITIVE and per (name,
+/// category): the question sits in the category as an OPT-IN row
+/// (`QuestionLoanCategory.optIn`), which other names never serve. Added for a name means
+/// asked, never REQUIRED because of it — the question keeps its own requiredness. Read LIVE
+/// with the rest of the name axis, never frozen (v29.0.0); a snapshot freezes only which
+/// rows are opt-in. Answers stay accepted category-wide (A33).
+model ProgramNameQuestionAddition {
+  enumerationId String       @db.VarChar(30)
+  category      LoanCategory
+  questionId    String       @db.VarChar(30)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+  createdBy     String?      @db.VarChar(30)
+
+  enumeration PlatformEnumeration @relation("ProgramNameQuestionAdditions", fields: [enumerationId], references: [id], onDelete: Cascade)
+  question    Question            @relation("QuestionProgramNameAdditions", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([enumerationId, category, questionId], name: "pk_program_name_question_addition")
+  @@index([questionId], name: "idx_program_name_question_addition_question")
+  @@map("program_name_question_addition")
 }
 
 model QuestionOption {

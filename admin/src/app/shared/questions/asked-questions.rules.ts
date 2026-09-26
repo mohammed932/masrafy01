@@ -46,8 +46,16 @@ export interface AskableQuestion {
    * they answer it. The board confirms those and ticks the rest silently.
    */
   readonly isRequired: boolean;
-  /** The loan types that ask it today. Empty = parked: kept, editable, asked by nobody. */
+  /**
+   * The loan types that ask it of EVERY program name today. Empty = parked: kept, editable,
+   * asked by nobody (or only by names that add it — see `optInCategories`).
+   */
   readonly categories: readonly LoanCategory[];
+  /**
+   * The loan types it sits in only as an OPT-IN row: a program name added it for its own
+   * applicants. Disjoint from `categories`. Absent on a bare fixture — read as none.
+   */
+  readonly optInCategories?: readonly LoanCategory[];
   /** `enabledWhen.questionCode` — the question this one branches off, or `null`. */
   readonly gateSourceCode: string | null;
   /** Wording + code + answer labels, already lower-cased. What search matches. */
@@ -106,8 +114,18 @@ export interface ServedCount {
   readonly categoryRequired: number;
   readonly servedTotal: number;
   readonly servedRequired: number;
+  /**
+   * Served to this name and NOT in the loan type's own list — the questions it added, or that
+   * a bank program under it reads through an opt-in row. Absent on an older server.
+   */
+  readonly servedExtra?: number;
   /** Codes of the questions served, when the endpoint sends them. */
   readonly servedQuestionCodes?: readonly string[];
+  /**
+   * False while no active bank program is filed under the name: the name's unticks and
+   * additions are stored but not in force, and the applicant is asked what the loan type asks.
+   */
+  readonly nameAxisActive?: boolean;
 }
 
 /** A run of rows from one questionnaire section, in pool order. */
@@ -435,4 +453,201 @@ export function coreProblems(
       ),
     }))
     .filter((p) => p.missing.length > 0);
+}
+
+// ---- Unticking a question for ONE program name -------------------------------------------
+
+/**
+ * Why a question cannot be unticked for a program name, or `null` when it can.
+ *
+ *   - `engine` / `program` come from the server (`questionLockReason`), never from a list kept
+ *     here: every quote reads the first kind, a bank program under the name reads the second.
+ *   - `gate` is worked out here, for feedback before anything is saved: another question this
+ *     name still asks appears only after an answer to this one, so skipping it would leave that
+ *     question with nothing to branch off. The server's gate closure would put it back anyway.
+ */
+export type UntickLock = 'engine' | 'program' | 'gate';
+
+/**
+ * The lock on every question the loan type asks, keyed by question id. Missing = free.
+ *
+ * Unticking is per (name, loan type) and subtractive: `question_loan_category` stays as it is,
+ * so the other names of the loan type keep asking what this one skips.
+ */
+export function untickLocks(
+  pool: readonly AskableQuestion[],
+  category: LoanCategory,
+  picks: AskedPicks,
+  excluded: ReadonlySet<string>,
+  serverLocks: ReadonlyMap<string, 'engine' | 'program'>,
+): ReadonlyMap<string, UntickLock> {
+  const asked = pool.filter((q) => q.isActive && isAsked(q, category, picks));
+  const dependentsOf = new Map<string, AskableQuestion[]>();
+  for (const q of asked) {
+    if (q.gateSourceCode === null) continue;
+    const list = dependentsOf.get(q.gateSourceCode) ?? [];
+    list.push(q);
+    dependentsOf.set(q.gateSourceCode, list);
+  }
+  const out = new Map<string, UntickLock>();
+  const visiting = new Set<string>();
+  const lockOf = (q: AskableQuestion): UntickLock | null => {
+    const known = out.get(q.id);
+    if (known !== undefined) return known;
+    const server = serverLocks.get(q.code);
+    if (server !== undefined) {
+      out.set(q.id, server);
+      return server;
+    }
+    // Bounded against a cycle the server's own guards already refuse.
+    if (visiting.has(q.id)) return null;
+    visiting.add(q.id);
+    const held = (dependentsOf.get(q.code) ?? []).some(
+      (d) => !excluded.has(d.id) || lockOf(d) !== null,
+    );
+    visiting.delete(q.id);
+    if (held) out.set(q.id, 'gate');
+    return held ? 'gate' : null;
+  };
+  for (const q of asked) lockOf(q);
+  return out;
+}
+
+/**
+ * What to save for one loan type: the unticked ids, minus any the server now locks — a bank
+ * program filed after the untick may have started reading one, and the server refuses a write
+ * that names it. A gate-held one is kept: it is still the operator's choice, and it takes
+ * effect the moment the question behind it is unticked too.
+ */
+export function exclusionsToSave(
+  pool: readonly AskableQuestion[],
+  excluded: ReadonlySet<string>,
+  serverLocks: ReadonlyMap<string, 'engine' | 'program'>,
+): string[] {
+  const byId = new Map(pool.map((q) => [q.id, q]));
+  return [...excluded]
+    .filter((id) => {
+      const q = byId.get(id);
+      return q !== undefined && !serverLocks.has(q.code);
+    })
+    .sort();
+}
+
+// ---- Adding a question for ONE program name ------------------------------------------------
+
+/**
+ * One row of "Other questions": a question the loan type does NOT ask of every program name,
+ * which this name may add for its own applicants.
+ */
+export interface OtherRow extends AskedRow {
+  /** Ticked for this name — it asks the question under this loan type. */
+  readonly added: boolean;
+  /**
+   * Every quote reads it (or a question it needs first), so whether it is asked is the loan
+   * type's call, never one name's. Shown, not tickable. From the server's `engine` lock.
+   */
+  readonly loanTypeWide: boolean;
+  /** The other loan types that ask it of every name — what the question is FOR. */
+  readonly askedIn: readonly LoanCategory[];
+  /** Added, and another added question appears only after an answer to this one. */
+  readonly heldByGate: boolean;
+}
+
+/** `picks` for one loan type widened by this name's additions — what the board draws as asked. */
+export function withAdditions(
+  picks: AskedPicks,
+  category: LoanCategory,
+  added: ReadonlySet<string>,
+): AskedPicks {
+  if (added.size === 0) return picks;
+  const merged = new Map(picks);
+  merged.set(category, new Set([...(picks.get(category) ?? []), ...added]));
+  return merged;
+}
+
+/**
+ * What one tick adds: the question, and the gate sources it needs that this name is not asked
+ * yet, nearest first — the same chain `pendingAdds` closes for a loan-type-wide tick. Without
+ * the sources the question's gate would dangle, and the server shows a dangling gate's target
+ * to everybody. The server closes the chain again on save; doing it here too is what lets the
+ * board show the sources ticked before anything is written.
+ */
+export function additionWithChain(
+  pool: readonly AskableQuestion[],
+  question: AskableQuestion,
+  category: LoanCategory,
+  picks: AskedPicks,
+  added: ReadonlySet<string>,
+): string[] {
+  return [
+    question.id,
+    ...gateChainFor(pool, question, category, withAdditions(picks, category, added)).map(
+      (q) => q.id,
+    ),
+  ];
+}
+
+/** Added ids another added question branches off — they cannot be unticked before it is. */
+export function gateHeldAdditions(
+  pool: readonly AskableQuestion[],
+  added: ReadonlySet<string>,
+): ReadonlySet<string> {
+  const byCode = new Map(pool.map((q) => [q.code, q]));
+  const held = new Set<string>();
+  for (const q of pool) {
+    if (!added.has(q.id) || q.gateSourceCode === null) continue;
+    const source = byCode.get(q.gateSourceCode);
+    if (source !== undefined && added.has(source.id)) held.add(source.id);
+  }
+  return held;
+}
+
+/**
+ * The "Other questions" list for one loan type: every live question it does not ask of every
+ * name, in pool order — the ones it has never asked and the opt-in rows other names added
+ * alike. `hideCodes` are drawn elsewhere (the checklist's own questions). A search narrows it;
+ * an empty box lists them all, because this list IS where an extra question is picked from.
+ */
+export function otherRows(
+  pool: readonly AskableQuestion[],
+  category: LoanCategory,
+  picks: AskedPicks,
+  added: ReadonlySet<string>,
+  search: string,
+  isAr: boolean,
+  locks: ReadonlyMap<string, 'engine' | 'program'>,
+  hideCodes: ReadonlySet<string>,
+): readonly OtherRow[] {
+  const needle = search.trim().toLowerCase();
+  const drawn = withAdditions(picks, category, added);
+  const held = gateHeldAdditions(pool, added);
+  const out: OtherRow[] = [];
+  for (const q of pool) {
+    if (!q.isActive || q.categories.includes(category) || picked(picks, category, q.id)) continue;
+    if (hideCodes.has(q.code)) continue;
+    if (needle !== '' && !q.haystack.includes(needle)) continue;
+    const chain = gateChainFor(pool, q, category, drawn);
+    out.push({
+      ...rowOf(pool, q, category, drawn, isAr),
+      added: added.has(q.id),
+      loanTypeWide:
+        locks.get(q.code) === 'engine' || chain.some((s) => locks.get(s.code) === 'engine'),
+      askedIn: canonicalCategories(q.categories.filter((c) => c !== category)),
+      heldByGate: held.has(q.id),
+    });
+  }
+  return out;
+}
+
+/**
+ * What to save for one loan type: the added ids the pool still holds, sorted — the PUT body.
+ * An empty list is a real write ("ask only what the loan type asks"), so the caller decides
+ * whether to skip it; on the create flow an empty set has nothing to replace.
+ */
+export function additionsToSave(
+  pool: readonly AskableQuestion[],
+  added: ReadonlySet<string>,
+): string[] {
+  const known = new Set(pool.map((q) => q.id));
+  return [...added].filter((id) => known.has(id)).sort();
 }

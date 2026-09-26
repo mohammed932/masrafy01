@@ -8,6 +8,13 @@
  * core every quote needs. It applies to BOTH income bases — a payslip program's cap table
  * reads facts exactly as a no-payslip program's calculation does, so there is one rule.
  *
+ * The operator adjusts it per name with two lists, both read live with the rest of this axis:
+ * questions the name SKIPS (`program_name_question_exclusion`, bounded by `questionLockReason`)
+ * and questions it ADDS (`program_name_question_addition`). An added question the category
+ * does not ask of everyone sits in it as an OPT-IN row (frozen as `optInCategories`), which
+ * this rule serves only where a name added it or a programme under the name reads it. So the
+ * axis is still a NARROWING of the category's frozen set — never a widening of it.
+ *
  * READ LIVE, and NOT frozen into the snapshot. That is the opposite of the category axis and
  * it is deliberate. The category assignment is questionnaire content, so freezing it is what
  * stops a reassignment rewriting what an older version asked. This axis is derived from
@@ -100,6 +107,12 @@ const NEVER_A_GATE_ONLY_SOURCE: ReadonlySet<string> = new Set<string>([
 export interface ScopableQuestion {
   code: string;
   enabledWhen: unknown;
+  /**
+   * In this category as an OPT-IN row (`question_loan_category.optIn`, frozen as
+   * `optInCategories`): asked only where the picked name ADDS it or a programme under the name
+   * reads it — never through the core, and never with no name. Absent = an ordinary row.
+   */
+  optIn?: boolean;
 }
 
 /**
@@ -135,13 +148,65 @@ export interface NarrowingScope {
    * its own requiredness otherwise). Absent = none.
    */
   mustAnswerQuestionCodes?: readonly string[];
+  /**
+   * Questions the operator UNTICKED for this name under the requested loan type
+   * (`program_name_question_exclusion`). Subtracted after the core and the needed set are
+   * built, EXCEPT a locked one (`questionLockReason`): the quote's own inputs cannot be
+   * unticked, and a fact a programme started reading after the untick brings its question
+   * back on its own. Absent = none.
+   */
+  excludedQuestionCodes?: readonly string[];
+  /**
+   * Questions the operator TICKED for this name under the requested loan type
+   * (`program_name_question_addition`) — the mirror of `excludedQuestionCodes`. Kept even when
+   * nothing reads them and even when the row is OPT-IN, and never REQUIRED because they were
+   * added: a question keeps its own requiredness. An addition beats an exclusion of the same
+   * question (the writes keep the two apart anyway). Absent = none.
+   */
+  addedQuestionCodes?: readonly string[];
+}
+
+/**
+ * Why a question cannot be unticked for a program name.
+ *
+ *   - `engine`: every quote reads it — the money bindings, the debts and their amounts,
+ *     employment type (the allow-lists and the per-type debt-burden cap), or a fact the
+ *     platform owns (I-Score, the car figures).
+ *   - `program`: a bank programme under the name reads it, through its income rule, a cap,
+ *     rate, tenor or fee table, its I-Score table, or a refusal that needs the answer.
+ */
+export type QuestionLockReason = 'engine' | 'program';
+
+/** The lock inputs, available with or without a name that has programmes behind it. */
+export type QuestionLockScope = Pick<NarrowingScope, 'platformQuestionCodes'> &
+  Partial<Pick<NarrowingScope, 'neededQuestionCodes' | 'mustAnswerQuestionCodes'>>;
+
+/** `null` = the operator may untick it. The one rule serve, apply, preview and admin share. */
+export function questionLockReason(
+  code: string,
+  scope: QuestionLockScope,
+): QuestionLockReason | null {
+  if (NEVER_A_GATE_ONLY_SOURCE.has(code) || scope.platformQuestionCodes.includes(code)) {
+    return 'engine';
+  }
+  if (
+    (scope.neededQuestionCodes ?? []).includes(code) ||
+    (scope.mustAnswerQuestionCodes ?? []).includes(code)
+  ) {
+    return 'program';
+  }
+  return null;
 }
 
 export type NarrowingDisabledReason = 'no_name' | 'no_programs' | 'empty_result';
 
 export interface NarrowingDecision {
+  /** The picked NAME narrowed the list. False = no name, no programme, or an empty result. */
   narrowed: boolean;
-  /** Serve these and require the non-core ones. Meaningless when `narrowed` is false. */
+  /**
+   * Serve these — in EVERY path, narrowed or not. With narrowing off it is the whole list minus
+   * any OPT-IN question nobody put in scope, so a caller never falls back to the raw list.
+   */
   keep: ReadonlySet<string>;
   /** Kept AND required BECAUSE a program in scope reads the answer. */
   extraRequired: ReadonlySet<string>;
@@ -153,15 +218,85 @@ export interface NarrowingDecision {
   disabledReason: NarrowingDisabledReason | null;
 }
 
-const OFF = (reason: NarrowingDisabledReason): NarrowingDecision => ({
-  narrowed: false,
-  keep: new Set<string>(),
-  extraRequired: new Set<string>(),
-  dropped: [],
-  gateSourcesRetained: [],
-  gateSourcesDropped: [],
-  disabledReason: reason,
-});
+/** Who is gated on whom, inside the list. A gate pointing outside it is DANGLING — it never
+ * hides its target and it must not scope anything either. */
+function gateMaps(questions: readonly ScopableQuestion[]): {
+  byCode: ReadonlyMap<string, ScopableQuestion>;
+  dependentsOf: ReadonlyMap<string, readonly string[]>;
+} {
+  const byCode = new Map(questions.map((q) => [q.code, q]));
+  const dependentsOf = new Map<string, string[]>();
+  for (const q of questions) {
+    const gate = enabledWhenGate(q);
+    if (gate === null || !byCode.has(gate.questionCode)) continue;
+    const list = dependentsOf.get(gate.questionCode);
+    if (list) list.push(q.code);
+    else dependentsOf.set(gate.questionCode, [q.code]);
+  }
+  return { byCode, dependentsOf };
+}
+
+/**
+ * Pass B: put back the in-list gate source of anything still kept, to a fixpoint. Returns the
+ * sources it put back. Then the post-condition, asserted rather than trusted: a future edit that
+ * reorders the passes must fail here and not by making a required question mandatory for every
+ * applicant.
+ */
+function closeOverGates(
+  questions: readonly ScopableQuestion[],
+  byCode: ReadonlyMap<string, ScopableQuestion>,
+  keep: Set<string>,
+): string[] {
+  const retained: string[] = [];
+  for (let round = 0; round < questions.length; round += 1) {
+    let changed = false;
+    for (const q of questions) {
+      if (!keep.has(q.code)) continue;
+      const gate = enabledWhenGate(q);
+      if (gate === null || !byCode.has(gate.questionCode)) continue;
+      if (keep.has(gate.questionCode)) continue;
+      keep.add(gate.questionCode);
+      retained.push(gate.questionCode);
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  for (const q of questions) {
+    if (!keep.has(q.code)) continue;
+    const gate = enabledWhenGate(q);
+    if (gate === null || !byCode.has(gate.questionCode)) continue;
+    if (!keep.has(gate.questionCode)) {
+      throw new Error(
+        `question-scope: ${q.code} kept while its gate source ${gate.questionCode} was dropped`,
+      );
+    }
+  }
+  return retained;
+}
+
+/**
+ * Narrowing OFF. Nothing is narrowed, and the one thing still left out is an OPT-IN question
+ * nobody put in scope: with no name — or a name with no programme yet — there is nobody to have
+ * added it and nothing reading it. Closed over gates like the narrowed path, so an opt-in
+ * question another kept one branches off stays. With no opt-in row in the list this is the
+ * whole list, which is what every caller served before `keep` was authoritative here.
+ */
+function off(
+  reason: NarrowingDisabledReason,
+  questions: readonly ScopableQuestion[],
+): NarrowingDecision {
+  const keep = new Set(questions.filter((q) => q.optIn !== true).map((q) => q.code));
+  const gateSourcesRetained = closeOverGates(questions, gateMaps(questions).byCode, keep);
+  return {
+    narrowed: false,
+    keep,
+    extraRequired: new Set<string>(),
+    dropped: questions.filter((q) => !keep.has(q.code)).map((q) => q.code),
+    gateSourcesRetained,
+    gateSourcesDropped: [],
+    disabledReason: reason,
+  };
+}
 
 /**
  * Which of the category's questions this program name is asked, and which of them its programs
@@ -183,6 +318,9 @@ const OFF = (reason: NarrowingDisabledReason): NarrowingDecision => ({
  *      `employment_status` — read by no income rule, but driving the employment allow-lists
  *      and the debt-burden cap for every program — without a hand-written exception.
  *
+ * An OPT-IN row is never core; the operator's ADDED questions are kept whatever reads them,
+ * survive pass A, and win over an exclusion of the same question.
+ *
  * Then the gate passes, and their order is load-bearing. `isQuestionVisible` SHOWS a question
  * whose gate source is missing, so dropping a source while a question behind it survives would
  * make that question unconditionally visible and, if required, mandatory for everyone with no
@@ -199,36 +337,40 @@ export function narrowAskedQuestions(
   questions: readonly ScopableQuestion[],
   scope: NarrowingScope | null,
 ): NarrowingDecision {
-  if (scope === null) return OFF('no_name');
+  if (scope === null) return off('no_name', questions);
 
   const factBound = new Set(scope.factBoundQuestionCodes);
   const askScoped = new Set(scope.askScopedQuestionCodes);
   const platform = new Set(scope.platformQuestionCodes);
   const needed = new Set(scope.neededQuestionCodes);
+  const optIn = new Set(questions.filter((q) => q.optIn === true).map((q) => q.code));
+  const { byCode, dependentsOf } = gateMaps(questions);
+  // Only what this category can serve: an addition whose row has since left the category
+  // scopes nothing, exactly as a dangling gate does not.
+  const added = new Set((scope.addedQuestionCodes ?? []).filter((code) => byCode.has(code)));
 
+  // An OPT-IN row is never core. Clause 1 alone ("bound to no fact") would otherwise ask an
+  // added business question of every name in the category, which is the one thing the opt-in
+  // row exists to prevent.
   const isCore = (code: string): boolean =>
-    scope.productOnly === true
+    !optIn.has(code) &&
+    (scope.productOnly === true
       ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code)
       : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
         !factBound.has(code) ||
         platform.has(code) ||
-        !askScoped.has(code);
+        !askScoped.has(code));
 
   const keep = new Set<string>();
   for (const q of questions) {
-    if (isCore(q.code) || needed.has(q.code)) keep.add(q.code);
+    if (isCore(q.code) || needed.has(q.code) || added.has(q.code)) keep.add(q.code);
   }
-
-  // Who is gated on whom. A gate pointing outside this category is DANGLING — it never hides
-  // its target and it must not scope anything either.
-  const byCode = new Map(questions.map((q) => [q.code, q]));
-  const dependentsOf = new Map<string, string[]>();
-  for (const q of questions) {
-    const gate = enabledWhenGate(q);
-    if (gate === null || !byCode.has(gate.questionCode)) continue;
-    const list = dependentsOf.get(gate.questionCode);
-    if (list) list.push(q.code);
-    else dependentsOf.set(gate.questionCode, [q.code]);
+  // The operator's unticks, before the gate passes so a gate source whose every dependent was
+  // unticked goes with them (pass A), and one a kept question still needs comes back (pass B).
+  // An addition of the same question wins: the tick is the later, narrower statement.
+  for (const code of scope.excludedQuestionCodes ?? []) {
+    if (added.has(code)) continue;
+    if (questionLockReason(code, scope) === null) keep.delete(code);
   }
 
   // ---- pass A: a gate-only source goes once everything behind it has -------
@@ -238,7 +380,8 @@ export function narrowAskedQuestions(
     for (const q of questions) {
       if (!keep.has(q.code)) continue;
       // Only a question that exists to gate: no fact of its own, and not in the core list.
-      if (factBound.has(q.code) || NEVER_A_GATE_ONLY_SOURCE.has(q.code)) {
+      // Nor one the operator added: asking it was the point, not what sits behind it.
+      if (factBound.has(q.code) || NEVER_A_GATE_ONLY_SOURCE.has(q.code) || added.has(q.code)) {
         continue;
       }
       const dependents = dependentsOf.get(q.code);
@@ -251,45 +394,25 @@ export function narrowAskedQuestions(
     if (!changed) break;
   }
 
-  // ---- pass B: put back the source of anything still kept ------------------
-  const gateSourcesRetained: string[] = [];
-  for (let round = 0; round < questions.length; round += 1) {
-    let changed = false;
-    for (const q of questions) {
-      if (!keep.has(q.code)) continue;
-      const gate = enabledWhenGate(q);
-      if (gate === null || !byCode.has(gate.questionCode)) continue;
-      if (keep.has(gate.questionCode)) continue;
-      keep.add(gate.questionCode);
-      gateSourcesRetained.push(gate.questionCode);
-      changed = true;
-    }
-    if (!changed) break;
-  }
+  // ---- pass B: put back the source of anything still kept, then assert it --------
+  const gateSourcesRetained = closeOverGates(questions, byCode, keep);
   const retainedSet = new Set(gateSourcesRetained);
 
-  // The post-condition, asserted rather than trusted: a future edit that reorders the passes
-  // must fail here and not by making a required question mandatory for every applicant.
-  for (const q of questions) {
-    if (!keep.has(q.code)) continue;
-    const gate = enabledWhenGate(q);
-    if (gate === null || !byCode.has(gate.questionCode)) continue;
-    if (!keep.has(gate.questionCode)) {
-      throw new Error(
-        `question-scope: ${q.code} kept while its gate source ${gate.questionCode} was dropped`,
-      );
-    }
-  }
-
-  if (keep.size === 0 && questions.length > 0) return OFF('empty_result');
+  if (keep.size === 0 && questions.length > 0) return off('empty_result', questions);
 
   const extraRequired = new Set<string>();
   for (const code of keep) {
+    // REQUIRED because a program in scope reads it — so only a NEEDED question. Before
+    // additions this was "kept and not core", which is the same set (the keep started as
+    // core ∪ needed and only gate sources joined it later); an added question would now slip
+    // into that reading and be made mandatory by a tick meant to ASK it.
     // A source pulled back purely to keep a gate evaluable is not a figure any program reads.
     // A PLATFORM-owned fact (I-Score, the car figures) keeps its own requiredness: it was
     // core on every name until product-only names emptied the core, and it is optional by
     // design where it is optional — an unanswered I-Score is a 100% factor, not a refusal.
-    if (!isCore(code) && !retainedSet.has(code) && !platform.has(code)) extraRequired.add(code);
+    if (needed.has(code) && !isCore(code) && !retainedSet.has(code) && !platform.has(code)) {
+      extraRequired.add(code);
+    }
   }
   for (const code of scope.mustAnswerQuestionCodes ?? []) {
     if (keep.has(code)) extraRequired.add(code);

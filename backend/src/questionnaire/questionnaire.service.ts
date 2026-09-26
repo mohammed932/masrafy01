@@ -19,6 +19,7 @@ import {
 } from '@/matching/pipeline/surrogate-fact-bindings';
 import { isBindableQuestionType } from '@/matching/pipeline/surrogate-fact-registry';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
+import { frozenCategories } from './frozen-categories';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
 import {
@@ -142,7 +143,9 @@ export class QuestionnaireService {
     // No name, no read. The un-narrowed path stays query-identical to what it always was,
     // which is what lets a client that has never heard of this parameter keep working.
     const scope =
-      programNameKey === undefined ? null : await this.enums.narrowingScopeFor(programNameKey);
+      programNameKey === undefined
+        ? null
+        : await this.enums.narrowingScopeFor(programNameKey, category);
     return toCustomerSnapshot(version.snapshot, category, scope);
   }
 
@@ -151,6 +154,12 @@ export class QuestionnaireService {
    * offered under — read off `activeSnapshot`, the customer read itself, so the admin
    * reports the narrowing being SERVED and not a second opinion about it. Same counting
    * as the surrogate product's ask board. An unknown or retired name serves nothing.
+   *
+   * `servedExtra` counts what this name is asked BEYOND the loan type's own list — the opt-in
+   * rows it added or its programmes read — so "answers 59 of 57" never has to be printed.
+   * `nameAxisActive` is false while the name has no active bank programme: the name axis is
+   * inert until then (`narrowingScopeFor` returns null), so its unticks and additions are
+   * stored but not yet in force, and the screen can say so.
    */
   async servedForProgramName(programNameKey: string): Promise<
     {
@@ -159,24 +168,34 @@ export class QuestionnaireService {
       categoryRequired: number;
       servedTotal: number;
       servedRequired: number;
+      servedExtra: number;
       servedQuestionCodes: string[];
+      nameAxisActive: boolean;
     }[]
   > {
     const member = (await this.enums.getActiveMembers('program_name')).find(
       (m) => m.key === programNameKey,
     );
     if (member === undefined) return [];
+    const version = await this.repo.activeVersion();
+    if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const out = [];
     for (const category of sortCategories(member.categories)) {
-      const whole = countServed(await this.activeSnapshot(category));
-      const narrowed = countServed(await this.activeSnapshot(category, programNameKey));
+      // The same projection `activeSnapshot` serves, with the scope read once so the report
+      // can also say whether the name axis applied at all.
+      const scope = await this.enums.narrowingScopeFor(programNameKey, category);
+      const whole = countServed(toCustomerSnapshot(version.snapshot, category, null));
+      const narrowed = countServed(toCustomerSnapshot(version.snapshot, category, scope));
+      const inWhole = new Set(whole.codes);
       out.push({
         category,
         categoryTotal: whole.total,
         categoryRequired: whole.required,
         servedTotal: narrowed.total,
         servedRequired: narrowed.required,
+        servedExtra: narrowed.codes.filter((code) => !inWhole.has(code)).length,
         servedQuestionCodes: narrowed.codes,
+        nameAxisActive: scope !== null,
       });
     }
     return out;
@@ -266,7 +285,10 @@ export class QuestionnaireService {
 
   // ---- Questions ----------------------------------------------------------
   async createQuestion(dto: CreateQuestionDto, actor: string) {
-    const groupId = dto.groupId ?? (await this.resolveDefaultGroupId());
+    const groupId = await this.groupBesideTrigger(
+      dto.groupId ?? (await this.resolveDefaultGroupId()),
+      dto.enabledWhen,
+    );
     const group = await this.repo.findGroup(groupId);
     if (!group) {
       throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
@@ -351,7 +373,10 @@ export class QuestionnaireService {
     actor: string,
     opts: { publish?: boolean } = {},
   ) {
-    const groupId = dto.groupId ?? (await this.resolveDefaultGroupId());
+    const groupId = await this.groupBesideTrigger(
+      dto.groupId ?? (await this.resolveDefaultGroupId()),
+      dto.enabledWhen,
+    );
     const group = await this.repo.findGroup(groupId);
     if (!group) {
       throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
@@ -568,13 +593,29 @@ export class QuestionnaireService {
    * its wording and options, but asked for nothing), which is the non-destructive
    * alternative to deleting it. The admin tab flags those rows.
    */
-  async setQuestionCategories(id: string, categories: LoanCategory[], actor: string) {
+  async setQuestionCategories(
+    id: string,
+    categories: LoanCategory[],
+    actor: string,
+    optInCategories?: LoanCategory[],
+  ) {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     const unique = dedupeCategories(categories);
-    await this.repo.setCategories(id, unique);
+    // `categories` is the ordinary set; opt-in rows ride along unless the caller says which to
+    // keep (`replaceAssignment`). What the row now holds is read back, not re-derived here.
+    await this.repo.setCategories(
+      id,
+      unique,
+      optInCategories === undefined ? undefined : dedupeCategories(optInCategories),
+    );
     await this.publish(actor);
-    return { ...question, categories: unique };
+    const optIn = (await this.repo.optInAssignments()).get(id) ?? [];
+    return {
+      ...question,
+      categories: sortCategories([...unique, ...optIn]),
+      optInCategories: sortCategories(optIn),
+    };
   }
 
   /**
@@ -583,7 +624,11 @@ export class QuestionnaireService {
    * otherwise fire one publish per row and churn a version per question.
    */
   async setQuestionCategoriesBulk(
-    assignments: ReadonlyArray<{ questionId: string; categories: LoanCategory[] }>,
+    assignments: ReadonlyArray<{
+      questionId: string;
+      categories: LoanCategory[];
+      optInCategories?: LoanCategory[];
+    }>,
     actor: string,
     opts: { publish?: boolean } = {},
   ) {
@@ -597,6 +642,9 @@ export class QuestionnaireService {
       assignments.map((a) => ({
         questionId: a.questionId,
         categories: dedupeCategories(a.categories),
+        ...(a.optInCategories === undefined
+          ? {}
+          : { optInCategories: dedupeCategories(a.optInCategories) }),
       })),
     );
     if (opts.publish !== false) await this.publish(actor);
@@ -736,6 +784,10 @@ export class QuestionnaireService {
         dto.enabledWhen === null
           ? Prisma.DbNull
           : (dto.enabledWhen as unknown as Prisma.InputJsonValue);
+    }
+    if (dto.enabledWhen) {
+      const groupId = await this.groupBesideTrigger(question.groupId, dto.enabledWhen);
+      if (groupId !== question.groupId) data.group = { connect: { id: groupId } };
     }
     // `code` is immutable post-creation (A33).
     const updated = await this.repo.updateQuestion(id, data);
@@ -910,6 +962,8 @@ export class QuestionnaireService {
     // Frozen INTO the snapshot: the customer read filters on it, so a later
     // reassignment must not retroactively change what an older version asked.
     const assignments = await this.repo.categoryAssignments();
+    // Which of those rows are OPT-IN — frozen apart from the ordinary ones (`frozenCategories`).
+    const optIns = await this.repo.optInAssignments();
     // WHERE each category asks each question, frozen beside the set for the same reason the
     // set is frozen: a reorder tomorrow must not retroactively change the order a version
     // served yesterday. Absent on every version published before this existed, which the
@@ -937,7 +991,9 @@ export class QuestionnaireService {
           isRequired: q.isRequired,
           displayOrder: q.displayOrder,
           enabledWhen: q.enabledWhen ?? null,
-          categories: sortCategories(assignments.get(q.id) ?? []),
+          // `categories` (asked of every name) and, when there is one, `optInCategories` (asked
+          // only where a name adds it) — disjoint, so an older reader never serves an opt-in row.
+          ...frozenCategories(sortCategories(assignments.get(q.id) ?? []), optIns.get(q.id) ?? []),
           // A MAP, not an order on the category list: `categories` is read by name everywhere
           // (`askedFor`, the admin, the health panel) and turning it into objects would break
           // every one of them for a field only the serve path sorts by. Emitted only when the
@@ -1016,12 +1072,18 @@ export class QuestionnaireService {
       code: string;
       type: string;
       isActive: boolean;
+      /** Every row, OPT-IN ones included — "is it in this category at all". */
       categories: LoanCategory[];
+      /** The opt-in subset: in the category only for the names that add it. */
+      optInCategories: LoanCategory[];
+      /** The gate, for callers that must close a pick over `enabledWhen`. */
+      enabledWhen: unknown;
     }>
   > {
-    const [questions, assignments] = await Promise.all([
+    const [questions, assignments, optIns] = await Promise.all([
       this.repo.questions(),
       this.repo.categoryAssignments(),
+      this.repo.optInAssignments(),
     ]);
     return questions.map((question) => ({
       id: question.id,
@@ -1033,6 +1095,8 @@ export class QuestionnaireService {
       // thing, one of them dead. It has to be told apart from a live one, not hidden.
       isActive: question.isActive,
       categories: assignments.get(question.id) ?? [],
+      optInCategories: optIns.get(question.id) ?? [],
+      enabledWhen: question.enabledWhen ?? null,
     }));
   }
 
@@ -1069,6 +1133,13 @@ export class QuestionnaireService {
     // rows AND the order it lets an operator drag, and a second fetch would be a second way
     // for the two to disagree.
     const categoryOrders = await this.repo.categoryOrders();
+    // Which rows are OPT-IN, and how many program names add each — the assign tab draws an
+    // opt-in cell as its own state, and the program-name board tells "asked of every name"
+    // from "in the category for the names that add it".
+    const [optIns, additionCounts] = await Promise.all([
+      this.repo.optInAssignments(),
+      this.enums.questionAdditionCounts(),
+    ]);
     const result = [];
     for (const g of groups) {
       const gQuestions = [];
@@ -1080,7 +1151,12 @@ export class QuestionnaireService {
         gQuestions.push({
           ...q,
           options,
+          // EVERY row, opt-in included: "is it in this category at all", which is what every
+          // admin reader of this field means. `optInCategories` is the subset that is asked
+          // only by the names that add it — unlike the snapshot, where the two are disjoint.
           categories: sortCategories(assignments.get(q.id) ?? []),
+          optInCategories: sortCategories(optIns.get(q.id) ?? []),
+          addedByNames: additionCounts.get(q.id) ?? {},
           categoryOrder: categoryOrders.get(q.id) ?? {},
         });
       }
@@ -1135,12 +1211,18 @@ export class QuestionnaireService {
     programNameKey?: string,
   ): Promise<{ resolved: ResolvedAnswer[]; askedQuestionCodes: string[] }> {
     const questions = await this.repo.questions();
-    const assignments = category ? await this.repo.categoryAssignments() : null;
+    const [assignments, optIns] = category
+      ? await Promise.all([this.repo.categoryAssignments(), this.repo.optInAssignments()])
+      : [null, null];
+    // Every row, OPT-IN ones included: an opt-in question is in the category, so its answer is
+    // accepted from anyone applying in it. Whether it is ASKED is the name axis's call below.
     const active = questions.filter(
       (q) =>
         q.isActive &&
         (assignments === null || (assignments.get(q.id) ?? []).includes(category as LoanCategory)),
     );
+    const isOptIn = (questionId: string): boolean =>
+      optIns !== null && (optIns.get(questionId) ?? []).includes(category as LoanCategory);
     // CATEGORY-wide, and it stays that way even when a program name narrows the set below.
     // Two reasons, and both are load-bearing. It is the ACCEPTANCE map, and a backend deploy
     // is not atomic with an app release — every build in the field posts the whole category
@@ -1155,8 +1237,10 @@ export class QuestionnaireService {
     // The program-name axis. No name, no read — which is also what keeps this method working
     // for a caller that never supplies one.
     const decision = narrowAskedQuestions(
-      active,
-      programNameKey === undefined ? null : await this.enums.narrowingScopeFor(programNameKey),
+      active.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen, optIn: isOptIn(q.id) })),
+      programNameKey === undefined
+        ? null
+        : await this.enums.narrowingScopeFor(programNameKey, category),
     );
 
     // Unknown codes fail before anything else: a stale client must be told. A
@@ -1181,10 +1265,11 @@ export class QuestionnaireService {
     const resolved: ResolvedAnswer[] = [];
     const askedQuestionCodes: string[] = [];
     for (const q of active) {
-      // Narrowed away: this program does not read the answer, so it is neither required, nor
-      // stored, nor recorded as asked. Before the visibility test, because a question nobody
-      // in scope reads is not a question whose gate is worth evaluating.
-      if (decision.narrowed && !decision.keep.has(q.code)) continue;
+      // Not served: this program does not read the answer (or it is an opt-in row this name did
+      // not add), so it is neither required, nor stored, nor recorded as asked. `keep` is
+      // authoritative with or without a name. Before the visibility test, because a question
+      // nobody in scope reads is not a question whose gate is worth evaluating.
+      if (!decision.keep.has(q.code)) continue;
 
       const options = optionsByQuestionId.get(q.id) ?? [];
       const visible = isQuestionVisible(q, submitted, byCode);
@@ -1286,6 +1371,32 @@ export class QuestionnaireService {
   }
 
   // ---- Internals ----------------------------------------------------------
+  /**
+   * The group a gated question must live in: its trigger's, whenever its own would page it
+   * on a step no later than the trigger's.
+   *
+   * The mobile wizard is one step per group. A question revealed by an answer on step 2 but
+   * filed under step 1 appears behind the customer — and when it is required, Finish stays
+   * grey with nothing on screen to fill. That is how the compound follow-ups shipped: the
+   * blueprint builder names no group, so they joined the FIRST one. An equal group order
+   * counts as "no later" because a tie is paged in an order nothing pins. A trigger on an
+   * EARLIER step reveals ahead of the customer, which is fine, so that placement is kept.
+   */
+  private async groupBesideTrigger(
+    groupId: string,
+    rule: { questionCode: string } | null | undefined,
+  ): Promise<string> {
+    if (!rule) return groupId;
+    const trigger = (await this.repo.questions()).find((q) => q.code === rule.questionCode);
+    if (!trigger || trigger.groupId === groupId) return groupId;
+    const [own, theirs] = await Promise.all([
+      this.repo.findGroup(groupId),
+      this.repo.findGroup(trigger.groupId),
+    ]);
+    if (!own || !theirs) return groupId;
+    return own.displayOrder <= theirs.displayOrder ? trigger.groupId : groupId;
+  }
+
   private async assertEnabledWhenValid(
     selfOrder: number,
     rule: { questionCode: string; operator: string; optionCode: string },
@@ -1831,6 +1942,19 @@ function askedFor(q: StoredQuestion, category: LoanCategory | undefined): boolea
 }
 
 /**
+ * Is a snapshot question in `category` as an OPT-IN row — there, but asked only of the program
+ * names that add it (or whose programmes read it)? Frozen as `optInCategories`, DISJOINT from
+ * `categories`, so a version published before opt-in rows existed has none and every question
+ * reads exactly as it did. Whether one is ASKED is the name axis's call (`narrowAskedQuestions`),
+ * never this function's.
+ */
+function optInFor(q: StoredQuestion, category: LoanCategory | undefined): boolean {
+  if (category === undefined) return false;
+  const raw = q['optInCategories'];
+  return Array.isArray(raw) && raw.includes(category);
+}
+
+/**
  * Project the stored snapshot into the customer payload, keeping only the
  * questions assigned to `category` (all of them when it is undefined). Questions
  * and answers are pure content (MVP) so the rest is a shape passthrough — no IP
@@ -1847,7 +1971,7 @@ function toCustomerSnapshot(
   const inCategory = (snap.groups ?? []).map((g) => ({
     ...g,
     questions: orderedForCategory(
-      (g.questions ?? []).filter((q) => askedFor(q, category)),
+      (g.questions ?? []).filter((q) => askedFor(q, category) || optInFor(q, category)),
       category,
     ),
   }));
@@ -1855,21 +1979,25 @@ function toCustomerSnapshot(
   // The program-name axis, applied ACROSS groups and in one call: a question's gate may point
   // at a question in another group, so a per-group decision could drop a source and leave its
   // target dangling — which `isQuestionVisible` renders as unconditionally visible.
+  // `keep` is authoritative whether or not the name narrowed anything: with no name it is the
+  // category minus the opt-in rows nobody added, so the raw list is never served as-is.
   const decision = narrowAskedQuestions(
     inCategory.flatMap((g) =>
-      g.questions.map((q) => ({ code: q.code, enabledWhen: q['enabledWhen'] ?? null })),
+      g.questions.map((q) => ({
+        code: q.code,
+        enabledWhen: q['enabledWhen'] ?? null,
+        optIn: optInFor(q, category),
+      })),
     ),
     scope,
   );
 
-  const groups = (
-    decision.narrowed
-      ? inCategory.map((g) => ({
-          ...g,
-          questions: g.questions.filter((q) => decision.keep.has(q.code)),
-        }))
-      : inCategory
-  ).filter((g) => g.questions.length > 0);
+  const groups = inCategory
+    .map((g) => ({
+      ...g,
+      questions: g.questions.filter((q) => decision.keep.has(q.code)),
+    }))
+    .filter((g) => g.questions.length > 0);
   return {
     versionNumber: snap.versionNumber,
     groups: groups.map((g) => ({

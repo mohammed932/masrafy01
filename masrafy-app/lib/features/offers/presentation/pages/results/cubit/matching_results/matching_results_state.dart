@@ -29,14 +29,38 @@ class MatchingResultsState with _$MatchingResultsState {
   bool get isError => status.isError;
   bool get isLoaded => status.isLoaded;
 
-  /// Nothing to show at all.
+  /// No bank made an offer. The refused programs are NOT listed beside priced
+  /// offers any more — a customer holding offers has nothing to act on there —
+  /// but when there is no offer at all, [noOfferReasons] is what the screen
+  /// shows instead, so the applicant knows what to change before trying again.
+  bool get isEmpty => status.isLoaded && offers.isEmpty;
+
+  /// Why no bank made an offer, one entry per distinct reason, in the order the
+  /// engine first reported each (FR-024), with how many banks gave it.
   ///
-  /// Deliberately counts the unavailable programs: a shortlist of banks that each
-  /// explain why they cannot price yet is NOT an empty screen, and rendering the
-  /// generic "no matches" state over it would throw away the only actionable thing
-  /// the applicant was told (FR-022).
-  bool get isEmpty =>
-      status.isLoaded && offers.isEmpty && unavailablePrograms.isEmpty;
+  /// Grouped by reason rather than listed per bank: "the amount you've paid is
+  /// below the minimum" said four times under four masked letters is one thing
+  /// to fix, not four. A bank refusing two programs for one reason counts once.
+  List<({String reason, String? gateReasonCode, int bankCount})>
+      get noOfferReasons {
+    final banksByKey = <String, Set<String>>{};
+    final firstByKey = <String, UnavailableProgramEntity>{};
+    for (final p in unavailablePrograms) {
+      final key = '${p.reason}|${p.gateReasonCode ?? ''}';
+      firstByKey.putIfAbsent(key, () => p);
+      // An unnamed bank still counts, once per program.
+      (banksByKey[key] ??= <String>{})
+          .add(p.bankName.isEmpty ? p.programCode : p.bankName);
+    }
+    return [
+      for (final e in firstByKey.entries)
+        (
+          reason: e.value.reason,
+          gateReasonCode: e.value.gateReasonCode,
+          bankCount: banksByKey[e.key]!.length,
+        ),
+    ];
+  }
 
   /// Every program was refused because none has a RATE for these answers —
   /// the applicant's answer (typically the down payment share, or the car's

@@ -866,6 +866,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_common_search => 'Search';
 
   @override
+  String get q_common_search_hint => 'Search the options…';
+
+  @override
   String get q_mortgage_title => 'Mortgage application';
 
   @override
@@ -1876,19 +1879,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get results_unavailable_section => 'Not available for you yet';
+  String get results_no_offer_fix_title => 'What to fix';
 
   @override
-  String get results_unavailable_badge => 'No offer from this bank';
+  String get results_no_offer_body =>
+      'Here\'s what stopped the banks from making you an offer. Update these answers and try again.';
 
   @override
   String get results_unavailable_generic =>
       'This bank couldn\'t price an offer for you right now.';
-
-  @override
-  String results_unavailable_ceiling(String amount) {
-    return 'You could borrow up to $amount EGP here.';
-  }
 
   @override
   String get results_rate => 'Rate';

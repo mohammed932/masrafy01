@@ -113,7 +113,14 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
   void next() {
     if (!state.canAdvance) return;
     if (state.isLastStep) {
-      if (!state.canFinish) return;
+      if (!state.canFinish) {
+        // A required question revealed on a step already left behind: go to it.
+        final blocking = state.firstStepWithUnansweredRequired;
+        if (blocking != null && blocking != state.stepIndex) {
+          emit(state.copyWith(currentStep: blocking));
+        }
+        return;
+      }
       emit(state.copyWith(submitted: true));
       return;
     }

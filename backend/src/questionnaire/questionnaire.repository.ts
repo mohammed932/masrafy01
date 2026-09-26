@@ -221,6 +221,29 @@ export class QuestionnaireRepository {
   }
 
   /**
+   * The OPT-IN subset of `categoryAssignments`: the categories each question sits in only for
+   * the program names that add it (`question_loan_category.optIn`).
+   *
+   * A read of its own for the reason `categoryOrders` is one: most callers want the whole SET
+   * (answer acceptance, the admin's "is it assigned", the publish warning) and must keep
+   * getting opt-in rows in it. Only the snapshot freeze, the admin tree and the name axis need
+   * to tell the two kinds apart. A question absent from the map has no opt-in row.
+   */
+  async optInAssignments(): Promise<Map<string, LoanCategory[]>> {
+    const rows = await this.prisma.questionLoanCategory.findMany({
+      where: { optIn: true },
+      select: { questionId: true, category: true },
+    });
+    const map = new Map<string, LoanCategory[]>();
+    for (const row of rows) {
+      const list = map.get(row.questionId);
+      if (list) list.push(row.category);
+      else map.set(row.questionId, [row.category]);
+    }
+    return map;
+  }
+
+  /**
    * Every question's position IN EACH CATEGORY it is asked for.
    *
    * Its own read beside `categoryAssignments` rather than a widening of it: five callers want
@@ -302,21 +325,17 @@ export class QuestionnaireRepository {
    * Replace one question's assignment set atomically. Delete-then-insert (rather
    * than diffing) is what makes the written set exactly the submitted set — a
    * diff would leave a stale row behind on any missed comparison.
+   *
+   * `categories` is the ORDINARY set (asked of every program name). OPT-IN rows — a program
+   * name's "ask this too" — are carried over unless `optInCategories` says which to keep, and
+   * a listed category that was opt-in becomes ordinary. See `replaceAssignment`.
    */
-  setCategories(questionId: string, categories: readonly LoanCategory[]): Promise<unknown> {
+  setCategories(
+    questionId: string,
+    categories: readonly LoanCategory[],
+    optInCategories?: readonly LoanCategory[],
+  ): Promise<unknown> {
     return this.prisma.$transaction(async (tx) => {
-      // READ BEFORE THE DELETE. The replace is what makes the written set exactly the
-      // submitted set, but it would also throw away where each surviving category asks this
-      // question — so an operator who unticked one category would silently send the question
-      // back to its pool position in the three they did not touch.
-      const held = new Map(
-        (
-          await tx.questionLoanCategory.findMany({
-            where: { questionId },
-            select: { category: true, displayOrder: true },
-          })
-        ).map((row) => [row.category, row.displayOrder] as const),
-      );
       const seed =
         (
           await tx.question.findUnique({
@@ -324,15 +343,11 @@ export class QuestionnaireRepository {
             select: { displayOrder: true },
           })
         )?.displayOrder ?? 0;
-      await tx.questionLoanCategory.deleteMany({ where: { questionId } });
-      if (categories.length === 0) return;
-      await tx.questionLoanCategory.createMany({
-        data: categories.map((category) => ({
-          questionId,
-          category,
-          displayOrder: held.get(category) ?? seed,
-        })),
+      const held = await tx.questionLoanCategory.findMany({
+        where: { questionId },
+        select: { category: true, displayOrder: true, optIn: true },
       });
+      await replaceAssignment(tx, questionId, held, seed, categories, optInCategories);
     });
   }
 
@@ -360,16 +375,25 @@ export class QuestionnaireRepository {
     categories: readonly LoanCategory[],
   ): Promise<LoanCategory[]> {
     if (categories.length === 0) return [];
-    const existing = new Set(
-      (
-        await this.prisma.questionLoanCategory.findMany({
-          where: { questionId },
-          select: { category: true },
-        })
-      ).map((row) => row.category),
-    );
+    const held = await this.prisma.questionLoanCategory.findMany({
+      where: { questionId },
+      select: { category: true, optIn: true },
+    });
+    const existing = new Set(held.map((row) => row.category));
     const missing = categories.filter((category) => !existing.has(category));
-    if (missing.length === 0) return [];
+    // An OPT-IN row this call names becomes ordinary: "ask it in this category" is a statement
+    // about every name there, and the opt-in row said the opposite. Reported with the inserts —
+    // the snapshot moves either way, so the caller must publish.
+    const widened = held
+      .filter((row) => row.optIn && categories.includes(row.category))
+      .map((row) => row.category);
+    if (widened.length > 0) {
+      await this.prisma.questionLoanCategory.updateMany({
+        where: { questionId, category: { in: widened }, optIn: true },
+        data: { optIn: false },
+      });
+    }
+    if (missing.length === 0) return widened;
     // Seeded from the pool position, like every other insert into this table: a question
     // newly asked by a category lands where the pool already puts it.
     const seed =
@@ -387,7 +411,7 @@ export class QuestionnaireRepository {
     // superset by exactly the raced row, whose only cost is a questionnaire publish that
     // the other tick was performing anyway — where a re-read would report categories that
     // were already there as newly added, which is what the audit event must not say.
-    return missing;
+    return [...missing, ...widened];
   }
 
   /**
@@ -432,13 +456,25 @@ export class QuestionnaireRepository {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.questionLoanCategory.findMany({
         where: { questionId: { in: [...wanted.keys()] } },
-        select: { questionId: true, category: true },
+        select: { questionId: true, category: true, optIn: true },
       });
       const held = new Map<string, Set<LoanCategory>>();
       for (const row of existing) {
         const set = held.get(row.questionId) ?? new Set<LoanCategory>();
         set.add(row.category);
         held.set(row.questionId, set);
+      }
+      // An OPT-IN row this add names becomes ordinary — a global add says every name in the
+      // category asks it. Reported as moved, because the snapshot moves and must be published.
+      for (const row of existing) {
+        if (!row.optIn || wanted.get(row.questionId)?.has(row.category) !== true) continue;
+        await tx.questionLoanCategory.update({
+          where: {
+            pk_question_loan_category: { questionId: row.questionId, category: row.category },
+          },
+          data: { optIn: false },
+        });
+        added.set(row.questionId, [...(added.get(row.questionId) ?? []), row.category]);
       }
       // The pool positions the new rows are seeded from — one read for every question in the
       // request, for the reason every other insert into this table seeds: a question newly
@@ -456,7 +492,7 @@ export class QuestionnaireRepository {
         const have = held.get(questionId);
         const missing = [...categories].filter((category) => !have?.has(category));
         if (missing.length === 0) continue;
-        added.set(questionId, missing);
+        added.set(questionId, [...(added.get(questionId) ?? []), ...missing]);
         for (const category of missing)
           rows.push({ questionId, category, displayOrder: seeds.get(questionId) ?? 0 });
       }
@@ -469,22 +505,25 @@ export class QuestionnaireRepository {
 
   /** Same as `setCategories`, for many questions in ONE transaction (column actions). */
   setCategoriesBulk(
-    assignments: ReadonlyArray<{ questionId: string; categories: readonly LoanCategory[] }>,
+    assignments: ReadonlyArray<{
+      questionId: string;
+      categories: readonly LoanCategory[];
+      optInCategories?: readonly LoanCategory[];
+    }>,
   ): Promise<unknown> {
     return this.prisma.$transaction(async (tx) => {
-      // The positions every touched question already holds, read ONCE before any delete —
-      // the bulk twin of `setCategories`'s own pre-read, and for the same reason: a column
-      // action that re-ticks a category must not move the question inside the categories it
-      // leaves alone.
+      // The rows every touched question already holds, read ONCE before any delete — the bulk
+      // twin of `setCategories`'s own pre-read, and for the same reason: a column action that
+      // re-ticks a category must not move the question inside the categories it leaves alone.
       const ids = assignments.map((a) => a.questionId);
-      const held = new Map<string, Map<LoanCategory, number>>();
+      const held = new Map<string, HeldAssignment[]>();
       for (const row of await tx.questionLoanCategory.findMany({
         where: { questionId: { in: ids } },
-        select: { questionId: true, category: true, displayOrder: true },
+        select: { questionId: true, category: true, displayOrder: true, optIn: true },
       })) {
-        const entry = held.get(row.questionId) ?? new Map<LoanCategory, number>();
-        entry.set(row.category, row.displayOrder);
-        held.set(row.questionId, entry);
+        const list = held.get(row.questionId) ?? [];
+        list.push(row);
+        held.set(row.questionId, list);
       }
       const seeds = new Map(
         (
@@ -495,17 +534,14 @@ export class QuestionnaireRepository {
         ).map((row) => [row.id, row.displayOrder] as const),
       );
       for (const a of assignments) {
-        await tx.questionLoanCategory.deleteMany({ where: { questionId: a.questionId } });
-        if (a.categories.length === 0) continue;
-        const kept = held.get(a.questionId);
-        const seed = seeds.get(a.questionId) ?? 0;
-        await tx.questionLoanCategory.createMany({
-          data: a.categories.map((category) => ({
-            questionId: a.questionId,
-            category,
-            displayOrder: kept?.get(category) ?? seed,
-          })),
-        });
+        await replaceAssignment(
+          tx,
+          a.questionId,
+          held.get(a.questionId) ?? [],
+          seeds.get(a.questionId) ?? 0,
+          a.categories,
+          a.optInCategories,
+        );
       }
     });
   }
@@ -693,6 +729,90 @@ export class QuestionnaireRepository {
         where: { id: versionId },
         data: { isActive: true },
       });
+    });
+  }
+}
+
+/** One `question_loan_category` row as the replace writers pre-read it. */
+interface HeldAssignment {
+  category: LoanCategory;
+  displayOrder: number;
+  optIn: boolean;
+}
+
+/**
+ * The replace both `setCategories` and `setCategoriesBulk` perform, for one question, inside
+ * the caller's transaction.
+ *
+ *   - `ordinary` is written as ordinary rows: asked of every program name. A category that was
+ *     OPT-IN and is listed here becomes ordinary — "ask it in this category" is a statement
+ *     about every name there.
+ *   - OPT-IN rows are a program name's "ask this too" and are not this screen's to lose by
+ *     accident: carried over unless `optIn` is given, in which case it says which of them to
+ *     keep. It never creates one — except that an ordinary row dropped from `ordinary` while
+ *     program names still ADD the question falls back to opt-in when `optIn` is absent:
+ *     "stop asking every name" must not also take it away from the names that picked it.
+ *   - Every row keeps its per-category position (`displayOrder`); a new one is seeded from the
+ *     pool, like every other insert into this table.
+ *   - A category the question leaves ENTIRELY takes the program names' addition rows for it
+ *     along: an addition of a question the category no longer holds scopes nothing and would
+ *     only sit there looking like a choice somebody can still make.
+ */
+async function replaceAssignment(
+  tx: Prisma.TransactionClient,
+  questionId: string,
+  held: readonly HeldAssignment[],
+  seed: number,
+  ordinary: readonly LoanCategory[],
+  optIn: readonly LoanCategory[] | undefined,
+): Promise<void> {
+  const heldOptIn = held.filter((row) => row.optIn).map((row) => row.category);
+  // Categories where some program name adds this question — what an opt-in row is FOR.
+  const addedIn = new Set(
+    (
+      await tx.programNameQuestionAddition.findMany({
+        where: { questionId },
+        select: { category: true },
+        distinct: ['category'],
+      })
+    ).map((row) => row.category),
+  );
+  // An explicit set can keep or drop an opt-in row, never mint one: opt-in rows are born only
+  // from a program name's addition, which is what gives them a reader. Without one, an
+  // ordinary row leaving `ordinary` stays in the category as opt-in if a name still adds it.
+  const keepOptIn =
+    optIn === undefined
+      ? held
+          .map((row) => row.category)
+          .filter(
+            (category) =>
+              !ordinary.includes(category) &&
+              (heldOptIn.includes(category) || addedIn.has(category)),
+          )
+      : optIn.filter((category) => heldOptIn.includes(category) && !ordinary.includes(category));
+  const position = new Map(held.map((row) => [row.category, row.displayOrder] as const));
+  const leaving = held
+    .map((row) => row.category)
+    .filter((category) => !ordinary.includes(category) && !keepOptIn.includes(category));
+
+  await tx.questionLoanCategory.deleteMany({ where: { questionId } });
+  const rows = [
+    ...ordinary.map((category) => ({ category, optIn: false })),
+    ...keepOptIn.map((category) => ({ category, optIn: true })),
+  ];
+  if (rows.length > 0) {
+    await tx.questionLoanCategory.createMany({
+      data: rows.map((row) => ({
+        questionId,
+        category: row.category,
+        optIn: row.optIn,
+        displayOrder: position.get(row.category) ?? seed,
+      })),
+    });
+  }
+  if (leaving.length > 0) {
+    await tx.programNameQuestionAddition.deleteMany({
+      where: { questionId, category: { in: leaving } },
     });
   }
 }

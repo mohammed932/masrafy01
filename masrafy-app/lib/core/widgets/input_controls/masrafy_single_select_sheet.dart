@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
-import 'package:app/core/utils/masrafy_assets.dart';
-import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
+import 'package:app/core/widgets/input_controls/masrafy_sheet_search_field.dart';
 
 /// One selectable option for the Masrafy selection surfaces. [value] is a
 /// stable, language-neutral identifier; [label] is the already-localized
@@ -36,8 +34,7 @@ class MasrafySelectOption<T> {
 /// Visual:
 /// - Header (76h): centered 44×4 drag handle → 24h gap → centered title
 ///   (14sp semibold) → 0.75px bottom divider.
-/// - Content (px16/py24): optional bordered search input (40r/r8 with
-///   16r magnifier SVG) → radio list with 0.75px hairlines. The current
+/// - Content (px16/py24): optional [MasrafySheetSearchField] → radio list with 0.75px hairlines. The current
 ///   value reads as selected (filled radio dot) on open.
 ///
 /// Each row label renders as `"$code - $label"` when [MasrafySelectOption.code]
@@ -149,9 +146,8 @@ class _SingleSelectSheetState<T> extends State<_SingleSelectSheet<T>> {
     final hasNullRow = widget.nullOptionLabel != null;
     final showEmpty = !hasNullRow && rows.isEmpty;
     final totalCount = rows.length + (hasNullRow ? 1 : 0);
-    final emptyMessage = widget.options.isEmpty
-        ? widget.emptyMessage
-        : widget.noMatchesMessage;
+    final emptyMessage =
+        widget.options.isEmpty ? widget.emptyMessage : widget.noMatchesMessage;
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
@@ -174,7 +170,7 @@ class _SingleSelectSheetState<T> extends State<_SingleSelectSheet<T>> {
               if (widget.showSearch)
                 Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
-                  child: _SearchField(
+                  child: MasrafySheetSearchField(
                     controller: _searchCtrl,
                     hint: widget.searchHint,
                   ),
@@ -187,8 +183,8 @@ class _SingleSelectSheetState<T> extends State<_SingleSelectSheet<T>> {
                     emptyMessage,
                     textAlign: TextAlign.center,
                     style: texts.body.regular().copyWith(
-                      color: colors.text.secondary,
-                    ),
+                          color: colors.text.secondary,
+                        ),
                   ),
                 )
               else
@@ -262,9 +258,9 @@ class _Header extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
             style: texts.body.semiBold().copyWith(
-              color: colors.text.heading,
-              height: 1.25,
-            ),
+                  color: colors.text.heading,
+                  height: 1.25,
+                ),
           ),
         ),
         Gap(16.h),
@@ -274,63 +270,6 @@ class _Header extends StatelessWidget {
           child: ColoredBox(color: colors.border.main),
         ),
       ],
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.hint});
-
-  final TextEditingController controller;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final texts = MasrafyTextTheme.of(context);
-
-    return Container(
-      height: 40.r,
-      padding: EdgeInsets.symmetric(horizontal: 11.w),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(
-          color: colors.border.field,
-          width: MasrafyFieldMetrics.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Row(
-        children: [
-          SvgPicture.asset(
-            MasrafyAssets.kNotifSearch,
-            width: 16.r,
-            height: 16.r,
-            colorFilter: ColorFilter.mode(
-              colors.text.secondary,
-              BlendMode.srcIn,
-            ),
-          ),
-          Gap(4.w),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: texts.bodyLarge.regular().copyWith(
-                color: colors.text.heading,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                hintText: hint,
-                hintStyle: texts.bodyLarge.regular().copyWith(
-                  color: colors.text.placeholder,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -346,8 +285,8 @@ class _OptionRow<T> extends StatelessWidget {
     required String label,
     required this.isSelected,
     required this.onTap,
-  }) : option = null,
-       nullLabel = label;
+  })  : option = null,
+        nullLabel = label;
 
   final MasrafySelectOption<T>? option;
   final String? nullLabel;
@@ -384,8 +323,8 @@ class _OptionRow<T> extends StatelessWidget {
               child: Text(
                 label,
                 style: texts.body.regular().copyWith(
-                  color: colors.text.heading,
-                ),
+                      color: colors.text.heading,
+                    ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

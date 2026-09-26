@@ -158,6 +158,7 @@ function makeService(snapshot: unknown = SNAPSHOT, questions: LiveQuestion[] = L
     questions: async () => questions.map((q) => ({ ...q, ...NO_RULES })),
     categoryAssignments: async () =>
       new Map(questions.map((q) => [q.id, [...q.categories]])),
+    optInAssignments: async () => new Map<string, string[]>(),
     // These specs assert WHICH questions a category is served, never in what order, so the
     // fake states no per-category position: the serve path then falls back to the pool's
     // `displayOrder`, which is exactly what it did before the column existed.
@@ -195,6 +196,7 @@ function makeScopedService(
     versionById: async () => ({ id: 'ver', versionNumber: 11, snapshot }),
     questions: async () => questions.map((q) => ({ ...q, ...NO_RULES })),
     categoryAssignments: async () => new Map(questions.map((q) => [q.id, [...q.categories]])),
+    optInAssignments: async () => new Map<string, string[]>(),
     categoryOrders: async () => new Map<string, Record<string, number>>(),
     optionsByQuestion: async (questionId: string) =>
       (questionId === 'q_property' ? ['apartment', 'villa'] : []).map((code, i) => ({

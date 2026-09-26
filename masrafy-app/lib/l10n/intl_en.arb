@@ -382,6 +382,7 @@
   "q_common_save": "Save",
   "q_common_cancel": "Cancel",
   "q_common_search": "Search",
+  "q_common_search_hint": "Search the options…",
   "q_mortgage_title": "Mortgage application",
   "q_mortgage_subtitle": "We'll match you with banks that specialise in your needs",
   "q_mortgage_next": "Next",
@@ -765,13 +766,9 @@
   "results_amount_egp": "EGP {amount}",
   "results_duration": "Loan Duration",
   "results_months": "{count} months",
-  "results_unavailable_section": "Not available for you yet",
-  "results_unavailable_badge": "No offer from this bank",
+  "results_no_offer_fix_title": "What to fix",
+  "results_no_offer_body": "Here's what stopped the banks from making you an offer. Update these answers and try again.",
   "results_unavailable_generic": "This bank couldn't price an offer for you right now.",
-  "results_unavailable_ceiling": "You could borrow up to {amount} EGP here.",
-  "@results_unavailable_ceiling": {
-    "placeholders": { "amount": { "type": "String" } }
-  },
   "results_rate": "Rate",
   "results_monthly": "Monthly",
   "results_total": "Total",

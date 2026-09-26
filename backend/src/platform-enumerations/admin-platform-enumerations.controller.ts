@@ -34,6 +34,8 @@ import {
   type EnumerationBulkCreateResult,
   SetEnumerationCategoriesDto,
   SetEnumerationIncomeBasisDto,
+  SetProgramNameQuestionExclusionsDto,
+  SetProgramNameQuestionAdditionsDto,
   UpdateEnumerationDto,
   UpdateEnumerationTypeDto,
 } from './dto/enumeration.dto';
@@ -241,6 +243,60 @@ export class AdminPlatformEnumerationsController {
       sourceIp: ip ?? null,
     });
     return { success: true, data };
+  }
+
+  /**
+   * The program-name questions board: what the name skips and adds per loan type, and what it
+   * may not skip. `key` absent = the create flow, before the name exists.
+   */
+  @Get('program-names/question-scope')
+  @ApiOperation({ summary: 'Questions a program name skips, and the ones it cannot' })
+  async programNameQuestionScope(@Query('key') key?: string) {
+    const trimmed = key?.trim();
+    return {
+      success: true as const,
+      data: await this.service.programNameQuestionScope(
+        trimmed === undefined || trimmed === '' ? null : trimmed,
+      ),
+    };
+  }
+
+  @Put('program-names/:key/question-exclusions')
+  @ApiOperation({ summary: 'Replace the questions one program name skips under one loan type' })
+  async setProgramNameQuestionExclusions(
+    @Param('key') key: string,
+    @Body() body: SetProgramNameQuestionExclusionsDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    return {
+      success: true as const,
+      data: await this.service.setProgramNameQuestionExclusions(
+        key,
+        body.category,
+        body.questionIds,
+        { staffId: user.sub, sourceIp: ip ?? null },
+      ),
+    };
+  }
+
+  @Put('program-names/:key/question-additions')
+  @ApiOperation({ summary: 'Replace the questions one program name adds under one loan type' })
+  async setProgramNameQuestionAdditions(
+    @Param('key') key: string,
+    @Body() body: SetProgramNameQuestionAdditionsDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    return {
+      success: true as const,
+      data: await this.service.setProgramNameQuestionAdditions(
+        key,
+        body.category,
+        body.questionIds,
+        { staffId: user.sub, sourceIp: ip ?? null },
+      ),
+    };
   }
 
   @Put(':id/categories')

@@ -221,8 +221,9 @@ class _StepCta extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final cubit = context.read<QuestionnaireCubit>();
     // The last step additionally requires every question the snapshot marks required —
-    // in ANY step — to hold an acceptable answer.
-    final canProceed = state.isLastStep ? state.canFinish : state.canAdvance;
+    // in ANY step — to hold an acceptable answer. When the missing one sits on an earlier
+    // step, Finish stays pressable and takes the customer there (`QuestionnaireCubit.next`).
+    final canProceed = state.canAdvance;
     final blocked = state.isLastStep && state.unansweredRequired.isNotEmpty;
 
     return Padding(

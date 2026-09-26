@@ -117,7 +117,7 @@ async function main(): Promise<void> {
           code: true,
           isRequired: true,
           enabledWhen: true,
-          loanCategories: { select: { category: true } },
+          loanCategories: { select: { category: true, optIn: true } },
         },
         orderBy: { displayOrder: 'asc' },
       }),
@@ -165,9 +165,10 @@ async function main(): Promise<void> {
       // would pass by seeing nothing rather than by finding nothing wrong.
       const plans = catalogPlansOf(resolution);
 
-      const scope = await repo.narrowingScopeFor(name.key);
-
       for (const category of name.loanCategories.map((c) => c.category)) {
+        // Per category: the operator's unticks are per loan type, and what is SERVED here has
+        // to be what the customer read serves, unticks included.
+        const scope = await repo.narrowingScopeFor(name.key, category);
         // Per CATEGORY, not per name. A mortgage applicant who picks this name is quoted by
         // its mortgage programs alone, so a fact only its personal programs read is not one
         // they need — reporting it would send an operator to widen a question for nobody.
@@ -215,13 +216,21 @@ async function main(): Promise<void> {
         const needed = new Set<string>([...loud, ...viaCap]);
         const silentOnly = new Set([...viaCap].filter((key) => !loud.has(key)));
 
+        // Every row, OPT-IN ones included — the list serve and apply hand the rule — each
+        // flagged, so the rule can tell "asked of every name" from "asked where a name adds it".
         const inCategory = questions.filter((q) =>
           q.loanCategories.some((c) => c.category === category),
         );
-        const decision = narrowAskedQuestions(inCategory, scope);
-        const served = decision.narrowed
-          ? new Set(decision.keep)
-          : new Set(inCategory.map((q) => q.code));
+        const decision = narrowAskedQuestions(
+          inCategory.map((q) => ({
+            code: q.code,
+            enabledWhen: q.enabledWhen,
+            optIn: q.loanCategories.some((c) => c.category === category && c.optIn),
+          })),
+          scope,
+        );
+        // Authoritative with or without a name — the same set the customer read serves.
+        const served = new Set(decision.keep);
 
         for (const factKey of needed) {
           const fact = factByKey.get(factKey);
@@ -310,6 +319,9 @@ async function main(): Promise<void> {
             const q = inCategory.find((x) => x.code === code);
             return q?.isRequired === true || decision.extraRequired.has(code);
           }).length;
+          // What the operator ADDED for this name and it is served — printed only when there
+          // is some, so a database with no additions reports exactly what it always did.
+          const added = (scope?.addedQuestionCodes ?? []).filter((code) => served.has(code));
           rows.push(
             [
               name.key.padEnd(26),
@@ -319,6 +331,7 @@ async function main(): Promise<void> {
               String(inCategory.filter((q) => q.isRequired).length).padStart(4),
               String(requiredAfter).padStart(4),
               decision.disabledReason ?? '',
+              ...(added.length > 0 ? [`+${added.length} added`] : []),
             ].join(' '),
           );
         }
