@@ -29,14 +29,14 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.541863670328-ohvcqa1qat08rmfa8dd72mp7hmfml3ee</string>
+				<string>com.googleusercontent.apps.541863670328-8714inlo0u8obu8ef121c8da9bt8m1r4</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GIDClientID</key>
-	<string>541863670328-ohvcqa1qat08rmfa8dd72mp7hmfml3ee.apps.googleusercontent.com</string>
+	<string>541863670328-8714inlo0u8obu8ef121c8da9bt8m1r4.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
