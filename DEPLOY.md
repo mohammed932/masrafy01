@@ -135,5 +135,26 @@ docker compose down               # stop app (keeps named volumes / data)
 
 Health: `https://api.example.com/api/health/ready` · API docs: `https://api.example.com/api/docs`
 
+---
+
+## 6. Masrafy droplet access
+
+- Host: `masrafy-droplet` — `ssh root@161.35.24.91`
+- Domains: `admin.masrafy.app`, `apis.masrafy.app` (behind Cloudflare)
+- Authorised key — `id_rsa.pub` (default key, mfathy@192.168.1.3):
+
+```
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCiVygTmUOq9YAdXK5BuTLYy5emo1Be6p+LwgWIO5eyTyKAZKUyMGXfVyka38MrPpSAlIDTcCT+hZdNMgUQ70UgirEMjFkDoTWDyckmTC4kre0jmV8q8BjXh8uTVFzaUHyNHEfatOgBXasBxAHwyh7dj23Qmdv34bHKARLVRgx5anfe7suK2Y/0SuLX1nX7eIO5182WJtX85Dn1u26vQ05wbNOSO7/CoIB9M0LEatP1xfdHoM7jaUoBX4Mjdl4Nrr6LjC5OjyplkUa/4CuVhK1z3+8YCePV1+Tli4K3ZDHFd/xhk2O/Av0dk5qxRRv4ycgq12uI/5y8kRE+NK7AUZDRotQwsIjr8lYAAmFUQMjhIo8VsJHUkZ3eofHYcW2XBCEE4XXVujf6ElcCODWwb+UaYuPwZ1gW2V3G6xXxWVjw1UznSJG5lSWvX91al54enc1hJBztkCq5sQgTH1Rs4VeweFpyYdnt/bgXVKGD8doTgExPz/wwaXZV1B/40iY8W7c= mfathy@192.168.1.3
+```
+
+**Cloudflare 521 = proxy down.** `nginx-proxy`, `nginx-proxy-gen`, `nginx-proxy-le` are
+the only listeners on 80/443 and live outside this repo's compose files. On 2026-09-18 a
+Docker restart stopped them (no restart policy) while the `masrafy_*` containers came back.
+Fixed 2026-09-25 with `restart: unless-stopped`. If it recurs:
+```bash
+ssh root@161.35.24.91 'docker ps -a --format "{{.Names}}\t{{.Status}}"'
+ssh root@161.35.24.91 'docker start nginx-proxy nginx-proxy-gen nginx-proxy-le'
+```
+
 **Ports** (per app, localhost-only on the droplet for debugging; public traffic is
 443 via the proxy): backend `127.0.0.1:3000`, admin `127.0.0.1:8080`.
