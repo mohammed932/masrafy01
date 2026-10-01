@@ -7,7 +7,8 @@
       "Bash(npx prisma *)",
       "Bash(cp /Users/mfathy/.claude/plans/users-mfathy-downloads-teachers-income-mighty-hanrahan.md /Users/mfathy/Downloads/surrogate-programs-design.md)",
       "Read(//Users/mfathy/Downloads/**)",
-      "Bash(cp /Users/mfathy/.claude/plans/users-mfathy-downloads-teachers-income-mighty-hanrahan.md /Users/mfathy/Downloads/surrogate-programs-design.md && wc -l /Users/mfathy/Downloads/surrogate-programs-design.md)"
+      "Bash(cp /Users/mfathy/.claude/plans/users-mfathy-downloads-teachers-income-mighty-hanrahan.md /Users/mfathy/Downloads/surrogate-programs-design.md && wc -l /Users/mfathy/Downloads/surrogate-programs-design.md)",
+      "Bash(ssh root@161.35.24.91:*)"
     ]
   },
   "enabledMcpjsonServers": [
