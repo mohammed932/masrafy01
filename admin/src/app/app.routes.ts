@@ -101,6 +101,15 @@ export const APP_ROUTES: Routes = [
       import('./features/questionnaire/questionnaire.routes').then((m) => m.QUESTIONNAIRE_ROUTES),
   },
   {
+    // Feature 013 — the Loan Engine: one question's effects per bank program, and each
+    // program's eligibility conditions. Writes are super_admin; sales_manager reads.
+    path: 'loan-engine',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],
+    loadComponent: () =>
+      import('./features/loan-engine/loan-engine.page').then((m) => m.LoanEnginePageComponent),
+  },
+  {
     // Admin matching simulator — full pricing engine, read-only.
     path: 'matching-simulator',
     canActivate: [authGuardFn],

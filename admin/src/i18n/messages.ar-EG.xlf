@@ -4692,7 +4692,6 @@
       <trans-unit id="qcalc.create_btn" datatype="html"><source> Create figure </source><target>إنشاء الرقم</target></trans-unit>
       <trans-unit id="qcalc.link_btn" datatype="html"><source> Link </source><target>ربط</target></trans-unit>
       <trans-unit id="qcalc.affect_h" datatype="html"><source>What should it affect?</source><target>على ماذا يجب أن يؤثر؟</target></trans-unit>
-      <trans-unit id="qcalc.affect_hint" datatype="html"><source> Opens the table where the bank&apos;s figures are typed. Nothing is saved here. </source><target>يفتح الجدول الذي تُكتب فيه أرقام البنك. لا يُحفظ شيء هنا.</target></trans-unit>
       <trans-unit id="qcalc.affect_locked" datatype="html"><source>Link it to a figure first.</source><target>اربطه برقم أولاً.</target></trans-unit>
       <trans-unit id="qcalc.target_label" datatype="html"><source>Where are its figures typed?</source><target>أين تُكتب أرقامه؟</target></trans-unit>
       <trans-unit id="qcalc.target_ph" datatype="html"><source>Pick a programme or product</source><target>اختر برنامجاً أو منتجاً</target></trans-unit>
@@ -4730,6 +4729,112 @@
       <trans-unit id="qcalc.unlink_ok" datatype="html"><source>Unlink</source><target>فك الربط</target></trans-unit>
       <trans-unit id="qcalc.unlink_cancel" datatype="html"><source>Keep it</source><target>إبقاؤه</target></trans-unit>
       <trans-unit id="qcalc.cand_mismatch" datatype="html"><source><x id="figure" equiv-text="base"/> — read by a different kind of answer</source><target><x id="figure" equiv-text="base"/> — يقرؤه نوع إجابة مختلف</target></trans-unit>
+      <trans-unit id="fgd.edge_from_excluded" datatype="html"><source>more than</source><target>أكثر من</target></trans-unit>
+      <trans-unit id="fgd.edge_to_included" datatype="html"><source>up to and including</source><target>حتى ويشمل</target></trans-unit>
+      <trans-unit id="lengine.cond.reason" datatype="html"><source>Reason the applicant is shown</source><target>السبب الذي يظهر لمقدم الطلب</target></trans-unit>
+      <trans-unit id="lengine.cond.or" datatype="html"><source>or</source><target>أو</target></trans-unit>
+      <trans-unit id="lengine.cond.add_or" datatype="html"><source> Add an &quot;or&quot; </source><target> أضف «أو» </target></trans-unit>
+      <trans-unit id="lengine.cond.remove" datatype="html"><source> Remove condition </source><target> احذف الشرط </target></trans-unit>
+      <trans-unit id="lengine.cond.none" datatype="html"><source> No conditions — this bank quotes every applicant its tables can price. </source><target> لا شروط — هذا البنك يعرض عرضًا لكل مقدم طلب تستطيع جداوله تسعيره. </target></trans-unit>
+      <trans-unit id="lengine.cond.add" datatype="html"><source>Add a condition</source><target>أضف شرطًا</target></trans-unit>
+      <trans-unit id="lengine.cond.title" datatype="html"><source>Who this program quotes</source><target>من يقدم له هذا البرنامج</target></trans-unit>
+      <trans-unit id="lengine.cond.hint" datatype="html"><source>Every condition must hold. An applicant who fails one sees this program refused, with the reason you pick.</source><target>يجب أن تتحقق كل الشروط. مقدم الطلب الذي لا يحقق أحدها يرى هذا البرنامج مرفوضًا مع السبب الذي تختاره.</target></trans-unit>
+      <trans-unit id="lengine.cond.save" datatype="html"><source>Save conditions</source><target>احفظ الشروط</target></trans-unit>
+      <trans-unit id="lengine.cond.question_aria" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="lengine.cond.remove_line" datatype="html"><source>Remove this line</source><target>احذف هذا السطر</target></trans-unit>
+      <trans-unit id="lengine.cond.n" datatype="html"><source>Condition <x id="n" equiv-text="i + 1"/></source><target>الشرط <x id="n" equiv-text="i + 1"/></target></trans-unit>
+      <trans-unit id="lengine.sheet.stale" datatype="html"><source>Someone changed this program while you were editing. Close the sheet and open it again.</source><target>غيّر أحدهم هذا البرنامج أثناء تعديلك. أغلق اللوحة وافتحها من جديد.</target></trans-unit>
+      <trans-unit id="lengine.crit.answered_long" datatype="html"><source>Any answer given</source><target>أي إجابة مكتوبة</target></trans-unit>
+      <trans-unit id="lengine.crit.op_aria" datatype="html"><source>How the answer compares</source><target>كيف تُقارن الإجابة</target></trans-unit>
+      <trans-unit id="lengine.crit.a_aria" datatype="html"><source>Figure</source><target>الرقم</target></trans-unit>
+      <trans-unit id="lengine.crit.b_aria" datatype="html"><source>Second figure</source><target>الرقم الثاني</target></trans-unit>
+      <trans-unit id="lengine.crit.option_aria" datatype="html"><source>Answer</source><target>الإجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.extra_label" datatype="html"><source>Share of the stated amount this bank counts</source><target>نسبة المبلغ المذكور التي يحتسبها هذا البنك</target></trans-unit>
+      <trans-unit id="lengine.sheet.add_row" datatype="html"><source> Add a band </source><target> أضف نطاقًا </target></trans-unit>
+      <trans-unit id="lengine.sheet.overlap" datatype="html"><source> Two bands overlap. The first one in this list wins where they do. </source><target> نطاقان متداخلان. الأول في هذه القائمة هو الذي يُطبّق حيث يتداخلان. </target></trans-unit>
+      <trans-unit id="lengine.sheet.multi_note" datatype="html"><source> An applicant who picks several answers gets the figure of the first one in this list. </source><target> مقدم الطلب الذي يختار أكثر من إجابة يحصل على رقم أول إجابة منها في هذه القائمة. </target></trans-unit>
+      <trans-unit id="lengine.sheet.save" datatype="html"><source>Save rows</source><target>احفظ الصفوف</target></trans-unit>
+      <trans-unit id="lengine.sheet.rows" datatype="html"><source>This bank&apos;s figure for each answer</source><target>رقم هذا البنك لكل إجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.rows_hint_pick" datatype="html"><source>Leave an answer blank when this bank states nothing for it.</source><target>اترك الإجابة فارغة إذا لم يحدد البنك لها رقمًا.</target></trans-unit>
+      <trans-unit id="lengine.sheet.rows_hint" datatype="html"><source>Each row is one band of answers and the figure the bank gives it.</source><target>كل صف نطاق من الإجابات والرقم الذي يعطيه البنك له.</target></trans-unit>
+      <trans-unit id="lengine.sheet.nomatch" datatype="html"><source>When no row matches the answer</source><target>عندما لا يطابق أي صف الإجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.try" datatype="html"><source>Try an answer</source><target>جرّب إجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.try_hint" datatype="html"><source>Prices a sample applicant with these rows before you save. Nothing is written.</source><target>يسعّر مقدم طلب تجريبيًا بهذه الصفوف قبل الحفظ. لا يُحفظ شيء.</target></trans-unit>
+      <trans-unit id="lengine.sheet.blank" datatype="html"><source>no figure</source><target>بلا رقم</target></trans-unit>
+      <trans-unit id="lengine.nm.program_max" datatype="html"><source>Use the program&apos;s own cap</source><target>استخدم الحد الأقصى للبرنامج نفسه</target></trans-unit>
+      <trans-unit id="lengine.nm.reject" datatype="html"><source>Refuse the quote</source><target>ارفض العرض</target></trans-unit>
+      <trans-unit id="lengine.nm.fallback" datatype="html"><source>Use the program&apos;s own figure</source><target>استخدم رقم البرنامج نفسه</target></trans-unit>
+      <trans-unit id="lengine.sheet.readonly" datatype="html"><source>Read only — your role can view rules but not change them.</source><target>للقراءة فقط — دورك يتيح عرض القواعد لا تغييرها.</target></trans-unit>
+      <trans-unit id="lengine.sheet.value_aria" datatype="html"><source>Figure for row <x id="n" equiv-text="i + 1"/></source><target>الرقم للصف <x id="n" equiv-text="i + 1"/></target></trans-unit>
+      <trans-unit id="lengine.sheet.remove_aria" datatype="html"><source>Remove row <x id="n" equiv-text="i + 1"/></source><target>احذف الصف <x id="n" equiv-text="i + 1"/></target></trans-unit>
+      <trans-unit id="lengine.eff.rate" datatype="html"><source>Rate</source><target>سعر الفائدة</target></trans-unit>
+      <trans-unit id="lengine.eff.cap" datatype="html"><source>Loan cap</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="lengine.eff.financed_share" datatype="html"><source>Financed share</source><target>نسبة التمويل</target></trans-unit>
+      <trans-unit id="lengine.eff.min_amount" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="lengine.eff.min_term" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
+      <trans-unit id="lengine.eff.max_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="lengine.eff.extra_income" datatype="html"><source>Extra income</source><target>دخل إضافي</target></trans-unit>
+      <trans-unit id="lengine.unit.egp" datatype="html"><source>EGP</source><target>جنيه</target></trans-unit>
+      <trans-unit id="lengine.unit.months" datatype="html"><source>months</source><target>شهرًا</target></trans-unit>
+      <trans-unit id="lengine.ro.inherited_plan" datatype="html"><source>From the product&apos;s plans</source><target>من خطط المنتج</target></trans-unit>
+      <trans-unit id="lengine.ro.multi_axis" datatype="html"><source>Table on several answers</source><target>جدول على أكثر من إجابة</target></trans-unit>
+      <trans-unit id="lengine.ro.class_axis" datatype="html"><source>Keyed by class</source><target>مرتبط بالفئة</target></trans-unit>
+      <trans-unit id="lengine.ro.other_fact" datatype="html"><source>Keyed on another answer</source><target>مرتبط بإجابة أخرى</target></trans-unit>
+      <trans-unit id="lengine.ro.two_axis_cap" datatype="html"><source>Two-column cap</source><target>حد أقصى بعمودين</target></trans-unit>
+      <trans-unit id="lengine.ro.not_numeric" datatype="html"><source>Number answers only</source><target>للإجابات الرقمية فقط</target></trans-unit>
+      <trans-unit id="lengine.ro.none" datatype="html"><source>Not editable here</source><target>لا يُعدّل من هنا</target></trans-unit>
+      <trans-unit id="lengine.op.lt" datatype="html"><source>less than</source><target>أقل من</target></trans-unit>
+      <trans-unit id="lengine.op.lte" datatype="html"><source>at most</source><target>على الأكثر</target></trans-unit>
+      <trans-unit id="lengine.op.gte" datatype="html"><source>at least</source><target>على الأقل</target></trans-unit>
+      <trans-unit id="lengine.op.gt" datatype="html"><source>more than</source><target>أكثر من</target></trans-unit>
+      <trans-unit id="lengine.op.eq" datatype="html"><source>exactly</source><target>يساوي تمامًا</target></trans-unit>
+      <trans-unit id="lengine.op.between" datatype="html"><source>between (both included)</source><target>بين (شاملًا الطرفين)</target></trans-unit>
+      <trans-unit id="lengine.op.range" datatype="html"><source>from … up to, not including</source><target>من … حتى دون</target></trans-unit>
+      <trans-unit id="lengine.prob.both_edges" datatype="html"><source>A band states one of its edges twice.</source><target>نطاق يذكر أحد طرفيه مرتين.</target></trans-unit>
+      <trans-unit id="lengine.prob.empty_band" datatype="html"><source>No number can fall in this band — check the two edges.</source><target>لا يقع أي رقم في هذا النطاق — راجع الطرفين.</target></trans-unit>
+      <trans-unit id="lengine.prob.unknown_option" datatype="html"><source>That answer is not one of the question&apos;s options.</source><target>هذه الإجابة ليست من خيارات السؤال.</target></trans-unit>
+      <trans-unit id="lengine.prob.engine_input" datatype="html"><source>Amount, term, income, debts, employment, age and I-Score shape the amount; they can&apos;t be a condition.</source><target>المبلغ والمدة والدخل والالتزامات ونوع العمل والعمر وI-Score تحدد المبلغ، ولا يمكن أن تكون شرطًا.</target></trans-unit>
+      <trans-unit id="lengine.prob.shape" datatype="html"><source>That kind of rule doesn&apos;t fit this question&apos;s answer type.</source><target>هذا النوع من القواعد لا يناسب نوع إجابة السؤال.</target></trans-unit>
+      <trans-unit id="lengine.prob.read_only_surface" datatype="html"><source>This table is edited somewhere else.</source><target>هذا الجدول يُعدّل في مكان آخر.</target></trans-unit>
+      <trans-unit id="lengine.prob.not_linked" datatype="html"><source>The question doesn&apos;t answer a figure yet — link it first.</source><target>السؤال لا يجيب عن رقم بعد — اربطه أولًا.</target></trans-unit>
+      <trans-unit id="lengine.cat.all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="lengine.q.not_linked" datatype="html"><source>Not linked</source><target>غير مربوط</target></trans-unit>
+      <trans-unit id="lengine.q.read_by" datatype="html"><source>Read by <x id="INTERPOLATION" equiv-text="{{ q.readingProgramCount }}"/></source><target>يقرؤه <x id="INTERPOLATION" equiv-text="{{ q.readingProgramCount }}"/></target></trans-unit>
+      <trans-unit id="lengine.q.unread" datatype="html"><source>No figure yet</source><target>لا يقرؤه أي رقم بعد</target></trans-unit>
+      <trans-unit id="lengine.q.none" datatype="html"><source>No question matches.</source><target>لا سؤال مطابق.</target></trans-unit>
+      <trans-unit id="lengine.d.answers_figure" datatype="html"><source>answers the figure <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/><x id="INTERPOLATION" equiv-text="{{ d.factKey }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></source><target>يجيب عن الرقم <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/><x id="INTERPOLATION" equiv-text="{{ d.factKey }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></target></trans-unit>
+      <trans-unit id="lengine.d.link_first" datatype="html"><source> This question doesn&apos;t answer a figure yet, so no bank table can read it. Link it to create one. </source><target> هذا السؤال لا يجيب عن رقم بعد، فلا يستطيع أي جدول بنك قراءته. اربطه لإنشاء رقم. </target></trans-unit>
+      <trans-unit id="lengine.d.link" datatype="html"><source> Link it to a figure </source><target> اربطه برقم </target></trans-unit>
+      <trans-unit id="lengine.d.only_reading" datatype="html"><source>Only programs that already use it</source><target>البرامج التي تستخدمه فقط</target></trans-unit>
+      <trans-unit id="lengine.d.count" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ shownPrograms().length }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ d.programs.length }}"/> programs</source><target><x id="INTERPOLATION" equiv-text="{{ shownPrograms().length }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ d.programs.length }}"/> برنامجًا</target></trans-unit>
+      <trans-unit id="lengine.t.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="lengine.t.conditions" datatype="html"><source>Conditions</source><target>الشروط</target></trans-unit>
+      <trans-unit id="lengine.t.none" datatype="html"><source> No program uses this question yet. Clear the filter to start one. </source><target> لا يستخدم أي برنامج هذا السؤال بعد. ألغِ التصفية لتبدأ واحدًا. </target></trans-unit>
+      <trans-unit id="lengine.d.pick" datatype="html"><source>Pick a question to see what it changes for each bank.</source><target>اختر سؤالًا لترى ما يغيّره لدى كل بنك.</target></trans-unit>
+      <trans-unit id="lengine.eyebrow" datatype="html"><source>Matching engine</source><target>محرك المطابقة</target></trans-unit>
+      <trans-unit id="lengine.title" datatype="html"><source>Loan Engine</source><target>محرك القروض</target></trans-unit>
+      <trans-unit id="lengine.subtitle" datatype="html"><source>What each answer changes, bank by bank: rates, caps, terms, extra income — and who each program quotes at all.</source><target>ما تغيّره كل إجابة، بنكًا بنكًا: الأسعار والحدود والمدد والدخل الإضافي — ومن يقدّم له كل برنامج أصلًا.</target></trans-unit>
+      <trans-unit id="lengine.list_aria" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
+      <trans-unit id="lengine.cats_aria" datatype="html"><source>Loan type</source><target>نوع القرض</target></trans-unit>
+      <trans-unit id="lengine.table_aria" datatype="html"><source>Effects by program</source><target>التأثيرات حسب البرنامج</target></trans-unit>
+      <trans-unit id="lengine.search" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
+      <trans-unit id="lengine.cell.rows" datatype="html"><source><x id="n" equiv-text="s.rows.length"/> rows</source><target><x id="n" equiv-text="s.rows.length"/> صفوف</target></trans-unit>
+      <trans-unit id="lengine.cell.add" datatype="html"><source>Add</source><target>أضف</target></trans-unit>
+      <trans-unit id="lengine.cell.cond_mine" datatype="html"><source><x id="n" equiv-text="p.conditions.length"/> (<x id="mine" equiv-text="mine"/> on this)</source><target><x id="n" equiv-text="p.conditions.length"/> (<x id="mine" equiv-text="mine"/> على هذا السؤال)</target></trans-unit>
+      <trans-unit id="lengine.cell.cond" datatype="html"><source><x id="n" equiv-text="p.conditions.length"/></source><target><x id="n" equiv-text="p.conditions.length"/></target></trans-unit>
+      <trans-unit id="lengine.try.sample" datatype="html"><source> Sample applicant: income <x id="INTERPOLATION" equiv-text="{{ grouped(sample.monthlyIncome) }}"/>, asks <x id="INTERPOLATION_1" equiv-text="{{ grouped(sample.requestedAmount) }}"/> over <x id="INTERPOLATION_2" equiv-text="{{ sample.tenorMonths }}"/> months, I-Score <x id="INTERPOLATION_3" equiv-text="{{ sample.iScore }}"/>, no existing debts. </source><target> مقدم طلب تجريبي: دخل <x id="INTERPOLATION" equiv-text="{{ grouped(sample.monthlyIncome) }}"/>، يطلب <x id="INTERPOLATION_1" equiv-text="{{ grouped(sample.requestedAmount) }}"/> على <x id="INTERPOLATION_2" equiv-text="{{ sample.tenorMonths }}"/> شهرًا، I-Score <x id="INTERPOLATION_3" equiv-text="{{ sample.iScore }}"/>، بلا ديون قائمة. </target></trans-unit>
+      <trans-unit id="lengine.try.run" datatype="html"><source> Try </source><target> جرّب </target></trans-unit>
+      <trans-unit id="lengine.try.saved" datatype="html"><source>As saved</source><target>كما هو محفوظ</target></trans-unit>
+      <trans-unit id="lengine.try.draft" datatype="html"><source>With these rows</source><target>بهذه الصفوف</target></trans-unit>
+      <trans-unit id="lengine.try.answer_aria" datatype="html"><source>Sample answer</source><target>إجابة تجريبية</target></trans-unit>
+      <trans-unit id="lengine.try.not_listed" datatype="html"><source>Not offered for this sample.</source><target>غير معروض لهذا المثال.</target></trans-unit>
+      <trans-unit id="lengine.try.figures" datatype="html"><source><x id="rate" equiv-text="Number(f.effectiveRatePercent)"/>% · <x id="amount" equiv-text="formatGroupedNumber(f.offeredAmountEGP)"/> EGP · <x id="months" equiv-text="f.effectiveTenorMonths"/> months</source><target><x id="rate" equiv-text="Number(f.effectiveRatePercent)"/>٪ · <x id="amount" equiv-text="formatGroupedNumber(f.offeredAmountEGP)"/> جنيه · <x id="months" equiv-text="f.effectiveTenorMonths"/> شهرًا</target></trans-unit>
+      <trans-unit id="qcalc.affect_hint2" datatype="html"><source> Opens the Loan Engine, or the product or program table, where the bank&apos;s figures are typed. Nothing is saved here. </source><target> يفتح محرك القروض، أو جدول المنتج أو البرنامج، حيث تُكتب أرقام البنك. لا يُحفظ شيء هنا. </target></trans-unit>
+      <trans-unit id="qcalc.open_engine" datatype="html"><source> Edit it in the Loan Engine </source><target> عدّله في محرك القروض </target></trans-unit>
+      <trans-unit id="qcalc.open_engine_hint" datatype="html"><source> Every bank&apos;s figures for this answer, side by side. </source><target> أرقام كل بنك لهذه الإجابة جنبًا إلى جنب. </target></trans-unit>
+      <trans-unit id="sidebar.loan_engine" datatype="html"><source>Loan Engine</source><target>محرك القروض</target></trans-unit>
+      <trans-unit id="lengine.cell.row_one" datatype="html"><source>1 row</source><target>صف واحد</target></trans-unit>
+      <trans-unit id="lengine.cond.question_ph" datatype="html"><source>Pick a question</source><target>اختر سؤالًا</target></trans-unit>
       <trans-unit id="qcalc.unknown_keys" datatype="html"><source>No option of this question matches: <x id="keys" equiv-text="keys.join(', ')"/></source><target>لا يطابق أي خيار في هذا السؤال: <x id="keys" equiv-text="keys.join(', ')"/></target></trans-unit>
       <trans-unit id="qcalc.cand_read" datatype="html"><source><x id="figure" equiv-text="base"/> — read by <x id="count" equiv-text="c.readerCount"/></source><target><x id="figure" equiv-text="base"/> — يقرؤه <x id="count" equiv-text="c.readerCount"/></target></trans-unit>
       <trans-unit id="qcalc.eff_text_only" datatype="html"><source>A typed-in answer can only be a condition.</source><target>الإجابة النصية الحرة لا تصلح إلا شرطاً.</target></trans-unit>

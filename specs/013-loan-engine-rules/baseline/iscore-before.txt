@@ -1,0 +1,355 @@
+ABK-BIZ-WORKING_CAPITAL  blank  income=34000.00 offered=379786.64 cash=372339.84 emi=15000.00 max=379786.64 dbr=50.00/50.0000 band=- term=36 rate=24.5000 bind=dbr_affordability ceiling=- dp=627660.16
+ABK-BIZ-WORKING_CAPITAL  500    income=24000.00 offered=253191.08 cash=248226.55 emi=10000.00 max=253191.09 dbr=50.00/50.0000 band=- term=36 rate=24.5000 bind=dbr_affordability ceiling=- dp=751773.45
+ABK-BIZ-WORKING_CAPITAL  600    income=36000.00 offered=405105.74 cash=397162.50 emi=16000.00 max=405105.75 dbr=50.00/50.0000 band=- term=36 rate=24.5000 bind=dbr_affordability ceiling=- dp=602837.50
+ABK-BIZ-WORKING_CAPITAL  700    income=40000.00 offered=455743.97 cash=446807.81 emi=18000.00 max=455743.97 dbr=50.00/50.0000 band=- term=36 rate=24.5000 bind=dbr_affordability ceiling=- dp=553192.19
+ABK-BIZ-WORKING_CAPITAL  750    income=40000.00 offered=455743.97 cash=446807.81 emi=18000.00 max=455743.97 dbr=50.00/50.0000 band=- term=36 rate=24.5000 bind=dbr_affordability ceiling=- dp=553192.19
+ABK-CAR-NEW_CAR          blank  income=34000.00 offered=509500.00 cash=500000.00 emi=13640.77 max=623766.05 dbr=46.00/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-CAR-NEW_CAR          500    income=24000.00 offered=328691.08 cash=322562.40 emi=8800.00 max=328691.09 dbr=45.00/45.0000 band=1 term=60 rate=20.5000 bind=dbr_affordability ceiling=- dp=677437.60
+ABK-CAR-NEW_CAR          600    income=36000.00 offered=509500.00 cash=500000.00 emi=13640.77 max=664852.44 dbr=43.45/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-CAR-NEW_CAR          700    income=40000.00 offered=509500.00 cash=500000.00 emi=13640.77 max=747025.22 dbr=39.10/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-CAR-NEW_CAR          750    income=40000.00 offered=509500.00 cash=500000.00 emi=13640.77 max=747025.22 dbr=39.10/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-MTG-HOME_PURCHASE    blank  income=34000.00 offered=510500.00 cash=500000.00 emi=13954.71 max=610929.85 dbr=46.93/55.0000 band=2 term=60 rate=21.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-MTG-HOME_PURCHASE    500    income=24000.00 offered=321927.11 cash=315305.69 emi=8800.00 max=321927.11 dbr=45.00/45.0000 band=1 term=60 rate=21.5000 bind=dbr_affordability ceiling=- dp=684694.31
+ABK-MTG-HOME_PURCHASE    600    income=36000.00 offered=510500.00 cash=500000.00 emi=13954.71 max=651170.74 dbr=44.32/55.0000 band=2 term=60 rate=21.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-MTG-HOME_PURCHASE    700    income=40000.00 offered=510500.00 cash=500000.00 emi=13954.71 max=731652.51 dbr=39.89/55.0000 band=2 term=60 rate=21.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-MTG-HOME_PURCHASE    750    income=40000.00 offered=510500.00 cash=500000.00 emi=13954.71 max=731652.51 dbr=39.89/55.0000 band=2 term=60 rate=21.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-ARMED_FORCES     blank  income=63750.00 offered=515000.00 cash=500000.00 emi=15115.93 max=500000.00 dbr=26.85/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-ARMED_FORCES     500    income=45000.00 offered=515000.00 cash=500000.00 emi=15115.93 max=500000.00 dbr=38.04/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-ARMED_FORCES     600    income=67500.00 offered=515000.00 cash=500000.00 emi=15115.93 max=500000.00 dbr=25.36/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-ARMED_FORCES     700    income=75000.00 offered=515000.00 cash=500000.00 emi=15115.93 max=500000.00 dbr=22.82/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-ARMED_FORCES     750    income=75000.00 offered=515000.00 cash=500000.00 emi=15115.93 max=500000.00 dbr=22.82/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-AUTO_XSELL_ABK   blank  income=20400.00 offered=271189.21 cash=262018.57 emi=8200.00 max=271189.23 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=737981.43
+ABK-PER-AUTO_XSELL_ABK   500    income=14400.00 offered=171973.65 cash=166158.12 emi=5200.00 max=171973.66 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=833841.88
+ABK-PER-AUTO_XSELL_ABK   600    income=21600.00 offered=291032.33 cash=281190.66 emi=8800.00 max=291032.34 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=718809.34
+ABK-PER-AUTO_XSELL_ABK   700    income=24000.00 offered=330718.56 cash=319534.85 emi=10000.00 max=330718.57 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=680465.15
+ABK-PER-AUTO_XSELL_ABK   750    income=24000.00 offered=330718.56 cash=319534.85 emi=10000.00 max=330718.57 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=680465.15
+ABK-PER-AUTO_XSELL_OTHER blank  income=20400.00 offered=271189.21 cash=262018.57 emi=8200.00 max=271189.23 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=737981.43
+ABK-PER-AUTO_XSELL_OTHER 500    income=14400.00 offered=171973.65 cash=166158.12 emi=5200.00 max=171973.66 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=833841.88
+ABK-PER-AUTO_XSELL_OTHER 600    income=21600.00 offered=291032.33 cash=281190.66 emi=8800.00 max=291032.34 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=718809.34
+ABK-PER-AUTO_XSELL_OTHER 700    income=24000.00 offered=330718.56 cash=319534.85 emi=10000.00 max=330718.57 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=680465.15
+ABK-PER-AUTO_XSELL_OTHER 750    income=24000.00 offered=330718.56 cash=319534.85 emi=10000.00 max=330718.57 dbr=50.00/50.0000 band=- term=60 rate=26.5000 bind=dbr_affordability ceiling=- dp=680465.15
+ABK-PER-BANKERS          blank  income=34000.00 offered=510000.00 cash=500000.00 emi=14231.01 max=598481.68 dbr=47.74/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-BANKERS          500    income=24000.00 offered=315367.59 cash=309183.91 emi=8800.00 max=315367.59 dbr=45.00/45.0000 band=1 term=60 rate=22.5000 bind=dbr_affordability ceiling=- dp=690816.09
+ABK-PER-BANKERS          600    income=36000.00 offered=510000.00 cash=500000.00 emi=14231.01 max=637902.63 dbr=45.09/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-BANKERS          700    income=40000.00 offered=510000.00 cash=500000.00 emi=14231.01 max=716744.53 dbr=40.58/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-BANKERS          750    income=40000.00 offered=510000.00 cash=500000.00 emi=14231.01 max=716744.53 dbr=40.58/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-CDS_HOLDER       blank  income=255000.00 offered=505000.00 cash=500000.00 emi=14527.82 max=500000.00 dbr=6.48/50.0000 band=- term=60 rate=24.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+ABK-PER-CDS_HOLDER       500    income=180000.00 offered=505000.00 cash=500000.00 emi=14527.82 max=500000.00 dbr=9.18/50.0000 band=- term=60 rate=24.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+ABK-PER-CDS_HOLDER       600    income=270000.00 offered=505000.00 cash=500000.00 emi=14527.82 max=500000.00 dbr=6.12/50.0000 band=- term=60 rate=24.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+ABK-PER-CDS_HOLDER       700    income=300000.00 offered=505000.00 cash=500000.00 emi=14527.82 max=500000.00 dbr=5.51/50.0000 band=- term=60 rate=24.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+ABK-PER-CDS_HOLDER       750    income=300000.00 offered=505000.00 cash=500000.00 emi=14527.82 max=500000.00 dbr=5.51/50.0000 band=- term=60 rate=24.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+ABK-PER-COMPOUND_OWNER   blank  income=22678.56 offered=315035.24 cash=304381.87 emi=9339.28 max=315035.40 dbr=50.00/50.0000 band=- term=60 rate=25.5000 bind=dbr_affordability ceiling=382500.00 dp=695618.13
+ABK-PER-COMPOUND_OWNER   500    income=16008.40 offered=202535.54 cash=195686.52 emi=6004.20 max=202535.40 dbr=50.00/50.0000 band=- term=60 rate=25.5000 bind=dbr_affordability ceiling=270000.00 dp=804313.48
+ABK-PER-COMPOUND_OWNER   600    income=24012.59 offered=337535.32 cash=326121.07 emi=10006.29 max=337535.40 dbr=50.00/50.0000 band=- term=60 rate=25.5000 bind=dbr_affordability ceiling=405000.00 dp=673878.93
+ABK-PER-COMPOUND_OWNER   700    income=26680.66 offered=382535.45 cash=369599.46 emi=11340.33 max=382535.40 dbr=50.00/50.0000 band=- term=60 rate=25.5000 bind=dbr_affordability ceiling=450000.00 dp=630400.54
+ABK-PER-COMPOUND_OWNER   750    income=26680.66 offered=382535.45 cash=369599.46 emi=11340.33 max=382535.40 dbr=50.00/50.0000 band=- term=60 rate=25.5000 bind=dbr_affordability ceiling=450000.00 dp=630400.54
+ABK-PER-DOCTOR           blank  income=34000.00 offered=510000.00 cash=500000.00 emi=14377.14 max=592398.76 dbr=48.17/55.0000 band=2 term=60 rate=23.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-DOCTOR           500    income=24000.00 offered=312162.22 cash=306041.39 emi=8800.00 max=312162.22 dbr=45.00/45.0000 band=1 term=60 rate=23.0000 bind=dbr_affordability ceiling=- dp=693958.61
+ABK-PER-DOCTOR           600    income=36000.00 offered=510000.00 cash=500000.00 emi=14377.14 max=631419.03 dbr=45.49/55.0000 band=2 term=60 rate=23.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-DOCTOR           700    income=40000.00 offered=510000.00 cash=500000.00 emi=14377.14 max=709459.59 dbr=40.94/55.0000 band=2 term=60 rate=23.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-DOCTOR           750    income=40000.00 offered=510000.00 cash=500000.00 emi=14377.14 max=709459.59 dbr=40.94/55.0000 band=2 term=60 rate=23.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-DOCTORS_CLINIC   blank  UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+ABK-PER-DOCTORS_CLINIC   500    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+ABK-PER-DOCTORS_CLINIC   600    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+ABK-PER-DOCTORS_CLINIC   700    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+ABK-PER-DOCTORS_CLINIC   750    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+ABK-PER-DOCTORS_PRACTICE blank  income=51000.00 offered=517500.00 cash=500000.00 emi=16742.88 max=726353.43 dbr=36.75/50.0000 band=- term=60 rate=30.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-DOCTORS_PRACTICE 500    income=36000.00 offered=494538.48 cash=477814.97 emi=16000.00 max=494538.50 dbr=50.00/50.0000 band=- term=60 rate=30.0000 bind=dbr_affordability ceiling=- dp=522185.03
+ABK-PER-DOCTORS_PRACTICE 600    income=54000.00 offered=517500.00 cash=500000.00 emi=16742.88 max=772716.41 dbr=34.71/50.0000 band=- term=60 rate=30.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-DOCTORS_PRACTICE 700    income=60000.00 offered=517500.00 cash=500000.00 emi=16742.88 max=865442.38 dbr=31.24/50.0000 band=- term=60 rate=30.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-DOCTORS_PRACTICE 750    income=60000.00 offered=517500.00 cash=500000.00 emi=16742.88 max=865442.38 dbr=31.24/50.0000 band=- term=60 rate=30.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PL_TO_CARD       blank  income=25500.00 offered=341941.18 cash=330377.95 emi=10750.00 max=341941.18 dbr=50.00/50.0000 band=- term=60 rate=28.5000 bind=dbr_affordability ceiling=- dp=669622.05
+ABK-PER-PL_TO_CARD       500    income=18000.00 offered=222659.37 cash=215129.82 emi=7000.00 max=222659.37 dbr=50.00/50.0000 band=- term=60 rate=28.5000 bind=dbr_affordability ceiling=- dp=784870.18
+ABK-PER-PL_TO_CARD       600    income=27000.00 offered=365797.54 cash=353427.57 emi=11500.00 max=365797.54 dbr=50.00/50.0000 band=- term=60 rate=28.5000 bind=dbr_affordability ceiling=- dp=646572.43
+ABK-PER-PL_TO_CARD       700    income=30000.00 offered=413510.25 cash=399526.82 emi=13000.00 max=413510.26 dbr=50.00/50.0000 band=- term=60 rate=28.5000 bind=dbr_affordability ceiling=- dp=600473.18
+ABK-PER-PL_TO_CARD       750    income=30000.00 offered=413510.25 cash=399526.82 emi=13000.00 max=413510.26 dbr=50.00/50.0000 band=- term=60 rate=28.5000 bind=dbr_affordability ceiling=- dp=600473.18
+ABK-PER-PRIVATE_SECTOR   blank  income=34000.00 offered=510000.00 cash=500000.00 emi=15119.04 max=563329.40 dbr=50.35/55.0000 band=2 term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PRIVATE_SECTOR   500    income=24000.00 offered=296844.23 cash=291023.75 emi=8800.00 max=296844.23 dbr=45.00/45.0000 band=1 term=60 rate=25.5000 bind=dbr_affordability ceiling=- dp=708976.25
+ABK-PER-PRIVATE_SECTOR   600    income=36000.00 offered=510000.00 cash=500000.00 emi=15119.04 max=600434.93 dbr=47.55/55.0000 band=2 term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PRIVATE_SECTOR   700    income=40000.00 offered=510000.00 cash=500000.00 emi=15119.04 max=674645.99 dbr=42.80/55.0000 band=2 term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PRIVATE_SECTOR   750    income=40000.00 offered=510000.00 cash=500000.00 emi=15119.04 max=674645.99 dbr=42.80/55.0000 band=2 term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PROFESSORS       blank  income=85000.00 offered=517500.00 cash=500000.00 emi=15341.38 max=500000.00 dbr=20.40/50.0000 band=- term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PROFESSORS       500    income=60000.00 offered=517500.00 cash=500000.00 emi=15341.38 max=500000.00 dbr=28.90/50.0000 band=- term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PROFESSORS       600    income=90000.00 offered=517500.00 cash=500000.00 emi=15341.38 max=500000.00 dbr=19.27/50.0000 band=- term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PROFESSORS       700    income=100000.00 offered=517500.00 cash=500000.00 emi=15341.38 max=500000.00 dbr=17.34/50.0000 band=- term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-PROFESSORS       750    income=100000.00 offered=517500.00 cash=500000.00 emi=15341.38 max=500000.00 dbr=17.34/50.0000 band=- term=60 rate=25.5000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-SALARIED_CODING  blank  income=34000.00 offered=511050.20 cash=493768.31 emi=15000.00 max=511050.21 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=506231.69
+ABK-PER-SALARIED_CODING  500    income=24000.00 offered=340700.12 cash=329178.87 emi=10000.00 max=340700.14 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=670821.13
+ABK-PER-SALARIED_CODING  600    income=36000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=545120.22 dbr=47.75/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-SALARIED_CODING  700    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ABK-PER-SALARIED_CODING  750    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+ADIB-BIZ-EQUIPMENT_FINANCE blank  income=34000.00 offered=510000.00 cash=500000.00 emi=14303.98 max=534816.14 dbr=47.95/50.0000 band=- term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-BIZ-EQUIPMENT_FINANCE 500    income=24000.00 offered=356544.09 cash=349553.02 emi=10000.00 max=356544.09 dbr=50.00/50.0000 band=- term=60 rate=22.7500 bind=dbr_affordability ceiling=- dp=650446.98
+ADIB-BIZ-EQUIPMENT_FINANCE 600    income=36000.00 offered=510000.00 cash=500000.00 emi=14303.98 max=570470.55 dbr=45.29/50.0000 band=- term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-BIZ-EQUIPMENT_FINANCE 700    income=40000.00 offered=510000.00 cash=500000.00 emi=14303.98 max=641779.37 dbr=40.76/50.0000 band=- term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-BIZ-EQUIPMENT_FINANCE 750    income=40000.00 offered=510000.00 cash=500000.00 emi=14303.98 max=641779.37 dbr=40.76/50.0000 band=- term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-CAR-NEW_CAR         blank  income=34000.00 offered=509500.00 cash=500000.00 emi=13569.60 max=627037.42 dbr=45.79/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-CAR-NEW_CAR         500    income=24000.00 offered=330414.93 cash=324254.10 emi=8800.00 max=330414.93 dbr=45.00/45.0000 band=1 term=60 rate=20.2500 bind=dbr_affordability ceiling=- dp=675745.90
+ADIB-CAR-NEW_CAR         600    income=36000.00 offered=509500.00 cash=500000.00 emi=13569.60 max=668339.28 dbr=43.25/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-CAR-NEW_CAR         700    income=40000.00 offered=509500.00 cash=500000.00 emi=13569.60 max=750943.01 dbr=38.92/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-CAR-NEW_CAR         750    income=40000.00 offered=509500.00 cash=500000.00 emi=13569.60 max=750943.01 dbr=38.92/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-MTG-HOME_PURCHASE   blank  income=34000.00 offered=510500.00 cash=500000.00 emi=13882.63 max=614101.97 dbr=46.71/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-MTG-HOME_PURCHASE   500    income=24000.00 offered=323598.64 cash=316942.84 emi=8800.00 max=323598.64 dbr=45.00/45.0000 band=1 term=60 rate=21.2500 bind=dbr_affordability ceiling=- dp=683057.16
+ADIB-MTG-HOME_PURCHASE   600    income=36000.00 offered=510500.00 cash=500000.00 emi=13882.63 max=654551.80 dbr=44.12/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-MTG-HOME_PURCHASE   700    income=40000.00 offered=510500.00 cash=500000.00 emi=13882.63 max=735451.46 dbr=39.71/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-MTG-HOME_PURCHASE   750    income=40000.00 offered=510500.00 cash=500000.00 emi=13882.63 max=735451.46 dbr=39.71/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-PER-PRIVATE_SECTOR  blank  income=34000.00 offered=510000.00 cash=500000.00 emi=15044.02 max=566138.73 dbr=50.13/55.0000 band=2 term=60 rate=25.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-PER-PRIVATE_SECTOR  500    income=24000.00 offered=298324.60 cash=292475.09 emi=8800.00 max=298324.60 dbr=45.00/45.0000 band=1 term=60 rate=25.2500 bind=dbr_affordability ceiling=- dp=707524.91
+ADIB-PER-PRIVATE_SECTOR  600    income=36000.00 offered=510000.00 cash=500000.00 emi=15044.02 max=603429.31 dbr=47.34/55.0000 band=2 term=60 rate=25.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-PER-PRIVATE_SECTOR  700    income=40000.00 offered=510000.00 cash=500000.00 emi=15044.02 max=678010.46 dbr=42.61/55.0000 band=2 term=60 rate=25.2500 bind=requested_amount ceiling=- dp=500000.00
+ADIB-PER-PRIVATE_SECTOR  750    income=40000.00 offered=510000.00 cash=500000.00 emi=15044.02 max=678010.46 dbr=42.61/55.0000 band=2 term=60 rate=25.2500 bind=requested_amount ceiling=- dp=500000.00
+BANK-CAR-EA65            blank  UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANK-CAR-EA65            500    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANK-CAR-EA65            600    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANK-CAR-EA65            700    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANK-CAR-EA65            750    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANQUE-CAR-0549          blank  UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANQUE-CAR-0549          500    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANQUE-CAR-0549          600    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANQUE-CAR-0549          700    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BANQUE-CAR-0549          750    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+BDC-BIZ-WORKING_CAPITAL  blank  income=34000.00 offered=373528.62 cash=364418.17 emi=15000.00 max=373528.63 dbr=50.00/50.0000 band=- term=36 rate=25.7500 bind=dbr_affordability ceiling=- dp=635581.83
+BDC-BIZ-WORKING_CAPITAL  500    income=24000.00 offered=249019.08 cash=242945.44 emi=10000.00 max=249019.08 dbr=50.00/50.0000 band=- term=36 rate=25.7500 bind=dbr_affordability ceiling=- dp=757054.56
+BDC-BIZ-WORKING_CAPITAL  600    income=36000.00 offered=398430.52 cash=388712.71 emi=16000.00 max=398430.53 dbr=50.00/50.0000 band=- term=36 rate=25.7500 bind=dbr_affordability ceiling=- dp=611287.29
+BDC-BIZ-WORKING_CAPITAL  700    income=40000.00 offered=448234.35 cash=437301.80 emi=18000.00 max=448234.35 dbr=50.00/50.0000 band=- term=36 rate=25.7500 bind=dbr_affordability ceiling=- dp=562698.20
+BDC-BIZ-WORKING_CAPITAL  750    income=40000.00 offered=448234.35 cash=437301.80 emi=18000.00 max=448234.35 dbr=50.00/50.0000 band=- term=36 rate=25.7500 bind=dbr_affordability ceiling=- dp=562698.20
+BDC-CAR-USED_CAR         blank  income=34000.00 offered=512000.00 cash=500000.00 emi=14803.59 max=577589.69 dbr=49.42/55.0000 band=2 term=60 rate=24.2500 bind=requested_amount ceiling=- dp=500000.00
+BDC-CAR-USED_CAR         500    income=24000.00 offered=304358.64 cash=297225.23 emi=8800.00 max=304358.64 dbr=45.00/45.0000 band=1 term=60 rate=24.2500 bind=dbr_affordability ceiling=- dp=702774.77
+BDC-CAR-USED_CAR         600    income=36000.00 offered=512000.00 cash=500000.00 emi=14803.59 max=615634.52 dbr=46.68/55.0000 band=2 term=60 rate=24.2500 bind=requested_amount ceiling=- dp=500000.00
+BDC-CAR-USED_CAR         700    income=40000.00 offered=512000.00 cash=500000.00 emi=14803.59 max=691724.18 dbr=42.01/55.0000 band=2 term=60 rate=24.2500 bind=requested_amount ceiling=- dp=500000.00
+BDC-CAR-USED_CAR         750    income=40000.00 offered=512000.00 cash=500000.00 emi=14803.59 max=691724.18 dbr=42.01/55.0000 band=2 term=60 rate=24.2500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-GOVT_EMPLOYEE    blank  income=34000.00 offered=512500.00 cash=500000.00 emi=14967.53 max=571821.10 dbr=49.90/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-GOVT_EMPLOYEE    500    income=24000.00 offered=301318.89 cash=293969.65 emi=8800.00 max=301318.90 dbr=45.00/45.0000 band=1 term=60 rate=24.7500 bind=dbr_affordability ceiling=- dp=706030.35
+BDC-PER-GOVT_EMPLOYEE    600    income=36000.00 offered=512500.00 cash=500000.00 emi=14967.53 max=609485.96 dbr=47.13/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-GOVT_EMPLOYEE    700    income=40000.00 offered=512500.00 cash=500000.00 emi=14967.53 max=684815.69 dbr=42.42/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-GOVT_EMPLOYEE    750    income=40000.00 offered=512500.00 cash=500000.00 emi=14967.53 max=684815.69 dbr=42.42/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-PENSIONER        blank  income=34000.00 offered=246000.00 cash=240000.00 emi=10142.25 max=240000.00 dbr=35.71/55.0000 band=2 term=36 rate=27.7500 bind=program_max ceiling=- dp=760000.00
+BDC-PER-PENSIONER        500    income=24000.00 offered=213443.85 cash=208237.90 emi=8800.00 max=213443.85 dbr=45.00/45.0000 band=1 term=36 rate=27.7500 bind=dbr_affordability ceiling=- dp=791762.10
+BDC-PER-PENSIONER        600    income=36000.00 offered=246000.00 cash=240000.00 emi=10142.25 max=240000.00 dbr=33.73/55.0000 band=2 term=36 rate=27.7500 bind=program_max ceiling=- dp=760000.00
+BDC-PER-PENSIONER        700    income=40000.00 offered=246000.00 cash=240000.00 emi=10142.25 max=240000.00 dbr=30.36/55.0000 band=2 term=36 rate=27.7500 bind=program_max ceiling=- dp=760000.00
+BDC-PER-PENSIONER        750    income=40000.00 offered=246000.00 cash=240000.00 emi=10142.25 max=240000.00 dbr=30.36/55.0000 band=2 term=36 rate=27.7500 bind=program_max ceiling=- dp=760000.00
+BDC-PER-PHARMACY         blank  income=34000.00 offered=512500.00 cash=500000.00 emi=15268.73 max=560541.05 dbr=50.79/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-PHARMACY         500    income=24000.00 offered=295374.91 cash=288170.65 emi=8800.00 max=295374.92 dbr=45.00/45.0000 band=1 term=60 rate=25.7500 bind=dbr_affordability ceiling=- dp=711829.35
+BDC-PER-PHARMACY         600    income=36000.00 offered=512500.00 cash=500000.00 emi=15268.73 max=597462.91 dbr=47.97/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-PHARMACY         700    income=40000.00 offered=512500.00 cash=500000.00 emi=15268.73 max=671306.64 dbr=43.17/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+BDC-PER-PHARMACY         750    income=40000.00 offered=512500.00 cash=500000.00 emi=15268.73 max=671306.64 dbr=43.17/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-BIZ-EQUIPMENT_FINANCE blank  income=34000.00 offered=508750.00 cash=500000.00 emi=14123.53 max=540321.66 dbr=47.42/50.0000 band=- term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+BM-BIZ-EQUIPMENT_FINANCE 500    income=24000.00 offered=360214.44 cash=354019.10 emi=10000.00 max=360214.44 dbr=50.00/50.0000 band=- term=60 rate=22.2500 bind=dbr_affordability ceiling=- dp=645980.90
+BM-BIZ-EQUIPMENT_FINANCE 600    income=36000.00 offered=508750.00 cash=500000.00 emi=14123.53 max=576343.10 dbr=44.79/50.0000 band=- term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+BM-BIZ-EQUIPMENT_FINANCE 700    income=40000.00 offered=508750.00 cash=500000.00 emi=14123.53 max=648385.99 dbr=40.31/50.0000 band=- term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+BM-BIZ-EQUIPMENT_FINANCE 750    income=40000.00 offered=508750.00 cash=500000.00 emi=14123.53 max=648385.99 dbr=40.31/50.0000 band=- term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+BM-CAR-NEW_CAR           blank  income=34000.00 offered=508250.00 cash=500000.00 emi=13394.91 max=633656.53 dbr=45.28/55.0000 band=2 term=60 rate=19.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-CAR-NEW_CAR           500    income=24000.00 offered=333902.83 cash=328482.87 emi=8800.00 max=333902.84 dbr=45.00/45.0000 band=1 term=60 rate=19.7500 bind=dbr_affordability ceiling=- dp=671517.13
+BM-CAR-NEW_CAR           600    income=36000.00 offered=508250.00 cash=500000.00 emi=13394.91 max=675394.38 dbr=42.76/55.0000 band=2 term=60 rate=19.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-CAR-NEW_CAR           700    income=40000.00 offered=508250.00 cash=500000.00 emi=13394.91 max=758870.09 dbr=38.49/55.0000 band=2 term=60 rate=19.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-CAR-NEW_CAR           750    income=40000.00 offered=508250.00 cash=500000.00 emi=13394.91 max=758870.09 dbr=38.49/55.0000 band=2 term=60 rate=19.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-MTG-HOME_PURCHASE     blank  income=34000.00 offered=509250.00 cash=500000.00 emi=13705.40 max=620519.84 dbr=46.19/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-MTG-HOME_PURCHASE     500    income=24000.00 offered=326980.52 cash=321041.25 emi=8800.00 max=326980.52 dbr=45.00/45.0000 band=1 term=60 rate=20.7500 bind=dbr_affordability ceiling=- dp=678958.75
+BM-MTG-HOME_PURCHASE     600    income=36000.00 offered=509250.00 cash=500000.00 emi=13705.40 max=661392.41 dbr=43.63/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-MTG-HOME_PURCHASE     700    income=40000.00 offered=509250.00 cash=500000.00 emi=13705.40 max=743137.54 dbr=39.26/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-MTG-HOME_PURCHASE     750    income=40000.00 offered=509250.00 cash=500000.00 emi=13705.40 max=743137.54 dbr=39.26/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-GOVT_EMPLOYEE     blank  income=34000.00 offered=508750.00 cash=500000.00 emi=14268.92 max=595428.63 dbr=47.85/55.0000 band=2 term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-GOVT_EMPLOYEE     500    income=24000.00 offered=313758.79 cash=308362.45 emi=8800.00 max=313758.80 dbr=45.00/45.0000 band=1 term=60 rate=22.7500 bind=dbr_affordability ceiling=- dp=691637.55
+BM-PER-GOVT_EMPLOYEE     600    income=36000.00 offered=508750.00 cash=500000.00 emi=14268.92 max=634648.48 dbr=45.19/55.0000 band=2 term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-GOVT_EMPLOYEE     700    income=40000.00 offered=508750.00 cash=500000.00 emi=14268.92 max=713088.18 dbr=40.67/55.0000 band=2 term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-GOVT_EMPLOYEE     750    income=40000.00 offered=508750.00 cash=500000.00 emi=14268.92 max=713088.18 dbr=40.67/55.0000 band=2 term=60 rate=22.7500 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-POLICE            blank  income=34000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=637004.74 dbr=45.11/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-POLICE            500    income=24000.00 offered=335667.17 cash=329894.02 emi=8800.00 max=335667.17 dbr=45.00/45.0000 band=1 term=60 rate=19.5000 bind=dbr_affordability ceiling=- dp=670105.98
+BM-PER-POLICE            600    income=36000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=678963.14 dbr=42.60/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-POLICE            700    income=40000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=762879.93 dbr=38.34/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+BM-PER-POLICE            750    income=40000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=762879.93 dbr=38.34/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+CAE-CAR-EV               blank  UNAVAILABLE VEHICLE_NOT_ELIGIBLE
+CAE-CAR-EV               500    UNAVAILABLE VEHICLE_NOT_ELIGIBLE
+CAE-CAR-EV               600    UNAVAILABLE VEHICLE_NOT_ELIGIBLE
+CAE-CAR-EV               700    UNAVAILABLE VEHICLE_NOT_ELIGIBLE
+CAE-CAR-EV               750    UNAVAILABLE VEHICLE_NOT_ELIGIBLE
+CAE-CAR-NEW_CAR          blank  UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-NEW_CAR          500    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-NEW_CAR          600    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-NEW_CAR          700    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-NEW_CAR          750    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-USED_CAR         blank  UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-USED_CAR         500    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-USED_CAR         600    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-USED_CAR         700    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-CAR-USED_CAR         750    UNAVAILABLE NO_MAX_LOAN_FOR_ANSWER
+CAE-PER-COMPOUND_OWNER   blank  income=74845.87 offered=517500.00 cash=500000.00 emi=15189.31 max=1206859.97 dbr=22.97/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1275000.00 dp=500000.00
+CAE-PER-COMPOUND_OWNER   500    income=52832.38 offered=517500.00 cash=500000.00 emi=15189.31 max=831859.97 dbr=32.54/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=900000.00 dp=500000.00
+CAE-PER-COMPOUND_OWNER   600    income=79248.57 offered=517500.00 cash=500000.00 emi=15189.31 max=1281859.97 dbr=21.69/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1350000.00 dp=500000.00
+CAE-PER-COMPOUND_OWNER   700    income=88053.97 offered=517500.00 cash=500000.00 emi=15189.31 max=1431859.97 dbr=19.52/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1500000.00 dp=500000.00
+CAE-PER-COMPOUND_OWNER   750    income=88053.97 offered=517500.00 cash=500000.00 emi=15189.31 max=1431859.97 dbr=19.52/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1500000.00 dp=500000.00
+CAE-PER-TEACHERS_PREDEFINED blank  income=29938.35 offered=441859.83 cash=426917.71 emi=12969.17 max=441859.97 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=510000.00 dp=573082.29
+CAE-PER-TEACHERS_PREDEFINED 500    income=21132.95 offered=291860.06 cash=281990.40 emi=8566.48 max=291859.97 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=360000.00 dp=718009.60
+CAE-PER-TEACHERS_PREDEFINED 600    income=31699.43 offered=471860.13 cash=455903.50 emi=13849.72 max=471859.97 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=540000.00 dp=544096.50
+CAE-PER-TEACHERS_PREDEFINED 700    income=35221.59 offered=517500.00 cash=500000.00 emi=15189.31 max=531859.97 dbr=48.80/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=600000.00 dp=500000.00
+CAE-PER-TEACHERS_PREDEFINED 750    income=35221.59 offered=517500.00 cash=500000.00 emi=15189.31 max=531859.97 dbr=48.80/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=600000.00 dp=500000.00
+CAE-PER-TEACHERS_STANDARD blank  income=34000.00 offered=511050.20 cash=493768.31 emi=15000.00 max=511050.21 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=506231.69
+CAE-PER-TEACHERS_STANDARD 500    income=24000.00 offered=340700.12 cash=329178.87 emi=10000.00 max=340700.14 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=670821.13
+CAE-PER-TEACHERS_STANDARD 600    income=36000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=545120.22 dbr=47.75/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+CAE-PER-TEACHERS_STANDARD 700    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+CAE-PER-TEACHERS_STANDARD 750    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+CIB-BIZ-PHARMACY         blank  income=34000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=571821.10 dbr=49.80/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-BIZ-PHARMACY         500    income=24000.00 offered=301318.90 cash=294688.41 emi=8800.00 max=301318.90 dbr=45.00/45.0000 band=1 term=60 rate=24.7500 bind=dbr_affordability ceiling=- dp=705311.59
+CIB-BIZ-PHARMACY         600    income=36000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=609485.96 dbr=47.03/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-BIZ-PHARMACY         700    income=40000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=684815.69 dbr=42.33/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-BIZ-PHARMACY         750    income=40000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=684815.69 dbr=42.33/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-BIZ-WORKING_CAPITAL  blank  income=34000.00 offered=378522.88 cash=370193.52 emi=15000.00 max=378522.88 dbr=50.00/50.0000 band=- term=36 rate=24.7500 bind=dbr_affordability ceiling=- dp=629806.48
+CIB-BIZ-WORKING_CAPITAL  500    income=24000.00 offered=252348.59 cash=246795.68 emi=10000.00 max=252348.59 dbr=50.00/50.0000 band=- term=36 rate=24.7500 bind=dbr_affordability ceiling=- dp=753204.32
+CIB-BIZ-WORKING_CAPITAL  600    income=36000.00 offered=403757.74 cash=394873.09 emi=16000.00 max=403757.74 dbr=50.00/50.0000 band=- term=36 rate=24.7500 bind=dbr_affordability ceiling=- dp=605126.91
+CIB-BIZ-WORKING_CAPITAL  700    income=40000.00 offered=454227.45 cash=444232.23 emi=18000.00 max=454227.46 dbr=50.00/50.0000 band=- term=36 rate=24.7500 bind=dbr_affordability ceiling=- dp=555767.77
+CIB-BIZ-WORKING_CAPITAL  750    income=40000.00 offered=454227.45 cash=444232.23 emi=18000.00 max=454227.46 dbr=50.00/50.0000 band=- term=36 rate=24.7500 bind=dbr_affordability ceiling=- dp=555767.77
+CIB-CAR-NEW_CAR          blank  income=34000.00 offered=510750.00 cash=500000.00 emi=13745.77 max=620519.84 dbr=46.31/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-CAR-NEW_CAR          500    income=24000.00 offered=326980.51 cash=320098.40 emi=8800.00 max=326980.52 dbr=45.00/45.0000 band=1 term=60 rate=20.7500 bind=dbr_affordability ceiling=- dp=679901.60
+CIB-CAR-NEW_CAR          600    income=36000.00 offered=510750.00 cash=500000.00 emi=13745.77 max=661392.41 dbr=43.74/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-CAR-NEW_CAR          700    income=40000.00 offered=510750.00 cash=500000.00 emi=13745.77 max=743137.54 dbr=39.36/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-CAR-NEW_CAR          750    income=40000.00 offered=510750.00 cash=500000.00 emi=13745.77 max=743137.54 dbr=39.36/55.0000 band=2 term=60 rate=20.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-MTG-HOME_PURCHASE    blank  income=34000.00 offered=511750.00 cash=500000.00 emi=14061.33 max=607781.98 dbr=47.24/55.0000 band=2 term=60 rate=21.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-MTG-HOME_PURCHASE    500    income=24000.00 offered=320268.35 cash=312914.85 emi=8800.00 max=320268.35 dbr=45.00/45.0000 band=1 term=60 rate=21.7500 bind=dbr_affordability ceiling=- dp=687085.15
+CIB-MTG-HOME_PURCHASE    600    income=36000.00 offered=511750.00 cash=500000.00 emi=14061.33 max=647815.52 dbr=44.61/55.0000 band=2 term=60 rate=21.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-MTG-HOME_PURCHASE    700    income=40000.00 offered=511750.00 cash=500000.00 emi=14061.33 max=727882.61 dbr=40.15/55.0000 band=2 term=60 rate=21.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-MTG-HOME_PURCHASE    750    income=40000.00 offered=511750.00 cash=500000.00 emi=14061.33 max=727882.61 dbr=40.15/55.0000 band=2 term=60 rate=21.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-DOCTOR           blank  income=34000.00 offered=511250.00 cash=500000.00 emi=14485.91 max=589391.84 dbr=48.49/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-DOCTOR           500    income=24000.00 offered=310577.74 cash=303743.51 emi=8800.00 max=310577.74 dbr=45.00/45.0000 band=1 term=60 rate=23.2500 bind=dbr_affordability ceiling=- dp=696256.49
+CIB-PER-DOCTOR           600    income=36000.00 offered=511250.00 cash=500000.00 emi=14485.91 max=628214.06 dbr=45.79/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-DOCTOR           700    income=40000.00 offered=511250.00 cash=500000.00 emi=14485.91 max=705858.49 dbr=41.21/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-DOCTOR           750    income=40000.00 offered=511250.00 cash=500000.00 emi=14485.91 max=705858.49 dbr=41.21/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PRIVATE_SECTOR   blank  income=34000.00 offered=511250.00 cash=500000.00 emi=15231.49 max=560541.05 dbr=50.68/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PRIVATE_SECTOR   500    income=24000.00 offered=295374.92 cash=288875.22 emi=8800.00 max=295374.92 dbr=45.00/45.0000 band=1 term=60 rate=25.7500 bind=dbr_affordability ceiling=- dp=711124.78
+CIB-PER-PRIVATE_SECTOR   600    income=36000.00 offered=511250.00 cash=500000.00 emi=15231.49 max=597462.91 dbr=47.87/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PRIVATE_SECTOR   700    income=40000.00 offered=511250.00 cash=500000.00 emi=15231.49 max=671306.64 dbr=43.08/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PRIVATE_SECTOR   750    income=40000.00 offered=511250.00 cash=500000.00 emi=15231.49 max=671306.64 dbr=43.08/55.0000 band=2 term=60 rate=25.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PROFESSIONAL     blank  income=34000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=571821.10 dbr=49.80/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PROFESSIONAL     500    income=24000.00 offered=301318.90 cash=294688.41 emi=8800.00 max=301318.90 dbr=45.00/45.0000 band=1 term=60 rate=24.7500 bind=dbr_affordability ceiling=- dp=705311.59
+CIB-PER-PROFESSIONAL     600    income=36000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=609485.96 dbr=47.03/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PROFESSIONAL     700    income=40000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=684815.69 dbr=42.33/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CIB-PER-PROFESSIONAL     750    income=40000.00 offered=511250.00 cash=500000.00 emi=14931.02 max=684815.69 dbr=42.33/55.0000 band=2 term=60 rate=24.7500 bind=requested_amount ceiling=- dp=500000.00
+CRE-CAR-3743             blank  UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+CRE-CAR-3743             500    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+CRE-CAR-3743             600    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+CRE-CAR-3743             700    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+CRE-CAR-3743             750    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+EGB-PER-COMPOUND_OWNER   blank  UNAVAILABLE SURROGATE_NO_MATCHING_ROW
+EGB-PER-COMPOUND_OWNER   500    UNAVAILABLE SURROGATE_NO_MATCHING_ROW
+EGB-PER-COMPOUND_OWNER   600    UNAVAILABLE SURROGATE_NO_MATCHING_ROW
+EGB-PER-COMPOUND_OWNER   700    UNAVAILABLE SURROGATE_NO_MATCHING_ROW
+EGB-PER-COMPOUND_OWNER   750    UNAVAILABLE SURROGATE_NO_MATCHING_ROW
+EGB-PER-PL_TO_CARD       blank  income=34000.00 offered=511050.20 cash=493768.31 emi=15000.00 max=511050.21 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=506231.69
+EGB-PER-PL_TO_CARD       500    income=24000.00 offered=340700.12 cash=329178.87 emi=10000.00 max=340700.14 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=670821.13
+EGB-PER-PL_TO_CARD       600    income=36000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=545120.22 dbr=47.75/50.0000 band=- term=60 rate=25.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+EGB-PER-PL_TO_CARD       700    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+EGB-PER-PL_TO_CARD       750    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=program_max_by_fact ceiling=- dp=500000.00
+FAB-PER-CLUB_MEMBERSHIP  blank  income=34000.00 offered=511050.20 cash=493768.31 emi=15000.00 max=511050.21 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=506231.69
+FAB-PER-CLUB_MEMBERSHIP  500    income=24000.00 offered=340700.12 cash=329178.87 emi=10000.00 max=340700.14 dbr=50.00/50.0000 band=- term=60 rate=25.0000 bind=dbr_affordability ceiling=- dp=670821.13
+FAB-PER-CLUB_MEMBERSHIP  600    income=36000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=545120.22 dbr=47.75/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+FAB-PER-CLUB_MEMBERSHIP  700    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+FAB-PER-CLUB_MEMBERSHIP  750    income=40000.00 offered=517500.00 cash=500000.00 emi=15189.31 max=613260.25 dbr=42.97/50.0000 band=- term=60 rate=25.0000 bind=requested_amount ceiling=- dp=500000.00
+FAB-PER-COMPOUND_OWNER   blank  income=62371.56 offered=517500.00 cash=500000.00 emi=15189.31 max=994359.97 dbr=27.56/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1062500.00 dp=500000.00
+FAB-PER-COMPOUND_OWNER   500    income=44026.99 offered=517500.00 cash=500000.00 emi=15189.31 max=681859.97 dbr=39.04/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=750000.00 dp=500000.00
+FAB-PER-COMPOUND_OWNER   600    income=66040.48 offered=517500.00 cash=500000.00 emi=15189.31 max=1056859.97 dbr=26.03/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1125000.00 dp=500000.00
+FAB-PER-COMPOUND_OWNER   700    income=73378.31 offered=517500.00 cash=500000.00 emi=15189.31 max=1181859.97 dbr=23.43/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1250000.00 dp=500000.00
+FAB-PER-COMPOUND_OWNER   750    income=73378.31 offered=517500.00 cash=500000.00 emi=15189.31 max=1181859.97 dbr=23.43/50.0000 band=- term=60 rate=25.0000 bind=collateral_ceiling ceiling=1250000.00 dp=500000.00
+HDB-MTG-HOME_FINISHING   blank  income=34000.00 offered=510500.00 cash=500000.00 emi=13810.74 max=617298.56 dbr=46.50/55.0000 band=2 term=60 rate=21.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-MTG-HOME_FINISHING   500    income=24000.00 offered=325283.07 cash=318592.62 emi=8800.00 max=325283.07 dbr=45.00/45.0000 band=1 term=60 rate=21.0000 bind=dbr_affordability ceiling=- dp=681407.38
+HDB-MTG-HOME_FINISHING   600    income=36000.00 offered=510500.00 cash=500000.00 emi=13810.74 max=657958.94 dbr=43.92/55.0000 band=2 term=60 rate=21.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-MTG-HOME_FINISHING   700    income=40000.00 offered=510500.00 cash=500000.00 emi=13810.74 max=739279.71 dbr=39.53/55.0000 band=2 term=60 rate=21.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-MTG-HOME_FINISHING   750    income=40000.00 offered=510500.00 cash=500000.00 emi=13810.74 max=739279.71 dbr=39.53/55.0000 band=2 term=60 rate=21.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-MTG-HOME_PURCHASE    blank  income=34000.00 offered=510500.00 cash=500000.00 emi=13525.13 max=630334.16 dbr=45.66/55.0000 band=2 term=60 rate=20.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-MTG-HOME_PURCHASE    500    income=24000.00 offered=332152.12 cash=325320.40 emi=8800.00 max=332152.13 dbr=45.00/45.0000 band=1 term=60 rate=20.0000 bind=dbr_affordability ceiling=- dp=674679.60
+HDB-MTG-HOME_PURCHASE    600    income=36000.00 offered=510500.00 cash=500000.00 emi=13525.13 max=671853.18 dbr=43.13/55.0000 band=2 term=60 rate=20.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-MTG-HOME_PURCHASE    700    income=40000.00 offered=510500.00 cash=500000.00 emi=13525.13 max=754891.21 dbr=38.81/55.0000 band=2 term=60 rate=20.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-MTG-HOME_PURCHASE    750    income=40000.00 offered=510500.00 cash=500000.00 emi=13525.13 max=754891.21 dbr=38.81/55.0000 band=2 term=60 rate=20.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-PER-PRIVATE_SECTOR   blank  income=34000.00 offered=510000.00 cash=500000.00 emi=14671.66 max=580506.81 dbr=49.03/55.0000 band=2 term=60 rate=24.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-PER-PRIVATE_SECTOR   500    income=24000.00 offered=305895.80 cash=299897.84 emi=8800.00 max=305895.80 dbr=45.00/45.0000 band=1 term=60 rate=24.0000 bind=dbr_affordability ceiling=- dp=700102.16
+HDB-PER-PRIVATE_SECTOR   600    income=36000.00 offered=510000.00 cash=500000.00 emi=14671.66 max=618743.78 dbr=46.31/55.0000 band=2 term=60 rate=24.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-PER-PRIVATE_SECTOR   700    income=40000.00 offered=510000.00 cash=500000.00 emi=14671.66 max=695217.73 dbr=41.68/55.0000 band=2 term=60 rate=24.0000 bind=requested_amount ceiling=- dp=500000.00
+HDB-PER-PRIVATE_SECTOR   750    income=40000.00 offered=510000.00 cash=500000.00 emi=14671.66 max=695217.73 dbr=41.68/55.0000 band=2 term=60 rate=24.0000 bind=requested_amount ceiling=- dp=500000.00
+HSBC-MTG-HOME_PURCHASE   blank  income=34000.00 offered=510500.00 cash=500000.00 emi=13596.24 max=627037.42 dbr=45.87/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-MTG-HOME_PURCHASE   500    income=24000.00 offered=330414.92 cash=323618.93 emi=8800.00 max=330414.93 dbr=45.00/45.0000 band=1 term=60 rate=20.2500 bind=dbr_affordability ceiling=- dp=676381.07
+HSBC-MTG-HOME_PURCHASE   600    income=36000.00 offered=510500.00 cash=500000.00 emi=13596.24 max=668339.28 dbr=43.32/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-MTG-HOME_PURCHASE   700    income=40000.00 offered=510500.00 cash=500000.00 emi=13596.24 max=750943.01 dbr=38.99/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-MTG-HOME_PURCHASE   750    income=40000.00 offered=510500.00 cash=500000.00 emi=13596.24 max=750943.01 dbr=38.99/55.0000 band=2 term=60 rate=20.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-BANKERS         blank  income=34000.00 offered=510000.00 cash=500000.00 emi=13869.03 max=614101.97 dbr=46.67/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-BANKERS         500    income=24000.00 offered=323598.64 cash=317253.56 emi=8800.00 max=323598.64 dbr=45.00/45.0000 band=1 term=60 rate=21.2500 bind=dbr_affordability ceiling=- dp=682746.44
+HSBC-PER-BANKERS         600    income=36000.00 offered=510000.00 cash=500000.00 emi=13869.03 max=654551.80 dbr=44.08/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-BANKERS         700    income=40000.00 offered=510000.00 cash=500000.00 emi=13869.03 max=735451.46 dbr=39.67/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-BANKERS         750    income=40000.00 offered=510000.00 cash=500000.00 emi=13869.03 max=735451.46 dbr=39.67/55.0000 band=2 term=60 rate=21.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-PROFESSIONAL    blank  income=34000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=589391.84 dbr=48.38/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-PROFESSIONAL    500    income=24000.00 offered=310577.74 cash=304487.98 emi=8800.00 max=310577.74 dbr=45.00/45.0000 band=1 term=60 rate=23.2500 bind=dbr_affordability ceiling=- dp=695512.02
+HSBC-PER-PROFESSIONAL    600    income=36000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=628214.06 dbr=45.70/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-PROFESSIONAL    700    income=40000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=705858.49 dbr=41.13/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+HSBC-PER-PROFESSIONAL    750    income=40000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=705858.49 dbr=41.13/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+NATIONAL-CAR-C483        blank  UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+NATIONAL-CAR-C483        500    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+NATIONAL-CAR-C483        600    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+NATIONAL-CAR-C483        700    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+NATIONAL-CAR-C483        750    UNAVAILABLE REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+NBE-CAR-NEW_CAR          blank  income=34000.00 offered=508250.00 cash=500000.00 emi=13324.51 max=637004.74 dbr=45.07/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-CAR-NEW_CAR          500    income=24000.00 offered=335667.16 cash=330218.56 emi=8800.00 max=335667.17 dbr=45.00/45.0000 band=1 term=60 rate=19.5000 bind=dbr_affordability ceiling=- dp=669781.44
+NBE-CAR-NEW_CAR          600    income=36000.00 offered=508250.00 cash=500000.00 emi=13324.51 max=678963.14 dbr=42.57/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-CAR-NEW_CAR          700    income=40000.00 offered=508250.00 cash=500000.00 emi=13324.51 max=762879.93 dbr=38.31/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-CAR-NEW_CAR          750    income=40000.00 offered=508250.00 cash=500000.00 emi=13324.51 max=762879.93 dbr=38.31/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-MTG-HOME_PURCHASE    blank  income=34000.00 offered=509250.00 cash=500000.00 emi=13634.08 max=623766.05 dbr=45.98/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-MTG-HOME_PURCHASE    500    income=24000.00 offered=328691.08 cash=322720.75 emi=8800.00 max=328691.09 dbr=45.00/45.0000 band=1 term=60 rate=20.5000 bind=dbr_affordability ceiling=- dp=677279.25
+NBE-MTG-HOME_PURCHASE    600    income=36000.00 offered=509250.00 cash=500000.00 emi=13634.08 max=664852.44 dbr=43.43/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-MTG-HOME_PURCHASE    700    income=40000.00 offered=509250.00 cash=500000.00 emi=13634.08 max=747025.22 dbr=39.09/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-MTG-HOME_PURCHASE    750    income=40000.00 offered=509250.00 cash=500000.00 emi=13634.08 max=747025.22 dbr=39.09/55.0000 band=2 term=60 rate=20.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-ARMED_FORCES     blank  income=34000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=637004.74 dbr=45.11/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-ARMED_FORCES     500    income=24000.00 offered=335667.17 cash=329894.02 emi=8800.00 max=335667.17 dbr=45.00/45.0000 band=1 term=60 rate=19.5000 bind=dbr_affordability ceiling=- dp=670105.98
+NBE-PER-ARMED_FORCES     600    income=36000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=678963.14 dbr=42.60/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-ARMED_FORCES     700    income=40000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=762879.93 dbr=38.34/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-ARMED_FORCES     750    income=40000.00 offered=508750.00 cash=500000.00 emi=13337.62 max=762879.93 dbr=38.34/55.0000 band=2 term=60 rate=19.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-GOVT_EMPLOYEE    blank  income=34000.00 offered=508750.00 cash=500000.00 emi=14196.13 max=598481.68 dbr=47.64/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-GOVT_EMPLOYEE    500    income=24000.00 offered=315367.59 cash=309943.57 emi=8800.00 max=315367.59 dbr=45.00/45.0000 band=1 term=60 rate=22.5000 bind=dbr_affordability ceiling=- dp=690056.43
+NBE-PER-GOVT_EMPLOYEE    600    income=36000.00 offered=508750.00 cash=500000.00 emi=14196.13 max=637902.63 dbr=44.99/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-GOVT_EMPLOYEE    700    income=40000.00 offered=508750.00 cash=500000.00 emi=14196.13 max=716744.53 dbr=40.49/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-GOVT_EMPLOYEE    750    income=40000.00 offered=508750.00 cash=500000.00 emi=14196.13 max=716744.53 dbr=40.49/55.0000 band=2 term=60 rate=22.5000 bind=requested_amount ceiling=- dp=500000.00
+NBE-PER-PENSIONER        blank  income=34000.00 offered=274725.00 cash=270000.00 emi=10995.80 max=270000.00 dbr=38.22/55.0000 band=2 term=36 rate=25.5000 bind=program_max ceiling=- dp=730000.00
+NBE-PER-PENSIONER        500    income=24000.00 offered=219863.97 cash=216082.53 emi=8800.00 max=219863.98 dbr=45.00/45.0000 band=1 term=36 rate=25.5000 bind=dbr_affordability ceiling=- dp=783917.47
+NBE-PER-PENSIONER        600    income=36000.00 offered=274725.00 cash=270000.00 emi=10995.80 max=270000.00 dbr=36.10/55.0000 band=2 term=36 rate=25.5000 bind=program_max ceiling=- dp=730000.00
+NBE-PER-PENSIONER        700    income=40000.00 offered=274725.00 cash=270000.00 emi=10995.80 max=270000.00 dbr=32.49/55.0000 band=2 term=36 rate=25.5000 bind=program_max ceiling=- dp=730000.00
+NBE-PER-PENSIONER        750    income=40000.00 offered=274725.00 cash=270000.00 emi=10995.80 max=270000.00 dbr=32.49/55.0000 band=2 term=36 rate=25.5000 bind=program_max ceiling=- dp=730000.00
+NXT-BIZ-WORKING_CAPITAL  blank  income=34000.00 offered=277125.65 cash=267754.25 emi=15000.00 max=277125.65 dbr=50.00/50.0000 band=- term=24 rate=26.5000 bind=dbr_affordability ceiling=- dp=732245.75
+NXT-BIZ-WORKING_CAPITAL  500    income=24000.00 offered=184750.42 cash=178502.83 emi=10000.00 max=184750.43 dbr=50.00/50.0000 band=- term=24 rate=26.5000 bind=dbr_affordability ceiling=- dp=821497.17
+NXT-BIZ-WORKING_CAPITAL  600    income=36000.00 offered=295600.69 cash=285604.54 emi=16000.00 max=295600.70 dbr=50.00/50.0000 band=- term=24 rate=26.5000 bind=dbr_affordability ceiling=- dp=714395.46
+NXT-BIZ-WORKING_CAPITAL  700    income=40000.00 offered=332550.79 cash=321305.10 emi=18000.00 max=332550.78 dbr=50.00/50.0000 band=- term=24 rate=26.5000 bind=dbr_affordability ceiling=- dp=678694.90
+NXT-BIZ-WORKING_CAPITAL  750    income=40000.00 offered=332550.79 cash=321305.10 emi=18000.00 max=332550.78 dbr=50.00/50.0000 band=- term=24 rate=26.5000 bind=dbr_affordability ceiling=- dp=678694.90
+NXT-CAR-USED_CAR         blank  income=34000.00 offered=503662.28 cash=487100.86 emi=16699.99 max=503662.44 dbr=55.00/55.0000 band=2 term=48 rate=25.0000 bind=dbr_affordability ceiling=- dp=512899.14
+NXT-CAR-USED_CAR         500    income=24000.00 offered=265402.95 cash=256675.97 emi=8800.00 max=265402.96 dbr=45.00/45.0000 band=1 term=48 rate=25.0000 bind=dbr_affordability ceiling=- dp=743324.03
+NXT-CAR-USED_CAR         600    income=36000.00 offered=517000.00 cash=500000.00 emi=17142.24 max=536837.81 dbr=53.17/55.0000 band=2 term=48 rate=25.0000 bind=tenor_max ceiling=- dp=500000.00
+NXT-CAR-USED_CAR         700    income=40000.00 offered=517000.00 cash=500000.00 emi=17142.24 max=603188.55 dbr=47.86/55.0000 band=2 term=48 rate=25.0000 bind=tenor_max ceiling=- dp=500000.00
+NXT-CAR-USED_CAR         750    income=40000.00 offered=517000.00 cash=500000.00 emi=17142.24 max=603188.55 dbr=47.86/55.0000 band=2 term=48 rate=25.0000 bind=tenor_max ceiling=- dp=500000.00
+NXT-MTG-HOME_FINISHING   blank  income=34000.00 offered=518000.00 cash=500000.00 emi=15052.52 max=574694.52 dbr=50.15/55.0000 band=2 term=60 rate=24.5000 bind=requested_amount ceiling=- dp=500000.00
+NXT-MTG-HOME_FINISHING   500    income=24000.00 offered=302833.04 cash=292309.88 emi=8800.00 max=302833.04 dbr=45.00/45.0000 band=1 term=60 rate=24.5000 bind=dbr_affordability ceiling=- dp=707690.12
+NXT-MTG-HOME_FINISHING   600    income=36000.00 offered=518000.00 cash=500000.00 emi=15052.52 max=612548.65 dbr=47.37/55.0000 band=2 term=60 rate=24.5000 bind=requested_amount ceiling=- dp=500000.00
+NXT-MTG-HOME_FINISHING   700    income=40000.00 offered=518000.00 cash=500000.00 emi=15052.52 max=688256.91 dbr=42.63/55.0000 band=2 term=60 rate=24.5000 bind=requested_amount ceiling=- dp=500000.00
+NXT-MTG-HOME_FINISHING   750    income=40000.00 offered=518000.00 cash=500000.00 emi=15052.52 max=688256.91 dbr=42.63/55.0000 band=2 term=60 rate=24.5000 bind=requested_amount ceiling=- dp=500000.00
+NXT-PER-PRIVATE_SECTOR   blank  income=34000.00 offered=483124.77 cash=466787.21 emi=16700.00 max=483124.77 dbr=55.00/55.0000 band=2 term=48 rate=27.5000 bind=dbr_affordability ceiling=- dp=533212.79
+NXT-PER-PRIVATE_SECTOR   500    income=24000.00 offered=254580.71 cash=245971.70 emi=8800.00 max=254580.71 dbr=45.00/45.0000 band=1 term=48 rate=27.5000 bind=dbr_affordability ceiling=- dp=754028.30
+NXT-PER-PRIVATE_SECTOR   600    income=36000.00 offered=514947.25 cash=497533.57 emi=17800.00 max=514947.36 dbr=55.00/55.0000 band=2 term=48 rate=27.5000 bind=dbr_affordability ceiling=- dp=502466.43
+NXT-PER-PRIVATE_SECTOR   700    income=40000.00 offered=517500.00 cash=500000.00 emi=17888.24 max=578592.53 dbr=49.72/55.0000 band=2 term=48 rate=27.5000 bind=tenor_max ceiling=- dp=500000.00
+NXT-PER-PRIVATE_SECTOR   750    income=40000.00 offered=517500.00 cash=500000.00 emi=17888.24 max=578592.53 dbr=49.72/55.0000 band=2 term=48 rate=27.5000 bind=tenor_max ceiling=- dp=500000.00
+NXT-PER-YOUTH            blank  UNAVAILABLE AGE_AT_MATURITY
+NXT-PER-YOUTH            500    UNAVAILABLE AGE_AT_MATURITY
+NXT-PER-YOUTH            600    UNAVAILABLE AGE_AT_MATURITY
+NXT-PER-YOUTH            700    UNAVAILABLE AGE_AT_MATURITY
+NXT-PER-YOUTH            750    UNAVAILABLE AGE_AT_MATURITY
+QNB-CAR-USED_CAR         blank  income=34000.00 offered=509500.00 cash=500000.00 emi=14583.44 max=583446.07 dbr=48.77/55.0000 band=2 term=60 rate=23.7500 bind=requested_amount ceiling=- dp=500000.00
+QNB-CAR-USED_CAR         500    income=24000.00 offered=307444.63 cash=301712.10 emi=8800.00 max=307444.64 dbr=45.00/45.0000 band=1 term=60 rate=23.7500 bind=dbr_affordability ceiling=- dp=698287.90
+QNB-CAR-USED_CAR         600    income=36000.00 offered=509500.00 cash=500000.00 emi=14583.44 max=621876.65 dbr=46.07/55.0000 band=2 term=60 rate=23.7500 bind=requested_amount ceiling=- dp=500000.00
+QNB-CAR-USED_CAR         700    income=40000.00 offered=509500.00 cash=500000.00 emi=14583.44 max=698737.81 dbr=41.46/55.0000 band=2 term=60 rate=23.7500 bind=requested_amount ceiling=- dp=500000.00
+QNB-CAR-USED_CAR         750    income=40000.00 offered=509500.00 cash=500000.00 emi=14583.44 max=698737.81 dbr=41.46/55.0000 band=2 term=60 rate=23.7500 bind=requested_amount ceiling=- dp=500000.00
+QNB-MTG-HOME_PURCHASE    blank  income=34000.00 offered=510500.00 cash=500000.00 emi=14172.11 max=601558.11 dbr=47.57/55.0000 band=2 term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-MTG-HOME_PURCHASE    500    income=24000.00 offered=316988.70 cash=310468.86 emi=8800.00 max=316988.71 dbr=45.00/45.0000 band=1 term=60 rate=22.2500 bind=dbr_affordability ceiling=- dp=689531.14
+QNB-MTG-HOME_PURCHASE    600    income=36000.00 offered=510500.00 cash=500000.00 emi=14172.11 max=641181.70 dbr=44.92/55.0000 band=2 term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-MTG-HOME_PURCHASE    700    income=40000.00 offered=510500.00 cash=500000.00 emi=14172.11 max=720428.88 dbr=40.43/55.0000 band=2 term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-MTG-HOME_PURCHASE    750    income=40000.00 offered=510500.00 cash=500000.00 emi=14172.11 max=720428.88 dbr=40.43/55.0000 band=2 term=60 rate=22.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-BANKERS          blank  income=34000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=589391.84 dbr=48.38/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-BANKERS          500    income=24000.00 offered=310577.74 cash=304487.98 emi=8800.00 max=310577.74 dbr=45.00/45.0000 band=1 term=60 rate=23.2500 bind=dbr_affordability ceiling=- dp=695512.02
+QNB-PER-BANKERS          600    income=36000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=628214.06 dbr=45.70/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-BANKERS          700    income=40000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=705858.49 dbr=41.13/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-BANKERS          750    income=40000.00 offered=510000.00 cash=500000.00 emi=14450.49 max=705858.49 dbr=41.13/55.0000 band=2 term=60 rate=23.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-PRIVATE_SECTOR   blank  income=34000.00 offered=510000.00 cash=500000.00 emi=15345.21 max=555026.54 dbr=51.02/55.0000 band=2 term=60 rate=26.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-PRIVATE_SECTOR   500    income=24000.00 offered=292469.06 cash=286734.38 emi=8800.00 max=292469.07 dbr=45.00/45.0000 band=1 term=60 rate=26.2500 bind=dbr_affordability ceiling=- dp=713265.62
+QNB-PER-PRIVATE_SECTOR   600    income=36000.00 offered=510000.00 cash=500000.00 emi=15345.21 max=591585.17 dbr=48.18/55.0000 band=2 term=60 rate=26.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-PRIVATE_SECTOR   700    income=40000.00 offered=510000.00 cash=500000.00 emi=15345.21 max=664702.44 dbr=43.36/55.0000 band=2 term=60 rate=26.2500 bind=requested_amount ceiling=- dp=500000.00
+QNB-PER-PRIVATE_SECTOR   750    income=40000.00 offered=510000.00 cash=500000.00 emi=15345.21 max=664702.44 dbr=43.36/55.0000 band=2 term=60 rate=26.2500 bind=requested_amount ceiling=- dp=500000.00

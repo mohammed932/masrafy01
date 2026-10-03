@@ -44,6 +44,7 @@
  * unreadable blob must count as NO reader rather than throw on a list read — the posture
  * `readsAFactWithNoTable` already takes in the repository.
  */
+import { asProgramConditions, factsReadByConditions } from './program-conditions';
 import { additionalIncomeFactKeys } from './additional-income';
 import { factsReadBy } from './product-rule';
 import type { ProductRule } from './product-rule';
@@ -68,6 +69,11 @@ export type FactReaderSource =
    * on the pricing and requirements steps rather than the income one.
    */
   | 'bank_program_grid'
+  /**
+   * Feature 013 — one of the program's own eligibility conditions. Take the answer away and
+   * the condition fails for everyone: every applicant is refused by this bank.
+   */
+  | 'bank_program_condition'
   | 'surrogate_product'
   | 'program_name';
 
@@ -101,7 +107,12 @@ export interface FactReaderProgramRow {
    * every cell miss, which reads as "no cover required" — a disclosure that silently stops
    * being made is worse than one that errors.
    */
-  fees: unknown;
+  fees: unknown; /**
+   * Feature 013 — the program's eligibility conditions. REQUIRED for the reason the three
+   * above are: a call site that forgets to SELECT it would report a fact no program reads
+   * while a condition on it refuses every applicant who cannot answer it.
+   */
+  conditions: unknown;
 }
 
 export interface FactReaderRuleRow {
@@ -305,7 +316,9 @@ export type FactSurface =
   | 'max_term'
   | 'min_term'
   | 'vehicle_age'
-  | 'car_cover';
+  | 'car_cover'
+  /** Feature 013 — a program eligibility condition. Always refuses when unanswered. */
+  | 'condition';
 
 export interface FactSurfaceRead {
   readonly surface: FactSurface;
@@ -387,6 +400,10 @@ export function factSurfacesOfProgram(row: FactReaderProgramRow): Map<string, Fa
     if (isRecord(row.tenor.maxVehicleAgeYearsByFact)) add(CAR_MODEL_YEAR_FACT_KEY, 'vehicle_age');
   }
   if (isRecord(row.fees)) grid(row.fees.carInsuranceRateByFact, 'car_cover');
+  // An unanswered criterion does not match, so a condition always refuses on a blank.
+  for (const key of factsReadByConditions(asProgramConditions(row.conditions))) {
+    add(key, 'condition', true);
+  }
   return out;
 }
 
@@ -429,6 +446,9 @@ export function factReaders(
       factsReadByFees(program.fees).has(factKey)
     ) {
       readers.push({ source: 'bank_program_grid', ref: program.programCode });
+    }
+    if (factsReadByConditions(asProgramConditions(program.conditions)).includes(factKey)) {
+      readers.push({ source: 'bank_program_condition', ref: program.programCode });
     }
   }
 

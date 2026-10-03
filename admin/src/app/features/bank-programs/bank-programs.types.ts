@@ -103,6 +103,9 @@ export interface LoanLimitsConfig {
       rowKey?: string;
       fromInclusive?: string;
       toExclusive?: string | null;
+      /** Feature 013 (Loan Engine): "more than" / "at most" edges. */
+      fromExclusive?: string;
+      toInclusive?: string;
       columnKey?: string;
       maxAmountEGP: string;
     }>;

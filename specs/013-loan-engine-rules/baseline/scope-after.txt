@@ -1,0 +1,43 @@
+
+[check:question-scope]
+
+  name                       category  q-> served req-> after  off
+  armed_forces               personal   58   23   25   15 
+  armed_forces_no_payslip    personal   58   11   25   11 
+  bankers                    personal   58   23   25   15 
+  car_buyers_program         car        22   15   15   15 
+  cds_holder                 personal   58   12   25   12 
+  compound_owner_4           personal   58   22   25   22 
+  doctor                     personal   58   24   25   16 
+  doctors_clinic_owner       personal   58   13   25   13 
+  doctors_in_practice        personal   58   17   25   16 
+  equipment_finance          business   21   21   12   12 
+  govt_employee              personal   58   23   25   15 
+  home_finishing             mortgage   37   29   15   15 
+  home_purchase              mortgage   37   29   15   15 
+  new_car                    car        22   19   15   17 
+  pensioner                  personal   58   23   25   15 
+  pharmacy                   personal   58   23   25   15 
+  pharmacy                   business   21   21   12   12 
+  pl_to_auto_loan            personal   58   14   25   14 
+  pl_to_card                 personal   58   10   25   10 
+  police                     personal   58   23   25   15 
+  private_sector             personal   58   27   25   19 
+  professor                  personal   58   24   25   16 
+  self_employed              personal   58   23   25   15 
+  teachers_predefined        personal   58   12   25   12 
+  university_professors      personal   58   12   25   12 
+  used_car                   car        22   19   15   16 
+  working_capital            business   21   21   12   12 
+  youth                      personal   58   23   25   15 
+
+  NOTE — refuse-on-no-match tables keyed on a question that is optional when no name is picked:
+    car — car_dealer: optional with no name picked; blank refuses CAE-CAR-EV
+    car — car_fuel_type: optional with no name picked; blank refuses CAE-CAR-EV
+    car — car_fuel_type: optional with no name picked; blank refuses NATIONAL-CAR-C483, CRE-CAR-3743, BANK-CAR-EA65, BANQUE-CAR-0549
+    car — car_origin: optional with no name picked; blank refuses CAE-CAR-NEW_CAR, CAE-CAR-EV
+    car — car_origin: optional with no name picked; blank refuses CAE-CAR-USED_CAR
+    car — car_origin: optional with no name picked; blank refuses NATIONAL-CAR-C483, CRE-CAR-3743, BANK-CAR-EA65, BANQUE-CAR-0549
+
+  every fact a live program reads is asked of the applicants it quotes
+

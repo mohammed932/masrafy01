@@ -81,6 +81,9 @@ export interface MaxLoanByFactRow {
   rowKey?: string;
   fromInclusive?: string;
   toExclusive?: string | null;
+  /** Feature 013: "more than" / "at most" edges. Absent on every row stored before it. */
+  fromExclusive?: string;
+  toInclusive?: string;
   columnKey?: string;
   /** Decimal string, > 0. Arrives from JSONB as a string — never a float (Principle I). */
   maxAmountEGP: string;
@@ -139,7 +142,12 @@ export type MaxLoanByFactResolution =
  */
 function rowKeyOf(row: MaxLoanByFactRow): FactGridKey {
   if (row.rowKey !== undefined) return { key: row.rowKey };
-  return { fromInclusive: row.fromInclusive, toExclusive: row.toExclusive };
+  return {
+    fromInclusive: row.fromInclusive,
+    toExclusive: row.toExclusive,
+    fromExclusive: row.fromExclusive,
+    toInclusive: row.toInclusive,
+  };
 }
 
 function rowMatches(row: MaxLoanByFactRow, answer: SurrogateFactValue): boolean {

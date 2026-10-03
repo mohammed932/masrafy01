@@ -34,6 +34,7 @@ import type {
 } from '../../matching/pipeline/max-loan-by-fact';
 import type { MaxLoanAdjustment } from '../../matching/pipeline/max-loan-adjustments';
 import { PRESENCE_FACT_LOOKUP_KEY } from '@/matching/pipeline/fact-value';
+import { bandEdgesOf, bandIsEmpty, type BandEdges } from '@/matching/pipeline/fact-grid';
 import {
   DERIVED_FACT_KEYS,
   derivedFactOptionCodes,
@@ -120,16 +121,22 @@ async function optionCodesFor(
 function validateBands(
   rows: readonly { index: number; row: MaxLoanByFactRow }[],
 ): MaxLoanByFactViolation | undefined {
-  const edges: Array<{ index: number; from: Prisma.Decimal; to: Prisma.Decimal | null }> = [];
+  const edges: Array<{ index: number } & BandEdges & { from: Prisma.Decimal }> = [];
   for (const { index, row } of rows) {
-    const from = decimalOf(row.fromInclusive) ?? new Prisma.Decimal(0);
-    const to = decimalOf(row.toExclusive);
-    if (to !== null && to.lessThanOrEqualTo(from)) {
-      return { reason: 'band_edges_inverted', index };
-    }
-    edges.push({ index, from, to });
+    const read = bandEdgesOf(row);
+    // An edge stated both ways, or a band no number falls in, is inverted for the operator's
+    // purposes: there is nothing this row can price.
+    if (read === 'invalid') return { reason: 'band_edges_inverted', index };
+    // An unstated lower edge is 0, inclusive — what every stored cap table has always meant.
+    const band = { ...read, from: read.from ?? new Prisma.Decimal(0) };
+    if (read.from === null) band.fromInclusive = true;
+    if (bandIsEmpty(band)) return { reason: 'band_edges_inverted', index };
+    edges.push({ index, ...band });
   }
-  const ordered = [...edges].sort((a, b) => a.from.comparedTo(b.from));
+  // By lower edge, an inclusive lower edge before an exclusive one at the same figure.
+  const ordered = [...edges].sort(
+    (a, b) => a.from.comparedTo(b.from) || Number(b.fromInclusive) - Number(a.fromInclusive),
+  );
   for (let i = 1; i < ordered.length; i += 1) {
     const previous = ordered[i - 1];
     const current = ordered[i];
@@ -141,6 +148,14 @@ function validateBands(
     if (previous.to.lessThan(current.from)) return { reason: 'bands_gap', index: current.index };
     if (previous.to.greaterThan(current.from)) {
       return { reason: 'bands_overlap', index: current.index };
+    }
+    // They meet at one figure: exactly one of the two may hold it. `[a, b)` then `[b, c)` —
+    // every table stored before feature 013 — holds it once.
+    if (previous.toInclusive && current.fromInclusive) {
+      return { reason: 'bands_overlap', index: current.index };
+    }
+    if (!previous.toInclusive && !current.fromInclusive) {
+      return { reason: 'bands_gap', index: current.index };
     }
   }
   return undefined;
@@ -224,7 +239,11 @@ export async function validateMaxLoanByFact(
 
   const seen = new Set<string>();
   for (const [index, row] of config.rows.entries()) {
-    const hasBand = row.fromInclusive !== undefined || row.toExclusive !== undefined;
+    const hasBand =
+      row.fromInclusive !== undefined ||
+      row.toExclusive !== undefined ||
+      row.fromExclusive !== undefined ||
+      row.toInclusive !== undefined;
     if (isNumericFact) {
       if (row.rowKey !== undefined) return { reason: 'row_key_on_numeric_fact', index };
       if (!hasBand) return { reason: 'row_missing_key', index };
@@ -252,7 +271,7 @@ export async function validateMaxLoanByFact(
 
     // One cell, one figure. A repeated (row, column) pair is first-match-wins at runtime,
     // which makes the second row invisible and the table look configured.
-    const cell = `${row.rowKey ?? `${row.fromInclusive ?? ''}..${row.toExclusive ?? ''}`}|${row.columnKey ?? '_'}`;
+    const cell = `${rowIdOf(row)}|${row.columnKey ?? '_'}`;
     if (seen.has(cell)) return { reason: 'duplicate_row', index, detail: cell };
     seen.add(cell);
   }
@@ -369,7 +388,16 @@ function bandId(fromInclusive: string | undefined, toExclusive: string | null | 
 
 /** How a stored row names its own cell — the option code, or the band's edges. */
 function rowIdOf(row: MaxLoanByFactRow): string {
-  return row.rowKey ?? bandId(row.fromInclusive, row.toExclusive);
+  if (row.rowKey !== undefined) return row.rowKey;
+  // A feature-013 edge names its own spelling, so it never collides with the half-open id
+  // every stored row and every blueprint band uses (`from..to`).
+  if (row.fromExclusive !== undefined || row.toInclusive !== undefined) {
+    const from =
+      row.fromExclusive !== undefined ? `(${row.fromExclusive}` : `[${row.fromInclusive ?? ''}`;
+    const to = row.toInclusive !== undefined ? `${row.toInclusive}]` : `${row.toExclusive ?? ''})`;
+    return `${from}..${to}`;
+  }
+  return bandId(row.fromInclusive, row.toExclusive);
 }
 
 /** `row|column`, or just the row when the cap declares no second axis. */

@@ -39,10 +39,19 @@ export interface FactGridAxis {
  * and an object stating neither a key nor an edge is a half-typed cell that matches nothing.
  * The two are different on purpose; see the backend's `FactGridKey`.
  */
-export type FactGridKey =
-  | { key: string }
-  | { fromInclusive?: string; toExclusive?: string | null }
-  | null;
+export type FactGridKey = { key: string } | FactGridBand | null;
+
+/**
+ * A numeric band. `[fromInclusive, toExclusive)` is every table this editor writes; the Loan
+ * Engine (feature 013) may also state `fromExclusive` ("more than") or `toInclusive` ("at
+ * most"). Each edge is stated at most once. This editor shows and preserves those edges.
+ */
+export interface FactGridBand {
+  fromInclusive?: string;
+  fromExclusive?: string;
+  toExclusive?: string | null;
+  toInclusive?: string;
+}
 
 export interface FactGridCell {
   keys: FactGridKey[];
@@ -79,10 +88,8 @@ export function emptyFactGrid(): FactGridConfig {
 function keyIsStated(key: FactGridKey): boolean {
   if (key === null) return false;
   if ('key' in key) return typeof key.key === 'string' && key.key !== '';
-  const from = key.fromInclusive;
-  const to = key.toExclusive;
-  return (
-    (typeof from === 'string' && from.trim() !== '') || (typeof to === 'string' && to.trim() !== '')
+  return [key.fromInclusive, key.fromExclusive, key.toExclusive, key.toInclusive].some(
+    (edge) => typeof edge === 'string' && edge.trim() !== '',
   );
 }
 

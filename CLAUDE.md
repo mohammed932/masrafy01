@@ -1,6 +1,6 @@
 # masrafy01 Development Guidelines
 
-Auto-generated from feature plans + constitution. Last updated: 2026-08-13
+Auto-generated from feature plans + constitution. Last updated: 2026-10-04
 
 ## Project Identity
 
@@ -18,6 +18,8 @@ Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 - PostgreSQL 16 (Prisma migrations only) · Redis 7 (rate limit only; not used by this feature) (010-simple-programs-dbr-calculator)
 - Node.js 22 LTS + TypeScript 5.6 (`strict`, `noUncheckedIndexedAccess`) · + NestJS 10, Prisma 5, `class-validator`, `@nestjs/swagger`, `decimal.js` (011-surrogate-admin-panel)
 - PostgreSQL 16 (Prisma migrations only). Two migrations: `bank_program_value_sources` (011-surrogate-admin-panel)
+- Node.js 22 LTS + TypeScript 5.6 (`strict`, `noUncheckedIndexedAccess`) on the backend; Angular 18 + TypeScript 5.4 on the admin. No Flutter change. + NestJS 10, Prisma 5, `class-validator`, `@nestjs/swagger`, `decimal.js` · ng-zorro-antd, `@angular/localize` (013-loan-engine-rules)
+- PostgreSQL 16. One Prisma migration (`bank_program_conditions`: one nullable JSONB column). Everything else is a JSON-shape widening. (013-loan-engine-rules)
 
 ### Backend (`backend/`) — feature 001-admin-auth-users
 
@@ -219,6 +221,8 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-10-04 v30.12.0 — the Loan Engine (`/loan-engine`): per-program figures per answer with less-than / at-most / at-least / more-than / between / equals bands, `bank_program.conditions` that refuse with a reason (never hide), and try-an-answer on unsaved drafts.
+- 2026-10-04 v30.10.1 — linking a question to an existing figure refuses when its options miss the table's keys (`unknownKeys`), not only on a type mismatch.
 - 2026-10-04 v30.10.1 — linking a question to an existing figure refuses when its options miss the table's keys (`unknownKeys`), not only on a type mismatch.
 - 2026-10-03 v30.11.0 — a question a refuse-on-no-match table reads is required wherever that programme is quoted (car origin/fuel/dealer); `check:question-scope` guards it; the legacy military grades and the 12 unread questions wait on `specs/012-question-calculation-link/operator-worksheet.md`.
 - 2026-10-03 v30.10.0 — a question can be linked to the calculation from its own screen (`/api/admin/bank-programs/question-facts`), and every question shows what reads it; the effect tiles only navigate.

@@ -18,7 +18,11 @@
  *     refusing to treat an empty row as "any";
  *   · a tenor grid keyed on the term is circular: the term is what it computes.
  */
-import { FACT_GRID_NO_MATCH_ACTIONS } from '../../matching/pipeline/fact-grid';
+import {
+  bandEdgesOf,
+  bandIsEmpty,
+  FACT_GRID_NO_MATCH_ACTIONS,
+} from '../../matching/pipeline/fact-grid';
 import type { FactGridConfig, FactGridKey } from '../../matching/pipeline/fact-grid';
 import { isGridOnlyFactKey, TENOR_MONTHS_FACT_KEY } from '../../matching/pipeline/car-details';
 import { isDerivedFactKey } from '../../matching/pipeline/surrogate-fact-registry';
@@ -61,13 +65,18 @@ function keyShapeValid(key: FactGridKey): boolean {
   if (key === null) return true;
   if (typeof key !== 'object') return false;
   if ('key' in key) return typeof key.key === 'string' && key.key !== '';
-  const from = (key as { fromInclusive?: unknown }).fromInclusive;
-  const to = (key as { toExclusive?: unknown }).toExclusive;
-  const hasFrom = typeof from === 'string' && from.trim() !== '';
-  const hasTo = typeof to === 'string' && to.trim() !== '';
-  // At least one edge, or it is the half-typed cell that matches nothing — which is a table
-  // an operator meant to fill, not a wildcard they meant to state.
-  return hasFrom || hasTo;
+  const band = key as Record<string, unknown>;
+  for (const edge of ['fromInclusive', 'fromExclusive', 'toInclusive'] as const) {
+    if (band[edge] !== undefined && typeof band[edge] !== 'string') return false;
+  }
+  if (band.toExclusive !== undefined && band.toExclusive !== null) {
+    if (typeof band.toExclusive !== 'string') return false;
+  }
+  const edges = bandEdgesOf(key);
+  // At least one edge, each stated once, and a band some number can fall in. The half-typed
+  // cell (no edge) is a table an operator meant to fill, not a wildcard they meant to state;
+  // an edge stated both inclusive and exclusive cannot be read without guessing (feature 013).
+  return edges !== 'invalid' && !bandIsEmpty(edges);
 }
 
 function valueValid(raw: unknown, kind: FactGridValueKind): boolean {

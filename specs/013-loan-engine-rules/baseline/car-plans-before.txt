@@ -1,0 +1,18 @@
+# Suez Canal down-payment card — car price 1,000,000
+# case | rate | maxAmount | term | binding | insurance/yr x yrs | reason | VERDICT
+20% down, owner, petrol | 10 | 2400000 | 60 | ltv_ceiling | 30000.00 x 5 = 150000.00 | - | OK
+25% down, relative owns home | 10 | 2400000 | 60 | ltv_ceiling | 30000.00 x 5 = 150000.00 | - | OK
+35% down, owner | 9 | 700000 | 72 | ltv_ceiling | 10000.00 x 6 = 60000.00 | - | OK
+45% down, owner | 8 | 600000 | 84 | ltv_ceiling | none | - | OK
+55% down, owner | 7 | 500000 | 84 | ltv_ceiling | none | - | OK
+65% down, owner | - | - | - | - | none | REQUESTED_BELOW_PROGRAM_MIN_AMOUNT | FAIL expected a quote, got REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+35% down, CHINESE car | 11 | 700000 | 72 | ltv_ceiling | 10000.00 x 6 = 60000.00 | - | OK
+35% down, ELECTRIC car | 8 | 700000 | 72 | ltv_ceiling | 10000.00 x 6 = 60000.00 | - | OK
+35% down, HYBRID car | 8 | 700000 | 72 | ltv_ceiling | 10000.00 x 6 = 60000.00 | - | OK
+35% down, Chinese ELECTRIC (origin wins) | 11 | 700000 | 72 | ltv_ceiling | 10000.00 x 6 = 60000.00 | - | OK
+25% down, RENTER — refused in that band alone | - | - | - | - | none | VEHICLE_NOT_ELIGIBLE | OK
+65% down, RENTER — priced | - | - | - | - | none | REQUESTED_BELOW_PROGRAM_MIN_AMOUNT | FAIL expected a quote, got REQUESTED_BELOW_PROGRAM_MIN_AMOUNT
+15% down — below every plan | - | - | - | - | none | NO_RATE_FOR_ANSWER | OK
+
+# collapse: no SCB-CAR-DP% tier survives
+# 11/13 cases as stated

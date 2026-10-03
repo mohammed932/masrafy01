@@ -1,0 +1,88 @@
+# 29 surrogate programmes x 3 applicants
+ABK-BIZ-WORKING_CAPITAL	working_capital	A/senior	-- rule_unconfigured	term=6-36
+ABK-BIZ-WORKING_CAPITAL	working_capital	B/mid	-- rule_unconfigured	term=6-36
+ABK-BIZ-WORKING_CAPITAL	working_capital	C/blank	-- rule_unconfigured	term=6-36
+ABK-PER-ARMED_FORCES	armed_forces_no_payslip	A/senior	OK monthlyIncome 75000.00	term=6-120
+ABK-PER-ARMED_FORCES	armed_forces_no_payslip	B/mid	OK monthlyIncome 30000.00	term=6-120
+ABK-PER-ARMED_FORCES	armed_forces_no_payslip	C/blank	-- fact_not_answered fact=military_grade	term=6-120
+ABK-PER-AUTO_XSELL_ABK	pl_to_auto_loan	A/senior	OK monthlyIncome 24000.00	term=12-84
+ABK-PER-AUTO_XSELL_ABK	pl_to_auto_loan	B/mid	OK monthlyIncome 12000.00	term=12-84
+ABK-PER-AUTO_XSELL_ABK	pl_to_auto_loan	C/blank	-- fact_not_answered fact=auto_loan_amount	term=12-84
+ABK-PER-AUTO_XSELL_OTHER	pl_to_auto_loan	A/senior	OK monthlyIncome 24000.00	term=12-84
+ABK-PER-AUTO_XSELL_OTHER	pl_to_auto_loan	B/mid	OK monthlyIncome 12000.00	term=12-84
+ABK-PER-AUTO_XSELL_OTHER	pl_to_auto_loan	C/blank	-- fact_not_answered fact=auto_loan_amount	term=12-84
+ABK-PER-CDS_HOLDER	cds_holder	A/senior	OK monthlyIncome 300000.00	term=12-84
+ABK-PER-CDS_HOLDER	cds_holder	B/mid	OK monthlyIncome 90000.00	term=12-84
+ABK-PER-CDS_HOLDER	cds_holder	C/blank	-- fact_not_answered fact=pledged_free_amount	term=12-84
+ABK-PER-COMPOUND_OWNER	compound_owner_4	A/senior	OK maxAmount 450000.00	term=12-84
+ABK-PER-COMPOUND_OWNER	compound_owner_4	B/mid	OK maxAmount 75000.00	term=12-84
+ABK-PER-COMPOUND_OWNER	compound_owner_4	C/blank	-- fact_not_answered fact=unit_owned_share_pct	term=12-84
+ABK-PER-DOCTOR	doctor	A/senior	-- rule_unconfigured	term=12-84
+ABK-PER-DOCTOR	doctor	B/mid	-- rule_unconfigured	term=12-84
+ABK-PER-DOCTOR	doctor	C/blank	-- rule_unconfigured	term=12-84
+ABK-PER-DOCTORS_CLINIC	doctors_clinic_owner	A/senior	OK monthlyIncome 120000.00	term=12-120
+ABK-PER-DOCTORS_CLINIC	doctors_clinic_owner	B/mid	OK monthlyIncome 60000.00	term=12-120
+ABK-PER-DOCTORS_CLINIC	doctors_clinic_owner	C/blank	-- fact_not_answered fact=years_in_practice	term=12-120
+ABK-PER-DOCTORS_PRACTICE	doctors_in_practice	A/senior	OK monthlyIncome 60000.00	term=12-120
+ABK-PER-DOCTORS_PRACTICE	doctors_in_practice	B/mid	OK monthlyIncome 30000.00	term=12-120
+ABK-PER-DOCTORS_PRACTICE	doctors_in_practice	C/blank	-- fact_not_answered fact=years_in_practice	term=12-120
+ABK-PER-PL_TO_CARD	pl_to_card	A/senior	OK monthlyIncome 30000.00	term=6-120
+ABK-PER-PL_TO_CARD	pl_to_card	B/mid	OK monthlyIncome 15000.00	term=6-120
+ABK-PER-PL_TO_CARD	pl_to_card	C/blank	-- fact_not_answered fact=credit_card_limit	term=6-120
+ABK-PER-PROFESSORS	university_professors	A/senior	OK monthlyIncome 100000.00	term=6-60
+ABK-PER-PROFESSORS	university_professors	B/mid	OK monthlyIncome 30000.00	term=6-60
+ABK-PER-PROFESSORS	university_professors	C/blank	-- fact_not_answered fact=academic_rank	term=6-60
+ADIB-BIZ-EQUIPMENT_FINANCE	equipment_finance	A/senior	-- rule_unconfigured	term=12-60
+ADIB-BIZ-EQUIPMENT_FINANCE	equipment_finance	B/mid	-- rule_unconfigured	term=12-60
+ADIB-BIZ-EQUIPMENT_FINANCE	equipment_finance	C/blank	-- rule_unconfigured	term=12-60
+BANK-CAR-EA65	car_buyers_program	A/senior	OK monthlyIncome 6000.00	term=6-84(product)
+BANK-CAR-EA65	car_buyers_program	B/mid	OK monthlyIncome 3600.00	term=6-84(product)
+BANK-CAR-EA65	car_buyers_program	C/blank	-- fact_not_answered fact=total_savings	term=6-84(product)
+BANQUE-CAR-0549	car_buyers_program	A/senior	OK monthlyIncome 166666.67	term=6-84
+BANQUE-CAR-0549	car_buyers_program	B/mid	OK monthlyIncome 66666.67	term=6-84
+BANQUE-CAR-0549	car_buyers_program	C/blank	-- fact_not_answered fact=car_down_payment	term=6-84
+BDC-BIZ-WORKING_CAPITAL	working_capital	A/senior	-- rule_unconfigured	term=6-36
+BDC-BIZ-WORKING_CAPITAL	working_capital	B/mid	-- rule_unconfigured	term=6-36
+BDC-BIZ-WORKING_CAPITAL	working_capital	C/blank	-- rule_unconfigured	term=6-36
+BDC-PER-PHARMACY	pharmacy	A/senior	-- rule_unconfigured	term=12-60
+BDC-PER-PHARMACY	pharmacy	B/mid	-- rule_unconfigured	term=12-60
+BDC-PER-PHARMACY	pharmacy	C/blank	-- rule_unconfigured	term=12-60
+BM-BIZ-EQUIPMENT_FINANCE	equipment_finance	A/senior	-- rule_unconfigured	term=12-60
+BM-BIZ-EQUIPMENT_FINANCE	equipment_finance	B/mid	-- rule_unconfigured	term=12-60
+BM-BIZ-EQUIPMENT_FINANCE	equipment_finance	C/blank	-- rule_unconfigured	term=12-60
+CAE-PER-COMPOUND_OWNER	compound_owner_4	A/senior	OK maxAmount 1500000.00	term=6-84
+CAE-PER-COMPOUND_OWNER	compound_owner_4	B/mid	OK maxAmount 250000.00	term=6-84
+CAE-PER-COMPOUND_OWNER	compound_owner_4	C/blank	-- fact_not_answered fact=unit_owned_share_pct	term=6-84
+CAE-PER-TEACHERS_PREDEFINED	teachers_predefined	A/senior	OK maxAmount 600000.00	term=6-84
+CAE-PER-TEACHERS_PREDEFINED	teachers_predefined	B/mid	OK maxAmount 100000.00	term=6-84
+CAE-PER-TEACHERS_PREDEFINED	teachers_predefined	C/blank	-- fact_not_answered fact=school_stage	term=6-84
+CIB-BIZ-PHARMACY	pharmacy	A/senior	-- rule_unconfigured	term=12-60
+CIB-BIZ-PHARMACY	pharmacy	B/mid	-- rule_unconfigured	term=12-60
+CIB-BIZ-PHARMACY	pharmacy	C/blank	-- rule_unconfigured	term=12-60
+CIB-BIZ-WORKING_CAPITAL	working_capital	A/senior	-- rule_unconfigured	term=6-36
+CIB-BIZ-WORKING_CAPITAL	working_capital	B/mid	-- rule_unconfigured	term=6-36
+CIB-BIZ-WORKING_CAPITAL	working_capital	C/blank	-- rule_unconfigured	term=6-36
+CIB-PER-DOCTOR	doctor	A/senior	-- rule_unconfigured	term=12-84
+CIB-PER-DOCTOR	doctor	B/mid	-- rule_unconfigured	term=12-84
+CIB-PER-DOCTOR	doctor	C/blank	-- rule_unconfigured	term=12-84
+CIB-PER-PROFESSIONAL	professor	A/senior	-- rule_unconfigured	term=12-72
+CIB-PER-PROFESSIONAL	professor	B/mid	-- rule_unconfigured	term=12-72
+CIB-PER-PROFESSIONAL	professor	C/blank	-- rule_unconfigured	term=12-72
+CRE-CAR-3743	car_buyers_program	A/senior	OK monthlyIncome 138888.89	term=6-84
+CRE-CAR-3743	car_buyers_program	B/mid	OK monthlyIncome 55555.56	term=6-84
+CRE-CAR-3743	car_buyers_program	C/blank	-- fact_not_answered fact=car_down_payment	term=6-84
+EGB-PER-COMPOUND_OWNER	compound_owner_4	A/senior	OK maxAmount 6000000.00	term=6-84
+EGB-PER-COMPOUND_OWNER	compound_owner_4	B/mid	OK maxAmount 1500000.00	term=6-84
+EGB-PER-COMPOUND_OWNER	compound_owner_4	C/blank	-- fact_not_answered fact=unit_contract_price	term=6-84
+FAB-PER-COMPOUND_OWNER	compound_owner_4	A/senior	OK maxAmount 1250000.00	term=6-72
+FAB-PER-COMPOUND_OWNER	compound_owner_4	B/mid	OK maxAmount 375000.00	term=6-72
+FAB-PER-COMPOUND_OWNER	compound_owner_4	C/blank	-- fact_not_answered fact=unit_down_payment	term=6-72
+HSBC-PER-PROFESSIONAL	self_employed	A/senior	-- rule_unconfigured	term=12-72
+HSBC-PER-PROFESSIONAL	self_employed	B/mid	-- rule_unconfigured	term=12-72
+HSBC-PER-PROFESSIONAL	self_employed	C/blank	-- rule_unconfigured	term=12-72
+NATIONAL-CAR-C483	car_buyers_program	A/senior	OK monthlyIncome 138888.89	term=6-24
+NATIONAL-CAR-C483	car_buyers_program	B/mid	OK monthlyIncome 55555.56	term=6-24
+NATIONAL-CAR-C483	car_buyers_program	C/blank	-- fact_not_answered fact=car_down_payment	term=6-24
+NXT-BIZ-WORKING_CAPITAL	working_capital	A/senior	-- rule_unconfigured	term=6-24
+NXT-BIZ-WORKING_CAPITAL	working_capital	B/mid	-- rule_unconfigured	term=6-24
+NXT-BIZ-WORKING_CAPITAL	working_capital	C/blank	-- rule_unconfigured	term=6-24

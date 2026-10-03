@@ -276,8 +276,9 @@ type FailedAction = 'load' | 'link' | 'unlink';
             <span class="part-n" aria-hidden="true">2</span>
             <span i18n="@@qcalc.affect_h">What should it affect?</span>
           </h4>
-          <p class="hint" i18n="@@qcalc.affect_hint">
-            Opens the table where the bank's figures are typed. Nothing is saved here.
+          <p class="hint" i18n="@@qcalc.affect_hint2">
+            Opens the Loan Engine, or the product or program table, where the bank's figures are
+            typed. Nothing is saved here.
           </p>
           @if (!linkedKey()) {
             <p class="hint" i18n="@@qcalc.affect_locked">Link it to a figure first.</p>
@@ -301,6 +302,22 @@ type FailedAction = 'load' | 'link' | 'unlink';
             </div>
           }
           @if (openEffectDef(); as e) {
+            @if (questionCode(); as qc) {
+              <div class="picker">
+                <a
+                  nz-button
+                  nzType="primary"
+                  [routerLink]="['/loan-engine']"
+                  [queryParams]="{ question: qc, effect: e.id === 'condition' ? null : e.id }"
+                  i18n="@@qcalc.open_engine"
+                >
+                  Edit it in the Loan Engine
+                </a>
+                <span class="hint" i18n="@@qcalc.open_engine_hint">
+                  Every bank's figures for this answer, side by side.
+                </span>
+              </div>
+            }
             <div class="picker">
               <label class="field" for="qcalc-target">
                 <span class="field-label" i18n="@@qcalc.target_label"

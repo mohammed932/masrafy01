@@ -217,7 +217,7 @@ Because of that, `check:question-scope` and `check:questionnaire` crash (`Unknow
 **A8. Admin UI**
 - New component `admin/src/app/features/questionnaire/question-calculation.component.ts`: standalone, signals, OnPush, ng-zorro, logical CSS, tokens.
   - **① Link:** "create a calculation figure from this question" (shows the key it will create, with live refusals) or "this answers an existing figure" (an `nz-select` of candidates).
-  - **② What should it affect?** These tiles **only navigate**; the effect choice is not stored. Each opens the real table editor with the axis pre-filled as a draft. Tiles are disabled by the type × effect matrix: TEXT allows "answered" only; additional income and I-Score need NUMERIC.
+  - **② What should it affect?** These tiles **only navigate**; the effect choice is not stored. *(2026-10-04, feature 013: each tile now also offers "Edit it in the Loan Engine", which opens `/loan-engine?question=&effect=` with every bank's rows for that answer. Condition-readers count toward the delete guard there — 013 T029 — which partly answers Clarification Q3 for conditions; the general two-walk question remains open.)* Each opens the real table editor with the axis pre-filled as a draft. Tiles are disabled by the type × effect matrix: TEXT allows "answered" only; additional income and I-Score need NUMERIC.
 
     | Effect | Destination |
     |---|---|

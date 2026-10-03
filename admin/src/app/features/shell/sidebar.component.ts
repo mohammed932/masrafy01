@@ -16,6 +16,7 @@ import {
   ExperimentOutline,
   AppstoreOutline,
   ClockCircleOutline,
+  CalculatorOutline,
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { CanDirective } from '../../shared/can.directive';
@@ -44,6 +45,7 @@ import { CanDirective } from '../../shared/can.directive';
       ExperimentOutline,
       AppstoreOutline,
       ClockCircleOutline,
+      CalculatorOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,6 +105,22 @@ import { CanDirective } from '../../shared/can.directive';
         >
           <span nz-icon nzType="form" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.questionnaire">Questionnaires</span>
+        </a>
+
+        <a
+          *can="['super_admin', 'sales_manager']"
+          routerLink="/loan-engine"
+          routerLinkActive="active"
+          class="item"
+        >
+          <span
+            nz-icon
+            nzType="calculator"
+            nzTheme="outline"
+            class="item-icon"
+            aria-hidden="true"
+          ></span>
+          <span class="item-label" i18n="@@sidebar.loan_engine">Loan Engine</span>
         </a>
 
         <a

@@ -11,7 +11,8 @@
  *   npx tsx scripts/check-question-scope.ts            (npm run check:question-scope)
  *   npx tsx scripts/check-question-scope.ts --report   + the served/required table
  *
- * Feature 012 adds OPTIONAL_REFUSAL: a programme table the bank set to REFUSE on no match,
+ * Feature 012 adds OPTIONAL_REFUSAL: a programme table the bank set to REFUSE on no match
+ * (feature 013: or a programme eligibility condition, which always refuses a blank),
  * keyed on a question the applicant may leave blank — blank is a miss, the miss refuses, so
  * every such programme is lost in silence. Under a programme name the narrowing makes those
  * questions required (`mustAnswerQuestionCodes`); a served-but-optional one is a finding.
@@ -25,6 +26,7 @@
  *
  * Read-only. Exit 0 when clean, 1 when anything is reported, so it can gate a deploy.
  */
+import { asProgramConditions, factsReadByConditions } from '../src/matching/pipeline/program-conditions';
 import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
@@ -144,6 +146,7 @@ async function main(): Promise<void> {
           pricing: true,
           tenor: true,
           fees: true,
+          conditions: true,
           plansSource: true,
         },
       }),
@@ -200,6 +203,8 @@ async function main(): Promise<void> {
             catalogRule,
           );
           for (const key of factsReadByIncomeRule(effective)) loud.add(key);
+          // Feature 013 — an eligibility condition refuses on a miss: loud, like the income rule.
+          for (const key of factsReadByConditions(asProgramConditions(program.conditions))) loud.add(key);
           const src = program.plansSource;
           for (const key of factsReadByLoanLimits(
             effectivePlanLoanLimits(
@@ -248,6 +253,8 @@ async function main(): Promise<void> {
             ),
             tenor: effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
             fees: effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
+            // Feature 013 — a program eligibility condition refuses a blank answer too.
+            conditions: program.conditions,
           });
           for (const key of keys) {
             if (bankAxisByFactKey(key) !== undefined) continue; // unanswered → new-to-bank column

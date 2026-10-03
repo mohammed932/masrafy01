@@ -518,6 +518,28 @@ export class QuestionFactAlreadyLinkedException extends DomainException {
   }
 }
 
+/** Feature 013 — a Loan Engine rule cannot be written as stated (see the error code). */
+export type LoanEngineRuleProblem =
+  | 'both_edges'
+  | 'empty_band'
+  | 'unknown_option'
+  | 'engine_input'
+  | 'shape'
+  | 'read_only_surface'
+  | 'not_linked';
+
+export class LoanEngineRuleInvalidException extends DomainException {
+  constructor(meta: {
+    programCode: string;
+    effect: string;
+    problem: LoanEngineRuleProblem;
+    row?: number;
+    questionCode?: string;
+  }) {
+    super(ERROR_CODES.LOAN_ENGINE_RULE_INVALID, meta);
+  }
+}
+
 /**
  * Feature 012 — the figure is read in a shape this question's answer cannot give: a number
  * read and a non-NUMERIC question, an option read and a question with no options, a figure

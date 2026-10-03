@@ -340,6 +340,14 @@ model BankProgram {
   /// slot, so "took the product's plans and typed my own rate" is expressible.
   plansSource String? @db.VarChar(16)
 
+  /// Feature 013 — program-level ELIGIBILITY CONDITIONS on the applicant's answers. NULL or
+  /// `[]` = none. `[{ id, anyOf: [{ factKey, key }], reasonCode }]`: every condition must
+  /// pass, a condition passes when ANY of its criteria matches (`key` is a `FactGridKey`, the
+  /// predicate every fact table uses). Evaluated in `quoteProgram`; a failure is a STATED
+  /// refusal (`PRODUCT_RULE_GATE_FAILED` + `gateReasonCode`), never a hidden program
+  /// (Principle V). A condition never reads an engine input (A33).
+  conditions Json?
+
   /// Feature 011 — sparse map of config dot-path → 'team_estimated'
   /// (`{"pricing.baseRatePercent": "team_estimated"}`).
   ///

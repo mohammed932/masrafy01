@@ -24,7 +24,10 @@ import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 
 const API = process.env.PARITY_API ?? 'http://localhost:3100/api';
-const OUT = resolve(__dirname, '../../specs/012-question-calculation-link/parity-baseline.json');
+// `PARITY_OUT` keeps a later feature's baseline beside its own spec (013) instead of over 012's.
+const OUT = process.env.PARITY_OUT
+  ? resolve(process.cwd(), process.env.PARITY_OUT)
+  : resolve(__dirname, '../../specs/012-question-calculation-link/parity-baseline.json');
 const ADMIN = {
   email: process.env.SEED_ADMIN_EMAIL ?? 'ops@masrafy.local',
   password: process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe_OnFirstLogin_!2026',

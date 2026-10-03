@@ -806,7 +806,9 @@ export class ProductAsksService {
         // A rate grid or a vehicle term ceiling. Same reasoning as the cap: take the answer
         // away and the grid misses, `onNoMatch: 'useFallback'` carries on down the cascade,
         // and the applicant is priced off a rate the bank never stated for them.
-        reader.source === 'bank_program_grid',
+        reader.source === 'bank_program_grid' ||
+        // A program's eligibility condition (feature 013): un-asking it refuses everyone.
+        reader.source === 'bank_program_condition',
     );
     if (bankReaders.length > 0) {
       return { ok: false, reason: 'fact_still_read', meta: { readBy: [...bankReaders] } };

@@ -19,6 +19,9 @@ import { BlueprintService } from './blueprints/blueprint.service';
 import { ProductAsksService } from './asks/product-asks.service';
 import { QuestionFactLinkService } from './asks/question-fact-link.service';
 import { ProductAsksRepository } from './asks/product-asks.repository';
+import { LoanEngineController } from './loan-engine/loan-engine.controller';
+import { LoanEngineService } from './loan-engine/loan-engine.service';
+import { LoanEngineRepository } from './loan-engine/loan-engine.repository';
 
 @Module({
   // `QuestionnaireModule` because building a predefined product creates the questions it
@@ -40,6 +43,8 @@ import { ProductAsksRepository } from './asks/product-asks.repository';
     ProgramOptionsController,
     SeedAbkController,
     SeedCompetitorController,
+    // Feature 013 — one question's effects across programs; writes through the program save.
+    LoanEngineController,
   ],
   providers: [
     RolesGuard,
@@ -56,7 +61,9 @@ import { ProductAsksRepository } from './asks/product-asks.repository';
     ProductAsksService,
     QuestionFactLinkService,
     ProductAsksRepository,
+    LoanEngineService,
+    LoanEngineRepository,
   ],
-  exports: [BankProgramsService, BankProgramRepository],
+  exports: [BankProgramsService, BankProgramRepository, LoanEngineService],
 })
 export class BankProgramsModule {}

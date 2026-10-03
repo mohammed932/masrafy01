@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { asProgramConditions, factsReadByConditions } from '@/matching/pipeline/program-conditions';
 import { BankProgramType, Prisma } from '@prisma/client';
 import type { ProductTemplate } from '@/matching/pipeline/product-template';
 import type { MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
@@ -817,6 +818,7 @@ export class PostgresPlatformEnumerationsRepository
           pricing: true,
           tenor: true,
           fees: true,
+          conditions: true,
         },
       }),
       this.prisma.platformEnumeration.findMany({
@@ -875,6 +877,8 @@ export class PostgresPlatformEnumerationsRepository
         // The COST surface, resolved on the same terms: a programme inheriting the product's
         // plans stores no cover table either, and an unresolved one reports no reader.
         fees: effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
+        // Program policy, never inherited from a product (feature 013).
+        conditions: program.conditions,
       };
     });
     return factReaders(key, { programs: resolved, rules });
@@ -938,6 +942,7 @@ export class PostgresPlatformEnumerationsRepository
           pricing: true,
           tenor: true,
           fees: true,
+          conditions: true,
         },
         orderBy: { programCode: 'asc' },
       }),
@@ -1011,6 +1016,7 @@ export class PostgresPlatformEnumerationsRepository
           ),
           tenor: effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
           fees: effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
+          conditions: program.conditions,
         };
         return {
           programCode: program.programCode,
@@ -1098,6 +1104,7 @@ export class PostgresPlatformEnumerationsRepository
           pricing: true,
           tenor: true,
           fees: true,
+          conditions: true,
           plansSource: true,
         },
       }),
@@ -1206,6 +1213,10 @@ export class PostgresPlatformEnumerationsRepository
       if (tenor.maxVehicleAgeYearsByFact !== undefined) mustAnswer.add(CAR_MODEL_YEAR_FACT_KEY);
       const fees = effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans);
       for (const key of factsReadByFees(fees)) needed.add(key);
+      // Feature 013 — the program's own eligibility conditions read these answers.
+      for (const key of factsReadByConditions(asProgramConditions(program.conditions))) {
+        needed.add(key);
+      }
       // Feature 012 (audit gap G4) — a table the bank set to REFUSE on no match refuses an
       // applicant who left its question blank: `fact_not_answered` is a miss, and the miss is
       // the refusal. So the question is required wherever this programme is quoted, whatever
@@ -1218,6 +1229,7 @@ export class PostgresPlatformEnumerationsRepository
         pricing,
         tenor,
         fees,
+        conditions: program.conditions,
       })) {
         if (bankAxisByFactKey(key) === undefined) mustAnswer.add(key);
       }

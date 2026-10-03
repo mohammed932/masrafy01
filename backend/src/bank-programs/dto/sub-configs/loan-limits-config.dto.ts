@@ -54,6 +54,18 @@ export class MaxLoanByFactRowDto {
   @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2, nullable: true })
   toExclusive?: string | null;
 
+  /** Numeric facts, feature 013: EXCLUSIVE lower edge ("more than"). Never with `fromInclusive`. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  fromExclusive?: string;
+
+  /** Numeric facts, feature 013: INCLUSIVE upper edge ("at most"). Never with `toExclusive`. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  toInclusive?: string;
+
   /** The second axis. Absent = this row applies to every column. */
   @ApiPropertyOptional()
   @IsOptional()

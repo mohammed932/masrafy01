@@ -1,0 +1,5471 @@
+{
+  "capturedAt": "2026-10-03T21:49:11.707Z",
+  "samples": [
+    {
+      "sample": "personal-gov",
+      "preview": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-private",
+      "preview": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-freelancer",
+      "preview": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-business-owner",
+      "preview": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-card-freelancer",
+      "preview": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "6686.84",
+          "tenor": 84,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "6686.84",
+          "tenor": 84,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7027.27",
+          "tenor": 84,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7263.10",
+          "tenor": 84,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7358.44",
+          "tenor": 84,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7406.32",
+          "tenor": 84,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "7424.47",
+          "tenor": 84,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "7505.61",
+          "tenor": 96,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "7859.26",
+          "tenor": 84,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "7859.26",
+          "tenor": 84,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7917.26",
+          "tenor": 72,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8215.98",
+          "tenor": 72,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "8363.99",
+          "tenor": 72,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "8567.11",
+          "tenor": 84,
+          "rate": "28.5000",
+          "dbrCap": "50.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "6686.84",
+          "tenor": 84,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "6686.84",
+          "tenor": 84,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7027.27",
+          "tenor": 84,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7263.10",
+          "tenor": 84,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7358.44",
+          "tenor": 84,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7406.32",
+          "tenor": 84,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "7424.47",
+          "tenor": 84,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "7505.61",
+          "tenor": 96,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "7859.26",
+          "tenor": 84,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "7859.26",
+          "tenor": 84,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "7917.26",
+          "tenor": 72,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8215.98",
+          "tenor": 72,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "8363.99",
+          "tenor": 72,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "8567.11",
+          "tenor": 84,
+          "rate": "28.5000",
+          "dbrCap": "50.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-compound-freelancer",
+      "preview": {
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "450000.04",
+          "installment": "13340.33",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "591314.24",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "585304.16",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "556582.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "477338.82",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "559358.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "564972.95",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "588297.75",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "582333.27",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "564972.93",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "573554.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "606747.44",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "591314.23",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "548379.51",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1200000.11",
+          "installment": "35221.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "40.0000"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1250000.15",
+          "installment": "36689.16",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "2070000.00",
+          "installment": "60757.24",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "450000.04",
+          "installment": "13340.33",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "591314.24",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "585304.16",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "556582.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "477338.82",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "559358.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "564972.95",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "588297.75",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "582333.27",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "564972.93",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "573554.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "606747.44",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "591314.23",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "548379.51",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1200000.11",
+          "installment": "35221.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "40.0000"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1250000.15",
+          "installment": "36689.16",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "2070000.00",
+          "installment": "60757.24",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-compound-private",
+      "preview": {
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "450000.04",
+          "installment": "13340.33",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "591314.24",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "585304.16",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "556582.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "477338.82",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "559358.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "564972.95",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "588297.75",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "582333.27",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "564972.93",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "573554.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "606747.44",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "591314.23",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "548379.51",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1250000.15",
+          "installment": "36689.16",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1499999.98",
+          "installment": "44026.98",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "2070000.00",
+          "installment": "60757.24",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "450000.04",
+          "installment": "13340.33",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "591314.24",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "585304.16",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "556582.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "477338.82",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "559358.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "564972.95",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "588297.75",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "582333.27",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "564972.93",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "573554.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "606747.44",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "591314.23",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "548379.51",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1250000.15",
+          "installment": "36689.16",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1499999.98",
+          "installment": "44026.98",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "2070000.00",
+          "installment": "60757.24",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-compound-freelancer-stale-body",
+      "preview": {
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "450000.04",
+          "installment": "13340.33",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "591314.24",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "585304.16",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "556582.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "477338.82",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "559358.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "564972.95",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "588297.75",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "582333.27",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "564972.93",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "573554.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "606747.44",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "591314.23",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "548379.51",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1200000.11",
+          "installment": "35221.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "40.0000"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1250000.15",
+          "installment": "36689.16",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "2070000.00",
+          "installment": "60757.24",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "450000.04",
+          "installment": "13340.33",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "511050.20",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "591314.24",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "585304.16",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "556582.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "477338.82",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "559358.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "564972.95",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "588297.75",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "582333.27",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "553827.98",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "564972.93",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "573554.62",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "606747.44",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "629375.94",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "591314.23",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "582333.25",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "548379.51",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1200000.11",
+          "installment": "35221.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "40.0000"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "1250000.15",
+          "installment": "36689.16",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": true,
+          "amount": "2070000.00",
+          "installment": "60757.24",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "personal-retired",
+      "preview": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        }
+      },
+      "apply": {
+        "BM-PER-POLICE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-ARMED_FORCES": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8002.57",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8321.42",
+          "tenor": 60,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8517.68",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8538.61",
+          "tenor": 60,
+          "rate": "22.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8561.35",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8626.28",
+          "tenor": 60,
+          "rate": "23.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-BANKERS": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8670.29",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-DOCTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8691.54",
+          "tenor": 60,
+          "rate": "23.2500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8803.00",
+          "tenor": 60,
+          "rate": "24.0000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-PER-PROFESSIONAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-GOVT_EMPLOYEE": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "8980.52",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9026.41",
+          "tenor": 60,
+          "rate": "25.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9071.42",
+          "tenor": 60,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-SALARIED_CODING": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CAE-PER-TEACHERS_STANDARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "EGB-PER-PL_TO_CARD": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "FAB-PER-CLUB_MEMBERSHIP": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "9113.59",
+          "tenor": 60,
+          "rate": "25.0000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "9138.89",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PHARMACY": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "9161.24",
+          "tenor": 60,
+          "rate": "25.7500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "9207.13",
+          "tenor": 60,
+          "rate": "26.2500",
+          "dbrCap": "55.0000"
+        },
+        "BDC-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "246000.00",
+          "installment": "10142.25",
+          "tenor": 36,
+          "rate": "27.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-PER-PRIVATE_SECTOR": {
+          "eligible": true,
+          "amount": "310500.00",
+          "installment": "10732.94",
+          "tenor": 48,
+          "rate": "27.5000",
+          "dbrCap": "55.0000"
+        },
+        "NBE-PER-PENSIONER": {
+          "eligible": true,
+          "amount": "274725.00",
+          "installment": "10995.80",
+          "tenor": 36,
+          "rate": "25.5000",
+          "dbrCap": "55.0000"
+        },
+        "ABK-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-ARMED_FORCES": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "FAB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "EGB-PER-COMPOUND_OWNER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-CDS_HOLDER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PL_TO_CARD": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_PRACTICE": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-DOCTORS_CLINIC": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-PROFESSORS": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "CAE-PER-TEACHERS_PREDEFINED": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_ABK": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "ABK-PER-AUTO_XSELL_OTHER": {
+          "eligible": false,
+          "reason": "SURROGATE_FACT_MISSING"
+        },
+        "NXT-PER-YOUTH": {
+          "eligible": false,
+          "reason": "AGE_AT_MATURITY"
+        }
+      }
+    },
+    {
+      "sample": "car-private",
+      "preview": {
+        "CAE-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "578245.23",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "19.0000",
+          "dbrCap": "50.0000"
+        },
+        "NBE-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "609900.00",
+          "installment": "15989.41",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "609900.00",
+          "installment": "16073.90",
+          "tenor": 60,
+          "rate": "19.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "611400.00",
+          "installment": "16283.53",
+          "tenor": 60,
+          "rate": "20.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "611400.00",
+          "installment": "16368.93",
+          "tenor": 60,
+          "rate": "20.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "612900.00",
+          "installment": "16494.93",
+          "tenor": 60,
+          "rate": "20.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "497630.55",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "25.0000",
+          "dbrCap": "55.0000"
+        },
+        "BDC-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "570672.45",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "576458.68",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.7500",
+          "dbrCap": "55.0000"
+        },
+        "BANK-CAR-EA65": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "BANQUE-CAR-0549": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "CAE-CAR-EV": {
+          "eligible": false,
+          "reason": "VEHICLE_NOT_ELIGIBLE"
+        },
+        "CAE-CAR-USED_CAR": {
+          "eligible": false,
+          "reason": "VEHICLE_NOT_ELIGIBLE"
+        },
+        "CRE-CAR-3743": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "NATIONAL-CAR-C483": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        }
+      },
+      "apply": {
+        "error": {
+          "status": 400,
+          "body": {
+            "success": false,
+            "code": "ANSWER_REQUIRED",
+            "meta": {
+              "questionCode": "obligation_car_loan"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample": "car-freelancer",
+      "preview": {
+        "CAE-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "578245.23",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "19.0000",
+          "dbrCap": "50.0000"
+        },
+        "NBE-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "609900.00",
+          "installment": "15989.41",
+          "tenor": 60,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "609900.00",
+          "installment": "16073.90",
+          "tenor": 60,
+          "rate": "19.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "611400.00",
+          "installment": "16283.53",
+          "tenor": 60,
+          "rate": "20.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "611400.00",
+          "installment": "16368.93",
+          "tenor": 60,
+          "rate": "20.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "612900.00",
+          "installment": "16494.93",
+          "tenor": 60,
+          "rate": "20.7500",
+          "dbrCap": "55.0000"
+        },
+        "NXT-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "497630.55",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "25.0000",
+          "dbrCap": "55.0000"
+        },
+        "BDC-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "570672.45",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "576458.68",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.7500",
+          "dbrCap": "55.0000"
+        },
+        "BANK-CAR-EA65": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "BANQUE-CAR-0549": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "CAE-CAR-EV": {
+          "eligible": false,
+          "reason": "VEHICLE_NOT_ELIGIBLE"
+        },
+        "CAE-CAR-USED_CAR": {
+          "eligible": false,
+          "reason": "VEHICLE_NOT_ELIGIBLE"
+        },
+        "CRE-CAR-3743": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "NATIONAL-CAR-C483": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        }
+      },
+      "apply": {
+        "error": {
+          "status": 400,
+          "body": {
+            "success": false,
+            "code": "ANSWER_REQUIRED",
+            "meta": {
+              "questionCode": "obligation_car_loan"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample": "car-freelancer-long",
+      "preview": {
+        "NBE-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "609900.00",
+          "installment": "13360.54",
+          "tenor": 84,
+          "rate": "19.5000",
+          "dbrCap": "55.0000"
+        },
+        "BM-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "609900.00",
+          "installment": "13451.90",
+          "tenor": 84,
+          "rate": "19.7500",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "611400.00",
+          "installment": "13669.06",
+          "tenor": 84,
+          "rate": "20.2500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "611400.00",
+          "installment": "13761.54",
+          "tenor": 84,
+          "rate": "20.5000",
+          "dbrCap": "55.0000"
+        },
+        "CIB-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "612900.00",
+          "installment": "13888.31",
+          "tenor": 84,
+          "rate": "20.7500",
+          "dbrCap": "55.0000"
+        },
+        "CAE-CAR-NEW_CAR": {
+          "eligible": true,
+          "amount": "578245.23",
+          "installment": "15000.00",
+          "tenor": 60,
+          "rate": "19.0000",
+          "dbrCap": "50.0000"
+        },
+        "NXT-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "497630.55",
+          "installment": "16500.00",
+          "tenor": 48,
+          "rate": "25.0000",
+          "dbrCap": "55.0000"
+        },
+        "BDC-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "570672.45",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "24.2500",
+          "dbrCap": "55.0000"
+        },
+        "QNB-CAR-USED_CAR": {
+          "eligible": true,
+          "amount": "576458.68",
+          "installment": "16500.00",
+          "tenor": 60,
+          "rate": "23.7500",
+          "dbrCap": "55.0000"
+        },
+        "BANK-CAR-EA65": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "BANQUE-CAR-0549": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "CAE-CAR-EV": {
+          "eligible": false,
+          "reason": "VEHICLE_NOT_ELIGIBLE"
+        },
+        "CAE-CAR-USED_CAR": {
+          "eligible": false,
+          "reason": "VEHICLE_NOT_ELIGIBLE"
+        },
+        "CRE-CAR-3743": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        },
+        "NATIONAL-CAR-C483": {
+          "eligible": false,
+          "reason": "REQUESTED_BELOW_PROGRAM_MIN_AMOUNT"
+        }
+      },
+      "apply": {
+        "error": {
+          "status": 400,
+          "body": {
+            "success": false,
+            "code": "ANSWER_REQUIRED",
+            "meta": {
+              "questionCode": "obligation_car_loan"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample": "car-product-only",
+      "preview": {
+        "BANK-CAR-EA65": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        },
+        "BANQUE-CAR-0549": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        },
+        "CRE-CAR-3743": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        },
+        "NATIONAL-CAR-C483": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        }
+      },
+      "apply": {
+        "error": {
+          "status": 400,
+          "body": {
+            "success": false,
+            "code": "ANSWER_REQUIRED",
+            "meta": {
+              "questionCode": "obligation_car_loan"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample": "car-product-only-freelancer",
+      "preview": {
+        "BANK-CAR-EA65": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        },
+        "BANQUE-CAR-0549": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        },
+        "CRE-CAR-3743": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        },
+        "NATIONAL-CAR-C483": {
+          "eligible": false,
+          "reason": "MONEY_FIGURE_MISSING"
+        }
+      },
+      "apply": {
+        "error": {
+          "status": 400,
+          "body": {
+            "success": false,
+            "code": "ANSWER_REQUIRED",
+            "meta": {
+              "questionCode": "obligation_car_loan"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample": "mortgage-gov",
+      "preview": {
+        "ABK-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "811595.10",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-MTG-HOME_FINISHING": {
+          "eligible": true,
+          "amount": "717061.99",
+          "installment": "16500.00",
+          "tenor": 108,
+          "rate": "24.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "818392.51",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "BM-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "832264.94",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "804888.24",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-MTG-HOME_FINISHING": {
+          "eligible": true,
+          "amount": "825281.93",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.0000",
+          "dbrCap": "55.0000"
+        },
+        "HDB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "853791.23",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "846517.97",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "839343.09",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "791740.15",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "22.2500",
+          "dbrCap": "55.0000"
+        }
+      },
+      "apply": {
+        "ABK-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "811595.10",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.5000",
+          "dbrCap": "55.0000"
+        },
+        "NXT-MTG-HOME_FINISHING": {
+          "eligible": true,
+          "amount": "717061.99",
+          "installment": "16500.00",
+          "tenor": 108,
+          "rate": "24.5000",
+          "dbrCap": "55.0000"
+        },
+        "ADIB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "818392.51",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.2500",
+          "dbrCap": "55.0000"
+        },
+        "BM-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "832264.94",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.7500",
+          "dbrCap": "55.0000"
+        },
+        "CIB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "804888.24",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.7500",
+          "dbrCap": "55.0000"
+        },
+        "HDB-MTG-HOME_FINISHING": {
+          "eligible": true,
+          "amount": "825281.93",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "21.0000",
+          "dbrCap": "55.0000"
+        },
+        "HDB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "853791.23",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.0000",
+          "dbrCap": "55.0000"
+        },
+        "HSBC-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "846517.97",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.2500",
+          "dbrCap": "55.0000"
+        },
+        "NBE-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "839343.09",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "20.5000",
+          "dbrCap": "55.0000"
+        },
+        "QNB-MTG-HOME_PURCHASE": {
+          "eligible": true,
+          "amount": "791740.15",
+          "installment": "16500.00",
+          "tenor": 120,
+          "rate": "22.2500",
+          "dbrCap": "55.0000"
+        }
+      }
+    },
+    {
+      "sample": "business-owner",
+      "preview": {
+        "BM-BIZ-EQUIPMENT_FINANCE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8474.12",
+          "tenor": 60,
+          "rate": "22.2500",
+          "dbrCap": "50.0000"
+        },
+        "ADIB-BIZ-EQUIPMENT_FINANCE": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8582.39",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "50.0000"
+        },
+        "CIB-BIZ-PHARMACY": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "12085.73",
+          "tenor": 36,
+          "rate": "24.5000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "12155.80",
+          "tenor": 36,
+          "rate": "24.7500",
+          "dbrCap": "50.0000"
+        },
+        "BDC-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "12348.45",
+          "tenor": 36,
+          "rate": "25.7500",
+          "dbrCap": "50.0000"
+        },
+        "NXT-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "277125.65",
+          "installment": "15000.00",
+          "tenor": 24,
+          "rate": "26.5000",
+          "dbrCap": "50.0000"
+        }
+      },
+      "apply": {
+        "BM-BIZ-EQUIPMENT_FINANCE": {
+          "eligible": true,
+          "amount": "305250.00",
+          "installment": "8474.12",
+          "tenor": 60,
+          "rate": "22.2500",
+          "dbrCap": "50.0000"
+        },
+        "ADIB-BIZ-EQUIPMENT_FINANCE": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "8582.39",
+          "tenor": 60,
+          "rate": "22.7500",
+          "dbrCap": "50.0000"
+        },
+        "CIB-BIZ-PHARMACY": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "8958.61",
+          "tenor": 60,
+          "rate": "24.7500",
+          "dbrCap": "55.0000"
+        },
+        "ABK-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "306000.00",
+          "installment": "12085.73",
+          "tenor": 36,
+          "rate": "24.5000",
+          "dbrCap": "50.0000"
+        },
+        "CIB-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "306750.00",
+          "installment": "12155.80",
+          "tenor": 36,
+          "rate": "24.7500",
+          "dbrCap": "50.0000"
+        },
+        "BDC-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "307500.00",
+          "installment": "12348.45",
+          "tenor": 36,
+          "rate": "25.7500",
+          "dbrCap": "50.0000"
+        },
+        "NXT-BIZ-WORKING_CAPITAL": {
+          "eligible": true,
+          "amount": "277125.65",
+          "installment": "15000.00",
+          "tenor": 24,
+          "rate": "26.5000",
+          "dbrCap": "50.0000"
+        }
+      }
+    }
+  ]
+}

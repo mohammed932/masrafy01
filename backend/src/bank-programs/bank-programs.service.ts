@@ -1485,6 +1485,54 @@ export class BankProgramsService {
 
   // --- UPDATE (US3) --------------------------------------------------------
 
+  /**
+   * Feature 013 — every check `update()` runs before it writes, and nothing else: no write, no
+   * audit, no version bump. The Loan Engine's "try an answer" prices an UNSAVED draft, and a
+   * preview that priced a table the save would refuse would be advertising a figure that can
+   * never exist. One helper (`crossCheckUpdate`) feeds both, so the two cannot drift.
+   */
+  async validateDraft(programCode: string, dto: UpdateBankProgramDto): Promise<void> {
+    if (!(await this.enums.isAvailable())) {
+      throw new EnumerationRegistryUnavailableException();
+    }
+    const existing = await this.repo.findByProgramCode(programCode);
+    if (!existing) throw new BankProgramNotFoundException({ programCode });
+    await this.crossCheckUpdate(existing, dto);
+  }
+
+  /** The cross-config checks of an update, with the options `update()` has always passed. */
+  private async crossCheckUpdate(
+    existing: NonNullable<Awaited<ReturnType<BankProgramRepository['findByProgramCode']>>>,
+    dto: UpdateBankProgramDto,
+  ): Promise<{
+    catalogResolution: Awaited<ReturnType<BankProgramsService['catalogResolutionFor']>>;
+    persistedRule: ReturnType<BankProgramsService['persistableIncomeAssumption']>;
+  }> {
+    const catalogResolution = await this.catalogResolutionFor(
+      dto.programNameKey ?? existing.programNameKey,
+    );
+    const persistedRule = this.persistableIncomeAssumption(dto);
+    await this.runCrossConfigChecks(dto, {
+      skipProgramNameCategoryCheck:
+        dto.programNameKey === existing.programNameKey &&
+        dto.productCategory === existing.productCategory,
+      incomeAssumption: persistedRule,
+      catalogResolution,
+      // The proof this program already reads under this same name. Handed over only
+      // when the NAME is unchanged: moving a program to another name is exactly the
+      // case the proof check exists for, and a stored proof carried across that move
+      // would wave it through.
+      ...(dto.programNameKey === existing.programNameKey
+        ? {
+            storedIncomeProof: normalizeIncomeAssumption(
+              existing.incomeAssumption as unknown as IncomeAssumptionConfig,
+            ).strategy,
+          }
+        : {}),
+    });
+    return { catalogResolution, persistedRule };
+  }
+
   async update(
     programCode: string,
     dto: UpdateBankProgramDto,
@@ -1520,29 +1568,8 @@ export class BankProgramsService {
         exceptProgramCode: existing.programCode,
       });
     }
-    const catalogResolution = await this.catalogResolutionFor(
-      dto.programNameKey ?? existing.programNameKey,
-    );
+    const { catalogResolution, persistedRule } = await this.crossCheckUpdate(existing, dto);
     const catalogRule = catalogRuleOf(catalogResolution);
-    const persistedRule = this.persistableIncomeAssumption(dto);
-    await this.runCrossConfigChecks(dto, {
-      skipProgramNameCategoryCheck:
-        dto.programNameKey === existing.programNameKey &&
-        dto.productCategory === existing.productCategory,
-      incomeAssumption: persistedRule,
-      catalogResolution,
-      // The proof this program already reads under this same name. Handed over only
-      // when the NAME is unchanged: moving a program to another name is exactly the
-      // case the proof check exists for, and a stored proof carried across that move
-      // would wave it through.
-      ...(dto.programNameKey === existing.programNameKey
-        ? {
-            storedIncomeProof: normalizeIncomeAssumption(
-              existing.incomeAssumption as unknown as IncomeAssumptionConfig,
-            ).strategy,
-          }
-        : {}),
-    });
 
     const warnings = await this.incomeRuleWarnings({
       dto,

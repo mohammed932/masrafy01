@@ -26,6 +26,7 @@
  * parity holds by construction rather than by a test that has to be remembered.
  */
 
+import { evaluateProgramConditions, conditionGateId } from './program-conditions';
 import { Decimal } from '@prisma/client/runtime/library';
 import type {
   ApplicantProfile,
@@ -295,6 +296,24 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     facts: programFacts,
     ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
   };
+
+  // ── 0½. The bank's own eligibility conditions (feature 013) ─────────────
+  //
+  // Before any figure: a program whose bank does not lend to this applicant has no price to
+  // work out. A STATED refusal on the same reason a product gate gives — the program stays
+  // listed and ranked (Principle V), with a code the app already translates. Read off the
+  // same facts every table below reads, so a band means here what it means in a rate grid.
+  const conditionOutcome = evaluateProgramConditions(program.conditions, programFacts);
+  if (!conditionOutcome.ok) {
+    return {
+      ok: false,
+      unavailable: {
+        reason: 'PRODUCT_RULE_GATE_FAILED',
+        gateId: conditionGateId(conditionOutcome.conditionId),
+        gateReasonCode: conditionOutcome.reasonCode,
+      },
+    };
+  }
 
   const firstPass = runCascade(program, profile, gridExtras);
   const problems: string[] = [];

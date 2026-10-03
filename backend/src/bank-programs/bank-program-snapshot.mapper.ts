@@ -6,6 +6,7 @@
  * the eligibility reconciliation below silently drifts out of sync.
  */
 
+import { asProgramConditions } from '../matching/pipeline/program-conditions';
 import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
@@ -185,6 +186,12 @@ export function toBankProgramSnapshot(
     performanceCriteria: p.performanceCriteria as unknown as
       | BankProgramSnapshot['performanceCriteria']
       | undefined,
+    // The bank's own conditions (feature 013). Program policy, never inherited: absent on
+    // every program written before 013, which is what keeps every such quote unchanged.
+    ...(() => {
+      const conditions = asProgramConditions(p.conditions);
+      return conditions.length === 0 ? {} : { conditions };
+    })(),
   };
 }
 

@@ -19,6 +19,7 @@ import {
   withAxisCount,
 } from './fact-grid.rules';
 import type {
+  FactGridBand,
   FactGridConfig,
   FactGridError,
   FactGridKey,
@@ -268,7 +269,15 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
                           [attr.aria-label]="edgeAria(cellIndex, axisIndex, 'from')"
                           inputmode="numeric"
                         />
+                        @if (!bandEdgeIncluded(cell.keys[axisIndex], 'from')) {
+                          <span class="fgd__mark" i18n="@@fgd.edge_from_excluded">more than</span>
+                        }
                         <span class="fgd__dash" aria-hidden="true">–</span>
+                        @if (bandEdgeIncluded(cell.keys[axisIndex], 'to')) {
+                          <span class="fgd__mark" i18n="@@fgd.edge_to_included"
+                            >up to and including</span
+                          >
+                        }
                         <input
                           nz-input
                           class="fgd__edge"
@@ -448,6 +457,11 @@ export function factGridAxisLabel(key: string, facts: readonly RegistryFact[]): 
       }
       .fgd__dash {
         color: var(--color-text-secondary);
+      }
+      .fgd__mark {
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        white-space: nowrap;
       }
       .fgd__hint,
       .fgd__warn,
@@ -731,8 +745,18 @@ export class FactGridEditorComponent {
 
   bandEdgeOf(key: FactGridKey | undefined, edge: 'from' | 'to'): string {
     if (key === null || key === undefined || 'key' in key) return '';
-    const raw = edge === 'from' ? key.fromInclusive : key.toExclusive;
+    // A Loan Engine edge (feature 013) is shown in the same box; `bandEdgeIncluded` says which.
+    const raw =
+      edge === 'from'
+        ? (key.fromInclusive ?? key.fromExclusive)
+        : (key.toExclusive ?? key.toInclusive);
     return raw ?? '';
+  }
+
+  /** Whether a band edge holds its own figure — `≥`/`≤` — rather than `>`/`<`. */
+  bandEdgeIncluded(key: FactGridKey | undefined, edge: 'from' | 'to'): boolean {
+    if (key === null || key === undefined || 'key' in key) return edge === 'from';
+    return edge === 'from' ? key.fromExclusive === undefined : key.toInclusive !== undefined;
   }
 
   addAxis(): void {
@@ -786,9 +810,25 @@ export class FactGridEditorComponent {
 
   setBandEdge(cellIndex: number, axisIndex: number, edge: 'from' | 'to', raw: string): void {
     const current = this.config().cells[cellIndex]?.keys[axisIndex];
-    const band = current !== null && current !== undefined && !('key' in current) ? current : {};
-    const next = { ...band, [edge === 'from' ? 'fromInclusive' : 'toExclusive']: raw || undefined };
-    const stated = next.fromInclusive !== undefined || next.toExclusive !== undefined;
+    const band: FactGridBand =
+      current !== null && current !== undefined && !('key' in current) ? current : {};
+    // Write the edge in the spelling it already has, so a Loan Engine "at most 100" edited
+    // here stays "at most" and never silently becomes "below" — which would move money.
+    const field: keyof FactGridBand =
+      edge === 'from'
+        ? band.fromExclusive !== undefined
+          ? 'fromExclusive'
+          : 'fromInclusive'
+        : band.toInclusive !== undefined
+          ? 'toInclusive'
+          : 'toExclusive';
+    const next: FactGridBand = { ...band, [field]: raw || undefined };
+    const stated = [
+      next.fromInclusive,
+      next.fromExclusive,
+      next.toExclusive,
+      next.toInclusive,
+    ].some((e) => e !== undefined && e !== null);
     this.patchKey(cellIndex, axisIndex, stated ? next : null);
   }
 

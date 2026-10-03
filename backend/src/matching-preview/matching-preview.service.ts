@@ -191,6 +191,11 @@ export class MatchingPreviewService {
     age: number;
     programNameKey?: string;
     programType?: BankProgramType;
+    /**
+     * Admin simulator only (feature 013): the Loan Engine's unsaved drafts, applied to the
+     * in-memory rows of this one preview. Never set on the customer path.
+     */
+    programRowTransform?: <T extends { programCode: string }>(row: T) => T;
   }) {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
@@ -207,6 +212,7 @@ export class MatchingPreviewService {
       args.programNameKey ?? null,
       surrogateFacts,
       args.programType ?? null,
+      args.programRowTransform,
     );
   }
 
@@ -428,10 +434,11 @@ export class MatchingPreviewService {
     programNameKey: string | null,
     surrogateFacts: SurrogateFacts,
     programType: BankProgramType | null,
+    programRowTransform?: <T extends { programCode: string }>(row: T) => T,
   ) {
-    const rows = (await this.programs.findAllActive()).filter((p) =>
-      matchesRequestedScope(p, category, programNameKey, programType),
-    );
+    const rows = (await this.programs.findAllActive())
+      .map((p) => (programRowTransform === undefined ? p : programRowTransform(p)))
+      .filter((p) => matchesRequestedScope(p, category, programNameKey, programType));
     const profile = money ? this.buildProfile(money, age, surrogateFacts) : null;
     // Read once, outside the loop. Preview and apply must derive the same figure from
     // the same rule — a preview that priced off the program's stripped table while

@@ -4,6 +4,7 @@
  * Decimal is imported from the runtime library type only (not Prisma namespace).
  */
 
+import type { ProgramCondition } from './pipeline/program-conditions';
 import type { Decimal } from '@prisma/client/runtime/library';
 import type {
   RateBandValue,
@@ -855,6 +856,12 @@ export interface BankProgramSnapshot {
    * `pipeline/iscore.ts`.
    */
   iScoreTiers?: { readonly tiers: IScoreTiers; readonly source: IScoreTiersSource };
+
+  /**
+   * Feature 013 — the bank's eligibility conditions on the applicant's answers. Absent or
+   * empty = none. A failure is a stated refusal in `quoteProgram`, never a filter.
+   */
+  conditions?: readonly ProgramCondition[];
 
   /**
    * Set when the platform is withholding the calculation rather than the bank having
