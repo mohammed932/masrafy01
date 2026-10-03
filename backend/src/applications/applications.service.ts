@@ -8,7 +8,7 @@
  *   5. Project to the spec response envelope (PII masked for admin reads).
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 // Constitution Principle X (Repository Pattern Mandatory): this service no
 // longer imports the `Prisma` namespace at runtime. Isolation-level options
 // are sourced from a local string-literal mirror; every read/write inside a
@@ -61,6 +61,12 @@ import type { LoanCategory, DecisionOutcome } from '@prisma/client';
 import type { ApplicantProfile, BankProgramSnapshot, Offer } from '../matching/types';
 import { MATCHING_ENGINE_VERSION } from '../matching/types';
 import { carDetailsFrom } from '../matching/pipeline/car-details';
+import {
+  applicantInputsFrom,
+  inputsOverridingBody,
+  type ApplicantInputFallback,
+  type ApplicantInputs,
+} from '../matching/pipeline/applicant-inputs';
 import type { ApplyRequestDto } from './dto/apply.dto';
 import type { ApplyResponse, UnavailableProgramDto } from './dto/apply-response.dto';
 import type {
@@ -138,6 +144,8 @@ export interface ApplyContext {
 
 @Injectable()
 export class ApplicationsService {
+  private readonly logger = new Logger(ApplicationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly repo: ApplicationRepository,
@@ -407,7 +415,10 @@ export class ApplicationsService {
     // snapshot, and a rule reading two different sources on two surfaces is the drift
     // A33 forbids (FR-019).
     const surrogateFacts = await this.resolveSurrogateFacts(resolvedQuestionnaire);
-    const profile = this.buildProfile(dto, age, obligations, surrogateFacts);
+    // Feature 012 — amount, term, income and the employment block through the SAME
+    // `applicantInputsFrom` preview reads (A33). The body is now only the fallback.
+    const inputs = this.resolveApplicantInputs(dto, resolvedQuestionnaire, surrogateFacts);
+    const profile = this.buildProfile(dto, age, obligations, surrogateFacts, inputs);
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ordered by the applicant's own stated priority.
     // DBR is NOT part of that: affordability shapes the amount offered, so it
@@ -490,12 +501,13 @@ export class ApplicationsService {
         status:
           result.status === 'matched' ? ApplicationStatus.matched : ApplicationStatus.no_match,
         priority: dto.priority,
-        requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
+        // What the engine priced on — the answer when there is one, not the body's copy.
+        requestedAmountEGP: profile.requestedAmountEGP,
         // The column is NOT NULL and the customer may not have been asked. Falling back to
         // the term the engine actually wrote keeps the row readable — and the offers carry
         // their own `effectiveTenorMonths`, which is the figure anyone auditing reads.
         preferredTenorMonths:
-          dto.preferredTenorMonths ?? result.offers[0]?.effectiveTenorMonths ?? 0,
+          profile.preferredTenorMonths ?? result.offers[0]?.effectiveTenorMonths ?? 0,
         loanPurpose: dto.loanPurpose,
         // Snapshot of the age the engine actually priced on (derived, not stored
         // on the customer — Principle XXXVII / A31).
@@ -532,7 +544,7 @@ export class ApplicationsService {
               applicationId: applicationIdInTx,
               customerId: ctx.customerId,
               loanPurpose: dto.loanPurpose,
-              requestedAmountEGP: dto.requestedAmountEGP,
+              requestedAmountEGP: profile.requestedAmountEGP.toFixed(2),
             },
           },
           tx,
@@ -888,24 +900,70 @@ export class ApplicationsService {
     );
   }
 
+  /**
+   * Feature 012 — the applicant's money and employment inputs, ANSWER first and the request
+   * body second, through the function preview calls. The body stays the fallback so every
+   * installed app build keeps applying, and a submit with no answers for a field (a legacy
+   * or server-to-server caller) prices off what it sent.
+   *
+   * An answer that disagrees with the body is logged — field names only, never amounts
+   * (Principle VI) — because it means an app build whose mapper disagrees with this module.
+   */
+  private resolveApplicantInputs(
+    dto: ApplyRequestDto,
+    questionnaire: { resolved: ResolvedAnswer[]; askedQuestionCodes: string[] } | undefined,
+    surrogateFacts: SurrogateFacts,
+  ): ApplicantInputs {
+    const numericByCode = new Map<string, string>();
+    const optionByCode = new Map<string, string>();
+    for (const a of questionnaire?.resolved ?? []) {
+      if (a.numericValue !== null) numericByCode.set(a.questionCode, a.numericValue);
+      // The SAME single-pick predicate preview and the fact mapper use.
+      const picked = surrogateOptionPick(a);
+      if (picked !== undefined) optionByCode.set(a.questionCode, picked);
+    }
+    const body: ApplicantInputFallback = {
+      requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
+      preferredTenorMonths: dto.preferredTenorMonths,
+      monthlyNetSalaryEGP: new Decimal(dto.employment.monthlyNetSalaryEGP),
+      employmentType: dto.employment.employmentType,
+      monthsInJob: dto.employment.monthsInJob,
+      salaryTransferType: dto.employment.salaryTransferType,
+    };
+    const resolution = applicantInputsFrom({
+      answers: { numericByCode, optionByCode },
+      category: dto.category ?? null,
+      answeredCar: carDetailsFrom(surrogateFacts.byKey),
+      fallback: body,
+    });
+    const overridden = inputsOverridingBody(resolution, body);
+    if (overridden.length > 0) {
+      this.logger.log({ msg: 'apply_answer_overrode_body', fields: overridden });
+    }
+    return resolution.inputs;
+  }
+
   private buildProfile(
     dto: ApplyRequestDto,
     age: number,
     obligations: ObligationsResolution,
     surrogateFacts: SurrogateFacts,
+    inputs: ApplicantInputs,
   ): ApplicantProfile {
     const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
     return {
       age,
       loanPurpose: dto.loanPurpose,
-      requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
-      preferredTenorMonths: dto.preferredTenorMonths,
+      // The body always states an amount, so the resolution always has one.
+      requestedAmountEGP: inputs.requestedAmountEGP ?? new Decimal(dto.requestedAmountEGP),
+      preferredTenorMonths: inputs.preferredTenorMonths,
       priority: dto.priority,
       nationalId: dto.nationalId,
       employment: {
-        employmentType: dto.employment.employmentType,
-        monthlyNetSalaryEGP: new Decimal(dto.employment.monthlyNetSalaryEGP),
-        monthsInJob: dto.employment.monthsInJob,
+        employmentType: inputs.employmentType,
+        monthlyNetSalaryEGP:
+          inputs.monthlyNetSalaryEGP ?? new Decimal(dto.employment.monthlyNetSalaryEGP),
+        monthsInJob: inputs.monthsInJob,
         // Feature 011 — the ANSWER wins over the request body. The body's copies
         // predate this feature and nothing on the client populated them (the mobile
         // mapper sent an empty asset set entirely); they stay as the fallback for a
@@ -915,7 +973,7 @@ export class ApplicationsService {
           surrogateFacts.employment.yearsInPractice ?? dto.employment.yearsInPractice,
         professorRank: surrogateFacts.employment.professorRank ?? dto.employment.professorRank,
         militaryGrade: surrogateFacts.employment.militaryGrade ?? dto.employment.militaryGrade,
-        salaryTransferType: dto.employment.salaryTransferType,
+        salaryTransferType: inputs.salaryTransferType,
         companyName: dto.employment.companyName,
         companyType: dto.employment.companyType,
         bankCategory: dto.employment.bankCategory,

@@ -56,7 +56,10 @@ import {
   type PublishWarning,
   type QuestionRow,
   type QuestionType,
+  type QuestionUsageClass,
+  type QuestionUsageDetail,
 } from './questionnaire.api.service';
+import { QuestionCalculationComponent } from './question-calculation.component';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { MoneyInputDirective, formatGroupedNumber } from '@core/directives/money-input.directive';
 
@@ -125,6 +128,7 @@ type BranchOperator = 'equals' | 'not_equals';
     NzToolTipModule,
     A11yModule,
     MoneyInputDirective,
+    QuestionCalculationComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -411,6 +415,15 @@ type BranchOperator = 'equals' | 'not_equals';
                       [nzTooltipTitle]="typeHint(q.type)"
                       >{{ typeLabel(q.type) }}</span
                     >
+                    @if (usageOf(q.code); as u) {
+                      <span
+                        class="usage-chip"
+                        [attr.data-class]="u"
+                        nz-tooltip
+                        [nzTooltipTitle]="usageTip"
+                        >{{ usageLabel(u) }}</span
+                      >
+                    }
                     <!-- Required is the DEFAULT, so 41 identical "required" chips
                          said nothing. Only the exception is worth a chip. -->
                     @if (!q.isRequired) {
@@ -953,6 +966,15 @@ type BranchOperator = 'equals' | 'not_equals';
               }
             }
           </div>
+          <!-- Feature 012: the question's link to a calculation figure, and what reads it.
+               Live on the open question; spans both columns like the branch box. -->
+          @if (editingQuestion(); as eq) {
+            <app-question-calculation
+              class="calc-span"
+              [questionCode]="eq.code"
+              (changed)="onUsageChanged($event)"
+            />
+          }
           <!-- Also inside the scrollport: as a sibling of it this note was a
                full-bleed tinted band pinned above the action bar. -->
           @if (!editing()) {
@@ -1769,6 +1791,32 @@ type BranchOperator = 'equals' | 'not_equals';
       }
       .del-q {
         margin-inline-end: auto;
+      }
+      .calc-span {
+        grid-column: 1 / -1;
+      }
+      .usage-chip {
+        display: inline-flex;
+        align-items: center;
+        padding-inline: var(--space-1-5);
+        border-radius: var(--radius-pill);
+        font-size: var(--text-xs);
+        white-space: nowrap;
+        background: var(--color-surface-muted);
+        color: var(--color-text-tertiary);
+      }
+      .usage-chip[data-class='engine'],
+      .usage-chip[data-class='calculation'] {
+        background: var(--color-success-bg);
+        color: var(--color-success);
+      }
+      .usage-chip[data-class='linked_unread'] {
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+      }
+      .usage-chip[data-class='gate_only'] {
+        background: var(--color-info-bg);
+        color: var(--color-info);
       }
       .ins-note {
         grid-column: 1 / -1;
@@ -3006,8 +3054,49 @@ export class QuestionnaireEditorPage implements OnInit {
     });
   }
 
+  // ---- Feature 012: how each question reaches the money --------------------
+  /** Question code → its usage class, from ONE bulk read. Empty until it lands. */
+  private readonly usage = signal<ReadonlyMap<string, QuestionUsageClass>>(new Map());
+  protected readonly usageTip = $localize`:@@qusage.chip_tip:How this answer reaches the money — open the question for details`;
+
+  protected usageOf(code: string): QuestionUsageClass | null {
+    return this.usage().get(code) ?? null;
+  }
+
+  protected usageLabel(c: QuestionUsageClass): string {
+    switch (c) {
+      case 'engine':
+        return $localize`:@@qusage.class_engine:Engine input`;
+      case 'calculation':
+        return $localize`:@@qusage.class_calculation:Used in calculation`;
+      case 'linked_unread':
+        return $localize`:@@qusage.class_linked_unread:Linked, nothing reads it`;
+      case 'gate_only':
+        return $localize`:@@qusage.class_gate_only:Only shows or hides questions`;
+      case 'none':
+        return $localize`:@@qusage.class_none:Affects no figure`;
+    }
+  }
+
+  protected onUsageChanged(d: QuestionUsageDetail): void {
+    const next = new Map(this.usage());
+    next.set(d.questionCode, d.class);
+    this.usage.set(next);
+  }
+
+  /** Never blocks the list: a failure leaves the rows without chips. */
+  private async loadUsage(): Promise<void> {
+    try {
+      const rows = await this.api.questionUsage();
+      this.usage.set(new Map(rows.map((r) => [r.questionCode, r.class])));
+    } catch {
+      this.usage.set(new Map());
+    }
+  }
+
   // ---- Loading -------------------------------------------------------------
   private async loadAll(): Promise<void> {
+    void this.loadUsage();
     this.loading.set(true);
     try {
       const [tree, history, warnings] = await Promise.all([
@@ -3025,6 +3114,7 @@ export class QuestionnaireEditorPage implements OnInit {
 
   /** After a mutation, re-fetch. Every mutation auto-publishes server-side. */
   private async reload(): Promise<void> {
+    void this.loadUsage();
     const [tree, warnings] = await Promise.all([this.api.tree(), this.api.bindingWarnings()]);
     this.rows.set(flatten(tree ?? []));
     this.published.set(true);

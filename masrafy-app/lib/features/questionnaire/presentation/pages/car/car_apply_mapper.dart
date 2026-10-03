@@ -23,7 +23,10 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// documented duplicate rather than the only path — they exist so a car apply reads
 /// identically to a personal one (A25).
 ///
-/// Codes mirror `backend/prisma/seed-questionnaire.ts`.
+/// Codes mirror `backend/prisma/seed-questionnaire.ts`. Since feature 012 the server
+/// derives amount, term, income and the employment block from the ANSWERS through
+/// `backend/src/matching/pipeline/applicant-inputs.ts`, and this body is only its
+/// fallback — keep the two tables in step.
 ApplyRequest mapCarAnswersToApplyRequest(
   Map<String, QuestionAnswer> answers, {
   String? programNameKey,

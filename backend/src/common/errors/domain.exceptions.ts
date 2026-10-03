@@ -511,6 +511,25 @@ export class SurrogateFactKeyTakenException extends DomainException {
   }
 }
 
+/** Feature 012 — the question already answers a calculation figure. */
+export class QuestionFactAlreadyLinkedException extends DomainException {
+  constructor(meta: { questionCode: string; factKey: string }) {
+    super(ERROR_CODES.QUESTION_FACT_ALREADY_LINKED, meta);
+  }
+}
+
+/** Feature 012 — the figure is read in a shape this question's answer cannot give. */
+export class SurrogateFactShapeMismatchException extends DomainException {
+  constructor(meta: {
+    factKey: string;
+    questionCode: string;
+    expected: 'number' | 'choice';
+    questionType: string;
+  }) {
+    super(ERROR_CODES.SURROGATE_FACT_SHAPE_MISMATCH, meta);
+  }
+}
+
 /**
  * The key a tick would mint belongs to a fact the platform computes for itself — a derived
  * per-bank axis, or `i_score`. A row under one would read as configured and carry nothing.

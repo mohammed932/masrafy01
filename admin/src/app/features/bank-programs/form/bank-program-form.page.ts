@@ -134,6 +134,7 @@ import {
   type WaysAre,
 } from '@shared/income-rule/product-rule-ways';
 import {
+  STEP_ORDER,
   indexOfOrPreceding,
   indexOfStep,
   isLaterStep,
@@ -1321,7 +1322,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
               </section>
 
               <!-- Tenor -->
-              <section class="card" formGroupName="tenor">
+              <section id="card-tenor" class="card" formGroupName="tenor">
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.tenor.title">
@@ -7914,6 +7915,9 @@ export class BankProgramFormPage implements OnInit {
     // full page reload. The calculations ride along for the picker's group headings.
     void this.enums.refresh('program_name');
     void this.enums.refresh('surrogate_product');
+    // Re-read as well as preloaded: a figure just created from a question (feature 012's
+    // "Use in calculation") must be pickable as a table axis without a full reload.
+    void this.enums.refresh('surrogate_fact');
 
     void this.loadActiveBanks();
 
@@ -8276,9 +8280,31 @@ export class BankProgramFormPage implements OnInit {
       this.currentVersion = res.data.version;
       this.loadedProgramCode.set(res.data.programCode);
       this.autodetectToggles(res.data);
+      this.applyDeepLink();
     } catch (err) {
       this.handleError(err);
     }
+  }
+
+  /**
+   * Feature 012 — a question's "What should it affect?" tile lands here with
+   * `?step=<stepId>&card=<card id>&axis=<figure key>`. Read ONCE, after the program is
+   * loaded (every step is reachable on edit), straight to the step rather than through
+   * `goTo`, whose forward gate would refuse a jump over a step the operator has not opened.
+   * A step this program does not walk falls back to the nearest earlier one. `axis` is not
+   * pre-filled here: the bank tables are keyed in place, and the figure is already pickable.
+   */
+  private applyDeepLink(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const step = params.get('step');
+    const card = params.get('card');
+    const stepId = STEP_ORDER.find((id) => id === step);
+    if (stepId === undefined) return;
+    const index = indexOfOrPreceding(this.steps(), stepId);
+    const target = this.steps()[index]?.id;
+    if (target === undefined) return;
+    this.currentStepId.set(target);
+    this.revealStepStart(card !== null && /^card-[a-z-]+$/.test(card) ? card : undefined);
   }
 
   /**

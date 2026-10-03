@@ -104,13 +104,16 @@ const FACT_TYPE = 'surrogate_fact';
  *   `product_ask` — an operator ticking a pool question on one product's step ①. It may
  *                   create a `surrogate_fact` and NOTHING ELSE (`assertCreatableBy`): a
  *                   product is still seeded, never made by hand.
+ *   `question_link` — feature 012: an operator linking a question to the calculation from
+ *                   the question's own screen. Same reach as `product_ask` — one fact, no
+ *                   product — and its own name so the audit trail says where it came from.
  *
  * A named option rather than a boolean because the next reason to bypass a door will not
  * be this one — which is what this second value is. Reusing `'blueprint'` for an operator's
  * pick would file their row, and its audit event, as the library's own work.
  */
 export interface CreateEnumerationOptions {
-  source: 'blueprint' | 'product_ask';
+  source: 'blueprint' | 'product_ask' | 'question_link';
 }
 
 export interface AdminActor {
@@ -182,6 +185,7 @@ const CREATABLE_BY_SOURCE: Readonly<
 > = {
   blueprint: ['surrogate_product', 'surrogate_fact'],
   product_ask: ['surrogate_fact'],
+  question_link: ['surrogate_fact'],
 };
 
 function isCreatableBySource(

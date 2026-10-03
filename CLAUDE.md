@@ -219,6 +219,9 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-10-03 v30.11.0 — a question a refuse-on-no-match table reads is required wherever that programme is quoted (car origin/fuel/dealer); `check:question-scope` guards it; the legacy military grades and the 12 unread questions wait on `specs/012-question-calculation-link/operator-worksheet.md`.
+- 2026-10-03 v30.10.0 — a question can be linked to the calculation from its own screen (`/api/admin/bank-programs/question-facts`), and every question shows what reads it; the effect tiles only navigate.
+- 2026-10-03 v30.9.0 — preview and apply derive amount, term, income and employment through one `applicant-inputs.ts`, answers first; parity proven over HTTP.
 - 2026-09-26 v30.8.0 — Add program makes income-proof names only: the Surrogate card and its calculation step are gone, the Edit sheet loses the income-type radios and the product picker, and Add shows on the Income proof tab only.
 - 2026-09-26 v30.7.0 — a program name can also ADD a question its loan type does not ask everyone: step ③'s "Other questions" lists all of them (search filters, never gates); a tick asks it of that name only, through an opt-in row; engine inputs stay loan-type-wide.
 - 2026-09-26 v30.6.0 — a program name can untick any question its loan type asks, per loan type; what the quote reads is locked (`questionLockReason`), and the questions board shows 10 per page.

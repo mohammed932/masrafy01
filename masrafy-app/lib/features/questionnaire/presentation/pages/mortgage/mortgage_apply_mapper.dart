@@ -13,7 +13,10 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// so the engine applies per-bank weighted scoring (Principle V). `age` stays
 /// null — the results cubit fills it from the profile (`/auth/me`).
 ///
-/// Codes mirror `backend/prisma/seed-questionnaire.ts`.
+/// Codes mirror `backend/prisma/seed-questionnaire.ts`. Since feature 012 the server
+/// derives amount, term, income and the employment block from the ANSWERS through
+/// `backend/src/matching/pipeline/applicant-inputs.ts`, and this body is only its
+/// fallback — keep the two tables in step.
 ApplyRequest mapMortgageAnswersToApplyRequest(
   Map<String, QuestionAnswer> answers, {
   String? programNameKey,

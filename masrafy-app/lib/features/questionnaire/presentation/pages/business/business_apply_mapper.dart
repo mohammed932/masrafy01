@@ -8,18 +8,25 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// questions via [MoneyFigures] (feature 010 — no bucket midpoints); the bound
 /// `monthly_income` figure stands in for `monthlyNetSalaryEGP`, as average
 /// monthly revenue did before. Business has no dedicated details payload:
-/// business age maps to `monthsInJob` and employment is fixed to
-/// `business_owner`. The full answer set rides along as `questionnaireAnswers`
+/// business age maps to `monthsInJob`, and employment is the `employment_status`
+/// answer when an operator assigns that question to business, else `business_owner`
+/// — the same precedence the server applies (`applicant-inputs.ts`, feature 012). The full answer set rides along as `questionnaireAnswers`
 /// so the engine applies per-bank weighted scoring (Principle V). `age` stays
 /// null — the results cubit fills it from the profile (`/auth/me`).
 ///
-/// Codes mirror `backend/prisma/seed-questionnaire.ts`.
+/// Codes mirror `backend/prisma/seed-questionnaire.ts`. Since feature 012 the server
+/// derives amount, term, income and the employment block from the ANSWERS through
+/// `backend/src/matching/pipeline/applicant-inputs.ts`, and this body is only its
+/// fallback — keep the two tables in step.
 ApplyRequest mapBusinessAnswersToApplyRequest(
   Map<String, QuestionAnswer> answers, {
   String? programNameKey,
   String? programType,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
+  final employmentCode = pickedOption(answers, 'employment_status');
+  final employmentType =
+      _employmentType[employmentCode] ?? employmentCode ?? 'business_owner';
 
   return ApplyRequest(
     loanPurpose: 'business',
@@ -27,7 +34,7 @@ ApplyRequest mapBusinessAnswersToApplyRequest(
     preferredTenorMonths: money.tenorMonths,
     priority: mapPriority(pickedOption(answers, 'priority_factor')),
     employment: EmploymentPayload(
-      employmentType: 'business_owner',
+      employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
       monthsInJob: _monthsInBusiness(pickedOption(answers, 'business_age')),
       salaryTransferType: 'none',
@@ -46,6 +53,15 @@ ApplyRequest mapBusinessAnswersToApplyRequest(
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }
+
+/// `employment_status` seed code → the engine's `employmentType` token.
+const Map<String, String> _employmentType = {
+  'government_employee': 'government_employee',
+  'private_sector_employee': 'private_employee',
+  'business_owner_company_owner': 'business_owner',
+  'freelancer': 'freelancer',
+  'retired': 'retired',
+};
 
 /// `business_age` bucket → representative `monthsInJob` (business operating age).
 int _monthsInBusiness(String? bucket) => switch (bucket) {

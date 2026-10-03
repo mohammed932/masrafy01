@@ -471,6 +471,20 @@ export const ERROR_CODES = {
    */
   SURROGATE_FACT_KEY_TAKEN: 'SURROGATE_FACT_KEY_TAKEN',
   /**
+   * Feature 012 — linking a question to a calculation figure when the question already
+   * answers one. A question answers at most one figure: two keys over one answer would file
+   * two banks' tables under two names for one number. Unlink first, or link the figure the
+   * question already answers. `meta.factKey` names it.
+   */
+  QUESTION_FACT_ALREADY_LINKED: 'QUESTION_FACT_ALREADY_LINKED',
+  /**
+   * Feature 012 — the figure a question would answer is already READ by a bank table in a
+   * shape this question cannot give: a band table over a number, but the question is a pick,
+   * or a key table over options, but the question is a number or free text. Linking it would
+   * make every one of those tables miss. `meta.expected` is `number` or `choice`.
+   */
+  SURROGATE_FACT_SHAPE_MISMATCH: 'SURROGATE_FACT_SHAPE_MISMATCH',
+  /**
    * The fact key a tick would mint is one the platform computes for itself.
    *
    * Two families: the per-bank DERIVED facts (a relationship axis is a set read once per
@@ -1170,6 +1184,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // shape that has no single right answer, and only an operator can pick one.
   SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,
   SURROGATE_FACT_KEY_TAKEN: 409,
+  QUESTION_FACT_ALREADY_LINKED: 409,
+  SURROGATE_FACT_SHAPE_MISMATCH: 422,
   SURROGATE_FACT_KEY_RESERVED: 422,
   SURROGATE_FACT_QUESTION_INACTIVE: 422,
   SURROGATE_FACT_QUESTION_NOT_ELIGIBLE: 422,

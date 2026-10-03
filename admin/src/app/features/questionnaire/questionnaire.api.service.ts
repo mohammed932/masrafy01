@@ -323,6 +323,90 @@ export interface UpdateOptionBody {
   isActive?: boolean;
 }
 
+// ---- Feature 012: a question's link to a calculation figure, and what reads it ----------
+/**
+ * How a question's answer reaches the money — one word per question. Mirrors
+ * `backend/src/bank-programs/dto/question-facts.dto.ts`.
+ */
+export type QuestionUsageClass = 'engine' | 'calculation' | 'linked_unread' | 'gate_only' | 'none';
+
+/** Where a reader reads the figure. Mirrors the backend's `FactSurface`. */
+export type QuestionFactSurface =
+  | 'income_rule'
+  | 'additional_income'
+  | 'cap'
+  | 'cap_adjustment'
+  | 'financed_share'
+  | 'min_amount'
+  | 'rate_grid'
+  | 'max_term'
+  | 'min_term'
+  | 'vehicle_age'
+  | 'car_cover';
+
+export type QuestionUsageReaderKind =
+  | 'program'
+  | 'product_rule'
+  | 'program_name_rule'
+  | 'platform_iscore';
+
+export interface QuestionUsageReader {
+  kind: QuestionUsageReaderKind;
+  /** Programme code, product key or name key; `i_score` for the shared bureau table. */
+  ref: string;
+  bankName?: string;
+  programName?: string;
+  category?: string;
+  productKey?: string | null;
+  /** The grids are the product's plan tables, inherited, not the programme's own. */
+  inherited?: boolean;
+  surfaces: QuestionFactSurface[];
+  refusesWhenUnanswered: boolean;
+}
+
+export interface QuestionUsage {
+  questionCode: string;
+  labelAr: string;
+  labelEn: string;
+  type: string;
+  isRequired: boolean;
+  categories: LoanCategory[];
+  class: QuestionUsageClass;
+  engineInput: boolean;
+  factKey: string | null;
+  /** Owned by the platform — never unlinked from the question screens. */
+  factLocked: boolean;
+  readers: QuestionUsageReader[];
+  askedByProducts: string[];
+  gates: string[];
+  /** Programmes a BLANK answer refuses, while the question is optional for the loan type. */
+  blankRefuses: string[];
+}
+
+export interface QuestionFactCandidate {
+  factKey: string;
+  labelAr: string;
+  labelEn: string;
+  shape: 'choice' | 'number' | 'unknown' | 'unread';
+  readerCount: number;
+}
+
+export interface QuestionUsageDetail extends QuestionUsage {
+  candidates: QuestionFactCandidate[];
+  /** The key "create from this question" would mint. */
+  createKey: string;
+}
+
+export interface QuestionFactLinkResult {
+  changed: {
+    factKey: string | null;
+    factCreated: boolean;
+    factBound: boolean;
+    factDeleted: boolean;
+  };
+  state: QuestionUsageDetail;
+}
+
 /** Admin API for Feature 009 (the global questionnaire pool + the matching simulator). */
 @Injectable({ providedIn: 'root' })
 export class QuestionnaireApiService {
@@ -498,6 +582,45 @@ export class QuestionnaireApiService {
     return this.post<PublishResult>(`/questionnaire/versions/publish`, {});
   }
 
+  // ---- Feature 012: question ↔ calculation figure ------------------------
+  /** Every active question, classified by how its answer reaches the money. One request. */
+  questionUsage(): Promise<QuestionUsage[]> {
+    return this.get<QuestionUsage[]>(`/bank-programs/question-facts`);
+  }
+
+  questionUsageDetail(questionCode: string): Promise<QuestionUsageDetail> {
+    return this.get<QuestionUsageDetail>(
+      `/bank-programs/question-facts/${encodeURIComponent(questionCode)}`,
+    );
+  }
+
+  /**
+   * Link a question to a calculation figure. No `factKey` creates the figure from the
+   * question itself; one links an existing, unbound figure. `silent` leaves the error to
+   * the caller, which shows it inside its own panel.
+   */
+  linkQuestionFact(
+    questionCode: string,
+    factKey: string | null,
+    opts: { silent?: boolean } = {},
+  ): Promise<QuestionFactLinkResult> {
+    return this.put<QuestionFactLinkResult>(
+      `/bank-programs/question-facts/${encodeURIComponent(questionCode)}`,
+      factKey === null ? {} : { factKey },
+      opts.silent === true ? new HttpContext().set(SKIP_TOAST_INTERCEPTOR, true) : undefined,
+    );
+  }
+
+  unlinkQuestionFact(
+    questionCode: string,
+    opts: { silent?: boolean } = {},
+  ): Promise<QuestionFactLinkResult> {
+    return this.del<QuestionFactLinkResult>(
+      `/bank-programs/question-facts/${encodeURIComponent(questionCode)}`,
+      opts.silent === true ? new HttpContext().set(SKIP_TOAST_INTERCEPTOR, true) : undefined,
+    );
+  }
+
   // ---- HTTP helpers ------------------------------------------------------
   private async get<T>(path: string): Promise<T> {
     const res = await firstValueFrom(this.http.get<SuccessEnvelope<T>>(`${this.base()}${path}`));
@@ -509,9 +632,9 @@ export class QuestionnaireApiService {
     );
     return res.data;
   }
-  private async put<T>(path: string, body: unknown): Promise<T> {
+  private async put<T>(path: string, body: unknown, context?: HttpContext): Promise<T> {
     const res = await firstValueFrom(
-      this.http.put<SuccessEnvelope<T>>(`${this.base()}${path}`, body),
+      this.http.put<SuccessEnvelope<T>>(`${this.base()}${path}`, body, { context }),
     );
     return res.data;
   }
@@ -521,8 +644,10 @@ export class QuestionnaireApiService {
     );
     return res.data;
   }
-  private async del<T>(path: string): Promise<T> {
-    const res = await firstValueFrom(this.http.delete<SuccessEnvelope<T>>(`${this.base()}${path}`));
+  private async del<T>(path: string, context?: HttpContext): Promise<T> {
+    const res = await firstValueFrom(
+      this.http.delete<SuccessEnvelope<T>>(`${this.base()}${path}`, { context }),
+    );
     return res.data;
   }
 }

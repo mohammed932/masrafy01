@@ -223,6 +223,8 @@
   "MAX_LOAN_BY_FACT_INVALID": "This program's maximum-loan table cannot be read. Check the answer it is keyed by, the rows, and the bands.",
   "SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION": "Two income facts already read that question ({factKeys}), so there is no single one this product can take. Retire the one nothing uses, then tick it again.",
   "SURROGATE_FACT_KEY_TAKEN": "The key “{factKey}” already belongs to an income fact that reads a different question ({boundQuestionCode}). Fact keys are permanent — bank figures are filed under them — so this one cannot be reused.",
+  "QUESTION_FACT_ALREADY_LINKED": "This question already answers the figure “{factKey}”. A question answers one figure — unlink it first, or work with that one.",
+  "SURROGATE_FACT_SHAPE_MISMATCH": "The figure “{factKey}” is already read by a bank table that expects a {expected} answer, and this question cannot give one. Linking it would make those tables miss.",
   "SURROGATE_FACT_KEY_RESERVED": "“{factKey}” is a figure the platform works out for itself, so a product cannot read it as an answer.",
   "SURROGATE_FACT_QUESTION_INACTIVE": "That question is switched off, so nobody is asked it and this product would get no answer. Switch it back on under Questionnaires first.",
   "SURROGATE_FACT_QUESTION_NOT_ELIGIBLE": "This product cannot work an income out from that question. It is part of what the customer is asking for, or of their existing debts, rather than something about them a bank can price.",

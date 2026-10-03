@@ -156,90 +156,18 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
     };
   }
 
-  // 3. REUSE FIRST. Any fact already bound to this question IS the fact.
-  const bound = input.facts.filter((fact) => fact.boundQuestionCode === question.code);
-  if (bound.length > 1) {
-    return {
-      kind: 'refuse',
-      refusal: {
-        code: 'ambiguousFact',
-        questionCode: question.code,
-        factKeys: bound.map((fact) => fact.key).sort(),
-      },
-    };
-  }
-
-  const steps: AttachStep[] = [];
-  const existing = bound[0];
-  let factKey: string;
-
-  if (existing !== undefined) {
-    factKey = existing.key;
-  } else {
-    factKey = derivedFactKey(question);
-
-    // 4a. Keys the platform computes for itself. A row under one is created, bound,
-    //     audited and rendered — and never carries an answer, because the mapper that
-    //     fills the applicant profile skips it by contract.
-    if (isReservedFactKey(factKey)) {
-      return {
-        kind: 'refuse',
-        refusal: {
-          code: 'keyReserved',
-          questionCode: question.code,
-          factKey,
-          reservedKeys: [...RESERVED_FACT_KEYS],
-        },
-      };
-    }
-
-    // 5b. A blueprint declaring this key for a DIFFERENT question. Refused rather than
-    //     bound: the seed reads an existing bound key as reuse, so the blueprint's own
-    //     product would start reading the operator's question on the next deploy.
-    const conflicting = input.blueprintsAsking.filter(
-      (entry) => entry.questionCode !== undefined && entry.questionCode !== question.code,
-    );
-    if (conflicting.length > 0) {
-      return {
-        kind: 'refuse',
-        refusal: {
-          code: 'blueprintOwnsKey',
-          questionCode: question.code,
-          factKey,
-          blueprintKeys: conflicting.map((entry) => entry.blueprintKey),
-        },
-      };
-    }
-
-    const holder = input.facts.find((fact) => fact.key === factKey);
-    if (holder !== undefined && holder.boundQuestionCode !== null) {
-      // Bound to something else — and `bound` above proved it is not this question.
-      return {
-        kind: 'refuse',
-        refusal: {
-          code: 'keyTaken',
-          questionCode: question.code,
-          factKey,
-          boundQuestionCode: holder.boundQuestionCode,
-        },
-      };
-    }
-
-    if (holder === undefined) {
-      steps.push({
-        op: 'createFact',
-        factKey,
-        questionCode: question.code,
-        labelAr: question.labelAr,
-        labelEn: question.labelEn,
-        // A genuine mint: this product made the row, so it may say so.
-        fileUnderProduct: true,
-      });
-    }
-    // Exists and reads nothing yet — finish the job rather than refusing forever. The
-    // `bindFact` branch the blueprint planner already takes for an unbound key.
-    steps.push({ op: 'bindFact', factKey, questionCode: question.code });
-  }
+  // 3–5. Which fact this question answers — reused, bound, or minted. Shared with the
+  //      question screen's own link (feature 012) so the two can never pick different keys.
+  const bind = planBindFact({
+    question,
+    facts: input.facts,
+    blueprintsAsking: input.blueprintsAsking,
+    // A genuine mint from this product's step ①: this product made the row, so it may say so.
+    fileUnderProduct: true,
+  });
+  if (bind.kind === 'refuse') return bind;
+  const steps: AttachStep[] = [...bind.steps];
+  const factKey = bind.factKey;
 
   if (!input.askedFactKeys.includes(factKey)) {
     steps.push({ op: 'addAsk', factKey });
@@ -255,6 +183,245 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
   }
 
   return { kind: 'proceed', factKey, questionCode: question.code, steps };
+}
+
+/**
+ * WHICH FACT A QUESTION ANSWERS — reuse, bind, or mint — and nothing else.
+ *
+ * The heart of `planAttach`, lifted out unchanged (feature 012) so the question screen's
+ * "use in calculation" link and a product's tick share one decision: same reuse-first rule,
+ * same derived key, same refusals. Two copies would pick two keys for one answer the first
+ * time they disagreed.
+ */
+export function planBindFact(input: {
+  question: AskQuestionInput;
+  facts: readonly AskFactInput[];
+  blueprintsAsking: readonly { blueprintKey: string; questionCode?: string }[];
+  /** Stamp `surrogateProductKey` on a mint — only a product's own tick may say it authored it. */
+  fileUnderProduct: boolean;
+}):
+  | { kind: 'refuse'; refusal: AskRefusal }
+  | { kind: 'proceed'; factKey: string; steps: AttachStep[] } {
+  const { question } = input;
+  if (!isBindableQuestionType(question.type)) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'questionTypeInvalid',
+        questionCode: question.code,
+        type: question.type,
+        allowed: [...BINDABLE_QUESTION_TYPES],
+      },
+    };
+  }
+
+  // 3. REUSE FIRST. Any fact already bound to this question IS the fact.
+  const bound = input.facts.filter((fact) => fact.boundQuestionCode === question.code);
+  if (bound.length > 1) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'ambiguousFact',
+        questionCode: question.code,
+        factKeys: bound.map((fact) => fact.key).sort(),
+      },
+    };
+  }
+  const existing = bound[0];
+  if (existing !== undefined) return { kind: 'proceed', factKey: existing.key, steps: [] };
+
+  const steps: AttachStep[] = [];
+  const factKey = derivedFactKey(question);
+
+  // 4a. Keys the platform computes for itself. A row under one is created, bound,
+  //     audited and rendered — and never carries an answer, because the mapper that
+  //     fills the applicant profile skips it by contract.
+  if (isReservedFactKey(factKey)) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'keyReserved',
+        questionCode: question.code,
+        factKey,
+        reservedKeys: [...RESERVED_FACT_KEYS],
+      },
+    };
+  }
+
+  // 5b. A blueprint declaring this key for a DIFFERENT question. Refused rather than
+  //     bound: the seed reads an existing bound key as reuse, so the blueprint's own
+  //     product would start reading the operator's question on the next deploy.
+  const conflicting = input.blueprintsAsking.filter(
+    (entry) => entry.questionCode !== undefined && entry.questionCode !== question.code,
+  );
+  if (conflicting.length > 0) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'blueprintOwnsKey',
+        questionCode: question.code,
+        factKey,
+        blueprintKeys: conflicting.map((entry) => entry.blueprintKey),
+      },
+    };
+  }
+
+  const holder = input.facts.find((fact) => fact.key === factKey);
+  if (holder !== undefined && holder.boundQuestionCode !== null) {
+    // Bound to something else — and `bound` above proved it is not this question.
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'keyTaken',
+        questionCode: question.code,
+        factKey,
+        boundQuestionCode: holder.boundQuestionCode,
+      },
+    };
+  }
+
+  if (holder === undefined) {
+    steps.push({
+      op: 'createFact',
+      factKey,
+      questionCode: question.code,
+      labelAr: question.labelAr,
+      labelEn: question.labelEn,
+      fileUnderProduct: input.fileUnderProduct,
+    });
+  }
+  // Exists and reads nothing yet — finish the job rather than refusing forever. The
+  // `bindFact` branch the blueprint planner already takes for an unbound key.
+  steps.push({ op: 'bindFact', factKey, questionCode: question.code });
+  return { kind: 'proceed', factKey, steps };
+}
+
+/**
+ * Feature 012 — the question answers an EXISTING figure, picked by the operator.
+ *
+ * Only an unbound, unreserved fact may be picked, and only by a question that answers no
+ * figure yet: a bound fact is some other question's answer, and a question bound twice is
+ * the ambiguity `planBindFact` refuses. The shape test is passed in already decided — what
+ * the fact's readers expect is read off live tables by the caller.
+ */
+export function planLinkExisting(input: {
+  question: AskQuestionInput;
+  fact: AskFactInput | undefined;
+  /** The fact the question already answers, if any. */
+  questionFactKey: string | null;
+  blueprintsAsking: readonly { blueprintKey: string; questionCode?: string }[];
+}):
+  | { kind: 'refuse'; refusal: AskRefusal | LinkRefusal }
+  | { kind: 'proceed'; factKey: string; steps: AttachStep[] } {
+  const { question, fact } = input;
+  if (!isBindableQuestionType(question.type)) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'questionTypeInvalid',
+        questionCode: question.code,
+        type: question.type,
+        allowed: [...BINDABLE_QUESTION_TYPES],
+      },
+    };
+  }
+  if (fact === undefined) return { kind: 'refuse', refusal: { code: 'factNotFound', factKey: '' } };
+  if (input.questionFactKey === fact.key) return { kind: 'proceed', factKey: fact.key, steps: [] };
+  if (input.questionFactKey !== null) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'alreadyLinked',
+        questionCode: question.code,
+        factKey: input.questionFactKey,
+      },
+    };
+  }
+  if (isReservedFactKey(fact.key)) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'keyReserved',
+        questionCode: question.code,
+        factKey: fact.key,
+        reservedKeys: [...RESERVED_FACT_KEYS],
+      },
+    };
+  }
+  if (fact.boundQuestionCode !== null) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'keyTaken',
+        questionCode: question.code,
+        factKey: fact.key,
+        boundQuestionCode: fact.boundQuestionCode,
+      },
+    };
+  }
+  const conflicting = input.blueprintsAsking.filter(
+    (entry) => entry.questionCode !== undefined && entry.questionCode !== question.code,
+  );
+  if (conflicting.length > 0) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'blueprintOwnsKey',
+        questionCode: question.code,
+        factKey: fact.key,
+        blueprintKeys: conflicting.map((entry) => entry.blueprintKey),
+      },
+    };
+  }
+  return {
+    kind: 'proceed',
+    factKey: fact.key,
+    steps: [{ op: 'bindFact', factKey: fact.key, questionCode: question.code }],
+  };
+}
+
+/** Refusals only the question screen's link can raise. */
+export type LinkRefusal =
+  | { code: 'factNotFound'; factKey: string }
+  | { code: 'alreadyLinked'; questionCode: string; factKey: string };
+
+/**
+ * Feature 012 — the question stops answering its figure.
+ *
+ * Refused while ANYTHING reads the fact or a product asks it: an unlinked figure a table is
+ * keyed on makes every cell miss, which is the silent repricing the delete guard exists to
+ * stop. A platform fact is never unlinked here. When nothing reads it, the row is deleted
+ * only if this flow minted it (filed under no product, not system-owned); a row someone else
+ * made is left unbound for them.
+ */
+export function planUnlink(input: {
+  fact: AskFactInput | undefined;
+  readBy: readonly { source: string; ref: string }[];
+  productsAsking: readonly string[];
+}):
+  | { kind: 'refuse'; refusal: AskRefusal }
+  | { kind: 'noop' }
+  | { kind: 'proceed'; deleteFact: boolean } {
+  const { fact } = input;
+  if (fact === undefined || fact.boundQuestionCode === null) return { kind: 'noop' };
+  if (fact.systemOnly || isReservedFactKey(fact.key)) {
+    return {
+      kind: 'refuse',
+      refusal: {
+        code: 'factInUse',
+        factKey: fact.key,
+        readBy: [{ source: 'platform', ref: fact.key }],
+      },
+    };
+  }
+  const readers = [
+    ...input.readBy,
+    ...input.productsAsking.map((key) => ({ source: 'surrogate_product_ask', ref: key })),
+  ];
+  if (readers.length > 0) {
+    return { kind: 'refuse', refusal: { code: 'factInUse', factKey: fact.key, readBy: readers } };
+  }
+  return { kind: 'proceed', deleteFact: fact.surrogateProductKey === null };
 }
 
 export interface DetachPlanInput {

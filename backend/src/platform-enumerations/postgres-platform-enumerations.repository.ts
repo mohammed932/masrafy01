@@ -31,6 +31,10 @@ import {
   factReaders,
   factsReadByIncomeRule,
   factsReadByFees,
+  factsRefusingWhenUnanswered,
+  factSurfacesOfProgram,
+  type FactSurfaceRead,
+  type FactReaderProgramRow,
   factsReadByLoanLimits,
   factsReadByPricing,
   factsReadByTenor,
@@ -160,6 +164,48 @@ export interface EnumerationCategoryAssignment {
  * assignment, and `isRequired`, because starting to ask a REQUIRED question of a new loan
  * type refuses every application in it until the next publish lands.
  */
+/** Feature 012 — see `questionUsageInputs`. */
+export interface QuestionUsageInputs {
+  questions: {
+    id: string;
+    code: string;
+    labelAr: string;
+    labelEn: string;
+    type: QuestionType;
+    isRequired: boolean;
+    enabledWhen: unknown;
+    optionCodes: string[];
+    /** The loan types that ask it of everyone (opt-in rows excluded). */
+    categories: LoanCategory[];
+  }[];
+  facts: {
+    id: string;
+    key: string;
+    labelAr: string;
+    labelEn: string;
+    active: boolean;
+    systemOnly: boolean;
+    surrogateProductKey: string | null;
+    boundQuestionCode: string | null;
+    askedByProducts: string[];
+  }[];
+  programs: {
+    programCode: string;
+    bankName: string;
+    friendlyName: string;
+    category: string;
+    programNameKey: string | null;
+    productKey: string | null;
+    /** The grids are the product's plan tables, not the programme's own. */
+    plansFromProduct: boolean;
+    /** The EFFECTIVE tables (plan merge applied) — what the quote reads. */
+    tables: FactReaderProgramRow;
+    surfaces: Map<string, FactSurfaceRead[]>;
+  }[];
+  rules: { type: string; key: string; incomeRule: unknown; factKeys: string[] }[];
+  platformIScoreMovesIncome: boolean;
+}
+
 export interface FactCandidateQuestionRow {
   id: string;
   code: string;
@@ -835,6 +881,167 @@ export class PostgresPlatformEnumerationsRepository
   }
 
   /**
+   * Feature 012 — everything the question screen's "Used by" readout is built from, in one
+   * read: every pool question, every fact and what it is bound to, every ACTIVE programme
+   * with WHERE it reads each fact (`factSurfacesOfProgram` on its EFFECTIVE tables — the same
+   * plan merge `surrogateFactReaders` and `narrowingScopeFor` do), and every stored rule.
+   *
+   * Uncached: it backs refusals as well as a readout, and a reader added an hour ago must
+   * show here before an operator unlinks the question it reads.
+   */
+  async questionUsageInputs(): Promise<QuestionUsageInputs> {
+    const [questions, facts, programs, rules, planRows, platformTiers] = await Promise.all([
+      this.prisma.question.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          code: true,
+          questionAr: true,
+          questionEn: true,
+          type: true,
+          isRequired: true,
+          enabledWhen: true,
+          options: { where: { isActive: true }, select: { code: true } },
+          loanCategories: { select: { category: true, optIn: true } },
+        },
+        orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
+      }),
+      this.prisma.platformEnumeration.findMany({
+        where: { type: FACT_TYPE },
+        select: {
+          id: true,
+          key: true,
+          labelAr: true,
+          labelEn: true,
+          active: true,
+          systemOnly: true,
+          surrogateProductKey: true,
+          boundQuestion: { select: { code: true } },
+          askedByProducts: {
+            where: { detachedAt: null },
+            select: { product: { select: { key: true } } },
+          },
+        },
+        orderBy: { key: 'asc' },
+      }),
+      this.prisma.bankProgram.findMany({
+        where: { active: true },
+        select: {
+          programCode: true,
+          bankName: true,
+          friendlyName: true,
+          productCategory: true,
+          programNameKey: true,
+          plansSource: true,
+          incomeAssumption: true,
+          loanLimits: true,
+          pricing: true,
+          tenor: true,
+          fees: true,
+        },
+        orderBy: { programCode: 'asc' },
+      }),
+      this.prisma.platformEnumeration.findMany({
+        where: {
+          type: { in: ['program_name', 'surrogate_product'] },
+          NOT: { incomeRule: { equals: Prisma.DbNull } },
+        },
+        select: { type: true, key: true, incomeRule: true },
+      }),
+      this.prisma.platformEnumeration.findMany({
+        where: { type: { in: ['program_name', 'surrogate_product'] } },
+        select: { type: true, key: true, surrogateProductKey: true, planDefaults: true },
+      }),
+      this.platformIScoreTiers(),
+    ]);
+
+    const plansByProduct = new Map<string, PlanDefaults | undefined>();
+    for (const row of planRows) {
+      if (row.type === 'surrogate_product')
+        plansByProduct.set(row.key, asPlanDefaults(row.planDefaults));
+    }
+    const plansByName = new Map<string, PlanDefaults | undefined>();
+    const productByName = new Map<string, string>();
+    for (const row of planRows) {
+      if (row.type !== 'program_name' || row.surrogateProductKey === null) continue;
+      plansByName.set(row.key, plansByProduct.get(row.surrogateProductKey));
+      productByName.set(row.key, row.surrogateProductKey);
+    }
+
+    return {
+      questions: questions.map((q) => ({
+        id: q.id,
+        code: q.code,
+        labelAr: q.questionAr,
+        labelEn: q.questionEn,
+        type: q.type,
+        isRequired: q.isRequired,
+        enabledWhen: q.enabledWhen,
+        optionCodes: q.options.map((o) => o.code),
+        categories: sortCategories(q.loanCategories.filter((c) => !c.optIn).map((c) => c.category)),
+      })),
+      facts: facts.map((f) => ({
+        id: f.id,
+        key: f.key,
+        labelAr: f.labelAr,
+        labelEn: f.labelEn,
+        active: f.active,
+        systemOnly: f.systemOnly,
+        surrogateProductKey: f.surrogateProductKey,
+        boundQuestionCode: f.boundQuestion?.code ?? null,
+        askedByProducts: f.askedByProducts.map((a) => a.product.key),
+      })),
+      programs: programs.map((program) => {
+        const plans =
+          program.programNameKey === null ? undefined : plansByName.get(program.programNameKey);
+        const src = program.plansSource;
+        const inherited = src === 'product' && plans !== undefined;
+        const tables = {
+          programCode: program.programCode,
+          incomeAssumption: program.incomeAssumption,
+          loanLimits: effectivePlanLoanLimits(
+            (program.loanLimits ?? {}) as unknown as LoanLimitsConfig,
+            src,
+            plans,
+          ),
+          pricing: effectivePlanPricing(
+            (program.pricing ?? {}) as unknown as PricingConfig,
+            src,
+            plans,
+          ),
+          tenor: effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
+          fees: effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
+        };
+        return {
+          programCode: program.programCode,
+          bankName: program.bankName,
+          friendlyName: program.friendlyName,
+          category: program.productCategory,
+          programNameKey: program.programNameKey,
+          productKey:
+            program.programNameKey === null
+              ? null
+              : (productByName.get(program.programNameKey) ?? null),
+          plansFromProduct: inherited,
+          tables,
+          surfaces: factSurfacesOfProgram(tables),
+        };
+      }),
+      rules: rules.map((r) => ({
+        type: r.type,
+        key: r.key,
+        incomeRule: r.incomeRule,
+        factKeys: [...factsReadByIncomeRule(r.incomeRule)],
+      })),
+      // The shared bureau table moves every programme's income when any class is not 100%.
+      platformIScoreMovesIncome:
+        (platformTiers?.bands ?? []).some((band) => !new Decimal(band.incomeEGP).equals(100)) ||
+        (platformTiers?.noScorePercent !== undefined &&
+          !new Decimal(platformTiers.noScorePercent).equals(100)),
+    };
+  }
+
+  /**
    * The question-scope inputs for one catalog program name. See the abstract for the contract.
    *
    * FOUR reads, and the shape of the third is the point: the facts a program reads come from
@@ -982,27 +1189,37 @@ export class PostgresPlatformEnumerationsRepository
       // guard and the ask-untick guard AT ONCE — so the merge happens here, exactly as
       // `effectiveIncomeRule` above merges the income rule, and for the same reason.
       const src = program.plansSource;
-      for (const key of factsReadByLoanLimits(
-        effectivePlanLoanLimits(
-          (program.loanLimits ?? {}) as unknown as LoanLimitsConfig,
-          src,
-          plans,
-        ),
-      )) {
-        needed.add(key);
-      }
-      for (const key of factsReadByPricing(
-        effectivePlanPricing((program.pricing ?? {}) as unknown as PricingConfig, src, plans),
-      )) {
-        needed.add(key);
-      }
+      const loanLimits = effectivePlanLoanLimits(
+        (program.loanLimits ?? {}) as unknown as LoanLimitsConfig,
+        src,
+        plans,
+      );
+      for (const key of factsReadByLoanLimits(loanLimits)) needed.add(key);
+      const pricing = effectivePlanPricing(
+        (program.pricing ?? {}) as unknown as PricingConfig,
+        src,
+        plans,
+      );
+      for (const key of factsReadByPricing(pricing)) needed.add(key);
       const tenor = effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans);
       for (const key of factsReadByTenor(tenor)) needed.add(key);
       if (tenor.maxVehicleAgeYearsByFact !== undefined) mustAnswer.add(CAR_MODEL_YEAR_FACT_KEY);
-      for (const key of factsReadByFees(
-        effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
-      )) {
-        needed.add(key);
+      const fees = effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans);
+      for (const key of factsReadByFees(fees)) needed.add(key);
+      // Feature 012 (audit gap G4) — a table the bank set to REFUSE on no match refuses an
+      // applicant who left its question blank: `fact_not_answered` is a miss, and the miss is
+      // the refusal. So the question is required wherever this programme is quoted, whatever
+      // its own requiredness (`car_origin` and friends are platform facts, optional by design).
+      // A derived bank axis is never in here: an unanswered one reads the new-to-bank column.
+      for (const key of factsRefusingWhenUnanswered({
+        programCode: '',
+        incomeAssumption: program.incomeAssumption,
+        loanLimits,
+        pricing,
+        tenor,
+        fees,
+      })) {
+        if (bankAxisByFactKey(key) === undefined) mustAnswer.add(key);
       }
       // THE I-SCORE TABLE is a reader too (v30.4.0): the factor it picks scales the income
       // before the debt-burden cap. Resolved exactly as the snapshot mapper resolves it — the

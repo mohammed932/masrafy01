@@ -29,6 +29,23 @@ const SNAPSHOT = {
           numeric: { minValue: '1000.00', maxValue: '20000000.00', step: '1000.00' },
           options: [],
         },
+        // Served and unanswered below. Since feature 012 a money question the snapshot
+        // never ASKED is not "missing" (the term is the programme's, the income nothing
+        // declared — the app's reading), so the outstanding-figures case needs them asked.
+        {
+          code: 'repayment_period_months',
+          type: 'NUMERIC',
+          isRequired: true,
+          numeric: { minValue: '6.00', maxValue: '360.00', step: null },
+          options: [],
+        },
+        {
+          code: 'monthly_income',
+          type: 'NUMERIC',
+          isRequired: true,
+          numeric: { minValue: '0.00', maxValue: '5000000.00', step: null },
+          options: [],
+        },
         {
           code: 'loan_purpose',
           type: 'SINGLE_SELECT',

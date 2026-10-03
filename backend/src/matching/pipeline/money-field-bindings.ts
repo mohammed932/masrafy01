@@ -115,6 +115,58 @@ export const DEBT_TYPES_QUESTION_CODE = 'current_loans';
 export const EMPLOYMENT_TYPE_QUESTION_CODE = 'employment_status';
 
 /**
+ * Feature 012 — the answers that fill the rest of the employment block, read by
+ * `applicant-inputs.ts` so preview and apply derive it the same way (A33). Until 012 only
+ * the app read them, into the request body, and preview assumed a salaried applicant.
+ *
+ * `job_tenure` and `salary_transfer` move no figure today (apply skips eligibility, and
+ * every `rateByTransferType` row is `none` = the base rate) — they are carried so the
+ * profile states what the applicant said rather than a placeholder.
+ */
+export const JOB_TENURE_QUESTION_CODE = 'job_tenure';
+export const BUSINESS_AGE_QUESTION_CODE = 'business_age';
+export const SALARY_TRANSFER_QUESTION_CODE = 'salary_transfer';
+
+/**
+ * `employment_status` option → the engine's `employmentType` token. The same table the
+ * four `*_apply_mapper.dart` files carry; `coarseEmploymentType` folds either spelling,
+ * so the token is about what is PERSISTED on the profile, not about pricing.
+ */
+export const EMPLOYMENT_TYPE_BY_ANSWER: Readonly<Record<string, string>> = Object.freeze({
+  government_employee: 'government_employee',
+  private_sector_employee: 'private_employee',
+  business_owner_company_owner: 'business_owner',
+  freelancer: 'freelancer',
+  retired: 'retired',
+});
+
+/** `job_tenure` bucket → representative months (`monthsFromTenure` on mobile). */
+export const MONTHS_IN_JOB_BY_TENURE_ANSWER: Readonly<Record<string, number>> = Object.freeze({
+  less_than_6_months: 3,
+  '6_months_to_1_year': 9,
+  '1_to_3_years': 24,
+  more_than_3_years: 48,
+});
+
+/** `business_age` bucket → representative months the business has traded. */
+export const MONTHS_IN_BUSINESS_BY_AGE_ANSWER: Readonly<Record<string, number>> = Object.freeze({
+  less_than_1_year: 6,
+  '1_to_2_years': 18,
+  more_than_2_years: 48,
+});
+
+/** What the app reports when neither tenure question was answered. */
+export const DEFAULT_MONTHS_IN_JOB = 24;
+
+/** `salary_transfer` option → the engine's `salaryTransferType`; unanswered is `none`. */
+export const SALARY_TRANSFER_TYPE_BY_ANSWER: Readonly<Record<string, string>> = Object.freeze({
+  payroll: 'payroll',
+  salary_transfer_letter: 'salary_transfer_letter',
+  income_transfer_letter: 'income_transfer_letter',
+  no_salary_transfer: 'none',
+});
+
+/**
  * The explicit "I have none" pick. Present so "no debts" is a STATED answer
  * rather than an empty one — an empty multi-select is indistinguishable from an
  * unanswered question, and that difference decides whether obligations resolve

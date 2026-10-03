@@ -12,6 +12,7 @@ import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform
 import { quoteProgram } from '@/matching/pipeline/quote';
 import { carInsuranceDisclosureOf } from '@/matching/pipeline/fees';
 import { carDetailsFrom } from '@/matching/pipeline/car-details';
+import { applicantInputsFrom } from '@/matching/pipeline/applicant-inputs';
 import {
   DEBT_TYPES_QUESTION_CODE,
   MONEY_FIELD_BINDINGS,
@@ -132,14 +133,18 @@ export interface PreviewMatch {
   requiredDocuments: string[];
 }
 
-/** The four bound money figures, once resolved. */
+/** The money figures and employment block, once resolved through `applicantInputsFrom`. */
 interface MoneyInputs {
   requestedAmountEGP: Decimal;
-  tenorMonths: number;
+  /** Absent when this request was never asked a term: the programme's longest applies. */
+  tenorMonths: number | undefined;
   monthlyIncomeEGP: Decimal;
   /** Summed from the per-debt answers when the snapshot serves them. */
   existingObligationsEGP: Decimal;
   hasCurrentLoan: boolean;
+  employmentType: string;
+  monthsInJob: number;
+  salaryTransferType: string;
 }
 
 /**
@@ -341,40 +346,61 @@ export class MatchingPreviewService {
         : resolveObligations({ numericByCode: numeric, pickedDebtTypes })
       : resolveObligations({ numericByCode: numeric });
 
+    const surrogateFacts = surrogateFactsFromAnswers(
+      { optionByCode, numericByCode: numeric, multiByCode, textByCode },
+      // Read here, not at construction: a fact an operator adds or repoints must
+      // move the next preview, and this service is a singleton that would otherwise
+      // hold the registry it booted with until the process restarted.
+      await this.enumerations.surrogateFactRegistry(),
+    );
     return {
-      money: this.resolveMoneyInputs(numeric, obligations),
+      money: this.resolveMoneyInputs(
+        { numeric, optionByCode, served, category, surrogateFacts },
+        obligations,
+      ),
       // Feature 011 — the SAME mapper apply reads (FR-019). Preview and apply
       // deriving the same engine input differently is a review block (A33), and this
       // is the input an income rule looks its table up by.
-      surrogateFacts: surrogateFactsFromAnswers(
-        { optionByCode, numericByCode: numeric, multiByCode, textByCode },
-        // Read here, not at construction: a fact an operator adds or repoints must
-        // move the next preview, and this service is a singleton that would otherwise
-        // hold the registry it booted with until the process restarted.
-        await this.enumerations.surrogateFactRegistry(),
-      ),
+      surrogateFacts,
     };
   }
 
   /**
-   * The four bound numeric answers → the economic inputs (FR-042). All or
-   * nothing: a partial set yields no figures rather than a figure computed on a
-   * guessed income. A preview is explicitly answer-by-answer, so an incomplete
-   * set is the normal mid-questionnaire state, not an error (contrast apply,
-   * which raises `MONEY_FIGURE_MISSING`).
+   * The money figures and the employment block, through the SAME `applicantInputsFrom`
+   * apply reads (feature 012, A33). Preview has no request body, so it passes no fallback.
+   *
+   * No figures (null) while a SERVED money question is still unanswered: a preview is
+   * answer-by-answer, so an incomplete set is the normal mid-questionnaire state, not an
+   * error (contrast apply, which raises `MONEY_FIGURE_MISSING`). A money question this
+   * request was never ASKED is not missing — exactly as the app reads it: the amount may be
+   * worked out from the car's price and deposit, an unasked term is the programme's own
+   * longest, and an unasked income is nothing declared.
    */
   private resolveMoneyInputs(
-    numeric: Map<string, string>,
+    answers: {
+      numeric: Map<string, string>;
+      optionByCode: Map<string, string>;
+      served: (code: string) => boolean;
+      category: LoanCategory;
+      surrogateFacts: SurrogateFacts;
+    },
     obligations: ObligationsResolution | null,
   ): MoneyInputs | null {
-    const amount = numeric.get(MONEY_FIELD_BINDINGS.requested_amount);
-    const tenor = numeric.get(MONEY_FIELD_BINDINGS.tenor_months);
-    const income = numeric.get(MONEY_FIELD_BINDINGS.monthly_income);
-    if (!amount || !tenor || !income || obligations === null) return null;
+    if (obligations === null) return null;
+    const { inputs } = applicantInputsFrom({
+      answers: { numericByCode: answers.numeric, optionByCode: answers.optionByCode },
+      category: answers.category,
+      answeredCar: carDetailsFrom(answers.surrogateFacts.byKey),
+    });
+    const unansweredServed = (code: string): boolean =>
+      answers.served(code) && !answers.numeric.has(code);
+    if (inputs.requestedAmountEGP === undefined) return null;
+    if (unansweredServed(MONEY_FIELD_BINDINGS.tenor_months)) return null;
+    if (unansweredServed(MONEY_FIELD_BINDINGS.monthly_income)) return null;
     return {
-      requestedAmountEGP: new Decimal(amount),
-      tenorMonths: Math.floor(Number(tenor)),
-      monthlyIncomeEGP: new Decimal(income),
+      requestedAmountEGP: inputs.requestedAmountEGP,
+      tenorMonths: inputs.preferredTenorMonths,
+      monthlyIncomeEGP: inputs.monthlyNetSalaryEGP ?? new Decimal(0),
       // The SUM is authoritative. A stated `current_installments` that disagrees
       // is ignored here rather than rejected: preview is an advisory read and the
       // admin simulator shares it, so exploring must never 422. Apply, the
@@ -382,6 +408,9 @@ export class MatchingPreviewService {
       // the same number, they differ only in tolerance for a lying client.
       existingObligationsEGP: obligations.totalEGP,
       hasCurrentLoan: obligations.hasCurrentLoan,
+      employmentType: inputs.employmentType,
+      monthsInJob: inputs.monthsInJob,
+      salaryTransferType: inputs.salaryTransferType,
     };
   }
 
@@ -480,10 +509,10 @@ export class MatchingPreviewService {
   }
 
   /**
-   * A profile carrying only what the questionnaire actually asked about. The
-   * cascade levels keyed on employment or transfer type therefore fall through
-   * to the program's base rate — preview is an estimate, and apply, which has
-   * the full employment block, is the one that prices exactly.
+   * A profile carrying only what the questionnaire actually asked about. The employment
+   * block comes from `applicantInputsFrom`, the derivation apply uses — before feature 012
+   * it was a constant `salaried`, so a self-employed applicant saw the salaried DBR cap and
+   * term here and his own after applying.
    */
   private buildProfile(
     money: MoneyInputs,
@@ -498,10 +527,10 @@ export class MatchingPreviewService {
       preferredTenorMonths: money.tenorMonths,
       priority: 'lowest_installment',
       employment: {
-        employmentType: 'salaried',
+        employmentType: money.employmentType,
         monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-        monthsInJob: 0,
-        salaryTransferType: 'none',
+        monthsInJob: money.monthsInJob,
+        salaryTransferType: money.salaryTransferType,
         companyName: '',
         companyType: '',
         // Feature 011 — spread from the shared mapper, so preview looks a bank's

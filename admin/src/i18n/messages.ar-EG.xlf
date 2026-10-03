@@ -4673,6 +4673,93 @@
       <trans-unit id="bpd.iscore.from_platform" datatype="html"><source>· the standard I-Score classes</source><target>· تصنيفات I-Score القياسية</target></trans-unit>
       <trans-unit id="spd.iscore.shared_note" datatype="html"><source> Leave it empty and the standard I-Score classes on Manage values apply to every bank selling this product. </source><target>سيبه فاضي وهتتطبق تصنيفات I-Score القياسية من إدارة القيم على كل البنوك اللي بتبيع المنتج ده.</target></trans-unit>
       <trans-unit id="lookups.value.no_score_range" datatype="html"><source>No score given</source><target>لم يتم إدخال تقييم</target></trans-unit>
+      <trans-unit id="qcalc.done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
+      <trans-unit id="qcalc.created_link_failed" datatype="html"><source>The question was created, but linking it to a figure failed. Retry below, or press Done to leave it unlinked.</source><target>تم إنشاء السؤال، لكن ربطه برقم في الحساب لم ينجح. أعد المحاولة بالأسفل، أو اضغط «تم» لتركه دون ربط.</target></trans-unit>
+      <trans-unit id="qcalc.title" datatype="html"><source>Use in calculation</source><target>الاستخدام في الحساب</target></trans-unit>
+      <trans-unit id="qcalc.retry" datatype="html"><source> Retry </source><target>إعادة المحاولة</target></trans-unit>
+      <trans-unit id="qcalc.link_h" datatype="html"><source>Does its answer feed a figure?</source><target>هل تدخل إجابته في رقم من أرقام الحساب؟</target></trans-unit>
+      <trans-unit id="qcalc.text_no_link" datatype="html"><source> A typed-in answer cannot feed a figure. It can still show or hide other questions. </source><target>الإجابة النصية الحرة لا يمكن أن تدخل في رقم. لكنها تستطيع إظهار أسئلة أخرى أو إخفاءها.</target></trans-unit>
+      <trans-unit id="qcalc.pending_none" datatype="html"><source>Not now</source><target>ليس الآن</target></trans-unit>
+      <trans-unit id="qcalc.create" datatype="html"><source>Create a calculation figure from this question</source><target>إنشاء رقم للحساب من هذا السؤال</target></trans-unit>
+      <trans-unit id="qcalc.existing" datatype="html"><source>This answers an existing figure</source><target>هذا السؤال يجيب عن رقم موجود</target></trans-unit>
+      <trans-unit id="qcalc.pending_note" datatype="html"><source> Nothing is linked until the question is created. </source><target>لا يُربط شيء قبل إنشاء السؤال.</target></trans-unit>
+      <trans-unit id="qcalc.loading" datatype="html"><source>Loading…</source><target>جارٍ التحميل…</target></trans-unit>
+      <trans-unit id="qcalc.linked_to" datatype="html"><source>Answers the figure</source><target>يجيب عن الرقم</target></trans-unit>
+      <trans-unit id="qcalc.platform_owned" datatype="html"><source>platform</source><target>المنصة</target></trans-unit>
+      <trans-unit id="qcalc.unlink" datatype="html"><source> Unlink </source><target>فك الربط</target></trans-unit>
+      <trans-unit id="qcalc.not_linked_ro" datatype="html"><source>Not linked to any figure.</source><target>غير مربوط بأي رقم.</target></trans-unit>
+      <trans-unit id="qcalc.engine_note" datatype="html"><source> The engine already reads this answer directly; a figure is only needed for a bank table. </source><target>المحرك يقرأ هذه الإجابة مباشرةً؛ الرقم مطلوب فقط لجدول بنك.</target></trans-unit>
+      <trans-unit id="qcalc.create_btn" datatype="html"><source> Create figure </source><target>إنشاء الرقم</target></trans-unit>
+      <trans-unit id="qcalc.link_btn" datatype="html"><source> Link </source><target>ربط</target></trans-unit>
+      <trans-unit id="qcalc.affect_h" datatype="html"><source>What should it affect?</source><target>على ماذا يجب أن يؤثر؟</target></trans-unit>
+      <trans-unit id="qcalc.affect_hint" datatype="html"><source> Opens the table where the bank&apos;s figures are typed. Nothing is saved here. </source><target>يفتح الجدول الذي تُكتب فيه أرقام البنك. لا يُحفظ شيء هنا.</target></trans-unit>
+      <trans-unit id="qcalc.affect_locked" datatype="html"><source>Link it to a figure first.</source><target>اربطه برقم أولاً.</target></trans-unit>
+      <trans-unit id="qcalc.target_label" datatype="html"><source>Where are its figures typed?</source><target>أين تُكتب أرقامه؟</target></trans-unit>
+      <trans-unit id="qcalc.target_ph" datatype="html"><source>Pick a programme or product</source><target>اختر برنامجاً أو منتجاً</target></trans-unit>
+      <trans-unit id="qcalc.open_btn" datatype="html"><source> Open the table </source><target>فتح الجدول</target></trans-unit>
+      <trans-unit id="qusage.title" datatype="html"><source>Used by</source><target>يستخدمه</target></trans-unit>
+      <trans-unit id="qusage.inherited" datatype="html"><source>from its product</source><target>من منتجه</target></trans-unit>
+      <trans-unit id="qusage.refuses_blank" datatype="html"><source>blank refuses</source><target>الترك فارغاً يرفض</target></trans-unit>
+      <trans-unit id="qusage.asked_by" datatype="html"><source>Asked by products</source><target>تسأله المنتجات</target></trans-unit>
+      <trans-unit id="qusage.gates" datatype="html"><source>Shows or hides</source><target>يُظهر أو يُخفي</target></trans-unit>
+      <trans-unit id="qcalc.existing_ph" datatype="html"><source>Pick a figure</source><target>اختر رقماً</target></trans-unit>
+      <trans-unit id="qcalc.no_candidates" datatype="html"><source>No unlinked figure is waiting for a question.</source><target>لا يوجد رقم غير مربوط ينتظر سؤالاً.</target></trans-unit>
+      <trans-unit id="qcalc.key_label" datatype="html"><source>Figure key:</source><target>مفتاح الرقم:</target></trans-unit>
+      <trans-unit id="qcalc.group_products" datatype="html"><source>No-payslip products</source><target>منتجات بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="qcalc.group_programs" datatype="html"><source>Bank programmes</source><target>برامج البنوك</target></trans-unit>
+      <trans-unit id="qcalc.eff_rate" datatype="html"><source>Rate table</source><target>جدول العائد</target></trans-unit>
+      <trans-unit id="qcalc.eff_rate_hint" datatype="html"><source>A rate per answer</source><target>عائد لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_cap" datatype="html"><source>Loan cap</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="qcalc.eff_cap_hint" datatype="html"><source>The most it lends per answer</source><target>أقصى ما يقرضه لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_ltv" datatype="html"><source>Financed share</source><target>نسبة التمويل</target></trans-unit>
+      <trans-unit id="qcalc.eff_ltv_hint" datatype="html"><source>Share of the price financed</source><target>نسبة السعر الممولة</target></trans-unit>
+      <trans-unit id="qcalc.eff_floor" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="qcalc.eff_floor_hint" datatype="html"><source>The least it lends per answer</source><target>أقل ما يقرضه لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_min_term" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
+      <trans-unit id="qcalc.eff_min_term_hint" datatype="html"><source>Fewest months per answer</source><target>أقل عدد شهور لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_max_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="qcalc.eff_max_term_hint" datatype="html"><source>Most months per answer</source><target>أكبر عدد شهور لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_extra" datatype="html"><source>Extra income</source><target>دخل إضافي</target></trans-unit>
+      <trans-unit id="qcalc.eff_extra_hint" datatype="html"><source>Money added to the income</source><target>مبلغ يُضاف إلى الدخل</target></trans-unit>
+      <trans-unit id="qcalc.eff_rule" datatype="html"><source>Condition / income rule</source><target>شرط / قاعدة الدخل</target></trans-unit>
+      <trans-unit id="qcalc.eff_rule_hint" datatype="html"><source>How a product works the income out</source><target>كيف يحسب المنتج الدخل</target></trans-unit>
+      <trans-unit id="qcalc.unlink_locked" datatype="html"><source>The platform owns this figure, so it cannot be unlinked here.</source><target>هذا الرقم تملكه المنصة، لذلك لا يمكن فك ربطه من هنا.</target></trans-unit>
+      <trans-unit id="qcalc.unlink_read" datatype="html"><source>Still read in <x id="count" equiv-text="n"/> place(s). Remove those tables or asks first.</source><target>ما زال يُقرأ في <x id="count" equiv-text="n"/> موضع. احذف تلك الجداول أو الأسئلة أولاً.</target></trans-unit>
+      <trans-unit id="qcalc.unlink_title" datatype="html"><source>Unlink this question from “<x id="key" equiv-text="key"/>”?</source><target>فك ربط هذا السؤال من «<x id="key" equiv-text="key"/>»؟</target></trans-unit>
+      <trans-unit id="qcalc.unlink_body" datatype="html"><source>A figure this question created is deleted with the link. Bank tables can no longer be keyed by its answer until it is linked again.</source><target>الرقم الذي أنشأه هذا السؤال يُحذف مع فك الربط. لن تستطيع جداول البنوك الاعتماد على إجابته حتى يُربط من جديد.</target></trans-unit>
+      <trans-unit id="qcalc.unlink_ok" datatype="html"><source>Unlink</source><target>فك الربط</target></trans-unit>
+      <trans-unit id="qcalc.unlink_cancel" datatype="html"><source>Keep it</source><target>إبقاؤه</target></trans-unit>
+      <trans-unit id="qcalc.cand_mismatch" datatype="html"><source><x id="figure" equiv-text="base"/> — read by a different kind of answer</source><target><x id="figure" equiv-text="base"/> — يقرؤه نوع إجابة مختلف</target></trans-unit>
+      <trans-unit id="qcalc.cand_read" datatype="html"><source><x id="figure" equiv-text="base"/> — read by <x id="count" equiv-text="c.readerCount"/></source><target><x id="figure" equiv-text="base"/> — يقرؤه <x id="count" equiv-text="c.readerCount"/></target></trans-unit>
+      <trans-unit id="qcalc.eff_text_only" datatype="html"><source>A typed-in answer can only be a condition.</source><target>الإجابة النصية الحرة لا تصلح إلا شرطاً.</target></trans-unit>
+      <trans-unit id="qcalc.eff_numeric_only" datatype="html"><source>Only a number answer can be added to the income.</source><target>الإجابة الرقمية فقط يمكن إضافتها إلى الدخل.</target></trans-unit>
+      <trans-unit id="qusage.class_engine" datatype="html"><source>Engine input</source><target>مُدخل للمحرك</target></trans-unit>
+      <trans-unit id="qusage.class_calculation" datatype="html"><source>Used in calculation</source><target>مستخدم في الحساب</target></trans-unit>
+      <trans-unit id="qusage.class_linked_unread" datatype="html"><source>Linked, nothing reads it</source><target>مربوط، ولا شيء يقرؤه</target></trans-unit>
+      <trans-unit id="qusage.class_gate_only" datatype="html"><source>Only shows or hides questions</source><target>يُظهر أو يُخفي أسئلة فقط</target></trans-unit>
+      <trans-unit id="qusage.class_none" datatype="html"><source>Affects no figure</source><target>لا يؤثر في أي رقم</target></trans-unit>
+      <trans-unit id="qusage.hint_engine" datatype="html"><source>The engine reads this answer directly — the amount, debts, employment and the like.</source><target>المحرك يقرأ هذه الإجابة مباشرةً — المبلغ والديون ونوع العمل وما شابه.</target></trans-unit>
+      <trans-unit id="qusage.hint_calculation" datatype="html"><source>Its figure is read by the tables below.</source><target>رقمه تقرؤه الجداول التالية.</target></trans-unit>
+      <trans-unit id="qusage.hint_linked_unread" datatype="html"><source>It answers a figure, but no table reads that figure yet.</source><target>يجيب عن رقم، لكن لا يوجد جدول يقرأ ذلك الرقم بعد.</target></trans-unit>
+      <trans-unit id="qusage.hint_gate_only" datatype="html"><source>Its answer only decides whether other questions are asked.</source><target>إجابته تحدد فقط هل تُطرح أسئلة أخرى أم لا.</target></trans-unit>
+      <trans-unit id="qusage.hint_none" datatype="html"><source>Its answer changes no figure and hides no question.</source><target>إجابته لا تغيّر أي رقم ولا تُخفي أي سؤال.</target></trans-unit>
+      <trans-unit id="qusage.blank_refuses" datatype="html"><source>Leaving this blank refuses the quote on <x id="count" equiv-text="n"/> programme(s)</source><target>ترك هذا السؤال فارغاً يرفض العرض في <x id="count" equiv-text="n"/> برنامج</target></trans-unit>
+      <trans-unit id="qusage.kind_program" datatype="html"><source>Bank programmes</source><target>برامج البنوك</target></trans-unit>
+      <trans-unit id="qusage.kind_product" datatype="html"><source>No-payslip products</source><target>منتجات بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="qusage.kind_name" datatype="html"><source>Program names</source><target>أسماء البرامج</target></trans-unit>
+      <trans-unit id="qusage.kind_iscore" datatype="html"><source>Platform I-Score table</source><target>جدول I-Score الخاص بالمنصة</target></trans-unit>
+      <trans-unit id="qusage.s_income_rule" datatype="html"><source>Income rule</source><target>قاعدة الدخل</target></trans-unit>
+      <trans-unit id="qusage.s_additional_income" datatype="html"><source>Extra income</source><target>دخل إضافي</target></trans-unit>
+      <trans-unit id="qusage.s_cap" datatype="html"><source>Loan cap</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="qusage.s_cap_adjustment" datatype="html"><source>Cap adjustment</source><target>تعديل الحد الأقصى</target></trans-unit>
+      <trans-unit id="qusage.s_financed_share" datatype="html"><source>Financed share</source><target>نسبة التمويل</target></trans-unit>
+      <trans-unit id="qusage.s_min_amount" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="qusage.s_rate_grid" datatype="html"><source>Rate table</source><target>جدول العائد</target></trans-unit>
+      <trans-unit id="qusage.s_max_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="qusage.s_min_term" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
+      <trans-unit id="qusage.s_vehicle_age" datatype="html"><source>Car age limit</source><target>حد عمر السيارة</target></trans-unit>
+      <trans-unit id="qusage.s_car_cover" datatype="html"><source>Car insurance</source><target>تأمين السيارة</target></trans-unit>
+      <trans-unit id="qusage.chip_tip" datatype="html"><source>How this answer reaches the money — open the question for details</source><target>كيف تصل هذه الإجابة إلى الأرقام — افتح السؤال للتفاصيل</target></trans-unit>
     </body>
   </file>
 </xliff>

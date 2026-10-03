@@ -48,7 +48,12 @@ import { additionalIncomeFactKeys } from './additional-income';
 import { factsReadBy } from './product-rule';
 import type { ProductRule } from './product-rule';
 import { SURROGATE_FACTS_BY_STRATEGY } from './surrogate-fact-bindings';
-import { CAR_MODEL_YEAR_FACT_KEY, isGridOnlyFactKey } from './car-details';
+import {
+  CAR_DOWN_PAYMENT_PERCENT_FACT_KEY,
+  CAR_MODEL_YEAR_FACT_KEY,
+  DERIVED_FACT_INPUTS,
+  isGridOnlyFactKey,
+} from './car-details';
 import { factKeyOf } from '../types';
 
 /** Where a fact key was found, and what an operator would have to open to remove it. */
@@ -277,6 +282,120 @@ export function factsReadByProgram(row: {
   for (const key of factsReadByPricing(row.pricing)) keys.add(key);
   for (const key of factsReadByTenor(row.tenor)) keys.add(key);
   for (const key of factsReadByFees(row.fees)) keys.add(key);
+  return keys;
+}
+
+/**
+ * Feature 012 — WHERE in a bank programme each fact is read, one surface per table.
+ *
+ * The finer-grained sibling of `factsReadByProgram`, for the question screen's "Used by"
+ * readout and the required-if-read rule. It does not replace the coarse readers above: the
+ * delete and untick guards keep their own, unchanged, so this file's four-guard property is
+ * not re-derived by a second walk. Pass the programme's EFFECTIVE tables (after
+ * `effectivePlan*`), exactly as `narrowingScopeFor` and `surrogateFactReaders` do.
+ */
+export type FactSurface =
+  | 'income_rule'
+  | 'additional_income'
+  | 'cap'
+  | 'cap_adjustment'
+  | 'financed_share'
+  | 'min_amount'
+  | 'rate_grid'
+  | 'max_term'
+  | 'min_term'
+  | 'vehicle_age'
+  | 'car_cover';
+
+export interface FactSurfaceRead {
+  readonly surface: FactSurface;
+  /**
+   * TRUE when an UNANSWERED fact refuses the quote outright: a table whose bank chose
+   * `onNoMatch: 'reject'`. A missing answer there is a `fact_not_answered` miss, and the
+   * miss is the bank's refusal — so leaving an optional question blank silently loses the
+   * applicant every such programme (feature 012, audit gap G4).
+   */
+  readonly refusesWhenUnanswered: boolean;
+}
+
+export function factSurfacesOfProgram(row: FactReaderProgramRow): Map<string, FactSurfaceRead[]> {
+  const out = new Map<string, FactSurfaceRead[]>();
+  const add = (key: string, surface: FactSurface, refusesWhenUnanswered = false): void => {
+    const list = out.get(key) ?? [];
+    if (!list.some((r) => r.surface === surface)) list.push({ surface, refusesWhenUnanswered });
+    else if (refusesWhenUnanswered) {
+      const i = list.findIndex((r) => r.surface === surface);
+      list[i] = { surface, refusesWhenUnanswered: true };
+    }
+    out.set(key, list);
+  };
+  const grid = (raw: unknown, surface: FactSurface): void => {
+    const refuses = isRecord(raw) && raw.onNoMatch === 'reject';
+    for (const key of gridAxisKeys(raw)) add(key, surface, refuses);
+    // An engine-DERIVED axis (the deposit share, the car's age) is read through the answers
+    // it is computed from, so those are the questions this table needs. Not a refusal on a
+    // blank: the inputs behind a derived key are asked as their own required questions.
+    if (isRecord(raw) && Array.isArray(raw.axes)) {
+      for (const axis of raw.axes) {
+        if (!isRecord(axis) || typeof axis.factKey !== 'string') continue;
+        for (const input of DERIVED_FACT_INPUTS[axis.factKey] ?? []) add(input, surface);
+      }
+    }
+  };
+
+  const additional = isRecord(row.incomeAssumption)
+    ? factsReadByIncomeRule({ additionalIncome: row.incomeAssumption.additionalIncome })
+    : new Set<string>();
+  for (const key of factsReadByIncomeRule(row.incomeAssumption)) {
+    add(key, additional.has(key) ? 'additional_income' : 'income_rule');
+  }
+
+  if (isRecord(row.loanLimits)) {
+    const limits = row.loanLimits;
+    const table = limits.maxLoanByFact;
+    if (isRecord(table)) {
+      const refuses = table.onNoMatch === 'reject';
+      for (const k of [table.factKey, table.columnFactKey]) {
+        if (typeof k === 'string' && k !== '') add(k, 'cap', refuses);
+      }
+    }
+    if (Array.isArray(limits.maxLoanAdjustments)) {
+      for (const adjustment of limits.maxLoanAdjustments) {
+        if (
+          isRecord(adjustment) &&
+          typeof adjustment.whenFactKey === 'string' &&
+          adjustment.whenFactKey !== ''
+        ) {
+          add(adjustment.whenFactKey, 'cap_adjustment');
+        }
+      }
+    }
+    grid(limits.ltvCeilingByFact, 'financed_share');
+    // The flat financed share is a share OF THE PRICE the applicant states.
+    if (typeof limits.ltvCeilingPercent === 'string' && limits.ltvCeilingPercent !== '') {
+      for (const input of DERIVED_FACT_INPUTS[CAR_DOWN_PAYMENT_PERCENT_FACT_KEY] ?? []) {
+        add(input, 'financed_share');
+      }
+    }
+    grid(limits.minAmountByFact, 'min_amount');
+  }
+  if (isRecord(row.pricing)) grid(row.pricing.rateByFact, 'rate_grid');
+  if (isRecord(row.tenor)) {
+    grid(row.tenor.maxMonthsByFact, 'max_term');
+    grid(row.tenor.minMonthsByFact, 'min_term');
+    grid(row.tenor.maxVehicleAgeYearsByFact, 'vehicle_age');
+    if (isRecord(row.tenor.maxVehicleAgeYearsByFact)) add(CAR_MODEL_YEAR_FACT_KEY, 'vehicle_age');
+  }
+  if (isRecord(row.fees)) grid(row.fees.carInsuranceRateByFact, 'car_cover');
+  return out;
+}
+
+/** The facts whose absence refuses this programme's quote — see `refusesWhenUnanswered`. */
+export function factsRefusingWhenUnanswered(row: FactReaderProgramRow): Set<string> {
+  const keys = new Set<string>();
+  for (const [key, reads] of factSurfacesOfProgram(row)) {
+    if (reads.some((r) => r.refusesWhenUnanswered)) keys.add(key);
+  }
   return keys;
 }
 

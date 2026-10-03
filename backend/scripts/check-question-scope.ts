@@ -11,6 +11,13 @@
  *   npx tsx scripts/check-question-scope.ts            (npm run check:question-scope)
  *   npx tsx scripts/check-question-scope.ts --report   + the served/required table
  *
+ * Feature 012 adds OPTIONAL_REFUSAL: a programme table the bank set to REFUSE on no match,
+ * keyed on a question the applicant may leave blank — blank is a miss, the miss refuses, so
+ * every such programme is lost in silence. Under a programme name the narrowing makes those
+ * questions required (`mustAnswerQuestionCodes`); a served-but-optional one is a finding.
+ * With no name picked nothing narrows, so the category-wide case is printed as a NOTE, not
+ * a failure — the question screen's "Used by" panel carries the same warning.
+ *
  * It IMPORTS the rule rather than restating it, so the gate moves when the rule moves. What it
  * derives independently is the REQUIREMENT — the facts each program reads — and then asserts
  * the served set contains a question for every one of them. Deriving both sides the same way
@@ -31,6 +38,7 @@ import {
 } from '../src/matching/pipeline/income-rule-inherit';
 import {
   asPlanDefaults,
+  effectivePlanFees,
   effectivePlanLoanLimits,
   effectivePlanPricing,
   effectivePlanTenor,
@@ -41,10 +49,12 @@ import {
   factsReadByLoanLimits,
   factsReadByPricing,
   factsReadByTenor,
+  factsRefusingWhenUnanswered,
 } from '../src/matching/pipeline/fact-readers';
 import { bankAxisByFactKey } from '../src/matching/pipeline/bank-relationship';
 import { narrowAskedQuestions } from '../src/questionnaire/validation/question-scope';
 import type {
+  FeesConfig,
   IncomeAssumptionConfig,
   LoanLimitsConfig,
   PricingConfig,
@@ -52,7 +62,7 @@ import type {
 } from '../src/matching/types';
 
 interface Finding {
-  kind: 'HIDDEN' | 'PARKED' | 'UNASSIGNED' | 'UNBOUND' | 'ASK_MISSING';
+  kind: 'HIDDEN' | 'PARKED' | 'UNASSIGNED' | 'UNBOUND' | 'ASK_MISSING' | 'OPTIONAL_REFUSAL';
   name: string;
   category: string;
   factKey: string;
@@ -72,6 +82,8 @@ async function main(): Promise<void> {
   const repo = new PostgresPlatformEnumerationsRepository(prisma as unknown as PrismaService);
   const findings: Finding[] = [];
   const rows: string[] = [];
+  /** Category-wide (no name picked): reject tables keyed on an optional question. Informational. */
+  const notes = new Set<string>();
 
   try {
     const [names, products, facts, questions, programs] = await Promise.all([
@@ -131,6 +143,7 @@ async function main(): Promise<void> {
           loanLimits: true,
           pricing: true,
           tenor: true,
+          fees: true,
           plansSource: true,
         },
       }),
@@ -214,6 +227,33 @@ async function main(): Promise<void> {
           }
         }
         const needed = new Set<string>([...loud, ...viaCap]);
+
+        // Feature 012 — the facts whose ABSENCE refuses one of these programmes. Derived here
+        // from the effective tables, independently of `narrowingScopeFor`'s own pass.
+        const refusing = new Map<string, string[]>();
+        for (const program of mine) {
+          const src = program.plansSource;
+          const keys = factsRefusingWhenUnanswered({
+            programCode: program.programCode,
+            incomeAssumption: program.incomeAssumption,
+            loanLimits: effectivePlanLoanLimits(
+              (program.loanLimits ?? {}) as unknown as LoanLimitsConfig,
+              src,
+              plans,
+            ),
+            pricing: effectivePlanPricing(
+              (program.pricing ?? {}) as unknown as PricingConfig,
+              src,
+              plans,
+            ),
+            tenor: effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans),
+            fees: effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
+          });
+          for (const key of keys) {
+            if (bankAxisByFactKey(key) !== undefined) continue; // unanswered → new-to-bank column
+            refusing.set(key, [...(refusing.get(key) ?? []), program.programCode]);
+          }
+        }
         const silentOnly = new Set([...viaCap].filter((key) => !loud.has(key)));
 
         // Every row, OPT-IN ones included — the list serve and apply hand the rule — each
@@ -314,6 +354,24 @@ async function main(): Promise<void> {
           }
         }
 
+        for (const [factKey, programCodes] of refusing) {
+          const code = factByKey.get(factKey)?.boundQuestion?.code;
+          if (code === undefined || !served.has(code)) continue; // reported above if needed
+          const q = inCategory.find((x) => x.code === code);
+          if (q?.isRequired !== true) {
+            notes.add(`${category} — ${code}: optional with no name picked; blank refuses ${programCodes.join(', ')}`);
+          }
+          if (q?.isRequired === true || decision.extraRequired.has(code)) continue;
+          findings.push({
+            kind: 'OPTIONAL_REFUSAL',
+            name: name.key,
+            category,
+            factKey,
+            detail: `${code} is served optional, and a blank answer refuses ${programCodes.join(', ')}`,
+            silent: false,
+          });
+        }
+
         if (report) {
           const requiredAfter = [...served].filter((code) => {
             const q = inCategory.find((x) => x.code === code);
@@ -349,12 +407,26 @@ async function main(): Promise<void> {
       '',
     );
   }
+  if (notes.size > 0) {
+    out.push(
+      '  NOTE — refuse-on-no-match tables keyed on a question that is optional when no name is picked:',
+      ...[...notes].sort().map((n) => `    ${n}`),
+      '',
+    );
+  }
   if (findings.length === 0) {
     out.push('  every fact a live program reads is asked of the applicants it quotes', '');
     console.log(out.join('\n'));
     return;
   }
-  for (const kind of ['HIDDEN', 'PARKED', 'UNASSIGNED', 'UNBOUND', 'ASK_MISSING'] as const) {
+  for (const kind of [
+    'HIDDEN',
+    'PARKED',
+    'UNASSIGNED',
+    'UNBOUND',
+    'ASK_MISSING',
+    'OPTIONAL_REFUSAL',
+  ] as const) {
     const group = findings.filter((f) => f.kind === kind);
     if (group.length === 0) continue;
     out.push(`  ${kind} (${group.length})`);

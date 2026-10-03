@@ -44,7 +44,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6297,7 +6297,9 @@ export class SurrogateProductDetailPage {
     // `membersFor` is a lazily-populated cache that returns `[]` until someone asks for the
     // type. Without this the fact registry is empty, `readLists()` finds nothing, and every
     // product — including the compound one, which reads two lists — reports reading none.
-    void this.enums.load('surrogate_fact');
+    // Re-read, never served from the cache: a figure just created from a question (feature
+    // 012's "Use in calculation") must be pickable as a plan-table axis without a reload.
+    void this.enums.refresh('surrogate_fact');
     // The I-Score classes, for the "standard classes" button. A failure only hides it.
     this.lookups
       .list(I_SCORE_CLASS_TYPE)
@@ -6698,6 +6700,7 @@ export class SurrogateProductDetailPage {
     try {
       const res = await this.api.getSurrogateProduct(this.key);
       this.absorb(res.data, opts.keepEdits === true);
+      this.applyPlanDeepLink();
     } catch {
       // The toast interceptor has already said why; the template renders the not-found
       // state off `product() === null`.
@@ -6705,6 +6708,45 @@ export class SurrogateProductDetailPage {
     } finally {
       if (!opts.silent) this.loading.set(false);
     }
+  }
+
+  /**
+   * Feature 012 — a question's "What should it affect?" tile lands here with
+   * `?step=2&plan=<table>&axis=<figure key>`. Read ONCE, after the first load: it opens the
+   * plan list and that table's row and scrolls to it.
+   *
+   * The axis is pre-filled only as an unsaved DRAFT, only on a product that already states
+   * plans, and only when that table does not exist yet: a product with no plans may be one no
+   * car loan sells, where inventing a table would surface the plan section the page hides on
+   * purpose. Anything else is left exactly as stored.
+   */
+  private planDeepLinkRead = false;
+  private readonly doc = inject(DOCUMENT);
+  private applyPlanDeepLink(): void {
+    if (this.planDeepLinkRead) return;
+    this.planDeepLinkRead = true;
+    const params = this.route.snapshot.queryParamMap;
+    const plan = params.get('plan');
+    const slot = this.planSlots.find((s) => s.key === plan)?.key;
+    if (slot === undefined) return;
+    const axis = params.get('axis');
+    if (
+      this.planValue() !== null &&
+      this.planGrid(slot) === null &&
+      axis !== null &&
+      /^[a-z0-9_]+$/.test(axis)
+    ) {
+      this.setPlanGrid(slot, { ...emptyFactGrid(), axes: [{ factKey: axis }] });
+    }
+    this.advancedOpen.set(true);
+    if (this.planGrid(slot) !== null) {
+      this.openPlanSlots.set(new Set(this.openPlanSlots()).add(slot));
+    }
+    setTimeout(() => {
+      const target =
+        this.doc.getElementById(`plan-body-${slot}`) ?? this.doc.getElementById('plan-advanced');
+      target?.scrollIntoView({ block: 'start' });
+    });
   }
 
   private absorb(data: SurrogateProductDetail, keepEdits = false): void {

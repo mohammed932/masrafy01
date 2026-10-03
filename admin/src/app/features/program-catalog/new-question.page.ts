@@ -7,6 +7,7 @@ import {
   inject,
   input,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -56,6 +57,7 @@ import {
   type GroupTreeRow,
   type QuestionType,
 } from '@features/questionnaire/questionnaire.api.service';
+import { QuestionCalculationComponent } from '@features/questionnaire/question-calculation.component';
 
 /**
  * Author a brand-new question WITHOUT leaving the catalog name you are configuring.
@@ -145,6 +147,7 @@ type OptionGroup = FormGroup<{
     NzToolTipModule,
     MoneyInputDirective,
     FormPageComponent,
+    QuestionCalculationComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -168,7 +171,7 @@ type OptionGroup = FormGroup<{
       [subtitle]="nameLabel() ? subtitleFor(nameLabel()) : null"
       [hint]="summary()"
       [blockReason]="blockReason()"
-      [submitLabel]="submitLabel"
+      [submitLabel]="createdCode() === null ? submitLabel : doneLabel"
       [submitting]="submitting()"
       (cancelled)="cancel()"
       (submitted)="save()"
@@ -550,6 +553,16 @@ type OptionGroup = FormGroup<{
             </div>
           }
         </section>
+
+        <!-- Feature 012: the link to a calculation figure is CHOSEN here and HELD until the
+             question exists — save creates the question, then links it. A failed link keeps
+             the question and turns the panel live on it, with the error and a Retry. -->
+        <app-question-calculation
+          [deferred]="true"
+          [questionCode]="createdCode()"
+          [pendingKey]="codePreviewKey()"
+          [pendingType]="type()"
+        />
       </form>
 
       <p class="sr-only" role="status" aria-live="polite">{{ live() }}</p>
@@ -1100,6 +1113,10 @@ export class NewQuestionPage implements OnInit {
   protected readonly eyebrow = $localize`:@@pnq.eyebrow:Question pool`;
   protected readonly pageTitle = $localize`:@@pnd.new_question_title:New question`;
   protected readonly submitLabel = $localize`:@@pnq.save:Create question`;
+  protected readonly doneLabel = $localize`:@@qcalc.done:Done`;
+  /** Set once the question exists, so a second press never creates it twice. */
+  protected readonly createdCode = signal<string | null>(null);
+  private readonly calcPanel = viewChild(QuestionCalculationComponent);
 
   async ngOnInit(): Promise<void> {
     // The same two reads the name's own page makes, for the same two reasons: the row
@@ -1259,6 +1276,12 @@ export class NewQuestionPage implements OnInit {
   }
 
   // ---- codes ----------------------------------------------------------------
+  /** The figure key "create from this question" will mint — the question's own code. */
+  protected codePreviewKey(): string {
+    const preview = this.codePreview();
+    return preview === '—' ? '' : preview;
+  }
+
   protected codePreview(): string {
     const en = this.value().questionEn.trim();
     return en === '' ? '—' : uniqueSlug(en, this.existing());
@@ -1425,6 +1448,7 @@ export class NewQuestionPage implements OnInit {
    * the error banner if the two ever disagree.
    */
   protected readonly blockReason = computed<string | null>(() => {
+    if (this.createdCode() !== null) return null;
     const v = this.value();
     if (v.questionEn.trim() === '' || v.questionAr.trim() === '') {
       return $localize`:@@pnq.block_wording:Write the question in English and Arabic`;
@@ -1495,14 +1519,27 @@ export class NewQuestionPage implements OnInit {
 
   protected async save(): Promise<void> {
     if (this.blockReason() !== null || this.submitting()) return;
+    // Already created and its link failed: the panel below owns the retry, and Done leaves.
+    if (this.createdCode() !== null) {
+      void this.router.navigate(['/program-catalog', this.key()]);
+      return;
+    }
     this.errorMessage.set(null);
     this.submitting.set(true);
     try {
-      // The write IS the whole job now — the question lands in the global pool and is
-      // asked of the loan types picked above. Nothing is attached to the catalog name,
-      // so there is nothing to hand back to it.
-      await this.api.createQuestionWithOptions(this.body());
-      void this.router.navigate(['/program-catalog', this.key()]);
+      // The question lands in the global pool and is asked of the loan types picked above.
+      // Nothing is attached to the catalog name. The held calculation link, if any, is
+      // carried out once the question exists.
+      const created = await this.api.createQuestionWithOptions(this.body());
+      this.createdCode.set(created.code);
+      const linked = (await this.calcPanel()?.commitPending(created.code)) ?? true;
+      if (linked) {
+        void this.router.navigate(['/program-catalog', this.key()]);
+        return;
+      }
+      this.errorMessage.set(
+        $localize`:@@qcalc.created_link_failed:The question was created, but linking it to a figure failed. Retry below, or press Done to leave it unlinked.`,
+      );
     } catch (err) {
       const code = (err as { error?: { code?: string } }).error?.code;
       this.errorMessage.set(

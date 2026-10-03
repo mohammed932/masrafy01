@@ -17,6 +17,7 @@ import { SeedAbkController } from './seeds/seed-abk.controller';
 import { SeedCompetitorController } from './seeds/seed-competitor.controller';
 import { BlueprintService } from './blueprints/blueprint.service';
 import { ProductAsksService } from './asks/product-asks.service';
+import { QuestionFactLinkService } from './asks/question-fact-link.service';
 import { ProductAsksRepository } from './asks/product-asks.repository';
 
 @Module({
@@ -53,6 +54,7 @@ import { ProductAsksRepository } from './asks/product-asks.repository';
     // publishes the questionnaire, and that service's positional constructor is pinned by
     // tests.
     ProductAsksService,
+    QuestionFactLinkService,
     ProductAsksRepository,
   ],
   exports: [BankProgramsService, BankProgramRepository],
