@@ -4730,6 +4730,7 @@
       <trans-unit id="qcalc.unlink_ok" datatype="html"><source>Unlink</source><target>فك الربط</target></trans-unit>
       <trans-unit id="qcalc.unlink_cancel" datatype="html"><source>Keep it</source><target>إبقاؤه</target></trans-unit>
       <trans-unit id="qcalc.cand_mismatch" datatype="html"><source><x id="figure" equiv-text="base"/> — read by a different kind of answer</source><target><x id="figure" equiv-text="base"/> — يقرؤه نوع إجابة مختلف</target></trans-unit>
+      <trans-unit id="qcalc.unknown_keys" datatype="html"><source>No option of this question matches: <x id="keys" equiv-text="keys.join(', ')"/></source><target>لا يطابق أي خيار في هذا السؤال: <x id="keys" equiv-text="keys.join(', ')"/></target></trans-unit>
       <trans-unit id="qcalc.cand_read" datatype="html"><source><x id="figure" equiv-text="base"/> — read by <x id="count" equiv-text="c.readerCount"/></source><target><x id="figure" equiv-text="base"/> — يقرؤه <x id="count" equiv-text="c.readerCount"/></target></trans-unit>
       <trans-unit id="qcalc.eff_text_only" datatype="html"><source>A typed-in answer can only be a condition.</source><target>الإجابة النصية الحرة لا تصلح إلا شرطاً.</target></trans-unit>
       <trans-unit id="qcalc.eff_numeric_only" datatype="html"><source>Only a number answer can be added to the income.</source><target>الإجابة الرقمية فقط يمكن إضافتها إلى الدخل.</target></trans-unit>

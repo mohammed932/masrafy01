@@ -38,6 +38,15 @@
 
 ---
 
+## Clarifications
+
+### Session 2026-10-03
+
+- Q: When does feature 012 count as done, given C1/C2 need operator figures? → A: Done = A + B + C3. C1 and C2 move to a follow-up that starts when `operator-worksheet.md` is filled in.
+- Q: How strict is the bind-time shape check when linking an existing figure? → A: Full A2 is required before A is done — choice keys ⊆ option codes, `unknownKeys` in the meta, and an unknown shape that has readers is refused. Proven over HTTP.
+
+---
+
 ## Audit of all programs and questions (dev DB, read-only, 2026-10-03)
 
 **Caveat:** the dev DB is **4 migrations behind** the code:
@@ -83,7 +92,7 @@ Because of that, `check:question-scope` and `check:questionnaire` crash (`Unknow
 | G1 | Preview hardcodes `salaried`, so the quote differs from apply on **4 programs**: CAE-PER-COMPOUND_OWNER (DBR 50/40), CAE-CAR-NEW_CAR and CAE-CAR-USED_CAR (self-employed 60 months), ABK-PER-PL_TO_CARD (self-employed 84 months) | B |
 | G2 | Car product-only names quote at apply but not in preview (no `amount_requested` derivation) | B |
 | G3 | The admin cannot link a question to the calculation; 12 active questions change no figure | A + C2 |
-| G4 | Reject-on-no-match tables keyed on **optional** questions refuse the quote when the question is left blank: `car_origin` (CAE max-loan, car_buyers rate), `car_fuel_type` / `car_dealer` (CAE-CAR-EV term), `loan_is_topup` ← `existing_bank_loans` (ABK-PER-DOCTORS_CLINIC cap) | C3 |
+| G4 | Reject-on-no-match tables keyed on **optional** questions refuse the quote when the question is left blank: `car_origin` (CAE max-loan, car_buyers rate), `car_fuel_type` / `car_dealer` (CAE-CAR-EV term). (`loan_is_topup` ← `existing_bank_loans` was listed here but is a derived bank axis: a blank answer reads the new-to-bank column, not a refusal.) | C3 |
 | G5 | `military_grade` offers 3 legacy options (`officer`, `senior_officer`, `general`) with no row in ABK-PER-ARMED_FORCES's grade table, so they get no grade income | C1 |
 | G6 | `existing_bank_relationships` → `bank_relationship` axis: nothing reads it | A (flag only) |
 | G7 | HSBC-PER-PROFESSIONAL `byBankStatementPercent` reads a body-only balance that no question asks | not in scope (operator), listed as a follow-up |
@@ -168,6 +177,7 @@ Because of that, `check:question-scope` and `check:questionnaire` crash (`Unknow
   - choice keys must be a subset of the option codes (class-read axes are skipped, as in `validateFactGrid`);
   - a numeric shape requires a NUMERIC question;
   - an unknown shape that has readers is refused.
+- **Required for A to be done** (Clarification 2026-10-03): a check on question type alone is not enough. `SURROGATE_FACT_SHAPE_MISMATCH` meta must carry `unknownKeys` (the table keys that no option code matches), and the refusal must be shown over HTTP. If no unbound active fact exists on dev, create a throwaway fact for the test and delete it afterwards.
 
 **A3. `fact-readers.ts`**
 - Add `factSurfacesOfProgram(row)`, which returns, per fact key, the surfaces that read it: income rule, additional income, cap, cap adjustment, financed share, min amount, rate grid, max/min term, vehicle age, car cover.
@@ -252,6 +262,8 @@ Because of that, `check:question-scope` and `check:questionnaire` crash (`Unknow
 
 ## C — Data fixes and guards from the audit
 
+**Scope of done:** only C3 is part of feature 012's definition of done. C1 and C2 are a **follow-up** that starts when the operator fills in `operator-worksheet.md` (which replaces the `dead-questions-worksheet.md` named below). Until then, the Used-by panel shows the 12 C2 questions as "Affects no figure", and the 3 legacy C1 grades still get no grade income.
+
 **C1. `military_grade` legacy options (G5): map to grades (operator decision)**
 - Add rows for `officer`, `senior_officer` and `general` to the `military_grade` list, and add their income figures to ABK-PER-ARMED_FORCES's grade table (`armed_forces_grades` product rule / program `stepParams`).
 - **Needs from the operator:** which existing grade each one equals, or the EGP figure for each. Without that, nothing is written.
@@ -281,7 +293,7 @@ Because of that, `check:question-scope` and `check:questionnaire` crash (`Unknow
 - **Rule:** a question that a **reject-on-no-match** table reads (`onNoMatch: 'reject'` grids, `maxLoanByFact` with reject, and gates) is **required** wherever that program is quoted.
 - **Where:** the existing v29 rule "a served question the programme reads is REQUIRED" lives in `question-scope.ts`. Extend its `mustAnswerQuestionCodes` collection in `narrowingScopeFor` (`postgres-platform-enumerations.repository.ts`) so reject tables count. Today only `maxVehicleAgeYearsByFact` adds to `mustAnswer`.
 - **Without a programme name:** for a request with no `programNameKey`, the category-wide set is not narrowed, so the rule cannot apply there. Instead, the Used-by panel warns and `check:question-scope` gains an invariant that lists every reject table keyed on a question that is optional category-wide. That extends an existing check; it is not a new test.
-- **Effect:** the 4 known cases (`car_origin`, `car_fuel_type`, `car_dealer`, `existing_bank_loans`) become required on the names that read them, so no silent refusals.
+- **Effect:** the 3 known cases (`car_origin`, `car_fuel_type`, `car_dealer`) become required on the names that read them, so no silent refusals. Derived bank axes are excluded: a blank `existing_bank_loans` reads the new-to-bank column, so it is **not** a refusal (the audit's fourth G4 case was wrong).
 - **Verify:** the served questionnaire for each affected name before and after; quotes unchanged for fully answered applicants.
 
 **Not in scope (follow-ups):**

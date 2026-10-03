@@ -518,13 +518,18 @@ export class QuestionFactAlreadyLinkedException extends DomainException {
   }
 }
 
-/** Feature 012 — the figure is read in a shape this question's answer cannot give. */
+/**
+ * Feature 012 — the figure is read in a shape this question's answer cannot give: a number
+ * read and a non-NUMERIC question, an option read and a question with no options, a figure
+ * read both ways (`expected: 'unknown'`), or table keys no option matches (`unknownKeys`).
+ */
 export class SurrogateFactShapeMismatchException extends DomainException {
   constructor(meta: {
     factKey: string;
     questionCode: string;
-    expected: 'number' | 'choice';
+    expected: 'number' | 'choice' | 'unknown';
     questionType: string;
+    unknownKeys: string[];
   }) {
     super(ERROR_CODES.SURROGATE_FACT_SHAPE_MISMATCH, meta);
   }

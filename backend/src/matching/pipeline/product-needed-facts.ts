@@ -56,7 +56,8 @@ export type NeededReader =
 export type NeededShape =
   | { kind: 'choice'; optionKeys: string[] }
   | { kind: 'number' }
-  | { kind: 'unknown' };
+  /** `mixed`: read both by option and as a number — no single answer type can fill it. */
+  | { kind: 'unknown'; mixed?: true };
 
 export interface NeededFact {
   factKey: string;
@@ -132,7 +133,7 @@ function sameReader(a: NeededReader, b: NeededReader): boolean {
 function mergeShape(seen: readonly Seen[]): NeededShape {
   if (seen.length === 0) return { kind: 'unknown' };
   const kinds = new Set(seen.map((s) => s.kind));
-  if (kinds.size > 1) return { kind: 'unknown' };
+  if (kinds.size > 1) return { kind: 'unknown', mixed: true };
   if (kinds.has('number')) return { kind: 'number' };
   const keys: string[] = [];
   for (const s of seen) {

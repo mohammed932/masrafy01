@@ -389,6 +389,8 @@ export interface QuestionFactCandidate {
   labelEn: string;
   shape: 'choice' | 'number' | 'unknown' | 'unread';
   readerCount: number;
+  /** Table keys none of this question's options match; the server refuses the link. */
+  unknownKeys: string[];
 }
 
 export interface QuestionUsageDetail extends QuestionUsage {

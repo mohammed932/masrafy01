@@ -80,6 +80,8 @@ export interface QuestionFactCandidateDto {
   /** How its readers read it, when any do. */
   shape: 'choice' | 'number' | 'unknown' | 'unread';
   readerCount: number;
+  /** Table keys none of THIS question's options match — linking it is refused while non-empty. */
+  unknownKeys: string[];
 }
 
 export interface QuestionUsageDetailDto extends QuestionUsageDto {

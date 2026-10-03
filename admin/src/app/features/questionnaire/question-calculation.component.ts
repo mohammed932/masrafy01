@@ -1052,8 +1052,11 @@ export class QuestionCalculationComponent {
     const type = this.effectiveType();
     if (type === null) return false;
     if (c.shape === 'number') return type !== 'NUMERIC';
-    if (c.shape === 'choice') return type === 'NUMERIC' || type === 'TEXT';
-    return false;
+    if (c.shape === 'choice') {
+      return type === 'NUMERIC' || type === 'TEXT' || (c.unknownKeys?.length ?? 0) > 0;
+    }
+    // Read both by option and as a number: no question type fills it.
+    return c.shape === 'unknown' && c.readerCount > 0;
   }
 
   // ---- 2 -------------------------------------------------------------------
@@ -1328,11 +1331,16 @@ export class QuestionCalculationComponent {
 
   private fail(err: unknown, action: FailedAction): void {
     const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })?.error;
+    const message = this.errors.toLocalizedMessage(
+      (envelope?.code ?? 'INTERNAL_ERROR') as ErrorCode,
+      envelope?.meta,
+    );
+    const unknownKeys = envelope?.meta?.['unknownKeys'];
+    const keys = Array.isArray(unknownKeys) ? unknownKeys.filter((k) => typeof k === 'string') : [];
     this.error.set(
-      this.errors.toLocalizedMessage(
-        (envelope?.code ?? 'INTERNAL_ERROR') as ErrorCode,
-        envelope?.meta,
-      ),
+      keys.length > 0
+        ? `${message} ${$localize`:@@qcalc.unknown_keys:No option of this question matches: ${keys.join(', ')}:keys:`}`
+        : message,
     );
     this.lastAction.set(action);
   }

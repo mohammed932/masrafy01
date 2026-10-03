@@ -18,7 +18,7 @@
 import { Injectable } from '@nestjs/common';
 import { BANK_AXES } from '@/matching/pipeline/bank-relationship';
 import { isReservedFactKey } from '@/matching/pipeline/fact-question-eligibility';
-import { neededFactsOf } from '@/matching/pipeline/product-needed-facts';
+import { neededFactsOf, type NeededShape } from '@/matching/pipeline/product-needed-facts';
 import {
   BUSINESS_AGE_QUESTION_CODE,
   CREDIT_CARD_LIMIT_QUESTION_CODE,
@@ -89,6 +89,23 @@ const ENGINE_QUESTION_CODES: ReadonlySet<string> = new Set<string>([
   SALARY_TRANSFER_QUESTION_CODE,
 ]);
 
+type QuestionType = QuestionUsageInputs['questions'][number]['type'];
+
+/** How a figure's live readers key it (see `shapeOf`). */
+type FigureShape =
+  | { kind: 'choice'; optionKeys: string[] }
+  | { kind: 'number' }
+  | { kind: 'mixed' }
+  | { kind: 'unread' };
+
+function candidateShape(shape: FigureShape): QuestionFactCandidateDto['shape'] {
+  return shape.kind === 'mixed' ? 'unknown' : shape.kind;
+}
+
+function questionOptionCodes(code: string, inputs: QuestionUsageInputs): string[] {
+  return inputs.questions.find((q) => q.code === code)?.optionCodes ?? [];
+}
+
 function adminActor(actor: AskActor): AdminActor {
   return { staffId: actor.id, sourceIp: actor.sourceIp };
 }
@@ -139,24 +156,22 @@ export class QuestionFactLinkService {
     if (plan.kind === 'refuse') throw this.refusalToException(plan.refusal, questionCode, factKey);
 
     // The shape test for an EXISTING figure: what its live readers key it by must be
-    // something this question's answer can give, or every one of those tables would miss.
+    // something this question's answer can give, or every one of those tables would miss —
+    // and a table that refuses on no match would refuse every applicant under it.
     if (factKey !== undefined && plan.steps.length > 0) {
-      const expected = this.shapeOf(factKey, inputs);
-      const type = question.type;
-      if (expected === 'number' && type !== 'NUMERIC') {
+      const misfit = this.misfitOf(
+        factKey,
+        question.type,
+        questionOptionCodes(question.code, inputs),
+        inputs,
+      );
+      if (misfit !== null) {
         throw new SurrogateFactShapeMismatchException({
           factKey,
           questionCode,
-          expected,
-          questionType: type,
-        });
-      }
-      if (expected === 'choice' && (type === 'NUMERIC' || type === 'TEXT')) {
-        throw new SurrogateFactShapeMismatchException({
-          factKey,
-          questionCode,
-          expected,
-          questionType: type,
+          expected: misfit.expected,
+          questionType: question.type,
+          unknownKeys: misfit.unknownKeys,
         });
       }
     }
@@ -290,6 +305,7 @@ export class QuestionFactLinkService {
 
   private detailOf(code: string, inputs: QuestionUsageInputs): QuestionUsageDetailDto {
     const usage = this.usageOf(code, inputs);
+    const question = inputs.questions.find((q) => q.code === code);
     const candidates: QuestionFactCandidateDto[] = inputs.facts
       .filter(
         (f) =>
@@ -303,18 +319,28 @@ export class QuestionFactLinkService {
           factKey: f.key,
           labelAr: f.labelAr,
           labelEn: f.labelEn,
-          shape: readerCount === 0 ? 'unread' : this.shapeOf(f.key, inputs),
+          shape: readerCount === 0 ? 'unread' : candidateShape(this.shapeOf(f.key, inputs)),
           readerCount,
+          unknownKeys:
+            readerCount === 0 || question === undefined
+              ? []
+              : (this.misfitOf(f.key, question.type, question.optionCodes, inputs)?.unknownKeys ??
+                []),
         };
       });
     return { ...usage, candidates, createKey: usage.factKey ?? derivedFactKey({ code }) };
   }
 
-  /** How the live readers key a figure: by option, by number band, or ambiguously. */
-  private shapeOf(factKey: string, inputs: QuestionUsageInputs): 'choice' | 'number' | 'unknown' {
-    const shapes = new Set<string>();
+  /**
+   * How the live readers key a figure. `choice` carries the union of the option keys its
+   * tables are keyed by (empty when every keyed read is by class, or no keys are typed yet —
+   * any choice question fits those). `mixed` is a figure read both by option and as a
+   * number: no single question type fills it. `unread` when nothing reveals a shape.
+   */
+  private shapeOf(factKey: string, inputs: QuestionUsageInputs): FigureShape {
+    const seen: NeededShape[] = [];
     const collect = (facts: ReturnType<typeof neededFactsOf>): void => {
-      for (const f of facts) if (f.factKey === factKey) shapes.add(f.shape.kind);
+      for (const f of facts) if (f.factKey === factKey) seen.push(f.shape);
     };
     collect(
       neededFactsOf({
@@ -327,9 +353,46 @@ export class QuestionFactLinkService {
       if (!rule.factKeys.includes(factKey)) continue;
       collect(neededFactsOf({ incomeRule: rule.incomeRule, planDefaults: null, programs: [] }));
     }
-    if (shapes.size === 1 && shapes.has('choice')) return 'choice';
-    if (shapes.size === 1 && shapes.has('number')) return 'number';
-    return 'unknown';
+    if (seen.length === 0) return { kind: 'unread' };
+    if (seen.some((s) => s.kind === 'unknown' && s.mixed === true)) return { kind: 'mixed' };
+    const hasNumber = seen.some((s) => s.kind === 'number');
+    // An `unknown` that is not mixed is a keyed read whose keys are not the options.
+    const hasChoice = seen.some((s) => s.kind !== 'number');
+    if (hasNumber && hasChoice) return { kind: 'mixed' };
+    if (hasNumber) return { kind: 'number' };
+    const optionKeys: string[] = [];
+    for (const s of seen) {
+      if (s.kind !== 'choice') continue;
+      for (const k of s.optionKeys) if (!optionKeys.includes(k)) optionKeys.push(k);
+    }
+    return { kind: 'choice', optionKeys };
+  }
+
+  /**
+   * Why this question cannot answer the figure, or null when it can (plan A2): a number
+   * read needs a NUMERIC question; an option read needs a choice question whose options
+   * cover every key the tables are keyed by; a figure read both ways fits nothing.
+   */
+  private misfitOf(
+    factKey: string,
+    type: QuestionType,
+    optionCodes: readonly string[],
+    inputs: QuestionUsageInputs,
+  ): { expected: 'number' | 'choice' | 'unknown'; unknownKeys: string[] } | null {
+    const shape = this.shapeOf(factKey, inputs);
+    switch (shape.kind) {
+      case 'unread':
+        return null;
+      case 'mixed':
+        return { expected: 'unknown', unknownKeys: [] };
+      case 'number':
+        return type === 'NUMERIC' ? null : { expected: 'number', unknownKeys: [] };
+      case 'choice': {
+        if (type === 'NUMERIC' || type === 'TEXT') return { expected: 'choice', unknownKeys: [] };
+        const unknownKeys = shape.optionKeys.filter((k) => !optionCodes.includes(k));
+        return unknownKeys.length === 0 ? null : { expected: 'choice', unknownKeys };
+      }
+    }
   }
 
   // ---- plan inputs / execution ---------------------------------------------------------

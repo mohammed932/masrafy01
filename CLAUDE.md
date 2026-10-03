@@ -219,6 +219,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-10-04 v30.10.1 — linking a question to an existing figure refuses when its options miss the table's keys (`unknownKeys`), not only on a type mismatch.
 - 2026-10-03 v30.11.0 — a question a refuse-on-no-match table reads is required wherever that programme is quoted (car origin/fuel/dealer); `check:question-scope` guards it; the legacy military grades and the 12 unread questions wait on `specs/012-question-calculation-link/operator-worksheet.md`.
 - 2026-10-03 v30.10.0 — a question can be linked to the calculation from its own screen (`/api/admin/bank-programs/question-facts`), and every question shows what reads it; the effect tiles only navigate.
 - 2026-10-03 v30.9.0 — preview and apply derive amount, term, income and employment through one `applicant-inputs.ts`, answers first; parity proven over HTTP.
