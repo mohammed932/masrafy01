@@ -38,6 +38,16 @@ export class LoanEngineController {
     return ok(await this.service.listQuestions(query.category, query.search));
   }
 
+  @Get('rules')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: 'Every rule the engine applies, program by program (conditions + answer tables)',
+  })
+  @ApiResponse({ status: 422, description: 'VALIDATION_FAILED (unknown category)' })
+  async rulebook(@Query() query: LoanEngineQuestionsQueryDto) {
+    return ok(await this.service.rulebook(query.category));
+  }
+
   @Get('questions/:questionCode')
   @Roles('super_admin', 'sales_manager')
   @ApiOperation({ summary: "One question's effects on every active program in its loan types" })

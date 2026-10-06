@@ -269,6 +269,51 @@ export interface LoanEngineQuestionDetail {
   programs: LoanEngineProgramSlice[];
 }
 
+/** One table a program states on one question's figure, row by row. */
+export interface LoanEngineRuleView {
+  questionCode: string;
+  effect: LoanEngineEffect;
+  rows: EffectRow[];
+  onNoMatch: EffectState['onNoMatch'];
+}
+
+/** A table the engine reads that is authored somewhere else, so it is named, not shown. */
+export interface LoanEngineElsewhereView {
+  effect: LoanEngineEffect;
+  reason: EffectReadOnlyReason;
+  /** `null` for a product's inherited plans, which are not keyed on one question. */
+  questionCode: string | null;
+}
+
+export interface LoanEngineRulebookProgram {
+  programCode: string;
+  bankName: string;
+  friendlyName: string;
+  category: string;
+  version: number;
+  programNameKey: string | null;
+  conditions: ProgramConditionView[];
+  rules: LoanEngineRuleView[];
+  elsewhere: LoanEngineElsewhereView[];
+}
+
+export interface LoanEngineRulebookQuestion {
+  questionCode: string;
+  type: string;
+  labelAr: string;
+  labelEn: string;
+  categories: string[];
+  factKey: string;
+  options: { code: string; labelAr: string; labelEn: string }[];
+}
+
+/** Every rule the engine applies, program by program — the Loan Engine's first view. */
+export interface LoanEngineRulebook {
+  programs: LoanEngineRulebookProgram[];
+  /** The linked questions: the labels a rule names, and what a new rule may read. */
+  questions: LoanEngineRulebookQuestion[];
+}
+
 export interface LoanEngineWriteResult {
   changed: boolean;
   program: LoanEngineProgramSlice;

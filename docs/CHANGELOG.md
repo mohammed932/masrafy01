@@ -2,6 +2,12 @@
 
 Full per-version notes, newest first. Contains implementation rationale, verification evidence and "not done" lists.
 
+- 2026-10-06 (v30.12.1): PATCH — **the Loan Engine opens on the RULES, not on a question list.** The v30.12.0 screen led with questions; a rule was visible only as a "1 row" count in a program × effect matrix, so an operator could not read what the engine actually does.
+
+  - New `GET /api/admin/loan-engine/rules` (read-only, `super_admin` + `sales_manager`): every active program with its conditions, each table it states on a linked question's figure (rows + `onNoMatch`), and the tables it reads that are authored elsewhere (product plans, multi-axis, class, two-column cap). Built from the same `effectState` as the matrix, so the two views cannot disagree. No write, no migration, moves no money.
+  - Admin `/loan-engine` default view **Rules by program**: one card per program, grouped by loan type, saying in sentences who it quotes ("Only if … or … — otherwise refused: reason") and what each answer changes ("Germany, Japan, … → 7,000,000 EGP · any other answer → refused"). Options sharing a figure are said once; number bands read "2,000,000 up to under 5,000,000". A line opens the same effect sheet; "Add rule" picks question + effect inline; programs with no rules sit in one collapsed list. **By question** (the v30.12.0 matrix) stays as the second tab, and any link carrying `?question=` still lands there.
+  - Verified: backend + admin `tsc`, lint on touched files, `development-ar` untranslated count 368 = HEAD (3 dormant `lengine.crit.*` ids now render and were translated). Browser: light, dark, RTL; page overflow 0; console clean. Live data: 12 rules + 0 conditions across 9 of 71 programs.
+
 - 2026-10-04 (v30.12.0): MINOR — **the Loan Engine: one screen where each question's answer gets a figure per bank, in the operator's own words, and any program can refuse an applicant with a stated reason.** Feature 013 (`specs/013-loan-engine-rules/`). Operator decisions, 2026-10-04: rules are PER BANK PROGRAM (Principle II), and a failed condition shows the program REFUSED, never hidden (Principle V). So no constitution amendment is needed.
 
   **Engine (moves no money):**

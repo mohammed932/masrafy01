@@ -115,6 +115,48 @@ export interface LoanEngineQuestionDetail {
   programs: LoanEngineProgramSlice[];
 }
 
+/** One table a program states on one question's figure (the rulebook's row). */
+export interface LoanEngineRuleView {
+  questionCode: string;
+  effect: LoanEngineEffect;
+  rows: EffectRow[];
+  onNoMatch: NoMatch | null;
+}
+
+/** A table the engine reads that is authored somewhere else. */
+export interface LoanEngineElsewhereView {
+  effect: LoanEngineEffect;
+  reason: EffectReadOnlyReason;
+  questionCode: string | null;
+}
+
+export interface LoanEngineRulebookProgram {
+  programCode: string;
+  bankName: string;
+  friendlyName: string;
+  category: LoanCategory;
+  version: number;
+  programNameKey: string | null;
+  conditions: ProgramConditionView[];
+  rules: LoanEngineRuleView[];
+  elsewhere: LoanEngineElsewhereView[];
+}
+
+export interface LoanEngineRulebookQuestion {
+  questionCode: string;
+  type: QuestionType;
+  labelAr: string;
+  labelEn: string;
+  categories: LoanCategory[];
+  factKey: string;
+  options: LoanEngineOption[];
+}
+
+export interface LoanEngineRulebook {
+  programs: LoanEngineRulebookProgram[];
+  questions: LoanEngineRulebookQuestion[];
+}
+
 export interface PutEffectBody {
   expectedVersion: number;
   rows: EffectRow[];
@@ -159,6 +201,11 @@ export interface TriedProgram {
 export class LoanEngineApiService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiBaseUrl}/loan-engine`;
+
+  /** Every rule, program by program — the Loan Engine's first view. */
+  rulebook(): Promise<LoanEngineRulebook> {
+    return this.get<LoanEngineRulebook>('/rules');
+  }
 
   questions(category?: LoanCategory): Promise<LoanEngineQuestionSummary[]> {
     const q = category === undefined ? '' : `?category=${encodeURIComponent(category)}`;

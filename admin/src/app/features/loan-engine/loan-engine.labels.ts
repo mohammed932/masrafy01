@@ -2,11 +2,13 @@
  * Feature 013 — every word the Loan Engine screen and its two sheets share, said once.
  * Pure: no Angular, so the page and both sheets read identical copy.
  */
+import { formatGroupedNumber } from '@core/directives/money-format';
 import type {
   Criterion,
   EffectReadOnlyReason,
   GateReasonCode,
   LoanEngineEffect,
+  NoMatch,
   NumberOp,
 } from './loan-engine.api.service';
 
@@ -135,4 +137,54 @@ export function problemText(problem: unknown): string | null {
 /** The admin error-code JSON keys each gate reason under `GATE_…` (except GATE_NOT_MET). */
 export function gateReasonErrorCode(code: GateReasonCode): string {
   return code === 'GATE_NOT_MET' ? code : `GATE_${code}`;
+}
+
+/** A figure with its unit, as the rulebook prints it: "22%", "7,000,000 EGP", "84 months". */
+export function figureText(effect: LoanEngineEffect, value: string): string {
+  const unit = effectUnit(effect);
+  return unit === '%' ? `${formatGroupedNumber(value)}%` : `${formatGroupedNumber(value)} ${unit}`;
+}
+
+/** What happens to an answer no row names, in the rulebook's words. */
+export function noMatchText(onNoMatch: NoMatch | null): string | null {
+  switch (onNoMatch) {
+    case 'useFallback':
+      return $localize`:@@lengine.rb.nomatch.fallback:the program's usual figure`;
+    case 'useProgramMax':
+      return $localize`:@@lengine.rb.nomatch.max:the program's usual maximum`;
+    case 'reject':
+      return $localize`:@@lengine.rb.nomatch.reject:refused`;
+    default:
+      return null;
+  }
+}
+
+/**
+ * A number band as a reader says it, digits grouped: "under 2,000,000", "2,000,000 up to
+ * under 5,000,000", "10,000,000 or more". The rulebook's voice; the editor keeps `opLabel`.
+ */
+export function bandText(
+  criterion: Criterion | null,
+  optionLabel: (code: string) => string,
+): string {
+  if (criterion === null || !('op' in criterion)) return criterionText(criterion, optionLabel);
+  const n = (v: string | undefined): string => formatGroupedNumber(v ?? '');
+  switch (criterion.op) {
+    case 'lt':
+      return $localize`:@@lengine.band.lt:under ${n(criterion.a)}:a:`;
+    case 'lte':
+      return $localize`:@@lengine.band.lte:${n(criterion.a)}:a: or less`;
+    case 'gte':
+      return $localize`:@@lengine.band.gte:${n(criterion.a)}:a: or more`;
+    case 'gt':
+      return $localize`:@@lengine.band.gt:over ${n(criterion.a)}:a:`;
+    case 'eq':
+      return $localize`:@@lengine.band.eq:exactly ${n(criterion.a)}:a:`;
+    case 'between':
+      return $localize`:@@lengine.band.between:${n(criterion.a)}:a: to ${n(criterion.b)}:b:`;
+    case 'range':
+      return $localize`:@@lengine.band.range:${n(criterion.a)}:a: up to under ${n(criterion.b)}:b:`;
+    case 'custom':
+      return criterionText(criterion, optionLabel);
+  }
 }

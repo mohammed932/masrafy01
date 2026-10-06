@@ -221,6 +221,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-10-06 v30.12.1 — the Loan Engine opens on the rules: `GET /api/admin/loan-engine/rules`, one card per program saying who it quotes and what each answer changes; the per-question matrix is the second tab.
 - 2026-10-04 v30.12.0 — the Loan Engine (`/loan-engine`): per-program figures per answer with less-than / at-most / at-least / more-than / between / equals bands, `bank_program.conditions` that refuse with a reason (never hide), and try-an-answer on unsaved drafts.
 - 2026-10-04 v30.10.1 — linking a question to an existing figure refuses when its options miss the table's keys (`unknownKeys`), not only on a type mismatch.
 - 2026-10-04 v30.10.1 — linking a question to an existing figure refuses when its options miss the table's keys (`unknownKeys`), not only on a type mismatch.

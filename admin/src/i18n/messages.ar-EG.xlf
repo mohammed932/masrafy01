@@ -4811,9 +4811,7 @@
       <trans-unit id="lengine.t.conditions" datatype="html"><source>Conditions</source><target>الشروط</target></trans-unit>
       <trans-unit id="lengine.t.none" datatype="html"><source> No program uses this question yet. Clear the filter to start one. </source><target> لا يستخدم أي برنامج هذا السؤال بعد. ألغِ التصفية لتبدأ واحدًا. </target></trans-unit>
       <trans-unit id="lengine.d.pick" datatype="html"><source>Pick a question to see what it changes for each bank.</source><target>اختر سؤالًا لترى ما يغيّره لدى كل بنك.</target></trans-unit>
-      <trans-unit id="lengine.eyebrow" datatype="html"><source>Matching engine</source><target>محرك المطابقة</target></trans-unit>
       <trans-unit id="lengine.title" datatype="html"><source>Loan Engine</source><target>محرك القروض</target></trans-unit>
-      <trans-unit id="lengine.subtitle" datatype="html"><source>What each answer changes, bank by bank: rates, caps, terms, extra income — and who each program quotes at all.</source><target>ما تغيّره كل إجابة، بنكًا بنكًا: الأسعار والحدود والمدد والدخل الإضافي — ومن يقدّم له كل برنامج أصلًا.</target></trans-unit>
       <trans-unit id="lengine.list_aria" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
       <trans-unit id="lengine.cats_aria" datatype="html"><source>Loan type</source><target>نوع القرض</target></trans-unit>
       <trans-unit id="lengine.table_aria" datatype="html"><source>Effects by program</source><target>التأثيرات حسب البرنامج</target></trans-unit>
@@ -4866,6 +4864,48 @@
       <trans-unit id="qusage.s_vehicle_age" datatype="html"><source>Car age limit</source><target>حد عمر السيارة</target></trans-unit>
       <trans-unit id="qusage.s_car_cover" datatype="html"><source>Car insurance</source><target>تأمين السيارة</target></trans-unit>
       <trans-unit id="qusage.chip_tip" datatype="html"><source>How this answer reaches the money — open the question for details</source><target>كيف تصل هذه الإجابة إلى الأرقام — افتح السؤال للتفاصيل</target></trans-unit>
+      <trans-unit id="lengine.rb.nomatch.fallback" datatype="html"><source>the program&apos;s usual figure</source><target>الرقم المعتاد للبرنامج</target></trans-unit>
+      <trans-unit id="lengine.rb.nomatch.max" datatype="html"><source>the program&apos;s usual maximum</source><target>الحد الأقصى المعتاد للبرنامج</target></trans-unit>
+      <trans-unit id="lengine.rb.nomatch.reject" datatype="html"><source>refused</source><target>مرفوض</target></trans-unit>
+      <trans-unit id="lengine.band.lt" datatype="html"><source>under <x id="a" equiv-text="n(criterion.a)"/></source><target>أقل من <x id="a" equiv-text="n(criterion.a)"/></target></trans-unit>
+      <trans-unit id="lengine.band.lte" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> or less</source><target><x id="a" equiv-text="n(criterion.a)"/> أو أقل</target></trans-unit>
+      <trans-unit id="lengine.band.gte" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> or more</source><target><x id="a" equiv-text="n(criterion.a)"/> أو أكثر</target></trans-unit>
+      <trans-unit id="lengine.band.gt" datatype="html"><source>over <x id="a" equiv-text="n(criterion.a)"/></source><target>أكثر من <x id="a" equiv-text="n(criterion.a)"/></target></trans-unit>
+      <trans-unit id="lengine.band.eq" datatype="html"><source>exactly <x id="a" equiv-text="n(criterion.a)"/></source><target><x id="a" equiv-text="n(criterion.a)"/> بالضبط</target></trans-unit>
+      <trans-unit id="lengine.band.between" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> to <x id="b" equiv-text="n(criterion.b)"/></source><target>من <x id="a" equiv-text="n(criterion.a)"/> إلى <x id="b" equiv-text="n(criterion.b)"/></target></trans-unit>
+      <trans-unit id="lengine.band.range" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> up to under <x id="b" equiv-text="n(criterion.b)"/></source><target>من <x id="a" equiv-text="n(criterion.a)"/> إلى أقل من <x id="b" equiv-text="n(criterion.b)"/></target></trans-unit>
+      <trans-unit id="lengine.subtitle.rules" datatype="html"><source>Every rule the engine applies, program by program: who each one quotes, and what each answer changes.</source><target>كل قاعدة يطبّقها المحرك، برنامجًا برنامجًا: لمن يقدّم كل برنامج، وما تغيّره كل إجابة.</target></trans-unit>
+      <trans-unit id="lengine.views_aria" datatype="html"><source>How to read the rules</source><target>طريقة عرض القواعد</target></trans-unit>
+      <trans-unit id="lengine.view.rules" datatype="html"><source>Rules by program</source><target>القواعد حسب البرنامج</target></trans-unit>
+      <trans-unit id="lengine.view.questions" datatype="html"><source>By question</source><target>حسب السؤال</target></trans-unit>
+      <trans-unit id="lengine.rb.add_rule" datatype="html"><source>Add rule</source><target>إضافة قاعدة</target></trans-unit>
+      <trans-unit id="lengine.rb.edit_conditions" datatype="html"><source> Conditions </source><target> الشروط </target></trans-unit>
+      <trans-unit id="lengine.rb.who_quotes" datatype="html"><source>Who it quotes</source><target>لمن يقدّم</target></trans-unit>
+      <trans-unit id="lengine.rb.no_conditions" datatype="html"><source> Everyone in this loan type — no condition refuses an applicant. </source><target> كل المتقدمين في نوع القرض هذا — لا يوجد شرط يرفض أي متقدم. </target></trans-unit>
+      <trans-unit id="lengine.rb.only_if" datatype="html"><source>Only if</source><target>فقط إذا</target></trans-unit>
+      <trans-unit id="lengine.rb.or" datatype="html"><source>or</source><target>أو</target></trans-unit>
+      <trans-unit id="lengine.rb.otherwise_refused" datatype="html"><source>otherwise refused:</source><target>وإلا يُرفض:</target></trans-unit>
+      <trans-unit id="lengine.rb.what_changes" datatype="html"><source>What the answers change</source><target>ما تغيّره الإجابات</target></trans-unit>
+      <trans-unit id="lengine.rb.no_rules" datatype="html"><source> No answer changes this program&apos;s figures yet. </source><target> لا توجد إجابة تغيّر أرقام هذا البرنامج بعد. </target></trans-unit>
+      <trans-unit id="lengine.rb.anything_else" datatype="html"><source>any other answer</source><target>أي إجابة أخرى</target></trans-unit>
+      <trans-unit id="lengine.rb.elsewhere" datatype="html"><source>Also read, edited on the program:</source><target>يُقرأ أيضًا، ويُعدَّل من البرنامج:</target></trans-unit>
+      <trans-unit id="lengine.rb.nothing_matches" datatype="html"><source>No program matches.</source><target>لا يوجد برنامج مطابق.</target></trans-unit>
+      <trans-unit id="lengine.rb.quiet" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ quiet().length }}"/> programs with no rules yet </source><target> <x id="INTERPOLATION" equiv-text="{{ quiet().length }}"/> برنامج بلا قواعد بعد </target></trans-unit>
+      <trans-unit id="lengine.rb.has_plans" datatype="html"><source>tables on the program</source><target>جداول على البرنامج</target></trans-unit>
+      <trans-unit id="lengine.rb.add_condition" datatype="html"><source> Add condition </source><target> إضافة شرط </target></trans-unit>
+      <trans-unit id="lengine.rb.add_when" datatype="html"><source>When the answer to</source><target>عندما تكون إجابة</target></trans-unit>
+      <trans-unit id="lengine.rb.add_changes" datatype="html"><source>changes its</source><target>تغيّر</target></trans-unit>
+      <trans-unit id="lengine.rb.add_continue" datatype="html"><source> Write the rule </source><target> اكتب القاعدة </target></trans-unit>
+      <trans-unit id="lengine.rb.add_cancel" datatype="html"><source> Cancel </source><target> إلغاء </target></trans-unit>
+      <trans-unit id="lengine.rb.search" datatype="html"><source>Search a bank, program or question</source><target>ابحث عن بنك أو برنامج أو سؤال</target></trans-unit>
+      <trans-unit id="lengine.rb.loading" datatype="html"><source>Loading the rules</source><target>جارٍ تحميل القواعد</target></trans-unit>
+      <trans-unit id="lengine.rb.pick_question" datatype="html"><source>Pick a question</source><target>اختر سؤالًا</target></trans-unit>
+      <trans-unit id="lengine.rb.summary" datatype="html"><source><x id="rules" equiv-text="rules"/> answer rules and <x id="conditions" equiv-text="conditions"/> conditions across <x id="programs" equiv-text="programs"/> of <x id="total" equiv-text="shown.length"/> programs</source><target><x id="rules" equiv-text="rules"/> قاعدة إجابة و<x id="conditions" equiv-text="conditions"/> شرط في <x id="programs" equiv-text="programs"/> من <x id="total" equiv-text="shown.length"/> برنامج</target></trans-unit>
+      <trans-unit id="lengine.rb.counts" datatype="html"><source>the bank counts</source><target>يحتسب البنك</target></trans-unit>
+      <trans-unit id="lengine.rb.counts_of" datatype="html"><source><x id="share" equiv-text="figureText(&apos;extra_income&apos;, value)"/> of it as income</source><target><x id="share" equiv-text="figureText(&apos;extra_income&apos;, value)"/> منها كدخل</target></trans-unit>
+      <trans-unit id="lengine.crit.any" datatype="html"><source>any answer</source><target>أي إجابة</target></trans-unit>
+      <trans-unit id="lengine.crit.answered" datatype="html"><source>answered</source><target>تمت الإجابة</target></trans-unit>
+      <trans-unit id="lengine.crit.custom" datatype="html"><source>a custom band</source><target>نطاق مخصص</target></trans-unit>
     </body>
   </file>
 </xliff>

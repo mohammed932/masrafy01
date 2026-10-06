@@ -52,6 +52,9 @@ import {
   type LoanEngineProgramSlice,
   type LoanEngineQuestionDetail,
   type LoanEngineQuestionSummary,
+  type LoanEngineRulebook,
+  type LoanEngineRulebookProgram,
+  type LoanEngineRulebookQuestion,
   type LoanEngineWriteResult,
   type LoanEngineConditionsResult,
   type PutEffectRowsDto,
@@ -171,6 +174,83 @@ export class LoanEngineService {
       options,
       programs: rows.map((row) => this.sliceOf(row, question, factKey, inputs)),
     };
+  }
+
+  /**
+   * Every rule, program by program: the conditions each one quotes under, and each table it
+   * states on a linked question's figure. Built from the same `effectState` the per-question
+   * matrix reads, so the two views can never disagree about what a program states.
+   */
+  async rulebook(category?: string): Promise<LoanEngineRulebook> {
+    if (category !== undefined && !(ALL_LOAN_CATEGORIES as readonly string[]).includes(category)) {
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'category' });
+    }
+    const inputs = await this.enums.questionUsageInputs();
+    const linked = inputs.questions.flatMap((q) => {
+      const factKey = this.factKeyOf(q.code, inputs);
+      return factKey === null ? [] : [{ question: q, factKey }];
+    });
+    const [options, rows] = await Promise.all([
+      this.repo.optionsFor(linked.map((l) => l.question.code)),
+      this.repo.activePrograms(category === undefined ? ALL_LOAN_CATEGORIES : [category]),
+    ]);
+
+    const programs = rows.map((row): LoanEngineRulebookProgram => {
+      const base = this.sliceOf(row, null, null, inputs);
+      const rules: LoanEngineRulebookProgram['rules'] = [];
+      const elsewhere: LoanEngineRulebookProgram['elsewhere'] = [];
+      if (inheritsProductPlans(row.plansSource)) {
+        for (const effect of LOAN_ENGINE_EFFECTS) {
+          if (EFFECT_SLOTS[effect].planSlot) {
+            elsewhere.push({ effect, reason: 'inherited_plan', questionCode: null });
+          }
+        }
+      }
+      for (const { question, factKey } of linked) {
+        if (!question.categories.includes(row.category as never)) continue;
+        for (const effect of LOAN_ENGINE_EFFECTS) {
+          const state = this.effectState(row, effect, question, factKey);
+          if (state.editable && state.rows.length > 0) {
+            rules.push({
+              questionCode: question.code,
+              effect,
+              rows: state.rows,
+              onNoMatch: state.onNoMatch,
+            });
+          } else if (
+            state.readOnlyReason === 'multi_axis' ||
+            state.readOnlyReason === 'class_axis' ||
+            state.readOnlyReason === 'two_axis_cap'
+          ) {
+            elsewhere.push({ effect, reason: state.readOnlyReason, questionCode: question.code });
+          }
+        }
+      }
+      return {
+        programCode: base.programCode,
+        bankName: base.bankName,
+        friendlyName: base.friendlyName,
+        category: base.category,
+        version: base.version,
+        programNameKey: base.programNameKey,
+        conditions: base.conditions,
+        rules,
+        elsewhere,
+      };
+    });
+
+    const questions = linked.map(
+      ({ question, factKey }): LoanEngineRulebookQuestion => ({
+        questionCode: question.code,
+        type: question.type,
+        labelAr: question.labelAr,
+        labelEn: question.labelEn,
+        categories: [...question.categories],
+        factKey,
+        options: options.get(question.code) ?? [],
+      }),
+    );
+    return { programs, questions };
   }
 
   // ---- write ----------------------------------------------------------------------------

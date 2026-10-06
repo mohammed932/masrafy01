@@ -26,7 +26,11 @@ import { gateReasonErrorCode, problemText } from './loan-engine.labels';
 import type { QuestionType } from '../questionnaire/questionnaire.api.service';
 
 export interface ConditionsSheetData {
-  program: LoanEngineProgramSlice;
+  /** Only who the program is and its conditions: the sheet never reads an effect. */
+  program: Pick<
+    LoanEngineProgramSlice,
+    'programCode' | 'bankName' | 'friendlyName' | 'category' | 'version' | 'conditions'
+  >;
   /** Linked questions of the program's loan type — what a criterion may read. */
   questions: LoanEngineQuestionSummary[];
   canEdit: boolean;

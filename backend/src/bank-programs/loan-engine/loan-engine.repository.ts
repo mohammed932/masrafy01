@@ -148,4 +148,21 @@ export class LoanEngineRepository {
       select: { code: true, labelAr: true, labelEn: true },
     });
   }
+
+  /** Every live option of these questions, grouped by question, in the applicant's order. */
+  async optionsFor(questionCodes: readonly string[]): Promise<Map<string, LoanEngineOptionRow[]>> {
+    const byQuestion = new Map<string, LoanEngineOptionRow[]>();
+    if (questionCodes.length === 0) return byQuestion;
+    const rows = await this.prisma.questionOption.findMany({
+      where: { isActive: true, question: { code: { in: [...questionCodes] } } },
+      orderBy: { displayOrder: 'asc' },
+      select: { code: true, labelAr: true, labelEn: true, question: { select: { code: true } } },
+    });
+    for (const r of rows) {
+      const list = byQuestion.get(r.question.code) ?? [];
+      list.push({ code: r.code, labelAr: r.labelAr, labelEn: r.labelEn });
+      byQuestion.set(r.question.code, list);
+    }
+    return byQuestion;
+  }
 }

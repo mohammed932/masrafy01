@@ -15,7 +15,12 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { PageHeaderComponent, openFormDrawer } from '@shared/ui';
+import {
+  PageHeaderComponent,
+  RailTabsComponent,
+  openFormDrawer,
+  type RailTabItem,
+} from '@shared/ui';
 import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
@@ -33,6 +38,7 @@ import {
 import { effectLabel, readOnlyLabel } from './loan-engine.labels';
 import { EffectRowsSheetComponent, type EffectRowsSheetData } from './effect-rows.sheet';
 import { ConditionsSheetComponent, type ConditionsSheetData } from './conditions.sheet';
+import { LoanEngineRulebookComponent } from './rulebook.component';
 
 /**
  * Feature 013 — the Loan Engine: one question's effects on every bank program, and each
@@ -47,202 +53,234 @@ import { ConditionsSheetComponent, type ConditionsSheetData } from './conditions
   selector: 'app-loan-engine-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, NzButtonModule, NzInputModule, NzSpinModule, PageHeaderComponent],
+  imports: [
+    ReactiveFormsModule,
+    NzButtonModule,
+    NzInputModule,
+    NzSpinModule,
+    PageHeaderComponent,
+    RailTabsComponent,
+    LoanEngineRulebookComponent,
+  ],
   template: `
     <section class="page">
-      <app-page-header [eyebrow]="eyebrow" [title]="titleText" [subtitle]="subtitleText" />
+      <app-page-header [title]="titleText" [subtitle]="subtitleText" />
 
-      <div class="le">
-        <aside class="le__list" [attr.aria-label]="listAria">
-          <input
-            nz-input
-            type="search"
-            class="le__search"
-            [formControl]="search"
-            [placeholder]="searchPlaceholder"
-            [attr.aria-label]="searchPlaceholder"
-          />
-          <div class="le__cats" role="group" [attr.aria-label]="catsAria">
-            <button
-              type="button"
-              class="le__cat"
-              [class.on]="category() === null"
-              (click)="category.set(null)"
-              i18n="@@lengine.cat.all"
-            >
-              All
-            </button>
-            @for (c of categories; track c) {
+      <app-rail-tabs
+        class="le__views"
+        appearance="segmented"
+        idPrefix="lengine-view"
+        [items]="viewTabs"
+        [activeId]="view()"
+        [ariaLabel]="viewsAria"
+        (select)="setView($event)"
+      />
+
+      @if (view() === 'rules') {
+        <app-loan-engine-rulebook
+          role="tabpanel"
+          id="lengine-view-panel-rules"
+          aria-labelledby="lengine-view-tab-rules"
+          [canEdit]="canEdit()"
+        />
+      } @else {
+        <div
+          class="le"
+          role="tabpanel"
+          id="lengine-view-panel-questions"
+          aria-labelledby="lengine-view-tab-questions"
+        >
+          <aside class="le__list" [attr.aria-label]="listAria">
+            <input
+              nz-input
+              type="search"
+              class="le__search"
+              [formControl]="search"
+              [placeholder]="searchPlaceholder"
+              [attr.aria-label]="searchPlaceholder"
+            />
+            <div class="le__cats" role="group" [attr.aria-label]="catsAria">
               <button
                 type="button"
                 class="le__cat"
-                [class.on]="category() === c"
-                (click)="category.set(c)"
+                [class.on]="category() === null"
+                (click)="category.set(null)"
+                i18n="@@lengine.cat.all"
               >
-                {{ catLabel(c) }}
+                All
               </button>
+              @for (c of categories; track c) {
+                <button
+                  type="button"
+                  class="le__cat"
+                  [class.on]="category() === c"
+                  (click)="category.set(c)"
+                >
+                  {{ catLabel(c) }}
+                </button>
+              }
+            </div>
+            @if (loadingList()) {
+              <nz-spin nzSimple />
+            } @else {
+              <ul class="le__qs">
+                @for (q of shownQuestions(); track q.questionCode) {
+                  <li>
+                    <button
+                      type="button"
+                      class="le__q"
+                      [class.on]="q.questionCode === selectedCode()"
+                      [attr.aria-current]="q.questionCode === selectedCode() ? 'true' : null"
+                      (click)="select(q.questionCode)"
+                    >
+                      <span class="le__q-label">{{ label(q) }}</span>
+                      <span class="le__q-meta">
+                        @if (q.factKey === null) {
+                          <span class="le__chip le__chip--muted" i18n="@@lengine.q.not_linked"
+                            >Not linked</span
+                          >
+                        } @else if (q.readingProgramCount > 0) {
+                          <span class="le__chip" i18n="@@lengine.q.read_by"
+                            >Read by {{ q.readingProgramCount }}</span
+                          >
+                        } @else {
+                          <span class="le__chip le__chip--muted" i18n="@@lengine.q.unread"
+                            >No figure yet</span
+                          >
+                        }
+                      </span>
+                    </button>
+                  </li>
+                } @empty {
+                  <li class="le__empty" i18n="@@lengine.q.none">No question matches.</li>
+                }
+              </ul>
+            }
+          </aside>
+
+          <div class="le__main">
+            @if (loadingDetail()) {
+              <nz-spin nzSimple />
+            }
+            @if (detail(); as d) {
+              <header class="le__head">
+                <h2 class="le__title">{{ isAr ? d.labelAr : d.labelEn }}</h2>
+                <p class="le__sub">
+                  <code>{{ d.questionCode }}</code>
+                  @if (d.factKey !== null) {
+                    <span i18n="@@lengine.d.answers_figure"
+                      >answers the figure <code>{{ d.factKey }}</code></span
+                    >
+                  }
+                </p>
+              </header>
+
+              @if (d.factKey === null) {
+                <div class="le__callout" role="status">
+                  <p i18n="@@lengine.d.link_first">
+                    This question doesn't answer a figure yet, so no bank table can read it. Link it
+                    to create one.
+                  </p>
+                  @if (canEdit()) {
+                    <button
+                      nz-button
+                      nzType="primary"
+                      type="button"
+                      [nzLoading]="linking()"
+                      (click)="link(d.questionCode)"
+                      i18n="@@lengine.d.link"
+                    >
+                      Link it to a figure
+                    </button>
+                  }
+                </div>
+              } @else {
+                <div class="le__tools">
+                  <label class="le__toggle">
+                    <input type="checkbox" [formControl]="onlyReading" />
+                    <span i18n="@@lengine.d.only_reading">Only programs that already use it</span>
+                  </label>
+                  <span class="le__count" i18n="@@lengine.d.count"
+                    >{{ shownPrograms().length }} of {{ d.programs.length }} programs</span
+                  >
+                </div>
+
+                <div class="le__scroll" tabindex="0" [attr.aria-label]="tableAria">
+                  <table class="le__table">
+                    <thead>
+                      <tr>
+                        <th scope="col" i18n="@@lengine.t.program">Program</th>
+                        @for (e of effects; track e) {
+                          <th scope="col" [class.hl]="e === highlight()">{{ effectName(e) }}</th>
+                        }
+                        <th scope="col" i18n="@@lengine.t.conditions">Conditions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (p of shownPrograms(); track p.programCode) {
+                        <tr>
+                          <th scope="row" class="le__prog">
+                            <span class="le__bank">{{ p.bankName }}</span>
+                            <span class="le__name">{{ p.friendlyName }}</span>
+                            <span class="le__code">{{ p.programCode }}</span>
+                          </th>
+                          @for (e of effects; track e) {
+                            <td [class.hl]="e === highlight()">
+                              @if (p.effects[e]; as s) {
+                                @if (s.editable) {
+                                  <button
+                                    type="button"
+                                    class="le__cell"
+                                    [class.le__cell--set]="s.rows.length > 0"
+                                    (click)="openEffect(d, p, e)"
+                                  >
+                                    {{ cellText(s) }}
+                                  </button>
+                                } @else {
+                                  <span class="le__ro" [attr.title]="roTitle(s)">{{
+                                    roText(s)
+                                  }}</span>
+                                }
+                              }
+                            </td>
+                          }
+                          <td>
+                            <button
+                              type="button"
+                              class="le__cell"
+                              [class.le__cell--set]="p.conditions.length > 0"
+                              (click)="openConditions(p)"
+                            >
+                              {{ conditionsText(p, d.factKey) }}
+                            </button>
+                          </td>
+                        </tr>
+                      } @empty {
+                        <tr>
+                          <td
+                            [attr.colspan]="effects.length + 2"
+                            class="le__empty"
+                            i18n="@@lengine.t.none"
+                          >
+                            No program uses this question yet. Clear the filter to start one.
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            } @else if (!loadingDetail()) {
+              <p class="le__pick" i18n="@@lengine.d.pick">
+                Pick a question to see what it changes for each bank.
+              </p>
+            }
+            @if (error(); as e) {
+              <p class="le__error" role="alert">{{ e }}</p>
             }
           </div>
-          @if (loadingList()) {
-            <nz-spin nzSimple />
-          } @else {
-            <ul class="le__qs">
-              @for (q of shownQuestions(); track q.questionCode) {
-                <li>
-                  <button
-                    type="button"
-                    class="le__q"
-                    [class.on]="q.questionCode === selectedCode()"
-                    [attr.aria-current]="q.questionCode === selectedCode() ? 'true' : null"
-                    (click)="select(q.questionCode)"
-                  >
-                    <span class="le__q-label">{{ label(q) }}</span>
-                    <span class="le__q-meta">
-                      @if (q.factKey === null) {
-                        <span class="le__chip le__chip--muted" i18n="@@lengine.q.not_linked"
-                          >Not linked</span
-                        >
-                      } @else if (q.readingProgramCount > 0) {
-                        <span class="le__chip" i18n="@@lengine.q.read_by"
-                          >Read by {{ q.readingProgramCount }}</span
-                        >
-                      } @else {
-                        <span class="le__chip le__chip--muted" i18n="@@lengine.q.unread"
-                          >No figure yet</span
-                        >
-                      }
-                    </span>
-                  </button>
-                </li>
-              } @empty {
-                <li class="le__empty" i18n="@@lengine.q.none">No question matches.</li>
-              }
-            </ul>
-          }
-        </aside>
-
-        <div class="le__main">
-          @if (loadingDetail()) {
-            <nz-spin nzSimple />
-          }
-          @if (detail(); as d) {
-            <header class="le__head">
-              <h2 class="le__title">{{ isAr ? d.labelAr : d.labelEn }}</h2>
-              <p class="le__sub">
-                <code>{{ d.questionCode }}</code>
-                @if (d.factKey !== null) {
-                  <span i18n="@@lengine.d.answers_figure"
-                    >answers the figure <code>{{ d.factKey }}</code></span
-                  >
-                }
-              </p>
-            </header>
-
-            @if (d.factKey === null) {
-              <div class="le__callout" role="status">
-                <p i18n="@@lengine.d.link_first">
-                  This question doesn't answer a figure yet, so no bank table can read it. Link it
-                  to create one.
-                </p>
-                @if (canEdit()) {
-                  <button
-                    nz-button
-                    nzType="primary"
-                    type="button"
-                    [nzLoading]="linking()"
-                    (click)="link(d.questionCode)"
-                    i18n="@@lengine.d.link"
-                  >
-                    Link it to a figure
-                  </button>
-                }
-              </div>
-            } @else {
-              <div class="le__tools">
-                <label class="le__toggle">
-                  <input type="checkbox" [formControl]="onlyReading" />
-                  <span i18n="@@lengine.d.only_reading">Only programs that already use it</span>
-                </label>
-                <span class="le__count" i18n="@@lengine.d.count"
-                  >{{ shownPrograms().length }} of {{ d.programs.length }} programs</span
-                >
-              </div>
-
-              <div class="le__scroll" tabindex="0" [attr.aria-label]="tableAria">
-                <table class="le__table">
-                  <thead>
-                    <tr>
-                      <th scope="col" i18n="@@lengine.t.program">Program</th>
-                      @for (e of effects; track e) {
-                        <th scope="col" [class.hl]="e === highlight()">{{ effectName(e) }}</th>
-                      }
-                      <th scope="col" i18n="@@lengine.t.conditions">Conditions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (p of shownPrograms(); track p.programCode) {
-                      <tr>
-                        <th scope="row" class="le__prog">
-                          <span class="le__bank">{{ p.bankName }}</span>
-                          <span class="le__name">{{ p.friendlyName }}</span>
-                          <span class="le__code">{{ p.programCode }}</span>
-                        </th>
-                        @for (e of effects; track e) {
-                          <td [class.hl]="e === highlight()">
-                            @if (p.effects[e]; as s) {
-                              @if (s.editable) {
-                                <button
-                                  type="button"
-                                  class="le__cell"
-                                  [class.le__cell--set]="s.rows.length > 0"
-                                  (click)="openEffect(d, p, e)"
-                                >
-                                  {{ cellText(s) }}
-                                </button>
-                              } @else {
-                                <span class="le__ro" [attr.title]="roTitle(s)">{{
-                                  roText(s)
-                                }}</span>
-                              }
-                            }
-                          </td>
-                        }
-                        <td>
-                          <button
-                            type="button"
-                            class="le__cell"
-                            [class.le__cell--set]="p.conditions.length > 0"
-                            (click)="openConditions(p)"
-                          >
-                            {{ conditionsText(p, d.factKey) }}
-                          </button>
-                        </td>
-                      </tr>
-                    } @empty {
-                      <tr>
-                        <td
-                          [attr.colspan]="effects.length + 2"
-                          class="le__empty"
-                          i18n="@@lengine.t.none"
-                        >
-                          No program uses this question yet. Clear the filter to start one.
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            }
-          } @else if (!loadingDetail()) {
-            <p class="le__pick" i18n="@@lengine.d.pick">
-              Pick a question to see what it changes for each bank.
-            </p>
-          }
-          @if (error(); as e) {
-            <p class="le__error" role="alert">{{ e }}</p>
-          }
         </div>
-      </div>
+      }
     </section>
   `,
   styles: [
@@ -253,11 +291,14 @@ import { ConditionsSheetComponent, type ConditionsSheetData } from './conditions
         min-block-size: 100%;
         background: var(--color-surface-page);
       }
+      .le__views {
+        display: block;
+        margin-block: var(--space-5) var(--space-4);
+      }
       .le {
         display: grid;
         grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
         gap: var(--space-5);
-        margin-block-start: var(--space-5);
       }
       @media (max-width: 960px) {
         .le {
@@ -457,9 +498,13 @@ export class LoanEnginePageComponent {
   private readonly router = inject(Router);
   readonly isAr = document.documentElement.lang.startsWith('ar');
 
-  readonly eyebrow = $localize`:@@lengine.eyebrow:Matching engine`;
   readonly titleText = $localize`:@@lengine.title:Loan Engine`;
-  readonly subtitleText = $localize`:@@lengine.subtitle:What each answer changes, bank by bank: rates, caps, terms, extra income — and who each program quotes at all.`;
+  readonly subtitleText = $localize`:@@lengine.subtitle.rules:Every rule the engine applies, program by program: who each one quotes, and what each answer changes.`;
+  readonly viewsAria = $localize`:@@lengine.views_aria:How to read the rules`;
+  readonly viewTabs: readonly RailTabItem[] = [
+    { id: 'rules', label: $localize`:@@lengine.view.rules:Rules by program` },
+    { id: 'questions', label: $localize`:@@lengine.view.questions:By question` },
+  ];
   readonly listAria = $localize`:@@lengine.list_aria:Questions`;
   readonly catsAria = $localize`:@@lengine.cats_aria:Loan type`;
   readonly tableAria = $localize`:@@lengine.table_aria:Effects by program`;
@@ -484,6 +529,13 @@ export class LoanEnginePageComponent {
 
   private readonly params = toSignal(this.route.queryParamMap);
   readonly selectedCode = computed(() => this.params()?.get('question') ?? null);
+  /** A link that names a question (the question screen's "Edit it in the Loan Engine") opens
+   *  the matrix; otherwise the rules come first. */
+  readonly view = computed<'rules' | 'questions'>(() =>
+    this.params()?.get('view') === 'questions' || this.selectedCode() !== null
+      ? 'questions'
+      : 'rules',
+  );
   readonly highlight = computed(() => {
     const e = this.params()?.get('effect');
     return (LOAN_ENGINE_EFFECTS as readonly string[]).includes(e ?? '')
@@ -560,6 +612,15 @@ export class LoanEnginePageComponent {
     return mine > 0
       ? $localize`:@@lengine.cell.cond_mine:${p.conditions.length}:n: (${mine}:mine: on this)`
       : $localize`:@@lengine.cell.cond:${p.conditions.length}:n:`;
+  }
+
+  setView(id: string): void {
+    void this.router.navigate([], {
+      queryParams:
+        id === 'questions' ? { view: 'questions' } : { view: null, question: null, effect: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   select(code: string): void {
