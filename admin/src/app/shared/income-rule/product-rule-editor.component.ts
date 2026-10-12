@@ -37,6 +37,7 @@ import { slotsKeyedByList } from './figure-slots';
 import { writeFigure } from './figure-write';
 import {
   bandsToRelock,
+  sameRanges,
   slotShapes,
   slotsMissingDefault,
   withAllDefaults,
@@ -57,7 +58,11 @@ import {
 } from './product-rule-ways';
 import { derivedFactByKey } from '@core/surrogate-facts';
 import { FigureFieldComponent } from './figure-field.component';
-import { IncomeBandsEditorComponent } from './income-bands-editor.component';
+import {
+  IncomeBandsEditorComponent,
+  type BandColumn,
+  type BandColumnChange,
+} from './income-bands-editor.component';
 import { IncomeKeyTableComponent } from './income-key-table.component';
 
 /** One editable figure inside a row. Two of them when a step reads a column per answer. */
@@ -71,10 +76,20 @@ import { IncomeKeyTableComponent } from './income-key-table.component';
 // cannot be mutated by accident — the children always publish a fresh array.
 const NO_ROWS = Object.freeze([]) as unknown as IncomeKeyTableRow[];
 const NO_BANDS = Object.freeze([]) as unknown as IncomeBand[];
+const NO_BAND_COLUMNS: readonly BandColumn[] = Object.freeze([]);
 
 /** The key a fact's PARENT list is memoised under, kept out of the fact's own namespace. */
 function parentKeyOf(factKey: string): string {
   return `${factKey}\u0000parent`;
+}
+
+/** What a step reads, as one comparable string — two steps reading the same inputs match. */
+function refsKey(step: RuleStep): string {
+  return stepRefs(step)
+    .map((ref) =>
+      'step' in ref ? `s:${ref.step}` : 'fact' in ref ? `f:${ref.fact}` : `c:${ref.const}`,
+    )
+    .join('|');
 }
 
 interface FigureSlot {
@@ -102,7 +117,18 @@ interface FigureSlot {
    */
   secondId: string | null;
   secondLabel: string | null;
+  /**
+   * A `pickByFact`'s BAND tables rendered as one table: the ranges down the side once, an
+   * amount column per group. Every column, this slot's own first. Empty for every other slot.
+   */
+  bandColumns: readonly SlotColumn[];
   configured: boolean;
+}
+
+/** One amount column of a merged band table: the slot it writes, and the group it prices. */
+interface SlotColumn {
+  id: string;
+  label: string;
 }
 
 /**
@@ -509,7 +535,7 @@ interface FlowLine {
                                  the whole affordance here. It sits ABOVE the editor: below
                                  it, an empty table's own "add a row for every key" action
                                  would be read first and the product's rows never found. -->
-                            @if (hasDefault(slot.id) || hasDefault(slot.secondId ?? '')) {
+                            @if (slotHasDefault(slot)) {
                               <p class="take-default-line">
                                 <button
                                   type="button"
@@ -535,12 +561,12 @@ interface FlowLine {
                                  the product's already and every figure the bank has not
                                  typed reads the product's, so the button would offer what
                                  the box is showing. -->
-                            @if (hasDefault(slot.id) && lockedBandsFor(slot.id) === null) {
+                            @if (slotHasDefault(slot) && lockedBandsFor(slot.id) === null) {
                               <p class="take-default-line">
                                 <button
                                   type="button"
                                   class="take-default"
-                                  (click)="takeDefault(slot.id)"
+                                  (click)="takeSlotDefaults(slot)"
                                 >
                                   {{ takeTableLabel }}
                                 </button>
@@ -562,6 +588,9 @@ interface FlowLine {
                               [valueLabel]="slot.valueLabel"
                               [lockedEdges]="lockedBandsFor(slot.id)"
                               [suggested]="suggestedFor(slot.id)"
+                              [columnLabel]="slot.bandColumns[0]?.label ?? null"
+                              [moreColumns]="moreBandColumnsFor(slot.id)"
+                              (moreColumnChange)="setMoreBands(slot, $event)"
                             ></app-income-bands-editor>
                           }
                           @case ('scalar') {
@@ -1710,10 +1739,10 @@ export class ProductRuleEditorComponent {
     const out: SlotDefault[] = [];
     for (const row of group.rows) {
       for (const slot of row.slots) {
-        const found = bySlot.get(slot.id);
-        if (found !== undefined) out.push(found);
-        const second = slot.secondId === null ? undefined : bySlot.get(slot.secondId);
-        if (second !== undefined) out.push(second);
+        for (const id of this.columnIdsOf(slot)) {
+          const found = bySlot.get(id);
+          if (found !== undefined) out.push(found);
+        }
       }
     }
     return out;
@@ -1726,18 +1755,30 @@ export class ProductRuleEditorComponent {
   }
 
   /**
-   * Both columns of a merged key-table pair, in one write.
+   * Every column of a merged table, in one write.
    *
-   * The two columns are one table on screen; taking one and leaving the other would print a
+   * The columns are one table on screen; taking one and leaving the others would print a
    * grid half from the product and half blank, with nothing saying which half is which.
    */
   protected takeSlotDefaults(slot: FigureSlot): void {
-    const slots = [slot.id, slot.secondId]
-      .flatMap((id) => (id === null ? [] : [this.defaultsBySlot().get(id)]))
+    const slots = this.columnIdsOf(slot)
+      .map((id) => this.defaultsBySlot().get(id))
       .filter((found): found is SlotDefault => found !== undefined);
     if (slots.length === 0) return;
     this.figures.set(withAllDefaults(this.figures(), slots).figures);
     this.figuresTouched.emit();
+  }
+
+  /** Does any column of this box have a figure waiting on the product? */
+  protected slotHasDefault(slot: FigureSlot): boolean {
+    return this.columnIdsOf(slot).some((id) => this.hasDefault(id));
+  }
+
+  /** Every slot id one box writes: its own, or each column of a merged table. */
+  private columnIdsOf(slot: FigureSlot): string[] {
+    const ids = slot.bandColumns.length > 0 ? slot.bandColumns.map((c) => c.id) : [slot.id];
+    if (slot.secondId !== null) ids.push(slot.secondId);
+    return ids;
   }
 
   protected readonly takeLabel = $localize`:@@product_rule.default.take:Use it`;
@@ -2413,9 +2454,7 @@ export class ProductRuleEditorComponent {
   private rowHasDefault(slots: readonly FigureSlot[]): boolean {
     const bySlot = this.defaultsBySlot();
     if (bySlot.size === 0) return false;
-    return slots.some(
-      (slot) => bySlot.has(slot.id) || (slot.secondId !== null && bySlot.has(slot.secondId)),
-    );
+    return slots.some((slot) => this.columnIdsOf(slot).some((id) => bySlot.has(id)));
   }
 
   private stepSlot(step: RuleStep): FigureSlot {
@@ -2436,6 +2475,7 @@ export class ProductRuleEditorComponent {
       valueLabel: this.valueLabelFor(step.id),
       secondId: null,
       secondLabel: null,
+      bandColumns: [],
       configured: stepIsConfigured(step, this.figures()[step.id]),
     };
   }
@@ -2456,8 +2496,13 @@ export class ProductRuleEditorComponent {
    * TWO KEY TABLES BECOME ONE, with a value column each: they are keyed by the same fact
    * by construction, so they are the same table read for two kinds of customer — and as
    * two stacked editors they cost 550px of screen for six numbers and put the two figures
-   * being compared out of sight of each other. Anything else (a pair of band tables) stays
-   * two editors, because there is no single row a pair of ranges shares.
+   * being compared out of sight of each other.
+   *
+   * BAND TABLES BECOME ONE TOO, when they are one table — the same number, banded on the
+   * same ranges (`bandsShareRanges`). Every pick of band tables in the catalog is (the
+   * compound's down payment, the doctors' three city tiers), and stacked they printed the
+   * same ranges two and three times over. A pair cut on DIFFERENT ranges shares no row, so
+   * it stays an editor per column, each labelled by its branch.
    */
   private columnSlots(step: RuleStep): FigureSlot[] {
     // The RAW index is carried through, because `branches` is positional against `of` and a
@@ -2504,10 +2549,67 @@ export class ProductRuleEditorComponent {
       ];
     }
 
+    // ANY number of band columns, unlike the key-table pair above: a band row is its two
+    // edges, which every column shares by the test below, so a third column is one more box
+    // per row and none of the re-key, reorder and delete paths that keep key tables at two.
+    if (
+      first !== undefined &&
+      columns.length >= 2 &&
+      columns.every(
+        ({ column }) =>
+          STEP_OP_SHAPE[column.op] === 'bands' &&
+          column.op === first.column.op &&
+          // The same NUMBER down the side. Two columns banding different answers could be
+          // cut on identical edges by coincidence, and one range column would then be read
+          // as years in one column and pounds in the next.
+          refsKey(column) === refsKey(first.column),
+      ) &&
+      this.bandsShareRanges(columns.map(({ column }) => column.id))
+    ) {
+      return [
+        {
+          ...this.stepSlot(first.column),
+          label: null,
+          bandColumns: columns.map(({ column, index }) => ({
+            id: column.id,
+            label: this.branchLabel(step, index),
+          })),
+          configured: columns.some(({ column }) =>
+            stepIsConfigured(column, this.figures()[column.id]),
+          ),
+        },
+      ];
+    }
+
     return columns.map(({ column, index }) => ({
       ...this.stepSlot(column),
       label: this.branchLabel(step, index),
     }));
+  }
+
+  /**
+   * Are these band columns one table — cut on one set of ranges?
+   *
+   * Under a lock the ranges on screen are the product's, so the product's are compared;
+   * `lockedBandsFor` already hands a column the product leaves blank its sibling's ranges,
+   * so it joins. Unlocked — the catalog, where the ranges are authored, or a bank with no
+   * product ranges to lock to — the stored tables are: a column with no rows has no ranges
+   * of its own and joins any table, but the FIRST column must hold the ranges, because it
+   * is the one the shared range column edits.
+   */
+  private bandsShareRanges(ids: readonly string[]): boolean {
+    const [lockedFirst = null, ...lockedRest] = ids.map((id) => this.lockedBandsFor(id));
+    if (lockedFirst !== null) {
+      return lockedRest.every((edges) => edges !== null && sameRanges(lockedFirst, edges));
+    }
+    // A column locked while the first is not would render the product's ranges beside a
+    // table the bank cuts itself — two range columns, so not one table.
+    if (lockedRest.some((edges) => edges !== null)) return false;
+    const [first, ...rest] = ids.map((id) => this.bandsFor(id));
+    if (first === undefined) return false;
+    return rest.every(
+      (bands) => bands.length === 0 || (first.length > 0 && sameRanges(first, bands)),
+    );
   }
 
   private gateRow(gate: RuleGate): EditorRow {
@@ -2551,6 +2653,7 @@ export class ProductRuleEditorComponent {
         valueLabel: requirement,
         secondId: null,
         secondLabel: null,
+        bandColumns: [],
         configured: this.figures()[gate.id]?.applies === true,
       };
     }
@@ -2565,6 +2668,7 @@ export class ProductRuleEditorComponent {
         valueLabel: requirement,
         secondId: null,
         secondLabel: null,
+        bandColumns: [],
         configured: (this.figures()[gate.id]?.keyTable?.length ?? 0) > 0,
       };
     }
@@ -2583,6 +2687,7 @@ export class ProductRuleEditorComponent {
       valueLabel: requirement,
       secondId: null,
       secondLabel: null,
+      bandColumns: [],
       configured:
         (figures?.minValue !== undefined && figures.minValue !== '') ||
         (figures?.maxValue !== undefined && figures.maxValue !== ''),
@@ -2720,6 +2825,46 @@ export class ProductRuleEditorComponent {
 
   protected setBands(id: string, bands: IncomeBand[]): void {
     this.patch(id, { bands });
+  }
+
+  /** A column BESIDE the first of a merged band table. The first writes through `setBands`. */
+  protected setMoreBands(slot: FigureSlot, change: BandColumnChange): void {
+    // +1: the editor counts the columns beside its own, and `bandColumns` starts with its own.
+    const column = slot.bandColumns[change.index + 1];
+    if (column === undefined) return;
+    this.patch(column.id, { bands: change.bands });
+  }
+
+  /**
+   * The amount columns beside each merged band table's own, by slot id.
+   *
+   * Memoised rather than built in the template: an array literal there is a new reference on
+   * every change-detection pass, which an OnPush child reads as a change — the hazard
+   * `NO_BANDS` exists for, times every column.
+   */
+  private readonly moreBandColumns = computed<ReadonlyMap<string, readonly BandColumn[]>>(() => {
+    const figures = this.figures();
+    const out = new Map<string, readonly BandColumn[]>();
+    for (const group of this.groups()) {
+      for (const row of group.rows) {
+        for (const slot of row.slots) {
+          if (slot.bandColumns.length < 2) continue;
+          out.set(
+            slot.id,
+            slot.bandColumns.slice(1).map((column) => ({
+              label: column.label,
+              bands: figures[column.id]?.bands ?? NO_BANDS,
+              lockedEdges: this.lockedBandsFor(column.id),
+            })),
+          );
+        }
+      }
+    }
+    return out;
+  });
+
+  protected moreBandColumnsFor(slotId: string): readonly BandColumn[] {
+    return this.moreBandColumns().get(slotId) ?? NO_BAND_COLUMNS;
   }
 
   protected setScalar(id: string, raw: string): void {

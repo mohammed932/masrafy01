@@ -219,6 +219,8 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-10-01 v30.8.2 — `THROTTLE_DISABLED=true` switches every request rate limit off on a developer's machine (on in `.env.example`); the backend refuses to boot with it under `NODE_ENV=production`.
+- 2026-10-01 v30.8.1 — a pick's band tables are ONE table: the ranges once, an amount column per group (the compound's two, the doctors' three city tiers), on the bank wizard and the product page alike; narrow panels caption each box instead.
 - 2026-09-26 v30.8.0 — Add program makes income-proof names only: the Surrogate card and its calculation step are gone, the Edit sheet loses the income-type radios and the product picker, and Add shows on the Income proof tab only.
 - 2026-09-26 v30.7.0 — a program name can also ADD a question its loan type does not ask everyone: step ③'s "Other questions" lists all of them (search filters, never gates); a tick asks it of that name only, through an opt-in row; engine inputs stay loan-type-wide.
 - 2026-09-26 v30.6.0 — a program name can untick any question its loan type asks, per loan type; what the quote reads is locked (`questionLockReason`), and the questions board shows 10 per page.

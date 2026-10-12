@@ -80,6 +80,15 @@ export const envSchema = z.object({
   MOBILE_RATE_LIMIT_PER_CLIENT_PER_HOUR: z.coerce.number().int().positive().default(30),
   MOBILE_RATE_LIMIT_PER_APPLICANT_PER_HOUR: z.coerce.number().int().positive().default(5),
 
+  // Switches every request rate limit OFF — the global `ThrottlerGuard` and each route's
+  // `@Throttle` (Principle XV). For a developer's own machine only: the limits count per
+  // computer, and on localhost every request is the same computer, so a few dozen sign-ins
+  // or automated browser runs were refused with 429 for 15 minutes — the operator's own
+  // sign-in with them. REFUSED under NODE_ENV=production (below), so it can never reach a
+  // public server. Wrong-password account lockout is `LockoutService`, not a rate limit,
+  // and stays on either way.
+  THROTTLE_DISABLED: truthy.default('false'),
+
   // Feature 010 — the rate the calculator quotes when no bank program is chosen
   // (FR-030). Deliberately a platform-wide representative figure, NOT an average
   // of live programs: an average moves every time a bank is edited, so the same
@@ -135,6 +144,13 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
       .flatMap(([k, errs]) => (errs ?? []).map((e) => `  - ${k}: ${e}`))
       .join('\n');
     throw new Error(`Environment validation failed:\n${lines}`);
+  }
+  // A public server always rate-limits. Refused at boot rather than ignored, so a copied dev
+  // `.env` fails loudly instead of quietly serving production with no limits at all.
+  if (parsed.data.NODE_ENV === 'production' && parsed.data.THROTTLE_DISABLED) {
+    throw new Error(
+      'Environment validation failed:\n  - THROTTLE_DISABLED: rate limiting cannot be switched off in production (Principle XV)',
+    );
   }
   return parsed.data;
 }

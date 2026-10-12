@@ -157,6 +157,11 @@ export function keyedSlots(steps: readonly RuleStep[], gates: readonly RuleGate[
       // Reached only when NO column produced a slot of its own: a pick whose columns are key
       // tables (the compound and bank-axis products) attaches by those keys exactly as
       // before, because a column's own keys are the finer statement of where its figures go.
+      //
+      // One slot PER COLUMN here, although the editor draws band columns cut on one set of
+      // ranges as ONE table (`columnSlots`). Deliberately not mirrored: every column lands on
+      // the same branch list, so the per-list mount shows them all and the editor's merged
+      // slot — named by its first column — is never split between two lists.
       if (step.fact !== undefined) {
         const axis = step.branchOn === 'parentClass' ? 'class' : 'answer';
         for (const column of columns) {

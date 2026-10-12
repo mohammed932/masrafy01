@@ -31,7 +31,21 @@ import { StaffAccountRepository } from '@/users/staff-account.repository';
         signOptions: { algorithm: 'HS256' },
       }),
     }),
-    ThrottlerModule.forRoot([{ name: 'default', limit: 100, ttl: 15 * 60 * 1000 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      imports: [ConfigModule],
+      useFactory: (cfg: ConfigService) => {
+        // Read once at boot, like every env value. `loadEnv` already refuses it under
+        // NODE_ENV=production, so this can only ever be true on a developer's machine.
+        const disabled = cfg.get<boolean>('THROTTLE_DISABLED') === true;
+        return {
+          throttlers: [{ name: 'default', limit: 100, ttl: 15 * 60 * 1000 }],
+          // Module-wide, so it reaches every route's own `@Throttle` limit too — they all
+          // override this one named throttler.
+          skipIf: () => disabled,
+        };
+      },
+    }),
   ],
   controllers: [AuthController],
   providers: [

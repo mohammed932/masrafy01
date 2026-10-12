@@ -78,8 +78,9 @@ function columnsOf(step: RuleStep, byId: ReadonlyMap<string, RuleStep>): RuleSte
 /**
  * Every slot an operator can type into, keyed by the `stepParams` id it writes.
  *
- * A merged two-column pick contributes BOTH ids — the editor draws one grid with two value
- * columns, but each column stores under its own key, and a default is offered per key.
+ * A merged pick contributes EVERY column's id — the editor draws one grid with a value column
+ * each (a key-table pair, or any number of band tables on one set of ranges), but each column
+ * stores under its own key, and a default is offered per key.
  */
 export function slotShapes(
   steps: readonly RuleStep[],
@@ -358,6 +359,23 @@ export function bandsOnProductEdges(
 /** Two rows are the same range when both edges match — trimmed, since the boxes are text. */
 function edgeKey(band: IncomeBand): string {
   return `${(band.fromInclusive ?? '').trim()}→${(band.toExclusive ?? '').trim()}`;
+}
+
+/**
+ * Are two band tables cut on the same ranges, whatever figures they carry?
+ *
+ * What lets a pick's band columns be drawn as ONE table — the ranges down the side once, an
+ * amount column per group. Compared the way `bandsOnProductEdges` matches rows, so the two
+ * can never disagree about whether a row is "the same range".
+ */
+export function sameRanges(a: readonly IncomeBand[], b: readonly IncomeBand[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((row, i) => {
+      const other = b[i];
+      return other !== undefined && edgeKey(row) === edgeKey(other);
+    })
+  );
 }
 
 function sameBands(a: readonly IncomeBand[], b: readonly IncomeBand[]): boolean {

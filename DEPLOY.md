@@ -60,6 +60,7 @@ After the first boot, set `SEED_ON_START=false` in `.env` (or just run
 | `CORS_ORIGINS` | Must list the admin origin with scheme, no trailing slash; absent → falls back to `http://localhost:5173` and admin login breaks. |
 | `COOKIE_DOMAIN` | Root domain with a leading dot (`.example.com`) so the refresh cookie crosses `api.*` ↔ `admin.*`. |
 | `HIBP_DISABLED` | Set `true` only if the droplet has no outbound HTTPS; otherwise the admin password policy check stalls. |
+| `THROTTLE_DISABLED` | Leave it out. It switches the request rate limits off for a developer's own machine, and the backend **refuses to boot** with it `true` under `NODE_ENV=production` — so a `.env` copied from the dev `.env.example` fails loudly here. |
 
 Stale keys (`APPLE_BUNDLE_ID`, removed in constitution v11.0.0) are ignored by the
 schema — delete them so `.env` keeps matching `.env.prod.example`.
