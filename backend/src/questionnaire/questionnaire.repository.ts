@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { mirroredOptionPlan, planIsEmpty, type MirroredValue } from './mirrored-options';
+import { planAssignment } from './assignment-plan';
 import { Prisma } from '@prisma/client';
 import type {
   LoanCategory,
@@ -742,16 +743,9 @@ interface HeldAssignment {
 
 /**
  * The replace both `setCategories` and `setCategoriesBulk` perform, for one question, inside
- * the caller's transaction.
+ * the caller's transaction. WHICH rows survive is `planAssignment` — pure, and shared with the
+ * engine-input contract, which plays the same replace forward before it is allowed to land.
  *
- *   - `ordinary` is written as ordinary rows: asked of every program name. A category that was
- *     OPT-IN and is listed here becomes ordinary — "ask it in this category" is a statement
- *     about every name there.
- *   - OPT-IN rows are a program name's "ask this too" and are not this screen's to lose by
- *     accident: carried over unless `optIn` is given, in which case it says which of them to
- *     keep. It never creates one — except that an ordinary row dropped from `ordinary` while
- *     program names still ADD the question falls back to opt-in when `optIn` is absent:
- *     "stop asking every name" must not also take it away from the names that picked it.
  *   - Every row keeps its per-category position (`displayOrder`); a new one is seeded from the
  *     pool, like every other insert into this table.
  *   - A category the question leaves ENTIRELY takes the program names' addition rows for it
@@ -766,7 +760,6 @@ async function replaceAssignment(
   ordinary: readonly LoanCategory[],
   optIn: readonly LoanCategory[] | undefined,
 ): Promise<void> {
-  const heldOptIn = held.filter((row) => row.optIn).map((row) => row.category);
   // Categories where some program name adds this question — what an opt-in row is FOR.
   const addedIn = new Set(
     (
@@ -777,23 +770,8 @@ async function replaceAssignment(
       })
     ).map((row) => row.category),
   );
-  // An explicit set can keep or drop an opt-in row, never mint one: opt-in rows are born only
-  // from a program name's addition, which is what gives them a reader. Without one, an
-  // ordinary row leaving `ordinary` stays in the category as opt-in if a name still adds it.
-  const keepOptIn =
-    optIn === undefined
-      ? held
-          .map((row) => row.category)
-          .filter(
-            (category) =>
-              !ordinary.includes(category) &&
-              (heldOptIn.includes(category) || addedIn.has(category)),
-          )
-      : optIn.filter((category) => heldOptIn.includes(category) && !ordinary.includes(category));
+  const { optIn: keepOptIn, leaving } = planAssignment(held, ordinary, optIn, addedIn);
   const position = new Map(held.map((row) => [row.category, row.displayOrder] as const));
-  const leaving = held
-    .map((row) => row.category)
-    .filter((category) => !ordinary.includes(category) && !keepOptIn.includes(category));
 
   await tx.questionLoanCategory.deleteMany({ where: { questionId } });
   const rows = [

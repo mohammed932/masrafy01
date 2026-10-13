@@ -886,6 +886,7 @@ export class PostgresPlatformEnumerationsRepository
         // which copy applies is the only thing that column says.
         select: {
           programType: true,
+          productCategory: true,
           incomeAssumption: true,
           loanLimits: true,
           pricing: true,
@@ -964,13 +965,17 @@ export class PostgresPlatformEnumerationsRepository
     const needed = new Set<string>();
     // Facts read by a refusal that an unanswered question skips (see `mustAnswerQuestionCodes`).
     const mustAnswer = new Set<string>();
+    // The same reads, split by the loan type of the programme doing the reading
+    // (`NarrowingScope.neededByCategory`). Collected per programme, then folded into both.
+    const neededInCategory = new Map<LoanCategory, Set<string>>();
     const platformTiers = await this.platformIScoreTiers();
     for (const program of programs) {
+      const reads = new Set<string>();
       const effective = effectiveIncomeRule(
         (program.incomeAssumption ?? {}) as unknown as IncomeAssumptionConfig,
         catalogRule,
       );
-      for (const key of factsReadByIncomeRule(effective)) needed.add(key);
+      for (const key of factsReadByIncomeRule(effective)) reads.add(key);
       // THE GRID SURFACES, RESOLVED FIRST. They used to be read straight off the stored row on
       // the grounds that "a grid is the BANK's own table and is never inherited from the
       // catalog" — true until plan defaults existed, and false the moment they did. A
@@ -989,20 +994,20 @@ export class PostgresPlatformEnumerationsRepository
           plans,
         ),
       )) {
-        needed.add(key);
+        reads.add(key);
       }
       for (const key of factsReadByPricing(
         effectivePlanPricing((program.pricing ?? {}) as unknown as PricingConfig, src, plans),
       )) {
-        needed.add(key);
+        reads.add(key);
       }
       const tenor = effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans);
-      for (const key of factsReadByTenor(tenor)) needed.add(key);
+      for (const key of factsReadByTenor(tenor)) reads.add(key);
       if (tenor.maxVehicleAgeYearsByFact !== undefined) mustAnswer.add(CAR_MODEL_YEAR_FACT_KEY);
       for (const key of factsReadByFees(
         effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
       )) {
-        needed.add(key);
+        reads.add(key);
       }
       // THE I-SCORE TABLE is a reader too (v30.4.0): the factor it picks scales the income
       // before the debt-burden cap. Resolved exactly as the snapshot mapper resolves it — the
@@ -1017,7 +1022,16 @@ export class PostgresPlatformEnumerationsRepository
       if (
         (iScoreTiers?.tiers.bands ?? []).some((band) => !new Decimal(band.incomeEGP).equals(100))
       ) {
-        needed.add(I_SCORE_FACT_KEY);
+        reads.add(I_SCORE_FACT_KEY);
+      }
+      for (const key of reads) needed.add(key);
+      const category = asLoanCategory(program.productCategory);
+      if (category !== null) {
+        const inCategory = neededInCategory.get(category) ?? new Set<string>();
+        for (const key of reads) inCategory.add(key);
+        // A refusal that is skipped when unanswered reads its fact as surely as a table does.
+        if (tenor.maxVehicleAgeYearsByFact !== undefined) inCategory.add(CAR_MODEL_YEAR_FACT_KEY);
+        neededInCategory.set(category, inCategory);
       }
     }
 
@@ -1084,6 +1098,22 @@ export class PostgresPlatformEnumerationsRepository
       mustAnswer.has(f.key) && f.boundQuestion !== null ? [f.boundQuestion.code] : [],
     );
 
+    // What the programmes of each loan type read, as question codes — resolved exactly as
+    // `neededQuestionCodes` resolves a fact key (its registry binding, else the derived axis),
+    // and WITHOUT the product's declared asks: the contract holds a loan type to what its
+    // programmes actually read, the way `check:question-scope` does.
+    const neededByCategory: Partial<Record<LoanCategory, readonly string[]>> = {};
+    for (const [category, keys] of neededInCategory) {
+      const codes = new Set<string>();
+      for (const key of keys) {
+        const code =
+          factRows.find((f) => f.key === key)?.boundQuestion?.code ??
+          bankAxisByFactKey(key)?.questionCode;
+        if (code !== undefined) codes.add(code);
+      }
+      neededByCategory[category] = [...codes].sort();
+    }
+
     return {
       programNameKey,
       factBoundQuestionCodes,
@@ -1092,6 +1122,11 @@ export class PostgresPlatformEnumerationsRepository
       neededQuestionCodes,
       productOnly,
       mustAnswerQuestionCodes,
+      neededByCategory,
+      programCount:
+        category === undefined
+          ? programs.length
+          : programs.filter((p) => asLoanCategory(p.productCategory) === category).length,
       excludedQuestionCodes: excludedRows.map((row) => row.question.code),
       addedQuestionCodes: addedRows.map((row) => row.question.code),
     };
@@ -1117,6 +1152,22 @@ export class PostgresPlatformEnumerationsRepository
       return code !== undefined && isReservedFactKey(fact.key) ? [code] : [];
     });
     return { platformQuestionCodes };
+  }
+
+  async offeredProgramFlows(): Promise<
+    readonly { category: LoanCategory; programNameKey: string | null }[]
+  > {
+    const rows = await this.prisma.bankProgram.groupBy({
+      by: ['productCategory', 'programNameKey'],
+      where: { active: true },
+      orderBy: [{ productCategory: 'asc' }, { programNameKey: 'asc' }],
+    });
+    // `productCategory` is a free string column; a row outside the four loan types is offered
+    // under nothing an applicant can pick, so it is no path to walk.
+    return rows.flatMap((row) => {
+      const category = asLoanCategory(row.productCategory);
+      return category === null ? [] : [{ category, programNameKey: row.programNameKey }];
+    });
   }
 
   async questionExclusions(

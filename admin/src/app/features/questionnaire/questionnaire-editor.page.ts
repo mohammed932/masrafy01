@@ -45,6 +45,7 @@ import {
   EditOutline,
   EllipsisOutline,
   HolderOutline,
+  LockOutline,
   PlusOutline,
   SearchOutline,
   WarningOutline,
@@ -54,6 +55,7 @@ import {
   isChoiceQuestionType,
   type OptionRow,
   type PublishWarning,
+  type QuestionEngineLock,
   type QuestionRow,
   type QuestionType,
 } from './questionnaire.api.service';
@@ -136,6 +138,7 @@ type BranchOperator = 'equals' | 'not_equals';
       EditOutline,
       EllipsisOutline,
       HolderOutline,
+      LockOutline,
       PlusOutline,
       SearchOutline,
       WarningOutline,
@@ -404,6 +407,15 @@ type BranchOperator = 'equals' | 'not_equals';
                        column on every row — an optional required-chip cell of its
                        own would shift every kebab it is missing from. -->
                   <span class="row-meta">
+                    <!-- The engine reads this answer, so the server refuses anything but
+                         its wording and answer order. Said on the row so the admin knows
+                         before opening it, not after a refused save. -->
+                    @if (q.engineLock; as lock) {
+                      <span class="lock-chip" nz-tooltip [nzTooltipTitle]="lockSummary(lock)"
+                        ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                        ><span class="sr-only">{{ lockSummary(lock) }}</span></span
+                      >
+                    }
                     <span
                       class="type-chip"
                       [class.value-type]="!isChoice(q.type)"
@@ -600,6 +612,48 @@ type BranchOperator = 'equals' | 'not_equals';
     <ng-template #questionEditor>
       <form [formGroup]="questionForm" class="form" (ngSubmit)="submitQuestion()">
         <div class="form-cols">
+          <!-- First thing in the form, spanning both columns: it explains every
+               control below that is greyed out, and the save the server would refuse. -->
+          @if (editLock(); as lock) {
+            <div class="lock-note" role="note">
+              <span
+                class="lock-ico"
+                nz-icon
+                nzType="lock"
+                nzTheme="outline"
+                aria-hidden="true"
+              ></span>
+              <div class="lock-text">
+                @if (lock.reason === 'engine') {
+                  <p class="lock-title" i18n="@@qedit.lock_title_engine">
+                    The loan engine reads this answer
+                  </p>
+                } @else {
+                  <p class="lock-title" i18n="@@qedit.lock_title_program">
+                    Bank programs work out offers from this answer
+                  </p>
+                }
+                <!-- Said by what may still change, not by who reads it: a table reader (a
+                     programme, or the platform's car and I-Score tables) may gain an answer,
+                     an answer-by-answer reader may not. -->
+                @if (lock.optionsFixed) {
+                  <p class="lock-body" i18n="@@qedit.lock_body_fixed">
+                    Only its wording can change. Its answer type, unit, required setting,
+                    when-to-ask rule and answers are fixed, and it can't be deleted.
+                  </p>
+                } @else {
+                  <p class="lock-body" i18n="@@qedit.lock_body_open">
+                    You can change its wording and add answers. Its answer type, unit, required
+                    setting and when-to-ask rule are fixed, its answers can't be removed, and it
+                    can't be deleted.
+                  </p>
+                }
+                @if (lock.reason === 'program') {
+                  <p class="lock-who" i18n="@@qedit.lock_who">Read by {{ programNamesOf(lock) }}</p>
+                }
+              </div>
+            </div>
+          }
           <div class="col">
             <p class="section-lbl" i18n="@@qedit.sec_content">Content</p>
             <label class="field">
@@ -796,31 +850,35 @@ type BranchOperator = 'equals' | 'not_equals';
                         >
                           <span nz-icon nzType="edit" nzTheme="outline"></span>
                         </button>
-                        <button
-                          type="button"
-                          class="icon-btn danger"
-                          (click)="confirmDeleteOption(o)"
-                          aria-label="Delete option"
-                          i18n-aria-label="@@qedit.delete_option_aria"
-                        >
-                          <span nz-icon nzType="delete" nzTheme="outline"></span>
+                        @if (!editLock()) {
+                          <button
+                            type="button"
+                            class="icon-btn danger"
+                            (click)="confirmDeleteOption(o)"
+                            aria-label="Delete option"
+                            i18n-aria-label="@@qedit.delete_option_aria"
+                          >
+                            <span nz-icon nzType="delete" nzTheme="outline"></span>
+                          </button>
+                        }
+                      }
+                    </li>
+                  }
+                  @if (canAddOption()) {
+                    <li class="opt-row" [class.editing]="addingOption()">
+                      @if (addingOption()) {
+                        <ng-container
+                          [ngTemplateOutlet]="optionEditor"
+                          [ngTemplateOutletContext]="{ eq: eq, adding: true }"
+                        ></ng-container>
+                      } @else {
+                        <button type="button" class="add-opt" (click)="startAddOption()">
+                          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                          <span i18n="@@qedit.add_option">option</span>
                         </button>
                       }
                     </li>
                   }
-                  <li class="opt-row" [class.editing]="addingOption()">
-                    @if (addingOption()) {
-                      <ng-container
-                        [ngTemplateOutlet]="optionEditor"
-                        [ngTemplateOutletContext]="{ eq: eq, adding: true }"
-                      ></ng-container>
-                    } @else {
-                      <button type="button" class="add-opt" (click)="startAddOption()">
-                        <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                        <span i18n="@@qedit.add_option">option</span>
-                      </button>
-                    }
-                  </li>
                 </ul>
               } @else {
                 <p class="section-lbl" i18n="@@qedit.sec_answers">Answer options</p>
@@ -841,7 +899,7 @@ type BranchOperator = 'equals' | 'not_equals';
           <div formGroupName="enabledWhen" class="branch-box">
             <p class="section-lbl">
               <span i18n="@@qedit.sec_branch">When to ask this</span>
-              @if (branchOn()) {
+              @if (branchOn() && !editLock()) {
                 <!-- Undoes the whole rule, so it sits at the far edge of the heading
                      rather than beside the row it would clear. No icon: a close glyph
                      says "dismiss" while the label states an outcome, and the two read
@@ -856,7 +914,10 @@ type BranchOperator = 'equals' | 'not_equals';
                 </button>
               }
             </p>
-            @if (branchSources().length === 0) {
+            <!-- A locked question shows its (disabled) rule and why it is fixed, even
+                 when nothing earlier could be branched on: "nothing to branch on yet"
+                 would promise an edit the server refuses. -->
+            @if (branchSources().length === 0 && !editLock()) {
               <p class="hint" i18n="@@qedit.branch_none">
                 Nothing to branch on yet — a rule reads an answer from an earlier question that
                 offers options.
@@ -908,6 +969,7 @@ type BranchOperator = 'equals' | 'not_equals';
                         class="op-btn"
                         [class.on]="branchOperator() === op"
                         [attr.aria-checked]="branchOperator() === op"
+                        [disabled]="editLock() !== null"
                         (click)="pickBranchOperator(op)"
                       >
                         {{ branchOperatorLabel(op) }}
@@ -935,7 +997,12 @@ type BranchOperator = 'equals' | 'not_equals';
                   </nz-select>
                 </div>
               }
-              @if (branchIncomplete()) {
+              @if (editLock()) {
+                <p class="hint" i18n="@@qedit.branch_locked">
+                  Fixed because offers are worked out from this answer: changing when it is asked
+                  would change who answers it.
+                </p>
+              } @else if (branchIncomplete()) {
                 <p class="hint warn" i18n="@@qedit.branch_incomplete">
                   Pick which answer turns this question on — a half-set rule hides nothing.
                 </p>
@@ -968,17 +1035,19 @@ type BranchOperator = 'equals' | 'not_equals';
              once the row menu was removed, but it must not sit next to Save. -->
         <div class="form-actions">
           @if (editingQuestion(); as eq) {
-            <button
-              type="button"
-              nz-button
-              nzType="text"
-              nzDanger
-              class="del-q"
-              (click)="confirmDeleteQuestion(eq)"
-              i18n="@@qedit.delete_question"
-            >
-              Delete question
-            </button>
+            @if (!eq.engineLock) {
+              <button
+                type="button"
+                nz-button
+                nzType="text"
+                nzDanger
+                class="del-q"
+                (click)="confirmDeleteQuestion(eq)"
+                i18n="@@qedit.delete_question"
+              >
+                Delete question
+              </button>
+            }
           }
           <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
           <button
@@ -1770,6 +1839,61 @@ type BranchOperator = 'equals' | 'not_equals';
       .del-q {
         margin-inline-end: auto;
       }
+      /* ---- Engine lock ---------------------------------------------------
+         Neutral, not warning-tinted: a locked question is not a problem to fix,
+         it is a fact about the question. Same vocabulary as the program-name
+         board's lock tag (surface fill, hairline, quiet ink). */
+      .lock-chip {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        padding: 1px var(--space-2, 8px);
+        border: 1px solid var(--qe-line-strong);
+        border-radius: var(--radius-pill, 999px);
+        background: var(--qe-surface);
+        color: var(--qe-text-2);
+        font-size: var(--text-xs, 12px);
+        line-height: 1.4;
+      }
+      .lock-note {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3, 12px);
+        padding: var(--space-3, 12px) var(--space-4, 16px);
+        border: 1px solid var(--qe-line-strong);
+        border-radius: var(--radius-md, 8px);
+        background: color-mix(in srgb, var(--qe-text) 4%, var(--qe-surface));
+      }
+      .lock-ico {
+        flex: 0 0 auto;
+        /* Optical: sits the glyph on the title's first line, at any font size. */
+        margin-block-start: 0.15em;
+        font-size: var(--text-base, 16px);
+        color: var(--qe-text);
+      }
+      .lock-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1, 4px);
+        min-inline-size: 0;
+      }
+      .lock-title {
+        margin: 0;
+        font-size: var(--text-sm, 14px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text);
+      }
+      .lock-body,
+      .lock-who {
+        margin: 0;
+        font-size: var(--text-xs, 12px);
+        line-height: var(--leading-normal, 1.5);
+        color: var(--qe-text-2);
+      }
+      .lock-who {
+        color: var(--qe-text);
+      }
       .ins-note {
         grid-column: 1 / -1;
         margin: 0;
@@ -1924,8 +2048,13 @@ type BranchOperator = 'equals' | 'not_equals';
           background var(--motion-duration-fast, 120ms) ease,
           color var(--motion-duration-fast, 120ms) ease;
       }
-      .op-btn:hover {
+      .op-btn:hover:not(:disabled) {
         color: var(--qe-text);
+      }
+      /* The engine lock greys the rule out; the same treatment as a locked type. */
+      .op-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
       }
       .op-btn:focus-visible {
         outline: 2px solid var(--cat);
@@ -2290,6 +2419,17 @@ export class QuestionnaireEditorPage implements OnInit {
     return id === null ? null : (this.rows().find((q) => q.id === id) ?? null);
   });
 
+  /** The engine lock on the question being edited — what greys out half the form. */
+  readonly editLock = computed<QuestionEngineLock | null>(
+    () => this.editingQuestion()?.engineLock ?? null,
+  );
+  /**
+   * An answer may be ADDED to a question a table reads (it may just lack the row), never to one
+   * the engine or the app maps answer by answer: a debt with no amount question, a job type with
+   * no bucket, means nothing anywhere.
+   */
+  readonly canAddOption = computed(() => this.editLock()?.optionsFixed !== true);
+
   /** Option sub-editors inside the expanded row. */
   readonly editingOptionId = signal<string | null>(null);
   readonly addingOption = signal(false);
@@ -2468,6 +2608,20 @@ export class QuestionnaireEditorPage implements OnInit {
     return q.options.map((o) => (this.isAr ? o.labelAr : o.labelEn)).join(' · ');
   }
 
+  /** The row chip's tooltip, and its screen-reader text. */
+  lockSummary(lock: QuestionEngineLock): string {
+    return lock.reason === 'engine'
+      ? $localize`:@@qedit.lock_tip_engine:Locked: the loan engine reads this answer`
+      : $localize`:@@qedit.lock_tip_program:Locked: read by ${this.programNamesOf(lock)}:names:`;
+  }
+
+  /** The program names a `program` lock is read by, in the admin's language. */
+  programNamesOf(lock: QuestionEngineLock): string {
+    return lock.programNames
+      .map((n) => (this.isAr ? n.labelAr : n.labelEn))
+      .join(this.isAr ? '، ' : ', ');
+  }
+
   // Placeholders and segment labels for the branch pickers. Properties, not method
   // calls: `nzPlaceHolder` is a plain string input, so a method here would re-run
   // `$localize` on every change detection pass.
@@ -2632,8 +2786,33 @@ export class QuestionnaireEditorPage implements OnInit {
         optionCode: q.enabledWhen?.optionCode ?? '',
       },
     } as never);
+    this.applyEngineLock(q.engineLock ?? null);
     this.expandedId.set(q.id);
     this.focusFirstField();
+  }
+
+  /**
+   * Grey out what the server would refuse on a locked question: making it optional, its unit,
+   * and its when-to-ask rule. Disabled controls still travel in `getRawValue()`, so a save sends
+   * them unchanged and the server sees no change to refuse. Re-enabled for every other row and
+   * for a new question.
+   */
+  private applyEngineLock(lock: QuestionEngineLock | null): void {
+    const c = this.questionForm.controls;
+    type Toggleable = {
+      enable(opts?: { emitEvent?: boolean }): void;
+      disable(opts?: { emitEvent?: boolean }): void;
+    };
+    const set = (control: Toggleable, locked: boolean): void => {
+      if (locked) control.disable({ emitEvent: false });
+      else control.enable({ emitEvent: false });
+    };
+    // Either way, not only required->optional: an optional question made required could never be
+    // made optional again, so the switch would be a one-way door nothing on screen warns about.
+    set(c.isRequired, lock !== null);
+    set(c.numeric.controls.unitEn, lock !== null);
+    set(c.numeric.controls.unitAr, lock !== null);
+    set(c.enabledWhen, lock !== null);
   }
 
   startCreate(): void {
@@ -2652,6 +2831,7 @@ export class QuestionnaireEditorPage implements OnInit {
       text: { maxLength: null },
       enabledWhen: { questionCode: '', operator: 'equals', optionCode: '' },
     } as never);
+    this.applyEngineLock(null);
     this.creating.set(true);
     this.focusFirstField();
   }
@@ -2812,17 +2992,23 @@ export class QuestionnaireEditorPage implements OnInit {
       // `code` is immutable (A33) — never sent. `type` is not sent either: it is
       // locked in edit mode, because answers already reference this shape.
       // `displayOrder` is not sent: order is owned by drag / move, not this form.
-      await this.api.updateQuestion(id, {
-        questionEn: v.questionEn,
-        questionAr: v.questionAr,
-        // Always sent, empty included: an emptied box must CLEAR the sub-label,
-        // which omitting the key would silently decline to do.
-        helperTextEn: v.helperTextEn.trim(),
-        helperTextAr: v.helperTextAr.trim(),
-        isRequired: v.isRequired,
-        enabledWhen: branch,
-        ...rules,
-      });
+      try {
+        await this.api.updateQuestion(id, {
+          questionEn: v.questionEn,
+          questionAr: v.questionAr,
+          // Always sent, empty included: an emptied box must CLEAR the sub-label,
+          // which omitting the key would silently decline to do.
+          helperTextEn: v.helperTextEn.trim(),
+          helperTextAr: v.helperTextAr.trim(),
+          isRequired: v.isRequired,
+          enabledWhen: branch,
+          ...rules,
+        });
+      } catch {
+        // A refusal (an engine lock, a rule the server rejects) is already a toast from the
+        // interceptor. The modal stays open with the admin's edits so nothing typed is lost.
+        return;
+      }
       this.message.success($localize`:@@qedit.question_saved:Question saved`);
       await this.reload();
       return;
@@ -3029,6 +3215,8 @@ export class QuestionnaireEditorPage implements OnInit {
     this.rows.set(flatten(tree ?? []));
     this.published.set(true);
     this.bindingWarnings.set(warnings ?? []);
+    // The open question's lock is re-read with the tree; keep the greyed-out controls in step.
+    if (this.expandedId() !== null) this.applyEngineLock(this.editLock());
   }
 }
 

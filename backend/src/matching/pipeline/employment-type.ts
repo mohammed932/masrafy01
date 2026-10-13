@@ -59,6 +59,17 @@ export function coarseEmploymentType(detailed: string): string {
 }
 
 /**
+ * True when the engine knows which bucket an answer belongs to — a detailed code it maps, or a
+ * bucket itself. An option the questionnaire offers outside this set passes through
+ * `coarseEmploymentType` unchanged, misses every per-employment row (DBR cap, rate, ceiling,
+ * term) and is quietly priced on the programme default, so the questionnaire refuses to offer
+ * one (`engine-contract.ts`).
+ */
+export function isKnownEmploymentType(code: string): boolean {
+  return code in COARSE_BY_DETAILED || isCoarseEmploymentType(code);
+}
+
+/**
  * Self-employed applicants face the stricter age / minimum-income band
  * (`selfEmployedMinAge`, `selfEmployedMinMonthlyIncomeEGP`). Decided on the COARSE
  * bucket so a freelancer is treated like a business owner, and a government

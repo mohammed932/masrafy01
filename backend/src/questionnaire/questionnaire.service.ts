@@ -19,6 +19,7 @@ import {
 } from '@/matching/pipeline/surrogate-fact-bindings';
 import { isBindableQuestionType } from '@/matching/pipeline/surrogate-fact-registry';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
+import { EngineContractService } from './engine-contract.service';
 import { frozenCategories } from './frozen-categories';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
@@ -37,6 +38,7 @@ import {
 } from './validation/answer-validation';
 import { isQuestionVisible } from './validation/question-visibility';
 import { narrowAskedQuestions, type NarrowingScope } from './validation/question-scope';
+import { sameText } from './validation/engine-contract';
 import type {
   CreateGroupDto,
   CreateOptionDto,
@@ -60,6 +62,13 @@ export class QuestionnaireService {
      * either side must surface here rather than as a silent non-match.
      */
     private readonly enums: PlatformEnumerationsRepository,
+    /**
+     * The engine-input contract: refuses a write that would change a question the loan engine
+     * reads, or leave it without an answer it gets today. Every write publishes on the spot, so
+     * this runs BEFORE each one lands. Always injected by Nest; absent only where a test builds
+     * this service by hand around fake repositories.
+     */
+    private readonly contract?: EngineContractService,
   ) {}
 
   /**
@@ -602,6 +611,18 @@ export class QuestionnaireService {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     const unique = dedupeCategories(categories);
+    await this.contract?.assertWrite({
+      kind: 'categories',
+      assignments: [
+        {
+          questionId: id,
+          categories: unique,
+          ...(optInCategories === undefined
+            ? {}
+            : { optInCategories: dedupeCategories(optInCategories) }),
+        },
+      ],
+    });
     // `categories` is the ordinary set; opt-in rows ride along unless the caller says which to
     // keep (`replaceAssignment`). What the row now holds is read back, not re-derived here.
     await this.repo.setCategories(
@@ -633,20 +654,32 @@ export class QuestionnaireService {
     opts: { publish?: boolean } = {},
   ) {
     const known = new Set((await this.repo.questions()).map((q) => q.id));
+    const seen = new Set<string>();
     for (const a of assignments) {
       if (!known.has(a.questionId)) {
         throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId: a.questionId });
       }
+      // One entry per question. The write replays entries in order against one pre-read, so a
+      // duplicate's outcome depends on what the entry before it deleted — not something the
+      // engine-input contract can judge before it lands, nor anything a caller needs to send.
+      if (seen.has(a.questionId)) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+          field: 'assignments',
+          value: a.questionId,
+        });
+      }
+      seen.add(a.questionId);
     }
-    await this.repo.setCategoriesBulk(
-      assignments.map((a) => ({
-        questionId: a.questionId,
-        categories: dedupeCategories(a.categories),
-        ...(a.optInCategories === undefined
-          ? {}
-          : { optInCategories: dedupeCategories(a.optInCategories) }),
-      })),
-    );
+    const planned = assignments.map((a) => ({
+      questionId: a.questionId,
+      categories: dedupeCategories(a.categories),
+      ...(a.optInCategories === undefined
+        ? {}
+        : { optInCategories: dedupeCategories(a.optInCategories) }),
+    }));
+    // Judged as ONE write: a column action either keeps every engine input or saves nothing.
+    await this.contract?.assertWrite({ kind: 'categories', assignments: planned });
+    await this.repo.setCategoriesBulk(planned);
     if (opts.publish !== false) await this.publish(actor);
     return this.draftTree();
   }
@@ -760,6 +793,17 @@ export class QuestionnaireService {
       text: dto.text !== undefined ? dto.text : textRulesOf(question),
       activeOptionCount: options.filter((o) => o.isActive).length,
     });
+    await this.contract?.assertWrite({
+      kind: 'question',
+      questionId: id,
+      patch: {
+        type: dto.type,
+        isRequired: dto.isRequired,
+        isActive: dto.isActive,
+        enabledWhen: dto.enabledWhen,
+        unitChanged: numericUnitChanges(question, type, dto),
+      },
+    });
     const data: Prisma.QuestionUpdateInput = {
       questionAr: dto.questionAr,
       questionEn: dto.questionEn,
@@ -803,6 +847,11 @@ export class QuestionnaireService {
     if (others.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_IN_USE, { dependents: others });
     }
+    await this.contract?.assertWrite({
+      kind: 'question',
+      questionId: id,
+      patch: { isActive: false },
+    });
     const deleted = await this.repo.updateQuestion(id, { isActive: false });
     await this.publish(actor);
     return deleted;
@@ -894,6 +943,12 @@ export class QuestionnaireService {
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     const existing = new Set((await this.repo.optionCodes(questionId)).map((o) => o.code));
     const code = uniqueSlug(dto.labelEn, existing);
+    await this.contract?.assertWrite({
+      kind: 'option',
+      questionId,
+      optionCode: code,
+      active: true,
+    });
     const created = await this.repo.createOption({
       questionId,
       code,
@@ -919,6 +974,14 @@ export class QuestionnaireService {
         throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
       }
     }
+    if (dto.isActive !== undefined && dto.isActive !== option.isActive) {
+      await this.contract?.assertWrite({
+        kind: 'option',
+        questionId: question.id,
+        optionCode: option.code,
+        active: dto.isActive,
+      });
+    }
     const updated = await this.repo.updateOption(id, {
       labelAr: dto.labelAr,
       labelEn: dto.labelEn,
@@ -939,6 +1002,14 @@ export class QuestionnaireService {
     if (dependents.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
     }
+    if (option.isActive) {
+      await this.contract?.assertWrite({
+        kind: 'option',
+        questionId: question.id,
+        optionCode: option.code,
+        active: false,
+      });
+    }
     const deleted = await this.repo.updateOption(id, { isActive: false });
     await this.publish(actor);
     return deleted;
@@ -952,9 +1023,10 @@ export class QuestionnaireService {
   /**
    * Freeze the active pool into an immutable snapshot. Feature 010: each question
    * carries its `type` and, where relevant, its `numeric` / `text` rule block.
-   * Publish NEVER fails on a missing money-field binding — it returns a warning
-   * (FR-049), because blocking publish would leave the admin unable to ship any
-   * questionnaire while a binding is being renamed.
+   * Publish itself never fails on a missing money-field binding — it returns a warning
+   * (FR-049). What stops one being INTRODUCED is the engine-input contract, which every
+   * write above runs before it lands (`EngineContractService`); the warnings report what
+   * was already broken before it existed, or broke from outside the questionnaire.
    */
   async publish(publishedBy: string): Promise<PublishResult> {
     const groups = (await this.repo.groups()).filter((g) => g.isActive);
@@ -1136,9 +1208,11 @@ export class QuestionnaireService {
     // Which rows are OPT-IN, and how many program names add each — the assign tab draws an
     // opt-in cell as its own state, and the program-name board tells "asked of every name"
     // from "in the category for the names that add it".
-    const [optIns, additionCounts] = await Promise.all([
+    const [optIns, additionCounts, locks] = await Promise.all([
       this.repo.optInAssignments(),
       this.enums.questionAdditionCounts(),
+      // What the loan engine reads, so the editor can say so BEFORE an edit is refused.
+      this.contract?.lockViews() ?? Promise.resolve(new Map<string, never>()),
     ]);
     const result = [];
     for (const g of groups) {
@@ -1158,6 +1232,7 @@ export class QuestionnaireService {
           optInCategories: sortCategories(optIns.get(q.id) ?? []),
           addedByNames: additionCounts.get(q.id) ?? {},
           categoryOrder: categoryOrders.get(q.id) ?? {},
+          engineLock: locks.get(q.code) ?? null,
         });
       }
       result.push({ ...g, questions: gQuestions });
@@ -1169,11 +1244,17 @@ export class QuestionnaireService {
     return this.repo.versionHistory();
   }
 
+  /**
+   * Serve an older version again. Judged like any edit: a version frozen before a question the
+   * engine reads today existed — or while it was asked in fewer loan types — would quote without
+   * it, so the contract refuses the rollback rather than serving that questionnaire.
+   */
   async rollback(versionId: string) {
     const version = await this.repo.versionById(versionId);
     if (!version) {
       throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     }
+    await this.contract?.assertWrite({ kind: 'snapshot', snapshot: version.snapshot });
     return this.repo.activateExisting(versionId);
   }
 
@@ -1466,6 +1547,23 @@ interface QuestionRuleColumns {
   numericUnitAr: string | null;
   numericUnitEn: string | null;
   textMaxLength: number | null;
+}
+
+/**
+ * Whether `updateQuestion` would change a NUMERIC question's unit. The editor resends every
+ * rule on each save, so this compares values rather than presence: a resend of the same unit is
+ * not a change, and a lock must not refuse it.
+ */
+function numericUnitChanges(
+  question: QuestionRuleColumns & { type: QuestionType },
+  type: QuestionType,
+  dto: UpdateQuestionDto,
+): boolean {
+  if (question.type !== 'NUMERIC' || type !== 'NUMERIC' || dto.numeric === undefined) return false;
+  return (
+    !sameText(dto.numeric?.unitAr, question.numericUnitAr) ||
+    !sameText(dto.numeric?.unitEn, question.numericUnitEn)
+  );
 }
 
 export function numericRulesOf(q: QuestionRuleColumns): {

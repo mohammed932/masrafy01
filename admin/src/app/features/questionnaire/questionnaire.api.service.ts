@@ -125,6 +125,24 @@ export interface QuestionRow {
    * pool's order — which is what it was served before.
    */
   categoryOrder?: Partial<Record<LoanCategory, number>>;
+  /**
+   * Set when the loan engine reads this question's answer, so the server refuses anything but
+   * its wording — and, where `optionsFixed` is false, a new answer (`QUESTION_ENGINE_LOCKED`).
+   * Absent on a server that predates the lock — read as unlocked; the server still refuses.
+   */
+  engineLock?: QuestionEngineLock | null;
+}
+
+/**
+ * Why a question is locked. `engine`: every quote reads it, or the platform owns the fact it
+ * answers. `program`: the named bank programs read it. Whether an answer may still be ADDED is
+ * `optionsFixed` — a table reader may just lack the row; an answer-by-answer reader may not.
+ */
+export interface QuestionEngineLock {
+  reason: 'engine' | 'program';
+  /** No answer may be added — the engine or the app maps each answer one by one. */
+  optionsFixed: boolean;
+  programNames: { key: string; labelAr: string; labelEn: string }[];
 }
 export type { ServedCount } from '@shared/questions/asked-questions.rules';
 import type { ServedCount } from '@shared/questions/asked-questions.rules';

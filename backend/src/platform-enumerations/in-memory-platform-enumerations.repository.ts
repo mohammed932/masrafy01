@@ -133,6 +133,13 @@ export class InMemoryPlatformEnumerationsRepository
     return { platformQuestionCodes: [] };
   }
 
+  /** No programmes in this stub, so nothing is offered and the contract has no path to walk. */
+  async offeredProgramFlows(): Promise<
+    readonly { category: LoanCategory; programNameKey: string | null }[]
+  > {
+    return [];
+  }
+
   async questionExclusions(): Promise<readonly string[]> {
     return [];
   }

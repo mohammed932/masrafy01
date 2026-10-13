@@ -39,6 +39,7 @@ import {
   MONEY_FIELD_BINDINGS,
   MONEY_FIELD_BINDING_SPECS,
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
+  PRIORITY_QUESTION_CODE,
 } from '@/matching/pipeline/money-field-bindings';
 
 /**
@@ -84,6 +85,14 @@ export const NEVER_PRODUCT_SCOPED_QUESTION_CODES: ReadonlySet<string> = new Set<
  * Still NOT asked on those names: the declared salary (the product works the income out), the
  * requested amount where the product derives it, and the stated lump sum (the itemised amounts
  * above are the figure).
+ *
+ * Plus, where the name has MORE THAN ONE programme in the loan type, what the applicant cares
+ * about most (`PRIORITY_QUESTION_CODE`, 2026-10-13) — see `isCore` below. It moves no money; it
+ * decides which offer is shown first, so it is worth a question exactly when there is more than
+ * one offer to order. The other answers the app reads by code (time in the job, where the salary
+ * is paid, a past rejection) stay unasked here: on 2026-10-13 no live programme under these
+ * names priced on them (no seniority or years-in-job table; every transfer table one `none` row
+ * at the base rate; a past rejection is an eligibility input apply skips).
  */
 export const ASKED_EVEN_WHEN_PRODUCT_ONLY: ReadonlySet<string> = new Set<string>([
   DEBT_TYPES_QUESTION_CODE,
@@ -142,12 +151,28 @@ export interface NarrowingScope {
    */
   productOnly?: boolean;
   /**
+   * How many active programmes under the name an applicant of THIS loan type is quoted on (all
+   * loan types when the request named none). Read only by the product-only core: the priority
+   * question orders offers, so it is asked there when there is more than one. Absent = unknown,
+   * read as one.
+   */
+  programCount?: number;
+  /**
    * Questions a programme under this name reads through a REFUSAL that is skipped when the
    * answer is missing — today the vehicle-age limit, which cannot refuse a car whose model year
    * nobody gave. Required wherever served, whatever their core clause (a platform fact keeps
    * its own requiredness otherwise). Absent = none.
    */
   mustAnswerQuestionCodes?: readonly string[];
+  /**
+   * What the programmes of each LOAN TYPE under the name read, as question codes — the reads
+   * behind `neededQuestionCodes` and `mustAnswerQuestionCodes`, split by the reading
+   * programme's own loan type, without the product's declared asks. NOT read by the narrowing
+   * (which serves a name's union on purpose); read by the engine-input contract, which holds a
+   * mortgage applicant to what the name's mortgage programmes read and no more, exactly as
+   * `check:question-scope` does. Absent = not computed.
+   */
+  neededByCategory?: Readonly<Partial<Record<string, readonly string[]>>>;
   /**
    * Questions the operator UNTICKED for this name under the requested loan type
    * (`program_name_question_exclusion`). Subtracted after the core and the needed set are
@@ -355,7 +380,8 @@ export function narrowAskedQuestions(
   const isCore = (code: string): boolean =>
     !optIn.has(code) &&
     (scope.productOnly === true
-      ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code)
+      ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code) ||
+        (code === PRIORITY_QUESTION_CODE && (scope.programCount ?? 1) > 1)
       : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
         !factBound.has(code) ||
         platform.has(code) ||

@@ -651,6 +651,21 @@ export const ERROR_CODES = {
   ENABLED_WHEN_INVALID: 'ENABLED_WHEN_INVALID',
   QUESTION_IN_USE: 'QUESTION_IN_USE',
   QUESTION_OPTION_IN_USE: 'QUESTION_OPTION_IN_USE',
+  /**
+   * The loan engine reads this question's answer (`questionnaire/validation/engine-contract.ts`),
+   * so its type, unit, required flag, show-when rule, being switched on, and the answers it
+   * offers are fixed; only its wording and the order of its answers may change.
+   * `meta: { questionId, code, questionAr, questionEn, reason: 'engine' | 'program', change,
+   * programNameKeys }`.
+   */
+  QUESTION_ENGINE_LOCKED: 'QUESTION_ENGINE_LOCKED',
+  /**
+   * A questionnaire write — or a rollback — would leave the engine without an answer it gets
+   * today on some path an applicant can walk: a money figure, a debt, the job type, or a fact a
+   * live programme reads. Only violations the write INTRODUCES refuse it.
+   * `meta: { questionsAr, questionsEn, violations: EngineContractViolation[] }`.
+   */
+  ENGINE_INPUT_WOULD_BREAK: 'ENGINE_INPUT_WOULD_BREAK',
   QUESTION_GROUP_NOT_EMPTY: 'QUESTION_GROUP_NOT_EMPTY',
   REQUIRED_ANSWER_MISSING: 'REQUIRED_ANSWER_MISSING',
   PROGRAM_NO_LONGER_MATCHES: 'PROGRAM_NO_LONGER_MATCHES',
@@ -1255,6 +1270,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   UNKNOWN_OPTION_CODE: 400,
   ENABLED_WHEN_INVALID: 422,
   QUESTION_IN_USE: 409,
+  QUESTION_ENGINE_LOCKED: 409,
+  ENGINE_INPUT_WOULD_BREAK: 409,
   QUESTION_OPTION_IN_USE: 409,
   QUESTION_GROUP_NOT_EMPTY: 409,
   REQUIRED_ANSWER_MISSING: 422,

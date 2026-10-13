@@ -125,6 +125,8 @@
   "ENABLED_WHEN_INVALID": "Invalid branching rule: the referenced question/option is missing or comes later.",
   "QUESTION_IN_USE": "Cannot delete: another question's branching depends on this one.",
   "QUESTION_OPTION_IN_USE": "Cannot delete: another question's branching depends on this option.",
+  "QUESTION_ENGINE_LOCKED": "Not saved: offers are worked out from the answer to “{questionEn}”, so its answer type, unit, required setting, when-to-ask rule and answers can’t change. Its wording can.",
+  "ENGINE_INPUT_WOULD_BREAK": "Not saved: this change would stop the loan engine getting the answer to {questionsEn} on some loans, and their offers would be quoted without it. Keep it asked where it is asked today.",
   "QUESTION_GROUP_NOT_EMPTY": "Cannot delete: remove the group's questions first.",
   "UNKNOWN_QUESTION_CODE": "This answer references a question that no longer exists.",
   "UNKNOWN_OPTION_CODE": "This answer references an option that no longer exists.",

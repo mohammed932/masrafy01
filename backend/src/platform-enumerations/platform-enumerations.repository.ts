@@ -622,6 +622,16 @@ export abstract class PlatformEnumerationsRepository {
    */
   abstract questionLockScopeFor(programNameKey: string | null): Promise<QuestionLockScope>;
 
+  /**
+   * Every (loan type, program name) an applicant can be quoted under — one row per distinct
+   * pair across ACTIVE bank programmes; `programNameKey: null` for a programme sold under no
+   * name. The paths the engine-input contract walks: a questionnaire write may not stop any
+   * of them from being asked what its programmes read. Uncached, like `narrowingScopeFor`.
+   */
+  abstract offeredProgramFlows(): Promise<
+    readonly { category: LoanCategory; programNameKey: string | null }[]
+  >;
+
   /** Question ids the name skips under one loan type (`program_name_question_exclusion`). */
   abstract questionExclusions(
     programNameKey: string,

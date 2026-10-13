@@ -115,6 +115,14 @@ export const DEBT_TYPES_QUESTION_CODE = 'current_loans';
 export const EMPLOYMENT_TYPE_QUESTION_CODE = 'employment_status';
 
 /**
+ * The question whose answer the app sends as `priority` — the key `rankOffers` sorts the offers
+ * by, frozen as `bank_offer.rankIndex`. Not a money figure: it decides which offer is shown
+ * first. Unasked, every app mapper falls to `fastest_approval`, so it is worth asking wherever
+ * there is more than one offer to order (`question-scope.ts`).
+ */
+export const PRIORITY_QUESTION_CODE = 'priority_factor';
+
+/**
  * The explicit "I have none" pick. Present so "no debts" is a STATED answer
  * rather than an empty one — an empty multi-select is indistinguishable from an
  * unanswered question, and that difference decides whether obligations resolve
