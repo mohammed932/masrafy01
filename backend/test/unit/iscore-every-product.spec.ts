@@ -37,12 +37,13 @@ const RETIRED_ISCORE_SLOTS = ['iscore_src', 'iscore_band', 'iscore_factor', 'isc
 
 describe('I-Score is no longer a step in any product rule', () => {
   it('is declared by no blueprint', () => {
-    // Ten rule-bearing blueprints, unchanged by this refactor — the count is asserted so a
-    // blueprint added or lost shows up here rather than as a silently smaller sweep below.
-    // Ten since 2026-09-09: the two Suez Canal auto products merged into one with two ways.
-    expect(withTemplate).toHaveLength(10);
+    // Eleven rule-bearing blueprints — the count is asserted so a blueprint added or lost
+    // shows up here rather than as a silently smaller sweep below. Ten since 2026-09-09 (the
+    // two Suez Canal auto products merged into one with two ways); eleven since 2026-10-13,
+    // when `club_branch_cap` became a ceiling.
+    expect(withTemplate).toHaveLength(11);
     for (const blueprint of withTemplate) expect(blueprint.template!.iScore).toBeUndefined();
-    // The three cap-only BLUEPRINTS have no template, so there was never anything to
+    // The two cap-only BLUEPRINTS have no template, so there was never anything to
     // multiply. `compound_owner` is deliberately not in this list: it declares a template
     // here even though its stored row holds no `incomeRule` on this database — a
     // pre-existing gap between the blueprint and the seeded row, unrelated to I-Score and
@@ -52,7 +53,7 @@ describe('I-Score is no longer a step in any product rule', () => {
         .filter((b) => b.template === null)
         .map((b) => b.key)
         .sort(),
-    ).toEqual(['club_branch_cap', 'company_coding_cap', 'school_type_cap']);
+    ).toEqual(['company_coding_cap', 'school_type_cap']);
   });
 
   it('is not an id the compiler can emit', () => {

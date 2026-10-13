@@ -81,7 +81,7 @@ function fixture(): FakeRow[] {
     // A CAP-ONLY product, keyed by a real blueprint key so the test exercises the real
     // predicate. It is live and holds no calculation, and never will: it asks its question
     // and each bank states the maximum for the answer on its own program.
-    row({ id: 'p4', type: 'surrogate_product', key: 'club_branch_cap' }),
+    row({ id: 'p4', type: 'surrogate_product', key: 'company_coding_cap' }),
     // Linked: takes its calculation from `compound_owner`, holds none of its own.
     row({ id: 'n1', type: 'program_name', key: 'compound_owner', surrogateProductKey: 'compound_owner' }),
     // Legacy: no link, but states its own rule. Must stay savable.
@@ -284,7 +284,7 @@ describe('linking a name to a CAP-ONLY product', () => {
   it('refuses, because the name would work out no income', async () => {
     const { service } = makeService(makeRepo(fixture()));
     await expect(
-      service.update('n4', { surrogateProductKey: 'club_branch_cap' } as never, ACTOR),
+      service.update('n4', { surrogateProductKey: 'company_coding_cap' } as never, ACTOR),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.SURROGATE_PRODUCT_CAP_ONLY);
   });
 
@@ -297,7 +297,7 @@ describe('linking a name to a CAP-ONLY product', () => {
           key: 'new_name',
           labelAr: 'x',
           labelEn: 'x',
-          surrogateProductKey: 'club_branch_cap',
+          surrogateProductKey: 'company_coding_cap',
         } as never,
         ACTOR,
       ),
@@ -309,10 +309,10 @@ describe('linking a name to a CAP-ONLY product', () => {
     // rejects is the loop this shared derivation exists to prevent.
     const { service } = makeService(makeRepo(fixture()));
     const error = await service
-      .update('n4', { surrogateProductKey: 'club_branch_cap' } as never, ACTOR)
+      .update('n4', { surrogateProductKey: 'company_coding_cap' } as never, ACTOR)
       .catch((e: unknown) => e);
     const meta = (error as DomainException).meta as { linkableProducts: string[] };
-    expect(meta.linkableProducts).not.toContain('club_branch_cap');
+    expect(meta.linkableProducts).not.toContain('company_coding_cap');
     expect(meta.linkableProducts).toContain('compound_owner');
   });
 
@@ -325,10 +325,10 @@ describe('linking a name to a CAP-ONLY product', () => {
       service.create(
         {
           type: 'surrogate_fact',
-          key: 'club_branch',
+          key: 'employer_coding',
           labelAr: 'x',
           labelEn: 'x',
-          surrogateProductKey: 'club_branch_cap',
+          surrogateProductKey: 'company_coding_cap',
         } as never,
         ACTOR,
         { source: 'blueprint' },
@@ -342,7 +342,7 @@ describe('linking a name to a CAP-ONLY product', () => {
     const { service } = makeService(makeRepo(fixture()));
     await expect(
       service.create(
-        { type: 'surrogate_fact', key: 'club_branch', labelAr: 'x', labelEn: 'x' } as never,
+        { type: 'surrogate_fact', key: 'employer_coding', labelAr: 'x', labelEn: 'x' } as never,
         ACTOR,
       ),
     ).rejects.toSatisfy(

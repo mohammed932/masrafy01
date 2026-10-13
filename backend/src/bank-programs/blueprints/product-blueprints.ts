@@ -945,6 +945,53 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     },
   },
 
+  {
+    // A CEILING since 2026-10-13 (v30.10.0), not a payslip cap. The branch the membership is
+    // at sets what may be borrowed — the client's own flow says it "determines the loan
+    // ceiling directly" — so FABMISR's club programme is sold without a payslip under its own
+    // name (`club_membership`). As a cap on a payslip programme a non-member missed every row
+    // and `onNoMatch: 'useProgramMax'` quoted them the 750k maximum; as a ceiling an
+    // unanswered branch quotes nothing, the honest answer to someone who is not a member.
+    key: 'club_branch_cap',
+    group: 'ceiling',
+    labelEn: 'Club Membership',
+    labelAr: 'عضوية النادي',
+    asks: [
+      {
+        kind: 'choice',
+        factKey: 'club_branch',
+        questionEn: 'Which club branch is your membership at?',
+        questionAr: 'عضويتك في أي فرع من النادي؟',
+        // Personal only: its gate `club_membership` is asked in personal alone, so in car
+        // this question could never be shown (removed from car 2026-09-24).
+        categories: [LoanCategory.personal],
+        // Gated, because ungated this asked every personal and auto applicant which branch
+        // their membership is at — including everyone who has none. Safe to gate where the
+        // sheet conditions were not: this fact is the product's ONLY axis, so an applicant
+        // the gate hides it from cannot be quoted here at all.
+        enabledWhen: { questionCode: 'club_membership', optionCode: 'yes' },
+        list: {
+          typeKey: 'club_branch',
+          labelEn: 'Club branches',
+          labelAr: 'فروع النوادي',
+          // Adding a branch is more rows, never more code.
+          values: [
+            { key: 'branch_new_cairo', labelEn: 'New Cairo', labelAr: 'القاهرة الجديدة' },
+            { key: 'branch_sheikh_zayed', labelEn: 'Sheikh Zayed', labelAr: 'الشيخ زايد' },
+            { key: 'branch_main', labelEn: 'Main', labelAr: 'الفرع الرئيسي' },
+          ],
+        },
+      },
+    ],
+    template: {
+      version: 1,
+      outputKind: 'maxAmount',
+      primary: { kind: 'choiceTable', fact: 'club_branch' },
+      conditions: [],
+    },
+    openQuestion: 'DBR_PERCENT_UNCONFIRMED',
+  },
+
   // -------------------------------------------------------------------------
   // Only caps the loan — no income is worked out at all
   // -------------------------------------------------------------------------
@@ -1023,47 +1070,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     },
     // The sheet states the ceiling and says the debt-burden percentage is "as per retail
     // risk policy" — it prints no number. The program quotes nothing until a bank gives one.
-    openQuestion: 'DBR_PERCENT_UNCONFIRMED',
-  },
-
-  {
-    key: 'club_branch_cap',
-    group: 'cap',
-    labelEn: 'Club Membership',
-    labelAr: 'عضوية النادي',
-    asks: [
-      {
-        kind: 'choice',
-        factKey: 'club_branch',
-        questionEn: 'Which club branch is your membership at?',
-        questionAr: 'عضويتك في أي فرع من النادي؟',
-        // Personal only: its gate `club_membership` is asked in personal alone, so in car
-        // this question could never be shown (removed from car 2026-09-24).
-        categories: [LoanCategory.personal],
-        // Gated, because ungated this asked every personal and auto applicant which branch
-        // their membership is at — including everyone who has none. Safe to gate where the
-        // sheet conditions were not: this fact is the product's ONLY axis, so an applicant
-        // the gate hides it from cannot be quoted here at all.
-        enabledWhen: { questionCode: 'club_membership', optionCode: 'yes' },
-        list: {
-          typeKey: 'club_branch',
-          labelEn: 'Club branches',
-          labelAr: 'فروع النوادي',
-          // Adding a branch is more rows, never more code.
-          values: [
-            { key: 'branch_new_cairo', labelEn: 'New Cairo', labelAr: 'القاهرة الجديدة' },
-            { key: 'branch_sheikh_zayed', labelEn: 'Sheikh Zayed', labelAr: 'الشيخ زايد' },
-            { key: 'branch_main', labelEn: 'Main', labelAr: 'الفرع الرئيسي' },
-          ],
-        },
-      },
-    ],
-    template: null,
-    cap: {
-      factKey: 'club_branch',
-      onNoMatch: 'useProgramMax',
-      rowKeys: ['branch_new_cairo', 'branch_sheikh_zayed', 'branch_main'],
-    },
     openQuestion: 'DBR_PERCENT_UNCONFIRMED',
   },
 

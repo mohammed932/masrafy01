@@ -100,6 +100,13 @@ async function bankOptions(client: PrismaClient): Promise<SeedOption[]> {
   return opts;
 }
 
+/** The "none of these banks" answer a per-bank axis question offers (`withNoneOption`). */
+const NONE_OF_THESE_BANKS: SeedOption = {
+  code: 'none',
+  labelEn: 'None of these banks',
+  labelAr: 'لا يوجد لدي في أي من هذه البنوك',
+};
+
 interface SeedOption {
   labelEn: string;
   labelAr: string;
@@ -131,6 +138,11 @@ interface SeedQuestion {
    *  time (+ an "Another bank" escape hatch) — same single-source-of-truth reason
    *  as `optionsFromEnum`. */
   optionsFromBanks?: true;
+  /** With `optionsFromBanks`: also offer "none of these banks" (code `none`) after the banks.
+   *  A per-bank axis question becomes REQUIRED wherever a programme reads its column, and a
+   *  required multi-select with no "none" made a customer with no loan anywhere tick a bank
+   *  to finish. `none` matches no bank slug, so it reads the bank's standard column. */
+  withNoneOption?: true;
   /** Branch rule — the question renders only when the SOURCE question (which must
    *  come EARLIER in the pool and be a choice type) was answered with (or, for
    *  `not_equals`, without) `optionCode`. Mirrors `Question.enabledWhen`. */
@@ -302,7 +314,9 @@ const CAR_DOWN_PAYMENT_Q: SeedQuestion = {
  */
 const CAR_ORIGIN_Q: SeedQuestion = {
   code: 'car_origin',
-  isRequired: false,
+  // REQUIRED since 2026-10-13 (v30.10.0): Crédit Agricole's three car caps are keyed by it with
+  // `onNoMatch: reject`, so an applicant who skipped it got no offer from any of the three.
+  isRequired: true,
   questionEn: 'Where was the car built?',
   questionAr: 'أين صُنعت السيارة؟',
   helperTextEn: 'Some banks finance a car for longer, or at a better rate, depending on where it was made.',
@@ -504,14 +518,11 @@ const JOB_TENURE_Q: SeedQuestion = {
 // warns only when a fact is asked by NO category at all (`not_asked_by_any_category`) —
 // then no program anywhere could read it.
 //
-// **Both selects share ONE gate**, and that is an accepted limit rather than an
-// oversight: `enabledWhen` holds a single `optionCode` (not a list) and
-// `EMPLOYMENT_OPTIONS` has no option separating a soldier from a professor. So a
-// government employee is asked both and skips the one that does not apply — which
-// FR-020 already defines as a stated reason, never a zero. Splitting
-// `government_employee` into military / academic / civil would ripple into every
-// category's employment scoring and three other questionnaires for a cosmetic gain
-// (research R11).
+// **Neither select is gated** (the rank since it was found to hide private-university staff,
+// the grade since 2026-10-13). A gate on the job type was the old way to keep them off other
+// applicants' screens; the program-name narrowing does that job now — each is served only
+// where a programme under the picked name reads it — and a gate only ever hid the one figure
+// a no-payslip programme prices on from someone who answered the job question differently.
 //
 // None is REQUIRED. A required fact question would block apply for every applicant
 // the fact does not describe, which is the opposite of what these are for.
@@ -521,14 +532,14 @@ const MILITARY_GRADE_Q: SeedQuestion = {
   code: 'military_grade',
   questionEn: 'Military grade',
   questionAr: 'الرتبة العسكرية',
-  helperTextEn: 'Some banks set an assumed income from your grade. Skip this if it does not apply.',
-  helperTextAr: 'بعض البنوك تحدد دخلًا مفترضًا حسب رتبتك. تجاوز هذا السؤال إن لم ينطبق عليك.',
+  helperTextEn: 'Some banks set an assumed income from your grade.',
+  helperTextAr: 'بعض البنوك تحدد دخلًا مفترضًا حسب رتبتك.',
   isRequired: false,
-  enabledWhen: {
-    questionCode: 'employment_status',
-    operator: 'equals',
-    optionCode: 'government_employee',
-  },
+  // UNGATED since 2026-10-13 (v30.10.0). It was gated on `employment_status =
+  // government_employee`, on the reasoning that an officer is a state employee — but the grade
+  // is the ONLY thing the Armed Forces programme prices on, so an officer who answered
+  // `retired` or anything else was never asked it and got zero offers. It is served only where
+  // a programme reads it (the `armed_forces_no_payslip` name), so ungated it asks nobody else.
   // Option codes ARE the active `military_grade` registry keys, generated rather
   // than hand-typed (FR-017, research R3). That makes the admin's table keys and the
   // customer's answers ONE list by construction, so a rename shows up on the other
@@ -545,8 +556,10 @@ const ACADEMIC_RANK_Q: SeedQuestion = {
   code: 'academic_rank',
   questionEn: 'Academic rank',
   questionAr: 'الدرجة العلمية',
-  helperTextEn: 'Some banks set an assumed income from your rank. Skip this if it does not apply.',
-  helperTextAr: 'بعض البنوك تحدد دخلًا مفترضًا حسب درجتك العلمية. تجاوز هذا السؤال إن لم ينطبق عليك.',
+  // No "skip this" (2026-10-13): it is served only where a programme reads it, and there it is
+  // required.
+  helperTextEn: 'Some banks set an assumed income from your rank.',
+  helperTextAr: 'بعض البنوك تحدد دخلًا مفترضًا حسب درجتك العلمية.',
   isRequired: false,
   // UNGATED, unlike the military grade above, and the difference is not a preference.
   //
@@ -812,6 +825,7 @@ const EXISTING_BANK_LOANS_Q: SeedQuestion = {
   helperTextAr: 'بعض البنوك تمنح مبلغًا أكبر عند زيادة قرض سبق أن منحته لك.',
   isRequired: false,
   optionsFromBanks: true,
+  withNoneOption: true,
   options: [],
 };
 
@@ -824,6 +838,7 @@ const EXISTING_BANK_PRODUCTS_Q: SeedQuestion = {
   helperTextAr: 'قد يمنح البنك مبلغًا أكبر لمن لديه منتج آخر لديه بالفعل.',
   isRequired: false,
   optionsFromBanks: true,
+  withNoneOption: true,
   options: [],
 };
 
@@ -1481,6 +1496,11 @@ const MORTGAGE: CategoryConfig = {
       code: 'property_financing', titleEn: 'About the home', titleAr: 'معلومات العقار والتمويل',
       questions: [
         {
+          // Options expanded from the active `governorate` platform-enumeration members.
+          code: 'governorate', questionEn: 'Which governorate is the place in?', questionAr: 'في أي محافظة يقع العقار؟', isRequired: false,
+          optionsFromEnum: 'governorate', options: [],
+        },
+        {
           code: 'property_type', questionEn: 'What kind of place do you want to buy?', questionAr: 'ما نوع العقار الذي ترغب في تمويله؟', isRequired: false,
           options: [
             { code: 'apartment', labelEn: 'Apartment', labelAr: 'شقة' },
@@ -1490,21 +1510,6 @@ const MORTGAGE: CategoryConfig = {
             { code: 'administrative_office', labelEn: 'Office', labelAr: 'مكتب إداري' },
             { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
           ],
-        },
-        { code: 'in_compound', questionEn: 'Is the place inside a compound?', questionAr: 'هل العقار داخل كمبوند سكني؟', isRequired: false, options: YESNO() },
-        {
-          code: 'registration_status', questionEn: 'Is the property registered with the government?', questionAr: 'ما حالة تسجيل العقار؟', isRequired: false,
-          options: [
-            { code: 'officially_registered', labelEn: 'Yes, it is registered', labelAr: 'مسجل رسميًا' },
-            { code: 'eligible_for_registration', labelEn: 'Not yet, but it can be', labelAr: 'قابل للتسجيل' },
-            { code: 'not_registered', labelEn: 'No, it is not', labelAr: 'غير مسجل' },
-            { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد' },
-          ],
-        },
-        {
-          // Options expanded from the active `governorate` platform-enumeration members.
-          code: 'governorate', questionEn: 'Which governorate is the place in?', questionAr: 'في أي محافظة يقع العقار؟', isRequired: false,
-          optionsFromEnum: 'governorate', options: [],
         },
         {
           // Optional (2026-09-24): no mortgage programme reads it yet — no LTV is stated.
@@ -1516,16 +1521,26 @@ const MORTGAGE: CategoryConfig = {
             { code: 'more_than_egp_5_million', labelEn: 'More than 5 million EGP', labelAr: 'أكثر من 5 مليون جنيه' },
           ],
         },
+        // The client's mortgage order (2026-10-13): where the home is, what it is, what it is
+        // worth, then the deposit against that worth — so the deposit sits in this step, not in
+        // the financing step it used to open.
+        DOWN_PAYMENT_Q,
+        { code: 'in_compound', questionEn: 'Is the place inside a compound?', questionAr: 'هل العقار داخل كمبوند سكني؟', isRequired: false, options: YESNO() },
+        {
+          code: 'registration_status', questionEn: 'Is the property registered with the government?', questionAr: 'ما حالة تسجيل العقار؟', isRequired: false,
+          options: [
+            { code: 'officially_registered', labelEn: 'Yes, it is registered', labelAr: 'مسجل رسميًا' },
+            { code: 'eligible_for_registration', labelEn: 'Not yet, but it can be', labelAr: 'قابل للتسجيل' },
+            { code: 'not_registered', labelEn: 'No, it is not', labelAr: 'غير مسجل' },
+            { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد' },
+          ],
+        },
       ],
     },
     // Shared groups are referenced by CODE, never re-declared with a new code:
     // an `income_employment` of its own held only questions that dedupe into
     // PERSONAL's `employment_income`, so it published as an empty step and sat in
     // the pool as a group nobody is ever asked.
-    {
-      code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [DOWN_PAYMENT_Q],
-    },
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
@@ -1585,6 +1600,9 @@ const CAR: CategoryConfig = {
         CAR_FUEL_TYPE_Q,
         CAR_DEALER_Q,
         CAR_PRICE_Q,
+        // Right after the price it is a share of (the client's order, 2026-10-13) — it used to
+        // open the financing step, three steps before the price.
+        CAR_DOWN_PAYMENT_Q,
         // The Green Finance pair rides the car flow: a solar loan and an e-bike loan are both
         // sold under `car`, and both are quoted off what the applicant has saved.
         TOTAL_SAVINGS_Q,
@@ -1597,13 +1615,9 @@ const CAR: CategoryConfig = {
         HOME_OWNERSHIP_Q,
       ],
     },
-    {
-      // `down_payment` (the shared percentage bucket) is deliberately NOT here: a car
-      // applicant states the amount, and the bucket stays a mortgage question.
-      code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      // `car_insurance` went on 2026-09-24: no car programme's grid read it.
-      questions: [CAR_DOWN_PAYMENT_Q],
-    },
+    // `down_payment` (the shared percentage bucket) is deliberately not in CAR: a car applicant
+    // states the amount (`car_down_payment`, beside the price above), and the bucket stays a
+    // mortgage question. `car_insurance` went on 2026-09-24: no car programme's grid read it.
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
@@ -1942,7 +1956,7 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
         if (SUPERSEDED_BUCKET_CODES.has(q.code)) continue;
         (categoriesByQuestion[q.code] ??= new Set()).add(cfg.category);
         const optionList = q.optionsFromBanks
-          ? await bankOptions(client)
+          ? [...(await bankOptions(client)), ...(q.withNoneOption ? [NONE_OF_THESE_BANKS] : [])]
           : q.optionsFromEnum
             ? await enumOptions(q.optionsFromEnum, client)
             : q.options;

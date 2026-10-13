@@ -26,13 +26,13 @@ const withTemplate = productBlueprints().filter((b) => b.template !== null);
 const singleWay = withTemplate.filter((b) => waysOf(b.template!).length === 1);
 
 describe('every product offers a way a program can name', () => {
-  it('has seven single-way products, one combined and two exclusive — the registry as it stands', () => {
+  it('has eight single-way products, one combined and two exclusive — the registry as it stands', () => {
     const shapes = withTemplate.map((b) => [b.key, waysOf(b.template!).length, b.template!.waysAre]);
-    // Seven single-way. The Suez Canal auto product is the second EXCLUSIVE one: a down-payment
+    // Eight single-way (the club branch ceiling joined them on 2026-10-13). The Suez Canal auto product is the second EXCLUSIVE one: a down-payment
     // way and a savings way, a bank program selling one of them — and the Green product's two
     // divisors are two COLUMNS of the savings way, carried on that way alone, rather than a
     // third way to reach the figure.
-    expect(shapes.filter(([, n]) => n === 1)).toHaveLength(7);
+    expect(shapes.filter(([, n]) => n === 1)).toHaveLength(8);
     expect(shapes.find(([key]) => key === 'auto_loan_crosssell')?.slice(1)).toEqual([2, 'combined']);
     expect(shapes.find(([key]) => key === 'compound_owner')?.slice(1)).toEqual([5, 'exclusive']);
     expect(shapes.find(([key]) => key === 'down_payment_income')?.slice(1)).toEqual([2, 'exclusive']);
@@ -70,17 +70,19 @@ const PRE_EXISTING_NAMES: Readonly<Record<string, string>> = {};
 describe('the seed names, for every surrogate program, a way its product offers', () => {
   const surrogate = SHEET_PROGRAMS.filter((p) => p.dto.programType === 'income_surrogate');
 
-  it('seeds seventeen surrogate programs and seven payslip ones', () => {
+  it('seeds nineteen surrogate programs and five payslip ones', () => {
     // Seventeen. The three Suez Canal auto programmes that quoted from `down_payment_income`
     // were removed with their catalog names (migration `remove_down_payment_income_programs`);
     // the four the operator created in their place under `car_buyers_program` are seeded
     // (`car-buyers-programs.ts`), so the product is sold on a database built from the seeds.
-    expect(surrogate).toHaveLength(17);
-    // Four, plus Credit Agricole's three auto programmes — New Car, Used Car and Electric
+    // Nineteen since 2026-10-13: FABMISR's club programme and Crédit Agricole's standard
+    // teachers programme are sold without a payslip (`club_membership`, `teachers_predefined`).
+    expect(surrogate).toHaveLength(19);
+    // Two, plus Credit Agricole's three auto programmes — New Car, Used Car and Electric
     // Vehicle. Payslip, so they hold no way and no product: their deposit tiers live in the
     // programme's OWN financed-share grid rather than a product's plan tables, which is what
     // a bank selling one card of its own looks like next to Suez Canal's shared product.
-    expect(SHEET_PROGRAMS.length - surrogate.length).toBe(7);
+    expect(SHEET_PROGRAMS.length - surrogate.length).toBe(5);
   });
 
   it.each(surrogate.map((p) => [p.programCode, p] as const))(

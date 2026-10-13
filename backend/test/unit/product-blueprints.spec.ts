@@ -371,6 +371,8 @@ describe('the slot ids are golden', () => {
       'src__unit_paid_to_date',
     ],
     school_stage_ceiling: ['primary', 'primary__school_international', 'primary_pick'],
+    // A ceiling since 2026-10-13 (a cap before that, with no slots at all): the branch table.
+    club_branch_cap: ['primary'],
     // The Suez Canal auto product: two ways, one `divide` each over its own source slot.
     // The down-payment way keeps the bare `primary` its five programmes have always filed
     // under; the savings way is `alt`, and ONLY it carries the buyer-type column

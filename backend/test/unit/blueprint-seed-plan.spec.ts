@@ -12,7 +12,7 @@ import { productBlueprint } from '@/bank-programs/blueprints/product-blueprints'
 
 const income = productBlueprint('armed_forces_grades')!;
 const ceiling = productBlueprint('compound_owner')!;
-const cap = productBlueprint('club_branch_cap')!;
+const cap = productBlueprint('company_coding_cap')!;
 
 describe('planSeedAction', () => {
   it('builds a product that is not there', () => {
@@ -43,12 +43,12 @@ describe('planSeedAction', () => {
     // only whether the row still has to be minted.
     expect(planSeedAction(cap, null)).toEqual({
       kind: 'cap',
-      productKey: 'club_branch_cap',
+      productKey: 'company_coding_cap',
       rowExists: false,
     });
-    expect(planSeedAction(cap, { key: 'club_branch_cap', hasRule: false })).toEqual({
+    expect(planSeedAction(cap, { key: 'company_coding_cap', hasRule: false })).toEqual({
       kind: 'cap',
-      productKey: 'club_branch_cap',
+      productKey: 'company_coding_cap',
       rowExists: true,
     });
   });

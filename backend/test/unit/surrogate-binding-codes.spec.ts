@@ -138,23 +138,15 @@ describe('none of the fact questions is REQUIRED', () => {
 });
 
 describe('branching matches what `enabledWhen` can actually express', () => {
-  it('gates military_grade on government employment, and ONLY that one', () => {
-    // The armed forces are the state, so an officer answers `government_employee` or is
-    // answering wrongly — the gate names the whole population and costs every other
-    // applicant one fewer question. `enabledWhen` holds ONE `optionCode` (research R11),
-    // which is exactly enough here.
-    const block = seedBlockFor(SURROGATE_FACT_SPECS.military_grade.questionCode);
-    expect(block).toMatch(/questionCode: 'employment_status'/);
-    expect(block).toMatch(/operator: 'equals'/);
-    expect(block).toMatch(/optionCode: 'government_employee'/);
-    // Not a list: `enabledWhen` takes one code, and writing an array would be
-    // silently ignored.
-    expect(block).not.toMatch(/optionCodes:/);
-  });
-
-  it.each(['academic_rank', 'years_in_practice'] as const)('leaves %s UNGATED', (fact) => {
-    // Both populations spill outside any ONE employment option, so no gate can name
-    // them and the honest gate is none.
+  it.each(['military_grade', 'academic_rank', 'years_in_practice'] as const)('leaves %s UNGATED', (fact) => {
+    // Each population spills outside any ONE employment option, so no gate can name it and
+    // the honest gate is none. The program-name narrowing is what keeps each off every other
+    // applicant's screen: it is served only where a programme under the picked name reads it.
+    //
+    // `military_grade` was gated on `government_employee` until 2026-10-13, on the reasoning
+    // that the armed forces are the state. The grade is the ONLY figure the Armed Forces
+    // programme prices on, so an officer who answered the job question any other way —
+    // `retired` most plainly — was never asked it and got zero offers.
     //
     // `academic_rank` carried the grade question's gate until 2026-09-09, and it was
     // wrong rather than merely coarse: a professor at a PRIVATE university answers

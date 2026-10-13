@@ -219,6 +219,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-10-14 v30.10.0 — the client's per-tool question flows: Car Buyers asks the price again (it quoted nothing), the Armed Forces rank is ungated, the bank pickers get "None", Club Membership and Teachers — Standard sell without a payslip under their own names, mortgage asks 17 not 28, and four empty names are gone.
 - 2026-10-13 v30.9.0 — a question the loan engine reads is LOCKED (type, unit, required, when-to-ask, answers, delete) and any questionnaire write or rollback that would stop the engine getting an answer it gets today is refused before it publishes (`engine-contract.ts`).
 - 2026-10-01 v30.8.2 — `THROTTLE_DISABLED=true` switches every request rate limit off on a developer's machine (on in `.env.example`); the backend refuses to boot with it under `NODE_ENV=production`.
 - 2026-10-01 v30.8.1 — a pick's band tables are ONE table: the ranges once, an amount column per group (the compound's two, the doctors' three city tiers), on the bank wizard and the product page alike; narrow panels caption each box instead.

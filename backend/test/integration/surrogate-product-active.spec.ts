@@ -16,7 +16,7 @@
  *    A rule product's facts are deliberately left alone — its rule is withheld instead,
  *    and flipping the facts too would overwrite a state an operator may have set by hand.
  *
- * `club_branch_cap` and `compound_owner` are real blueprint keys, so the cap-only
+ * `company_coding_cap` and `compound_owner` are real blueprint keys, so the cap-only
  * split is exercised through the real predicate rather than a stub of it.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -47,7 +47,7 @@ function makeService(opts: { exists?: boolean } = {}) {
   };
   const enumsAdmin = {
     update: vi.fn(async () => ({ id: 'x' })),
-    setFactsActive: vi.fn(async () => ['club_branch']),
+    setFactsActive: vi.fn(async () => ['employer_coding']),
   };
   // (prisma, repo, audit, enums, enumsAdmin) — positional, so a ctor change fails loudly.
   const service = new BankProgramsService(
@@ -94,16 +94,16 @@ describe('switching a surrogate product off', () => {
 
   it('takes a CAP-ONLY product’s owned facts with it, and reports them', async () => {
     const { service, enumsAdmin } = makeService();
-    const result = await service.setSurrogateProductActive('club_branch_cap', false, ACTOR);
+    const result = await service.setSurrogateProductActive('company_coding_cap', false, ACTOR);
     // The KEYS the blueprint asks for, not the product key: a cap blueprint creates no
     // product row for its facts to be filed under, so an ownership-keyed flip is inert.
-    expect(enumsAdmin.setFactsActive).toHaveBeenCalledWith(['club_branch'], false, {
+    expect(enumsAdmin.setFactsActive).toHaveBeenCalledWith(['employer_coding'], false, {
       staffId: 'staff_1',
       sourceIp: null,
     });
     // Reported, not silent: switching this product off also stopped a question being read,
     // and the operator has to be able to see that.
-    expect(result.factsChanged).toEqual(['club_branch']);
+    expect(result.factsChanged).toEqual(['employer_coding']);
   });
 
   it('never takes a SHARED fact with it', async () => {
@@ -120,8 +120,8 @@ describe('switching a surrogate product off', () => {
 
   it('restores a cap-only product’s facts when switched back on', async () => {
     const { service, enumsAdmin } = makeService();
-    await service.setSurrogateProductActive('club_branch_cap', true, ACTOR);
-    expect(enumsAdmin.setFactsActive).toHaveBeenCalledWith(['club_branch'], true, {
+    await service.setSurrogateProductActive('company_coding_cap', true, ACTOR);
+    expect(enumsAdmin.setFactsActive).toHaveBeenCalledWith(['employer_coding'], true, {
       staffId: 'staff_1',
       sourceIp: null,
     });

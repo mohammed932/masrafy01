@@ -48,7 +48,7 @@ import { additionalIncomeFactKeys } from './additional-income';
 import { factsReadBy } from './product-rule';
 import type { ProductRule } from './product-rule';
 import { SURROGATE_FACTS_BY_STRATEGY } from './surrogate-fact-bindings';
-import { CAR_MODEL_YEAR_FACT_KEY, isGridOnlyFactKey } from './car-details';
+import { CAR_MODEL_YEAR_FACT_KEY, DERIVED_FACT_INPUTS, isGridOnlyFactKey } from './car-details';
 import { factKeyOf } from '../types';
 
 /** Where a fact key was found, and what an operator would have to open to remove it. */
@@ -244,11 +244,18 @@ export function factsReadByFees(raw: unknown): Set<string> {
 }
 
 /**
- * The axes of one grid, minus the ones the engine computes for itself.
+ * The axes of one grid, with the ones the engine computes for itself replaced by the answers
+ * they are computed from.
  *
- * `car_down_payment_percent` and `tenor_months` are derived per quote and have no question
- * behind them, so reporting them would have the narrowing rule demand a question that does
- * not exist and the delete guard defend a registry row that was never created.
+ * `car_down_payment_percent`, `car_age_years` and `tenor_months` are derived per quote and
+ * have no question behind them, so reporting them would have the narrowing rule demand a
+ * question that does not exist and the delete guard defend a registry row that was never
+ * created. Dropping them outright hid what they read, though: a rate grid keyed on the
+ * down-payment share needs the car's price and the deposit answered, and a product-only car
+ * name served the deposit and never the price — the share was never computed and every rate
+ * grid keyed on it refused (NO_RATE_FOR_ANSWER on all four `car_buyers_program` programmes,
+ * 2026-10-13). So a derived axis reports its inputs (`DERIVED_FACT_INPUTS`); `tenor_months`
+ * has none — the platform supplies the term.
  */
 function gridAxisKeys(raw: unknown): Set<string> {
   const keys = new Set<string>();
@@ -257,7 +264,10 @@ function gridAxisKeys(raw: unknown): Set<string> {
     if (!isRecord(axis)) continue;
     const key = axis.factKey;
     if (typeof key !== 'string' || key === '') continue;
-    if (isGridOnlyFactKey(key)) continue;
+    if (isGridOnlyFactKey(key)) {
+      for (const input of DERIVED_FACT_INPUTS[key] ?? []) keys.add(input);
+      continue;
+    }
     keys.add(key);
   }
   return keys;

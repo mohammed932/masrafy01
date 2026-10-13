@@ -106,7 +106,8 @@ work and does not stop anything from running.
 Every seed is idempotent. A second run of steps 3–9 on the same database reports:
 
 - `seed:programs` — `0 created, 0 updated, 47 left untouched` (it only rewrites with `--force`)
-- `seed:blueprints` — `0 created · 10 unchanged`
+- `seed:blueprints` — `0 created · 11 unchanged` (eleven since `club_branch_cap` became a
+  ceiling, v30.10.0)
 - `seed:sheet-figures` — `0 I-Score tier tables written · 0 programs created · 0 updated`
 - `seed:banks` rewrites the same 14 labels, and `seed:sheet-figures` rewrites one product
   (`doctors_in_practice`, "0 slots"); both are no-ops in effect.
@@ -129,6 +130,18 @@ npx tsx scripts/publish-questionnaire.ts   # category assignments are frozen int
                                            # published snapshot; the app sees a migration's
                                            # question changes only after a publish
 ```
+
+### The mortgage skips are not seeded (v30.10.0)
+
+The two mortgage names skip eleven questions no mortgage programme reads (migration
+`20261013120000_client_question_flows`, section C.6). Skips are operator data, which no seed
+authors, and on an empty database that migration runs before the questionnaire exists, so it
+writes none. After step 9 on a FRESH database, untick them on **Program catalog → Home
+Purchase / Home Finishing → step ③ (Mortgage)**: `salary_bank`, `salary_bank_name`,
+`employer_approved`, `active_account`, `needs_consultant`, `needs_assistance`, `job_tenure`,
+`salary_transfer`, `prior_rejection`, `in_compound`, `registration_status`. An upgraded
+database gets them from the migration. The question ORDER that migration sets is likewise
+the upgraded database's; a fresh one keeps the seed's pool order.
 
 ## Optional demo data
 

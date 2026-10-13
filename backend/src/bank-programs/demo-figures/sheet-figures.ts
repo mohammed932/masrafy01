@@ -718,6 +718,24 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     },
     estimated: ['incomeRule.output.baselineDbrPercent'],
   },
+
+  {
+    // A ceiling since 2026-10-13 (v30.10.0); before that a cap with no figures of its own.
+    productKey: 'club_branch_cap',
+    sheet: 'App. B — FABMISR Al Ahly club membership',
+    // The sheet prints the branch ceilings and no debt-burden percentage; a ceiling needs one.
+    baselineDbrPercent: '50',
+    stepParams: {
+      primary: {
+        keyTable: [
+          money('branch_new_cairo', '750000'),
+          money('branch_sheikh_zayed', '510000'),
+          money('branch_main', '160000'),
+        ],
+      },
+    },
+    estimated: ['incomeRule.output.baselineDbrPercent'],
+  },
 ];
 
 /**
@@ -734,9 +752,11 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
  * product read "No catalog name sells this yet". On a database that already has it, it is
  * reused and left as it is.
  *
- * Cap-only products (`club_branch_cap`, …) have no name here and cannot have one: they work
- * out no income, so the catalog refuses the link (`SURROGATE_PRODUCT_CAP_ONLY`). A bank sells
- * one by capping its own programme by the answer — `FAB-PER-CLUB_MEMBERSHIP` does.
+ * Cap-only products (`company_coding_cap`, `school_type_cap`) have no name here and cannot
+ * have one: they work out no income, so the catalog refuses the link
+ * (`SURROGATE_PRODUCT_CAP_ONLY`). A bank sells one by capping its own programme by the answer
+ * — `ABK-PER-SALARIED_CODING` does. `club_branch_cap` was one until 2026-10-13, when it became
+ * a ceiling sold under `club_membership`.
  */
 export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
   {
@@ -797,10 +817,19 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     categories: [LoanCategory.personal],
   },
   {
+    // "Teachers" since 2026-10-13 (v30.10.0): both CAE programmes — the Predefined Limit and the
+    // Standard — sell under it, so it no longer names one of them. The key is unchanged.
     key: 'teachers_predefined',
-    labelEn: 'Teachers — Predefined Limit',
-    labelAr: 'المعلمون — حد محدد مسبقًا',
+    labelEn: 'Teachers',
+    labelAr: 'المعلمون',
     productKey: 'school_stage_ceiling',
+    categories: [LoanCategory.personal],
+  },
+  {
+    key: 'club_membership',
+    labelEn: 'Club Membership',
+    labelAr: 'عضوية النادي',
+    productKey: 'club_branch_cap',
     categories: [LoanCategory.personal],
   },
   {

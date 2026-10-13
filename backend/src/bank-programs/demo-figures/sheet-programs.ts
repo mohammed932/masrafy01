@@ -1027,12 +1027,17 @@ const SPECS: readonly ProgramSpec[] = [
     bankName: FAB,
     friendlyName: 'Club Membership',
     friendlyNameAr: 'عضوية النادي',
-    programNameKey: 'private_sector',
-    programType: 'income_proof',
+    // Sold WITHOUT a payslip under its own name since 2026-10-13 (v30.10.0, the operator's
+    // call): the branch sets the ceiling, the way the client's flow states it. Filed under
+    // `private_sector` as a payslip cap it was reachable only as a private-sector employee,
+    // and a non-member missed every row and was quoted the 750k maximum (`useProgramMax`).
+    programNameKey: 'club_membership',
+    programType: 'income_surrogate',
     sheet: 'App. B — FABMISR Al Ahly club membership',
     notes: [
-      'Two checks apply together and the lower wins: the branch ceiling below, and an ordinary debt-burden check against the customer’s real declared income.',
-      'The sheet also prints a minimum down payment per branch (85,500 · 85,500 · 256,500). A cap row holds one figure, so those are policy the operator must read here.',
+      'The branch the membership is at sets the ceiling; the engine still reduces it by the applicant’s existing debts.',
+      'The sheet also checks the customer’s real declared income against a debt-burden cap. Sold without a payslip, that check is not run — the operator’s decision (2026-10-13).',
+      'The sheet also prints a minimum down payment per branch (85,500 · 85,500 · 256,500), which is policy the operator must read here.',
       'The debt-burden percentage is not shown on the sheet — 50% is an estimate.',
       'Credit card / Murabaha maximum limit 100,000.',
     ],
@@ -1044,14 +1049,15 @@ const SPECS: readonly ProgramSpec[] = [
     ageMin: 25,
     minMonthsInJob: 3,
     requires: { requiresClubMembership: true },
-    maxLoanByFact: {
-      factKey: 'club_branch',
-      onNoMatch: 'useProgramMax',
-      rows: [
-        { rowKey: 'branch_new_cairo', maxAmountEGP: '750000' },
-        { rowKey: 'branch_sheikh_zayed', maxAmountEGP: '510000' },
-        { rowKey: 'branch_main', maxAmountEGP: '160000' },
-      ],
+    wayId: 'primary',
+    stepParams: {
+      primary: {
+        keyTable: [
+          money('branch_new_cairo', '750000'),
+          money('branch_sheikh_zayed', '510000'),
+          money('branch_main', '160000'),
+        ],
+      },
     },
     estimated: [
       'eligibility.dbrCapPercent',
@@ -1150,11 +1156,18 @@ const SPECS: readonly ProgramSpec[] = [
     bankName: CAE,
     friendlyName: 'Teachers — Standard',
     friendlyNameAr: 'المعلمون — البرنامج القياسي',
-    programNameKey: 'private_sector',
-    programType: 'income_proof',
+    // Sold WITHOUT a payslip beside the Predefined Limit since 2026-10-13 (v30.10.0, the
+    // operator's call): one "Teachers" choice quotes both CAE programmes. The school-type
+    // ceiling is stated on the Predefined product's own table, the same figure for every
+    // stage, so the one name reads one product (v17.0.0). Filed under `private_sector` it was
+    // reachable only as a private-sector employee, and its school question was asked of every
+    // one of them.
+    programNameKey: 'teachers_predefined',
+    programType: 'income_surrogate',
     sheet: 'App. B — Crédit Agricole Teachers, standard (0759-17 / 0759-18)',
     notes: [
-      'Two checks apply together and the lower wins: the school-type ceiling below, and a real income and debt-burden check "as per retail risk policy".',
+      'The school type sets the ceiling — the same figure at every stage; the engine still reduces it by the applicant’s existing debts.',
+      'The sheet also runs a real income and debt-burden check "as per retail risk policy". Sold without a payslip, that check is not run — the operator’s decision (2026-10-13).',
       'That percentage is not printed on the sheet — 50% is an estimate, and until a bank gives the real one every figure this program quotes is provisional.',
       'International means an American diploma, an international Bachelor, or IGCSE following an international curriculum.',
       'Rate and fees are not stated on the sheet.',
@@ -1166,13 +1179,22 @@ const SPECS: readonly ProgramSpec[] = [
     adminFeePercent: '2.5',
     acceptedEmploymentTypes: SALARIED_ONLY,
     requiredDocuments: ['national_id', 'utility_bill', 'hr_letter'],
-    maxLoanByFact: {
-      factKey: 'school_type',
-      onNoMatch: 'useProgramMax',
-      rows: [
-        { rowKey: 'school_national', maxAmountEGP: '500000' },
-        { rowKey: 'school_international', maxAmountEGP: '750000' },
-      ],
+    wayId: 'primary',
+    stepParams: {
+      primary: {
+        keyTable: [
+          money('stage_primary', '500000'),
+          money('stage_preparatory', '500000'),
+          money('stage_secondary', '500000'),
+        ],
+      },
+      primary__school_international: {
+        keyTable: [
+          money('stage_primary', '750000'),
+          money('stage_preparatory', '750000'),
+          money('stage_secondary', '750000'),
+        ],
+      },
     },
     estimated: [
       'eligibility.dbrCapPercent',

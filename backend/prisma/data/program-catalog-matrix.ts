@@ -131,18 +131,15 @@ export const CATALOG_CATEGORY_ASSIGNMENTS: Readonly<Record<string, readonly Cata
   // for the pharmacy's reason: an owner's premises are commercial real estate.
   self_employed: ['personal', 'car', 'business'],
 
-  // Three: the affluent tier. Documented income, large tickets, qualitative
-  // review. No business line — this is a private-banking borrower, not a company.
-  wealth_tier: ['personal', 'car', 'mortgage'],
+  // `wealth_tier` (the affluent tier) USED TO STAND HERE. No bank ever sold under it, so the
+  // name was deleted on 2026-10-13 (migration `client_question_flows`).
 
   // ── Two: structurally capped segments.
   // A mortgage has to amortise inside the borrower's remaining earning tenor;
   // a pension does not stretch that far, and a car does.
   pensioner: ['personal', 'car'],
-  // A playing career is the same cap seen from the other end: it ends around 35,
-  // so a 20-year mortgage outlives the income that services it. The club contract
-  // is a real payslip, which is why this is not a no-payslip name.
-  athlete: ['personal', 'car'],
+  // `athlete` (professional athletes) USED TO STAND HERE — deleted with `wealth_tier`, for the
+  // same reason: no programme was ever filed under it.
   // Thin file, short tenure, no collateral story. Small-ticket personal and
   // entry car finance are exactly where a youth programme belongs.
   youth: ['personal', 'car'],
@@ -198,9 +195,6 @@ export const NO_PAYSLIP_FACT: Readonly<Record<string, readonly string[]>> = {
   professor: ['academic_rank'],
   doctor_practice: ['years_in_practice'],
   self_employed: ['years_in_practice'],
-  // `athlete` and `wealth_tier` are deliberately absent: a club contract and a
-  // wealth-tier salary are both documented, so both are payslip products and
-  // there is no fact to ask.
 };
 
 // ---------------------------------------------------------------------------
@@ -374,13 +368,6 @@ export const CATALOG_INCOME_RULE: Readonly<Record<string, CatalogIncomeRule>> = 
     strategy: 'byBankStatementPercent',
     scalar: { value: '30.0', unit: 'percent' },
   },
-
-  // SOURCE: ABK-FOOTBALL. A club contract is a payslip.
-  athlete: { strategy: 'declared' },
-
-  // SOURCE: ABK-WEALTH + SF-HIGH-END. Two programs, one rule, and they already
-  // agree — which is what makes the name safe to state once.
-  wealth_tier: { strategy: 'declared' },
 
   // ── STATED `declared`, because surrogate programs are already filed here ──────
   //
