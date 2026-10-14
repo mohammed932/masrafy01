@@ -95,7 +95,7 @@ export const MONEY_FIELD_BINDING_SPECS: Readonly<
 /**
  * The MULTI_SELECT whose picks decide which amount questions are asked.
  *
- * This is the pool's PRE-EXISTING "Do you pay back any loans right now?" — not a
+ * This is the pool's PRE-EXISTING "Do you have any loans or credit cards now?" — not a
  * new question. It already asks exactly this, with exactly these option codes, so
  * introducing a second debt-type multi-select would ask the applicant the same
  * thing twice. The option codes below are therefore that question's codes

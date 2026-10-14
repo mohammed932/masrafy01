@@ -825,9 +825,9 @@
       <!-- Program catalog — one name, configured per loan type -->
       <trans-unit id="pnd.back" datatype="html"><source>All program names</source><target>كل أسماء البرامج</target></trans-unit>
       <trans-unit id="pnd.eyebrow" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
-      <trans-unit id="pnd.sub2" datatype="html">
-        <source>Two steps: how the income is worked out, and which loan types banks may sell it under. The income proof has its own Save; turning a loan type on or off saves as you tap.</source>
-        <target>خطوتان: كيف يُحتسب الدخل، وأنواع التمويل التي يجوز للبنوك بيعه تحتها. لإثبات الدخل زر حفظ خاص به؛ أما تشغيل نوع تمويل أو إيقافه فيُحفظ بمجرد الضغط.</target>
+      <trans-unit id="pnd.sub3" datatype="html">
+        <source>Two steps: which loan types banks may sell it under, and what its applicants are asked. Every change saves as you tap.</source>
+        <target>خطوتان: أنواع التمويل التي يجوز للبنوك بيعه تحتها، وما يُسأل عنه المتقدمون له. كل تغيير يُحفظ بمجرد الضغط.</target>
       </trans-unit>
       <trans-unit id="pnd.autosave_offer" datatype="html"><source>Turning a loan type on or off saves at once</source><target>تشغيل نوع التمويل أو إيقافه يُحفظ فوراً</target></trans-unit>
       <trans-unit id="pnd.usage_none" datatype="html"><source>Not offered by any bank yet</source><target>لا يطرحه أي بنك بعد</target></trans-unit>
@@ -1224,12 +1224,6 @@
       <trans-unit id="bank_programs.income.revert_cancel" datatype="html"><source>Keep this bank&apos;s amounts</source><target>أبقِ مبالغ هذا البنك</target></trans-unit>
       <trans-unit id="bank_programs.review.income_rule_catalog" datatype="html"><source>catalog amounts</source><target>مبالغ الكتالوج</target></trans-unit>
       <trans-unit id="bank_programs.review.income_rule_own" datatype="html"><source>this bank&apos;s own amounts</source><target>مبالغ هذا البنك وحده</target></trans-unit>
-      <trans-unit id="pnd.rule_title" datatype="html"><source>How the income is worked out</source><target>كيف يُحتسب الدخل</target></trans-unit>
-      <trans-unit id="pnd.rule_save" datatype="html"><source>Save the income rule</source><target>احفظ قاعدة الدخل</target></trans-unit>
-      <trans-unit id="pnd.rule_empty" datatype="html"><source>Nobody has said what this name reads its income from, so no bank can sell it on a surrogate basis yet. Pick the figure below.</source><target>لم يحدد أحد ما يُحتسب منه دخل هذا الاسم، فلا يستطيع أي بنك بيعه بأساس بديل الدخل بعد. اختر المعلومة بالأسفل.</target></trans-unit>
-      <trans-unit id="pnd.rule_readers" datatype="html"><source><x id="total" equiv-text="readers.length"/> bank program(s) read this figure · <x id="inherited" equiv-text="inherited"/> take these amounts · <x id="own" equiv-text="own"/> set their own</source><target><x id="total" equiv-text="readers.length"/> من برامج البنوك تقرأ هذه المعلومة · <x id="inherited" equiv-text="inherited"/> تأخذ هذه المبالغ · <x id="own" equiv-text="own"/> تحدد مبالغها</target></trans-unit>
-      <trans-unit id="pnd.rule_readers_none" datatype="html"><source>No bank sells this name on a surrogate basis yet.</source><target>لا يبيع أي بنك هذا الاسم بأساس بديل الدخل بعد.</target></trans-unit>
-      <trans-unit id="pnd.rule_invalid" datatype="html"><source>Check the amounts below before saving.</source><target>راجع المبالغ بالأسفل قبل الحفظ.</target></trans-unit>
       <trans-unit id="bank_programs.income.no_name" datatype="html"><source>Pick a program name on the Program step first — the name decides what the income is worked out from.</source><target>اختر اسم البرنامج في خطوة «البرنامج» أولاً — الاسم هو ما يحدد ما يُحتسب منه الدخل.</target></trans-unit>
       <trans-unit id="income_rule.scalar_title_catalog" datatype="html"><source>The figure banks start from</source><target>الرقم الذي تبدأ منه البنوك</target></trans-unit>
       <trans-unit id="income_rule.scalar_title_program" datatype="html"><source>This bank&apos;s figure</source><target>رقم هذا البنك</target></trans-unit>
@@ -1642,8 +1636,6 @@
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="pnd.rule_unsaved" datatype="html"><source>How the income is worked out has changes you have not saved.</source><target>خطوة «كيف يُحسب الدخل» بها تغييرات لم تُحفظ.</target></trans-unit>
-      <trans-unit id="pnd.rule_save_short" datatype="html"><source>Save it</source><target>احفظها</target></trans-unit>
       <trans-unit id="pnd.step_back" datatype="html">
         <source>Back</source>
         <target>رجوع</target>
@@ -1658,23 +1650,9 @@
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="pnd.step_income" datatype="html">
-        <source>How the income is worked out</source>
-        <target>كيف يُحتسب الدخل</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="pnd.step_offered" datatype="html">
         <source>Where it is offered</source>
         <target>أين يُعرض</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="pnd.step_income_cap" datatype="html">
-        <source>Set once for the name. Every bank selling it on a surrogate basis reads this one figure.</source>
-        <target>يُضبط مرة واحدة للاسم. كل بنك يبيعه بأساس بديل الدخل يقرأ هذا الرقم نفسه.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
@@ -1700,9 +1678,6 @@
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="pnd.rule_linked" datatype="html"><source>This name works its income out from the <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ productLabel() }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> surrogate product, so the calculation is edited there and every name using it stays in step.</source><target>هذا الاسم يحتسب دخله من المنتج البديل <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ productLabel() }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/>، فيُعدَّل الحساب هناك ويبقى كل اسم يستخدمه متسقًا.</target></trans-unit>
-      <trans-unit id="pnd.rule_open_product" datatype="html"><source>Open the surrogate product</source><target>افتح المنتج البديل</target></trans-unit>
-      <trans-unit id="pnd.step_income_cap_linked" datatype="html"><source>Taken from a surrogate product, so every name using that product stays in step. Edited there, not here.</source><target>مأخوذ من منتج بديل، فيبقى كل اسم يستخدمه متسقًا. يُعدَّل هناك لا هنا.</target></trans-unit>
       <trans-unit id="sp.reads_none" datatype="html"><source>No calculation stated yet</source><target>لم يُحدَّد حساب بعد</target></trans-unit>
       <trans-unit id="sp.unused" datatype="html"><source>No catalog name sells this yet</source><target>لا يبيعه أي اسم في الكتالوج بعد</target></trans-unit>
       <trans-unit id="spd.back" datatype="html"><source>All surrogate products</source><target>كل المنتجات البديلة</target></trans-unit>

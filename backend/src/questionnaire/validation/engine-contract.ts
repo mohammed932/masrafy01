@@ -94,7 +94,8 @@ export const APP_MAPPED_QUESTIONS_BY_CATEGORY: Readonly<Record<LoanCategory, rea
   // `in_compound` and `registration_status`, and they are left off on purpose (2026-10-13,
   // v30.10.0): no mortgage programme moves money on any of them (every transfer table is one
   // `none` row, eligibility is skipped on apply, the other three are stored and read by
-  // nothing), and the two mortgage names skip them to ask the client's eleven questions. Every
+  // nothing), and the two mortgage names skip them to ask the client's eleven questions —
+  // `in_compound` and `registration_status` left the pool altogether on 2026-10-14. Every
   // mortgage applicant is quoted on the mapper's defaults. A mortgage programme that starts
   // pricing on one puts it back here in the same change.
   mortgage: [

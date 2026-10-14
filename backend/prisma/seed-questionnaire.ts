@@ -190,7 +190,7 @@ const YESNO = (): SeedOption[] => [
 // into the loan-kind list.
 const CURRENT_LOANS_Q: SeedQuestion = {
   code: 'current_loans', type: 'MULTI_SELECT',
-  questionEn: 'Do you pay back any loans right now?', questionAr: 'هل لديك قروض أو التزامات حالية؟',
+  questionEn: 'Do you have any loans or credit cards now?', questionAr: 'هل عليك قروض أو بطاقات ائتمان حاليًا؟',
   options: [
     { code: 'none', labelEn: 'None', labelAr: 'لا يوجد' },
     { code: 'personal_loan', labelEn: 'Personal loan', labelAr: 'قرض شخصي' },
@@ -206,7 +206,7 @@ const CURRENT_LOANS_Q: SeedQuestion = {
 // letter unmatchable. The option codes ARE the `transfer_type` registry keys the
 // programs are configured with — see `TRANSFER_TYPE_BY_ANSWER` on the mobile side.
 const SALARY_TRANSFER_Q: SeedQuestion = {
-  code: 'salary_transfer', questionEn: 'How does your pay reach the bank?', questionAr: 'كيف يصل راتبك إلى البنك؟',
+  code: 'salary_transfer', questionEn: 'Is your salary transferred to the bank?', questionAr: 'هل يتم تحويل راتبك إلى البنك؟',
   options: [
     // The two letters are different products, so each label names the document:
     // one commits the basic salary, the other the applicant's whole income.
@@ -259,7 +259,7 @@ const CAR_PRICE_Q: SeedQuestion = {
 const CAR_DOWN_PAYMENT_Q: SeedQuestion = {
   code: 'car_down_payment',
   type: 'NUMERIC',
-  questionEn: 'How much will you pay up front?',
+  questionEn: 'How much is your down payment?',
   questionAr: 'كم ستدفع مقدمًا؟',
   helperTextEn: 'The amount, not a percentage — some banks read it as proof of your income.',
   helperTextAr: 'المبلغ وليس النسبة — بعض البنوك تعتبره دليلاً على دخلك.',
@@ -466,8 +466,8 @@ const GREEN_BUYER_TYPE_Q: SeedQuestion = {
 
 const DOWN_PAYMENT_Q: SeedQuestion = {
   code: 'down_payment',
-  questionEn: 'How much money can you pay up front?',
-  questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
+  questionEn: 'How much is your down payment?',
+  questionAr: 'كم المقدم الذي يمكنك دفعه؟',
   // Optional (2026-09-24): no programme reads it — lead data for the bank, not a figure, so
   // it must not block an applicant.
   isRequired: false,
@@ -789,28 +789,13 @@ const CLUB_MEMBERSHIP_Q: SeedQuestion = {
 // answer lands in `ApplicantProfile.surrogateFacts` with no mapping code on either client.
 // The binding lives on the FACT, never on the question (A33).
 
-// Which banks the applicant already uses. ONE bank-agnostic question feeding a per-program
-// answer: several banks lend more to a customer they already have (a "top-up" or cross-sell
-// column), and that is a different answer at every bank. The engine derives it per program
-// in `bank-relationship.ts` — this question cannot ask it directly without asking once per
-// bank.
+// `existing_bank_relationships` ("Which of these banks do you already use?") USED TO STAND
+// HERE. Its derived axis (`bank_relationship`) was read by no programme or product, so it was
+// asked of nobody; it left the pool on 2026-10-14 (v30.10.0). A bank that prices an existing
+// customer differently states it on one of the two axes below.
 //
-// MULTI_SELECT, so it is deliberately NOT bindable as a surrogate fact
-// (`BINDABLE_QUESTION_TYPES`): a multi-pick has no single value to look up. It is read as a
-// SET, which is the one thing a membership test needs.
-const EXISTING_BANK_RELATIONSHIPS_Q: SeedQuestion = {
-  code: 'existing_bank_relationships',
-  type: 'MULTI_SELECT',
-  questionEn: 'Which of these banks do you already use?',
-  questionAr: 'أي من هذه البنوك تتعامل معه بالفعل؟',
-  helperTextEn: 'Some banks offer their existing customers a higher limit.',
-  helperTextAr: 'بعض البنوك تمنح عملاءها الحاليين حدًا أعلى.',
-  isRequired: false,
-  optionsFromBanks: true,
-  options: [],
-};
-
-// The other two per-bank axes (spec §10.3). Same shape, same mechanism, DIFFERENT question:
+// The two per-bank axes (spec §10.3). One bank-agnostic multi-select each, read per programme
+// in `bank-relationship.ts`, and DIFFERENT questions:
 // a customer who holds a card at a bank but has no loan there is an existing customer, is
 // NOT a top-up, and IS a cross-sell — three answers one question cannot give.
 //
@@ -854,13 +839,13 @@ const COLLATERAL_GATES_GROUP: SeedGroup = {
   code: 'collateral_gates',
   titleEn: 'What you already own',
   titleAr: 'ما تملكه بالفعل',
-  questions: [EXISTING_BANK_RELATIONSHIPS_Q, EXISTING_BANK_LOANS_Q, EXISTING_BANK_PRODUCTS_Q],
+  questions: [EXISTING_BANK_LOANS_Q, EXISTING_BANK_PRODUCTS_Q],
 };
 
 /**
  * The same group, plus whichever gate sources this loan type actually needs.
  *
- * A FUNCTION rather than one shared const, because the three bank axes belong to all three
+ * A FUNCTION rather than one shared const, because the two bank axes belong to all three
  * loan types and the two gate sources do not: `owns_compound_unit` gates eight questions that
  * are personal-only, and `club_membership` gates one asked in personal and car. Referencing
  * them from a shared group would make each a REQUIRED question in a loan type where nothing
@@ -876,54 +861,15 @@ const collateralGatesGroup = (...gateSources: SeedQuestion[]): SeedGroup => ({
   questions: [...COLLATERAL_GATES_GROUP.questions, ...gateSources],
 });
 
-const EMPLOYER_APPROVED_Q: SeedQuestion = {
-  code: 'employer_approved',
-  questionEn: "Is the place you work at on the banks' approved list?",
-  questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
-  isRequired: false,
-  options: [
-    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
-    { code: 'no', labelEn: 'No', labelAr: 'لا' },
-    { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد' },
-  ],
-};
-
-// Asks whether the salary lands at ONE bank, not which one — the options never
-// carried a bank name and the registry owns the bank list.
-const SALARY_BANK_Q: SeedQuestion = {
-  code: 'salary_bank',
-  questionEn: 'Do you always get your salary through the same bank?',
-  questionAr: 'من خلال أي بنك تستلم راتبك؟',
-  isRequired: false,
-  options: [
-    { code: 'a_specific_bank', labelEn: 'Yes, always the same bank', labelAr: 'بنك محدد' },
-    { code: 'no_specific_bank', labelEn: 'No, not always the same bank', labelAr: 'لا يوجد بنك محدد' },
-  ],
-};
-
-// Follow-up to `salary_bank`: asked ONLY when the applicant said the salary lands
-// at one bank. Options come from the `bank` registry, so adding/retiring a bank
-// there is the only edit needed (Principle II). It must be assigned to exactly
-// the categories `salary_bank` is, or the branch source is unanswerable and the
-// server shows the question unconditionally (`isQuestionVisible` never hides a
-// dangling rule).
-const SALARY_BANK_NAME_Q: SeedQuestion = {
-  code: 'salary_bank_name',
-  questionEn: 'Which bank do you receive your salary through?',
-  questionAr: 'ما هو البنك الذي تستلم راتبك من خلاله؟',
-  isRequired: false,
-  enabledWhen: { questionCode: 'salary_bank', operator: 'equals', optionCode: 'a_specific_bank' },
-  optionsFromBanks: true,
-  options: [],
-};
+// `employer_approved`, `salary_bank` and its follow-up `salary_bank_name` USED TO STAND HERE,
+// with `active_account`, `loan_purpose`, `needs_consultant` and mortgage's `needs_assistance`,
+// `in_compound` and `registration_status`. No programme, product or engine step read any of
+// them — lead data the applicant typed for nothing — so they left the pool on 2026-10-14
+// (v30.10.0, the operator's MVP cleanup). The answers already given stay on their
+// applications.
 
 const ADDITIONAL_INCOME_Q: SeedQuestion = {
   code: 'additional_income', questionEn: 'Do you get money from anywhere else?', questionAr: 'هل لديك مصادر دخل إضافية؟',
-  isRequired: false, options: YESNO(),
-};
-
-const ACTIVE_ACCOUNT_Q: SeedQuestion = {
-  code: 'active_account', questionEn: 'Do you have a bank account you use?', questionAr: 'هل لديك حساب بنكي نشط؟',
   isRequired: false, options: YESNO(),
 };
 
@@ -934,7 +880,7 @@ const ACTIVE_ACCOUNT_Q: SeedQuestion = {
 // three times, and the two option-based versions were the least precise.
 
 const PRIOR_REJECTION_Q: SeedQuestion = {
-  code: 'prior_rejection', questionEn: 'Has a bank ever said no to you?', questionAr: 'هل سبق رفض طلب تمويل لك؟',
+  code: 'prior_rejection', questionEn: 'Has a bank ever refused your loan request?', questionAr: 'هل رفض بنك طلب تمويل لك من قبل؟',
   isRequired: false, options: YESNO(),
 };
 
@@ -947,7 +893,7 @@ const PRIOR_REJECTION_Q: SeedQuestion = {
  * cross-category set instead of an accident of merge order.
  */
 const PRIORITY_FACTOR_Q: SeedQuestion = {
-  code: 'priority_factor', questionEn: 'What matters most to you?', questionAr: 'أهم عامل عند اختيار التمويل؟',
+  code: 'priority_factor', questionEn: 'What matters most to you in a loan?', questionAr: 'ما أهم شيء لك في التمويل؟',
   isRequired: false,
   options: [
     { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
@@ -959,11 +905,6 @@ const PRIORITY_FACTOR_Q: SeedQuestion = {
     { code: 'least_documentation_required', labelEn: 'The fewest papers', labelAr: 'أقل أوراق مطلوبة' },
     { code: 'flexible_repayment', labelEn: 'Easy ways to pay it back', labelAr: 'سداد مرن' },
   ],
-};
-
-const NEEDS_CONSULTANT_Q: SeedQuestion = {
-  code: 'needs_consultant', questionEn: 'Do you want help from a loan expert?', questionAr: 'هل تحتاج مساعدة مستشار تمويل؟',
-  isRequired: false, options: YESNO(),
 };
 
 // ── Feature 010: the four bound money questions ─────────────────────────────
@@ -1110,7 +1051,7 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
     question: {
       code: MONEY_FIELD_BINDINGS.tenor_months, // repayment_period_months
       type: 'NUMERIC',
-      questionEn: 'Over how many months do you want to pay it back?',
+      questionEn: 'How many months to pay it back?',
       questionAr: 'على كم شهر تريد السداد؟',
       // 300, not 120: home-purchase programmes run to 240 months, and a question capped at
       // 120 quoted every mortgage at half its term — a smaller loan and a larger instalment
@@ -1133,8 +1074,8 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       // is taken against; "إجمالي" means total/gross, so an applicant answering truthfully
       // was quoted on a bigger income than the bank uses. The helper covers the business
       // owner, who otherwise types takings rather than profit.
-      questionEn: 'What is your net monthly income?',
-      questionAr: 'ما صافي دخلك الشهري؟',
+      questionEn: 'What is your monthly income after deductions?',
+      questionAr: 'كم دخلك الشهري بعد الخصومات؟',
       helperTextEn: 'After tax and deductions. If you run a business, your profit after business costs.',
       helperTextAr: 'بعد الضرائب والاستقطاعات. لأصحاب الأنشطة: الربح بعد مصروفات النشاط.',
       numeric: { minValue: '1000', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
@@ -1157,8 +1098,8 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       // "Commitments", not "payments": the credit-card part of this sum is 5% of
       // a LIMIT, not a payment anyone makes, so the old label would have named the
       // figure something it is not the moment a card is ticked.
-      questionEn: 'Your total monthly commitments',
-      questionAr: 'إجمالي التزاماتك الشهرية',
+      questionEn: 'What are your total monthly commitments?',
+      questionAr: 'كم إجمالي التزاماتك الشهرية؟',
       helperTextEn: 'Credit cards count as 5% of your total credit limit.',
       helperTextAr: 'تحتسب البطاقات الائتمانية بنسبة 5% من إجمالي حدك الائتماني.',
       numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
@@ -1231,8 +1172,8 @@ const OBLIGATION_QUESTIONS: ReadonlyArray<{
         // say "all", because a customer holding a CIB and a QNB card will
         // otherwise state one of them.
         debtType: 'credit_cards',
-        questionEn: 'What is the total credit limit of ALL your credit cards?',
-        questionAr: 'ما إجمالي الحد الائتماني لجميع بطاقاتك الائتمانية؟',
+        questionEn: 'What is the total limit of all your credit cards?',
+        questionAr: 'كم إجمالي حد كل بطاقاتك الائتمانية؟',
         helperTextEn:
           'Add up the limit on every card you hold, at every bank — not what you owe. '
           + 'Example: a 100,000 card at CIB plus a 50,000 card at QNB is 150,000. '
@@ -1253,7 +1194,7 @@ const OBLIGATION_QUESTIONS: ReadonlyArray<{
       },
       {
         debtType: 'mortgage',
-        questionEn: 'How much is your mortgage each month?',
+        questionEn: 'How much is your home loan each month?',
         questionAr: 'كم قسط قرضك العقاري شهريًا؟',
       },
       {
@@ -1413,38 +1354,20 @@ const PERSONAL: CategoryConfig = {
       // say "your loan" to a business owner or "the banks you owe" to someone
       // whose only entry is a single instalment figure.
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [
-        {
-          code: 'loan_purpose', questionEn: 'What will you use the money for?', questionAr: 'ما الغرض من القرض؟',
-          isRequired: false,
-          options: [
-            // "Finishing" covers تشطيب — fitting out a bare-shell new build, which
-            // is a purpose of its own here, not the same as renovating a lived-in home.
-            { code: 'home_finishing_renovation', labelEn: 'Finishing or fixing up my home', labelAr: 'تشطيب / تجديد المنزل' },
-            { code: 'marriage', labelEn: 'Getting married', labelAr: 'زواج' },
-            { code: 'purchasing_appliances_or_furniture', labelEn: 'Buying furniture or appliances', labelAr: 'شراء أجهزة أو أثاث' },
-            { code: 'education', labelEn: 'School or study', labelAr: 'تعليم' },
-            { code: 'debt_consolidation_settling_obligations', labelEn: 'Paying off what I owe', labelAr: 'سداد التزامات' },
-            { code: 'personal_project', labelEn: 'My own project', labelAr: 'مشروع شخصي' },
-            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
-          ],
-        },
-      ],
+      // The bound money questions are injected here; `loan_purpose`, the one question this
+      // config authored, left the pool on 2026-10-14 (read by nothing).
+      questions: [],
     },
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
         {
-          code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟',
+          code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما نوع عملك؟',
           options: EMPLOYMENT_OPTIONS,
         },
         JOB_TENURE_Q,
         SALARY_TRANSFER_Q,
-        SALARY_BANK_Q,
-        SALARY_BANK_NAME_Q,
-        EMPLOYER_APPROVED_Q,
         ADDITIONAL_INCOME_Q,
-        ACTIVE_ACCOUNT_Q,
         // Feature 011 — the surrogate facts. That reference is what assigns them to
         // the category in `question_loan_category` (A33 — assignment lives only
         // there), so a mortgage applicant is never asked their army rank. CAR carries
@@ -1482,7 +1405,6 @@ const PERSONAL: CategoryConfig = {
       questions: [
         PRIORITY_FACTOR_Q,
         PRIOR_REJECTION_Q,
-        NEEDS_CONSULTANT_Q,
       ],
     },
   ],
@@ -1501,7 +1423,7 @@ const MORTGAGE: CategoryConfig = {
           optionsFromEnum: 'governorate', options: [],
         },
         {
-          code: 'property_type', questionEn: 'What kind of place do you want to buy?', questionAr: 'ما نوع العقار الذي ترغب في تمويله؟', isRequired: false,
+          code: 'property_type', questionEn: 'What type of property?', questionAr: 'ما نوع العقار؟', isRequired: false,
           options: [
             { code: 'apartment', labelEn: 'Apartment', labelAr: 'شقة' },
             { code: 'villa', labelEn: 'Villa', labelAr: 'فيلا' },
@@ -1513,7 +1435,7 @@ const MORTGAGE: CategoryConfig = {
         },
         {
           // Optional (2026-09-24): no mortgage programme reads it yet — no LTV is stated.
-          code: 'property_value', questionEn: 'About how much is the place worth?', questionAr: 'ما القيمة التقريبية للعقار؟', isRequired: false,
+          code: 'property_value', questionEn: 'About how much is the property worth?', questionAr: 'ما القيمة التقريبية للعقار؟', isRequired: false,
           options: [
             { code: 'less_than_egp_1_million', labelEn: 'Less than 1 million EGP', labelAr: 'أقل من مليون جنيه' },
             { code: 'egp_1_3_million', labelEn: '1 – 3 million EGP', labelAr: '1 – 3 مليون جنيه' },
@@ -1525,16 +1447,6 @@ const MORTGAGE: CategoryConfig = {
         // worth, then the deposit against that worth — so the deposit sits in this step, not in
         // the financing step it used to open.
         DOWN_PAYMENT_Q,
-        { code: 'in_compound', questionEn: 'Is the place inside a compound?', questionAr: 'هل العقار داخل كمبوند سكني؟', isRequired: false, options: YESNO() },
-        {
-          code: 'registration_status', questionEn: 'Is the property registered with the government?', questionAr: 'ما حالة تسجيل العقار؟', isRequired: false,
-          options: [
-            { code: 'officially_registered', labelEn: 'Yes, it is registered', labelAr: 'مسجل رسميًا' },
-            { code: 'eligible_for_registration', labelEn: 'Not yet, but it can be', labelAr: 'قابل للتسجيل' },
-            { code: 'not_registered', labelEn: 'No, it is not', labelAr: 'غير مسجل' },
-            { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد' },
-          ],
-        },
       ],
     },
     // Shared groups are referenced by CODE, never re-declared with a new code:
@@ -1544,14 +1456,10 @@ const MORTGAGE: CategoryConfig = {
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
-        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
+        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما نوع عملك؟', options: EMPLOYMENT_OPTIONS },
         JOB_TENURE_Q,
         SALARY_TRANSFER_Q,
-        SALARY_BANK_Q,
-        SALARY_BANK_NAME_Q,
-        EMPLOYER_APPROVED_Q,
         ADDITIONAL_INCOME_Q,
-        ACTIVE_ACCOUNT_Q,
         // NONE of the sheet conditions. Every product that reads them is sold as `personal`
         // (the CAE compound) or `car` (the seven Suez Canal auto programmes), so any of them
         // here would be a REQUIRED question no mortgage programme could ever read — which is
@@ -1571,8 +1479,6 @@ const MORTGAGE: CategoryConfig = {
       questions: [
         PRIORITY_FACTOR_Q,
         PRIOR_REJECTION_Q,
-        { code: 'needs_assistance', questionEn: 'Do you want help getting your papers ready?', questionAr: 'هل تحتاج مساعدة في تجهيز المستندات؟', isRequired: false, options: YESNO() },
-        NEEDS_CONSULTANT_Q,
       ],
     },
   ],
@@ -1621,14 +1527,10 @@ const CAR: CategoryConfig = {
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
-        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
+        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما نوع عملك؟', options: EMPLOYMENT_OPTIONS },
         JOB_TENURE_Q,
         SALARY_TRANSFER_Q,
-        SALARY_BANK_Q,
-        SALARY_BANK_NAME_Q,
-        EMPLOYER_APPROVED_Q,
         ADDITIONAL_INCOME_Q,
-        ACTIVE_ACCOUNT_Q,
         // The surrogate facts, same three references PERSONAL carries. An auto loan
         // is surrogate-CAPABLE (`SURROGATE_CAPABLE_CATEGORIES`): a bank may finance a
         // car off an assumed income worked out from a grade or years in practice, and
@@ -1664,7 +1566,6 @@ const CAR: CategoryConfig = {
         PRIOR_REJECTION_Q,
         // `wants_insurance` ("car insurance offers?") USED TO STAND HERE. `CAR_ASKS` never
         // listed it, so it was active and asked by nobody; it leaves the pool (2026-09-24).
-        NEEDS_CONSULTANT_Q,
       ],
     },
   ],
@@ -1690,7 +1591,7 @@ const BUSINESS: CategoryConfig = {
         },
         {
           // Optional (2026-09-24): read by no programme's figures, only shown as a match reason.
-          code: 'business_age', questionEn: 'How long has your business been open?', questionAr: 'منذ متى والنشاط يعمل؟', isRequired: false,
+          code: 'business_age', questionEn: 'How long has your business been open?', questionAr: 'منذ متى بدأ نشاطك؟', isRequired: false,
           options: [
             { code: 'less_than_1_year', labelEn: 'Less than 1 year', labelAr: 'أقل من سنة' },
             { code: '1_to_2_years', labelEn: '1 to 2 years', labelAr: 'من 1 إلى 2 سنة' },
@@ -1744,10 +1645,6 @@ const BUSINESS: CategoryConfig = {
       questions: [
         PRIORITY_FACTOR_Q,
         PRIOR_REJECTION_Q,
-        // `needs_consultation` was a second copy of `needs_consultant` with
-        // "business" in the wording — two rows to tick, two rows to score, one
-        // question. The shared one covers both.
-        NEEDS_CONSULTANT_Q,
       ],
     },
   ],

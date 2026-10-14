@@ -7,8 +7,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormBuilder, FormControl } from '@angular/forms';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -18,7 +16,6 @@ import {
   ArrowLeftOutline,
   ArrowRightOutline,
   CloseCircleOutline,
-  ExclamationCircleOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   LoanCategorySwitchesComponent,
@@ -40,29 +37,10 @@ import {
 import {
   QuestionnaireApiService,
 } from '@features/questionnaire/questionnaire.api.service';
-import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
-import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
-import { catalogRuleOf } from '@shared/income-rule/catalog-rule';
-import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
-import {
-  incomeMethodShape,
-  registryFacts,
-  type IncomeAssumptionConfig,
-  type IncomeAssumptionStrategy,
-  type IncomeBand,
-  type IncomeKeyTableRow,
-  type StepFigures,
-  type ProgramNameIncomeRule,
-  type ProductRuleOutput,
-  type RuleGate,
-  type RuleStep,
-} from '@features/bank-programs/bank-programs.types';
 import { ErrorCodeService } from '@core/errors/error-code.service';
-import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
 import { LookupsApiService } from '../lookups/lookups.api.service';
 import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-name-row';
-import { PRODUCT_BASE } from './program-catalog.paths';
 
 /**
  * One catalog program name, in two steps.
@@ -73,17 +51,15 @@ import { PRODUCT_BASE } from './program-catalog.paths';
  * that name — reached by opening it from the catalog, the way every other object
  * in this dashboard is reached.
  *
- * - **How the income is worked out** — one proof for the whole name, whichever
- *   product it is sold as. Explicitly saved, because the write can be refused.
  * - **Where it is offered** — the authoritative per-loan-type assignment. The
  *   bank-program builder filters its Program name picker on it and the API rejects
  *   an unassigned pair. Saved on every tap.
+ * - **What applicants are asked** — per-name skips and additions. Saved on every tap.
  *
- * The screen used to carry a third step, a per-loan-type question list the name
- * "suggests scoring on". Approval scoring is gone from the platform, and with it
- * the only thing that ever read that list, so the step and its storage went with
- * it. What a no-payslip product actually READS is a different axis with a real,
- * engine-read home — `surrogate_product_ask`, on the surrogate product screens.
+ * The screen used to open on a third step, "How the income is worked out": the
+ * name's one surrogate income rule. Cut for the MVP — Add program makes income-proof
+ * names only (v30.8.0), a no-payslip name's calculation is edited on its surrogate
+ * product, and the stored rule is still read by every bank program under the name.
  */
 @Component({
   selector: 'app-program-name-detail-page',
@@ -95,18 +71,10 @@ import { PRODUCT_BASE } from './program-catalog.paths';
     NzSpinModule,
     PageHeaderComponent,
     WizardStepsComponent,
-    IncomeAssumptionSectionComponent,
     LoanCategorySwitchesComponent,
     CompactAskedQuestionsComponent,
   ],
-  providers: [
-    provideNzIconsPatch([
-      ArrowLeftOutline,
-      ArrowRightOutline,
-      CloseCircleOutline,
-      ExclamationCircleOutline,
-    ]),
-  ],
+  providers: [provideNzIconsPatch([ArrowLeftOutline, ArrowRightOutline, CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -125,8 +93,8 @@ import { PRODUCT_BASE } from './program-catalog.paths';
             eyebrow="Program catalog"
             i18n-eyebrow="@@pnd.eyebrow"
             [title]="nameOf(n)"
-            subtitle="Two steps: how the income is worked out, and which loan types banks may sell it under. The income proof has its own Save; turning a loan type on or off saves as you tap."
-            i18n-subtitle="@@pnd.sub2"
+            subtitle="Two steps: which loan types banks may sell it under, and what its applicants are asked. Every change saves as you tap."
+            i18n-subtitle="@@pnd.sub3"
           >
             <div class="header-aside">
               <span class="usage">
@@ -136,10 +104,7 @@ import { PRODUCT_BASE } from './program-catalog.paths';
                   {{ usageLabel(n) }}
                 }
               </span>
-              <!-- Only true of THIS step. Step 1 is saved with a button, and a page-wide
-                   chip claiming otherwise is the thing a draft layer must not leave on
-                   screen. -->
-              @if (stepIndex() === 1) {
+              @if (stepIndex() === 0) {
                 <span class="autosave" i18n="@@pnd.autosave_offer"
                   >Turning a loan type on or off saves at once</span
                 >
@@ -148,17 +113,10 @@ import { PRODUCT_BASE } from './program-catalog.paths';
           </app-page-header>
 
           <!-- ── Two steps, in the order the decisions depend on each other ──
-               The screen used to stack both on one scroll: a rule card and, under it,
-               a tab rail with a switch behind each tab. One of those is per LOAN TYPE
-               and one is not, so the page asked the operator to hold "which of these
-               is per tab?" in their head the whole way down — and the assignment they
-               came to set was four tab-clicks apart.
-
                Non-linear on purpose. This is a settings screen, not a creation flow:
-               every step is reachable at any time and each saves on its own terms (the
-               rule has its own Save, the offer switches write as they are tapped), and
-               nothing is submitted at the end. The rail is the shared wizard rail, so a
-               step here reads exactly like a step in the bank-program wizard. -->
+               every step is reachable at any time, every tap writes, and nothing is
+               submitted at the end. The rail is the shared wizard rail, so a step here
+               reads exactly like a step in the bank-program wizard. -->
           <app-wizard-steps
             [steps]="wizardSteps()"
             [activeIndex]="stepIndex()"
@@ -169,119 +127,7 @@ import { PRODUCT_BASE } from './program-catalog.paths';
 
           @switch (stepIndex()) {
             @case (0) {
-              <!-- ── STEP 1 · The ONE income proof ─────────────────────────────────
-               Its own step, because it is NOT per loan type: one name reads one
-               figure, whichever product it is sold as. Under a tab it would say the
-               opposite four times. -->
-              <section class="card is-bare rule-card">
-                <header class="rule-head">
-                  <div>
-                    <!-- No sub-line: the rail's caption one line above says the same thing
-                         in fewer words, and the pipeline's own closing note says the "starts
-                         from these amounts" half again at the foot of the step. -->
-                    <h2 class="rule-title" i18n="@@pnd.rule_title">How the income is worked out</h2>
-                  </div>
-                  @if (ruleDirty() && !linked()) {
-                    <button
-                      nz-button
-                      nzType="primary"
-                      type="button"
-                      [nzLoading]="ruleSaving()"
-                      (click)="saveRule()"
-                      i18n="@@pnd.rule_save"
-                    >
-                      Save the income rule
-                    </button>
-                  }
-                </header>
-
-                @if (ruleError(); as err) {
-                  <p class="rule-error" role="alert">
-                    <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
-                    <span>{{ err }}</span>
-                  </p>
-                }
-
-                @if (ruleLoading()) {
-                  <!-- Shape-matched: a picker's height then three figure rows, because that
-                   is what arrives. A spinner here would say "something", not "this". -->
-                  <div class="rule-skeleton" aria-hidden="true">
-                    <span class="sk sk-picker"></span>
-                    <span class="sk sk-row"></span>
-                    <span class="sk sk-row"></span>
-                    <span class="sk sk-row"></span>
-                  </div>
-                } @else {
-                  @if (linked(); as product) {
-                    <!-- LINKED. The calculation belongs to the surrogate product, so this page
-                     names it and sends the operator there rather than offering an editor that
-                     would fork it. The pipeline itself still renders below, read-only: an
-                     operator on this page needs to UNDERSTAND what the name sells. -->
-                    <p class="rule-linked">
-                      <span
-                        nz-icon
-                        nzType="info-circle"
-                        nzTheme="outline"
-                        aria-hidden="true"
-                      ></span>
-                      <span>
-                        <span i18n="@@pnd.rule_linked"
-                          >This name works its income out from the
-                          <strong>{{ productLabel() }}</strong> surrogate product, so the
-                          calculation is edited there and every name using it stays in step.</span
-                        >
-                        <a
-                          class="rule-linked-go"
-                          [routerLink]="[productBase, product]"
-                          i18n="@@pnd.rule_open_product"
-                          >Open the surrogate product</a
-                        >
-                      </span>
-                    </p>
-                  } @else if (!ruleDecided() && !ruleTouched()) {
-                    <!-- Names the consequence, and the picker below IS the action — so this is
-                     one line above the control rather than a card that replaces it. -->
-                    <p class="rule-empty" i18n="@@pnd.rule_empty">
-                      Nobody has said what this name reads its income from, so no bank can sell it
-                      on a surrogate basis yet. Pick the figure below.
-                    </p>
-                  }
-
-                  @if (!linked()) {
-                    <app-income-assumption-section
-                      variant="catalog"
-                      [declaredOnly]="payslipOnly()"
-                      [group]="ruleGroup"
-                      [keyTable]="ruleKeyTable()"
-                      (keyTableChange)="onRuleKeyTable($event)"
-                      [bands]="ruleBands()"
-                      (bandsChange)="onRuleBands($event)"
-                      [ruleSteps]="ruleSteps()"
-                      [ruleGates]="ruleGates()"
-                      [ruleOutput]="ruleOutput()"
-                      [stepFigures]="ruleStepFigures()"
-                      (stepFiguresChange)="onRuleStepFigures($event)"
-                      (stepFiguresTouched)="markRuleDirty()"
-                    ></app-income-assumption-section>
-                  }
-
-                  <!-- Who reads this. Quiet by design: it is a fact, not a warning — and it
-                   is the same list the server names when it refuses a proof change, so
-                   the operator sees the obstacle before they hit it. -->
-                  <p class="rule-usage">
-                    @if (ruleReaders().length === 0) {
-                      <span i18n="@@pnd.rule_readers_none"
-                        >No bank sells this name on a surrogate basis yet.</span
-                      >
-                    } @else {
-                      <span>{{ ruleReadersLabel() }}</span>
-                    }
-                  </p>
-                }
-              </section>
-            }
-            @case (1) {
-              <!-- ── STEP 2 · Where it is offered ──────────────────────────────
+              <!-- ── STEP 1 · Where it is offered ──────────────────────────────
                    All four loan types at once, which is the whole reason this is a
                    step rather than the first thing behind a tab: the assignment is
                    ONE decision with four parts, and reading it used to cost four tab
@@ -321,8 +167,8 @@ import { PRODUCT_BASE } from './program-catalog.paths';
               </section>
             }
 
-            @case (2) {
-              <!-- ── STEP 3 · What applicants are asked ────────────────────────
+            @case (1) {
+              <!-- ── STEP 2 · What applicants are asked ────────────────────────
                    The screen carried a third step once and lost it with approval
                    scoring: a per-loan-type list the name "suggests scoring on", read
                    by nothing. This one writes the axis the engine actually asks from
@@ -383,41 +229,8 @@ import { PRODUCT_BASE } from './program-catalog.paths';
           }
 
           <!-- Back / Next as well as the rail, because a rail is a map and these are
-               the two moves. No "Finish": nothing is submitted here — the offer switches
-               save as they are tapped and the rule has its own Save inside step 1. -->
-          <!-- The rule's Save and its refusal text live inside step 1, so leaving that step
-               with edits pending used to remove the only way to keep them from the DOM — no
-               prompt, no marker (the rail suppresses a status on the step you are standing
-               on), and the edits gone the moment the page was left. Carried here instead, so
-               the pending state and its Save travel with the operator. -->
-          @if (ruleDirty() && !linked() && stepIndex() !== 0) {
-            <p class="stepnav-unsaved" role="status">
-              <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-              <span i18n="@@pnd.rule_unsaved">
-                How the income is worked out has changes you have not saved.
-              </span>
-              <button
-                nz-button
-                nzType="primary"
-                nzSize="small"
-                type="button"
-                [nzLoading]="ruleSaving()"
-                (click)="saveRule()"
-                i18n="@@pnd.rule_save_short"
-              >
-                Save it
-              </button>
-            </p>
-          }
-          @if (ruleError(); as err) {
-            @if (stepIndex() !== 0) {
-              <p class="rule-error" role="alert">
-                <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
-                <span>{{ err }}</span>
-              </p>
-            }
-          }
-
+               the two moves. No "Finish": nothing is submitted here — every change saves
+               as it is tapped. -->
           <nav class="stepnav" [attr.aria-label]="stepsAria">
             <button
               nz-button
@@ -539,170 +352,6 @@ import { PRODUCT_BASE } from './program-catalog.paths';
         color: var(--color-text-secondary);
       }
 
-      /* --- The ONE income proof -------------------------------------------- */
-      /* is-bare for the reason step 1 of the wizard uses it: the editor inside already
-         draws its own bordered blocks, and a filled card around them would be a card
-         holding cards. */
-      .rule-card {
-        display: flex;
-        flex-direction: column;
-        margin-block-end: var(--space-5);
-      }
-
-      .rule-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: var(--space-4);
-        margin-block-end: var(--space-4);
-      }
-
-      .rule-title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 650;
-        color: var(--text-primary);
-      }
-
-      .rule-sub {
-        margin: var(--space-1) 0 0;
-        max-inline-size: 68ch;
-        font-size: 0.8125rem;
-        line-height: 1.55;
-        color: var(--text-secondary);
-      }
-
-      /* The refusal renders WHERE the control is, not as a toast: the in-use refusal
-         names the programs that block the change, and a toast takes that list away
-         before it can be read. */
-      .rule-error {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        margin: 0 0 var(--space-4);
-        padding: var(--space-3);
-        border-radius: var(--radius-md);
-        border-inline-start: var(--rule-width-accent) solid var(--ant-error-color);
-        background: var(--color-error-bg);
-        color: var(--text-primary);
-        font-size: 0.8125rem;
-        line-height: 1.55;
-      }
-
-      .rule-error [nz-icon] {
-        color: var(--ant-error-color);
-        margin-block-start: 0.15em;
-      }
-
-      .rule-linked {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        margin: 0;
-        padding: var(--space-4);
-        border-radius: var(--radius-md);
-        background: var(--bg-subtle);
-        font-size: var(--text-sm);
-        color: var(--text-secondary);
-        line-height: 1.6;
-      }
-
-      .rule-linked strong {
-        color: var(--text-primary);
-        font-weight: var(--font-semibold);
-      }
-
-      .rule-linked-go {
-        display: inline-block;
-        margin-inline-start: var(--space-2);
-        color: var(--primary-visible);
-        text-decoration: none;
-        cursor: pointer;
-        font-weight: var(--font-medium);
-      }
-
-      .rule-linked-go:hover {
-        text-decoration: underline;
-      }
-
-      .rule-linked-go:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-        border-radius: var(--radius-sm);
-      }
-
-      .rule-empty {
-        margin: 0 0 var(--space-4);
-        max-inline-size: 66ch;
-        font-size: 0.8125rem;
-        line-height: 1.55;
-        color: var(--text-secondary);
-      }
-
-      /* A fact, not a badge row: the operator reads it once. Tabular numerals so the
-         three counts line up when the block re-renders after a save. */
-      .rule-usage {
-        margin: var(--space-4) 0 0;
-        padding-block-start: var(--space-3);
-        border-block-start: 1px solid var(--border-subtle);
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        font-variant-numeric: tabular-nums;
-      }
-
-      /* Shape-matched: the picker's height, then three figure rows — which is what
-         arrives. A centred spinner would say "something is loading", not "this is". */
-      .rule-skeleton {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-      }
-
-      .rule-skeleton .sk {
-        display: block;
-        border-radius: var(--radius-md);
-        background: linear-gradient(
-          90deg,
-          var(--color-surface-elevated) 25%,
-          var(--color-surface-muted) 37%,
-          var(--color-surface-elevated) 63%
-        );
-        background-size: 400% 100%;
-        animation: rule-sk var(--motion-ambient) ease-in-out infinite;
-      }
-
-      .rule-skeleton .sk-picker {
-        block-size: 32px;
-        max-inline-size: 320px;
-      }
-
-      .rule-skeleton .sk-row {
-        block-size: 24px;
-        max-inline-size: 460px;
-      }
-
-      @keyframes rule-sk {
-        0% {
-          background-position: 100% 50%;
-        }
-        100% {
-          background-position: 0 50%;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .rule-skeleton .sk {
-          animation: none;
-        }
-      }
-
-      @media (max-width: 640px) {
-        .rule-head {
-          flex-direction: column;
-          align-items: stretch;
-        }
-      }
-
       /* --- A step's stage --------------------------------------------------- */
       /* is-bare for the reason step 1 uses it: the rows inside draw their own
          borders, and a filled card around them would be a card holding cards. */
@@ -773,23 +422,6 @@ import { PRODUCT_BASE } from './program-catalog.paths';
       }
 
       /* --- Step navigation --------------------------------------------------- */
-      .stepnav-unsaved {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin: 0 0 var(--space-3);
-        padding: var(--space-2) var(--space-3);
-        border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
-        border-radius: var(--radius-md);
-        background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface-default));
-        color: var(--color-text-secondary);
-        font-size: var(--text-sm);
-      }
-
-      .stepnav-unsaved button {
-        margin-inline-start: auto;
-      }
-
       .stepnav {
         display: flex;
         align-items: center;
@@ -941,8 +573,6 @@ import { PRODUCT_BASE } from './program-catalog.paths';
   ],
 })
 export class ProgramNameDetailPage implements OnInit {
-  protected readonly productBase = PRODUCT_BASE;
-
   private readonly api = inject(LookupsApiService);
   private readonly questionnaire = inject(QuestionnaireApiService);
   private readonly modal = inject(NzModalService);
@@ -956,69 +586,7 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly loading = signal(true);
   protected readonly savingOffer = signal(false);
 
-  // --- The ONE income proof --------------------------------------------------
-  //
-  // Explicitly SAVED. Three reasons, and the first alone decides it: the write can be
-  // REFUSED (the proof is in use, the table has a duplicate key), and an autosave that
-  // fails leaves the operator looking at a screen claiming it saved. The rule is also a
-  // multi-field form whose intermediate states are legitimately invalid — a half-typed
-  // band table would fire a rejection on every keystroke — and a proof change moves real
-  // money at every bank that inherits, which deserves a deliberate click.
-
-  private readonly programsApi = inject(BankProgramsApiService);
   private readonly errors = inject(ErrorCodeService);
-  private readonly fb = inject(FormBuilder);
-  /** Only for a `fact:` method's editor shape — the picker itself reads its own copy. */
-  private readonly enums = inject(PlatformEnumerationsService);
-
-  protected readonly ruleLoading = signal(true);
-  protected readonly ruleSaving = signal(false);
-  protected readonly ruleError = signal<string | null>(null);
-  /** The server's answer, as last read or written. `null` = the name states nothing. */
-  protected readonly rule = signal<ProgramNameIncomeRule | null>(null);
-  /** Whether a proof is stored. Drives the empty state, not `rule() === null`. */
-  protected readonly ruleDecided = computed(() => this.rule()?.incomeRule != null);
-  /** True once the operator has picked anything, so the empty-state copy steps aside. */
-  protected readonly ruleTouched = signal(false);
-  protected readonly ruleDirty = signal(false);
-
-  /**
-   * Same shape the wizard builds, because the SAME editor renders it. `combinationRule`
-   * and the two policy controls are here even though the catalog hides them: the
-   * component reads the group by control name, and a missing control is a template
-   * error rather than a hidden field.
-   */
-  protected readonly ruleGroup = this.fb.nonNullable.group({
-    strategy: new FormControl<IncomeAssumptionStrategy>('declared', { nonNullable: true }),
-    scalar: this.fb.group({
-      value: new FormControl<string | null>(null),
-      unit: new FormControl<'percent' | 'multiplier'>('percent', { nonNullable: true }),
-    }),
-    dbrCapPercentOverride: new FormControl<string | null>(null),
-    requiredDocuments: new FormControl<string[]>([], { nonNullable: true }),
-    combinationRule: new FormControl<'lesser_of' | 'greater_of' | null>(null),
-  });
-
-  /** The two table shapes are signals, for the reason the wizard states: one owner. */
-  protected readonly ruleKeyTable = signal<IncomeKeyTableRow[]>([]);
-  protected readonly ruleBands = signal<IncomeBand[]>([]);
-  /**
-   * A pipeline product's DEFAULT figures — the numbers every bank filed under this name
-   * starts from. The steps themselves stay the catalog's to state and nobody's to author
-   * here; these are the amounts, which is the half a bank can go on to override.
-   */
-  protected readonly ruleStepFigures = signal<Record<string, StepFigures>>({});
-
-  /**
-   * The method picker and the scalar field are FORM controls, not signals, so nothing was
-   * watching them: picking a different proof, or typing the percentage a bank starts from,
-   * left the block silently un-saveable. Subscribed rather than turned into a computed
-   * because the flag is a fact about what the operator DID, and only they can raise it —
-   * `absorbRule` resets the group with `emitEvent: false` so a page load never does.
-   */
-  private readonly ruleEdits = this.ruleGroup.valueChanges
-    .pipe(takeUntilDestroyed())
-    .subscribe(() => this.markRuleDirty());
 
   // --- The two steps ---------------------------------------------------------
   //
@@ -1036,7 +604,6 @@ export class ProgramNameDetailPage implements OnInit {
    * create flow sends every freshly created name to.
    */
   protected readonly stepLabels: readonly string[] = [
-    $localize`:@@pnd.step_income:How the income is worked out`,
     $localize`:@@pnd.step_offered:Where it is offered`,
     $localize`:@@pnd.step_asks:What applicants are asked`,
   ];
@@ -1049,37 +616,18 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly stepsAria = $localize`:@@pnd.steps_aria:Setting up this program name`;
 
   /**
-   * The rail's status per step, and the one place the two answers are compared.
-   *
-   * Step 2 is the only one that can be WRONG in what it HOLDS: a name offered under no
-   * loan type is a name no bank can pick, which is unsellable rather than merely
-   * unfinished. Step 1 is legitimately blank (a payslip product states no rule), so it is
-   * never short of an answer. It can be UNSAVED, though, and that is what `invalid`
-   * reports on it — the rail is the only marker for a step the operator is not standing
-   * on.
+   * The rail's status per step. "Where it is offered" is the only one that can be WRONG in
+   * what it HOLDS: a name offered under no loan type is a name no bank can pick.
    */
   protected readonly wizardSteps = computed<WizardStepItem[]>(() => [
     {
-      id: 'income',
-      label: this.stepLabels[0] ?? '',
-      // A LINKED name is decided by construction — the product states the calculation —
-      // so it can never read as todo or invalid on this page, where it cannot be edited.
-      status: this.linked()
-        ? 'done'
-        : this.ruleDirty()
-          ? 'invalid'
-          : this.ruleDecided()
-            ? 'done'
-            : 'todo',
-    },
-    {
       id: 'offered',
-      label: this.stepLabels[1] ?? '',
+      label: this.stepLabels[0] ?? '',
       status: this.offeredCount() > 0 ? 'done' : 'invalid',
     },
     {
       id: 'asks',
-      label: this.stepLabels[2] ?? '',
+      label: this.stepLabels[1] ?? '',
       // Never `invalid`, and never `todo`: what a loan type asks is a fact this step
       // reports and can widen, not an answer this name owes. It is unreachable while the
       // name is offered nowhere, because there is nothing to put a tab on.
@@ -1091,11 +639,6 @@ export class ProgramNameDetailPage implements OnInit {
   /** One sentence under the rail: what this step decides, and what it does not. */
   protected readonly stepCaption = computed<string>(() => {
     if (this.stepIndex() === 0) {
-      return this.linked()
-        ? $localize`:@@pnd.step_income_cap_linked:Taken from a surrogate product, so every name using that product stays in step. Edited there, not here.`
-        : $localize`:@@pnd.step_income_cap:Set once for the name. Every bank selling it on a surrogate basis reads this one figure.`;
-    }
-    if (this.stepIndex() === 1) {
       return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
     }
     return $localize`:@@pnd.step_asks_cap:Ticks and unticks here apply to this program only. The loan type's own list is set on Questionnaire → Categories.`;
@@ -1107,7 +650,7 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected goToStep(index: number): void {
     const next = Math.min(Math.max(index, 0), this.stepLabels.length - 1);
-    if (next === 2) void this.loadPool();
+    if (next === 1) void this.loadPool();
     if (next === this.stepIndex()) return;
     this.stepIndex.set(next);
     void this.router.navigate([], {
@@ -1126,15 +669,13 @@ export class ProgramNameDetailPage implements OnInit {
   /** How many of the four are on. Drives the rail's status and its caption. */
   protected readonly offeredCount = computed(() => this.name()?.categories.length ?? 0);
 
-  // --- Step 3 · what applicants are asked ------------------------------------
+  // --- Step 2 · what applicants are asked ------------------------------------
 
   /**
-   * The global question pool, read on first arrival at step 3 and not before.
+   * The global question pool, read on first arrival at step 2 and not before.
    *
-   * A third read on a page that already makes two (the row and the income rule), and the
-   * heaviest of them — every active question with every answer. Deferring it keeps the two
-   * steps that do not need it off its latency, and the step that does shows a shimmer while
-   * it lands like every other async surface here.
+   * The heaviest read on the page — every active question with every answer. Deferring it
+   * keeps the step that does not need it off its latency.
    */
   protected readonly pool = signal<readonly AskableQuestion[]>([]);
   /** What an applicant of this name is served per loan type; empty until the read lands. */
@@ -1412,14 +953,10 @@ export class ProgramNameDetailPage implements OnInit {
   }
 
   ngOnInit(): void {
-    // A deep link can land straight on step 3 — `newNameLanding` sends every freshly
+    // A deep link can land straight on step 2 — `newNameLanding` sends every freshly
     // created name there — so the pool read cannot wait for a click on the rail.
-    if (this.stepIndex() === 2) void this.loadPool();
+    if (this.stepIndex() === 1) void this.loadPool();
     void this.load();
-    // A separate read, deliberately not awaited with the other: the income rule comes
-    // from the bank-programs API and the row from the lookups API, so a slow or failing
-    // one must not hold up the other. Each surface reports its own state.
-    void this.loadRule();
   }
 
   // --- Display helpers -------------------------------------------------------
@@ -1458,234 +995,9 @@ export class ProgramNameDetailPage implements OnInit {
     }
   }
 
-  // --- The ONE income proof --------------------------------------------------
-
-  /** The surrogate programs reading this name, split by whose figures they use. */
-  protected readonly ruleReaders = computed(() => this.rule()?.programs ?? []);
-
-  protected readonly ruleReadersLabel = computed(() => {
-    const readers = this.ruleReaders();
-    const own = readers.filter((p) => p.ownAmounts).length;
-    const inherited = readers.length - own;
-    // One sentence with three counts rather than three tags: it is a fact the operator
-    // reads once, and badges would give it the weight of a warning.
-    return $localize`:@@pnd.rule_readers:${readers.length}:total: bank program(s) read this figure · ${inherited}:inherited: take these amounts · ${own}:own: set their own`;
-  });
-
-  /**
-   * Every typed edit routes through one of these three.
-   *
-   * They exist because the bindings used to be bare `.set()` calls, and `ruleDirty` was
-   * only ever raised by the marker and structure handlers — so typing an income amount,
-   * or changing the method, left the Save button unrendered and the operator with no way
-   * to keep what they had just written. The figures are the whole point of the block.
-   */
-  protected onRuleKeyTable(rows: IncomeKeyTableRow[]): void {
-    this.ruleKeyTable.set(rows);
-    this.markRuleDirty();
-  }
-
-  protected onRuleBands(bands: IncomeBand[]): void {
-    this.ruleBands.set(bands);
-    this.markRuleDirty();
-  }
-
-  protected onRuleStepFigures(figures: Record<string, StepFigures>): void {
-    this.ruleStepFigures.set(figures);
-    this.markRuleDirty();
-  }
-
-  protected markRuleDirty(): void {
-    this.ruleTouched.set(true);
-    this.ruleDirty.set(true);
-    // Cleared on the first edit: a refusal the operator has since acted on must not keep
-    // sitting above the form as though it were still true.
-    this.ruleError.set(null);
-  }
-
-  private async loadRule(): Promise<void> {
-    this.ruleLoading.set(true);
-    try {
-      const { data } = await this.programsApi.getProgramNameIncomeRule(this.routeKey());
-      this.absorbRule(data);
-    } catch (err) {
-      // A read failure is reported where the block is, not as a toast: the block is the
-      // only thing that is broken, and the rest of the page still works.
-      this.ruleError.set(this.localizedError(err));
-    } finally {
-      this.ruleLoading.set(false);
-    }
-  }
-
-  /** Server answer → the form, the two tables, and the marker map. */
-  private absorbRule(data: ProgramNameIncomeRule): void {
-    this.rule.set(data);
-    const rule = data.incomeRule;
-    this.ruleGroup.reset(
-      {
-        strategy: rule?.strategy ?? 'declared',
-        scalar: {
-          value: rule?.scalar?.value ?? null,
-          unit: rule?.scalar?.unit ?? 'percent',
-        },
-        dbrCapPercentOverride: null,
-        requiredDocuments: [],
-        combinationRule: null,
-        // `emitEvent: false`, because the valueChanges subscription in the constructor is
-        // what makes the method picker and the scalar field raise the Save button. Loading a
-        // rule is not an edit, and without this every page load would offer to save what it
-        // had just read.
-      },
-      { emitEvent: false },
-    );
-    this.ruleKeyTable.set(rule?.keyTable ? [...rule.keyTable] : []);
-    this.ruleBands.set(rule?.bands ? [...rule.bands] : []);
-    // Cloned a level deeper than the two tables: a step's figures are themselves a table
-    // or a pair of bounds, and handing the editor the response's own arrays would have it
-    // mutate the loaded snapshot in place.
-    this.ruleStepFigures.set(
-      Object.fromEntries(
-        Object.entries(rule?.stepParams ?? {}).map(([id, figures]) => [
-          id,
-          {
-            ...figures,
-            ...(figures.keyTable ? { keyTable: figures.keyTable.map((row) => ({ ...row })) } : {}),
-            ...(figures.bands ? { bands: figures.bands.map((band) => ({ ...band })) } : {}),
-          },
-        ]),
-      ),
-    );
-    this.ruleTouched.set(false);
-    this.ruleDirty.set(false);
-  }
-
-  /**
-   * A product rule's structure, as stored on this name.
-   *
-   * The catalog variant renders it read-only: the pipeline is what an operator needs to
-   * UNDERSTAND the product and to know which figures its banks must fill, and authoring one —
-   * adding a step, wiring a reference — is still an API or seed action. Stated in the section's
-   * own note rather than left for the operator to discover by finding no Add button.
-   */
-  /**
-   * The rule this page RENDERS — the product's when the name links to one, else the name's.
-   *
-   * A linked name carries NULL in its own `incomeRule` (that is what makes the link a link
-   * rather than a fork), so reading only `incomeRule` here would render every collateral
-   * name as a product with no calculation at all.
-   */
-  private readonly effectiveRule = computed<IncomeAssumptionConfig | null>(() =>
-    catalogRuleOf(this.rule()),
-  );
-
-  /** True when no loan type sells this name without a payslip. */
-  protected readonly payslipOnly = computed(() => {
-    const n = this.name();
-    return n !== null && !Object.values(n.bases).some((b) => b.includes('no_payslip'));
-  });
-
-  /** The product key this name links to, or `null` when it states its own rule. */
-  protected readonly linked = computed<string | null>(
-    () => this.rule()?.surrogateProduct?.key ?? null,
-  );
-
-  /** The product's name in the operator's language, for the linked notice. */
-  protected readonly productLabel = computed(() => {
-    const p = this.rule()?.surrogateProduct;
-    if (!p) return '';
-    return this.isAr ? p.labelAr : p.labelEn;
-  });
-
-  protected readonly ruleSteps = computed<readonly RuleStep[]>(
-    () => this.effectiveRule()?.steps ?? [],
-  );
-  protected readonly ruleGates = computed<readonly RuleGate[]>(
-    () => this.effectiveRule()?.gates ?? [],
-  );
-  protected readonly ruleOutput = computed<ProductRuleOutput | null>(
-    () => this.effectiveRule()?.output ?? null,
-  );
-
-  /**
-   * Save the rule, or refuse locally first.
-   *
-   * The client-side check is the SAME `incomeRuleHasError` the wizard's save gate uses.
-   * It is not a second opinion: it exists so a duplicate key or a gapped band table is
-   * answered instantly and in place, instead of costing a round trip to be told the same
-   * thing. Everything the server refuses that the client cannot know — the proof being
-   * in use, a key the registry has retired — comes back as `ruleError`.
-   */
-  protected async saveRule(): Promise<void> {
-    const strategy = this.ruleGroup.controls.strategy.value;
-    const local = incomeRuleHasError({
-      // A pipeline's figures are its banks' — `incomeRuleHasError` returns `false` for it, and
-      // the server validates a catalog rule with `figuresRequired: false` for the same reason.
-      shape: incomeMethodShape(strategy, this.factsForShape()),
-      keyTable: this.ruleKeyTable(),
-      bands: this.ruleBands(),
-      scalarValue: this.ruleGroup.controls.scalar.controls.value.value,
-      isValueMethod: strategy === 'byCDValue' || strategy === 'byTotalDeposits',
-    });
-    if (local) {
-      this.ruleError.set($localize`:@@pnd.rule_invalid:Check the amounts below before saving.`);
-      return;
-    }
-
-    this.ruleSaving.set(true);
-    this.ruleError.set(null);
-    try {
-      const { data } = await this.programsApi.setProgramNameIncomeRule(this.routeKey(), {
-        incomeRule: this.ruleFromForm(strategy),
-        // `valueSources` is OMITTED, deliberately. This screen has no control that marks a
-        // figure, so it has nothing to say about markers — and saying `{}` said something
-        // false: the server read it as "the full set is empty" and deleted every
-        // team-estimated marker on the name, on a save about an unrelated figure, with no
-        // control on this page able to put them back. Absent means "not touching them".
-      });
-      this.absorbRule(data);
-    } catch (err) {
-      this.ruleError.set(this.localizedError(err));
-    } finally {
-      this.ruleSaving.set(false);
-    }
-  }
-
-  /**
-   * The form → the wire shape, carrying ONLY the selected method's figures.
-   *
-   * Shape-gated rather than "send everything and let the server strip it": the operator
-   * may have typed a band table, switched to a key method and typed that too, and
-   * sending both would make the stored blob disagree with the screen.
-   */
-  private ruleFromForm(strategy: IncomeAssumptionStrategy): IncomeAssumptionConfig {
-    const shape = incomeMethodShape(strategy, this.factsForShape());
-    const scalar = this.ruleGroup.controls.scalar.getRawValue();
-    return {
-      strategy,
-      ...(shape === 'keyTable' ? { keyTable: this.ruleKeyTable() } : {}),
-      ...(shape === 'bands' ? { bands: this.ruleBands() } : {}),
-      ...(shape === 'scalar' && scalar.value
-        ? { scalar: { value: scalar.value, unit: scalar.unit } }
-        : {}),
-      // A pipeline's DEFAULT figures. Sent under the same shape gate as the other three,
-      // so switching a name off a pipeline does not carry its step figures along.
-      //
-      // The STRUCTURE is deliberately not sent: `steps`/`gates`/`output` are what the
-      // catalog already stores and this screen cannot author, so re-posting the copy it
-      // rendered would make the save able to destroy the very thing it is editing.
-      // Omitted entirely when empty, because `{}` on the wire is a rule that offers no
-      // defaults, not a rule that leaves them untouched.
-      ...(shape === 'steps' && Object.keys(this.ruleStepFigures()).length > 0
-        ? { stepParams: this.ruleStepFigures() }
-        : {}),
-    };
-  }
-
   /**
    * A rejection → the shared error-code vocabulary. Never a per-component English
-   * string for a code the backend also reports (A22): the refusals here are the same
-   * ones a bank program's save raises, so the operator reads one message per problem
-   * whichever screen surfaced it.
+   * string for a code the backend also reports (A22).
    */
   private localizedError(err: unknown): string {
     const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })?.error;
@@ -1693,16 +1005,6 @@ export class ProgramNameDetailPage implements OnInit {
       (envelope?.code ?? 'INTERNAL_ERROR') as Parameters<ErrorCodeService['toLocalizedMessage']>[0],
       envelope?.meta,
     );
-  }
-
-  /**
-   * The fact registry, for deriving a `fact:` method's editor shape.
-   *
-   * Read through the same service the editor uses, so the shape this page sends and the
-   * shape the editor rendered can never come from two different registries.
-   */
-  private factsForShape(): ReturnType<typeof registryFacts> {
-    return registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr);
   }
 
   // --- State plumbing --------------------------------------------------------

@@ -1004,8 +1004,13 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       {
         kind: 'choice',
         factKey: 'employer_coding',
+        // The English wording is this question's IDENTITY here: a `choice` ask finds its
+        // question by `slugify(questionEn)` = `how_is_your_employer_coded_at_the_bank`.
+        // Reword it and every seed run plans a second question. The live title was
+        // simplified by migration 20261014120000 ("Which class does the bank put your
+        // employer in?"); only a fresh install shows this English until an admin edits it.
         questionEn: 'How is your employer coded at the bank?',
-        questionAr: 'كيف تصنّف جهة عملك في البنك؟',
+        questionAr: 'ما فئة جهة عملك لدى البنك؟',
         helperEn: 'Your bank can tell you. Leave it if you do not know.',
         helperAr: 'يمكن للبنك إخبارك. اتركه إذا لم تكن متأكدًا.',
         // The ONE loan type that reads it. This said all four, which is what put

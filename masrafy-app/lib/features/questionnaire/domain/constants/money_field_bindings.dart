@@ -49,7 +49,7 @@ const List<String> kMoneyFieldQuestionCodes = [
 
 /// The MULTI_SELECT whose picks decide which amount questions are asked.
 ///
-/// The pool's PRE-EXISTING "Do you pay back any loans right now?" — not a new
+/// The pool's PRE-EXISTING "Do you have any loans or credit cards now?" — not a new
 /// question. Option codes are that question's own (note `credit_cards`, plural).
 const String kDebtTypesQuestion = 'current_loans';
 
