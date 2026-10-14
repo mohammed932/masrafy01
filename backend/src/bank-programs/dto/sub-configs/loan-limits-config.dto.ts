@@ -176,11 +176,29 @@ export class MaxLoanByFactDto {
  * (`20260815140000_drop_currency`).
  */
 export class LoanLimitsConfigDto {
+  /**
+   * ABSENT means "this bank states no size of its own — read the surrogate product's"
+   * (`effectiveLoanAmounts`). A figure means this bank's own, and the bank's own always
+   * wins.
+   *
+   * `@ValidateIf` rather than `@IsOptional()`, for the reason `TenorConfigDto.minMonths`
+   * gives: `@IsOptional()` skips `null` as well as absent, so `null` would slip the pipe
+   * and land in the column as a stored non-amount. The program save is a full replacement,
+   * so absent already IS the clear, which makes `null` meaningless and refusing it honest.
+   *
+   * BOTH AMOUNTS OR NEITHER. A floor read off the product and a ceiling typed by the bank
+   * is a range neither of them stated, so `validateRanges` refuses a half-stated pair — and
+   * it refuses both blank when no product stands behind the program's catalog name, because
+   * a loan with no size cannot be quoted.
+   */
+  @ValidateIf((_, value) => value !== undefined)
   @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
-  minAmountEGP!: string;
+  minAmountEGP?: string;
 
+  /** Absent means "read the product's" — see `minAmountEGP`. */
+  @ValidateIf((_, value) => value !== undefined)
   @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
-  maxAmountEGP!: string;
+  maxAmountEGP?: string;
 
   @IsOptional()
   @IsArray()

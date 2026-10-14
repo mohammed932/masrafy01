@@ -18,6 +18,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:reset": "prisma migrate reset",
     "prisma:seed": "tsx prisma/seed.ts",
     "seed:demo": "tsx prisma/seed-demo.ts",
     "seed:banks": "tsx prisma/seed-banks.ts",
@@ -39,9 +40,14 @@
     "blueprint:retemplate": "node dist/bank-programs/blueprints/blueprint-retemplate.command.js",
     "check:conditions": "tsx scripts/check-sheet-conditions.ts",
     "quote:surrogate": "tsx scripts/quote-surrogate-programmes.ts",
+    "quote:iscore": "tsx scripts/quote-iscore.ts",
     "quote:rates": "tsx scripts/quote-rates.ts",
+    "check:money": "tsx scripts/check-money-bindings.ts",
     "check:question-scope": "tsx scripts/check-question-scope.ts",
-    "quote:car-plans": "tsx scripts/quote-car-plans.ts"
+    "check:questionnaire": "tsx scripts/check-questionnaire-integrity.ts",
+    "quote:car-plans": "tsx scripts/quote-car-plans.ts",
+    "quote:car-insurance": "tsx scripts/quote-car-insurance.ts",
+    "quote:cae-auto": "tsx scripts/quote-cae-auto.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",

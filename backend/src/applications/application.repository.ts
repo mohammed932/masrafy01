@@ -91,6 +91,14 @@ export interface CreateBankOfferInput {
    */
   incomeOrigin?: string | null;
   incomeSurrogateStrategy?: string | null;
+  /**
+   * The I-SCORE MULTIPLIER this offer was priced at, and whose tier table produced it.
+   * Written ONCE at creation and never updated, for the reason the two above are: the
+   * tiers are stated per product and overridden per bank, and either can be retyped.
+   * `null` = no table was in force or the applicant gave no score — NOT `100`.
+   */
+  iScoreFactorPercent?: Decimal | null;
+  iScoreTiersSource?: string | null;
   /** The collateral ceiling a product rule derived, frozen with the rest. */
   collateralCeilingEGP?: Decimal | null;
   /** Which reduction decided the amount, frozen with the rest. */

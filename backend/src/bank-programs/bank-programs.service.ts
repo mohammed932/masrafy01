@@ -21,7 +21,10 @@ import { ProductAsksRepository } from './asks/product-asks.repository';
 import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductCapDefaultsDto,
+  SetSurrogateProductLoanAmountDefaultsDto,
+  SetSurrogateProductRateDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
+  SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
   type ProgramNameIncomeRuleResponseDto,
@@ -39,6 +42,8 @@ import {
   DerivationArithmeticMismatchException,
   MaxLoanByFactInvalidException,
   SurrogateProductNoCapException,
+  SurrogateProductLoanAmountsInUseException,
+  SurrogateProductRateInUseException,
   SurrogateProductTenorInUseException,
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
@@ -59,6 +64,7 @@ import {
   FactGridInvalidException,
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
+  BankProgramNameTakenException,
   ProgramNameKeyNotInCategoryException,
   ProgramNameIncomeProofMismatchException,
   ProgramNameIncomeProofMissingException,
@@ -99,6 +105,7 @@ import { validateFactGrid } from './validation/fact-grid.validator';
 import type { FactGridConfig } from '@/matching/pipeline/fact-grid';
 import {
   catalogIncomeRulePaths,
+  catalogIScoreDefaultsPaths,
   catalogPlanDefaultsPaths,
   estimatedPaths,
   newlyEstimatedPaths,
@@ -112,6 +119,7 @@ import {
   collectIncomeRuleWarnings,
   stripForeignMethodConfig,
   validateIncomeRule,
+  validateIScoreTiers,
   type IncomeRuleValidationContext,
   type IncomeRuleViolation,
   type IncomeRuleWarning,
@@ -126,7 +134,14 @@ import {
 } from './validation/max-loan-by-fact.validator';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
+import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
+import { effectiveRate } from '@/matching/pipeline/rate-inherit';
+import type { RateDefaults, StoredPricing } from '@/matching/pipeline/rate-inherit';
 import {
+  catalogIScoreOf,
+  catalogLoanAmountsOf,
+  catalogPlansOf,
+  catalogRateOf,
   catalogRuleOf,
   catalogTenorOf,
   dropClearedPolicy,
@@ -138,7 +153,8 @@ import {
   type CatalogRuleResolution,
 } from '@/matching/pipeline/income-rule-inherit';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
-import { plansSourceOf } from '@/matching/pipeline/plan-inherit';
+import type { IScoreTiers } from '@/matching/pipeline/iscore';
+import { inheritsProductPlans, plansSourceOf } from '@/matching/pipeline/plan-inherit';
 import {
   compileTemplate,
   validateTemplate,
@@ -191,6 +207,11 @@ import { stableJson } from '../common/stable-json.util';
  */
 const DRAFT_PROGRAM_SENTINEL = '(draft)';
 
+/** `allowSharedName`: skip the one-program-per-name-per-bank check. The sheet seed only. */
+interface NameAtBankOptions {
+  allowSharedName?: boolean;
+}
+
 @Injectable()
 export class BankProgramsService {
   constructor(
@@ -215,6 +236,7 @@ export class BankProgramsService {
   async create(
     dto: CreateBankProgramDto,
     actor: { id: string; sourceIp: string | null },
+    opts: NameAtBankOptions = {},
   ): Promise<BankProgramResponseDto> {
     // Fail-closed registry availability check.
     if (!(await this.enums.isAvailable())) {
@@ -243,6 +265,14 @@ export class BankProgramsService {
     const existing = await this.repo.findByProgramCode(programCode);
     if (existing) {
       throw new ProgramCodeAlreadyInUseException(programCode);
+    }
+    if (!opts.allowSharedName) {
+      await this.assertNameFreeAtBank({
+        bankId: dto.bankId ?? null,
+        bankName: dto.bankName,
+        productCategory: dto.productCategory,
+        programNameKey: dto.programNameKey,
+      });
     }
 
     // The EFFECTIVE rule — the bank's figures under the catalog's structure — because a
@@ -379,6 +409,14 @@ export class BankProgramsService {
       // Same grandfather rule as `update()`: a straight copy that keeps the
       // source's name and category is not moving anything.
       skipProgramNameCategoryCheck: programNameKey === source.programNameKey,
+    });
+    // The copy sits at the same bank in the same loan type, so a straight copy that keeps the
+    // source's name is exactly the second program under one name this refuses.
+    await this.assertNameFreeAtBank({
+      bankId: source.bankId,
+      bankName: source.bankName,
+      productCategory: source.productCategory,
+      programNameKey,
     });
 
     const program = await this.prisma.$transaction(async (tx) => {
@@ -528,7 +566,19 @@ export class BankProgramsService {
         );
       }
     } else {
-      if (!baseRatePercent || baseRatePercent.length === 0) {
+      if (
+        (!baseRatePercent || baseRatePercent.length === 0) &&
+        !this.aRateGridPrices(dto, catalogResolution) &&
+        catalogRateOf(catalogResolution) === undefined
+      ) {
+        // THE PRODUCT'S PRICE IS AN ANSWER, which is the arm this check grew when the rate
+        // card was deleted from the wizard (v30.4.0). A program under a name whose product
+        // states a rate is priced by it — `effectiveRate` merges it into the snapshot before
+        // the cascade runs — so demanding a figure here would be demanding one the engine
+        // never reads, the same defect `aRateGridPrices` beside it exists to stop.
+        //
+        // It is NOT relaxed into "a linked product exists": a product that states no rate
+        // leaves the program unpriceable, and that is exactly what this refusal is for.
         throw new InvalidVariableRateConfigurationException(
           'baseRate',
           'baseRate is REQUIRED when isVariableRate=false',
@@ -574,6 +624,8 @@ export class BankProgramsService {
     // this program sits under.
     const rangeViolation = validateRanges(dto, {
       productStatesTenor: catalogTenorOf(opts.catalogResolution) !== undefined,
+      // The SIZE, on the same terms and read off the same resolution.
+      productStatesLoanAmounts: catalogLoanAmountsOf(opts.catalogResolution) !== undefined,
     });
     if (rangeViolation) {
       throw new ProgramRangeInvalidException(rangeViolation);
@@ -674,8 +726,14 @@ export class BankProgramsService {
       [dto.pricing?.rateByFact, 'pricing.rateByFact', 'ratePercent'],
       [dto.tenor?.maxMonthsByFact, 'tenor.maxMonthsByFact', 'months'],
       [dto.tenor?.minMonthsByFact, 'tenor.minMonthsByFact', 'months'],
+      [dto.tenor?.maxVehicleAgeYearsByFact, 'tenor.maxVehicleAgeYearsByFact', 'years'],
       [dto.loanLimits?.ltvCeilingByFact, 'loanLimits.ltvCeilingByFact', 'sharePercent'],
       [dto.loanLimits?.minAmountByFact, 'loanLimits.minAmountByFact', 'amountEGP'],
+      // Comprehensive cover on the car, a percent of the car's PRICE per policy year.
+      // `'sharePercent'` and not `'ratePercent'` for the reason the financed share above is:
+      // this is a share of a price, and a 999.9999 ceiling would accept a premium nobody can
+      // check by eye onto a figure a customer is shown.
+      [dto.fees?.carInsuranceRateByFact, 'fees.carInsuranceRateByFact', 'sharePercent'],
     ] as const;
     // The option codes of every axis a grid names, looked up ONCE. Needed for the
     // unknown-key check: a mistyped option code saves cleanly and then matches nobody.
@@ -719,6 +777,29 @@ export class BankProgramsService {
       throw new DeprecatedEnumerationKeyException({
         enumerationType: result.deprecatedKey.enumerationType,
         deprecatedKey: result.deprecatedKey.key,
+      });
+    }
+  }
+
+  /**
+   * ONE program per catalog name, per loan type, per bank. Two programs a bank sells under one
+   * name quote side by side under one title, and nothing on the card says which is which —
+   * almost always an operator who pressed Add twice. The sheet seed opts out
+   * (`allowSharedName`): a few banks really do print two products under one name.
+   */
+  private async assertNameFreeAtBank(args: {
+    bankId: string | null;
+    bankName: string;
+    productCategory: string;
+    programNameKey: string;
+    exceptProgramCode?: string;
+  }): Promise<void> {
+    const taken = await this.repo.findSameNameAtBank(args);
+    if (taken !== null) {
+      throw new BankProgramNameTakenException({
+        programNameKey: args.programNameKey,
+        productCategory: args.productCategory,
+        existingProgramCode: taken.programCode,
       });
     }
   }
@@ -1150,6 +1231,15 @@ export class BankProgramsService {
     extra: {
       warnings?: Array<{ code: string; meta?: Record<string, unknown> }>;
       deactivatedByEstimate?: boolean;
+      /**
+       * The product's rate, for the screens that read this program back. Passed in rather
+       * than looked up here because this mapper is sync and is called inside a transaction
+       * on three of its five paths; the READ that renders a price is the one that fetches it.
+       */
+      productRate?: RateDefaults | null;
+      /** The product's I-Score tiers, on exactly the terms `productRate` above is passed. */
+      productIScoreTiers?: IScoreTiers | null;
+      platformIScoreTiers?: IScoreTiers | null;
     } = {},
   ): BankProgramResponseDto {
     return {
@@ -1189,6 +1279,16 @@ export class BankProgramsService {
       ) as unknown as Record<string, unknown>,
       fees: program.fees as Record<string, unknown>,
       valueSources: (program.valueSources ?? {}) as Record<string, 'team_estimated'>,
+      // Beside `pricing` and never merged into it — see the field's own doc. Absent when the
+      // caller did not look it up, which is every write path: a save already knows what it
+      // sent, and the screens that render a price are reads.
+      ...(extra.productRate === undefined ? {} : { productRate: extra.productRate }),
+      ...(extra.productIScoreTiers === undefined
+        ? {}
+        : { productIScoreTiers: extra.productIScoreTiers }),
+      ...(extra.platformIScoreTiers === undefined
+        ? {}
+        : { platformIScoreTiers: extra.platformIScoreTiers }),
       deprecatedKeys,
       warnings: extra.warnings ?? [],
       ...(extra.deactivatedByEstimate ? { deactivatedByEstimate: true } : {}),
@@ -1217,15 +1317,28 @@ export class BankProgramsService {
       acceptedEmploymentType: query.employmentType,
     });
 
+    // Every catalog name's resolution, read ONCE for the page rather than per row: the rate
+    // column is resolved through the product for any programme that states none of its own,
+    // and a lookup inside the map below would be a query per row.
+    const catalogRules = await this.enums.programNameIncomeRules();
+
     // Compute deprecated-key count per row in parallel.
     const enriched = await Promise.all(
       rows.map(async (r) => {
         const deprecatedKeyCount = await this.countDeprecatedKeys(r);
-        const pricing = r.pricing as {
-          isVariableRate?: boolean;
-          baseRatePercent?: string;
-          currentEffectiveRatePercent?: string;
-        };
+        // RESOLVED, not raw: since the wizard stopped asking for a rate, a raw read would
+        // print an empty rate column for every programme priced by its product. The same
+        // function the engine prices with, so the list and the quote cannot disagree.
+        const pricing = effectiveRate(
+          r.pricing as unknown as StoredPricing | undefined,
+          r.programNameKey === null ? undefined : catalogRateOf(catalogRules.get(r.programNameKey)),
+        ) as
+          | {
+              isVariableRate?: boolean;
+              baseRatePercent?: string;
+              currentEffectiveRatePercent?: string;
+            }
+          | undefined;
         return {
           id: r.id,
           programCode: r.programCode,
@@ -1264,7 +1377,29 @@ export class BankProgramsService {
     // possibly months ago. The admin has to see it when they open the program,
     // before a customer meets it.
     const warnings = await this.incomeRuleReadWarnings(program);
-    return this.toResponse(program, deprecatedKeys, { warnings });
+    // What this programme is PRICED at, for the detail screen: its own rate when it states
+    // one, and otherwise the product's, which is where every programme created since the
+    // wizard's rate card was deleted gets its price. Read here rather than merged into
+    // `pricing`, which the form posts back.
+    // The I-Score tiers ride beside it for the same reason: a programme that states no table
+    // of its own is scored on the product's, and the detail screen has to say so rather than
+    // print "none" over a table the engine is applying. One resolution serves both.
+    const catalog =
+      program.programNameKey === null
+        ? undefined
+        : await this.catalogResolutionFor(program.programNameKey);
+    const productRate = catalogRateOf(catalog) ?? null;
+    const productIScoreTiers = catalogIScoreOf(catalog) ?? null;
+    // The shared table — the I-Score classes on Manage values — is the last fallback, and the
+    // screens need it for the same reason as the product's: a program that states nothing is
+    // scored on it, and "none" would be a lie.
+    const platformIScoreTiers = (await this.enums.platformIScoreTiers()) ?? null;
+    return this.toResponse(program, deprecatedKeys, {
+      warnings,
+      productRate,
+      productIScoreTiers,
+      platformIScoreTiers,
+    });
   }
 
   /**
@@ -1354,6 +1489,7 @@ export class BankProgramsService {
     programCode: string,
     dto: UpdateBankProgramDto,
     actor: { id: string; sourceIp: string | null },
+    opts: NameAtBankOptions = {},
   ): Promise<BankProgramResponseDto> {
     if (!(await this.enums.isAvailable())) {
       throw new EnumerationRegistryUnavailableException();
@@ -1366,6 +1502,23 @@ export class BankProgramsService {
     const existing = await this.repo.findByProgramCode(programCode);
     if (!existing) {
       throw new BankProgramNotFoundException({ programCode });
+    }
+    // Same posture as the catalog-assignment check: only a program MOVED onto a name the bank
+    // already sells is refused. A pair that predates the rule keeps saving untouched.
+    const bankId = dto.bankId ?? existing.bankId;
+    if (
+      !opts.allowSharedName &&
+      (dto.programNameKey !== existing.programNameKey ||
+        dto.productCategory !== existing.productCategory ||
+        bankId !== existing.bankId)
+    ) {
+      await this.assertNameFreeAtBank({
+        bankId,
+        bankName: dto.bankName,
+        productCategory: dto.productCategory,
+        programNameKey: dto.programNameKey,
+        exceptProgramCode: existing.programCode,
+      });
     }
     const catalogResolution = await this.catalogResolutionFor(
       dto.programNameKey ?? existing.programNameKey,
@@ -1805,6 +1958,7 @@ export class BankProgramsService {
       readsFactKeys: wayFactKeysOf(p.templateSpec),
       usedBy: p.usedBy,
       capPrograms: capUsage.get(p.key) ?? [],
+      capOnly: isCapOnlyProductKey(p.key),
     }));
   }
 
@@ -1877,6 +2031,9 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        ownIScoreTiers: p.ownIScoreTiers,
+        ownLoanAmounts: p.ownLoanAmounts,
+        ownRate: p.ownRate,
         followsPlans: p.followsPlans,
       })),
     }));
@@ -1892,6 +2049,7 @@ export class BankProgramsService {
       readsFactKeys: wayFactKeysOf(row.templateSpec),
       usedBy: nameKeys,
       capPrograms: (await this.capUsageByProduct()).get(row.key) ?? [],
+      capOnly: isCapOnlyProductKey(row.key),
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
       // The same two fields the catalog name's response carries, from the same resolver and
       // the same column — this is the screen that AUTHORS the amounts, so it has to be able
@@ -1903,7 +2061,17 @@ export class BankProgramsService {
       // copied once at create and the other is read live, and a reader of this response has
       // to be able to tell which.
       tenorDefaults: row.tenorDefaults,
+      // The SIZE it hands them, on the same terms as the duration above: read live, not
+      // copied, and a reader has to be able to tell it from `capDefaults`.
+      loanAmountDefaults: row.loanAmountDefaults,
+      // The PRICE it hands them, on the same terms as the size above — and the only place
+      // most programmes under it are priced from, since the wizard stopped asking.
+      rateDefaults: row.rateDefaults,
       planDefaults: row.planDefaults,
+      // The TIERS it hands them, beside the duration and on the same terms: read live, so a
+      // change here moves every program that states none of its own. This is the screen that
+      // states them, so it renders what it is handing out.
+      iScoreDefaults: row.iScoreDefaults,
       template: row.templateSpec,
       valueSources: row.valueSources,
       names,
@@ -1981,6 +2149,7 @@ export class BankProgramsService {
       rule,
       row.incomeRule,
       row.planDefaults,
+      row.iScoreDefaults,
     );
 
     // ADVANCED IS ONE-WAY, and this is where it happens.
@@ -2213,6 +2382,296 @@ export class BankProgramsService {
   }
 
   /**
+   * Is every applicant this program quotes priced by a rate TABLE rather than by the flat
+   * base rate?
+   *
+   * What this exists to stop: a flat rate that can never price anything being demanded
+   * anyway. `auto_down_payment_income` prices from `rateByFact` — 10/9/8/7/6 by the deposit,
+   * and `onNoMatch: 'reject'` — so the cascade reaches `baseRatePercent` for nobody, and the
+   * old unconditional check forced the operator to type a figure with no effect on any
+   * quote. A number an operator curates and that moves nothing is the defect this codebase
+   * deletes on sight; requiring one is the same defect with a 422 in front of it.
+   *
+   * BOTH HALVES ARE LOAD-BEARING, and neither is enough alone:
+   *
+   *  - A grid must APPLY. Its own (`pricing.rateByFact`), or the product's when this program
+   *    reads the product's plans — which is exactly what `effectivePlanPricing` merges, read
+   *    here off the same resolution the duration and the size are checked against, so the
+   *    save path and the engine cannot disagree about which table prices this program.
+   *
+   *  - That grid must REFUSE on no-match. `useFallback` hands an unmatched applicant back to
+   *    the rest of the pricing cascade, which ends at `baseRatePercent` — so a blank one
+   *    there is not "priced by the table", it is a quote that reaches `PROGRAM_MISCONFIGURED`
+   *    for whoever the table does not cover. Only `reject` guarantees the flat rate is
+   *    unreachable, and it is a STATED refusal (`NO_RATE_FOR_ANSWER`) rather than a silence.
+   */
+  private aRateGridPrices(
+    dto: CreateBankProgramDto | UpdateBankProgramDto,
+    catalogResolution: CatalogRuleResolution | undefined,
+  ): boolean {
+    const own = dto.pricing.rateByFact;
+    const grid =
+      own ??
+      (inheritsProductPlans(dto.plansSource)
+        ? catalogPlansOf(catalogResolution)?.rateByFact
+        : undefined);
+    return grid?.onNoMatch === 'reject';
+  }
+
+  /**
+   * Set (or clear, with `null`) a surrogate product's default loan size.
+   *
+   * The sibling of `setSurrogateProductTenorDefaults` above, on the same terms and with the
+   * same one refusal: a CHANGE is free and moves every inheriting program, a CLEAR would
+   * leave them with no size at all, which cannot be quoted — so it is refused and the
+   * programs are NAMED, which is what makes "give each of them its own amounts first"
+   * something an operator can act on.
+   *
+   * Counted across every program under this product's names, not only the surrogate ones:
+   * a catalog name can carry both kinds, and each stores a `loanLimits`.
+   */
+  async setSurrogateProductLoanAmountDefaults(
+    key: string,
+    dto: SetSurrogateProductLoanAmountDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored: LoanAmountDefaults | null =
+      dto.loanAmounts === null
+        ? null
+        : {
+            minAmountEGP: dto.loanAmounts.minAmountEGP,
+            maxAmountEGP: dto.loanAmounts.maxAmountEGP,
+          };
+
+    // Inverted is refused here as well as on a bank program's own save: both amounts are in
+    // range individually and the DTO cannot compare them, and a product stating 3,000,000 to
+    // 1,000,000 would hand every program under it a range that can never lend. Compared as
+    // Decimals, never as numbers or strings — '900000' > '1000000' is TRUE lexically.
+    if (stored !== null) {
+      const min = new Decimal(stored.minAmountEGP);
+      const max = new Decimal(stored.maxAmountEGP);
+      if (max.lessThanOrEqualTo(0) || min.greaterThan(max)) {
+        throw new ProgramRangeInvalidException({
+          field: 'loanAmountDefaults',
+          min: stored.minAmountEGP,
+          max: stored.maxAmountEGP,
+        });
+      }
+    }
+
+    if (stored === null && row.loanAmountDefaults !== null) {
+      const inheriting = await this.enums.programsInheritingLoanAmounts(key);
+      if (inheriting.length > 0) {
+        throw new SurrogateProductLoanAmountsInUseException({
+          count: inheriting.length,
+          // Capped for a person to read, exactly as the duration's refusal caps it.
+          programCodes: inheriting.slice(0, 20),
+        });
+      }
+    }
+
+    const saved = await this.enums.setSurrogateProductLoanAmountDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full, for the reason the duration logs both: two figures that
+        // move live quotes, and the log must answer "what were they yesterday" on its own.
+        changes: {
+          loanAmountDefaults: {
+            before: row.loanAmountDefaults,
+            after: stored,
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * Set (or clear, with `null`) a surrogate product's default INTEREST RATE.
+   *
+   * The third sibling of the two above, on the same terms and with the same one refusal: a
+   * CHANGE is free and re-prices every program that states none, a CLEAR would leave them
+   * with no price at all, which cannot be quoted — so it is refused and the programs are
+   * NAMED.
+   *
+   * It is also the SCREEN a price is typed on now. The bank-program wizard's rate card was
+   * deleted, so for every programme under this product that states nothing, this is the one
+   * place the figure exists.
+   *
+   * THE CROSS-FIELD RULE IS THE PROGRAM'S OWN, deliberately reusing
+   * `InvalidVariableRateConfigurationException`: a product that states a variable rate with
+   * no effective figure, or a fixed one with both boxes filled, would hand every program
+   * under it a price the cascade cannot read. One rule, one exception, both sides.
+   *
+   * Counted across every program under this product's names, not only the surrogate ones: a
+   * catalog name can carry both kinds, and each stores a `pricing`.
+   */
+  async setSurrogateProductRateDefaults(
+    key: string,
+    dto: SetSurrogateProductRateDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored: RateDefaults | null =
+      dto.rate === null
+        ? null
+        : {
+            isVariableRate: dto.rate.isVariableRate,
+            ...(dto.rate.baseRatePercent === undefined
+              ? {}
+              : { baseRatePercent: dto.rate.baseRatePercent }),
+            ...(dto.rate.currentEffectiveRatePercent === undefined
+              ? {}
+              : { currentEffectiveRatePercent: dto.rate.currentEffectiveRatePercent }),
+            ...(dto.rate.variableRateNote === undefined
+              ? {}
+              : { variableRateNote: dto.rate.variableRateNote }),
+            ...(dto.rate.rateBasis === undefined ? {} : { rateBasis: dto.rate.rateBasis }),
+          };
+
+    if (stored !== null) {
+      const filled = (value: string | undefined): boolean => value !== undefined && value !== '';
+      if (stored.isVariableRate) {
+        if (!filled(stored.currentEffectiveRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'currentEffectiveRate',
+            'currentEffectiveRate is REQUIRED when isVariableRate=true',
+          );
+        }
+        if (filled(stored.baseRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'baseRate',
+            'baseRate MUST be empty when isVariableRate=true',
+          );
+        }
+      } else {
+        if (!filled(stored.baseRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'baseRate',
+            'baseRate is REQUIRED when isVariableRate=false',
+          );
+        }
+        if (filled(stored.currentEffectiveRatePercent)) {
+          throw new InvalidVariableRateConfigurationException(
+            'currentEffectiveRate',
+            'currentEffectiveRate MUST be empty when isVariableRate=false',
+          );
+        }
+      }
+    }
+
+    if (stored === null && row.rateDefaults !== null) {
+      const inheriting = await this.enums.programsInheritingRate(key);
+      if (inheriting.length > 0) {
+        throw new SurrogateProductRateInUseException({
+          count: inheriting.length,
+          // Capped for a person to read, exactly as the duration's refusal caps it.
+          programCodes: inheriting.slice(0, 20),
+        });
+      }
+    }
+
+    const saved = await this.enums.setSurrogateProductRateDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full, for the reason the duration logs both — and with one more
+        // behind it: this is a PRICE, and the log has to answer "what were we quoting
+        // yesterday" without a second lookup.
+        changes: {
+          rateDefaults: {
+            before: row.rateDefaults,
+            after: stored,
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * Set (or clear, with `null`) a surrogate product's default I-SCORE TIER TABLE.
+   *
+   * NO CLEAR REFUSAL, on exactly the reasoning `setSurrogateProductPlanDefaults` below
+   * states: a cleared duration leaves an inheriting program with NO term and it cannot be
+   * priced at all, where cleared tiers leave it multiplying by 100% — which is a priceable
+   * quote and was the answer for every program on this platform before v26.2.0. Nothing
+   * stops quoting, so refusing would be a gate over a state that is merely a change.
+   *
+   * It IS a change that moves live figures, though, for every program under this product
+   * that states no tiers of its own — up to −20% at a score under 550 and +10% over 700 on
+   * the seeded illustration. That is the operator's explicit live-inheritance decision, and
+   * what this method owes it is the audit record below (before AND after, in full) and the
+   * reach count the screen shows before the save.
+   *
+   * Validated through `validateIScoreTiers`, the SAME authority a bank program's own table
+   * runs through, so a table cannot be accepted by one door and refused by the other. That
+   * is where `coverAll` lives: a tier table must start at 0 and leave its top open, because
+   * a score it misses would multiply by a figure the operator never typed.
+   */
+  async setSurrogateProductIScoreDefaults(
+    key: string,
+    dto: SetSurrogateProductIScoreDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const stored: IScoreTiers | null =
+      dto.tiers === null ? null : { bands: dto.tiers.bands.map((b) => ({ ...b })) };
+
+    const violation = validateIScoreTiers(stored);
+    if (violation) throw incomeRuleException(violation);
+
+    const saved = await this.enums.setSurrogateProductIScoreDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // BEFORE and AFTER in full, for the reason the duration and the loan size log both:
+        // these figures move live quotes with no refusal in front of them, so the log has to
+        // answer "what were they yesterday" on its own.
+        changes: {
+          iScoreDefaults: {
+            before: row.iScoreDefaults,
+            after: stored,
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
    * The product's default PLAN tables — the rate, the term ceiling, the financed share and
    * the floor every program that opted in reads.
    *
@@ -2244,6 +2703,7 @@ export class BankProgramsService {
         ['minMonthsByFact', 'months'],
         ['ltvCeilingByFact', 'sharePercent'],
         ['minAmountByFact', 'amountEGP'],
+        ['carInsuranceRateByFact', 'sharePercent'],
       ] as const;
       const optionCodes: Record<string, readonly string[]> = {};
       for (const [slot] of slots) {
@@ -2457,6 +2917,7 @@ export class BankProgramsService {
       compiled,
       row.incomeRule,
       row.planDefaults,
+      row.iScoreDefaults,
     );
 
     await this.enums.setSurrogateProductIncomeRule(key, compiled, valueSources, actor.id, template);
@@ -2512,10 +2973,12 @@ export class BankProgramsService {
      * passes `undefined`: a name has no plan tables of its own.
      */
     plans?: unknown,
+    /** The product's stored I-Score tiers — another endpoint's table, exactly like `plans`. */
+    iScore?: unknown,
   ): Record<string, 'team_estimated'> {
     const stating = submittedRaw !== undefined;
     const submitted = submittedRaw ?? stored ?? {};
-    const planPaths = catalogPlanDefaultsPaths(plans);
+    const planPaths = [...catalogPlanDefaultsPaths(plans), ...catalogIScoreDefaultsPaths(iScore)];
     const allowed = new Set([...catalogIncomeRulePaths(rule), ...planPaths]);
     const previously = new Set([...catalogIncomeRulePaths(previousRule), ...planPaths]);
 
@@ -2672,6 +3135,9 @@ export class BankProgramsService {
         bankNameAr: p.bankNameAr,
         ownAmounts: p.ownAmounts,
         ownTenor: p.ownTenor,
+        ownIScoreTiers: p.ownIScoreTiers,
+        ownLoanAmounts: p.ownLoanAmounts,
+        ownRate: p.ownRate,
         followsPlans: p.followsPlans,
       })),
       surrogateProduct:
@@ -2694,7 +3160,17 @@ export class BankProgramsService {
               // its own. The bank wizard renders it read-only in that state and offers to
               // copy it, exactly as it does the product's I-Score tiers.
               tenorDefaults: product.tenorDefaults,
+              // The same, for the SIZE: a program under this name that states no amounts
+              // lends between these, and the wizard renders that state as a statement.
+              loanAmountDefaults: product.loanAmountDefaults,
+              // The PRICE a program under this name is quoted at when it states none of its
+              // own — which is what the wizard renders in place of the rate card it lost.
+              rateDefaults: product.rateDefaults,
               planDefaults: product.planDefaults,
+              // The I-Score TIERS a program under this name falls back to when it states
+              // none. The wizard renders that state as a statement and offers to copy them,
+              // exactly as it does the duration two fields up.
+              iScoreDefaults: product.iScoreDefaults,
             },
     };
   }

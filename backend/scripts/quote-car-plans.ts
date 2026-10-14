@@ -50,6 +50,17 @@ interface Case {
    */
   expectTerm?: number;
   expectBinding?: string;
+  /**
+   * The COVER the card demands at this deposit, per policy year and over the whole loan.
+   *
+   * `null` means "and none is demanded", which is an assertion in its own right and the one
+   * that matters most: the mechanism IS the absent row, so a table that silently started
+   * charging every applicant would show up here and nowhere else. Stated on every case rather
+   * than only the two that carry cover, for the reason the term and the binding above are
+   * asserted rather than printed.
+   */
+  expectInsuranceAnnual: string | null;
+  expectInsuranceTotal?: string | null;
 }
 
 const P = '1000000';
@@ -57,26 +68,26 @@ const BIG = '3000000';
 
 const CASES: Case[] = [
   // deposit band -> rate, and the financed share the amount is capped at.
-  { price: BIG, what: '20% down, owner, petrol', down: '600000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '10', expectMax: '2400000', expectTerm: 60, expectBinding: 'ltv_ceiling' },
-  { price: BIG, what: '25% down, relative owns home', down: '750000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_relative', tenor: 84, expectRate: '10', expectMax: '2400000' },
-  { price: P, what: '35% down, owner', down: '350000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '9', expectMax: '700000', expectTerm: 72, expectBinding: 'ltv_ceiling' },
-  { price: P, what: '45% down, owner', down: '450000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '600000', expectTerm: 84, expectBinding: 'ltv_ceiling' },
-  { price: P, what: '55% down, owner', down: '550000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '7', expectMax: '500000' },
-  { price: P, what: '65% down, owner', down: '650000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '6', expectMax: '400000' },
+  { price: BIG, what: '20% down, owner, petrol', down: '600000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '10', expectMax: '2400000', expectTerm: 60, expectBinding: 'ltv_ceiling' , expectInsuranceAnnual: '30000', expectInsuranceTotal: '150000' },
+  { price: BIG, what: '25% down, relative owns home', down: '750000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_relative', tenor: 84, expectRate: '10', expectMax: '2400000' , expectInsuranceAnnual: '30000', expectInsuranceTotal: '150000' },
+  { price: P, what: '35% down, owner', down: '350000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '9', expectMax: '700000', expectTerm: 72, expectBinding: 'ltv_ceiling' , expectInsuranceAnnual: '10000', expectInsuranceTotal: '60000' },
+  { price: P, what: '45% down, owner', down: '450000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '600000', expectTerm: 84, expectBinding: 'ltv_ceiling' , expectInsuranceAnnual: null },
+  { price: P, what: '55% down, owner', down: '550000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '7', expectMax: '500000' , expectInsuranceAnnual: null },
+  { price: P, what: '65% down, owner', down: '650000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '6', expectMax: '400000' , expectInsuranceAnnual: null },
   // the car-type columns
-  { price: P, what: '35% down, CHINESE car', down: '350000', origin: 'china', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '11', expectMax: '700000' },
-  { price: P, what: '35% down, ELECTRIC car', down: '350000', origin: 'germany', fuel: 'electric', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '700000' },
-  { price: P, what: '35% down, HYBRID car', down: '350000', origin: 'germany', fuel: 'hybrid', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '700000' },
+  { price: P, what: '35% down, CHINESE car', down: '350000', origin: 'china', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: '11', expectMax: '700000' , expectInsuranceAnnual: '10000', expectInsuranceTotal: '60000' },
+  { price: P, what: '35% down, ELECTRIC car', down: '350000', origin: 'germany', fuel: 'electric', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '700000' , expectInsuranceAnnual: '10000', expectInsuranceTotal: '60000' },
+  { price: P, what: '35% down, HYBRID car', down: '350000', origin: 'germany', fuel: 'hybrid', home: 'owned_by_me', tenor: 84, expectRate: '8', expectMax: '700000' , expectInsuranceAnnual: '10000', expectInsuranceTotal: '60000' },
   // a Chinese electric car: origin outranks fuel, stated in the seed.
-  { price: P, what: '35% down, Chinese ELECTRIC (origin wins)', down: '350000', origin: 'china', fuel: 'electric', home: 'owned_by_me', tenor: 84, expectRate: '11', expectMax: '700000' },
+  { price: P, what: '35% down, Chinese ELECTRIC (origin wins)', down: '350000', origin: 'china', fuel: 'electric', home: 'owned_by_me', tenor: 84, expectRate: '11', expectMax: '700000' , expectInsuranceAnnual: '10000', expectInsuranceTotal: '60000' },
   // the band-scoped condition: a renter is refused at 20-30% and priced everywhere else.
-  { price: BIG, what: '25% down, RENTER — refused in that band alone', down: '750000', origin: 'germany', fuel: 'petrol_diesel', home: 'rented_or_other', tenor: 84, expectRate: null, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' },
-  { price: P, what: '65% down, RENTER — priced', down: '650000', origin: 'germany', fuel: 'petrol_diesel', home: 'rented_or_other', tenor: 84, expectRate: '6', expectMax: '400000' },
+  { price: BIG, what: '25% down, RENTER — refused in that band alone', down: '750000', origin: 'germany', fuel: 'petrol_diesel', home: 'rented_or_other', tenor: 84, expectRate: null, expectMax: null, expectReason: 'VEHICLE_NOT_ELIGIBLE' , expectInsuranceAnnual: null },
+  { price: P, what: '65% down, RENTER — priced', down: '650000', origin: 'germany', fuel: 'petrol_diesel', home: 'rented_or_other', tenor: 84, expectRate: '6', expectMax: '400000' , expectInsuranceAnnual: null },
   // Below the lowest tier the sheet prints. The RATE grid refuses first — it is read in the
   // pricing cascade, before the financed share is looked at — so the reason is
   // `NO_RATE_FOR_ANSWER` and not the share's `VEHICLE_NOT_ELIGIBLE`. Both are true and the
   // first one reached is the honest one: this bank states no price for a 15% deposit.
-  { price: P, what: '15% down — below every plan', down: '150000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: null, expectMax: null, expectReason: 'NO_RATE_FOR_ANSWER' },
+  { price: P, what: '15% down — below every plan', down: '150000', origin: 'germany', fuel: 'petrol_diesel', home: 'owned_by_me', tenor: 84, expectRate: null, expectMax: null, expectReason: 'NO_RATE_FOR_ANSWER' , expectInsuranceAnnual: null },
 ];
 
 function profileFor(c: Case): ApplicantProfile {
@@ -145,15 +156,22 @@ async function main(): Promise<void> {
     if (r !== undefined) catalog.set(row.key, r);
   }
 
+  // SCB-CAR-DOWN_PAYMENT, the programme this was written against, was removed on 2026-09-23
+  // with every programme under `auto_down_payment_income`. The card lives on as the PRODUCT's
+  // plan tables; any programme on `plansSource: 'product'` quotes from it. Pass another code
+  // to check that one instead. On CRE-CAR-3743 the two 65%-down cases refuse with
+  // REQUESTED_BELOW_PROGRAM_MIN_AMOUNT: a 400,000 loan is under CRE's own 500,000 floor, a
+  // programme limit and not a plan-table fault, so 11/13 is that programme's correct result.
+  const programCode = process.argv[2] ?? 'CRE-CAR-3743';
   const program = await prisma.bankProgram.findUnique({
-    where: { programCode: 'SCB-CAR-DOWN_PAYMENT' },
+    where: { programCode },
     include: { bank: { select: { isFeatured: true } } },
   });
-  if (program === null) throw new Error('SCB-CAR-DOWN_PAYMENT not found — run seed:sheet-figures');
+  if (program === null) throw new Error(`${programCode} not found`);
   const snapshot = toBankProgramSnapshot(program as unknown as BankProgramRow, catalog);
 
   console.log('# Suez Canal down-payment card — car price 1,000,000');
-  console.log('# case | rate | maxAmount | term | binding | reason | VERDICT');
+  console.log('# case | rate | maxAmount | term | binding | insurance/yr x yrs | reason | VERDICT');
   let failures = 0;
   for (const c of CASES) {
     const out = quoteProgram({ profile: profileFor(c), program: snapshot, skipEligibility: true });
@@ -162,6 +180,13 @@ async function main(): Promise<void> {
     const term = out.ok ? String(out.quote.effectiveTenorMonths) : '-';
     const binding = out.ok ? (out.quote.bindingConstraint ?? '-') : '-';
     const reason = out.ok ? '-' : out.unavailable.reason;
+    // The COVER lines, read off the breakdown the customer is shown rather than recomputed
+    // here — a harness that does the engine's arithmetic a second time proves only that it
+    // agrees with itself.
+    const insAnnual = out.ok ? (out.quote.feesBreakdown.carInsuranceAnnualEGP ?? null) : null;
+    const insTotal = out.ok ? (out.quote.feesBreakdown.carInsuranceTotalEGP ?? null) : null;
+    const insYears = out.ok ? (out.quote.feesBreakdown.carInsuranceYears ?? null) : null;
+    const insShown = insAnnual === null ? 'none' : `${insAnnual} x ${insYears ?? '?'} = ${insTotal ?? '?'}`;
 
     let verdict = 'OK';
     if (c.expectReason !== undefined) {
@@ -177,10 +202,24 @@ async function main(): Promise<void> {
         verdict = `FAIL term expected ${c.expectTerm}`;
       } else if (c.expectBinding !== undefined && binding !== c.expectBinding) {
         verdict = `FAIL binding expected ${c.expectBinding}`;
+      } else if (
+        c.expectInsuranceAnnual === null
+          ? insAnnual !== null
+          : insAnnual === null || !new Decimal(insAnnual).equals(new Decimal(c.expectInsuranceAnnual))
+      ) {
+        verdict = `FAIL insurance/yr expected ${c.expectInsuranceAnnual ?? 'none'}, got ${insAnnual ?? 'none'}`;
+      } else if (
+        c.expectInsuranceTotal !== undefined &&
+        c.expectInsuranceTotal !== null &&
+        (insTotal === null || !new Decimal(insTotal).equals(new Decimal(c.expectInsuranceTotal)))
+      ) {
+        verdict = `FAIL insurance total expected ${c.expectInsuranceTotal}, got ${insTotal ?? 'none'}`;
       }
     }
     if (verdict !== 'OK') failures += 1;
-    console.log(`${c.what} | ${rate} | ${max} | ${term} | ${binding} | ${reason} | ${verdict}`);
+    console.log(
+      `${c.what} | ${rate} | ${max} | ${term} | ${binding} | ${insShown} | ${reason} | ${verdict}`,
+    );
   }
   // THE COLLAPSE, ASSERTED — the pairing the design doc named and nothing carried.
   //

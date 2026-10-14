@@ -10,6 +10,7 @@ import { matchesRequestedScope } from '@/bank-programs/program-scope';
 import { ProgramNameScopeService } from '@/platform-enumerations/program-name-scope.service';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { quoteProgram } from '@/matching/pipeline/quote';
+import { carInsuranceDisclosureOf } from '@/matching/pipeline/fees';
 import { carDetailsFrom } from '@/matching/pipeline/car-details';
 import {
   DEBT_TYPES_QUESTION_CODE,
@@ -82,7 +83,21 @@ export interface PreviewFigures {
   /** Car programs: the price less the cash paid out — what the customer puts in. */
   requiredDownPaymentEGP: string | null;
   vehicleMaxTenorMonths: number | null;
-  fees: { adminFeeEGP: string; stampDutyEGP: string; lifeInsuranceEGP: string };
+  fees: {
+    adminFeeEGP: string;
+    stampDutyEGP: string;
+    lifeInsuranceEGP: string;
+    /**
+     * Comprehensive cover on the car, when the programme demands it at this deposit. All
+     * four present together or all four absent — see `carInsuranceDisclosureOf`. Projected
+     * here as well as on the applied offer because a cost the applicant meets only AFTER
+     * applying is the drift A33 names.
+     */
+    carInsuranceRatePercent?: string;
+    carInsuranceAnnualEGP?: string;
+    carInsuranceYears?: number;
+    carInsuranceTotalEGP?: string;
+  };
 }
 
 export interface PreviewMatch {
@@ -535,6 +550,7 @@ function toPreviewFigures(q: Quote): PreviewFigures {
       adminFeeEGP: new Decimal(q.feesBreakdown.adminFeeEGP).toFixed(2),
       stampDutyEGP: new Decimal(q.feesBreakdown.stampDutyEGP).toFixed(2),
       lifeInsuranceEGP: new Decimal(q.feesBreakdown.lifeInsuranceEGP).toFixed(2),
+      ...carInsuranceDisclosureOf(q.feesBreakdown),
     },
   };
 }

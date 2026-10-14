@@ -116,7 +116,7 @@ export interface RangeViolation {
 
 interface RangeCheckable {
   tenor: { minMonths?: number; maxMonths?: number };
-  loanLimits: { minAmountEGP: string; maxAmountEGP: string };
+  loanLimits: { minAmountEGP?: string; maxAmountEGP?: string };
   eligibility: { ageMin: number; ageMax: number };
 }
 
@@ -139,10 +139,13 @@ interface RangeCheckable {
  * ceiling typed by the bank is a range neither of them stated, and it would also sail past
  * the inversion check below — `undefined > 84` is `false`, which is exactly how a bad range
  * gets saved looking valid.
+ *
+ * THE LOAN SIZE is optional on exactly the same terms, and is checked the same three ways —
+ * see `productStatesLoanAmounts` and the block that reads it.
  */
 export function validateRanges(
   dto: RangeCheckable,
-  opts?: { productStatesTenor?: boolean },
+  opts?: { productStatesTenor?: boolean; productStatesLoanAmounts?: boolean },
 ): RangeViolation | undefined {
   const minMonths = dto.tenor.minMonths;
   const maxMonths = dto.tenor.maxMonths;
@@ -160,12 +163,33 @@ export function validateRanges(
   if (dto.eligibility.ageMin > dto.eligibility.ageMax) {
     return { field: 'eligibility', min: dto.eligibility.ageMin, max: dto.eligibility.ageMax };
   }
-  const limits = dto.loanLimits ?? { minAmountEGP: '0', maxAmountEGP: '0' };
+  const limits = dto.loanLimits ?? {};
+  // THE SIZE IS NOW OPTIONAL TOO, on exactly the terms the duration above is, and these
+  // three lines are what keep "optional" from meaning "absent is fine": both amounts blank
+  // is how a program says "read the surrogate product's" (`effectiveLoanAmounts`), legal
+  // only when a product actually stands behind the name. A half-stated pair is refused in
+  // both directions — and it would also sail past the comparison below, because
+  // `new Prisma.Decimal(undefined)` throws and would be reported as a malformed amount
+  // rather than as the missing half it is.
+  const statesMinAmount = limits.minAmountEGP !== undefined;
+  const statesMaxAmount = limits.maxAmountEGP !== undefined;
+  if (statesMinAmount !== statesMaxAmount) {
+    return {
+      field: 'loanLimits',
+      min: limits.minAmountEGP ?? null,
+      max: limits.maxAmountEGP ?? null,
+    };
+  }
+  if (!statesMinAmount && !statesMaxAmount) {
+    return opts?.productStatesLoanAmounts === true
+      ? undefined
+      : { field: 'loanLimits', min: null, max: null };
+  }
   let min: Prisma.Decimal;
   let max: Prisma.Decimal;
   try {
-    min = new Prisma.Decimal(limits.minAmountEGP);
-    max = new Prisma.Decimal(limits.maxAmountEGP);
+    min = new Prisma.Decimal(limits.minAmountEGP as string);
+    max = new Prisma.Decimal(limits.maxAmountEGP as string);
   } catch {
     return {
       field: 'loanLimits',
@@ -174,7 +198,11 @@ export function validateRanges(
     };
   }
   if (max.lessThanOrEqualTo(0) || min.greaterThan(max)) {
-    return { field: 'loanLimits', min: limits.minAmountEGP, max: limits.maxAmountEGP };
+    return {
+      field: 'loanLimits',
+      min: limits.minAmountEGP ?? null,
+      max: limits.maxAmountEGP ?? null,
+    };
   }
   return undefined;
 }

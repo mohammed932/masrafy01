@@ -14,7 +14,6 @@
  */
 
 import {
-  I_SCORE_BAND_SLOT,
   optionalStepIds,
   stepIsConfigured,
   stepRefs,
@@ -306,7 +305,11 @@ export function stepBandsHaveError(
     if (step.op !== 'bandTable') continue;
     const rows = figures[step.id]?.bands;
     if (rows === undefined || rows.length === 0) continue;
-    if (incomeBandsErrorFor(rows, { coverAll: step.id === I_SCORE_BAND_SLOT }) !== null) {
+    // NO `coverAll` on a step any more. It was asked of the I-Score tier slot alone, and
+    // that slot no longer exists — the tiers are program-level policy as of v30.3.0, checked
+    // by the wizard's own `iScoreTiersError`. Every other range table may legitimately stop:
+    // a value past the end is `no_matching_band`, a stated reason the customer is told.
+    if (incomeBandsErrorFor(rows) !== null) {
       return true;
     }
   }

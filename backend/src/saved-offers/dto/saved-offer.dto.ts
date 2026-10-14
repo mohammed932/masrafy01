@@ -39,6 +39,10 @@ export interface SavedOfferListItem {
   totalLabel: string;
   bankName: string;
   programFriendlyName: string;
+  /** The application this offer belongs to — what the Apply button proceeds on. */
+  applicationId: string;
+  /** That application has already proceeded with an offer, so this one cannot be applied for. */
+  alreadyApplied: boolean;
   savedAt: string;
 }
 

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
+import type { IScoreTiers } from '@/matching/pipeline/iscore';
 import {
   EnumerationMember,
   EnumerationType,
@@ -95,6 +96,11 @@ export class InMemoryPlatformEnumerationsRepository
     return new Map();
   }
 
+  /** No I-Score classes in this stub: every program quotes at the neutral 100%. */
+  async platformIScoreTiers(): Promise<IScoreTiers | undefined> {
+    return undefined;
+  }
+
   /**
    * This stub seeds no catalog names, so nothing can be linked to a product and the
    * retire refusal it backs never fires. Empty, not a throw: an empty list is the true
@@ -163,6 +169,21 @@ export class InMemoryPlatformEnumerationsRepository
     throw new Error('in-memory enumeration registry is read-only');
   }
 
+  /** Read-only stub, exactly as the four writes above. */
+  async setSurrogateProductLoanAmountDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /** Read-only stub, exactly as the five writes above. */
+  async setSurrogateProductIScoreDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /** Read-only stub, exactly as the six writes above. */
+  async setSurrogateProductRateDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
   /**
    * Empty, not a throw, for the same reason `programFigureKeysUnderProduct` below is: it
    * backs a REFUSAL, and "no program is reading this product's duration" is the true answer
@@ -170,6 +191,25 @@ export class InMemoryPlatformEnumerationsRepository
    * the fallback path.
    */
   async programsInheritingTenor(): Promise<string[]> {
+    return [];
+  }
+
+  /** Empty, not a throw — see `programsInheritingTenor` directly above. */
+  async programsInheritingLoanAmounts(): Promise<string[]> {
+    return [];
+  }
+
+  /** Empty, not a throw — see `programsInheritingTenor` above. */
+  async programsInheritingRate(): Promise<string[]> {
+    return [];
+  }
+
+  /**
+   * Empty, not a throw — see `programsInheritingTenor` above. It backs no refusal, only the
+   * product screen's reach line, and "no program reads these tiers" is the true answer in a
+   * registry holding no programs.
+   */
+  async programsInheritingIScoreTiers(): Promise<string[]> {
     return [];
   }
 

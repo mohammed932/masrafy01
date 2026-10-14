@@ -38,7 +38,14 @@ cd backend
 cp .env.example .env   # set JWT_ACCESS_SECRET (≥32 random bytes), SEED_ADMIN_PASSWORD
 npx prisma generate
 npx prisma migrate deploy
-npx prisma db seed
+npx prisma db seed               # super_admin
+npm run seed:banks
+npm run seed:questionnaire
+npm run seed:catalog
+npm run seed:programs            # payslip catalog programs
+npm run build
+npm run seed:blueprints          # no-payslip products
+npm run seed:sheet-figures       # product figures + surrogate programs
 npm run start:dev      # → http://localhost:3000  | docs at /api/docs
 
 cd ../admin
@@ -47,6 +54,9 @@ npm start              # → http://localhost:5173
 ```
 
 Sign in with the seeded super_admin. Forced-change flow runs on first login.
+
+The seed order matters — what each step writes, how to check the result and how to re-run:
+[docs/fresh-install.md](docs/fresh-install.md).
 
 Full walkthrough: [specs/001-admin-auth-users/quickstart.md](specs/001-admin-auth-users/quickstart.md).
 

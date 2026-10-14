@@ -18,6 +18,8 @@ class SavedOfferEntity extends Equatable {
     required this.totalInterest,
     required this.totalLoan,
     required this.totalLabel,
+    this.applicationId = '',
+    this.alreadyApplied = false,
   });
 
   /// Stable id of the underlying immutable BankOffer — the key for remove.
@@ -53,6 +55,14 @@ class SavedOfferEntity extends Equatable {
   /// Compact total for the KPI cell, e.g. "170K".
   final String totalLabel;
 
+  /// The application this offer belongs to — what **Apply for this offer**
+  /// proceeds on from the details screen.
+  final String applicationId;
+
+  /// That application has already proceeded with an offer (select-offer is
+  /// one-way), so the details screen hides Apply.
+  final bool alreadyApplied;
+
   @override
   List<Object?> get props => [
         bankOfferId,
@@ -66,5 +76,7 @@ class SavedOfferEntity extends Equatable {
         totalInterest,
         totalLoan,
         totalLabel,
+        applicationId,
+        alreadyApplied,
       ];
 }

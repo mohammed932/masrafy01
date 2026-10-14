@@ -26,13 +26,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   asPlanDefaults,
+  effectivePlanFees,
   effectivePlanLoanLimits,
   effectivePlanPricing,
   effectivePlanTenor,
   plansSourceOf,
 } from '@/matching/pipeline/plan-inherit';
 import type { FactGridConfig } from '@/matching/pipeline/fact-grid';
-import type { LoanLimitsConfig, PricingConfig, TenorConfig } from '@/matching/types';
+import type { FeesConfig, LoanLimitsConfig, PricingConfig, TenorConfig } from '@/matching/types';
 import {
   withStoredStructure,
   effectiveIncomeRule,
@@ -174,14 +175,22 @@ describe('own amounts — the catalog’s tables never touched', () => {
     ).toBe('35');
   });
 
-  it('reads the product’s I-Score tiers for a bank that states none, and no other slot', () => {
-    // The one per-slot exception. A blank way or condition means "this bank does not sell
-    // that way" and must stay blank; a blank I-Score table has never meant a decline — the
-    // compiled rule answers it with a literal 100% — so it reads the product's tiers.
+  it('inherits NO step slot at all — the I-Score exception is gone', () => {
+    // There used to be exactly one per-slot exception to whole-key `stepParams` inheritance:
+    // `SLOTS_INHERITED_WHEN_BLANK`, holding `iscore_band` alone. A blank way or condition
+    // means "this bank does not sell that way" and must stay blank; a blank I-Score table
+    // never meant a decline, so it read the product's.
+    //
+    // v30.3.0 removed both the set and the slot. The tiers are a COLUMN now
+    // (`platform_enumeration.iScoreDefaults`), inherited by `effectiveIScoreTiers` in the
+    // snapshot mapper — so this function must copy nothing, and a program on its OWN amounts
+    // comes back as the same object it went in as.
     const productRule: IncomeAssumptionConfig = {
       strategy: 'steps',
       stepParams: {
         primary: { keyTable: [{ key: 'lecturer', incomeEGP: '30000' }] },
+        // Written in the retired slot deliberately: a legacy row can still carry it, and
+        // inheriting it would be the bug. Nothing reads it any more.
         iscore_band: {
           bands: [
             { fromInclusive: '0', toExclusive: '700', incomeEGP: '90' },
@@ -198,32 +207,28 @@ describe('own amounts — the catalog’s tables never touched', () => {
 
     const effective = effectiveIncomeRule(bank, productRule);
 
-    expect(effective.stepParams?.iscore_band).toEqual(productRule.stepParams?.iscore_band);
-    // The bank's own figure, not the product's: only the tier slot was filled in.
+    // Not copied. The bank stated no tiers, and that stays true of the rule blob.
+    expect(effective.stepParams?.['iscore_band']).toBeUndefined();
+    // The bank's own figure, untouched.
     expect(effective.stepParams?.primary).toEqual(bank.stepParams?.primary);
   });
 
-  it('leaves a bank’s OWN I-Score tiers alone', () => {
+  it('still inherits the product’s DEBT-BURDEN cap, which was never per-slot', () => {
+    // The other member of the "inherited when blank" group, and the one that stays. It is a
+    // whole KEY on the rule blob, not a slot inside `stepParams`, so removing
+    // `SLOTS_INHERITED_WHEN_BLANK` must not have touched it.
     const productRule: IncomeAssumptionConfig = {
       strategy: 'steps',
-      stepParams: {
-        iscore_band: { bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '100' }] },
-      },
+      dbrCapPercentOverride: '45',
+      stepParams: { primary: { keyTable: [{ key: 'lecturer', incomeEGP: '30000' }] } },
     } as unknown as IncomeAssumptionConfig;
     const bank: IncomeAssumptionConfig = {
       strategy: 'steps',
       amounts: 'own',
-      stepParams: {
-        iscore_band: { bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '80' }] },
-      },
+      stepParams: { primary: { keyTable: [{ key: 'lecturer', incomeEGP: '40000' }] } },
     } as unknown as IncomeAssumptionConfig;
 
-    // Deep equality, not identity: `mergeProductRuleStructure` already rebuilds the object
-    // for any pair of product rules, so there is no same-object path to assert here.
-    expect(effectiveIncomeRule(bank, productRule)).toEqual(bank);
-    expect(effectiveIncomeRule(bank, productRule).stepParams?.iscore_band).toEqual(
-      bank.stepParams?.iscore_band,
-    );
+    expect(effectiveIncomeRule(bank, productRule).dbrCapPercentOverride).toBe('45');
   });
 
   it('ignores the catalog when `amounts` is ABSENT — every pre-existing row', () => {
@@ -684,6 +689,12 @@ describe('the plan tables a product hands down', () => {
     expect(asPlanDefaults({ rateByFact: 'nonsense', ltvCeilingByFact: GRID })).toEqual({
       ltvCeilingByFact: GRID,
     });
+    // The SIXTH slot round-trips like the other five. Left off `PLAN_SLOTS` it would be
+    // dropped here silently, and a product's cover table would reach nobody — the failure
+    // would be a disclosure that never appears, which no screen reports.
+    expect(asPlanDefaults({ carInsuranceRateByFact: GRID })).toEqual({
+      carInsuranceRateByFact: GRID,
+    });
   });
 
   it('returns the SAME OBJECT when nothing is inherited', () => {
@@ -700,6 +711,13 @@ describe('the plan tables a product hands down', () => {
     expect(effectivePlanPricing(pricing, 'product', undefined)).toBe(pricing);
     expect(effectivePlanTenor(tenor, 'product', undefined)).toBe(tenor);
     expect(effectivePlanLoanLimits(limits, 'product', undefined)).toBe(limits);
+
+    // The cover table, on the same terms. `fees` is on EVERY programme, so this identity is
+    // the one that keeps 71 programmes allocation-free on every quote.
+    const fees = { adminFeePercent: '1' } as unknown as FeesConfig;
+    expect(effectivePlanFees(fees, 'own', { carInsuranceRateByFact: GRID })).toBe(fees);
+    expect(effectivePlanFees(fees, 'product', undefined)).toBe(fees);
+    expect(effectivePlanFees(fees, 'product', plans)).toBe(fees);
   });
 
   it('hands the product’s tables down only to a programme that opted in', () => {
@@ -711,6 +729,13 @@ describe('the plan tables a product hands down', () => {
     expect(effectivePlanLoanLimits(limits, 'product', plans).ltvCeilingByFact).toEqual(GRID);
     expect(effectivePlanLoanLimits(limits, 'product', plans).minAmountByFact).toEqual(GRID);
     expect(effectivePlanPricing(pricing, 'own', plans).rateByFact).toBeUndefined();
+
+    const fees = {} as unknown as FeesConfig;
+    const withCover = { carInsuranceRateByFact: GRID };
+    expect(effectivePlanFees(fees, 'product', withCover).carInsuranceRateByFact).toEqual(GRID);
+    // A Green Finance programme — a solar install, an e-bike — never opts in, so a car-price
+    // cover table can never reach it. That is the whole reason the selector is explicit.
+    expect(effectivePlanFees(fees, 'own', withCover).carInsuranceRateByFact).toBeUndefined();
   });
 
   it('lets a grid the PROGRAMME states win over the product’s, even while inheriting', () => {
@@ -720,5 +745,11 @@ describe('the plan tables a product hands down', () => {
     expect(merged.rateByFact).toBe(own);
     // Nothing was inherited, so the object is handed back untouched.
     expect(merged).toBe(pricing);
+
+    const ownCover: FactGridConfig = { ...GRID, cells: [{ keys: [null], value: '2' }] };
+    const fees = { carInsuranceRateByFact: ownCover } as unknown as FeesConfig;
+    const mergedFees = effectivePlanFees(fees, 'product', { carInsuranceRateByFact: GRID });
+    expect(mergedFees.carInsuranceRateByFact).toBe(ownCover);
+    expect(mergedFees).toBe(fees);
   });
 });

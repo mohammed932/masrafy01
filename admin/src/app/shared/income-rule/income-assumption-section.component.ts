@@ -542,7 +542,18 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   protected readonly isAr = document.documentElement.lang.startsWith('ar');
 
   /** Built-in methods plus one entry per operator-defined fact. */
-  protected readonly methodGroups = computed(() => incomeMethodGroups(this.facts()));
+  protected readonly methodGroups = computed(() => {
+    const groups = incomeMethodGroups(this.facts());
+    // A name sold only against a payslip reads the declared salary and nothing else.
+    return this.declaredOnly()
+      ? groups
+          .map((g) => ({ ...g, options: g.options.filter((o) => o.value === 'declared') }))
+          .filter((g) => g.options.length > 0)
+      : groups;
+  });
+
+  /** Offer only "Declared" in the proof picker — for a name sold against a payslip only. */
+  readonly declaredOnly = input(false);
 
   /** The `incomeAssumption` form group: strategy, scalar, override, combination, docs. */
   readonly group = input.required<FormGroup>();

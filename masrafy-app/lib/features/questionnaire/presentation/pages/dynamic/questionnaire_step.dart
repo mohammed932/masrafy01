@@ -162,6 +162,7 @@ class _SingleChoiceField extends StatelessWidget {
 
     return MasrafySelectField<String>(
       label: label,
+      helper: question.helper(isAr),
       hint: l.q_dyn_select_hint,
       sheetTitle: label,
       options: options,
@@ -200,6 +201,7 @@ class _MultiChoiceField extends StatelessWidget {
 
     return MasrafyMultiSelectField<String>(
       label: label,
+      helper: question.helper(isAr),
       hint: l.q_dyn_select_many_hint,
       sheetTitle: label,
       options: options,
@@ -391,6 +393,7 @@ class _DerivedTotalField extends StatelessWidget {
 
     return _TitledField(
       title: question.label(isAr),
+      helper: question.helper(isAr),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

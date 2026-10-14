@@ -582,7 +582,7 @@
   "@loan_setup_step_income_helper": {
     "description": "Loan setup wizard step 2 — one-liner explaining that the answer filters programs"
   },
-  "loan_setup_income_proof_title": "بكشف راتب",
+  "loan_setup_income_proof_title": "إثبات الدخل",
   "@loan_setup_income_proof_title": {
     "description": "Income basis income_proof — customer-facing name. Never render the raw value"
   },
@@ -590,7 +590,7 @@
   "@loan_setup_income_proof_desc": {
     "description": "Income basis income_proof — what it means"
   },
-  "loan_setup_income_surrogate_title": "بدون كشف راتب",
+  "loan_setup_income_surrogate_title": "بديل الدخل",
   "@loan_setup_income_surrogate_title": {
     "description": "Income basis income_surrogate — customer-facing name. Never render the raw value"
   },
@@ -939,7 +939,8 @@
   "@q_dyn_obligations_total_helper": {
     "description": "Helper under the read-only derived obligations total"
   },
-  "q_dyn_money_missing": "أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.",
+  "q_dyn_cannot_submit": "لا يمكن تسعير هذا النوع حاليًا — ينقصه سؤال مطلوب. جرّب نوعًا آخر أو تواصل مع الدعم.",
+  "q_dyn_money_missing": "أجب عن الأسئلة الإلزامية لعرض العروض المتاحة.",
   "q_personal_years": "{years} سنة",
   "q_personal_step1_title": "بيانات التمويل",
   "q_personal_step2_title": "العمل والدخل",
@@ -1051,6 +1052,19 @@
   "results_subtitle": "مستشار القروض جاهز",
   "results_empty_title": "لا توجد عروض بعد",
   "results_empty_body": "لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.",
+  "offer_partner_bank": "البنك الشريك {letter}",
+  "@offer_partner_bank": {
+    "placeholders": {
+      "letter": {
+        "type": "String"
+      }
+    }
+  },
+  "offer_partner_bank_generic": "بنك شريك",
+  "results_no_rate_title": "لا يوجد سعر فائدة لهذه البيانات",
+  "results_no_rate_body_car": "لا يوجد لدى أي بنك سعر فائدة لهذه الدفعة المقدمة وهذه السيارة. معظم برامج تمويل السيارات تتطلب دفعة مقدمة أكبر — جرّب زيادتها أو تغيير بيانات السيارة.",
+  "results_no_rate_body": "لا يوجد لدى أي بنك سعر فائدة للإجابات التي قدمتها. جرّب تغيير إجاباتك لرؤية العروض.",
+  "results_edit_answers": "تعديل إجاباتي",
   "results_profile_title": "أكمل ملفك الشخصي",
   "results_profile_body": "أكمل ملفك الشخصي لعرض عروض القروض.",
   "results_profile_action": "إكمال الملف الشخصي",
@@ -1163,6 +1177,23 @@
   },
   "offer_stamp_duty": "الدمغة",
   "offer_life_insurance": "تأمين الحياة",
+  "offer_car_insurance": "تأمين السيارة (إجباري)",
+  "offer_car_insurance_total": "التأمين على مدى {years, plural, =1{سنة واحدة} =2{سنتين} few{{years} سنوات} other{{years} سنة}}",
+  "@offer_car_insurance_total": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
+  "offer_fee_egp_per_year": "{amount} جنيه / سنة",
+  "@offer_fee_egp_per_year": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_fee_egp": "{amount} جنيه",
   "@offer_fee_egp": {
     "placeholders": {
@@ -1178,6 +1209,7 @@
   "offer_action_soon": "قريبًا",
   "offer_proceed_success": "تم إرسال طلبك إلى البنك.",
   "offer_proceed_error": "حدث خطأ ما. حاول مرة أخرى.",
+  "offer_already_proceeded": "لقد قدّمت بالفعل على عرض في هذا الطلب.",
   "offer_national_id_required_title": "الرقم القومي مطلوب",
   "offer_national_id_required_body": "قم برفع صورة الرقم القومي من الأمام والخلف للمتابعة في هذا الطلب.",
   "offer_national_id_required_cta": "ارفع الآن",
@@ -1295,6 +1327,10 @@
   "reason_below_program_min_amount": "المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.",
   "@reason_below_program_min_amount": {
     "description": "Backend BELOW_PROGRAM_MIN_AMOUNT reason code"
+  },
+  "reason_requested_below_program_min_amount": "المبلغ المطلوب أقل مما يقرضه هذا البنك. اطلب مبلغًا أكبر لعرض أرقامه.",
+  "@reason_requested_below_program_min_amount": {
+    "description": "Backend REQUESTED_BELOW_PROGRAM_MIN_AMOUNT reason code"
   },
   "reason_age_at_maturity": "لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.",
   "@reason_age_at_maturity": {

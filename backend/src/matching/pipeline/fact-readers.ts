@@ -48,7 +48,7 @@ import { additionalIncomeFactKeys } from './additional-income';
 import { factsReadBy } from './product-rule';
 import type { ProductRule } from './product-rule';
 import { SURROGATE_FACTS_BY_STRATEGY } from './surrogate-fact-bindings';
-import { isGridOnlyFactKey } from './car-details';
+import { CAR_MODEL_YEAR_FACT_KEY, isGridOnlyFactKey } from './car-details';
 import { factKeyOf } from '../types';
 
 /** Where a fact key was found, and what an operator would have to open to remove it. */
@@ -87,6 +87,16 @@ export interface FactReaderProgramRow {
    */
   pricing: unknown;
   tenor: unknown;
+  /**
+   * `fees.carInsuranceRateByFact`'s axes — the deposit band at which the bank demands
+   * comprehensive cover on the car.
+   *
+   * REQUIRED for the reason the two above are. A cost table is still a reader: its axis is
+   * an answer a live programme keys a figure off, and a fact deleted out from under it makes
+   * every cell miss, which reads as "no cover required" — a disclosure that silently stops
+   * being made is worse than one that errors.
+   */
+  fees: unknown;
 }
 
 export interface FactReaderRuleRow {
@@ -205,12 +215,32 @@ export function factsReadByPricing(raw: unknown): Set<string> {
   return gridAxisKeys(raw.rateByFact);
 }
 
-/** Every fact key a bank program's TENOR ceiling and floor read. */
+/** Every fact key a bank program's TENOR ceiling, floor and vehicle-age refusal read. */
 export function factsReadByTenor(raw: unknown): Set<string> {
   if (!isRecord(raw)) return new Set<string>();
   const keys = gridAxisKeys(raw.maxMonthsByFact);
   for (const key of gridAxisKeys(raw.minMonthsByFact)) keys.add(key);
+  for (const key of gridAxisKeys(raw.maxVehicleAgeYearsByFact)) keys.add(key);
+  // The age table's VALUE is compared with the car's age, which the engine derives from the
+  // model year — no axis names it, so without this line the model year was invisible to every
+  // guard and the refusal quietly skipped for anyone who left it blank.
+  if (isRecord(raw.maxVehicleAgeYearsByFact)) keys.add(CAR_MODEL_YEAR_FACT_KEY);
   return keys;
+}
+
+/**
+ * Every fact key a bank program's FEES read — today, the car-cover table's axes.
+ *
+ * A fourth surface for the reason the third exists, and the reason is not that this table
+ * changes a price: it does not. It is that all four guards derive "what does this program
+ * need" from this file, and a cost keyed on an answer needs that answer as surely as a rate
+ * does. Left out, the deposit question could be narrowed away or the fact deleted, every
+ * cell would miss, and the programme would quietly go back to disclosing nothing — the one
+ * failure this feature exists to end.
+ */
+export function factsReadByFees(raw: unknown): Set<string> {
+  if (!isRecord(raw)) return new Set<string>();
+  return gridAxisKeys(raw.carInsuranceRateByFact);
 }
 
 /**
@@ -240,11 +270,13 @@ export function factsReadByProgram(row: {
   /** Required for the reason `FactReaderProgramRow`'s are. */
   pricing: unknown;
   tenor: unknown;
+  fees: unknown;
 }): Set<string> {
   const keys = factsReadByIncomeRule(row.incomeAssumption);
   for (const key of factsReadByLoanLimits(row.loanLimits)) keys.add(key);
   for (const key of factsReadByPricing(row.pricing)) keys.add(key);
   for (const key of factsReadByTenor(row.tenor)) keys.add(key);
+  for (const key of factsReadByFees(row.fees)) keys.add(key);
   return keys;
 }
 
@@ -274,7 +306,8 @@ export function factReaders(
     }
     if (
       factsReadByPricing(program.pricing).has(factKey) ||
-      factsReadByTenor(program.tenor).has(factKey)
+      factsReadByTenor(program.tenor).has(factKey) ||
+      factsReadByFees(program.fees).has(factKey)
     ) {
       readers.push({ source: 'bank_program_grid', ref: program.programCode });
     }

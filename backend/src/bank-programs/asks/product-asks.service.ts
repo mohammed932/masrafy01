@@ -41,6 +41,14 @@ import { factsReadByIncomeRule } from '@/matching/pipeline/fact-readers';
 import { factsReadBy } from '@/matching/pipeline/product-rule';
 import type { ProductRule } from '@/matching/pipeline/product-rule';
 import { isBindableQuestionType } from '@/matching/pipeline/surrogate-fact-registry';
+import { isReservedFactKey } from '@/matching/pipeline/fact-question-eligibility';
+import {
+  neededFactsOf,
+  type NeededFact,
+  type NeededReader,
+} from '@/matching/pipeline/product-needed-facts';
+import { slugify } from '@/questionnaire/slug.util';
+import { MIN_CHOICE_OPTIONS } from '@/questionnaire/validation/question-type-rules';
 import { sortCategories } from '@/common/loan-category.util';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
@@ -54,12 +62,21 @@ import {
   SurrogateFactWidenRequiredException,
   SurrogateProductNotFoundException,
   EnumerationInUseException,
+  NeededFactShapeUnknownException,
+  ProductNotSoldAnywhereException,
 } from '@/common/errors/domain.exceptions';
-import { blueprintKeysAsking, isCapOnlyProductKey } from '../blueprints/product-blueprints';
+import {
+  blueprintKeysAsking,
+  capShapeOf,
+  isCapOnlyProductKey,
+} from '../blueprints/product-blueprints';
 import type {
   AskPoolQuestionDto,
   AskWriteResultDto,
   AttachProductAskDto,
+  NeededFactDto,
+  NeededFactStatus,
+  NeededWriteResultDto,
   ProductAskDto,
   ProductAskServedDto,
   ProductAsksResponseDto,
@@ -213,6 +230,15 @@ export class ProductAsksService {
       };
     });
 
+    const { needed, soldIn } = await this.neededFor(productKey, ruleRow, (factKey) => {
+      const row = factByKey.get(factKey);
+      const question =
+        memberByKey.get(factKey)?.boundQuestion ??
+        (row ? boundQuestions.get(row.id) : undefined) ??
+        null;
+      return { row: row ?? null, question, asked: asked.has(factKey) };
+    });
+
     // The pool keeps the repository's own `displayOrder` — a card must not move because
     // somebody ticked it, so nothing is re-sorted here.
     return {
@@ -225,7 +251,221 @@ export class ProductAsksService {
       asks,
       pool: poolDtos,
       factsReadByRule,
+      needed,
+      soldIn,
     };
+  }
+
+  // ── What the engine needs ────────────────────────────────────────────────────
+
+  /** The raw needed facts — readers and shapes — for one product. */
+  private async rawNeeded(
+    productKey: string,
+    ruleRow: Awaited<ReturnType<PostgresPlatformEnumerationsRepository['findSurrogateProduct']>>,
+  ): Promise<{ facts: NeededFact[]; soldIn: LoanCategory[] }> {
+    const selling = await this.asks.sellingOf(productKey);
+    const cap = capShapeOf(productKey, ruleRow?.templateSpec?.blueprintKey ?? null);
+    const facts = neededFactsOf({
+      incomeRule: ruleRow?.incomeRule ?? null,
+      planDefaults: ruleRow?.planDefaults ?? null,
+      ...(cap !== undefined ? { cap } : {}),
+      programs: selling.programs,
+    });
+    return { facts, soldIn: sortCategories(selling.soldIn) };
+  }
+
+  /**
+   * One row per needed fact: covered or not, and what would cover it.
+   *
+   * `lookup` resolves a fact to its registry row, its bound question and whether this product
+   * asks it — the board already holds all three, so it is passed in rather than re-read.
+   */
+  private async neededFor(
+    productKey: string,
+    ruleRow: Awaited<ReturnType<PostgresPlatformEnumerationsRepository['findSurrogateProduct']>>,
+    lookup: (factKey: string) => {
+      row: { labelAr: string; labelEn: string } | null;
+      question: {
+        code: string;
+        labelAr: string;
+        labelEn: string;
+        active: boolean;
+        askedIn: readonly LoanCategory[];
+      } | null;
+      asked: boolean;
+    },
+  ): Promise<{ needed: NeededFactDto[]; soldIn: LoanCategory[] }> {
+    const { facts, soldIn } = await this.rawNeeded(productKey, ruleRow);
+    const needed = facts.map((fact): NeededFactDto => {
+      const { row, question, asked } = lookup(fact.factKey);
+      const askedIn = question?.askedIn ?? [];
+      const missingIn = soldIn.filter((category) => !askedIn.includes(category));
+      let status: NeededFactStatus;
+      if (isReservedFactKey(fact.factKey)) status = 'platform';
+      else if (row === null) status = 'noFact';
+      else if (question === null) status = 'noQuestion';
+      else if (!question.active) status = 'parked';
+      else if (asked && missingIn.length === 0) status = 'asked';
+      else status = 'notAsked';
+
+      const creatable =
+        status === 'noQuestion' || status === 'noFact' ? autoShapeOf(fact) !== null : false;
+      return {
+        factKey: fact.factKey,
+        status,
+        questionCode: question?.code ?? null,
+        labelAr: question?.labelAr ?? row?.labelAr ?? humanise(fact.factKey),
+        labelEn: question?.labelEn ?? row?.labelEn ?? humanise(fact.factKey),
+        readBy: fact.readBy.map(readerDto),
+        // Every loan type it is sold in that does not ask a question for it — all of them
+        // when there is no question, and still reported for a platform-answered fact.
+        missingIn: status === 'asked' ? [] : missingIn,
+        shape: fact.shape.kind,
+        derivedFrom: fact.derivedFrom ?? null,
+        actionable: soldIn.length > 0 && (status === 'notAsked' || creatable),
+      };
+    });
+    return { needed, soldIn };
+  }
+
+  /**
+   * "Ask it" on one needed fact, or on every actionable one when `factKey` is omitted.
+   *
+   * A fact with a question is attached through the ordinary tick (`attach` → `planAttach`,
+   * every refusal it has). A fact with none gets a question CREATED — optional, in the
+   * product's loan types, typed and optioned from how its readers read it — then bound and
+   * asked, with one questionnaire publish at the end. On "fix all", a fact that cannot be
+   * acted on is reported in `skipped` with its typed reason instead of failing the batch.
+   */
+  async askNeeded(
+    productKey: string,
+    factKey: string | null,
+    actor: AskActor,
+  ): Promise<NeededWriteResultDto> {
+    const state = await this.board(productKey);
+    if (state.soldIn.length === 0) throw new ProductNotSoldAnywhereException({ productKey });
+
+    const targets =
+      factKey === null
+        ? state.needed.filter((n) => n.actionable)
+        : state.needed.filter((n) => n.factKey === factKey);
+    if (factKey !== null && targets.length === 0) {
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+        field: 'factKey',
+        reason: 'not_needed_by_product',
+      });
+    }
+
+    const ruleRow = await this.repo.findSurrogateProduct(productKey);
+    const raw = new Map(
+      (await this.rawNeeded(productKey, ruleRow)).facts.map((f) => [f.factKey, f]),
+    );
+
+    const result: Omit<NeededWriteResultDto, 'state'> = {
+      asked: [],
+      created: [],
+      skipped: [],
+      published: false,
+    };
+    for (const need of targets) {
+      try {
+        if (need.status === 'notAsked' && need.questionCode !== null) {
+          const written = await this.attach(
+            productKey,
+            need.questionCode,
+            { askIn: state.soldIn },
+            actor,
+          );
+          result.asked.push(need.factKey);
+          result.published = result.published || written.changed.published;
+        } else if (need.status === 'noQuestion' || need.status === 'noFact') {
+          const fact = raw.get(need.factKey);
+          const shape = fact === undefined ? null : autoShapeOf(fact);
+          if (shape === null) {
+            throw new NeededFactShapeUnknownException({ productKey, factKey: need.factKey });
+          }
+          await this.createNeededQuestion(productKey, need, shape, state.soldIn, actor);
+          result.created.push(need.factKey);
+        } else if (factKey !== null) {
+          // Asked, platform-answered or parked: nothing this button can do.
+          throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+            field: 'factKey',
+            reason: `status_${need.status}`,
+          });
+        }
+      } catch (error) {
+        if (factKey !== null || !(error instanceof DomainException)) throw error;
+        const body = error.getResponse() as { code?: string };
+        result.skipped.push({ factKey: need.factKey, code: body.code ?? 'UNKNOWN' });
+      }
+    }
+
+    if (result.created.length > 0) {
+      await this.questionnaire.publish(actor.id);
+      result.published = true;
+    }
+    return { ...result, state: await this.board(productKey) };
+  }
+
+  /**
+   * Mint the question a needed fact lacks, bind the fact to it (creating the fact row when
+   * there is none) and add the ask. OPTIONAL by construction: a created question must never
+   * start failing apply for an app build that does not know it. Published by the caller.
+   */
+  private async createNeededQuestion(
+    productKey: string,
+    need: NeededFactDto,
+    shape: AutoShape,
+    soldIn: LoanCategory[],
+    actor: AskActor,
+  ): Promise<void> {
+    const created = await this.questionnaire.createQuestionWithOptions(
+      {
+        questionEn: need.labelEn,
+        questionAr: need.labelAr,
+        type: shape.kind === 'number' ? 'NUMERIC' : 'SINGLE_SELECT',
+        isRequired: false,
+        categories: soldIn,
+        ...(shape.kind === 'choice'
+          ? {
+              options: shape.keys.map((key) => ({
+                labelEn: humanise(key),
+                labelAr: humanise(key),
+              })),
+            }
+          : {}),
+      },
+      actor.id,
+      { publish: false },
+    );
+
+    const changed: AskWriteResultDto['changed'] = {
+      factKey: need.factKey,
+      factCreated: false,
+      factBound: false,
+      askAdded: false,
+      askRemoved: false,
+      factDeleted: false,
+      widened: [],
+      published: false,
+    };
+    const steps: AttachStep[] = [
+      ...(need.status === 'noFact'
+        ? [
+            {
+              op: 'createFact' as const,
+              factKey: need.factKey,
+              questionCode: created.code,
+              labelAr: need.labelAr,
+              labelEn: need.labelEn,
+              fileUnderProduct: true,
+            },
+          ]
+        : []),
+      { op: 'bindFact', factKey: need.factKey, questionCode: created.code },
+      { op: 'addAsk', factKey: need.factKey },
+    ];
+    for (const step of steps) await this.runAttachStep(step, productKey, changed, actor);
   }
 
   /**
@@ -683,4 +923,34 @@ function countQuestions(snapshot: unknown): {
     required: questions.filter((q) => q.isRequired === true).length,
     codes: questions.map((q) => String(q.code)),
   };
+}
+
+// ── Needed-fact helpers ─────────────────────────────────────────────────────────
+
+type AutoShape = { kind: 'number' } | { kind: 'choice'; keys: string[] };
+
+/** "owned_by_me" → "Owned by me" — the wording and option label of a created question. */
+function humanise(key: string): string {
+  const words = key.replace(/_+/g, ' ').trim();
+  return words.length === 0 ? key : words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * The question a needed fact can be given WITHOUT a person deciding, or null.
+ *
+ * A choice needs at least two options, and every option key must come back from the slug a
+ * created option's code is minted by — otherwise the question's codes would not be the keys
+ * the tables are filed under, and every cell would miss.
+ */
+function autoShapeOf(fact: NeededFact): AutoShape | null {
+  if (fact.shape.kind === 'number') return { kind: 'number' };
+  if (fact.shape.kind !== 'choice') return null;
+  const keys = fact.shape.optionKeys;
+  if (keys.length < MIN_CHOICE_OPTIONS) return null;
+  if (!keys.every((key) => slugify(humanise(key)) === key)) return null;
+  return { kind: 'choice', keys };
+}
+
+function readerDto(reader: NeededReader): NeededFactDto['readBy'][number] {
+  return reader;
 }

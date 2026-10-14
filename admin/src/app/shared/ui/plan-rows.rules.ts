@@ -75,6 +75,7 @@ export const PLAN_SLOTS: readonly PlanSlotKey[] = [
   'minMonthsByFact',
   'ltvCeilingByFact',
   'minAmountByFact',
+  'carInsuranceRateByFact',
 ];
 
 export function planSlotValueKind(slot: PlanSlotKey): FactGridValueKind {
@@ -88,6 +89,11 @@ export function planSlotValueKind(slot: PlanSlotKey): FactGridValueKind {
       return 'sharePercent';
     case 'minAmountByFact':
       return 'amountEGP';
+    // A share of the CAR'S PRICE, paid once a policy year. `sharePercent` and not
+    // `ratePercent` for the reason the financed share above is one: that kind runs to
+    // 999.9999, and a premium nobody can check by eye would save cleanly and be shown.
+    case 'carInsuranceRateByFact':
+      return 'sharePercent';
   }
 }
 

@@ -88,29 +88,44 @@ int monthsFromTenure(String? bucket, {int fallback = 24}) {
   }
 }
 
-/// Map any wizard `priorityFactor` id → backend `priority` enum
+/// `priority_factor` option code → backend `priority` enum
 /// (`lowest_installment | lowest_interest | fastest_approval | least_paperwork`).
-/// Only affects ranking; unmapped → `fastest_approval`.
-String mapPriority(String? id) {
-  switch (id) {
-    case 'lowest_installment':
-    case 'flexible_repayment':
-    case 'lowest_down_payment':
-    case 'longest_period':
-    case 'highest_amount':
-      return 'lowest_installment';
-    case 'lowest_interest':
-      return 'lowest_interest';
-    case 'minimum_docs':
-    case 'least_paperwork':
-    case 'no_guarantor':
-    case 'lowest_fees':
-      return 'least_paperwork';
-    case 'fastest_approval':
-    default:
-      return 'fastest_approval';
-  }
-}
+///
+/// ONE function for all four categories, because `priority_factor` is ONE question
+/// in the global pool (v12.0.0) with ONE option set, and what it decides is the
+/// ORDER the customer is shown — which Principle V / A33 require every path to
+/// derive the same way. It used to be five: this shared one, keyed on a vocabulary
+/// (`longest_period`, `minimum_docs`, `no_guarantor`, `lowest_fees`) the question has
+/// never emitted and with no callers at all, plus a private partial copy in each of
+/// the four `*_apply_mapper.dart` files. Each copy covered a different subset, so the
+/// SAME answer produced a different order depending on the loan type: a mortgage
+/// applicant who asked for the lowest interest rate was ranked by `fastest_approval`
+/// (partner bank, then fewest documents) and a business applicant who asked for the
+/// lowest monthly instalment was too. Two arms were also dead —
+/// `financing_without_a_guarantor` (car) and `lowest_administrative_fees` (mortgage)
+/// are not option codes of this question, so neither category could ever reach
+/// `least_paperwork`.
+///
+/// Every arm below is the reading one of those copies already expressed; taking the
+/// union rather than re-deciding keeps this a bug fix. The four codes with no sort
+/// key of their own (`lowest_down_payment`, `longest_repayment_period`,
+/// `highest_financing_amount`, `flexible_repayment`) are read as instalment-shaped,
+/// which is what car, mortgage, personal and business respectively already did with
+/// them — `rankOffers` has no down-payment or ticket-size key to sort by.
+///
+/// Unanswered falls to `fastest_approval`: the question is optional, and that arm is
+/// the engine's documented default (partner bank, then fewest documents).
+String mapPriority(String? code) => switch (code) {
+      'lowest_monthly_installment' ||
+      'longest_repayment_period' ||
+      'lowest_down_payment' ||
+      'highest_financing_amount' ||
+      'flexible_repayment' =>
+        'lowest_installment',
+      'lowest_interest_rate' => 'lowest_interest',
+      'least_documentation_required' => 'least_paperwork',
+      _ => 'fastest_approval',
+    };
 
 // ---- Answer accessors -------------------------------------------------------
 
@@ -221,28 +236,69 @@ class MoneyFigures {
     // when the itemised questions are being served; it is computed here and the
     // read-only field is filled from the same function.
     final itemisedTotal = obligationsTotalOf(answers);
+
+    // DERIVED, not defaulted (FR-044 forbids a guess, not arithmetic).
+    //
+    // A loan type may legitimately stop asking a figure it can WORK OUT. A car flow
+    // that asks the price and the down payment has already been told the amount —
+    // making the customer type `price - down payment` a third time is a question that
+    // exists only to satisfy this constructor. Obligations are the other one: a flow
+    // that never asks what the applicant owes has been told nothing, and "nothing
+    // declared" is 0, which is a statement rather than an invention.
+    //
+    // Income and tenor are NOT here and must not be: no answer in any flow implies
+    // them, and a surrogate programme's assumed income is the server's to compute
+    // from the facts. Inventing either is the bucket-midpoint bug feature 010 removed.
+    final derived = <String, String>{};
+    if (numericOf(answers, kRequestedAmountQuestion) == null) {
+      final price = num.tryParse(numericOf(answers, 'car_price') ?? '');
+      final down = num.tryParse(numericOf(answers, 'car_down_payment') ?? '');
+      if (price != null && down != null && price > down) {
+        derived[kRequestedAmountQuestion] = egp(price - down);
+      }
+    }
+    if (numericOf(answers, kExistingObligationsQuestion) == null &&
+        itemisedTotal == null &&
+        answers[kDebtTypesQuestion] == null) {
+      derived[kExistingObligationsQuestion] = egp(0);
+    }
+
+    String? figure(String code) =>
+        numericOf(answers, code) ?? derived[code];
+
+    // A figure the flow never asks for is not "missing" — it is not part of this loan
+    // type's form. The TERM is then the programme's own maximum (the apply DTO takes no
+    // `preferredTenorMonths` and `resolveTenor` uses the programme ceiling), and the INCOME
+    // is nothing declared, which a no-payslip product works out for itself and a payslip
+    // one correctly reports as too low to lend against.
     final missing = <String>[
       for (final code in kMoneyFieldQuestionCodes)
-        if (numericOf(answers, code) == null &&
+        if (figure(code) == null &&
+            !(code == kTenorMonthsQuestion) &&
+            !(code == kMonthlyIncomeQuestion) &&
             !(code == kExistingObligationsQuestion && itemisedTotal != null))
           code,
     ];
     if (missing.isNotEmpty) {
       throw StateError(
         'Missing bound money answers: ${missing.join(', ')} — '
-        'the questionnaire must gate Finish until every one is answered.',
+        'the published questionnaire must ask these as REQUIRED questions of this '
+        'loan type. `check:money` on the backend is what proves it does; reaching '
+        'here means a snapshot shipped that it would have refused.',
       );
     }
 
-    final amount = num.tryParse(numericOf(answers, kRequestedAmountQuestion)!);
-    final tenor = num.tryParse(numericOf(answers, kTenorMonthsQuestion)!);
-    final income = num.tryParse(numericOf(answers, kMonthlyIncomeQuestion)!);
+    final amount = num.tryParse(figure(kRequestedAmountQuestion)!);
+    final tenorAnswer = figure(kTenorMonthsQuestion);
+    final tenor = tenorAnswer == null ? null : num.tryParse(tenorAnswer);
+    final incomeAnswer = figure(kMonthlyIncomeQuestion);
+    final income = incomeAnswer == null ? 0 : num.tryParse(incomeAnswer);
     // Itemised sum when the debt-type question is served; the stated figure only
     // on the fallback path, where `missing` above already proved it is present.
     final obligations = itemisedTotal ??
-        num.tryParse(numericOf(answers, kExistingObligationsQuestion)!);
+        num.tryParse(figure(kExistingObligationsQuestion)!);
     if (amount == null ||
-        tenor == null ||
+        (tenorAnswer != null && tenor == null) ||
         income == null ||
         obligations == null) {
       throw StateError('Bound money answers must be numeric.');
@@ -253,7 +309,7 @@ class MoneyFigures {
       // accepts 5,000–50,000,000, so a question bound outside that band is
       // rejected server-side rather than silently rewritten here.
       requestedAmountEGP: egp(amount),
-      tenorMonths: tenor.round().clamp(_minTenorMonths, _maxTenorMonths),
+      tenorMonths: tenor?.round().clamp(_minTenorMonths, _maxTenorMonths),
       monthlyIncomeEGP: egp(income),
       existingObligationsEGP: egp(obligations),
       hasCurrentLoan: itemisedTotal != null
@@ -263,7 +319,9 @@ class MoneyFigures {
   }
 
   final String requestedAmountEGP;
-  final int tenorMonths;
+  /// Null when this loan type never asks for a term — the request then omits
+  /// `preferredTenorMonths` and every programme quotes at its own maximum.
+  final int? tenorMonths;
   final String monthlyIncomeEGP;
 
   /// Summed from the per-debt answers when the snapshot serves them; the stated

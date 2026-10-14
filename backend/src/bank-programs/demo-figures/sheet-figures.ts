@@ -24,10 +24,11 @@
  *
  * ─── The key that surprises ──────────────────────────────────────────────────
  *
- * The unit type's option code is `twin_or_town_house`, not the registry key `twin_house`. A
- * `factChoiceTable` matches the code of the answer the applicant PICKED, so the question's own
- * option codes are the authority — the validator refuses anything else, which is how this was
- * found.
+ * The unit type's option code is the registry key `twin_house` — the question is minted
+ * mirrored to the `property_type` list. A `factChoiceTable` matches the code of the answer the
+ * applicant PICKED, so the question's own option codes are the authority and the validator
+ * refuses anything else. (`twin_or_town_house`, the label slug an early hand-made question
+ * carried, was dropped on 2026-09-23 — a database built from the seeds never has it.)
  *
  * ─── The conditions, and what stating them here means ───────────────────────
  *
@@ -96,7 +97,32 @@ export interface CatalogFigureSet {
    * stored blob differs.
    */
   planDefaults?: Record<string, unknown>;
-  /** Rooted at `incomeRule.`, exactly as the catalog write expects them. */
+  /**
+   * The I-SCORE TIER TABLE every bank program under this product falls back to.
+   *
+   * Written INDEPENDENTLY of the figures plan below and on exactly the terms the duration
+   * and the plans are: the figures are skipped on a product that already holds some, because
+   * an operator may have typed them, but tiers nobody has ever stated are not somebody's
+   * work to protect. Idempotent — it writes only when the stored table differs.
+   *
+   * Its own field rather than a `stepParams` slot, because that is where the tiers stopped
+   * living at v30.3.0: they are a column now, so a seed that still wrote the slot would
+   * plant a figure keyed by a step id nothing emits.
+   */
+  iScoreDefaults?: Record<string, unknown>;
+  /**
+   * The LOAN SIZE every bank program under this product falls back to when it states none.
+   *
+   * Written independently of the figures plan below and on exactly the terms the duration,
+   * the plans and the tiers are: a size nobody has ever stated is not somebody's work to
+   * protect. Idempotent — it writes only when the stored pair differs.
+   */
+  loanAmountDefaults?: { minAmountEGP: string; maxAmountEGP: string };
+  /**
+   * Rooted at `incomeRule.`, exactly as the catalog write expects them. (An I-Score tier path
+   * would be rooted at `iScoreDefaults.`, the column it is about — none is seeded since
+   * v30.4.0: the shared I-Score classes replace the per-product table.)
+   */
   estimated?: EstimatedPaths;
 }
 
@@ -164,26 +190,14 @@ export const DOWN_PAYMENT_EDGES = [
  * already produced — a score the table misses is `no_matching_band`, which kills the quote rather
  * than shrinking it.
  */
-const I_SCORE_TIER_EDGES = [
-  { fromInclusive: '0', toExclusive: '550' },
-  { fromInclusive: '550', toExclusive: '700' },
-  { fromInclusive: '700', toExclusive: null },
-] as const;
-
-const I_SCORE_TIER_PERCENTS = ['80', '100', '110'] as const;
+// NO PRODUCT STATES AN I-SCORE TABLE since v30.4.0. The illustration this seed used to write on
+// nine products (0/550/700 → 80/100/110, then the six classes at 80/80/100/100/110/110) is
+// gone: the I-Score classes on Manage values ARE the shared table every program reads when
+// neither it nor its product states one (`iscore_shared_table`). A product or a bank that
+// scores differently types its own on its screen.
 
 /** The number a savings sheet divides by — see `sheet-programs.ts#divisor`. */
 const divisor = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
-
-/** The tier table, as the `iscore_band` slot holds it. */
-function iscoreTiers(): ReturnType<typeof bands> {
-  return bands(I_SCORE_TIER_EDGES, I_SCORE_TIER_PERCENTS);
-}
-
-/** Every tier figure is an estimate — no bank has published one (§10.10). */
-const I_SCORE_ESTIMATED: EstimatedPaths = I_SCORE_TIER_EDGES.map(
-  (_edge, index) => `incomeRule.stepParams.iscore_band.bands.${index}.incomeEGP`,
-);
 
 /** ABK's own brackets for years in practice — 3–5 · 5–8 · 8–11 · 11–14 · 14–20 · 20+. */
 export const ABK_PRACTICE_EDGES = [
@@ -203,7 +217,7 @@ export const ABK_PRACTICE_EDGES = [
  * is missing is answered `no_matching_row`, which stops the rule.
  */
 /** A half-open deposit band, as a grid key. `null` on the upper edge means "and above". */
-function dpBand(
+export function dpBand(
   from: string,
   to: string | null,
 ): { fromInclusive: string; toExclusive: string | null } {
@@ -211,11 +225,11 @@ function dpBand(
 }
 
 /**
- * Suez Canal Bank's auto card, as the five plan tables the one merged programme reads.
+ * Suez Canal Bank's auto card, as the plan tables the one merged programme reads.
  *
  * The DEPOSIT is the axis every one of them keys on, which is what makes them one card
  * rather than four unrelated tables: a row says "put this much down and here is the rate, the
- * term, the share we finance and the floor".
+ * term, the share we finance, the floor, and whether you must insure it".
  *
  * EVERY RATE HERE IS AN ILLUSTRATION. No Suez Canal slide publishes a profit rate — the
  * programme's own `baseRatePercent` has been a stated placeholder since the sheet was loaded
@@ -308,6 +322,38 @@ const SCB_AUTO_PLANS: Record<string, unknown> = {
     onNoMatch: 'useFallback',
   },
 
+  /**
+   * COMPREHENSIVE COVER, and the deposit is what decides whether the bank demands it.
+   *
+   * App. §4.2 and the master review's own summary of this card: *"Insurance mandatory per DP
+   * tier — SCB: N/A at 60/50/40, YES at 30/20"*. So the two lowest deposits carry a row and
+   * the three above carry none — and an ABSENT row is the statement, not an oversight: the
+   * reader treats a miss as "this bank requires no cover at that deposit", which is the whole
+   * mechanism. Nothing in code knows that this bank's edge is 40%.
+   *
+   * This closes half of the loss the v30.0.0 merge had to state. The other half stands: the
+   * car-insurance POLICY is still in `requiredDocuments`, which is one array per programme and
+   * is therefore still demanded of everyone. A document list cannot be band-scoped; a cost
+   * table can.
+   *
+   * THE PERCENTAGE IS THE TEAM'S AND IS MARKED. No slide on this card publishes a premium —
+   * the sheets say only that cover is mandatory on those two tiers — so 1% is an illustration
+   * and both cells are in `estimated` below, exactly as all twenty rate cells are. The band
+   * EDGES are the sheet's own and are not marked.
+   */
+  carInsuranceRateByFact: {
+    axes: [{ factKey: 'car_down_payment_percent' }],
+    cells: [
+      { keys: [dpBand('20', '30')], value: '1' },
+      { keys: [dpBand('30', '40')], value: '1' },
+    ],
+    // Stated because the shape demands one, and never read: `car-insurance.ts` treats every
+    // miss as "no cover required". `useFallback` is the honest spelling of that — a `reject`
+    // here would mean a table of COSTS refusing an applicant the rate and share tables have
+    // already priced.
+    onNoMatch: 'useFallback',
+  },
+
   // `minMonthsByFact` is deliberately ABSENT. Every tier on this card starts at 6 months,
   // which is already the product's own `tenorDefaults.minMonths` — a table stating 6 five
   // times would add no information and would shadow the product's floor if it ever moved.
@@ -318,6 +364,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
   {
     productKey: 'armed_forces_grades',
     sheet: 'App. A §11 — Egyptian Armed Forces',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       primary: {
         keyTable: [
@@ -328,23 +376,20 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('grade_major', '30000'),
           money('grade_captain', '28000'),
           money('grade_first_lieutenant', '18000'),
-          // The three generic grades the list carried before the sheets' seven were added.
-          // Their figures are the ones this repo already ships for them in
-          // `CATALOG_INCOME_RULE.armed_forces`, so no row is invented and none is left blank.
-          money('general', '40000'),
-          money('senior_officer', '25000'),
-          money('officer', '15000'),
+          // The three generic grades (`general`, `senior_officer`, `officer`) were retired on
+          // 2026-09-24: App. A §11 prints these seven only, and `general` was labelled "لواء"
+          // exactly like `grade_major_general` at 40,000 against 75,000.
         ],
       },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
-    estimated: [...I_SCORE_ESTIMATED],
+    estimated: [],
   },
 
   {
     productKey: 'academic_rank_table',
     sheet: 'App. C PROFESSOR (both columns) · App. A §10 (section head)',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       primary: {
         keyTable: [
@@ -371,11 +416,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('dean', '300000'),
         ],
       },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [
-      ...I_SCORE_ESTIMATED,
       'incomeRule.stepParams.primary__uni_private.keyTable.professor_section_head.incomeEGP',
     ],
   },
@@ -390,6 +432,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // said. Each bank states its own, which its card says.
     productKey: 'doctors_clinic_owner',
     sheet: 'App. C DOCTOR — years × governorate tier',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       // The sheet's "major governorates" are Cairo, Giza, Alexandria, Assiut, Minya, Qalyubia,
       // Gharbia and Dakahlia — the union of the platform's `major` and `secondary` classes. So
@@ -410,10 +454,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
         '150000',
         '240000',
       ]),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
-    estimated: [...I_SCORE_ESTIMATED],
+    estimated: [],
   },
 
   {
@@ -424,44 +466,44 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // and which every rule-bearing product states identically.
     productKey: 'doctors_in_practice',
     sheet: "spec §10.10 — I-Score tiers only; the years table is each bank's own",
-    stepParams: {
-      iscore_band: iscoreTiers(),
-    },
-    estimated: [...I_SCORE_ESTIMATED],
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
+    stepParams: {},
+    estimated: [],
   },
 
   {
     productKey: 'card_limit_share',
     sheet: 'App. A §6 — net monthly income is half the competitor card limit',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       primary: percent('50'),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
-    estimated: [...I_SCORE_ESTIMATED],
+    estimated: [],
   },
 
   {
     productKey: 'auto_loan_crosssell',
     sheet: 'App. A §4 — three times the instalment or 10% of the loan, whichever is less',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       primary: times('3'),
       alt: percent('10'),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
-    estimated: [...I_SCORE_ESTIMATED],
+    estimated: [],
   },
 
   {
     productKey: 'pledged_collateral_share',
     sheet: 'App. A §3 — 30% of the free amount of the collateral',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       primary: percent('30'),
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
-    estimated: [...I_SCORE_ESTIMATED],
+    estimated: [],
   },
 
   {
@@ -472,6 +514,23 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // to be told which one it was worked out at or the engine cannot turn it back into a
     // monthly figure.
     baselineDbrPercent: '50',
+    // NO `iScoreDefaults`, and this is the one product that is deliberately without.
+    //
+    // It carried an `iscore_band` slot here until v30.3.0 and that slot was INERT: this
+    // product holds no calculation on a seeded database — it is cap-only, and its
+    // programmes read a ceiling out of `loanLimits.maxLoanByFact` — so there was no
+    // `iscore_applied` step for the figure to reach, and it was an orphan nothing
+    // multiplied. Moving it to the column would turn that dead figure LIVE: the
+    // defaults-only resolution carries `iScoreDefaults` to every programme under the
+    // name, and CAE-PER-COMPOUND_OWNER would start scaling its applicant's declared
+    // salary by 80% or 110% against an illustration no bank supplied. Measured on the
+    // real database: a dry seed run reported `iscore compound_owner would state 3
+    // tier(s)`, and it is the only line this change added to that run.
+    //
+    // And so NO `I_SCORE_ESTIMATED` markers either. They were left in on the belief that a
+    // marker with no figure behind it is pruned; a figures write that STATES markers refuses
+    // one naming a table the product does not hold (`VALUE_SOURCE_PATH_UNKNOWN`), which is
+    // what every database built from the seeds did with this product until 2026-09-23.
     stepParams: {
       primary: {
         keyTable: [
@@ -522,14 +581,14 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       alt__owned_unit_type: {
         keyTable: [
           money('apartment', '2000000'),
-          money('twin_or_town_house', '3000000'),
+          money('twin_house', '3000000'),
           money('villa', '4000000'),
         ],
       },
       alt__owned_unit_type__top_up: {
         keyTable: [
           money('apartment', '3000000'),
-          money('twin_or_town_house', '3500000'),
+          money('twin_house', '3500000'),
           money('villa', '4500000'),
         ],
       },
@@ -545,11 +604,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       // earliest (before 2021). A bank pricing to a later year states its own, and EG Bank's
       // own program does.
       cond__unitworthenough: { minValue: '1000000' },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
     estimated: [
-      ...I_SCORE_ESTIMATED,
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_aa.incomeEGP',
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_ab.incomeEGP',
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_a.incomeEGP',
@@ -557,7 +613,7 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_c.incomeEGP',
       'incomeRule.stepParams.primary__top_up.keyTable.compound_tier_other.incomeEGP',
       'incomeRule.stepParams.alt__owned_unit_type__top_up.keyTable.apartment.incomeEGP',
-      'incomeRule.stepParams.alt__owned_unit_type__top_up.keyTable.twin_or_town_house.incomeEGP',
+      'incomeRule.stepParams.alt__owned_unit_type__top_up.keyTable.twin_house.incomeEGP',
       'incomeRule.stepParams.alt__owned_unit_type__top_up.keyTable.villa.incomeEGP',
     ],
   },
@@ -573,7 +629,12 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // nothing of their own and read this; `SCB-CAR-GREEN_POWER` lends to 120 and states its
     // own, which is the case the whole mechanism exists to get right.
     tenorDefaults: { minMonths: 6, maxMonths: 84 },
+    // The loan size the programmes selling this product fall back to — the operator's figures
+    // (2026-09-23), so a seeded database quotes the same range the admin screens were set to.
+    loanAmountDefaults: { minAmountEGP: '300000', maxAmountEGP: '2500000' },
     planDefaults: SCB_AUTO_PLANS,
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       // The catalog default IS the published formula: `income = down payment ÷ 3.6`. One
       // bank sells it today and states the same figure on its own programmes, exactly as the
@@ -581,9 +642,11 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       primary: divisor('3.6'),
       // The savings way, both columns. A default for EVERY way is the compound precedent: a
       // program on catalog amounts is pruned to the one way it picked before it quotes.
-      alt: divisor('3.6'),
-      alt__cash_buyer: divisor('12'),
-      iscore_band: iscoreTiers(),
+      // The instalment column's default is 6 on the operator's instruction (2026-09-20) — the
+      // sheet's own arithmetic there is ÷ 3.6, so a bank that wants the sheet's figure states it.
+      // The cash column is 10, the operator's figure (2026-09-23), not the sheet's ÷ 12.
+      alt: divisor('6'),
+      alt__cash_buyer: divisor('10'),
     },
     // THE PLAN FIGURES THIS TEAM INVENTED, marked as such — and only those.
     //
@@ -601,7 +664,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // cell shifts what each of these describes, so the list is generated from the tables above
     // rather than typed by hand.
     estimated: [
-      ...I_SCORE_ESTIMATED,
       'planDefaults.rateByFact.cells.0.value',
       'planDefaults.rateByFact.cells.1.value',
       'planDefaults.rateByFact.cells.2.value',
@@ -625,6 +687,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       'planDefaults.maxMonthsByFact.cells.0.value',
       'planDefaults.maxMonthsByFact.cells.1.value',
       'planDefaults.maxMonthsByFact.cells.2.value',
+      // NOT the cover percentage: the sheets never state what cover costs, but the operator
+      // typed both figures on the product screen (2026-09-23), which clears the estimate mark,
+      // and the seed states what the database holds.
     ],
   },
 
@@ -633,6 +698,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     sheet: 'App. B — CAE Teachers, Predefined Limit (codes 0760-22 / 0760-23)',
     // The sheet waives the income check and prints no percentage; a ceiling still needs one.
     baselineDbrPercent: '50',
+    // The illustrative tiers, the same three rows on every product (§10.10), every
+    // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
       primary: {
         keyTable: [
@@ -648,10 +715,8 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
           money('stage_secondary', '600000'),
         ],
       },
-      // The illustrative tiers, the same on every product (§10.10) and marked estimates.
-      iscore_band: iscoreTiers(),
     },
-    estimated: ['incomeRule.output.baselineDbrPercent', ...I_SCORE_ESTIMATED],
+    estimated: ['incomeRule.output.baselineDbrPercent'],
   },
 ];
 
@@ -660,34 +725,20 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
  *
  * The RULE is that a name is offered only under a loan type whose applicants are already
  * asked every question its product reads — a name offered anywhere else is a program that
- * quotes nothing. Everything here was `personal` until the Suez Canal auto sheets arrived;
- * the two entries below are `car`, and they satisfy the same rule (their questions are in the
- * CAR seed config). The comment said `personal` only, which stopped being true with them.
+ * quotes nothing. The two Suez Canal `car` names that sold `down_payment_income` were removed
+ * with their programmes (migration `remove_down_payment_income_programs`); the product is sold
+ * again through `car_buyers_program`, the name the operator created in its place.
  *
- * `compound_owner_4` is absent on purpose — it already exists, is already no-payslip and is
- * already linked to `compound_owner`, so this seed has nothing to do to it.
+ * `compound_owner_4` is here because no other seed creates it: without it the four compound
+ * programmes had no name to be filed under on a database built from the seeds, and the
+ * product read "No catalog name sells this yet". On a database that already has it, it is
+ * reused and left as it is.
+ *
+ * Cap-only products (`club_branch_cap`, …) have no name here and cannot have one: they work
+ * out no income, so the catalog refuses the link (`SURROGATE_PRODUCT_CAP_ONLY`). A bank sells
+ * one by capping its own programme by the answer — `FAB-PER-CLUB_MEMBERSHIP` does.
  */
 export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
-  {
-    // The two auto names are the only CAR entries here, and they are what a car applicant
-    // picks between: ONE product, quoted off the down payment under this name and off what
-    // they have saved under the Green one.
-    key: 'auto_down_payment_income',
-    labelEn: 'Auto Loan — Down Payment as Income',
-    labelAr: 'قرض سيارة — الدفعة المقدمة كدخل',
-    productKey: 'down_payment_income',
-    categories: [LoanCategory.car],
-  },
-  {
-    // The SAME product as the down-payment name: one calculation, two ways, and the two Green
-    // programmes pick the savings way. Two names because the applicant still chooses what
-    // they are buying — a car against a down payment, or green goods against savings.
-    key: 'green_finance_savings',
-    labelEn: 'Green Finance',
-    labelAr: 'التمويل الأخضر',
-    productKey: 'down_payment_income',
-    categories: [LoanCategory.car],
-  },
   {
     key: 'armed_forces_no_payslip',
     labelEn: 'Armed Forces',
@@ -751,6 +802,22 @@ export const PROGRAM_NAMES: readonly ProgramNameSpec[] = [
     labelAr: 'المعلمون — حد محدد مسبقًا',
     productKey: 'school_stage_ceiling',
     categories: [LoanCategory.personal],
+  },
+  {
+    key: 'compound_owner_4',
+    labelEn: 'Compound Owner',
+    labelAr: 'مالك وحدة في كومباوند',
+    productKey: 'compound_owner',
+    categories: [LoanCategory.personal],
+  },
+  {
+    // The operator's own name and labels (2026-09-23), kept verbatim — the key is what the
+    // four programmes in `car-buyers-programs.ts` are filed under.
+    key: 'car_buyers_program',
+    labelEn: 'Car Buyers Program',
+    labelAr: 'شراء سيارة',
+    productKey: 'down_payment_income',
+    categories: [LoanCategory.car],
   },
 ];
 

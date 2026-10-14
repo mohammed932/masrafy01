@@ -52,6 +52,15 @@ export interface AskableQuestion {
   readonly gateSourceCode: string | null;
   /** Wording + code + answer labels, already lower-cased. What search matches. */
   readonly haystack: string;
+  /** `SINGLE_SELECT` | `MULTI_SELECT` | `NUMERIC` | `TEXT`. Absent on a bare fixture. */
+  readonly type?: string;
+  /** The questionnaire section it sits in — the board groups its cards by this. */
+  readonly groupKey?: string;
+  readonly groupEn?: string;
+  readonly groupAr?: string;
+  /** Active answer labels, in order — a card previews the first few. */
+  readonly optionsEn?: readonly string[];
+  readonly optionsAr?: readonly string[];
 }
 
 /** What the operator has ticked, per loan type, before anything is written. */
@@ -80,6 +89,32 @@ export interface AskedRow {
    * can say so before the tick rather than after the publish.
    */
   readonly alsoAdds: readonly string[];
+  readonly type: string | null;
+  /** Appears only after a specific answer to another question, so not everyone sees it. */
+  readonly gated: boolean;
+  /** Section the question sits in; rows sharing a `groupKey` are drawn under one heading. */
+  readonly groupKey: string;
+  readonly group: string;
+  /** Answer labels in the reading language, for the card's preview line. */
+  readonly options: readonly string[];
+}
+
+/** What an applicant of one name is served in one loan type — counted server-side. */
+export interface ServedCount {
+  readonly category: LoanCategory;
+  readonly categoryTotal: number;
+  readonly categoryRequired: number;
+  readonly servedTotal: number;
+  readonly servedRequired: number;
+  /** Codes of the questions served, when the endpoint sends them. */
+  readonly servedQuestionCodes?: readonly string[];
+}
+
+/** A run of rows from one questionnaire section, in pool order. */
+export interface AskedGroup {
+  readonly key: string;
+  readonly title: string;
+  readonly rows: readonly AskedRow[];
 }
 
 export interface AskedSections {
@@ -158,7 +193,35 @@ function rowOf(
     justPicked: picked(picks, category, q.id),
     alreadyAsked: q.categories.includes(category),
     alsoAdds: gateChainFor(pool, q, category, picks).map((s) => (isAr ? s.labelAr : s.labelEn)),
+    type: q.type ?? null,
+    gated: q.gateSourceCode !== null,
+    groupKey: q.groupKey ?? '',
+    group: (isAr ? q.groupAr : q.groupEn) || q.groupEn || q.groupAr || '',
+    options: (isAr ? q.optionsAr : q.optionsEn) ?? q.optionsEn ?? [],
   };
+}
+
+/**
+ * Rows folded into their questionnaire sections, keeping the pool's own order.
+ *
+ * The pool arrives in section order, so a section is a contiguous run — but it is keyed and
+ * merged rather than trusted to be contiguous, because a search or a tick can pull one row
+ * out of the middle of a section and the heading must not be repeated for the remainder.
+ * Rows with no section (a bare fixture) fall under one untitled group.
+ */
+export function groupRows(rows: readonly AskedRow[]): readonly AskedGroup[] {
+  const order: string[] = [];
+  const byKey = new Map<string, { title: string; rows: AskedRow[] }>();
+  for (const row of rows) {
+    let entry = byKey.get(row.groupKey);
+    if (entry === undefined) {
+      entry = { title: row.group, rows: [] };
+      byKey.set(row.groupKey, entry);
+      order.push(row.groupKey);
+    }
+    entry.rows.push(row);
+  }
+  return order.map((key) => ({ key, title: byKey.get(key)!.title, rows: byKey.get(key)!.rows }));
 }
 
 /**
@@ -271,3 +334,105 @@ export function pendingAddCount(adds: readonly QuestionCategoryAdd[]): number {
 
 /** Every loan type, for a board that is not scoped to one name's offer set. */
 export const ALL_ASKED_TABS: readonly LoanCategory[] = LOAN_CATEGORIES;
+
+// ---------------------------------------------------------------------------------------
+// The minimum a loan type must ask to be QUOTABLE
+// ---------------------------------------------------------------------------------------
+
+/**
+ * The four money answers the engine cannot price without (`MONEY_FIELD_BINDINGS` on the
+ * backend — a missing one yields no figures, never a default). Mirrored here as codes because
+ * the admin has no endpoint that lists them per loan type; a code renamed on the backend is a
+ * code change on both sides, which is the same accepted limit the backend constant records.
+ */
+const MONEY_CORE: readonly string[] = [
+  'monthly_income',
+  'amount_requested',
+  'repayment_period_months',
+  'current_installments',
+];
+
+/**
+ * Per loan type, the answers a quote reads beyond the money four.
+ *
+ * `car`: price and down payment are typed numbers now and cap the loan by the share the bank
+ * finances. `mortgage`: the property value and the down payment. `personal` needs only the
+ * money four. `business` is deliberately not validated here — its product is priced off the
+ * money four too, but nothing on the platform sells a business program off a checklist this
+ * short, and inventing one would refuse a name over a rule nobody stated.
+ */
+export const CORE_QUESTION_CODES: Readonly<Partial<Record<LoanCategory, readonly string[]>>> = {
+  personal: MONEY_CORE,
+  car: [...MONEY_CORE, 'car_price', 'car_down_payment'],
+  mortgage: [...MONEY_CORE, 'property_value', 'down_payment'],
+};
+
+export type CoreState =
+  /** The loan type already asks it. */
+  | 'asked'
+  /** Not asked yet, but ticked in this session. */
+  | 'picked'
+  /** In the pool and switched on, but this loan type does not ask it — a tick fixes it. */
+  | 'not_asked'
+  /** Not in the pool, or switched off — no tick here can fix it. */
+  | 'unavailable';
+
+export interface CoreCheck {
+  readonly code: string;
+  readonly label: string;
+  readonly state: CoreState;
+  /** The pool row to tick, when a tick can fix it. */
+  readonly questionId: string | null;
+  readonly isRequired: boolean;
+}
+
+/** Is this loan type one the checklist covers? */
+export function isValidatedCategory(category: LoanCategory): boolean {
+  return CORE_QUESTION_CODES[category] !== undefined;
+}
+
+/** One loan type's checklist, in the order the codes are listed above. */
+export function coreChecks(
+  pool: readonly AskableQuestion[],
+  category: LoanCategory,
+  picks: AskedPicks,
+  isAr: boolean,
+): readonly CoreCheck[] {
+  const byCode = new Map(pool.map((q) => [q.code, q]));
+  return (CORE_QUESTION_CODES[category] ?? []).map((code): CoreCheck => {
+    const q = byCode.get(code);
+    if (q === undefined || !q.isActive) {
+      return { code, label: code, state: 'unavailable', questionId: null, isRequired: false };
+    }
+    const label = (isAr ? q.labelAr : q.labelEn) || code;
+    const state: CoreState = q.categories.includes(category)
+      ? 'asked'
+      : picked(picks, category, q.id)
+        ? 'picked'
+        : 'not_asked';
+    return { code, label, state, questionId: q.id, isRequired: q.isRequired };
+  });
+}
+
+/**
+ * Checks that would leave a loan type unquotable, across every loan type the name is offered
+ * under. `not_asked` and `unavailable` both block; only the first can be fixed by a tick.
+ * Empty pool (unread) yields nothing — a failed read must not refuse a name it cannot judge.
+ */
+export function coreProblems(
+  pool: readonly AskableQuestion[],
+  offered: readonly LoanCategory[],
+  picks: AskedPicks,
+  isAr: boolean,
+): readonly { readonly category: LoanCategory; readonly missing: readonly CoreCheck[] }[] {
+  if (pool.length === 0) return [];
+  return canonicalCategories(offered)
+    .filter(isValidatedCategory)
+    .map((category) => ({
+      category,
+      missing: coreChecks(pool, category, picks, isAr).filter(
+        (c) => c.state === 'not_asked' || c.state === 'unavailable',
+      ),
+    }))
+    .filter((p) => p.missing.length > 0);
+}

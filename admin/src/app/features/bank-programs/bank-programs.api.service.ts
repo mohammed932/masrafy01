@@ -17,10 +17,14 @@ import type {
   ProductTemplate,
   ProgramNameIncomeRule,
   AskWriteResult,
+  NeededWriteResult,
   ProductAsksBoard,
   SurrogateProductDetail,
   SurrogateProductSummary,
+  LoanAmountDefaults,
+  RateDefaults,
   TenorDefaults,
+  IScoreTiers,
   PlanDefaults,
   SurrogateProductTemplateResponse,
   ProductBlueprint,
@@ -256,6 +260,24 @@ export class BankProgramsApiService {
   }
 
   /**
+   * Cover a fact the engine needs for this product — tick its question, or create one when
+   * it has none — or, with `factKey` null, every one that can be covered ("Fix all").
+   * Returns the recomputed board, like the tick above.
+   */
+  async askNeeded(
+    key: string,
+    factKey: string | null,
+  ): Promise<SuccessEnvelope<NeededWriteResult>> {
+    const base = `${this.base}/surrogate-products/${encodeURIComponent(key)}/needed`;
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<NeededWriteResult>>(
+        factKey === null ? base : `${base}/${encodeURIComponent(factKey)}`,
+        {},
+      ),
+    );
+  }
+
+  /**
    * Untick: this product stops reading the answer.
    *
    * Addressed by the FACT, because that is what exists and what the screen renders. The
@@ -373,6 +395,75 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/tenor-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The I-SCORE TIERS every bank program under this product falls back to.
+   *
+   * INHERITED, not copied, like the duration above: a change here moves every program that
+   * states no tiers of its own, and a bank that scores differently states its own and wins —
+   * including a flat 100% table, which is how it opts out.
+   *
+   * `tiers: null` clears them and is NEVER refused, unlike the duration's clear: cleared
+   * tiers leave a program multiplying by 100%, which is a priceable quote. It still moves
+   * live figures, which is why the card that calls this says how many programs are reading
+   * them before the operator saves.
+   */
+  async setSurrogateProductIScoreDefaults(
+    key: string,
+    payload: { tiers: IScoreTiers | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/iscore-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The loan SIZE every bank program under this product falls back to.
+   *
+   * The sibling of the duration above in every respect: inherited rather than copied, a
+   * change moves every program that states no amounts of its own, and `loanAmounts: null`
+   * is the one call the server can refuse — clearing leaves an inheriting program with no
+   * size at all (`SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE`).
+   */
+  async setSurrogateProductLoanAmountDefaults(
+    key: string,
+    payload: { loanAmounts: LoanAmountDefaults | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/loan-amount-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The INTEREST RATE every bank program under this product falls back to — the rate, the
+   * basis it is charged on and the variable-rate disclosure, as ONE statement.
+   *
+   * The sibling of the duration and the size above in every respect: inherited rather than
+   * copied, a change re-prices every program that states none of its own, and `rate: null`
+   * is the one call the server can refuse — clearing leaves an inheriting program with no
+   * price at all (`SURROGATE_PRODUCT_RATE_IN_USE`).
+   *
+   * It is also the only screen a price is typed on: the bank-program wizard's rate card was
+   * deleted, so a program under this product is quoted from here unless a seed or the API
+   * gave it one of its own.
+   */
+  async setSurrogateProductRateDefaults(
+    key: string,
+    payload: { rate: RateDefaults | null },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/rate-defaults`,
         payload,
       ),
     );

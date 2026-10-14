@@ -1,12 +1,4 @@
-import {
-  IsInt,
-  IsObject,
-  IsOptional,
-  Max,
-  Min,
-  ValidateIf,
-  ValidateNested,
-} from 'class-validator';
+import { IsInt, IsObject, IsOptional, Max, Min, ValidateIf, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FactGridDto } from './fact-grid.dto';
 
@@ -78,4 +70,20 @@ export class TenorConfigDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   minMonthsByFact?: FactGridDto;
+
+  /**
+   * The oldest a used car may be, in years, against the same answers — origin, dealer.
+   *
+   * Its own field and not a second column on `maxMonthsByFact`: that grid's value is a TERM
+   * ceiling and this one is an AGE ceiling, and a shared cell cannot state both without a
+   * two-part value no other grid on this platform carries. Read in `quote.ts` as a standalone
+   * refusal — an eligible car's term is untouched, an ineligible one is refused regardless of
+   * the term asked for.
+   *
+   * `@ValidateIf`, not `@IsOptional()` — same reason as `maxMonthsByFact` above.
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  maxVehicleAgeYearsByFact?: FactGridDto;
 }

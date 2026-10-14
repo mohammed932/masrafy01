@@ -17,6 +17,9 @@ class MatchingResultsState with _$MatchingResultsState {
     @Default(<UnavailableProgramEntity>[]) List<UnavailableProgramEntity> unavailablePrograms,
     @Default('') String applicationId,
     @Default(false) bool matched,
+    /// On a no-match, the check each program failed — see
+    /// `ApplyResultEntity.noMatchFailedChecks`.
+    @Default(<String>[]) List<String> noMatchFailedChecks,
     Failure? error,
   }) = _MatchingResultsState;
 
@@ -34,6 +37,15 @@ class MatchingResultsState with _$MatchingResultsState {
   /// the applicant was told (FR-022).
   bool get isEmpty =>
       status.isLoaded && offers.isEmpty && unavailablePrograms.isEmpty;
+
+  /// Every program was refused because none has a RATE for these answers —
+  /// the applicant's answer (typically the down payment share, or the car's
+  /// origin / fuel) falls outside every bank's rate table. Only when it is the
+  /// sole reason: a mix of reasons gets the generic message, which is not wrong
+  /// for any of them.
+  bool get noRateForAnswers =>
+      noMatchFailedChecks.isNotEmpty &&
+      noMatchFailedChecks.every((c) => c == 'interest_rate');
 
   /// A gate rather than a transient failure — the profile must be finished.
   /// Documents (photo/National ID) are NOT gated on the matching call anymore

@@ -38,6 +38,8 @@ import {
   Component,
   LOCALE_ID,
   computed,
+  effect,
+  untracked,
   inject,
   signal,
   viewChild,
@@ -49,14 +51,18 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
+  ArrowDownOutline,
   ArrowLeftOutline,
+  ArrowUpOutline,
   CheckOutline,
   CloseCircleFill,
   ExclamationCircleOutline,
+  HolderOutline,
   InfoCircleOutline,
   PoweroffOutline,
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
@@ -98,6 +104,11 @@ import type { PlanDefaults } from '../bank-programs/bank-programs.types';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
 import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
+import {
+  IncomeBandsEditorComponent,
+  incomeBandsErrorFor,
+} from '@shared/income-rule/income-bands-editor.component';
+import { I_SCORE_CLASS_TYPE, bandsFromIScoreClasses } from '@shared/income-rule/iscore-classes';
 import { listFigureState, type ListFigureState } from '@shared/income-rule/figure-slots';
 import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
 import { incomeKeyTableErrorFor, productRuleHasError } from '@shared/income-rule/income-rule.rules';
@@ -110,6 +121,11 @@ import {
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
+import {
+  QuestionnaireApiService,
+  type GroupTreeRow,
+} from '@features/questionnaire/questionnaire.api.service';
+import { categoryOrderAfterMove, productOrderSteps } from './product-ask-order';
 import {
   factKeysReadBy,
   incomeMethodLabel,
@@ -126,8 +142,10 @@ import {
   type AskQuestionType,
   type AskWriteResult,
   type ProductAsksBoard,
-  type ProductAskServed,
   type SurrogateProductDetail,
+  type LoanAmountDefaults,
+  type RateBasis,
+  type RateDefaults,
   type TenorDefaults,
   type ProductBlueprint,
   type ProgramUnderName,
@@ -144,6 +162,14 @@ import {
   type AskCard,
   type AskSectionKey,
 } from './product-asks';
+import {
+  neededFixableCount,
+  neededGapCount,
+  neededGroups,
+  neededRows,
+  type NeededGroupKey,
+  type NeededRow,
+} from './product-needed';
 
 /** One operator-managed list surfaced on step ①. */
 interface ReadList {
@@ -187,6 +213,7 @@ interface ReadList {
   imports: [
     NgTemplateOutlet,
     RouterLink,
+    DragDropModule,
     ReactiveFormsModule,
     NzButtonModule,
     NzIconModule,
@@ -204,13 +231,17 @@ interface ReadList {
     FactGridEditorComponent,
     PlanRowsEditorComponent,
     FigureFieldComponent,
+    IncomeBandsEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
+      ArrowDownOutline,
       ArrowLeftOutline,
+      ArrowUpOutline,
       CheckOutline,
       CloseCircleFill,
       ExclamationCircleOutline,
+      HolderOutline,
       InfoCircleOutline,
       PoweroffOutline,
       SearchOutline,
@@ -407,19 +438,239 @@ interface ReadList {
                        read as a band's own air rather than as a strip that stopped short.
                        aria-hidden on the label: the tablist keeps its own accessible name,
                        so announcing the same words twice would be the only thing it added. -->
-                  <div class="ask-rail">
-                    <!-- The tablist's own accessible name, rendered. One string, so the word
+                  <!-- WHAT THE ENGINE NEEDS, above the rail because it does not change with
+                       the tab: every answer this product's calculation, plan tables, cap and
+                       selling programmes read, and whether an applicant is asked it. Gaps
+                       lead; covered rows fold into one line so a product with nothing to do
+                       reads as done. The server decides each status (neededFor).
+                       Hidden on every product for now (neededPanelShown); flip the signal
+                       to bring it back. -->
+                  @if (neededPanelShown() && neededRowsList().length > 0) {
+                    <section class="need" aria-labelledby="spd-need-title">
+                      <div class="need-head">
+                        <div class="need-heading">
+                          <h3 id="spd-need-title" class="need-title" i18n="@@spd.needed.title">
+                            Questions the engine needs
+                          </h3>
+                          @if (neededGaps() === 0) {
+                            <p class="need-summary is-done">
+                              <span
+                                nz-icon
+                                nzType="check-circle"
+                                nzTheme="outline"
+                                aria-hidden="true"
+                              ></span>
+                              <span i18n="@@spd.needed.all_asked"
+                                >Every answer the engine reads for this product is asked ({{
+                                  neededRowsList().length
+                                }}).</span
+                              >
+                            </p>
+                          } @else {
+                            <p class="need-summary">
+                              <span i18n="@@spd.needed.gaps"
+                                >{{ neededGaps() }} of {{ neededRowsList().length }} answers the
+                                engine reads are not asked yet.</span
+                              >
+                            </p>
+                          }
+                        </div>
+                        @if (neededFixable() > 1) {
+                          <button
+                            nz-button
+                            nzType="primary"
+                            type="button"
+                            [nzLoading]="neededBusy() === '*'"
+                            [disabled]="neededBusy() !== null"
+                            (click)="actOnNeeded(null)"
+                          >
+                            <span i18n="@@spd.needed.fix_all">Fix all ({{ neededFixable() }})</span>
+                          </button>
+                        }
+                      </div>
+
+                      @if (neededSoldIn().length === 0) {
+                        <p class="need-note" i18n="@@spd.needed.not_sold">
+                          No program name sells this product yet, so there is no loan type to ask
+                          these in. Link a program name to it on the catalog first.
+                        </p>
+                      }
+                      @if (neededResult()) {
+                        <p class="need-note">{{ neededResult() }}</p>
+                      }
+
+                      <!-- A STATUS STRIP: one bordered fold row per group, named by WHO asks
+                           the question — a gap to close, this product, or the platform. Sentence
+                           case and a bordered row, deliberately unlike the uppercase section
+                           heads of the board below: this panel is the verdict on the product,
+                           the board is where questions are ticked, and the two used to read as
+                           one list said twice. Gaps start open, covered groups start folded;
+                           the open state lives in a signal so a board refresh after "Ask it"
+                           does not snap a group shut. -->
+                      @for (group of neededGroupList(); track group.key) {
+                        <details
+                          #fold
+                          class="need-group"
+                          [class.is-action]="group.key === 'action'"
+                          [open]="neededOpen().has(group.key)"
+                          (toggle)="setNeededOpen(group.key, fold.open)"
+                        >
+                          <summary class="need-group-head">
+                            <span class="need-dot" aria-hidden="true"></span>
+                            <h4 class="need-group-title" [id]="'spd-need-' + group.key">
+                              <span class="need-group-count">{{ group.rows.length }}</span>
+                              @switch (group.key) {
+                                @case ('action') {
+                                  <span i18n="@@spd.needed.group_action">Needs your action</span>
+                                }
+                                @case ('product') {
+                                  <span i18n="@@spd.needed.group_product"
+                                    >Asked by this product</span
+                                  >
+                                }
+                                @case ('platform') {
+                                  <span i18n="@@spd.needed.group_platform"
+                                    >Asked by the platform</span
+                                  >
+                                }
+                              }
+                            </h4>
+                            <!-- Inline SVG, like the structure fold's chevron and for its
+                                 reason: a projected nz-icon resolves the nearest patch service.
+                                 Points down, so it needs no RTL mirror; it turns to point up. -->
+                            <svg
+                              class="need-chev"
+                              viewBox="0 0 16 16"
+                              width="14"
+                              height="14"
+                              aria-hidden="true"
+                              focusable="false"
+                            >
+                              <path
+                                d="M3.5 6 8 10.5 12.5 6"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.75"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                              />
+                            </svg>
+                          </summary>
+                          <div class="need-body">
+                            @switch (group.key) {
+                              @case ('product') {
+                                <p class="need-group-note" i18n="@@spd.needed.group_product_note">
+                                  This product adds these to the questionnaire. Untick one below to
+                                  stop asking it.
+                                </p>
+                              }
+                              @case ('platform') {
+                                <p class="need-group-note" i18n="@@spd.needed.group_platform_note">
+                                  Every applicant in this loan type is asked these, whatever the
+                                  product.
+                                </p>
+                              }
+                            }
+                            <ul class="need-list" [attr.aria-labelledby]="'spd-need-' + group.key">
+                              @for (row of group.rows; track row.factKey) {
+                                <li class="need-row">
+                                  <span class="need-label">{{ row.label }}</span>
+                                  <div class="need-side">
+                                    @if (group.key === 'action') {
+                                      <span class="need-status">
+                                        @switch (row.status) {
+                                          @case ('parked') {
+                                            <span i18n="@@spd.needed.status_parked"
+                                              >Question switched off</span
+                                            >
+                                          }
+                                          @case ('noQuestion') {
+                                            <span i18n="@@spd.needed.status_no_question"
+                                              >No question yet</span
+                                            >
+                                          }
+                                          @case ('noFact') {
+                                            <span i18n="@@spd.needed.status_no_question"
+                                              >No question yet</span
+                                            >
+                                          }
+                                          @default {
+                                            <span i18n="@@spd.needed.status_not_asked"
+                                              >Not asked in {{ neededMissingLabel(row) }}</span
+                                            >
+                                          }
+                                        }
+                                      </span>
+                                    }
+                                    <!-- Where the answer is read, as a count; the engine's own
+                                         names for those places (rate table, financed-share
+                                         table, the programme code) sit one hover or focus
+                                         deeper, where the operator who needs them looks. -->
+                                    <span
+                                      class="need-uses"
+                                      tabindex="0"
+                                      nz-tooltip
+                                      [nzTooltipTitle]="neededUsedIn(row)"
+                                      [attr.aria-label]="neededUsedIn(row)"
+                                      i18n="@@spd.needed.uses"
+                                      >{neededUseCount(row), plural,
+                                        =1 {Read in 1 place}
+                                        other {Read in {{ neededUseCount(row) }} places}
+                                      }</span
+                                    >
+                                    @switch (row.action) {
+                                      @case ('ask') {
+                                        <button
+                                          nz-button
+                                          nzSize="small"
+                                          type="button"
+                                          [nzLoading]="neededBusy() === row.factKey"
+                                          [disabled]="neededBusy() !== null"
+                                          (click)="actOnNeeded(row)"
+                                          i18n="@@spd.needed.ask"
+                                        >
+                                          Ask it
+                                        </button>
+                                      }
+                                      @case ('create') {
+                                        <button
+                                          nz-button
+                                          nzSize="small"
+                                          type="button"
+                                          [nzLoading]="neededBusy() === row.factKey"
+                                          [disabled]="neededBusy() !== null"
+                                          (click)="actOnNeeded(row)"
+                                          i18n="@@spd.needed.create"
+                                        >
+                                          Create question
+                                        </button>
+                                      }
+                                    }
+                                  </div>
+                                </li>
+                              }
+                            </ul>
+                          </div>
+                        </details>
+                      }
+                    </section>
+                  }
+
+                  @if (!soleCategory()) {
+                    <div class="ask-rail">
+                      <!-- The tablist's own accessible name, rendered. One string, so the word
                          on screen and the word a screen reader hears cannot drift. -->
-                    <p class="ask-rail-label" aria-hidden="true">{{ asksAria }}</p>
-                    <app-rail-tabs
-                      [uniform]="true"
-                      idPrefix="spd-asks"
-                      [items]="askTabItems()"
-                      [activeId]="askCategory()"
-                      [ariaLabel]="asksAria"
-                      (select)="pickAskCategory($event)"
-                    />
-                  </div>
+                      <p class="ask-rail-label" aria-hidden="true">{{ asksAria }}</p>
+                      <app-rail-tabs
+                        [uniform]="true"
+                        idPrefix="spd-asks"
+                        [items]="askTabItems()"
+                        [activeId]="askCategory()"
+                        [ariaLabel]="asksAria"
+                        (select)="pickAskCategory($event)"
+                      />
+                    </div>
+                  }
 
                   <div
                     class="ask-stage"
@@ -427,32 +678,6 @@ interface ReadList {
                     role="tabpanel"
                     [attr.aria-labelledby]="'spd-asks-tab-' + askCategory()"
                   >
-                    <p class="hint hint-lede" i18n="@@spd.ask.lede2">
-                      Tick a question and this product reads its answer. It is then asked of the
-                      {{ askCategoryLabel() }} applicants who pick one of this product's program
-                      names — and of nobody else, so a tick here is also what keeps it off every
-                      other program's form.
-                    </p>
-
-                    <!--
-                      The consequence of the ticks below, counted off the payload the customer
-                      is actually served rather than re-derived here. It is the only place an
-                      operator can see what a tick costs an applicant before running the app.
-                    -->
-                    @if (servedHere().length > 0) {
-                      <ul class="served">
-                        @for (row of servedHere(); track row.programNameKey) {
-                          <li class="served-row">
-                            <span class="served-name">{{ servedName(row) }}</span>
-                            <span class="served-count" i18n="@@spd.ask.served">
-                              answers {{ row.servedTotal }} of {{ row.categoryTotal }} questions,
-                              {{ row.servedRequired }} of them required
-                            </span>
-                          </li>
-                        }
-                      </ul>
-                    }
-
                     @if (askUnpublished()) {
                       <!-- The one outcome a toast would lie about: the tick DID land and the
                            questionnaire version did not, so no applicant is being served the
@@ -509,6 +734,22 @@ interface ReadList {
                             }
                             <span class="ask-sec-count">{{ section.total }}</span>
                           </h3>
+
+                          @if (section.key === 'asked' && section.total > 1) {
+                            <button
+                              nz-button
+                              nzSize="small"
+                              type="button"
+                              [attr.aria-pressed]="askOrdering()"
+                              (click)="toggleAskOrdering()"
+                            >
+                              @if (askOrdering()) {
+                                <span i18n="@@spd.ask.order_done">Done</span>
+                              } @else {
+                                <span i18n="@@spd.ask.order_open">Change order</span>
+                              }
+                            </button>
+                          }
 
                           @if (section.key === 'rest') {
                             <div class="ask-controls">
@@ -584,7 +825,46 @@ interface ReadList {
                               Nothing yet — tap a question below and this product reads its answer.
                             </p>
                           }
+                        } @else if (
+                          section.key === 'rest' && askQuery().length === 0 && !askRestExpanded()
+                        ) {
+                          <!-- Collapsed by default: the whole question pool minus what this
+                               product already reads is almost never what the operator came to
+                               browse — they came with one question in mind and the search box
+                               above finds it in a keystroke. A pager reaching page 9 of an
+                               always-open grid was the loudest thing on the step for a section
+                               that exists to be searched, not paged through. "Browse" stays one
+                               click away for the rarer case of actually wanting to scan it —
+                               nothing here removes the capability, only its default weight. -->
+                          <p class="ask-collapsed">
+                            <span i18n="@@spd.ask.rest_collapsed"
+                              >{{ section.total }} more questions in the shared pool. Search above
+                              to find one, or</span
+                            >
+                            <button
+                              type="button"
+                              class="linkish"
+                              (click)="toggleAskRestExpanded()"
+                              i18n="@@spd.ask.rest_browse"
+                            >
+                              browse all {{ section.total }}
+                            </button>
+                          </p>
                         } @else {
+                          @if (
+                            section.key === 'rest' && askRestExpanded() && askQuery().length === 0
+                          ) {
+                            <p class="ask-sec-note">
+                              <button
+                                type="button"
+                                class="linkish"
+                                (click)="toggleAskRestExpanded()"
+                                i18n="@@spd.ask.rest_collapse"
+                              >
+                                Hide the rest
+                              </button>
+                            </p>
+                          }
                           @if (section.key === 'unasked') {
                             <p class="ask-sec-note" i18n="@@spd.ask.unasked_note">
                               This product reads these, but nobody applying for this loan type is
@@ -603,87 +883,193 @@ interface ReadList {
                               put it back.
                             </p>
                           }
-                          <ul class="ask-grid" role="list">
-                            @for (card of section.cards; track card.code || card.factKey) {
-                              <li>
-                                @if (section.key === 'unasked') {
-                                  <!-- NOT a checkbox: this row offers two different acts —
+                          @if (section.key === 'asked' && askOrdering()) {
+                            <!-- ORDER MODE. The loan type's own order, narrowed to this
+                                 product's questions, split by step because the app pages one
+                                 step per group and sorts inside it. -->
+                            <p class="ask-sec-note" i18n="@@spd.ask.order_lede">
+                              Drag a question to move it, or use the arrows. This is the order
+                              {{ askCategoryLabel() }} applicants are asked in, so it also moves for
+                              every other {{ askCategoryLabel() }} program that asks these
+                              questions. A question can only move within its own step.
+                            </p>
+                            <p class="sr-only" role="status" aria-live="polite">
+                              {{ orderStatus() }}
+                            </p>
+                            @if (orderSteps().length === 0) {
+                              <p class="ask-sec-empty" i18n="@@spd.ask.order_loading">
+                                Loading the order…
+                              </p>
+                            }
+                            @for (step of orderSteps(); track step.id) {
+                              <p class="order-step">
+                                <span>{{ step.title }}</span>
+                                <span class="ask-sec-count">{{ step.rows.length }}</span>
+                              </p>
+                              <ul
+                                class="order-list"
+                                cdkDropList
+                                [cdkDropListDisabled]="orderBusy()"
+                                (cdkDropListDropped)="
+                                  moveAskInStep(step.id, $event.previousIndex, $event.currentIndex)
+                                "
+                              >
+                                @for (row of step.rows; track row.id; let i = $index) {
+                                  <li
+                                    class="order-row"
+                                    cdkDrag
+                                    cdkDragLockAxis="y"
+                                    [cdkDragDisabled]="orderBusy()"
+                                  >
+                                    <button
+                                      type="button"
+                                      class="order-handle"
+                                      cdkDragHandle
+                                      [disabled]="orderBusy()"
+                                      aria-label="Drag to reorder"
+                                      i18n-aria-label="@@spd.ask.order_drag"
+                                    >
+                                      <span
+                                        nz-icon
+                                        nzType="holder"
+                                        nzTheme="outline"
+                                        aria-hidden="true"
+                                      ></span>
+                                    </button>
+                                    <span class="order-n" aria-hidden="true">{{ i + 1 }}</span>
+                                    <span class="order-label">{{ row.label }}</span>
+                                    <span class="order-acts">
+                                      <button
+                                        type="button"
+                                        class="order-btn"
+                                        [disabled]="i === 0 || orderBusy()"
+                                        (click)="moveAskInStep(step.id, i, i - 1)"
+                                        aria-label="Move up"
+                                        i18n-aria-label="@@spd.ask.order_up"
+                                      >
+                                        <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="order-btn"
+                                        [disabled]="i === step.rows.length - 1 || orderBusy()"
+                                        (click)="moveAskInStep(step.id, i, i + 1)"
+                                        aria-label="Move down"
+                                        i18n-aria-label="@@spd.ask.order_down"
+                                      >
+                                        <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
+                                      </button>
+                                    </span>
+                                    <div class="order-ghost" *cdkDragPlaceholder></div>
+                                  </li>
+                                }
+                              </ul>
+                            }
+                          } @else {
+                            <ul class="ask-grid" role="list">
+                              @for (card of section.cards; track card.code || card.factKey) {
+                                <li>
+                                  @if (section.key === 'unasked') {
+                                    <!-- NOT a checkbox: this row offers two different acts —
                                        start asking it here, or stop reading it — and nesting a
                                        second control inside a role="checkbox" button is invalid
                                        markup that a screen reader reads as one thing. -->
-                                  <div class="ask-card is-partial">
-                                    <span class="ask-card-head">
-                                      <span class="ask-tick is-warn" aria-hidden="true">
-                                        <span
-                                          nz-icon
-                                          nzType="exclamation-circle"
-                                          nzTheme="outline"
-                                        ></span>
+                                    <div class="ask-card is-partial">
+                                      <span class="ask-card-head">
+                                        <span class="ask-tick is-warn" aria-hidden="true">
+                                          <span
+                                            nz-icon
+                                            nzType="exclamation-circle"
+                                            nzTheme="outline"
+                                          ></span>
+                                        </span>
+                                        <span class="ask-label">{{ card.label }}</span>
                                       </span>
-                                      <span class="ask-label">{{ card.label }}</span>
-                                    </span>
-                                    <span class="ask-meta">
-                                      <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
-                                      @if (card.askedIn.length === 0) {
-                                        <span class="tag is-warn" i18n="@@spd.ask.nobody"
-                                          >Asked of nobody</span
-                                        >
-                                      } @else {
-                                        <span class="muted">{{ askedInLabel(card.askedIn) }}</span>
-                                      }
-                                    </span>
-                                    <span class="ask-acts">
-                                      <button
-                                        nz-button
-                                        nzSize="small"
-                                        type="button"
-                                        [disabled]="card.saving || askBusy()"
-                                        (click)="askHere(card)"
-                                        i18n="@@spd.ask.ask_here"
-                                      >
-                                        Ask it here
-                                      </button>
-                                      @if (card.detachBlocked) {
-                                        <span class="ask-why">{{ detachWhy(card) }}</span>
-                                      } @else {
-                                        <button
-                                          type="button"
-                                          class="linkish"
-                                          [disabled]="card.saving || askBusy()"
-                                          (click)="stopReading(card)"
-                                          i18n="@@spd.ask.stop"
-                                        >
-                                          Stop reading this
-                                        </button>
-                                      }
-                                    </span>
-                                  </div>
-                                } @else {
-                                  <button
-                                    type="button"
-                                    class="ask-card"
-                                    role="checkbox"
-                                    [class.on]="card.read"
-                                    [class.is-blocked]="!!card.blocked || !!card.detachBlocked"
-                                    [attr.aria-checked]="card.read"
-                                    [attr.aria-disabled]="!!card.blocked || !!card.detachBlocked"
-                                    [attr.aria-describedby]="
-                                      card.blocked || card.detachBlocked
-                                        ? 'spd-why-' + card.code
-                                        : null
-                                    "
-                                    [attr.aria-label]="askCardAria(card)"
-                                    [attr.aria-busy]="card.saving || askBusy()"
-                                    (click)="toggleAsk(card)"
-                                  >
-                                    <span class="ask-card-head">
-                                      <span class="ask-tick" aria-hidden="true">
-                                        @if (card.read) {
-                                          <span nz-icon nzType="check" nzTheme="outline"></span>
+                                      <span class="ask-meta">
+                                        <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
+                                        @if (card.askedIn.length === 0) {
+                                          <span class="tag is-warn" i18n="@@spd.ask.nobody"
+                                            >Asked of nobody</span
+                                          >
+                                        } @else {
+                                          <span class="muted">{{
+                                            askedInLabel(card.askedIn)
+                                          }}</span>
                                         }
                                       </span>
-                                      <span class="ask-label">{{ card.label }}</span>
-                                      <!-- The REASON A TICK WOULD DO NOTHING, as a hint: the
+                                      <span class="ask-acts">
+                                        <button
+                                          nz-button
+                                          nzSize="small"
+                                          type="button"
+                                          [disabled]="card.saving || askBusy()"
+                                          (click)="askHere(card)"
+                                          i18n="@@spd.ask.ask_here"
+                                        >
+                                          Ask it here
+                                        </button>
+                                        @if (card.detachBlocked) {
+                                          <!-- Progressive disclosure, matching the "asked"
+                                             card's own refused-glyph pattern below: the reason
+                                             is real (a live calculation still reads this
+                                             answer) but a full sentence repeated down every
+                                             row in this section was the loudest thing on the
+                                             screen for the one card in six that needs it. The
+                                             icon is focusable so the reason still reaches a
+                                             keyboard or screen-reader user, not only a mouse. -->
+                                          <span
+                                            class="ask-why-hint"
+                                            nz-tooltip
+                                            [nzTooltipTitle]="detachWhy(card)"
+                                            tabindex="0"
+                                            role="img"
+                                            [attr.aria-label]="detachWhy(card)"
+                                          >
+                                            <span
+                                              nz-icon
+                                              nzType="exclamation-circle"
+                                              nzTheme="outline"
+                                            ></span>
+                                          </span>
+                                        } @else {
+                                          <button
+                                            type="button"
+                                            class="linkish"
+                                            [disabled]="card.saving || askBusy()"
+                                            (click)="stopReading(card)"
+                                            i18n="@@spd.ask.stop"
+                                          >
+                                            Stop reading this
+                                          </button>
+                                        }
+                                      </span>
+                                    </div>
+                                  } @else {
+                                    <button
+                                      type="button"
+                                      class="ask-card"
+                                      role="checkbox"
+                                      [class.on]="card.read"
+                                      [class.is-blocked]="!!card.blocked || !!card.detachBlocked"
+                                      [attr.aria-checked]="card.read"
+                                      [attr.aria-disabled]="!!card.blocked || !!card.detachBlocked"
+                                      [attr.aria-describedby]="
+                                        card.blocked || card.detachBlocked
+                                          ? 'spd-why-' + card.code
+                                          : null
+                                      "
+                                      [attr.aria-label]="askCardAria(card)"
+                                      [attr.aria-busy]="card.saving || askBusy()"
+                                      (click)="toggleAsk(card)"
+                                    >
+                                      <span class="ask-card-head">
+                                        <span class="ask-tick" aria-hidden="true">
+                                          @if (card.read) {
+                                            <span nz-icon nzType="check" nzTheme="outline"></span>
+                                          }
+                                        </span>
+                                        <span class="ask-label">{{ card.label }}</span>
+                                        <!-- The REASON A TICK WOULD DO NOTHING, as a hint: the
                                          sentence is long, each reason repeats down a grid of
                                          59 cards, and the operator reads it only when they have
                                          just tried the card. The glyph is always visible, so
@@ -695,25 +1081,25 @@ interface ReadList {
                                          tooltip is not announced by a screen reader on a card
                                          it cannot hover — the reason must not become
                                          mouse-only. -->
-                                      @if (card.blocked || card.detachBlocked) {
-                                        <span
-                                          class="ask-why-hint"
-                                          nz-tooltip
-                                          [nzTooltipTitle]="askWhy(card)"
-                                          aria-hidden="true"
-                                        >
+                                        @if (card.blocked || card.detachBlocked) {
                                           <span
-                                            nz-icon
-                                            nzType="exclamation-circle"
-                                            nzTheme="outline"
-                                          ></span>
-                                        </span>
-                                        <span class="sr-only" [id]="'spd-why-' + card.code">{{
-                                          askWhy(card)
-                                        }}</span>
-                                      }
-                                    </span>
-                                    <!-- ONE chip, and it is the question TYPE. What used to
+                                            class="ask-why-hint"
+                                            nz-tooltip
+                                            [nzTooltipTitle]="askWhy(card)"
+                                            aria-hidden="true"
+                                          >
+                                            <span
+                                              nz-icon
+                                              nzType="exclamation-circle"
+                                              nzTheme="outline"
+                                            ></span>
+                                          </span>
+                                          <span class="sr-only" [id]="'spd-why-' + card.code">{{
+                                            askWhy(card)
+                                          }}</span>
+                                        }
+                                      </span>
+                                      <!-- ONE chip, and it is the question TYPE. What used to
                                          sit here — "In the calculation", "comes with the
                                          product", and the untick refusal — repeated down a
                                          grid of cards, and two of the three said the same
@@ -726,43 +1112,44 @@ interface ReadList {
                                          announced (aria-describedby) rather than hover-only.
                                          The two that stay are STATES, not labels: they fire
                                          on a handful of cards and each names a defect. -->
-                                    <span class="ask-meta">
-                                      <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
-                                      @if (card.questionInactive) {
-                                        <span class="tag is-warn" i18n="@@spd.ask.off"
-                                          >The question is switched off</span
-                                        >
-                                      }
-                                      @if (card.alsoAskedBy.length > 0) {
-                                        <span class="muted">{{
-                                          alsoAskedLabel(card.alsoAskedBy)
-                                        }}</span>
-                                      }
-                                    </span>
-                                  </button>
-                                }
-                              </li>
-                            }
-                          </ul>
+                                      <span class="ask-meta">
+                                        <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
+                                        @if (card.questionInactive) {
+                                          <span class="tag is-warn" i18n="@@spd.ask.off"
+                                            >The question is switched off</span
+                                          >
+                                        }
+                                        @if (card.alsoAskedBy.length > 0) {
+                                          <span class="muted">{{
+                                            alsoAskedLabel(card.alsoAskedBy)
+                                          }}</span>
+                                        }
+                                      </span>
+                                    </button>
+                                  }
+                                </li>
+                              }
+                            </ul>
 
-                          <!-- Pager below the grid, and only past one page: a control whose
+                            <!-- Pager below the grid, and only past one page: a control whose
                                only state is "page 1 of 1" is chrome, not navigation. Per
                                SECTION — the three hold unlike things and one of them is the
                                whole question pool. -->
-                          @if (section.pages > 1) {
-                            <nav class="ask-pager" [attr.aria-label]="askPagerAria">
-                              <p class="ask-pager-range" i18n="@@spd.ask.page_range">
-                                Showing {{ section.from }}–{{ section.to }} of
-                                {{ section.total }}
-                              </p>
-                              <nz-pagination
-                                [nzPageIndex]="section.page"
-                                [nzPageSize]="ASK_PAGE_SIZE"
-                                [nzTotal]="section.total"
-                                nzSize="small"
-                                (nzPageIndexChange)="setAskPage(section.key, $event)"
-                              />
-                            </nav>
+                            @if (section.pages > 1) {
+                              <nav class="ask-pager" [attr.aria-label]="askPagerAria">
+                                <p class="ask-pager-range" i18n="@@spd.ask.page_range">
+                                  Showing {{ section.from }}–{{ section.to }} of
+                                  {{ section.total }}
+                                </p>
+                                <nz-pagination
+                                  [nzPageIndex]="section.page"
+                                  [nzPageSize]="ASK_PAGE_SIZE"
+                                  [nzTotal]="section.total"
+                                  nzSize="small"
+                                  (nzPageIndexChange)="setAskPage(section.key, $event)"
+                                />
+                              </nav>
+                            }
                           }
                         }
                       </section>
@@ -1007,7 +1394,23 @@ interface ReadList {
                      It is grouped with those two by STORAGE (all three are inherited), which
                      is a fact about the database and not about the work. The work here is
                      pricing a car loan, and this is the table that does it. -->
-                @if (isPipeline()) {
+                @if (isPipeline() && !plansApply()) {
+                  <!-- NOT OFFERED where it cannot apply. Every plan table is keyed by the share
+                       of a CAR's price put down, so on a product no car loan sells — Compound
+                       Owner is a personal loan against a unit — the five rows were five
+                       invitations to author a table no applicant could ever be matched
+                       against. Said in one sentence instead, naming what the banks price by. -->
+                  <section class="step-sec">
+                    <h2 class="sub" i18n="@@spd.plans.title">Plans by deposit</h2>
+                    <p class="sec-lede plan-na">
+                      <span i18n="@@spd.plans.not_applicable"
+                        >Not used by this product. A plan prices a car loan by the down payment on
+                        the car, and this product is sold as {{ soldCategoriesLabel() }} — so each
+                        bank prices it from its own rate, term and loan amounts.</span
+                      >
+                    </p>
+                  </section>
+                } @else if (isPipeline()) {
                   <!-- FIVE TABLES AS FIVE ROWS.
                          Open, the five measured 3 801px of a 5 237px step — 73% of it — and
                          repeated the same scaffolding four times over: an axis picker, a
@@ -1157,6 +1560,7 @@ interface ReadList {
                               } @else {
                                 <div class="plan-row is-empty">
                                   <span class="plan-row-title">{{ slot.title }}</span>
+                                  <span class="plan-row-state">{{ slot.empty }}</span>
                                   <button
                                     type="button"
                                     class="link-btn plan-row-add"
@@ -1164,7 +1568,6 @@ interface ReadList {
                                   >
                                     {{ slot.add }}
                                   </button>
-                                  <span class="plan-row-state">{{ slot.empty }}</span>
                                 </div>
                               }
                             </li>
@@ -1211,7 +1614,9 @@ interface ReadList {
                      screen was rebuilt to remove (v25.1.0). -->
                 @if (isPipeline()) {
                   <section class="step-sec">
-                    <h2 class="sub" i18n="@@spd.sec.inherited">What every bank falls back to</h2>
+                    <h2 class="sub" i18n="@@spd.sec.inherited">
+                      Defaults for every bank that sells this product
+                    </h2>
                     <p class="sec-lede" i18n="@@spd.sec.inherited_lede">
                       A bank selling this product falls back to each of these while its own program
                       states nothing in its place, so a change here moves live quotes.
@@ -1294,6 +1699,233 @@ interface ReadList {
                           }
                         </p>
                       }
+
+                      <!-- THE SIZE, on its own row rather than squeezed onto the one above:
+                           five boxes across wrapped into a ragged second line at card width,
+                           and these two are one decision that has to read as a pair. Two
+                           boxes and not one field, for the reason the months are two: the
+                           ends are two figures a sheet prints separately. -->
+                      <div class="fb-row">
+                        <app-figure-field
+                          fieldId="product-amount-min"
+                          unit="EGP"
+                          [money]="true"
+                          [label]="amountMinLabel"
+                          [value]="amountMinValue() ?? ''"
+                          (valueChange)="setAmountMin($event)"
+                          [ariaLabel]="amountMinAria"
+                          [placeholderNote]="amountBlankNote"
+                        ></app-figure-field>
+                        <app-figure-field
+                          fieldId="product-amount-max"
+                          unit="EGP"
+                          [money]="true"
+                          [label]="amountMaxLabel"
+                          [value]="amountMaxValue() ?? ''"
+                          (valueChange)="setAmountMax($event)"
+                          [ariaLabel]="amountMaxAria"
+                          [placeholderNote]="amountBlankNote"
+                        ></app-figure-field>
+                      </div>
+                      @if (amountError(); as problem) {
+                        <p class="fb-error" role="alert">
+                          @switch (problem) {
+                            @case ('range') {
+                              <span i18n="@@spd.amount.err_range"
+                                >Each amount must be a figure above zero, to at most two
+                                decimals.</span
+                              >
+                            }
+                            @case ('inverted') {
+                              <span i18n="@@spd.amount.err_inverted"
+                                >The largest loan must be at least the smallest.</span
+                              >
+                            }
+                            @case ('half') {
+                              <span i18n="@@spd.amount.err_half"
+                                >State both amounts or neither — one on its own is a range nobody
+                                set.</span
+                              >
+                            }
+                          }
+                        </p>
+                      }
+                      @if (amountReaders(); as readers) {
+                        <p class="tenor-readers" [class.is-warn]="amountClearBlocked()">
+                          @if (amountClearBlocked()) {
+                            <span i18n="@@spd.amount.readers_clear"
+                              >{{ readers }} bank program(s) have no amounts of their own and are
+                              using these. Emptying the boxes would leave them unable to quote, so
+                              it will be refused — give each of them its own amounts first.</span
+                            >
+                          } @else {
+                            <span i18n="@@spd.amount.readers"
+                              >{{ readers }} bank program(s) state no amounts of their own and use
+                              these.</span
+                            >
+                          }
+                        </p>
+                      }
+
+                      <!-- TWO STATES, because on one product of the thirteen a flat rate
+                           prices NOBODY. down_payment_income states a plan rate table keyed
+                           by the deposit, the origin and the fuel, and it REFUSES an answer it
+                           does not cover (onNoMatch: 'reject') — so the cascade never reaches
+                           the figure below it, and a box asking for one would be a number an
+                           operator curates and that moves nothing. The reader line under it was
+                           worse than useless there: it named three programmes and told the
+                           operator they were priced at a figure none of them can ever read.
+
+                           The same rule the wizard's own card applies (ratePricedByTable) and
+                           the same one the server enforces on a bank program's save
+                           (aRateGridPrices): a grid must APPLY and it must REFUSE on no-match.
+                           useFallback sends an unmatched applicant back down the cascade to
+                           this very box, so a table that falls back does NOT price everyone and
+                           the figure is still asked for.
+
+                           Read off the LIVE table (planValue), not the loaded row: the plans
+                           are edited on this same step, and a screen that kept asking for a rate
+                           until the next Save would be describing the product it used to be. -->
+                      @if (ratePricedByPlans()) {
+                        <p class="tenor-readers" i18n="@@spd.rate.priced_by_table">
+                          The plan table above prices every applicant, so a rate here is not needed.
+                          An answer it does not cover is refused rather than priced from here.
+                        </p>
+                      } @else {
+                        <!-- THE PRICE, on its own row under the size. It is here and not on
+                             each bank's wizard for the reason the lede states and the other
+                             figures share: one statement about the product that every program
+                             selling it is quoted at unless it states its own. The wizard's
+                             rate card is GONE, so for most programmes this is the only place
+                             the figure exists.
+
+                             ONE STATEMENT, two controls: the figure and — only when it resets —
+                             the disclosure. How the interest is charged is not asked: every
+                             product is priced on a declining balance, so rateBasisValue keeps
+                             what the product stored ('reducing' when blank) and is saved as is. -->
+                        <div class="fb-row">
+                          <app-figure-field
+                            fieldId="product-rate"
+                            unit="%"
+                            [label]="rateVariable() ? rateEffectiveLabel : rateLabel"
+                            [value]="rateValue() ?? ''"
+                            (valueChange)="setRate($event)"
+                            [ariaLabel]="rateVariable() ? rateEffectiveAria : rateAria"
+                            [placeholderNote]="rateBlankNote"
+                          ></app-figure-field>
+                        </div>
+                        <label class="radio rate-variable">
+                          <input
+                            type="checkbox"
+                            [checked]="rateVariable()"
+                            (change)="setRateVariable($event)"
+                          />
+                          <span i18n="@@spd.rate.variable"
+                            >Variable rate (CBE-linked, quarterly reset)</span
+                          >
+                        </label>
+                        @if (rateVariable()) {
+                          <label class="rate-note">
+                            <span class="rate-legend" i18n="@@spd.rate.note">Disclosure note</span>
+                            <textarea
+                              nz-input
+                              rows="2"
+                              [value]="rateNoteValue() ?? ''"
+                              (input)="setRateNote($any($event.target).value)"
+                            ></textarea>
+                          </label>
+                        }
+                        @if (rateError(); as problem) {
+                          <p class="fb-error" role="alert">
+                            @switch (problem) {
+                              @case ('range') {
+                                <span i18n="@@spd.rate.err_range"
+                                  >The rate must be a figure of at most four decimals, above zero
+                                  and below 1000.</span
+                                >
+                              }
+                              @case ('half') {
+                                <span i18n="@@spd.rate.err_half"
+                                  >A variable rate needs the rate it currently sits at — type it, or
+                                  untick the box.</span
+                                >
+                              }
+                            }
+                          </p>
+                        }
+                        @if (rateReaders(); as readers) {
+                          <p class="tenor-readers" [class.is-warn]="rateClearBlocked()">
+                            @if (rateClearBlocked()) {
+                              <span i18n="@@spd.rate.readers_clear"
+                                >{{ readers }} bank program(s) have no rate of their own and are
+                                priced at this one. Emptying the box would leave them unable to
+                                quote, so it will be refused — change the rate here instead.</span
+                              >
+                            } @else {
+                              <span i18n="@@spd.rate.readers"
+                                >{{ readers }} bank program(s) state no rate of their own and are
+                                priced at this one.</span
+                              >
+                            }
+                          </p>
+                        }
+                      }
+
+                      <!-- WHAT EACH BUREAU SCORE IS WORTH. In this group and not in the
+                           calculation below, because that is what it now is: a default every
+                           bank selling this product falls back to, exactly like the cap and
+                           the months above it.
+
+                           It WAS four steps in the calculation until v30.3.0, which is why
+                           the operator used to state it in the rule editor's band slot. That
+                           slot is gone, and this is where the statement moved — so a product
+                           whose tiers the migration carried across stays editable. -->
+                      <div class="fb-tiers">
+                        <h3 class="fb-tiers-title" i18n="@@spd.iscore.title">
+                          What each I-Score is worth
+                        </h3>
+                        <p class="sec-lede" i18n="@@spd.iscore.lede">
+                          One row per score range, with the share of the worked-out figure counted
+                          at that score. Every bank selling this product reads these unless it
+                          states its own. The table must start at 0 and leave its top range open, so
+                          every score is covered.
+                        </p>
+                        <p class="sec-lede" i18n="@@spd.iscore.shared_note">
+                          Leave it empty and the standard I-Score classes on Manage values apply to
+                          every bank selling this product.
+                        </p>
+                        @if (iScoreClassBands().length > 0) {
+                          <!-- The six bureau classes from Manage values, at 100% each: a
+                               starting table the operator then types this product's factors
+                               into. It replaces what is on screen; Save is still the only write. -->
+                          <p>
+                            <button
+                              type="button"
+                              class="linkish"
+                              (click)="setIScoreTiers(iScoreClassBandsCopy())"
+                              i18n="@@spd.iscore.use_classes"
+                            >
+                              Use the standard I-Score classes
+                            </button>
+                          </p>
+                        }
+                        <app-income-bands-editor
+                          [bands]="iScoreTiers()"
+                          (bandsChange)="setIScoreTiers($event)"
+                          [unit]="iScoreRangeUnit"
+                          [valueLabel]="iScoreValueLabel"
+                          [coverAll]="true"
+                        ></app-income-bands-editor>
+                        @if (iScoreReaders(); as readers) {
+                          <p class="tenor-readers">
+                            <span i18n="@@spd.iscore.readers"
+                              >{{ readers }} bank program(s) state no tiers of their own and use
+                              these. Emptying the table leaves them counting every figure in
+                              full.</span
+                            >
+                          </p>
+                        }
+                      </div>
                     </section>
                   </section>
                 }
@@ -1428,23 +2060,13 @@ interface ReadList {
                   }
                 </section>
 
-                <p class="reach">
-                  @if (p.usedBy.length === 0) {
+                @if (p.usedBy.length === 0) {
+                  <p class="reach">
                     <span i18n="@@spd.reach_none"
                       >Nothing sells this yet, so a change here reaches no bank.</span
                     >
-                  } @else {
-                    <!-- SHORT, because each section now states its own reach beside its own
-                         control: the duration counts the programs using its months, the plans
-                         count the ones that opted in. This line is the only statement about
-                         catalog NAMES, so it keeps that and the one mechanism no section above
-                         it owns — the tables a program takes with catalog amounts. -->
-                    <span i18n="@@spd.reach3"
-                      >A change here reaches {{ p.usedBy.length }} catalog name(s), and every bank
-                      program under them that has not stated its own figure in place of it.</span
-                    >
-                  }
-                </p>
+                  </p>
+                }
 
                 <ng-container [ngTemplateOutlet]="ruleActions"></ng-container>
               </section>
@@ -2139,6 +2761,30 @@ interface ReadList {
 
       /* SECONDARY, like the lede above it and for the same reason: it states how many live
          programs a change here moves, which is the sentence an operator has to read. */
+      /* The tier table and its heading, set as the fourth statement in the defaults group
+         rather than as a card: the panel is already a container and a box inside a box is
+         the nesting this screen was rebuilt to remove (v25.1.0). Separated from the rows
+         above by space alone, like every other sub-statement here. */
+      .fb-tiers {
+        margin-block-start: var(--space-5);
+        /* AND a bottom margin, which the three statements above this one do not need: they
+           are followed by more content inside the block, where this is its LAST child. Its
+           reader line ended flush with the block's own bottom edge (measured: both at
+           892.06px), so the sentence butted straight against the next section's hairline
+           with no breathing space -- it read as clipped text. */
+        margin-block-end: var(--space-5);
+      }
+      /* Same ramp and ink as .sub, one step down: it names a table inside a section that
+         already has a heading. */
+      .fb-tiers-title {
+        margin: 0 0 var(--space-2);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+
       .tenor-readers {
         margin: 0;
         max-inline-size: 60ch;
@@ -2152,6 +2798,34 @@ interface ReadList {
       .tenor-readers.is-warn {
         color: var(--text-primary);
         font-weight: var(--font-medium);
+      }
+
+      .rate-legend {
+        display: block;
+        padding: 0;
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+      }
+
+      .radio {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+        cursor: pointer;
+      }
+
+      .rate-variable {
+        margin-block-start: var(--space-1);
+      }
+
+      .rate-note {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        max-inline-size: 42rem;
       }
 
       /* --error is #C1666B, which measures 3.81:1 on this card's ground in light mode — under
@@ -2187,16 +2861,15 @@ interface ReadList {
         border-block-start: 1px solid var(--border-subtle);
       }
 
-      /* Title and state on two lines rather than one: the state runs to a full sentence on
-         an unstated row ("No rate table — each bank prices from its own rate.") and to
-         three axis names on a stated one, and either of those beside a title on one line
-         is a row that wraps differently at every width. The chevron sits in a fixed
-         leading column so the titles align down the list whether a row has one or not. */
+      /* ONE LINE: glyph, title, state — the settings-row shape, with the state on the end
+         edge where a list of them reads as a column. It took two lines only because the
+         state was a sentence or three chained question names; now it is "20 rows" or "Not
+         set", both of which sit beside a title at any width. The glyph column is fixed so
+         the titles align down the list whether the row holds a chevron or a plus. */
       .plan-row {
         display: grid;
         grid-template-columns: 12px minmax(0, 1fr) auto;
         column-gap: var(--space-3);
-        row-gap: var(--space-1);
         align-items: center;
         inline-size: 100%;
         min-block-size: 44px;
@@ -2273,18 +2946,52 @@ interface ReadList {
         color: var(--text-primary);
       }
 
-      .plan-row-add {
-        grid-area: 1 / 3;
+      /* The plus shares the chevron's column, ink and size — one glyph column down the
+         list, whether the row opens a table or states one. */
+      .plan-add {
+        grid-area: 1 / 1;
+        flex: none;
+        color: var(--text-secondary);
       }
 
-      /* SECONDARY, not tertiary. On an unstated row it says what the bank does instead,
-         which is a sentence somebody has to read before deciding to add a table — and
-         tertiary measures 3.83:1 on this ground in light mode. */
+      button.plan-row:hover .plan-add,
+      button.plan-row:hover .chev {
+        color: var(--text-primary);
+      }
+
+      /* SECONDARY, not tertiary: it is the value of the row, read on every pass, and
+         tertiary measures 3.83:1 on this ground in light mode. Tabular figures because
+         five of these stack into a column of counts, and proportional digits make a
+         column of numbers look ragged at the one place it should look like a column. */
       .plan-row-state {
-        grid-area: 2 / 2 / 2 / 4;
+        grid-area: 1 / 3;
+        text-align: end;
         font-size: var(--text-sm);
-        line-height: 1.6;
+        font-variant-numeric: tabular-nums;
         color: var(--text-secondary);
+      }
+
+      /* AN EMPTY ROW has three things to say and the grid above has one free column for two of
+         them, so the verb used to auto-place into the 12px glyph track — one word per line,
+         bleeding under the title. Here the sentence drops under the title as its second line
+         and the verb takes the end edge, where the state sits on a filled row. The glyph track
+         stays, empty, so the titles still align down the list. */
+      .plan-row.is-empty {
+        grid-template-rows: auto auto;
+        row-gap: var(--space-1);
+      }
+      .plan-row.is-empty .plan-row-state {
+        grid-area: 2 / 2;
+        text-align: start;
+      }
+      .plan-row-add {
+        grid-area: 1 / 3 / span 2 / 4;
+        align-self: center;
+        white-space: nowrap;
+      }
+
+      .plan-na {
+        margin-block-end: 0;
       }
 
       .plan-body {
@@ -2801,49 +3508,6 @@ interface ReadList {
         gap: var(--space-4);
       }
 
-      .hint-lede {
-        font-size: var(--text-xs);
-        max-inline-size: 72ch;
-        /* Secondary, not tertiary: this sentence states the SECOND half of what a tick
-           does, and tertiary ink on this ground measures under 4.5:1 in light mode. */
-        color: var(--color-text-secondary);
-        line-height: var(--leading-relaxed);
-      }
-
-      /* What the ticks below cost an applicant. A quiet list under the lede rather than a
-         boxed notice: it is a statement of fact, not something to act on, and this stage
-         already sits inside the step's own container. */
-      .served {
-        margin: 0 0 var(--space-4);
-        padding: 0;
-        list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-      }
-
-      .served-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: var(--space-2);
-        font-size: var(--text-xs);
-        line-height: var(--leading-relaxed);
-      }
-
-      .served-name {
-        font-weight: var(--font-semibold);
-        color: var(--color-text-primary);
-      }
-
-      /* Secondary, not tertiary: these are the numbers the operator came for, and tertiary
-         ink on this ground measures under 4.5:1 in light mode. Tabular figures so the counts
-         line up down the list. */
-      .served-count {
-        color: var(--color-text-secondary);
-        font-variant-numeric: tabular-nums;
-      }
-
       .ask-alert {
         display: flex;
         align-items: center;
@@ -2942,6 +3606,203 @@ interface ReadList {
         color: var(--color-text-secondary);
       }
 
+      /* The default state of "Not read yet": one quiet line instead of a grid the operator
+         almost never scrolls. Same dashed-hairline posture as .ask-nomatch — nothing is
+         wrong here either, the pool is just resting until somebody searches it. */
+      .ask-collapsed {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-4);
+        border: 1px dashed var(--border-subtle);
+        border-radius: var(--radius-md);
+        max-inline-size: 72ch;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+
+      /* --- step ①: what the engine needs --------------------------------- */
+      .need {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+      }
+      .need-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+      .need-heading {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-inline-size: 0;
+      }
+      .need-title {
+        margin: 0;
+        font-size: var(--text-base);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+      .need-summary {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+      .need-summary.is-done [nz-icon] {
+        color: var(--color-success);
+      }
+      .need-note {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+      /* A group is a bordered fold row: it has to read as something to open, and as the
+         panel's verdict rather than as another uppercase section of the board below. */
+      .need-group {
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        overflow: hidden;
+      }
+      .need-group-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        cursor: pointer;
+        list-style: none;
+        transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .need-group-head::-webkit-details-marker {
+        display: none;
+      }
+      .need-group-head:hover {
+        background: var(--bg-muted);
+      }
+      .need-group-head:focus-visible {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: -2px;
+      }
+      .need-dot {
+        flex: none;
+        inline-size: 0.5rem;
+        block-size: 0.5rem;
+        border-radius: var(--radius-pill);
+        background: var(--color-success);
+      }
+      .need-group.is-action .need-dot {
+        background: var(--color-warning);
+      }
+      .need-group-title {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        flex: 1 1 auto;
+        min-inline-size: 0;
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
+      }
+      .need-group-count {
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+      }
+      /* The only affordance the row has once the native marker is gone. It rotates rather
+         than swapping glyphs, so the two states read as one object turning. */
+      .need-chev {
+        flex: none;
+        color: var(--color-text-secondary);
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .need-group-head:hover .need-chev {
+        color: var(--color-text-primary);
+      }
+      .need-group[open] .need-chev {
+        transform: rotate(180deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .need-chev,
+        .need-group-head {
+          transition: none;
+        }
+      }
+      .need-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-2) var(--space-3) var(--space-1);
+        border-block-start: 1px solid var(--border-subtle);
+      }
+      .need-group-note {
+        margin: 0;
+        max-inline-size: 72ch;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .need-list {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .need-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-4);
+        padding-block: var(--space-2);
+        border-block-end: 1px solid var(--border-subtle);
+      }
+      .need-row:last-child {
+        border-block-end: 0;
+      }
+      .need-label {
+        flex: 1 1 16rem;
+        min-inline-size: 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-primary);
+        overflow-wrap: anywhere;
+      }
+      .need-side {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-shrink: 0;
+      }
+      .need-uses {
+        font-size: var(--text-xs);
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text-secondary);
+        text-decoration: underline dotted;
+        text-underline-offset: 3px;
+        cursor: help;
+        border-radius: var(--radius-sm);
+      }
+      .need-uses:focus-visible {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: 2px;
+      }
+      .need-status {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-primary);
+      }
+
       .ask-sec {
         display: flex;
         flex-direction: column;
@@ -2968,6 +3829,117 @@ interface ReadList {
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--color-text-secondary);
+      }
+
+      /* Order mode: one column, the step named above each list. */
+      .order-step {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: var(--space-3) 0 0;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--color-text-secondary);
+      }
+
+      .order-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+      }
+
+      .order-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border-block-end: 1px solid var(--border-subtle);
+        background: var(--bg-surface);
+      }
+
+      .order-row:last-child {
+        border-block-end: 0;
+      }
+
+      .order-handle,
+      .order-btn {
+        display: grid;
+        place-items: center;
+        flex: none;
+        inline-size: var(--space-6);
+        block-size: var(--space-6);
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        background: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
+
+      .order-handle {
+        cursor: grab;
+      }
+
+      .order-handle:focus-visible,
+      .order-btn:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+
+      .order-btn:hover:not(:disabled) {
+        border-color: var(--border-subtle);
+        background: var(--bg-subtle);
+      }
+
+      .order-handle:disabled,
+      .order-btn:disabled {
+        cursor: default;
+        opacity: 0.4;
+      }
+
+      .order-n {
+        display: grid;
+        place-items: center;
+        flex: none;
+        inline-size: var(--space-5);
+        block-size: var(--space-5);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-pill);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-secondary);
+      }
+
+      .order-label {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+      }
+
+      .order-acts {
+        display: flex;
+        flex: none;
+        gap: var(--space-1);
+      }
+
+      .order-ghost {
+        block-size: var(--space-6);
+        border: 1px dashed var(--border-default);
+        border-radius: var(--radius-sm);
+        background: var(--bg-subtle);
+      }
+
+      .order-row.cdk-drag-preview {
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+      }
+
+      .order-row.cdk-drag-placeholder > :not(.order-ghost) {
+        visibility: hidden;
       }
 
       .ask-sec-count {
@@ -3235,13 +4207,6 @@ interface ReadList {
         white-space: nowrap;
       }
 
-      .ask-why {
-        font-size: var(--text-xs);
-        line-height: var(--leading-relaxed);
-        /* Live ink, measured: this is the whole information the card carries. */
-        color: var(--color-text-secondary);
-      }
-
       .ask-acts {
         display: flex;
         flex-wrap: wrap;
@@ -3276,6 +4241,7 @@ export class SurrogateProductDetailPage {
   protected readonly productBase = PRODUCT_BASE;
 
   private readonly api = inject(BankProgramsApiService);
+  private readonly questionnaire = inject(QuestionnaireApiService);
   /** Via NzModalService so the scrim covers the whole viewport, never the panel (A34). */
   private readonly modal = inject(NzModalService);
   private readonly enums = inject(PlatformEnumerationsService);
@@ -3382,6 +4348,56 @@ export class SurrogateProductDetailPage {
   /** The stored cap as text, or `null` when the product states none. */
   protected readonly dbrCapValue = signal<string | null>(null);
 
+  /**
+   * The I-SCORE TIERS this product hands every bank selling it.
+   *
+   * A PLAIN SIGNAL seeded from the response, never `toSignal(control.valueChanges)` — the
+   * v26.2.0 bug where the debt-burden cap beside it read back EMPTY over a stored value,
+   * because `absorb` resets with `emitEvent: false` so the stored figure never reached the
+   * box. The save wrote it, the audit recorded it, the reload showed nothing.
+   *
+   * Stored in its OWN COLUMN (`platform_enumeration.iScoreDefaults`), not on the rule blob:
+   * the tiers stopped being part of the calculation at v30.3.0, and folding them back in
+   * would make a tier edit read as a rule change in the audit log.
+   */
+  protected readonly iScoreTiers = signal<IncomeBand[]>([]);
+
+  /** Its own dirty flag, read BEFORE the first write — the trap `save()` already documents. */
+  protected iScoreDirty = false;
+
+  protected readonly iScoreRangeUnit = $localize`:@@spd.iscore.unit:score`;
+  protected readonly iScoreValueLabel = $localize`:@@spd.iscore.value:Percentage (%)`;
+
+  /** The I-Score classes on Manage values, as a table — loaded once, `[]` if unreachable. */
+  protected readonly iScoreClassBands = signal<IncomeBand[]>([]);
+
+  protected iScoreClassBandsCopy(): IncomeBand[] {
+    return this.iScoreClassBands().map((band) => ({ ...band }));
+  }
+
+  protected setIScoreTiers(bands: IncomeBand[]): void {
+    this.iScoreTiers.set(bands);
+    this.iScoreDirty = true;
+    // BOTH flags, and the second is what took a browser to notice. `iScoreDirty` decides
+    // whether the tier WRITE fires; `dirty()` is what enables Save at all
+    // (`!dirty() || saving() || ruleBlocked()`). Without this the operator types a table and
+    // the button stays dead with nothing saying why — the exact shape of defect v26.2.0
+    // recorded against this screen, and every sibling setter here calls `markDirty()`.
+    this.markDirty();
+  }
+
+  /**
+   * Does the table on screen have a shape error? Gates Save.
+   *
+   * v26.2.0's defect 2 in one line: judging whether a table HAS rows and never its shape left
+   * Save enabled with the editor's own error on screen and the refusal arriving later.
+   */
+  protected readonly iScoreError = computed<boolean>(() => {
+    const bands = this.iScoreTiers();
+    if (bands.length === 0) return false;
+    return incomeBandsErrorFor(bands, { coverAll: true }) !== null;
+  });
+
   protected readonly dbrCapLabel = $localize`:@@spd.dbr.label:Debt burden`;
   protected readonly dbrCapAriaLabel = $localize`:@@spd.dbr.aria:Debt-burden cap for this calculation's figure, per cent`;
   protected readonly dbrCapBlankNote = $localize`:@@spd.dbr.blank_note:Blank — each bank's own cap applies.`;
@@ -3431,6 +4447,18 @@ export class SurrogateProductDetailPage {
    * that differs between them is the value kind and the words — and five copies is five
    * places for one of them to drift out of step with the server's own list.
    */
+  /**
+   * What an unstated row says — once, instead of five sentences saying it five ways.
+   *
+   * Each row used to carry its own ("No table — each bank lends from its own shortest
+   * term."), which is the block's own lede — "A bank selling this product falls back to each
+   * of these while its own program states nothing in its place" — repeated per row, in the
+   * widest possible form, on the rows that hold the least. The rule is stated above the list;
+   * the row states the STATE.
+   */
+  protected readonly planNotSet = $localize`:@@spd.plans.not_set:Not set`;
+
+  /** The five tables, and what each one's figures mean — stated once, not five template blocks. */
   protected readonly planSlots = [
     {
       key: 'rateByFact' as const,
@@ -3504,6 +4532,10 @@ export class SurrogateProductDetailPage {
 
   protected addPlanGrid(slot: PlanSlotKey): void {
     this.setPlanGrid(slot, emptyFactGrid());
+    // Open it on the same click. Adding a table and leaving it closed asked for a second
+    // click before anything could be typed into the thing that had just been created — and
+    // the row it left behind said "1 row" about a table with nothing in it yet.
+    this.openPlanSlots.set(new Set(this.openPlanSlots()).add(slot));
   }
 
   /**
@@ -3691,7 +4723,7 @@ export class SurrogateProductDetailPage {
    * show by being looked at is that their deposit bands disagree, so comparing two of them
    * side by side is exactly the reason somebody opens this list.
    */
-  private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set());
+  private readonly openPlanSlots = signal<ReadonlySet<PlanSlotKey>>(new Set(['rateByFact']));
 
   /** The first slot with something wrong in it, or null. Gates Save, and forces its row open. */
   protected readonly erroredPlanSlot = computed<PlanSlotKey | null>(
@@ -3731,26 +4763,29 @@ export class SurrogateProductDetailPage {
   }
 
   /**
-   * What a closed row says its table holds: how many rows, and which answers they are keyed
-   * by. Derived from the stored grid rather than stated beside it, so it cannot go stale —
-   * the mistake a second list saying what a table contains would make on its first edit.
+   * What a closed row says its table holds: HOW MANY ROWS, and nothing else.
    *
-   * An axis with no fact picked yet contributes no name, correctly: it names nothing.
+   * It used to chain the axis names on as well — "20 row(s), by Down payment (% of the
+   * price) · Where the car was built · What the car runs on" — which is three question
+   * SENTENCES joined with separators. That was the longest string on the step, it wrapped at
+   * every width, and it is the whole reason the row was laid out on two lines. The axes are
+   * named authoritatively ONE CLICK AWAY, in the column headers of the table the row opens,
+   * so the closed row was restating something already stated and paying a line for it.
+   *
+   * Derived from the stored grid rather than kept beside it, so it cannot go stale — the
+   * mistake a second list saying what a table contains would make on its first edit.
+   *
+   * Two flat messages rather than one with `row(s)` in it: a parenthesised plural is a
+   * translator's problem printed at the customer, and Arabic does not form a plural that way
+   * at all.
    */
   protected planSummary(slot: PlanSlotKey): string {
     const grid = this.planGrid(slot);
     if (grid === null) return '';
-    const rows = String(grid.cells.length);
-    const known = this.facts();
-    // Through the editor's own labeller, never the registry alone: the deposit and the term
-    // are DERIVED axes with no question behind them, so a registry lookup answers nothing for
-    // the one axis every plan table is keyed by first.
-    const axes = grid.axes
-      .map((axis) => factGridAxisLabel(axis.factKey, known))
-      .filter((label) => label !== '')
-      .join(' · ');
-    if (axes === '') return $localize`:@@spd.plans.summary_rows:${rows}:rows: row(s)`;
-    return $localize`:@@spd.plans.summary:${rows}:rows: row(s), by ${axes}:axes:`;
+    const rows = grid.cells.length;
+    return rows === 1
+      ? $localize`:@@spd.plans.rows_one:1 row`
+      : $localize`:@@spd.plans.rows_many:${String(rows)}:rows: rows`;
   }
 
   /**
@@ -3863,6 +4898,22 @@ export class SurrogateProductDetailPage {
    * than asked for separately: it is the same walk step ③ renders, and a second endpoint
    * answering "who is affected" would be a second answer.
    */
+  /**
+   * How many programs read these tiers — i.e. state none of their own.
+   *
+   * The sibling of `tenorReaders` below, and the only warning an operator gets before a live
+   * figure moves. There is no `iScoreClearBlocked` beside it, deliberately: emptying the
+   * table is never refused, because it leaves every reader counting the figure in full, which
+   * is a priceable quote. A cleared DURATION leaves them unable to quote at all, which is
+   * why that one has a refusal and this one has a sentence.
+   */
+  protected readonly iScoreReaders = computed<number>(
+    () =>
+      this.product()
+        ?.names.flatMap((n) => n.programs)
+        .filter((prog) => !prog.ownIScoreTiers).length ?? 0,
+  );
+
   protected readonly tenorReaders = computed<number>(
     () =>
       this.product()
@@ -3904,13 +4955,230 @@ export class SurrogateProductDetailPage {
    */
   private tenorDirty = false;
 
+  // ── The loan SIZE every bank falls back to ───────────────────────────────
+  // The duration's twin, drawn from the same template throughout: both amounts or neither,
+  // inherited live rather than copied, and a CLEAR is the one move the server can refuse.
+
+  protected readonly amountMinValue = signal<string | null>(null);
+  protected readonly amountMaxValue = signal<string | null>(null);
+
+  // "Smallest"/"Largest" and not "Smallest loan", which is what the plan table's own floor
+  // column is called one section down. Two identically-labelled money boxes on one screen
+  // that mean different things — a flat default and a per-deposit-band floor — is the
+  // collision; bare adjectives also make these read as the months' peers, which they are.
+  protected readonly amountMinLabel = $localize`:@@spd.amount.min:Smallest`;
+  protected readonly amountMaxLabel = $localize`:@@spd.amount.max:Largest`;
+  protected readonly amountMinAria = $localize`:@@spd.amount.min_aria:Smallest loan every program selling this product lends, in EGP`;
+  protected readonly amountMaxAria = $localize`:@@spd.amount.max_aria:Largest loan every program selling this product lends, in EGP`;
+  protected readonly amountBlankNote = $localize`:@@spd.amount.blank_note:Blank — each bank states its own.`;
+
+  /**
+   * `null` when there is nothing to say, otherwise WHICH of the three things is wrong —
+   * mirroring `tenorError` exactly, including that an empty pair is legal and is the state
+   * every product ships in.
+   *
+   * Compared as NUMBERS, never as strings: '900000' > '1000000' is true lexically, which is
+   * how an inverted pair passes a check that looks right.
+   */
+  protected readonly amountError = computed<'range' | 'inverted' | 'half' | null>(() => {
+    const min = (this.amountMinValue() ?? '').trim();
+    const max = (this.amountMaxValue() ?? '').trim();
+    if (min === '' && max === '') return null;
+    if (min === '' || max === '') return 'half';
+    const legal = (raw: string) => /^\d+(\.\d{1,2})?$/.test(raw) && Number(raw) <= 99999999999.99;
+    if (!legal(min) || !legal(max)) return 'range';
+    const lo = Number(min);
+    const hi = Number(max);
+    // A ceiling of zero is a program that can never lend — refused by the server too.
+    if (hi <= 0) return 'range';
+    return lo > hi ? 'inverted' : null;
+  });
+
+  /**
+   * How many bank programs are reading these amounts right now.
+   *
+   * Counted off `names[].programs[].ownLoanAmounts`, NOT `ownAmounts`: that one is the
+   * income-FIGURES axis (whose tables a program quotes from), a different question with a
+   * confusingly similar name. Counting it here reported programs that had typed their own
+   * sizes as reading these.
+   */
+  protected readonly amountReaders = computed<number>(
+    () =>
+      this.product()
+        ?.names.flatMap((n) => n.programs)
+        .filter((prog) => !prog.ownLoanAmounts).length ?? 0,
+  );
+
+  /** Would emptying the boxes be refused? Says it BEFORE the server has to. */
+  protected readonly amountClearBlocked = computed<boolean>(() => {
+    if (this.amountReaders() === 0) return false;
+    if (this.product()?.loanAmountDefaults == null) return false;
+    return (
+      (this.amountMinValue() ?? '').trim() === '' && (this.amountMaxValue() ?? '').trim() === ''
+    );
+  });
+
+  protected setAmountMin(raw: string): void {
+    const value = raw.trim();
+    this.amountMinValue.set(value === '' ? null : value);
+    this.amountDirty = true;
+    this.markDirty();
+  }
+
+  protected setAmountMax(raw: string): void {
+    const value = raw.trim();
+    this.amountMaxValue.set(value === '' ? null : value);
+    this.amountDirty = true;
+    this.markDirty();
+  }
+
+  /** Its own flag beside `tenorDirty`, and for the same reason: it is a separate write. */
+  private amountDirty = false;
+
+  // ── The PRICE every bank falls back to ───────────────────────────────────
+  // The third of the family, drawn from the duration's template like the size above it —
+  // and the one that carries the most: the bank-program wizard's rate card was deleted, so
+  // for every programme under this product that states nothing, this is where the price is.
+
+  protected readonly rateValue = signal<string | null>(null);
+  protected readonly rateVariable = signal<boolean>(false);
+  protected readonly rateNoteValue = signal<string | null>(null);
+  protected readonly rateBasisValue = signal<RateBasis>('reducing');
+
+  protected readonly rateLabel = $localize`:@@spd.rate.label:Interest rate`;
+  protected readonly rateEffectiveLabel = $localize`:@@spd.rate.effective_label:Rate right now`;
+  protected readonly rateAria = $localize`:@@spd.rate.aria:Yearly interest rate every program selling this product is quoted at, in percent`;
+  protected readonly rateEffectiveAria = $localize`:@@spd.rate.effective_aria:Rate every program selling this product is quoted at today, in percent, until the next reset`;
+  protected readonly rateBlankNote = $localize`:@@spd.rate.blank_note:Blank — each bank states its own.`;
+
+  /**
+   * Does this product's own PLAN table already price every applicant?
+   *
+   * The twin of the wizard's `ratePricedByTable` and of the server's `aRateGridPrices`, and
+   * it takes both halves of their test: a grid must APPLY, and it must REFUSE on no-match.
+   * `useFallback` hands an unmatched applicant back down the cascade to the flat figure, so a
+   * table that falls back has not priced everyone and the box below it is still a real
+   * question.
+   *
+   * Read off the LIVE `planValue`, not the loaded row, for the reason every other computed on
+   * this screen reads the controls: the plan tables are edited on this same step, and a
+   * section that only noticed after a Save would be describing the product it used to be.
+   */
+  protected readonly ratePricedByPlans = computed<boolean>(
+    () => this.planValue()?.rateByFact?.onNoMatch === 'reject',
+  );
+
+  /**
+   * `null` when there is nothing to say, otherwise WHICH of the two things is wrong.
+   *
+   * An empty box is legal and is the state every product ships in — a CLEAR, refused
+   * separately while programs are reading it. What is not legal is a variable rate with no
+   * figure: the server refuses that pair (`INVALID_VARIABLE_RATE_CONFIGURATION`), and a
+   * refusal that arrives after Save is a refusal about a control the operator has scrolled
+   * past.
+   */
+  protected readonly rateError = computed<'range' | 'half' | null>(() => {
+    // Nothing to be wrong with a box nobody is being asked to fill. Judged here rather than
+    // at the Save gate so the two cannot disagree: a refusal on a field the screen has stopped
+    // showing is a Save blocked with nothing on screen to fix.
+    if (this.ratePricedByPlans()) return null;
+    const raw = (this.rateValue() ?? '').trim();
+    if (raw === '') return this.rateVariable() ? 'half' : null;
+    // Four decimals, matching the column (`DECIMAL(7,4)`) and the DTO's `DecimalRange`.
+    if (!/^\d{1,3}(\.\d{1,4})?$/.test(raw)) return 'range';
+    const value = Number(raw);
+    return !Number.isFinite(value) || value <= 0 ? 'range' : null;
+  });
+
+  /**
+   * How many bank programs are priced at this rate right now.
+   *
+   * Counted off `names[].programs[].ownRate`, the axis the server derives through the same
+   * `statesOwnRate` the quote path uses — so this count and the refusal cannot disagree.
+   */
+  protected readonly rateReaders = computed<number>(
+    () =>
+      this.product()
+        ?.names.flatMap((n) => n.programs)
+        .filter((prog) => !prog.ownRate).length ?? 0,
+  );
+
+  /** Would emptying the box be refused? Says it BEFORE the server has to. */
+  protected readonly rateClearBlocked = computed<boolean>(() => {
+    if (this.rateReaders() === 0) return false;
+    if (this.product()?.rateDefaults == null) return false;
+    return (this.rateValue() ?? '').trim() === '';
+  });
+
+  protected setRate(raw: string): void {
+    const value = raw.trim();
+    this.rateValue.set(value === '' ? null : value);
+    this.rateDirty = true;
+    this.markDirty();
+  }
+
+  /**
+   * Ticking the box changes WHICH figure the box holds, so the figure is not carried across.
+   *
+   * The server refuses a variable rate carrying a base one and vice versa — the same rule a
+   * bank program's own pricing has always been held to — and silently reinterpreting a fixed
+   * 24% as "what it happens to sit at today" would be stating a reset rule nobody published.
+   */
+  protected setRateVariable(event: Event): void {
+    this.rateVariable.set((event.target as HTMLInputElement).checked);
+    this.rateValue.set(null);
+    this.rateNoteValue.set(null);
+    this.rateDirty = true;
+    this.markDirty();
+  }
+
+  protected setRateNote(raw: string): void {
+    const value = raw.trim();
+    this.rateNoteValue.set(value === '' ? null : value);
+    this.rateDirty = true;
+    this.markDirty();
+  }
+
+  /** Its own flag beside `amountDirty`, and for the same reason: it is a separate write. */
+  private rateDirty = false;
+
+  /**
+   * The box as one statement, or `null` — the CLEAR, which the server can refuse.
+   *
+   * The unused figure is never sent: `isVariableRate` decides which of the two boxes is the
+   * price, and sending both is the one shape the server rejects outright.
+   */
+  private rateFromForm(): RateDefaults | null {
+    const figure = (this.rateValue() ?? '').trim();
+    if (figure === '') return null;
+    const variable = this.rateVariable();
+    const note = (this.rateNoteValue() ?? '').trim();
+    return {
+      isVariableRate: variable,
+      ...(variable ? { currentEffectiveRatePercent: figure } : { baseRatePercent: figure }),
+      ...(variable && note !== '' ? { variableRateNote: note } : {}),
+      rateBasis: this.rateBasisValue(),
+    };
+  }
+
   protected readonly ruleBlocked = computed(() => {
     // An out-of-range cap is refused by the server, so Save is held here too — on a screen
     // where the field is in view rather than three steps away.
     if (this.dbrCapError()) return true;
+    // Same, for the TIERS: a table with a gap, or one that does not start at 0 and leave its
+    // top open, is refused by `validateIScoreTiers`. Judged by SHAPE and not by presence —
+    // v26.2.0's defect 2, where a cleared tier figure left Save enabled with the editor's own
+    // error on screen.
+    if (this.iScoreError()) return true;
     // Same, for the duration: a half-stated or inverted pair is refused, and a refusal that
     // arrives after Save is a refusal about a field the operator has scrolled past.
     if (this.tenorError() !== null) return true;
+    // And for the loan size, on exactly the same terms.
+    if (this.amountError() !== null) return true;
+    // And for the PRICE, on the same terms again — with the sharpest consequence of the
+    // three behind it: a refused rate save leaves every program under this product on
+    // whatever it was quoting before, and the operator has no other screen to fix it on.
+    if (this.rateError() !== null) return true;
     // And for a plan table with a half-typed row: every one of them is validated on the
     // server, and the same sentence is better read beside the table it is about.
     if (this.planError() !== null) return true;
@@ -3973,25 +5241,6 @@ export class SurrogateProductDetailPage {
    */
   protected nameLabel(n: { key: string; labelEn: string; labelAr: string }): string {
     return (this.isAr ? n.labelAr : n.labelEn) || n.labelEn || n.key;
-  }
-
-  /**
-   * The served rows for the loan type on stage.
-   *
-   * Filtered by the open tab, because that is what the rest of step ① is showing and a row
-   * for another loan type sitting beside these ticks would read as a consequence of them.
-   */
-  protected readonly servedHere = computed(() => {
-    const board = this.asksBoard();
-    if (board === null) return [];
-    const category = this.askCategory();
-    return board.served.filter((row) => row.category === category);
-  });
-
-  /** The catalog name in the reading language, off the detail this page already fetched. */
-  protected servedName(row: ProductAskServed): string {
-    const match = this.product()?.names.find((n) => n.key === row.programNameKey);
-    return match ? this.nameLabel(match) : row.programNameKey;
   }
 
   /** `null` when the programme is filed under no bank, so the span is not rendered at all. */
@@ -4145,6 +5394,21 @@ export class SurrogateProductDetailPage {
   }
 
   /**
+   * "Not read yet" collapses to a one-line count by default — 66 unrelated questions from the
+   * whole pool was the single biggest source of always-visible clutter on this step, and
+   * almost never what the operator came to browse; they came with one question in mind and
+   * typed it. This toggle is the escape hatch for the rarer case of actually wanting to scan
+   * the pool, so browsing stays possible — nothing here removes a capability, only its default
+   * visibility. Reset on every loan-type switch: a newly opened tab is a different pool, and a
+   * toggle left on from the last one would show a full grid nobody asked for.
+   */
+  protected readonly askRestExpanded = signal(false);
+
+  protected toggleAskRestExpanded(): void {
+    this.askRestExpanded.update((v) => !v);
+  }
+
+  /**
    * The in-flight overlay, in both directions, keyed by what each write is addressed by.
    *
    * An overlay rather than a patched copy of the board, because the truth here lives in a
@@ -4157,6 +5421,26 @@ export class SurrogateProductDetailPage {
   /** Set when a tick landed and the questionnaire publish did not. */
   protected readonly askUnpublished = signal(false);
   protected readonly askStatus = signal('');
+
+  // ── What the engine needs ───────────────────────────────────────────────────
+  /**
+   * The panel is switched off on every product. Everything behind it stays wired, so turning
+   * it back on is this one value.
+   */
+  protected readonly neededPanelShown = signal(false);
+  /** Rows of the "what the engine needs" panel, gaps first. */
+  protected readonly neededRowsList = computed(() => neededRows(this.asksBoard(), this.isAr));
+  protected readonly neededGaps = computed(() => neededGapCount(this.neededRowsList()));
+  protected readonly neededFixable = computed(() => neededFixableCount(this.neededRowsList()));
+  protected readonly neededSoldIn = computed(() => this.asksBoard()?.soldIn ?? []);
+  /** The same rows, grouped by who answers them — gaps, this product, the platform. */
+  protected readonly neededGroupList = computed(() => neededGroups(this.neededRowsList()));
+  /** Which groups are unfolded. Gaps start open; the covered groups start folded. */
+  protected readonly neededOpen = signal<ReadonlySet<NeededGroupKey>>(new Set(['action']));
+  /** The fact a click is working on, or `*` for "Fix all". */
+  protected readonly neededBusy = signal<string | null>(null);
+  /** What the last click did, said on screen until the next one. */
+  protected readonly neededResult = signal<string>('');
 
   protected readonly asksAria = $localize`:@@spd.ask.rail_aria:Loan type`;
   protected readonly askSearchAria = $localize`:@@spd.ask.search_aria:Search questions`;
@@ -4174,6 +5458,86 @@ export class SurrogateProductDetailPage {
   }
 
   protected readonly askSections = computed(() => askSections(this.askInput()));
+
+  // ---- Order -----------------------------------------------------------------
+  /**
+   * "Change order" on "Read, and asked here". There is no per-product order: the applicant is
+   * served the LOAN TYPE's order (the one /questionnaire/categories edits), narrowed to what
+   * the picked name reads. So this edits that same order, limited to this product's rows —
+   * see `product-ask-order.ts`. Other products under the same loan type see the move too.
+   */
+  protected readonly askOrdering = signal(false);
+  /** The questionnaire tree the order is read from and written back to. Loaded on open. */
+  private readonly orderTree = signal<readonly GroupTreeRow[] | null>(null);
+  protected readonly orderBusy = signal(false);
+  protected readonly orderStatus = signal('');
+
+  /** Codes of the questions this product reads AND the open loan type asks. */
+  private readonly askedHereCodes = computed(
+    () =>
+      new Set(
+        (this.askSections().find((s) => s.key === 'asked')?.cards ?? [])
+          .map((c) => c.code)
+          .filter((code) => code !== ''),
+      ),
+  );
+
+  protected readonly orderSteps = computed(() => {
+    const tree = this.orderTree();
+    if (tree === null) return [];
+    return productOrderSteps(tree, this.askCategory(), this.askedHereCodes()).map((step) => ({
+      id: step.id,
+      title: this.isAr ? step.titleAr : step.titleEn,
+      rows: step.rows.map((q) => ({
+        id: q.id,
+        label: this.isAr ? q.questionAr : q.questionEn,
+      })),
+    }));
+  });
+
+  protected async toggleAskOrdering(): Promise<void> {
+    if (this.askOrdering()) {
+      this.askOrdering.set(false);
+      return;
+    }
+    this.askOrdering.set(true);
+    await this.loadOrderTree();
+  }
+
+  private async loadOrderTree(): Promise<void> {
+    this.orderBusy.set(true);
+    try {
+      this.orderTree.set(await this.questionnaire.tree());
+    } catch {
+      // Localized toast already shown by the interceptor.
+      this.askOrdering.set(false);
+    } finally {
+      this.orderBusy.set(false);
+    }
+  }
+
+  protected async moveAskInStep(stepId: string, from: number, to: number): Promise<void> {
+    const tree = this.orderTree();
+    if (tree === null || this.orderBusy()) return;
+    const category = this.askCategory();
+    const ids = categoryOrderAfterMove(tree, category, this.askedHereCodes(), stepId, from, to);
+    if (ids === null) return;
+    this.orderBusy.set(true);
+    try {
+      // The WHOLE category, in its new order — the endpoint's contract. It publishes, so
+      // the app serves the new order at once.
+      this.orderTree.set(await this.questionnaire.reorderCategoryQuestions(category, ids));
+      this.orderStatus.set(
+        $localize`:@@spd.ask.order_saved:Order saved for ${categoryLabel(category)}:category:`,
+      );
+    } catch {
+      // Localized toast already shown by the interceptor; re-read what the server kept.
+      this.orderBusy.set(false);
+      await this.loadOrderTree();
+    } finally {
+      this.orderBusy.set(false);
+    }
+  }
 
   /** What the filter did, for the live region. Empty with an empty box — see the template. */
   protected readonly askSearchStatus = computed(() => {
@@ -4208,7 +5572,9 @@ export class SurrogateProductDetailPage {
   protected readonly askSectionPages = computed(() => {
     const state = this.askPageState();
     const pages = state.key === this.askPageKey() ? state.pages : {};
-    return askPagedSections(this.askSections(), pages);
+    // "Read, but not asked of <loan type> applicants" is not rendered (operator decision,
+    // 2026-09-23). The loan-type tab's warn accent still flags a product in that state.
+    return askPagedSections(this.askSections(), pages).filter((s) => s.key !== 'unasked');
   });
 
   protected setAskPage(key: AskSectionKey, page: number): void {
@@ -4245,11 +5611,55 @@ export class SurrogateProductDetailPage {
     }));
   });
 
+  /**
+   * The one loan type this product is sold under, or `null` when it is sold under several
+   * (or none yet). With only one there is nothing to switch, so the rail is hidden and the
+   * open tab is pinned to it.
+   */
+  protected readonly soleCategory = computed<LoanCategory | null>(() => {
+    const board = this.asksBoard();
+    if (!board) return null;
+    const sold = new Set(board.served.map((row) => row.category));
+    if (sold.size !== 1) return null;
+    const [only] = [...sold];
+    return only !== undefined && isLoanCategory(only) ? only : null;
+  });
+
   protected readonly askCategoryLabel = computed(() => categoryLabel(this.askCategory()));
+
+  /** The loan types the names selling this product are filed under, as read off the board. */
+  private readonly soldCategories = computed<LoanCategory[]>(() => {
+    const board = this.asksBoard();
+    if (!board) return [];
+    return [...new Set(board.served.map((row) => row.category))].filter(isLoanCategory);
+  });
+
+  /**
+   * Can a plan table mean anything here? Every one is keyed by the share of a CAR's price put
+   * down, so only a product a car loan sells can match an applicant against one.
+   *
+   * Errs toward SHOWING: stated plans are never hidden (a table nobody can see is a table
+   * nobody can clear), and a product whose loan types are not known yet — the board still
+   * loading, or no name selling it — keeps the section, since the answer may be car.
+   */
+  protected readonly plansApply = computed<boolean>(() => {
+    if (this.planValue() !== null) return true;
+    if (this.asksBoard() === null) return true;
+    const sold = this.soldCategories();
+    return sold.length === 0 || sold.includes('car');
+  });
+
+  /** "Personal Loan", or "Personal Loan and Mortgage" — what the not-applicable line names. */
+  protected readonly soldCategoriesLabel = computed(() =>
+    this.soldCategories()
+      .map((category) => categoryLabel(category))
+      .join($localize`:@@spd.plans.categories_joiner: and `),
+  );
 
   protected pickAskCategory(id: string): void {
     if (!isLoanCategory(id)) return;
     this.askCategory.set(id);
+    this.askRestExpanded.set(false);
     // Mirrored onto the URL beside `?step=`, so a pasted link and a reload land on the loan
     // type the operator was looking at. `replaceUrl`, or flipping tabs fills the back button
     // with filter states.
@@ -4400,6 +5810,111 @@ export class SurrogateProductDetailPage {
       this.askBusy.set(false);
     }
   }
+
+  protected setNeededOpen(key: NeededGroupKey, open: boolean): void {
+    if (this.neededOpen().has(key) === open) return;
+    this.neededOpen.update((keys) => {
+      const next = new Set(keys);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
+
+  protected actOnNeeded(row: NeededRow | null): void {
+    if (this.neededBusy() !== null || this.askBusy()) return;
+    void this.runNeeded(row);
+  }
+
+  private async runNeeded(row: NeededRow | null): Promise<void> {
+    this.neededBusy.set(row?.factKey ?? '*');
+    this.askBusy.set(true);
+    try {
+      const res = await this.api.askNeeded(this.key, row?.factKey ?? null);
+      const { asked, created, skipped } = res.data;
+      this.asksBoard.set(res.data.state);
+      this.asksState.set('ready');
+      void this.enums.refresh('surrogate_fact');
+      void this.load({ silent: true, keepEdits: true });
+      const said =
+        $localize`:@@spd.needed.result:${asked.length}:ASKED: now asked, ${created.length}:CREATED: question(s) created` +
+        (skipped.length > 0
+          ? $localize`:@@spd.needed.result_skipped:, ${skipped.length}:SKIPPED: left for you to fix`
+          : '');
+      this.neededResult.set(said);
+      this.askStatus.set(said);
+    } catch {
+      // The interceptor has already said why (A22).
+    } finally {
+      this.neededBusy.set(null);
+      this.askBusy.set(false);
+    }
+  }
+
+  /**
+   * Where one row's answer is read: the product's own places (calculation, cap, tables) and
+   * the bank programmes that also read it. A programme usually reads the same tables its
+   * product does, so tables are said once — listing each twice, bare and behind the
+   * programme code, is what once put eleven chips on a single row.
+   */
+  private neededPlaces(row: NeededRow): { places: string[]; programs: string[] } {
+    const places: string[] = [];
+    const programs: string[] = [];
+    for (const reader of row.readers) {
+      const label =
+        reader.kind === 'calculation'
+          ? this.neededCalculationLabel
+          : reader.kind === 'cap'
+            ? this.neededCapLabel
+            : (this.neededTableLabels[reader.table] ?? reader.table);
+      if (!places.includes(label)) places.push(label);
+      if (reader.kind === 'program' && !programs.includes(reader.programCode)) {
+        programs.push(reader.programCode);
+      }
+    }
+    return { places, programs };
+  }
+
+  /** "Read in N places" — the tables and calculation, not the programmes reading them. */
+  protected neededUseCount(row: NeededRow): number {
+    return this.neededPlaces(row).places.length;
+  }
+
+  /** The tooltip: "Calculation · Rate table · Bank program NATIONAL-CAR-C483". */
+  protected neededUsedIn(row: NeededRow): string {
+    const { places, programs } = this.neededPlaces(row);
+    const parts = [...places];
+    const [onlyProgram] = programs;
+    if (programs.length === 1 && onlyProgram !== undefined) {
+      parts.push($localize`:@@spd.needed.used_program:Bank program ${onlyProgram}:CODE:`);
+    } else if (programs.length > 1) {
+      parts.push($localize`:@@spd.needed.used_programs:${programs.length}:COUNT: bank programs`);
+    }
+    const via = row.derivedFrom ? this.neededDerivedLabels[row.derivedFrom] : undefined;
+    if (via) parts.push(via);
+    return parts.join(' · ');
+  }
+
+  protected neededMissingLabel(row: NeededRow): string {
+    return row.missingIn.map((category) => categoryLabel(category)).join(', ');
+  }
+
+  protected readonly neededCalculationLabel = $localize`:@@spd.needed.reader_calculation:Calculation`;
+  protected readonly neededCapLabel = $localize`:@@spd.needed.reader_cap:Loan cap`;
+  private readonly neededTableLabels: Readonly<Record<string, string>> = {
+    rateByFact: $localize`:@@spd.needed.table_rate:Rate table`,
+    maxMonthsByFact: $localize`:@@spd.needed.table_max_months:Longest-term table`,
+    minMonthsByFact: $localize`:@@spd.needed.table_min_months:Shortest-term table`,
+    ltvCeilingByFact: $localize`:@@spd.needed.table_ltv:Financed-share table`,
+    minAmountByFact: $localize`:@@spd.needed.table_min_amount:Smallest-loan table`,
+    carInsuranceRateByFact: $localize`:@@spd.needed.table_insurance:Insurance table`,
+    maxLoanByFact: $localize`:@@spd.needed.table_max_loan:Loan cap table`,
+    maxVehicleAgeYearsByFact: $localize`:@@spd.needed.table_vehicle_age:Car-age table`,
+  };
+  protected readonly neededDerivedLabels: Readonly<Record<string, string>> = {
+    car_down_payment_percent: $localize`:@@spd.needed.via_down_payment:Through the down-payment share`,
+    car_age_years: $localize`:@@spd.needed.via_car_age:Through the car's age`,
+  };
 
   /**
    * Absorb one write's board, and re-read what depends on it.
@@ -4783,6 +6298,11 @@ export class SurrogateProductDetailPage {
     // type. Without this the fact registry is empty, `readLists()` finds nothing, and every
     // product — including the compound one, which reads two lists — reports reading none.
     void this.enums.load('surrogate_fact');
+    // The I-Score classes, for the "standard classes" button. A failure only hides it.
+    this.lookups
+      .list(I_SCORE_CLASS_TYPE)
+      .then((rows) => this.iScoreClassBands.set(bandsFromIScoreClasses(rows)))
+      .catch(() => this.iScoreClassBands.set([]));
     void this.lookups
       .listTypes()
       .then((s) => this.typeSummaries.set(s))
@@ -4853,6 +6373,13 @@ export class SurrogateProductDetailPage {
    * open. This also makes the back button work.
    */
   private watchAskCategory(): void {
+    effect(
+      () => {
+        const only = this.soleCategory();
+        if (only !== null && untracked(this.askCategory) !== only) this.askCategory.set(only);
+      },
+      { allowSignalWrites: true },
+    );
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       const raw = params.get('loan');
       this.askCategory.set(raw !== null && isLoanCategory(raw) ? raw : 'personal');
@@ -4980,6 +6507,26 @@ export class SurrogateProductDetailPage {
       // Same rule, same reason: read while the flag still means something. `absorb` below
       // re-seeds the screen and clears it, so asking afterwards always answers "no".
       const plans = this.plansDirty ? this.planValue() : undefined;
+      // Same rule, same reason, for the SIZE: `undefined` is "not touching it" and `null` is
+      // the clear, which the server can refuse.
+      const loanAmounts = this.amountDirty ? this.amountsFromForm() : undefined;
+      // Same rule, same reason, for the TIERS: `undefined` is "not touching it" and `null`
+      // is the clear, which the server accepts — a cleared table leaves every reader
+      // counting the figure in full, which is a priceable quote.
+      // Same rule, same reason, for the PRICE: `undefined` is "not touching it" and `null`
+      // is the clear, which the server can refuse while programs are priced at it.
+      //
+      // AND NOT AT ALL once the plan table prices everyone. The boxes are off screen in that
+      // state, so a figure typed before the table was made to refuse would otherwise be
+      // written by a Save whose effect the operator can no longer see — and it would price
+      // nobody either way. A stored rate is left where it is rather than cleared: clearing is
+      // a decision, and this is not the screen making it.
+      const rate = this.rateDirty && !this.ratePricedByPlans() ? this.rateFromForm() : undefined;
+      const iScoreTiers = this.iScoreDirty
+        ? this.iScoreTiers().length === 0
+          ? null
+          : { bands: this.iScoreTiers().map((band) => ({ ...band })) }
+        : undefined;
 
       const res = await this.api.setSurrogateProductIncomeRule(p.key, {
         incomeRule: this.ruleFromForm(),
@@ -5009,6 +6556,36 @@ export class SurrogateProductDetailPage {
       if (plans !== undefined) {
         const planRes = await this.api.setSurrogateProductPlanDefaults(p.key, { plans });
         this.absorb(planRes.data);
+      }
+
+      // FIFTH, and only when the boxes moved. Its own column and its own refusal, exactly as
+      // the duration's write above — folding it in would make an amount edit read as a rule
+      // change in the audit log.
+      if (loanAmounts !== undefined) {
+        const amountRes = await this.api.setSurrogateProductLoanAmountDefaults(p.key, {
+          loanAmounts,
+        });
+        this.absorb(amountRes.data);
+      }
+
+      // SIXTH, and only when the box moved. Its own column and its own refusal, exactly as
+      // the duration's and the size's writes above: a clear is rejected while programs are
+      // priced at it, and folding a rate edit into the rule write would make it read as a
+      // change to the calculation in the audit log — which a price is not.
+      if (rate !== undefined) {
+        const rateRes = await this.api.setSurrogateProductRateDefaults(p.key, { rate });
+        this.absorb(rateRes.data);
+      }
+
+      // SEVENTH, and only when the table moved. Its own column, like the five writes above,
+      // and for the reason each of them states: folding a tier edit into the rule write
+      // would make it read as a change to the calculation in the audit log, which it is not
+      // — the tiers stopped being part of the calculation at v30.3.0.
+      if (iScoreTiers !== undefined) {
+        const iScoreRes = await this.api.setSurrogateProductIScoreDefaults(p.key, {
+          tiers: iScoreTiers,
+        });
+        this.absorb(iScoreRes.data);
       }
     } catch (err) {
       this.saveError.set(this.localizedError(err));
@@ -5040,6 +6617,20 @@ export class SurrogateProductDetailPage {
     const max = (this.tenorMaxValue() ?? '').trim();
     if (min === '' || max === '') return null;
     return { minMonths: Number(min), maxMonths: Number(max) };
+  }
+
+  /**
+   * The amounts to PUT, or `null` for the clear.
+   *
+   * Sent as the STRINGS the operator typed, never `Number`-ed: these are money (Principle I),
+   * and a round trip through a float is exactly the precision this platform stores decimals
+   * to avoid.
+   */
+  private amountsFromForm(): LoanAmountDefaults | null {
+    const min = (this.amountMinValue() ?? '').trim();
+    const max = (this.amountMaxValue() ?? '').trim();
+    if (min === '' || max === '') return null;
+    return { minAmountEGP: min, maxAmountEGP: max };
   }
 
   private ruleFromForm(): IncomeAssumptionConfig {
@@ -5172,8 +6763,29 @@ export class SurrogateProductDetailPage {
       data.tenorDefaults === null ? null : String(data.tenorDefaults.maxMonths),
     );
     this.tenorDirty = false;
+    this.amountMinValue.set(data.loanAmountDefaults?.minAmountEGP ?? null);
+    this.amountMaxValue.set(data.loanAmountDefaults?.maxAmountEGP ?? null);
+    this.amountDirty = false;
+    // The PRICE, seeded from the response for the reason the two above are: which of the two
+    // figures the box holds is decided by the stored flag, never by which key happens to be
+    // filled — a blob carrying both is one the server refused to write.
+    const rate = data.rateDefaults;
+    this.rateVariable.set(rate?.isVariableRate ?? false);
+    this.rateValue.set(
+      rate == null
+        ? null
+        : ((rate.isVariableRate ? rate.currentEffectiveRatePercent : rate.baseRatePercent) ?? null),
+    );
+    this.rateNoteValue.set(rate?.variableRateNote ?? null);
+    this.rateBasisValue.set(rate?.rateBasis ?? 'reducing');
+    this.rateDirty = false;
     this.planValue.set(data.planDefaults);
     this.plansDirty = false;
+    // A plain signal seeded from the response, for the reason the duration two fields up
+    // spells out: `toSignal(control.valueChanges)` read back EMPTY over a stored value at
+    // v26.2.0, because the reset above runs with `emitEvent: false`.
+    this.iScoreTiers.set((data.iScoreDefaults?.bands ?? []).map((band) => ({ ...band })));
+    this.iScoreDirty = false;
     this.dirty.set(false);
   }
 

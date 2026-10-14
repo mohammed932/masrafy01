@@ -11,6 +11,7 @@ import 'package:app/core/router/router.gr.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
+import 'package:app/core/widgets/cards/masrafy_partner_bank_heading.dart';
 import 'package:app/core/widgets/common/masrafy_empty_state.dart';
 import 'package:app/core/widgets/common/masrafy_gradient_header.dart';
 import 'package:app/core/widgets/common/masrafy_toast.dart';

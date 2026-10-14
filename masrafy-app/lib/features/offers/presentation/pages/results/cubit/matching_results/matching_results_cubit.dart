@@ -37,6 +37,7 @@ class MatchingResultsCubit extends Cubit<MatchingResultsState> {
               entity.offers[i],
               applicationId: entity.applicationId,
               isTopPick: i == 0,
+              rank: i,
             ),
         ];
         emit(state.copyWith(
@@ -47,6 +48,7 @@ class MatchingResultsCubit extends Cubit<MatchingResultsState> {
           unavailablePrograms: entity.unavailablePrograms,
           applicationId: entity.applicationId,
           matched: entity.matched,
+          noMatchFailedChecks: entity.noMatchFailedChecks,
           error: null,
         ));
       },

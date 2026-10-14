@@ -26,6 +26,12 @@ class FiguresUnavailableReasons {
   static const String obligationsExceedAllowance =
       'OBLIGATIONS_EXCEED_ALLOWANCE';
   static const String belowProgramMinAmount = 'BELOW_PROGRAM_MIN_AMOUNT';
+
+  /// The applicant ASKED for less than this bank writes, with the debt burden never in
+  /// question. Its own code because the advice is the opposite of
+  /// [belowProgramMinAmount]'s: ask for MORE, rather than owe less.
+  static const String requestedBelowProgramMinAmount =
+      'REQUESTED_BELOW_PROGRAM_MIN_AMOUNT';
   static const String ageAtMaturity = 'AGE_AT_MATURITY';
   static const String programMisconfigured = 'PROGRAM_MISCONFIGURED';
 
@@ -64,6 +70,7 @@ class FiguresUnavailableReasons {
     noRecognisedIncome,
     obligationsExceedAllowance,
     belowProgramMinAmount,
+    requestedBelowProgramMinAmount,
     ageAtMaturity,
     programMisconfigured,
     surrogateFactMissing,
@@ -130,6 +137,8 @@ String figuresUnavailableLabel(
       return l10n.reason_obligations_exceed_allowance;
     case FiguresUnavailableReasons.belowProgramMinAmount:
       return l10n.reason_below_program_min_amount;
+    case FiguresUnavailableReasons.requestedBelowProgramMinAmount:
+      return l10n.reason_requested_below_program_min_amount;
     case FiguresUnavailableReasons.ageAtMaturity:
       return l10n.reason_age_at_maturity;
     case FiguresUnavailableReasons.programMisconfigured:

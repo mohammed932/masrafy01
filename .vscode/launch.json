@@ -1,0 +1,95 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "backend",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:dev"
+      ],
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true,
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "name": "admin",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start"
+      ],
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "serverReadyAction": {
+        "pattern": "localhost:(5173)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally",
+        "killOnServerStop": false
+      }
+    },
+    {
+      "name": "mobile (dev)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/masrafy-app",
+      "program": "lib/main_dev.dart",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=MASRAFY_API_BASE_URL=${input:mobileApiBaseUrl}"
+      ]
+    },
+    {
+      "name": "mobile (uat)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/masrafy-app",
+      "program": "lib/main_uat.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "mobile (prod, release)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/masrafy-app",
+      "program": "lib/main_prod.dart",
+      "flutterMode": "release"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "backend + admin",
+      "configurations": [
+        "backend",
+        "admin"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "backend + admin + mobile",
+      "configurations": [
+        "backend",
+        "admin",
+        "mobile (dev)"
+      ],
+      "stopAll": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "mobileApiBaseUrl",
+      "type": "promptString",
+      "description": "Backend URL the app calls (Android/physical device: http://<`ipconfig getifaddr en0`>:3000)",
+      "default": "http://localhost:3000"
+    }
+  ]
+}

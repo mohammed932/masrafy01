@@ -9,6 +9,7 @@ import {
   isProductRuleStrategy,
   type IncomeAssumptionConfig,
   type IncomeAssumptionStrategy,
+  type IncomeBand,
 } from '@/matching/types';
 import {
   derivedFactOptionCodes,
@@ -29,7 +30,6 @@ import {
   type ValueRef,
 } from '@/matching/pipeline/product-rule';
 import { waysOfRule } from '@/matching/pipeline/product-rule-ways';
-import { SLOT } from '@/matching/pipeline/product-template';
 import { legacyScalarKeysFor } from '@/matching/pipeline/income-rule-normalize';
 import type { IncomeRuleBandsInvalidReason } from '@/common/errors/domain.exceptions';
 
@@ -255,6 +255,15 @@ export async function validateIncomeRule(
   // which table the basic figure comes from.
   const additionalViolation = await validateAdditionalIncome(config.additionalIncome, ctx);
   if (additionalViolation) return additionalViolation;
+
+  // The I-SCORE TIERS, on the same footing and for the same reason: the table scales
+  // whatever figure the method produces, so it is wrong or right independently of which
+  // method that is. Checked for EVERY strategy including `declared`, which is the whole of
+  // what makes the tiers reachable by a payslip program — the method checks below return
+  // early for most strategies, so a check placed after them would run for `steps` alone
+  // and silently skip the 54 programs this was built for.
+  const iScoreViolation = validateIScoreTiers(config.iScoreTiers);
+  if (iScoreViolation) return iScoreViolation;
 
   // A registry fact, checked before the built-in sets: `fact:` names the registry
   // whatever else the key spells, and the table's SHAPE follows the bound question
@@ -846,14 +855,13 @@ async function validateStepFigures(
       // refactored into a row-level helper: the function is already exactly right, and a
       // second entry point is a second thing to keep in step.
       //
-      // `coverAll` for the I-Score tiers and nothing else. Everywhere else a range table
-      // may legitimately stop — a value under the floor or over the top resolves to
-      // `no_matching_band`, a stated reason. The I-Score table SCALES a figure the rule has
-      // already produced, so a score it does not cover kills a quote the rest of the
-      // program could price; the coverage is demanded where it can still be typed.
+      // NO `coverAll` on a step any more. It was demanded for `SLOT.iScoreBand` alone and
+      // that slot no longer exists — the tier table is program-level policy as of v30.3.0,
+      // and `validateIScoreTiers` is where the coverage is now demanded. Everywhere else a
+      // range table may legitimately stop: a value under the floor or over the top resolves
+      // to `no_matching_band`, which is a stated reason the customer is told.
       const violation = validateBands({ strategy: 'steps', bands: figures.bands }, 'steps', {
         bandsRequired: true,
-        coverAll: step.id === SLOT.iScoreBand,
       });
       if (!violation) return undefined;
       switch (violation.kind) {
@@ -1142,6 +1150,43 @@ async function validateKeyTable(
   return undefined;
 }
 
+/**
+ * An I-SCORE TIER TABLE — a program's own `incomeAssumption.iScoreTiers`, or a product's
+ * `iScoreDefaults`.
+ *
+ * ABSENT is legal and is the state 54 of 71 programs and 4 of 13 products ship in: it means
+ * "nobody has stated the tiers", which `resolveIScoreFactor` answers with a 100% multiplier.
+ * An EMPTY table is refused rather than read as absent — the admin's "back to the product's
+ * tiers" action deletes the key, so `{ bands: [] }` can only be a table somebody emptied a
+ * row at a time, and saving it silently as "no tiers" would lose the statement they were
+ * halfway through making.
+ *
+ * `coverAll`, and this is the ONE table on the platform that demands it. The reasoning
+ * inverts here rather than being relaxed: on an ordinary income table a value past the end
+ * is `no_matching_band`, a stated reason the customer is told. On a MULTIPLIER a gap would
+ * refuse the quote outright — or, since `resolveIScoreFactor` is written not to, silently
+ * hand that score a 100% the operator never typed. So full coverage of 0…∞ is demanded
+ * where it can still be typed (`first_band_not_zero` / `last_band_not_open`).
+ *
+ * Reuses `validateBands` through a synthetic config, exactly as the `bandTable` step case
+ * does and for the reason stated there: the function is already right, and a second entry
+ * point is a second thing to keep in step. `INCOME_RULE_BANDS_INVALID` already carries both
+ * reasons in both locale dictionaries, so this adds no error code.
+ */
+export function validateIScoreTiers(
+  tiers: { bands?: readonly IncomeBand[] } | null | undefined,
+): IncomeRuleViolation | undefined {
+  if (tiers === null || tiers === undefined) return undefined;
+  return validateBands(
+    { strategy: 'steps', bands: tiers.bands } as IncomeAssumptionConfig,
+    'steps',
+    {
+      bandsRequired: true,
+      coverAll: true,
+    },
+  );
+}
+
 function validateBands(
   config: IncomeAssumptionConfig,
   strategy: IncomeAssumptionStrategy,
@@ -1384,6 +1429,13 @@ export function stripForeignMethodConfig(
     // succeeded, the screen showed the weights the operator had typed, and the stored program
     // counted none of them. Found by saving one, not by reading this.
     ...(config.additionalIncome !== undefined ? { additionalIncome: config.additionalIncome } : {}),
+    // NOT method configuration, and it must survive for EVERY strategy — which is the whole
+    // of what makes a bureau-score table reachable by a payslip program. Until v30.3.0 the
+    // tiers lived in `stepParams`, kept only on the `isProductRuleStrategy` branch below, so
+    // a `declared` program's table was silently discarded on every save: the request
+    // succeeded, the screen showed the tiers the operator had typed, and the stored program
+    // had none.
+    ...(config.iScoreTiers !== undefined ? { iScoreTiers: config.iScoreTiers } : {}),
   };
 
   // A STEP PIPELINE keeps BOTH halves here, and the split is made one step later.

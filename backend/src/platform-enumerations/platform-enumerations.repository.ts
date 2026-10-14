@@ -18,7 +18,10 @@ import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit
 import type { NarrowingScope } from '@/questionnaire/validation/question-scope';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
+import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
 import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
+import type { IScoreTiers } from '@/matching/pipeline/iscore';
+import type { RateDefaults } from '@/matching/pipeline/rate-inherit';
 
 export type EnumerationType =
   | 'transfer_type'
@@ -559,6 +562,13 @@ export abstract class PlatformEnumerationsRepository {
   abstract programNameIncomeRules(): Promise<CatalogIncomeRules>;
 
   /**
+   * The SHARED I-Score table (v30.4.0): the active I-Score classes on Manage values, each at
+   * its income percentage, as a tier table. `undefined` when the list is empty or
+   * half-configured. Also carried on `programNameIncomeRules()` for the quote path.
+   */
+  abstract platformIScoreTiers(): Promise<IScoreTiers | undefined>;
+
+  /**
    * Every ACTIVE registry value that is filed under a parent, as `key → parentKey`.
    *
    * Feeds a product rule's `factParentTable` step: the customer picks a compound by NAME
@@ -757,6 +767,46 @@ export abstract class PlatformEnumerationsRepository {
   abstract programsInheritingTenor(productKey: string): Promise<string[]>;
 
   /**
+   * Write (or clear, with `null`) a surrogate product's default loan size.
+   *
+   * Its own method on exactly the terms `setSurrogateProductTenorDefaults` above has one: a
+   * size is not part of the calculation and is not compiled from the form, so folding it in
+   * would make an amount edit read as a rule change in the audit log.
+   */
+  abstract setSurrogateProductLoanAmountDefaults(
+    key: string,
+    loanAmounts: LoanAmountDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Every bank program reading this product's default loan size — i.e. stating none of its
+   * own. The sibling of `programsInheritingTenor` in every respect, including being UNCACHED
+   * and unfiltered by `programType`.
+   */
+  abstract programsInheritingLoanAmounts(productKey: string): Promise<string[]>;
+
+  /**
+   * Write (or clear, with `null`) a surrogate product's default INTEREST RATE.
+   *
+   * Its own method on exactly the terms the two above have one: a price is not part of the
+   * calculation and is not compiled from the form, so folding it in would make a rate edit
+   * read as a rule change in the audit log.
+   */
+  abstract setSurrogateProductRateDefaults(
+    key: string,
+    rate: RateDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Every bank program reading this product's default rate — i.e. stating none of its own.
+   * The sibling of `programsInheritingTenor` in every respect, including being UNCACHED and
+   * unfiltered by `programType`.
+   */
+  abstract programsInheritingRate(productKey: string): Promise<string[]>;
+
+  /**
    * A surrogate product's default PLAN tables — the rate, the term ceiling, the financed
    * share and the floor every program that opted in falls back to.
    *
@@ -771,6 +821,39 @@ export abstract class PlatformEnumerationsRepository {
     plans: PlanDefaults | null,
     updatedBy: string,
   ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * A surrogate product's default I-SCORE TIER TABLE — the share of the worked-out figure
+   * every bank program under it counts at each score, unless it states its own.
+   *
+   * `null` clears them, and there is NO clear refusal, on exactly the reasoning
+   * `setSurrogateProductPlanDefaults` above states rather than a weaker version of it: a
+   * cleared duration leaves a program with no term and it cannot be priced at all, where
+   * cleared tiers leave it multiplying by 100% — which is a priceable quote and was the
+   * answer for every program on this platform until v26.2.0. Nothing stops quoting, so
+   * nothing needs refusing. What it DOES do is move live figures for every program reading
+   * them, which is the operator's explicit live-inheritance decision and is why the write is
+   * audited with its before and after.
+   *
+   * Its own method for the reason the duration and the plans have one: the tiers are not
+   * part of the calculation and are not compiled from the form, so folding this into the
+   * rule write would make a tier edit read as a rule change in the audit log.
+   */
+  abstract setSurrogateProductIScoreDefaults(
+    key: string,
+    tiers: IScoreTiers | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Every bank program reading this product's tiers — i.e. stating none of its own.
+   *
+   * The sibling of `programsInheritingTenor`, and UNCACHED for a weaker reason than its:
+   * nothing here can stop a program quoting, so this backs no refusal. It backs the product
+   * screen's REACH LINE — "23 programmes read these tiers" — which is the only warning an
+   * operator gets before a live figure moves, and a stale count there understates it.
+   */
+  abstract programsInheritingIScoreTiers(productKey: string): Promise<string[]>;
 
   /**
    * Which `stepParams` boxes each bank program under this product has actually typed into.
@@ -835,6 +918,32 @@ export interface ProgramNameIncomeRuleRow {
    * moves every one of them.
    */
   tenorDefaults: TenorDefaults | null;
+  /**
+   * `surrogate_product` only — the loan SIZE every bank program under it falls back to.
+   * `null` when the product states none, which is the state every product ships in.
+   *
+   * INHERITED, not copied, on exactly the terms `tenorDefaults` one field up is.
+   */
+  loanAmountDefaults: LoanAmountDefaults | null;
+  /**
+   * `surrogate_product` only — the INTEREST RATE every bank program under it falls back to.
+   * `null` when the product states none, which is the state every product ships in.
+   *
+   * INHERITED, not copied, on exactly the terms `tenorDefaults` above is — and since the
+   * bank-program wizard stopped asking for a rate, it is the only place most programmes
+   * under this product are priced from.
+   */
+  rateDefaults: RateDefaults | null;
+  /**
+   * `surrogate_product` only — the I-SCORE TIER TABLE every bank program under it falls back
+   * to. `null` when the product states none, which is the state the four cap-only products
+   * ship in and the nine rule-bearing ones do not.
+   *
+   * INHERITED, not copied, on exactly the terms `tenorDefaults` above is: a program that
+   * states no tiers reads these at quote time, so a change here moves every one of them, and
+   * a bank that scores differently states its own and wins.
+   */
+  iScoreDefaults: IScoreTiers | null;
   /** The product's default PLAN tables, or `null` when it states none. */
   planDefaults: PlanDefaults | null;
   valueSources: Record<string, 'team_estimated'>;
@@ -923,6 +1032,23 @@ export interface ProgramUnderName {
    * thereby said anything about how long it lends for. Both directions occur.
    */
   ownTenor: boolean;
+  ownIScoreTiers: boolean;
+  /**
+   * `false` when it states no loan SIZE of its own and reads the product's.
+   *
+   * A THIRD axis, separate from both above it: `ownAmounts` is whose income tables the
+   * figures come from, and a bank that types its own income tables — or its own months —
+   * has not thereby said what it lends BETWEEN.
+   */
+  ownLoanAmounts: boolean;
+  /**
+   * `false` when it states no INTEREST RATE of its own and reads the product's.
+   *
+   * A FOURTH axis, separate from the three above it, and read off the one figure the
+   * program's own `isVariableRate` selects — the same reading `statesOwnRate` takes, so the
+   * reader count and the quote cannot disagree about who is inheriting.
+   */
+  ownRate: boolean;
   /** True when this program reads the product's PLAN tables rather than its own. */
   followsPlans: boolean;
 }

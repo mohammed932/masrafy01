@@ -416,20 +416,20 @@ interface PortfolioHealth {
                                 [attr.aria-label]="p.friendlyName"
                               ></a>
 
+                              <!-- The card states its own basis as well as sitting under
+                                   the group heading: a grid scrolls, and a card read on
+                                   its own — or dragged into a screenshot — must still
+                                   say which kind of program it is. Absent programType
+                                   shows nothing; it must not read as "Income proof". -->
+                              @if (p.programType; as type) {
+                                <span
+                                  class="tag basis"
+                                  [class.is-surrogate]="type === 'income_surrogate'"
+                                  >{{ basisLabel(type) }}</span
+                                >
+                              }
                               <header class="prog-head">
                                 <span class="prog-name">{{ p.friendlyName }}</span>
-                                <!-- The card states its own basis as well as sitting under
-                                     the group heading: a grid scrolls, and a card read on
-                                     its own — or dragged into a screenshot — must still
-                                     say which kind of program it is. Absent programType
-                                     shows nothing; it must not read as "Income proof". -->
-                                @if (p.programType; as type) {
-                                  <span
-                                    class="tag basis"
-                                    [class.is-surrogate]="type === 'income_surrogate'"
-                                    >{{ basisLabel(type) }}</span
-                                  >
-                                }
                                 @if (p.isShariaCompliant) {
                                   <span
                                     class="tag sharia"
@@ -1141,16 +1141,17 @@ interface PortfolioHealth {
       }
       .prog-head {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: var(--space-2);
         min-inline-size: 0;
       }
       .prog-name {
+        flex: 0 1 auto;
+        min-inline-size: 0;
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
       }
       .tag.sharia {
         flex: none;
@@ -1189,9 +1190,21 @@ interface PortfolioHealth {
       .prog-head .tag.basis {
         pointer-events: none;
       }
+      /* Pinned to the card's top edge at the END corner (right in LTR, left in RTL —
+         logical inset, no left/translate). Sits over the card-wide link, inert like before. */
+      .prog > .tag.basis {
+        position: absolute;
+        inset-block-start: -10px;
+        inset-inline-end: var(--space-4);
+        inline-size: max-content;
+        z-index: 2;
+        pointer-events: none;
+      }
       .tag.basis.is-surrogate {
         border-color: transparent;
-        background: var(--color-income-surrogate-bg);
+        /* Opaque: the tag straddles the card's top border, so a see-through tint would
+           let the border line run through it. Same 10% plum, mixed onto the card ground. */
+        background: color-mix(in srgb, var(--chart-5) 10%, var(--color-surface-default));
         color: var(--color-income-surrogate);
       }
       /* Income-basis group inside a category. The heading is the house micro-label

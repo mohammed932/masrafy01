@@ -91,7 +91,13 @@ describe('ProgramOptionsService.forCategory', () => {
 
     expect(basisOf(result, proof).programCount).toBe(2);
     expect(basisOf(result, proof).programNames).toEqual([
-      { key: 'personal_loan', labelAr: 'personal_loan-ar', labelEn: 'personal_loan-en', programCount: 2 },
+      {
+        key: 'personal_loan',
+        labelAr: 'personal_loan-ar',
+        labelEn: 'personal_loan-en',
+        programCount: 2,
+        surrogateProduct: null,
+      },
     ]);
 
     expect(basisOf(result, surrogate).programCount).toBe(2);

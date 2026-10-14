@@ -106,6 +106,9 @@ type PersistedOfferRow = {
   /** Feature 011 — frozen provenance. `null` on offers predating the columns. */
   incomeOrigin?: string | null;
   incomeSurrogateStrategy?: string | null;
+  /** The I-Score multiplier this offer was priced at, and whose table produced it. */
+  iScoreFactorPercent?: Decimal | null;
+  iScoreTiersSource?: string | null;
   /** What the applicant's collateral supported. `null` unless the program prices off it. */
   collateralCeilingEGP?: Decimal | null;
   /** Which reduction decided the amount. `null` on offers predating the column. */
@@ -488,7 +491,11 @@ export class ApplicationsService {
           result.status === 'matched' ? ApplicationStatus.matched : ApplicationStatus.no_match,
         priority: dto.priority,
         requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
-        preferredTenorMonths: dto.preferredTenorMonths,
+        // The column is NOT NULL and the customer may not have been asked. Falling back to
+        // the term the engine actually wrote keeps the row readable — and the offers carry
+        // their own `effectiveTenorMonths`, which is the figure anyone auditing reads.
+        preferredTenorMonths:
+          dto.preferredTenorMonths ?? result.offers[0]?.effectiveTenorMonths ?? 0,
         loanPurpose: dto.loanPurpose,
         // Snapshot of the age the engine actually priced on (derived, not stored
         // on the customer — Principle XXXVII / A31).
@@ -633,6 +640,7 @@ export class ApplicationsService {
         primaryReason: noMatch.primaryReason,
         details: noMatch.details ?? [],
         suggestions: noMatch.suggestions ?? [],
+        unavailablePrograms: this.readUnavailablePrograms(row.summary),
       },
     };
   }
@@ -673,6 +681,14 @@ export class ApplicationsService {
       // decision on the record that the engine did not make.
       incomeOrigin: offer.incomeOrigin,
       incomeSurrogateStrategy: offer.incomeSurrogateStrategy,
+      // The I-Score multiplier, frozen on the same terms and with the same reading of a
+      // null: no table was in force or the applicant left the optional question blank.
+      // Never defaulted to 100 — that is a real answer meaning their score cost them
+      // nothing, and writing it here would claim a measurement nobody made.
+      iScoreFactorPercent: offer.iScoreFactorPercent
+        ? new Decimal(offer.iScoreFactorPercent.toString())
+        : null,
+      iScoreTiersSource: offer.iScoreTiersSource,
       collateralCeilingEGP: offer.collateralCeilingEGP
         ? new Decimal(offer.collateralCeilingEGP.toString())
         : null,

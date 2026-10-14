@@ -26,7 +26,8 @@ import { PRODUCT_RULE_STRATEGY } from '@/matching/types';
 import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
 import type { FactGridDto } from '../dto/sub-configs/fact-grid.dto';
 import type { EstimatedPaths } from './sheet-figures';
-import { ABK_PRACTICE_EDGES, DOWN_PAYMENT_EDGES } from './sheet-figures';
+import { ABK_PRACTICE_EDGES, DOWN_PAYMENT_EDGES, dpBand } from './sheet-figures';
+import { CAR_BUYERS_PROGRAMS } from './car-buyers-programs';
 
 export interface ProgramSpec {
   /**
@@ -48,7 +49,6 @@ const ABK = 'ABK Egypt';
 const EGB = 'EG Bank';
 const FAB = 'FABMISR';
 const CAE = 'Crédit Agricole Egypt';
-const SCB = 'Suez Canal Bank';
 
 /** Nothing extra is required of the applicant unless a sheet says so. */
 const NO_REQUIREMENTS = {
@@ -166,13 +166,29 @@ interface Input {
   rateByFact?: FactGridDto;
   maxMonthsByFact?: FactGridDto;
   minMonthsByFact?: FactGridDto;
+  /** A used-car age ceiling in years, keyed the same way as `maxMonthsByFact`. */
+  maxVehicleAgeYearsByFact?: FactGridDto;
   ltvCeilingByFact?: FactGridDto;
   minAmountByFact?: FactGridDto;
+  /**
+   * Comprehensive cover the bank demands on the car, as a percent of its PRICE per policy
+   * year, keyed on the deposit. A slot like the five above and for the same reason: the day
+   * a bank confirms a card, loading it is a seed edit and nothing else.
+   */
+  carInsuranceRateByFact?: FactGridDto;
   /**
    * Whose PLAN tables this programme reads. ABSENT IS `'own'`, so every programme in this
    * file that does not say otherwise is untouched by the mechanism existing.
    */
   plansSource?: 'product' | 'own';
+  /**
+   * Whose FIGURES this programme quotes from. Absent is `'own'` — the bank's own tables.
+   *
+   * `'catalog'` means it states none and reads the product's, merged by `effectiveIncomeRule`
+   * on every quote rather than copied once. Only legal where the product's figures are the
+   * bank's own published ones; a bank with a table of its own states it here instead.
+   */
+  amounts?: 'own' | 'catalog';
   /** The bank's own figures, keyed by slot id. Absent on a program with no calculation. */
   stepParams?: Record<string, unknown>;
   /**
@@ -233,6 +249,9 @@ function program(input: Input): ProgramSpec {
       ...(input.tenor ?? {}),
       ...(input.maxMonthsByFact ? { maxMonthsByFact: input.maxMonthsByFact } : {}),
       ...(input.minMonthsByFact ? { minMonthsByFact: input.minMonthsByFact } : {}),
+      ...(input.maxVehicleAgeYearsByFact
+        ? { maxVehicleAgeYearsByFact: input.maxVehicleAgeYearsByFact }
+        : {}),
     },
     loanLimits: {
       minAmountEGP: input.minAmountEGP,
@@ -306,9 +325,20 @@ function program(input: Input): ProgramSpec {
     incomeAssumption: (surrogate
       ? {
           strategy: PRODUCT_RULE_STRATEGY,
-          amounts: 'own',
+          // DEFAULTS TO `'own'`, which is what every programme in this file but two means:
+          // the bank states its own figures. `'catalog'` is for a programme whose sheet
+          // prints no table of its own and reads the product's — the deposit-secured pair,
+          // where the four shares ARE the published figures and duplicating them per bank
+          // would be two places to change one number.
+          amounts: input.amounts ?? 'own',
           ...(input.wayId !== undefined ? { wayId: input.wayId } : {}),
-          stepParams: input.stepParams ?? {},
+          // OMITTED on `'catalog'`, not sent empty. `persistableIncomeAssumption` strips
+          // every figure key from a programme that inherits, so a `{}` sent here is stored
+          // as nothing — and `programFingerprint` then compares a sent `stepParams: {}`
+          // against a stored absence and reports a difference on every run. The seed rewrote
+          // both deposit-secured programmes, with a new version and an audit event, every
+          // time it was run; measured, not reasoned about.
+          ...(input.amounts === 'catalog' ? {} : { stepParams: input.stepParams ?? {} }),
           ...(input.additionalIncome ? { additionalIncome: input.additionalIncome } : {}),
         }
       : { strategy: 'declared' }) as CreateBankProgramDto['incomeAssumption'],
@@ -320,6 +350,9 @@ function program(input: Input): ProgramSpec {
       latePaymentFeePercent: '4',
       payoffCashPercent: '12',
       payoffBuyoutPercent: '15',
+      ...(input.carInsuranceRateByFact
+        ? { carInsuranceRateByFact: input.carInsuranceRateByFact }
+        : {}),
     },
   };
   return {
@@ -353,29 +386,6 @@ const ABK_PROFESSOR_RANKS = [
 ];
 const percent = (value: string) => ({ scalar: { value, unit: 'percent' as const } });
 const times = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
-/**
- * The number a savings sheet divides by — "36 months of saving, at 10% of income" is 3.6.
- *
- * `unit: 'multiplier'` because the union has two members and this is the one that means "a
- * plain number, not a percentage"; the unit is inert at runtime and the `divide` op is what
- * says the arithmetic (see `product-rule.ts`).
- */
-const divisor = (value: string) => ({ scalar: { value, unit: 'multiplier' as const } });
-
-/**
- * The two self-employed conditions every Suez Canal auto sheet prints, switched ON.
- *
- * A choice condition applies exactly when the bank states `applies: true` — a gate nobody
- * turned on does not apply — so this pair is what turns "24 months in business, and a valid
- * commercial register and tax card" from a line in `notes` into a refusal the customer is
- * actually told about. Both allow-list the exempting answer, so a SALARIED applicant (whom
- * every one of these programmes accepts) passes in one tap rather than being refused for
- * failing to answer a question about a business they do not have.
- */
-const SCB_SELF_EMPLOYED_GATES = {
-  cond__businessoldenough: { applies: true },
-  cond__selfemployedpapers: { applies: true },
-};
 
 function banded(
   edges: ReadonlyArray<{ fromInclusive: string; toExclusive: string | null }>,
@@ -391,53 +401,93 @@ function banded(
 }
 
 /**
- * Suez Canal's own divisors: "36 months of saving, and the saving is 10% of income" is 3.6,
- * and the cash buyer's "60 months at 20%" is 12. The sheet prints the first one as
- * `income = down payment ÷ 3.6`, so these are transcriptions, not derivations.
+ * Crédit Agricole's auto card — the figures its own product guides print, and the one
+ * they do not.
+ *
+ * ─── WHY THIS BANK AND NOT THE OTHER TWO ──────────────────────────────────────
+ *
+ * The `rateByFact` / `ltvCeilingByFact` / `maxMonthsByFact` slots on this file's `Input`
+ * were declared "used by NO programme, deliberately" because the reference's ADIB card
+ * contradicts itself and its HDB figures have no source sheet at all. Crédit Agricole is
+ * the case those slots were waiting for: ONE printed guide (Auto Loans Product Guide, and
+ * its Electric Vehicles companion), internally consistent across every page, stating the
+ * loan ceilings, the financed shares, the terms, the ages and the debt-burden cap.
+ *
+ * ─── WHAT IT DOES NOT PRINT ───────────────────────────────────────────────────
+ *
+ * A rate. Not on one page of either guide — the Program Features table runs Target Segment,
+ * Loan Amount, Loan Tenor, Car Financing %, Disbursement, Age … Debt Burden Ratio, and
+ * stops. So the rate here is a placeholder on exactly the Suez Canal footing: stated once,
+ * marked `team_estimated`, priced on the reducing annuity. The STRUCTURAL figures are the
+ * bank's own and are NOT marked — claiming a published figure is a guess is the same defect
+ * as the reverse.
  */
-const SCB_DP_DIVISOR = '3.6';
-const SCB_CASH_DIVISOR = '12';
-
-/** No slide states a rate, a fee or a basis. Placeholders, and every one is marked below. */
-const SCB_RATE = '24';
-const SCB_ADMIN_FEE = '1';
-const SCB_ESTIMATED: EstimatedPaths = [
+const CAE_RATE = '19';
+const CAE_ADMIN_FEE = '1';
+const CAE_ESTIMATED: EstimatedPaths = [
   'pricing.baseRatePercent',
   'pricing.rateByTransferType.none.value',
   ...ESTIMATED_FEES,
 ];
 
-/** App. §4.5 pre-approval, less the two the platform has no key for (application form, BOD declaration). */
-const SCB_DP_DOCUMENTS = ['national_id', 'price_quotation', 'down_payment_receipt'];
 /**
- * The list the ONE merged down-payment programme carries, insurance included.
+ * The maximum loan by where the car was built, printed on every Crédit Agricole auto page:
+ * Luxury 10 MEGP · European, Japanese & Korean 7 MEGP · Others 4 MEGP.
  *
- * App. §4.2 prints insurance per tier and says three different things: N/A at 60/50/40,
- * REQUIRED at 20, and NOTHING AT ALL at 30. While the five tiers were five programmes the
- * silent one was left on the shared list rather than guessed either way, and the 20% tier
- * carried cover on its own.
+ * `reject` and NOT `useProgramMax`, and that is the whole point of the table. The
+ * programme's own `maxAmountEGP` has to carry the TOP of this range for the luxury row to
+ * be reachable at all, so an applicant who skipped the optional origin question would be
+ * handed the 10 MEGP ceiling by a `useProgramMax` fallback — the "Others" buyer quoted at
+ * two and a half times their row, frozen onto an immutable offer.
  *
- * MERGED, THAT DISTINCTION IS NOT EXPRESSIBLE. `requiredDocuments` is one array per
- * programme with no way to key it by the deposit — unlike the rate, the term, the share and
- * the floor, which all moved onto the plan table. So it is demanded of everyone, which
- * over-demands it of four tiers out of five. The alternative is dropping it, and the original
- * reasoning decides between them: a document demanded of an applicant whose bank never asked
- * for it is a refusal at the branch, and one quietly dropped is a loan that cannot complete.
- * The over-demand is the lesser, and the programme's notes say so out loud.
+ * ─── THE COST, STATED ─────────────────────────────────────────────────────────
  *
- * The REQUIREMENT only. Insurance as a cost is not modelled: no sheet in the reference prints
- * a premium, and a made-up figure would be financed into an immutable offer (Principle I/A6).
+ * ABK's doctors table takes the same `reject` and can afford it because its fact is
+ * REQUIRED, so that branch is an unreachable safety net for a stale snapshot. `car_origin`
+ * is OPTIONAL, so here it is the NORMAL path: an applicant who skips the question loses all
+ * three Credit Agricole programmes — listed with a stated reason rather than filtered (A33),
+ * and recoverable by answering it. That is the conservative direction and the only one
+ * available: `maxLoanByFact` is a row/column table with no wildcard row, so the fallback the
+ * Suez Canal RATE grid leans on ("the bare row prices everybody the named rows do not reach,
+ * including an applicant who skipped the optional origin or fuel question") cannot be
+ * written here. Making `car_origin` required for the `car` category would remove the cost
+ * outright, and is a product decision with its own blast radius: required of every car
+ * programme, and of every application already in flight.
+ *
+ * "Luxury" is a BRAND tier the guide names and `car_origin` has no option for, so no row
+ * claims it: the eleven origins below are the two rows the question can actually answer.
  */
-const SCB_DP20_DOCUMENTS = [...SCB_DP_DOCUMENTS, 'car_insurance_policy'];
-/** App. §5.4 — the ownership contract is what proves the unit, the invoice what proves the goods. */
-const SCB_GREEN_DOCUMENTS = [
-  'national_id',
-  'home_ownership_contract',
-  'proforma_invoice',
-  'price_quotation',
-];
+const CAE_MAX_LOAN_BY_ORIGIN = {
+  factKey: 'car_origin',
+  onNoMatch: 'reject' as const,
+  rows: [
+    { rowKey: 'germany', maxAmountEGP: '7000000' },
+    { rowKey: 'japan', maxAmountEGP: '7000000' },
+    { rowKey: 'korea', maxAmountEGP: '7000000' },
+    { rowKey: 'france', maxAmountEGP: '7000000' },
+    { rowKey: 'italy', maxAmountEGP: '7000000' },
+    { rowKey: 'spain', maxAmountEGP: '7000000' },
+    { rowKey: 'czechia', maxAmountEGP: '7000000' },
+    { rowKey: 'usa', maxAmountEGP: '4000000' },
+    { rowKey: 'china', maxAmountEGP: '4000000' },
+    { rowKey: 'egypt', maxAmountEGP: '4000000' },
+    { rowKey: 'other_origin', maxAmountEGP: '4000000' },
+  ],
+};
 
-export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
+/**
+ * First-stage documents, less the ones the platform has no registry key for.
+ *
+ * The guide's second stage — the auto loan contract, the Mobaia selling letter, the yearly
+ * undated cheques, the signature-verification form, the installments calculation sheet — is
+ * POST-APPROVAL paperwork the branch raises, not something an applicant brings. Those stay
+ * in `notes` on the footing v27.0.0 put ABK's: a document key is a registry row and a hard
+ * 422 on the way in, so minting five of them to describe a branch's own stationery would be
+ * a migration bought for nothing.
+ */
+const CAE_AUTO_DOCUMENTS = ['national_id', 'proforma_invoice', 'car_insurance_policy'];
+
+const SPECS: readonly ProgramSpec[] = [
   // -------------------------------------------------------------------------
   // ABK Egypt — Appendix A
   // -------------------------------------------------------------------------
@@ -471,17 +521,12 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
           money('grade_major', '30000'),
           money('grade_captain', '28000'),
           money('grade_first_lieutenant', '18000'),
-          money('general', '40000'),
-          money('senior_officer', '25000'),
-          money('officer', '15000'),
+          // `general` / `senior_officer` / `officer` retired 2026-09-24 — not on App. A §11,
+          // and `general` shared the Arabic label "لواء" with `grade_major_general`.
         ],
       },
     },
-    estimated: [
-      'incomeAssumption.stepParams.primary.keyTable.general.incomeEGP',
-      'incomeAssumption.stepParams.primary.keyTable.senior_officer.incomeEGP',
-      'incomeAssumption.stepParams.primary.keyTable.officer.incomeEGP',
-    ],
+    estimated: [],
   }),
 
   program({
@@ -832,8 +877,8 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
       rows: [
         { rowKey: 'apartment', columnKey: 'new_loan', maxAmountEGP: '2000000' },
         { rowKey: 'apartment', columnKey: 'top_up', maxAmountEGP: '3000000' },
-        { rowKey: 'twin_or_town_house', columnKey: 'new_loan', maxAmountEGP: '3000000' },
-        { rowKey: 'twin_or_town_house', columnKey: 'top_up', maxAmountEGP: '3500000' },
+        { rowKey: 'twin_house', columnKey: 'new_loan', maxAmountEGP: '3000000' },
+        { rowKey: 'twin_house', columnKey: 'top_up', maxAmountEGP: '3500000' },
         { rowKey: 'villa', columnKey: 'new_loan', maxAmountEGP: '4000000' },
         { rowKey: 'villa', columnKey: 'top_up', maxAmountEGP: '4500000' },
       ],
@@ -1179,169 +1224,311 @@ export const SHEET_PROGRAMS: readonly ProgramSpec[] = [
     estimated: ['pricing.baseRatePercent', 'fees.adminFeePercent'],
   }),
 
-  // -------------------------------------------------------------------------
-  // Suez Canal Bank — the unsecured auto programmes and Green Finance
+  // ───────────────────────────────────────────────────────────────────────────
+  // Crédit Agricole Egypt — the Auto Loans and Electric Vehicles product guides
   //
-  // Three programmes off two mechanisms. The down-payment card is ONE programme reading the
-  // product's five PLANS: the same `income = down payment ÷ 3.6`, and what separates the
-  // tiers — the share of the car's price the bank finances (60% down → 40% financed), the
-  // longest term, the floor and the 20% tier's home-ownership rule — is stated once on the
-  // product, keyed by the deposit the applicant types. It was five programmes until the plan
-  // tables existed, because a programme was the only thing that could carry a different
-  // share. Green Finance is the same arithmetic over what the applicant has SAVED, with a
-  // second column for a cash buyer.
+  // THREE programmes, not eleven. The guide prints a card per down-payment tier (New Car at
+  // 20/40/50%, an "envelop" and an "Easy envelop" variant, Used Car at 40/50%, EV at
+  // 35/40/50%), and the tiers of one card differ only in the share financed. That is the
+  // shape v30.0.0 established for Suez Canal's five tiers and the reasoning carries
+  // unchanged: the deposit is an ANSWER, so the customer is quoted the tier their own
+  // deposit lands in rather than handed five cards to choose between. What genuinely IS a
+  // different product gets its own programme — a used car (its own age rules, its own
+  // minimum age) and an electric one (its own guide, and a financed share the petrol card
+  // never reaches).
   //
-  // No rate is published on any of these slides, so the rate and the admin fee below are the
-  // team's placeholders and every one of them is marked an estimate.
-  // -------------------------------------------------------------------------
+  // The "envelop" / "Easy envelop" variants are NOT seeded. They carry the same deposits and
+  // the same ceilings and differ in which verification the branch runs, which is an
+  // underwriting route rather than a figure — and the platform has no field for it. Noted on
+  // the New Car programme rather than invented as a second card quoting identical money.
+  // ───────────────────────────────────────────────────────────────────────────
   program({
-    programCode: 'SCB-CAR-DOWN_PAYMENT',
-    friendlyName: 'Auto Loan — Down Payment as Income',
-    friendlyNameAr: 'قرض سيارة — الدفعة المقدمة كدخل',
-    programNameKey: 'auto_down_payment_income',
-    sheet: 'App. §4 — Suez Canal unsecured auto, all five down-payment tiers',
+    programCode: 'CAE-CAR-NEW_CAR',
+    friendlyName: 'Auto Loan — New Car',
+    friendlyNameAr: 'قرض سيارة — جديدة',
+    sheet: 'CAE Auto Loans Product Guide — New car, 20% / 40% / 50% down payment',
     notes: [
-      'ONE programme, five plans. The sheet prints five down-payment tiers that differ only ' +
-        'in the share financed, the longest term and — on the 20% tier alone — the floor and ' +
-        'the home-ownership condition. All five now live in the product\u2019s plan tables, ' +
-        'keyed by the deposit the applicant states, so the customer is quoted the tier their ' +
-        'own deposit lands in rather than five cards to choose between.',
-      'Comprehensive car insurance is required on the 20% tier and on no other (App. §4.2). ' +
-        'A required-document list is one array per programme with no way to key it by the ' +
-        'deposit, so it is demanded of everyone here. That over-demands it of four tiers out ' +
-        'of five, and the alternative — dropping it — is a 20% loan that cannot complete at ' +
-        'the branch. The over-demand is the lesser of the two and this note is the record of ' +
-        'the choice.',
-      'Ban on sale until the loan is settled applies at 50/40/30/20% down and NOT at 60% ' +
-        '(App. §4.2). No field expresses it at any tier, and merged it cannot be stated per ' +
-        'tier at all — recorded here.',
-      'The 12-month service requirement is waived at 40% and 50% down when the I-Score shows ' +
-        'regular repayment over the last six months. No field expresses a conditional ' +
-        'waiver — recorded here.',
-      'The sheet requires 24 months in business for a self-employed applicant and a valid ' +
-        'commercial register and tax card. Both are asked and enforced as conditions — each ' +
-        'carries an "I do not run a business" answer, so a salaried applicant, whom this ' +
-        'programme also accepts, passes rather than being refused for not answering.',
-      'The home address must match the National ID and the I-Score, or the National ID and ' +
-        'the driving licence; otherwise a utility bill no older than three months or an ' +
-        'external verification is required. Not enforced — recorded here.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are ' +
-        'placeholders the team chose, marked as estimates, and are priced on the reducing ' +
-        'annuity. Every rate in the product\u2019s plan table is an estimate for the same ' +
-        'reason.',
+      'ONE programme, three deposit tiers. The guide prints 20%, 40% and 50% down-payment ' +
+        'cards that finance 80%, 60% and 50% of the price respectively; all three live in ' +
+        'the financed-share table, keyed by the deposit the applicant states.',
+      'The guide also prints a 40% "envelop" and a 50% "Easy envelop" variant carrying the ' +
+        'same deposits and the same ceilings. What differs is the verification route the ' +
+        'branch runs, not a figure the engine prices — and no field expresses it, so they ' +
+        'are not seeded as second cards quoting identical money.',
+      'Self-employed applicants are held to 60 months across the whole card. The guide caps ' +
+        'them at 60 on the 50% tier ALONE and allows 84 on the other two, and a programme ' +
+        'has one employment-tenor map with no way to key it by deposit. Capping everywhere ' +
+        'shortens a term rather than lengthening one, so it under-quotes rather than over-' +
+        'quotes — the direction this file takes wherever a merge cannot state a difference.',
+      'The rate is a placeholder: neither guide prints one on any page. Marked as an ' +
+        'estimate and priced on the reducing annuity.',
+      'Second-stage documents — the auto loan contract, the Mobaia car-selling letter, the ' +
+        'yearly undated cheques, the signature-verification form and the installments ' +
+        'calculation sheet — are raised by the branch after approval and have no registry ' +
+        'key. Recorded here rather than demanded of the applicant up front.',
+      'Disbursement is a direct payment to the vendor by bank draft or internal transfer, ' +
+        'never to the customer. No field expresses it — recorded here.',
     ],
-    minAmountEGP: '100000',
-    maxAmountEGP: '5000000',
-    // THE FALLBACK SHARE, and it is not decoration. `ltvCeilingFor` answers `null` when no
-    // scalar is stored, and `null` is NO CLAMP AT ALL — so a build that cannot read the plan
-    // table must still find a number here or it would finance the whole car. 40% is the
-    // lowest tier the sheet prints, so the fallback under-quotes rather than over-quotes.
-    ltvCeilingPercent: '40',
-    bankName: SCB,
-    programType: 'income_surrogate',
+    bankName: CAE,
+    programType: 'income_proof',
     productCategory: 'car',
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`), and the
-    // plan table shortens it per tier.
-    //
-    // And no plan tables of its own either — it reads the product's, which is the mechanism
-    // demonstrating itself: five tiers stated once, on the screen an operator edits.
-    plansSource: 'product',
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
+    programNameKey: 'new_car',
+    tenor: {
+      minMonths: 6,
+      maxMonths: 84,
+      // The 50% tier's self-employed cap, applied card-wide. See the note above.
+      maxMonthsByEmploymentType: { self_employed: 60 },
+    },
+    minAmountEGP: '15000',
+    // The TOP of the origin table, which `maxLoanByFact` then narrows per answer. A ceiling
+    // below 10,000,000 here would make the luxury row unreachable.
+    maxAmountEGP: '10000000',
+    // The fallback share, and it is the SMALLEST the card sells rather than the largest: a
+    // build that cannot read the grid must under-quote. 50% is the 50%-deposit tier's.
+    ltvCeilingPercent: '50',
+    ltvCeilingByFact: {
+      axes: [{ factKey: 'car_down_payment_percent' }],
+      cells: [
+        { keys: [dpBand('20', '40')], value: '80' },
+        { keys: [dpBand('40', '50')], value: '60' },
+        { keys: [dpBand('50', null)], value: '50' },
+      ],
+      // A deposit under the lowest tier is a loan this bank does not write.
+      onNoMatch: 'reject',
+    },
+    /**
+     * The Chinese-car term rule, printed as a General Condition on every page of the guide:
+     * "Finance all Chinese cars for 60 months except for Chinese cars sold by Ghabbour &
+     * Mansour Company tenor to reach 84 Months".
+     *
+     * Two axes, because it is two facts: where the car was BUILT and who is SELLING it. Only
+     * the Chinese rows are stated — `useFallback` leaves every other origin on the
+     * programme's own 6-84, which is what the guide says about them (nothing).
+     *
+     * `useFallback` and NOT `reject`, unlike the origin ceiling on the same programme. A term
+     * has a safe fallback and a loan ceiling does not: an applicant who skips the optional
+     * dealer question should be financed over the programme's own term, not refused. The
+     * wildcard Chinese row is what makes that safe in the other direction — a Chinese car
+     * with no dealer stated still lands on 60, so the extension has to be claimed, never
+     * assumed.
+     */
+    maxMonthsByFact: {
+      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      cells: [
+        { keys: [{ key: 'china' }, null], value: '60' },
+        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+      ],
+      onNoMatch: 'useFallback',
+    },
+    maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
+    ratePercent: CAE_RATE,
+    adminFeePercent: CAE_ADMIN_FEE,
     ageMin: 21,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
+    ageMax: 65,
+    ageMinSelfEmployed: 21,
     ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '6000',
-    minMonthlyIncomeSelfEmployedEGP: '15000',
-    minMonthsInJob: 6,
     dbrCapPercent: '50',
-    wayId: 'primary',
-    // `cond__homeowned` is deliberately ABSENT, where the 20% tier carried it. A condition
-    // applies per PROGRAMME and not per deposit, so switched on here it would refuse a renter
-    // putting 60% down — whom this bank accepts. The rule moved onto the axis it was always
-    // about: the product's financed-share table states rows for an owner and for a relative's
-    // home in the 20-30% band and none for a renter, so the refusal binds in that band alone.
-    stepParams: { primary: divisor(SCB_DP_DIVISOR), ...SCB_SELF_EMPLOYED_GATES },
-    requiredDocuments: SCB_DP20_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
+    requiredDocuments: CAE_AUTO_DOCUMENTS,
+    estimated: CAE_ESTIMATED,
   }),
   program({
-    programCode: 'SCB-CAR-GREEN_POWER',
-    friendlyName: 'Green Power Loan',
-    friendlyNameAr: 'قرض الطاقة الخضراء',
-    sheet: 'App. §5 — Suez Canal Green Finance, Green Power Loan',
+    programCode: 'CAE-CAR-USED_CAR',
+    friendlyName: 'Auto Loan — Used Car',
+    friendlyNameAr: 'قرض سيارة — مستعملة',
+    sheet: 'CAE Auto Loans Product Guide — Used car, 40% & 50% down payment',
     notes: [
-      'Sold to owners of a delivered unit in a pre-approved compound. Now asked and enforced as one condition — the applicant states whether their home is in a finished, bank-approved compound. The compound LIST itself is still not a field, so the answer is the applicant\u2019s word for it rather than a lookup.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+      'Its own programme and not a tier of the new-car card: the minimum age is 25 rather ' +
+        'than 21, the loan term is measured from the manufacturing date, and the guide ' +
+        'prints a vehicle-age table the new-car pages have no equivalent of.',
+      'The age table is enforced for European, Japanese, Korean and every other origin at ' +
+        '8 years back, and for a Chinese car at 5 unless it is sold through Ghabbour & ' +
+        'Mansour — the same dealer exception the term rule states, read here as "back to ' +
+        'the general 8" rather than "60 becomes 84". "Luxury" gets no row: the guide names ' +
+        'it as a BRAND TIER and `car_origin` has no option for one — the same gap the ' +
+        'origin loan ceiling states above it. A luxury car is priced and termed as ' +
+        'whichever of the eleven origins it was actually built in.',
+      '`car_age_years` is engine-derived — `car_model_year` read against the clock once per ' +
+        'quote, never stored — so a model-year table cannot go stale under a frozen offer ' +
+        '(Principle V / A6) the way a table of absolute years would have.',
+      'The maximum loan by origin IS enforced, and it is the half of that table that does ' +
+        'not rot: 7,000,000 for a European, Japanese or Korean car and 4,000,000 otherwise.',
+      'Both deposit tiers finance up to 60% of the price — the guide states one share for ' +
+        'the pair, so the financed-share table states it once rather than twice.',
+      'A vehicle evaluation certificate (30-day validity, issued by an approved service ' +
+        'centre) and the vendor-coding criteria are eligibility steps the branch runs. ' +
+        'Neither has a registry key — recorded here.',
+      'The mileage ceiling — 40,000 km a year for an economy car, 100,000 for a luxury one ' +
+        '— is a stated rejection reason in the guide and no fact expresses it.',
+      'The rate is a placeholder: the guide prints none. Marked as an estimate.',
     ],
-    tenor: { minMonths: 6, maxMonths: 120 },
-    bankName: SCB,
-    programType: 'income_surrogate',
+    bankName: CAE,
+    programType: 'income_proof',
     productCategory: 'car',
-    programNameKey: 'green_finance_savings',
-    minAmountEGP: '100000',
-    maxAmountEGP: '1000000',
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
+    programNameKey: 'used_car',
+    tenor: {
+      minMonths: 6,
+      maxMonths: 84,
+      maxMonthsByEmploymentType: { self_employed: 60 },
+    },
+    minAmountEGP: '15000',
+    maxAmountEGP: '10000000',
+    ltvCeilingPercent: '60',
+    ltvCeilingByFact: {
+      axes: [{ factKey: 'car_down_payment_percent' }],
+      cells: [{ keys: [dpBand('40', null)], value: '60' }],
+      onNoMatch: 'reject',
+    },
+    /**
+     * The Chinese-car term rule, printed as a General Condition on every page of the guide:
+     * "Finance all Chinese cars for 60 months except for Chinese cars sold by Ghabbour &
+     * Mansour Company tenor to reach 84 Months".
+     *
+     * Two axes, because it is two facts: where the car was BUILT and who is SELLING it. Only
+     * the Chinese rows are stated — `useFallback` leaves every other origin on the
+     * programme's own 6-84, which is what the guide says about them (nothing).
+     *
+     * `useFallback` and NOT `reject`, unlike the origin ceiling on the same programme. A term
+     * has a safe fallback and a loan ceiling does not: an applicant who skips the optional
+     * dealer question should be financed over the programme's own term, not refused. The
+     * wildcard Chinese row is what makes that safe in the other direction — a Chinese car
+     * with no dealer stated still lands on 60, so the extension has to be claimed, never
+     * assumed.
+     */
+    maxMonthsByFact: {
+      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      cells: [
+        { keys: [{ key: 'china' }, null], value: '60' },
+        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+      ],
+      onNoMatch: 'useFallback',
+    },
+    /**
+     * The used-car age table — a REFUSAL, not a term. Same axes as the term grid above and
+     * safely so: the applicant's age is compared OUTSIDE this grid (`quote.ts`), never as a
+     * third axis inside it, so origin and dealer alone decide which cell wins.
+     *
+     * NO WILDCARD ROW — `validateFactGrid` refuses a cell naming no axis at all
+     * (`cell_all_wildcard`), so "8 for everyone" has to be TEN origin rows rather than one,
+     * exactly like `CAE_MAX_LOAN_BY_ORIGIN` above it. This is also the safer shape: a
+     * banded age axis sharing space with a origin wildcard would have let a Chinese car
+     * aged 6-8 slip through on the general row (verified against `resolveFactGrid`'s
+     * specificity ordering while designing this, not assumed) — enumerating origins avoids
+     * the question rather than relying on getting a wildcard-and-band interaction right.
+     *
+     * `useFallback` here means "this table has nothing to say about this applicant" — an
+     * unanswered origin or dealer is not refused, matching the optional questions it reads.
+     */
+    maxVehicleAgeYearsByFact: {
+      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      cells: [
+        { keys: [{ key: 'germany' }, null], value: '8' },
+        { keys: [{ key: 'japan' }, null], value: '8' },
+        { keys: [{ key: 'korea' }, null], value: '8' },
+        { keys: [{ key: 'france' }, null], value: '8' },
+        { keys: [{ key: 'italy' }, null], value: '8' },
+        { keys: [{ key: 'spain' }, null], value: '8' },
+        { keys: [{ key: 'czechia' }, null], value: '8' },
+        { keys: [{ key: 'usa' }, null], value: '8' },
+        { keys: [{ key: 'egypt' }, null], value: '8' },
+        { keys: [{ key: 'other_origin' }, null], value: '8' },
+        { keys: [{ key: 'china' }, null], value: '5' },
+        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '8' },
+      ],
+      onNoMatch: 'useFallback',
+    },
+    maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
+    ratePercent: CAE_RATE,
+    adminFeePercent: CAE_ADMIN_FEE,
+    // The used-car pages raise the floor to 25. The new-car ones say 21.
     ageMin: 25,
-    ageMax: 60,
+    ageMax: 65,
     ageMinSelfEmployed: 25,
     ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '50000',
-    minMonthsInJob: 6,
     dbrCapPercent: '50',
-    // The SAVINGS way of the one auto product (`alt`); the five down-payment programmes sell
-    // `primary`. The cash column hangs off this way alone.
-    wayId: 'alt',
-    stepParams: {
-      alt: divisor(SCB_DP_DIVISOR),
-      alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
-      ...SCB_SELF_EMPLOYED_GATES,
-      // Sold only against a delivered unit in a pre-approved compound. On for the Green pair
-      // and nobody else.
-      cond__unitinapprovedcompound: { applies: true },
-    },
-    requiredDocuments: SCB_GREEN_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
+    requiredDocuments: CAE_AUTO_DOCUMENTS,
+    estimated: CAE_ESTIMATED,
   }),
   program({
-    programCode: 'SCB-CAR-MICRO_MOBILITY',
-    friendlyName: 'Micro Mobility',
-    friendlyNameAr: 'التنقل الخفيف',
-    sheet: 'App. §5 — Suez Canal Green Finance, Micro Mobility',
+    programCode: 'CAE-CAR-EV',
+    friendlyName: 'Electric Vehicle Auto Loan',
+    friendlyNameAr: 'قرض السيارات الكهربائية',
+    sheet: 'CAE Electric Vehicles Product Guide — 35% / 40% / 50% down payment',
     notes: [
-      'Golf cars, scooters and e-bikes. Sold to owners of a delivered unit in a pre-approved compound — now asked and enforced as one condition. The compound LIST itself is still not a field, so the answer is the applicant\u2019s word for it rather than a lookup.',
-      'The slides state no profit rate, no fee and no rate basis; the figures here are placeholders the team chose, marked as estimates, and are priced on the reducing annuity.',
+      'Its own guide at the bank and its own programme here, for one figure: a 35% deposit ' +
+        'finances 65% of the price. No tier of the petrol card reaches that share.',
+      'It files under the New Car catalog name rather than an electric one of its own. A ' +
+        'catalog name is what the CUSTOMER picks, and somebody buying an electric car is ' +
+        'buying a new car — what makes this programme theirs is the fuel they answer, not a ' +
+        'second row in the picker. The term table is what enforces it: it states rows for an ' +
+        'electric and a hybrid car and none for petrol, so a petrol applicant is listed with ' +
+        'a stated reason rather than quoted an EV share.',
+      'Hybrids are accepted on the same terms as fully electric. The guide is written for ' +
+        '"Electric Vehicles" and does not name hybrids either way; including them is this ' +
+        'team’s reading and is the one row here that is not transcribed from the page.',
+      'The rate is a placeholder: the guide prints none. Marked as an estimate.',
     ],
-    // No duration of its own: it reads the product's 6-84 (`down_payment_income`).
-    bankName: SCB,
-    programType: 'income_surrogate',
+    bankName: CAE,
+    programType: 'income_proof',
     productCategory: 'car',
-    programNameKey: 'green_finance_savings',
-    minAmountEGP: '100000',
-    maxAmountEGP: '1000000',
-    ratePercent: SCB_RATE,
-    adminFeePercent: SCB_ADMIN_FEE,
-    ageMin: 25,
-    ageMax: 60,
-    ageMinSelfEmployed: 25,
-    ageMaxSelfEmployed: 65,
-    minMonthlyIncomeEGP: '50000',
-    minMonthsInJob: 6,
-    dbrCapPercent: '50',
-    // The SAVINGS way of the one auto product (`alt`); the five down-payment programmes sell
-    // `primary`. The cash column hangs off this way alone.
-    wayId: 'alt',
-    stepParams: {
-      alt: divisor(SCB_DP_DIVISOR),
-      alt__cash_buyer: divisor(SCB_CASH_DIVISOR),
-      ...SCB_SELF_EMPLOYED_GATES,
-      // Sold only against a delivered unit in a pre-approved compound. On for the Green pair
-      // and nobody else.
-      cond__unitinapprovedcompound: { applies: true },
+    programNameKey: 'new_car',
+    tenor: { minMonths: 6, maxMonths: 84 },
+    minAmountEGP: '15000',
+    maxAmountEGP: '10000000',
+    ltvCeilingPercent: '50',
+    ltvCeilingByFact: {
+      axes: [{ factKey: 'car_down_payment_percent' }],
+      cells: [
+        { keys: [dpBand('35', '40')], value: '65' },
+        { keys: [dpBand('40', '50')], value: '60' },
+        { keys: [dpBand('50', null)], value: '50' },
+      ],
+      onNoMatch: 'reject',
     },
-    requiredDocuments: SCB_GREEN_DOCUMENTS,
-    estimated: SCB_ESTIMATED,
+    // What makes this the EV programme. Rows for the two fuels it is sold against and none
+    // for petrol, so `reject` refuses a petrol car HERE while the petrol card prices it
+    // normally — the programme stays listed with a reason (Principle V / A33), never filtered.
+    maxMonthsByFact: {
+      // THREE axes, because this one table answers two questions at once: which fuels the
+      // programme is sold against at all, and how long a Chinese one is financed for.
+      //
+      // `specificity()` is a bitmask with axis 0 most significant, so the cells are tried
+      // 3-stated, then 2-stated, then 1-stated: a Chinese electric car from Ghabbour lands on
+      // 84, any other Chinese electric car on 60, and every other electric car on the
+      // programme's own 84. Stating the Chinese rows for BOTH fuels is not duplication — a
+      // wildcard on axis 0 would also match petrol, and petrol matching anything at all is
+      // what this grid exists to prevent.
+      axes: [{ factKey: 'car_fuel_type' }, { factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      cells: [
+        { keys: [{ key: 'electric' }, null, null], value: '84' },
+        { keys: [{ key: 'hybrid' }, null, null], value: '84' },
+        { keys: [{ key: 'electric' }, { key: 'china' }, null], value: '60' },
+        { keys: [{ key: 'hybrid' }, { key: 'china' }, null], value: '60' },
+        {
+          keys: [{ key: 'electric' }, { key: 'china' }, { key: 'ghabbour_mansour' }],
+          value: '84',
+        },
+        { keys: [{ key: 'hybrid' }, { key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+      ],
+      onNoMatch: 'reject',
+    },
+    maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
+    ratePercent: CAE_RATE,
+    adminFeePercent: CAE_ADMIN_FEE,
+    ageMin: 21,
+    ageMax: 65,
+    ageMinSelfEmployed: 21,
+    ageMaxSelfEmployed: 65,
+    dbrCapPercent: '50',
+    requiredDocuments: CAE_AUTO_DOCUMENTS,
+    estimated: CAE_ESTIMATED,
   }),
+
+  // -------------------------------------------------------------------------
+  // Car Buyers — the programmes selling `down_payment_income` (car_buyers_program)
+  // -------------------------------------------------------------------------
+  ...CAR_BUYERS_PROGRAMS,
 ];
+
+// No programme states an I-Score table of its own: every one reads the shared table — the
+// I-Score classes on Manage values — unless a bank types one (v30.4.0).
+export const SHEET_PROGRAMS: readonly ProgramSpec[] = SPECS;

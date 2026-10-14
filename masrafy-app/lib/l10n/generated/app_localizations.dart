@@ -62,7 +62,8 @@ import 'app_localizations_en.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,7 +71,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -82,7 +84,8 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
     delegate,
     GlobalMaterialLocalizations.delegate,
     GlobalCupertinoLocalizations.delegate,
@@ -1322,7 +1325,7 @@ abstract class AppLocalizations {
   /// Income basis income_proof — customer-facing name. Never render the raw value
   ///
   /// In ar, this message translates to:
-  /// **'بكشف راتب'**
+  /// **'إثبات الدخل'**
   String get loan_setup_income_proof_title;
 
   /// Income basis income_proof — what it means
@@ -1334,7 +1337,7 @@ abstract class AppLocalizations {
   /// Income basis income_surrogate — customer-facing name. Never render the raw value
   ///
   /// In ar, this message translates to:
-  /// **'بدون كشف راتب'**
+  /// **'بديل الدخل'**
   String get loan_setup_income_surrogate_title;
 
   /// Income basis income_surrogate — what it means
@@ -2741,10 +2744,16 @@ abstract class AppLocalizations {
   /// **'محسوب من الأقساط التي أدخلتها أعلاه.'**
   String get q_dyn_obligations_total_helper;
 
+  /// No description provided for @q_dyn_cannot_submit.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تسعير هذا النوع حاليًا — ينقصه سؤال مطلوب. جرّب نوعًا آخر أو تواصل مع الدعم.'**
+  String get q_dyn_cannot_submit;
+
   /// No description provided for @q_dyn_money_missing.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.'**
+  /// **'أجب عن الأسئلة الإلزامية لعرض العروض المتاحة.'**
   String get q_dyn_money_missing;
 
   /// No description provided for @q_personal_years.
@@ -3371,6 +3380,42 @@ abstract class AppLocalizations {
   /// **'لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.'**
   String get results_empty_body;
 
+  /// No description provided for @offer_partner_bank.
+  ///
+  /// In ar, this message translates to:
+  /// **'البنك الشريك {letter}'**
+  String offer_partner_bank(String letter);
+
+  /// No description provided for @offer_partner_bank_generic.
+  ///
+  /// In ar, this message translates to:
+  /// **'بنك شريك'**
+  String get offer_partner_bank_generic;
+
+  /// No description provided for @results_no_rate_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد سعر فائدة لهذه البيانات'**
+  String get results_no_rate_title;
+
+  /// No description provided for @results_no_rate_body_car.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد لدى أي بنك سعر فائدة لهذه الدفعة المقدمة وهذه السيارة. معظم برامج تمويل السيارات تتطلب دفعة مقدمة أكبر — جرّب زيادتها أو تغيير بيانات السيارة.'**
+  String get results_no_rate_body_car;
+
+  /// No description provided for @results_no_rate_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد لدى أي بنك سعر فائدة للإجابات التي قدمتها. جرّب تغيير إجاباتك لرؤية العروض.'**
+  String get results_no_rate_body;
+
+  /// No description provided for @results_edit_answers.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل إجاباتي'**
+  String get results_edit_answers;
+
   /// No description provided for @results_profile_title.
   ///
   /// In ar, this message translates to:
@@ -3713,6 +3758,24 @@ abstract class AppLocalizations {
   /// **'تأمين الحياة'**
   String get offer_life_insurance;
 
+  /// No description provided for @offer_car_insurance.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأمين السيارة (إجباري)'**
+  String get offer_car_insurance;
+
+  /// No description provided for @offer_car_insurance_total.
+  ///
+  /// In ar, this message translates to:
+  /// **'التأمين على مدى {years, plural, =1{سنة واحدة} =2{سنتين} few{{years} سنوات} other{{years} سنة}}'**
+  String offer_car_insurance_total(int years);
+
+  /// No description provided for @offer_fee_egp_per_year.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} جنيه / سنة'**
+  String offer_fee_egp_per_year(String amount);
+
   /// No description provided for @offer_fee_egp.
   ///
   /// In ar, this message translates to:
@@ -3760,6 +3823,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حدث خطأ ما. حاول مرة أخرى.'**
   String get offer_proceed_error;
+
+  /// No description provided for @offer_already_proceeded.
+  ///
+  /// In ar, this message translates to:
+  /// **'لقد قدّمت بالفعل على عرض في هذا الطلب.'**
+  String get offer_already_proceeded;
 
   /// No description provided for @offer_national_id_required_title.
   ///
@@ -4253,6 +4322,12 @@ abstract class AppLocalizations {
   /// **'المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.'**
   String get reason_below_program_min_amount;
 
+  /// Backend REQUESTED_BELOW_PROGRAM_MIN_AMOUNT reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ المطلوب أقل مما يقرضه هذا البنك. اطلب مبلغًا أكبر لعرض أرقامه.'**
+  String get reason_requested_below_program_min_amount;
+
   /// Backend AGE_AT_MATURITY reason code
   ///
   /// In ar, this message translates to:
@@ -4494,7 +4569,8 @@ abstract class AppLocalizations {
   String get results_unavailable_product_retired;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -4503,25 +4579,25 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['ar', 'en'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['ar', 'en'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'ar': return AppLocalizationsAr();
-    case 'en': return AppLocalizationsEn();
+    case 'ar':
+      return AppLocalizationsAr();
+    case 'en':
+      return AppLocalizationsEn();
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

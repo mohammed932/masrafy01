@@ -35,6 +35,7 @@ import {
 } from '../src/matching/pipeline/income-rule-inherit';
 import { asTenorDefaults } from '../src/matching/pipeline/tenor-inherit';
 import { asPlanDefaults } from '../src/matching/pipeline/plan-inherit';
+import { asRateDefaults } from '../src/matching/pipeline/rate-inherit';
 import { toBankProgramSnapshot, type BankProgramRow } from '../src/bank-programs/bank-program-snapshot.mapper';
 import { runCascade } from '../src/matching/pipeline/cascade-adapter';
 import { quoteProgram } from '../src/matching/pipeline/quote';
@@ -180,6 +181,10 @@ async function main(): Promise<void> {
       // term ceiling. A harness that cannot see the grid it is measuring is worse than no
       // harness, because its output looks like evidence.
       planDefaults: true,
+      // The flat RATE a product hands down, for the same reason the grid above it is read:
+      // this harness exists to print what every programme is priced at, and since the
+      // wizard stopped asking for a rate, most of them are priced from this column.
+      rateDefaults: true,
       surrogateProductKey: true,
       active: true,
       deprecatedAt: true,
@@ -196,6 +201,7 @@ async function main(): Promise<void> {
       rule: asRule(row.incomeRule),
       tenorDefaults: asTenorDefaults(row.tenorDefaults),
       planDefaults: asPlanDefaults(row.planDefaults),
+      rateDefaults: asRateDefaults(row.rateDefaults),
     });
   }
   const catalog = new Map<string, CatalogRuleResolution>();

@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_helper.dart';
 import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 import 'package:app/core/widgets/input_controls/masrafy_single_select_sheet.dart';
 
@@ -34,6 +35,7 @@ class MasrafySelectField<T> extends StatelessWidget {
     required this.value,
     required this.onSelected,
     this.hint,
+    this.helper,
     this.sheetTitle,
     this.searchHint,
     this.showSearch = false,
@@ -44,6 +46,17 @@ class MasrafySelectField<T> extends StatelessWidget {
   /// Question / field prompt shown above the field. Uppercased in the default
   /// density; shown as-is in [dense].
   final String label;
+
+  /// Optional sub-label between [label] and the field, for the sentence that
+  /// says what the value IS when the prompt alone reads two ways.
+  ///
+  /// Same slot, same type ramp and same gap as the questionnaire's numeric and
+  /// free-text fields give `Question.helperText*`: without it, a helper an
+  /// operator writes on a CHOICE question is carried by the snapshot, delivered
+  /// to the app and then silently dropped, while the identical helper on a
+  /// number shows — so the admin screen and the form disagree about what the
+  /// applicant is told.
+  final String? helper;
   final List<MasrafySelectOption<T>> options;
   final T? value;
   final ValueChanged<T> onSelected;
@@ -102,6 +115,7 @@ class MasrafySelectField<T> extends StatelessWidget {
                 letterSpacing: 0.5,
               ),
         ),
+        MasrafyFieldHelper(helper),
         Gap(MasrafyFieldMetrics.labelGap),
         GestureDetector(
           onTap: isEnabled ? () => _open(context) : null,
@@ -162,6 +176,7 @@ class MasrafySelectField<T> extends StatelessWidget {
                   letterSpacing: 0.66,
                 ),
           ),
+          MasrafyFieldHelper(helper),
           Gap(MasrafyFieldMetrics.labelGap),
           Container(
             height: MasrafyFieldMetrics.height,

@@ -15,6 +15,7 @@ class ApplyResultEntity extends Equatable {
     this.unavailablePrograms = const [],
     this.summary,
     this.noMatchPrimaryReason,
+    this.noMatchFailedChecks = const [],
   });
 
   final bool matched;
@@ -26,6 +27,12 @@ class ApplyResultEntity extends Equatable {
   final ApplySummaryEntity? summary;
   final String? noMatchPrimaryReason;
 
+  /// On a no-match, the check each program failed (`interest_rate`,
+  /// `dbr_exceeded`, ...), one entry per program, in the order the backend
+  /// listed them. Empty on a match. What the results screen reads to say WHY
+  /// nothing matched rather than a bare "no offers".
+  final List<String> noMatchFailedChecks;
+
   @override
   List<Object?> get props => [
         matched,
@@ -34,6 +41,7 @@ class ApplyResultEntity extends Equatable {
         unavailablePrograms,
         summary,
         noMatchPrimaryReason,
+        noMatchFailedChecks,
       ];
 }
 

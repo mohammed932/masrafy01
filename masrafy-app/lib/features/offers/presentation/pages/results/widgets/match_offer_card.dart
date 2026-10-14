@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/cards/masrafy_partner_bank_heading.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import '../../../models/match_results_args.dart';
@@ -47,12 +48,9 @@ class MatchOfferCard extends StatelessWidget {
     // Monthly/Total values read muted on the rest, solid on the top pick.
     final valueColor = topPick ? colors.textBase : colors.primary.border;
 
-    // The bank, then what it matched. This card compares twenty banks and had
-    // never said which bank any one of them was.
-    final subline = offer.programFriendlyName.isNotEmpty
-        ? '${offer.programFriendlyName} · $productLabel · '
-            '${l.results_months(offer.termMonths)}'
-        : '$productLabel · ${l.results_months(offer.termMonths)}';
+    // A MASKED bank leads (see MasrafyPartnerBankHeading): neither the bank nor
+    // the program name — which often carries the bank's — is shown.
+    final subline = '$productLabel · ${l.results_months(offer.termMonths)}';
 
     return Container(
       width: double.infinity,
@@ -65,18 +63,12 @@ class MatchOfferCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (offer.bankName.isNotEmpty) ...[
-            Text(
-              offer.bankName,
-              style: text.heading4.copyWith(color: colors.textBase),
-            ),
-            Gap(2.h),
-          ],
-          Text(
-            subline,
-            style: text.bodySmall.copyWith(color: colors.text.secondary),
+          MasrafyPartnerBankHeading(
+            label: MasrafyPartnerBankHeading.labelFor(l, offer.rank),
+            subline: subline,
+            onTintedCard: topPick,
           ),
-          Gap(12.h),
+          Gap(14.h),
           Row(
             children: [
               Expanded(

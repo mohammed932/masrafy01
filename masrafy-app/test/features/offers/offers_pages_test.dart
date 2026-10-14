@@ -44,7 +44,9 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Mortgage Loan'), findsOneWidget);
     expect(find.text('TOTAL LOAN'), findsOneWidget);
-    expect(find.text('Apply for this offer'), findsOneWidget);
+    // A mock offer has no application behind it, so there is nothing to
+    // proceed on and the Apply CTA is not shown (it used to toast "Coming soon").
+    expect(find.text('Apply for this offer'), findsNothing);
   });
 
   testWidgets('MatchResultsPage lays out without throwing', (tester) async {

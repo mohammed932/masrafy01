@@ -54,7 +54,7 @@ export class IncomeRuleCheckSampleDto {
   // `SURROGATE_FACT_MISSING`, which is a result the admin needs to be able to
   // reproduce deliberately (FR-031).
 
-  @ApiPropertyOptional({ example: 'senior_officer' })
+  @ApiPropertyOptional({ example: 'grade_major' })
   @IsOptional()
   @IsString()
   militaryGrade?: string;
@@ -126,7 +126,7 @@ export class IncomeRuleCheckSampleDto {
    * travels with it: sending a value for a fact the rule does not read would let the
    * panel show a figure produced by something the admin cannot see on screen.
    */
-  @ApiPropertyOptional({ example: 'senior_officer', description: 'Sample answer for a fact rule.' })
+  @ApiPropertyOptional({ example: 'grade_major', description: 'Sample answer for a fact rule.' })
   @IsOptional()
   @IsString()
   @MaxLength(64)

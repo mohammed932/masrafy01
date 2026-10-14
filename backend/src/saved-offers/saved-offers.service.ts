@@ -66,6 +66,8 @@ export class SavedOffersService {
       totalLabel: compactEGP(totalRepayable),
       bankName: r.bankName,
       programFriendlyName: r.programFriendlyName,
+      applicationId: r.applicationId,
+      alreadyApplied: r.applicationHasSelection,
       savedAt: r.savedAt.toISOString(),
     };
   }

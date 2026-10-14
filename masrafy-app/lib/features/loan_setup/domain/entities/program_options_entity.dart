@@ -59,6 +59,8 @@ class ProgramNameOptionEntity {
     required this.labelEn,
     required this.labelAr,
     required this.programCount,
+    this.productLabelEn,
+    this.productLabelAr,
   });
 
   /// The value sent back as `programNameKey`.
@@ -69,5 +71,15 @@ class ProgramNameOptionEntity {
   /// How many banks offer this name on the chosen basis. Always ≥ 1.
   final int programCount;
 
-  String label({required bool isArabic}) => isArabic ? labelAr : labelEn;
+  /// Under no payslip, the product this name takes its calculation from — what
+  /// the customer is shown instead of the catalog name, as the admin catalog's
+  /// no-payslip panel does. Null under payslip.
+  final String? productLabelEn;
+  final String? productLabelAr;
+
+  String label({required bool isArabic}) {
+    final product = isArabic ? productLabelAr : productLabelEn;
+    if (product != null && product.isNotEmpty) return product;
+    return isArabic ? labelAr : labelEn;
+  }
 }

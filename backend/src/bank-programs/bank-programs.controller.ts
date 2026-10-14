@@ -29,6 +29,9 @@ import {
   SetProgramNameIncomeRuleDto,
   SetSurrogateProductActiveDto,
   SetSurrogateProductCapDefaultsDto,
+  SetSurrogateProductLoanAmountDefaultsDto,
+  SetSurrogateProductRateDefaultsDto,
+  SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
@@ -280,6 +283,118 @@ export class BankProgramsController {
   /**
    * Declared in the same block and before `@Get(':programCode')`, for the same reason.
    */
+  @Put('surrogate-products/:key/iscore-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default I-Score tiers",
+    description:
+      'The share of the worked-out figure every bank program under this product counts at ' +
+      'each bureau score, when it states no table of its own. INHERITED, not copied, ' +
+      'exactly as the duration beside it: a change here moves every one of them, and a bank ' +
+      'that scores differently states its own and wins — including a flat 100% table, which ' +
+      'is how it opts out. `tiers: null` clears them, and there is NO refusal for that: ' +
+      'cleared tiers leave a program multiplying by 100%, which is a priceable quote.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'INCOME_RULE_BANDS_INVALID — the tiers must start at 0, leave the top range open and ' +
+      'have no gap or overlap (`meta.reason` is `first_band_not_zero`, `last_band_not_open`, ' +
+      '`gap`, `overlap`, `unordered` or `edge_not_decimal`). INCOME_RULE_EMPTY when the ' +
+      'table is present but has no rows — send `null` to clear it instead.',
+  })
+  async setSurrogateProductIScoreDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductIScoreDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.setSurrogateProductIScoreDefaults(key, body, this.actor(user, req)),
+    );
+  }
+
+  /**
+   * Declared in the same block and before `@Get(':programCode')`, for the same reason.
+   */
+  @Put('surrogate-products/:key/loan-amount-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default loan size",
+    description:
+      'The floor and ceiling every bank program under this product falls back to when it ' +
+      'states none of its own. INHERITED, not copied, exactly as the duration beside it: a ' +
+      'change here moves every one of them, and a bank that states its own always wins. ' +
+      '`loanAmounts: null` clears it, and that is the one refusal — clearing leaves an ' +
+      'inheriting program with no size at all, and a loan with no size cannot be quoted.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE — the clear was refused because bank programs ' +
+      'are reading these amounts. Meta carries `count` and `programCodes`.',
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'PROGRAM_RANGE_INVALID — the minimum is above the maximum, or the maximum is zero ' +
+      '(`meta.field` is `loanAmountDefaults`).',
+  })
+  async setSurrogateProductLoanAmountDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductLoanAmountDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.setSurrogateProductLoanAmountDefaults(key, body, this.actor(user, req)),
+    );
+  }
+
+  /**
+   * Declared in the same block and before `@Get(':programCode')`, for the same reason.
+   */
+  @Put('surrogate-products/:key/rate-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's default interest rate",
+    description:
+      'The price every bank program under this product quotes when it states none of its ' +
+      'own — the rate, the basis it is charged on, and the variable-rate disclosure, as ONE ' +
+      'statement. INHERITED, not copied, exactly as the duration and the size beside it: a ' +
+      'change here re-prices every one of them, and a bank that prices differently states ' +
+      'its own and wins. Since the bank-program wizard stopped asking for a rate, this is ' +
+      'where a price is typed. `rate: null` clears it, and that is the one refusal — ' +
+      'clearing leaves an inheriting program with no price at all.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'SURROGATE_PRODUCT_RATE_IN_USE — the clear was refused because bank programs are ' +
+      'priced at this rate. Meta carries `count` and `programCodes`.',
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'INVALID_VARIABLE_RATE_CONFIGURATION — a variable rate with no effective figure, or a ' +
+      'fixed one carrying both (`meta.field` is `baseRate` or `currentEffectiveRate`). The ' +
+      "same rule, and the same code, a bank program's own pricing is held to.",
+  })
+  async setSurrogateProductRateDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductRateDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.service.setSurrogateProductRateDefaults(key, body, this.actor(user, req)));
+  }
+
+  /**
+   * Declared in the same block and before `@Get(':programCode')`, for the same reason.
+   */
   @Put('surrogate-products/:key/plan-defaults')
   @Roles('super_admin')
   @ApiOperation({
@@ -471,6 +586,52 @@ export class BankProgramsController {
     return ok(await this.asks.detach(key, factKey, this.actor(user, req)));
   }
 
+  /**
+   * "Fix all": act on every fact the engine needs for this product that is not covered —
+   * tick the ones with a question, create the question for the ones without (optional, in
+   * the product's loan types, shaped by how its tables read it), publish once. Facts that
+   * cannot be acted on come back in `skipped` with their typed reason.
+   *
+   * Declared BEFORE `needed/:factKey` and `:programCode`, and it has to be.
+   */
+  @Put('surrogate-products/:key/needed')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Ask every fact the engine needs for a surrogate product' })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({ status: 409, description: 'PRODUCT_NOT_SOLD_ANYWHERE' })
+  async askAllNeeded(
+    @Param('key') key: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.asks.askNeeded(key, null, this.actor(user, req)));
+  }
+
+  /**
+   * "Ask it" / "Create question" on one fact the engine needs for this product.
+   *
+   * Addressed by the FACT, because that is what the tables and the calculation name — the
+   * question may not exist yet. See `ProductAsksService.askNeeded`.
+   */
+  @Put('surrogate-products/:key/needed/:factKey')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Ask one fact the engine needs for a surrogate product' })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({ status: 409, description: 'PRODUCT_NOT_SOLD_ANYWHERE' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'NEEDED_FACT_SHAPE_UNKNOWN | SURROGATE_FACT_WIDEN_REQUIRED | VALIDATION_FAILED (not needed / already covered)',
+  })
+  async askOneNeeded(
+    @Param('key') key: string,
+    @Param('factKey') factKey: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.asks.askNeeded(key, factKey, this.actor(user, req)));
+  }
+
   @Get(':programCode')
   @ApiOperation({ summary: "Fetch a single bank program's full configuration" })
   @ApiResponse({ status: 200, description: 'Bank program detail.' })
@@ -485,7 +646,10 @@ export class BankProgramsController {
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a new bank program (admin or super_admin)' })
   @ApiResponse({ status: 201, description: 'Program created.' })
-  @ApiResponse({ status: 409, description: 'PROGRAM_CODE_ALREADY_IN_USE' })
+  @ApiResponse({
+    status: 409,
+    description: 'PROGRAM_CODE_ALREADY_IN_USE | BANK_PROGRAM_NAME_TAKEN',
+  })
   @ApiResponse({
     status: 422,
     description:
@@ -629,7 +793,10 @@ export class BankProgramsController {
   @ApiOperation({ summary: 'Duplicate a program into a new inactive draft (FR-013)' })
   @ApiResponse({ status: 201, description: 'Draft copy created.' })
   @ApiResponse({ status: 404, description: 'BANK_PROGRAM_NOT_FOUND' })
-  @ApiResponse({ status: 409, description: 'PROGRAM_CODE_ALREADY_IN_USE' })
+  @ApiResponse({
+    status: 409,
+    description: 'PROGRAM_CODE_ALREADY_IN_USE | BANK_PROGRAM_NAME_TAKEN',
+  })
   async duplicate(
     @Param('programCode') programCode: string,
     @Body() body: DuplicateBankProgramDto,

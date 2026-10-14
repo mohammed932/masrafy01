@@ -7,9 +7,9 @@
  * `onNoMatch`, the program reads as configured on every screen, and the only symptom is a
  * loan amount that is either uncapped or refused for a reason nobody chose.
  *
- * The trap this exists to catch is written up at `demo-figures/sheet-figures.ts:25-30` — the
- * unit type's option code is `twin_or_town_house` while its registry key is `twin_house`, so
- * one of the two spellings prices nothing and both look right in a file. It was found by a
+ * The trap this exists to catch is written up at `demo-figures/sheet-figures.ts:25-31` — the
+ * unit type's option code was once `twin_or_town_house` while its registry key is `twin_house`,
+ * so one of the two spellings prices nothing and both look right in a file. It was found by a
  * save being refused, i.e. by a human trying it, which is exactly the kind of finding that
  * belongs in a test.
  *
@@ -49,28 +49,10 @@ const KNOWN_DIVERGENCES: ReadonlyArray<{
   axis: 'rowKeys' | 'columnKeys';
   key: string;
 }> = [
-  {
-    // `owned_unit_type` reads the question `what_kind_of_unit_do_you_own`, which EXISTS on
-    // the live database with the option codes `apartment` / `twin_or_town_house` / `villa` —
-    // slugged from its own labels, because it was created (2026-08-30) before this ask
-    // declared a list, and `property_type` carries no `mirrorQuestionId` to this day. The
-    // cap, `sheet-figures.ts` and `sheet-programs.ts` all key `twin_or_town_house` and are
-    // correct against that database; the validator refuses `twin_house` there, which is how
-    // the trap was found in the first place.
-    //
-    // What the file says is the OTHER answer: the ask now declares
-    // `list: { typeKey: 'property_type', values: [apartment, twin_house, villa] }`, and on a
-    // database where that question does not yet exist the blueprint creates it mirrored to
-    // that list — option codes `apartment` / `twin_house` / `villa`, and every
-    // `twin_or_town_house` row then prices nobody.
-    //
-    // So the two are right on different databases, and neither is safe to "fix" here:
-    // re-keying the cap breaks the live programs, and re-keying the list mints a second
-    // registry name for one answer. It is reported rather than resolved.
-    blueprintKey: 'compound_owner',
-    axis: 'rowKeys',
-    key: 'twin_or_town_house',
-  },
+  // Empty. `compound_owner` carried the one entry (`twin_or_town_house`, the label slug of an
+  // early hand-made unit-type question) until 2026-09-23, when the cap, the seed figures and
+  // ABK's programme were re-keyed to the list key `twin_house` — what a database built from
+  // the seeds mints, which was the operator's call.
 ];
 
 type KeySource =

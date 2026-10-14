@@ -103,6 +103,12 @@ export function isLastStep(ids: readonly NewNameStepId[], id: NewNameStepId): bo
 }
 
 export interface NewNameDraft {
+  /**
+   * Questions a validated loan type (personal / car / mortgage) still needs before it can be
+   * priced, summed over the loan types on. Absent or 0 = nothing missing — and 0 when the
+   * pool could not be read, so a failed read never refuses a name it cannot judge.
+   */
+  readonly coreMissing?: number;
   readonly labelEn: string;
   readonly labelAr: string;
   /**
@@ -131,7 +137,7 @@ export interface NewNameDraft {
  * `$localize` does not exist — and because the page is the thing that knows how much room the
  * action bar has. The page owns the words; this owns the rule.
  */
-export type NewNameBlock = 'labels' | 'labels_key' | 'basis' | 'product' | 'offered' | null;
+export type NewNameBlock = 'labels' | 'labels_key' | 'basis' | 'product' | 'offered' | 'core' | null;
 
 /**
  * The first unanswered thing, in step order.
@@ -151,8 +157,10 @@ export function blockReason(draft: NewNameDraft): NewNameBlock {
   if (slugify(draft.labelEn) === '') return 'labels_key';
   if (draft.basis === 'no_payslip' && !productSettled(draft)) return 'product';
   if (draft.offered.length === 0) return 'offered';
-  // `asks` is never a reason. Add-only means adding nothing is a real answer: the loan types
-  // already ask what they ask, and this name is not the only thing that decides it.
+  // Adding NOTHING is still a real answer (the loan types already ask what they ask) — but a
+  // personal, car or mortgage loan type that does not ask what the quote reads cannot be
+  // priced, so a name offered under one would be sellable and quote nothing.
+  if ((draft.coreMissing ?? 0) > 0) return 'core';
   return null;
 }
 
@@ -182,7 +190,7 @@ export function stepBlock(draft: NewNameDraft, step: NewNameStepId): NewNameBloc
     case 'offered':
       return draft.offered.length === 0 ? 'offered' : null;
     case 'asks':
-      return null;
+      return (draft.coreMissing ?? 0) > 0 ? 'core' : null;
   }
 }
 
@@ -255,7 +263,10 @@ export function stepStatuses(
     program: { status: !blind && named ? 'done' : 'todo', disabled: false },
     calculation: { status: productSettled(draft) ? 'done' : 'todo', disabled: blind },
     offered: { status: draft.offered.length > 0 ? 'done' : 'todo', disabled: blind },
-    asks: { status: draft.offered.length > 0 ? 'done' : 'todo', disabled: blind },
+    asks: {
+      status: draft.offered.length > 0 && (draft.coreMissing ?? 0) === 0 ? 'done' : 'todo',
+      disabled: blind,
+    },
   };
 }
 

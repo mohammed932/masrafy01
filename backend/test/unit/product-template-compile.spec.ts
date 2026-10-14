@@ -316,67 +316,27 @@ describe('three or more ways of reaching the figure', () => {
   });
 });
 
-describe('I-Score', () => {
-  const rule = compileTemplate(base({ iScore: true }));
-  const figures = {
-    primary: { keyTable: [{ key: 'colonel', incomeEGP: '45000' }] },
-    iscore_band: {
-      bands: [
-        { fromInclusive: '0', toExclusive: '600', incomeEGP: '80' },
-        { fromInclusive: '600', toExclusive: '700', incomeEGP: '100' },
-        { fromInclusive: '700', toExclusive: null, incomeEGP: '110' },
-      ],
-    },
-  };
-
-  it('applies the bank multiplier when the applicant gave a score', () => {
-    const out = evaluateProductRule(withFigures(rule, figures), {
-      facts: { military_grade: choice('colonel'), [I_SCORE_FACT_KEY]: numeric('720') },
-    });
-    expect(out.ok && out.valueEGP.toString()).toBe('49500');
-  });
-
-  it('falls back to 100% when the applicant did NOT give one', () => {
-    // The reason `RuleStep.optional` exists. Without it `factNumber` answers
-    // `fact_not_answered`, the evaluator returns before the `coalesce` is reached, and one
-    // skipped optional question kills every quote for the product.
-    const out = evaluateProductRule(withFigures(rule, figures), {
-      facts: { military_grade: choice('colonel') },
-    });
-    expect(out.ok && out.valueEGP.toString()).toBe('45000');
-  });
-
-  it('falls back to 100% when this bank stated no table', () => {
-    const out = evaluateProductRule(
-      withFigures(rule, { primary: figures.primary }),
-      { facts: { military_grade: choice('colonel'), [I_SCORE_FACT_KEY]: numeric('720') } },
-    );
-    expect(out.ok && out.valueEGP.toString()).toBe('45000');
-  });
-
-  it('still stops when a score falls outside every band the bank stated', () => {
-    // `no_matching_band` is NOT skippable, and must not become so: a table that does not
-    // cover the range is a bank configuration error, not a customer declining a question.
-    const out = evaluateProductRule(
-      withFigures(rule, {
-        ...figures,
-        iscore_band: { bands: [{ fromInclusive: '600', toExclusive: '700', incomeEGP: '100' }] },
-      }),
-      { facts: { military_grade: choice('colonel'), [I_SCORE_FACT_KEY]: numeric('900') } },
-    );
-    expect(out.ok).toBe(false);
-    expect(!out.ok && out.reason).toBe('no_matching_band');
-  });
-
-  it('is applied LAST, after the product own adjustments', () => {
-    const withUplift = compileTemplate(
-      base({ iScore: true, uplift: { fact: 'is_premier', whenOption: 'yes', otherwiseOption: 'no' } }),
-    );
-    const ids = withUplift.steps?.map((s) => s.id) ?? [];
-    expect(ids.indexOf(SLOT.uplift)).toBeLessThan(ids.indexOf(SLOT.iScoreApplied));
-    expect(withUplift.output?.from).toBe(SLOT.iScoreApplied);
-  });
-});
+/**
+ * The I-SCORE BLOCK that stood here is gone, and so is what it tested.
+ *
+ * It pinned the multiplier as four compiled steps inside the rule: the bank's table applied,
+ * the 100% fallback for an unanswered score and for an unstated table, `no_matching_band`
+ * when a score fell outside the table, and the multiply landing LAST of the arithmetic. None
+ * of that is the compiler's job any more (v30.3.0) — the tiers are program-level policy read
+ * once by `quoteProgram` step 2a.
+ *
+ * Every one of those behaviours kept a home rather than being dropped:
+ *
+ *   the bank's table applied    `iscore-before-dbr.spec.ts` › the multiplier itself
+ *   the two 100% fallbacks      same, and through the whole quote as well
+ *   a score outside the table   same — and the ANSWER CHANGED, deliberately: it resolves to
+ *                               100% now instead of refusing the quote. `validateIScoreTiers`
+ *                               demands full 0…∞ coverage at write time, so the case is
+ *                               unreachable through any screen, and Principle V says the
+ *                               engine cannot fail a match on bad config.
+ *   applied last, before DBR    `iscore-before-dbr.spec.ts`, which is the file named for it
+ *   emitted by no template      `iscore-every-product.spec.ts`
+ */
 
 describe('a bonus percentage when one answer is given', () => {
   const rule = compileTemplate(
@@ -477,6 +437,11 @@ describe('the order the add-ons were ticked in cannot change the figure', () => 
   // rounding does not: an I-Score of 110% and a bonus of 10% applied in the other sequence
   // differ by piastres. The compiler emits one declared order regardless of how the form
   // object was assembled, which is what makes the same answers always give the same number.
+  //
+  // `iScore: true` is still SET on both objects deliberately, even though it compiles to
+  // nothing since v30.3.0: this case is about key order not mattering, and a retired field
+  // that is accepted on the way in is exactly the kind of thing that could start mattering
+  // again. Keeping it here means a compiler that began emitting it would fail this too.
   const ticked = {
     version: 1 as const,
     outputKind: 'monthlyIncome' as const,
@@ -502,8 +467,11 @@ describe('the order the add-ons were ticked in cannot change the figure', () => 
     const figures = {
       primary: { keyTable: [{ key: 'colonel', incomeEGP: '40000' }] },
       uplift_on: { scalar: { value: '10', unit: 'percent' as const } },
-      iscore_band: { bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '110' }] },
     };
+    // The score is still ANSWERED, and the figure below is the proof it no longer reaches the
+    // rule: 40 000 + 10% = 44 000, not the 48 400 this read while the ×110% tier was compiled
+    // in. The quote applies the multiplier after the rule, which
+    // `iscore-before-dbr.spec.ts` measures end to end.
     const facts = {
       military_grade: choice('colonel'),
       is_premier: choice('yes'),
@@ -511,7 +479,7 @@ describe('the order the add-ons were ticked in cannot change the figure', () => 
     };
     const a = evaluateProductRule(withFigures(compileTemplate(ticked), figures), { facts });
     const b = evaluateProductRule(withFigures(compileTemplate(reordered), figures), { facts });
-    expect(a.ok && a.valueEGP.toString()).toBe('48400');
+    expect(a.ok && a.valueEGP.toString()).toBe('44000');
     expect(b.ok && b.valueEGP.toString()).toBe(a.ok ? a.valueEGP.toString() : 'n/a');
   });
 });

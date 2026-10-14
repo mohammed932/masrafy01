@@ -382,12 +382,8 @@ describe('the slot ids are golden', () => {
       'alt__cash_buyer',
       'alt_pick',
       'basis',
-      // The four sheet conditions. Every one is `oneOf`, which emits a gate and no step, so
-      // all four are pure additions.
-      'cond__businessoldenough',
-      'cond__homeowned',
-      'cond__selfemployedpapers',
-      'cond__unitinapprovedcompound',
+      // The four sheet conditions (`cond__*`) were removed on 2026-09-24. Each was a `oneOf`
+      // gate with no step and no bank figure, so dropping them moves no slot.
       'primary',
       'src__car_down_payment',
       'src__total_savings',
@@ -395,18 +391,21 @@ describe('the slot ids are golden', () => {
   };
 
   /**
-   * APPENDED to every product's golden list, not written into it: the I-Score multiplier is
-   * declared on every income-bearing template (`iScore: true`), which adds these four slots
-   * LAST and renames none — §5.4 holds, and `iscore-every-product.spec.ts` pins the append.
-   * Kept out of the list above so the list keeps saying what each product's OWN shape is.
+   * The four I-Score slots — `iscore_src` / `iscore_band` / `iscore_factor` / `iscore_applied`
+   * — used to be APPENDED to every one of these lists, because the multiplier was declared on
+   * every income-bearing template and compiled into the rule.
+   *
+   * They are gone as of v30.3.0 and the lists above are UNCHANGED, which is the whole claim
+   * this file exists to make about the refactor: not one product's own slot ids moved, so not
+   * one bank's typed figure was orphaned. The tiers themselves moved to a column
+   * (`platform_enumeration.iScoreDefaults`) and the nine stored tables were carried across by
+   * `20260921090100_iscore_out_of_the_rule`, which asserts the same thing in SQL.
    */
-  const I_SCORE_SLOTS = ['iscore_applied', 'iscore_band', 'iscore_factor', 'iscore_src'];
-
   it.each(ALL.filter(withProduct).map((b) => [b.key, b] as const))(
     '%s files its figures under exactly the ids it always has',
     (key, blueprint) => {
       const keys = paramKeysOf(compileTemplate(blueprint.template!)).slice().sort();
-      expect(keys).toEqual([...GOLDEN[key]!, ...I_SCORE_SLOTS].sort());
+      expect(keys).toEqual([...GOLDEN[key]!].sort());
     },
   );
 
@@ -425,13 +424,10 @@ describe('a fact two products read belongs to neither', () => {
     // read must therefore be filed under NO product, or the second one is refused at its
     // next save naming a fact nobody could see had been deleted.
     expect([...sharedBlueprintFactKeys()].sort()).toEqual([
-      // Both the SCB auto product and the CAE compound programme read the two self-employed
-      // conditions, so neither product owns them — the same rule as `years_in_practice`
-      // below, and the reason it exists.
-      'business_months',
+      // `business_months` and `self_employed_licence` left this list on 2026-09-24: the auto
+      // product dropped its sheet conditions, so only the CAE compound programme reads them.
       'loan_is_topup',
       'school_type',
-      'self_employed_licence',
       // Read by both doctor products since they were split apart — which is exactly the
       // case this rule exists for: switching one off must not take the other's only axis.
       'years_in_practice',

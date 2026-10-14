@@ -49,7 +49,6 @@ const PASSES: Record<string, SurrogateFactValue> = {
   self_employed_licence: pick('yes'),
   hospital_sector: pick('private_hospital'),
   home_ownership: pick('owned_by_me'),
-  unit_approved_compound: pick('yes'),
   car_loan_original_tenor: num('60'),
   car_loan_instalments_paid: num('36'),
   car_loan_down_payment: num('200000'),
@@ -65,22 +64,19 @@ interface Case {
 }
 
 const CASES: readonly Case[] = [
-  // ---- the two self-employed conditions, on every SCB auto programme and CAE compound ----
+  // ---- the two self-employed conditions, on the CAE compound programme ----
+  //
+  // They were on every SCB auto programme too, until the auto product dropped its sheet
+  // conditions (2026-09-24); CAE is the one programme still enforcing them.
   {
     what: 'a business under two years',
-    programCode: 'SCB-CAR-DOWN_PAYMENT',
-    change: { business_months: pick('under_12m') },
-    expectGate: 'BUSINESS_TOO_NEW',
-  },
-  {
-    what: 'a business under two years, on the CAE compound programme',
     programCode: 'CAE-PER-COMPOUND_OWNER',
     change: { business_months: pick('12m_to_24m') },
     expectGate: 'BUSINESS_TOO_NEW',
   },
   {
-    what: 'a self-employed applicant who is not self-employed — the EXEMPTION',
-    programCode: 'SCB-CAR-DOWN_PAYMENT',
+    what: 'an applicant who runs no business — the EXEMPTION',
+    programCode: 'CAE-PER-COMPOUND_OWNER',
     change: {
       business_months: pick('not_self_employed'),
       self_employed_licence: pick('not_self_employed'),
@@ -89,7 +85,7 @@ const CASES: readonly Case[] = [
   },
   {
     what: 'missing papers',
-    programCode: 'SCB-CAR-DOWN_PAYMENT',
+    programCode: 'CAE-PER-COMPOUND_OWNER',
     change: { self_employed_licence: pick('no') },
     expectGate: 'SELF_EMPLOYED_DOCS_MISSING',
   },
@@ -118,19 +114,8 @@ const CASES: readonly Case[] = [
   // so the refusal binds in that band alone. That is not a gate and this harness cannot see
   // it — `npm run quote:car-plans` carries the replacement pair (a renter refused at 25% down,
   // the same renter priced at 65%) and it is the one that must be read beside this file.
-  // ---- Green Finance's compound condition ----
-  {
-    what: 'a Green applicant with no approved compound',
-    programCode: 'SCB-CAR-GREEN_POWER',
-    change: { unit_approved_compound: pick('no') },
-    expectGate: 'GATE_NOT_MET',
-  },
-  {
-    what: 'the same answer on the down-payment programme, which states no such condition',
-    programCode: 'SCB-CAR-DOWN_PAYMENT',
-    change: { unit_approved_compound: pick('no') },
-    expectGate: null,
-  },
+  // ---- Green Finance's compound condition: removed 2026-09-24 with the auto product's
+  // other sheet conditions; `unit_approved_compound` is no longer asked. ----
   // ---- the auto cross-sell's three conditions on the existing loan ----
   {
     what: 'fewer than 12 instalments paid',

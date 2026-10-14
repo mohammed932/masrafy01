@@ -191,7 +191,7 @@
   "@signup_age_verified": {
     "placeholders": {
       "years": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -219,7 +219,7 @@
   "@otp_subtitle": {
     "placeholders": {
       "destination": {
-        "type": "String"
+        "type": "Object"
       }
     }
   },
@@ -228,7 +228,7 @@
   "@otp_attempts_left": {
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -238,7 +238,7 @@
   "@otp_expiry_notice": {
     "placeholders": {
       "minutes": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -273,7 +273,7 @@
   "@loan_setup_step_income_helper": {
     "description": "Loan setup wizard step 2 — one-liner explaining that the answer filters programs"
   },
-  "loan_setup_income_proof_title": "With a payslip",
+  "loan_setup_income_proof_title": "Income proof",
   "@loan_setup_income_proof_title": {
     "description": "Income basis income_proof — customer-facing name. Never render the raw value"
   },
@@ -281,7 +281,7 @@
   "@loan_setup_income_proof_desc": {
     "description": "Income basis income_proof — what it means"
   },
-  "loan_setup_income_surrogate_title": "Without a payslip",
+  "loan_setup_income_surrogate_title": "Surrogate",
   "@loan_setup_income_surrogate_title": {
     "description": "Income basis income_surrogate — customer-facing name. Never render the raw value"
   },
@@ -375,7 +375,7 @@
   "previous_applications_status_rejected": "Rejected",
   "home_cat_personal": "Personal",
   "home_cat_mortgage": "Mortgage",
-  "home_cat_car": "Car loan",
+  "home_cat_car": "Auto loan",
   "home_cat_business": "Business",
   "q_common_yes": "Yes",
   "q_common_no": "No",
@@ -627,7 +627,8 @@
     }
   },
   "q_dyn_obligations_total_helper": "Added up from the payments you listed above.",
-  "q_dyn_money_missing": "Fill in the amount, repayment period, income and current installments to see your offers.",
+  "q_dyn_cannot_submit": "We can’t price this loan type yet — a question it needs is missing. Please try another, or contact support.",
+  "q_dyn_money_missing": "Answer the questions marked required to see your offers.",
   "q_personal_years": "{years} years",
   "q_personal_step1_title": "Financing Details",
   "q_personal_step2_title": "Employment & Income",
@@ -739,6 +740,19 @@
   "results_subtitle": "Your loan advisor is ready",
   "results_empty_title": "No offers yet",
   "results_empty_body": "We couldn't find matching programs for your answers right now.",
+  "offer_partner_bank": "Partner bank {letter}",
+  "@offer_partner_bank": {
+    "placeholders": {
+      "letter": {
+        "type": "String"
+      }
+    }
+  },
+  "offer_partner_bank_generic": "Partner bank",
+  "results_no_rate_title": "No rate for these details",
+  "results_no_rate_body_car": "None of the banks has a rate for this down payment and car. Most car finance plans need a larger down payment — try raising it, or change the car's details.",
+  "results_no_rate_body": "None of the banks has a rate for the answers you gave. Try changing your answers to see offers.",
+  "results_edit_answers": "Edit my answers",
   "results_profile_title": "Complete your profile",
   "results_profile_body": "Finish your profile to see loan offers.",
   "results_profile_action": "Complete profile",
@@ -820,6 +834,23 @@
   },
   "offer_stamp_duty": "Stamp duty",
   "offer_life_insurance": "Life insurance",
+  "offer_car_insurance": "Car insurance (required)",
+  "offer_car_insurance_total": "Insurance over {years, plural, =1{1 year} other{{years} years}}",
+  "@offer_car_insurance_total": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
+  "offer_fee_egp_per_year": "EGP {amount} / year",
+  "@offer_fee_egp_per_year": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_fee_egp": "EGP {amount}",
   "@offer_fee_egp": {
     "placeholders": {
@@ -835,6 +866,7 @@
   "offer_action_soon": "Coming soon",
   "offer_proceed_success": "Your request was sent to the bank.",
   "offer_proceed_error": "Something went wrong. Please try again.",
+  "offer_already_proceeded": "You already applied for an offer on this application.",
   "offer_national_id_required_title": "National ID Required",
   "offer_national_id_required_body": "Upload the front and back of your National ID to continue with this application.",
   "offer_national_id_required_cta": "Upload now",
@@ -920,6 +952,7 @@
   "reason_no_recognised_income": "We couldn't recognise a monthly income for this program.",
   "reason_obligations_exceed_allowance": "Your current monthly payments already use up the allowed limit.",
   "reason_below_program_min_amount": "The affordable amount is below this program's minimum.",
+  "reason_requested_below_program_min_amount": "You asked for less than this bank lends. Ask for a larger amount to see its figures.",
   "reason_age_at_maturity": "No available term keeps you within this program's age limit.",
   "reason_program_misconfigured": "This program can't be priced right now.",
   "reason_surrogate_fact_missing": "This program needs a detail we haven't asked you for yet, so no figures can be shown.",

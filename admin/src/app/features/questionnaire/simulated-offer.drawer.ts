@@ -435,6 +435,11 @@ export class SimulatedOfferDrawerComponent {
   protected amountRange(p: BankProgramResponse): string {
     const limits = p.loanLimits;
     if (!limits) return '—';
+    // A program that states neither amount reads the surrogate product's, and this drawer is
+    // handed the STORED row rather than the resolved one — so there is no size here to
+    // print. The same dash the missing-limits line above uses, never "0 – 0", which would
+    // read as a program that lends nothing.
+    if (limits.minAmountEGP === undefined || limits.maxAmountEGP === undefined) return '—';
     return `${money(limits.minAmountEGP)} – ${money(limits.maxAmountEGP)}`;
   }
 

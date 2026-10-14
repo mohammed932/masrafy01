@@ -6,6 +6,7 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { FeesBreakdown, FeesConfig } from '../types';
+import type { CarInsuranceOutcome } from './car-insurance';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -15,6 +16,18 @@ export interface FeesInput {
   annualRatePercent: Decimal;
   tenorMonths: number;
   collateralized: boolean;
+  /**
+   * Comprehensive cover on the car, already resolved against the applicant's deposit by
+   * `pipeline/car-insurance.ts`, or absent when the programme demands none.
+   *
+   * Resolved OUTSIDE and handed in, because the figure needs the fact grid and the car's
+   * price and this module is the one place that knows nothing about either. Handed in at
+   * all — rather than merged onto the breakdown by the caller — so `FeesBreakdown` keeps
+   * ONE producer and a later reader cannot find a breakdown assembled two ways.
+   *
+   * It is a DISCLOSURE. See the assembly below: it reaches no total.
+   */
+  carInsurance?: CarInsuranceOutcome;
 }
 
 export interface FeesOutput {
@@ -24,6 +37,7 @@ export interface FeesOutput {
 }
 
 export function calculateFees(config: FeesConfig, input: FeesInput): FeesOutput {
+  const carInsurance = input.carInsurance;
   // Admin fee — % of requested amount, clamped to min/max.
   const adminFeePercent = new Decimal(config.adminFeePercent ?? 0);
   let adminFee = input.requestedAmountEGP.mul(adminFeePercent).div(100);
@@ -101,8 +115,25 @@ export function calculateFees(config: FeesConfig, input: FeesInput): FeesOutput 
     feeWaiverPenaltyRatePercent: config.feeWaiverPenaltyRatePercent,
     insuranceWaiverPenaltyRatePercent: config.insuranceWaiverPenaltyRatePercent,
     effectiveRateAfterPenaltiesPercent: effectiveRate.toFixed(4),
+    // Comprehensive cover on the CAR — reported, never charged. Four keys or none, so a
+    // reader never has to decide what a premium with no rate beside it meant. Every
+    // programme that states no table lands in the `else` and its breakdown is byte-identical
+    // to the one it produced before this field existed.
+    ...(carInsurance?.kind === 'required'
+      ? {
+          carInsuranceRatePercent: carInsurance.ratePercent.toFixed(4),
+          carInsuranceAnnualEGP: carInsurance.annualPremiumEGP.toFixed(2),
+          carInsuranceYears: carInsurance.years,
+          carInsuranceTotalEGP: carInsurance.totalOverTenorEGP.toFixed(2),
+        }
+      : {}),
   };
 
+  // The car's cover is DELIBERATELY absent from this sum. Everything in it is folded into
+  // the booked principal by `calculateEffectiveLoanAmount` and amortised by the annuity, and
+  // an annual out-of-pocket premium is neither: adding it here would raise the instalment
+  // and lower the ceiling of every applicant below the deposit edge, which is the behaviour
+  // this feature was specified NOT to have.
   let totalFinanced = adminFee.plus(stampDuty).plus(lifeInsuranceEGP);
   if (collateralFeeEGP) totalFinanced = totalFinanced.plus(collateralFeeEGP);
 
@@ -110,5 +141,37 @@ export function calculateFees(config: FeesConfig, input: FeesInput): FeesOutput 
     breakdown,
     totalFinancedFeesEGP: totalFinanced.toDecimalPlaces(2, ROUND_BANKERS),
     effectiveRateAfterPenaltiesPercent: effectiveRate,
+  };
+}
+
+/**
+ * The car-cover lines of a breakdown, ready to spread onto a wire shape.
+ *
+ * ONE definition, spread by the preview and the calculator, because those two project a
+ * hand-written SUBSET of the breakdown rather than passing it whole — and a disclosure that
+ * an applicant sees before they apply and not after (or the other way round) is exactly the
+ * preview/apply drift A33 names in terms.
+ *
+ * All four keys or none: a premium with no rate beside it is a figure a reader cannot check.
+ */
+export function carInsuranceDisclosureOf(breakdown: FeesBreakdown): {
+  carInsuranceRatePercent?: string;
+  carInsuranceAnnualEGP?: string;
+  carInsuranceYears?: number;
+  carInsuranceTotalEGP?: string;
+} {
+  if (
+    breakdown.carInsuranceRatePercent === undefined ||
+    breakdown.carInsuranceAnnualEGP === undefined ||
+    breakdown.carInsuranceYears === undefined ||
+    breakdown.carInsuranceTotalEGP === undefined
+  ) {
+    return {};
+  }
+  return {
+    carInsuranceRatePercent: breakdown.carInsuranceRatePercent,
+    carInsuranceAnnualEGP: breakdown.carInsuranceAnnualEGP,
+    carInsuranceYears: breakdown.carInsuranceYears,
+    carInsuranceTotalEGP: breakdown.carInsuranceTotalEGP,
   };
 }

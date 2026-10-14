@@ -1,5 +1,5 @@
+// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -18,49 +18,61 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_otp_consumed => 'تم استخدام هذا الرمز بالفعل.';
 
   @override
-  String get auth_otp_attempts_exceeded => 'عدد المحاولات الخاطئة كبير. اطلب رمزًا جديدًا.';
+  String get auth_otp_attempts_exceeded =>
+      'عدد المحاولات الخاطئة كبير. اطلب رمزًا جديدًا.';
 
   @override
   String get auth_otp_rate_limited => 'طلبات كثيرة. انتظر قليلاً وحاول مجددًا.';
 
   @override
-  String get auth_otp_purpose_login_forbidden => 'لا حاجة لرمز SMS لتسجيل الدخول. استخدم كلمة المرور.';
+  String get auth_otp_purpose_login_forbidden =>
+      'لا حاجة لرمز SMS لتسجيل الدخول. استخدم كلمة المرور.';
 
   @override
-  String get auth_phone_already_registered => 'هذا الرقم مسجل بالفعل. برجاء تسجيل الدخول.';
+  String get auth_phone_already_registered =>
+      'هذا الرقم مسجل بالفعل. برجاء تسجيل الدخول.';
 
   @override
-  String get auth_verified_mobile_token_invalid => 'رمز التحقق غير صالح. ابدأ التسجيل من جديد.';
+  String get auth_verified_mobile_token_invalid =>
+      'رمز التحقق غير صالح. ابدأ التسجيل من جديد.';
 
   @override
-  String get auth_verified_mobile_token_expired => 'انتهت صلاحية رمز التحقق. ابدأ التسجيل من جديد.';
+  String get auth_verified_mobile_token_expired =>
+      'انتهت صلاحية رمز التحقق. ابدأ التسجيل من جديد.';
 
   @override
-  String get auth_verified_mobile_token_consumed => 'تم استخدام رمز التحقق بالفعل.';
+  String get auth_verified_mobile_token_consumed =>
+      'تم استخدام رمز التحقق بالفعل.';
 
   @override
   String get auth_social_token_invalid => 'فشل تسجيل الدخول. حاول مرة أخرى.';
 
   @override
-  String get auth_social_token_expired => 'انتهت جلسة تسجيل الدخول. حاول مرة أخرى.';
+  String get auth_social_token_expired =>
+      'انتهت جلسة تسجيل الدخول. حاول مرة أخرى.';
 
   @override
-  String get auth_social_provider_unavailable => 'خدمة تسجيل الدخول غير متاحة مؤقتًا.';
+  String get auth_social_provider_unavailable =>
+      'خدمة تسجيل الدخول غير متاحة مؤقتًا.';
 
   @override
   String get auth_social_session_invalid => 'جلسة تسجيل الدخول غير صالحة.';
 
   @override
-  String get auth_social_session_expired => 'انتهت جلسة تسجيل الدخول. اضغط زر مزود الخدمة مجددًا.';
+  String get auth_social_session_expired =>
+      'انتهت جلسة تسجيل الدخول. اضغط زر مزود الخدمة مجددًا.';
 
   @override
-  String get auth_social_session_consumed => 'تم استخدام جلسة تسجيل الدخول بالفعل.';
+  String get auth_social_session_consumed =>
+      'تم استخدام جلسة تسجيل الدخول بالفعل.';
 
   @override
-  String get auth_account_locked => 'تم قفل الحساب مؤقتًا بسبب محاولات فاشلة كثيرة. حاول لاحقًا.';
+  String get auth_account_locked =>
+      'تم قفل الحساب مؤقتًا بسبب محاولات فاشلة كثيرة. حاول لاحقًا.';
 
   @override
-  String get auth_password_not_set => 'لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google.';
+  String get auth_password_not_set =>
+      'لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google.';
 
   @override
   String get auth_password_same_as_old => 'اختر كلمة مرور مختلفة عن الحالية.';
@@ -69,25 +81,32 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_profile_incomplete => 'أكمل بيانات حسابك للمتابعة.';
 
   @override
-  String get auth_profile_field_immutable => 'لا يمكن تعديل هذا الحقل بعد ضبطه.';
+  String get auth_profile_field_immutable =>
+      'لا يمكن تعديل هذا الحقل بعد ضبطه.';
 
   @override
-  String get auth_profile_id_docs_missing => 'ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.';
+  String get auth_profile_id_docs_missing =>
+      'ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.';
 
   @override
-  String get auth_national_id_required => 'ارفع بطاقة الرقم القومي (الوجه والظهر) قبل التقديم على القرض.';
+  String get auth_national_id_required =>
+      'ارفع بطاقة الرقم القومي (الوجه والظهر) قبل التقديم على القرض.';
 
   @override
-  String get auth_password_required_for_phone_profile => 'كلمة المرور مطلوبة لإكمال ملفك.';
+  String get auth_password_required_for_phone_profile =>
+      'كلمة المرور مطلوبة لإكمال ملفك.';
 
   @override
-  String get auth_password_forbidden_for_social_profile => 'حسابات Google لا تستخدم كلمة مرور.';
+  String get auth_password_forbidden_for_social_profile =>
+      'حسابات Google لا تستخدم كلمة مرور.';
 
   @override
-  String get auth_phone_mutation_on_phone_customer_forbidden => 'رقم الجوال مضبوط بالفعل على هذا الحساب.';
+  String get auth_phone_mutation_on_phone_customer_forbidden =>
+      'رقم الجوال مضبوط بالفعل على هذا الحساب.';
 
   @override
-  String get auth_password_change_forbidden_for_social => 'تغيير كلمة المرور غير متاح لحسابات Google.';
+  String get auth_password_change_forbidden_for_social =>
+      'تغيير كلمة المرور غير متاح لحسابات Google.';
 
   @override
   String get auth_age_invalid => 'العمر يجب أن يكون بين 18 و80 سنة.';
@@ -147,7 +166,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_forgot_password_field_new_password => 'كلمة مرور جديدة';
 
   @override
-  String get auth_forgot_password_field_confirm_password => 'تأكيد كلمة المرور الجديدة';
+  String get auth_forgot_password_field_confirm_password =>
+      'تأكيد كلمة المرور الجديدة';
 
   @override
   String get auth_forgot_password_action_send => 'إرسال الكود';
@@ -162,10 +182,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_forgot_password_validation_password_min => '8 أحرف على الأقل';
 
   @override
-  String get auth_forgot_password_validation_password_letter => 'حرف واحد على الأقل';
+  String get auth_forgot_password_validation_password_letter =>
+      'حرف واحد على الأقل';
 
   @override
-  String get auth_forgot_password_validation_password_digit => 'رقم واحد على الأقل';
+  String get auth_forgot_password_validation_password_digit =>
+      'رقم واحد على الأقل';
 
   @override
   String get auth_forgot_password_validation_password_mismatch => 'غير متطابقة';
@@ -216,16 +238,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_phone_signup_validation_required => 'مطلوب';
 
   @override
-  String get auth_phone_signup_validation_email_invalid => 'بريد إلكتروني غير صالح';
+  String get auth_phone_signup_validation_email_invalid =>
+      'بريد إلكتروني غير صالح';
 
   @override
   String get auth_phone_signup_validation_password_min => '8 أحرف على الأقل';
 
   @override
-  String get auth_phone_signup_validation_password_letter => 'حرف واحد على الأقل';
+  String get auth_phone_signup_validation_password_letter =>
+      'حرف واحد على الأقل';
 
   @override
-  String get auth_phone_signup_validation_password_digit => 'رقم واحد على الأقل';
+  String get auth_phone_signup_validation_password_digit =>
+      'رقم واحد على الأقل';
 
   @override
   String get auth_phone_signup_validation_password_mismatch => 'غير متطابقة';
@@ -237,7 +262,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_complete_profile_title => 'أكمل ملفك الشخصي';
 
   @override
-  String get auth_complete_profile_body => 'نحتاج لبعض البيانات الإضافية قبل التقديم. هذه البيانات مطلوبة من البنك.';
+  String get auth_complete_profile_body =>
+      'نحتاج لبعض البيانات الإضافية قبل التقديم. هذه البيانات مطلوبة من البنك.';
 
   @override
   String get auth_complete_profile_action_cancel => 'إلغاء';
@@ -279,7 +305,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_complete_profile_action_continue => 'متابعة';
 
   @override
-  String get match_questionnaire_not_published => 'الاستبيان غير متاح حاليًا. حاول لاحقًا.';
+  String get match_questionnaire_not_published =>
+      'الاستبيان غير متاح حاليًا. حاول لاحقًا.';
 
   @override
   String get match_unknown_question_code => 'إجاباتك قديمة. أعد بدء الاستبيان.';
@@ -288,13 +315,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get match_unknown_option_code => 'إجاباتك قديمة. أعد بدء الاستبيان.';
 
   @override
-  String get match_program_no_longer_matches => 'هذا العرض لم يعد متاحًا لإجاباتك.';
+  String get match_program_no_longer_matches =>
+      'هذا العرض لم يعد متاحًا لإجاباتك.';
 
   @override
-  String get match_program_name_key_unknown => 'هذا البرنامج لم يعد متاحًا. اختر برنامجًا آخر.';
+  String get match_program_name_key_unknown =>
+      'هذا البرنامج لم يعد متاحًا. اختر برنامجًا آخر.';
 
   @override
-  String get match_program_name_not_in_category => 'هذا البرنامج غير متاح لهذا النوع من التمويل. اختر برنامجًا آخر.';
+  String get match_program_name_not_in_category =>
+      'هذا البرنامج غير متاح لهذا النوع من التمويل. اختر برنامجًا آخر.';
 
   @override
   String get questionnaire_form_title => 'أخبرنا عن قرضك';
@@ -306,7 +336,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get match_preview_title => 'النتائج المطابقة لك';
 
   @override
-  String get match_preview_no_matches => 'لا توجد برامج تطابق إجاباتك بعد. حاول تعديلها.';
+  String get match_preview_no_matches =>
+      'لا توجد برامج تطابق إجاباتك بعد. حاول تعديلها.';
 
   @override
   String get match_preview_section_suggestions => 'طرق لفتح المزيد من العروض';
@@ -348,13 +379,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get match_generic_error => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
-  String get match_network_error => 'لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.';
+  String get match_network_error =>
+      'لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.';
 
   @override
   String get match_preview_adjust_answers => 'تعديل إجاباتي';
 
   @override
-  String get questionnaire_form_submit_hint => 'أجب عن جميع الأسئلة المطلوبة لعرض العروض.';
+  String get questionnaire_form_submit_hint =>
+      'أجب عن جميع الأسئلة المطلوبة لعرض العروض.';
 
   @override
   String match_amount_egp(String value) {
@@ -373,7 +406,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get common_cancel => 'إلغاء';
 
   @override
-  String get error_invalid_credentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+  String get error_invalid_credentials =>
+      'رقم الهاتف أو كلمة المرور غير صحيحة.';
 
   @override
   String get error_network => 'لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.';
@@ -391,19 +425,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get onboarding_slide1_title => 'اكتشف عروض قروض مصمّمة لك.';
 
   @override
-  String get onboarding_slide1_body => 'نبحث في عدة بنوك رائدة لإيجاد أفضل الأسعار والشروط المناسبة لملفك تحديدًا.';
+  String get onboarding_slide1_body =>
+      'نبحث في عدة بنوك رائدة لإيجاد أفضل الأسعار والشروط المناسبة لملفك تحديدًا.';
 
   @override
   String get onboarding_slide2_title => 'قارن العروض في ثوانٍ.';
 
   @override
-  String get onboarding_slide2_body => 'قروض شخصية وسيارات وعقارية وأعمال — جنبًا إلى جنب، بأسعار وحدود واضحة.';
+  String get onboarding_slide2_body =>
+      'قروض شخصية وسيارات وعقارية وأعمال — جنبًا إلى جنب، بأسعار وحدود واضحة.';
 
   @override
   String get onboarding_slide3_title => 'تقدّم بثقة.';
 
   @override
-  String get onboarding_slide3_body => 'نطابقك مع العروض، ثم تتقدّم للعرض الأنسب لك. مجاني لك دائمًا.';
+  String get onboarding_slide3_body =>
+      'نطابقك مع العروض، ثم تتقدّم للعرض الأنسب لك. مجاني لك دائمًا.';
 
   @override
   String get onboarding_next => 'التالي';
@@ -537,7 +574,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_national_id_label => 'الرقم القومي';
 
   @override
-  String get signup_national_id_hint => '— اختياري الآن، مطلوب عند اختيار العرض';
+  String get signup_national_id_hint =>
+      '— اختياري الآن، مطلوب عند اختيار العرض';
 
   @override
   String get signup_id_front => 'الوجه الأمامي';
@@ -555,10 +593,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_id_unavailable => 'اضغط لإعادة الرفع';
 
   @override
-  String get signup_id_upload_deferred => 'تم إنشاء حسابك، لكن تعذّر رفع الرقم القومي. أضِفه من ملفك الشخصي.';
+  String get signup_id_upload_deferred =>
+      'تم إنشاء حسابك، لكن تعذّر رفع الرقم القومي. أضِفه من ملفك الشخصي.';
 
   @override
-  String get signup_terms => 'أوافق على شروط الخدمة وسياسة الخصوصية الخاصة بمصرفي، وأوافق على معالجة بياناتي المالية.';
+  String get signup_terms =>
+      'أوافق على شروط الخدمة وسياسة الخصوصية الخاصة بمصرفي، وأوافق على معالجة بياناتي المالية.';
 
   @override
   String get signup_cta => 'إنشاء الحساب';
@@ -573,7 +613,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phone_verification_title => 'أضف رقم هاتفك';
 
   @override
-  String get phone_verification_subtitle => 'نحتاج رقم هاتفك لتأمين حسابك. سنرسل لك رمز تحقق.';
+  String get phone_verification_subtitle =>
+      'نحتاج رقم هاتفك لتأمين حسابك. سنرسل لك رمز تحقق.';
 
   @override
   String get phone_verification_cta => 'إرسال رمز التحقق';
@@ -642,22 +683,26 @@ class AppLocalizationsAr extends AppLocalizations {
   String get loan_setup_step_income_heading => 'كيف تثبت دخلك؟';
 
   @override
-  String get loan_setup_step_income_helper => 'نعرض لك البرامج التي يقبلها البنك بهذه الطريقة فقط.';
+  String get loan_setup_step_income_helper =>
+      'نعرض لك البرامج التي يقبلها البنك بهذه الطريقة فقط.';
 
   @override
-  String get loan_setup_income_proof_title => 'بكشف راتب';
+  String get loan_setup_income_proof_title => 'إثبات الدخل';
 
   @override
-  String get loan_setup_income_proof_desc => 'لديك كشف راتب أو تحويل راتب من جهة عملك.';
+  String get loan_setup_income_proof_desc =>
+      'لديك كشف راتب أو تحويل راتب من جهة عملك.';
 
   @override
-  String get loan_setup_income_surrogate_title => 'بدون كشف راتب';
+  String get loan_setup_income_surrogate_title => 'بديل الدخل';
 
   @override
-  String get loan_setup_income_surrogate_desc => 'يحتسب البنك دخلك من بيانات أخرى مثل درجتك الوظيفية أو سنوات الخبرة.';
+  String get loan_setup_income_surrogate_desc =>
+      'يحتسب البنك دخلك من بيانات أخرى مثل درجتك الوظيفية أو سنوات الخبرة.';
 
   @override
-  String get loan_setup_income_unavailable => 'لا يوجد بنك يقدم هذا النوع حاليًا.';
+  String get loan_setup_income_unavailable =>
+      'لا يوجد بنك يقدم هذا النوع حاليًا.';
 
   @override
   String get loan_setup_step_program_title => 'البرنامج';
@@ -666,10 +711,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get loan_setup_step_program_heading => 'اختر البرنامج';
 
   @override
-  String get loan_setup_step_program_helper => 'هذه البرامج متاحة حسب اختياراتك السابقة.';
+  String get loan_setup_step_program_helper =>
+      'هذه البرامج متاحة حسب اختياراتك السابقة.';
 
   @override
-  String get loan_setup_no_programs => 'لا يوجد برنامج محدد هنا، ويمكنك المتابعة وسنعرض عليك كل العروض المتاحة.';
+  String get loan_setup_no_programs =>
+      'لا يوجد برنامج محدد هنا، ويمكنك المتابعة وسنعرض عليك كل العروض المتاحة.';
 
   @override
   String loan_setup_bank_count(int count) {
@@ -746,7 +793,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get account_logout_confirm_title => 'تسجيل الخروج من مصرفي؟';
 
   @override
-  String get account_logout_confirm_message => 'سيتم إعادتك إلى شاشة تسجيل الدخول.';
+  String get account_logout_confirm_message =>
+      'سيتم إعادتك إلى شاشة تسجيل الدخول.';
 
   @override
   String get account_logout_confirm_action => 'تسجيل الخروج';
@@ -907,7 +955,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_mortgage_q_property_value => 'ما هي القيمة التقريبية للعقار؟';
 
   @override
-  String get q_mortgage_q_down_payment => 'كم نسبة المقدم المتوفر لديك حاليًا؟ (٪)';
+  String get q_mortgage_q_down_payment =>
+      'كم نسبة المقدم المتوفر لديك حاليًا؟ (٪)';
 
   @override
   String get q_mortgage_hint_down_payment => 'المقدم';
@@ -973,13 +1022,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_opt_income_b6 => 'أكثر من ١٬٠٠٠٬٠٠٠ ج.م';
 
   @override
-  String get q_mortgage_q_salary_transfer => 'هل يتم تحويل راتبك إلى حساب بنكي؟';
+  String get q_mortgage_q_salary_transfer =>
+      'هل يتم تحويل راتبك إلى حساب بنكي؟';
 
   @override
   String get q_mortgage_q_additional_income => 'هل لديك مصادر دخل إضافية؟';
 
   @override
-  String get q_mortgage_q_current_loans => 'هل لديك حاليًا أي قروض أو التزامات مالية؟';
+  String get q_mortgage_q_current_loans =>
+      'هل لديك حاليًا أي قروض أو التزامات مالية؟';
 
   @override
   String get q_mortgage_q_installments => 'ما إجمالي قيمة أقساطك الشهرية؟';
@@ -1012,7 +1063,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_opt_priority_lowest_fees => 'أقل مصاريف إدارية';
 
   @override
-  String get q_mortgage_q_assistance => 'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟';
+  String get q_mortgage_q_assistance =>
+      'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟';
 
   @override
   String get q_business_title => 'طلب تمويل تجاري';
@@ -1080,7 +1132,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_business_business_age_hint => 'عدد السنوات';
 
   @override
-  String get q_business_q_financing_amount => 'ما قيمة التمويل التقريبية المطلوبة؟';
+  String get q_business_q_financing_amount =>
+      'ما قيمة التمويل التقريبية المطلوبة؟';
 
   @override
   String get q_business_financing_amount_hint => 'قيمة التمويل المطلوبة';
@@ -1128,10 +1181,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_business_q_tax => 'هل لديك سجل ضريبي أو سجل تجاري؟';
 
   @override
-  String get q_business_q_current_facilities => 'هل لدى النشاط حاليًا أي قروض أو تسهيلات تمويلية؟';
+  String get q_business_q_current_facilities =>
+      'هل لدى النشاط حاليًا أي قروض أو تسهيلات تمويلية؟';
 
   @override
-  String get q_business_q_installments => 'ما إجمالي قيمة الالتزامات الشهرية الحالية؟';
+  String get q_business_q_installments =>
+      'ما إجمالي قيمة الالتزامات الشهرية الحالية؟';
 
   @override
   String get q_business_installments_label => 'الالتزامات الشهرية';
@@ -1161,7 +1216,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_opt_biz_priority_least_paperwork => 'أقل مستندات مطلوبة';
 
   @override
-  String get q_business_q_consultation => 'هل ترغب في استشارة خبير تمويل الأعمال؟';
+  String get q_business_q_consultation =>
+      'هل ترغب في استشارة خبير تمويل الأعمال؟';
 
   @override
   String get q_car_subtitle => 'سنطابقك مع البنوك المتخصصة في احتياجاتك';
@@ -1328,7 +1384,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_dyn_error_title => 'حدث خطأ ما';
 
   @override
-  String get q_dyn_error_message => 'تعذّر تحميل الاستبيان. يرجى المحاولة مرة أخرى.';
+  String get q_dyn_error_message =>
+      'تعذّر تحميل الاستبيان. يرجى المحاولة مرة أخرى.';
 
   @override
   String get q_dyn_retry => 'إعادة المحاولة';
@@ -1384,10 +1441,16 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get q_dyn_obligations_total_helper => 'محسوب من الأقساط التي أدخلتها أعلاه.';
+  String get q_dyn_obligations_total_helper =>
+      'محسوب من الأقساط التي أدخلتها أعلاه.';
 
   @override
-  String get q_dyn_money_missing => 'أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.';
+  String get q_dyn_cannot_submit =>
+      'لا يمكن تسعير هذا النوع حاليًا — ينقصه سؤال مطلوب. جرّب نوعًا آخر أو تواصل مع الدعم.';
+
+  @override
+  String get q_dyn_money_missing =>
+      'أجب عن الأسئلة الإلزامية لعرض العروض المتاحة.';
 
   @override
   String q_personal_years(Object years) {
@@ -1488,7 +1551,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_opt_personal_income_b5 => 'أكثر من 100,000 جنيه';
 
   @override
-  String get q_personal_q_salary_transfer => 'هل يتم تحويل راتبك إلى حساب بنكي؟';
+  String get q_personal_q_salary_transfer =>
+      'هل يتم تحويل راتبك إلى حساب بنكي؟';
 
   @override
   String get q_personal_q_employer_approved => 'هل جهة عملك معتمدة لدى البنوك؟';
@@ -1503,7 +1567,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_opt_personal_emp_unsure => 'غير متأكد';
 
   @override
-  String get q_personal_q_obligations => 'هل لديك حاليًا أي قروض أو التزامات مالية؟';
+  String get q_personal_q_obligations =>
+      'هل لديك حاليًا أي قروض أو التزامات مالية؟';
 
   @override
   String get q_personal_hint_obligations => 'قروض أو التزامات مالية';
@@ -1539,7 +1604,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_personal_q_credit_card => 'هل لديك بطاقة ائتمان؟';
 
   @override
-  String get q_personal_q_credit_card_usage => 'إذا نعم، ما متوسط استخدامك الشهري لبطاقة الائتمان؟';
+  String get q_personal_q_credit_card_usage =>
+      'إذا نعم، ما متوسط استخدامك الشهري لبطاقة الائتمان؟';
 
   @override
   String get q_opt_personal_cc_usage_b1 => 'أقل من 10,000 جنيه';
@@ -1572,7 +1638,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_personal_q_prior_rejection => 'هل سبق ورُفض لك طلب تمويل؟';
 
   @override
-  String get q_personal_q_assistance => 'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟';
+  String get q_personal_q_assistance =>
+      'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟';
 
   @override
   String get profile_title => 'الملف الشخصي';
@@ -1658,7 +1725,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profile_save_success => 'تم تحديث ملفك الشخصي.';
 
   @override
-  String get profile_email_taken => 'هذا البريد الإلكتروني مستخدم بالفعل في حساب آخر.';
+  String get profile_email_taken =>
+      'هذا البريد الإلكتروني مستخدم بالفعل في حساب آخر.';
 
   @override
   String get profile_dob_locked => 'لا يمكن تغيير تاريخ الميلاد بعد ضبطه.';
@@ -1703,7 +1771,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String get results_empty_title => 'لا توجد عروض بعد';
 
   @override
-  String get results_empty_body => 'لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.';
+  String get results_empty_body =>
+      'لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.';
+
+  @override
+  String offer_partner_bank(String letter) {
+    return 'البنك الشريك $letter';
+  }
+
+  @override
+  String get offer_partner_bank_generic => 'بنك شريك';
+
+  @override
+  String get results_no_rate_title => 'لا يوجد سعر فائدة لهذه البيانات';
+
+  @override
+  String get results_no_rate_body_car =>
+      'لا يوجد لدى أي بنك سعر فائدة لهذه الدفعة المقدمة وهذه السيارة. معظم برامج تمويل السيارات تتطلب دفعة مقدمة أكبر — جرّب زيادتها أو تغيير بيانات السيارة.';
+
+  @override
+  String get results_no_rate_body =>
+      'لا يوجد لدى أي بنك سعر فائدة للإجابات التي قدمتها. جرّب تغيير إجاباتك لرؤية العروض.';
+
+  @override
+  String get results_edit_answers => 'تعديل إجاباتي';
 
   @override
   String get results_profile_title => 'أكمل ملفك الشخصي';
@@ -1752,7 +1843,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get results_unavailable_badge => 'لا يوجد عرض من هذا البنك';
 
   @override
-  String get results_unavailable_generic => 'تعذّر على هذا البنك تقديم عرض لك حاليًا.';
+  String get results_unavailable_generic =>
+      'تعذّر على هذا البنك تقديم عرض لك حاليًا.';
 
   @override
   String results_unavailable_ceiling(String amount) {
@@ -1891,6 +1983,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_life_insurance => 'تأمين الحياة';
 
   @override
+  String get offer_car_insurance => 'تأمين السيارة (إجباري)';
+
+  @override
+  String offer_car_insurance_total(int years) {
+    String _temp0 = intl.Intl.pluralLogic(
+      years,
+      locale: localeName,
+      other: '$years سنة',
+      few: '$years سنوات',
+      two: 'سنتين',
+      one: 'سنة واحدة',
+    );
+    return 'التأمين على مدى $_temp0';
+  }
+
+  @override
+  String offer_fee_egp_per_year(String amount) {
+    return '$amount جنيه / سنة';
+  }
+
+  @override
   String offer_fee_egp(String amount) {
     return '$amount جنيه';
   }
@@ -1917,10 +2030,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_proceed_error => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
+  String get offer_already_proceeded =>
+      'لقد قدّمت بالفعل على عرض في هذا الطلب.';
+
+  @override
   String get offer_national_id_required_title => 'الرقم القومي مطلوب';
 
   @override
-  String get offer_national_id_required_body => 'قم برفع صورة الرقم القومي من الأمام والخلف للمتابعة في هذا الطلب.';
+  String get offer_national_id_required_body =>
+      'قم برفع صورة الرقم القومي من الأمام والخلف للمتابعة في هذا الطلب.';
 
   @override
   String get offer_national_id_required_cta => 'ارفع الآن';
@@ -1929,7 +2047,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get apply_docs_title => 'أكمل مستنداتك';
 
   @override
-  String get apply_docs_subtitle => 'أضف صورتك والرقم القومي لإرسال هذا الطلب إلى البنك.';
+  String get apply_docs_subtitle =>
+      'أضف صورتك والرقم القومي لإرسال هذا الطلب إلى البنك.';
 
   @override
   String get apply_docs_photo_section => 'الصورة الشخصية';
@@ -1944,10 +2063,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get apply_docs_upload_error => 'تعذّر رفع الملف. حاول مرة أخرى.';
 
   @override
-  String get auth_profile_photo_required => 'ارفع صورتك الشخصية قبل التقديم على القرض.';
+  String get auth_profile_photo_required =>
+      'ارفع صورتك الشخصية قبل التقديم على القرض.';
 
   @override
-  String get offer_save_success => 'تم حفظ العرض. يمكنك إيجاده في العروض المحفوظة.';
+  String get offer_save_success =>
+      'تم حفظ العرض. يمكنك إيجاده في العروض المحفوظة.';
 
   @override
   String get offer_save_error => 'لم نتمكن من حفظ هذا العرض. حاول مرة أخرى.';
@@ -1959,7 +2080,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_removed_success => 'تمت الإزالة من المحفوظات.';
 
   @override
-  String get offer_remove_error => 'لم نتمكن من إزالة هذا العرض. حاول مرة أخرى.';
+  String get offer_remove_error =>
+      'لم نتمكن من إزالة هذا العرض. حاول مرة أخرى.';
 
   @override
   String get settings_security_title => 'الإعدادات والأمان';
@@ -1974,10 +2096,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settings_biometric_subtitle => 'بصمة الوجه / بصمة الإصبع';
 
   @override
-  String get settings_biometric_confirm_reason => 'أكّد ببصمة الوجه أو الإصبع لتفعيل تسجيل الدخول بالبصمة';
+  String get settings_biometric_confirm_reason =>
+      'أكّد ببصمة الوجه أو الإصبع لتفعيل تسجيل الدخول بالبصمة';
 
   @override
-  String get settings_biometric_unavailable => 'تسجيل الدخول بالبصمة غير مُعد على هذا الجهاز بعد';
+  String get settings_biometric_unavailable =>
+      'تسجيل الدخول بالبصمة غير مُعد على هذا الجهاز بعد';
 
   @override
   String get biometric_lock_title => 'افتح تطبيق مصرفي ببصمة الوجه أو الإصبع';
@@ -1995,7 +2119,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settings_privacy_policies_title => 'سياسات الخصوصية';
 
   @override
-  String get settings_privacy_policies_subtitle => 'سياسات الخصوصية - الشروط والأحكام';
+  String get settings_privacy_policies_subtitle =>
+      'سياسات الخصوصية - الشروط والأحكام';
 
   @override
   String get settings_section_notification_center => 'مركز الإشعارات';
@@ -2031,7 +2156,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get change_password_title => 'تغيير كلمة المرور';
 
   @override
-  String get change_password_hint => 'أدخل كلمة المرور الحالية، ثم اختر كلمة مرور جديدة لا تقل عن ١٢ حرفًا وتحتوي على حرف كبير وحرف صغير ورقم ورمز.';
+  String get change_password_hint =>
+      'أدخل كلمة المرور الحالية، ثم اختر كلمة مرور جديدة لا تقل عن ١٢ حرفًا وتحتوي على حرف كبير وحرف صغير ورقم ورمز.';
 
   @override
   String get change_password_current_label => 'كلمة المرور الحالية';
@@ -2055,31 +2181,40 @@ class AppLocalizationsAr extends AppLocalizations {
   String get change_password_action => 'حفظ';
 
   @override
-  String get change_password_success => 'تم تغيير كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.';
+  String get change_password_success =>
+      'تم تغيير كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.';
 
   @override
-  String get change_password_error_current_incorrect => 'كلمة المرور الحالية غير صحيحة.';
+  String get change_password_error_current_incorrect =>
+      'كلمة المرور الحالية غير صحيحة.';
 
   @override
-  String get change_password_error_same_as_old => 'يجب أن تختلف كلمة المرور الجديدة عن الحالية.';
+  String get change_password_error_same_as_old =>
+      'يجب أن تختلف كلمة المرور الجديدة عن الحالية.';
 
   @override
-  String get change_password_error_social_forbidden => 'تغيير كلمة المرور غير متاح لحسابات تسجيل الدخول عبر مواقع التواصل.';
+  String get change_password_error_social_forbidden =>
+      'تغيير كلمة المرور غير متاح لحسابات تسجيل الدخول عبر مواقع التواصل.';
 
   @override
-  String get change_password_error_policy => 'يجب أن تتكون كلمة المرور من ١٢ حرفًا على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.';
+  String get change_password_error_policy =>
+      'يجب أن تتكون كلمة المرور من ١٢ حرفًا على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.';
 
   @override
-  String get change_password_error_breached => 'ظهرت كلمة المرور هذه في تسريب بيانات معروف. يرجى اختيار كلمة مرور مختلفة.';
+  String get change_password_error_breached =>
+      'ظهرت كلمة المرور هذه في تسريب بيانات معروف. يرجى اختيار كلمة مرور مختلفة.';
 
   @override
-  String get change_password_error_common => 'كلمة المرور هذه شائعة جدًا. يرجى اختيار كلمة مرور أقوى.';
+  String get change_password_error_common =>
+      'كلمة المرور هذه شائعة جدًا. يرجى اختيار كلمة مرور أقوى.';
 
   @override
-  String get change_password_error_breach_check_unavailable => 'تعذر التحقق من كلمة المرور الآن. يرجى المحاولة بعد قليل.';
+  String get change_password_error_breach_check_unavailable =>
+      'تعذر التحقق من كلمة المرور الآن. يرجى المحاولة بعد قليل.';
 
   @override
-  String get change_password_error_account_inactive => 'حسابك غير نشط. يرجى التواصل مع الدعم.';
+  String get change_password_error_account_inactive =>
+      'حسابك غير نشط. يرجى التواصل مع الدعم.';
 
   @override
   String get change_password_error_mismatch => 'كلمتا المرور غير متطابقتين';
@@ -2088,10 +2223,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get forgot_password_phone_title => 'إعادة تعيين كلمة المرور';
 
   @override
-  String get forgot_password_phone_subtitle => 'أدخل رقم هاتفك وسنرسل لك رمز تحقق.';
+  String get forgot_password_phone_subtitle =>
+      'أدخل رقم هاتفك وسنرسل لك رمز تحقق.';
 
   @override
-  String get forgot_password_phone_hint => 'سنرسل رمزًا من 6 أرقام إلى هاتفك للتأكد من هويتك.';
+  String get forgot_password_phone_hint =>
+      'سنرسل رمزًا من 6 أرقام إلى هاتفك للتأكد من هويتك.';
 
   @override
   String get forgot_password_send_cta => 'إرسال الرمز';
@@ -2103,19 +2240,23 @@ class AppLocalizationsAr extends AppLocalizations {
   String get forgot_password_new_title => 'اختر كلمة مرور جديدة';
 
   @override
-  String get forgot_password_new_subtitle => 'اختر كلمة مرور قوية جديدة لحسابك.';
+  String get forgot_password_new_subtitle =>
+      'اختر كلمة مرور قوية جديدة لحسابك.';
 
   @override
-  String get forgot_password_new_hint => 'اختر كلمة مرور جديدة لا تقل عن 12 حرفًا وتشمل حروفًا كبيرة وصغيرة ورقمًا ورمزًا.';
+  String get forgot_password_new_hint =>
+      'اختر كلمة مرور جديدة لا تقل عن 12 حرفًا وتشمل حروفًا كبيرة وصغيرة ورقمًا ورمزًا.';
 
   @override
   String get forgot_password_reset_cta => 'إعادة تعيين كلمة المرور';
 
   @override
-  String get forgot_password_success => 'تم إعادة تعيين كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.';
+  String get forgot_password_success =>
+      'تم إعادة تعيين كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.';
 
   @override
-  String get forgot_password_error_unavailable => 'تعذّر إعادة تعيين كلمة المرور لهذا الرقم. حاول مرة أخرى أو تواصل مع الدعم.';
+  String get forgot_password_error_unavailable =>
+      'تعذّر إعادة تعيين كلمة المرور لهذا الرقم. حاول مرة أخرى أو تواصل مع الدعم.';
 
   @override
   String get photo_source_title => 'صورة الملف الشخصي';
@@ -2142,40 +2283,56 @@ class AppLocalizationsAr extends AppLocalizations {
   String get error_answer_required => 'من فضلك أجب على هذا السؤال.';
 
   @override
-  String get error_money_figure_missing => 'تنقص قيمة لازمة للتقدير. من فضلك راجع إجاباتك.';
+  String get error_money_figure_missing =>
+      'تنقص قيمة لازمة للتقدير. من فضلك راجع إجاباتك.';
 
   @override
-  String get error_calculator_input_invalid => 'من فضلك تحقق من المبلغ والمدة والدخل والأقساط الحالية.';
+  String get error_calculator_input_invalid =>
+      'من فضلك تحقق من المبلغ والمدة والدخل والأقساط الحالية.';
 
   @override
-  String get error_calculator_program_inactive => 'هذا البرنامج غير متاح حاليًا.';
+  String get error_calculator_program_inactive =>
+      'هذا البرنامج غير متاح حاليًا.';
 
   @override
-  String get error_obligations_total_mismatch => 'إجمالي أقساطك الشهرية غير مطابق. من فضلك راجع التزاماتك وحاول مرة أخرى.';
+  String get error_obligations_total_mismatch =>
+      'إجمالي أقساطك الشهرية غير مطابق. من فضلك راجع التزاماتك وحاول مرة أخرى.';
 
   @override
-  String get reason_no_recognised_income => 'تعذّر الاعتراف بدخل شهري لهذا البرنامج.';
+  String get reason_no_recognised_income =>
+      'تعذّر الاعتراف بدخل شهري لهذا البرنامج.';
 
   @override
-  String get reason_obligations_exceed_allowance => 'أقساطك الشهرية الحالية تستهلك الحد المسموح بالكامل.';
+  String get reason_obligations_exceed_allowance =>
+      'أقساطك الشهرية الحالية تستهلك الحد المسموح بالكامل.';
 
   @override
-  String get reason_below_program_min_amount => 'المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.';
+  String get reason_below_program_min_amount =>
+      'المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.';
 
   @override
-  String get reason_age_at_maturity => 'لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.';
+  String get reason_requested_below_program_min_amount =>
+      'المبلغ المطلوب أقل مما يقرضه هذا البنك. اطلب مبلغًا أكبر لعرض أرقامه.';
 
   @override
-  String get reason_program_misconfigured => 'لا يمكن تسعير هذا البرنامج حاليًا.';
+  String get reason_age_at_maturity =>
+      'لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.';
 
   @override
-  String get reason_surrogate_fact_missing => 'هذا البرنامج يحتاج بيانًا لم نسألك عنه بعد، لذا لا يمكن عرض أرقام.';
+  String get reason_program_misconfigured =>
+      'لا يمكن تسعير هذا البرنامج حاليًا.';
 
   @override
-  String get reason_surrogate_no_matching_row => 'جدول هذا البنك لا يغطي إجابتك، لذا لا يمكن عرض أرقام.';
+  String get reason_surrogate_fact_missing =>
+      'هذا البرنامج يحتاج بيانًا لم نسألك عنه بعد، لذا لا يمكن عرض أرقام.';
 
   @override
-  String get disclaimer_indicative_estimate => 'تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.';
+  String get reason_surrogate_no_matching_row =>
+      'جدول هذا البنك لا يغطي إجابتك، لذا لا يمكن عرض أرقام.';
+
+  @override
+  String get disclaimer_indicative_estimate =>
+      'تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.';
 
   @override
   String get id_capture_title_front => 'الوجه الأمامي للبطاقة';
@@ -2184,7 +2341,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get id_capture_title_back => 'الوجه الخلفي للبطاقة';
 
   @override
-  String get id_capture_hint => 'ضع بطاقة الرقم القومي داخل الإطار ثم اضغط زر التصوير.';
+  String get id_capture_hint =>
+      'ضع بطاقة الرقم القومي داخل الإطار ثم اضغط زر التصوير.';
 
   @override
   String get id_capture_retry => 'حاول مرة أخرى';
@@ -2205,46 +2363,59 @@ class AppLocalizationsAr extends AppLocalizations {
   String get id_capture_error => 'تعذّر تشغيل الكاميرا على هذا الجهاز.';
 
   @override
-  String get id_capture_permission_error => 'إذن الكاميرا غير مفعّل. فعّل الكاميرا لتطبيق مصرفي من إعدادات جهازك ثم حاول مرة أخرى.';
+  String get id_capture_permission_error =>
+      'إذن الكاميرا غير مفعّل. فعّل الكاميرا لتطبيق مصرفي من إعدادات جهازك ثم حاول مرة أخرى.';
 
   @override
-  String get id_capture_capture_error => 'تعذّر حفظ هذه الصورة. من فضلك أعد التصوير.';
+  String get id_capture_capture_error =>
+      'تعذّر حفظ هذه الصورة. من فضلك أعد التصوير.';
 
   @override
-  String get gate_down_payment_below_min => 'المبلغ الذي دفعته أقل من الحد الأدنى الذي يطلبه هذا البنك لهذا البرنامج.';
+  String get gate_down_payment_below_min =>
+      'المبلغ الذي دفعته أقل من الحد الأدنى الذي يطلبه هذا البنك لهذا البرنامج.';
 
   @override
-  String get gate_unit_price_below_min => 'سعر الوحدة أقل من الحد الأدنى الذي يطلبه هذا البنك لسنة توقيع العقد.';
+  String get gate_unit_price_below_min =>
+      'سعر الوحدة أقل من الحد الأدنى الذي يطلبه هذا البنك لسنة توقيع العقد.';
 
   @override
-  String get gate_contract_too_new => 'هذا البنك يطلب أن تكون مالكًا للوحدة مدة أطول من مدتك الحالية.';
+  String get gate_contract_too_new =>
+      'هذا البنك يطلب أن تكون مالكًا للوحدة مدة أطول من مدتك الحالية.';
 
   @override
-  String get gate_contract_too_old => 'عقد التمليك أقدم من المدة التي يقبلها هذا البنك لهذا البرنامج.';
+  String get gate_contract_too_old =>
+      'عقد التمليك أقدم من المدة التي يقبلها هذا البنك لهذا البرنامج.';
 
   @override
-  String get gate_ownership_not_confirmed => 'هذا البرنامج يطلب إثبات التمليك بالشكل الذي يحدده البنك.';
+  String get gate_ownership_not_confirmed =>
+      'هذا البرنامج يطلب إثبات التمليك بالشكل الذي يحدده البنك.';
 
   @override
-  String get gate_multi_unit_not_confirmed => 'ذكرت أنك تملك أكثر من وحدة. أكِّد الوحدة التي نحسب عليها وسنعرض أرقام هذا البرنامج.';
+  String get gate_multi_unit_not_confirmed =>
+      'ذكرت أنك تملك أكثر من وحدة. أكِّد الوحدة التي نحسب عليها وسنعرض أرقام هذا البرنامج.';
 
   @override
-  String get gate_self_employed_docs_missing => 'هذا البنك يطلب رخصة تجارية أو رخصة مهنة سارية من العاملين لحسابهم.';
+  String get gate_self_employed_docs_missing =>
+      'هذا البنك يطلب رخصة تجارية أو رخصة مهنة سارية من العاملين لحسابهم.';
 
   @override
-  String get gate_business_too_new => 'هذا البنك يطلب أن يكون نشاطك التجاري قائمًا لمدة أطول من مدته الحالية.';
+  String get gate_business_too_new =>
+      'هذا البنك يطلب أن يكون نشاطك التجاري قائمًا لمدة أطول من مدته الحالية.';
 
   @override
-  String get gate_loan_too_new => 'هذا البنك يطلب أن يكون القرض الحالي قد سُدد جزء أكبر من مدته.';
+  String get gate_loan_too_new =>
+      'هذا البنك يطلب أن يكون القرض الحالي قد سُدد جزء أكبر من مدته.';
 
   @override
-  String get gate_not_met => 'هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.';
+  String get gate_not_met =>
+      'هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.';
 
   @override
   String get collateral_skip_step => 'تخطَّ الآن';
 
   @override
-  String get collateral_skip_hint => 'تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.';
+  String get collateral_skip_hint =>
+      'تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.';
 
   @override
   String offer_collateral_ceiling(String amount) {
@@ -2272,17 +2443,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_limited_by_collateral => 'محدود بما يدعمه ضمانك';
 
   @override
-  String get offer_limited_by_vehicle => 'تم تقصير المدة إلى أطول مدة يموّل بها هذا البنك سيارة مثل سيارتك';
+  String get offer_limited_by_vehicle =>
+      'تم تقصير المدة إلى أطول مدة يموّل بها هذا البنك سيارة مثل سيارتك';
 
   @override
-  String get results_unavailable_no_max_for_answer => 'هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.';
+  String get results_unavailable_no_max_for_answer =>
+      'هذا البنك لا يحدد مبلغًا للإجابات التي ذكرتها.';
 
   @override
-  String get results_unavailable_no_rate_for_answer => 'هذا البنك لا يحدد سعر فائدة للدفعة المقدمة ومدة السداد والتأمين التي اخترتها.';
+  String get results_unavailable_no_rate_for_answer =>
+      'هذا البنك لا يحدد سعر فائدة للدفعة المقدمة ومدة السداد والتأمين التي اخترتها.';
 
   @override
-  String get results_unavailable_vehicle_not_eligible => 'هذا البنك لا يموّل سيارة بسنة الصنع أو بلد المنشأ أو الدفعة المقدمة المذكورة.';
+  String get results_unavailable_vehicle_not_eligible =>
+      'هذا البنك لا يموّل سيارة بسنة الصنع أو بلد المنشأ أو الدفعة المقدمة المذكورة.';
 
   @override
-  String get results_unavailable_product_retired => 'هذا البنك لا يقدم هذا البرنامج حاليًا.';
+  String get results_unavailable_product_retired =>
+      'هذا البنك لا يقدم هذا البرنامج حاليًا.';
 }

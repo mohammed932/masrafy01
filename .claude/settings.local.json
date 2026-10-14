@@ -9,5 +9,9 @@
       "Read(//Users/mfathy/Downloads/**)",
       "Bash(cp /Users/mfathy/.claude/plans/users-mfathy-downloads-teachers-income-mighty-hanrahan.md /Users/mfathy/Downloads/surrogate-programs-design.md && wc -l /Users/mfathy/Downloads/surrogate-programs-design.md)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "dart"
+  ],
+  "enableAllProjectMcpServers": true
 }

@@ -104,6 +104,17 @@ export const MONEY_FIELD_BINDING_SPECS: Readonly<
 export const DEBT_TYPES_QUESTION_CODE = 'current_loans';
 
 /**
+ * The question whose answer the app sends as `employment.employmentType`.
+ *
+ * Not a money figure, but it moves money on every programme that states a per-applicant-type
+ * row: `dbrCapPercentByEmploymentType` (CAE compound: 50% salaried / 40% self-employed) and
+ * `tenor.maxMonthsByEmploymentType` (CAE auto: 60 months self-employed). Unasked, every app
+ * mapper falls back to `salaried`, so a self-employed applicant is quietly priced as salaried.
+ * Named here so `question-scope.ts` keeps it asked from a constant rather than a typed code.
+ */
+export const EMPLOYMENT_TYPE_QUESTION_CODE = 'employment_status';
+
+/**
  * The explicit "I have none" pick. Present so "no debts" is a STATED answer
  * rather than an empty one — an empty multi-select is indistinguishable from an
  * unanswered question, and that difference decides whether obligations resolve

@@ -36,6 +36,14 @@ export const ERROR_CODES = {
   // --- Bank programs (feature 002) ---
   BANK_PROGRAM_NOT_FOUND: 'BANK_PROGRAM_NOT_FOUND',
   PROGRAM_CODE_ALREADY_IN_USE: 'PROGRAM_CODE_ALREADY_IN_USE',
+  /**
+   * The bank already sells a program under this catalog name in this loan type. An operator
+   * adds a second one by accident far more often than on purpose, and the two then quote side
+   * by side under one name. Refused on the admin paths only: the sheet seed still loads the
+   * handful of real pairs a bank prints under one name (`allowSharedName`).
+   * meta: { programNameKey, productCategory, existingProgramCode }.
+   */
+  BANK_PROGRAM_NAME_TAKEN: 'BANK_PROGRAM_NAME_TAKEN',
   INVALID_VARIABLE_RATE_CONFIGURATION: 'INVALID_VARIABLE_RATE_CONFIGURATION',
   INVALID_QUALITATIVE_REVIEW_CEILING: 'INVALID_QUALITATIVE_REVIEW_CEILING',
   QUALITATIVE_REVIEW_CEILING_BELOW_BASE: 'QUALITATIVE_REVIEW_CEILING_BELOW_BASE',
@@ -378,6 +386,21 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_NO_CAP: 'SURROGATE_PRODUCT_NO_CAP',
   /**
+   * "Ask it" / "Create question" on a product no live catalog name sells.
+   *
+   * A question is asked per LOAN TYPE, and a product is in a loan type only through the
+   * names that sell it. With none, there is no loan type to ask in — asking in all four
+   * would put the question in front of every applicant for a product nobody can pick.
+   */
+  PRODUCT_NOT_SOLD_ANYWHERE: 'PRODUCT_NOT_SOLD_ANYWHERE',
+  /**
+   * A needed fact whose answer's shape its readers do not settle — read both as options and
+   * as a number, keyed by classes rather than answers, or keyed by fewer than two options /
+   * by keys that are not plain option codes. A question for it needs a person to decide
+   * its type and its answers. `meta.factKey`.
+   */
+  NEEDED_FACT_SHAPE_UNKNOWN: 'NEEDED_FACT_SHAPE_UNKNOWN',
+  /**
    * A surrogate product's default loan duration was CLEARED while bank programs are reading
    * it. Meta: `{ count, programCodes }`.
    *
@@ -393,6 +416,21 @@ export const ERROR_CODES = {
    * the wrong words at an operator whose actual problem is six programmes with no duration.
    */
   SURROGATE_PRODUCT_TENOR_IN_USE: 'SURROGATE_PRODUCT_TENOR_IN_USE',
+  SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE: 'SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE',
+  /**
+   * A surrogate product's default INTEREST RATE was CLEARED while bank programs are reading
+   * it. Meta: `{ count, programCodes }`.
+   *
+   * The third of the family, on exactly the terms `SURROGATE_PRODUCT_TENOR_IN_USE` above
+   * states: only the CLEAR is refused, because a change gives an inheriting program a
+   * different price and a clear gives it none — and a loan with no price is reported to a
+   * customer as `PROGRAM_MISCONFIGURED`.
+   *
+   * It bites harder than its two siblings and that is deliberate: the bank-program wizard
+   * stopped asking for a rate, so "give each of them its own price first" is a seed or an
+   * API call, not a screen. Clearing is a decision to stop selling at this product's price.
+   */
+  SURROGATE_PRODUCT_RATE_IN_USE: 'SURROGATE_PRODUCT_RATE_IN_USE',
   /**
    * The question an operator ticked on a product's step ① is already answered by MORE THAN
    * ONE surrogate fact.
@@ -659,6 +697,7 @@ export const ERROR_CODES = {
   NO_RECOGNISED_INCOME: 'NO_RECOGNISED_INCOME',
   OBLIGATIONS_EXCEED_ALLOWANCE: 'OBLIGATIONS_EXCEED_ALLOWANCE',
   BELOW_PROGRAM_MIN_AMOUNT: 'BELOW_PROGRAM_MIN_AMOUNT',
+  REQUESTED_BELOW_PROGRAM_MIN_AMOUNT: 'REQUESTED_BELOW_PROGRAM_MIN_AMOUNT',
   AGE_AT_MATURITY: 'AGE_AT_MATURITY',
   // Disclaimer shown alongside every indicative figure (not an error)
   INDICATIVE_ESTIMATE_NOT_AN_OFFER: 'INDICATIVE_ESTIMATE_NOT_AN_OFFER',
@@ -1041,6 +1080,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
 
   BANK_PROGRAM_NOT_FOUND: 404,
   PROGRAM_CODE_ALREADY_IN_USE: 409,
+  BANK_PROGRAM_NAME_TAKEN: 409,
   INVALID_VARIABLE_RATE_CONFIGURATION: 422,
   INVALID_QUALITATIVE_REVIEW_CEILING: 422,
   QUALITATIVE_REVIEW_CEILING_BELOW_BASE: 422,
@@ -1104,9 +1144,13 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_PRODUCT_NOT_FOUND: 404,
   SURROGATE_PRODUCT_CAP_ONLY: 422,
   SURROGATE_PRODUCT_NO_CAP: 422,
+  PRODUCT_NOT_SOLD_ANYWHERE: 409,
+  NEEDED_FACT_SHAPE_UNKNOWN: 422,
   // 409, like `SURROGATE_PRODUCT_IN_USE` above: the request is well-formed and the product
   // exists — what refuses it is the state of the programmes underneath.
   SURROGATE_PRODUCT_TENOR_IN_USE: 409,
+  SURROGATE_PRODUCT_LOAN_AMOUNTS_IN_USE: 409,
+  SURROGATE_PRODUCT_RATE_IN_USE: 409,
   // 409: the request is well-formed and the rows exist — the platform's own data is in a
   // shape that has no single right answer, and only an operator can pick one.
   SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,
@@ -1222,6 +1266,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   NO_RECOGNISED_INCOME: 200,
   OBLIGATIONS_EXCEED_ALLOWANCE: 200,
   BELOW_PROGRAM_MIN_AMOUNT: 200,
+  REQUESTED_BELOW_PROGRAM_MIN_AMOUNT: 200,
   AGE_AT_MATURITY: 200,
   INDICATIVE_ESTIMATE_NOT_AN_OFFER: 200,
 

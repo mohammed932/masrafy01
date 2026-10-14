@@ -35,15 +35,21 @@
  */
 
 import type { FactGridConfig } from './fact-grid';
-import type { LoanLimitsConfig, PricingConfig, TenorConfig } from '../types';
+import type { FeesConfig, LoanLimitsConfig, PricingConfig, TenorConfig } from '../types';
 
 /**
- * The five tables a product can state, each independently optional.
+ * The six tables a product can state, each independently optional.
  *
  * Independently, and not both-or-neither like `TenorDefaults`: those two months are ONE
- * range and a half-stated pair is a range nobody set, where these five are five separate
+ * range and a half-stated pair is a range nobody set, where these six are six separate
  * statements. A product that states a rate table and no floor has said one thing and
  * declined to say another.
+ *
+ * The sixth is the cover the bank demands on the car (`carInsuranceRateByFact`, a percent of
+ * the car's price per policy year). It belongs on this list and not beside the fee scalars
+ * because it is keyed on the same axis as the five above — the deposit — and an operator
+ * reads all six as one row of one card: "20% down → 10% a year, 6–60 months, we finance 80%,
+ * not under a million, and you insure it at 1%."
  */
 export interface PlanDefaults {
   readonly rateByFact?: FactGridConfig;
@@ -51,6 +57,7 @@ export interface PlanDefaults {
   readonly maxMonthsByFact?: FactGridConfig;
   readonly ltvCeilingByFact?: FactGridConfig;
   readonly minAmountByFact?: FactGridConfig;
+  readonly carInsuranceRateByFact?: FactGridConfig;
 }
 
 export const PLANS_SOURCES = ['product', 'own'] as const;
@@ -63,6 +70,7 @@ const PLAN_SLOTS = [
   'maxMonthsByFact',
   'ltvCeilingByFact',
   'minAmountByFact',
+  'carInsuranceRateByFact',
 ] as const satisfies ReadonlyArray<keyof PlanDefaults>;
 
 /**
@@ -110,7 +118,7 @@ function isGridShaped(raw: unknown): raw is FactGridConfig {
 }
 
 /**
- * The three merges, one per blob the plan tables live in.
+ * The four merges, one per blob the plan tables live in.
  *
  * Each returns the SAME object when nothing is inherited — the convention this module's
  * sibling follows throughout, and what keeps the common path allocation-free for the 262
@@ -163,4 +171,24 @@ export function effectivePlanLoanLimits(
     ...(ltv !== undefined ? { ltvCeilingByFact: ltv } : {}),
     ...(floor !== undefined ? { minAmountByFact: floor } : {}),
   };
+}
+
+/**
+ * The car's cover, merged the way the other three are.
+ *
+ * Its own function rather than a line inside `effectivePlanLoanLimits`, because the table
+ * lives on `fees` — it is a cost the customer pays an insurer, not a ceiling on what the
+ * bank will lend — and a merge that reached across two blobs would be the one place a
+ * reader could not find by looking at the field.
+ */
+export function effectivePlanFees(
+  fees: FeesConfig,
+  source: unknown,
+  defaults: PlanDefaults | undefined,
+): FeesConfig {
+  if (!inheritsProductPlans(source) || defaults?.carInsuranceRateByFact === undefined) {
+    return fees;
+  }
+  if (fees.carInsuranceRateByFact !== undefined) return fees;
+  return { ...fees, carInsuranceRateByFact: defaults.carInsuranceRateByFact };
 }

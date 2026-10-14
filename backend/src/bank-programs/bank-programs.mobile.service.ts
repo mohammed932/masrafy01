@@ -4,10 +4,18 @@ import { BankProgramRepository } from './bank-programs.repository';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 import { MobileBankProgramResponseDto } from './dto/mobile-bank-program.response.dto';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
-import { catalogTenorOf } from '@/matching/pipeline/income-rule-inherit';
+import {
+  catalogLoanAmountsOf,
+  catalogRateOf,
+  catalogTenorOf,
+} from '@/matching/pipeline/income-rule-inherit';
 import type { CatalogIncomeRules } from '@/matching/pipeline/income-rule-inherit';
 import { effectiveTenor } from '@/matching/pipeline/tenor-inherit';
+import { effectiveLoanAmounts } from '@/matching/pipeline/loan-amount-inherit';
+import type { StoredLoanLimits } from '@/matching/pipeline/loan-amount-inherit';
 import type { StoredTenor } from '@/matching/pipeline/tenor-inherit';
+import { effectiveRate } from '@/matching/pipeline/rate-inherit';
+import type { StoredPricing } from '@/matching/pipeline/rate-inherit';
 
 /**
  * Mobile read-only service. Hand-written allowlist mapper (research.md R5).
@@ -77,16 +85,33 @@ export class BankProgramsMobileService {
       stampDutyPercent: string;
     };
 
+    const resolution =
+      program.programNameKey === null ? undefined : catalogRules.get(program.programNameKey);
+
     const tenor = effectiveTenor(
       program.tenor as unknown as StoredTenor | undefined,
-      catalogTenorOf(
-        program.programNameKey === null ? undefined : catalogRules.get(program.programNameKey),
-      ),
+      catalogTenorOf(resolution),
     );
 
-    const baseRate = pricing?.isVariableRate
-      ? pricing?.currentEffectiveRatePercent
-      : pricing?.baseRatePercent;
+    // The SIZE, resolved the same way and for the same reason the duration below is: a
+    // program that states no amounts of its own publishes the PRODUCT's, not a zero. A
+    // blank here used to reach the app as "lends from 0 to 0", which reads as a program
+    // that lends nothing rather than one whose sizes are stated a level up.
+    const amounts = effectiveLoanAmounts(
+      loanLimits as StoredLoanLimits | undefined,
+      catalogLoanAmountsOf(resolution),
+    );
+
+    // The PRICE, resolved the same way and for the same reason the size above is: a program
+    // that states no rate of its own publishes the PRODUCT's, not a zero. Since the wizard
+    // stopped asking for a rate, that is the state every programme created from now on is
+    // in, and a bare `?? '0'` here would reach the app as "0% – 0%".
+    const rate = effectiveRate(pricing as StoredPricing | undefined, catalogRateOf(resolution));
+    const baseRate = rate?.isVariableRate
+      ? rate?.currentEffectiveRatePercent
+      : rate?.baseRatePercent;
+    // The SPREADS stay the bank's own — they are a range this bank publishes around its own
+    // price, not part of the one statement a product hands down.
     const minRate = pricing?.spreadMinPercent ?? baseRate ?? '0';
     const maxRate = pricing?.spreadMaxPercent ?? baseRate ?? '0';
 
@@ -100,8 +125,8 @@ export class BankProgramsMobileService {
         minPercent: minRate,
         maxPercent: maxRate,
       },
-      displayMinEGP: loanLimits.minAmountEGP ?? '0',
-      displayMaxEGP: loanLimits.maxAmountEGP ?? '0',
+      displayMinEGP: amounts?.minAmountEGP ?? '0',
+      displayMaxEGP: amounts?.maxAmountEGP ?? '0',
       // Resolved through the product, exactly as the quote path resolves it: a program that
       // states no months of its own publishes the product's, not a blank.
       displayMinMonths: tenor?.minMonths ?? 0,
