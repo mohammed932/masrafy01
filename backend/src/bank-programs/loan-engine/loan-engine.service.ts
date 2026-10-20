@@ -231,6 +231,7 @@ export class LoanEngineService {
         bankName: base.bankName,
         friendlyName: base.friendlyName,
         category: base.category,
+        programType: row.programType,
         version: base.version,
         programNameKey: base.programNameKey,
         conditions: base.conditions,

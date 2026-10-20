@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -69,6 +70,8 @@ interface ProgramVm {
   conditions: ConditionVm[];
   elsewhere: string[];
   haystack: string;
+  /** No payslip: its income comes from the answers, edited on the Calculation step. */
+  surrogate: boolean;
 }
 
 interface CategoryGroup {
@@ -91,6 +94,7 @@ interface CategoryGroup {
   imports: [
     NgTemplateOutlet,
     ReactiveFormsModule,
+    RouterLink,
     NzButtonModule,
     NzIconModule,
     NzInputModule,
@@ -147,7 +151,25 @@ interface CategoryGroup {
     @if (loading()) {
       <app-skeleton-rows [rows]="6" [cols]="[3, 2, 5]" [ariaLabel]="loadingAria" />
     } @else {
-      <p class="rb__summary" aria-live="polite">{{ summary() }}</p>
+      <div class="rb__summary-row">
+        <p class="rb__summary" aria-live="polite">{{ summary() }}</p>
+        @if (searchText().trim() === '') {
+          <button
+            nz-button
+            nzType="link"
+            nzSize="small"
+            type="button"
+            [attr.aria-pressed]="showAll()"
+            (click)="showAll.set(!showAll())"
+          >
+            @if (showAll()) {
+              <span i18n="@@lengine.rb.show_ruled">Only programs with rules</span>
+            } @else {
+              <span i18n="@@lengine.rb.show_all">Show all programs</span>
+            }
+          </button>
+        }
+      </div>
 
       @for (g of groups(); track g.category) {
         <section class="rb__group" [style.--cat]="catColor(g.category)">
@@ -163,7 +185,18 @@ interface CategoryGroup {
                   <h3 class="rb__name" [id]="'rb-' + vm.p.programCode">
                     {{ vm.p.friendlyName }}
                   </h3>
-                  <code class="rb__code">{{ vm.p.programCode }}</code>
+                  <span class="rb__meta">
+                    @if (vm.surrogate) {
+                      <span
+                        class="rb__basis rb__basis--surrogate"
+                        i18n="@@lengine.rb.basis_surrogate"
+                        >No payslip</span
+                      >
+                    } @else {
+                      <span class="rb__basis" i18n="@@lengine.rb.basis_proof">Payslip</span>
+                    }
+                    <code class="rb__code">{{ vm.p.programCode }}</code>
+                  </span>
                 </div>
                 <div class="rb__acts">
                   @if (canEdit()) {
@@ -185,10 +218,10 @@ interface CategoryGroup {
               </header>
 
               <div class="rb__block">
-                <h4 class="rb__label" i18n="@@lengine.rb.who_quotes">Who it quotes</h4>
+                <h4 class="rb__label" i18n="@@lengine.rb.who_quotes">Who gets an offer</h4>
                 @if (vm.conditions.length === 0) {
                   <p class="rb__none" i18n="@@lengine.rb.no_conditions">
-                    Everyone in this loan type — no condition refuses an applicant.
+                    Everyone applying for this loan type. No condition refuses an applicant.
                   </p>
                 } @else {
                   <ul class="rb__conds">
@@ -215,10 +248,35 @@ interface CategoryGroup {
               </div>
 
               <div class="rb__block">
-                <h4 class="rb__label" i18n="@@lengine.rb.what_changes">What the answers change</h4>
+                <h4 class="rb__label" i18n="@@lengine.rb.income">How income is worked out</h4>
+                @if (vm.surrogate) {
+                  <p class="rb__income">
+                    <span i18n="@@lengine.rb.income_surrogate"
+                      >From the applicant's answers, not a payslip. The amount each answer counts as
+                      income is set on the program's Calculation step, not here.</span
+                    >
+                    <a
+                      class="rb__link"
+                      [routerLink]="['/banks/programs', vm.p.programCode, 'edit']"
+                      [queryParams]="{ step: 'calculation' }"
+                      i18n="@@lengine.rb.open_calc"
+                      >Open the calculation</a
+                    >
+                  </p>
+                } @else {
+                  <p class="rb__income" i18n="@@lengine.rb.income_proof">
+                    The net monthly income the applicant states.
+                  </p>
+                }
+              </div>
+
+              <div class="rb__block">
+                <h4 class="rb__label" i18n="@@lengine.rb.what_changes">
+                  Answers that change the offer
+                </h4>
                 @if (vm.rules.length === 0) {
                   <p class="rb__none" i18n="@@lengine.rb.no_rules">
-                    No answer changes this program's figures yet.
+                    None yet. The offer uses the program's standard figures.
                   </p>
                 } @else {
                   <ul class="rb__rules">
@@ -281,7 +339,9 @@ interface CategoryGroup {
 
               @if (vm.elsewhere.length > 0) {
                 <p class="rb__elsewhere">
-                  <span i18n="@@lengine.rb.elsewhere">Also read, edited on the program:</span>
+                  <span i18n="@@lengine.rb.elsewhere"
+                    >Other tables that change the offer, edited on the program screen:</span
+                  >
                   {{ vm.elsewhere.join(' · ') }}
                 </p>
               }
@@ -289,61 +349,7 @@ interface CategoryGroup {
           }
         </section>
       } @empty {
-        @if (quiet().length === 0) {
-          <p class="rb__none" i18n="@@lengine.rb.nothing_matches">No program matches.</p>
-        }
-      }
-
-      @if (quiet().length > 0) {
-        <details class="rb__quiet" [open]="groups().length === 0">
-          <summary i18n="@@lengine.rb.quiet">
-            {{ quiet().length }} programs with no rules yet
-          </summary>
-          <ul class="rb__quiet-list">
-            @for (p of quiet(); track p.programCode) {
-              <li class="rb__quiet-row">
-                <span class="rb__quiet-who" [style.--cat]="catColor(p.category)">
-                  <span class="rb__dot" aria-hidden="true"></span>
-                  <span class="rb__bank">{{ p.bankName }}</span>
-                  <span class="rb__quiet-name">{{ p.friendlyName }}</span>
-                  @if (p.elsewhere.length > 0) {
-                    <span class="rb__tag" i18n="@@lengine.rb.has_plans">tables on the program</span>
-                  }
-                </span>
-                @if (canEdit()) {
-                  <span class="rb__acts">
-                    <button
-                      nz-button
-                      nzSize="small"
-                      nzType="text"
-                      type="button"
-                      (click)="startAdd(p)"
-                    >
-                      <span nz-icon nzType="plus" aria-hidden="true"></span>
-                      <span i18n="@@lengine.rb.add_rule">Add rule</span>
-                    </button>
-                    <button
-                      nz-button
-                      nzSize="small"
-                      nzType="text"
-                      type="button"
-                      (click)="openConditions(p)"
-                      i18n="@@lengine.rb.add_condition"
-                    >
-                      Add condition
-                    </button>
-                  </span>
-                }
-                @if (adding() === p.programCode) {
-                  <ng-container
-                    [ngTemplateOutlet]="addForm"
-                    [ngTemplateOutletContext]="{ $implicit: p }"
-                  />
-                }
-              </li>
-            }
-          </ul>
-        </details>
+        <p class="rb__none" i18n="@@lengine.rb.nothing_matches">No program matches.</p>
       }
     }
 
@@ -534,8 +540,7 @@ interface CategoryGroup {
         color: var(--color-text-tertiary);
       }
       .rb__conds,
-      .rb__rules,
-      .rb__quiet-list {
+      .rb__rules {
         list-style: none;
         margin: 0;
         padding: 0;
@@ -661,46 +666,40 @@ interface CategoryGroup {
         color: var(--color-text-tertiary);
         font-size: var(--text-xs);
       }
-      .rb__quiet {
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        background: var(--color-surface-default);
-      }
-      .rb__quiet > summary {
-        padding: var(--space-3) var(--space-5);
-        color: var(--color-text-secondary);
-        font-weight: var(--font-weight-medium);
-        cursor: pointer;
-      }
-      .rb__quiet-list {
-        gap: 0;
-        padding-block-end: var(--space-2);
-      }
-      .rb__quiet-row {
+      .rb__summary-row {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        justify-content: space-between;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-5);
-        border-block-start: 1px solid var(--border-default);
+        gap: var(--space-1) var(--space-3);
       }
-      .rb__quiet-who {
+      .rb__meta {
         display: inline-flex;
         flex-wrap: wrap;
         align-items: center;
         gap: var(--space-2);
-        min-inline-size: 0;
       }
-      .rb__quiet-name {
-        color: var(--color-text-primary);
-      }
-      .rb__tag {
+      .rb__basis {
         padding: 0 var(--space-2);
         border-radius: var(--radius-pill);
         background: var(--color-surface-muted);
-        color: var(--color-text-tertiary);
-        font-size: var(--text-xxs);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
+      }
+      .rb__basis--surrogate {
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent-ink);
+      }
+      .rb__income {
+        margin: 0;
+        color: var(--color-text-primary);
+        line-height: 1.6;
+      }
+      .rb__link {
+        margin-inline-start: var(--space-2);
+        color: var(--color-brand-primary);
+        font-weight: var(--font-weight-medium);
+        white-space: nowrap;
       }
       .rb__add {
         display: flex;
@@ -731,7 +730,7 @@ interface CategoryGroup {
       }
       .rb__cat:focus-visible,
       .rb__rule:focus-visible,
-      .rb__quiet > summary:focus-visible {
+      .rb__link:focus-visible {
         outline: 2px solid var(--focus-ring-color);
         outline-offset: 2px;
       }
@@ -765,8 +764,10 @@ export class LoanEngineRulebookComponent {
 
   readonly category = signal<LoanCategory | null>(null);
   readonly search = new FormControl<string>('', { nonNullable: true });
-  private readonly searchText = toSignal(this.search.valueChanges, { initialValue: '' });
+  readonly searchText = toSignal(this.search.valueChanges, { initialValue: '' });
 
+  /** Off: only programs with a rule or condition. A search always looks at every program. */
+  readonly showAll = signal(false);
   readonly book = signal<LoanEngineRulebook | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -799,27 +800,22 @@ export class LoanEngineRulebookComponent {
   });
 
   readonly groups = computed<CategoryGroup[]>(() => {
-    const withRules = this.filtered().filter(
-      (vm) => vm.rules.length > 0 || vm.conditions.length > 0,
+    const everyMatch = this.showAll() || this.searchText().trim() !== '';
+    const shown = this.filtered().filter(
+      (vm) => everyMatch || vm.rules.length > 0 || vm.conditions.length > 0,
     );
     return LOAN_CATEGORIES.map((category) => ({
       category,
-      programs: withRules.filter((vm) => vm.p.category === category),
+      programs: shown.filter((vm) => vm.p.category === category),
     })).filter((g) => g.programs.length > 0);
   });
-
-  readonly quiet = computed(() =>
-    this.filtered()
-      .filter((vm) => vm.rules.length === 0 && vm.conditions.length === 0)
-      .map((vm) => vm.p),
-  );
 
   readonly summary = computed(() => {
     const shown = this.filtered();
     const programs = shown.filter((vm) => vm.rules.length > 0 || vm.conditions.length > 0).length;
     const rules = shown.reduce((n, vm) => n + vm.rules.length, 0);
     const conditions = shown.reduce((n, vm) => n + vm.conditions.length, 0);
-    return $localize`:@@lengine.rb.summary:${rules}:rules: answer rules and ${conditions}:conditions: conditions across ${programs}:programs: of ${shown.length}:total: programs`;
+    return $localize`:@@lengine.rb.summary:${programs}:programs: of ${shown.length}:total: programs have rules (${rules}:rules: answer rules, ${conditions}:conditions: refusal conditions)`;
   });
 
   constructor() {
@@ -985,7 +981,14 @@ export class LoanEngineRulebookComponent {
     ]
       .join(' ')
       .toLowerCase();
-    return { p, rules, conditions, elsewhere, haystack };
+    return {
+      p,
+      rules,
+      conditions,
+      elsewhere,
+      haystack,
+      surrogate: p.programType === 'income_surrogate',
+    };
   }
 
   private ruleVm(p: LoanEngineRulebookProgram, r: LoanEngineRuleView): RuleVm {

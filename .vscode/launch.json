@@ -6,10 +6,10 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/backend",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "/bin/bash",
       "runtimeArgs": [
-        "run",
-        "start:dev"
+        "-c",
+        "export NVM_DIR=\"${NVM_DIR:-$HOME/.nvm}\"; export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\" && nvm use --silent; exec npm run start:dev"
       ],
       "console": "integratedTerminal",
       "autoAttachChildProcesses": true,
@@ -22,9 +22,10 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/admin",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "/bin/bash",
       "runtimeArgs": [
-        "start"
+        "-c",
+        "export NVM_DIR=\"${NVM_DIR:-$HOME/.nvm}\"; export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\" && nvm use --silent; exec npm start"
       ],
       "console": "integratedTerminal",
       "skipFiles": [

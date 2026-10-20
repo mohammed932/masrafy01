@@ -290,6 +290,8 @@ export interface LoanEngineRulebookProgram {
   bankName: string;
   friendlyName: string;
   category: string;
+  /** `income_proof` (payslip) or `income_surrogate` (no payslip). */
+  programType: string;
   version: number;
   programNameKey: string | null;
   conditions: ProgramConditionView[];

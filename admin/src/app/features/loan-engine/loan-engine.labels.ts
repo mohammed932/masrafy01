@@ -15,11 +15,11 @@ import type {
 export function effectLabel(effect: LoanEngineEffect): string {
   switch (effect) {
     case 'rate':
-      return $localize`:@@lengine.eff.rate:Rate`;
+      return $localize`:@@lengine.eff.rate:Interest rate`;
     case 'cap':
-      return $localize`:@@lengine.eff.cap:Loan cap`;
+      return $localize`:@@lengine.eff.cap:Maximum loan`;
     case 'financed_share':
-      return $localize`:@@lengine.eff.financed_share:Financed share`;
+      return $localize`:@@lengine.eff.financed_share:Share of price financed`;
     case 'min_amount':
       return $localize`:@@lengine.eff.min_amount:Smallest loan`;
     case 'min_term':
@@ -27,7 +27,7 @@ export function effectLabel(effect: LoanEngineEffect): string {
     case 'max_term':
       return $localize`:@@lengine.eff.max_term:Longest term`;
     case 'extra_income':
-      return $localize`:@@lengine.eff.extra_income:Extra income`;
+      return $localize`:@@lengine.eff.extra_income:Extra income counted`;
   }
 }
 

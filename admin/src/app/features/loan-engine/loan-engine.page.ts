@@ -499,7 +499,7 @@ export class LoanEnginePageComponent {
   readonly isAr = document.documentElement.lang.startsWith('ar');
 
   readonly titleText = $localize`:@@lengine.title:Loan Engine`;
-  readonly subtitleText = $localize`:@@lengine.subtitle.rules:Every rule the engine applies, program by program: who each one quotes, and what each answer changes.`;
+  readonly subtitleText = $localize`:@@lengine.subtitle.rules:For each bank program: who gets an offer, how its income is worked out, and which answers change the offer.`;
   readonly viewsAria = $localize`:@@lengine.views_aria:How to read the rules`;
   readonly viewTabs: readonly RailTabItem[] = [
     { id: 'rules', label: $localize`:@@lengine.view.rules:Rules by program` },

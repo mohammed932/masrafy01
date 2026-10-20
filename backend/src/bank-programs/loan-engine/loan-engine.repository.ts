@@ -17,6 +17,8 @@ export interface LoanEngineProgramRow {
   bankName: string;
   friendlyName: string;
   category: string;
+  /** `income_proof` (payslip) or `income_surrogate` (no payslip) — said, never inferred. */
+  programType: string;
   version: number;
   plansSource: string | null;
   pricing: unknown;
@@ -48,6 +50,7 @@ export class LoanEngineRepository {
         bankName: true,
         friendlyName: true,
         productCategory: true,
+        programType: true,
         version: true,
         plansSource: true,
         pricing: true,
@@ -63,6 +66,7 @@ export class LoanEngineRepository {
       bankName: r.bankName,
       friendlyName: r.friendlyName,
       category: r.productCategory,
+      programType: r.programType,
       version: r.version,
       plansSource: r.plansSource,
       pricing: r.pricing,
@@ -83,6 +87,7 @@ export class LoanEngineRepository {
         bankName: true,
         friendlyName: true,
         productCategory: true,
+        programType: true,
         version: true,
         plansSource: true,
         pricing: true,
@@ -99,6 +104,7 @@ export class LoanEngineRepository {
       bankName: r.bankName,
       friendlyName: r.friendlyName,
       category: r.productCategory,
+      programType: r.programType,
       version: r.version,
       plansSource: r.plansSource,
       pricing: r.pricing,

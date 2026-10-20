@@ -135,6 +135,8 @@ export interface LoanEngineRulebookProgram {
   bankName: string;
   friendlyName: string;
   category: LoanCategory;
+  /** `income_proof` = payslip; `income_surrogate` = worked out from the answers. */
+  programType: 'income_proof' | 'income_surrogate';
   version: number;
   programNameKey: string | null;
   conditions: ProgramConditionView[];
