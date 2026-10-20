@@ -18,6 +18,7 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { QuestionnaireService } from './questionnaire.service';
+import { EngineRulesService } from './engine-rules.service';
 import { parseCategory } from './category.util';
 import {
   CreateGroupDto,
@@ -50,7 +51,10 @@ import {
 // (same posture as the platform-enumerations admin controller).
 @SkipThrottle()
 export class AdminQuestionnaireController {
-  constructor(private readonly service: QuestionnaireService) {}
+  constructor(
+    private readonly service: QuestionnaireService,
+    private readonly engineRules: EngineRulesService,
+  ) {}
 
   @Get('tree')
   @ApiOperation({
@@ -58,6 +62,16 @@ export class AdminQuestionnaireController {
   })
   async tree() {
     return ok(await this.service.draftTree());
+  }
+
+  @Get('engine-rules')
+  @ApiOperation({
+    summary:
+      'The questions the loan engine reads: who reads each, what each answer means, and what ' +
+      'its wording has to keep (only answer wording is edited from here, via PATCH options/:id)',
+  })
+  async engineRulesView() {
+    return ok(await this.engineRules.view());
   }
 
   @Get('served')

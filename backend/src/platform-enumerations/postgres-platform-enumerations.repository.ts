@@ -1114,6 +1114,17 @@ export class PostgresPlatformEnumerationsRepository
       neededByCategory[category] = [...codes].sort();
     }
 
+    // See `NarrowingScope.incomeProof`. A loan type the name has no programme in yet counts as
+    // income-proof: a name created from the admin is payslip-only (v30.8.0), and the fixed
+    // question set must already be what its first programme is quoted from.
+    const inRequestedCategory =
+      category === undefined
+        ? programs
+        : programs.filter((p) => asLoanCategory(p.productCategory) === category);
+    const incomeProof =
+      inRequestedCategory.length === 0 ||
+      inRequestedCategory.some((p) => p.programType === 'income_proof');
+
     return {
       programNameKey,
       factBoundQuestionCodes,
@@ -1121,6 +1132,7 @@ export class PostgresPlatformEnumerationsRepository
       platformQuestionCodes,
       neededQuestionCodes,
       productOnly,
+      incomeProof,
       mustAnswerQuestionCodes,
       neededByCategory,
       programCount:
@@ -1132,13 +1144,18 @@ export class PostgresPlatformEnumerationsRepository
     };
   }
 
-  async questionLockScopeFor(programNameKey: string | null): Promise<QuestionLockScope> {
-    const scope = programNameKey === null ? null : await this.narrowingScopeFor(programNameKey);
+  async questionLockScopeFor(
+    programNameKey: string | null,
+    category?: LoanCategory,
+  ): Promise<QuestionLockScope> {
+    const scope =
+      programNameKey === null ? null : await this.narrowingScopeFor(programNameKey, category);
     if (scope !== null) {
       return {
         platformQuestionCodes: scope.platformQuestionCodes,
         neededQuestionCodes: scope.neededQuestionCodes,
         mustAnswerQuestionCodes: scope.mustAnswerQuestionCodes ?? [],
+        incomeProof: scope.incomeProof === true,
       };
     }
     // No programme to read from: the platform's own facts, resolved exactly as the loop in
@@ -1151,7 +1168,9 @@ export class PostgresPlatformEnumerationsRepository
       const code = fact.boundQuestion?.code ?? bankAxisByFactKey(fact.key)?.questionCode;
       return code !== undefined && isReservedFactKey(fact.key) ? [code] : [];
     });
-    return { platformQuestionCodes };
+    // No programme yet: a name created from the admin is payslip-only (v30.8.0), so the fixed
+    // question set already binds it.
+    return { platformQuestionCodes, incomeProof: true };
   }
 
   async offeredProgramFlows(): Promise<

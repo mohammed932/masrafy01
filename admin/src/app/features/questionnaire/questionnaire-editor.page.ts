@@ -53,12 +53,14 @@ import {
 import {
   QuestionnaireApiService,
   isChoiceQuestionType,
+  type EnabledWhenRule,
   type OptionRow,
   type PublishWarning,
   type QuestionEngineLock,
   type QuestionRow,
   type QuestionType,
 } from './questionnaire.api.service';
+import { ruleCodes } from '@shared/questions/enabled-when';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { MoneyInputDirective, formatGroupedNumber } from '@core/directives/money-input.directive';
 
@@ -84,8 +86,8 @@ const PAGE_SIZE = 10;
 
 type TypeFilter = QuestionType | 'ALL';
 
-/** The two comparisons `enabledWhen` can carry — the server's own closed pair. */
-type BranchOperator = 'equals' | 'not_equals';
+/** The comparisons `enabledWhen` can carry — the server's own closed set. */
+type BranchOperator = 'equals' | 'not_equals' | 'in';
 
 /**
  * GLOBAL question-pool authoring (Constitution V, Feature 010 — questions are
@@ -624,30 +626,38 @@ type BranchOperator = 'equals' | 'not_equals';
                 aria-hidden="true"
               ></span>
               <div class="lock-text">
-                @if (lock.reason === 'engine') {
-                  <p class="lock-title" i18n="@@qedit.lock_title_engine">
-                    The loan engine reads this answer
+                <!-- Wording-only first: a fixed income-proof question may still carry an
+                     engine reason, and what the admin needs to hear is what is left to edit. -->
+                @if (wordingOnly()) {
+                  <p class="lock-title" i18n="@@qedit.lock_title_base">
+                    Asked on every income-proof program
                   </p>
-                } @else {
+                } @else if (lock.reason === 'program') {
                   <p class="lock-title" i18n="@@qedit.lock_title_program">
                     Bank programs work out offers from this answer
                   </p>
+                } @else {
+                  <p class="lock-title" i18n="@@qedit.lock_title_engine">
+                    The loan engine reads this answer
+                  </p>
                 }
-                <!-- Said by what may still change, not by who reads it: a table reader (a
-                     programme, or the platform's car and I-Score tables) may gain an answer,
-                     an answer-by-answer reader may not. -->
-                @if (lock.optionsFixed) {
+                <!-- Said by what may still change, not by who reads it. No locked question
+                     gains an answer from here any more, whoever reads it (v30.12.0). -->
+                @if (wordingOnly()) {
+                  <p class="lock-body" i18n="@@qedit.lock_body_base">
+                    Only its wording can change: the question, its helper text and its answers'
+                    labels, in both languages.
+                  </p>
+                } @else {
                   <p class="lock-body" i18n="@@qedit.lock_body_fixed">
                     Only its wording can change. Its answer type, unit, required setting,
                     when-to-ask rule and answers are fixed, and it can't be deleted.
                   </p>
-                } @else {
-                  <p class="lock-body" i18n="@@qedit.lock_body_open">
-                    You can change its wording and add answers. Its answer type, unit, required
-                    setting and when-to-ask rule are fixed, its answers can't be removed, and it
-                    can't be deleted.
-                  </p>
                 }
+                <p class="lock-body" i18n="@@qedit.lock_numbers">
+                  Keep the numbers in its wording as they are, in the question, the helper text and
+                  the answers: applicants choose by them.
+                </p>
                 @if (lock.reason === 'program') {
                   <p class="lock-who" i18n="@@qedit.lock_who">Read by {{ programNamesOf(lock) }}</p>
                 }
@@ -798,10 +808,13 @@ type BranchOperator = 'equals' | 'not_equals';
                     The maximum must be greater than or equal to the minimum.
                   </p>
                 }
-                <p class="hint" i18n="@@qedit.num_hint">
-                  Bounds are inclusive, and the step counts up from the minimum. Leave a field empty
-                  for no limit.
-                </p>
+                <!-- An instruction to edit, so not over the read-only bounds of a fixed question. -->
+                @if (!wordingOnly()) {
+                  <p class="hint" i18n="@@qedit.num_hint">
+                    Bounds are inclusive, and the step counts up from the minimum. Leave a field
+                    empty for no limit.
+                  </p>
+                }
               </div>
             } @else if (selectedType() === 'TEXT') {
               <p class="section-lbl" i18n="@@qedit.sec_rules">Accepted values</p>
@@ -953,13 +966,13 @@ type BranchOperator = 'equals' | 'not_equals';
               </div>
               @if (branchOn()) {
                 <div class="rule-line">
-                  <!-- Two values, both worth showing at once: as a select the panel
+                  <!-- Three values, all worth showing at once: as a select the panel
                        inherited the trigger's content width, so "is not" arrived
                        ellipsised to "is …" — a picker whose options cannot be read.
-                       role=radiogroup is the honest semantics for one-of-two, and it
+                       role=radiogroup is the honest semantics for one-of-three, and it
                        reuses the answer-type picker's segmented vocabulary. -->
-                  <span class="sr-only" id="branch-op-lbl" i18n="@@qedit.branch_operator">
-                    Matches or does not match
+                  <span class="sr-only" id="branch-op-lbl" i18n="@@qedit.branch_compare">
+                    How the answer is compared
                   </span>
                   <div class="op-group" role="radiogroup" aria-labelledby="branch-op-lbl">
                     @for (op of branchOperators; track op) {
@@ -976,36 +989,72 @@ type BranchOperator = 'equals' | 'not_equals';
                       </button>
                     }
                   </div>
-                  <span class="sr-only" id="branch-opt-lbl" i18n="@@qedit.branch_option">
-                    The answer that turns this question on
-                  </span>
-                  <nz-select
-                    formControlName="optionCode"
-                    class="select-comfy rule-grow"
-                    nzDropdownClassName="select-comfy-dropdown"
-                    [nzOptionHeightPx]="42"
-                    nzShowSearch
-                    [nzPlaceHolder]="branchPickOptionLabel"
-                    [attr.aria-labelledby]="'branch-opt-lbl'"
-                  >
-                    @for (o of branchOptions(); track o.id) {
-                      <nz-option
-                        [nzValue]="o.code"
-                        [nzLabel]="isAr ? o.labelAr : o.labelEn"
-                      ></nz-option>
-                    }
-                  </nz-select>
+                  <!-- "is one of" names several answers, so its picker takes several: one
+                       select per comparison rather than one select whose mode flips, which
+                       would carry a single code into a list control or the reverse. -->
+                  @if (branchOperator() === 'in') {
+                    <span class="sr-only" id="branch-opts-lbl" i18n="@@qedit.branch_options">
+                      The answers that turn this question on
+                    </span>
+                    <nz-select
+                      nzMode="multiple"
+                      formControlName="optionCodes"
+                      class="select-comfy rule-grow"
+                      nzDropdownClassName="select-comfy-dropdown"
+                      [nzOptionHeightPx]="42"
+                      [nzMaxMultipleCount]="50"
+                      [nzPlaceHolder]="branchPickOptionsLabel"
+                      [attr.aria-labelledby]="'branch-opts-lbl'"
+                    >
+                      @for (o of branchOptions(); track o.id) {
+                        <nz-option
+                          [nzValue]="o.code"
+                          [nzLabel]="isAr ? o.labelAr : o.labelEn"
+                        ></nz-option>
+                      }
+                    </nz-select>
+                  } @else {
+                    <span class="sr-only" id="branch-opt-lbl" i18n="@@qedit.branch_option">
+                      The answer that turns this question on
+                    </span>
+                    <nz-select
+                      formControlName="optionCode"
+                      class="select-comfy rule-grow"
+                      nzDropdownClassName="select-comfy-dropdown"
+                      [nzOptionHeightPx]="42"
+                      nzShowSearch
+                      [nzPlaceHolder]="branchPickOptionLabel"
+                      [attr.aria-labelledby]="'branch-opt-lbl'"
+                    >
+                      @for (o of branchOptions(); track o.id) {
+                        <nz-option
+                          [nzValue]="o.code"
+                          [nzLabel]="isAr ? o.labelAr : o.labelEn"
+                        ></nz-option>
+                      }
+                    </nz-select>
+                  }
                 </div>
               }
-              @if (editLock()) {
+              @if (wordingOnly()) {
+                <p class="hint" i18n="@@qedit.branch_locked_base">
+                  Fixed because every income-proof program asks this question.
+                </p>
+              } @else if (editLock()) {
                 <p class="hint" i18n="@@qedit.branch_locked">
                   Fixed because offers are worked out from this answer: changing when it is asked
                   would change who answers it.
                 </p>
               } @else if (branchIncomplete()) {
-                <p class="hint warn" i18n="@@qedit.branch_incomplete">
-                  Pick which answer turns this question on — a half-set rule hides nothing.
-                </p>
+                @if (branchOperator() === 'in') {
+                  <p class="hint warn" i18n="@@qedit.branch_incomplete_in">
+                    Pick at least two answers. For a single answer, use “is” instead.
+                  </p>
+                } @else {
+                  <p class="hint warn" i18n="@@qedit.branch_incomplete">
+                    Pick which answer turns this question on — a half-set rule hides nothing.
+                  </p>
+                }
               } @else if (branchSourceIsMulti()) {
                 <!-- The one thing the sentence above cannot say: the source accepts
                      several picks, and the rule fires on any one of them. Shown only
@@ -2424,11 +2473,18 @@ export class QuestionnaireEditorPage implements OnInit {
     () => this.editingQuestion()?.engineLock ?? null,
   );
   /**
-   * An answer may be ADDED to a question a table reads (it may just lack the row), never to one
-   * the engine or the app maps answer by answer: a debt with no amount question, a job type with
-   * no bucket, means nothing anywhere.
+   * No answer may be ADDED to a locked question, whoever reads it (v30.12.0): nothing checks a
+   * new answer has a row in the tables that read it, and one without is quoted on whatever a
+   * table does with a stranger. The server refuses it too (`QUESTION_ENGINE_LOCKED`).
    */
-  readonly canAddOption = computed(() => this.editLock()?.optionsFixed !== true);
+  readonly canAddOption = computed(() => this.editLock() === null);
+
+  /**
+   * One of the fixed income-proof questions: asked on every program name that sells a payslip
+   * programme, so only its WORDING may change — the question, its helper text, its answers'
+   * labels. Keyed on `shapeFixed`, never on the reason, which may still read `engine`.
+   */
+  readonly wordingOnly = computed(() => this.editLock()?.shapeFixed === true);
 
   /** Option sub-editors inside the expanded row. */
   readonly editingOptionId = signal<string | null>(null);
@@ -2530,7 +2586,10 @@ export class QuestionnaireEditorPage implements OnInit {
     enabledWhen: new FormGroup({
       questionCode: new FormControl('', { nonNullable: true }),
       operator: new FormControl<BranchOperator>('equals', { nonNullable: true }),
+      /** `equals` / `not_equals` — the one answer compared. */
       optionCode: new FormControl('', { nonNullable: true }),
+      /** `in` — the answers any one of which turns the question on (two or more). */
+      optionCodes: new FormControl<string[]>([], { nonNullable: true }),
     }),
   });
 
@@ -2610,9 +2669,12 @@ export class QuestionnaireEditorPage implements OnInit {
 
   /** The row chip's tooltip, and its screen-reader text. */
   lockSummary(lock: QuestionEngineLock): string {
-    return lock.reason === 'engine'
-      ? $localize`:@@qedit.lock_tip_engine:Locked: the loan engine reads this answer`
-      : $localize`:@@qedit.lock_tip_program:Locked: read by ${this.programNamesOf(lock)}:names:`;
+    if (lock.shapeFixed === true) {
+      return $localize`:@@qedit.lock_tip_base:Locked: asked on every income-proof program`;
+    }
+    return lock.reason === 'program'
+      ? $localize`:@@qedit.lock_tip_program:Locked: read by ${this.programNamesOf(lock)}:names:`
+      : $localize`:@@qedit.lock_tip_engine:Locked: the loan engine reads this answer`;
   }
 
   /** The program names a `program` lock is read by, in the admin's language. */
@@ -2627,14 +2689,20 @@ export class QuestionnaireEditorPage implements OnInit {
   // `$localize` on every change detection pass.
   readonly branchPickSourceLabel = $localize`:@@qedit.branch_always:Pick an earlier question`;
   readonly branchPickOptionLabel = $localize`:@@qedit.branch_pick_option:Pick an answer`;
+  readonly branchPickOptionsLabel = $localize`:@@qedit.branch_pick_options:Pick two or more answers`;
 
-  /** The two halves of `enabledWhen.operator`, in the order the segments render. */
-  readonly branchOperators: readonly BranchOperator[] = ['equals', 'not_equals'];
+  /** The values of `enabledWhen.operator`, in the order the segments render. */
+  readonly branchOperators: readonly BranchOperator[] = ['equals', 'not_equals', 'in'];
 
   branchOperatorLabel(op: BranchOperator): string {
-    return op === 'equals'
-      ? $localize`:@@qedit.branch_is:is`
-      : $localize`:@@qedit.branch_is_not:is not`;
+    switch (op) {
+      case 'equals':
+        return $localize`:@@qedit.branch_is:is`;
+      case 'not_equals':
+        return $localize`:@@qedit.branch_is_not:is not`;
+      case 'in':
+        return $localize`:@@qedit.branch_is_one_of:is one of`;
+    }
   }
 
   typeLabel(type: QuestionType): string {
@@ -2780,11 +2848,7 @@ export class QuestionnaireEditorPage implements OnInit {
         unitAr: q.numericUnitAr ?? '',
       },
       text: { maxLength: q.textMaxLength },
-      enabledWhen: {
-        questionCode: q.enabledWhen?.questionCode ?? '',
-        operator: q.enabledWhen?.operator === 'not_equals' ? 'not_equals' : 'equals',
-        optionCode: q.enabledWhen?.optionCode ?? '',
-      },
+      enabledWhen: branchFormValue(q.enabledWhen),
     } as never);
     this.applyEngineLock(q.engineLock ?? null);
     this.expandedId.set(q.id);
@@ -2813,6 +2877,13 @@ export class QuestionnaireEditorPage implements OnInit {
     set(c.numeric.controls.unitEn, lock !== null);
     set(c.numeric.controls.unitAr, lock !== null);
     set(c.enabledWhen, lock !== null);
+    // A fixed income-proof question keeps its bounds too: only its wording may change. Shown,
+    // read-only, so the admin still sees what the app accepts.
+    const fixed = lock?.shapeFixed === true;
+    set(c.numeric.controls.minValue, fixed);
+    set(c.numeric.controls.maxValue, fixed);
+    set(c.numeric.controls.step, fixed);
+    set(c.text.controls.maxLength, fixed);
   }
 
   startCreate(): void {
@@ -2829,7 +2900,7 @@ export class QuestionnaireEditorPage implements OnInit {
       type: 'SINGLE_SELECT',
       numeric: { minValue: '', maxValue: '', step: '', unitEn: '', unitAr: '' },
       text: { maxLength: null },
-      enabledWhen: { questionCode: '', operator: 'equals', optionCode: '' },
+      enabledWhen: { questionCode: '', operator: 'equals', optionCode: '', optionCodes: [] },
     } as never);
     this.applyEngineLock(null);
     this.creating.set(true);
@@ -2879,9 +2950,21 @@ export class QuestionnaireEditorPage implements OnInit {
    * column over writes `type`. `nz-select` is gone from this slot because its panel
    * inherits the trigger's content width, and a trigger sized to "is" ellipsised
    * "is not" to "is …".
+   *
+   * The picked answer travels when the move keeps its meaning: one answer becomes the first
+   * of an "is one of" list, and a list of exactly one becomes that answer. A list of several
+   * is not cut down to its first entry, which would quietly ask a different rule.
    */
   pickBranchOperator(op: BranchOperator): void {
-    this.questionForm.controls.enabledWhen.controls.operator.setValue(op);
+    const c = this.questionForm.controls.enabledWhen.controls;
+    const from = c.operator.value;
+    if (from === op) return;
+    if (op === 'in' && c.optionCodes.value.length === 0 && c.optionCode.value !== '') {
+      c.optionCodes.setValue([c.optionCode.value]);
+    } else if (from === 'in' && c.optionCode.value === '' && c.optionCodes.value.length === 1) {
+      c.optionCode.setValue(c.optionCodes.value[0] ?? '');
+    }
+    c.operator.setValue(op);
   }
 
   /**
@@ -2929,12 +3012,15 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   /**
-   * Changing the source invalidates the option: option codes are scoped per
+   * Changing the source invalidates the answers: option codes are scoped per
    * question, so a code kept from the previous source would be rejected as
-   * `unknown_option`. Cleared here rather than validated later.
+   * `unknown_option`. Cleared here rather than validated later — both the single
+   * answer and the "is one of" list.
    */
   onBranchSourceChange(): void {
-    this.questionForm.controls.enabledWhen.controls.optionCode.setValue('');
+    const c = this.questionForm.controls.enabledWhen.controls;
+    c.optionCode.setValue('');
+    c.optionCodes.setValue([]);
   }
 
   /** Drop the rule entirely — the question becomes unconditional. */
@@ -2943,18 +3029,22 @@ export class QuestionnaireEditorPage implements OnInit {
       questionCode: '',
       operator: 'equals',
       optionCode: '',
+      optionCodes: [],
     });
   }
 
   /**
-   * A half-filled rule: a source picked with no option. Blocks save, because the
-   * server would reject it and because a rule that cannot be evaluated is treated
-   * as DANGLING at read time — it never hides its question, so it would look
-   * saved while doing nothing.
+   * A half-filled rule: a source picked with no answer — or, for "is one of", fewer
+   * than two (one answer is "is", and the server refuses a one-answer list). Blocks
+   * save, because the server would reject it and because a rule that cannot be
+   * evaluated is treated as DANGLING at read time — it never hides its question, so
+   * it would look saved while doing nothing.
    */
   branchIncomplete(): boolean {
-    const { questionCode, optionCode } = this.questionForm.controls.enabledWhen.getRawValue();
-    return questionCode !== '' && optionCode === '';
+    const { questionCode, operator, optionCode, optionCodes } =
+      this.questionForm.controls.enabledWhen.getRawValue();
+    if (questionCode === '') return false;
+    return operator === 'in' ? new Set(optionCodes).size < 2 : optionCode === '';
   }
 
   /** Live guard mirroring the server's `numeric.maxValue` rule, for fast feedback. */
@@ -2968,7 +3058,12 @@ export class QuestionnaireEditorPage implements OnInit {
 
   // ---- Question writes -----------------------------------------------------
   async submitQuestion(): Promise<void> {
-    if (this.questionForm.invalid || this.numericRangeInverted() || this.branchIncomplete()) return;
+    const lock = this.editLock();
+    const wordingOnly = this.wordingOnly();
+    if (this.questionForm.invalid) return;
+    // What is not sent cannot block: a fixed question's bounds, a locked question's rule.
+    if (!wordingOnly && this.numericRangeInverted()) return;
+    if (lock === null && this.branchIncomplete()) return;
     const v = this.questionForm.getRawValue();
     // Send only the rule block the chosen type owns. Sending both would fail the
     // server's QUESTION_TYPE_RULES_INVALID check; sending `null` clears the other.
@@ -2979,31 +3074,36 @@ export class QuestionnaireEditorPage implements OnInit {
     // An empty source code means "always ask". On UPDATE that must be sent as an
     // explicit `null` to clear a rule the question previously had; on CREATE the
     // key is simply omitted.
-    const branch =
-      v.enabledWhen.questionCode !== '' && v.enabledWhen.optionCode !== ''
-        ? {
-            questionCode: v.enabledWhen.questionCode,
-            operator: v.enabledWhen.operator,
-            optionCode: v.enabledWhen.optionCode,
-          }
-        : null;
+    const branch = branchRule(v.enabledWhen);
     const id = this.expandedId();
     if (id !== null) {
       // `code` is immutable (A33) — never sent. `type` is not sent either: it is
       // locked in edit mode, because answers already reference this shape.
       // `displayOrder` is not sent: order is owned by drag / move, not this form.
+      const wording = {
+        questionEn: v.questionEn,
+        questionAr: v.questionAr,
+        // Always sent, empty included: an emptied box must CLEAR the sub-label,
+        // which omitting the key would silently decline to do.
+        helperTextEn: v.helperTextEn.trim(),
+        helperTextAr: v.helperTextAr.trim(),
+      };
       try {
-        await this.api.updateQuestion(id, {
-          questionEn: v.questionEn,
-          questionAr: v.questionAr,
-          // Always sent, empty included: an emptied box must CLEAR the sub-label,
-          // which omitting the key would silently decline to do.
-          helperTextEn: v.helperTextEn.trim(),
-          helperTextAr: v.helperTextAr.trim(),
-          isRequired: v.isRequired,
-          enabledWhen: branch,
-          ...rules,
-        });
+        // A fixed income-proof question sends its wording and NOTHING else: an omitted key
+        // is "unchanged", and every other field is the server's to refuse. A locked question
+        // leaves its rule out the same way — the rule cannot change here, and re-sending a
+        // copy of it is one more thing that could fail to round-trip.
+        await this.api.updateQuestion(
+          id,
+          wordingOnly
+            ? wording
+            : {
+                ...wording,
+                isRequired: v.isRequired,
+                ...(lock === null ? { enabledWhen: branch } : {}),
+                ...rules,
+              },
+        );
       } catch {
         // A refusal (an engine lock, a rule the server rejects) is already a toast from the
         // interceptor. The modal stays open with the admin's edits so nothing typed is lost.
@@ -3125,13 +3225,20 @@ export class QuestionnaireEditorPage implements OnInit {
     const labelEn = this.optionEn.value.trim();
     const labelAr = this.optionAr.value.trim();
     const editingId = this.editingOptionId();
-    if (editingId !== null) {
-      await this.api.updateOption(editingId, { labelEn, labelAr });
-      this.message.success($localize`:@@qedit.option_saved:Option saved`);
-    } else {
-      // No displayOrder: the server appends after the existing options.
-      await this.api.createOption(q.id, { labelEn, labelAr });
-      this.message.success($localize`:@@qedit.option_added:Option added`);
+    try {
+      if (editingId !== null) {
+        await this.api.updateOption(editingId, { labelEn, labelAr });
+        this.message.success($localize`:@@qedit.option_saved:Option saved`);
+      } else {
+        // No displayOrder: the server appends after the existing options.
+        await this.api.createOption(q.id, { labelEn, labelAr });
+        this.message.success($localize`:@@qedit.option_added:Option added`);
+      }
+    } catch {
+      // Refused — on a locked question, a reword that changes its numbers
+      // (`ENGINE_WORDING_NUMBERS_CHANGED`). The toast already says why; the editor stays open
+      // on what was typed, so it can be put right rather than retyped.
+      return;
     }
     await this.reload();
     // Adding options comes in runs, so the add row stays open and pre-cleared;
@@ -3230,6 +3337,49 @@ function flatten(tree: { questions: QuestionRow[] }[]): QuestionRow[] {
     .flatMap((g) => g.questions)
     .filter((q) => q.isActive)
     .sort((a, b) => a.displayOrder - b.displayOrder);
+}
+
+/** The branch rule as the form holds it — one shape for every operator. */
+interface BranchFormValue {
+  questionCode: string;
+  operator: BranchOperator;
+  optionCode: string;
+  optionCodes: string[];
+}
+
+/**
+ * A stored rule into the form, read through `ruleCodes` like every other reader: `in` fills the
+ * list, `equals` / `not_equals` the single answer. An operator this build does not know loads as
+ * "is" with no answer, so the rule reads as unfinished rather than being saved back as a
+ * different one.
+ */
+function branchFormValue(rule: QuestionRow['enabledWhen']): BranchFormValue {
+  const operator: BranchOperator =
+    rule?.operator === 'not_equals' ? 'not_equals' : rule?.operator === 'in' ? 'in' : 'equals';
+  const codes = ruleCodes(rule);
+  return {
+    questionCode: rule?.questionCode ?? '',
+    operator,
+    optionCode: operator === 'in' ? '' : (codes[0] ?? ''),
+    optionCodes: operator === 'in' ? [...codes] : [],
+  };
+}
+
+/**
+ * The form back into the rule the API takes, or `null` for "always ask" — and for a rule too
+ * unfinished to send, which `branchIncomplete` keeps from reaching here on an editable question.
+ */
+function branchRule(v: BranchFormValue): EnabledWhenRule | null {
+  if (v.questionCode === '') return null;
+  if (v.operator === 'in') {
+    const optionCodes = [...new Set(v.optionCodes)];
+    return optionCodes.length >= 2
+      ? { questionCode: v.questionCode, operator: 'in', optionCodes }
+      : null;
+  }
+  return v.optionCode === ''
+    ? null
+    : { questionCode: v.questionCode, operator: v.operator, optionCode: v.optionCode };
 }
 
 /**

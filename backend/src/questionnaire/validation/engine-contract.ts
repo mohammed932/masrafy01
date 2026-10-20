@@ -14,17 +14,28 @@
  *
  *   1. THE LOCK (`engineLocks` + `isRefusedForLock` + `lockedChangesBetween`). A question the
  *      engine reads keeps its type, its unit, its required flag, its show-when rule, its place
- *      in the pool, and the answers it offers. Its wording stays editable. A question is locked
- *      for one of two reasons, derived — never ticked by hand, so it can be neither forgotten
- *      nor removed by mistake:
+ *      in the pool, and the answers it offers. Its wording stays editable — all but the
+ *      quantities in it (`wordingNumberBreaks`, v30.12.0): "Less than 6 months" may become
+ *      "Under 6 months", never "Under 12 months", because the engine reads the CODE and the
+ *      applicant picks by the WORDS. A question is locked for one of these reasons, derived —
+ *      never ticked by hand, so it can be neither forgotten nor removed by mistake:
  *        - `engine`: every quote reads it — the four money figures, the debts and their amounts,
  *          the job type, what the app reads by code — or the platform owns the fact it answers
  *          (I-Score, the car figures).
  *        - `program`: a live bank programme reads it, through its calculation or a table.
- *      Whether an answer may be ADDED is its own flag (`optionsFixed`): never to a question the
- *      engine or the app maps answer by answer (a debt with no amount question, a job type with
- *      no bucket, a priority with no sort key means nothing anywhere); freely to one a table
- *      reads (the table may just lack the row, which the programme already reports).
+ *        - `base`: it is in the FIXED QUESTION SET (`base-question-set.ts`, v30.11.0) — the
+ *          client's income-proof questions, owned in code. On top of everything above, such a
+ *          question keeps its bounds, its text length and the loan types it is asked in
+ *          (`shapeFixed`): only its wording (question, helper text, answer labels) and its
+ *          place in the order change. An engine question in the set keeps reason `engine` and
+ *          gains `shapeFixed`.
+ *      No answer may be ADDED to a locked question, whoever reads it (v30.12.0, operator
+ *      decision). Until then a question only a table read could gain one, on the reasoning that
+ *      the table might just lack the row — but nothing checks that a new answer has a row, and
+ *      one without is quoted on whatever the table does with a stranger. A new answer to an
+ *      engine question is a release now. The Manage-values lists that ARE some questions'
+ *      answers (compounds, club branches, grades — `syncMirroredOptions`) are not questionnaire
+ *      writes and stay open: each bank's table states what an unlisted value gets.
  *
  *   2. THE RATCHET (`engineContractViolations` + `introducedViolations`). The invariants the
  *      warnings and the scripts already stated, evaluated on the questionnaire a write WOULD
@@ -52,9 +63,15 @@ import {
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
   PRIORITY_QUESTION_CODE,
   obligationItemQuestionFor,
+  type MoneyFieldBinding,
 } from '@/matching/pipeline/money-field-bindings';
+import { sortCategories } from '@/common/loan-category.util';
+import { sameQuantities, wordingQuantities } from './wording-numbers';
+import { Decimal } from '@prisma/client/runtime/library';
+import { BASE_QUESTIONS, baseQuestion } from '@/matching/pipeline/base-question-set';
 import { isKnownEmploymentType } from '@/matching/pipeline/employment-type';
 import { narrowAskedQuestions, type NarrowingScope } from './question-scope';
+import { enabledWhenGate } from './question-visibility';
 
 // ---- The engine's own inputs ----------------------------------------------
 
@@ -81,23 +98,19 @@ const ENGINE_INPUT_TYPES: ReadonlyMap<string, string> = new Map<string, string>(
  * property question, and holding car to one would make an accidental tick impossible to undo.
  * Mirrors the mappers: a code a mapper starts reading is added here in the same change.
  */
+//
+// Time in the job and the salary transfer are NOT here any more (v30.11.0): `job_tenure` and
+// `salary_transfer` left the pool for the fixed question set's `months_in_current_job` and
+// `can_transfer_salary`, which the server reads itself (`engine-inputs-from-answers.ts`) —
+// the app's own copy is a fallback for an older build — and which the fixed-set lock already
+// holds to their answers and their loan types.
 export const APP_MAPPED_QUESTIONS_BY_CATEGORY: Readonly<Record<LoanCategory, readonly string[]>> = {
-  personal: [
-    EMPLOYMENT_TYPE_QUESTION_CODE,
-    PRIORITY_QUESTION_CODE,
-    'job_tenure',
-    'salary_transfer',
-    'prior_rejection',
-  ],
-  car: [EMPLOYMENT_TYPE_QUESTION_CODE, PRIORITY_QUESTION_CODE, 'job_tenure', 'salary_transfer'],
-  // The mortgage mapper ALSO reads `job_tenure`, `salary_transfer`, `prior_rejection`,
-  // `in_compound` and `registration_status`, and they are left off on purpose (2026-10-13,
-  // v30.10.0): no mortgage programme moves money on any of them (every transfer table is one
-  // `none` row, eligibility is skipped on apply, the other three are stored and read by
-  // nothing), and the two mortgage names skip them to ask the client's eleven questions —
-  // `in_compound` and `registration_status` left the pool altogether on 2026-10-14. Every
-  // mortgage applicant is quoted on the mapper's defaults. A mortgage programme that starts
-  // pricing on one puts it back here in the same change.
+  personal: [EMPLOYMENT_TYPE_QUESTION_CODE, PRIORITY_QUESTION_CODE, 'prior_rejection'],
+  car: [EMPLOYMENT_TYPE_QUESTION_CODE, PRIORITY_QUESTION_CODE],
+  // The mortgage mapper ALSO reads `prior_rejection`, which is left off on purpose (2026-10-13,
+  // v30.10.0): no mortgage programme moves money on it (eligibility is skipped on apply), and
+  // the two mortgage names skip it to ask the client's questions. A mortgage programme that
+  // starts pricing on it puts it back here in the same change.
   mortgage: [
     EMPLOYMENT_TYPE_QUESTION_CODE,
     PRIORITY_QUESTION_CODE,
@@ -126,6 +139,28 @@ export const ENGINE_INPUT_QUESTION_CODES: ReadonlySet<string> = new Set([
 const DEBT_TYPE_BY_ITEM: ReadonlyMap<string, string> = new Map(
   Object.entries(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE).map(([debtType, item]) => [item, debtType]),
 );
+
+/** How the engine itself reads one of its own inputs — what the engine-rules view says. */
+export type EngineInputReader =
+  /** One of the four money figures every quote is built on. */
+  | { readonly kind: 'money_input'; readonly binding: MoneyFieldBinding }
+  /** The debt-type pick: which amount questions are asked, and what is summed. */
+  | { readonly kind: 'debt_types' }
+  /** One debt's amount, shown when that debt is ticked. */
+  | { readonly kind: 'obligation_amount'; readonly debtType: string }
+  /** The job type: the bucket a programme's DBR, term and rate tables are keyed by. */
+  | { readonly kind: 'employment_type' };
+
+/** The engine's own reading of `code`, or `null` when it is not one of the engine's inputs. */
+export function engineInputReaderOf(code: string): EngineInputReader | null {
+  const binding = MONEY_FIELD_BINDING_KEYS.find((key) => MONEY_FIELD_BINDINGS[key] === code);
+  if (binding !== undefined) return { kind: 'money_input', binding };
+  if (code === DEBT_TYPES_QUESTION_CODE) return { kind: 'debt_types' };
+  const debtType = DEBT_TYPE_BY_ITEM.get(code);
+  if (debtType !== undefined) return { kind: 'obligation_amount', debtType };
+  if (code === EMPLOYMENT_TYPE_QUESTION_CODE) return { kind: 'employment_type' };
+  return null;
+}
 
 /** Asked in EVERY loan type on sale: the money figures and the debt-type pick (`check:money`). */
 const ASKED_IN_EVERY_LOAN_TYPE: readonly string[] = [
@@ -172,6 +207,53 @@ export interface ContractQuestion {
   /** The numeric unit, ar and en — what a figure IS (EGP a month, months). */
   readonly unitAr: string | null;
   readonly unitEn: string | null;
+  /** The numeric bounds as decimal strings; `null` = unbounded / no step. */
+  readonly numericMin: string | null;
+  readonly numericMax: string | null;
+  readonly numericStep: string | null;
+  /** A text question's length cap; `null` = none. */
+  readonly textMaxLength: number | null;
+  /**
+   * What the applicant reads — judged only for the quantities in it (`wordingNumberBreaks`).
+   * Absent where the caller has no wording to give; then nothing about wording is judged.
+   */
+  readonly wording?: ContractWording;
+}
+
+/** A question's wording, ar and en, and its ACTIVE answers' labels by code. */
+export interface ContractWording {
+  readonly questionAr: string;
+  readonly questionEn: string;
+  readonly helperTextAr: string | null;
+  readonly helperTextEn: string | null;
+  readonly optionLabels: Readonly<
+    Record<string, { readonly labelAr: string; readonly labelEn: string }>
+  >;
+}
+
+/** The wording a write would leave. `undefined` = left as it is; `null` clears a helper text. */
+export interface ProposedWording {
+  readonly questionAr?: string;
+  readonly questionEn?: string;
+  readonly helperTextAr?: string | null;
+  readonly helperTextEn?: string | null;
+  readonly optionLabels?: Readonly<
+    Record<string, { readonly labelAr?: string; readonly labelEn?: string }>
+  >;
+}
+
+/** One wording whose quantities a write would change. */
+export interface WordingNumberBreak {
+  readonly field: 'question' | 'helper' | 'option';
+  /** The answer, on an `option` break; `null` otherwise. */
+  readonly optionCode: string | null;
+  readonly language: 'ar' | 'en';
+  readonly was: string;
+  readonly now: string;
+  /** What `was` states, as written — what has to stay. */
+  readonly keep: readonly string[];
+  /** What `now` states, as written. */
+  readonly found: readonly string[];
 }
 
 /** One path an applicant can be quoted on. `programNameKey: null` = a programme with no name. */
@@ -308,7 +390,8 @@ export function engineContractViolations(
         : gate !== null &&
           gate.questionCode === DEBT_TYPES_QUESTION_CODE &&
           gate.operator === 'equals' &&
-          gate.optionCode === debtType;
+          gate.optionCodes.length === 1 &&
+          gate.optionCodes[0] === debtType;
     if (!gateIsRight) out.push({ rule: 'engine_question_gated', questionCode: code });
   }
 
@@ -459,42 +542,101 @@ export function engineContractViolations(
 
 // ---- The lock ---------------------------------------------------------------
 
-export type EngineLockReason = 'engine' | 'program';
+export type EngineLockReason = 'engine' | 'base' | 'program';
 
 export interface EngineLock {
   readonly reason: EngineLockReason;
   /**
-   * No answer may be ADDED: the engine or the app maps this question's answers one by one, so a
-   * new one would mean nothing anywhere. False where a table reads it (a programme's, or the
-   * platform's own car and I-Score tables): the table may just lack the row, which the
-   * programme already reports as a stated reason.
+   * In the fixed question set: its bounds, its text length and the loan types in `baseCategories`
+   * are locked too — only wording and order may change (`base-question-set.ts`).
+   */
+  readonly shapeFixed: boolean;
+  /** The loan types a `shapeFixed` question may never leave (empty otherwise). */
+  readonly baseCategories: readonly LoanCategory[];
+  /**
+   * No answer may be ADDED. True on every lock since v30.12.0 (see the header); kept on the wire
+   * so an admin bundle built before it still hides "Add answer".
    */
   readonly optionsFixed: boolean;
   /** The program names whose programmes read it — empty for an `engine` lock. Sorted. */
   readonly programNameKeys: readonly string[];
 }
 
-/** Which questions are locked, and why. An `engine` reason wins over a `program` one. */
-export function engineLocks(ctx: EngineContractContext): ReadonlyMap<string, EngineLock> {
-  const out = new Map<string, EngineLock>();
-  for (const code of ctx.platformQuestionCodes) {
-    out.set(code, { reason: 'engine', optionsFixed: false, programNameKeys: [] });
-  }
-  for (const code of ENGINE_INPUT_QUESTION_CODES) {
-    out.set(code, { reason: 'engine', optionsFixed: true, programNameKeys: [] });
-  }
-  const readers = new Map<string, Set<string>>();
+/** A program name whose live programmes read a question, and the loan types they are sold in. */
+export interface ProgramReader {
+  readonly programNameKey: string;
+  readonly categories: readonly LoanCategory[];
+}
+
+/**
+ * Every question a live programme reads, by code, with each program name reading it and the
+ * loan types it reads it in — whatever else locks the question. Names sorted, loan types in
+ * registry order.
+ */
+export function programReaders(
+  ctx: EngineContractContext,
+): ReadonlyMap<string, readonly ProgramReader[]> {
+  const byCode = new Map<string, Map<string, Set<LoanCategory>>>();
   for (const flow of ctx.flows) {
     if (flow.programNameKey === null) continue;
     for (const code of flow.scope?.neededByCategory?.[flow.category] ?? []) {
-      if (out.has(code)) continue;
-      const names = readers.get(code) ?? new Set<string>();
-      names.add(flow.programNameKey);
-      readers.set(code, names);
+      const names = byCode.get(code) ?? new Map<string, Set<LoanCategory>>();
+      const categories = names.get(flow.programNameKey) ?? new Set<LoanCategory>();
+      categories.add(flow.category);
+      names.set(flow.programNameKey, categories);
+      byCode.set(code, names);
     }
   }
-  for (const [code, names] of readers) {
-    out.set(code, { reason: 'program', optionsFixed: false, programNameKeys: [...names].sort() });
+  const out = new Map<string, ProgramReader[]>();
+  for (const [code, names] of byCode) {
+    out.set(
+      code,
+      [...names.keys()].sort().map((programNameKey) => ({
+        programNameKey,
+        categories: sortCategories([...(names.get(programNameKey) ?? [])]),
+      })),
+    );
+  }
+  return out;
+}
+
+/**
+ * Which questions are locked, and why. An `engine` reason wins over `base`, and both over
+ * `program`; the fixed set adds `shapeFixed` whatever the reason.
+ */
+export function engineLocks(ctx: EngineContractContext): ReadonlyMap<string, EngineLock> {
+  const out = new Map<string, EngineLock>();
+  const unshaped = {
+    optionsFixed: true,
+    shapeFixed: false,
+    baseCategories: [],
+    programNameKeys: [],
+  } as const;
+  for (const code of ctx.platformQuestionCodes) {
+    out.set(code, { reason: 'engine', ...unshaped });
+  }
+  for (const code of ENGINE_INPUT_QUESTION_CODES) {
+    out.set(code, { reason: 'engine', ...unshaped });
+  }
+  // The fixed set: answers owned in code, and the shape with them.
+  for (const q of BASE_QUESTIONS) {
+    out.set(q.code, {
+      reason: out.get(q.code)?.reason ?? 'base',
+      optionsFixed: true,
+      shapeFixed: true,
+      baseCategories: q.categories,
+      programNameKeys: [],
+    });
+  }
+  for (const [code, readers] of programReaders(ctx)) {
+    if (out.has(code)) continue;
+    out.set(code, {
+      reason: 'program',
+      optionsFixed: true,
+      shapeFixed: false,
+      baseCategories: [],
+      programNameKeys: readers.map((r) => r.programNameKey),
+    });
   }
   return out;
 }
@@ -507,11 +649,90 @@ export type EngineLockedChange =
   | 'switched_off'
   | 'gate'
   | 'option_removed'
-  | 'option_added';
+  | 'option_added'
+  /** A numeric bound or step would change (fixed set only). */
+  | 'bounds'
+  /** A text question's length cap would change (fixed set only). */
+  | 'max_length'
+  /** It would leave, or turn opt-in in, a loan type the fixed set asks it in. */
+  | 'category_removed';
 
-/** Whether `lock` refuses `change`. Everything is refused except adding an answer where allowed. */
+/**
+ * Whether `lock` refuses `change`. Everything is refused — adding an answer included, on every
+ * lock since v30.12.0 — except the three shape changes only the fixed set locks.
+ */
 export function isRefusedForLock(lock: EngineLock, change: EngineLockedChange): boolean {
-  return change !== 'option_added' || lock.optionsFixed;
+  switch (change) {
+    case 'bounds':
+    case 'max_length':
+    case 'category_removed':
+      return lock.shapeFixed;
+    default:
+      return true;
+  }
+}
+
+/**
+ * The wordings whose QUANTITIES `after` would change (`wording-numbers.ts`) — the numbers, and
+ * the words that scale or measure them. Each language against its own current text; only the
+ * fields `after` states, and only answers on both sides (adding or removing one is its own
+ * locked change). Answers in code order, so a refusal names the same one every time.
+ */
+export function wordingNumberBreaks(
+  before: ContractWording,
+  after: ProposedWording,
+): WordingNumberBreak[] {
+  const out: WordingNumberBreak[] = [];
+  const judge = (
+    field: WordingNumberBreak['field'],
+    optionCode: string | null,
+    language: WordingNumberBreak['language'],
+    was: string | null,
+    now: string | null | undefined,
+  ): void => {
+    if (now === undefined) return;
+    const a = wordingQuantities(was);
+    const b = wordingQuantities(now);
+    if (sameQuantities(a, b)) return;
+    out.push({
+      field,
+      optionCode,
+      language,
+      was: was ?? '',
+      now: now ?? '',
+      keep: a.written,
+      found: b.written,
+    });
+  };
+  judge('question', null, 'en', before.questionEn, after.questionEn);
+  judge('question', null, 'ar', before.questionAr, after.questionAr);
+  judge('helper', null, 'en', before.helperTextEn, after.helperTextEn);
+  judge('helper', null, 'ar', before.helperTextAr, after.helperTextAr);
+  const proposed = after.optionLabels ?? {};
+  for (const code of Object.keys(proposed).sort()) {
+    const was = before.optionLabels[code];
+    const now = proposed[code];
+    if (was === undefined || now === undefined) continue;
+    judge('option', code, 'en', was.labelEn, now.labelEn);
+    judge('option', code, 'ar', was.labelAr, now.labelAr);
+  }
+  return out;
+}
+
+/**
+ * Whether `after` drops `code` from a loan type the fixed set asks it in, that `before` asked it
+ * in as an ordinary row — removed, or turned opt-in. A loan type it was never in is no change.
+ */
+export function baseCategoryRemoved(
+  code: string,
+  before: Pick<ContractQuestion, 'categories' | 'optInCategories'>,
+  after: Pick<ContractQuestion, 'categories' | 'optInCategories'>,
+): boolean {
+  const ordinary = (q: typeof before, c: LoanCategory): boolean =>
+    q.categories.includes(c) && !q.optInCategories.includes(c);
+  return (baseQuestion(code)?.categories ?? []).some(
+    (c) => ordinary(before, c) && !ordinary(after, c),
+  );
 }
 
 /**
@@ -543,17 +764,52 @@ export function lockedChangesBetween(
   if (after.optionCodes.some((code) => !before.optionCodes.includes(code))) {
     out.push('option_added');
   }
+  if (
+    before.type === 'NUMERIC' &&
+    after.type === 'NUMERIC' &&
+    (!sameDecimal(before.numericMin, after.numericMin) ||
+      !sameDecimal(before.numericMax, after.numericMax) ||
+      !sameDecimal(before.numericStep, after.numericStep))
+  ) {
+    out.push('bounds');
+  }
+  if (
+    before.type === 'TEXT' &&
+    after.type === 'TEXT' &&
+    before.textMaxLength !== after.textMaxLength
+  ) {
+    out.push('max_length');
+  }
+  if (baseCategoryRemoved(before.code, before, after)) out.push('category_removed');
   return out;
 }
 
-/** Whether two show-when rules are the same rule (`null` and absent are the same: none). */
+/**
+ * Whether two show-when rules are the same rule (`null` and absent are the same: none). An `in`
+ * rule is the same rule whatever order its answers were listed in.
+ */
 export function sameGate(a: unknown, b: unknown): boolean {
   const x = gateOf(a);
   const y = gateOf(b);
   if (x === null || y === null) return x === y;
+  const xs = [...x.optionCodes].sort();
+  const ys = [...y.optionCodes].sort();
   return (
-    x.questionCode === y.questionCode && x.operator === y.operator && x.optionCode === y.optionCode
+    x.questionCode === y.questionCode &&
+    x.operator === y.operator &&
+    xs.length === ys.length &&
+    xs.every((code, i) => code === ys[i])
   );
+}
+
+/** Two decimal strings as the same number — `"10000"` and `"10000.00"` alike; `null` = none. */
+export function sameDecimal(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return a === b;
+  try {
+    return new Decimal(a).equals(new Decimal(b));
+  } catch {
+    return a === b;
+  }
 }
 
 /** Two units, trimmed, empty and absent alike — the editor trims and blanks; a seed may not. */
@@ -561,15 +817,7 @@ export function sameText(a: string | null | undefined, b: string | null | undefi
   return (a ?? '').trim() === (b ?? '').trim();
 }
 
-function gateOf(
-  enabledWhen: unknown,
-): { questionCode: string; operator: string; optionCode: string } | null {
-  if (enabledWhen === null || typeof enabledWhen !== 'object') return null;
-  const rule = enabledWhen as { questionCode?: unknown; operator?: unknown; optionCode?: unknown };
-  if (typeof rule.questionCode !== 'string' || typeof rule.optionCode !== 'string') return null;
-  return {
-    questionCode: rule.questionCode,
-    operator: typeof rule.operator === 'string' ? rule.operator : 'equals',
-    optionCode: rule.optionCode,
-  };
+/** The stored rule as `question-visibility.ts` reads it — the one reading of that JSON. */
+function gateOf(enabledWhen: unknown): ReturnType<typeof enabledWhenGate> {
+  return enabledWhenGate({ enabledWhen });
 }

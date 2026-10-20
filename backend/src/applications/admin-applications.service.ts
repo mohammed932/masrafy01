@@ -45,7 +45,7 @@ export class AdminApplicationsService {
       return null;
     }
     return this.questionnaire.buildAnswersView(
-      { versionId: row.questionnaireVersionId, category: row.category },
+      { versionId: row.questionnaireVersionId, category: row.category, createdAt: row.createdAt },
       // Every value column travels: NUMERIC / TEXT / MULTI_SELECT answers carry
       // no `selectedOptionCode`, and sending only that rendered them blank.
       row.dynamicAnswers.map((a) => ({

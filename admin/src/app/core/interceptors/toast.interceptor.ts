@@ -8,10 +8,15 @@ import type { ErrorCode, ErrorEnvelope } from '../auth/auth.types';
 /**
  * Opt out of the toast for a single request, mirroring `SKIP_ERROR_INTERCEPTOR`.
  *
- * For speculative reads only — a probe the caller expects to fail sometimes and
+ * For speculative reads — a probe the caller expects to fail sometimes and
  * degrades on its own (the dashboard's dry run against an unpublished
- * questionnaire). Never set it on a request a user explicitly triggered: they
- * would get silence instead of a reason.
+ * questionnaire). Never set it on a request a user explicitly triggered UNLESS the
+ * caller itself renders the reason, inline, for every code it can fail with —
+ * otherwise they would get silence instead of a reason. The one such caller is a
+ * side sheet's save (`answer-wording.drawer.ts`): the sheet opens from the end
+ * edge, exactly where the toast lands, so a toast there covers the sheet's own
+ * title and close button while saying what the sheet already says beside the
+ * fields.
  */
 export const SKIP_TOAST_INTERCEPTOR = new HttpContextToken<boolean>(() => false);
 

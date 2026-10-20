@@ -22,12 +22,30 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BankProgramType, LoanCategory, QuestionType } from '@prisma/client';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
 
+/**
+ * A show-when rule. `equals` / `not_equals` name ONE answer (`optionCode`); `in` names several
+ * (`optionCodes`, at least two) and shows the question when any of them is picked. The service
+ * refuses the wrong shape for the operator (`ENABLED_WHEN_INVALID`, reason `shape` /
+ * `in_needs_two`) rather than storing a rule that would read as no gate at all.
+ */
 export class EnabledWhenDto {
   @ApiProperty() @IsString() @Length(1, 64) questionCode!: string;
-  @ApiProperty({ enum: ['equals', 'not_equals'] })
-  @IsIn(['equals', 'not_equals'])
-  operator!: 'equals' | 'not_equals';
-  @ApiProperty() @IsString() @Length(1, 64) optionCode!: string;
+  @ApiProperty({ enum: ['equals', 'not_equals', 'in'] })
+  @IsIn(['equals', 'not_equals', 'in'])
+  operator!: 'equals' | 'not_equals' | 'in';
+  @ApiPropertyOptional({ description: 'equals / not_equals: the one answer' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  optionCode?: string;
+  @ApiPropertyOptional({ type: [String], description: 'in: the answers, 2 to 50' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @Length(1, 64, { each: true })
+  optionCodes?: string[];
 }
 
 export class CreateGroupDto {

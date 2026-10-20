@@ -7,13 +7,15 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// The four economic figures (amount, tenor, income, current installments) come
 /// straight from the bound NUMERIC questions via [MoneyFigures] — the bucket →
 /// representative-value maps this file used to carry are gone (feature 010:
-/// an applicant asking for 500 000 was being quoted on 300 000). Choice answers
-/// that have no NUMERIC equivalent (job tenure, priority) still map through the
-/// documented approximations below. The full answer set also rides along as
-/// `questionnaireAnswers` so the engine applies per-bank weighted scoring
-/// (Principle V). `age` stays null — the results cubit fills it from the profile
-/// (`/auth/me`); the sub-purpose has no backend field so `loanPurpose` carries
-/// the category id `personal`.
+/// an applicant asking for 500 000 was being quoted on 300 000). Job, months in
+/// the current job and salary transfer go through the shared helpers
+/// ([employmentTypeFor], [monthsInJobFrom], [salaryTransferTypeFrom]) and the
+/// priority through [mapPriority], so car and mortgage read them identically.
+/// The full answer set also rides along as `questionnaireAnswers` — the only
+/// path for an answer with no field of its own on the request (`i_score_band`,
+/// the residence pair, the yes/no income-proof questions). No `age`: the server
+/// derives it from the profile's birthday (A31). The sub-purpose has no backend
+/// field, so `loanPurpose` carries the category id `personal`.
 ///
 /// Feature 011 adds the SURROGATE FACTS ([SurrogateFacts]) — military grade, academic
 /// rank, years in practice and the credit-card limit. Each is omitted when unanswered
@@ -31,13 +33,13 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
   String? programType,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
-  // Feature 011 — the surrogate-income facts. Assigned to the surrogate-CAPABLE
-  // categories (`question_loan_category`: personal, car, fast), so the car and fast
-  // mappers read them the same way; mortgage and business never ask them.
+  // Feature 011 — the surrogate-income facts. Which loan types ask them is the
+  // admin's `question_loan_category` assignment (personal + car seeded), not a list
+  // in code, so the car mapper reads them the same way. The server derives the same
+  // facts from `questionnaireAnswers`; these body fields are the documented duplicate.
   final facts = SurrogateFacts.fromAnswers(answers);
-  final employmentCode = pickedOption(answers, 'employment_status');
   final employmentType =
-      _employmentType[employmentCode] ?? employmentCode ?? 'salaried';
+      employmentTypeFor(pickedOption(answers, 'employment_status'));
 
   return ApplyRequest(
     loanPurpose: 'personal',
@@ -47,10 +49,8 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-      monthsInJob: monthsFromTenure(pickedOption(answers, 'job_tenure')),
-      salaryTransferType: salaryTransferType(
-        answerCode: pickedOption(answers, 'salary_transfer'),
-      ),
+      monthsInJob: monthsInJobFrom(answers),
+      salaryTransferType: salaryTransferTypeFrom(answers),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),
       // Each stays null — and is therefore omitted from the JSON — when the fact was
@@ -80,14 +80,3 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }
-
-/// `employment_status` seed code → the engine's `employmentType` token
-/// (the engine keys on the shorter legacy tokens for bank-employee programs).
-const Map<String, String> _employmentType = {
-  'government_employee': 'government_employee',
-  'private_sector_employee': 'private_employee',
-  'business_owner_company_owner': 'business_owner',
-  'freelancer': 'freelancer',
-  'retired': 'retired',
-};
-

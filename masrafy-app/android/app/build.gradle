@@ -51,9 +51,10 @@ android {
     buildTypes {
         debug {
             // The dev backend runs on the build machine. A physical phone can't
-            // reach it as `localhost` (and `adb reverse` never delivers on the
-            // team's devices), so the debug build carries the machine's current
-            // LAN address; `MainActivity` hands it to `DevEnvironment`.
+            // reach it as `localhost` without an `adb reverse` (the VS Code
+            // "phone over adb" launch sets one up), so by default the debug
+            // build carries the machine's current LAN address; `MainActivity`
+            // hands it to `DevEnvironment`.
             // Recomputed on every build, so switching networks only needs a
             // rebuild — never an edit.
             resValue "string", "dev_host_ip", devHostIp()

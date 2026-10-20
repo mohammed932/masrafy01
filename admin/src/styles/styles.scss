@@ -790,6 +790,12 @@ textarea.ant-input {
   .ant-select.select-comfy .ant-select-arrow .anticon-down { transition: none; }
 }
 
+// MULTIPLE mode on the comfy select: the chips start on its 16px inset, so the
+// placeholder does too — the base multiple rule above aligns it to the 8px one.
+.ant-select-multiple.select-comfy .ant-select-selection-placeholder {
+  inset-inline: var(--space-4) !important;
+}
+
 // Panel rows scaled to the 52px trigger — 32px rows under a 52px control read
 // as a different control's menu. Past `nzOptionOverflowSize` the panel is
 // virtual-scrolled and rows are translated by `index * nzOptionHeightPx`, so a

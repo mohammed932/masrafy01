@@ -118,6 +118,12 @@ export interface EnumerationMember {
      * `additional_income`, and without this a screen offering "count this at N%" cannot
      * tell those four from a contract price, a bureau score or a number of months.
      */
-    enabledWhen?: { questionCode: string; optionCode: string } | null;
+    enabledWhen?: {
+      questionCode: string;
+      /** `equals` / `not_equals` carry `optionCode`; `in` carries `optionCodes`. */
+      operator?: 'equals' | 'not_equals' | 'in';
+      optionCode?: string;
+      optionCodes?: string[];
+    } | null;
   } | null;
 }

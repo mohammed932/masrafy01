@@ -3,7 +3,12 @@ import { CommonModule } from '@angular/common';
 import { StatusPillComponent, type StatusTone } from '@shared/ui';
 import { HumanizePipe } from '@shared/humanize.pipe';
 import type { AdminApplicationOffer } from '../../api/applications.api.service';
-import { ceilingIsInformative, wasAmountReduced } from './selected-loan.rules';
+import {
+  cashIsBelowLoan,
+  ceilingIsInformative,
+  dbrIsAtCap,
+  wasAmountReduced,
+} from './selected-loan.rules';
 
 /** One rendered fee line: label + formatted amount + optional "waived" mark. */
 interface FeeLine {
@@ -14,8 +19,12 @@ interface FeeLine {
 }
 
 /**
- * The loan the applicant actually committed to — bank + program, principal,
- * price, term, total payable, fees, debt-burden verdict and the bank's decision.
+ * The loan the applicant actually committed to, read top to bottom as the
+ * answer to three questions a sales agent gets asked:
+ *   1. How much does the bank lend? (and, when cut, why)
+ *   2. What does the customer pay back? installment × months = total
+ *   3. What is behind that price? rate, total interest, debts vs. income
+ * then the financed fees with the cash the customer actually receives.
  *
  * Sits above "Matched offers": that list is candidates, this card is the deal.
  * Every figure is read straight off the immutable BankOffer snapshot (Principle
@@ -52,70 +61,116 @@ interface FeeLine {
         </div>
       </header>
 
+      <!-- 1. What the bank lends, and why it is that much -->
       <div class="principal">
+        <span class="label" i18n="@@app.detail.selected.loanAmount">Loan amount</span>
         <div class="principal-figure">
-          <span class="principal-value">{{ money(o.effectiveLoanAmountEGP) }}</span>
-          <span class="principal-currency">EGP</span>
+          <span class="principal-value"
+            >{{ wholePart(o.effectiveLoanAmountEGP)
+            }}<span class="principal-fraction">{{
+              fractionPart(o.effectiveLoanAmountEGP)
+            }}</span></span
+          >
+          <span class="principal-currency" i18n="@@bpd.unit.egp">EGP</span>
         </div>
-        <p class="principal-note">
-          @if (requestedAmountEGP(); as asked) {
-            @if (amountWasReduced()) {
-              <span i18n="@@app.detail.selected.ofRequested">of {{ money(asked) }} requested</span>
-            } @else {
+        @if (requestedAmountEGP(); as asked) {
+          @if (amountWasReduced()) {
+            <p class="principal-note">
+              <span class="asked" i18n="@@app.detail.selected.askedFor"
+                >Asked for {{ money(asked) }} EGP</span
+              >
+              @if (cutByDbr() && o.dbrCapPercent) {
+                <!-- prettier-ignore -->
+                <span class="why" i18n="@@app.detail.selected.cutByDbr">Reduced so all monthly debts stay within the bank's limit of {{ percent(o.dbrCapPercent) }}% of income.</span>
+              }
+            </p>
+          } @else {
+            <p class="principal-note">
               <span i18n="@@app.detail.selected.asRequested">Full amount requested</span>
-            }
+            </p>
           }
-        </p>
+        }
+        @if (showCeiling()) {
+          <p class="principal-note">
+            <!-- prettier-ignore -->
+            <span i18n="@@app.detail.selected.ceilingNote">This bank would lend up to {{ money(o.maxLoanAvailableEGP!) }} EGP</span>
+          </p>
+        }
       </div>
 
-      <dl class="stats">
-        <div class="stat">
-          <dt i18n="@@app.detail.selected.rate">Effective rate</dt>
-          <dd>{{ percent(o.effectiveRatePercent) }}%</dd>
+      <!-- 2. What the customer pays back: installment x months = total -->
+      <div class="repay">
+        <div class="repay-part">
+          <span class="label" i18n="@@app.detail.selected.installment">Monthly installment</span>
+          <span class="repay-value"
+            >{{ money(o.monthlyInstallmentEGP) }}
+            <span class="unit" i18n="@@bpd.unit.egp">EGP</span></span
+          >
         </div>
-        <div class="stat">
-          <dt i18n="@@app.detail.selected.installment">Monthly installment</dt>
-          <dd>{{ money(o.monthlyInstallmentEGP) }}</dd>
-        </div>
-        <div class="stat">
-          <dt i18n="@@app.detail.selected.tenor">Term</dt>
-          <dd>
+        <span class="op" aria-hidden="true">&times;</span>
+        <div class="repay-part">
+          <span class="label" i18n="@@app.detail.selected.tenor">Term</span>
+          <span class="repay-value">
             <ng-container i18n="@@app.detail.selected.months"
               >{{ o.effectiveTenorMonths }} months</ng-container
             >
-            @if (o.effectiveTenorMonths !== o.requestedTenorMonths) {
-              <span class="stat-sub" i18n="@@app.detail.selected.tenorRequested"
-                >asked for {{ o.requestedTenorMonths }}</span
-              >
-            }
+          </span>
+          @if (o.effectiveTenorMonths !== o.requestedTenorMonths) {
+            <span class="repay-sub" i18n="@@app.detail.selected.tenorRequested"
+              >asked for {{ o.requestedTenorMonths }}</span
+            >
+          }
+        </div>
+        <span class="op" aria-hidden="true">=</span>
+        <div class="repay-part repay-part--total">
+          <span class="label" i18n="@@app.detail.selected.totalPayable">Total to repay</span>
+          <span class="repay-value"
+            >{{ money(o.totalPayableEGP) }}
+            <span class="unit" i18n="@@bpd.unit.egp">EGP</span></span
+          >
+        </div>
+      </div>
+
+      <!-- 3. The three numbers behind the price -->
+      <dl class="stats">
+        <div class="stat">
+          <dt i18n="@@app.detail.selected.rate">Interest rate</dt>
+          <dd>
+            {{ percent(o.effectiveRatePercent) }}%
+            <span class="stat-sub" i18n="@@app.detail.selected.perYear">a year</span>
           </dd>
         </div>
         <div class="stat">
-          <dt i18n="@@app.detail.selected.totalPayable">Total payable</dt>
-          <dd>{{ money(o.totalPayableEGP) }}</dd>
-        </div>
-        <div class="stat">
-          <dt i18n="@@app.detail.selected.costOfCredit">Cost of credit</dt>
-          <dd>{{ money(o.totalCostOfCreditEGP) }}</dd>
+          <dt i18n="@@app.detail.selected.costOfCredit">Total interest</dt>
+          <dd>
+            {{ money(o.totalCostOfCreditEGP) }}
+            <span class="unit" i18n="@@bpd.unit.egp">EGP</span>
+          </dd>
         </div>
         @if (o.dbrPercent) {
           <div class="stat">
-            <dt i18n="@@app.detail.selected.dbr">Debt burden</dt>
+            <dt i18n="@@app.detail.selected.dbr">Debts vs. income</dt>
             <dd>
               {{ percent(o.dbrPercent) }}%
               @if (o.dbrCapPercent) {
                 <span class="stat-sub" i18n="@@app.detail.selected.dbrCap"
-                  >of {{ percent(o.dbrCapPercent) }}% cap</span
+                  >limit {{ percent(o.dbrCapPercent) }}%</span
                 >
+              }
+              @if (cutByDbr()) {
+                <span class="at-limit" i18n="@@app.detail.selected.atLimit">At limit</span>
               }
             </dd>
           </div>
         }
       </dl>
 
+      <!-- 4. Fees are financed: inside the loan amount, not paid on top -->
       @if (feeLines().length > 0) {
         <div class="fees">
-          <span class="fees-title" i18n="@@app.detail.selected.fees">Fees at signing</span>
+          <span class="fees-title" i18n="@@app.detail.selected.fees"
+            >Fees (included in the loan)</span
+          >
           <ul class="fees-list">
             @for (f of feeLines(); track f.key) {
               <li class="fee">
@@ -126,6 +181,17 @@ interface FeeLine {
               </li>
             }
           </ul>
+          @if (showCash()) {
+            <p class="cash">
+              <span class="cash-label" i18n="@@app.detail.selected.cash"
+                >Customer receives in cash</span
+              >
+              <span class="cash-amount"
+                >{{ money(o.requestedLoanAmountEGP) }}
+                <span class="unit" i18n="@@bpd.unit.egp">EGP</span></span
+              >
+            </p>
+          }
         </div>
       }
 
@@ -139,19 +205,13 @@ interface FeeLine {
         @if (proceededAt()) {
           <div class="meta-item">
             <dt i18n="@@app.detail.selected.proceededAt">Committed on</dt>
-            <dd>{{ proceededAt() | date: 'medium' }}</dd>
+            <dd>{{ proceededAt() | date: 'MMM d, y · h:mm a' }}</dd>
           </div>
         }
         @if (o.decision) {
           <div class="meta-item">
             <dt i18n="@@app.detail.selected.decidedAt">Bank replied</dt>
-            <dd>{{ o.decision.recordedAt | date: 'medium' }}</dd>
-          </div>
-        }
-        @if (showCeiling()) {
-          <div class="meta-item">
-            <dt i18n="@@app.detail.selected.ceiling">Ceiling at this bank</dt>
-            <dd>{{ money(o.maxLoanAvailableEGP!) }} EGP</dd>
+            <dd>{{ o.decision.recordedAt | date: 'MMM d, y · h:mm a' }}</dd>
           </div>
         }
         <div class="meta-item">
@@ -168,7 +228,7 @@ interface FeeLine {
 
       @if (o.requiredDocuments.length > 0) {
         <p class="docs">
-          <span class="docs-title" i18n="@@app.detail.selected.docs">Bank requires</span>
+          <span class="docs-title" i18n="@@app.detail.selected.docs">Documents needed</span>
           <span class="docs-list">{{ o.requiredDocuments | humanize }}</span>
         </p>
       }
@@ -186,6 +246,7 @@ interface FeeLine {
         flex-direction: column;
         gap: var(--space-4);
         overflow: hidden;
+        container: loan-card / inline-size;
       }
       .stripe {
         position: absolute;
@@ -212,10 +273,11 @@ interface FeeLine {
         flex-direction: column;
         gap: 2px;
       }
-      .eyebrow {
+      .eyebrow,
+      .label {
         font-size: var(--text-xxs);
         font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--color-text-tertiary);
       }
@@ -239,7 +301,7 @@ interface FeeLine {
       .principal {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--space-1);
       }
       .principal-figure {
         display: inline-flex;
@@ -254,6 +316,12 @@ interface FeeLine {
         line-height: 1;
         color: var(--color-text-primary);
       }
+      .principal-fraction {
+        font-size: var(--text-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-tertiary);
+        letter-spacing: 0;
+      }
       .principal-currency {
         font-size: var(--text-md);
         font-weight: var(--font-weight-semibold);
@@ -262,17 +330,79 @@ interface FeeLine {
       }
       .principal-note {
         margin: 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-2);
+      }
+      .asked {
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .repay {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-3) var(--space-4);
+        background: var(--color-surface-muted);
+        border-radius: var(--radius-md);
+        padding: var(--space-3) var(--space-4);
+      }
+      .repay-part {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-inline-size: 0;
+      }
+      .repay-value {
+        font-size: var(--text-xl);
+        font-weight: var(--font-weight-semibold);
+        font-variant-numeric: tabular-nums lining-nums;
+        color: var(--color-text-primary);
+        white-space: nowrap;
+      }
+      .repay-part--total .repay-value {
+        font-weight: var(--font-weight-bold);
+      }
+      .repay-sub {
         font-size: var(--text-xs);
+        color: var(--color-text-tertiary);
+      }
+      .op {
+        font-size: var(--text-xl);
+        color: var(--color-text-tertiary);
+        align-self: center;
+      }
+      /* Too narrow for one line: the sum reads as a list, so the signs go. */
+      @container loan-card (max-width: 560px) {
+        .repay {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .op {
+          display: none;
+        }
+        .fees-list {
+          flex-direction: column;
+        }
+        .fee {
+          justify-content: space-between;
+        }
+      }
+      .unit {
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
         color: var(--color-text-tertiary);
       }
 
       .stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: var(--space-3) var(--space-4);
         margin: 0;
-        padding-block-start: var(--space-3);
-        border-block-start: 1px dashed var(--color-border-default);
       }
       .stat {
         display: flex;
@@ -281,13 +411,18 @@ interface FeeLine {
       }
       .stat dt {
         font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-text-tertiary);
       }
       .stat dd {
         margin: 0;
-        font-size: var(--text-sm);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-1) var(--space-2);
+        font-size: var(--text-md);
         font-weight: var(--font-weight-semibold);
         font-variant-numeric: tabular-nums lining-nums;
         color: var(--color-text-primary);
@@ -296,11 +431,19 @@ interface FeeLine {
         font-weight: var(--font-weight-regular);
         font-size: var(--text-xs);
         color: var(--color-text-tertiary);
-        margin-inline-start: var(--space-1);
+      }
+      .at-limit {
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        background: var(--color-warning-bg);
+        border-radius: var(--radius-pill);
+        padding-inline: var(--space-2);
+        padding-block: 1px;
       }
 
       .fees {
-        background: var(--color-surface-muted);
+        border: 1px solid var(--color-border-default);
         border-radius: var(--radius-md);
         padding: var(--space-3) var(--space-4);
         display: flex;
@@ -318,28 +461,45 @@ interface FeeLine {
         list-style: none;
         margin: 0;
         padding: 0;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: var(--space-1) var(--space-4);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-5);
       }
       .fee {
-        display: flex;
+        display: inline-flex;
         align-items: baseline;
-        justify-content: space-between;
-        gap: var(--space-3);
-        font-size: var(--text-xs);
+        gap: var(--space-2);
+        font-size: var(--text-sm);
       }
       .fee-label {
         color: var(--color-text-secondary);
       }
       .fee-amount {
         font-variant-numeric: tabular-nums lining-nums;
-        font-weight: var(--font-weight-medium);
+        font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
       }
       .fee-amount--waived {
         color: var(--color-text-tertiary);
         font-weight: var(--font-weight-regular);
+      }
+      .cash {
+        margin: 0;
+        padding-block-start: var(--space-2);
+        border-block-start: 1px dashed var(--color-border-default);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        font-size: var(--text-sm);
+      }
+      .cash-label {
+        color: var(--color-text-secondary);
+      }
+      .cash-amount {
+        font-weight: var(--font-weight-semibold);
+        font-variant-numeric: tabular-nums lining-nums;
+        color: var(--color-text-primary);
       }
 
       .meta {
@@ -446,6 +606,16 @@ export class SelectedLoanCardComponent {
     ceilingIsInformative(this.offer().maxLoanAvailableEGP, this.offer().effectiveLoanAmountEGP),
   );
 
+  /** True when the debt-burden limit is what sized the loan — see `dbrIsAtCap`. */
+  protected readonly cutByDbr = computed<boolean>(() =>
+    dbrIsAtCap(this.offer().dbrPercent, this.offer().dbrCapPercent),
+  );
+
+  /** The cash line, shown only when financed fees make it differ from the headline. */
+  protected readonly showCash = computed<boolean>(() =>
+    cashIsBelowLoan(this.offer().requestedLoanAmountEGP, this.offer().effectiveLoanAmountEGP),
+  );
+
   /** True when the bank could not fund what the applicant actually asked for. */
   protected readonly amountWasReduced = computed<boolean>(() =>
     wasAmountReduced(this.offer().effectiveLoanAmountEGP, this.requestedAmountEGP()),
@@ -478,14 +648,32 @@ export class SelectedLoanCardComponent {
     });
   });
 
-  /** Decimal string → grouped display. Trailing ".00" is noise on a summary. */
+  /**
+   * Decimal string → grouped display. Trailing ".00" is noise on a summary, but
+   * piastres, when present, always show both digits ("4,168.50", never "4,168.5").
+   */
   protected money(raw: string): string {
     const value = Number(raw);
     if (!Number.isFinite(value)) return raw;
+    const digits = Number.isInteger(value) ? 0 : 2;
     return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
     }).format(value);
+  }
+
+  /** "425,186.69" → "425,186": the headline's pounds, set large. */
+  protected wholePart(raw: string): string {
+    const formatted = this.money(raw);
+    const dot = formatted.indexOf('.');
+    return dot === -1 ? formatted : formatted.slice(0, dot);
+  }
+
+  /** "425,186.69" → ".69": the headline's piastres, set small; empty when whole. */
+  protected fractionPart(raw: string): string {
+    const formatted = this.money(raw);
+    const dot = formatted.indexOf('.');
+    return dot === -1 ? '' : formatted.slice(dot);
   }
 
   /** Percent string → at most 2 decimals ("24.0000" reads as noise at a glance). */

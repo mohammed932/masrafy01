@@ -24,7 +24,8 @@ describe('enabledWhenGate', () => {
       enabledWhenGate({ enabledWhen: { questionCode: 'additional_income', optionCode: 'yes' } }),
     ).toEqual({
       questionCode: 'additional_income',
-      optionCode: 'yes',
+      operator: 'equals',
+      optionCodes: ['yes'],
     });
   });
 
@@ -33,9 +34,9 @@ describe('enabledWhenGate', () => {
     expect(enabledWhenGate({ enabledWhen: undefined })).toBeNull();
   });
 
-  it('carries the operator, or rather ignores it — the GATE is the pair, not the comparison', () => {
+  it('carries the operator beside the source — the GATE is the source question either way', () => {
     // `not_equals` still means "asked behind this question". What flips is which answer
-    // shows it, and that is `isQuestionVisible`'s business, not this one's.
+    // shows it, and that is `isQuestionVisible`'s business; the gate only reports it.
     expect(
       enabledWhenGate({
         enabledWhen: {
@@ -44,7 +45,7 @@ describe('enabledWhenGate', () => {
           optionCode: 'yes',
         },
       }),
-    ).toEqual({ questionCode: 'additional_income', optionCode: 'yes' });
+    ).toEqual({ questionCode: 'additional_income', operator: 'not_equals', optionCodes: ['yes'] });
   });
 
   describe('a HALF rule reads as no gate, exactly as it reads as visible', () => {

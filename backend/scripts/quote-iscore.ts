@@ -5,6 +5,11 @@
  * Read-only.
  *
  *   npx tsx scripts/quote-iscore.ts > after.txt
+ *   npx tsx scripts/quote-iscore.ts --bands > bands.txt
+ *
+ * `--bands` (v30.11.0) answers with the I-Score BAND an applicant now picks instead of a typed
+ * score, each line labelled with the typed score that band must price exactly like on the
+ * shared table — so `diff` of the two outputs is empty when the bands lose nothing.
  *
  * WHY THIS EXISTS BESIDE `quote:surrogate`. That harness calls `evaluateProductRule`
  * directly, so it measures the RULE's own answer. When the I-Score multiplier moved out of
@@ -101,6 +106,24 @@ const FACTS: Record<string, SurrogateFactValue> = {
  */
 const SCORES: ReadonlyArray<string | undefined> = [undefined, '500', '600', '700', '750'];
 
+/**
+ * `--bands`: the band each typed score falls in, under the same label — N/A for the blank,
+ * below 521 for 500, 521–625 for 600, above 625 for 700 and 750.
+ */
+const BAND_FOR_SCORE: Readonly<Record<string, string>> = {
+  blank: 'no_score',
+  '500': 'below_521',
+  '600': 'from_521_to_625',
+  '700': 'above_625',
+  '750': 'above_625',
+};
+const BANDS = process.argv.includes('--bands');
+
+function iScoreFact(score: string | undefined): SurrogateFactValue | undefined {
+  if (BANDS) return pick(BAND_FOR_SCORE[score ?? 'blank'] ?? 'no_score');
+  return score === undefined ? undefined : num(score);
+}
+
 function profileAt(score: string | undefined): ApplicantProfile {
   return {
     age: 36,
@@ -127,7 +150,9 @@ function profileAt(score: string | undefined): ApplicantProfile {
       isCompound: true,
       constructionStage: 'ready',
     },
-    surrogateFacts: score === undefined ? FACTS : { ...FACTS, i_score: num(score) },
+    surrogateFacts: ((fact) => (fact === undefined ? FACTS : { ...FACTS, i_score: fact }))(
+      iScoreFact(score),
+    ),
   } as unknown as ApplicantProfile;
 }
 

@@ -10,8 +10,8 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// monthly revenue did before. Business has no dedicated details payload:
 /// business age maps to `monthsInJob` and employment is fixed to
 /// `business_owner`. The full answer set rides along as `questionnaireAnswers`
-/// so the engine applies per-bank weighted scoring (Principle V). `age` stays
-/// null — the results cubit fills it from the profile (`/auth/me`).
+/// — the only path for an answer with no field of its own on the request. No
+/// `age`: the server derives it from the profile's birthday (A31).
 ///
 /// Codes mirror `backend/prisma/seed-questionnaire.ts`.
 ApplyRequest mapBusinessAnswersToApplyRequest(

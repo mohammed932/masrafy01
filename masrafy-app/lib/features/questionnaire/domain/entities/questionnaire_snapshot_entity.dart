@@ -219,23 +219,41 @@ class QuestionEnabledWhenEntity {
     required this.questionCode,
     required this.operator,
     required this.optionCode,
+    this.optionCodes = const [],
   });
 
   final String questionCode;
   final EnabledWhenOperator operator;
+
+  /// Target of an [EnabledWhenOperator.equals] / [EnabledWhenOperator.notEquals]
+  /// rule; empty on an [EnabledWhenOperator.oneOf] rule.
   final String optionCode;
+
+  /// Targets of an [EnabledWhenOperator.oneOf] rule (2+ codes); empty on the
+  /// single-code operators.
+  final List<String> optionCodes;
 
   /// Whether the guarded question should be visible given the current
   /// [answers]. Mirrors the server's `isQuestionVisible`: a multi-pick answer
-  /// satisfies `equals` when ANY picked code matches, and an unanswered
-  /// controlling question reads as "not picked" — so an `equals` gate stays
-  /// hidden until the trigger value is chosen.
+  /// satisfies `equals` when ANY picked code matches and `oneOf` when ANY picked
+  /// code is in [optionCodes], and an unanswered controlling question reads as
+  /// "not picked" — so an `equals` / `oneOf` gate stays hidden until a trigger
+  /// value is chosen.
+  ///
+  /// A rule this build cannot evaluate never hides its question: an operator it
+  /// does not know ([EnabledWhenOperator.unknown]), or a HALF rule missing the
+  /// code(s) its operator compares against — which the server also reads as no
+  /// gate. Hiding there would drop a question the server may require.
   bool isSatisfied(Map<String, QuestionAnswer> answers) {
     final picked = answers[questionCode]?.pickedOptionCodes ?? const <String>[];
-    final matches = picked.contains(optionCode);
     return switch (operator) {
-      EnabledWhenOperator.equals => matches,
-      EnabledWhenOperator.notEquals => !matches,
+      EnabledWhenOperator.equals =>
+        optionCode.isEmpty || picked.contains(optionCode),
+      EnabledWhenOperator.notEquals =>
+        optionCode.isEmpty || !picked.contains(optionCode),
+      EnabledWhenOperator.oneOf =>
+        optionCodes.isEmpty || picked.any(optionCodes.contains),
+      EnabledWhenOperator.unknown => true,
     };
   }
 }

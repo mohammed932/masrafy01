@@ -29,10 +29,12 @@ import {
   additionWithChain,
   additionsToSave,
   exclusionsToSave,
+  lockMapFor,
   type AskableQuestion,
   type ServedCount,
   type AskedPicks,
   type AskedRow,
+  type ServerLock,
 } from '@shared/questions/asked-questions.rules';
 import {
   QuestionnaireApiService,
@@ -700,10 +702,12 @@ export class ProgramNameDetailPage implements OnInit {
   private readonly skipped = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
     new Map<LoanCategory, ReadonlySet<string>>(),
   );
-  /** Codes this name may not skip: the engine's inputs and what its bank programs read. */
-  protected readonly locks = signal<ReadonlyMap<string, 'engine' | 'program'>>(
-    new Map<string, 'engine' | 'program'>(),
-  );
+  /**
+   * Codes this name may not skip: the engine's inputs, the fixed income-proof set where it sells a
+   * payslip programme, and what its bank programs read. As sent — read per loan type through
+   * `lockMapFor`.
+   */
+  protected readonly locks = signal<readonly ServerLock[]>([]);
   protected readonly excludedHere = computed<ReadonlySet<string>>(
     () => this.skipped().get(this.askCategory()) ?? new Set<string>(),
   );
@@ -803,7 +807,7 @@ export class ProgramNameDetailPage implements OnInit {
       const saved = await this.api.setProgramNameQuestionExclusions(
         this.routeKey(),
         category,
-        exclusionsToSave(this.pool(), set, this.locks()),
+        exclusionsToSave(this.pool(), set, lockMapFor(this.locks(), category)),
       );
       const next = new Map(this.skipped());
       next.set(category, new Set(saved));
@@ -904,7 +908,7 @@ export class ProgramNameDetailPage implements OnInit {
   private async loadScope(): Promise<void> {
     try {
       const scope = await this.api.programNameQuestionScope(this.routeKey());
-      this.locks.set(new Map(scope.locks.map((l) => [l.code, l.reason])));
+      this.locks.set(scope.locks);
       this.skipped.set(
         new Map(
           Object.entries(scope.excludedByCategory).map(([category, ids]) => [

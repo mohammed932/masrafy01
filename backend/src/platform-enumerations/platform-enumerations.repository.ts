@@ -6,6 +6,7 @@
  * Spec anchors: FR-010, FR-010a, FR-010b, FR-010c. Research R4.
  */
 
+import type { EnabledWhenGate } from '@/questionnaire/validation/question-visibility';
 import type { LoanCategory } from '@prisma/client';
 import type { IncomeBasis } from '@/common/income-basis.util';
 import type {
@@ -381,8 +382,9 @@ export interface BoundQuestion {
    * a bureau score — and so offered a weight against every one of them.
    *
    * `null` when the question is asked unconditionally. `undefined` still means "not loaded".
+   * `optionCodes` holds one answer for `equals` / `not_equals` and several for `in`.
    */
-  enabledWhen?: { questionCode: string; optionCode: string } | null;
+  enabledWhen?: EnabledWhenGate | null;
 }
 
 /**
@@ -618,9 +620,14 @@ export abstract class PlatformEnumerationsRepository {
   /**
    * What an operator may NOT untick for a name — the inputs of `questionLockReason`. With no
    * key (the create flow: the name does not exist yet) or a name with no active programme, the
-   * programme half is empty and only the engine's own inputs lock.
+   * programme half is empty and the engine's own inputs lock, plus the fixed question set: a
+   * name created from the admin is payslip-only (v30.8.0), so it counts as income-proof.
+   * `category` narrows the programme half and the income-proof test to one loan type.
    */
-  abstract questionLockScopeFor(programNameKey: string | null): Promise<QuestionLockScope>;
+  abstract questionLockScopeFor(
+    programNameKey: string | null,
+    category?: LoanCategory,
+  ): Promise<QuestionLockScope>;
 
   /**
    * Every (loan type, program name) an applicant can be quoted under — one row per distinct

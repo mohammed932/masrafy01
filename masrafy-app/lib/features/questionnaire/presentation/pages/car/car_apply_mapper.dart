@@ -11,17 +11,19 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// share of the price cannot be quoted off a bucket midpoint. Both are omitted
 /// when unanswered rather than zeroed — the backend then applies no LTV cap and
 /// says so, instead of capping at nothing. The financed principal is still the
-/// amount the applicant actually asked for. The full answer set rides along as `questionnaireAnswers`
-/// so the engine applies per-bank weighted scoring (Principle V). `age` stays
-/// null — the results cubit fills it from the profile (`/auth/me`).
+/// amount the applicant actually asked for. Job, months in the current job and
+/// salary transfer go through the same shared helpers as personal and mortgage.
+/// The full answer set rides along as `questionnaireAnswers` — the only path for
+/// an answer with no field of its own on the request. No `age`: the server
+/// derives it from the profile's birthday (A31).
 ///
 /// Carries the SURROGATE FACTS ([SurrogateFacts]) for the same reason the personal
-/// mapper does: an auto loan is surrogate-CAPABLE (backend
-/// `SURROGATE_CAPABLE_CATEGORIES`), so a bank may finance a car off an assumed income
-/// worked out from a grade, a rank, years in practice or a card limit. The backend
-/// derives the same facts from `questionnaireAnswers`, so these body fields are the
-/// documented duplicate rather than the only path — they exist so a car apply reads
-/// identically to a personal one (A25).
+/// mapper does: car asks them (the seeded `question_loan_category` default, which the
+/// admin can widen — there is no capable-category list in code), so a bank may finance
+/// a car off an assumed income worked out from a grade, a rank, years in practice or a
+/// card limit. The backend derives the same facts from `questionnaireAnswers`, so these
+/// body fields are the documented duplicate rather than the only path — they exist so a
+/// car apply reads identically to a personal one (A25).
 ///
 /// Codes mirror `backend/prisma/seed-questionnaire.ts`.
 ApplyRequest mapCarAnswersToApplyRequest(
@@ -31,9 +33,10 @@ ApplyRequest mapCarAnswersToApplyRequest(
 }) {
   final money = MoneyFigures.fromAnswers(answers);
   final facts = SurrogateFacts.fromAnswers(answers);
-  final employmentCode = pickedOption(answers, 'employment_status');
+  // `employment_status` IS asked in car since 2026-09-24: CAE caps a self-employed
+  // buyer at 60 months.
   final employmentType =
-      _employmentType[employmentCode] ?? employmentCode ?? 'salaried';
+      employmentTypeFor(pickedOption(answers, 'employment_status'));
 
   final price = num.tryParse(numericOf(answers, 'car_price') ?? '')?.toDouble();
   final downPayment =
@@ -47,14 +50,12 @@ ApplyRequest mapCarAnswersToApplyRequest(
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-      // `job_tenure` and `salary_transfer` are NOT asked in car (the server's `CAR_ASKS`),
-      // so these fall back to 24 months and `none`. That moves no offer while eligibility is
-      // skipped, and no car programme prices on transfer type. `employment_status` IS asked
-      // in car since 2026-09-24: CAE caps a self-employed buyer at 60 months.
-      monthsInJob: monthsFromTenure(pickedOption(answers, 'job_tenure')),
-      salaryTransferType: salaryTransferType(
-        answerCode: pickedOption(answers, 'salary_transfer'),
-      ),
+      // Read exactly as personal and mortgage read them: whatever the served snapshot
+      // asks (`months_in_current_job` / `can_transfer_salary`, or the retired buckets
+      // for a session holding an older questionnaire) is honoured, and an unasked one
+      // falls back to 24 months / `none`.
+      monthsInJob: monthsInJobFrom(answers),
+      salaryTransferType: salaryTransferTypeFrom(answers),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),
       // Omitted from the JSON when unanswered, never zeroed: a bank rule must be able
@@ -86,13 +87,3 @@ ApplyRequest mapCarAnswersToApplyRequest(
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }
-
-/// `employment_status` seed code → the engine's `employmentType` token
-/// (the engine keys on the shorter legacy tokens for bank-employee programs).
-const Map<String, String> _employmentType = {
-  'government_employee': 'government_employee',
-  'private_sector_employee': 'private_employee',
-  'business_owner_company_owner': 'business_owner',
-  'freelancer': 'freelancer',
-  'retired': 'retired',
-};

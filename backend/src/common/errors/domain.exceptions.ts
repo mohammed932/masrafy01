@@ -449,9 +449,12 @@ export class EnumerationCategoriesNotApplicableException extends DomainException
   }
 }
 
-/** A program name tried to skip a question the quote reads (`questionLockReason`). */
+/**
+ * A program name tried to skip a question the quote reads, or one of the fixed question set
+ * (`questionLockReason`: `engine` / `base` / `program`).
+ */
 export class QuestionExclusionLockedException extends DomainException {
-  constructor(meta: { questionId: string; code: string; reason: 'engine' | 'program' }) {
+  constructor(meta: { questionId: string; code: string; reason: 'engine' | 'base' | 'program' }) {
     super(ERROR_CODES.QUESTION_EXCLUSION_LOCKED, meta);
   }
 }

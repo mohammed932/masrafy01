@@ -20,20 +20,29 @@ library;
 
 /// `employment.militaryGrade` — SINGLE_SELECT whose option codes ARE the active
 /// `military_grade` platform-registry keys, which is what the admin's table rows are
-/// keyed by. Gated on `employment_status == government_employee`.
+/// keyed by. Ungated since v30.10.0: the old `employment_status == government_employee`
+/// gate hid the one figure the Armed Forces programme prices on from an officer who
+/// answered the job question any other way. The program-name narrowing now serves it
+/// only where a programme reads it.
 const String kMilitaryGradeQuestion = 'military_grade';
 
 /// `employment.professorRank` — SINGLE_SELECT over the `professor_rank` registry.
 ///
 /// The QUESTION is "Academic rank" while the REGISTRY is `professor_rank`: a lecturer
-/// is not a professor and would not answer a question that said so. Shares the
-/// `government_employee` gate with the grade question, because `enabledWhen` holds one
-/// option code and no employment option separates a soldier from an academic — so a
-/// government employee is asked both and skips the one that does not apply.
+/// is not a professor and would not answer a question that said so. Ungated too — a
+/// professor at a private university is not a government employee, so the old shared
+/// gate hid it from exactly the applicants the product prices differently — and served
+/// only where a programme reads it.
 const String kAcademicRankQuestion = 'academic_rank';
 
 /// `employment.yearsInPractice` — NUMERIC, 0–60 whole years. Ungated: its population
-/// spans freelancers and business owners, which one branch rule cannot express.
+/// spans freelancers and business owners, and like the two selects above it is served
+/// only where a programme reads it.
+///
+/// None of the three relies on a particular gate shape: whatever `enabledWhen` the
+/// snapshot carries — one option code (`equals` / `not_equals`) or a set of them
+/// (`in`) — is evaluated by `QuestionEnabledWhenEntity.isSatisfied`; this file binds
+/// codes only.
 const String kYearsInPracticeQuestion = 'years_in_practice';
 
 /// `assets.creditCardLimitEGP` — the FOURTH fact, and NOT a new question.

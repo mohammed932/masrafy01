@@ -32,6 +32,7 @@ import {
   type SimulationResult,
 } from './questionnaire.api.service';
 import { bindingConstraintLabel } from './simulation-labels';
+import { gateOpen } from '@shared/questions/enabled-when';
 import {
   SimulatedOfferDrawerComponent,
   type SimulatedOfferDrawerData,
@@ -156,9 +157,10 @@ function grouped(value: number | string): string {
 
 /**
  * A question is visible when it has no branch rule, or when the rule's source
- * question was answered with (or without, for `not_equals`) the named option.
- * Mirrors `isQuestionVisible` in the backend questionnaire service — an answer
- * to a hidden question is neither collected nor sent.
+ * question was answered with (`equals`), without (`not_equals`) or with any one of
+ * (`in`) the named options. Read through the shared `gateOpen`, which mirrors
+ * `isQuestionVisible` in the backend questionnaire service — an answer to a hidden
+ * question is neither collected nor sent.
  */
 function isVisible(
   q: QuestionRow,
@@ -166,15 +168,14 @@ function isVisible(
   byCode: ReadonlyMap<string, QuestionRow>,
 ): boolean {
   const rule = q.enabledWhen;
-  if (!rule?.questionCode || !rule.optionCode) return true;
-  if (!byCode.has(rule.questionCode)) return true; // dangling rule: never hide
-  const source = answers[rule.questionCode];
+  const sourceCode = rule?.questionCode ?? '';
+  const source = sourceCode === '' ? undefined : answers[sourceCode];
   const picked = [
     ...(source?.optionCodes ?? []),
     ...(source?.optionCode ? [source.optionCode] : []),
   ];
-  const matches = picked.includes(rule.optionCode);
-  return rule.operator === 'not_equals' ? !matches : matches;
+  // A source the pool does not carry dangles: `gateOpen` never hides on it.
+  return gateOpen(rule, picked, sourceCode === '' || byCode.has(sourceCode));
 }
 
 /**

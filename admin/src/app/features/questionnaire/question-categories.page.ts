@@ -24,6 +24,7 @@ import {
   ArrowUpOutline,
   CheckOutline,
   HolderOutline,
+  LockOutline,
   SearchOutline,
   WarningOutline,
 } from '@ant-design/icons-angular/icons';
@@ -85,6 +86,7 @@ interface DanglingBranch {
       ArrowUpOutline,
       CheckOutline,
       HolderOutline,
+      LockOutline,
       SearchOutline,
       WarningOutline,
     ]),
@@ -394,16 +396,23 @@ interface DanglingBranch {
                   <ul class="qgrid" [class.dim]="s.key === 'rest'">
                     @for (q of s.rows; track q.id) {
                       <li>
+                        <!-- A fixed income-proof question may never leave this loan type:
+                             still a focusable checkbox, so a screen reader can hear why, but
+                             aria-disabled and inert to a click (see toggle). -->
                         <button
                           type="button"
                           class="qcard"
                           role="checkbox"
                           [class.on]="has(q, active())"
                           [class.some]="optIn(q, active())"
+                          [class.fixed]="baseLocked(q, active())"
                           [class.landed]="justMoved() === q.id"
                           [attr.aria-checked]="optIn(q, active()) ? 'mixed' : has(q, active())"
+                          [attr.aria-disabled]="baseLocked(q, active()) ? true : null"
                           [attr.aria-label]="cellLabel(q, active())"
                           [attr.aria-busy]="saving().has(q.id) || busy()"
+                          nz-tooltip
+                          [nzTooltipTitle]="baseLocked(q, active()) ? baseTip(active()) : null"
                           (click)="toggle(q, active())"
                         >
                           <span class="tick-box">
@@ -420,7 +429,19 @@ interface DanglingBranch {
                                  detail of the pool tab; here it said nothing
                                  about who gets asked. Search still matches it. -->
                             <span class="qc-title">{{ wordingOf(q) }}</span>
-                            @if (q.categories.length === 0) {
+                            @if (baseLocked(q, active())) {
+                              <span class="row-meta">
+                                <span class="base-tag"
+                                  ><span
+                                    nz-icon
+                                    nzType="lock"
+                                    nzTheme="outline"
+                                    aria-hidden="true"
+                                  ></span
+                                  ><span i18n="@@qcat.base_tag">Always asked</span></span
+                                >
+                              </span>
+                            } @else if (q.categories.length === 0) {
                               <span class="row-meta">
                                 <span class="parked-tag" i18n="@@qcat.parked_tag">Parked</span>
                               </span>
@@ -1061,6 +1082,34 @@ interface DanglingBranch {
         color: var(--qc-accent);
         font-weight: 600;
       }
+      /* FIXED: a fixed income-proof question in a loan type it may never leave. Asked, so
+         the box stays filled, but quieter than a live tick and with no hover invitation;
+         the lock chip says why, in words. */
+      .qcard.fixed {
+        cursor: not-allowed;
+      }
+      .qcard.fixed:hover {
+        border-color: color-mix(in srgb, var(--qc-accent) 40%, var(--qc-line));
+        box-shadow: none;
+      }
+      .qcard.fixed:active .tick-box {
+        transform: none;
+      }
+      .qcard.fixed .tick-box {
+        background: var(--qc-text-2);
+        border-color: var(--qc-text-2);
+      }
+      .base-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1, 4px);
+        padding: 1px var(--space-2, 8px);
+        border-radius: var(--radius-pill, 999px);
+        box-shadow: inset 0 0 0 1px var(--qc-line-strong);
+        background: var(--qc-surface);
+        color: var(--qc-text);
+        font-weight: 600;
+      }
       .tick-icon {
         font-size: 12px;
         line-height: 1;
@@ -1378,6 +1427,26 @@ export class QuestionCategoriesPage implements OnInit {
     return q.categories.includes(category);
   }
 
+  /**
+   * A fixed income-proof question asked here, in a loan type it may never leave
+   * (`engineLock.baseCategories`, from the server — never a list kept here). Its tick is inert:
+   * the one move left on it would be a removal. Not asked here yet, it stays tickable — adding
+   * it is the direction the lock allows.
+   */
+  baseLocked(q: QuestionRow, category: LoanCategory): boolean {
+    const lock = q.engineLock;
+    return (
+      lock?.shapeFixed === true &&
+      (lock.baseCategories ?? []).includes(category) &&
+      this.has(q, category)
+    );
+  }
+
+  baseTip(category: LoanCategory): string {
+    const cat = this.label(category);
+    return $localize`:@@qcat.base_tip:Asked on every income-proof program, so ${cat}:category: always asks it.`;
+  }
+
   /** The ordinary set — what the category write replaces; opt-in rows ride along server-side. */
   private ordinaryOf(q: QuestionRow): LoanCategory[] {
     return q.categories.filter((c) => !this.optIn(q, c));
@@ -1406,6 +1475,9 @@ export class QuestionCategoriesPage implements OnInit {
   cellLabel(q: QuestionRow, category: LoanCategory): string {
     const wording = this.wordingOf(q);
     const cat = this.label(category);
+    if (this.baseLocked(q, category)) {
+      return $localize`:@@qcat.cell_aria_base:"${wording}:question:" is always asked for ${cat}:category: — every income-proof program asks it.`;
+    }
     return $localize`:@@qcat.cell_aria:Ask "${wording}:question:" for ${cat}:category:`;
   }
 
@@ -1436,6 +1508,9 @@ export class QuestionCategoriesPage implements OnInit {
     // screen-reader user in the middle of the list. The row reports `aria-busy`
     // and stays focusable instead.
     if (this.saving().has(q.id) || this.busy()) return;
+    // A fixed income-proof question may never leave this loan type — the server refuses it
+    // (`QUESTION_ENGINE_LOCKED`), so the click does nothing rather than flicker and revert.
+    if (this.baseLocked(q, category)) return;
     // An OPT-IN cell asks the question of the names that added it. One click would ask it of
     // every applicant of the category instead — a different decision, so it is named first.
     if (this.optIn(q, category)) {
@@ -1497,6 +1572,9 @@ export class QuestionCategoriesPage implements OnInit {
     const changes: QuestionCategoryAssignment[] = [];
     for (const q of this.visible()) {
       if (this.has(q, category) === on) continue;
+      // "Remove all listed" leaves the fixed income-proof questions where they are: the server
+      // would refuse the whole bulk write over one of them. Adding stays allowed.
+      if (!on && this.baseLocked(q, category)) continue;
       // The ORDINARY set: a program name's opt-in rows ride along on the server, and an opt-in
       // row this column turns on becomes ordinary like any other tick.
       const ordinary = this.ordinaryOf(q);

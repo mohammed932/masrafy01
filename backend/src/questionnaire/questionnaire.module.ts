@@ -8,6 +8,7 @@ import { AdminQuestionnaireController } from './admin-questionnaire.controller';
 import { QuestionnaireService } from './questionnaire.service';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import { EngineContractService } from './engine-contract.service';
+import { EngineRulesService } from './engine-rules.service';
 
 /**
  * Feature 00X — Dynamic Questionnaire (Constitution V v4.1.0). Admin-editable
@@ -34,7 +35,12 @@ import { EngineContractService } from './engine-contract.service';
     forwardRef(() => PlatformEnumerationsModule),
   ],
   controllers: [QuestionnaireController, AdminQuestionnaireController],
-  providers: [QuestionnaireService, QuestionnaireRepository, EngineContractService],
+  providers: [
+    QuestionnaireService,
+    QuestionnaireRepository,
+    EngineContractService,
+    EngineRulesService,
+  ],
   exports: [QuestionnaireService, QuestionnaireRepository],
 })
 export class QuestionnaireModule {}

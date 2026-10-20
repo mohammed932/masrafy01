@@ -23,10 +23,12 @@ import {
   additionsToSave,
   coreProblems,
   exclusionsToSave,
+  lockMapFor,
   pendingAdds,
   type AskableQuestion,
   type AskedPicks,
   type AskedRow,
+  type ServerLock,
 } from '@shared/questions/asked-questions.rules';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import { slugify, uniqueSlug } from '@shared/lookups/slug';
@@ -428,10 +430,12 @@ export class NewProgramNamePage {
   private readonly skipped = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
     new Map<LoanCategory, ReadonlySet<string>>(),
   );
-  /** Codes no name may skip — the engine's own inputs; a new name has no programme yet. */
-  protected readonly locks = signal<ReadonlyMap<string, 'engine' | 'program'>>(
-    new Map<string, 'engine' | 'program'>(),
-  );
+  /**
+   * Codes no name may skip — the engine's own inputs and the fixed income-proof set (every name
+   * made here is income proof); a new name has no programme yet. As sent: the board and the
+   * save loop each read the ones that hold in a loan type through `lockMapFor`.
+   */
+  protected readonly locks = signal<readonly ServerLock[]>([]);
   protected readonly excludedHere = computed<ReadonlySet<string>>(
     () => this.skipped().get(this.askCategory()) ?? new Set<string>(),
   );
@@ -860,7 +864,7 @@ export class NewProgramNamePage {
           const ids = exclusionsToSave(
             this.pool(),
             this.skipped().get(category) ?? new Set<string>(),
-            this.locks(),
+            lockMapFor(this.locks(), category),
           );
           if (ids.length > 0) {
             await this.lookups.setProgramNameQuestionExclusions(made.key, category, ids);
@@ -940,7 +944,7 @@ export class NewProgramNamePage {
         this.lookups.programNameQuestionScope(null),
       ]);
       this.pool.set(toAskablePool(tree));
-      this.locks.set(new Map(scope.locks.map((l) => [l.code, l.reason])));
+      this.locks.set(scope.locks);
       this.poolError.set(false);
     } catch {
       this.poolError.set(true);

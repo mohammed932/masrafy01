@@ -654,11 +654,22 @@ export const ERROR_CODES = {
   /**
    * The loan engine reads this question's answer (`questionnaire/validation/engine-contract.ts`),
    * so its type, unit, required flag, show-when rule, being switched on, and the answers it
-   * offers are fixed; only its wording and the order of its answers may change.
-   * `meta: { questionId, code, questionAr, questionEn, reason: 'engine' | 'program', change,
-   * programNameKeys }`.
+   * offers are fixed — no answer may be added or removed (v30.12.0: whoever reads it); only its
+   * wording and the order of its answers may change.
+   * `meta: { questionId, code, questionAr, questionEn, reason: 'engine' | 'base' | 'program',
+   * change, programNameKeys }`.
    */
   QUESTION_ENGINE_LOCKED: 'QUESTION_ENGINE_LOCKED',
+  /**
+   * A reword of a question the loan engine reads would change the QUANTITIES in it — a number,
+   * or a word that scales or measures one (million, months, %) — in its question, helper text or
+   * an answer label (`questionnaire/validation/wording-numbers.ts`). The engine reads the code;
+   * the applicant picks by the words, so the words keep their quantities.
+   * `meta: { questionId, code, questionAr, questionEn, reason, field: 'question' | 'helper' |
+   * 'option', optionCode, language: 'ar' | 'en', was, now, keep, found, breaks[] }` — `keep` and
+   * `found` are the quantities as written, ` · `-joined, `—` for none.
+   */
+  ENGINE_WORDING_NUMBERS_CHANGED: 'ENGINE_WORDING_NUMBERS_CHANGED',
   /**
    * A questionnaire write — or a rollback — would leave the engine without an answer it gets
    * today on some path an applicant can walk: a money figure, a debt, the job type, or a fact a
@@ -1271,6 +1282,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENABLED_WHEN_INVALID: 422,
   QUESTION_IN_USE: 409,
   QUESTION_ENGINE_LOCKED: 409,
+  ENGINE_WORDING_NUMBERS_CHANGED: 409,
   ENGINE_INPUT_WOULD_BREAK: 409,
   QUESTION_OPTION_IN_USE: 409,
   QUESTION_GROUP_NOT_EMPTY: 409,

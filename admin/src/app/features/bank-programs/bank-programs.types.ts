@@ -310,7 +310,13 @@ export interface RegistryFact {
      * keys: the questionnaire's own gate is the statement, and it moves when the
      * questionnaire moves.
      */
-    enabledWhen?: { questionCode: string; optionCode: string } | null;
+    enabledWhen?: {
+      questionCode: string;
+      /** `equals` / `not_equals` carry `optionCode`; `in` carries `optionCodes`. */
+      operator?: 'equals' | 'not_equals' | 'in';
+      optionCode?: string;
+      optionCodes?: string[];
+    } | null;
   } | null;
 }
 

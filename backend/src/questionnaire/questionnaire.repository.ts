@@ -185,8 +185,8 @@ export class QuestionnaireRepository {
   /**
    * Active questions whose enabledWhen branches on a specific option of a
    * specific question (option delete guard). Matches both questionCode and
-   * optionCode so deleting an unreferenced option of a referenced question is
-   * still allowed.
+   * the option — as the one `optionCode`, or among an `in` rule's `optionCodes` —
+   * so deleting an unreferenced option of a referenced question is still allowed.
    */
   async optionDependentsOf(questionCode: string, optionCode: string): Promise<string[]> {
     const rows = await this.prisma.question.findMany({
@@ -194,7 +194,12 @@ export class QuestionnaireRepository {
         isActive: true,
         AND: [
           { enabledWhen: { path: ['questionCode'], equals: questionCode } },
-          { enabledWhen: { path: ['optionCode'], equals: optionCode } },
+          {
+            OR: [
+              { enabledWhen: { path: ['optionCode'], equals: optionCode } },
+              { enabledWhen: { path: ['optionCodes'], array_contains: [optionCode] } },
+            ],
+          },
         ],
       },
       select: { code: true },
@@ -660,6 +665,14 @@ export class QuestionnaireRepository {
 
   versionById(id: string): Promise<QuestionnaireVersion | null> {
     return this.prisma.questionnaireVersion.findUnique({ where: { id } });
+  }
+
+  /** The version that was live at `at`: the last one published at or before it. */
+  versionLiveAt(at: Date): Promise<QuestionnaireVersion | null> {
+    return this.prisma.questionnaireVersion.findFirst({
+      where: { publishedAt: { lte: at } },
+      orderBy: [{ publishedAt: 'desc' }, { versionNumber: 'desc' }],
+    });
   }
 
   /**

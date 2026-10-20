@@ -38,7 +38,7 @@ import {
 } from './validation/answer-validation';
 import { isQuestionVisible } from './validation/question-visibility';
 import { narrowAskedQuestions, type NarrowingScope } from './validation/question-scope';
-import { sameText } from './validation/engine-contract';
+import { sameDecimal, sameText } from './validation/engine-contract';
 import type {
   CreateGroupDto,
   CreateOptionDto,
@@ -802,6 +802,12 @@ export class QuestionnaireService {
         isActive: dto.isActive,
         enabledWhen: dto.enabledWhen,
         unitChanged: numericUnitChanges(question, type, dto),
+        boundsChanged: numericBoundsChange(question, type, dto),
+        maxLengthChanged: textMaxLengthChange(question, type, dto),
+        questionAr: dto.questionAr,
+        questionEn: dto.questionEn,
+        helperTextAr: dto.helperTextAr,
+        helperTextEn: dto.helperTextEn,
       },
     });
     const data: Prisma.QuestionUpdateInput = {
@@ -859,6 +865,11 @@ export class QuestionnaireService {
 
   listQuestions() {
     return this.repo.questions();
+  }
+
+  /** The id of the questionnaire version customers are served now, or `null` before the first. */
+  async activeVersionId(): Promise<string | null> {
+    return (await this.repo.activeVersion())?.id ?? null;
   }
 
   /**
@@ -980,6 +991,21 @@ export class QuestionnaireService {
         questionId: question.id,
         optionCode: option.code,
         active: dto.isActive,
+      });
+    }
+    // A relabel is judged too (v30.12.0): on a question the engine reads, the quantities in a
+    // label stay. Only a label that actually changes — a resend of the same one reads nothing.
+    const labelAr =
+      dto.labelAr !== undefined && dto.labelAr !== option.labelAr ? dto.labelAr : undefined;
+    const labelEn =
+      dto.labelEn !== undefined && dto.labelEn !== option.labelEn ? dto.labelEn : undefined;
+    if (labelAr !== undefined || labelEn !== undefined) {
+      await this.contract?.assertWrite({
+        kind: 'option_label',
+        questionId: question.id,
+        optionCode: option.code,
+        labelAr,
+        labelEn,
       });
     }
     const updated = await this.repo.updateOption(id, {
@@ -1408,15 +1434,17 @@ export class QuestionnaireService {
    * version is gone.
    */
   async buildAnswersView(
-    source: { versionId: string | null; category: string },
+    source: { versionId: string | null; category: string; createdAt?: Date },
     answers: ReadonlyArray<ApplicantAnswerInput>,
   ): Promise<ApplicantQuestionnaireView | null> {
-    // Prefer the exact submit-time snapshot; fall back to the active published
-    // version when the application did not record a version id (the codes on the
-    // answer rows are stable across versions).
+    // Prefer the exact submit-time snapshot. With no version id recorded (every application
+    // before v30.11.0 — the app sends none), the version that was LIVE when the application
+    // was made, not today's: a question retired since would otherwise vanish from the answers
+    // the applicant actually gave. The active version only when neither is known.
     const version = source.versionId
       ? await this.repo.versionById(source.versionId)
-      : await this.repo.activeVersion();
+      : ((source.createdAt ? await this.repo.versionLiveAt(source.createdAt) : null) ??
+        (await this.repo.activeVersion()));
     if (!version) return null;
     const snap = version.snapshot as unknown as StoredSnapshot;
     const picked = new Map(answers.map((a) => [a.questionCode, a]));
@@ -1480,8 +1508,24 @@ export class QuestionnaireService {
 
   private async assertEnabledWhenValid(
     selfOrder: number,
-    rule: { questionCode: string; operator: string; optionCode: string },
+    rule: { questionCode: string; operator: string; optionCode?: string; optionCodes?: string[] },
   ): Promise<void> {
+    // The SHAPE first: `in` names several answers and no single one, `equals` / `not_equals`
+    // exactly one. A rule of the other shape would read as no gate at all
+    // (`enabledWhenGate`), which is a question shown to everyone that the admin meant to hide.
+    const isIn = rule.operator === 'in';
+    if (
+      isIn
+        ? rule.optionCode !== undefined || rule.optionCodes === undefined
+        : rule.optionCodes !== undefined || rule.optionCode === undefined
+    ) {
+      throw new DomainException(ERROR_CODES.ENABLED_WHEN_INVALID, { reason: 'shape' });
+    }
+    const codes = isIn ? (rule.optionCodes ?? []) : [rule.optionCode as string];
+    // One answer is `equals`; a list of one would be the same rule under a second spelling.
+    if (isIn && new Set(codes).size < 2) {
+      throw new DomainException(ERROR_CODES.ENABLED_WHEN_INVALID, { reason: 'in_needs_two' });
+    }
     const questions = await this.repo.questions();
     const ref = questions.find((q) => q.code === rule.questionCode);
     if (!ref) {
@@ -1495,7 +1539,7 @@ export class QuestionnaireService {
     // question — a text or number question has no options to branch on.
     assertBranchSourceIsChoice(ref.type, ref.code);
     const options = await this.repo.optionsByQuestion(ref.id);
-    if (!options.some((o) => o.code === rule.optionCode)) {
+    if (codes.some((code) => !options.some((o) => o.code === code))) {
       throw new DomainException(ERROR_CODES.ENABLED_WHEN_INVALID, { reason: 'unknown_option' });
     }
   }
@@ -1564,6 +1608,35 @@ function numericUnitChanges(
     !sameText(dto.numeric?.unitAr, question.numericUnitAr) ||
     !sameText(dto.numeric?.unitEn, question.numericUnitEn)
   );
+}
+
+/**
+ * Whether `updateQuestion` would change a NUMERIC question's bounds or step. Values compared as
+ * numbers (`"10000"` and `"10000.00"` are one bound), so the editor's resend of every rule on
+ * each save is no change and the fixed set's lock never refuses a wording edit.
+ */
+function numericBoundsChange(
+  question: QuestionRuleColumns & { type: QuestionType },
+  type: QuestionType,
+  dto: UpdateQuestionDto,
+): boolean {
+  if (question.type !== 'NUMERIC' || type !== 'NUMERIC' || dto.numeric === undefined) return false;
+  const next = dto.numeric;
+  return (
+    !sameDecimal(next?.minValue ?? null, question.numericMinValue?.toFixed(2) ?? null) ||
+    !sameDecimal(next?.maxValue ?? null, question.numericMaxValue?.toFixed(2) ?? null) ||
+    !sameDecimal(next?.step ?? null, question.numericStep?.toFixed(2) ?? null)
+  );
+}
+
+/** Whether `updateQuestion` would change a TEXT question's length cap. */
+function textMaxLengthChange(
+  question: QuestionRuleColumns & { type: QuestionType },
+  type: QuestionType,
+  dto: UpdateQuestionDto,
+): boolean {
+  if (question.type !== 'TEXT' || type !== 'TEXT' || dto.text === undefined) return false;
+  return (dto.text?.maxLength ?? null) !== question.textMaxLength;
 }
 
 export function numericRulesOf(q: QuestionRuleColumns): {

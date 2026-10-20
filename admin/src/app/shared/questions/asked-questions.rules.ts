@@ -455,18 +455,89 @@ export function coreProblems(
     .filter((p) => p.missing.length > 0);
 }
 
+// ---- What the server locks ---------------------------------------------------------------
+
+/**
+ * Why a program name may not skip a question — the server's `questionLockReason`, never a list
+ * kept here (A33: which questions are which comes from the server alone).
+ *
+ *   - `engine`: every quote reads it.
+ *   - `base`: one of the fixed income-proof questions, asked on every program name that sells a
+ *     payslip programme. Only its wording can change, and only on the question pool.
+ *   - `program`: a bank program under the name reads it.
+ */
+export type QuestionLockReason = 'engine' | 'base' | 'program';
+
+/** One lock, as the program-name question-scope endpoint sends it. */
+export interface ServerLock {
+  readonly code: string;
+  readonly reason: QuestionLockReason;
+  /**
+   * `base` locks only: the loan types where the lock holds for this name — the ones it sells a
+   * payslip programme under. Absent = every loan type.
+   */
+  readonly categories?: readonly LoanCategory[];
+}
+
+/**
+ * Which reason wins when two locks hold for one code in one loan type. `base` first: it is the
+ * one statement the board draws in a section of its own, and a question asked on every
+ * income-proof program is fixed whoever else reads it.
+ */
+const LOCK_RANK: Readonly<Record<QuestionLockReason, number>> = { base: 0, engine: 1, program: 2 };
+
+/**
+ * The locks that hold in ONE loan type, keyed by question code. An entry holds when it names no
+ * loan types or names this one — so a `base` lock scoped to personal does not lock the question
+ * on the car tab, where the name may sell no payslip programme at all.
+ */
+export function lockMapFor(
+  locks: readonly ServerLock[],
+  category: LoanCategory,
+): ReadonlyMap<string, QuestionLockReason> {
+  const out = new Map<string, QuestionLockReason>();
+  for (const lock of locks) {
+    if (lock.categories !== undefined && !lock.categories.includes(category)) continue;
+    const held = out.get(lock.code);
+    if (held === undefined || LOCK_RANK[lock.reason] < LOCK_RANK[held]) {
+      out.set(lock.code, lock.reason);
+    }
+  }
+  return out;
+}
+
+/**
+ * The fixed income-proof questions of one loan type — the ones the server `base`-locks here —
+ * required first, then pool order. Always asked, so the board draws them apart, untickable, and
+ * keeps them out of its other two lists. `hideCodes` are drawn elsewhere (the checklist's own).
+ * A switched-off question is asked of nobody, so it is not listed as "always asked".
+ */
+export function baseRows(
+  pool: readonly AskableQuestion[],
+  category: LoanCategory,
+  picks: AskedPicks,
+  isAr: boolean,
+  locks: ReadonlyMap<string, QuestionLockReason>,
+  hideCodes: ReadonlySet<string>,
+): readonly AskedRow[] {
+  const rows = pool
+    .filter((q) => q.isActive && locks.get(q.code) === 'base' && !hideCodes.has(q.code))
+    .map((q) => rowOf(pool, q, category, picks, isAr));
+  return [...rows.filter((r) => r.isRequired), ...rows.filter((r) => !r.isRequired)];
+}
+
 // ---- Unticking a question for ONE program name -------------------------------------------
 
 /**
  * Why a question cannot be unticked for a program name, or `null` when it can.
  *
- *   - `engine` / `program` come from the server (`questionLockReason`), never from a list kept
- *     here: every quote reads the first kind, a bank program under the name reads the second.
+ *   - `engine` / `base` / `program` come from the server (`QuestionLockReason`), never from a
+ *     list kept here.
  *   - `gate` is worked out here, for feedback before anything is saved: another question this
  *     name still asks appears only after an answer to this one, so skipping it would leave that
  *     question with nothing to branch off. The server's gate closure would put it back anyway.
  */
-export type UntickLock = 'engine' | 'program' | 'gate';
+export type UntickLock = QuestionLockReason | 'gate';
 
 /**
  * The lock on every question the loan type asks, keyed by question id. Missing = free.
@@ -479,7 +550,7 @@ export function untickLocks(
   category: LoanCategory,
   picks: AskedPicks,
   excluded: ReadonlySet<string>,
-  serverLocks: ReadonlyMap<string, 'engine' | 'program'>,
+  serverLocks: ReadonlyMap<string, QuestionLockReason>,
 ): ReadonlyMap<string, UntickLock> {
   const asked = pool.filter((q) => q.isActive && isAsked(q, category, picks));
   const dependentsOf = new Map<string, AskableQuestion[]>();
@@ -522,7 +593,7 @@ export function untickLocks(
 export function exclusionsToSave(
   pool: readonly AskableQuestion[],
   excluded: ReadonlySet<string>,
-  serverLocks: ReadonlyMap<string, 'engine' | 'program'>,
+  serverLocks: ReadonlyMap<string, QuestionLockReason>,
 ): string[] {
   const byId = new Map(pool.map((q) => [q.id, q]));
   return [...excluded]
@@ -544,7 +615,8 @@ export interface OtherRow extends AskedRow {
   readonly added: boolean;
   /**
    * Every quote reads it (or a question it needs first), so whether it is asked is the loan
-   * type's call, never one name's. Shown, not tickable. From the server's `engine` lock.
+   * type's call, never one name's. Shown, not tickable. From the server's `engine` lock — or a
+   * `base` lock on a question it needs first, which is just as much the loan type's.
    */
   readonly loanTypeWide: boolean;
   /** The other loan types that ask it of every name — what the question is FOR. */
@@ -605,8 +677,9 @@ export function gateHeldAdditions(
 /**
  * The "Other questions" list for one loan type: every live question it does not ask of every
  * name, in pool order — the ones it has never asked and the opt-in rows other names added
- * alike. `hideCodes` are drawn elsewhere (the checklist's own questions). A search narrows it;
- * an empty box lists them all, because this list IS where an extra question is picked from.
+ * alike. `hideCodes` are drawn elsewhere (the checklist's own questions, the fixed income-proof
+ * set). A search narrows it; an empty box lists them all, because this list IS where an extra
+ * question is picked from.
  */
 export function otherRows(
   pool: readonly AskableQuestion[],
@@ -615,7 +688,7 @@ export function otherRows(
   added: ReadonlySet<string>,
   search: string,
   isAr: boolean,
-  locks: ReadonlyMap<string, 'engine' | 'program'>,
+  locks: ReadonlyMap<string, QuestionLockReason>,
   hideCodes: ReadonlySet<string>,
 ): readonly OtherRow[] {
   const needle = search.trim().toLowerCase();
@@ -631,7 +704,8 @@ export function otherRows(
       ...rowOf(pool, q, category, drawn, isAr),
       added: added.has(q.id),
       loanTypeWide:
-        locks.get(q.code) === 'engine' || chain.some((s) => locks.get(s.code) === 'engine'),
+        locks.get(q.code) === 'engine' ||
+        chain.some((s) => locks.get(s.code) === 'engine' || locks.get(s.code) === 'base'),
       askedIn: canonicalCategories(q.categories.filter((c) => c !== category)),
       heldByGate: held.has(q.id),
     });

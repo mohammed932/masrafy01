@@ -28,8 +28,10 @@ import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import {
   askedSections,
   askedTabs,
+  baseRows,
   coreChecks,
   isValidatedCategory,
+  lockMapFor,
   otherRows,
   untickLocks,
   type AskableQuestion,
@@ -38,15 +40,18 @@ import {
   type CoreCheck,
   type OtherRow,
   type ServedCount,
+  type ServerLock,
   type UntickLock,
 } from './asked-questions.rules';
 
 /**
  * A program name's questions step — on the create flow and on the name's own page.
  *
- * Three lists, and every tick on them is about THIS program name only:
+ * Four lists, and every tick on them is about THIS program name only:
  *
  *   - the checklist of what the quote needs, for the loan type;
+ *   - "Income-proof questions — always asked": the fixed set the server `base`-locks for this
+ *     loan type. Drawn, never tickable, and listed nowhere else on the board;
  *   - "Asked of {type} applicants": what the loan type asks every name. Untick one and this
  *     name skips it (`program_name_question_exclusion`); the ones the quote reads are locked
  *     (`untickLocks`);
@@ -151,6 +156,58 @@ import {
               </li>
             }
           </ul>
+        </section>
+      }
+
+      <!-- The fixed income-proof set, first of the lists: what no program sold against a
+           payslip may skip. Which questions are in it is the server's call (a base lock for
+           this loan type), so a name selling no payslip programme here shows no section. -->
+      @if (base().length > 0) {
+        <section aria-labelledby="caq-base-h">
+          <h3 class="sec" id="caq-base-h">
+            <span class="sec-t" i18n="@@caq.base_h">Income-proof questions — always asked</span>
+            <span class="sec-n tabular">{{ base().length }}</span>
+          </h3>
+          <p class="hint" i18n="@@caq.base_hint">
+            Every income-proof program asks these, so this program can't skip them. Only their
+            wording can change, in the question pool.
+          </p>
+          <ul class="grid is-paged" [style.--caq-cols]="cols()">
+            @for (row of basePage(); track row.id) {
+              <li>
+                <p class="card is-on is-locked">
+                  <span class="tick" aria-hidden="true"
+                    ><span nz-icon nzType="check" nzTheme="outline"></span
+                  ></span>
+                  <span class="text">
+                    <span class="label">{{ row.label }}</span>
+                    <span class="meta">
+                      <span class="tag is-lock"
+                        ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                        >{{ lockLabel('base') }}</span
+                      >
+                      <ng-container
+                        [ngTemplateOutlet]="rowTags"
+                        [ngTemplateOutletContext]="{ $implicit: row }"
+                      />
+                    </span>
+                  </span>
+                </p>
+              </li>
+            }
+          </ul>
+          @if (basePageCount() > 1) {
+            <ng-container
+              [ngTemplateOutlet]="pagerTpl"
+              [ngTemplateOutletContext]="{
+                key: 'base',
+                page: basePageAt(),
+                count: basePageCount(),
+                label: baseRange(),
+                aria: basePagerAria,
+              }"
+            />
+          }
         </section>
       }
 
@@ -388,8 +445,15 @@ import {
         }
       </ng-template>
 
-      <ng-template #pagerTpl let-key="key" let-page="page" let-count="count" let-label="label">
-        <nav class="pager" [attr.aria-label]="pagerAria">
+      <ng-template
+        #pagerTpl
+        let-key="key"
+        let-page="page"
+        let-count="count"
+        let-label="label"
+        let-aria="aria"
+      >
+        <nav class="pager" [attr.aria-label]="aria ?? pagerAria">
           <button
             type="button"
             class="pg"
@@ -762,10 +826,11 @@ export class CompactAskedQuestionsComponent {
   readonly served = input<readonly ServedCount[] | null>(null);
   /** Question ids THIS name skips under the shown loan type. */
   readonly excluded = input<ReadonlySet<string>>(new Set<string>());
-  /** Codes it may not skip, from the server (`questionLockReason`). */
-  readonly locks = input<ReadonlyMap<string, 'engine' | 'program'>>(
-    new Map<string, 'engine' | 'program'>(),
-  );
+  /**
+   * Codes it may not skip, from the server (`questionLockReason`) — every loan type's, as sent.
+   * The board reads the ones that hold in the shown loan type (`lockMapFor`).
+   */
+  readonly locks = input<readonly ServerLock[]>([]);
   readonly exclude = output<AskedRow>();
   readonly include = output<AskedRow>();
   /**
@@ -841,19 +906,49 @@ export class CompactAskedQuestionsComponent {
 
   private readonly coreCodes = computed(() => new Set(this.checks().map((c) => c.code)));
 
+  /** The server's locks that hold in the shown loan type, by question code. */
+  private readonly serverLocks = computed(() => lockMapFor(this.locks(), this.category()));
+
+  /** Codes the server `base`-locks here — the fixed income-proof set for this loan type. */
+  private readonly baseCodes = computed(
+    () =>
+      new Set(
+        [...this.serverLocks()].filter(([, reason]) => reason === 'base').map(([code]) => code),
+      ),
+  );
+
+  /** Drawn by the checklist or the income-proof section — never offered on a list below. */
+  private readonly drawnAbove = computed(() => new Set([...this.coreCodes(), ...this.baseCodes()]));
+
   /**
-   * Everything this loan type already asks, required first — minus the ones the checklist above
-   * already shows. Each can be unticked for THIS name unless it is locked.
+   * The fixed income-proof questions of the shown loan type, required first — minus the ones the
+   * checklist above already shows. Always asked; nothing here can untick them.
+   */
+  protected readonly base = computed(() =>
+    baseRows(
+      this.pool(),
+      this.category(),
+      this.picks(),
+      this.isAr(),
+      this.serverLocks(),
+      this.coreCodes(),
+    ),
+  );
+
+  /**
+   * Everything this loan type already asks, required first — minus the ones the checklist and
+   * the income-proof section above already show. Each can be unticked for THIS name unless it is
+   * locked.
    */
   protected readonly required = computed(() => {
     const rows = this.all().rest.filter(
-      (r) => r.alreadyAsked && r.isActive && !this.coreCodes().has(r.code),
+      (r) => r.alreadyAsked && r.isActive && !this.drawnAbove().has(r.code),
     );
     return [...rows.filter((r) => r.isRequired), ...rows.filter((r) => !r.isRequired)];
   });
   /** Which rows cannot be unticked, and why. */
   private readonly untick = computed(() =>
-    untickLocks(this.pool(), this.category(), this.picks(), this.excluded(), this.locks()),
+    untickLocks(this.pool(), this.category(), this.picks(), this.excluded(), this.serverLocks()),
   );
   protected readonly skipped = computed(
     () => this.required().filter((r) => this.isSkipped(r)).length,
@@ -881,18 +976,38 @@ export class CompactAskedQuestionsComponent {
     return $localize`:@@caq.range:${from}:FROM:–${to}:TO: of ${this.required().length}:TOTAL:`;
   });
   protected readonly pagerAria = $localize`:@@caq.pager_aria:Questions, pages`;
+  /** Its own name, so a screen reader's landmark list tells this pager from the two below. */
+  protected readonly basePagerAria = $localize`:@@caq.base_pager_aria:Income-proof questions, pages`;
   protected readonly prevAria = $localize`:@@caq.prev:Previous page`;
   protected readonly nextAria = $localize`:@@caq.next:Next page`;
 
-  protected goTo(key: 'req' | 'oth', next: number): void {
-    if (key === 'req') this.page.set(Math.min(Math.max(next, 0), this.pageCount() - 1));
+  /** The income-proof section pages like the two lists below it, ten a page. */
+  protected readonly basePageAt = signal(0);
+  protected readonly basePageCount = computed(() =>
+    Math.max(1, Math.ceil(this.base().length / this.pageSize())),
+  );
+  protected readonly basePage = computed(() => {
+    const size = this.pageSize();
+    const at = Math.min(this.basePageAt(), this.basePageCount() - 1);
+    return this.base().slice(at * size, at * size + size);
+  });
+  protected readonly baseRange = computed(() => {
+    const size = this.pageSize();
+    const total = this.base().length;
+    const from = Math.min(this.basePageAt(), this.basePageCount() - 1) * size + 1;
+    return $localize`:@@caq.range:${from}:FROM:–${Math.min(from + size - 1, total)}:TO: of ${total}:TOTAL:`;
+  });
+
+  protected goTo(key: 'base' | 'req' | 'oth', next: number): void {
+    if (key === 'base') this.basePageAt.set(Math.min(Math.max(next, 0), this.basePageCount() - 1));
+    else if (key === 'req') this.page.set(Math.min(Math.max(next, 0), this.pageCount() - 1));
     else this.otherPageAt.set(Math.min(Math.max(next, 0), this.otherPageCount() - 1));
   }
 
   /**
    * "Other questions": every live question this loan type does not ask of every name, the
-   * checklist's own excepted (drawn above). Listed in full — this list is where an extra
-   * question is picked from — and narrowed only when the operator types.
+   * checklist's own and the income-proof set excepted (drawn above). Listed in full — this list
+   * is where an extra question is picked from — and narrowed only when the operator types.
    */
   protected readonly others = computed(() =>
     otherRows(
@@ -902,8 +1017,8 @@ export class CompactAskedQuestionsComponent {
       this.added(),
       this.search(),
       this.isAr(),
-      this.locks(),
-      this.coreCodes(),
+      this.serverLocks(),
+      this.drawnAbove(),
     ),
   );
   /** How many this name adds under the shown loan type — the list's own count, unsearched. */
@@ -972,6 +1087,8 @@ export class CompactAskedQuestionsComponent {
     switch (lock) {
       case 'engine':
         return $localize`:@@caq.lock_engine:Needed for every quote`;
+      case 'base':
+        return $localize`:@@caq.lock_base:Asked on every income-proof program`;
       case 'program':
         return $localize`:@@caq.lock_program:Read by a bank program under this name`;
       default:
@@ -1001,6 +1118,7 @@ export class CompactAskedQuestionsComponent {
     effect(() => {
       this.category();
       untracked(() => {
+        this.basePageAt.set(0);
         this.page.set(0);
         this.otherPageAt.set(0);
       });

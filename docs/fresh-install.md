@@ -133,15 +133,23 @@ npx tsx scripts/publish-questionnaire.ts   # category assignments are frozen int
 
 ### The mortgage skips are not seeded (v30.10.0)
 
-The two mortgage names skip eleven questions no mortgage programme reads (migration
+The two mortgage names skip the questions no mortgage programme reads (migration
 `20261013120000_client_question_flows`, section C.6). Skips are operator data, which no seed
 authors, and on an empty database that migration runs before the questionnaire exists, so it
-writes none. After step 9 on a FRESH database, untick them on **Program catalog → Home
-Purchase / Home Finishing → step ③ (Mortgage)**: `salary_bank`, `salary_bank_name`,
-`employer_approved`, `active_account`, `needs_consultant`, `needs_assistance`, `job_tenure`,
-`salary_transfer`, `prior_rejection`, `in_compound`, `registration_status`. An upgraded
-database gets them from the migration. The question ORDER that migration sets is likewise
-the upgraded database's; a fresh one keeps the seed's pool order.
+writes none. After step 9 on a FRESH database, untick `prior_rejection` on **Program catalog →
+Home Purchase / Home Finishing → step ② (Mortgage)** — the one skip still worth making: of the
+original eleven, seven questions have since left the pool (v30.10.0's cleanup and v30.11.0's
+fixed question set, which replaced `job_tenure` and `salary_transfer`), and the fixed set cannot
+be skipped at all. An upgraded database gets the skip from the migration. The question ORDER
+those migrations set is likewise the upgraded database's; a fresh one keeps the seed's pool order.
+
+### The fixed question set (v30.11.0)
+
+The client's income-proof questions are owned in code (`src/matching/pipeline/base-question-set.ts`)
+and written by `seed:questionnaire` on a fresh database and by migration
+`20261019100000_income_proof_question_set` on an existing one. `npm run check:questionnaire`
+(invariants 9 and 10) proves the live rows equal the registry and that every payslip name serves
+them; run it after either path.
 
 ## Optional demo data
 

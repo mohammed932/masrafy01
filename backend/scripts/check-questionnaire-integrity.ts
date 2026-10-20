@@ -30,6 +30,16 @@
  *   8. ADDITIONS HAVE A ROW — every question a program name ADDS is active, sits in that loan
  *      type (ordinary or opt-in), under a name offered in it, and is not also one the name
  *      SKIPS. An addition without its row asks nothing and looks like a choice that still works.
+ *   9. FIXED SET = REGISTRY — every question of the fixed set (`base-question-set.ts`) is live,
+ *      required, and exactly the shape the registry states: type, bounds, unit, text length,
+ *      show-when rule, the answers it offers, an ordinary row in each of its loan types, its
+ *      fact bound to it, and no Manage-values list mirroring it. A seed, a migration or a direct
+ *      write that drifts from the code is caught here; the admin cannot drift it (the lock).
+ *  10. FIXED SET SERVED — under every offerable program name, the served questionnaire keeps the
+ *      fixed set's questions that path must ask: the every-name ones always, the income-proof
+ *      ones wherever the name sells a payslip programme in that loan type.
+ *  (warning) I-SCORE BAND EDGES — an I-Score tier that straddles a band edge (521, 626) is
+ *      priced at the band's weakest tier for the whole band; reported so it is a choice.
  *
  * OPT-IN rows (`question_loan_category.optIn`, a program name's "ask this too") count as
  * assigned for 1, 3 and 4 — they are in the category. 5 compares them with the snapshot's
@@ -37,6 +47,14 @@
  */
 import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
+import {
+  BASE_QUESTIONS,
+  I_SCORE_BANDS,
+  baseCodesServed,
+  baseGateJson,
+  baseOptionCodes,
+} from '../src/matching/pipeline/base-question-set';
+import { sameDecimal, sameGate, sameText } from '../src/questionnaire/validation/engine-contract';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
 import { narrowAskedQuestions } from '../src/questionnaire/validation/question-scope';
@@ -77,9 +95,17 @@ async function main(): Promise<void> {
     select: {
       id: true,
       code: true,
+      type: true,
       isActive: true,
+      isRequired: true,
       enabledWhen: true,
-      options: { select: { code: true } },
+      numericMinValue: true,
+      numericMaxValue: true,
+      numericStep: true,
+      numericUnitEn: true,
+      numericUnitAr: true,
+      textMaxLength: true,
+      options: { select: { code: true, isActive: true } },
     },
   });
   const assignments = await prisma.questionLoanCategory.findMany({
@@ -125,7 +151,8 @@ async function main(): Promise<void> {
   // 4. ACTIVE ⇔ ASSIGNED
   for (const q of questions) {
     const n = categoriesOf.get(q.code)?.size ?? 0;
-    if (q.isActive && n === 0) add('4 active ⇔ assigned', `${q.code}: active, asked by no loan type`);
+    if (q.isActive && n === 0)
+      add('4 active ⇔ assigned', `${q.code}: active, asked by no loan type`);
     if (!q.isActive && n > 0) add('4 active ⇔ assigned', `${q.code}: inactive, still assigned`);
   }
 
@@ -201,6 +228,112 @@ async function main(): Promise<void> {
         add('2 debts served per name', `${productCategory}/${programNameKey}: ${code} not served`);
       }
     }
+    // 10. FIXED SET SERVED — same path, same decision.
+    for (const code of baseCodesServed(scope?.incomeProof === true)) {
+      const assigned = inCategory.some((q) => q.code === code && !isOptIn(q));
+      if (assigned && !served.has(code)) {
+        add('10 fixed set served', `${productCategory}/${programNameKey}: ${code} not served`);
+      }
+    }
+  }
+
+  // 9. FIXED SET = REGISTRY
+  const mirrored = new Set(
+    (
+      await prisma.enumerationTypeDef.findMany({
+        where: { mirrorQuestionId: { not: null } },
+        select: { mirrorQuestionId: true },
+      })
+    ).map((d) => d.mirrorQuestionId),
+  );
+  const factRows = await prisma.platformEnumeration.findMany({
+    where: { type: 'surrogate_fact' },
+    select: { key: true, active: true, boundQuestionId: true },
+  });
+  for (const base of BASE_QUESTIONS) {
+    const q = byCode.get(base.code);
+    const at = (detail: string): void => add('9 fixed set = registry', `${base.code}: ${detail}`);
+    if (!q || !q.isActive) {
+      at('missing or switched off');
+      continue;
+    }
+    if (q.type !== base.type) at(`type ${q.type}, registry ${base.type}`);
+    if (!q.isRequired) at('optional');
+    if (!sameGate(q.enabledWhen ?? null, baseGateJson(base.gate))) at('show-when rule differs');
+    if (base.type === 'NUMERIC') {
+      const n = base.numeric;
+      if (
+        !sameDecimal(q.numericMinValue?.toFixed(2) ?? null, n.minValue) ||
+        !sameDecimal(q.numericMaxValue?.toFixed(2) ?? null, n.maxValue) ||
+        !sameDecimal(q.numericStep?.toFixed(2) ?? null, n.step)
+      ) {
+        at('bounds differ');
+      }
+      if (!sameText(q.numericUnitEn, n.unitEn) || !sameText(q.numericUnitAr, n.unitAr)) {
+        at('unit differs');
+      }
+    }
+    if (base.type === 'TEXT' && q.textMaxLength !== base.maxLength) {
+      at(`text length ${q.textMaxLength ?? 'none'}, registry ${base.maxLength}`);
+    }
+    const live = q.options
+      .filter((o) => o.isActive)
+      .map((o) => o.code)
+      .sort()
+      .join(',');
+    const stated = [...baseOptionCodes(base)].sort().join(',');
+    if (live !== stated) at(`answers [${live}], registry [${stated}]`);
+    for (const category of base.categories) {
+      if (!categoriesOf.get(base.code)?.has(category)) at(`not asked in ${category}`);
+      else if (optInOf.get(base.code)?.has(category)) at(`opt-in in ${category}`);
+    }
+    if (base.factKey !== null) {
+      const fact = factRows.find((f) => f.key === base.factKey);
+      if (!fact || !fact.active || fact.boundQuestionId !== q.id) {
+        at(`fact ${base.factKey} is not bound to it`);
+      }
+    }
+    if (mirrored.has(q.id)) at('a Manage-values list mirrors it');
+  }
+
+  // (warning) I-SCORE BAND EDGES
+  const edges = I_SCORE_BANDS.flatMap((b) =>
+    b.range === 'no_score' ? [] : [b.range.from, b.range.to],
+  ).filter((e): e is string => e !== null);
+  const tiersAt = async (): Promise<
+    { where: string; bands: { from: number; to: number | null }[] }[]
+  > => {
+    const out: { where: string; bands: { from: number; to: number | null }[] }[] = [];
+    const shared = await repo.platformIScoreTiers();
+    const read = (raw: unknown): { from: number; to: number | null }[] =>
+      Array.isArray((raw as { bands?: unknown } | null)?.bands)
+        ? (raw as { bands: { fromInclusive?: string; toExclusive?: string | null }[] }).bands.map(
+            (b) => ({
+              from: Number(b.fromInclusive),
+              to:
+                b.toExclusive === null || b.toExclusive === undefined
+                  ? null
+                  : Number(b.toExclusive),
+            }),
+          )
+        : [];
+    if (shared) out.push({ where: 'the shared I-Score table', bands: read(shared) });
+    for (const p of await prisma.bankProgram.findMany({
+      where: { active: true },
+      select: { programCode: true, incomeAssumption: true },
+    })) {
+      const tiers = (p.incomeAssumption as { iScoreTiers?: unknown } | null)?.iScoreTiers;
+      if (tiers !== undefined) out.push({ where: p.programCode, bands: read(tiers) });
+    }
+    return out;
+  };
+  const warnings: string[] = [];
+  for (const table of await tiersAt()) {
+    for (const edge of edges.map(Number)) {
+      if (table.bands.some((b) => b.from < edge && (b.to === null || edge < b.to))) {
+        warnings.push(`${table.where}: a tier straddles the band edge ${edge}`);
+      }
+    }
   }
 
   // 6. NO DEAD CONDITION
@@ -242,7 +375,8 @@ async function main(): Promise<void> {
   for (const f of facts) {
     if (!f.active || f.boundQuestionId === null) continue;
     const q = byId.get(f.boundQuestionId);
-    if (!q || !q.isActive) add('7 fact ⇒ question', `${f.key}: active fact, bound question inactive`);
+    if (!q || !q.isActive)
+      add('7 fact ⇒ question', `${f.key}: active fact, bound question inactive`);
   }
 
   // 8. ADDITIONS HAVE A ROW
@@ -267,7 +401,8 @@ async function main(): Promise<void> {
     const q = byId.get(a.questionId);
     const where = `${a.category}/${a.enumeration.key}`;
     if (!q) continue; // the FK cascades a deleted question's rows away
-    if (!q.isActive) add('8 additions have a row', `${where}: adds ${q.code}, which is switched off`);
+    if (!q.isActive)
+      add('8 additions have a row', `${where}: adds ${q.code}, which is switched off`);
     if (!categoriesOf.get(q.code)?.has(a.category)) {
       add('8 additions have a row', `${where}: adds ${q.code}, not in ${a.category} at all`);
     }
@@ -280,8 +415,9 @@ async function main(): Promise<void> {
   }
 
   console.log('\n[check:questionnaire-integrity]\n');
+  for (const w of warnings) console.log(`  ! [I-Score band edges] ${w}`);
   if (violations.length === 0) {
-    console.log('  clean — all eight invariants hold.');
+    console.log('  clean — all ten invariants hold.');
   } else {
     for (const v of violations) console.log(`  ✗ [${v.invariant}] ${v.detail}`);
     console.log(`\n  ${violations.length} violation(s).`);

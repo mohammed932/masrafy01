@@ -93,7 +93,16 @@ export interface QuestionRow {
   isRequired: boolean;
   displayOrder: number;
   isActive: boolean;
-  enabledWhen: { questionCode: string; operator: string; optionCode: string } | null;
+  /**
+   * The show-when rule, as stored. `equals` / `not_equals` carry `optionCode`, `in` carries
+   * `optionCodes`. Read it through `@shared/questions/enabled-when`, never field by field.
+   */
+  enabledWhen: {
+    questionCode: string;
+    operator: string;
+    optionCode?: string;
+    optionCodes?: string[];
+  } | null;
   numericMinValue: string | null;
   numericMaxValue: string | null;
   numericStep: string | null;
@@ -127,21 +136,30 @@ export interface QuestionRow {
   categoryOrder?: Partial<Record<LoanCategory, number>>;
   /**
    * Set when the loan engine reads this question's answer, so the server refuses anything but
-   * its wording — and, where `optionsFixed` is false, a new answer (`QUESTION_ENGINE_LOCKED`).
-   * Absent on a server that predates the lock — read as unlocked; the server still refuses.
+   * its wording (`QUESTION_ENGINE_LOCKED`), and a reword that changes the numbers in it
+   * (`ENGINE_WORDING_NUMBERS_CHANGED`). Absent on a server that predates the lock — read as
+   * unlocked; the server still refuses.
    */
   engineLock?: QuestionEngineLock | null;
 }
 
 /**
  * Why a question is locked. `engine`: every quote reads it, or the platform owns the fact it
- * answers. `program`: the named bank programs read it. Whether an answer may still be ADDED is
- * `optionsFixed` — a table reader may just lack the row; an answer-by-answer reader may not.
+ * answers. `base`: it is one of the fixed income-proof questions. `program`: the named bank
+ * programs read it. No answer may be added to any of them (v30.12.0).
  */
 export interface QuestionEngineLock {
-  reason: 'engine' | 'program';
-  /** No answer may be added — the engine or the app maps each answer one by one. */
+  reason: 'engine' | 'base' | 'program';
+  /** No answer may be added. True on every lock since v30.12.0; kept for older servers. */
   optionsFixed: boolean;
+  /**
+   * One of the fixed income-proof questions, asked on every program name that sells a payslip
+   * programme: only its WORDING may change — the question, its helper text and its answers'
+   * labels. Key on this, not on `reason`, which may still read `engine` for one of them.
+   */
+  shapeFixed: boolean;
+  /** The loan types it may never leave. Empty unless `shapeFixed`. */
+  baseCategories: LoanCategory[];
   programNames: { key: string; labelAr: string; labelEn: string }[];
 }
 export type { ServedCount } from '@shared/questions/asked-questions.rules';
@@ -252,17 +270,16 @@ export interface CreateQuestionBody {
 
 /**
  * A branch rule: show the question when the source CHOICE question was answered
- * with (`equals`) or without (`not_equals`) the named option.
+ * with (`equals`) or without (`not_equals`) the named option, or with any one of
+ * the named options (`in`, 2–50 distinct answer codes of the source).
  *
  * The server requires the source to be a choice question with a strictly LOWER
  * `displayOrder` — no forward references — and a multi-pick answer satisfies
- * `equals` when ANY picked code matches.
+ * `equals` / `in` when ANY picked code matches.
  */
-export interface EnabledWhenRule {
-  questionCode: string;
-  operator: 'equals' | 'not_equals';
-  optionCode: string;
-}
+export type EnabledWhenRule =
+  | { questionCode: string; operator: 'equals' | 'not_equals'; optionCode: string }
+  | { questionCode: string; operator: 'in'; optionCodes: string[] };
 
 /** One row of a bulk reassignment: the array REPLACES that question's set. */
 export interface QuestionCategoryAssignment {

@@ -41,3 +41,32 @@ export function ceilingIsInformative(
   if (!Number.isFinite(ceiling) || !Number.isFinite(effective)) return false;
   return Math.abs(ceiling - effective) >= 1;
 }
+
+/**
+ * Did the debt-burden limit size this loan? True when the frozen DBR sits at (or,
+ * after rounding, a hair over) its cap: the cascade grew the installment until
+ * the applicant's debts hit the bank's share of income, and stopped there.
+ *
+ * Read from the offer's own two figures rather than `bindingConstraint`, which is
+ * null on every offer written before that column and is not on the admin payload.
+ */
+export function dbrIsAtCap(dbrPercent: string | null, dbrCapPercent: string | null): boolean {
+  const dbr = Number(dbrPercent);
+  const cap = Number(dbrCapPercent);
+  if (dbrPercent === null || dbrCapPercent === null) return false;
+  if (!Number.isFinite(dbr) || !Number.isFinite(cap) || cap <= 0) return false;
+  return dbr >= cap;
+}
+
+/**
+ * Are the fees inside the loan amount? The engine FINANCES them (quote.ts,
+ * FR-022a): the booked principal is the cash plus the fees, and the offer's
+ * `requestedLoanAmountEGP` is the cash. When the two differ the customer walks
+ * away with less than the headline — worth a line of its own.
+ */
+export function cashIsBelowLoan(cashEGP: string, loanEGP: string): boolean {
+  const cash = Number(cashEGP);
+  const loan = Number(loanEGP);
+  if (!Number.isFinite(cash) || !Number.isFinite(loan) || cash <= 0) return false;
+  return cash < loan;
+}

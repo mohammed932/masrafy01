@@ -1,10 +1,11 @@
 import type { Routes } from '@angular/router';
 
 /**
- * Feature 010 admin routes — the GLOBAL question pool. Two tabs over ONE pool:
+ * Feature 010 admin routes — the GLOBAL question pool. Three tabs over ONE pool:
  * `questions` authors it, `categories` assigns each question to the loan
- * categories that ask it (many-to-many — a question can serve several). Role
- * gating applied at the parent mount in app.routes.ts.
+ * categories that ask it (many-to-many — a question can serve several), and
+ * `engine-rules` lists what the loan engine reads and lets only answers' wording
+ * change (v30.12.0). Role gating applied at the parent mount in app.routes.ts.
  *
  * The tabs are ROUTES rather than panels so a deep link (and the browser's back
  * button) lands on the tab the admin was actually on, and so the 2 400-line pool
@@ -25,6 +26,11 @@ export const QUESTIONNAIRE_ROUTES: Routes = [
         path: 'categories',
         loadComponent: () =>
           import('./question-categories.page').then((m) => m.QuestionCategoriesPage),
+      },
+      {
+        path: 'engine-rules',
+        loadComponent: () =>
+          import('./engine-rules/engine-rules.page').then((m) => m.EngineRulesPageComponent),
       },
     ],
   },

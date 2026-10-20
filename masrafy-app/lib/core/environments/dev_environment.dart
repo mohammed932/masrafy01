@@ -16,6 +16,10 @@ class DevEnvironment extends BaseEnvironment {
   //
   //   flutter run -t lib/main_dev.dart \
   //     --dart-define=MASRAFY_API_BASE_URL=http://<host>:3000
+  //
+  // Phone on USB / wireless debugging, Wi-Fi not cooperating: after
+  // `adb reverse tcp:3000 tcp:3000`, use `http://127.0.0.1:3000` (VS Code
+  // launch "Masrafy • Dev (phone over adb, localhost)" does both).
   static const _override = String.fromEnvironment('MASRAFY_API_BASE_URL');
   static const _channel = MethodChannel('masrafy/dev_host');
 

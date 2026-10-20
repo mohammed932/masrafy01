@@ -61,6 +61,10 @@ import type { LoanCategory, DecisionOutcome } from '@prisma/client';
 import type { ApplicantProfile, BankProgramSnapshot, Offer } from '../matching/types';
 import { MATCHING_ENGINE_VERSION } from '../matching/types';
 import { carDetailsFrom } from '../matching/pipeline/car-details';
+import {
+  employmentInputsFromAnswers,
+  type EmploymentInputs,
+} from '../matching/pipeline/engine-inputs-from-answers';
 import type { ApplyRequestDto } from './dto/apply.dto';
 import type { ApplyResponse, UnavailableProgramDto } from './dto/apply-response.dto';
 import type {
@@ -407,7 +411,13 @@ export class ApplicationsService {
     // snapshot, and a rule reading two different sources on two surfaces is the drift
     // A33 forbids (FR-019).
     const surrogateFacts = await this.resolveSurrogateFacts(resolvedQuestionnaire);
-    const profile = this.buildProfile(dto, age, obligations, surrogateFacts);
+    // The job type, the months in the job and the salary transfer, off the same answers by the
+    // same function preview reads them with (A33) — the request body is only their fallback.
+    const employmentInputs =
+      resolvedQuestionnaire === undefined
+        ? {}
+        : employmentInputsFromAnswers(answerMapsOf(resolvedQuestionnaire.resolved));
+    const profile = this.buildProfile(dto, age, obligations, surrogateFacts, employmentInputs);
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ordered by the applicant's own stated priority.
     // DBR is NOT part of that: affordability shapes the amount offered, so it
@@ -482,6 +492,13 @@ export class ApplicationsService {
           ) as JsonValueInput)
         : undefined;
 
+    // The version this application was answered against. The app sends none, and an
+    // application stored with none was read back against whatever questionnaire was live
+    // when an admin opened it — so a question retired since dropped out of its answers view.
+    // The active version is the one the applicant was served (every write republishes).
+    const questionnaireVersionId =
+      dto.questionnaireVersionId ?? (await this.questionnaire.activeVersionId());
+
     const applicationId = await this.repo.persistMatch({
       application: {
         submissionCorrelationId: correlationId,
@@ -507,7 +524,7 @@ export class ApplicationsService {
         // income bases — never "unknown".
         programNameKey: dto.programNameKey ?? null,
         programType: dto.programType ?? null,
-        questionnaireVersionId: dto.questionnaireVersionId ?? null,
+        questionnaireVersionId,
         applicantProfile: this.profileToJson(profile),
         summary: summaryJson,
         noMatchSummary: noMatchJson,
@@ -855,28 +872,9 @@ export class ApplicationsService {
     questionnaire: { resolved: ResolvedAnswer[]; askedQuestionCodes: string[] } | undefined,
   ): Promise<SurrogateFacts> {
     if (!questionnaire) return { employment: {}, assets: {}, byKey: {} };
-    const optionByCode = new Map<string, string>();
-    const numericByCode = new Map<string, string>();
-    const multiByCode = new Map<string, readonly string[]>();
-    const textByCode = new Map<string, string>();
-    for (const a of questionnaire.resolved) {
-      // The SAME predicate preview applies. Testing `selectedOptionCode !== null`
-      // here accepted picks preview would have dropped, so the two paths could bind a
-      // fact differently for one set of answers.
-      const picked = surrogateOptionPick(a);
-      if (picked !== undefined) optionByCode.set(a.questionCode, picked);
-      if (a.numericValue !== null) numericByCode.set(a.questionCode, a.numericValue);
-      // Multi-picks, for the one question whose answer is a SET rather than a key (which
-      // banks the applicant already uses). `surrogateOptionPick` deliberately drops these.
-      if (a.type === 'MULTI_SELECT' && a.selectedOptionCodes.length > 0) {
-        multiByCode.set(a.questionCode, a.selectedOptionCodes);
-      }
-      // Text answers, for a fact bound to a TEXT question: only their PRESENCE is read
-      // (`registryFactValue`), and the mapper trims before deciding.
-      if (a.textValue !== null && a.textValue.trim().length > 0) {
-        textByCode.set(a.questionCode, a.textValue);
-      }
-    }
+    const { optionByCode, numericByCode, multiByCode, textByCode } = answerMapsOf(
+      questionnaire.resolved,
+    );
     // The registry is read per apply, uncached. A quote priced off a fact the operator
     // repointed an hour ago would be wrong in the one direction that matters — the
     // offer freezes it (Principle I) — and one indexed read per application is not a
@@ -893,6 +891,7 @@ export class ApplicationsService {
     age: number,
     obligations: ObligationsResolution,
     surrogateFacts: SurrogateFacts,
+    employmentInputs: EmploymentInputs,
   ): ApplicantProfile {
     const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
     return {
@@ -903,9 +902,12 @@ export class ApplicationsService {
       priority: dto.priority,
       nationalId: dto.nationalId,
       employment: {
-        employmentType: dto.employment.employmentType,
+        // The ANSWER wins over the body (v30.11.0), exactly as the facts below do: the body
+        // is what the phone worked out from the same answers, and an older build fills it with
+        // its defaults for a question it has no arm for.
+        employmentType: employmentInputs.employmentType ?? dto.employment.employmentType,
         monthlyNetSalaryEGP: new Decimal(dto.employment.monthlyNetSalaryEGP),
-        monthsInJob: dto.employment.monthsInJob,
+        monthsInJob: employmentInputs.monthsInJob ?? dto.employment.monthsInJob,
         // Feature 011 — the ANSWER wins over the request body. The body's copies
         // predate this feature and nothing on the client populated them (the mobile
         // mapper sent an empty asset set entirely); they stay as the fallback for a
@@ -915,7 +917,8 @@ export class ApplicationsService {
           surrogateFacts.employment.yearsInPractice ?? dto.employment.yearsInPractice,
         professorRank: surrogateFacts.employment.professorRank ?? dto.employment.professorRank,
         militaryGrade: surrogateFacts.employment.militaryGrade ?? dto.employment.militaryGrade,
-        salaryTransferType: dto.employment.salaryTransferType,
+        salaryTransferType:
+          employmentInputs.salaryTransferType ?? dto.employment.salaryTransferType,
         companyName: dto.employment.companyName,
         companyType: dto.employment.companyType,
         bankCategory: dto.employment.bankCategory,
@@ -980,4 +983,39 @@ export class ApplicationsService {
         : {}),
     };
   }
+}
+
+/**
+ * Validated answers → the lookup maps both answer mappers take (`surrogateFactsFromAnswers`,
+ * `employmentInputsFromAnswers`). One builder, so the two cannot read one answer two ways.
+ */
+function answerMapsOf(resolved: readonly ResolvedAnswer[]): {
+  optionByCode: Map<string, string>;
+  numericByCode: Map<string, string>;
+  multiByCode: Map<string, readonly string[]>;
+  textByCode: Map<string, string>;
+} {
+  const optionByCode = new Map<string, string>();
+  const numericByCode = new Map<string, string>();
+  const multiByCode = new Map<string, readonly string[]>();
+  const textByCode = new Map<string, string>();
+  for (const a of resolved) {
+    // The SAME predicate preview applies. Testing `selectedOptionCode !== null`
+    // here accepted picks preview would have dropped, so the two paths could bind a
+    // fact differently for one set of answers.
+    const picked = surrogateOptionPick(a);
+    if (picked !== undefined) optionByCode.set(a.questionCode, picked);
+    if (a.numericValue !== null) numericByCode.set(a.questionCode, a.numericValue);
+    // Multi-picks, for the one question whose answer is a SET rather than a key (which
+    // banks the applicant already uses). `surrogateOptionPick` deliberately drops these.
+    if (a.type === 'MULTI_SELECT' && a.selectedOptionCodes.length > 0) {
+      multiByCode.set(a.questionCode, a.selectedOptionCodes);
+    }
+    // Text answers, for a fact bound to a TEXT question: only their PRESENCE is read
+    // (`registryFactValue`), and the mapper trims before deciding.
+    if (a.textValue !== null && a.textValue.trim().length > 0) {
+      textByCode.set(a.questionCode, a.textValue);
+    }
+  }
+  return { optionByCode, numericByCode, multiByCode, textByCode };
 }

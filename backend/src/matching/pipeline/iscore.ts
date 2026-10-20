@@ -41,8 +41,18 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { ApplicantProfile, IncomeBand } from '../types';
+import { iScoreBandRange } from './base-question-set';
 import { bandFor } from './income-rule-bands';
 import { I_SCORE_FACT_KEY } from './product-template';
+
+/**
+ * A BAND of bureau scores, `[from, to)`, `null` an open end — what the applicant answers since
+ * v30.11.0 (the client's "less than 521 / 521–625 / above 625"), where a typed score used to be.
+ */
+export interface IScoreBandRange {
+  readonly from: Decimal | null;
+  readonly to: Decimal | null;
+}
 
 /** 100%, i.e. "this applicant's score costs them nothing". */
 const NEUTRAL_PERCENT = new Decimal(100);
@@ -136,8 +146,14 @@ export function effectiveIScoreTiers(
 /**
  * The multiplier to apply to this program's worked-out figure.
  *
- * `score` is the applicant's `i_score` answer, or `undefined` when they left the optional
- * question blank. A score that falls in no tier resolves to 100% and NOT to
+ * `score` is the applicant's `i_score` answer — a number, or since v30.11.0 a BAND of numbers —
+ * or `undefined` when they gave none (N/A).
+ *
+ * A BAND is priced at the LOWEST factor among the table's tiers it overlaps. The band says the
+ * score is somewhere in it, and nothing says where: the lowest factor is the one figure true
+ * for every score it could be, so a band never quotes above what the score itself would have.
+ * On the shared table the bands sit exactly on the classes' edges and lose nothing (85 / 60 /
+ * 90 / 100); a bank table with finer tiers above 625 quotes the band its weakest one. A score that falls in no tier resolves to 100% and NOT to
  * `no_matching_band`: on an ordinary income table a miss is a stated reason the customer is
  * told, but on a MULTIPLIER a miss would refuse the quote outright — which is exactly why
  * `validateBands` demands `coverAll` on a tier table, so an operator cannot type a gap in
@@ -151,9 +167,12 @@ export function effectiveIScoreTiers(
  */
 export function resolveIScoreFactor(
   resolved: { readonly tiers: IScoreTiers; readonly source: IScoreTiersSource } | undefined,
-  score: Decimal | undefined,
+  score: Decimal | IScoreBandRange | undefined,
 ): IScoreResolution {
   if (resolved === undefined) return NEUTRAL;
+  if (score !== undefined && !(score instanceof Decimal)) {
+    return lowestOverlappingTier(resolved, score);
+  }
   if (score === undefined) {
     // N/A: no score to place in a band. The table's own no-score figure when it states one
     // (the shared table's "No I-Score" class), else the neutral 100%.
@@ -171,6 +190,46 @@ export function resolveIScoreFactor(
   if (!factor.isFinite() || factor.lessThan(0)) return NEUTRAL;
 
   return { factorPercent: factor, source: resolved.source, tierIndex: lookup.index };
+}
+
+/**
+ * The weakest tier a band overlaps, as `resolveIScoreFactor` prices a band. Tiers are read the
+ * way `bandFor` reads them — `[fromInclusive, toExclusive)`, an unparseable edge or factor
+ * skipped, a negative factor refused — and a band no tier overlaps is the neutral 100%, exactly
+ * as a score that falls in no tier is.
+ */
+function lowestOverlappingTier(
+  resolved: { readonly tiers: IScoreTiers; readonly source: IScoreTiersSource },
+  band: IScoreBandRange,
+): IScoreResolution {
+  let best: { factor: Decimal; index: number } | null = null;
+  for (const [index, tier] of (resolved.tiers.bands ?? []).entries()) {
+    const from = decimalOrNull(tier.fromInclusive);
+    if (from === null) continue;
+    const hasTo = tier.toExclusive !== null && tier.toExclusive !== undefined;
+    const to = hasTo ? decimalOrNull(tier.toExclusive) : null;
+    if (hasTo && to === null) continue;
+    // [from, to) and [band.from, band.to) overlap when each starts before the other ends.
+    const overlaps =
+      (band.to === null || from.lessThan(band.to)) &&
+      (to === null || band.from === null || band.from.lessThan(to));
+    if (!overlaps) continue;
+    const factor = decimalOrNull(tier.incomeEGP);
+    if (factor === null || factor.lessThan(0)) continue;
+    if (best === null || factor.lessThan(best.factor)) best = { factor, index };
+  }
+  if (best === null) return NEUTRAL;
+  return { factorPercent: best.factor, source: resolved.source, tierIndex: best.index };
+}
+
+function decimalOrNull(value: string | null | undefined): Decimal | null {
+  if (value === null || value === undefined) return null;
+  try {
+    const parsed = new Decimal(value);
+    return parsed.isFinite() ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -194,20 +253,31 @@ export function asIScoreTiers(raw: unknown): IScoreTiers | undefined {
 }
 
 /**
- * The applicant's bureau score, or `undefined` when they did not give one.
+ * The applicant's bureau score — a number, or the BAND they picked — or `undefined` when they
+ * gave none.
  *
  * Reads the ONE platform fact key through the registry map every other fact is read
- * through, so the score arrives here by exactly the route `emitIScore`'s `factNumber` step
- * used to read it — `i_score` is a registry row with a bound question, and it is not a
- * DERIVED key, so `surrogate-facts-from-answers.ts` maps the answer into `byKey`.
+ * through — `i_score` is a registry row with a bound question, and it is not a DERIVED key, so
+ * `surrogate-facts-from-answers.ts` maps the answer into `byKey`.
  *
- * A non-numeric shape reads as ABSENT rather than throwing. The question is seeded NUMERIC
- * and `isReservedFactKey` stops an operator rebinding the key to a dropdown, so the wrong
- * shape is unreachable through any screen — but Principle V is not conditional on that.
+ * Two answer shapes are real. Since v30.11.0 the fact is bound to the band question
+ * (`i_score_band`, a single choice — the client's sheet), so an applicant arrives as a
+ * `choice`; the number is what the calculator, the quote scripts, an application stored before
+ * the change and a future bureau feed send. The band `no_score` is the bureau's N/A and reads
+ * as no score, exactly as a blank always has. Any other shape — or a band code this build does
+ * not know — reads as ABSENT rather than throwing (Principle V).
  */
-export function iScoreOf(profile: ApplicantProfile): Decimal | undefined {
+export function iScoreOf(profile: ApplicantProfile): Decimal | IScoreBandRange | undefined {
   const fact = profile.surrogateFacts?.[I_SCORE_FACT_KEY];
-  return fact !== undefined && fact.kind === 'numeric' ? fact.value : undefined;
+  if (fact === undefined) return undefined;
+  if (fact.kind === 'numeric') return fact.value;
+  if (fact.kind !== 'choice') return undefined;
+  const range = iScoreBandRange(fact.optionCode);
+  if (range === undefined || range === 'no_score') return undefined;
+  return {
+    from: range.from === null ? null : new Decimal(range.from),
+    to: range.to === null ? null : new Decimal(range.to),
+  };
 }
 
 /**

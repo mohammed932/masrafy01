@@ -31,6 +31,12 @@ export const REDACT_PATHS: readonly string[] = [
   'res.body.data.applicantProfile.nationalId',
   '*.note',
   '*.originalFilename',
+  // v30.11.0 — free-text questionnaire answers. The fixed question set asks where the
+  // applicant lives (`residence_area`), and a text answer may carry anything the applicant
+  // typed; logs never carry it (Principle VI).
+  'req.body.questionnaireAnswers[*].textValue',
+  'req.body.answers[*].textValue',
+  '*.textValue',
 ];
 
 export function pinoOptions(

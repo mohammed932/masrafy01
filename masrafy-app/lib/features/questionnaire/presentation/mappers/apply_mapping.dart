@@ -8,8 +8,11 @@
 ///     passed through verbatim. They are NEVER derived from a bucket midpoint
 ///     and never defaulted (FR-044): a customer asking for 500 000 used to be
 ///     quoted on 300 000.
-///   - **Everything else** — job tenure, priority, property/vehicle bands — is
-///     still a choice answer, so the documented MVP approximations below stay.
+///   - **Everything else** — job, time in the current job, salary transfer,
+///     priority — is read by ONE shared helper each below, so every loan type
+///     that asks the question reads it the same way. Time in the job is a typed
+///     figure now (`months_in_current_job`); the legacy job-tenure buckets and
+///     the mortgage property bands are the documented approximations left.
 ///
 /// Money helpers emit decimal strings (Constitution Principle I / A3).
 library;
@@ -34,19 +37,93 @@ String egp(num value) => (value < 0 ? 0 : value).toDouble().toStringAsFixed(2);
 String amountEgp(num value) =>
     value.clamp(_minAmountEgp, _maxAmountEgp).toDouble().toStringAsFixed(2);
 
-/// Years (wizard slider) → months, clamped to the backend's 6–360 band.
-int tenorMonths(double years) =>
-    (years * 12).round().clamp(_minTenorMonths, _maxTenorMonths);
+// ---- Employment -------------------------------------------------------------
 
-/// Midpoint of a range-slider's two bounds.
-double midpoint(double start, double end) => (start + end) / 2;
+/// The legacy `employment_status` rows, exactly as the mappers always sent them
+/// (two renamed to the shorter `employment_type` registry tokens). Every other
+/// code — `teacher`, `banker`, `doctor`, `lawyer_private_office`, `other`, … —
+/// passes through unchanged: the server buckets each code itself (salaried /
+/// self_employed / retired), and a copy of that bucketing here would be a second
+/// list to keep in step.
+const Map<String, String> _employmentTypeByAnswer = {
+  'government_employee': 'government_employee',
+  'private_sector_employee': 'private_employee',
+  'business_owner_company_owner': 'business_owner',
+  'freelancer': 'freelancer',
+  'retired': 'retired',
+};
 
-/// Wizard `salary_transfer` answer code → backend `transfer_type` registry key.
+/// `employment_status` answer code → `employment.employmentType`.
 ///
-/// The question asks HOW the salary arrives, so every key a bank program can be
-/// configured with is reachable. Option codes are slugged from the English label
-/// by the questionnaire seed; only "No salary transfer" needs renaming, since the
-/// registry key for it is `none`.
+/// ONE table for every loan type that asks the job question; personal, car and
+/// mortgage each used to carry an identical private copy. Unanswered →
+/// `salaried`, the default all three sent. (The business mapper states
+/// `business_owner` itself and does not read this.)
+String employmentTypeFor(String? code) {
+  if (code == null || code.isEmpty) return 'salaried';
+  return _employmentTypeByAnswer[code] ?? code;
+}
+
+/// Derive `companyType` from the employment id (never collected by the wizard;
+/// the engine only reads it for bank-employee programs).
+String companyTypeFor(String employmentType) =>
+    employmentType == 'government_employee' ? 'public_bank' : 'commercial_bank';
+
+// ---- Time in the current job ------------------------------------------------
+
+/// NUMERIC — months in the current job (0–600). Replaced the bucketed
+/// [_legacyJobTenureQuestion].
+const String _monthsInCurrentJobQuestion = 'months_in_current_job';
+
+/// RETIRED four-bucket question. Read only for a session still holding a
+/// questionnaire published before [_monthsInCurrentJobQuestion].
+const String _legacyJobTenureQuestion = 'job_tenure';
+
+/// `employment.monthsInJob` from the answers.
+///
+/// The typed `months_in_current_job` figure when answered — whole months (11.9
+/// months in the job is 11 completed months), never negative. Otherwise a legacy
+/// `job_tenure` bucket's representative value. Otherwise 24, the fallback every
+/// loan type has always sent when the question is not asked.
+int monthsInJobFrom(Map<String, QuestionAnswer> answers) {
+  final typed =
+      num.tryParse(numericOf(answers, _monthsInCurrentJobQuestion) ?? '');
+  if (typed != null && typed.isFinite) return typed < 0 ? 0 : typed.floor();
+  return _monthsFromLegacyTenure(
+        pickedOption(answers, _legacyJobTenureQuestion),
+      ) ??
+      24;
+}
+
+/// Legacy `job_tenure` bucket → representative month count, or null when [bucket]
+/// is not one of its option codes.
+///
+/// The case labels ARE the `job_tenure` option codes the questionnaire seed emitted
+/// (`JOB_TENURE_Q`). They once read `under_6m` / `6m_1y` / `1_3y` / `over_3y`, which no
+/// question ever emitted, so every arm was dead and every applicant was reported at the
+/// 24-month fallback.
+int? _monthsFromLegacyTenure(String? bucket) => switch (bucket) {
+      'less_than_6_months' => 3,
+      '6_months_to_1_year' => 9,
+      '1_to_3_years' => 24,
+      'more_than_3_years' => 48,
+      _ => null,
+    };
+
+// ---- Salary transfer --------------------------------------------------------
+
+/// Yes/no (`yes` / `no`) — can the applicant move the salary to the lending bank.
+/// Replaced [_legacySalaryTransferQuestion].
+const String _canTransferSalaryQuestion = 'can_transfer_salary';
+
+/// RETIRED four-answer question (HOW the salary arrives). Read only for a session
+/// still holding a questionnaire published before [_canTransferSalaryQuestion].
+const String _legacySalaryTransferQuestion = 'salary_transfer';
+
+/// Legacy `salary_transfer` answer code → backend `transfer_type` registry key.
+///
+/// Option codes are slugged from the English label by the questionnaire seed; only
+/// "No salary transfer" needs renaming, since the registry key for it is `none`.
 const Map<String, String> _transferTypeByAnswer = {
   'payroll': 'payroll',
   'salary_transfer_letter': 'salary_transfer_letter',
@@ -54,39 +131,22 @@ const Map<String, String> _transferTypeByAnswer = {
   'no_salary_transfer': 'none',
 };
 
-/// Unanswered (the question is optional per category) falls back to `none` —
-/// the honest reading of "the applicant did not claim a salary transfer".
-String salaryTransferType({required String? answerCode}) =>
-    _transferTypeByAnswer[answerCode] ?? 'none';
-
-/// Derive `companyType` from the employment id (never collected by the wizard;
-/// the engine only reads it for bank-employee programs).
-String companyTypeFor(String employmentType) =>
-    employmentType == 'government_employee' ? 'public_bank' : 'commercial_bank';
-
-/// Job-tenure bucket → representative `monthsInJob`. [fallback] covers the business
-/// wizard, which asks `business_age` instead and maps it itself.
+/// `employment.salaryTransferType` from the answers.
 ///
-/// The case labels ARE the `job_tenure` option codes the questionnaire seed emits
-/// (`JOB_TENURE_Q`). They used to read `under_6m` / `6m_1y` / `1_3y` / `over_3y`, which
-/// no question has ever emitted, so every arm was dead and every applicant was reported
-/// at the 24-month fallback — including the ones the personal wizard passed a real bucket
-/// to. Personal escaped it only because that mapper carried a second, correct copy of this
-/// map; the copy is deleted and both now read this one.
-int monthsFromTenure(String? bucket, {int fallback = 24}) {
-  switch (bucket) {
-    case 'less_than_6_months':
-      return 3;
-    case '6_months_to_1_year':
-      return 9;
-    case '1_to_3_years':
-      return 24;
-    case 'more_than_3_years':
-      return 48;
-    default:
-      return fallback;
-  }
-}
+/// `can_transfer_salary`: `yes` → `salary_transfer_letter`, `no` → `none`. A session
+/// holding the old questionnaire answered `salary_transfer` instead, read through the
+/// legacy table. Unanswered (the question is optional per loan type) → `none`, the
+/// honest reading of "the applicant did not claim a salary transfer".
+String salaryTransferTypeFrom(Map<String, QuestionAnswer> answers) =>
+    switch (pickedOption(answers, _canTransferSalaryQuestion)) {
+      'yes' => 'salary_transfer_letter',
+      'no' => 'none',
+      _ => _transferTypeByAnswer[
+              pickedOption(answers, _legacySalaryTransferQuestion)] ??
+          'none',
+    };
+
+// ---- Priority ---------------------------------------------------------------
 
 /// `priority_factor` option code → backend `priority` enum
 /// (`lowest_installment | lowest_interest | fastest_approval | least_paperwork`).

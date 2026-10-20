@@ -254,25 +254,43 @@ class QuestionEnabledWhenModel {
     required this.questionCode,
     required this.operator,
     required this.optionCode,
+    this.optionCodes = const [],
   });
 
   factory QuestionEnabledWhenModel.fromJson(Map<String, dynamic> json) {
+    final rawOptionCodes = json['optionCodes'];
     return QuestionEnabledWhenModel(
       questionCode: json['questionCode'] as String? ?? '',
       operator: json['operator'] as String? ?? 'equals',
       optionCode: json['optionCode'] as String? ?? '',
+      // Present only on an `in` rule, which carries no `optionCode`. Non-string
+      // and empty entries are dropped and a non-list reads as empty, exactly as
+      // the server's `enabledWhenGate` reads it — the entity then shows the
+      // question rather than hiding it on a rule it cannot evaluate.
+      optionCodes: rawOptionCodes is List
+          ? rawOptionCodes
+              .whereType<String>()
+              .where((code) => code.isNotEmpty)
+              .toList(growable: false)
+          : const [],
     );
   }
 
   final String questionCode;
 
-  /// Raw API operator string (`equals` / `not_equals`).
+  /// Raw API operator string (`equals` / `not_equals` / `in`).
   final String operator;
+
+  /// Target of an `equals` / `not_equals` rule; empty on an `in` rule.
   final String optionCode;
+
+  /// Targets of an `in` rule (2+ codes); empty on the single-code operators.
+  final List<String> optionCodes;
 
   QuestionEnabledWhenEntity toEntity() => QuestionEnabledWhenEntity(
         questionCode: questionCode,
         operator: EnabledWhenOperator.fromApi(operator),
         optionCode: optionCode,
+        optionCodes: optionCodes,
       );
 }

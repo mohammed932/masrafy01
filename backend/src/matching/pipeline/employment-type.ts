@@ -1,3 +1,5 @@
+import { EMPLOYMENT_BUCKET_BY_OPTION } from './base-question-set';
+
 /**
  * Employment-type grouping — applicant vocabulary → bank vocabulary.
  *
@@ -25,8 +27,8 @@
  * reads as configured on the screen and is dead at quote time, which is the worst pair of
  * properties a setting can have.
  *
- * `retired` is in the range without being in the map — it is its own bucket and falls
- * through unchanged, deliberately (a pension has its own age and income rules).
+ * `retired` is its own bucket, never folded into `salaried`, deliberately (a pension has its
+ * own age and income rules).
  */
 export const COARSE_EMPLOYMENT_TYPES = ['salaried', 'self_employed', 'retired'] as const;
 
@@ -36,18 +38,20 @@ export function isCoarseEmploymentType(value: string): value is CoarseEmployment
   return (COARSE_EMPLOYMENT_TYPES as readonly string[]).includes(value);
 }
 
-/** Detailed answer → the bucket bank programs underwrite in. */
+/**
+ * Detailed answer → the bucket bank programs underwrite in.
+ *
+ * The job answers the questionnaire offers come from the fixed question set
+ * (`EMPLOYMENT_ANSWERS` in `base-question-set.ts`), each with its bucket stated beside it, so
+ * a new job cannot be added without one. The rows before them are the vocabulary the mobile
+ * app sends (`private_employee`, `business_owner`) and stays readable for stored applications.
+ */
 const COARSE_BY_DETAILED: Readonly<Record<string, string>> = {
   government_employee: 'salaried',
   private_employee: 'salaried',
   business_owner: 'self_employed',
   freelancer: 'self_employed',
-  // The codes the questionnaire actually emits (`EMPLOYMENT_OPTIONS` in
-  // `seed-questionnaire.ts`). Without these two rows every real applicant fell through
-  // the map to its own identity, so `isSelfEmployedBucket` was false for a business owner
-  // and every `selfEmployed*` setting on every program was unreachable.
-  private_sector_employee: 'salaried',
-  business_owner_company_owner: 'self_employed',
+  ...EMPLOYMENT_BUCKET_BY_OPTION,
 };
 
 /**

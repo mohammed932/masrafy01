@@ -58,7 +58,9 @@ class QuestionnaireState with _$QuestionnaireState {
   /// Questions in [group] visible after applying each question's `enabledWhen`
   /// rule against the current [answers]. A rule whose source question is not in
   /// the pool is DANGLING and never hides its target — mirrors the server's
-  /// `isQuestionVisible`.
+  /// `isQuestionVisible`. Nor does a rule whose operator this build does not
+  /// recognise, or one missing its target code(s)
+  /// ([QuestionEnabledWhenEntity.isSatisfied]).
   List<QuestionEntity> visibleQuestions(QuestionGroupEntity group) =>
       _visible(group, _questionsByCode);
 

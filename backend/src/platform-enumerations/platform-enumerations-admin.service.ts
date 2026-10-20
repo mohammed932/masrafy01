@@ -5,6 +5,7 @@ import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { I_SCORE_CLASS_TYPE } from '@/matching/pipeline/iscore-classes';
+import { BASE_QUESTIONS, baseQuestion } from '@/matching/pipeline/base-question-set';
 import {
   EnumerationCategoriesNotApplicableException,
   EnumerationCategoryNotAssignedException,
@@ -1444,14 +1445,20 @@ export class PlatformEnumerationsAdminService {
   /**
    * What the program-name questions board needs to let an operator untick: the questions this
    * name already skips, per loan type it is offered under, and every question it may NOT skip
-   * with the reason. With no key (the create flow) nothing is skipped yet and only the engine's
-   * own inputs lock — a name with no bank programme behind it has nothing else that reads.
+   * with the reason. With no key (the create flow) nothing is skipped yet; the engine's own
+   * inputs lock, and so does the fixed question set — a name created here is payslip-only.
+   *
+   * A `base` lock is PER LOAN TYPE (`categories`): the set's income-proof half binds only the
+   * loan types this name sells a payslip programme in. Every other lock binds every loan type
+   * and carries no `categories`. A question the set locks in some loan types and a programme
+   * reads everywhere gets a second, `program` entry for the rest — never two entries for one
+   * loan type.
    */
   async programNameQuestionScope(programNameKey: string | null): Promise<{
     excludedByCategory: Partial<Record<LoanCategory, string[]>>;
     /** Question IDS the name ADDS, per loan type — `program_name_question_addition`. */
     addedByCategory: Partial<Record<LoanCategory, string[]>>;
-    locks: { code: string; reason: QuestionLockReason }[];
+    locks: { code: string; reason: QuestionLockReason; categories?: LoanCategory[] }[];
   }> {
     const [pool, lockScope, categories] = await Promise.all([
       this.questionnaire.questionAssignments(),
@@ -1470,11 +1477,42 @@ export class PlatformEnumerationsAdminService {
         ...(await this.repo.questionAdditions(programNameKey as string, category)),
       ];
     }
+    // Which loan types the fixed set's income-proof half binds: every loan type a new name could
+    // be offered under (the create flow), else the name's own, each judged on its programmes.
+    const incomeProofIn = new Map<LoanCategory, boolean>();
+    for (const category of categories) {
+      const scope = await this.repo.questionLockScopeFor(programNameKey, category);
+      incomeProofIn.set(category, scope.incomeProof === true);
+    }
+    const baseCategoriesOf = (code: string): LoanCategory[] => {
+      const base = baseQuestion(code);
+      if (base === undefined) return [];
+      if (programNameKey === null) return [...base.categories];
+      return base.categories.filter(
+        (c) =>
+          categories.includes(c) &&
+          (base.servedOn === 'every_name' || incomeProofIn.get(c) === true),
+      );
+    };
+    // The name-wide reasons, without the fixed set: judged as a name that is not income-proof,
+    // so `questionLockReason` answers only `engine` / `program` here (an every-name question is
+    // reported through its own `categories` below like the rest of the set).
+    const nameWide = { ...lockScope, incomeProof: false };
+
     // Every question in the pool, asked here or not: the `engine` lock also says which
     // questions a name may not ADD, and the board needs that for the rows it does not ask yet.
     const locks = pool.flatMap((q) => {
-      const reason = questionLockReason(q.code, lockScope);
-      return reason === null ? [] : [{ code: q.code, reason }];
+      const reason = questionLockReason(q.code, nameWide);
+      if (reason === 'engine') return [{ code: q.code, reason }];
+      const baseIn = baseCategoriesOf(q.code);
+      const out: { code: string; reason: QuestionLockReason; categories?: LoanCategory[] }[] = [];
+      if (baseIn.length > 0) out.push({ code: q.code, reason: 'base', categories: baseIn });
+      if (reason === 'program') {
+        const rest = categories.filter((c) => !baseIn.includes(c));
+        if (baseIn.length === 0) out.push({ code: q.code, reason });
+        else if (rest.length > 0) out.push({ code: q.code, reason, categories: rest });
+      }
+      return out;
     });
     return { excludedByCategory, addedByCategory, locks };
   }
@@ -1500,9 +1538,11 @@ export class PlatformEnumerationsAdminService {
         assignedCategories: [...offered],
       });
     }
+    // Judged for THIS loan type: the fixed set's income-proof half binds only where the name
+    // sells a payslip programme.
     const [pool, lockScope] = await Promise.all([
       this.questionnaire.questionAssignments(),
-      this.repo.questionLockScopeFor(programNameKey),
+      this.repo.questionLockScopeFor(programNameKey, category),
     ]);
     const byId = new Map(pool.map((q) => [q.id, q]));
     const next = [...new Set(questionIds)].sort();
@@ -1591,7 +1631,12 @@ export class PlatformEnumerationsAdminService {
           reason: 'inactive',
         });
       }
-      if (questionLockReason(q.code, lockScope) === 'engine') {
+      // The fixed set is asked wherever it applies already; whether it is asked is the set's
+      // call, never one name's — the same refusal as an engine question.
+      if (
+        questionLockReason(q.code, lockScope) === 'engine' ||
+        baseQuestion(q.code) !== undefined
+      ) {
         throw new QuestionAdditionLockedException({ questionId: q.id, code: q.code });
       }
     };
@@ -1851,6 +1896,20 @@ export class PlatformEnumerationsAdminService {
       });
     }
     if (def.mirrorQuestionId === question.id) return;
+    // A fixed-set question's answers are owned in code (`base-question-set.ts`): a mirrored list
+    // would rewrite them from Manage values, a path the engine-input contract never sees.
+    if (baseQuestion(question.code) !== undefined) {
+      const row = (await this.questionnaire.listQuestions()).find((q) => q.id === question.id);
+      throw new DomainException(ERROR_CODES.QUESTION_ENGINE_LOCKED, {
+        questionId: question.id,
+        code: question.code,
+        questionAr: row?.questionAr ?? question.code,
+        questionEn: row?.questionEn ?? question.code,
+        reason: 'base',
+        change: 'option_added',
+        programNameKeys: [],
+      });
+    }
     await this.repo.updateTypeDefinition(typeKey, { mirrorQuestionId: question.id });
     this.repo.invalidateCache();
     await this.audit.write({
@@ -1874,6 +1933,11 @@ export class PlatformEnumerationsAdminService {
     if (!existing) throw new NotFoundException();
     if (!isQuestionBoundEnumerationType(existing.type)) {
       throw new EnumerationQuestionBindingNotApplicableException({ type: existing.type });
+    }
+    // A fact the fixed question set reads through (`base-question-set.ts`: the bureau score, the
+    // other-income amount) stays on the question the set binds it to.
+    if (BASE_QUESTIONS.some((q) => q.factKey === existing.key)) {
+      throw new EnumerationSystemOnlyException({ type: existing.type, key: existing.key });
     }
 
     if (questionCode !== null) {

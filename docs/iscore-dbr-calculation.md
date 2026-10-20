@@ -27,6 +27,15 @@ The shared I-Score table (Manage values → I-Score classes):
 
 A score below 300 reads as Defaulted and one above 850 as Excellent.
 
+**What the customer answers (v30.11.0): a band, not a number.** The app asks the client's four
+choices — *Not available (N/A)*, *Below 521*, *521 to 625*, *Above 625* — whose edges are this
+table's own class edges. A band is priced at the **lowest** percentage among the classes it
+covers, the one figure true for every score inside it: *Below 521* takes the lower of Defaulted
+and High Risk, *Above 625* the lowest of the three top classes, and *N/A* the table's "No
+I-Score" class. On the shared table that loses nothing; a bank table with finer rows above 625
+quotes the band its weakest row. A typed score (the calculator, a future bureau feed) is still
+read exactly as above.
+
 | Step | Figure |
 |---|---|
 | Income | 10,000 |

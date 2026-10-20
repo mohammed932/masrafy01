@@ -33,6 +33,7 @@
  */
 
 import { enabledWhenGate } from './question-visibility';
+import { baseCodesServed } from '@/matching/pipeline/base-question-set';
 import {
   DEBT_TYPES_QUESTION_CODE,
   EMPLOYMENT_TYPE_QUESTION_CODE,
@@ -151,6 +152,13 @@ export interface NarrowingScope {
    */
   productOnly?: boolean;
   /**
+   * An INCOME-PROOF programme is sold under this name in the requested loan type (any loan type
+   * when the request named none). The fixed question set's `income_proof` half
+   * (`base-question-set.ts`) is then served here whatever any untick says, and locked against
+   * one. Absent = false.
+   */
+  incomeProof?: boolean;
+  /**
    * How many active programmes under the name an applicant of THIS loan type is quoted on (all
    * loan types when the request named none). Read only by the product-only core: the priority
    * question orders offers, so it is asked there when there is more than one. Absent = unknown,
@@ -197,14 +205,16 @@ export interface NarrowingScope {
  *   - `engine`: every quote reads it — the money bindings, the debts and their amounts,
  *     employment type (the allow-lists and the per-type debt-burden cap), or a fact the
  *     platform owns (I-Score, the car figures).
+ *   - `base`: it is in the fixed question set (`base-question-set.ts`) and this path serves it
+ *     — an income-proof name, or any name for an every-name question.
  *   - `program`: a bank programme under the name reads it, through its income rule, a cap,
  *     rate, tenor or fee table, its I-Score table, or a refusal that needs the answer.
  */
-export type QuestionLockReason = 'engine' | 'program';
+export type QuestionLockReason = 'engine' | 'base' | 'program';
 
 /** The lock inputs, available with or without a name that has programmes behind it. */
 export type QuestionLockScope = Pick<NarrowingScope, 'platformQuestionCodes'> &
-  Partial<Pick<NarrowingScope, 'neededQuestionCodes' | 'mustAnswerQuestionCodes'>>;
+  Partial<Pick<NarrowingScope, 'neededQuestionCodes' | 'mustAnswerQuestionCodes' | 'incomeProof'>>;
 
 /** `null` = the operator may untick it. The one rule serve, apply, preview and admin share. */
 export function questionLockReason(
@@ -214,6 +224,7 @@ export function questionLockReason(
   if (NEVER_A_GATE_ONLY_SOURCE.has(code) || scope.platformQuestionCodes.includes(code)) {
     return 'engine';
   }
+  if (baseCodesServed(scope.incomeProof === true).has(code)) return 'base';
   if (
     (scope.neededQuestionCodes ?? []).includes(code) ||
     (scope.mustAnswerQuestionCodes ?? []).includes(code)
@@ -343,6 +354,11 @@ function off(
  *      `employment_status` — read by no income rule, but driving the employment allow-lists
  *      and the debt-burden cap for every program — without a hand-written exception.
  *
+ * Plus, ahead of all four, the FIXED QUESTION SET this path serves (`base-question-set.ts`,
+ * v30.11.0): its every-name half on every name, its income-proof half wherever a payslip
+ * programme is sold under the name. Those are core on product-only names too, can never be
+ * unticked, and pass A never drops one.
+ *
  * An OPT-IN row is never core; the operator's ADDED questions are kept whatever reads them,
  * survive pass A, and win over an exclusion of the same question.
  *
@@ -373,19 +389,23 @@ export function narrowAskedQuestions(
   // Only what this category can serve: an addition whose row has since left the category
   // scopes nothing, exactly as a dangling gate does not.
   const added = new Set((scope.addedQuestionCodes ?? []).filter((code) => byCode.has(code)));
+  // The fixed question set this path must serve (`base-question-set.ts`): core whatever reads
+  // it, never unticked (`questionLockReason` says `base`), never dropped by the gate clean-up.
+  const base = baseCodesServed(scope.incomeProof === true);
 
   // An OPT-IN row is never core. Clause 1 alone ("bound to no fact") would otherwise ask an
   // added business question of every name in the category, which is the one thing the opt-in
   // row exists to prevent.
   const isCore = (code: string): boolean =>
     !optIn.has(code) &&
-    (scope.productOnly === true
-      ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code) ||
-        (code === PRIORITY_QUESTION_CODE && (scope.programCount ?? 1) > 1)
-      : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
-        !factBound.has(code) ||
-        platform.has(code) ||
-        !askScoped.has(code));
+    (base.has(code) ||
+      (scope.productOnly === true
+        ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code) ||
+          (code === PRIORITY_QUESTION_CODE && (scope.programCount ?? 1) > 1)
+        : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
+          !factBound.has(code) ||
+          platform.has(code) ||
+          !askScoped.has(code)));
 
   const keep = new Set<string>();
   for (const q of questions) {
@@ -407,7 +427,12 @@ export function narrowAskedQuestions(
       if (!keep.has(q.code)) continue;
       // Only a question that exists to gate: no fact of its own, and not in the core list.
       // Nor one the operator added: asking it was the point, not what sits behind it.
-      if (factBound.has(q.code) || NEVER_A_GATE_ONLY_SOURCE.has(q.code) || added.has(q.code)) {
+      if (
+        factBound.has(q.code) ||
+        NEVER_A_GATE_ONLY_SOURCE.has(q.code) ||
+        added.has(q.code) ||
+        base.has(q.code)
+      ) {
         continue;
       }
       const dependents = dependentsOf.get(q.code);

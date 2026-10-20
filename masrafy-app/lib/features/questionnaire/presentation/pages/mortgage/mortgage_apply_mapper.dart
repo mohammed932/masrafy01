@@ -9,9 +9,11 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// value and down-payment percentage are still choice answers with no NUMERIC
 /// binding, so they keep their documented representative values and feed
 /// `mortgageDetails` only; the financed principal is the amount the applicant
-/// actually asked for. The full answer set rides along as `questionnaireAnswers`
-/// so the engine applies per-bank weighted scoring (Principle V). `age` stays
-/// null — the results cubit fills it from the profile (`/auth/me`).
+/// actually asked for. Job, months in the current job and salary transfer go
+/// through the same shared helpers as personal and car. The full answer set
+/// rides along as `questionnaireAnswers` — the only path for an answer with no
+/// field of its own on the request. No `age`: the server derives it from the
+/// profile's birthday (A31).
 ///
 /// Codes mirror `backend/prisma/seed-questionnaire.ts`.
 ApplyRequest mapMortgageAnswersToApplyRequest(
@@ -20,9 +22,8 @@ ApplyRequest mapMortgageAnswersToApplyRequest(
   String? programType,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
-  final employmentCode = pickedOption(answers, 'employment_status');
   final employmentType =
-      _employmentType[employmentCode] ?? employmentCode ?? 'salaried';
+      employmentTypeFor(pickedOption(answers, 'employment_status'));
 
   final propertyValue =
       _propertyValueEgp[pickedOption(answers, 'property_value')] ?? 0;
@@ -37,13 +38,11 @@ ApplyRequest mapMortgageAnswersToApplyRequest(
     employment: EmploymentPayload(
       employmentType: employmentType,
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-      // `job_tenure` IS asked of a mortgage applicant, and this passed `null`, so all
-      // three mortgage programmes' `minMonthsInJob: 6` was checked against the 24-month
-      // fallback rather than the answer.
-      monthsInJob: monthsFromTenure(pickedOption(answers, 'job_tenure')),
-      salaryTransferType: salaryTransferType(
-        answerCode: pickedOption(answers, 'salary_transfer'),
-      ),
+      // Read from the answer, never assumed: this once passed `null`, so all three
+      // mortgage programmes' `minMonthsInJob: 6` was checked against the 24-month
+      // fallback rather than what the applicant said.
+      monthsInJob: monthsInJobFrom(answers),
+      salaryTransferType: salaryTransferTypeFrom(answers),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),
     ),
@@ -88,16 +87,6 @@ const Map<String, double> _downPaymentPct = {
   '20_30': 0.25,
   '30_40': 0.35,
   'more_than_40': 0.45,
-};
-
-/// `employment_status` seed code → the engine's `employmentType` token
-/// (the engine keys on the shorter legacy tokens for bank-employee programs).
-const Map<String, String> _employmentType = {
-  'government_employee': 'government_employee',
-  'private_sector_employee': 'private_employee',
-  'business_owner_company_owner': 'business_owner',
-  'freelancer': 'freelancer',
-  'retired': 'retired',
 };
 
 /// Questionnaire `property_type` code → matching-registry `property_type` key.

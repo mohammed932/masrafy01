@@ -23,6 +23,10 @@ import {
   surrogateOptionPick,
   type SurrogateFacts,
 } from '@/matching/pipeline/surrogate-facts-from-answers';
+import {
+  employmentInputsFromAnswers,
+  type EmploymentInputs,
+} from '@/matching/pipeline/engine-inputs-from-answers';
 import type { ApplicantProfile, Quote } from '@/matching/types';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { validateAnswer } from '@/questionnaire/validation/answer-validation';
@@ -190,7 +194,7 @@ export class MatchingPreviewService {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
     }
-    const { money, surrogateFacts } = await this.resolveSelectedOptions(
+    const { money, surrogateFacts, employment } = await this.resolveSelectedOptions(
       args.answers,
       args.category,
       args.programNameKey,
@@ -202,6 +206,7 @@ export class MatchingPreviewService {
       args.programNameKey ?? null,
       surrogateFacts,
       args.programType ?? null,
+      employment,
     );
   }
 
@@ -233,6 +238,8 @@ export class MatchingPreviewService {
     money: MoneyInputs | null;
     /** Feature 011 — the facts an income rule looks its table up by (FR-018). */
     surrogateFacts: SurrogateFacts;
+    /** The job type, months in the job and salary transfer — the function apply reads (A33). */
+    employment: EmploymentInputs;
   }> {
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
@@ -353,6 +360,7 @@ export class MatchingPreviewService {
         // hold the registry it booted with until the process restarted.
         await this.enumerations.surrogateFactRegistry(),
       ),
+      employment: employmentInputsFromAnswers({ optionByCode, numericByCode: numeric }),
     };
   }
 
@@ -399,11 +407,12 @@ export class MatchingPreviewService {
     programNameKey: string | null,
     surrogateFacts: SurrogateFacts,
     programType: BankProgramType | null,
+    employment: EmploymentInputs,
   ) {
     const rows = (await this.programs.findAllActive()).filter((p) =>
       matchesRequestedScope(p, category, programNameKey, programType),
     );
-    const profile = money ? this.buildProfile(money, age, surrogateFacts) : null;
+    const profile = money ? this.buildProfile(money, age, surrogateFacts, employment) : null;
     // Read once, outside the loop. Preview and apply must derive the same figure from
     // the same rule — a preview that priced off the program's stripped table while
     // apply priced off the catalog's would disagree on the amount it just advertised.
@@ -480,15 +489,16 @@ export class MatchingPreviewService {
   }
 
   /**
-   * A profile carrying only what the questionnaire actually asked about. The
-   * cascade levels keyed on employment or transfer type therefore fall through
-   * to the program's base rate — preview is an estimate, and apply, which has
-   * the full employment block, is the one that prices exactly.
+   * A profile carrying only what the questionnaire actually asked about. The job type, the
+   * months in the job and the salary transfer come from the answers through the function apply
+   * reads them with (v30.11.0); unanswered, preview prices a salaried applicant with no
+   * transfer, as it always did.
    */
   private buildProfile(
     money: MoneyInputs,
     age: number,
     surrogateFacts: SurrogateFacts,
+    answered: EmploymentInputs,
   ): ApplicantProfile {
     const carDetails = carDetailsFrom(surrogateFacts.byKey);
     return {
@@ -498,10 +508,10 @@ export class MatchingPreviewService {
       preferredTenorMonths: money.tenorMonths,
       priority: 'lowest_installment',
       employment: {
-        employmentType: 'salaried',
+        employmentType: answered.employmentType ?? 'salaried',
         monthlyNetSalaryEGP: money.monthlyIncomeEGP,
-        monthsInJob: 0,
-        salaryTransferType: 'none',
+        monthsInJob: answered.monthsInJob ?? 0,
+        salaryTransferType: answered.salaryTransferType ?? 'none',
         companyName: '',
         companyType: '',
         // Feature 011 — spread from the shared mapper, so preview looks a bank's

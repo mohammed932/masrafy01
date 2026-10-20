@@ -5,9 +5,13 @@ import { environment } from '../../../environments/environment';
 import type { SuccessEnvelope } from '@core/auth/auth.types';
 import type { LoanCategory } from '@core/loan-category';
 import type { IncomeBasis } from '@core/income-basis';
+import type { ServerLock } from '@shared/questions/asked-questions.rules';
 
-/** Why a program name may not skip a question. See the backend's `questionLockReason`. */
-export type QuestionLockReason = 'engine' | 'program';
+/**
+ * Why a program name may not skip a question, and one lock as the scope endpoint sends it. See
+ * the backend's `questionLockReason`. Declared beside the board that reads them.
+ */
+export type { QuestionLockReason, ServerLock } from '@shared/questions/asked-questions.rules';
 
 /** What the program-name questions board may untick, per loan type. */
 export interface ProgramNameQuestionScope {
@@ -18,8 +22,13 @@ export interface ProgramNameQuestionScope {
    * does not ask them of every name. Absent on an older server: read as none.
    */
   addedByCategory?: Partial<Record<LoanCategory, string[]>>;
-  /** Question CODES it may not skip, with the reason. */
-  locks: { code: string; reason: QuestionLockReason }[];
+  /**
+   * Question CODES it may not skip, with the reason. A `base` lock names the loan types it holds
+   * in (`categories`); every other lock holds in all of them. Read per loan type through
+   * `lockMapFor`. With no key (the create flow) the `base` locks come back too: every name made
+   * there is income proof.
+   */
+  locks: ServerLock[];
 }
 
 /** One entry's new assignment set, for the bulk write. */
@@ -395,7 +404,7 @@ export class LookupsApiService {
    * PUT, not PATCH, unlike `update()` above: this replaces a collection whole,
    * and "omitted = unchanged" would make an empty set unexpressible.
    */
-  /** `key` null = the create flow, before the name exists: engine locks only. */
+  /** `key` null = the create flow, before the name exists: engine and base locks only. */
   async programNameQuestionScope(key: string | null): Promise<ProgramNameQuestionScope> {
     const params: Record<string, string> = key === null ? {} : { key };
     const res = await firstValueFrom(

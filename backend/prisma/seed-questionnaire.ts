@@ -10,6 +10,15 @@
  *    income rule — never weighted.
  */
 import { I_SCORE_FACT_KEY } from '../src/matching/pipeline/product-template';
+import {
+  ADDITIONAL_INCOME_QUESTION_CODE,
+  I_SCORE_BAND_QUESTION_CODE,
+  OTHER_INCOME_FACT_KEY,
+  OTHER_INCOME_QUESTION_CODE,
+  RESIDENCE_GOVERNORATE_CODES,
+  baseGateJson,
+  baseQuestion,
+} from '../src/matching/pipeline/base-question-set';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
 import { bankSlug } from '../src/matching/pipeline/bank-relationship';
 import { frozenCategories } from '../src/questionnaire/frozen-categories';
@@ -62,6 +71,25 @@ async function enumOptions(type: string, client: PrismaClient): Promise<SeedOpti
   }));
   _enumOptionsCache.set(type, opts);
   return opts;
+}
+
+/**
+ * EXACTLY these registry keys as options, in this order, labelled from the list — for a
+ * fixed-set question, whose answers are owned in code (`base-question-set.ts`). A key the list
+ * does not hold is a broken seed, never a silently shorter question.
+ */
+async function enumCodedOptions(
+  spec: { type: string; codes: readonly string[] },
+  client: PrismaClient,
+): Promise<SeedOption[]> {
+  const rows = await enumOptions(spec.type, client);
+  return spec.codes.map((code) => {
+    const row = rows.find((r) => r.code === code);
+    if (row === undefined) {
+      throw new Error(`seed-questionnaire: '${spec.type}' has no active '${code}' — the fixed set needs it`);
+    }
+    return row;
+  });
 }
 
 // Active `bank` registry rows → seed options (Principle II — banks are DATA, so
@@ -138,6 +166,13 @@ interface SeedQuestion {
    *  time (+ an "Another bank" escape hatch) — same single-source-of-truth reason
    *  as `optionsFromEnum`. */
   optionsFromBanks?: true;
+  /** When set, options are EXACTLY these registry keys, labelled from that registry list.
+   *  For a fixed-set question (`base-question-set.ts`): its answers are owned in code, so a
+   *  value an admin adds to the list must not reach the question on the next run, which
+   *  `optionsFromEnum` would do. A key missing from the list fails the seed loudly. */
+  optionsFromEnumCodes?: { type: string; codes: readonly string[] };
+  /** TEXT only — the length cap (`textMaxLength`). */
+  text?: { maxLength: number };
   /** With `optionsFromBanks`: also offer "none of these banks" (code `none`) after the banks.
    *  A per-bank axis question becomes REQUIRED wherever a programme reads its column, and a
    *  required multi-select with no "none" made a customer with no loan anywhere tick a bank
@@ -151,8 +186,11 @@ interface SeedQuestion {
 }
 interface SeedEnabledWhen {
   questionCode: string;
-  operator: 'equals' | 'not_equals';
-  optionCode: string;
+  operator: 'equals' | 'not_equals' | 'in';
+  /** equals / not_equals: the one answer. */
+  optionCode?: string;
+  /** in: two or more answers (v30.11.0). */
+  optionCodes?: string[];
 }
 interface SeedGroup {
   code: string;
@@ -165,15 +203,187 @@ interface CategoryConfig {
   groups: SeedGroup[];
 }
 
-// Employment codes used across categories. Points = desirability to a lender
-// (stable salaried income scores highest; irregular income lowest).
-const EMPLOYMENT_OPTIONS: SeedOption[] = [
-  { code: 'government_employee', labelEn: 'Government job', labelAr: 'موظف حكومي' },
-  { code: 'private_sector_employee', labelEn: 'Private company job', labelAr: 'موظف قطاع خاص' },
-  { code: 'business_owner_company_owner', labelEn: 'I own a business or company', labelAr: 'صاحب عمل / شركة' },
-  { code: 'freelancer', labelEn: 'I work for myself', labelAr: 'عمل حر' },
-  { code: 'retired', labelEn: 'Retired', labelAr: 'متقاعد' },
-];
+// ── The FIXED QUESTION SET (v30.11.0) ────────────────────────────────────────
+//
+// The client's income-proof questions. Their codes, types, bounds, show-when rules, answers
+// and loan types are owned by `src/matching/pipeline/base-question-set.ts` — the one source
+// the engine, the lock and `check:questionnaire` read — so this seed authors only their
+// WORDING here and takes everything else from there (`baseSeedQuestion`). A question this
+// table words that the registry does not hold fails the seed; so does a missing label.
+interface BaseWording {
+  en: string;
+  ar: string;
+  helperEn?: string;
+  helperAr?: string;
+  /** Answer labels by code, for a choice question whose answers are not a registry list. */
+  options?: Readonly<Record<string, { en: string; ar: string }>>;
+}
+
+const YES_NO_LABELS = { yes: { en: 'Yes', ar: 'نعم' }, no: { en: 'No', ar: 'لا' } } as const;
+
+const BASE_WORDING: Readonly<Record<string, BaseWording>> = {
+  employment_status: {
+    en: 'What kind of work do you do?',
+    ar: 'ما نوع عملك؟',
+    options: {
+      military_officer: { en: 'Military officer', ar: 'ضابط بالقوات المسلحة' },
+      teacher: { en: 'Teacher', ar: 'مدرس' },
+      university_professor: { en: 'University professor', ar: 'أستاذ جامعي' },
+      doctor: { en: 'Doctor', ar: 'طبيب' },
+      banker: { en: 'Banker', ar: 'موظف بنك' },
+      engineer: { en: 'Engineer', ar: 'مهندس' },
+      accountant: { en: 'Accountant', ar: 'محاسب' },
+      lawyer_employee: { en: 'Lawyer — employed at a company', ar: 'محامٍ — موظف في شركة' },
+      lawyer_with_business: {
+        en: 'Lawyer — with another business besides law',
+        ar: 'محامٍ — لدي نشاط تجاري آخر غير المحاماة',
+      },
+      lawyer_private_office: { en: 'Lawyer — private office', ar: 'محامٍ — مكتب خاص' },
+      private_sector_employee: { en: 'Private company job', ar: 'موظف قطاع خاص' },
+      government_employee: { en: 'Government job', ar: 'موظف حكومي' },
+      retired: { en: 'Pensioner', ar: 'صاحب معاش' },
+      business_owner_company_owner: { en: 'Self employed', ar: 'صاحب نشاط تجاري' },
+      freelancer: { en: 'Freelancer / footballer', ar: 'عمل حر / لاعب كرة قدم' },
+      other: { en: 'Other', ar: 'أخرى' },
+    },
+  },
+  months_in_current_job: {
+    en: 'How long have you been in your current job?',
+    ar: 'ما مدة بقائك في عملك الحالي؟',
+    helperEn: 'In months.',
+    helperAr: 'بالشهور.',
+  },
+  years_as_doctor: {
+    en: 'How many years have you worked as a doctor?',
+    ar: 'كم سنة لك في العمل كطبيب؟',
+  },
+  commercial_register_18m: {
+    en: 'Was your commercial register issued more than 18 months ago?',
+    ar: 'هل لديك سجل تجاري مر على إصداره أكثر من 18 شهرًا؟',
+    options: YES_NO_LABELS,
+  },
+  has_tax_card: { en: 'Do you have a tax card?', ar: 'هل لديك بطاقة ضريبية؟', options: YES_NO_LABELS },
+  can_transfer_salary: {
+    en: 'Can you transfer your salary to the bank if your loan is approved?',
+    ar: 'هل يمكنك تحويل راتبك على البنك في حالة الموافقة؟',
+    options: YES_NO_LABELS,
+  },
+  can_provide_payroll: {
+    en: 'Can you provide a salary breakdown and a payroll account statement?',
+    ar: 'هل يمكنك تقديم مفردات مرتب وكشف حساب Payroll؟',
+    options: YES_NO_LABELS,
+  },
+  residence_governorate: { en: 'Which governorate do you live in?', ar: 'في أي محافظة تسكن؟' },
+  residence_area: {
+    en: 'Which area do you live in?',
+    ar: 'ما هي منطقة سكنك؟',
+    helperEn: 'Your district and street.',
+    helperAr: 'الحي والشارع.',
+  },
+  [ADDITIONAL_INCOME_QUESTION_CODE]: {
+    en: 'Do you get money from anywhere else?',
+    ar: 'هل لديك مصادر دخل إضافية؟',
+    options: YES_NO_LABELS,
+  },
+  [OTHER_INCOME_QUESTION_CODE]: {
+    en: 'How much is your other income each month?',
+    ar: 'كم دخلك الإضافي شهريًا؟',
+    helperEn: 'All your other income together. It is added to your monthly income.',
+    helperAr: 'إجمالي دخلك من المصادر الأخرى، ويُضاف إلى دخلك الشهري.',
+  },
+  has_bank_statement: {
+    en: 'Do you have a bank account statement?',
+    ar: 'هل لديك كشف حساب بنكي؟',
+    options: YES_NO_LABELS,
+  },
+  [I_SCORE_BAND_QUESTION_CODE]: {
+    en: 'What is your I-Score rating?',
+    ar: 'ما هو تصنيفك في الآي سكور؟',
+    helperEn: 'From your I-Score credit report. Pick "Not available" if you have none.',
+    helperAr: 'من تقرير الآي سكور الائتماني. اختر «غير متاح» إن لم يكن لديك تقرير.',
+    options: {
+      no_score: { en: 'Not available (N/A)', ar: 'غير متاح (N/A)' },
+      below_521: { en: 'Below 521', ar: 'أقل من 521' },
+      from_521_to_625: { en: '521 to 625', ar: 'من 521 إلى 625' },
+      above_625: { en: 'Above 625', ar: 'أكبر من 625' },
+    },
+  },
+};
+
+/** The registry's governorate keys get their labels from the `governorate` list. */
+const ENUM_CODED_OPTIONS: Readonly<Record<string, { type: string; codes: readonly string[] }>> = {
+  residence_governorate: { type: 'governorate', codes: RESIDENCE_GOVERNORATE_CODES },
+};
+
+/** A fixed-set question as this seed authors it: shape from the registry, words from above. */
+function baseSeedQuestion(code: string): SeedQuestion {
+  const base = baseQuestion(code);
+  const wording = BASE_WORDING[code];
+  if (base === undefined || wording === undefined) {
+    throw new Error(`seed-questionnaire: '${code}' is not a worded fixed-set question`);
+  }
+  const gate = baseGateJson(base.gate);
+  const enumCoded = ENUM_CODED_OPTIONS[code];
+  const label = (option: string): { en: string; ar: string } => {
+    const found = wording.options?.[option];
+    if (found === undefined) {
+      throw new Error(`seed-questionnaire: no label for '${code}' answer '${option}'`);
+    }
+    return found;
+  };
+  return {
+    code,
+    type: base.type,
+    questionEn: wording.en,
+    questionAr: wording.ar,
+    ...(wording.helperEn ? { helperTextEn: wording.helperEn } : {}),
+    ...(wording.helperAr ? { helperTextAr: wording.helperAr } : {}),
+    isRequired: true,
+    ...(base.type === 'NUMERIC'
+      ? {
+          numeric: {
+            minValue: base.numeric.minValue ?? '0',
+            maxValue: base.numeric.maxValue ?? '0',
+            ...(base.numeric.step !== null ? { step: base.numeric.step } : {}),
+            ...(base.numeric.unitEn !== null ? { unitEn: base.numeric.unitEn } : {}),
+            ...(base.numeric.unitAr !== null ? { unitAr: base.numeric.unitAr } : {}),
+          },
+        }
+      : {}),
+    ...(base.type === 'TEXT' ? { text: { maxLength: base.maxLength } } : {}),
+    ...(gate !== null ? { enabledWhen: gate as SeedEnabledWhen } : {}),
+    ...(enumCoded !== undefined ? { optionsFromEnumCodes: enumCoded } : {}),
+    options:
+      enumCoded === undefined && (base.type === 'SINGLE_SELECT' || base.type === 'MULTI_SELECT')
+        ? base.options.map((option) => ({
+            code: option,
+            labelEn: label(option).en,
+            labelAr: label(option).ar,
+          }))
+        : [],
+  };
+}
+
+/**
+ * The fixed set's work-and-income block, in the client's order: the job, its follow-ups (the
+ * show-when rules open them per job group), where the applicant lives, then other income and
+ * the bank statement. The SAME block in personal, car and mortgage — the loan types a payslip
+ * programme is sold under — because the set is asked identically in each.
+ */
+const INCOME_PROOF_BLOCK: readonly SeedQuestion[] = [
+  'employment_status',
+  'months_in_current_job',
+  'years_as_doctor',
+  'commercial_register_18m',
+  'has_tax_card',
+  'can_transfer_salary',
+  'can_provide_payroll',
+  'residence_governorate',
+  'residence_area',
+  ADDITIONAL_INCOME_QUESTION_CODE,
+  OTHER_INCOME_QUESTION_CODE,
+  'has_bank_statement',
+].map(baseSeedQuestion);
 
 const YESNO = (): SeedOption[] => [
   { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
@@ -198,22 +408,6 @@ const CURRENT_LOANS_Q: SeedQuestion = {
     { code: 'mortgage', labelEn: 'Home loan', labelAr: 'قرض عقاري' },
     { code: 'credit_cards', labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان' },
     { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
-  ],
-};
-
-// Asks HOW, not just whether. A yes/no could only ever produce `payroll` or
-// `none`, which left every bank rule written against a salary/income transfer
-// letter unmatchable. The option codes ARE the `transfer_type` registry keys the
-// programs are configured with — see `TRANSFER_TYPE_BY_ANSWER` on the mobile side.
-const SALARY_TRANSFER_Q: SeedQuestion = {
-  code: 'salary_transfer', questionEn: 'Is your salary transferred to the bank?', questionAr: 'هل يتم تحويل راتبك إلى البنك؟',
-  options: [
-    // The two letters are different products, so each label names the document:
-    // one commits the basic salary, the other the applicant's whole income.
-    { code: 'payroll', labelEn: 'My employer already sends my salary to the bank', labelAr: 'تحويل راتب' },
-    { code: 'salary_transfer_letter', labelEn: 'My employer signs a letter to transfer my salary', labelAr: 'خطاب تحويل راتب' },
-    { code: 'income_transfer_letter', labelEn: 'My employer signs a letter to transfer my whole income', labelAr: 'خطاب تحويل دخل' },
-    { code: 'no_salary_transfer', labelEn: 'Nothing is sent to the bank', labelAr: 'بدون تحويل راتب' },
   ],
 };
 
@@ -478,15 +672,10 @@ const DOWN_PAYMENT_Q: SeedQuestion = {
 // authored ONCE and referenced from each config. Inlining them per category let
 // the same code drift apart in wording — and since the merge keeps
 // FIRST-SEEN content, the drift was silent: whichever config came first won.
-const JOB_TENURE_Q: SeedQuestion = {
-  code: 'job_tenure', questionEn: 'How long have you been in this job?', questionAr: 'منذ متى وأنت في وظيفتك الحالية؟',
-  options: [
-    { code: 'less_than_6_months', labelEn: 'Less than 6 months', labelAr: 'أقل من 6 أشهر' },
-    { code: '6_months_to_1_year', labelEn: '6 months to 1 year', labelAr: 'من 6 أشهر إلى سنة' },
-    { code: '1_to_3_years', labelEn: '1 to 3 years', labelAr: 'من 1 إلى 3 سنوات' },
-    { code: 'more_than_3_years', labelEn: 'More than 3 years', labelAr: 'أكثر من 3 سنوات' },
-  ],
-};
+// `job_tenure` (four tenure buckets) and `salary_transfer` (how the pay reaches the bank) USED
+// TO STAND HERE. The fixed question set replaced them on 2026-10-15 with
+// `months_in_current_job` (a number) and `can_transfer_salary` (the client's yes/no) — see
+// `INCOME_PROOF_BLOCK`. Leaving them out of the pool is what retires them.
 
 // ── Feature 011 — the surrogate-income FACTS ────────────────────────────────
 //
@@ -868,10 +1057,9 @@ const collateralGatesGroup = (...gateSources: SeedQuestion[]): SeedGroup => ({
 // (v30.10.0, the operator's MVP cleanup). The answers already given stay on their
 // applications.
 
-const ADDITIONAL_INCOME_Q: SeedQuestion = {
-  code: 'additional_income', questionEn: 'Do you get money from anywhere else?', questionAr: 'هل لديك مصادر دخل إضافية؟',
-  isRequired: false, options: YESNO(),
-};
+// In the fixed set (required, and asked in car too since v30.11.0) — the four typed amounts
+// below still branch off it for the doctors' product.
+const ADDITIONAL_INCOME_Q: SeedQuestion = baseSeedQuestion(ADDITIONAL_INCOME_QUESTION_CODE);
 
 // `has_credit_card` + `card_usage` used to sit here. Both were removed: the
 // commitments step already asks `current_loans` (a multi-select that carries a
@@ -918,36 +1106,19 @@ const PRIORITY_FACTOR_Q: SeedQuestion = {
 /**
  * The credit-bureau score — asked of everyone, and REQUIRED of everyone (2026-09-25).
  *
- * A NUMBER, not a named band, and that is a decision about the FUTURE rather than about the
- * form: today the customer types it, and a real bureau feed will one day send it. Same
- * question, same fact, same bank tables — only the source changes. Stored as a band, every
- * one of those would have to be rewritten.
+ * A BAND since v30.11.0 (the client's sheet): N/A, below 521, 521–625, above 625 — the shared
+ * I-Score table's own class edges, so the band costs no precision there, and "I have none" is
+ * finally an answer (a required typed number left the bureau's N/A unanswerable). The FACT is
+ * still `i_score`, and the engine still reads a number on it too (`iscore.ts`): a bureau feed
+ * that sends the score, the calculator and the quote scripts keep working unchanged.
  *
- * REQUIRED (operator decision, 2026-09-25). It was optional, but since v30.4.0 every one of
- * the 71 programmes quotes against the shared I-Score table, where a blank is the "No I-Score"
- * class at 85% — so leaving it blank cost the applicant 15% of their income under a helper
- * that promised it would not count against them. The engine still reads a blank as that
- * class (`iscore.ts`): an application stored before this, or sent by an older app build,
- * carries none.
- *
- * ALL FOUR CATEGORIES: a bureau score is a property of the person, not of the loan.
+ * In the fixed question set (`base-question-set.ts`, every name): shape and answers come from
+ * there. ALL FOUR CATEGORIES: a bureau score is a property of the person, not of the loan.
  */
 const I_SCORE_QUESTION: { groupCode: string; question: SeedQuestion; categories: readonly Category[] } = {
   groupCode: 'commitments',
   categories: ['personal', 'mortgage', 'car', 'business'],
-  question: {
-    code: I_SCORE_FACT_KEY,
-    type: 'NUMERIC',
-    questionEn: 'What is your I-Score?',
-    questionAr: 'ما درجة الآي سكور الخاصة بك؟',
-    helperTextEn: 'From your I-Score credit report, between 300 and 900.',
-    helperTextAr: 'من تقرير الآي سكور الائتماني الخاص بك، بين 300 و900.',
-    isRequired: true,
-    // The published Egyptian I-Score range. Bounds are CONTENT — what a person can
-    // legitimately type — never scoring (A33).
-    numeric: { minValue: '300', maxValue: '900', step: '1' },
-    options: [],
-  },
+  question: baseSeedQuestion(I_SCORE_BAND_QUESTION_CODE),
 };
 
 /**
@@ -1361,13 +1532,8 @@ const PERSONAL: CategoryConfig = {
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
-        {
-          code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما نوع عملك؟',
-          options: EMPLOYMENT_OPTIONS,
-        },
-        JOB_TENURE_Q,
-        SALARY_TRANSFER_Q,
-        ADDITIONAL_INCOME_Q,
+        // The fixed question set (`INCOME_PROOF_BLOCK`): job, follow-ups, region, other income.
+        ...INCOME_PROOF_BLOCK,
         // Feature 011 — the surrogate facts. That reference is what assigns them to
         // the category in `question_loan_category` (A33 — assignment lives only
         // there), so a mortgage applicant is never asked their army rank. CAR carries
@@ -1456,10 +1622,8 @@ const MORTGAGE: CategoryConfig = {
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
-        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما نوع عملك؟', options: EMPLOYMENT_OPTIONS },
-        JOB_TENURE_Q,
-        SALARY_TRANSFER_Q,
-        ADDITIONAL_INCOME_Q,
+        // The fixed question set (`INCOME_PROOF_BLOCK`): job, follow-ups, region, other income.
+        ...INCOME_PROOF_BLOCK,
         // NONE of the sheet conditions. Every product that reads them is sold as `personal`
         // (the CAE compound) or `car` (the seven Suez Canal auto programmes), so any of them
         // here would be a REQUIRED question no mortgage programme could ever read — which is
@@ -1527,10 +1691,8 @@ const CAR: CategoryConfig = {
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
-        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما نوع عملك؟', options: EMPLOYMENT_OPTIONS },
-        JOB_TENURE_Q,
-        SALARY_TRANSFER_Q,
-        ADDITIONAL_INCOME_Q,
+        // The fixed question set (`INCOME_PROOF_BLOCK`): job, follow-ups, region, other income.
+        ...INCOME_PROOF_BLOCK,
         // The surrogate facts, same three references PERSONAL carries. An auto loan
         // is surrogate-CAPABLE (`SURROGATE_CAPABLE_CATEGORIES`): a bank may finance a
         // car off an assumed income worked out from a grade or years in practice, and
@@ -1658,6 +1820,7 @@ interface MergedQuestion {
   groupCode: string;
   type: QuestionType;
   numeric?: SeedNumericRules;
+  text?: { maxLength: number };
   questionEn: string;
   questionAr: string;
   helperTextEn?: string;
@@ -1722,7 +1885,11 @@ export interface SeedPool {
  *                              (added 2026-09-24)
  *   the two operator asks      `priority_factor` — losing it drops all four mobile priority
  *                              mappers to their default arm and freezes the wrong offer order
- *                              onto immutable rows (Principle V) — and `i_score`
+ *                              onto immutable rows (Principle V) — and `i_score_band`
+ *
+ * PLUS the fixed question set (`base-question-set.ts`, v30.11.0): every question the set asks
+ * in car is car's whatever this list says — `narrowCarCategory` never strips one — because the
+ * set, not this list, decides what a payslip car applicant is asked.
  *
  * `check:question-scope` is the standing gate on this list: it fails if any live programme
  * reads a fact whose question the car category no longer asks.
@@ -1741,7 +1908,7 @@ const CAR_ASKS: ReadonlySet<string> = new Set<string>([
   'employment_status',
   'green_buyer_type',
   'home_ownership',
-  'i_score',
+  'i_score_band',
   'monthly_income',
   'obligation_car_loan',
   'obligation_mortgage',
@@ -1821,7 +1988,8 @@ function mergeThinGroups(
 
 function narrowCarCategory(categoriesByQuestion: Record<string, Set<Category>>): void {
   for (const [code, categories] of Object.entries(categoriesByQuestion)) {
-    if (categories.has('car') && !CAR_ASKS.has(code)) categories.delete('car');
+    const fixedInCar = baseQuestion(code)?.categories.includes('car') === true;
+    if (categories.has('car') && !CAR_ASKS.has(code) && !fixedInCar) categories.delete('car');
   }
 }
 
@@ -1854,9 +2022,11 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
         (categoriesByQuestion[q.code] ??= new Set()).add(cfg.category);
         const optionList = q.optionsFromBanks
           ? [...(await bankOptions(client)), ...(q.withNoneOption ? [NONE_OF_THESE_BANKS] : [])]
-          : q.optionsFromEnum
-            ? await enumOptions(q.optionsFromEnum, client)
-            : q.options;
+          : q.optionsFromEnumCodes
+            ? await enumCodedOptions(q.optionsFromEnumCodes, client)
+            : q.optionsFromEnum
+              ? await enumOptions(q.optionsFromEnum, client)
+              : q.options;
         let mq = questionByCode.get(q.code);
         if (!mq) {
           mq = {
@@ -1864,6 +2034,7 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
             groupCode: g.code,
             type: q.type ?? 'SINGLE_SELECT',
             ...(q.numeric ? { numeric: q.numeric } : {}),
+            ...(q.text ? { text: q.text } : {}),
             questionEn: q.questionEn,
             questionAr: q.questionAr,
             ...(q.helperTextEn ? { helperTextEn: q.helperTextEn } : {}),
@@ -1912,10 +2083,9 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   }
 
   // ---- 1b-ii. The bureau score --------------------------------------------
-  // Registered the same way and for the same reason as 1b — a bound NUMERIC question the
-  // engine reads through a fact — but NOT `unshift`ed: it is the least important thing in
-  // its group and belongs at the end of it, not in front of what the customer came to
-  // answer.
+  // Registered the same way and for the same reason as 1b — a question the engine reads
+  // through a fact — but NOT `unshift`ed: it is the least important thing in its group and
+  // belongs at the end of it, not in front of what the customer came to answer.
   {
     const { groupCode, question, categories } = I_SCORE_QUESTION;
     if (!groupByCode.has(groupCode)) {
@@ -1927,14 +2097,18 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
     questionByCode.set(question.code, {
       code: question.code,
       groupCode,
-      type: 'NUMERIC',
+      type: question.type ?? 'SINGLE_SELECT',
       ...(question.numeric ? { numeric: question.numeric } : {}),
       questionEn: question.questionEn,
       questionAr: question.questionAr,
       ...(question.helperTextEn ? { helperTextEn: question.helperTextEn } : {}),
       ...(question.helperTextAr ? { helperTextAr: question.helperTextAr } : {}),
       isRequired: question.isRequired ?? true,
-      options: [],
+      options: question.options.map((o) => ({
+        code: o.code ?? slug(o.labelEn),
+        labelEn: o.labelEn,
+        labelAr: o.labelAr,
+      })),
     });
     questionOrder.push(question.code);
   }
@@ -2082,7 +2256,7 @@ export async function seedQuestionnaire(): Promise<void> {
       numericStep: q.type === 'NUMERIC' ? (q.numeric?.step ?? null) : null,
       numericUnitEn: q.type === 'NUMERIC' ? (q.numeric?.unitEn ?? null) : null,
       numericUnitAr: q.type === 'NUMERIC' ? (q.numeric?.unitAr ?? null) : null,
-      textMaxLength: null,
+      textMaxLength: q.type === 'TEXT' ? (q.text?.maxLength ?? null) : null,
     };
     // Branch rule is authored data too: written on every run (DbNull when the
     // seed dropped it) so a rule removed here also disappears from the row.
@@ -2195,6 +2369,7 @@ export async function seedQuestionnaire(): Promise<void> {
 
   // ---- 2b. The bureau-score FACT --------------------------------------------
   await upsertIScoreFact();
+  await upsertBaseFacts();
   await upsertAdditionalIncomeFacts();
   await upsertCarFacts();
   await bindSystemFacts();
@@ -2259,15 +2434,16 @@ async function bindSystemFacts(): Promise<void> {
  * question's id is now, which is what makes it survive a question being recreated.
  */
 async function upsertIScoreFact(): Promise<void> {
+  // Bound to the BAND question since v30.11.0 (`i_score_band`); the fact key stays `i_score`.
   const question = await prisma.question.findUnique({
-    where: { code: I_SCORE_FACT_KEY },
+    where: { code: I_SCORE_BAND_QUESTION_CODE },
     select: { id: true },
   });
   if (!question) {
     // Not a throw: the question is written a few lines above, so a miss here means the seed
     // itself is broken, and dying without saying which half would send the next person to
     // the wrong file.
-    console.warn(`seed-questionnaire: no '${I_SCORE_FACT_KEY}' question — fact not bound.`);
+    console.warn(`seed-questionnaire: no '${I_SCORE_BAND_QUESTION_CODE}' question — fact not bound.`);
     return;
   }
 
@@ -2276,10 +2452,18 @@ async function upsertIScoreFact(): Promise<void> {
     select: { id: true },
   });
 
+  // System-only: the fixed question set reads through it, so it can be neither switched off
+  // nor deleted from Manage values (an unbound score prices everyone as "no I-Score").
   if (existing) {
     await prisma.platformEnumeration.update({
       where: { id: existing.id },
-      data: { boundQuestionId: question.id, active: true, deprecatedAt: null, updatedBy: SEED_ACTOR },
+      data: {
+        boundQuestionId: question.id,
+        active: true,
+        deprecatedAt: null,
+        systemOnly: true,
+        updatedBy: SEED_ACTOR,
+      },
     });
     return;
   }
@@ -2292,6 +2476,45 @@ async function upsertIScoreFact(): Promise<void> {
       labelAr: 'الآي سكور',
       sortOrder: 100,
       active: true,
+      systemOnly: true,
+      boundQuestionId: question.id,
+      createdBy: SEED_ACTOR,
+      updatedBy: SEED_ACTOR,
+    },
+  });
+}
+
+/**
+ * The `surrogate_fact` row the fixed set's other-income amount is bound to — what a bank names
+ * in `incomeAssumption.additionalIncome.sources` to count it. System-only like the bureau
+ * score: the set reads through it. Idempotent like its neighbours.
+ */
+async function upsertBaseFacts(): Promise<void> {
+  const question = await prisma.question.findUnique({
+    where: { code: OTHER_INCOME_QUESTION_CODE },
+    select: { id: true },
+  });
+  if (!question) {
+    console.warn(`seed-questionnaire: no '${OTHER_INCOME_QUESTION_CODE}' question — fact not bound.`);
+    return;
+  }
+  await prisma.platformEnumeration.upsert({
+    where: { idx_platform_enumeration_type_key: { type: 'surrogate_fact', key: OTHER_INCOME_FACT_KEY } },
+    update: {
+      boundQuestionId: question.id,
+      active: true,
+      deprecatedAt: null,
+      systemOnly: true,
+      updatedBy: SEED_ACTOR,
+    },
+    create: {
+      type: 'surrogate_fact',
+      key: OTHER_INCOME_FACT_KEY,
+      labelEn: 'Other income',
+      labelAr: 'دخل إضافي',
+      sortOrder: 112,
+      active: true,
+      systemOnly: true,
       boundQuestionId: question.id,
       createdBy: SEED_ACTOR,
       updatedBy: SEED_ACTOR,
