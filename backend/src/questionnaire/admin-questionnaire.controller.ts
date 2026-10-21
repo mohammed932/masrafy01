@@ -76,7 +76,9 @@ export class AdminQuestionnaireController {
 
   @Get('served')
   @ApiOperation({
-    summary: 'How many questions an applicant of one program name is served, per loan type',
+    summary:
+      'How many questions an applicant of one program name is served, per loan type, and the ' +
+      'pages (one per question group) the app shows them on',
   })
   async served(@Query('programNameKey') programNameKey: string) {
     return ok(await this.service.servedForProgramName(programNameKey ?? ''));

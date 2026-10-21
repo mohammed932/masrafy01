@@ -43,6 +43,7 @@ import { ErrorCodeService } from '@core/errors/error-code.service';
 import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
 import { LookupsApiService } from '../lookups/lookups.api.service';
 import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-name-row';
+import { ServedPagesComponent } from './served-pages.component';
 
 /**
  * One catalog program name, in two steps.
@@ -75,6 +76,7 @@ import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-na
     WizardStepsComponent,
     LoanCategorySwitchesComponent,
     CompactAskedQuestionsComponent,
+    ServedPagesComponent,
   ],
   providers: [provideNzIconsPatch([ArrowLeftOutline, ArrowRightOutline, CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -200,6 +202,19 @@ import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-na
                     <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
                     <span>{{ err }}</span>
                   </p>
+                }
+
+                <!-- What the app shows, page by page, first: the served snapshot for the tab
+                     below, re-read after every tick so the two never disagree. -->
+                @if (servedHere(); as sv) {
+                  @if (sv.pages) {
+                    <app-served-pages
+                      [pages]="sv.pages"
+                      [isAr]="isAr"
+                      [categoryName]="categoryName(sv.category)"
+                      [nameAxisActive]="sv.nameAxisActive !== false"
+                    />
+                  }
                 }
 
                 <!-- Not the full board: what is REQUIRED, what was added in this visit, and a
@@ -682,6 +697,10 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly pool = signal<readonly AskableQuestion[]>([]);
   /** What an applicant of this name is served per loan type; empty until the read lands. */
   protected readonly served = signal<readonly ServedCount[]>([]);
+  /** The served set for the loan type on the tab, pages included. */
+  protected readonly servedHere = computed<ServedCount | null>(
+    () => this.served().find((s) => s.category === this.askCategory()) ?? null,
+  );
   protected readonly poolLoading = signal(false);
   protected readonly asksError = signal<string | null>(null);
   private poolRequested = false;
@@ -967,6 +986,10 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected nameOf(row: ProgramNameRow): string {
     return this.isAr ? row.labelAr : row.labelEn;
+  }
+
+  protected categoryName(category: LoanCategory): string {
+    return categoryLabel(category);
   }
 
   protected usageLabel(row: ProgramNameRow): string {

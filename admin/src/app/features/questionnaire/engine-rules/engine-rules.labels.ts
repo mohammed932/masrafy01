@@ -10,6 +10,7 @@ import type {
   MoneyBinding,
   QuestionRef,
 } from './engine-rules.types';
+import type { ImpactArea, ImpactWhy } from './engine-rules.rules';
 
 /**
  * Every sentence the "Loan engine rules" tab shows about who reads a question and what an
@@ -132,6 +133,83 @@ export function readerText(r: EngineReader, isAr: boolean): string {
       const names =
         count > 0 ? `${shown} ${$localize`:@@qrules.more:+${count}:count: more`}` : shown;
       return $localize`:@@qrules.reader_programs:Read by bank programs sold as: ${names}:names:`;
+    }
+  }
+}
+
+// ---- What it changes -------------------------------------------------------------------------
+
+export function areaLabel(area: ImpactArea): string {
+  switch (area) {
+    case 'amount':
+      return $localize`:@@qrules.area_amount:Loan amount`;
+    case 'rate':
+      return $localize`:@@qrules.area_rate:Interest rate`;
+    case 'term':
+      return $localize`:@@qrules.area_term:Loan term`;
+    case 'debt_limit':
+      return $localize`:@@qrules.area_debt_limit:Debt-burden limit`;
+    case 'questions':
+      return $localize`:@@qrules.area_questions:Next questions`;
+    case 'application':
+      return $localize`:@@qrules.area_application:Application sent`;
+  }
+}
+
+/** One plain sentence: why this question moves this part of the quote. */
+export function impactWhyText(area: ImpactArea, why: ImpactWhy, isAr: boolean): string {
+  switch (why.kind) {
+    case 'requested_amount':
+      return $localize`:@@qrules.why_requested_amount:Every quote is priced on the amount asked for`;
+    case 'tenor_months':
+      return area === 'rate'
+        ? $localize`:@@qrules.why_tenor_rate:Some banks' rate tables change with the term`
+        : $localize`:@@qrules.why_tenor_term:Every quote is priced on the term asked for`;
+    case 'monthly_income':
+      return area === 'debt_limit'
+        ? $localize`:@@qrules.why_income_dbr:The share of income that can go to debts is measured against it`
+        : $localize`:@@qrules.why_income_amount:How much can be lent is worked out from it`;
+    case 'obligations':
+      return area === 'debt_limit'
+        ? $localize`:@@qrules.why_obligations_dbr:Counted as a monthly debt`
+        : $localize`:@@qrules.why_obligations_amount:Every debt leaves less room for the new installment`;
+    case 'debt_types':
+      return area === 'questions'
+        ? $localize`:@@qrules.why_debt_types_questions:Each debt picked asks for its own amount`
+        : $localize`:@@qrules.why_debt_types_dbr:Picks which debts are counted`;
+    case 'employment_type':
+      switch (area) {
+        case 'rate':
+          return $localize`:@@qrules.why_job_rate:Banks' rate tables are keyed by the job type`;
+        case 'term':
+          return $localize`:@@qrules.why_job_term:The longest term a bank allows is keyed by the job type`;
+        case 'debt_limit':
+          return $localize`:@@qrules.why_job_dbr:The debt-burden cap is keyed by the job type`;
+        default:
+          return $localize`:@@qrules.why_job_amount:The largest loan a bank allows is keyed by the job type`;
+      }
+    case 'months_in_job':
+      return $localize`:@@qrules.why_months_rate:Some rate tables change with the years in the job`;
+    case 'salary_transfer':
+      return area === 'rate'
+        ? $localize`:@@qrules.why_transfer_rate:Picks the salary-transfer row of the rate table`
+        : $localize`:@@qrules.why_transfer_amount:Some banks lend more when the salary is transferred`;
+    case 'platform_fact': {
+      const facts = joined(
+        why.reader.facts.map((f) => labelOf(f, isAr)),
+        isAr,
+      );
+      return $localize`:@@qrules.why_fact_amount:Feeds ${facts}:facts:, which scales or caps the amount`;
+    }
+    case 'programs': {
+      const count = why.count;
+      return $localize`:@@qrules.why_programs_amount:Sets the amount offered under ${count}:count: program names`;
+    }
+    case 'app_mapping':
+      return $localize`:@@qrules.why_app:The app sends what each answer means with the application`;
+    case 'follow_ups': {
+      const count = why.answers;
+      return $localize`:@@qrules.why_follow_ups:${count}:count: of its answers open or hide other questions`;
     }
   }
 }

@@ -899,6 +899,8 @@
       <trans-unit id="qrules.who_aria" datatype="html"><source>Filter by who reads it</source><target>تصفية حسب من يقرؤه</target></trans-unit>
       <trans-unit id="qrules.who_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
       <trans-unit id="qrules.show_less" datatype="html"><source>Show fewer answers</source><target>عرض إجابات أقل</target></trans-unit>
+      <trans-unit id="qrules.expand_all" datatype="html"><source>Open all answers</source><target>فتح كل الإجابات</target></trans-unit>
+      <trans-unit id="qrules.collapse_all" datatype="html"><source>Close all answers</source><target>إغلاق كل الإجابات</target></trans-unit>
       <trans-unit id="qrules.saved" datatype="html"><source>Answer wording saved and published</source><target>تم حفظ صياغة الإجابة ونشرها</target></trans-unit>
       <trans-unit id="qrules.opt_in" datatype="html"><source><x id="category" equiv-text="category"/> · some names</source><target><x id="category" equiv-text="category"/> · بعض الأسماء</target></trans-unit>
       <trans-unit id="qrules.mirrored_note" datatype="html"><source>These answers are the values of the list “<x id="list" equiv-text="name"/>” and are reworded there.</source><target>هذه الإجابات هي قيم القائمة «<x id="list" equiv-text="name"/>» وتُعدَّل صياغتها هناك.</target></trans-unit>
@@ -923,6 +925,37 @@
       <trans-unit id="qrules.reader_base_income_proof" datatype="html"><source>A fixed income-proof question, asked on every payslip program (<x id="types" equiv-text="types"/>)</source><target>سؤال إثبات دخل ثابت، يُطرح في كل برنامج بقسيمة راتب (<x id="types" equiv-text="types"/>)</target></trans-unit>
       <trans-unit id="qrules.reader_base_every_name" datatype="html"><source>A fixed question, asked on every program name (<x id="types" equiv-text="types"/>)</source><target>سؤال ثابت، يُطرح في كل اسم برنامج (<x id="types" equiv-text="types"/>)</target></trans-unit>
       <trans-unit id="qrules.more" datatype="html"><source>+<x id="count" equiv-text="count"/> more</source><target>+<x id="count" equiv-text="count"/> أخرى</target></trans-unit>
+      <trans-unit id="qrules.areas_label" datatype="html"><source>What it affects</source><target>ما الذي يؤثر فيه</target></trans-unit>
+      <trans-unit id="qrules.impact_title" datatype="html"><source>What it affects</source><target>ما الذي يؤثر فيه</target></trans-unit>
+      <trans-unit id="qrules.area_aria" datatype="html"><source>Filter by what it affects</source><target>تصفية حسب ما يؤثر فيه</target></trans-unit>
+      <trans-unit id="qrules.impact_none" datatype="html"><source>Moves no part of the quote by itself — it is asked as part of the fixed set.</source><target>لا يغيّر أي جزء من العرض بمفرده — يُسأل لأنه ضمن المجموعة الثابتة.</target></trans-unit>
+      <trans-unit id="qrules.impact_off" datatype="html"><source>Doesn't change: <x id="areas" equiv-text="areas"/></source><target>لا يغيّر: <x id="areas" equiv-text="areas"/></target></trans-unit>
+      <trans-unit id="qrules.area_amount" datatype="html"><source>Loan amount</source><target>مبلغ التمويل</target></trans-unit>
+      <trans-unit id="qrules.area_rate" datatype="html"><source>Interest rate</source><target>سعر العائد</target></trans-unit>
+      <trans-unit id="qrules.area_term" datatype="html"><source>Loan term</source><target>مدة التمويل</target></trans-unit>
+      <trans-unit id="qrules.area_debt_limit" datatype="html"><source>Debt-burden limit</source><target>حد عبء الدين</target></trans-unit>
+      <trans-unit id="qrules.area_questions" datatype="html"><source>Next questions</source><target>الأسئلة التالية</target></trans-unit>
+      <trans-unit id="qrules.area_application" datatype="html"><source>Application sent</source><target>الطلب المُرسل</target></trans-unit>
+      <trans-unit id="qrules.why_requested_amount" datatype="html"><source>Every quote is priced on the amount asked for</source><target>يُسعَّر كل عرض على المبلغ المطلوب</target></trans-unit>
+      <trans-unit id="qrules.why_tenor_rate" datatype="html"><source>Some banks' rate tables change with the term</source><target>تتغير جداول العائد لدى بعض البنوك حسب المدة</target></trans-unit>
+      <trans-unit id="qrules.why_tenor_term" datatype="html"><source>Every quote is priced on the term asked for</source><target>يُسعَّر كل عرض على المدة المطلوبة</target></trans-unit>
+      <trans-unit id="qrules.why_income_dbr" datatype="html"><source>The share of income that can go to debts is measured against it</source><target>تُقاس عليه نسبة الدخل التي يمكن أن تذهب للديون</target></trans-unit>
+      <trans-unit id="qrules.why_income_amount" datatype="html"><source>How much can be lent is worked out from it</source><target>يُحسب منه المبلغ الممكن تمويله</target></trans-unit>
+      <trans-unit id="qrules.why_obligations_dbr" datatype="html"><source>Counted as a monthly debt</source><target>يُحتسب كدين شهري</target></trans-unit>
+      <trans-unit id="qrules.why_obligations_amount" datatype="html"><source>Every debt leaves less room for the new installment</source><target>كل دين يقلّل المساحة المتاحة للقسط الجديد</target></trans-unit>
+      <trans-unit id="qrules.why_debt_types_questions" datatype="html"><source>Each debt picked asks for its own amount</source><target>كل دين يُختار يطلب مبلغه</target></trans-unit>
+      <trans-unit id="qrules.why_debt_types_dbr" datatype="html"><source>Picks which debts are counted</source><target>يحدد الديون التي تُحتسب</target></trans-unit>
+      <trans-unit id="qrules.why_job_rate" datatype="html"><source>Banks' rate tables are keyed by the job type</source><target>جداول العائد لدى البنوك مرتبطة بنوع العمل</target></trans-unit>
+      <trans-unit id="qrules.why_job_term" datatype="html"><source>The longest term a bank allows is keyed by the job type</source><target>أطول مدة يسمح بها البنك مرتبطة بنوع العمل</target></trans-unit>
+      <trans-unit id="qrules.why_job_dbr" datatype="html"><source>The debt-burden cap is keyed by the job type</source><target>الحد الأقصى لعبء الدين مرتبط بنوع العمل</target></trans-unit>
+      <trans-unit id="qrules.why_job_amount" datatype="html"><source>The largest loan a bank allows is keyed by the job type</source><target>أكبر تمويل يسمح به البنك مرتبط بنوع العمل</target></trans-unit>
+      <trans-unit id="qrules.why_months_rate" datatype="html"><source>Some rate tables change with the years in the job</source><target>تتغير بعض جداول العائد حسب سنوات العمل</target></trans-unit>
+      <trans-unit id="qrules.why_transfer_rate" datatype="html"><source>Picks the salary-transfer row of the rate table</source><target>يحدد صف تحويل الراتب في جدول العائد</target></trans-unit>
+      <trans-unit id="qrules.why_transfer_amount" datatype="html"><source>Some banks lend more when the salary is transferred</source><target>بعض البنوك تموّل أكثر عند تحويل الراتب</target></trans-unit>
+      <trans-unit id="qrules.why_fact_amount" datatype="html"><source>Feeds <x id="facts" equiv-text="facts"/>, which scales or caps the amount</source><target>يغذّي <x id="facts" equiv-text="facts"/>، الذي يرفع المبلغ أو يخفضه أو يضع له سقفًا</target></trans-unit>
+      <trans-unit id="qrules.why_programs_amount" datatype="html"><source>Sets the amount offered under <x id="count" equiv-text="count"/> program names</source><target>يحدد المبلغ المعروض تحت <x id="count" equiv-text="count"/> من أسماء البرامج</target></trans-unit>
+      <trans-unit id="qrules.why_app" datatype="html"><source>The app sends what each answer means with the application</source><target>يرسل التطبيق معنى كل إجابة مع الطلب</target></trans-unit>
+      <trans-unit id="qrules.why_follow_ups" datatype="html"><source><x id="count" equiv-text="count"/> of its answers open or hide other questions</source><target><x id="count" equiv-text="count"/> من إجاباته تُظهر أسئلة أخرى أو تخفيها</target></trans-unit>
       <trans-unit id="qrules.reader_programs" datatype="html"><source>Read by bank programs sold as: <x id="names" equiv-text="names"/></source><target>تقرؤه برامج البنوك المباعة باسم: <x id="names" equiv-text="names"/></target></trans-unit>
       <trans-unit id="qrules.meaning_bucket" datatype="html"><source>Priced as <x id="bucket" equiv-text="bucket"/></source><target>يُسعَّر على أنه <x id="bucket" equiv-text="bucket"/></target></trans-unit>
       <trans-unit id="qrules.meaning_iscore_range" datatype="html"><source>Scores <x id="from" equiv-text="from"/> to <x id="to" equiv-text="to"/></source><target>درجات من <x id="from" equiv-text="from"/> إلى <x id="to" equiv-text="to"/></target></trans-unit>
@@ -4759,6 +4792,19 @@
       <trans-unit id="bpd.iscore.from_platform" datatype="html"><source>· the standard I-Score classes</source><target>· تصنيفات I-Score القياسية</target></trans-unit>
       <trans-unit id="spd.iscore.shared_note" datatype="html"><source> Leave it empty and the standard I-Score classes on Manage values apply to every bank selling this product. </source><target>سيبه فاضي وهتتطبق تصنيفات I-Score القياسية من إدارة القيم على كل البنوك اللي بتبيع المنتج ده.</target></trans-unit>
       <trans-unit id="lookups.value.no_score_range" datatype="html"><source>No score given</source><target>لم يتم إدخال تقييم</target></trans-unit>
+      <trans-unit id="srvp.axis_off" datatype="html"><source> No bank sells this name yet, so the app asks what the loan type asks — your unticks and additions apply once a bank program is filed under it. </source><target>لا يبيع أي بنك هذا الاسم بعد، لذا يطرح التطبيق ما يطرحه نوع التمويل — يسري ما ألغيت تحديده أو أضفته بمجرد إضافة برنامج بنكي تحته.</target></trans-unit>
+      <trans-unit id="srvp.empty" datatype="html"><source>The app asks nothing on this loan type.</source><target>لا يطرح التطبيق أي سؤال في نوع التمويل هذا.</target></trans-unit>
+      <trans-unit id="srvp.page_skippable" datatype="html"><source>Shown only to some applicants</source><target>تظهر لبعض المتقدمين فقط</target></trans-unit>
+      <trans-unit id="srvp.tag_optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
+      <trans-unit id="srvp.heading" datatype="html"><source>What the app shows a <x id="TYPE" equiv-text="this.categoryName()"/> applicant</source><target>ما يعرضه التطبيق على متقدم <x id="TYPE" equiv-text="this.categoryName()"/></target></trans-unit>
+      <trans-unit id="srvp.summary" datatype="html"><source><x id="PAGES" equiv-text="pages.length"/> pages, <x id="TOTAL" equiv-text="total"/> questions, <x id="REQUIRED" equiv-text="required"/> required — one page per section, in this order, after the applicant picks the loan type and this program in the app. A question that depends on an earlier answer says which.</source><target><x id="PAGES" equiv-text="pages.length"/> صفحات، <x id="TOTAL" equiv-text="total"/> سؤالاً، منها <x id="REQUIRED" equiv-text="required"/> إلزامي — صفحة لكل قسم، بهذا الترتيب، بعد أن يختار المتقدم نوع التمويل وهذا البرنامج في التطبيق. السؤال الذي يعتمد على إجابة سابقة يذكر أي إجابة.</target></trans-unit>
+      <trans-unit id="srvp.page_no" datatype="html"><source>Page <x id="N" equiv-text="n"/></source><target>صفحة <x id="N" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="srvp.count_one" datatype="html"><source>1 question</source><target>سؤال واحد</target></trans-unit>
+      <trans-unit id="srvp.count_many" datatype="html"><source><x id="N" equiv-text="n"/> questions</source><target><x id="N" equiv-text="n"/> أسئلة</target></trans-unit>
+      <trans-unit id="srvp.gate_not" datatype="html"><source>Asked unless “<x id="SOURCE" equiv-text="asked"/>” is <x id="ANSWERS" equiv-text="answers"/></source><target>يُطرح إلا إذا كانت إجابة «<x id="SOURCE" equiv-text="asked"/>» هي <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
+      <trans-unit id="srvp.gate_is" datatype="html"><source>Asked only when “<x id="SOURCE" equiv-text="asked"/>” is <x id="ANSWERS" equiv-text="answers"/></source><target>يُطرح فقط إذا كانت إجابة «<x id="SOURCE" equiv-text="asked"/>» هي <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
+      <trans-unit id="srvp.show" datatype="html"><source>Show pages</source><target>إظهار الصفحات</target></trans-unit>
+      <trans-unit id="srvp.hide" datatype="html"><source>Hide pages</source><target>إخفاء الصفحات</target></trans-unit>
     </body>
   </file>
 </xliff>

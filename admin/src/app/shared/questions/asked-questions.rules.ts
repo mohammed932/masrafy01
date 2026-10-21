@@ -1,4 +1,5 @@
 import { LOAN_CATEGORIES, canonicalCategories, type LoanCategory } from '@core/loan-category';
+import type { EnabledWhenLike } from './enabled-when';
 
 /**
  * Which questions a loan type's applicants are asked, and what a tick on that board writes.
@@ -126,6 +127,39 @@ export interface ServedCount {
    * additions are stored but not in force, and the applicant is asked what the loan type asks.
    */
   readonly nameAxisActive?: boolean;
+  /**
+   * The served questionnaire itself, one entry per page the app shows — the app renders one
+   * step per group. Absent on an older server.
+   */
+  readonly pages?: readonly ServedPage[];
+}
+
+/** One page of the app's questionnaire: a group, its questions in the order served. */
+export interface ServedPage {
+  readonly code: string;
+  readonly titleAr: string;
+  readonly titleEn: string;
+  readonly displayOrder: number;
+  readonly questions: readonly ServedQuestion[];
+}
+
+/** A question as the customer snapshot serves it — `isRequired` already folds in the name. */
+export interface ServedQuestion {
+  readonly code: string;
+  readonly type: string;
+  readonly questionAr: string;
+  readonly questionEn: string;
+  readonly helperTextAr?: string | null;
+  readonly helperTextEn?: string | null;
+  readonly isRequired: boolean;
+  readonly displayOrder: number;
+  readonly enabledWhen: EnabledWhenLike | null;
+  readonly options: readonly {
+    readonly code: string;
+    readonly labelAr: string;
+    readonly labelEn: string;
+    readonly displayOrder: number;
+  }[];
 }
 
 /** A run of rows from one questionnaire section, in pool order. */

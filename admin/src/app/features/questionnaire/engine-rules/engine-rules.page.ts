@@ -13,7 +13,17 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-import { EditOutline, SearchOutline } from '@ant-design/icons-angular/icons';
+import {
+  BranchesOutline,
+  CalendarOutline,
+  DashboardOutline,
+  DownOutline,
+  EditOutline,
+  PercentageOutline,
+  SearchOutline,
+  SendOutline,
+  WalletOutline,
+} from '@ant-design/icons-angular/icons';
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import { CanDirective } from '@shared/can.directive';
 import { EmptyStateComponent } from '@shared/empty-state.component';
@@ -31,6 +41,8 @@ import {
 } from './answer-wording.drawer';
 import { EngineRulesApiService } from './engine-rules.api.service';
 import {
+  areaLabel,
+  impactWhyText,
   labelOf,
   lockBaseLabel,
   lockEngineLabel,
@@ -42,16 +54,44 @@ import {
   wordingOf,
 } from './engine-rules.labels';
 import {
+  IMPACT_AREAS,
   WHO_FILTERS,
+  areaCounts,
   filterRules,
+  impactOf,
+  isImpactArea,
   isWhoFilter,
   whoCounts,
+  type ImpactArea,
   type WhoFilter,
 } from './engine-rules.rules';
 import type { EngineRuleOption, EngineRuleQuestion, LabelledKey } from './engine-rules.types';
 
 /** Answers shown before "Show all" — enough for every band list, short of the long lists. */
 const ANSWERS_SHOWN = 6;
+
+const AREA_ICONS: Record<ImpactArea, string> = {
+  amount: 'wallet',
+  rate: 'percentage',
+  term: 'calendar',
+  debt_limit: 'dashboard',
+  questions: 'branches',
+  application: 'send',
+};
+
+/** One part of the quote a question moves, worded, for one card. */
+interface ImpactCell {
+  area: ImpactArea;
+  label: string;
+  icon: string;
+  why: string[];
+}
+
+interface QuestionImpactView {
+  on: ImpactCell[];
+  /** The areas it leaves alone, as one quiet line — absence is information too. */
+  off: string;
+}
 
 /**
  * LOAN ENGINE RULES — the third Questionnaire tab (v30.12.0).
@@ -84,7 +124,19 @@ const ANSWERS_SHOWN = 6;
     StatusPillComponent,
     AnswerMeaningsComponent,
   ],
-  providers: [provideNzIconsPatch([EditOutline, SearchOutline])],
+  providers: [
+    provideNzIconsPatch([
+      BranchesOutline,
+      CalendarOutline,
+      DashboardOutline,
+      DownOutline,
+      EditOutline,
+      PercentageOutline,
+      SearchOutline,
+      SendOutline,
+      WalletOutline,
+    ]),
+  ],
   template: `
     <section class="page">
       <p class="sr-only" role="status" aria-live="polite">{{ status() }}</p>
@@ -145,13 +197,40 @@ const ANSWERS_SHOWN = 6;
           (select)="setWho($event)"
         />
 
+        <div class="areas" role="group" [attr.aria-label]="areaAria">
+          <span class="areas-label" aria-hidden="true" i18n="@@qrules.areas_label"
+            >What it affects</span
+          >
+          @for (a of areaItems(); track a.id) {
+            <button
+              type="button"
+              class="area-chip"
+              [class.on]="area() === a.id"
+              [attr.aria-pressed]="area() === a.id"
+              [disabled]="a.count === 0 && area() !== a.id"
+              (click)="setArea(a.id)"
+            >
+              <span nz-icon [nzType]="a.icon" nzTheme="outline" aria-hidden="true"></span>
+              <span>{{ a.label }}</span>
+              <span class="area-count">{{ a.count }}</span>
+            </button>
+          }
+        </div>
+
         <div
           class="panel"
           role="tabpanel"
           [id]="'qrules-who-panel-' + who()"
           [attr.aria-labelledby]="'qrules-who-tab-' + who()"
         >
-          <p class="showing">{{ showing() }}</p>
+          <div class="showing-row">
+            <p class="showing">{{ showing() }}</p>
+            @if (collapsibleCount() > 0 && !searching()) {
+              <button type="button" class="open-all" (click)="setAllOpen(!allOpen())">
+                {{ allOpen() ? collapseAllText : expandAllText }}
+              </button>
+            }
+          </div>
           @if (visible().length === 0) {
             @if (questions().length === 0) {
               <app-empty-state [title]="emptyTitle" />
@@ -182,6 +261,45 @@ const ANSWERS_SHOWN = 6;
                       <bdi class="code">{{ q.code }}</bdi>
                     </div>
                   </div>
+
+                  <section class="impact" [attr.aria-labelledby]="'qr-impact-' + q.id">
+                    <h3
+                      class="section-title"
+                      [id]="'qr-impact-' + q.id"
+                      i18n="@@qrules.impact_title"
+                    >
+                      What it affects
+                    </h3>
+                    @if (impact(q); as view) {
+                      @if (view.on.length > 0) {
+                        <ul class="impact-list">
+                          @for (c of view.on; track c.area) {
+                            <li class="impact-cell" [class.match]="area() === c.area">
+                              <span class="impact-icon" aria-hidden="true">
+                                <span nz-icon [nzType]="c.icon" nzTheme="outline"></span>
+                              </span>
+                              <div class="impact-body">
+                                <p class="impact-name">{{ c.label }}</p>
+                                <ul class="impact-why">
+                                  @for (w of c.why; track $index) {
+                                    <li>{{ w }}</li>
+                                  }
+                                </ul>
+                              </div>
+                            </li>
+                          }
+                        </ul>
+                      } @else {
+                        <p class="impact-none" i18n="@@qrules.impact_none">
+                          Moves no part of the quote by itself — it is asked as part of the fixed
+                          set.
+                        </p>
+                      }
+                      @if (view.off !== '') {
+                        <p class="impact-off">{{ view.off }}</p>
+                      }
+                    }
+                  </section>
 
                   <dl class="facts">
                     <div class="fact">
@@ -223,70 +341,100 @@ const ANSWERS_SHOWN = 6;
                   </dl>
 
                   @if (q.options.length > 0) {
-                    <div class="answers">
-                      <div class="answers-head">
-                        <h3 i18n="@@qrules.answers_title">Answers</h3>
-                        @if (q.mirroredList; as list) {
-                          <p class="note">
-                            {{ mirroredNote(list) }}
-                            <a
-                              *can="['super_admin']"
-                              [routerLink]="['/lookups']"
-                              [queryParams]="{ type: list.key }"
-                              i18n="@@qrules.mirrored_link"
-                              >Open the list</a
-                            >
-                          </p>
-                        } @else {
-                          <p class="note" i18n="@@qrules.no_add_note">
-                            Answers can't be added or removed here: each one means something to the
-                            loan engine.
-                          </p>
-                        }
-                      </div>
-                      <ul class="answer-list" [id]="'qr-answers-' + q.id">
-                        @for (o of shownOptions(q); track o.id) {
-                          <li class="answer" [class.editable]="q.mirroredList === null">
-                            <div class="answer-text">
-                              <span class="label">{{ isAr ? o.labelAr : o.labelEn }}</span>
-                              <span class="label-alt"
-                                ><bdi [attr.lang]="altLang">{{
-                                  isAr ? o.labelEn : o.labelAr
-                                }}</bdi></span
-                              >
-                              <app-answer-meanings [meanings]="o.meanings" [isAr]="isAr" />
-                            </div>
-                            @if (q.mirroredList === null) {
-                              <button
-                                type="button"
-                                class="edit"
-                                [id]="'qr-edit-' + o.id"
-                                [attr.aria-label]="editAria(o)"
-                                nz-tooltip
-                                [nzTooltipTitle]="editTip"
-                                (click)="edit(q, o)"
-                              >
-                                <span
-                                  nz-icon
-                                  nzType="edit"
-                                  nzTheme="outline"
-                                  aria-hidden="true"
-                                ></span>
-                              </button>
-                            }
-                          </li>
-                        }
-                      </ul>
-                      @if (q.options.length > answersShown) {
+                    <div class="answers" [class.open]="isOpen(q)">
+                      <h3 class="answers-title">
                         <button
                           type="button"
-                          class="show-all"
-                          [attr.aria-expanded]="isExpanded(q)"
-                          [attr.aria-controls]="'qr-answers-' + q.id"
-                          (click)="toggle(q)"
+                          class="disclose"
+                          [id]="'qr-disclose-' + q.id"
+                          [attr.aria-expanded]="isOpen(q)"
+                          [attr.aria-controls]="'qr-answers-body-' + q.id"
+                          [disabled]="searching()"
+                          (click)="toggleOpen(q)"
                         >
-                          {{ isExpanded(q) ? showLess : showAll(q) }}
+                          <span class="disclose-label" i18n="@@qrules.answers_title">Answers</span>
+                          <span class="disclose-count">{{ q.options.length }}</span>
+                          <span class="disclose-preview" aria-hidden="true">{{ preview(q) }}</span>
+                          <span
+                            class="chevron"
+                            nz-icon
+                            nzType="down"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
                         </button>
+                      </h3>
+                      @if (isOpen(q)) {
+                        <div
+                          class="answers-body"
+                          role="region"
+                          [id]="'qr-answers-body-' + q.id"
+                          [attr.aria-labelledby]="'qr-disclose-' + q.id"
+                        >
+                          <div class="answers-head">
+                            @if (q.mirroredList; as list) {
+                              <p class="note">
+                                {{ mirroredNote(list) }}
+                                <a
+                                  *can="['super_admin']"
+                                  [routerLink]="['/lookups']"
+                                  [queryParams]="{ type: list.key }"
+                                  i18n="@@qrules.mirrored_link"
+                                  >Open the list</a
+                                >
+                              </p>
+                            } @else {
+                              <p class="note" i18n="@@qrules.no_add_note">
+                                Answers can't be added or removed here: each one means something to
+                                the loan engine.
+                              </p>
+                            }
+                          </div>
+                          <ul class="answer-list" [id]="'qr-answers-' + q.id">
+                            @for (o of shownOptions(q); track o.id) {
+                              <li class="answer" [class.editable]="q.mirroredList === null">
+                                <div class="answer-text">
+                                  <span class="label">{{ isAr ? o.labelAr : o.labelEn }}</span>
+                                  <span class="label-alt"
+                                    ><bdi [attr.lang]="altLang">{{
+                                      isAr ? o.labelEn : o.labelAr
+                                    }}</bdi></span
+                                  >
+                                  <app-answer-meanings [meanings]="o.meanings" [isAr]="isAr" />
+                                </div>
+                                @if (q.mirroredList === null) {
+                                  <button
+                                    type="button"
+                                    class="edit"
+                                    [id]="'qr-edit-' + o.id"
+                                    [attr.aria-label]="editAria(o)"
+                                    nz-tooltip
+                                    [nzTooltipTitle]="editTip"
+                                    (click)="edit(q, o)"
+                                  >
+                                    <span
+                                      nz-icon
+                                      nzType="edit"
+                                      nzTheme="outline"
+                                      aria-hidden="true"
+                                    ></span>
+                                  </button>
+                                }
+                              </li>
+                            }
+                          </ul>
+                          @if (q.options.length > answersShown) {
+                            <button
+                              type="button"
+                              class="show-all"
+                              [attr.aria-expanded]="isExpanded(q)"
+                              [attr.aria-controls]="'qr-answers-' + q.id"
+                              (click)="toggle(q)"
+                            >
+                              {{ isExpanded(q) ? showLess : showAll(q) }}
+                            </button>
+                          }
+                        </div>
                       }
                     </div>
                   }
@@ -391,14 +539,170 @@ const ANSWERS_SHOWN = 6;
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
         outline-offset: var(--focus-ring-offset);
       }
-      .panel {
-        margin-block-start: var(--space-4);
+      .areas {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin-block-start: var(--space-3);
       }
-      .showing {
-        margin: 0 0 var(--space-3);
+      .areas-label {
+        margin-inline-end: var(--space-1);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-secondary);
+      }
+      .area-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
+        min-block-size: var(--space-6);
+        padding: 0 var(--space-3);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-pill);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font: inherit;
+        font-size: var(--text-sm);
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .area-chip [nz-icon] {
+        color: var(--primary-visible);
+      }
+      .area-chip:hover:not(:disabled) {
+        border-color: var(--primary);
+      }
+      .area-chip.on {
+        border-color: var(--primary);
+        background: var(--primary-subtle);
+        color: var(--primary-visible);
+        font-weight: var(--font-weight-semibold);
+      }
+      .area-chip:disabled {
+        color: var(--text-secondary);
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .area-chip:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .area-count {
         font-size: var(--text-xs);
         color: var(--text-secondary);
         font-variant-numeric: tabular-nums lining-nums;
+      }
+      .area-chip.on .area-count {
+        color: inherit;
+      }
+      .panel {
+        margin-block-start: var(--space-4);
+      }
+      .section-title {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+      }
+      .impact {
+        display: grid;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+      }
+      .impact-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+        gap: var(--space-4) var(--space-5);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .impact-cell {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        min-inline-size: 0;
+      }
+      .impact-icon {
+        flex: none;
+        display: inline-grid;
+        place-items: center;
+        inline-size: var(--space-6);
+        block-size: var(--space-6);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        box-shadow: inset 0 0 0 1px var(--primary-subtle);
+        color: var(--primary-visible);
+        font-size: var(--text-base);
+      }
+      .impact-cell.match .impact-icon {
+        background: var(--primary);
+        color: var(--bg-surface);
+      }
+      .impact-body {
+        display: grid;
+        gap: var(--space-0-5);
+        min-inline-size: 0;
+      }
+      .impact-name {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        line-height: var(--leading-tight);
+        color: var(--text-primary);
+      }
+      .impact-why {
+        display: grid;
+        gap: var(--space-0-5);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: var(--text-xs);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+        overflow-wrap: anywhere;
+      }
+      .impact-none,
+      .impact-off {
+        margin: 0;
+        font-size: var(--text-xs);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+      }
+      .showing-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2) var(--space-4);
+        margin-block-end: var(--space-3);
+      }
+      .showing {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .open-all {
+        min-block-size: var(--space-6);
+        padding: 0 var(--space-2);
+        border: 0;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--primary-visible);
+        font: inherit;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+      }
+      .open-all:hover {
+        background: var(--bg-subtle);
       }
       .rules {
         display: grid;
@@ -515,17 +819,95 @@ const ANSWERS_SHOWN = 6;
         display: grid;
         gap: var(--space-2);
         border-block-start: 1px solid var(--border-subtle);
-        padding-block-start: var(--space-4);
+        padding-block-start: var(--space-3);
+        min-inline-size: 0;
+      }
+      .answers-title {
+        margin: 0;
+      }
+      /* The whole row is the target, not just the arrow: the count and the first answers sit
+         on it so a closed card still says what is inside. */
+      .disclose {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        inline-size: 100%;
+        min-block-size: var(--size-field);
+        margin-inline: calc(-1 * var(--space-2));
+        padding: 0 var(--space-2);
+        box-sizing: content-box;
+        border: 0;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--text-primary);
+        font: inherit;
+        text-align: start;
+        cursor: pointer;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .disclose:hover:not(:disabled) {
+        background: var(--bg-subtle);
+      }
+      .disclose:disabled {
+        cursor: default;
+      }
+      .disclose:focus-visible,
+      .open-all:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .disclose-label {
+        flex: none;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+      }
+      .disclose-count {
+        flex: none;
+        min-inline-size: var(--space-5);
+        padding: 0 var(--space-1-5);
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+        font-size: var(--text-xs);
+        line-height: var(--space-5);
+        text-align: center;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      /* Sized by the row, never by its own text: a long list must not widen the card. */
+      .disclose-preview {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+        contain: inline-size;
+        overflow: hidden;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        transition: opacity var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .answers.open .disclose-preview {
+        opacity: 0;
+      }
+      .chevron {
+        flex: none;
+        margin-inline-start: auto;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        transition: transform var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .answers.open .chevron {
+        transform: rotate(180deg);
+      }
+      .disclose:disabled .chevron {
+        visibility: hidden;
+      }
+      .answers-body {
+        display: grid;
+        gap: var(--space-2);
       }
       .answers-head {
         display: grid;
         gap: var(--space-1);
-      }
-      .answers-head h3 {
-        margin: 0;
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--text-primary);
       }
       .note {
         margin: 0;
@@ -624,7 +1006,11 @@ const ANSWERS_SHOWN = 6;
       }
       @media (prefers-reduced-motion: reduce) {
         .answer,
-        .edit {
+        .edit,
+        .area-chip,
+        .disclose,
+        .disclose-preview,
+        .chevron {
           transition: none;
         }
         .edit:active {
@@ -652,18 +1038,47 @@ export class EngineRulesPageComponent implements OnInit {
   protected readonly who = signal<WhoFilter>('all');
   protected readonly search = signal('');
   protected readonly numbersOnly = signal(false);
+  protected readonly area = signal<ImpactArea | null>(null);
   private readonly expanded = signal<ReadonlySet<string>>(new Set());
+  /** Cards whose answers are open. Closed by default: the answers are the long part. */
+  private readonly opened = signal<ReadonlySet<string>>(new Set());
+  /** A search may have matched an answer, so every answer list stays open while one is typed. */
+  protected readonly searching = computed(() => this.search().trim() !== '');
 
   protected readonly visible = computed(() =>
     filterRules(this.questions(), {
       who: this.who(),
+      area: this.area(),
       search: this.search(),
       numbersOnly: this.numbersOnly(),
     }),
   );
   private readonly counts = computed(() =>
-    whoCounts(this.questions(), { search: this.search(), numbersOnly: this.numbersOnly() }),
+    whoCounts(this.questions(), {
+      area: this.area(),
+      search: this.search(),
+      numbersOnly: this.numbersOnly(),
+    }),
   );
+  protected readonly areaItems = computed(() => {
+    const counts = areaCounts(this.questions(), {
+      who: this.who(),
+      search: this.search(),
+      numbersOnly: this.numbersOnly(),
+    });
+    return IMPACT_AREAS.map((id) => ({
+      id,
+      label: areaLabel(id),
+      icon: AREA_ICONS[id],
+      count: counts[id],
+    }));
+  });
+  /** Worded once per load, not once per change-detection pass. */
+  private readonly impacts = computed(() => {
+    const out = new Map<string, QuestionImpactView>();
+    for (const q of this.questions()) out.set(q.id, this.impactView(q));
+    return out;
+  });
   protected readonly whoItems = computed<RailTabItem[]>(() => {
     const counts = this.counts();
     return WHO_FILTERS.map((id) => {
@@ -681,6 +1096,12 @@ export class EngineRulesPageComponent implements OnInit {
     const total = this.questions().length;
     return $localize`:@@qrules.showing:${shown}:shown: of ${total}:total: questions`;
   });
+  private readonly collapsible = computed(() => this.visible().filter((q) => q.options.length > 0));
+  protected readonly collapsibleCount = computed(() => this.collapsible().length);
+  protected readonly allOpen = computed(() => {
+    const opened = this.opened();
+    return this.collapsible().every((q) => opened.has(q.id));
+  });
   protected readonly status = computed(() => (this.loading() ? '' : this.showing()));
 
   protected readonly loadingAria = $localize`:@@qrules.loading_aria:Loading the loan engine rules`;
@@ -691,7 +1112,10 @@ export class EngineRulesPageComponent implements OnInit {
   protected readonly noMatchSub = $localize`:@@qrules.no_match_sub:Try removing one, or clear them all.`;
   protected readonly searchPlaceholder = $localize`:@@qrules.search_ph:Search questions, answers or codes`;
   protected readonly whoAria = $localize`:@@qrules.who_aria:Filter by who reads it`;
+  protected readonly areaAria = $localize`:@@qrules.area_aria:Filter by what it affects`;
   protected readonly showLess = $localize`:@@qrules.show_less:Show fewer answers`;
+  protected readonly expandAllText = $localize`:@@qrules.expand_all:Open all answers`;
+  protected readonly collapseAllText = $localize`:@@qrules.collapse_all:Close all answers`;
   protected readonly editTip = $localize`:@@qrules.edit_tip:Edit wording`;
   private readonly savedText = $localize`:@@qrules.saved:Answer wording saved and published`;
 
@@ -701,6 +1125,8 @@ export class EngineRulesPageComponent implements OnInit {
     if (isWhoFilter(who)) this.who.set(who);
     this.search.set(params.get('search') ?? '');
     this.numbersOnly.set(params.get('numbers') === '1');
+    const area = params.get('area');
+    if (isImpactArea(area)) this.area.set(area);
     void this.load(true);
   }
 
@@ -712,6 +1138,16 @@ export class EngineRulesPageComponent implements OnInit {
     if (!isWhoFilter(id)) return;
     this.who.set(id);
     this.syncUrl();
+  }
+
+  /** Pressing the active area again lets go of it. */
+  protected setArea(id: ImpactArea): void {
+    this.area.set(this.area() === id ? null : id);
+    this.syncUrl();
+  }
+
+  protected impact(q: EngineRuleQuestion): QuestionImpactView | undefined {
+    return this.impacts().get(q.id);
   }
 
   protected onSearch(event: Event): void {
@@ -726,6 +1162,7 @@ export class EngineRulesPageComponent implements OnInit {
 
   protected clearFilters(): void {
     this.who.set('all');
+    this.area.set(null);
     this.search.set('');
     this.numbersOnly.set(false);
     this.syncUrl();
@@ -752,6 +1189,32 @@ export class EngineRulesPageComponent implements OnInit {
     if (next.has(q.id)) next.delete(q.id);
     else next.add(q.id);
     this.expanded.set(next);
+  }
+
+  protected isOpen(q: EngineRuleQuestion): boolean {
+    return this.searching() || this.opened().has(q.id);
+  }
+
+  protected toggleOpen(q: EngineRuleQuestion): void {
+    const next = new Set(this.opened());
+    if (next.has(q.id)) next.delete(q.id);
+    else next.add(q.id);
+    this.opened.set(next);
+  }
+
+  /** Opens or closes every answer list in view; cards filtered out keep their state. */
+  protected setAllOpen(open: boolean): void {
+    const next = new Set(this.opened());
+    for (const q of this.collapsible()) {
+      if (open) next.add(q.id);
+      else next.delete(q.id);
+    }
+    this.opened.set(next);
+  }
+
+  /** The first answers, in the UI language, as one line on the closed row. */
+  protected preview(q: EngineRuleQuestion): string {
+    return q.options.map((o) => (this.isAr ? o.labelAr : o.labelEn)).join(this.isAr ? '، ' : ' · ');
   }
 
   protected isExpanded(q: EngineRuleQuestion): boolean {
@@ -812,6 +1275,33 @@ export class EngineRulesPageComponent implements OnInit {
     return $localize`:@@qrules.show_all:Show all ${n}:count: answers`;
   }
 
+  private impactView(q: EngineRuleQuestion): QuestionImpactView {
+    const impact = impactOf(q);
+    const on: ImpactCell[] = [];
+    const off: string[] = [];
+    for (const area of IMPACT_AREAS) {
+      const why = impact.get(area);
+      if (why === undefined) {
+        off.push(areaLabel(area));
+        continue;
+      }
+      on.push({
+        area,
+        label: areaLabel(area),
+        icon: AREA_ICONS[area],
+        why: why.map((w) => impactWhyText(area, w, this.isAr)),
+      });
+    }
+    const areas = off.join(this.isAr ? '، ' : ' · ');
+    return {
+      on,
+      off:
+        on.length === 0 || off.length === 0
+          ? ''
+          : $localize`:@@qrules.impact_off:Doesn't change: ${areas}:areas:`,
+    };
+  }
+
   private whoLabel(id: WhoFilter): string {
     switch (id) {
       case 'all':
@@ -847,6 +1337,7 @@ export class EngineRulesPageComponent implements OnInit {
       relativeTo: this.route,
       queryParams: {
         who: this.who() === 'all' ? null : this.who(),
+        area: this.area(),
         search: search === '' ? null : search,
         numbers: this.numbersOnly() ? '1' : null,
       },

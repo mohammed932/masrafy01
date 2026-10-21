@@ -169,6 +169,10 @@ export class QuestionnaireService {
    * `nameAxisActive` is false while the name has no active bank programme: the name axis is
    * inert until then (`narrowingScopeFor` returns null), so its unticks and additions are
    * stored but not yet in force, and the screen can say so.
+   *
+   * `pages` is the served snapshot's groups themselves — the app renders one step per group
+   * (`questionnaire_state.dart`), so the admin can list the applicant's pages as they appear,
+   * with the `isRequired` that already folds in what a programme under the name reads.
    */
   async servedForProgramName(programNameKey: string): Promise<
     {
@@ -180,6 +184,7 @@ export class QuestionnaireService {
       servedExtra: number;
       servedQuestionCodes: string[];
       nameAxisActive: boolean;
+      pages: unknown[];
     }[]
   > {
     const member = (await this.enums.getActiveMembers('program_name')).find(
@@ -194,7 +199,8 @@ export class QuestionnaireService {
       // can also say whether the name axis applied at all.
       const scope = await this.enums.narrowingScopeFor(programNameKey, category);
       const whole = countServed(toCustomerSnapshot(version.snapshot, category, null));
-      const narrowed = countServed(toCustomerSnapshot(version.snapshot, category, scope));
+      const served = toCustomerSnapshot(version.snapshot, category, scope);
+      const narrowed = countServed(served);
       const inWhole = new Set(whole.codes);
       out.push({
         category,
@@ -205,6 +211,7 @@ export class QuestionnaireService {
         servedExtra: narrowed.codes.filter((code) => !inWhole.has(code)).length,
         servedQuestionCodes: narrowed.codes,
         nameAxisActive: scope !== null,
+        pages: (served as { groups?: unknown[] }).groups ?? [],
       });
     }
     return out;

@@ -1,4 +1,4 @@
-import type { EngineRuleQuestion } from './engine-rules.types';
+import type { EngineReader, EngineRuleQuestion } from './engine-rules.types';
 
 /**
  * What the "Loan engine rules" toolbar narrows by — pure, so the page class holds signals and
@@ -12,8 +12,135 @@ export type WhoFilter = 'all' | 'engine' | 'base' | 'program';
 
 export const WHO_FILTERS: readonly WhoFilter[] = ['all', 'engine', 'base', 'program'];
 
+// ---- What a question changes ----------------------------------------------------------------
+
+/**
+ * The parts of a quote a question can move. Derived from the server's structured readers —
+ * each link below is a table or a sum in the engine (`cascade.evaluator.ts`, `dbr.ts`), not a
+ * guess — so the admin sees WHERE an answer lands before rewording it. The installment is not
+ * an area of its own: it follows from amount, rate and term, so it would light up everywhere.
+ */
+export type ImpactArea = 'amount' | 'rate' | 'term' | 'debt_limit' | 'questions' | 'application';
+
+export const IMPACT_AREAS: readonly ImpactArea[] = [
+  'amount',
+  'rate',
+  'term',
+  'debt_limit',
+  'questions',
+  'application',
+];
+
+/** Why a question moves an area — one per reader, worded in `engine-rules.labels.ts`. */
+export type ImpactWhy =
+  | { kind: 'requested_amount' }
+  | { kind: 'tenor_months' }
+  | { kind: 'monthly_income' }
+  | { kind: 'obligations' }
+  | { kind: 'debt_types' }
+  | { kind: 'employment_type' }
+  | { kind: 'months_in_job' }
+  | { kind: 'salary_transfer' }
+  | { kind: 'platform_fact'; reader: Extract<EngineReader, { kind: 'platform_fact' }> }
+  | { kind: 'programs'; count: number }
+  | { kind: 'app_mapping' }
+  | { kind: 'follow_ups'; answers: number };
+
+export type QuestionImpact = ReadonlyMap<ImpactArea, readonly ImpactWhy[]>;
+
+function readerImpact(r: EngineReader): [ImpactArea, ImpactWhy][] {
+  switch (r.kind) {
+    case 'money_input':
+      switch (r.binding) {
+        case 'requested_amount':
+          return [['amount', { kind: 'requested_amount' }]];
+        case 'tenor_months':
+          return [
+            ['term', { kind: 'tenor_months' }],
+            ['rate', { kind: 'tenor_months' }],
+          ];
+        case 'monthly_income':
+          return [
+            ['amount', { kind: 'monthly_income' }],
+            ['debt_limit', { kind: 'monthly_income' }],
+          ];
+        case 'existing_obligations':
+          return [
+            ['debt_limit', { kind: 'obligations' }],
+            ['amount', { kind: 'obligations' }],
+          ];
+      }
+      return [];
+    case 'obligation_amount':
+      return [
+        ['debt_limit', { kind: 'obligations' }],
+        ['amount', { kind: 'obligations' }],
+      ];
+    case 'debt_types':
+      return [
+        ['debt_limit', { kind: 'debt_types' }],
+        ['questions', { kind: 'debt_types' }],
+      ];
+    case 'employment_type':
+      return [
+        ['rate', { kind: 'employment_type' }],
+        ['term', { kind: 'employment_type' }],
+        ['debt_limit', { kind: 'employment_type' }],
+        ['amount', { kind: 'employment_type' }],
+      ];
+    case 'server_input':
+      return r.input === 'months_in_job'
+        ? [['rate', { kind: 'months_in_job' }]]
+        : [
+            ['rate', { kind: 'salary_transfer' }],
+            ['amount', { kind: 'salary_transfer' }],
+          ];
+    case 'platform_fact':
+      return [['amount', { kind: 'platform_fact', reader: r }]];
+    case 'programs':
+      return [['amount', { kind: 'programs', count: r.programNames.length }]];
+    case 'app_mapping':
+      return [['application', { kind: 'app_mapping' }]];
+    case 'fixed_set':
+      // Why it is asked, not what it moves.
+      return [];
+  }
+}
+
+const IMPACTS = new WeakMap<EngineRuleQuestion, QuestionImpact>();
+
+/** Every area this question moves, each with why, in `IMPACT_AREAS` order. */
+export function impactOf(q: EngineRuleQuestion): QuestionImpact {
+  const cached = IMPACTS.get(q);
+  if (cached !== undefined) return cached;
+  const byArea = new Map<ImpactArea, ImpactWhy[]>();
+  const add = (area: ImpactArea, why: ImpactWhy): void => {
+    const list = byArea.get(area) ?? [];
+    if (!list.some((w) => w.kind === why.kind)) list.push(why);
+    byArea.set(area, list);
+  };
+  for (const r of q.readers) for (const [area, why] of readerImpact(r)) add(area, why);
+  const branching = q.options.filter((o) =>
+    o.meanings.some((m) => m.kind === 'opens' || m.kind === 'hides'),
+  ).length;
+  if (branching > 0) add('questions', { kind: 'follow_ups', answers: branching });
+  const out = new Map<ImpactArea, readonly ImpactWhy[]>();
+  for (const area of IMPACT_AREAS) {
+    const list = byArea.get(area);
+    if (list !== undefined) out.set(area, list);
+  }
+  IMPACTS.set(q, out);
+  return out;
+}
+
+export function isImpactArea(value: string | null | undefined): value is ImpactArea {
+  return value != null && (IMPACT_AREAS as readonly string[]).includes(value);
+}
+
 export interface RulesFilter {
   who: WhoFilter;
+  /** Only questions that move this part of the quote; `null` = any. */
+  area: ImpactArea | null;
   /** Free text, matched against the code, both wordings and every answer. */
   search: string;
   /** Only questions with an answer whose wording states a quantity (`keep` non-empty). */
@@ -55,6 +182,7 @@ export function filterRules(
   return questions.filter(
     (q) =>
       matchesWho(q, filter.who) &&
+      (filter.area === null || impactOf(q).has(filter.area)) &&
       matchesSearch(q, filter.search) &&
       (!filter.numbersOnly || hasNumberedWording(q)),
   );
@@ -92,4 +220,15 @@ function normalise(text: string): string {
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ة/g, 'ه')
     .replace(/ى/g, 'ي');
+}
+
+/** How many questions move each area under the other filters. */
+export function areaCounts(
+  questions: readonly EngineRuleQuestion[],
+  filter: Omit<RulesFilter, 'area'>,
+): Record<ImpactArea, number> {
+  const base = filterRules(questions, { ...filter, area: null });
+  const out = Object.fromEntries(IMPACT_AREAS.map((a) => [a, 0])) as Record<ImpactArea, number>;
+  for (const q of base) for (const area of impactOf(q).keys()) out[area] += 1;
+  return out;
 }
