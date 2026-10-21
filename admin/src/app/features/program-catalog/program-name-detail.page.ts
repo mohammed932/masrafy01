@@ -38,7 +38,9 @@ import {
 } from '@shared/questions/asked-questions.rules';
 import {
   QuestionnaireApiService,
+  type GroupTreeRow,
 } from '@features/questionnaire/questionnaire.api.service';
+import { stepsForCategory, type OrderStep } from '@shared/questions/category-order';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
 import { LookupsApiService } from '../lookups/lookups.api.service';
@@ -188,13 +190,11 @@ import { ServedPagesComponent } from './served-pages.component';
                    batch into. -->
               <section class="card is-bare stage-card">
                 <header class="stage-head">
+                  <!-- No sub-line: the rail's caption above already says what a tick here
+                       touches, and saying it twice was the first thing the step read. -->
                   <h2 class="stage-title" i18n="@@pnd.asks_title">
                     What are these applicants asked?
                   </h2>
-                  <p class="stage-sub" i18n="@@pnd.asks_sub">
-                    One tab per loan type this name is offered under. What you untick or tick here
-                    applies to this program only.
-                  </p>
                 </header>
 
                 @if (asksError(); as err) {
@@ -202,19 +202,6 @@ import { ServedPagesComponent } from './served-pages.component';
                     <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
                     <span>{{ err }}</span>
                   </p>
-                }
-
-                <!-- What the app shows, page by page, first: the served snapshot for the tab
-                     below, re-read after every tick so the two never disagree. -->
-                @if (servedHere(); as sv) {
-                  @if (sv.pages) {
-                    <app-served-pages
-                      [pages]="sv.pages"
-                      [isAr]="isAr"
-                      [categoryName]="categoryName(sv.category)"
-                      [nameAxisActive]="sv.nameAxisActive !== false"
-                    />
-                  }
                 }
 
                 <!-- Not the full board: what is REQUIRED, what was added in this visit, and a
@@ -240,7 +227,24 @@ import { ServedPagesComponent } from './served-pages.component';
                   (include)="setSkipped($event, false)"
                   (addHere)="addForName($event)"
                   (removeHere)="removeForName($event)"
-                />
+                  [summarySheet]="true"
+                >
+                  <!-- Projected under the board's tabs and summary line: what the app shows,
+                         page by page, for the tab it sits under. -->
+                  @if (servedHere(); as sv) {
+                    @if (sv.pages) {
+                      <app-served-pages
+                        [pages]="sv.pages"
+                        [isAr]="isAr"
+                        [categoryName]="categoryName(sv.category)"
+                        [nameAxisActive]="sv.nameAxisActive !== false"
+                        [steps]="orderSteps()"
+                        [busy]="reordering()"
+                        (reorder)="reorderCategory(sv.category, $event)"
+                      />
+                    }
+                  }
+                </app-compact-asked-questions>
               </section>
             }
           }
@@ -701,6 +705,13 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly servedHere = computed<ServedCount | null>(
     () => this.served().find((s) => s.category === this.askCategory()) ?? null,
   );
+  /** The draft tree the pool was built from — what a reorder must send whole. */
+  private readonly tree = signal<readonly GroupTreeRow[]>([]);
+  /** The loan type's asked list per app step, for the served section's moves. */
+  protected readonly orderSteps = computed<readonly OrderStep[]>(() =>
+    stepsForCategory(this.tree(), this.askCategory()),
+  );
+  protected readonly reordering = signal(false);
   protected readonly poolLoading = signal(false);
   protected readonly asksError = signal<string | null>(null);
   private poolRequested = false;
@@ -715,7 +726,9 @@ export class ProgramNameDetailPage implements OnInit {
    * `computed`s recompute on every tick of the app.
    */
   /** Questions ticked during THIS visit, per loan type — what "You added" lists. */
-  protected readonly sessionPicks = signal<AskedPicks>(new Map<LoanCategory, ReadonlySet<string>>());
+  protected readonly sessionPicks = signal<AskedPicks>(
+    new Map<LoanCategory, ReadonlySet<string>>(),
+  );
 
   /** Questions this name skips, per loan type — as stored, re-read after every write. */
   private readonly skipped = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
@@ -924,6 +937,28 @@ export class ProgramNameDetailPage implements OnInit {
     }
   }
 
+  /**
+   * The loan type's new order, from the served section. It is the LOAN TYPE's — the same write
+   * Questionnaire → Categories makes — and it publishes, so the served read is taken again after
+   * it: the pages come from the published snapshot. Taken again on a refusal too, which is what
+   * drops the section's optimistic order.
+   */
+  protected async reorderCategory(category: LoanCategory, ids: string[]): Promise<void> {
+    if (this.reordering()) return;
+    this.reordering.set(true);
+    this.asksError.set(null);
+    try {
+      const tree = await this.questionnaire.reorderCategoryQuestions(category, ids);
+      this.tree.set(tree);
+      this.pool.set(toAskablePool(tree));
+    } catch (err) {
+      this.asksError.set(this.localizedError(err));
+    } finally {
+      await this.loadServed();
+      this.reordering.set(false);
+    }
+  }
+
   private async loadScope(): Promise<void> {
     try {
       const scope = await this.api.programNameQuestionScope(this.routeKey());
@@ -965,6 +1000,7 @@ export class ProgramNameDetailPage implements OnInit {
     this.poolLoading.set(true);
     try {
       const [tree] = await Promise.all([this.questionnaire.tree(), this.loadScope()]);
+      this.tree.set(tree);
       this.pool.set(toAskablePool(tree));
       void this.loadServed();
     } catch (err) {
@@ -1058,4 +1094,3 @@ export class ProgramNameDetailPage implements OnInit {
     this.name.update((n) => (n ? { ...n, ...patch } : n));
   }
 }
-

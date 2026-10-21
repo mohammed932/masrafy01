@@ -18,6 +18,8 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { moveBlock, moveBlockText } from '@shared/questions/category-order';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import {
   ArrowDownOutline,
@@ -1192,6 +1194,7 @@ interface DanglingBranch {
 export class QuestionCategoriesPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
   private readonly modal = inject(NzModalService);
+  private readonly message = inject(NzMessageService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -1631,6 +1634,13 @@ export class QuestionCategoriesPage implements OnInit {
     const [row] = moved.splice(previousIndex, 1);
     if (!row) return;
     moved.splice(currentIndex, 0, row);
+    // A follow-up stays below the question it follows: the app shows it in place the moment
+    // that answer is given, so above it would be a question appearing over the applicant's head.
+    const block = moveBlock(moved, row.code);
+    if (block) {
+      this.message.warning(moveBlockText(block, this.isAr));
+      return;
+    }
     await this.commitOrder(steps.map((s) => (s.id === stepId ? { ...s, rows: moved } : s)));
   }
 

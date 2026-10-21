@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  TemplateRef,
   computed,
   effect,
   inject,
@@ -9,14 +10,17 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
 import {
   CheckCircleOutline,
   CheckOutline,
   ExclamationCircleOutline,
+  InfoCircleOutline,
   LeftOutline,
   LockOutline,
   RightOutline,
@@ -62,6 +66,10 @@ import {
  *
  * The only loan-type-wide write left here is the checklist's "Ask it", for a question the
  * quote cannot be priced without. Ten questions a page.
+ *
+ * With `summarySheet` on, the counts and the checklist fold into one summary line and an info
+ * button opens them in a bottom sheet — the name's own page, where they are reference rather
+ * than the task. A checklist with something missing still says so on the line itself.
  */
 @Component({
   selector: 'app-compact-asked-questions',
@@ -72,6 +80,7 @@ import {
       CheckOutline,
       CheckCircleOutline,
       ExclamationCircleOutline,
+      InfoCircleOutline,
       LeftOutline,
       LockOutline,
       RightOutline,
@@ -96,68 +105,108 @@ import {
         (select)="pickCategory($event)"
       />
 
-      <p class="total" role="status">
-        <span>{{ totalText() }}</span>
-      </p>
-      @if (servedHere(); as sv) {
-        <p class="servedline" role="status">
-          <span nz-icon nzType="user" nzTheme="outline" aria-hidden="true"></span>
-          <span>{{ servedText(sv) }}</span>
-        </p>
+      @if (summarySheet()) {
+        <div class="summary" [class.is-bad]="validated() && problems() > 0" role="status">
+          <span class="summary-text tabular">{{ summaryText() }}</span>
+          @if (validated()) {
+            <span class="summary-state">
+              <span
+                nz-icon
+                [nzType]="problems() === 0 ? 'check-circle' : 'exclamation-circle'"
+                nzTheme="outline"
+                aria-hidden="true"
+              ></span>
+              <span>{{ summaryStateText() }}</span>
+            </span>
+          }
+          <button
+            type="button"
+            class="info"
+            [attr.aria-label]="detailsAria()"
+            (click)="openSummary()"
+          >
+            <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
+          </button>
+        </div>
+        <ng-content />
+        <ng-template #summaryTpl>
+          <div class="sheet">
+            <ng-container [ngTemplateOutlet]="detailTpl" />
+          </div>
+        </ng-template>
+      } @else {
+        <ng-container [ngTemplateOutlet]="detailTpl" />
       }
 
-      @if (validated()) {
-        <section class="check" [class.is-bad]="problems() > 0" aria-labelledby="caq-check-h">
-          <h3 class="sec" id="caq-check-h">
-            <span class="sec-t" i18n="@@caq.check_h">Needed to price {{ typeName() }}</span>
-            <span class="sec-n tabular">{{ ready() }}/{{ checks().length }}</span>
-          </h3>
-          <p class="hint" role="status">
-            @if (problems() === 0) {
-              <span i18n="@@caq.check_ok">Everything the quote reads is asked. Ready.</span>
-            } @else {
-              <span i18n="@@caq.check_bad"
-                >Applicants of this type cannot be priced until these are asked.</span
-              >
-            }
+      <!-- The counts and the checklist: inline on the create flow, in the sheet on the name's
+           own page. One copy of the markup either way. -->
+      <ng-template #detailTpl>
+        <p class="total" role="status">
+          <span>{{ totalText() }}</span>
+        </p>
+        @if (servedHere(); as sv) {
+          <p class="servedline" role="status">
+            <span nz-icon nzType="user" nzTheme="outline" aria-hidden="true"></span>
+            <span>{{ servedText(sv) }}</span>
           </p>
-          <ul class="checks">
-            @for (c of checks(); track c.code) {
-              <li class="chk" [class.is-bad]="c.state === 'not_asked' || c.state === 'unavailable'">
-                <span
-                  nz-icon
-                  [nzType]="isOk(c) ? 'check-circle' : 'exclamation-circle'"
-                  nzTheme="outline"
-                  aria-hidden="true"
-                ></span>
-                <span class="chk-label">{{ c.label }}</span>
-                <span class="chk-state">{{ stateLabel(c) }}</span>
-                @if (c.state === 'not_asked') {
-                  <button
-                    type="button"
-                    class="chk-add"
-                    [disabled]="busy()"
-                    (click)="addCore(c)"
-                    i18n="@@caq.check_add"
-                  >
-                    Ask it
-                  </button>
-                } @else if (c.state === 'picked' && removable()) {
-                  <button
-                    type="button"
-                    class="chk-add"
-                    [disabled]="busy()"
-                    (click)="undoCore(c)"
-                    i18n="@@caq.check_undo"
-                  >
-                    Undo
-                  </button>
-                }
-              </li>
-            }
-          </ul>
-        </section>
-      }
+        }
+
+        @if (validated()) {
+          <section class="check" [class.is-bad]="problems() > 0" aria-labelledby="caq-check-h">
+            <h3 class="sec" id="caq-check-h">
+              <span class="sec-t" i18n="@@caq.check_h">Needed to price {{ typeName() }}</span>
+              <span class="sec-n tabular">{{ ready() }}/{{ checks().length }}</span>
+            </h3>
+            <p class="hint" role="status">
+              @if (problems() === 0) {
+                <span i18n="@@caq.check_ok">Everything the quote reads is asked. Ready.</span>
+              } @else {
+                <span i18n="@@caq.check_bad"
+                  >Applicants of this type cannot be priced until these are asked.</span
+                >
+              }
+            </p>
+            <ul class="checks">
+              @for (c of checks(); track c.code) {
+                <li
+                  class="chk"
+                  [class.is-bad]="c.state === 'not_asked' || c.state === 'unavailable'"
+                >
+                  <span
+                    nz-icon
+                    [nzType]="isOk(c) ? 'check-circle' : 'exclamation-circle'"
+                    nzTheme="outline"
+                    aria-hidden="true"
+                  ></span>
+                  <span class="chk-label">{{ c.label }}</span>
+                  <span class="chk-state">{{ stateLabel(c) }}</span>
+                  @if (c.state === 'not_asked') {
+                    <button
+                      type="button"
+                      class="chk-add"
+                      [disabled]="busy()"
+                      (click)="addCore(c)"
+                      i18n="@@caq.check_add"
+                    >
+                      Ask it
+                    </button>
+                  } @else if (c.state === 'picked' && removable()) {
+                    <button
+                      type="button"
+                      class="chk-add"
+                      [disabled]="busy()"
+                      (click)="undoCore(c)"
+                      i18n="@@caq.check_undo"
+                    >
+                      Undo
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </ng-template>
 
       <!-- The fixed income-proof set, first of the lists: what no program sold against a
            payslip may skip. Which questions are in it is the server's call (a base lock for
@@ -168,24 +217,21 @@ import {
             <span class="sec-t" i18n="@@caq.base_h">Income-proof questions — always asked</span>
             <span class="sec-n tabular">{{ base().length }}</span>
           </h3>
-          <p class="hint" i18n="@@caq.base_hint">
-            Every income-proof program asks these, so this program can't skip them. Only their
-            wording can change, in the question pool.
+          <p class="hint" i18n="@@caq.base_hint2">
+            Every income-proof program asks these. Only their wording can change.
           </p>
           <ul class="grid is-paged" [style.--caq-cols]="cols()">
             @for (row of basePage(); track row.id) {
               <li>
-                <p class="card is-on is-locked">
+                <!-- No lock tag per card: the heading says every one of them is fixed, and
+                     the same words on eleven cards were the loudest thing on the board. -->
+                <p class="card is-on is-locked" [attr.title]="lockLabel('base')">
                   <span class="tick" aria-hidden="true"
-                    ><span nz-icon nzType="check" nzTheme="outline"></span
+                    ><span nz-icon nzType="lock" nzTheme="outline"></span
                   ></span>
                   <span class="text">
                     <span class="label">{{ row.label }}</span>
                     <span class="meta">
-                      <span class="tag is-lock"
-                        ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
-                        >{{ lockLabel('base') }}</span
-                      >
                       <ng-container
                         [ngTemplateOutlet]="rowTags"
                         [ngTemplateOutletContext]="{ $implicit: row }"
@@ -216,9 +262,8 @@ import {
           <span class="sec-t" i18n="@@caq.asked_h">Asked of {{ typeName() }} applicants</span>
           <span class="sec-n tabular">{{ required().length }}</span>
         </h3>
-        <p class="hint" i18n="@@caq.asked_hint">
-          Untick a question this program should not ask. Other programs of this loan type still ask
-          it. Locked ones are what the loan amount is worked out from.
+        <p class="hint" i18n="@@caq.asked_hint2">
+          Untick to stop asking it here. Locked ones are needed for the quote.
         </p>
         @if (skipped() > 0) {
           <p class="hint" role="status">{{ skippedText() }}</p>
@@ -314,9 +359,8 @@ import {
           <span class="sec-t" i18n="@@caq.other_h">Other questions</span>
           <span class="sec-n tabular">{{ others().length }}</span>
         </h3>
-        <p class="hint" i18n="@@caq.other_hint">
-          Questions {{ typeName() }} does not ask every applicant. Tick one to ask it of this
-          program's applicants too — no other program changes.
+        <p class="hint" i18n="@@caq.other_hint2">
+          Tick one to ask it of this program's applicants too.
         </p>
         @if (addedCount() > 0) {
           <p class="hint" role="status">{{ addedText() }}</p>
@@ -511,6 +555,77 @@ import {
         color: var(--text-secondary);
         font-size: var(--text-sm);
         line-height: var(--leading-normal);
+      }
+      .summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+        padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+        border: 1px solid var(--border-default);
+        border-inline-start: 3px solid var(--success);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        font-size: var(--text-sm);
+      }
+      .summary.is-bad {
+        border-inline-start-color: var(--warning);
+      }
+      .summary-text {
+        color: var(--text-primary);
+        font-weight: var(--font-semibold);
+      }
+      .summary-state {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        color: var(--text-secondary);
+      }
+      .summary-state [nz-icon] {
+        color: var(--success);
+      }
+      .summary.is-bad .summary-state {
+        color: var(--text-primary);
+      }
+      .summary.is-bad .summary-state [nz-icon] {
+        color: var(--warning);
+      }
+      .info {
+        display: grid;
+        place-items: center;
+        inline-size: 32px;
+        block-size: 32px;
+        margin-inline-start: auto;
+        border: 1px solid transparent;
+        border-radius: var(--radius-pill);
+        background: none;
+        color: var(--text-secondary);
+        font-size: var(--text-md);
+        cursor: pointer;
+      }
+      .info:hover {
+        border-color: var(--border-default);
+        color: var(--primary-visible);
+      }
+      .info:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      @media (hover: none) {
+        .info {
+          inline-size: 44px;
+          block-size: 44px;
+        }
+      }
+      /* The sheet's body: the same blocks, stacked, never taller than most of the screen. */
+      .sheet {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        max-block-size: 70vh;
+        max-inline-size: 960px;
+        margin-inline: auto;
+        overflow-y: auto;
       }
       .servedline {
         display: flex;
@@ -848,6 +963,49 @@ export class CompactAskedQuestionsComponent {
   readonly remove = output<AskedRow>();
   readonly categorySelect = output<LoanCategory>();
   readonly searchChange = output<string>();
+  /** Fold the counts and the checklist into a summary line + bottom sheet (the name's page). */
+  readonly summarySheet = input<boolean>(false);
+
+  private readonly drawer = inject(NzDrawerService);
+  private readonly summaryTpl =
+    viewChild<TemplateRef<{ $implicit: object; drawerRef: NzDrawerRef }>>('summaryTpl');
+
+  /** What THIS name's applicants answer when the served read has landed; the loan type's list before. */
+  protected readonly summaryText = computed(() => {
+    const sv = this.servedHere();
+    if (sv && sv.nameAxisActive !== false) {
+      return $localize`:@@caq.summary_served:${sv.servedTotal}:SERVED: of ${sv.categoryTotal}:TOTAL: questions asked · ${sv.servedRequired}:REQUIRED: required`;
+    }
+    return $localize`:@@caq.summary_total:${this.askedTotal()}:TOTAL: questions asked · ${this.requiredTotal()}:REQUIRED: required`;
+  });
+
+  protected readonly summaryStateText = computed(() =>
+    this.problems() === 0
+      ? $localize`:@@caq.summary_ready:Ready to price`
+      : $localize`:@@caq.summary_missing:${this.problems()}:COUNT: needed to price not asked`,
+  );
+
+  protected readonly detailsAria = computed(
+    () => $localize`:@@caq.summary_aria:Details for ${this.typeName()}:TYPE:`,
+  );
+
+  /**
+   * A bottom sheet through `NzDrawerService`: portaled to the body, so its scrim dims the whole
+   * viewport and not just the page's animated section (A34). The content is this component's own
+   * template, so the checklist's "Ask it" keeps working from inside it.
+   */
+  protected openSummary(): void {
+    const content = this.summaryTpl();
+    if (content === undefined) return;
+    this.drawer.create({
+      nzTitle: $localize`:@@caq.summary_title:${this.typeName()}:TYPE: — what this program asks`,
+      nzContent: content,
+      nzPlacement: 'bottom',
+      nzHeight: 'auto',
+      nzClosable: true,
+      nzMaskClosable: true,
+    });
+  }
 
   protected readonly railAria = $localize`:@@caq.rail_aria:Loan types this name is offered under`;
 
