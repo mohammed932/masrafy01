@@ -15,11 +15,13 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import {
   CheckCircleOutline,
   CheckOutline,
+  DownOutline,
   ExclamationCircleOutline,
+  ExclamationOutline,
   InfoCircleOutline,
   LeftOutline,
   LockOutline,
@@ -80,7 +82,9 @@ import {
       CheckOutline,
       CheckCircleOutline,
       ExclamationCircleOutline,
+      ExclamationOutline,
       InfoCircleOutline,
+      DownOutline,
       LeftOutline,
       LockOutline,
       RightOutline,
@@ -130,8 +134,120 @@ import {
         </div>
         <ng-content />
         <ng-template #summaryTpl>
-          <div class="sheet">
-            <ng-container [ngTemplateOutlet]="detailTpl" />
+          <div class="dlg">
+            @if (servedHere()?.nameAxisActive === false) {
+              <p class="dlg-notice" role="status">
+                <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
+                <span>{{ servedText(servedHere()!) }}</span>
+              </p>
+            } @else {
+              <section class="dlg-reach" aria-labelledby="caq-dlg-reach-h">
+                <h3 class="dlg-h" id="caq-dlg-reach-h" i18n="@@caq.dlg_reach_h">
+                  What an applicant answers
+                </h3>
+                <p class="dlg-figure tabular">
+                  <span class="dlg-big">{{ reach().asked }}</span>
+                  <span class="dlg-of">{{ reachOfText() }}</span>
+                </p>
+                <div class="meter" aria-hidden="true">
+                  <span class="seg seg-req" [style.flex-grow]="reach().required"></span>
+                  <span class="seg seg-opt" [style.flex-grow]="reach().optional"></span>
+                  <span class="seg seg-off" [style.flex-grow]="reach().notAsked"></span>
+                </div>
+                <ul class="legend tabular">
+                  <li>
+                    <span class="dot seg-req" aria-hidden="true"></span>
+                    <span i18n="@@caq.dlg_required">Required</span>
+                    <strong>{{ reach().required }}</strong>
+                  </li>
+                  <li>
+                    <span class="dot seg-opt" aria-hidden="true"></span>
+                    <span i18n="@@caq.dlg_optional">Optional</span>
+                    <strong>{{ reach().optional }}</strong>
+                  </li>
+                  <li>
+                    <span class="dot seg-off" aria-hidden="true"></span>
+                    <span i18n="@@caq.dlg_not_asked">Not asked here</span>
+                    <strong>{{ reach().notAsked }}</strong>
+                  </li>
+                </ul>
+                @if (servedHere(); as sv) {
+                  <p class="sr-only">{{ servedText(sv) }}</p>
+                }
+              </section>
+            }
+
+            @if (validated()) {
+              <section class="dlg-check" aria-labelledby="caq-dlg-check-h">
+                <div class="dlg-check-head">
+                  <h3 class="dlg-h" id="caq-dlg-check-h" i18n="@@caq.check_h">
+                    Needed to price {{ typeName() }}
+                  </h3>
+                  <span class="dlg-state" [class.is-bad]="problems() > 0">
+                    <span
+                      nz-icon
+                      [nzType]="problems() === 0 ? 'check-circle' : 'exclamation-circle'"
+                      nzTheme="outline"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="tabular">{{ ready() }}/{{ checks().length }}</span>
+                    <span>{{ summaryStateText() }}</span>
+                  </span>
+                </div>
+                <p class="dlg-hint" role="status">
+                  @if (problems() === 0) {
+                    <span i18n="@@caq.check_ok">Everything the quote reads is asked. Ready.</span>
+                  } @else {
+                    <span i18n="@@caq.check_bad"
+                      >Applicants of this type cannot be priced until these are asked.</span
+                    >
+                  }
+                </p>
+                <ul class="dlg-checks">
+                  @for (c of checks(); track c.code) {
+                    <li
+                      class="dlg-chk"
+                      [class.is-bad]="c.state === 'not_asked' || c.state === 'unavailable'"
+                    >
+                      <span class="dlg-chk-icon" aria-hidden="true">
+                        <span
+                          nz-icon
+                          [nzType]="isOk(c) ? 'check' : 'exclamation'"
+                          nzTheme="outline"
+                        ></span>
+                      </span>
+                      <span class="dlg-chk-label">{{ c.label }}</span>
+                      @if (c.state === 'not_asked') {
+                        <button
+                          type="button"
+                          class="chk-add"
+                          [disabled]="busy()"
+                          (click)="addCore(c)"
+                          i18n="@@caq.check_add"
+                        >
+                          Ask it
+                        </button>
+                      } @else if (c.state === 'picked' && removable()) {
+                        <span class="dlg-chk-state">{{ stateLabel(c) }}</span>
+                        <button
+                          type="button"
+                          class="chk-add"
+                          [disabled]="busy()"
+                          (click)="undoCore(c)"
+                          i18n="@@caq.check_undo"
+                        >
+                          Undo
+                        </button>
+                      } @else {
+                        <span class="dlg-chk-state">{{ stateLabel(c) }}</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+
+            <p class="dlg-foot">{{ totalText() }}</p>
           </div>
         </ng-template>
       } @else {
@@ -208,84 +324,63 @@ import {
         }
       </ng-template>
 
-      <!-- The fixed income-proof set, first of the lists: what no program sold against a
-           payslip may skip. Which questions are in it is the server's call (a base lock for
-           this loan type), so a name selling no payslip programme here shows no section. -->
-      @if (base().length > 0) {
-        <section aria-labelledby="caq-base-h">
-          <h3 class="sec" id="caq-base-h">
-            <span class="sec-t" i18n="@@caq.base_h">Income-proof questions — always asked</span>
-            <span class="sec-n tabular">{{ base().length }}</span>
-          </h3>
-          <p class="hint" i18n="@@caq.base_hint2">
-            Every income-proof program asks these. Only their wording can change.
-          </p>
-          <ul class="grid is-paged" [style.--caq-cols]="cols()">
-            @for (row of basePage(); track row.id) {
-              <li>
-                <!-- No lock tag per card: the heading says every one of them is fixed, and
-                     the same words on eleven cards were the loudest thing on the board. -->
-                <p class="card is-on is-locked" [attr.title]="lockLabel('base')">
-                  <span class="tick" aria-hidden="true"
-                    ><span nz-icon nzType="lock" nzTheme="outline"></span
-                  ></span>
-                  <span class="text">
-                    <span class="label">{{ row.label }}</span>
-                    <span class="meta">
-                      <ng-container
-                        [ngTemplateOutlet]="rowTags"
-                        [ngTemplateOutletContext]="{ $implicit: row }"
-                      />
-                    </span>
-                  </span>
-                </p>
-              </li>
-            }
-          </ul>
-          @if (basePageCount() > 1) {
-            <ng-container
-              [ngTemplateOutlet]="pagerTpl"
-              [ngTemplateOutletContext]="{
-                key: 'base',
-                page: basePageAt(),
-                count: basePageCount(),
-                label: baseRange(),
-                aria: basePagerAria,
-              }"
-            />
+      <!-- The three lists. On the name's own page they sit behind one toggle, closed by
+           default: what the applicant is asked is read off the summary and the app's pages
+           above, and the lists are where it is changed. -->
+      @if (listsCollapsible()) {
+        <section class="lists-panel" aria-labelledby="caq-lists-h">
+          <div class="lists-head">
+            <div class="lists-text">
+              <h3 class="lists-title" id="caq-lists-h" i18n="@@caq.lists_h">Edit the questions</h3>
+              <p class="lists-sub tabular">{{ listsSummary() }}</p>
+            </div>
+            <button
+              type="button"
+              class="lists-toggle"
+              [class.is-open]="listsOpen()"
+              [attr.aria-expanded]="listsOpen()"
+              aria-controls="caq-lists-body"
+              (click)="toggleLists()"
+            >
+              <span>{{ listsOpen() ? hideText : showText }}</span>
+              <span nz-icon nzType="down" nzTheme="outline" aria-hidden="true"></span>
+            </button>
+          </div>
+          @if (listsOpen()) {
+            <div class="lists-body" id="caq-lists-body">
+              <ng-container [ngTemplateOutlet]="listsTpl" />
+            </div>
           }
         </section>
+      } @else {
+        <ng-container [ngTemplateOutlet]="listsTpl" />
       }
 
-      <section aria-labelledby="caq-req-h">
-        <h3 class="sec" id="caq-req-h">
-          <span class="sec-t" i18n="@@caq.asked_h">Asked of {{ typeName() }} applicants</span>
-          <span class="sec-n tabular">{{ required().length }}</span>
-        </h3>
-        <p class="hint" i18n="@@caq.asked_hint2">
-          Untick to stop asking it here. Locked ones are needed for the quote.
-        </p>
-        @if (skipped() > 0) {
-          <p class="hint" role="status">{{ skippedText() }}</p>
-        }
-        @if (required().length === 0) {
-          <p class="empty" i18n="@@caq.asked_none">No other question is asked.</p>
-        } @else {
-          <ul class="grid is-paged" [style.--caq-cols]="cols()">
-            @for (row of requiredPage(); track row.id) {
-              <li>
-                @if (lockOf(row); as lock) {
-                  <p class="card is-on is-locked">
+      <ng-template #listsTpl>
+        <!-- The fixed income-proof set, first of the lists: what no program sold against a
+           payslip may skip. Which questions are in it is the server's call (a base lock for
+           this loan type), so a name selling no payslip programme here shows no section. -->
+        @if (base().length > 0) {
+          <section aria-labelledby="caq-base-h">
+            <h3 class="sec" id="caq-base-h">
+              <span class="sec-t" i18n="@@caq.base_h">Income-proof questions — always asked</span>
+              <span class="sec-n tabular">{{ base().length }}</span>
+            </h3>
+            <p class="hint" i18n="@@caq.base_hint2">
+              Every income-proof program asks these. Only their wording can change.
+            </p>
+            <ul class="grid is-paged" [style.--caq-cols]="cols()">
+              @for (row of basePage(); track row.id) {
+                <li>
+                  <!-- No lock tag per card: the heading says every one of them is fixed, and
+                     the same words on eleven cards were the loudest thing on the board. -->
+                  <p class="card is-on is-locked" [attr.title]="lockLabel('base')">
                     <span class="tick" aria-hidden="true"
-                      ><span nz-icon nzType="check" nzTheme="outline"></span
+                      ><span nz-icon nzType="lock" nzTheme="outline"></span
                     ></span>
                     <span class="text">
                       <span class="label">{{ row.label }}</span>
                       <span class="meta">
-                        <span class="tag is-lock"
-                          ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
-                          >{{ lockLabel(lock) }}</span
-                        >
                         <ng-container
                           [ngTemplateOutlet]="rowTags"
                           [ngTemplateOutletContext]="{ $implicit: row }"
@@ -293,52 +388,232 @@ import {
                       </span>
                     </span>
                   </p>
-                } @else {
-                  <button
-                    type="button"
-                    class="card"
-                    [class.is-on]="!isSkipped(row)"
-                    [class.is-skipped]="isSkipped(row)"
-                    [attr.aria-pressed]="!isSkipped(row)"
-                    [attr.aria-label]="toggleAria(row)"
-                    [disabled]="busy()"
-                    (click)="toggle(row)"
-                  >
-                    <span class="tick" [class.is-empty]="isSkipped(row)" aria-hidden="true"
-                      ><span nz-icon nzType="check" nzTheme="outline"></span
-                    ></span>
-                    <span class="text">
-                      <span class="label">{{ row.label }}</span>
-                      <span class="meta">
-                        @if (isSkipped(row)) {
-                          <span class="tag is-skip" i18n="@@caq.tag_skipped"
-                            >Not asked by this program</span
-                          >
-                        }
-                        <ng-container
-                          [ngTemplateOutlet]="rowTags"
-                          [ngTemplateOutletContext]="{ $implicit: row }"
-                        />
-                      </span>
-                    </span>
-                  </button>
-                }
-              </li>
+                </li>
+              }
+            </ul>
+            @if (basePageCount() > 1) {
+              <ng-container
+                [ngTemplateOutlet]="pagerTpl"
+                [ngTemplateOutletContext]="{
+                  key: 'base',
+                  page: basePageAt(),
+                  count: basePageCount(),
+                  label: baseRange(),
+                  aria: basePagerAria,
+                }"
+              />
             }
-          </ul>
-          @if (pageCount() > 1) {
-            <ng-container
-              [ngTemplateOutlet]="pagerTpl"
-              [ngTemplateOutletContext]="{
-                key: 'req',
-                page: page(),
-                count: pageCount(),
-                label: rangeLabel(),
-              }"
-            />
-          }
+          </section>
         }
-      </section>
+
+        <section aria-labelledby="caq-req-h">
+          <h3 class="sec" id="caq-req-h">
+            <span class="sec-t" i18n="@@caq.asked_h">Asked of {{ typeName() }} applicants</span>
+            <span class="sec-n tabular">{{ required().length }}</span>
+          </h3>
+          <p class="hint" i18n="@@caq.asked_hint2">
+            Untick to stop asking it here. Locked ones are needed for the quote.
+          </p>
+          @if (skipped() > 0) {
+            <p class="hint" role="status">{{ skippedText() }}</p>
+          }
+          @if (required().length === 0) {
+            <p class="empty" i18n="@@caq.asked_none">No other question is asked.</p>
+          } @else {
+            <ul class="grid is-paged" [style.--caq-cols]="cols()">
+              @for (row of requiredPage(); track row.id) {
+                <li>
+                  @if (lockOf(row); as lock) {
+                    <p class="card is-on is-locked">
+                      <span class="tick" aria-hidden="true"
+                        ><span nz-icon nzType="check" nzTheme="outline"></span
+                      ></span>
+                      <span class="text">
+                        <span class="label">{{ row.label }}</span>
+                        <span class="meta">
+                          <span class="tag is-lock"
+                            ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                            >{{ lockLabel(lock) }}</span
+                          >
+                          <ng-container
+                            [ngTemplateOutlet]="rowTags"
+                            [ngTemplateOutletContext]="{ $implicit: row }"
+                          />
+                        </span>
+                      </span>
+                    </p>
+                  } @else {
+                    <button
+                      type="button"
+                      class="card"
+                      [class.is-on]="!isSkipped(row)"
+                      [class.is-skipped]="isSkipped(row)"
+                      [attr.aria-pressed]="!isSkipped(row)"
+                      [attr.aria-label]="toggleAria(row)"
+                      [disabled]="busy()"
+                      (click)="toggle(row)"
+                    >
+                      <span class="tick" [class.is-empty]="isSkipped(row)" aria-hidden="true"
+                        ><span nz-icon nzType="check" nzTheme="outline"></span
+                      ></span>
+                      <span class="text">
+                        <span class="label">{{ row.label }}</span>
+                        <span class="meta">
+                          @if (isSkipped(row)) {
+                            <span class="tag is-skip" i18n="@@caq.tag_skipped"
+                              >Not asked by this program</span
+                            >
+                          }
+                          <ng-container
+                            [ngTemplateOutlet]="rowTags"
+                            [ngTemplateOutletContext]="{ $implicit: row }"
+                          />
+                        </span>
+                      </span>
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+            @if (pageCount() > 1) {
+              <ng-container
+                [ngTemplateOutlet]="pagerTpl"
+                [ngTemplateOutletContext]="{
+                  key: 'req',
+                  page: page(),
+                  count: pageCount(),
+                  label: rangeLabel(),
+                }"
+              />
+            }
+          }
+        </section>
+
+        <section aria-labelledby="caq-other-h">
+          <h3 class="sec" id="caq-other-h">
+            <span class="sec-t" i18n="@@caq.other_h">Other questions</span>
+            <span class="sec-n tabular">{{ others().length }}</span>
+          </h3>
+          <p class="hint" i18n="@@caq.other_hint2">
+            Tick one to ask it of this program's applicants too.
+          </p>
+          @if (addedCount() > 0) {
+            <p class="hint" role="status">{{ addedText() }}</p>
+          }
+          <label class="search">
+            <span class="sr-only" i18n="@@caq.other_search_aria">Search the other questions</span>
+            <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
+            <input
+              type="search"
+              [ngModel]="search()"
+              (ngModelChange)="searchChange.emit($event)"
+              placeholder="Search by wording, answer or code"
+              i18n-placeholder="@@caq.other_search_ph"
+            />
+          </label>
+          @if (others().length === 0) {
+            <p class="empty">
+              @if (search().trim() === '') {
+                <span i18n="@@caq.other_none"
+                  >{{ typeName() }} already asks every question in the pool.</span
+                >
+              } @else {
+                <span i18n="@@caq.no_match">Nothing else matches “{{ search() }}”.</span>
+              }
+            </p>
+          } @else {
+            <ul class="grid is-paged" [style.--caq-cols]="cols()">
+              @for (row of otherPage(); track row.id) {
+                <li>
+                  @if (row.loanTypeWide) {
+                    <p class="card is-fixed">
+                      <span class="tick is-empty" aria-hidden="true"
+                        ><span nz-icon nzType="check" nzTheme="outline"></span
+                      ></span>
+                      <span class="text">
+                        <span class="label">{{ row.label }}</span>
+                        <span class="meta">
+                          <span class="tag is-lock"
+                            ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                            ><span i18n="@@caq.tag_loan_type_wide"
+                              >Set for the whole loan type</span
+                            ></span
+                          >
+                          <ng-container
+                            [ngTemplateOutlet]="otherTags"
+                            [ngTemplateOutletContext]="{ $implicit: row }"
+                          />
+                        </span>
+                      </span>
+                    </p>
+                  } @else if (row.heldByGate) {
+                    <p class="card is-on is-locked">
+                      <span class="tick" aria-hidden="true"
+                        ><span nz-icon nzType="check" nzTheme="outline"></span
+                      ></span>
+                      <span class="text">
+                        <span class="label">{{ row.label }}</span>
+                        <span class="meta">
+                          <span class="tag is-lock"
+                            ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+                            >{{ lockLabel('gate') }}</span
+                          >
+                          <span class="tag is-added" i18n="@@caq.tag_added"
+                            >Added for this program</span
+                          >
+                          <ng-container
+                            [ngTemplateOutlet]="otherTags"
+                            [ngTemplateOutletContext]="{ $implicit: row }"
+                          />
+                        </span>
+                      </span>
+                    </p>
+                  } @else {
+                    <button
+                      type="button"
+                      class="card"
+                      [class.is-on]="row.added"
+                      [attr.aria-pressed]="row.added"
+                      [attr.aria-label]="otherAria(row)"
+                      [disabled]="busy()"
+                      (click)="toggleOther(row)"
+                    >
+                      <span class="tick" [class.is-empty]="!row.added" aria-hidden="true"
+                        ><span nz-icon nzType="check" nzTheme="outline"></span
+                      ></span>
+                      <span class="text">
+                        <span class="label">{{ row.label }}</span>
+                        <span class="meta">
+                          @if (row.added) {
+                            <span class="tag is-added" i18n="@@caq.tag_added"
+                              >Added for this program</span
+                            >
+                          }
+                          <ng-container
+                            [ngTemplateOutlet]="otherTags"
+                            [ngTemplateOutletContext]="{ $implicit: row }"
+                          />
+                        </span>
+                      </span>
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+            @if (otherPageCount() > 1) {
+              <ng-container
+                [ngTemplateOutlet]="pagerTpl"
+                [ngTemplateOutletContext]="{
+                  key: 'oth',
+                  page: otherPageAt(),
+                  count: otherPageCount(),
+                  label: otherRange(),
+                }"
+              />
+            }
+          }
+        </section>
+      </ng-template>
 
       <ng-template #rowTags let-row>
         @if (row.isRequired) {
@@ -353,131 +628,6 @@ import {
           <span class="tag is-type" i18n="@@caq.tag_gated">Only if it applies</span>
         }
       </ng-template>
-
-      <section aria-labelledby="caq-other-h">
-        <h3 class="sec" id="caq-other-h">
-          <span class="sec-t" i18n="@@caq.other_h">Other questions</span>
-          <span class="sec-n tabular">{{ others().length }}</span>
-        </h3>
-        <p class="hint" i18n="@@caq.other_hint2">
-          Tick one to ask it of this program's applicants too.
-        </p>
-        @if (addedCount() > 0) {
-          <p class="hint" role="status">{{ addedText() }}</p>
-        }
-        <label class="search">
-          <span class="sr-only" i18n="@@caq.other_search_aria">Search the other questions</span>
-          <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
-          <input
-            type="search"
-            [ngModel]="search()"
-            (ngModelChange)="searchChange.emit($event)"
-            placeholder="Search by wording, answer or code"
-            i18n-placeholder="@@caq.other_search_ph"
-          />
-        </label>
-        @if (others().length === 0) {
-          <p class="empty">
-            @if (search().trim() === '') {
-              <span i18n="@@caq.other_none"
-                >{{ typeName() }} already asks every question in the pool.</span
-              >
-            } @else {
-              <span i18n="@@caq.no_match">Nothing else matches “{{ search() }}”.</span>
-            }
-          </p>
-        } @else {
-          <ul class="grid is-paged" [style.--caq-cols]="cols()">
-            @for (row of otherPage(); track row.id) {
-              <li>
-                @if (row.loanTypeWide) {
-                  <p class="card is-fixed">
-                    <span class="tick is-empty" aria-hidden="true"
-                      ><span nz-icon nzType="check" nzTheme="outline"></span
-                    ></span>
-                    <span class="text">
-                      <span class="label">{{ row.label }}</span>
-                      <span class="meta">
-                        <span class="tag is-lock"
-                          ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
-                          ><span i18n="@@caq.tag_loan_type_wide"
-                            >Set for the whole loan type</span
-                          ></span
-                        >
-                        <ng-container
-                          [ngTemplateOutlet]="otherTags"
-                          [ngTemplateOutletContext]="{ $implicit: row }"
-                        />
-                      </span>
-                    </span>
-                  </p>
-                } @else if (row.heldByGate) {
-                  <p class="card is-on is-locked">
-                    <span class="tick" aria-hidden="true"
-                      ><span nz-icon nzType="check" nzTheme="outline"></span
-                    ></span>
-                    <span class="text">
-                      <span class="label">{{ row.label }}</span>
-                      <span class="meta">
-                        <span class="tag is-lock"
-                          ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
-                          >{{ lockLabel('gate') }}</span
-                        >
-                        <span class="tag is-added" i18n="@@caq.tag_added"
-                          >Added for this program</span
-                        >
-                        <ng-container
-                          [ngTemplateOutlet]="otherTags"
-                          [ngTemplateOutletContext]="{ $implicit: row }"
-                        />
-                      </span>
-                    </span>
-                  </p>
-                } @else {
-                  <button
-                    type="button"
-                    class="card"
-                    [class.is-on]="row.added"
-                    [attr.aria-pressed]="row.added"
-                    [attr.aria-label]="otherAria(row)"
-                    [disabled]="busy()"
-                    (click)="toggleOther(row)"
-                  >
-                    <span class="tick" [class.is-empty]="!row.added" aria-hidden="true"
-                      ><span nz-icon nzType="check" nzTheme="outline"></span
-                    ></span>
-                    <span class="text">
-                      <span class="label">{{ row.label }}</span>
-                      <span class="meta">
-                        @if (row.added) {
-                          <span class="tag is-added" i18n="@@caq.tag_added"
-                            >Added for this program</span
-                          >
-                        }
-                        <ng-container
-                          [ngTemplateOutlet]="otherTags"
-                          [ngTemplateOutletContext]="{ $implicit: row }"
-                        />
-                      </span>
-                    </span>
-                  </button>
-                }
-              </li>
-            }
-          </ul>
-          @if (otherPageCount() > 1) {
-            <ng-container
-              [ngTemplateOutlet]="pagerTpl"
-              [ngTemplateOutletContext]="{
-                key: 'oth',
-                page: otherPageAt(),
-                count: otherPageCount(),
-                label: otherRange(),
-              }"
-            />
-          }
-        }
-      </section>
 
       <ng-template #otherTags let-row>
         <ng-container [ngTemplateOutlet]="rowTags" [ngTemplateOutletContext]="{ $implicit: row }" />
@@ -617,15 +767,271 @@ import {
           block-size: 44px;
         }
       }
-      /* The sheet's body: the same blocks, stacked, never taller than most of the screen. */
-      .sheet {
+      /* The dialog's body: what an applicant answers, what the quote needs, how it works. */
+      .dlg {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+      }
+      .dlg-h {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+      .dlg-notice {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-md);
+        background: var(--primary-subtle);
+        color: var(--text-primary);
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+      }
+      .dlg-notice [nz-icon] {
+        color: var(--primary-visible);
+      }
+      .dlg-reach {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .dlg-figure {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: 0;
+      }
+      .dlg-big {
+        font-size: var(--text-3xl);
+        font-weight: var(--font-bold);
+        line-height: var(--leading-none);
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+      }
+      .dlg-of {
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+      .meter {
+        display: flex;
+        gap: 2px;
+        block-size: var(--space-2);
+        border-radius: var(--radius-pill);
+        overflow: hidden;
+      }
+      .seg {
+        flex-basis: 0;
+        min-inline-size: 0;
+      }
+      .seg-req {
+        background: var(--primary);
+      }
+      .seg-opt {
+        background: color-mix(in srgb, var(--primary) 55%, var(--bg-surface));
+      }
+      .seg-off {
+        background: var(--bg-muted);
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-5);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+      .legend li {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
+      }
+      .legend strong {
+        color: var(--text-primary);
+        font-weight: var(--font-semibold);
+      }
+      .dot {
+        inline-size: var(--space-2);
+        block-size: var(--space-2);
+        border-radius: var(--radius-pill);
+      }
+      .dot.seg-off {
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+      }
+      .dlg-check {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding-block-start: var(--space-5);
+        border-block-start: 1px solid var(--border-subtle);
+      }
+      .dlg-check-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2) var(--space-3);
+      }
+      .dlg-state {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
+        padding: var(--space-0-5) var(--space-2-5);
+        border-radius: var(--radius-pill);
+        background: color-mix(in srgb, var(--success) 14%, transparent);
+        color: var(--success);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+      }
+      .dlg-state.is-bad {
+        background: color-mix(in srgb, var(--warning) 16%, transparent);
+        color: color-mix(in srgb, var(--warning) 65%, var(--text-primary));
+      }
+      .dlg-hint {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+      .dlg-checks {
+        margin: var(--space-1) 0 0;
+        padding: 0;
+        list-style: none;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+      }
+      .dlg-chk {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+      }
+      .dlg-chk + .dlg-chk {
+        border-block-start: 1px solid var(--border-subtle);
+      }
+      .dlg-chk-icon {
+        flex: none;
+        display: inline-grid;
+        place-items: center;
+        inline-size: var(--space-5);
+        block-size: var(--space-5);
+        border-radius: var(--radius-pill);
+        background: color-mix(in srgb, var(--success) 14%, transparent);
+        color: var(--success);
+        font-size: var(--text-xs);
+      }
+      .dlg-chk.is-bad .dlg-chk-icon {
+        background: color-mix(in srgb, var(--warning) 16%, transparent);
+        color: color-mix(in srgb, var(--warning) 65%, var(--text-primary));
+      }
+      .dlg-chk-label {
+        flex: 1 1 14rem;
+        min-inline-size: 0;
+      }
+      .dlg-chk-state {
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+      }
+      .dlg-foot {
+        margin: 0;
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--border-subtle);
+        font-size: var(--text-xs);
+        line-height: var(--leading-relaxed);
+        color: var(--text-secondary);
+      }
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      .lists-panel {
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
-        max-block-size: 70vh;
-        max-inline-size: 960px;
-        margin-inline: auto;
-        overflow-y: auto;
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+      }
+      .lists-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+      }
+      .lists-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-inline-size: 0;
+      }
+      .lists-title {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+      .lists-sub {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+      .lists-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+      }
+      .lists-toggle {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        min-block-size: 28px;
+        padding: 0 var(--space-3);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font: inherit;
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        cursor: pointer;
+      }
+      .lists-toggle:hover {
+        border-color: var(--primary);
+        color: var(--primary-visible);
+      }
+      .lists-toggle:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .lists-toggle [nz-icon] {
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .lists-toggle.is-open [nz-icon] {
+        transform: rotate(180deg);
+      }
+      @media (hover: none) {
+        .lists-toggle {
+          min-block-size: 44px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .lists-toggle [nz-icon] {
+          transition: none;
+        }
       }
       .servedline {
         display: flex;
@@ -965,10 +1371,62 @@ export class CompactAskedQuestionsComponent {
   readonly searchChange = output<string>();
   /** Fold the counts and the checklist into a summary line + bottom sheet (the name's page). */
   readonly summarySheet = input<boolean>(false);
+  /** Put the three lists behind one toggle, closed by default (the name's page). */
+  readonly listsCollapsible = input<boolean>(false);
 
-  private readonly drawer = inject(NzDrawerService);
-  private readonly summaryTpl =
-    viewChild<TemplateRef<{ $implicit: object; drawerRef: NzDrawerRef }>>('summaryTpl');
+  protected readonly listsOpen = signal(readListsOpen());
+  protected readonly showText = $localize`:@@caq.lists_show:Show`;
+  protected readonly hideText = $localize`:@@caq.lists_hide:Hide`;
+
+  protected readonly listsSummary = computed(() =>
+    this.base().length > 0
+      ? $localize`:@@caq.lists_sum_base:${this.base().length}:BASE: income-proof · ${this.required().length}:ASKED: asked of ${this.typeName()}:TYPE: · ${this.others().length}:OTHER: other questions`
+      : $localize`:@@caq.lists_sum:${this.required().length}:ASKED: asked of ${this.typeName()}:TYPE: · ${this.others().length}:OTHER: other questions`,
+  );
+
+  protected toggleLists(): void {
+    this.listsOpen.update((v) => !v);
+    try {
+      localStorage.setItem(LISTS_OPEN_KEY, this.listsOpen() ? '1' : '0');
+    } catch {
+      // Storage blocked: the toggle still works for this visit.
+    }
+  }
+
+  private readonly modal = inject(NzModalService);
+  private readonly summaryTpl = viewChild<TemplateRef<unknown>>('summaryTpl');
+
+  /**
+   * How this name's questions split: required and optional among what its applicants are asked,
+   * and what the loan type asks that they are not. From the served read when it has landed, the
+   * loan type's own counts before.
+   */
+  protected readonly reach = computed(() => {
+    const sv = this.servedHere();
+    if (sv && sv.nameAxisActive !== false) {
+      const extra = sv.servedExtra ?? 0;
+      return {
+        asked: sv.servedTotal,
+        total: sv.categoryTotal,
+        required: sv.servedRequired,
+        optional: Math.max(0, sv.servedTotal - sv.servedRequired),
+        notAsked: Math.max(0, sv.categoryTotal + extra - sv.servedTotal),
+      };
+    }
+    return {
+      asked: this.askedTotal(),
+      total: this.askedTotal(),
+      required: this.requiredTotal(),
+      optional: this.optionalTotal(),
+      notAsked: 0,
+    };
+  });
+
+  protected readonly reachOfText = computed(() => {
+    const total = this.reach().total;
+    const type = this.typeName();
+    return $localize`:@@caq.dlg_of:of the ${total}:TOTAL: ${type}:TYPE: questions`;
+  });
 
   /** What THIS name's applicants answer when the served read has landed; the loan type's list before. */
   protected readonly summaryText = computed(() => {
@@ -990,20 +1448,22 @@ export class CompactAskedQuestionsComponent {
   );
 
   /**
-   * A bottom sheet through `NzDrawerService`: portaled to the body, so its scrim dims the whole
-   * viewport and not just the page's animated section (A34). The content is this component's own
+   * A dialog through `NzModalService`: portaled to the body, so its scrim dims the whole viewport
+   * and not just the page's animated section (A34). The content is this component's own
    * template, so the checklist's "Ask it" keeps working from inside it.
    */
   protected openSummary(): void {
     const content = this.summaryTpl();
     if (content === undefined) return;
-    this.drawer.create({
+    this.modal.create({
       nzTitle: $localize`:@@caq.summary_title:${this.typeName()}:TYPE: — what this program asks`,
       nzContent: content,
-      nzPlacement: 'bottom',
-      nzHeight: 'auto',
+      nzWidth: 600,
+      nzCentered: true,
+      nzFooter: null,
       nzClosable: true,
       nzMaskClosable: true,
+      nzClassName: 'caq-summary-modal',
     });
   }
 
@@ -1361,5 +1821,16 @@ export class CompactAskedQuestionsComponent {
       default:
         return null;
     }
+  }
+}
+
+const LISTS_OPEN_KEY = 'masrafy.questionLists.open';
+
+/** Closed unless this viewer opened it last time. */
+function readListsOpen(): boolean {
+  try {
+    return localStorage.getItem(LISTS_OPEN_KEY) === '1';
+  } catch {
+    return false;
   }
 }

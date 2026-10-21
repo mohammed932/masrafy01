@@ -228,6 +228,7 @@ import { ServedPagesComponent } from './served-pages.component';
                   (addHere)="addForName($event)"
                   (removeHere)="removeForName($event)"
                   [summarySheet]="true"
+                  [listsCollapsible]="true"
                 >
                   <!-- Projected under the board's tabs and summary line: what the app shows,
                          page by page, for the tab it sits under. -->

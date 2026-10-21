@@ -4816,8 +4816,18 @@
       <trans-unit id="caq.summary_missing" datatype="html"><source><x id="COUNT" equiv-text="this.problems()"/> needed to price not asked</source><target><x id="COUNT" equiv-text="this.problems()"/> من أسئلة التسعير غير مطروحة</target></trans-unit>
       <trans-unit id="caq.summary_aria" datatype="html"><source>Details for <x id="TYPE" equiv-text="this.typeName()"/></source><target>تفاصيل <x id="TYPE" equiv-text="this.typeName()"/></target></trans-unit>
       <trans-unit id="caq.summary_title" datatype="html"><source><x id="TYPE" equiv-text="this.typeName()"/> — what this program asks</source><target><x id="TYPE" equiv-text="this.typeName()"/> — ما يطرحه هذا البرنامج</target></trans-unit>
+      <trans-unit id="caq.dlg_reach_h" datatype="html"><source>What an applicant answers</source><target>ما يجيب عنه المتقدّم</target></trans-unit>
+      <trans-unit id="caq.dlg_required" datatype="html"><source>Required</source><target>إلزامي</target></trans-unit>
+      <trans-unit id="caq.dlg_optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
+      <trans-unit id="caq.dlg_not_asked" datatype="html"><source>Not asked here</source><target>لا يُسأل هنا</target></trans-unit>
+      <trans-unit id="caq.dlg_of" datatype="html"><source>of the <x id="TOTAL" equiv-text="total"/> <x id="TYPE" equiv-text="type"/> questions</source><target>من أصل <x id="TOTAL" equiv-text="total"/> سؤالًا في <x id="TYPE" equiv-text="type"/></target></trans-unit>
       <trans-unit id="srvp.summary2" datatype="html"><source><x id="PAGES" equiv-text="pages.length"/> pages · <x id="TOTAL" equiv-text="total"/> questions · <x id="REQUIRED" equiv-text="required"/> required</source><target><x id="PAGES" equiv-text="pages.length"/> صفحات · <x id="TOTAL" equiv-text="total"/> سؤالاً · <x id="REQUIRED" equiv-text="required"/> إلزامية</target></trans-unit>
       <trans-unit id="srvp.reorder_hint2" datatype="html"><source>Drag or use the arrows to move a question within its page. This changes the order for every <x id="TYPE" equiv-text="this.categoryName()"/> program.</source><target>اسحب أو استخدم الأسهم لنقل السؤال داخل صفحته. يتغير الترتيب لكل برامج <x id="TYPE" equiv-text="this.categoryName()"/>.</target></trans-unit>
+      <trans-unit id="caq.lists_h" datatype="html"><source>Edit the questions</source><target>تعديل الأسئلة</target></trans-unit>
+      <trans-unit id="caq.lists_show" datatype="html"><source>Show</source><target>إظهار</target></trans-unit>
+      <trans-unit id="caq.lists_hide" datatype="html"><source>Hide</source><target>إخفاء</target></trans-unit>
+      <trans-unit id="caq.lists_sum_base" datatype="html"><source><x id="BASE" equiv-text="this.base().length"/> income-proof · <x id="ASKED" equiv-text="this.required().length"/> asked of <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> other questions</source><target><x id="BASE" equiv-text="this.base().length"/> لإثبات الدخل · <x id="ASKED" equiv-text="this.required().length"/> مطروحة في <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> أسئلة أخرى</target></trans-unit>
+      <trans-unit id="caq.lists_sum" datatype="html"><source><x id="ASKED" equiv-text="this.required().length"/> asked of <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> other questions</source><target><x id="ASKED" equiv-text="this.required().length"/> مطروحة في <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> أسئلة أخرى</target></trans-unit>
     </body>
   </file>
 </xliff>
