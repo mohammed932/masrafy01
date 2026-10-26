@@ -56,8 +56,9 @@ import {
  * Four lists, and every tick on them is about THIS program name only:
  *
  *   - the checklist of what the quote needs, for the loan type;
- *   - "Income-proof questions — always asked": the fixed set the server `base`-locks for this
- *     loan type. Drawn, never tickable, and listed nowhere else on the board;
+ *   - "Fixed questions — always asked": the fixed set the server `base`-locks for this loan
+ *     type. Drawn, never tickable, and listed nowhere else on the board; one the name's own
+ *     question answers (`answeredBy`) is drawn dimmed, saying which question is asked instead;
  *   - "Asked of {type} applicants": what the loan type asks every name. Untick one and this
  *     name skips it (`program_name_question_exclusion`); the ones the quote reads are locked
  *     (`untickLocks`);
@@ -357,37 +358,59 @@ import {
       }
 
       <ng-template #listsTpl>
-        <!-- The fixed income-proof set, first of the lists: what no program sold against a
-           payslip may skip. Which questions are in it is the server's call (a base lock for
-           this loan type), so a name selling no payslip programme here shows no section. -->
+        <!-- The fixed question set, first of the lists: what no program may skip. Which
+           questions are in it is the server's call (a base lock for this loan type): all of it on
+           a payslip name, all but the declared-income part elsewhere. -->
         @if (base().length > 0) {
           <section aria-labelledby="caq-base-h">
             <h3 class="sec" id="caq-base-h">
-              <span class="sec-t" i18n="@@caq.base_h">Income-proof questions — always asked</span>
+              <span class="sec-t" i18n="@@caq.base_h">Fixed questions — always asked</span>
               <span class="sec-n tabular">{{ base().length }}</span>
             </h3>
-            <p class="hint" i18n="@@caq.base_hint2">
-              Every income-proof program asks these. Only their wording can change.
-            </p>
+            @if (baseAnsweredCount() > 0) {
+              <p class="hint" i18n="@@caq.base_hint_answered">
+                This program must ask these, except the dimmed ones: its own question asks the same
+                thing. Only their wording can change.
+              </p>
+            } @else {
+              <p class="hint" i18n="@@caq.base_hint2">
+                This program must ask these. Only their wording can change.
+              </p>
+            }
             <ul class="grid is-paged" [style.--caq-cols]="cols()">
               @for (row of basePage(); track row.id) {
                 <li>
                   <!-- No lock tag per card: the heading says every one of them is fixed, and
-                     the same words on eleven cards were the loudest thing on the board. -->
-                  <p class="card is-on is-locked" [attr.title]="lockLabel('base')">
-                    <span class="tick" aria-hidden="true"
-                      ><span nz-icon nzType="lock" nzTheme="outline"></span
-                    ></span>
-                    <span class="text">
-                      <span class="label">{{ row.label }}</span>
-                      <span class="meta">
-                        <ng-container
-                          [ngTemplateOutlet]="rowTags"
-                          [ngTemplateOutletContext]="{ $implicit: row }"
-                        />
+                     the same words on eleven cards were the loudest thing on the board. One a
+                     program question of this name answers is drawn dimmed and says so. -->
+                  @if (answeredByLabel(row); as standIn) {
+                    <p class="card is-fixed is-locked">
+                      <span class="tick" aria-hidden="true"
+                        ><span nz-icon nzType="lock" nzTheme="outline"></span
+                      ></span>
+                      <span class="text">
+                        <span class="label">{{ row.label }}</span>
+                        <span class="answered" i18n="@@caq.base_answered_by"
+                          >Not asked here: this program asks “{{ standIn }}” instead.</span
+                        >
                       </span>
-                    </span>
-                  </p>
+                    </p>
+                  } @else {
+                    <p class="card is-on is-locked" [attr.title]="lockLabel('base')">
+                      <span class="tick" aria-hidden="true"
+                        ><span nz-icon nzType="lock" nzTheme="outline"></span
+                      ></span>
+                      <span class="text">
+                        <span class="label">{{ row.label }}</span>
+                        <span class="meta">
+                          <ng-container
+                            [ngTemplateOutlet]="rowTags"
+                            [ngTemplateOutletContext]="{ $implicit: row }"
+                          />
+                        </span>
+                      </span>
+                    </p>
+                  }
                 </li>
               }
             </ul>
@@ -1237,6 +1260,11 @@ import {
       .card.is-fixed .label {
         color: var(--text-secondary);
       }
+      .answered {
+        font-size: var(--text-xs);
+        line-height: var(--leading-snug);
+        color: var(--text-secondary);
+      }
       /* Not a checkbox anyone can tick: a lighter, dimmed box, so it does not read as the
          empty-but-live box beside it. The lock chip still says why, in words. */
       .card.is-fixed .tick.is-empty {
@@ -1352,6 +1380,11 @@ export class CompactAskedQuestionsComponent {
    * The board reads the ones that hold in the shown loan type (`lockMapFor`).
    */
   readonly locks = input<readonly ServerLock[]>([]);
+  /**
+   * The shown loan type's fixed questions this name does not ask because one of its own
+   * questions asks the same thing: fixed code → that question's code (server-decided).
+   */
+  readonly answeredBy = input<Readonly<Record<string, string>>>({});
   readonly exclude = output<AskedRow>();
   readonly include = output<AskedRow>();
   /**
@@ -1380,7 +1413,7 @@ export class CompactAskedQuestionsComponent {
 
   protected readonly listsSummary = computed(() =>
     this.base().length > 0
-      ? $localize`:@@caq.lists_sum_base:${this.base().length}:BASE: income-proof · ${this.required().length}:ASKED: asked of ${this.typeName()}:TYPE: · ${this.others().length}:OTHER: other questions`
+      ? $localize`:@@caq.lists_sum_base:${this.base().length}:BASE: fixed · ${this.required().length}:ASKED: asked of ${this.typeName()}:TYPE: · ${this.others().length}:OTHER: other questions`
       : $localize`:@@caq.lists_sum:${this.required().length}:ASKED: asked of ${this.typeName()}:TYPE: · ${this.others().length}:OTHER: other questions`,
   );
 
@@ -1542,15 +1575,24 @@ export class CompactAskedQuestionsComponent {
    * The fixed income-proof questions of the shown loan type, required first — minus the ones the
    * checklist above already shows. Always asked; nothing here can untick them.
    */
-  protected readonly base = computed(() =>
-    baseRows(
+  /** The fixed questions, the ones this name asks first and the ones its own question answers last. */
+  protected readonly base = computed(() => {
+    const rows = baseRows(
       this.pool(),
       this.category(),
       this.picks(),
       this.isAr(),
       this.serverLocks(),
       this.coreCodes(),
-    ),
+    );
+    const answered = this.answeredBy();
+    return [
+      ...rows.filter((r) => answered[r.code] === undefined),
+      ...rows.filter((r) => answered[r.code] !== undefined),
+    ];
+  });
+  protected readonly baseAnsweredCount = computed(
+    () => this.base().filter((r) => this.answeredBy()[r.code] !== undefined).length,
   );
 
   /**
@@ -1595,7 +1637,15 @@ export class CompactAskedQuestionsComponent {
   });
   protected readonly pagerAria = $localize`:@@caq.pager_aria:Questions, pages`;
   /** Its own name, so a screen reader's landmark list tells this pager from the two below. */
-  protected readonly basePagerAria = $localize`:@@caq.base_pager_aria:Income-proof questions, pages`;
+  protected readonly basePagerAria = $localize`:@@caq.base_pager_aria:Fixed questions, pages`;
+
+  /** The wording of the name's own question asked in place of this fixed one, or null. */
+  protected answeredByLabel(row: AskedRow): string | null {
+    const code = this.answeredBy()[row.code];
+    if (code === undefined) return null;
+    const q = this.pool().find((p) => p.code === code);
+    return (q === undefined ? '' : this.isAr() ? q.labelAr : q.labelEn) || code;
+  }
   protected readonly prevAria = $localize`:@@caq.prev:Previous page`;
   protected readonly nextAria = $localize`:@@caq.next:Next page`;
 
@@ -1706,7 +1756,7 @@ export class CompactAskedQuestionsComponent {
       case 'engine':
         return $localize`:@@caq.lock_engine:Needed for every quote`;
       case 'base':
-        return $localize`:@@caq.lock_base:Asked on every income-proof program`;
+        return $localize`:@@caq.lock_base:A fixed question, always asked`;
       case 'program':
         return $localize`:@@caq.lock_program:Read by a bank program under this name`;
       default:

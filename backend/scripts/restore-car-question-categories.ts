@@ -31,7 +31,7 @@ const prisma = new PrismaClient();
 const CODES = [
   'repayment_period_months',
   'monthly_income',
-  'current_installments',
+  // `current_installments` was here; retired 2026-10-26 (the debts are asked one by one).
   'home_ownership',
   // `unit_approved_compound`, `business_months` and `self_employed_licence` were here for the
   // auto product's sheet conditions, removed 2026-09-24 — no car programme reads them now, and

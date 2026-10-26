@@ -18,6 +18,14 @@
  * total is summed, because one lump sum recalled from memory is the least
  * reliable input in the flow and the one with the largest effect on DBR.
  *
+ * And since 2026-10-26 its question (`current_installments`, "What are your total
+ * monthly commitments?") is no longer ASKED at all (operator: "it is already asked
+ * another way"). The app only ever filled it in read-only from the debts above it, and
+ * the engine took the debts' own sum anyway, so it asked nothing. The binding stays: an
+ * application stored before the itemised debts existed is still read through it
+ * (`resolveObligations`' stated-lump-sum fallback). What has to be ASKED is
+ * `ASKED_MONEY_FIELD_BINDING_KEYS` plus the debt-type pick (`DEBT_TYPES_QUESTION_CODE`).
+ *
  * Mirrored on mobile by the four `*_apply_mapper.dart` files.
  */
 import { Decimal } from '@prisma/client/runtime/library';
@@ -37,6 +45,15 @@ export type BoundQuestionCode = (typeof MONEY_FIELD_BINDINGS)[MoneyFieldBinding]
 export const MONEY_FIELD_BINDING_KEYS = Object.keys(
   MONEY_FIELD_BINDINGS,
 ) as readonly MoneyFieldBinding[];
+
+/**
+ * The money figures a questionnaire must ASK: every binding but the stated obligations total,
+ * which the itemised debts replace (2026-10-26). What a customer owes is asked through
+ * `DEBT_TYPES_QUESTION_CODE` and its amount questions; checks that guarantee the money is asked
+ * (`check:money`, the engine-input contract, publish warnings) hold that question to it instead.
+ */
+export const ASKED_MONEY_FIELD_BINDING_KEYS: readonly MoneyFieldBinding[] =
+  MONEY_FIELD_BINDING_KEYS.filter((key) => key !== 'existing_obligations');
 
 /**
  * The engine field each binding lands on, and the bounds the seed applies.

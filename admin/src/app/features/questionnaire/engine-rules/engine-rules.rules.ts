@@ -1,16 +1,37 @@
 import type { EngineReader, EngineRuleQuestion } from './engine-rules.types';
 
 /**
- * What the "Loan engine rules" toolbar narrows by — pure, so the page class holds signals and
- * nothing it would have to re-derive.
- *
- * The WHO facet is not a partition: one question can be read by every quote AND sit in the
- * fixed set AND be read by bank programmes (I-Score is all three). Each facet therefore counts
- * the questions it would show, and "All" is the only one that adds up.
+ * What the "Loan engine rules" screen sorts and shows — pure, so the page class holds signals
+ * and nothing it would have to re-derive.
  */
-export type WhoFilter = 'all' | 'engine' | 'base' | 'program';
 
-export const WHO_FILTERS: readonly WhoFilter[] = ['all', 'engine', 'base', 'program'];
+// ---- What a question offers here --------------------------------------------------------------
+
+/**
+ * What the admin can DO with a question on this screen, which picks what its pane shows:
+ *   - `reword`: it has answers, and they are reworded here;
+ *   - `list`:   its answers ARE a Manage-values list, reworded there (read-only here);
+ *   - `typed`:  the customer types a number or text, so there is no answer to reword.
+ */
+export type RuleGroup = 'reword' | 'list' | 'typed';
+
+export function groupOf(q: EngineRuleQuestion): RuleGroup {
+  if (q.options.length === 0) return 'typed';
+  return q.mirroredList === null ? 'reword' : 'list';
+}
+
+/** The questions matching `search`, in the order given — the owner's, as the server sends it. */
+export function filterRules(
+  questions: readonly EngineRuleQuestion[],
+  search: string,
+): EngineRuleQuestion[] {
+  return questions.filter((q) => matchesSearch(q, search));
+}
+
+/** How many of a question's answers state a number the wording has to keep. */
+export function numberedAnswerCount(q: EngineRuleQuestion): number {
+  return q.options.filter((o) => o.keep.en.length > 0 || o.keep.ar.length > 0).length;
+}
 
 // ---- What a question changes ----------------------------------------------------------------
 
@@ -133,71 +154,12 @@ export function impactOf(q: EngineRuleQuestion): QuestionImpact {
   return out;
 }
 
-export function isImpactArea(value: string | null | undefined): value is ImpactArea {
-  return value != null && (IMPACT_AREAS as readonly string[]).includes(value);
-}
-
-export interface RulesFilter {
-  who: WhoFilter;
-  /** Only questions that move this part of the quote; `null` = any. */
-  area: ImpactArea | null;
-  /** Free text, matched against the code, both wordings and every answer. */
-  search: string;
-  /** Only questions with an answer whose wording states a quantity (`keep` non-empty). */
-  numbersOnly: boolean;
-}
-
-export function isWhoFilter(value: string | null | undefined): value is WhoFilter {
-  return value != null && (WHO_FILTERS as readonly string[]).includes(value);
-}
-
-export function matchesWho(q: EngineRuleQuestion, who: WhoFilter): boolean {
-  switch (who) {
-    case 'all':
-      return true;
-    case 'engine':
-      return q.lock.reason === 'engine';
-    case 'base':
-      return q.lock.shapeFixed;
-    case 'program':
-      return q.readers.some((r) => r.kind === 'programs');
-  }
-}
-
-/** An answer of this question states a number, or a word that scales or measures one. */
-export function hasNumberedWording(q: EngineRuleQuestion): boolean {
-  return q.options.some((o) => o.keep.en.length > 0 || o.keep.ar.length > 0);
-}
+// ---- Search ---------------------------------------------------------------------------------
 
 export function matchesSearch(q: EngineRuleQuestion, search: string): boolean {
   const term = normalise(search);
   if (term === '') return true;
   return haystackOf(q).includes(term);
-}
-
-export function filterRules(
-  questions: readonly EngineRuleQuestion[],
-  filter: RulesFilter,
-): EngineRuleQuestion[] {
-  return questions.filter(
-    (q) =>
-      matchesWho(q, filter.who) &&
-      (filter.area === null || impactOf(q).has(filter.area)) &&
-      matchesSearch(q, filter.search) &&
-      (!filter.numbersOnly || hasNumberedWording(q)),
-  );
-}
-
-/** How many questions each WHO facet would show under the other two filters. */
-export function whoCounts(
-  questions: readonly EngineRuleQuestion[],
-  filter: Omit<RulesFilter, 'who'>,
-): Record<WhoFilter, number> {
-  const out: Record<WhoFilter, number> = { all: 0, engine: 0, base: 0, program: 0 };
-  for (const who of WHO_FILTERS) {
-    out[who] = filterRules(questions, { ...filter, who }).length;
-  }
-  return out;
 }
 
 const HAYSTACKS = new WeakMap<EngineRuleQuestion, string>();
@@ -220,15 +182,4 @@ function normalise(text: string): string {
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ة/g, 'ه')
     .replace(/ى/g, 'ي');
-}
-
-/** How many questions move each area under the other filters. */
-export function areaCounts(
-  questions: readonly EngineRuleQuestion[],
-  filter: Omit<RulesFilter, 'area'>,
-): Record<ImpactArea, number> {
-  const base = filterRules(questions, { ...filter, area: null });
-  const out = Object.fromEntries(IMPACT_AREAS.map((a) => [a, 0])) as Record<ImpactArea, number>;
-  for (const q of base) for (const area of impactOf(q).keys()) out[area] += 1;
-  return out;
 }

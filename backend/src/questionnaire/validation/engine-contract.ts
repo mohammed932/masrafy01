@@ -59,6 +59,7 @@ import {
   DEBT_TYPE_OPTION_CODES,
   EMPLOYMENT_TYPE_QUESTION_CODE,
   MONEY_FIELD_BINDINGS,
+  ASKED_MONEY_FIELD_BINDING_KEYS,
   MONEY_FIELD_BINDING_KEYS,
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
   PRIORITY_QUESTION_CODE,
@@ -162,9 +163,12 @@ export function engineInputReaderOf(code: string): EngineInputReader | null {
   return null;
 }
 
-/** Asked in EVERY loan type on sale: the money figures and the debt-type pick (`check:money`). */
+/**
+ * Asked in EVERY loan type on sale: the money figures and the debt-type pick (`check:money`).
+ * Not the stated obligations total: the debts it summed are asked instead (2026-10-26).
+ */
 const ASKED_IN_EVERY_LOAN_TYPE: readonly string[] = [
-  ...MONEY_FIELD_BINDING_KEYS.map((key) => MONEY_FIELD_BINDINGS[key]),
+  ...ASKED_MONEY_FIELD_BINDING_KEYS.map((key) => MONEY_FIELD_BINDINGS[key]),
   DEBT_TYPES_QUESTION_CODE,
 ];
 

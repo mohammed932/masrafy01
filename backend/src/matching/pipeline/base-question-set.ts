@@ -1,6 +1,8 @@
 /**
- * THE FIXED QUESTION SET — what every income-proof (payslip) programme is quoted from, owned
- * in CODE (operator decision, 2026-10-15; the client's "أسئلة إثبات الدخل" sheet).
+ * THE FIXED QUESTION SET — what every programme is quoted from, owned in CODE (operator
+ * decision, 2026-10-15; the client's "أسئلة إثبات الدخل" sheet). Payslip and no-payslip alike
+ * since 2026-10-26, bar the declared-income part only a payslip programme reads and the job
+ * question with its follow-ups, which a no-payslip applicant answered by picking the program.
  *
  * WHY IN CODE AND NOT ON MANAGE VALUES. Every answer here means something to the engine or the
  * app, and that meaning lives in code: a job answer is a DBR/term bucket and a group that
@@ -19,10 +21,20 @@
  * `shapeFixed`) on every questionnaire write, and by the program-name lock
  * (`questionLockReason`, reason `base`) on every per-name untick.
  *
- * WHERE IT IS SERVED (`question-scope.ts`): an `income_proof` question is asked on every
- * (program name, loan type) that sells a payslip programme — and on a name with no programme
- * yet, since a name created from the admin is payslip-only (v30.8.0) — whatever any untick
- * says. An `every_name` question is asked on every name, payslip or not.
+ * WHERE IT IS SERVED (`question-scope.ts`): an `every_name` question is asked on every name,
+ * payslip or not — all of the set but eleven (operator decisions, 2026-10-26). An
+ * `income_proof` one is asked on every (program name, loan type) that sells a payslip
+ * programme — and on a name with no programme yet, since a name created from the admin is
+ * payslip-only (v30.8.0): the declared salary, the other income and its amount, and the bank
+ * statement, which a no-payslip product works out or does without; the requested amount,
+ * which a no-payslip name is asked anyway unless it derives it from the car price and down
+ * payment (`narrowingScopeFor`); and the job with its five follow-ups — a no-payslip applicant
+ * picks the program (doctors, professors, armed forces, …) before the questionnaire starts, so
+ * the pick is the answer, and every follow-up hangs off the job. Two no-payslip programmes
+ * price the job (ABK card-to-loan term, CAE compound DBR); unasked, the app sends `salaried`
+ * and they quote the salaried row — the operator's call, made knowing that. Whatever any
+ * untick says, either way. One exception, the same for every name: a question listed in
+ * `answeredBy` that is served takes the fixed question's place, so nothing is asked twice.
  *
  * A LEAF MODULE on purpose: `employment-type.ts`, `iscore.ts`, the questionnaire's scope rule
  * and contract, the seed and `check:questionnaire` all read it, so it imports nothing that
@@ -242,6 +254,18 @@ interface BaseQuestionCommon {
   readonly gate: BaseGate | null;
   /** The registry fact the answer is bound to, or `null` when no fact reads it. */
   readonly factKey: string | null;
+  /**
+   * Questions a no-payslip PRODUCT asks that already answer this one (operator decision,
+   * 2026-10-26: "take the question from the surrogate program itself as the answer"). Wherever
+   * one of them is served, this one is not: the applicant is never asked the same thing twice,
+   * and the product's own question — the one its rules read — is the answer the engine gets.
+   * No answer to this question is made up from it; the two rarely say exactly the same thing
+   * ("a valid register" is not "a register older than 18 months"). Absent = none.
+   *
+   * Since the job and its follow-ups left no-payslip names (the same day), no name serves a
+   * question here beside its stand-in; the rule stays for the payslip name that one day does.
+   */
+  readonly answeredBy?: readonly string[];
 }
 
 /** Every base question is REQUIRED wherever it is shown — the lock refuses making one optional. */
@@ -285,9 +309,15 @@ const debtGate = (debtType: string): BaseGate => ({
 
 /**
  * In the client's order. The money questions and the debts keep today's live bounds exactly
- * (`check:questionnaire` proves the rows equal this list); they are `income_proof` and not
- * `every_name` because a no-payslip name deliberately asks neither the declared salary nor the
- * lump sum (`ASKED_EVEN_WHEN_PRODUCT_ONLY`).
+ * (`check:questionnaire` proves the rows equal this list). The sheet's "total monthly
+ * obligations" box is not a question: the debts are summed (`resolveObligations`), and the
+ * stated-total question that used to show that sum read-only was retired on 2026-10-26. Eleven
+ * are `income_proof`: the declared salary, the other income and its amount, and the bank
+ * statement, which a no-payslip name does not ask (operator decision, 2026-10-26: the sheet's
+ * income questions 1, 4 and 5); the requested amount, which `narrowingScopeFor` serves on a
+ * no-payslip name unless that name derives it from the car price and down payment; and the job
+ * with its five follow-ups, which the program a no-payslip applicant picked already answers
+ * (operator decision, 2026-10-26).
  */
 export const BASE_QUESTIONS: readonly BaseQuestion[] = [
   {
@@ -304,7 +334,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'NUMERIC',
     numeric: { minValue: '0', maxValue: '600', step: '1', unitEn: 'months', unitAr: 'شهر' },
     categories: PAYSLIP,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: null,
     factKey: null,
   },
@@ -316,6 +346,8 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     servedOn: 'income_proof',
     gate: groupGate('doctor'),
     factKey: null,
+    // The two doctors products band their income by years in practice: the same figure.
+    answeredBy: ['years_in_practice'],
   },
   {
     code: 'commercial_register_18m',
@@ -325,6 +357,9 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     servedOn: 'income_proof',
     gate: groupGate('employer'),
     factKey: null,
+    // The compound-owner product asks how long the business has run and whether its register
+    // and tax card are valid — its sheet conditions read those, not this.
+    answeredBy: ['self_employed_licence', 'business_months'],
   },
   {
     code: 'has_tax_card',
@@ -334,6 +369,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     servedOn: 'income_proof',
     gate: groupGate('employer'),
     factKey: null,
+    answeredBy: ['self_employed_licence'],
   },
   {
     code: CAN_TRANSFER_SALARY_QUESTION_CODE,
@@ -358,7 +394,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'SINGLE_SELECT',
     options: RESIDENCE_GOVERNORATE_CODES,
     categories: PAYSLIP,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: null,
     factKey: null,
   },
@@ -367,7 +403,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'TEXT',
     maxLength: 120,
     categories: PAYSLIP,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: null,
     factKey: null,
   },
@@ -394,7 +430,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'NUMERIC',
     numeric: { minValue: '6', maxValue: '300', step: '6', unitEn: 'months', unitAr: 'شهر' },
     categories: ALL,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: null,
     factKey: null,
   },
@@ -419,7 +455,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
       'other',
     ],
     categories: ALL,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: null,
     factKey: null,
   },
@@ -428,7 +464,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'NUMERIC',
     numeric: money('0', '5000000'),
     categories: ALL,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: debtGate('car_loan'),
     factKey: null,
   },
@@ -437,7 +473,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'NUMERIC',
     numeric: money('0', '20000000'),
     categories: ALL,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: debtGate('credit_cards'),
     factKey: null,
   },
@@ -446,7 +482,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'NUMERIC',
     numeric: money('0', '5000000'),
     categories: ALL,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: debtGate('personal_loan'),
     factKey: null,
   },
@@ -455,7 +491,7 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'NUMERIC',
     numeric: money('0', '5000000'),
     categories: ALL,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: debtGate('mortgage'),
     factKey: null,
   },
@@ -464,17 +500,8 @@ export const BASE_QUESTIONS: readonly BaseQuestion[] = [
     type: 'NUMERIC',
     numeric: money('0', '5000000'),
     categories: ALL,
-    servedOn: 'income_proof',
+    servedOn: 'every_name',
     gate: debtGate('other'),
-    factKey: null,
-  },
-  {
-    code: MONEY_FIELD_BINDINGS.existing_obligations,
-    type: 'NUMERIC',
-    numeric: money('0', '5000000'),
-    categories: ALL,
-    servedOn: 'income_proof',
-    gate: null,
     factKey: null,
   },
   {
@@ -526,12 +553,27 @@ export const BASE_QUESTION_CODES: readonly string[] = BASE_QUESTIONS.map((q) => 
 
 /**
  * The base codes a path must serve: the every-name ones always, the income-proof ones when the
- * (name, loan type) sells a payslip programme.
+ * (name, loan type) sells a payslip programme — before `fixedQuestionsAnsweredBy` takes out any
+ * a served product question answers.
  */
 export function baseCodesServed(incomeProof: boolean): ReadonlySet<string> {
   return new Set(
     BASE_QUESTIONS.filter((q) => q.servedOn === 'every_name' || incomeProof).map((q) => q.code),
   );
+}
+
+/**
+ * The fixed questions a SERVED product question answers (`answeredBy`): base code → the first
+ * of its stand-ins that is served. Those base codes are not asked on that path — the one rule
+ * the scope narrowing, `check:questionnaire` and the admin all read.
+ */
+export function fixedQuestionsAnsweredBy(served: ReadonlySet<string>): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const q of BASE_QUESTIONS) {
+    const standIn = q.answeredBy?.find((code) => served.has(code));
+    if (standIn !== undefined) out.set(q.code, standIn);
+  }
+  return out;
 }
 
 /** The ACTIVE answer codes a base choice question must offer — exactly these, no more. */

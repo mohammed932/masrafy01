@@ -1447,7 +1447,7 @@ export class QuestionCategoriesPage implements OnInit {
 
   baseTip(category: LoanCategory): string {
     const cat = this.label(category);
-    return $localize`:@@qcat.base_tip:Asked on every income-proof program, so ${cat}:category: always asks it.`;
+    return $localize`:@@qcat.base_tip:A fixed question, so ${cat}:category: always asks it.`;
   }
 
   /** The ordinary set — what the category write replaces; opt-in rows ride along server-side. */
@@ -1479,7 +1479,7 @@ export class QuestionCategoriesPage implements OnInit {
     const wording = this.wordingOf(q);
     const cat = this.label(category);
     if (this.baseLocked(q, category)) {
-      return $localize`:@@qcat.cell_aria_base:"${wording}:question:" is always asked for ${cat}:category: — every income-proof program asks it.`;
+      return $localize`:@@qcat.cell_aria_base:"${wording}:question:" is always asked for ${cat}:category: — it is a fixed question.`;
     }
     return $localize`:@@qcat.cell_aria:Ask "${wording}:question:" for ${cat}:category:`;
   }

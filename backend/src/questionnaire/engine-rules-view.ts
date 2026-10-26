@@ -1,8 +1,13 @@
 /**
  * THE LOAN ENGINE'S RULES, as the admin reads them (`GET /admin/questionnaire/engine-rules`).
  *
- * Every question the engine reads — every question with an engine lock (`engine-contract.ts`) —
- * with WHO reads it and, per answer, WHAT the answer means where the server owns that meaning:
+ * The OWNER'S questions — the fixed income-proof set the client handed over («أسئلة إثبات الدخل»,
+ * `BASE_QUESTIONS`), and only those, in the client's order (v30.13.0: the operator asked for the
+ * tab to list what came from the owner, as the owner gave it). Every one of them carries an
+ * engine lock (`engine-contract.ts`); the other questions the engine reads stay locked all the
+ * same, and their answers are reworded — under the same numbers check — on the Questions tab.
+ *
+ * Each with WHO reads it and, per answer, WHAT the answer means where the server owns that meaning:
  *   - the job answers' bucket (`EMPLOYMENT_ANSWERS`), the I-Score bands' score range
  *     (`I_SCORE_BANDS`), the transfer answers' rate-table key (`TRANSFER_ANSWERS`) — all in
  *     `base-question-set.ts`, where an answer cannot be written without its meaning;
@@ -22,6 +27,7 @@ import type { LoanCategory } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import {
+  BASE_QUESTION_CODES,
   CAN_TRANSFER_SALARY_QUESTION_CODE,
   EMPLOYMENT_BUCKET_BY_OPTION,
   I_SCORE_BAND_QUESTION_CODE,
@@ -29,6 +35,7 @@ import {
   TRANSFER_TYPE_BY_OPTION,
   baseQuestion,
   iScoreBandRange,
+  isBaseQuestionCode,
   type BaseQuestionServedOn,
   type EmploymentBucket,
 } from '@/matching/pipeline/base-question-set';
@@ -38,6 +45,7 @@ import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
   EMPLOYMENT_TYPE_QUESTION_CODE,
+  MONEY_FIELD_BINDINGS,
   obligationItemQuestionFor,
   type MoneyFieldBinding,
 } from '@/matching/pipeline/money-field-bindings';
@@ -78,7 +86,7 @@ export type EngineReader =
   | { kind: 'app_mapping'; categories: LoanCategory[] }
   /** It answers a fact the platform owns (I-Score, the car figures). */
   | { kind: 'platform_fact'; facts: LabelledKey[] }
-  /** In the fixed income-proof question set, asked in these loan types. */
+  /** In the fixed question set (the client's income-proof sheet), asked in these loan types. */
   | { kind: 'fixed_set'; servedOn: BaseQuestionServedOn; categories: LoanCategory[] }
   /** Live bank programmes read it, under these program names and loan types. */
   | { kind: 'programs'; programNames: (LabelledKey & { categories: LoanCategory[] })[] };
@@ -138,8 +146,42 @@ export interface EngineRuleQuestion {
   text: { maxLength: number } | null;
   /** The Manage-values list whose values ARE its answers — they are edited there, not here. */
   mirroredList: LabelledKey | null;
+  /**
+   * When it is asked: a follow-up only once another question's answer opens it; `null` = it is
+   * always asked. Every question listed is mandatory — this is WHEN, never WHETHER.
+   */
+  askedWhen: AskedWhen | null;
+  /**
+   * The product questions that answer it (`BaseQuestion.answeredBy`): where a program name asks
+   * one of them, this one is not asked — never twice. Empty for most of the set.
+   */
+  answeredBy: QuestionRef[];
+  /**
+   * Whether a NO-PAYSLIP program asks it — the admin's Surrogate tab. Every income-proof program
+   * asks the whole set.
+   */
+  noPayslip: NoPayslipAsk;
   /** ACTIVE answers, in their order. */
   options: EngineRuleOption[];
+}
+
+/**
+ * How a no-payslip program asks a fixed question:
+ *   - `always`: the set's every-name part (`servedOn: 'every_name'`);
+ *   - `unless_derived`: the requested amount, served on a product-only name unless that name works
+ *     it out from the car price and down payment (`narrowingScopeFor`, the `productOnly` push);
+ *   - `never`: the declared-income part — monthly income, other income and its amount, the bank
+ *     statement — which the product works out or does without; and the job with its five
+ *     follow-ups, which the program the applicant picked before the questionnaire answers.
+ */
+export type NoPayslipAsk = 'always' | 'unless_derived' | 'never';
+
+/** The show-when rule of a follow-up, named: the question it hangs on and the answers that open it. */
+export interface AskedWhen {
+  question: QuestionRef;
+  /** `true` = asked for every answer EXCEPT these (a `not_equals` rule). */
+  except: boolean;
+  answers: { code: string; labelAr: string; labelEn: string }[];
 }
 
 export interface EngineRulesView {
@@ -175,7 +217,7 @@ export interface EngineRulesInputQuestion {
 }
 
 export interface EngineRulesInput {
-  /** Every ACTIVE question — the locked ones are listed, all of them may be a follow-up. */
+  /** Every ACTIVE question — the owner's ones are listed, all of them may be a follow-up. */
   questions: readonly EngineRulesInputQuestion[];
   readers: EngineReaderViews;
   /** The `transfer_type` registry, by key. */
@@ -184,12 +226,18 @@ export interface EngineRulesInput {
 
 // ---- The view -------------------------------------------------------------------------------
 
+/** Each owner's question's place in the client's order — the order `BASE_QUESTIONS` is written in. */
+const OWNER_ORDER: ReadonlyMap<string, number> = new Map(
+  BASE_QUESTION_CODES.map((code, index) => [code, index]),
+);
+
 export function engineRulesView(input: EngineRulesInput): EngineRulesView {
+  // Looked up over the WHOLE pool: an answer may open or hide a question outside the owner's set.
   const byCode = new Map(input.questions.map((q) => [q.code, q]));
   const followUps = followUpsByAnswer(input.questions);
   const questions = [...input.questions]
-    .filter((q) => input.readers.locks.has(q.code))
-    .sort((a, b) => a.displayOrder - b.displayOrder || a.code.localeCompare(b.code));
+    .filter((q) => isBaseQuestionCode(q.code) && input.readers.locks.has(q.code))
+    .sort((a, b) => (OWNER_ORDER.get(a.code) ?? 0) - (OWNER_ORDER.get(b.code) ?? 0));
 
   return {
     questions: questions.map((q) => {
@@ -210,6 +258,14 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
         numeric: q.type === 'NUMERIC' ? q.numeric : null,
         text: q.type === 'TEXT' ? q.text : null,
         mirroredList: input.readers.mirroredLists.get(q.id) ?? null,
+        askedWhen: askedWhenOf(q, byCode),
+        answeredBy: (baseQuestion(q.code)?.answeredBy ?? []).flatMap((code) => {
+          const standIn = byCode.get(code);
+          return standIn === undefined
+            ? []
+            : [{ code, questionAr: standIn.questionAr, questionEn: standIn.questionEn }];
+        }),
+        noPayslip: noPayslipAsk(q.code),
         options: [...q.options]
           .sort((a, b) => a.displayOrder - b.displayOrder)
           .map((o) => ({
@@ -227,6 +283,11 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
       };
     }),
   };
+}
+
+function noPayslipAsk(code: string): NoPayslipAsk {
+  if (baseQuestion(code)?.servedOn === 'every_name') return 'always';
+  return code === MONEY_FIELD_BINDINGS.requested_amount ? 'unless_derived' : 'never';
 }
 
 function readersOf(code: string, views: EngineReaderViews): EngineReader[] {
@@ -325,6 +386,31 @@ function meaningsOf(
   if (present(opens).length > 0) out.push({ kind: 'opens', questions: present(opens) });
   if (present(hides).length > 0) out.push({ kind: 'hides', questions: present(hides) });
   return out;
+}
+
+/**
+ * A question's own show-when rule, named. `null` when it has none, and when the rule hangs on
+ * a question that is not in the pool: a dangling rule never hides its question
+ * (`isQuestionVisible`), so the question is asked always.
+ */
+function askedWhenOf(
+  q: EngineRulesInputQuestion,
+  byCode: ReadonlyMap<string, EngineRulesInputQuestion>,
+): AskedWhen | null {
+  const gate = enabledWhenGate(q);
+  if (gate === null) return null;
+  const source = byCode.get(gate.questionCode);
+  if (source === undefined) return null;
+  const labels = new Map(source.options.map((o) => [o.code, o]));
+  return {
+    question: { code: source.code, questionAr: source.questionAr, questionEn: source.questionEn },
+    except: gate.operator === 'not_equals',
+    // An answer since retired keeps its code, so the rule is still said in full.
+    answers: gate.optionCodes.map((code) => {
+      const o = labels.get(code);
+      return { code, labelAr: o?.labelAr ?? code, labelEn: o?.labelEn ?? code };
+    }),
+  };
 }
 
 /**

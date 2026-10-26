@@ -5,7 +5,11 @@ import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { I_SCORE_CLASS_TYPE } from '@/matching/pipeline/iscore-classes';
-import { BASE_QUESTIONS, baseQuestion } from '@/matching/pipeline/base-question-set';
+import {
+  BASE_QUESTIONS,
+  baseQuestion,
+  fixedQuestionsAnsweredBy,
+} from '@/matching/pipeline/base-question-set';
 import {
   EnumerationCategoriesNotApplicableException,
   EnumerationCategoryNotAssignedException,
@@ -52,6 +56,7 @@ import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 // be the copy that drifts. Pure function, no module involvement, so no DI cycle (A25).
 import { slugify } from '@/questionnaire/slug.util';
 import {
+  lockReasonOutsideFixedSet,
   questionLockReason,
   type QuestionLockReason,
 } from '@/questionnaire/validation/question-scope';
@@ -1448,17 +1453,23 @@ export class PlatformEnumerationsAdminService {
    * with the reason. With no key (the create flow) nothing is skipped yet; the engine's own
    * inputs lock, and so does the fixed question set — a name created here is payslip-only.
    *
-   * A `base` lock is PER LOAN TYPE (`categories`): the set's income-proof half binds only the
-   * loan types this name sells a payslip programme in. Every other lock binds every loan type
-   * and carries no `categories`. A question the set locks in some loan types and a programme
-   * reads everywhere gets a second, `program` entry for the rest — never two entries for one
-   * loan type.
+   * A `base` lock is PER LOAN TYPE (`categories`): the set's every-name part binds every loan
+   * type the question is asked in, its income-proof part only the loan types this name sells a
+   * payslip programme in. Every other lock binds every loan type and carries no `categories`. A
+   * question the set locks in some loan types and a programme reads everywhere gets a second,
+   * `program` entry for the rest — never two entries for one loan type.
+   *
+   * `answeredByCategory` names, per loan type, each fixed question this name does NOT ask
+   * because a product question it serves answers it (`base-question-set.ts#answeredBy`) — read
+   * off the served questionnaire itself, so the board says what the applicant actually gets.
    */
   async programNameQuestionScope(programNameKey: string | null): Promise<{
     excludedByCategory: Partial<Record<LoanCategory, string[]>>;
     /** Question IDS the name ADDS, per loan type — `program_name_question_addition`. */
     addedByCategory: Partial<Record<LoanCategory, string[]>>;
     locks: { code: string; reason: QuestionLockReason; categories?: LoanCategory[] }[];
+    /** Per loan type: fixed question code → the served product question that answers it. */
+    answeredByCategory: Partial<Record<LoanCategory, Record<string, string>>>;
   }> {
     const [pool, lockScope, categories] = await Promise.all([
       this.questionnaire.questionAssignments(),
@@ -1477,8 +1488,9 @@ export class PlatformEnumerationsAdminService {
         ...(await this.repo.questionAdditions(programNameKey as string, category)),
       ];
     }
-    // Which loan types the fixed set's income-proof half binds: every loan type a new name could
+    // Which loan types the fixed set's income-proof part binds: every loan type a new name could
     // be offered under (the create flow), else the name's own, each judged on its programmes.
+    // Its every-name part binds every loan type the question is asked in.
     const incomeProofIn = new Map<LoanCategory, boolean>();
     for (const category of categories) {
       const scope = await this.repo.questionLockScopeFor(programNameKey, category);
@@ -1494,15 +1506,14 @@ export class PlatformEnumerationsAdminService {
           (base.servedOn === 'every_name' || incomeProofIn.get(c) === true),
       );
     };
-    // The name-wide reasons, without the fixed set: judged as a name that is not income-proof,
-    // so `questionLockReason` answers only `engine` / `program` here (an every-name question is
-    // reported through its own `categories` below like the rest of the set).
-    const nameWide = { ...lockScope, incomeProof: false };
-
     // Every question in the pool, asked here or not: the `engine` lock also says which
     // questions a name may not ADD, and the board needs that for the rows it does not ask yet.
+    // The name-wide reason is judged WITHOUT the fixed set (`engine` / `program` only): the set
+    // is reported per loan type through `baseIn` below. Judging it as a not-income-proof name,
+    // as this once did, still answered `base` for an every-name question and lost its
+    // `program` lock in the loan types the set does not bind.
     const locks = pool.flatMap((q) => {
-      const reason = questionLockReason(q.code, nameWide);
+      const reason = lockReasonOutsideFixedSet(q.code, lockScope);
       if (reason === 'engine') return [{ code: q.code, reason }];
       const baseIn = baseCategoriesOf(q.code);
       const out: { code: string; reason: QuestionLockReason; categories?: LoanCategory[] }[] = [];
@@ -1514,7 +1525,14 @@ export class PlatformEnumerationsAdminService {
       }
       return out;
     });
-    return { excludedByCategory, addedByCategory, locks };
+    const answeredByCategory: Partial<Record<LoanCategory, Record<string, string>>> = {};
+    if (programNameKey !== null) {
+      for (const served of await this.questionnaire.servedForProgramName(programNameKey)) {
+        const answered = fixedQuestionsAnsweredBy(new Set(served.servedQuestionCodes));
+        if (answered.size > 0) answeredByCategory[served.category] = Object.fromEntries(answered);
+      }
+    }
+    return { excludedByCategory, addedByCategory, locks, answeredByCategory };
   }
 
   /**
@@ -1538,8 +1556,8 @@ export class PlatformEnumerationsAdminService {
         assignedCategories: [...offered],
       });
     }
-    // Judged for THIS loan type: the fixed set's income-proof half binds only where the name
-    // sells a payslip programme.
+    // Judged for THIS loan type: the fixed set's income-proof part binds only where the name
+    // sells a payslip programme (its every-name part everywhere).
     const [pool, lockScope] = await Promise.all([
       this.questionnaire.questionAssignments(),
       this.repo.questionLockScopeFor(programNameKey, category),

@@ -29,6 +29,12 @@ export interface ProgramNameQuestionScope {
    * there is income proof.
    */
   locks: ServerLock[];
+  /**
+   * Per loan type: each fixed question this name does NOT ask, because its own (product)
+   * question asks the same thing — fixed code → that question's code. Absent on an older
+   * server, and on the create flow: read as none.
+   */
+  answeredByCategory?: Partial<Record<LoanCategory, Record<string, string>>>;
 }
 
 /** One entry's new assignment set, for the bulk write. */

@@ -33,7 +33,7 @@
  */
 
 import { enabledWhenGate } from './question-visibility';
-import { baseCodesServed } from '@/matching/pipeline/base-question-set';
+import { baseCodesServed, fixedQuestionsAnsweredBy } from '@/matching/pipeline/base-question-set';
 import {
   DEBT_TYPES_QUESTION_CODE,
   EMPLOYMENT_TYPE_QUESTION_CODE,
@@ -49,10 +49,11 @@ import {
  * Each one moves money for EVERY program, so hiding one does not narrow a questionnaire — it
  * changes a quote:
  *
- *   - the four money bindings are the requested amount, the tenor, the declared salary and the
- *     stated obligations total. They are the debt-burden ratio's own inputs, and the mobile
- *     walks this exact list to decide whether Finish may be enabled — a snapshot missing one
- *     leaves that button dead forever with nothing on screen saying why.
+ *   - the money bindings are the requested amount, the tenor, the declared salary and the
+ *     stated obligations total (that last one no longer asked since 2026-10-26 — listed so a
+ *     stored row still reads as core). They are the debt-burden ratio's own inputs, and the
+ *     mobile reads them to fill the application — a snapshot missing one the flow needs
+ *     leaves Finish dead with nothing on screen saying why.
  *   - `current_loans` is the branch source whose PRESENCE in the asked set is what separates
  *     "this snapshot never asked about itemised debts, use the stated lump sum" from "it asked
  *     and got no answer". Drop it and every applicant silently re-routes.
@@ -80,26 +81,32 @@ export const NEVER_PRODUCT_SCOPED_QUESTION_CODES: ReadonlySet<string> = new Set<
  *     zero and lent the full cap to anyone who owes money.
  *   - the loan duration. The plan tables and caps give a CEILING per band, not a term; unasked,
  *     the app sent the longest one, which is the lowest instalment and the most generous DBR.
- *   - `employment_status`, for the per-applicant-type rows (CAE compound 40% DBR, ABK card-to-
- *     loan 84 months for the self-employed).
+ *
+ * Since 2026-10-26 every one of these is also in the fixed question set's every-name part
+ * (`base-question-set.ts`), which is core on these names ahead of this list — together with the
+ * time in the job and the residence. This list stays the floor for the day one of them leaves
+ * that set.
  *
  * Still NOT asked on those names: the declared salary (the product works the income out), the
- * requested amount where the product derives it, and the stated lump sum (the itemised amounts
- * above are the figure).
+ * other income and the bank statement (operator decision, 2026-10-26), the requested amount
+ * where the product derives it, and — also 2026-10-26, reversing the 2026-09-24 entry that put
+ * it here — `employment_status` with every follow-up gated on it: the applicant picked the
+ * program before the questionnaire, and the pick is the answer. Its per-applicant-type rows
+ * (CAE compound 40% DBR, ABK card-to-loan 84 months for the self-employed) then read the app's
+ * `salaried` default; the operator chose that knowing it.
  *
  * Plus, where the name has MORE THAN ONE programme in the loan type, what the applicant cares
  * about most (`PRIORITY_QUESTION_CODE`, 2026-10-13) — see `isCore` below. It moves no money; it
  * decides which offer is shown first, so it is worth a question exactly when there is more than
- * one offer to order. The other answers the app reads by code (time in the job, where the salary
- * is paid, a past rejection) stay unasked here: on 2026-10-13 no live programme under these
- * names priced on them (no seniority or years-in-job table; every transfer table one `none` row
- * at the base rate; a past rejection is an eligibility input apply skips).
+ * one offer to order. A past rejection stays unasked here: it is an eligibility input apply
+ * skips. (On 2026-10-26 no programme under these names priced on time in the job or the salary
+ * transfer either — no seniority or years-in-job table, every transfer table one `none` row at
+ * the base rate — so asking them moved no quote.)
  */
 export const ASKED_EVEN_WHEN_PRODUCT_ONLY: ReadonlySet<string> = new Set<string>([
   DEBT_TYPES_QUESTION_CODE,
   ...Object.values(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE),
   MONEY_FIELD_BINDINGS.tenor_months,
-  EMPLOYMENT_TYPE_QUESTION_CODE,
 ]);
 
 /**
@@ -145,7 +152,7 @@ export interface NarrowingScope {
   /**
    * PRODUCT-ONLY (operator decision, 2026-09-23; narrowed 2026-09-24): the name quotes off a
    * surrogate product and EVERY active programme under it is `income_surrogate`. The core is
-   * then `ASKED_EVEN_WHEN_PRODUCT_ONLY` — debts, duration, employment type — plus what the
+   * then the fixed set's every-name part and `ASKED_EVEN_WHEN_PRODUCT_ONLY` — plus what the
    * product and its programmes read. The app's own fallback (`apply_mapping.dart`) still covers
    * the rest: no declared income (the product works it out) and, for a car, the amount as price
    * minus down payment. Absent = false, which is every payslip or mixed name.
@@ -153,9 +160,9 @@ export interface NarrowingScope {
   productOnly?: boolean;
   /**
    * An INCOME-PROOF programme is sold under this name in the requested loan type (any loan type
-   * when the request named none). The fixed question set's `income_proof` half
-   * (`base-question-set.ts`) is then served here whatever any untick says, and locked against
-   * one. Absent = false.
+   * when the request named none). The fixed question set's `income_proof` part — the declared
+   * salary, other income, bank statement and requested amount (`base-question-set.ts`) — is then
+   * served here whatever any untick says, and locked against one. Absent = false.
    */
   incomeProof?: boolean;
   /**
@@ -206,7 +213,8 @@ export interface NarrowingScope {
  *     employment type (the allow-lists and the per-type debt-burden cap), or a fact the
  *     platform owns (I-Score, the car figures).
  *   - `base`: it is in the fixed question set (`base-question-set.ts`) and this path serves it
- *     — an income-proof name, or any name for an every-name question.
+ *     — any name for an every-name question, an income-proof name for the rest. Still `base`
+ *     where a product question answers it instead (`answeredBy`): not asked, never unticked.
  *   - `program`: a bank programme under the name reads it, through its income rule, a cap,
  *     rate, tenor or fee table, its I-Score table, or a refusal that needs the answer.
  */
@@ -221,10 +229,24 @@ export function questionLockReason(
   code: string,
   scope: QuestionLockScope,
 ): QuestionLockReason | null {
+  const outside = lockReasonOutsideFixedSet(code, scope);
+  if (outside === 'engine') return 'engine';
+  if (baseCodesServed(scope.incomeProof === true).has(code)) return 'base';
+  return outside;
+}
+
+/**
+ * `questionLockReason` without the fixed set: `engine`, `program` or `null`. For a caller that
+ * reports the fixed set per loan type on its own (the admin's program-name board) and still
+ * needs the program lock of a fixed question in the loan types the set does not bind.
+ */
+export function lockReasonOutsideFixedSet(
+  code: string,
+  scope: QuestionLockScope,
+): Exclude<QuestionLockReason, 'base'> | null {
   if (NEVER_A_GATE_ONLY_SOURCE.has(code) || scope.platformQuestionCodes.includes(code)) {
     return 'engine';
   }
-  if (baseCodesServed(scope.incomeProof === true).has(code)) return 'base';
   if (
     (scope.neededQuestionCodes ?? []).includes(code) ||
     (scope.mustAnswerQuestionCodes ?? []).includes(code)
@@ -251,6 +273,11 @@ export interface NarrowingDecision {
   gateSourcesRetained: readonly string[];
   /** Gate-only sources dropped because every question behind them dropped. */
   gateSourcesDropped: readonly string[];
+  /**
+   * Fixed questions NOT served because a served product question answers them
+   * (`base-question-set.ts#answeredBy`): fixed code → the product question asked instead.
+   */
+  answeredBy: ReadonlyMap<string, string>;
   disabledReason: NarrowingDisabledReason | null;
 }
 
@@ -311,6 +338,23 @@ function closeOverGates(
 }
 
 /**
+ * Take out of `keep` every fixed question a kept product question answers (operator decision,
+ * 2026-10-26: never ask the same thing twice; the product's own question is the answer). Run
+ * before the gate passes: no fixed question this drops is the gate source of another, and its
+ * own gate source (`employment_status`) is never a gate-only source, so neither pass undoes it.
+ */
+function dropAnsweredFixedQuestions(keep: Set<string>): ReadonlyMap<string, string> {
+  // Only a fixed question this path was about to serve: one it never serves (the job's
+  // follow-ups on a no-payslip name) is not asked anyway, and naming a stand-in for it would
+  // report a swap that never happened.
+  const answeredBy = new Map(
+    [...fixedQuestionsAnsweredBy(keep)].filter(([code]) => keep.has(code)),
+  );
+  for (const code of answeredBy.keys()) keep.delete(code);
+  return answeredBy;
+}
+
+/**
  * Narrowing OFF. Nothing is narrowed, and the one thing still left out is an OPT-IN question
  * nobody put in scope: with no name — or a name with no programme yet — there is nobody to have
  * added it and nothing reading it. Closed over gates like the narrowed path, so an opt-in
@@ -322,6 +366,7 @@ function off(
   questions: readonly ScopableQuestion[],
 ): NarrowingDecision {
   const keep = new Set(questions.filter((q) => q.optIn !== true).map((q) => q.code));
+  const answeredBy = dropAnsweredFixedQuestions(keep);
   const gateSourcesRetained = closeOverGates(questions, gateMaps(questions).byCode, keep);
   return {
     narrowed: false,
@@ -330,6 +375,7 @@ function off(
     dropped: questions.filter((q) => !keep.has(q.code)).map((q) => q.code),
     gateSourcesRetained,
     gateSourcesDropped: [],
+    answeredBy,
     disabledReason: reason,
   };
 }
@@ -355,9 +401,11 @@ function off(
  *      and the debt-burden cap for every program — without a hand-written exception.
  *
  * Plus, ahead of all four, the FIXED QUESTION SET this path serves (`base-question-set.ts`,
- * v30.11.0): its every-name half on every name, its income-proof half wherever a payslip
- * programme is sold under the name. Those are core on product-only names too, can never be
- * unticked, and pass A never drops one.
+ * v30.11.0): its every-name part on every name (all of it bar eleven, since 2026-10-26), its
+ * income-proof part wherever a payslip programme is sold under the name. Those are core on
+ * product-only names too, can never be unticked, and pass A never drops one. The one way out is
+ * a served product question that answers one (`answeredBy`): then the product's question is
+ * asked and the fixed one is not, so nobody answers the same thing twice.
  *
  * An OPT-IN row is never core; the operator's ADDED questions are kept whatever reads them,
  * survive pass A, and win over an exclusion of the same question.
@@ -418,6 +466,9 @@ export function narrowAskedQuestions(
     if (added.has(code)) continue;
     if (questionLockReason(code, scope) === null) keep.delete(code);
   }
+  // A fixed question a served product question already answers is not asked here — locked or
+  // not, the applicant answers it once, through the question the product's rules read.
+  const answeredBy = dropAnsweredFixedQuestions(keep);
 
   // ---- pass A: a gate-only source goes once everything behind it has -------
   const gateSourcesDropped: string[] = [];
@@ -476,6 +527,7 @@ export function narrowAskedQuestions(
     dropped: questions.filter((q) => !keep.has(q.code)).map((q) => q.code),
     gateSourcesRetained,
     gateSourcesDropped: gateSourcesDropped.filter((code) => !keep.has(code)),
+    answeredBy,
     disabledReason: null,
   };
 }

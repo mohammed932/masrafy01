@@ -221,6 +221,7 @@ import { ServedPagesComponent } from './served-pages.component';
                   (searchChange)="askSearch.set($event)"
                   [excluded]="excludedHere()"
                   [locks]="locks()"
+                  [answeredBy]="answeredHere()"
                   [added]="addedHere()"
                   (add)="askToAdd($event)"
                   (exclude)="setSkipped($event, true)"
@@ -736,13 +737,20 @@ export class ProgramNameDetailPage implements OnInit {
     new Map<LoanCategory, ReadonlySet<string>>(),
   );
   /**
-   * Codes this name may not skip: the engine's inputs, the fixed income-proof set where it sells a
-   * payslip programme, and what its bank programs read. As sent — read per loan type through
-   * `lockMapFor`.
+   * Codes this name may not skip: the engine's inputs, the fixed question set (all of it where it
+   * sells a payslip programme, all but the declared-income part elsewhere), and what its bank
+   * programs read. As sent — read per loan type through `lockMapFor`.
    */
   protected readonly locks = signal<readonly ServerLock[]>([]);
   protected readonly excludedHere = computed<ReadonlySet<string>>(
     () => this.skipped().get(this.askCategory()) ?? new Set<string>(),
+  );
+  /** Per loan type: fixed question code → this name's own question asked in its place. */
+  private readonly answeredByCat = signal<Partial<Record<LoanCategory, Record<string, string>>>>(
+    {},
+  );
+  protected readonly answeredHere = computed<Readonly<Record<string, string>>>(
+    () => this.answeredByCat()[this.askCategory()] ?? {},
   );
   /** Questions this name ADDS, per loan type — as stored, re-read after every write. */
   private readonly addedByCat = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
@@ -964,6 +972,7 @@ export class ProgramNameDetailPage implements OnInit {
     try {
       const scope = await this.api.programNameQuestionScope(this.routeKey());
       this.locks.set(scope.locks);
+      this.answeredByCat.set(scope.answeredByCategory ?? {});
       this.skipped.set(
         new Map(
           Object.entries(scope.excludedByCategory).map(([category, ids]) => [

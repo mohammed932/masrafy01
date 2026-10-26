@@ -630,7 +630,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                      engine reason, and what the admin needs to hear is what is left to edit. -->
                 @if (wordingOnly()) {
                   <p class="lock-title" i18n="@@qedit.lock_title_base">
-                    Asked on every income-proof program
+                    A fixed question no program can skip
                   </p>
                 } @else if (lock.reason === 'program') {
                   <p class="lock-title" i18n="@@qedit.lock_title_program">
@@ -1038,7 +1038,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               }
               @if (wordingOnly()) {
                 <p class="hint" i18n="@@qedit.branch_locked_base">
-                  Fixed because every income-proof program asks this question.
+                  Fixed: this is one of the fixed questions no program can skip.
                 </p>
               } @else if (editLock()) {
                 <p class="hint" i18n="@@qedit.branch_locked">
@@ -2670,7 +2670,7 @@ export class QuestionnaireEditorPage implements OnInit {
   /** The row chip's tooltip, and its screen-reader text. */
   lockSummary(lock: QuestionEngineLock): string {
     if (lock.shapeFixed === true) {
-      return $localize`:@@qedit.lock_tip_base:Locked: asked on every income-proof program`;
+      return $localize`:@@qedit.lock_tip_base:Locked: a fixed question no program can skip`;
     }
     return lock.reason === 'program'
       ? $localize`:@@qedit.lock_tip_program:Locked: read by ${this.programNamesOf(lock)}:names:`

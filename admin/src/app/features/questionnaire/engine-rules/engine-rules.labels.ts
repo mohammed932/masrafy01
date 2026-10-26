@@ -51,13 +51,13 @@ function quoted(questions: readonly QuestionRef[], isAr: boolean): string {
 // ---- Lock -----------------------------------------------------------------------------------
 
 export function lockEngineLabel(): string {
-  return $localize`:@@qrules.lock_engine:Every quote`;
+  return $localize`:@@qrules.lock_engine:Used in every offer`;
 }
 export function lockBaseLabel(): string {
-  return $localize`:@@qrules.lock_base:Fixed income-proof set`;
+  return $localize`:@@qrules.lock_base:Fixed question`;
 }
 export function lockProgramLabel(): string {
-  return $localize`:@@qrules.lock_program:Bank programs`;
+  return $localize`:@@qrules.lock_program:Used by bank programs`;
 }
 
 /**
@@ -150,9 +150,9 @@ export function areaLabel(area: ImpactArea): string {
     case 'debt_limit':
       return $localize`:@@qrules.area_debt_limit:Debt-burden limit`;
     case 'questions':
-      return $localize`:@@qrules.area_questions:Next questions`;
+      return $localize`:@@qrules.area_questions:Which questions come next`;
     case 'application':
-      return $localize`:@@qrules.area_application:Application sent`;
+      return $localize`:@@qrules.area_application:What is sent with the application`;
   }
 }
 
@@ -295,7 +295,87 @@ export function textRuleText(q: EngineRuleQuestion): string {
   return $localize`:@@qrules.rule_text_max:Free text, up to ${max}:max: characters`;
 }
 
-/** The quantities a label has to keep, as one line: `1 · 3 · million`. */
-export function keepLine(written: readonly string[]): string {
-  return written.join(' · ');
+// ---- The picker -------------------------------------------------------------------------------
+
+/** The quiet line under a question in the picker. */
+export function pickMeta(q: EngineRuleQuestion, numbered: number, isAr: boolean): string {
+  if (q.type === 'TEXT') return $localize`:@@qrules.meta_text:Text`;
+  if (q.options.length === 0) {
+    const unit = (isAr ? q.numeric?.unitAr : q.numeric?.unitEn) ?? '';
+    return unit === ''
+      ? $localize`:@@qrules.meta_number:Number`
+      : $localize`:@@qrules.meta_number_unit:Number in ${unit}:unit:`;
+  }
+  const count = q.options.length;
+  const answers = $localize`:@@qrules.meta_answers:${count}:count: answers`;
+  if (numbered === 0) return answers;
+  const withNumbers = $localize`:@@qrules.meta_numbered:${numbered}:count: with numbers`;
+  return `${answers} · ${withNumbers}`;
+}
+
+/** The quiet tag a follow-up carries in the picker. */
+export function followUpTag(): string {
+  return $localize`:@@qrules.meta_follow_up:follow-up`;
+}
+
+/**
+ * When a question is asked, in one sentence. Every question on this screen is mandatory, so
+ * this says WHEN — "Always", or which answer of which question opens it — never whether.
+ */
+export function askedWhenText(q: EngineRuleQuestion, isAr: boolean): string {
+  const when = q.askedWhen;
+  if (when === null) return $localize`:@@qrules.asked_always:Always`;
+  const question = quoted([when.question], isAr);
+  const or = $localize`:@@qrules.or:or`;
+  // Each answer quoted, so one with a dash in it ("Lawyer — with another business") still
+  // reads as one answer; commas between, "or" before the last.
+  const names = when.answers.map((a) => (isAr ? `«${a.labelAr}»` : `“${a.labelEn}”`));
+  const last = names.pop() ?? '';
+  const answers = names.length === 0 ? last : `${joined(names, isAr)} ${or} ${last}`;
+  return when.except
+    ? $localize`:@@qrules.asked_unless:Unless the answer to ${question}:question: is ${answers}:answers:`
+    : $localize`:@@qrules.asked_only_when:Only when the answer to ${question}:question: is ${answers}:answers:`;
+}
+
+// ---- How the answers are used, when no answer carries a meaning of its own ------------------
+
+/**
+ * When the server states no meaning for any answer (the app or a bank table owns it), one
+ * plain line per reader saying who turns the answer into something — so the column is not
+ * left as a row of dashes with no explanation. A question nothing reads yet (the owner's
+ * register, tax card, payroll, governorate and bank-statement questions) says exactly that:
+ * the answer is kept on the application, and no rule prices it.
+ */
+export function usageNotes(q: EngineRuleQuestion, isAr: boolean): string[] {
+  const out: string[] = [];
+  for (const r of q.readers) {
+    switch (r.kind) {
+      case 'programs':
+        out.push(
+          $localize`:@@qrules.usage_programs:Bank programs look each answer up in their own tables.`,
+        );
+        break;
+      case 'app_mapping':
+        out.push(
+          $localize`:@@qrules.usage_app:The app turns each answer into a figure it sends with the application.`,
+        );
+        break;
+      case 'platform_fact': {
+        const facts = joined(
+          r.facts.map((f) => labelOf(f, isAr)),
+          isAr,
+        );
+        out.push($localize`:@@qrules.usage_fact:Each answer sets the customer's ${facts}:facts:.`);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  if (out.length === 0) {
+    out.push(
+      $localize`:@@qrules.usage_saved:Saved with the application. No bank rule prices this answer yet.`,
+    );
+  }
+  return out;
 }

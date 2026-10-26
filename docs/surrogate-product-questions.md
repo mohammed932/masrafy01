@@ -443,7 +443,7 @@ None. Both open items on this sheet are shape problems, not missing questions:
 |---|---|
 | Works out | a borrowing CEILING, not an income |
 | Catalog name | `compound_owner_4` — "Compound Owner" (P, no-payslip) |
-| Bank programmes | `EGB-PER-COMPOUND_OWNER` (way `primary`; income floor 10,000 / 25,000) · `FAB-PER-COMPOUND_OWNER` (way `alt`; 10,000 / 15,000) · `ABK-PER-COMPOUND_OWNER`, `CAE-PER-COMPOUND_OWNER` (way `alt__unit_paid_to_date`; CAE caps debt burden at 50% salaried / 40% self-employed) · `ABK-PERSONAL-7110` (legacy row on the same name, way `alt__unit_paid_to_date`, **salaried only**, 6 months, floor 5,000) |
+| Bank programmes | `EGB-PER-COMPOUND_OWNER` (way `primary`; income floor 10,000 / 25,000) · `FAB-PER-COMPOUND_OWNER` (way `alt`; 10,000 / 15,000) · `ABK-PER-COMPOUND_OWNER`, `CAE-PER-COMPOUND_OWNER` (way `alt__unit_paid_to_date`; CAE caps debt burden at 50% salaried / 40% self-employed) · (`ABK-PERSONAL-7110`, a legacy duplicate of ABK's row, deleted 2026-10-26 — v30.14.0) |
 | Mechanism | five exclusive ways to one ceiling: by compound class · banded by the down payment · a share of everything paid to date · by unit type · a share of the down payment. Plus a second column by new-loan/top-up, a share by the percentage owned, and three conditions (the multi-unit uplift was removed on 2026-09-25) |
 
 ### Questions it reads through its facts
@@ -464,7 +464,7 @@ None. Both open items on this sheet are shape problems, not missing questions:
 
 | Code | Why it matters here |
 |---|---|
-| `employment_status` | CAE's 50 / 40 debt-burden split and every programme's self-employed income floor; `ABK-PERSONAL-7110` refuses the self-employed outright |
+| `employment_status` | CAE's 50 / 40 debt-burden split and every programme's self-employed income floor |
 | `existing_bank_products` | **should** be FABMISR's column (X-SELL = holds a card with limit ≥ 100,000) and is not — see below |
 
 ### To create

@@ -4,8 +4,11 @@ import type { Routes } from '@angular/router';
  * Feature 010 admin routes — the GLOBAL question pool. Three tabs over ONE pool:
  * `questions` authors it, `categories` assigns each question to the loan
  * categories that ask it (many-to-many — a question can serve several), and
- * `engine-rules` lists what the loan engine reads and lets only answers' wording
- * change (v30.12.0). Role gating applied at the parent mount in app.routes.ts.
+ * `engine-rules` (the "Loan engine" tab) lists the owner's fixed questions, split
+ * into Income proof and Surrogate by `?basis=`, and lets only answers' wording
+ * change (v30.12.0, narrowed v30.13.0, split v30.16.0 — the path is kept so links
+ * survive). Role gating applied at
+ * the parent mount in app.routes.ts.
  *
  * The tabs are ROUTES rather than panels so a deep link (and the browser's back
  * button) lands on the tab the admin was actually on, and so the 2 400-line pool

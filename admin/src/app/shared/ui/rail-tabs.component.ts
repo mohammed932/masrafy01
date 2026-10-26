@@ -412,6 +412,12 @@ export interface RailTabItem {
       .rail.vertical .tab-label {
         white-space: normal;
       }
+      /* A closed pair of equal cells at phone width: "Income proof" plus its count is wider
+         than half the track, and a cut tab NAME leaves the operator guessing which one it is.
+         Wrapping costs a line; the grid keeps both cells the same height. */
+      .rail.segmented.uniform .tab-label {
+        white-space: normal;
+      }
       /* Secondary, not tertiary. Both of these run at --text-xxs (11px), and
          tertiary on the light surface (#8C7E75 on #FDFCFB) is 3.83:1 — under AA
          for text this size. Secondary is 6.1:1 and still plainly subordinate:

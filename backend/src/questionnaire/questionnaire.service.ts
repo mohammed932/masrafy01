@@ -7,7 +7,7 @@ import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
   MONEY_FIELD_BINDINGS,
-  MONEY_FIELD_BINDING_KEYS,
+  ASKED_MONEY_FIELD_BINDING_KEYS,
   obligationItemQuestionFor,
 } from '@/matching/pipeline/money-field-bindings';
 import {
@@ -1742,7 +1742,9 @@ function collectPublishWarnings(
 ): PublishWarning[] {
   const byCode = new Map(activeQuestions.map((q) => [q.code, q]));
   const warnings: PublishWarning[] = [];
-  for (const binding of MONEY_FIELD_BINDING_KEYS) {
+  // The figures that must be ASKED — not the stated obligations total, which the itemised
+  // debts below replace (2026-10-26); a missing debt-type question is warned about there.
+  for (const binding of ASKED_MONEY_FIELD_BINDING_KEYS) {
     const questionCode = MONEY_FIELD_BINDINGS[binding];
     const q = byCode.get(questionCode);
     if (!q) {

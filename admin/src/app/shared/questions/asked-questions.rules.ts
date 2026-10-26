@@ -396,12 +396,14 @@ export const ALL_ASKED_TABS: readonly LoanCategory[] = LOAN_CATEGORIES;
  * backend — a missing one yields no figures, never a default). Mirrored here as codes because
  * the admin has no endpoint that lists them per loan type; a code renamed on the backend is a
  * code change on both sides, which is the same accepted limit the backend constant records.
+ * What the applicant owes is asked through the debt-type pick (`current_loans`) and an amount
+ * per debt — the stated total `current_installments` retired on 2026-10-26.
  */
 const MONEY_CORE: readonly string[] = [
   'monthly_income',
   'amount_requested',
   'repayment_period_months',
-  'current_installments',
+  'current_loans',
 ];
 
 /**
@@ -496,8 +498,9 @@ export function coreProblems(
  * kept here (A33: which questions are which comes from the server alone).
  *
  *   - `engine`: every quote reads it.
- *   - `base`: one of the fixed income-proof questions, asked on every program name that sells a
- *     payslip programme. Only its wording can change, and only on the question pool.
+ *   - `base`: one of the fixed questions (the client's income-proof sheet), asked on every
+ *     program name — the declared-income part only where it sells a payslip programme. Only its
+ *     wording can change, and only on the question pool.
  *   - `program`: a bank program under the name reads it.
  */
 export type QuestionLockReason = 'engine' | 'base' | 'program';
@@ -507,8 +510,9 @@ export interface ServerLock {
   readonly code: string;
   readonly reason: QuestionLockReason;
   /**
-   * `base` locks only: the loan types where the lock holds for this name — the ones it sells a
-   * payslip programme under. Absent = every loan type.
+   * `base` locks only: the loan types where the lock holds for this name — every loan type the
+   * question is asked in, or for the declared-income part the ones it sells a payslip programme
+   * under. Absent = every loan type.
    */
   readonly categories?: readonly LoanCategory[];
 }

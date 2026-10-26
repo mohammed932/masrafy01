@@ -87,7 +87,30 @@ export interface EngineRuleQuestion {
   text: { maxLength: number } | null;
   /** The Manage-values list whose values ARE its answers — edited there, never here. */
   mirroredList: LabelledKey | null;
+  /** When it is asked; `null` = always. Every question here is mandatory — this is WHEN. */
+  askedWhen: AskedWhen | null;
+  /**
+   * Program questions that answer it: where a program asks one of them, this one is not asked
+   * (never the same thing twice). Absent on an older server: read as none.
+   */
+  answeredBy?: QuestionRef[];
+  /**
+   * Whether a no-payslip (surrogate) program asks it: `always`; `unless_derived` — the loan
+   * amount, unless the program works it out from the car price and down payment; `never` — the
+   * declared income. Every income-proof program asks them all.
+   */
+  noPayslip: NoPayslipAsk;
   options: EngineRuleOption[];
+}
+
+export type NoPayslipAsk = 'always' | 'unless_derived' | 'never';
+
+/** A follow-up's show-when rule, named: the question it hangs on and the answers that open it. */
+export interface AskedWhen {
+  question: QuestionRef;
+  /** `true` = asked for every answer EXCEPT these. */
+  except: boolean;
+  answers: { code: string; labelAr: string; labelEn: string }[];
 }
 
 export interface EngineRulesView {

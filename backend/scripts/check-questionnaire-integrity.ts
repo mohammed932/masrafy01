@@ -37,7 +37,8 @@
  *      write that drifts from the code is caught here; the admin cannot drift it (the lock).
  *  10. FIXED SET SERVED — under every offerable program name, the served questionnaire keeps the
  *      fixed set's questions that path must ask: the every-name ones always, the income-proof
- *      ones wherever the name sells a payslip programme in that loan type.
+ *      ones wherever the name sells a payslip programme in that loan type — except one a served
+ *      product question answers (`answeredBy`), which must then NOT be served (asked twice).
  *  (warning) I-SCORE BAND EDGES — an I-Score tier that straddles a band edge (521, 626) is
  *      priced at the band's weakest tier for the whole band; reported so it is a choice.
  *
@@ -53,6 +54,7 @@ import {
   baseCodesServed,
   baseGateJson,
   baseOptionCodes,
+  fixedQuestionsAnsweredBy,
 } from '../src/matching/pipeline/base-question-set';
 import { sameDecimal, sameGate, sameText } from '../src/questionnaire/validation/engine-contract';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
@@ -228,10 +230,21 @@ async function main(): Promise<void> {
         add('2 debts served per name', `${productCategory}/${programNameKey}: ${code} not served`);
       }
     }
-    // 10. FIXED SET SERVED — same path, same decision.
+    // 10. FIXED SET SERVED — same path, same decision. A fixed question a served product
+    // question answers (`answeredBy`) must be the one thing NOT served: asking both is asking
+    // the applicant the same thing twice.
+    const answered = fixedQuestionsAnsweredBy(served);
     for (const code of baseCodesServed(scope?.incomeProof === true)) {
       const assigned = inCategory.some((q) => q.code === code && !isOptIn(q));
-      if (assigned && !served.has(code)) {
+      const standIn = answered.get(code);
+      if (standIn !== undefined) {
+        if (served.has(code)) {
+          add(
+            '10 fixed set served',
+            `${productCategory}/${programNameKey}: ${code} served beside ${standIn}, which answers it`,
+          );
+        }
+      } else if (assigned && !served.has(code)) {
         add('10 fixed set served', `${productCategory}/${programNameKey}: ${code} not served`);
       }
     }
@@ -294,6 +307,11 @@ async function main(): Promise<void> {
       }
     }
     if (mirrored.has(q.id)) at('a Manage-values list mirrors it');
+    // A stand-in that is no question at all never serves, so the fixed question would quietly
+    // come back beside the product's own — the code rename this would miss.
+    for (const standIn of base.answeredBy ?? []) {
+      if (!byCode.has(standIn)) at(`answeredBy ${standIn} is no question`);
+    }
   }
 
   // (warning) I-SCORE BAND EDGES

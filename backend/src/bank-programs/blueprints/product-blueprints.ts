@@ -780,9 +780,9 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
           },
         },
         // NO column on this way, deliberately. Both copies of its top-up figure — the
-        // catalog's and `ABK-PERSONAL-7110`'s own — held 15%, byte-identical to the standard
-        // column beside them, so the column stated nothing and a slot every bank is expected
-        // to fill is worse than no slot at all.
+        // catalog's and `ABK-PERSONAL-7110`'s own (that duplicate was deleted 2026-10-26) —
+        // held 15%, byte-identical to the standard column beside them, so the column stated
+        // nothing and a slot every bank is expected to fill is worse than no slot at all.
         { kind: 'shareOf', fact: 'unit_paid_to_date' },
         {
           kind: 'choiceTable',

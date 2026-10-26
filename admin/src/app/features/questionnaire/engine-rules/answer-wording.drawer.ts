@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   FormControl,
@@ -19,7 +20,7 @@ import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { AnswerMeaningsComponent } from './answer-meanings.component';
 import { EngineRulesApiService } from './engine-rules.api.service';
-import { keepLine, wordingOf } from './engine-rules.labels';
+import { wordingOf } from './engine-rules.labels';
 import type { EngineRuleOption, EngineRuleQuestion } from './engine-rules.types';
 
 export interface AnswerWordingDrawerData {
@@ -30,13 +31,6 @@ export interface AnswerWordingDrawerData {
 /** The server's `@Length(1, 200)` on an option label. */
 const LABEL_MAX = 200;
 
-/** The hint under a label field: the quantities it states, or that it states none. */
-function keepHint(written: readonly string[]): string {
-  if (written.length === 0) return $localize`:@@qrules.keep_none:No numbers here — don't add any.`;
-  const numbers = keepLine(written);
-  return $localize`:@@qrules.keep_numbers:Keep exactly: ${numbers}:numbers:`;
-}
-
 /** Required, and not just spaces — a label of blanks is an answer with no words. */
 function notBlank(control: AbstractControl<string>): ValidationErrors | null {
   return control.value.trim() === '' ? { required: true } : null;
@@ -45,8 +39,8 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
 /**
  * Rewords ONE answer of a question the loan engine reads — its two labels and nothing else.
  *
- * What has to stay is said BEFORE the admin types, under each field ("Keep exactly: 1 · 3 ·
- * million"), from the same extraction the server refuses with. The server is the only judge:
+ * The rule comes first, in plain words, and what has to stay is shown BEFORE the admin types,
+ * as chips under each field (1 · 3 · million), from the same extraction the server refuses with. The server is the only judge:
  * a reword that changes a quantity comes back as `ENGINE_WORDING_NUMBERS_CHANGED` and is read
  * out here, beside the fields, with the numbers it found — the sheet stays open on it.
  */
@@ -54,6 +48,7 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
   selector: 'app-answer-wording-drawer',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     NzFormModule,
     NzInputModule,
@@ -76,20 +71,22 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
     >
       <span drawerIcon nz-icon nzType="edit" nzTheme="outline"></span>
       <form nz-form nzLayout="vertical" [formGroup]="form" class="form" (ngSubmit)="save()">
-        <dl class="context">
-          <div class="context-row">
-            <dt i18n="@@qrules.sheet_code">Answer code</dt>
-            <dd>
-              <bdi class="code">{{ option.code }}</bdi>
-            </dd>
+        <div class="rule" role="note">
+          <p class="rule-title" i18n="@@qrules.sheet_rule_title">
+            Change the words. Keep the numbers.
+          </p>
+          <p class="rule-body" i18n="@@qrules.sheet_rule_body">
+            Customers pick an answer by its words, but the loan engine prices the answer itself. If
+            a number changed, a customer could pick this answer by mistake and get the wrong offer.
+          </p>
+        </div>
+
+        @if (option.meanings.length > 0) {
+          <div class="means">
+            <p class="means-title" i18n="@@qrules.col_means">The loan engine understands</p>
+            <app-answer-meanings [meanings]="option.meanings" [isAr]="isAr" />
           </div>
-          @if (option.meanings.length > 0) {
-            <div class="context-row">
-              <dt i18n="@@qrules.sheet_meaning">What it means to the engine</dt>
-              <dd><app-answer-meanings [meanings]="option.meanings" [isAr]="isAr" /></dd>
-            </div>
-          }
-        </dl>
+        }
 
         <div class="field-pair">
           <nz-form-item>
@@ -108,7 +105,10 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
                 aria-describedby="aw-keep-en"
               />
             </nz-form-control>
-            <p class="keep" id="aw-keep-en">{{ keepEn }}</p>
+            <ng-container
+              [ngTemplateOutlet]="keepTpl"
+              [ngTemplateOutletContext]="{ $implicit: option.keep.en, id: 'aw-keep-en' }"
+            />
           </nz-form-item>
 
           <nz-form-item>
@@ -127,9 +127,31 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
                 aria-describedby="aw-keep-ar"
               />
             </nz-form-control>
-            <p class="keep" id="aw-keep-ar">{{ keepAr }}</p>
+            <ng-container
+              [ngTemplateOutlet]="keepTpl"
+              [ngTemplateOutletContext]="{ $implicit: option.keep.ar, id: 'aw-keep-ar' }"
+            />
           </nz-form-item>
         </div>
+
+        <ng-template #keepTpl let-keep let-id="id">
+          <div class="keep" [id]="id">
+            @if (keep.length > 0) {
+              <span class="keep-label" i18n="@@qrules.keep_label">Keep these numbers:</span>
+              <ul class="keep-chips">
+                @for (k of keep; track $index) {
+                  <li>
+                    <bdi>{{ k }}</bdi>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <span class="keep-label" i18n="@@qrules.keep_none"
+                >No numbers here — don't add any.</span
+              >
+            }
+          </div>
+        </ng-template>
 
         <ng-template #labelErrTpl let-control>
           @if (control.errors?.['required']) {
@@ -145,6 +167,11 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
             <span>{{ message }}</span>
           </p>
         }
+
+        <p class="code-line">
+          <span i18n="@@qrules.sheet_code">Answer code</span>
+          <bdi class="code">{{ option.code }}</bdi>
+        </p>
       </form>
     </app-form-drawer>
   `,
@@ -161,25 +188,43 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
       .form nz-form-item {
         margin-block-end: 0;
       }
-      .context {
+      .rule {
         display: grid;
-        gap: var(--space-3);
-        margin: 0;
+        gap: var(--space-1);
         padding: var(--space-3) var(--space-4);
+        border-inline-start: var(--rule-width-accent) solid var(--color-info);
         border-radius: var(--radius-md);
-        background: var(--bg-subtle);
+        background: var(--color-info-bg);
       }
-      .context-row {
+      .rule-title {
+        margin: 0;
+        font-size: var(--text-base);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+      }
+      .rule-body {
+        margin: 0;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-primary);
+      }
+      .means {
         display: grid;
         gap: var(--space-1);
       }
-      .context dt {
+      .means-title {
+        margin: 0;
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
       }
-      .context dd {
+      .code-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
         margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
       }
       .code {
         font-family: var(--font-mono);
@@ -193,11 +238,30 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
         align-items: start;
       }
       .keep {
-        margin: var(--space-1) 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1) var(--space-2);
+        margin-block-start: var(--space-1-5);
         font-size: var(--text-xs);
         line-height: var(--leading-normal);
         color: var(--text-secondary);
-        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .keep-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .keep-chips li {
+        padding: var(--space-0-5) var(--space-2);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-sm);
+        background: var(--bg-surface);
+        font-family: var(--font-mono);
+        color: var(--text-primary);
       }
       .error {
         display: inline-flex;
@@ -227,11 +291,7 @@ export class AnswerWordingDrawerComponent {
   protected readonly isAr = document.documentElement.lang.startsWith('ar');
   protected readonly option = this.data.option;
   protected readonly labelMax = LABEL_MAX;
-  /** What each label has to keep, said before anything is typed. */
-  protected readonly keepEn = keepHint(this.data.option.keep.en);
-  protected readonly keepAr = keepHint(this.data.option.keep.ar);
-
-  protected readonly title = $localize`:@@qrules.sheet_title:Edit answer wording`;
+  protected readonly title = $localize`:@@qrules.sheet_title:Reword this answer`;
   protected readonly questionWording = wordingOf(this.data.question, this.isAr);
   protected readonly hint = $localize`:@@qrules.sheet_hint:Saving publishes a new questionnaire version right away.`;
   protected readonly submitLabel = $localize`:@@qrules.sheet_submit:Save wording`;

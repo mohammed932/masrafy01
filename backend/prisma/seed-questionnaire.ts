@@ -1253,30 +1253,10 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       options: [],
     },
   },
-  {
-    groupCode: 'commitments',
-    categories: ['personal', 'mortgage', 'car', 'business'],
-    question: {
-      code: MONEY_FIELD_BINDINGS.existing_obligations, // current_installments
-      type: 'NUMERIC',
-      // The TOTAL, and it is DERIVED — summed from the per-debt answers below,
-      // not recalled by the applicant. Kept as a real asked question for two
-      // reasons: it stays the single bound money figure the engine reads, and it
-      // stays the single SCORED obligations question (a total is the only
-      // meaningful thing to band — see the assignment filter further down).
-      // Zero is legitimate ("I have none"), hence minValue 0.
-      //
-      // "Commitments", not "payments": the credit-card part of this sum is 5% of
-      // a LIMIT, not a payment anyone makes, so the old label would have named the
-      // figure something it is not the moment a card is ticked.
-      questionEn: 'What are your total monthly commitments?',
-      questionAr: 'كم إجمالي التزاماتك الشهرية؟',
-      helperTextEn: 'Credit cards count as 5% of your total credit limit.',
-      helperTextAr: 'تحتسب البطاقات الائتمانية بنسبة 5% من إجمالي حدك الائتماني.',
-      numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
-      options: [],
-    },
-  },
+  // NOT the stated total `current_installments` ("What are your total monthly commitments?"),
+  // retired 2026-10-26: the debts below are asked one by one and summed, so the total asked
+  // nothing — the app only ever showed it read-only. Its binding stays for stored applications,
+  // and the `notIn: questionOrder` sweep switches the row off on a database that still has it.
 ];
 
 /**
@@ -1853,16 +1833,16 @@ export interface SeedPool {
  * list fails CLOSED — a new question is not asked of a car applicant until somebody adds it.
  *
  * WHAT IS IN IT, and none of it is a preference. The car flow was cut from 63 questions to
- * these 23; an applicant under `new_car` is asked 17 of them, the rest narrowed away per
+ * the list below (21 since the stated total retired, 2026-10-26), the rest narrowed away per
  * programme name by `question-scope.ts`. Every one is here for a measured reason:
  *
- *   the four money bindings    `amount_requested`, `repayment_period_months`, `monthly_income`,
- *                              `current_installments` — the engine cannot quote without them
- *                              (`money-field-bindings.ts`)
- *   the debt-type source       `current_loans` — `current_installments` renders DERIVED and
- *                              READ-ONLY whenever this is served, so dropping it leaves an
- *                              applicant unable to state any obligation and the debt burden
- *                              measured against zero. That is over-lending, not a shorter form
+ *   the money bindings         `amount_requested`, `repayment_period_months`, `monthly_income`
+ *                              — the engine cannot quote without them (`money-field-bindings.ts`)
+ *   the debt-type source       `current_loans` — what the applicant owes is asked through it
+ *                              (the stated total `current_installments` retired 2026-10-26), so
+ *                              dropping it leaves an applicant unable to state any obligation
+ *                              and the debt burden measured against zero. That is over-lending,
+ *                              not a shorter form
  *   all five obligation amounts `obligation_car_loan`, `credit_card_total_limit`,
  *                              `obligation_personal_loan`, `obligation_mortgage`,
  *                              `obligation_other` — one per `current_loans` pick. The list once
@@ -1902,7 +1882,6 @@ const CAR_ASKS: ReadonlySet<string> = new Set<string>([
   'car_model_year',
   'car_origin',
   'car_price',
-  'current_installments',
   'credit_card_total_limit',
   'current_loans',
   'employment_status',
@@ -2151,8 +2130,7 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   }
 
   // ---- 1c. Inject the itemised obligations block -----------------------------
-  // Registered after 1b so `current_installments` already exists, then the whole
-  // block is re-ordered as one unit below.
+  // Registered after 1b, then the whole block is re-ordered as one unit below.
   for (const { groupCode, question, categories } of OBLIGATION_QUESTIONS) {
     if (!groupByCode.has(groupCode)) {
       throw new Error(
@@ -2194,7 +2172,7 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   // forward reference — so the branch source MUST precede the questions it
   // guards. Re-seat the block as one contiguous, correctly ordered run rather
   // than relying on the interleaving of two separate injection loops:
-  //   debt types → per-debt amounts → derived total
+  //   debt types → per-debt amounts
   const obligationBlock: readonly string[] = [
     DEBT_TYPES_QUESTION_CODE,
     ...OBLIGATION_ITEM_QUESTION_CODES,
@@ -2202,7 +2180,6 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
     // `questionOrder` — and a question missing from it is not merely mis-ordered, it is never
     // written and then swept inactive by the `notIn: questionOrder` pass below.
     ...CAR_LOAN_DETAIL_QUESTION_CODES,
-    MONEY_FIELD_BINDINGS.existing_obligations,
   ];
   for (let i = questionOrder.length - 1; i >= 0; i--) {
     if (obligationBlock.includes(questionOrder[i]!)) questionOrder.splice(i, 1);

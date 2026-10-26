@@ -3,7 +3,8 @@
  *
  * The engine cannot price a loan without four figures — the amount, the term, the income and
  * what the applicant already pays each month. `money-field-bindings.ts` names the question
- * each one is answered by, `ApplyRequestDto` refuses a submission without them, and
+ * each one is answered by (the last one, since 2026-10-26, through the debt-type pick and its
+ * amounts rather than a stated total), `ApplyRequestDto` refuses a submission without them, and
  * `MoneyFigures.fromAnswers` on the phone throws rather than invent one (FR-044).
  *
  *   npx tsx scripts/check-money-bindings.ts            (npm run check:money)
@@ -26,15 +27,23 @@
  */
 import { PrismaClient, type LoanCategory } from '@prisma/client';
 import {
+  ASKED_MONEY_FIELD_BINDING_KEYS,
+  DEBT_TYPES_QUESTION_CODE,
   MONEY_FIELD_BINDINGS,
-  MONEY_FIELD_BINDING_KEYS,
 } from '../src/matching/pipeline/money-field-bindings';
 
 const prisma = new PrismaClient();
 const REPORT = process.argv.includes('--report');
 
-/** The four question codes a quote cannot be built without. */
-const REQUIRED_CODES = MONEY_FIELD_BINDING_KEYS.map((k) => MONEY_FIELD_BINDINGS[k]);
+/**
+ * The questions a quote cannot be built without: the amount, the term, the income — and what
+ * the applicant owes, asked as the debt-type pick and its amounts since the stated total was
+ * retired (2026-10-26).
+ */
+const REQUIRED_CODES = [
+  ...ASKED_MONEY_FIELD_BINDING_KEYS.map((k) => MONEY_FIELD_BINDINGS[k]),
+  DEBT_TYPES_QUESTION_CODE,
+];
 
 interface Failure {
   readonly category: string;
@@ -123,7 +132,7 @@ async function main(): Promise<void> {
   if (failures.length === 0) {
     const flows = [...offered.values()].reduce((n, s) => n + s.size, 0);
     console.log(
-      `  clean — all four money figures are asked and required on every one of the ${flows} flows a customer can walk.\n`,
+      `  clean — all four money figures (debts via the debt-type pick) are asked and required on every one of the ${flows} flows a customer can walk.\n`,
     );
     return;
   }

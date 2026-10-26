@@ -67,8 +67,9 @@ export class AdminQuestionnaireController {
   @Get('engine-rules')
   @ApiOperation({
     summary:
-      'The questions the loan engine reads: who reads each, what each answer means, and what ' +
-      'its wording has to keep (only answer wording is edited from here, via PATCH options/:id)',
+      "The owner's fixed questions, in the owner's order: who reads each, whether a no-payslip " +
+      'program asks it, what each answer means, and what its wording has to keep (only answer ' +
+      'wording is edited from here, via PATCH options/:id)',
   })
   async engineRulesView() {
     return ok(await this.engineRules.view());

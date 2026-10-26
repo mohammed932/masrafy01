@@ -9,6 +9,7 @@ import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
+import { baseCodesServed } from '../src/matching/pipeline/base-question-set';
 import {
   ASKED_EVEN_WHEN_PRODUCT_ONLY,
   narrowAskedQuestions,
@@ -74,9 +75,12 @@ async function main(): Promise<void> {
     if (added.has(code) && !needed.has(code)) {
       return 'ADDED: the operator ticked it for this name';
     }
+    if (baseCodesServed(scope.incomeProof === true).has(code)) {
+      return 'FIXED SET: the client\'s question set, asked on this path whatever reads it';
+    }
     if (scope.productOnly === true) {
       if (ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code))
-        return 'CORE (product-only name): debts, duration or employment type';
+        return 'CORE (product-only name): debts or duration';
       if (needed.has(code))
         return 'NEEDED (product-only name): the product or a programme reads it';
       if (retained.has(code)) return 'GATE SOURCE: kept so a surviving gate stays evaluable';
@@ -107,6 +111,9 @@ async function main(): Promise<void> {
     for (const c of codes.sort()) console.log(`         ${c}`);
   }
   console.log(`\n  dropped (${d.dropped.length}): ${d.dropped.sort().join(', ')}`);
+  for (const [fixed, standIn] of d.answeredBy) {
+    console.log(`  not asked: ${fixed} — ${standIn} (a product question) answers it`);
+  }
   const optInDropped = d.dropped.filter((code) => optIn.has(code));
   if (optInDropped.length > 0) {
     console.log(`  of which opt-in, not added here: ${optInDropped.sort().join(', ')}`);

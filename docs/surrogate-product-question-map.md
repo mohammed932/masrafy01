@@ -59,16 +59,16 @@ _Audit of the real database on 2026-09-10 (active questionnaire **v174**). Read-
 
 Legend — **State**: ✓ = active, in v174, assigned to every loan type the product's catalog name is sold in, gate parent asked there too. **Reads** = which stored rule step / condition / cap table consumes the answer.
 
-### 3.1 Compound Owner (`compound_owner`) — name `compound_owner_4` · personal · 5 programmes
+### 3.1 Compound Owner (`compound_owner`) — name `compound_owner_4` · personal · 4 programmes
 
-Programmes: `ABK-PER-COMPOUND_OWNER` (way `alt__unit_paid_to_date`), `ABK-PERSONAL-7110` (same way), `CAE-PER-COMPOUND_OWNER` (same way), `EGB-PER-COMPOUND_OWNER` (way `primary`), `FAB-PER-COMPOUND_OWNER` (way `alt`).
+Programmes: `ABK-PER-COMPOUND_OWNER` (way `alt__unit_paid_to_date`), `CAE-PER-COMPOUND_OWNER` (same way), `EGB-PER-COMPOUND_OWNER` (way `primary`), `FAB-PER-COMPOUND_OWNER` (way `alt`).
 
 | Question (code) | Type | Req | Gate | Loan types | Reads | State |
 |---|---|---|---|---|---|---|
 | Do you own a unit in a compound? (`owns_compound_unit`) | choice | yes | — | personal | gate of the 8 below | ✓ |
 | Which compound is your unit in? (`which_compound_is_your_unit_in`, 71 options) | choice | no | owns=yes | personal | `primary` class table (EGB) | ✓ |
 | What kind of unit do you own? (`what_kind_of_unit_do_you_own`) | choice | no | owns=yes | personal | `alt__owned_unit_type` way; ABK cap tables ×2 | ✓ |
-| What is the contract price of the unit? (`what_is_the_contract_price_of_the_unit`) | number | no | owns=yes | personal | condition `unitworthenough` (ABK-7110, EGB); base of `paidenough` | ✓ |
+| What is the contract price of the unit? (`what_is_the_contract_price_of_the_unit`) | number | no | owns=yes | personal | condition `unitworthenough` (EGB; ABK's duplicate `ABK-PERSONAL-7110` deleted 2026-10-26); base of `paidenough` | ✓ |
 | How much was the down payment on the unit? (`how_much_was_the_down_payment_on_the_unit`) | number | no | owns=yes | personal | `alt` band way (FAB) + `alt__unit_down_payment` share | ✓ |
 | How much have you paid for the unit so far? (`how_much_have_you_paid_for_the_unit_so_far`) | number | no | owns=yes | personal | `alt__unit_paid_to_date` way (ABK ×2, CAE); condition `paidenough` | ✓ |
 | How many months ago did you sign the contract? (`how_many_months_ago_did_you_sign_the_contract`) | number | no | owns=yes | personal | condition `ownedlongenough` (ABK ×2) | ✓ |
