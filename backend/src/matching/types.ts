@@ -26,6 +26,7 @@ import type { MaxLoanAdjustment } from './pipeline/max-loan-adjustments';
 import type { RateBasis } from './pipeline/rate-basis';
 import type { AdditionalIncomeConfig } from './pipeline/additional-income';
 import type { IScoreTiers, IScoreTiersSource } from './pipeline/iscore';
+import type { AnswerEffect } from './pipeline/answer-effects';
 
 // ---------------------------------------------------------------------------
 // Applicant Profile
@@ -108,6 +109,13 @@ export interface ApplicantProfile {
    * derived from a number nobody gave us (FR-020).
    */
   surrogateFacts?: Readonly<Record<string, SurrogateFactValue>>;
+  /**
+   * The offer effects the applicant's answers switched on (v31.2.0) — "Owns a car = Yes →
+   * max loan −10%". Built once per request by `answerEffectsFromAnswers`, the one function
+   * preview and apply share, and applied by `quoteProgram` to every program it prices.
+   * Absent or empty = no answer carries an effect, and the quote is byte-identical to before.
+   */
+  answerEffects?: readonly AnswerEffect[];
   /**
    * Per derived axis, the banks the applicant named — as bank slugs (`bankSlug()`), keyed
    * by the FACT the axis feeds (`bank_relationship`, `loan_is_topup`, `holds_other_product`).
@@ -879,6 +887,11 @@ export interface CascadeTrace {
   matchedLoanLimitLevel: LoanLimitCascadeLevel;
   pricingDerivation?: DerivationChain;
   steps: CascadeTraceStep[];
+  /**
+   * The answer effects this quote applied (v31.2.0), frozen with the offer. Absent when
+   * none applied — every offer written before the feature reads exactly as it did.
+   */
+  answerEffects?: AnswerEffect[];
 }
 
 export interface FeesBreakdown {

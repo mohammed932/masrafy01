@@ -1,3 +1,4 @@
+import type { AnswerEffectLevers } from '../answer-effect';
 import type { EngineReader, EngineRuleQuestion } from './engine-rules.types';
 
 /**
@@ -65,7 +66,9 @@ export type ImpactWhy =
   | { kind: 'platform_fact'; reader: Extract<EngineReader, { kind: 'platform_fact' }> }
   | { kind: 'programs'; count: number }
   | { kind: 'app_mapping' }
-  | { kind: 'follow_ups'; answers: number };
+  | { kind: 'follow_ups'; answers: number }
+  /** The admin set an offer effect on this many of its answers (v31.2.0). */
+  | { kind: 'answer_effects'; answers: number };
 
 export type QuestionImpact = ReadonlyMap<ImpactArea, readonly ImpactWhy[]>;
 
@@ -145,6 +148,19 @@ export function impactOf(q: EngineRuleQuestion): QuestionImpact {
     o.meanings.some((m) => m.kind === 'opens' || m.kind === 'hides'),
   ).length;
   if (branching > 0) add('questions', { kind: 'follow_ups', answers: branching });
+  // The admin's answer effects (v31.2.0): each lever moves its own area of the offer.
+  const effects = q.options.flatMap((o) =>
+    o.meanings.flatMap((m) => (m.kind === 'offer_effect' ? [m] : [])),
+  );
+  const leverArea: readonly [keyof AnswerEffectLevers, ImpactArea][] = [
+    ['maxLoanPercent', 'amount'],
+    ['ratePoints', 'rate'],
+    ['maxTenorMonths', 'term'],
+  ];
+  for (const [lever, area] of leverArea) {
+    const answers = effects.filter((m) => m[lever] !== undefined).length;
+    if (answers > 0) add(area, { kind: 'answer_effects', answers });
+  }
   const out = new Map<ImpactArea, readonly ImpactWhy[]>();
   for (const area of IMPACT_AREAS) {
     const list = byArea.get(area);

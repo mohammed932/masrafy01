@@ -50,6 +50,12 @@ import { resolveAdditionalIncome } from './additional-income';
 import { resolveMaxLoanByFact } from './max-loan-by-fact';
 import { ltvAmountFor, ltvByFactFor, ltvCeilingFor } from './ltv-ceiling';
 import { applyMaxLoanAdjustments } from './max-loan-adjustments';
+import {
+  answerEffectsForProgram,
+  answerEffectsTenorCap,
+  applyAnswerEffectsToCap,
+  applyAnswerEffectsToRate,
+} from './answer-effects';
 import { CAR_AGE_YEARS_FACT_KEY, CAR_MODEL_YEAR_FACT_KEY } from './car-details';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
@@ -299,6 +305,12 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const firstPass = runCascade(program, profile, gridExtras);
   const problems: string[] = [];
 
+  // What the applicant's answers do to this offer, as the admin set it on each answer
+  // (`answer-effects.ts`). Selected ONCE per program — an income-proof-only question's
+  // effect is not read on a no-payslip program — and read by the term, rate and cap below.
+  const answerEffects = answerEffectsForProgram(profile.answerEffects, program.programType);
+  const answerTenorCap = answerEffectsTenorCap(answerEffects);
+
   // Tenor is checked FIRST now, because the term it settles is an input to the pricing
   // pass below. The checks themselves are unchanged.
   const minTenor = program.tenor?.minMonths ?? 0;
@@ -437,7 +449,12 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       input.overrideTenorMonths ?? profile.preferredTenorMonths ?? cascadeMaxTenor,
     ),
     minMonths: planMinMonths,
-    maxMonths: cascadeMaxTenor,
+    // An answer's longest term is one more ceiling beside the program's own, so it reports
+    // as `tenor_max` and, like that one, never pushes the term under the program's floor.
+    maxMonths:
+      answerTenorCap !== null && Number.isFinite(cascadeMaxTenor)
+        ? Math.min(cascadeMaxTenor, answerTenorCap)
+        : cascadeMaxTenor,
     maxAge: program.eligibility?.maxAge,
     age: profile.age,
     vehicleMaxMonths,
@@ -467,13 +484,13 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     };
   }
 
-  const ratePercent = toFiniteDecimal(cascade.pricing.effectiveRatePercent);
+  const cascadeRatePercent = toFiniteDecimal(cascade.pricing.effectiveRatePercent);
   // How that rate is charged. Read ONCE here and passed to every formula below: a quote
   // that prices the instalment one way and inverts it the other misstates the loan by
   // 22–29% (`rate-basis.ts`). Absent reads as the reducing annuity, which is what every
   // program configured before the field existed was priced by.
   const rateBasis = rateBasisOf(program.pricing);
-  if (ratePercent === null || ratePercent.lessThan(0)) {
+  if (cascadeRatePercent === null || cascadeRatePercent.lessThan(0)) {
     problems.push(
       program.pricing?.isVariableRate
         ? 'pricing.currentEffectiveRatePercent'
@@ -486,9 +503,14 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     problems.push('loanLimits.maxAmountEGP');
   }
 
-  if (problems.length > 0 || ratePercent === null || programMaxConfigured === null) {
+  if (problems.length > 0 || cascadeRatePercent === null || programMaxConfigured === null) {
     return { ok: false, unavailable: { reason: 'PROGRAM_MISCONFIGURED', missing: problems } };
   }
+
+  // The answers' rate points, added AFTER the misconfiguration check so a program the bank
+  // never priced is still reported as such rather than priced at the points alone. Every
+  // reader below — the ceiling conversion, the fees and the instalment — takes this rate.
+  const ratePercent = applyAnswerEffectsToRate(cascadeRatePercent, answerEffects);
 
   // ── 2. Income ───────────────────────────────────────────────────────────
   //
@@ -735,6 +757,15 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       // ceiling as the table row was, so it reports the same way.
       capCameFromTable = true;
     }
+  }
+
+  // The answers' max-loan effects, last on the bank's own cap and before the collateral and
+  // car-share ceilings, so those still bind when they are lower. A cut reports like the
+  // table row it resembles; a raise is the admin's call and binds nothing new.
+  const answered = applyAnswerEffectsToCap(programCap, answerEffects);
+  if (answered.moved) {
+    if (answered.cap.lessThan(programCap)) capCameFromTable = true;
+    programCap = answered.cap;
   }
 
   let programMax = programCap;
@@ -1171,7 +1202,10 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
           }
         : {}),
       feesBreakdown: priced.fees.breakdown,
-      cascadeTrace: buildCascadeTrace(cascade),
+      cascadeTrace: {
+        ...buildCascadeTrace(cascade),
+        ...(answerEffects.length > 0 ? { answerEffects } : {}),
+      },
     },
   };
 }

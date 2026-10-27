@@ -27,6 +27,11 @@ import {
   employmentInputsFromAnswers,
   type EmploymentInputs,
 } from '@/matching/pipeline/engine-inputs-from-answers';
+import {
+  answerEffectsFromAnswers,
+  answerPicksFromMaps,
+  type AnswerEffect,
+} from '@/matching/pipeline/answer-effects';
 import type { ApplicantProfile, Quote } from '@/matching/types';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { validateAnswer } from '@/questionnaire/validation/answer-validation';
@@ -197,7 +202,7 @@ export class MatchingPreviewService {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
     }
-    const { money, surrogateFacts, employment } = await this.resolveSelectedOptions(
+    const { money, surrogateFacts, employment, answerEffects } = await this.resolveSelectedOptions(
       args.answers,
       args.category,
       args.programNameKey,
@@ -210,6 +215,7 @@ export class MatchingPreviewService {
       surrogateFacts,
       args.programType ?? null,
       employment,
+      answerEffects,
     );
   }
 
@@ -243,6 +249,8 @@ export class MatchingPreviewService {
     surrogateFacts: SurrogateFacts;
     /** The job type, months in the job and salary transfer — the function apply reads (A33). */
     employment: EmploymentInputs;
+    /** What the applicant's picks do to every offer — the functions apply calls (A33). */
+    answerEffects: AnswerEffect[];
   }> {
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
@@ -365,6 +373,11 @@ export class MatchingPreviewService {
         await this.enumerations.surrogateFactRegistry(),
       ),
       employment: employmentInputsFromAnswers({ optionByCode, numericByCode: numeric }),
+      // Live, like apply: an effect is pricing, not snapshot content (v31.2.0).
+      answerEffects: answerEffectsFromAnswers(
+        await this.questionnaire.answerEffectSources(),
+        answerPicksFromMaps({ optionByCode, multiByCode }),
+      ),
     };
   }
 
@@ -412,11 +425,17 @@ export class MatchingPreviewService {
     surrogateFacts: SurrogateFacts,
     programType: BankProgramType | null,
     employment: EmploymentInputs,
+    answerEffects: AnswerEffect[],
   ) {
     const rows = (await this.programs.findAllActive()).filter((p) =>
       matchesRequestedScope(p, category, programNameKey, programType),
     );
-    const profile = money ? this.buildProfile(money, age, surrogateFacts, employment) : null;
+    const profile: ApplicantProfile | null = money
+      ? {
+          ...this.buildProfile(money, age, surrogateFacts, employment),
+          ...(answerEffects.length > 0 ? { answerEffects } : {}),
+        }
+      : null;
     // Read once, outside the loop. Preview and apply must derive the same figure from
     // the same rule — a preview that priced off the program's stripped table while
     // apply priced off the catalog's would disagree on the amount it just advertised.

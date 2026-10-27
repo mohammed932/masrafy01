@@ -1824,15 +1824,21 @@ model ProgramNameQuestionAddition {
 }
 
 model QuestionOption {
-  id           String   @id @default(cuid()) @db.VarChar(30)
-  questionId   String   @db.VarChar(30)
-  code         String   @db.VarChar(64) // auto-generated slug, immutable
-  labelAr      String   @db.VarChar(200)
-  labelEn      String   @db.VarChar(200)
-  displayOrder Int
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  id                   String   @id @default(cuid()) @db.VarChar(30)
+  questionId           String   @db.VarChar(30)
+  code                 String   @db.VarChar(64) // auto-generated slug, immutable
+  labelAr              String   @db.VarChar(200)
+  labelEn              String   @db.VarChar(200)
+  displayOrder         Int
+  isActive             Boolean  @default(true)
+  // v31.2.0 — what picking this answer does to EVERY offer, as the admin set it (constitution
+  // v32.0.0). Pricing, not content: read live at preview and apply, never frozen into the
+  // questionnaire snapshot nor served to the app. Null = no effect. See `answer-effects.ts`.
+  effectMaxLoanPercent Decimal? @db.Decimal(6, 2) // signed: -10 = 10% lower cap
+  effectRatePoints     Decimal? @db.Decimal(5, 2) // signed: added to the annual rate
+  effectMaxTenorMonths Int? // longest term this answer allows
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
 
   question Question @relation("QuestionOptions", fields: [questionId], references: [id], onDelete: Cascade)
 

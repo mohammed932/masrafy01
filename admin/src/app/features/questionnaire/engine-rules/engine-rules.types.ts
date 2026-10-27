@@ -1,3 +1,4 @@
+import type { AnswerEffectLevers } from '../answer-effect';
 import type { LoanCategory } from '@core/loan-category';
 import type { QuestionEngineLock } from '../questionnaire.api.service';
 
@@ -49,7 +50,9 @@ export type AnswerMeaning =
   | { kind: 'debt_amount'; question: QuestionRef }
   | { kind: 'no_debts' }
   | { kind: 'opens'; questions: QuestionRef[] }
-  | { kind: 'hides'; questions: QuestionRef[] };
+  | { kind: 'hides'; questions: QuestionRef[] }
+  /** The admin's offer effect on this answer (v31.2.0). */
+  | ({ kind: 'offer_effect' } & AnswerEffectLevers);
 
 export interface EngineRuleOption {
   id: string;

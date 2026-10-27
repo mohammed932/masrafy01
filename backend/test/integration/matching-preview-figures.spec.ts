@@ -68,7 +68,11 @@ const PROGRAM = {
 
 function makeService() {
   return new MatchingPreviewService(
-    { activeVersion: async () => ({ id: 'ver_4', snapshot: SNAPSHOT }) } as never,
+    {
+      activeVersion: async () => ({ id: 'ver_4', snapshot: SNAPSHOT }),
+      // No answer carries an offer effect (v31.2.0).
+      answerEffectSources: async () => [],
+    } as never,
     { findAllActive: async () => [PROGRAM] } as never,
     // Feature 011 added the catalog name scope and the enumeration registry; this spec
     // predates both. `assertOfferedUnder` is a no-op because these cases pass no

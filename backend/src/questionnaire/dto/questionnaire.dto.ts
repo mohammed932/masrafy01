@@ -21,6 +21,7 @@ import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BankProgramType, FixedQuestionServedOn, LoanCategory, QuestionType } from '@prisma/client';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
+import { ANSWER_EFFECT_LIMITS } from '@/matching/pipeline/answer-effects';
 
 /**
  * A show-when rule. `equals` / `not_equals` name ONE answer (`optionCode`); `in` names several
@@ -314,11 +315,54 @@ export class UpdateQuestionDto {
   text?: TextRulesDto | null;
 }
 
+/**
+ * What picking this answer does to EVERY offer (v31.2.0) — see `answer-effects.ts`.
+ * Each lever optional; an absent or null lever is "no change". Zero is refused: it is
+ * the same as leaving the lever empty, and two spellings of "nothing" read as a figure.
+ */
+export class OptionEffectDto {
+  /** Signed % of the program's max loan: "-10" lowers it 10%, "10" raises it 10%. */
+  @ApiPropertyOptional({ type: String, nullable: true, example: '-10' })
+  @IsOptional()
+  @IsDecimalString({
+    min: ANSWER_EFFECT_LIMITS.maxLoanPercent.min,
+    max: ANSWER_EFFECT_LIMITS.maxLoanPercent.max,
+    scale: 2,
+    allowZero: false,
+  })
+  maxLoanPercent?: string | null;
+
+  /** Signed points added to the annual rate: "1.5" = 1.5 points higher. */
+  @ApiPropertyOptional({ type: String, nullable: true, example: '1.5' })
+  @IsOptional()
+  @IsDecimalString({
+    min: ANSWER_EFFECT_LIMITS.ratePoints.min,
+    max: ANSWER_EFFECT_LIMITS.ratePoints.max,
+    scale: 2,
+    allowZero: false,
+  })
+  ratePoints?: string | null;
+
+  /** Longest term this answer allows, in months. */
+  @ApiPropertyOptional({ type: Number, nullable: true, example: 60 })
+  @IsOptional()
+  @IsInt()
+  @Min(ANSWER_EFFECT_LIMITS.maxTenorMonths.min)
+  @Max(ANSWER_EFFECT_LIMITS.maxTenorMonths.max)
+  maxTenorMonths?: number | null;
+}
+
 export class CreateOptionDto {
   @ApiProperty() @IsString() @Length(1, 200) labelAr!: string;
   @ApiProperty() @IsString() @Length(1, 200) labelEn!: string;
   /** Omitted → appended after the question's existing options. */
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
+  /** What picking it does to every offer. Omitted or null = nothing. */
+  @ApiPropertyOptional({ type: OptionEffectDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OptionEffectDto)
+  effect?: OptionEffectDto | null;
 }
 
 /**
@@ -410,6 +454,15 @@ export class UpdateOptionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 200) labelEn?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+  /**
+   * Replaces the answer's whole effect: a lever left out is cleared. Omitted = untouched;
+   * null = no effect at all.
+   */
+  @ApiPropertyOptional({ type: OptionEffectDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OptionEffectDto)
+  effect?: OptionEffectDto | null;
 }
 
 /** The four exclusive value keys an answer may carry (R8 / contracts/questionnaire.md). */

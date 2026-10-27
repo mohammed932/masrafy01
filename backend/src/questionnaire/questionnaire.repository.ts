@@ -10,6 +10,7 @@ import type {
   QuestionnaireVersion,
 } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import type { AnswerEffectLevers, AnswerEffectSource } from '@/matching/pipeline/answer-effects';
 
 /**
  * Rows per `UPDATE ... FROM (VALUES ...)` statement in the mirrored-option sync.
@@ -28,6 +29,28 @@ const MIRRORED_UPDATE_CHUNK = 1000;
  * bigger number.
  */
 const VERSION_HISTORY_LIMIT = 50;
+
+/** An answer's offer effect as stored (v31.2.0) — each column null when that lever is unset. */
+export interface OptionEffectColumns {
+  effectMaxLoanPercent?: Prisma.Decimal | null;
+  effectRatePoints?: Prisma.Decimal | null;
+  effectMaxTenorMonths?: number | null;
+}
+
+/** The stored columns → the engine's levers, each one present only when set. */
+export function optionEffectLevers(row: {
+  effectMaxLoanPercent: Prisma.Decimal | null;
+  effectRatePoints: Prisma.Decimal | null;
+  effectMaxTenorMonths: number | null;
+}): AnswerEffectLevers {
+  return {
+    ...(row.effectMaxLoanPercent !== null
+      ? { maxLoanPercent: row.effectMaxLoanPercent.toString() }
+      : {}),
+    ...(row.effectRatePoints !== null ? { ratePoints: row.effectRatePoints.toString() } : {}),
+    ...(row.effectMaxTenorMonths !== null ? { maxTenorMonths: row.effectMaxTenorMonths } : {}),
+  };
+}
 
 /** The version list without its snapshots — what `versionHistory` serves. See its doc. */
 export type QuestionnaireVersionSummary = Pick<
@@ -96,7 +119,9 @@ export class QuestionnaireRepository {
    */
   createQuestionWithOptions(
     question: Prisma.QuestionUncheckedCreateInput,
-    options: ReadonlyArray<{ code: string; labelAr: string; labelEn: string }>,
+    options: ReadonlyArray<
+      { code: string; labelAr: string; labelEn: string } & OptionEffectColumns
+    >,
     categories: readonly LoanCategory[],
   ): Promise<Question> {
     return this.prisma.$transaction(async (tx) => {
@@ -621,6 +646,41 @@ export class QuestionnaireRepository {
       else out.set(row.questionId, [row]);
     }
     return out;
+  }
+
+  /**
+   * Every answer that changes the offer (v31.2.0), in the fixed order the engine applies
+   * them: question code, then option display order. LIVE, never the snapshot — an effect is
+   * pricing, not content, and both preview and apply read it from here (A33).
+   *
+   * Switched-off answers and switched-off questions carry no effect: nobody can pick them.
+   */
+  async answerEffectSources(): Promise<AnswerEffectSource[]> {
+    const rows = await this.prisma.questionOption.findMany({
+      where: {
+        isActive: true,
+        question: { isActive: true },
+        OR: [
+          { effectMaxLoanPercent: { not: null } },
+          { effectRatePoints: { not: null } },
+          { effectMaxTenorMonths: { not: null } },
+        ],
+      },
+      select: {
+        code: true,
+        effectMaxLoanPercent: true,
+        effectRatePoints: true,
+        effectMaxTenorMonths: true,
+        question: { select: { code: true, fixedServedOn: true } },
+      },
+      orderBy: [{ question: { code: 'asc' } }, { displayOrder: 'asc' }, { code: 'asc' }],
+    });
+    return rows.map((row) => ({
+      questionCode: row.question.code,
+      optionCode: row.code,
+      incomeProofOnly: row.question.fixedServedOn === 'income_proof',
+      levers: optionEffectLevers(row),
+    }));
   }
 
   optionCodes(questionId: string): Promise<{ code: string }[]> {

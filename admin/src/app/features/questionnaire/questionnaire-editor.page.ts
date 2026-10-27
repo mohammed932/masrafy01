@@ -46,6 +46,7 @@ import {
   PlusOutline,
   SearchOutline,
   UndoOutline,
+  ThunderboltOutline,
   WarningOutline,
 } from '@ant-design/icons-angular/icons';
 import {
@@ -73,6 +74,17 @@ import {
   DeleteFixedQuestionDialog,
   type DeleteFixedQuestionData,
 } from './delete-fixed-question.dialog';
+import {
+  ANSWER_EFFECT_LIMITS,
+  betterThanBank,
+  effectParts,
+  hasAnyLever,
+  leversOfOption,
+  monthsEffectValidator,
+  signedEffectValidator,
+  type AnswerEffectBody,
+  type AnswerEffectLevers,
+} from './answer-effect';
 import { ruleCodes } from '@shared/questions/enabled-when';
 import { CanDirective } from '@shared/can.directive';
 import { AuthService } from '@core/auth/auth.service';
@@ -176,6 +188,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       LockOutline,
       PlusOutline,
       SearchOutline,
+      ThunderboltOutline,
       UndoOutline,
       WarningOutline,
     ]),
@@ -920,9 +933,24 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                           [ngTemplateOutletContext]="{ eq: eq, adding: false }"
                         ></ng-container>
                       } @else {
-                        <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                          isAr ? o.labelAr : o.labelEn
-                        }}</span>
+                        <span class="opt-main">
+                          <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                            isAr ? o.labelAr : o.labelEn
+                          }}</span>
+                          <!-- What picking it does to every offer (v31.2.0), said under the
+                               label so the list reads which answers move money at a glance. -->
+                          @if (optionEffectText(o); as effect) {
+                            <span class="opt-effect">
+                              <span
+                                nz-icon
+                                nzType="thunderbolt"
+                                nzTheme="outline"
+                                aria-hidden="true"
+                              ></span>
+                              {{ effect }}
+                            </span>
+                          }
+                        </span>
                         <button
                           type="button"
                           class="icon-btn"
@@ -1257,6 +1285,79 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             <input nz-input [formControl]="optionAr" dir="rtl" (keydown.enter)="submitOption(eq)" />
           </label>
         </div>
+        <!-- The answer's offer effect (v31.2.0): what picking it does to every program's
+             offer. A plain checkbox, not nz-switch, so the label is the control's own. -->
+        <div class="oe-effect">
+          <label class="oe-effect-head">
+            <input type="checkbox" class="oe-check" [formControl]="optionEffect.controls.on" />
+            <span class="oe-effect-title" i18n="@@qedit.effect_toggle">Changes the offer</span>
+          </label>
+          <p class="hint" i18n="@@qedit.effect_toggle_hint">
+            When an applicant picks this answer, every program's offer changes like this. Leave a
+            box empty for no change.
+          </p>
+          @if (optionEffect.controls.on.value) {
+            <div class="oe-levers">
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.effect_loan">Max loan</span>
+                <nz-input-group nzSuffix="%">
+                  <input
+                    nz-input
+                    inputmode="decimal"
+                    placeholder="-10"
+                    [formControl]="optionEffect.controls.loan"
+                    (keydown.enter)="submitOption(eq)"
+                  />
+                </nz-input-group>
+                <span class="hint" i18n="@@qedit.effect_loan_range">
+                  -90 to 100. -10 means 10% lower.
+                </span>
+              </label>
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.effect_rate">Interest rate</span>
+                <nz-input-group [nzSuffix]="unitPoints">
+                  <input
+                    nz-input
+                    inputmode="decimal"
+                    placeholder="1.5"
+                    [formControl]="optionEffect.controls.rate"
+                    (keydown.enter)="submitOption(eq)"
+                  />
+                </nz-input-group>
+                <span class="hint" i18n="@@qedit.effect_rate_range">
+                  -20 to 20. 1.5 means 1.5 points higher.
+                </span>
+              </label>
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.effect_term">Longest term</span>
+                <nz-input-group [nzSuffix]="unitMonths">
+                  <input
+                    nz-input
+                    inputmode="numeric"
+                    placeholder="60"
+                    [formControl]="optionEffect.controls.term"
+                    (keydown.enter)="submitOption(eq)"
+                  />
+                </nz-input-group>
+                <span class="hint" i18n="@@qedit.effect_term_range">1 to 480 months.</span>
+              </label>
+            </div>
+            @if (effectInvalid()) {
+              <p class="hint error" i18n="@@qedit.effect_invalid">
+                Check the figures: each box takes a number in its range, and not 0.
+              </p>
+            } @else if (effectBetter()) {
+              <p class="hint warn" i18n="@@qedit.effect_better">
+                This makes the offer better than the bank's own figures. The bank may not agree to
+                it.
+              </p>
+            } @else if (!effectTypedAny()) {
+              <p class="hint" i18n="@@qedit.effect_empty">
+                Type at least one figure, or untick this.
+              </p>
+            }
+          }
+        </div>
         <div class="oe-actions">
           <button
             nz-button
@@ -1273,7 +1374,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             nzType="primary"
             nzSize="small"
             type="button"
-            [disabled]="optionEn.invalid || optionAr.invalid"
+            [disabled]="optionEn.invalid || optionAr.invalid || effectInvalid()"
             (click)="submitOption(eq)"
           >
             @if (adding) {
@@ -2446,8 +2547,72 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         justify-content: flex-end;
         gap: var(--space-2, 8px);
       }
+      .opt-main {
+        flex: 1;
+        min-inline-size: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding-block: var(--space-2, 8px);
+      }
+      .opt-main .opt-label {
+        flex: none;
+      }
+      /* The answer's offer effect, under its label: quiet ink, a bolt to say "moves money". */
+      .opt-effect {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1, 4px);
+        font-size: var(--text-xs, 12px);
+        color: var(--qe-text-2);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .opt-effect [nz-icon] {
+        color: var(--cat);
+      }
+      .oe-effect {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2, 8px);
+        padding-block-start: var(--space-3, 12px);
+        border-block-start: 1px solid color-mix(in srgb, var(--cat) 18%, transparent);
+      }
+      .oe-effect-head {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2, 8px);
+        cursor: pointer;
+      }
+      .oe-check {
+        inline-size: 16px;
+        block-size: 16px;
+        margin: 0;
+        accent-color: var(--cat);
+        cursor: pointer;
+      }
+      .oe-check:focus-visible {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: 2px;
+      }
+      .oe-effect-title {
+        font-size: var(--text-sm, 14px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text);
+      }
+      .oe-levers {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-3, 12px);
+      }
       @media (max-width: 1100px) {
         .oe-fields {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        .oe-levers {
           grid-template-columns: minmax(0, 1fr);
         }
       }
@@ -2895,6 +3060,43 @@ export class QuestionnaireEditorPage implements OnInit {
   /** Two standalone controls rather than a group: the option editor is one row. */
   readonly optionEn = new FormControl('', { nonNullable: true, validators: [Validators.required] });
   readonly optionAr = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+  /**
+   * The answer's offer effect (v31.2.0), edited in the same panel as its labels. Text boxes,
+   * not numbers: the figures are signed decimals the server keeps as strings (Principle I),
+   * and an empty box is a lever left unset rather than a zero.
+   */
+  readonly optionEffect = new FormGroup({
+    on: new FormControl(false, { nonNullable: true }),
+    loan: new FormControl('', {
+      nonNullable: true,
+      validators: [
+        signedEffectValidator(
+          ANSWER_EFFECT_LIMITS.maxLoanPercent.min,
+          ANSWER_EFFECT_LIMITS.maxLoanPercent.max,
+        ),
+      ],
+    }),
+    rate: new FormControl('', {
+      nonNullable: true,
+      validators: [
+        signedEffectValidator(
+          ANSWER_EFFECT_LIMITS.ratePoints.min,
+          ANSWER_EFFECT_LIMITS.ratePoints.max,
+        ),
+      ],
+    }),
+    term: new FormControl('', {
+      nonNullable: true,
+      validators: [
+        monthsEffectValidator(
+          ANSWER_EFFECT_LIMITS.maxTenorMonths.min,
+          ANSWER_EFFECT_LIMITS.maxTenorMonths.max,
+        ),
+      ],
+    }),
+  });
+  readonly unitPoints = $localize`:@@qedit.effect_unit_points:points`;
+  readonly unitMonths = $localize`:@@qedit.effect_unit_months:months`;
 
   constructor() {
     // A new search re-slices the list, so the page number the admin was on refers
@@ -3594,6 +3796,7 @@ export class QuestionnaireEditorPage implements OnInit {
     this.editingOptionId.set(null);
     this.optionEn.reset('');
     this.optionAr.reset('');
+    this.optionEffect.reset({ on: false, loan: '', rate: '', term: '' });
     this.addingOption.set(true);
   }
 
@@ -3601,7 +3804,47 @@ export class QuestionnaireEditorPage implements OnInit {
     this.addingOption.set(false);
     this.optionEn.setValue(o.labelEn);
     this.optionAr.setValue(o.labelAr);
+    const levers = leversOfOption(o);
+    this.optionEffect.reset({
+      on: hasAnyLever(levers),
+      loan: levers.maxLoanPercent ?? '',
+      rate: levers.ratePoints ?? '',
+      term: levers.maxTenorMonths !== undefined ? String(levers.maxTenorMonths) : '',
+    });
     this.editingOptionId.set(o.id);
+  }
+
+  /** "Max loan −10% · Rate +1 pts" for a row, or null when the answer changes nothing. */
+  optionEffectText(o: OptionRow): string | null {
+    const parts = effectParts(leversOfOption(o));
+    return parts.length > 0 ? parts.join(' · ') : null;
+  }
+
+  /** The levers as typed — an empty box is unset, and unticked means none at all. */
+  private effectTyped(): AnswerEffectLevers {
+    const v = this.optionEffect.getRawValue();
+    if (!v.on) return {};
+    const loan = v.loan.trim();
+    const rate = v.rate.trim();
+    const term = v.term.trim();
+    return {
+      ...(loan !== '' ? { maxLoanPercent: loan } : {}),
+      ...(rate !== '' ? { ratePoints: rate } : {}),
+      ...(term !== '' ? { maxTenorMonths: Number(term) } : {}),
+    };
+  }
+
+  effectTypedAny(): boolean {
+    return hasAnyLever(this.effectTyped());
+  }
+
+  /** Only while ticked: unticked, whatever is left in the boxes is not sent. */
+  effectInvalid(): boolean {
+    return this.optionEffect.controls.on.value && this.optionEffect.invalid;
+  }
+
+  effectBetter(): boolean {
+    return betterThanBank(this.effectTyped());
   }
 
   cancelOption(): void {
@@ -3624,17 +3867,26 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   async submitOption(q: QuestionRow): Promise<void> {
-    if (this.optionEn.invalid || this.optionAr.invalid) return;
+    if (this.optionEn.invalid || this.optionAr.invalid || this.effectInvalid()) return;
     const labelEn = this.optionEn.value.trim();
     const labelAr = this.optionAr.value.trim();
     const editingId = this.editingOptionId();
+    const levers = this.effectTyped();
+    // The whole effect, every time: the server replaces it, so a box emptied here is cleared.
+    const effect: AnswerEffectBody | null = hasAnyLever(levers)
+      ? {
+          maxLoanPercent: levers.maxLoanPercent ?? null,
+          ratePoints: levers.ratePoints ?? null,
+          maxTenorMonths: levers.maxTenorMonths ?? null,
+        }
+      : null;
     try {
       if (editingId !== null) {
-        await this.api.updateOption(editingId, { labelEn, labelAr });
+        await this.api.updateOption(editingId, { labelEn, labelAr, effect });
         this.message.success($localize`:@@qedit.option_saved:Option saved`);
       } else {
         // No displayOrder: the server appends after the existing options.
-        await this.api.createOption(q.id, { labelEn, labelAr });
+        await this.api.createOption(q.id, { labelEn, labelAr, ...(effect ? { effect } : {}) });
         this.message.success($localize`:@@qedit.option_added:Option added`);
       }
     } catch {

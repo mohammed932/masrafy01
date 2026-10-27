@@ -4912,6 +4912,23 @@
       <trans-unit id="spd.ask.edit_question_aria" datatype="html"><source>Edit the question “<x id="label" equiv-text="label"/>”</source><target>عدّل السؤال «<x id="label" equiv-text="label"/>»</target></trans-unit>
       <trans-unit id="qrules.edit_link" datatype="html"><source>Edit this question</source><target>عدّل هذا السؤال</target></trans-unit>
       <trans-unit id="qrules.no_add_note_pool" datatype="html"><source> Add or remove answers on the Questions tab. </source><target>أضف الإجابات أو احذفها من تبويب الأسئلة.</target></trans-unit>
+      <trans-unit id="answer_effect.part_loan" datatype="html"><source>Max loan <x id="pct" equiv-text="pct"/>%</source><target>الحد الأقصى للقرض <x id="pct" equiv-text="pct"/>%</target></trans-unit>
+      <trans-unit id="answer_effect.part_rate" datatype="html"><source>Rate <x id="pts" equiv-text="pts"/> pts</source><target>الفائدة <x id="pts" equiv-text="pts"/> نقطة</target></trans-unit>
+      <trans-unit id="answer_effect.part_term" datatype="html"><source>Term up to <x id="months" equiv-text="months"/> months</source><target>المدة حتى <x id="months" equiv-text="months"/> شهرًا</target></trans-unit>
+      <trans-unit id="qrules.why_answer_effects" datatype="html"><source><x id="count" equiv-text="count"/> of its answers change it, as set on the answer</source><target><x id="count" equiv-text="count"/> من إجاباته تغيّره، كما هو مضبوط على الإجابة</target></trans-unit>
+      <trans-unit id="qedit.effect_toggle" datatype="html"><source>Changes the offer</source><target>يغيّر العرض</target></trans-unit>
+      <trans-unit id="qedit.effect_toggle_hint" datatype="html"><source>When an applicant picks this answer, every program's offer changes like this. Leave a box empty for no change.</source><target>عندما يختار المتقدم هذه الإجابة، يتغير عرض كل برنامج بهذا الشكل. اترك الخانة فارغة إن لم يكن هناك تغيير.</target></trans-unit>
+      <trans-unit id="qedit.effect_loan" datatype="html"><source>Max loan</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="qedit.effect_loan_range" datatype="html"><source>-90 to 100. -10 means 10% lower.</source><target>من ‎-90 إلى 100. ‎-10 تعني أقل بنسبة 10%.</target></trans-unit>
+      <trans-unit id="qedit.effect_rate" datatype="html"><source>Interest rate</source><target>سعر الفائدة</target></trans-unit>
+      <trans-unit id="qedit.effect_rate_range" datatype="html"><source>-20 to 20. 1.5 means 1.5 points higher.</source><target>من ‎-20 إلى 20. 1.5 تعني أعلى بـ 1.5 نقطة.</target></trans-unit>
+      <trans-unit id="qedit.effect_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="qedit.effect_term_range" datatype="html"><source>1 to 480 months.</source><target>من 1 إلى 480 شهرًا.</target></trans-unit>
+      <trans-unit id="qedit.effect_invalid" datatype="html"><source>Check the figures: each box takes a number in its range, and not 0.</source><target>راجع الأرقام: كل خانة تقبل رقمًا داخل نطاقها، وليس 0.</target></trans-unit>
+      <trans-unit id="qedit.effect_better" datatype="html"><source>This makes the offer better than the bank's own figures. The bank may not agree to it.</source><target>هذا يجعل العرض أفضل من أرقام البنك نفسه. قد لا يوافق البنك عليه.</target></trans-unit>
+      <trans-unit id="qedit.effect_empty" datatype="html"><source>Type at least one figure, or untick this.</source><target>اكتب رقمًا واحدًا على الأقل، أو ألغِ التحديد.</target></trans-unit>
+      <trans-unit id="qedit.effect_unit_points" datatype="html"><source>points</source><target>نقطة</target></trans-unit>
+      <trans-unit id="qedit.effect_unit_months" datatype="html"><source>months</source><target>شهر</target></trans-unit>
     </body>
   </file>
 </xliff>

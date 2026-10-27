@@ -65,7 +65,11 @@ const PROGRAM = {
 };
 
 function makeService() {
-  const questionnaire = { activeVersion: async () => ({ id: 'ver_3', snapshot: SNAPSHOT }) };
+  const questionnaire = {
+    activeVersion: async () => ({ id: 'ver_3', snapshot: SNAPSHOT }),
+    // No answer carries an offer effect (v31.2.0).
+    answerEffectSources: async () => [],
+  };
   const programs = { findAllActive: async () => [PROGRAM] };
   const service = new MatchingPreviewService(
     questionnaire as never,

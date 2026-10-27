@@ -65,6 +65,7 @@ import {
   employmentInputsFromAnswers,
   type EmploymentInputs,
 } from '../matching/pipeline/engine-inputs-from-answers';
+import { answerEffectsFromAnswers, answerPicksFromMaps } from '../matching/pipeline/answer-effects';
 import type { ApplyRequestDto } from './dto/apply.dto';
 import type { ApplyResponse, UnavailableProgramDto } from './dto/apply-response.dto';
 import type {
@@ -417,7 +418,19 @@ export class ApplicationsService {
       resolvedQuestionnaire === undefined
         ? {}
         : employmentInputsFromAnswers(answerMapsOf(resolvedQuestionnaire.resolved));
-    const profile = this.buildProfile(dto, age, obligations, surrogateFacts, employmentInputs);
+    // What the applicant's picks do to every offer, as the admin set it on each answer — the
+    // same two functions preview calls, over the same answer maps (A33).
+    const answerEffects =
+      resolvedQuestionnaire === undefined
+        ? []
+        : answerEffectsFromAnswers(
+            await this.questionnaire.answerEffectSources(),
+            answerPicksFromMaps(answerMapsOf(resolvedQuestionnaire.resolved)),
+          );
+    const profile: ApplicantProfile = {
+      ...this.buildProfile(dto, age, obligations, surrogateFacts, employmentInputs),
+      ...(answerEffects.length > 0 ? { answerEffects } : {}),
+    };
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ordered by the applicant's own stated priority.
     // DBR is NOT part of that: affordability shapes the amount offered, so it

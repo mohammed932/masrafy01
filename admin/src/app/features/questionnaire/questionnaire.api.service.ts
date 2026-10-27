@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import type { AnswerEffectBody } from './answer-effect';
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -48,6 +49,10 @@ export interface OptionRow {
   labelEn: string;
   displayOrder: number;
   isActive: boolean;
+  /** What picking it does to every offer (v31.2.0) — see `answer-effect.ts`. Null = nothing. */
+  effectMaxLoanPercent?: string | null;
+  effectRatePoints?: string | null;
+  effectMaxTenorMonths?: number | null;
 }
 
 /**
@@ -351,6 +356,8 @@ export interface CreateOptionBody {
   labelEn: string;
   /** Omitted → appended after the question's existing options. */
   displayOrder?: number;
+  /** What picking it does to every offer. Omitted or null = nothing. */
+  effect?: AnswerEffectBody | null;
 }
 
 /**
@@ -410,6 +417,8 @@ export interface UpdateOptionBody {
   labelEn?: string;
   displayOrder?: number;
   isActive?: boolean;
+  /** Replaces the whole effect; null clears it; omitted leaves it untouched. */
+  effect?: AnswerEffectBody | null;
 }
 
 /** Admin API for Feature 009 (the global questionnaire pool + the matching simulator). */

@@ -1,6 +1,7 @@
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import { formatGroupedNumber } from '@core/directives/money-input.directive';
 import type { StatusTone } from '@shared/ui';
+import { effectParts } from '../answer-effect';
 import type {
   AnswerMeaning,
   EmploymentBucket,
@@ -209,6 +210,10 @@ export function impactWhyText(area: ImpactArea, why: ImpactWhy, isAr: boolean): 
       const count = why.answers;
       return $localize`:@@qrules.why_follow_ups:${count}:count: of its answers open or hide other questions`;
     }
+    case 'answer_effects': {
+      const count = why.answers;
+      return $localize`:@@qrules.why_answer_effects:${count}:count: of its answers change it, as set on the answer`;
+    }
   }
 }
 
@@ -261,6 +266,8 @@ export function meaningText(m: AnswerMeaning, isAr: boolean): string {
       const questions = quoted(m.questions, isAr);
       return $localize`:@@qrules.meaning_hides:Hides: ${questions}:questions:`;
     }
+    case 'offer_effect':
+      return effectParts(m).join(' · ');
   }
 }
 

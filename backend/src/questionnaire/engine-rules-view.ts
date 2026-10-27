@@ -23,6 +23,7 @@
  * Pure: structural input, structured output, no sentences (the admin's catalog holds those,
  * Principle III) and no Prisma rows (A8).
  */
+import { hasAnyLever, type AnswerEffectLevers } from '@/matching/pipeline/answer-effects';
 import type { LoanCategory } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
@@ -105,7 +106,9 @@ export type AnswerMeaning =
   /** Picking it shows these follow-up questions. */
   | { kind: 'opens'; questions: QuestionRef[] }
   /** Picking it hides these questions (shown for every other answer). */
-  | { kind: 'hides'; questions: QuestionRef[] };
+  | { kind: 'hides'; questions: QuestionRef[] }
+  /** The admin's offer effect on this answer (v31.2.0) — what picking it does to every offer. */
+  | ({ kind: 'offer_effect' } & AnswerEffectLevers);
 
 export interface EngineRuleOption {
   id: string;
@@ -210,6 +213,8 @@ export interface EngineRulesInputQuestion {
     labelAr: string;
     labelEn: string;
     displayOrder: number;
+    /** The admin's offer effect, when the answer carries one (v31.2.0). */
+    effect?: AnswerEffectLevers;
   }[];
 }
 
@@ -262,7 +267,12 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
             labelAr: o.labelAr,
             labelEn: o.labelEn,
             displayOrder: o.displayOrder,
-            meanings: meaningsOf(q.code, o.code, byCode, followUps, input.transferTypes),
+            meanings: [
+              ...meaningsOf(q.code, o.code, byCode, followUps, input.transferTypes),
+              ...(o.effect !== undefined && hasAnyLever(o.effect)
+                ? [{ kind: 'offer_effect' as const, ...o.effect }]
+                : []),
+            ],
             keep: {
               ar: [...wordingQuantities(o.labelAr).written],
               en: [...wordingQuantities(o.labelEn).written],

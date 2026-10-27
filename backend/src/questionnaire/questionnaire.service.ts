@@ -21,7 +21,7 @@ import { isBindableQuestionType } from '@/matching/pipeline/surrogate-fact-regis
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { EngineContractService } from './engine-contract.service';
 import { frozenCategories } from './frozen-categories';
-import { QuestionnaireRepository } from './questionnaire.repository';
+import { QuestionnaireRepository, type OptionEffectColumns } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
 import {
   MIN_CHOICE_OPTIONS,
@@ -44,12 +44,14 @@ import {
   type FixedServedOn,
 } from './validation/fixed-questions';
 import { sameText } from './validation/engine-contract';
+import type { AnswerEffectSource } from '@/matching/pipeline/answer-effects';
 import type {
   CreateGroupDto,
   CreateOptionDto,
   CreateQuestionDto,
   CreateQuestionWithOptionsDto,
   NumericRulesDto,
+  OptionEffectDto,
   TextRulesDto,
   UpdateGroupDto,
   UpdateOptionDto,
@@ -472,7 +474,12 @@ export class QuestionnaireService {
       options.map((o) => {
         const optionCode = uniqueSlug(o.labelEn, optionCodes);
         optionCodes.add(optionCode);
-        return { code: optionCode, labelAr: o.labelAr, labelEn: o.labelEn };
+        return {
+          code: optionCode,
+          labelAr: o.labelAr,
+          labelEn: o.labelEn,
+          ...effectColumns(o.effect),
+        };
       });
 
     // Same default as `createQuestion`: a question assigned to nothing is asked
@@ -1014,6 +1021,11 @@ export class QuestionnaireService {
     return this.repo.questions();
   }
 
+  /** Every answer that changes the offer, live — see the repository method (v31.2.0). */
+  answerEffectSources(): Promise<AnswerEffectSource[]> {
+    return this.repo.answerEffectSources();
+  }
+
   /** The id of the questionnaire version customers are served now, or `null` before the first. */
   async activeVersionId(): Promise<string | null> {
     return (await this.repo.activeVersion())?.id ?? null;
@@ -1115,6 +1127,7 @@ export class QuestionnaireService {
       // Same reason as questions: the flat editor appends options instead of
       // asking the admin to type an order, and 0 would front-load every new one.
       displayOrder: dto.displayOrder ?? (await this.repo.maxOptionOrder(questionId)) + 1,
+      ...effectColumns(dto.effect),
     });
     await this.publish(actor);
     return created;
@@ -1160,8 +1173,16 @@ export class QuestionnaireService {
       labelEn: dto.labelEn,
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
+      ...effectColumns(dto.effect),
     });
-    await this.publish(actor);
+    // An effect is pricing, not snapshot content (v31.2.0): a write that changed ONLY the
+    // effect would mint a version identical to the live one, so it publishes nothing.
+    const contentChanged =
+      labelAr !== undefined ||
+      labelEn !== undefined ||
+      (dto.displayOrder !== undefined && dto.displayOrder !== option.displayOrder) ||
+      (dto.isActive !== undefined && dto.isActive !== option.isActive);
+    if (contentChanged) await this.publish(actor);
     return updated;
   }
 
@@ -1800,6 +1821,21 @@ export function numericRulesOf(q: QuestionRuleColumns): {
 
 export function textRulesOf(q: QuestionRuleColumns): { maxLength: number } | null {
   return q.textMaxLength === null ? null : { maxLength: q.textMaxLength };
+}
+
+/**
+ * An answer's offer effect → its three columns (v31.2.0). Omitted = untouched (no keys);
+ * null = cleared; an object REPLACES the whole effect, so a lever it leaves out is cleared.
+ */
+function effectColumns(effect: OptionEffectDto | null | undefined): OptionEffectColumns {
+  if (effect === undefined) return {};
+  const dec = (v: string | null | undefined) =>
+    v === undefined || v === null ? null : new Prisma.Decimal(v);
+  return {
+    effectMaxLoanPercent: dec(effect?.maxLoanPercent),
+    effectRatePoints: dec(effect?.ratePoints),
+    effectMaxTenorMonths: effect?.maxTenorMonths ?? null,
+  };
 }
 
 /** Only the owning type keeps its rule columns; everything else is nulled out. */

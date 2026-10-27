@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { EngineContractService } from './engine-contract.service';
 import { engineRulesView, type EngineRulesView } from './engine-rules-view';
-import { QuestionnaireRepository } from './questionnaire.repository';
+import { optionEffectLevers, QuestionnaireRepository } from './questionnaire.repository';
 import { numericRulesOf, textRulesOf } from './questionnaire.service';
 
 /**
@@ -55,6 +55,7 @@ export class EngineRulesService {
             labelAr: o.labelAr,
             labelEn: o.labelEn,
             displayOrder: o.displayOrder,
+            effect: optionEffectLevers(o),
           })),
       })),
       readers,
