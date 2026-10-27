@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpContext } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { SuccessEnvelope } from '@core/auth/auth.types';
@@ -141,26 +141,70 @@ export interface QuestionRow {
    * unlocked; the server still refuses.
    */
   engineLock?: QuestionEngineLock | null;
+  /**
+   * A FIXED question — data the admin owns, both ways (v31.0.0, v31.1.0): asked on every
+   * program of its loan types, never skipped or added per program name. Required or not is set
+   * like any question's. `every_name` = every program; `income_proof` = income-proof only.
+   * `null` = an ordinary question. Absent on an older server — read as not fixed.
+   */
+  fixedServedOn?: FixedServedOn | null;
+  /**
+   * A question surrogate (no-payslip) products ask — a product reads its answer, or it keys a
+   * bank's table, or such a question shows only after its answer. Managed from the Program
+   * catalog, so the Questions tab lists it only when it is also fixed. Never true of a fixed
+   * question. Absent on an older server — read as false.
+   */
+  surrogateSide?: boolean;
 }
+
+/** Where a fixed question is asked: on every program, or on income-proof programs only. */
+export type FixedServedOn = 'every_name' | 'income_proof';
 
 /**
  * Why a question is locked. `engine`: every quote reads it, or the platform owns the fact it
- * answers. `base`: it is one of the fixed income-proof questions. `program`: the named bank
- * programs read it. No answer may be added to any of them (v30.12.0).
+ * answers. `program`: the named bank programs read it. `base` is the server's word for a FIXED
+ * question (`fixedServedOn` carries that, so read the lock through `engineLockOf`, which drops
+ * it). No answer may be added to an engine or program lock (v30.12.0).
  */
 export interface QuestionEngineLock {
   reason: 'engine' | 'base' | 'program';
   /** No answer may be added. True on every lock since v30.12.0; kept for older servers. */
   optionsFixed: boolean;
-  /**
-   * One of the fixed income-proof questions, asked on every program name that sells a payslip
-   * programme: only its WORDING may change — the question, its helper text and its answers'
-   * labels. Key on this, not on `reason`, which may still read `engine` for one of them.
-   */
-  shapeFixed: boolean;
-  /** The loan types it may never leave. Empty unless `shapeFixed`. */
-  baseCategories: LoanCategory[];
   programNames: { key: string; labelAr: string; labelEn: string }[];
+}
+
+/**
+ * What deleting a FIXED question would do, read before the admin types its code
+ * (`GET …/questions/:id/delete-impact`).
+ */
+export interface QuestionDeleteImpact {
+  code: string;
+  fixedServedOn: FixedServedOn | null;
+  /** The delete needs the question's code typed back (`?confirmCode=`) — every fixed question. */
+  confirmationRequired: boolean;
+  /** Questions shown only after this one's answer: each has to be deleted first. */
+  blockedBy: { code: string; questionEn: string; questionAr: string }[];
+  /** The loan engine works out offers from this answer. */
+  engineReads: boolean;
+  /** The program names whose bank programs read it. */
+  programNames: string[];
+  /** The surrogate products that ask it. */
+  productAsks: string[];
+  loanTypes: LoanCategory[];
+  /** The server's own names for what would stop working — identifiers, not sentences. */
+  wouldBreak: string[];
+  /** Answers already given to it. They stay on the applications that hold them. */
+  answersStored: number;
+}
+
+/** A deleted fixed question, kept whole so a super admin can bring it back. */
+export interface DeletedFixedQuestion {
+  id: string;
+  code: string;
+  questionEn: string;
+  questionAr: string;
+  fixedServedOn: FixedServedOn;
+  categories: string[];
 }
 export type { ServedCount } from '@shared/questions/asked-questions.rules';
 import type { ServedCount } from '@shared/questions/asked-questions.rules';
@@ -266,6 +310,11 @@ export interface CreateQuestionBody {
   categories?: LoanCategory[];
   /** Show this question only when the source answer matches. Omit for always-on. */
   enabledWhen?: EnabledWhenRule;
+  /**
+   * Born FIXED, asked where this says. Omitted = an ordinary question. A fixed question's
+   * show-when source must be fixed too (`QUESTION_FIXED_GATE_NOT_FIXED`).
+   */
+  fixedServedOn?: FixedServedOn;
 }
 
 /**
@@ -349,6 +398,11 @@ export interface UpdateQuestionBody {
   text?: Partial<TextRules> | null;
   /** `null` CLEARS the branch, making the question unconditional again. */
   enabledWhen?: EnabledWhenRule | null;
+  /**
+   * Make the question FIXED, move it between every program and income-proof ones, or — `null`
+   * — make it ordinary again (v31.1.0: the admin's both ways). Omitted = left as it is.
+   */
+  fixedServedOn?: FixedServedOn | null;
 }
 /** Option edits — `code` is immutable (A33). */
 export interface UpdateOptionBody {
@@ -457,8 +511,39 @@ export class QuestionnaireApiService {
     return this.patch<QuestionRow>(`/questionnaire/questions/${id}`, body);
   }
 
-  deleteQuestion(id: string): Promise<QuestionRow> {
-    return this.del<QuestionRow>(`/questionnaire/questions/${id}`);
+  /**
+   * Switch a question off. A FIXED question also needs its code typed back (`confirmCode`) and
+   * a super admin — the one write that may stop the engine getting an answer, so it is said
+   * twice. An ordinary question takes no code.
+   */
+  deleteQuestion(id: string, confirmCode?: string): Promise<QuestionRow> {
+    const params =
+      confirmCode === undefined ? undefined : new HttpParams().set('confirmCode', confirmCode);
+    return this.del<QuestionRow>(`/questionnaire/questions/${id}`, params);
+  }
+
+  /** What deleting this question would do — read before the confirm field is offered. */
+  deleteImpact(id: string): Promise<QuestionDeleteImpact> {
+    return this.get<QuestionDeleteImpact>(`/questionnaire/questions/${id}/delete-impact`);
+  }
+
+  /**
+   * The fixed questions deleted so far — the restore list. `silent` keeps a failed read off
+   * the toast: the list is a safety net loaded with the page, not something the admin asked for.
+   */
+  deletedFixed(opts: { silent?: boolean } = {}): Promise<DeletedFixedQuestion[]> {
+    return this.get<DeletedFixedQuestion[]>(
+      `/questionnaire/questions/deleted-fixed`,
+      opts.silent === true ? new HttpContext().set(SKIP_TOAST_INTERCEPTOR, true) : undefined,
+    );
+  }
+
+  /**
+   * Bring a deleted question back — the ordinary switch-on, judged by the engine contract and
+   * published like every write. A fixed one comes back whole: its loan types, mark and answers.
+   */
+  restoreQuestion(id: string): Promise<QuestionRow> {
+    return this.updateQuestion(id, { isActive: true });
   }
 
   /**
@@ -534,8 +619,10 @@ export class QuestionnaireApiService {
   }
 
   // ---- HTTP helpers ------------------------------------------------------
-  private async get<T>(path: string): Promise<T> {
-    const res = await firstValueFrom(this.http.get<SuccessEnvelope<T>>(`${this.base()}${path}`));
+  private async get<T>(path: string, context?: HttpContext): Promise<T> {
+    const res = await firstValueFrom(
+      this.http.get<SuccessEnvelope<T>>(`${this.base()}${path}`, { context }),
+    );
     return res.data;
   }
   private async post<T>(path: string, body: unknown, context?: HttpContext): Promise<T> {
@@ -556,8 +643,10 @@ export class QuestionnaireApiService {
     );
     return res.data;
   }
-  private async del<T>(path: string): Promise<T> {
-    const res = await firstValueFrom(this.http.delete<SuccessEnvelope<T>>(`${this.base()}${path}`));
+  private async del<T>(path: string, params?: HttpParams): Promise<T> {
+    const res = await firstValueFrom(
+      this.http.delete<SuccessEnvelope<T>>(`${this.base()}${path}`, { params }),
+    );
     return res.data;
   }
 }

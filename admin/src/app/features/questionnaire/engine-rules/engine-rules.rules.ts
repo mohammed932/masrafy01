@@ -154,6 +154,36 @@ export function impactOf(q: EngineRuleQuestion): QuestionImpact {
   return out;
 }
 
+/** The areas that are the offer itself; `questions` and `application` are not. */
+const OFFER_AREAS: readonly ImpactArea[] = ['amount', 'rate', 'term', 'debt_limit'];
+
+/**
+ * Whether the question's answer changes the offer today: it moves an offer area itself, or one
+ * of its answers opens a question that does ("Do you get money from anywhere else?" changes the
+ * offer exactly when a programme reads the amount it opens). A fixed question nothing reads yet
+ * is asked and saved, and changes nothing — the list says so instead of implying otherwise.
+ */
+export function changesOffer(
+  q: EngineRuleQuestion,
+  byCode: ReadonlyMap<string, EngineRuleQuestion>,
+  seen: Set<string> = new Set(),
+): boolean {
+  if (seen.has(q.code)) return false;
+  seen.add(q.code);
+  const impact = impactOf(q);
+  if (OFFER_AREAS.some((area) => impact.has(area))) return true;
+  return q.options.some((o) =>
+    o.meanings.some(
+      (m) =>
+        m.kind === 'opens' &&
+        m.questions.some((ref) => {
+          const opened = byCode.get(ref.code);
+          return opened !== undefined && changesOffer(opened, byCode, seen);
+        }),
+    ),
+  );
+}
+
 // ---- Search ---------------------------------------------------------------------------------
 
 export function matchesSearch(q: EngineRuleQuestion, search: string): boolean {

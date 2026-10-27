@@ -156,6 +156,10 @@ export class InMemoryPlatformEnumerationsRepository
     return null;
   }
 
+  async askScopedQuestionCodes(): Promise<readonly string[]> {
+    return [];
+  }
+
   async questionAdditionCounts(): Promise<
     ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
   > {

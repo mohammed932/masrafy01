@@ -9,7 +9,7 @@ import { TabShellComponent, type TabShellTab } from '@shared/ui';
  *   may serve several, so this is an assignment view, not a per-category
  *   questionnaire: there is still ONE pool and ONE published version
  *   (Principle V / A33).
- * - **Loan engine** (route `engine-rules`) — the owner's fixed, mandatory
+ * - **Fixed questions** (route `engine-rules`) — the owner's fixed, mandatory
  *   questions in the owner's order, split by who asks them (Income proof /
  *   Surrogate), and what each answer means; only answers' wording is edited
  *   there (v30.12.0, narrowed v30.13.0, split v30.16.0).
@@ -30,6 +30,6 @@ export class QuestionnaireShellPage {
   protected readonly tabs: readonly TabShellTab[] = [
     { link: 'questions', label: $localize`:@@qtabs.pool:Questions` },
     { link: 'categories', label: $localize`:@@qtabs.categories:Loan categories` },
-    { link: 'engine-rules', label: $localize`:@@qtabs.engine_rules:Loan engine` },
+    { link: 'engine-rules', label: $localize`:@@qtabs.engine_rules:Fixed questions` },
   ];
 }

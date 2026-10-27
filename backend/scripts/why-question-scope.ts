@@ -9,7 +9,7 @@ import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
-import { baseCodesServed } from '../src/matching/pipeline/base-question-set';
+import { fixedCodesServed, fixedServedOnOf } from '../src/questionnaire/validation/fixed-questions';
 import {
   ASKED_EVEN_WHEN_PRODUCT_ONLY,
   narrowAskedQuestions,
@@ -51,8 +51,20 @@ async function main(): Promise<void> {
   if (!scope) throw new Error(`no narrowing scope for ${nameKey}`);
 
   const d = narrowAskedQuestions(
-    inCategory.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen ?? null, optIn: isOptIn(q) })),
+    inCategory.map((q) => ({
+      code: q.code,
+      enabledWhen: q.enabledWhen ?? null,
+      optIn: isOptIn(q),
+      fixedServedOn: fixedServedOnOf((q as { fixedServedOn?: unknown }).fixedServedOn),
+    })),
     scope,
+  );
+  const fixed = fixedCodesServed(
+    inCategory.map((q) => ({
+      code: q.code,
+      fixedServedOn: fixedServedOnOf((q as { fixedServedOn?: unknown }).fixedServedOn),
+    })),
+    scope.incomeProof === true,
   );
 
   const factBound = new Set(scope.factBoundQuestionCodes);
@@ -75,8 +87,8 @@ async function main(): Promise<void> {
     if (added.has(code) && !needed.has(code)) {
       return 'ADDED: the operator ticked it for this name';
     }
-    if (baseCodesServed(scope.incomeProof === true).has(code)) {
-      return 'FIXED SET: the client\'s question set, asked on this path whatever reads it';
+    if (fixed.has(code)) {
+      return 'FIXED: the admin marked it fixed, asked on this path whatever reads it';
     }
     if (scope.productOnly === true) {
       if (ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code))
@@ -111,9 +123,6 @@ async function main(): Promise<void> {
     for (const c of codes.sort()) console.log(`         ${c}`);
   }
   console.log(`\n  dropped (${d.dropped.length}): ${d.dropped.sort().join(', ')}`);
-  for (const [fixed, standIn] of d.answeredBy) {
-    console.log(`  not asked: ${fixed} — ${standIn} (a product question) answers it`);
-  }
   const optInDropped = d.dropped.filter((code) => optIn.has(code));
   if (optInDropped.length > 0) {
     console.log(`  of which opt-in, not added here: ${optInDropped.sort().join(', ')}`);

@@ -39,6 +39,7 @@ import {
   type QuestionCategoryAssignment,
   type QuestionRow,
 } from './questionnaire.api.service';
+import { isFixed } from './question-pool-view';
 
 /** Matches the `qc-land` keyframes below — the flag outlives neither. */
 const LAND_ANIMATION_MS = 260;
@@ -1431,18 +1432,12 @@ export class QuestionCategoriesPage implements OnInit {
   }
 
   /**
-   * A fixed income-proof question asked here, in a loan type it may never leave
-   * (`engineLock.baseCategories`, from the server — never a list kept here). Its tick is inert:
-   * the one move left on it would be a removal. Not asked here yet, it stays tickable — adding
-   * it is the direction the lock allows.
+   * A FIXED question asked here (`fixedServedOn`, the admin's mark — v31.0.0): it may never
+   * leave a loan type it is in, so its tick is inert — the one move left on it would be a
+   * removal. Not asked here yet, it stays tickable — adding it is the direction the rule allows.
    */
   baseLocked(q: QuestionRow, category: LoanCategory): boolean {
-    const lock = q.engineLock;
-    return (
-      lock?.shapeFixed === true &&
-      (lock.baseCategories ?? []).includes(category) &&
-      this.has(q, category)
-    );
+    return isFixed(q) && this.has(q, category);
   }
 
   baseTip(category: LoanCategory): string {

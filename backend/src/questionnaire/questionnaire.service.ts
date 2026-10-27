@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory, Prisma, QuestionType } from '@prisma/client';
+import { LoanCategory, Prisma, QuestionType, type Question } from '@prisma/client';
 import { DomainException, MirroredListMinValuesException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { ALL_LOAN_CATEGORIES, dedupeCategories, sortCategories } from '@/common/loan-category.util';
@@ -38,7 +38,12 @@ import {
 } from './validation/answer-validation';
 import { isQuestionVisible } from './validation/question-visibility';
 import { narrowAskedQuestions, type NarrowingScope } from './validation/question-scope';
-import { sameDecimal, sameText } from './validation/engine-contract';
+import {
+  fixedServedOnOf,
+  surrogateSideCodes,
+  type FixedServedOn,
+} from './validation/fixed-questions';
+import { sameText } from './validation/engine-contract';
 import type {
   CreateGroupDto,
   CreateOptionDto,
@@ -325,6 +330,8 @@ export class QuestionnaireService {
       text: dto.text ?? null,
       activeOptionCount: isChoiceType(type) ? MIN_CHOICE_OPTIONS_AT_CREATE : 0,
     });
+    const fixedServedOn = dto.fixedServedOn ?? null;
+    if (fixedServedOn !== null) await this.assertFixedAtCreate(dto);
     const existing = new Set((await this.repo.questionCodes()).map((q) => q.code));
     const code = uniqueSlug(dto.questionEn, existing);
     const created = await this.repo.createQuestion({
@@ -336,6 +343,7 @@ export class QuestionnaireService {
       helperTextAr: dto.helperTextAr ?? null,
       helperTextEn: dto.helperTextEn ?? null,
       isRequired: dto.isRequired ?? true,
+      fixedServedOn,
       displayOrder,
       enabledWhen: dto.enabledWhen
         ? (dto.enabledWhen as unknown as Prisma.InputJsonValue)
@@ -470,6 +478,8 @@ export class QuestionnaireService {
     // Same default as `createQuestion`: a question assigned to nothing is asked
     // by nobody, so an omitted set means all four rather than none.
     const categories = dedupeCategories(dto.categories ?? [...ALL_LOAN_CATEGORIES]);
+    const fixedServedOn = dto.fixedServedOn ?? null;
+    if (fixedServedOn !== null) await this.assertFixedAtCreate(dto);
 
     const created = await this.repo.createQuestionWithOptions(
       {
@@ -481,6 +491,7 @@ export class QuestionnaireService {
         helperTextAr: dto.helperTextAr ?? null,
         helperTextEn: dto.helperTextEn ?? null,
         isRequired: dto.isRequired ?? true,
+        fixedServedOn,
         displayOrder,
         enabledWhen: dto.enabledWhen
           ? (dto.enabledWhen as unknown as Prisma.InputJsonValue)
@@ -800,6 +811,8 @@ export class QuestionnaireService {
       text: dto.text !== undefined ? dto.text : textRulesOf(question),
       activeOptionCount: options.filter((o) => o.isActive).length,
     });
+    // Fixed, moved or un-fixed (v31.1.0: the admin's both ways); `undefined` = left as it is.
+    const marking = this.fixedMarkingOf(question, dto.fixedServedOn);
     await this.contract?.assertWrite({
       kind: 'question',
       questionId: id,
@@ -809,8 +822,7 @@ export class QuestionnaireService {
         isActive: dto.isActive,
         enabledWhen: dto.enabledWhen,
         unitChanged: numericUnitChanges(question, type, dto),
-        boundsChanged: numericBoundsChange(question, type, dto),
-        maxLengthChanged: textMaxLengthChange(question, type, dto),
+        ...(marking !== undefined ? { fixedServedOn: marking } : {}),
         questionAr: dto.questionAr,
         questionEn: dto.questionEn,
         helperTextAr: dto.helperTextAr,
@@ -825,7 +837,13 @@ export class QuestionnaireService {
       isRequired: dto.isRequired,
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
+      ...(marking !== undefined ? { fixedServedOn: marking } : {}),
     };
+    // A fixed question is asked on every name of its loan types: no per-name skip or addition
+    // of it survives the mark. Un-fixing restores none — the names start from the loan type.
+    if (marking != null && question.fixedServedOn === null) {
+      await this.repo.clearNamePolicyFor(id);
+    }
     if (dto.type !== undefined) {
       data.type = dto.type;
     }
@@ -852,7 +870,17 @@ export class QuestionnaireService {
     return updated;
   }
 
-  async softDeleteQuestion(id: string, actor: string) {
+  /**
+   * Switch a question off. A FIXED one (v31.0.0) only by a super admin who typed its code —
+   * GitHub-style — and then even a question the loan engine reads goes: what it breaks was in
+   * the warning they read first (`deleteImpact`). It keeps its mark, loan types and answers, so
+   * a restore (`isActive: true`) brings it back whole.
+   */
+  async softDeleteQuestion(
+    id: string,
+    actor: string,
+    confirm: { role?: string; confirmCode?: string } = {},
+  ) {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     const dependents = await this.repo.dependentsOf(question.code);
@@ -860,14 +888,126 @@ export class QuestionnaireService {
     if (others.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_IN_USE, { dependents: others });
     }
-    await this.contract?.assertWrite({
-      kind: 'question',
-      questionId: id,
-      patch: { isActive: false },
-    });
+    if (question.fixedServedOn !== null) {
+      if (confirm.role !== 'super_admin') throw new DomainException(ERROR_CODES.FORBIDDEN);
+      if (confirm.confirmCode !== question.code) {
+        throw new DomainException(ERROR_CODES.QUESTION_FIXED_DELETE_CONFIRM_REQUIRED, {
+          questionId: question.id,
+          code: question.code,
+          questionAr: question.questionAr,
+          questionEn: question.questionEn,
+        });
+      }
+      await this.contract?.assertWrite({ kind: 'fixed_delete', questionId: id });
+    } else {
+      await this.contract?.assertWrite({
+        kind: 'question',
+        questionId: id,
+        patch: { isActive: false },
+      });
+    }
     const deleted = await this.repo.updateQuestion(id, { isActive: false });
     await this.publish(actor);
     return deleted;
+  }
+
+  /**
+   * What deleting a question would do — what the typed-confirm dialog says BEFORE the super
+   * admin types the code: the loan types it is asked in, the questions that must go first (a
+   * delete is refused while one is gated on it), who reads it (the lock, the bank programmes'
+   * names, the products asking it) and what the engine-input ratchet would report, and how many
+   * answers stay stored on applications.
+   */
+  async deleteImpact(id: string) {
+    const question = await this.repo.findQuestion(id);
+    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
+    const [rows, assignments, answersStored, productAsks, impact] = await Promise.all([
+      this.repo.questions(),
+      this.repo.categoryAssignments(),
+      this.repo.answerCount(id),
+      this.repo.productAsksFor(id),
+      this.contract?.fixedDeleteImpact(id) ?? Promise.resolve({ lock: null, wouldBreak: [] }),
+    ]);
+    const byCode = new Map(rows.map((r) => [r.code, r]));
+    const blockedBy = (await this.repo.dependentsOf(question.code))
+      .filter((code) => code !== question.code)
+      .map((code) => ({
+        code,
+        questionEn: byCode.get(code)?.questionEn ?? code,
+        questionAr: byCode.get(code)?.questionAr ?? code,
+      }));
+    const wouldBreak = [
+      ...new Set(
+        impact.wouldBreak.map((v) =>
+          [v.rule, v.questionCode || v.factKey, v.category, v.programNameKey]
+            .filter((part) => part !== undefined && part !== '')
+            .join(':'),
+        ),
+      ),
+    ];
+    return {
+      code: question.code,
+      fixedServedOn: question.fixedServedOn,
+      confirmationRequired: question.fixedServedOn !== null,
+      blockedBy,
+      engineReads: impact.lock !== null || wouldBreak.length > 0 || productAsks.length > 0,
+      programNames: [...(impact.lock?.programNameKeys ?? [])],
+      productAsks,
+      loanTypes: sortCategories(assignments.get(id) ?? []),
+      wouldBreak,
+      answersStored,
+    };
+  }
+
+  /** The FIXED questions a super admin deleted, for Restore — each with its loan types. */
+  async deletedFixedQuestions() {
+    const [rows, assignments] = await Promise.all([
+      this.repo.deletedFixedQuestions(),
+      this.repo.categoryAssignments(),
+    ]);
+    return rows.map((q) => ({
+      id: q.id,
+      code: q.code,
+      questionEn: q.questionEn,
+      questionAr: q.questionAr,
+      fixedServedOn: q.fixedServedOn,
+      categories: sortCategories(assignments.get(q.id) ?? []),
+    }));
+  }
+
+  /**
+   * The mark an update would WRITE — `undefined` = none (not sent, or already what it is), a
+   * value to fix or move it, `null` to un-fix it. The admin's both ways since v31.1.0
+   * (operator decision 2026-10-27, "everything dynamic"), program-catalog questions included.
+   * The rules that hold while it is fixed (gate, opt-in, loan types) are the contract's
+   * (`fixed-questions.ts`), judged on the write.
+   */
+  private fixedMarkingOf(
+    question: Question,
+    requested: FixedServedOn | null | undefined,
+  ): FixedServedOn | null | undefined {
+    if (requested === undefined) return undefined;
+    return requested === fixedServedOnOf(question.fixedServedOn) ? undefined : requested;
+  }
+
+  /**
+   * A question CREATED fixed is shown only after another fixed question's answer — the rule the
+   * contract holds every later write to (`fixed-questions.ts`), judged here because a create is
+   * not played through the contract.
+   */
+  private async assertFixedAtCreate(dto: CreateQuestionDto): Promise<void> {
+    const at = { questionId: '', code: '', questionAr: dto.questionAr, questionEn: dto.questionEn };
+    const sourceCode = dto.enabledWhen?.questionCode;
+    if (sourceCode === undefined) return;
+    const source = (await this.repo.questions()).find((q) => q.code === sourceCode);
+    if (source === undefined || !source.isActive || source.fixedServedOn === null) {
+      throw new DomainException(ERROR_CODES.QUESTION_FIXED_GATE_NOT_FIXED, {
+        ...at,
+        sourceCode,
+        sourceAr: source?.questionAr ?? sourceCode,
+        sourceEn: source?.questionEn ?? sourceCode,
+      });
+    }
   }
 
   listQuestions() {
@@ -1096,6 +1236,9 @@ export class QuestionnaireService {
           isRequired: q.isRequired,
           displayOrder: q.displayOrder,
           enabledWhen: q.enabledWhen ?? null,
+          // FIXED (v31.0.0): frozen like the rest of the question, `null` included, so the
+          // narrowing serves it as core and a rollback across the mark is judged on it.
+          fixedServedOn: q.fixedServedOn,
           // `categories` (asked of every name) and, when there is one, `optInCategories` (asked
           // only where a name adds it) — disjoint, so an older reader never serves an opt-in row.
           ...frozenCategories(sortCategories(assignments.get(q.id) ?? []), optIns.get(q.id) ?? []),
@@ -1183,6 +1326,8 @@ export class QuestionnaireService {
       optInCategories: LoanCategory[];
       /** The gate, for callers that must close a pick over `enabledWhen`. */
       enabledWhen: unknown;
+      /** FIXED (v31.0.0): where it is asked on every program of its loan types; `null` = not. */
+      fixedServedOn: FixedServedOn | null;
     }>
   > {
     const [questions, assignments, optIns] = await Promise.all([
@@ -1202,6 +1347,7 @@ export class QuestionnaireService {
       categories: assignments.get(question.id) ?? [],
       optInCategories: optIns.get(question.id) ?? [],
       enabledWhen: question.enabledWhen ?? null,
+      fixedServedOn: question.fixedServedOn,
     }));
   }
 
@@ -1241,12 +1387,16 @@ export class QuestionnaireService {
     // Which rows are OPT-IN, and how many program names add each — the assign tab draws an
     // opt-in cell as its own state, and the program-name board tells "asked of every name"
     // from "in the category for the names that add it".
-    const [optIns, additionCounts, locks] = await Promise.all([
+    const [optIns, additionCounts, locks, askScoped] = await Promise.all([
       this.repo.optInAssignments(),
       this.enums.questionAdditionCounts(),
       // What the loan engine reads, so the editor can say so BEFORE an edit is refused.
       this.contract?.lockViews() ?? Promise.resolve(new Map<string, never>()),
+      this.enums.askScopedQuestionCodes(),
     ]);
+    // The PROGRAM-CATALOG questions (v31.0.0): what a no-payslip product asks, which the
+    // Questions tab hides and the Program catalog manages. Never a fixed one.
+    const surrogateSide = surrogateSideCodes(questions, askScoped);
     const result = [];
     for (const g of groups) {
       const gQuestions = [];
@@ -1266,6 +1416,7 @@ export class QuestionnaireService {
           addedByNames: additionCounts.get(q.id) ?? {},
           categoryOrder: categoryOrders.get(q.id) ?? {},
           engineLock: locks.get(q.code) ?? null,
+          surrogateSide: surrogateSide.has(q.code),
         });
       }
       result.push({ ...g, questions: gQuestions });
@@ -1351,7 +1502,12 @@ export class QuestionnaireService {
     // The program-name axis. No name, no read — which is also what keeps this method working
     // for a caller that never supplies one.
     const decision = narrowAskedQuestions(
-      active.map((q) => ({ code: q.code, enabledWhen: q.enabledWhen, optIn: isOptIn(q.id) })),
+      active.map((q) => ({
+        code: q.code,
+        enabledWhen: q.enabledWhen,
+        optIn: isOptIn(q.id),
+        fixedServedOn: q.fixedServedOn,
+      })),
       programNameKey === undefined
         ? null
         : await this.enums.narrowingScopeFor(programNameKey, category),
@@ -1615,35 +1771,6 @@ function numericUnitChanges(
     !sameText(dto.numeric?.unitAr, question.numericUnitAr) ||
     !sameText(dto.numeric?.unitEn, question.numericUnitEn)
   );
-}
-
-/**
- * Whether `updateQuestion` would change a NUMERIC question's bounds or step. Values compared as
- * numbers (`"10000"` and `"10000.00"` are one bound), so the editor's resend of every rule on
- * each save is no change and the fixed set's lock never refuses a wording edit.
- */
-function numericBoundsChange(
-  question: QuestionRuleColumns & { type: QuestionType },
-  type: QuestionType,
-  dto: UpdateQuestionDto,
-): boolean {
-  if (question.type !== 'NUMERIC' || type !== 'NUMERIC' || dto.numeric === undefined) return false;
-  const next = dto.numeric;
-  return (
-    !sameDecimal(next?.minValue ?? null, question.numericMinValue?.toFixed(2) ?? null) ||
-    !sameDecimal(next?.maxValue ?? null, question.numericMaxValue?.toFixed(2) ?? null) ||
-    !sameDecimal(next?.step ?? null, question.numericStep?.toFixed(2) ?? null)
-  );
-}
-
-/** Whether `updateQuestion` would change a TEXT question's length cap. */
-function textMaxLengthChange(
-  question: QuestionRuleColumns & { type: QuestionType },
-  type: QuestionType,
-  dto: UpdateQuestionDto,
-): boolean {
-  if (question.type !== 'TEXT' || type !== 'TEXT' || dto.text === undefined) return false;
-  return (dto.text?.maxLength ?? null) !== question.textMaxLength;
 }
 
 export function numericRulesOf(q: QuestionRuleColumns): {
@@ -2167,6 +2294,8 @@ function toCustomerSnapshot(
         code: q.code,
         enabledWhen: q['enabledWhen'] ?? null,
         optIn: optInFor(q, category),
+        // Frozen since v31.0.0; a snapshot published before reads as "nothing fixed".
+        fixedServedOn: fixedServedOnOf(q['fixedServedOn']),
       })),
     ),
     scope,

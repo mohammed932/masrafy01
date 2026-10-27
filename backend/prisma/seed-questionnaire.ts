@@ -12,12 +12,12 @@
 import { I_SCORE_FACT_KEY } from '../src/matching/pipeline/product-template';
 import {
   ADDITIONAL_INCOME_QUESTION_CODE,
+  I_SCORE_BANDS,
   I_SCORE_BAND_QUESTION_CODE,
   OTHER_INCOME_FACT_KEY,
   OTHER_INCOME_QUESTION_CODE,
   RESIDENCE_GOVERNORATE_CODES,
-  baseGateJson,
-  baseQuestion,
+  TRANSFER_ANSWERS,
 } from '../src/matching/pipeline/base-question-set';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
 import { bankSlug } from '../src/matching/pipeline/bank-relationship';
@@ -203,13 +203,15 @@ interface CategoryConfig {
   groups: SeedGroup[];
 }
 
-// ── The FIXED QUESTION SET (v30.11.0) ────────────────────────────────────────
+// ── The FIXED questions: FIRST-RUN DEFAULTS (v31.0.0) ────────────────────────
 //
-// The client's income-proof questions. Their codes, types, bounds, show-when rules, answers
-// and loan types are owned by `src/matching/pipeline/base-question-set.ts` — the one source
-// the engine, the lock and `check:questionnaire` read — so this seed authors only their
-// WORDING here and takes everything else from there (`baseSeedQuestion`). A question this
-// table words that the registry does not hold fails the seed; so does a missing label.
+// Which questions are fixed is the ADMIN's (`question.fixedServedOn`, v31.0.0). This seed
+// INSERTS the fixed questions on a database that has none — the client's income-proof questions
+// and the five car questions — each with its mark, and never touches one again: an existing
+// fixed row is skipped whole by the upsert below, and neither the sweep nor the revive step
+// switches one off or on. Their wording is here, and the shape of the ones authored through
+// `baseSeedQuestion` with it (`FIXED_FIRST_RUN_SHAPES`). What an answer MEANS to the engine
+// stays in `src/matching/pipeline/base-question-set.ts`.
 interface BaseWording {
   en: string;
   ar: string;
@@ -222,55 +224,15 @@ interface BaseWording {
 const YES_NO_LABELS = { yes: { en: 'Yes', ar: 'نعم' }, no: { en: 'No', ar: 'لا' } } as const;
 
 const BASE_WORDING: Readonly<Record<string, BaseWording>> = {
-  employment_status: {
-    en: 'What kind of work do you do?',
-    ar: 'ما نوع عملك؟',
-    options: {
-      military_officer: { en: 'Military officer', ar: 'ضابط بالقوات المسلحة' },
-      teacher: { en: 'Teacher', ar: 'مدرس' },
-      university_professor: { en: 'University professor', ar: 'أستاذ جامعي' },
-      doctor: { en: 'Doctor', ar: 'طبيب' },
-      banker: { en: 'Banker', ar: 'موظف بنك' },
-      engineer: { en: 'Engineer', ar: 'مهندس' },
-      accountant: { en: 'Accountant', ar: 'محاسب' },
-      lawyer_employee: { en: 'Lawyer — employed at a company', ar: 'محامٍ — موظف في شركة' },
-      lawyer_with_business: {
-        en: 'Lawyer — with another business besides law',
-        ar: 'محامٍ — لدي نشاط تجاري آخر غير المحاماة',
-      },
-      lawyer_private_office: { en: 'Lawyer — private office', ar: 'محامٍ — مكتب خاص' },
-      private_sector_employee: { en: 'Private company job', ar: 'موظف قطاع خاص' },
-      government_employee: { en: 'Government job', ar: 'موظف حكومي' },
-      retired: { en: 'Pensioner', ar: 'صاحب معاش' },
-      business_owner_company_owner: { en: 'Self employed', ar: 'صاحب نشاط تجاري' },
-      freelancer: { en: 'Freelancer / footballer', ar: 'عمل حر / لاعب كرة قدم' },
-      other: { en: 'Other', ar: 'أخرى' },
-    },
-  },
   months_in_current_job: {
     en: 'How long have you been in your current job?',
     ar: 'ما مدة بقائك في عملك الحالي؟',
     helperEn: 'In months.',
     helperAr: 'بالشهور.',
   },
-  years_as_doctor: {
-    en: 'How many years have you worked as a doctor?',
-    ar: 'كم سنة لك في العمل كطبيب؟',
-  },
-  commercial_register_18m: {
-    en: 'Was your commercial register issued more than 18 months ago?',
-    ar: 'هل لديك سجل تجاري مر على إصداره أكثر من 18 شهرًا؟',
-    options: YES_NO_LABELS,
-  },
-  has_tax_card: { en: 'Do you have a tax card?', ar: 'هل لديك بطاقة ضريبية؟', options: YES_NO_LABELS },
   can_transfer_salary: {
     en: 'Can you transfer your salary to the bank if your loan is approved?',
     ar: 'هل يمكنك تحويل راتبك على البنك في حالة الموافقة؟',
-    options: YES_NO_LABELS,
-  },
-  can_provide_payroll: {
-    en: 'Can you provide a salary breakdown and a payroll account statement?',
-    ar: 'هل يمكنك تقديم مفردات مرتب وكشف حساب Payroll؟',
     options: YES_NO_LABELS,
   },
   residence_governorate: { en: 'Which governorate do you live in?', ar: 'في أي محافظة تسكن؟' },
@@ -315,14 +277,84 @@ const ENUM_CODED_OPTIONS: Readonly<Record<string, { type: string; codes: readonl
   residence_governorate: { type: 'governorate', codes: RESIDENCE_GOVERNORATE_CODES },
 };
 
-/** A fixed-set question as this seed authors it: shape from the registry, words from above. */
+/** A first-run fixed question's shape — what the code registry stated until v31.0.0. */
+type FixedFirstRunShape = (
+  | {
+      readonly type: 'NUMERIC';
+      readonly numeric: {
+        readonly minValue: string;
+        readonly maxValue: string;
+        readonly step: string | null;
+        readonly unitEn: string;
+        readonly unitAr: string;
+      };
+    }
+  | { readonly type: 'TEXT'; readonly maxLength: number }
+  | { readonly type: 'SINGLE_SELECT' | 'MULTI_SELECT'; readonly options: readonly string[] }
+) & { readonly gate: SeedEnabledWhen | null };
+
+const FIXED_FIRST_RUN_SHAPES: Readonly<Record<string, FixedFirstRunShape>> = {
+  months_in_current_job: {
+    type: 'NUMERIC',
+    numeric: { minValue: '0', maxValue: '600', step: '1', unitEn: 'months', unitAr: 'شهر' },
+    gate: null,
+  },
+  can_transfer_salary: {
+    type: 'SINGLE_SELECT',
+    options: TRANSFER_ANSWERS.map((a) => a.code),
+    gate: null,
+  },
+  residence_governorate: { type: 'SINGLE_SELECT', options: RESIDENCE_GOVERNORATE_CODES, gate: null },
+  residence_area: { type: 'TEXT', maxLength: 120, gate: null },
+  [ADDITIONAL_INCOME_QUESTION_CODE]: { type: 'SINGLE_SELECT', options: ['yes', 'no'], gate: null },
+  [OTHER_INCOME_QUESTION_CODE]: {
+    type: 'NUMERIC',
+    numeric: { minValue: '1', maxValue: '5000000', step: null, unitEn: 'EGP', unitAr: 'جنيه' },
+    gate: { questionCode: ADDITIONAL_INCOME_QUESTION_CODE, operator: 'equals', optionCode: 'yes' },
+  },
+  has_bank_statement: { type: 'SINGLE_SELECT', options: ['yes', 'no'], gate: null },
+  [I_SCORE_BAND_QUESTION_CODE]: {
+    type: 'SINGLE_SELECT',
+    options: I_SCORE_BANDS.map((b) => b.code),
+    gate: null,
+  },
+};
+
+/**
+ * Where each first-run fixed question is asked (`question.fixedServedOn`) — set on INSERT only.
+ * The same marks migration `20261027090000_fixed_questions_are_data` gave an existing database.
+ */
+const FIXED_FIRST_RUN_SERVED_ON: Readonly<Record<string, 'every_name' | 'income_proof'>> = {
+  months_in_current_job: 'every_name',
+  residence_governorate: 'every_name',
+  residence_area: 'every_name',
+  [I_SCORE_BAND_QUESTION_CODE]: 'every_name',
+  [MONEY_FIELD_BINDINGS.tenor_months]: 'every_name',
+  [DEBT_TYPES_QUESTION_CODE]: 'every_name',
+  ...Object.fromEntries(
+    Object.values(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE).map((code) => [code, 'every_name' as const]),
+  ),
+  car_price: 'every_name',
+  car_origin: 'every_name',
+  car_model_year: 'every_name',
+  car_fuel_type: 'every_name',
+  car_dealer: 'every_name',
+  can_transfer_salary: 'income_proof',
+  [MONEY_FIELD_BINDINGS.requested_amount]: 'income_proof',
+  [MONEY_FIELD_BINDINGS.monthly_income]: 'income_proof',
+  [ADDITIONAL_INCOME_QUESTION_CODE]: 'income_proof',
+  [OTHER_INCOME_QUESTION_CODE]: 'income_proof',
+  has_bank_statement: 'income_proof',
+};
+
+/** A first-run fixed question as this seed authors it: its shape and its words from above. */
 function baseSeedQuestion(code: string): SeedQuestion {
-  const base = baseQuestion(code);
+  const base = FIXED_FIRST_RUN_SHAPES[code];
   const wording = BASE_WORDING[code];
   if (base === undefined || wording === undefined) {
-    throw new Error(`seed-questionnaire: '${code}' is not a worded fixed-set question`);
+    throw new Error(`seed-questionnaire: '${code}' is not a worded first-run fixed question`);
   }
-  const gate = baseGateJson(base.gate);
+  const gate = base.gate;
   const enumCoded = ENUM_CODED_OPTIONS[code];
   const label = (option: string): { en: string; ar: string } => {
     const found = wording.options?.[option];
@@ -342,16 +374,16 @@ function baseSeedQuestion(code: string): SeedQuestion {
     ...(base.type === 'NUMERIC'
       ? {
           numeric: {
-            minValue: base.numeric.minValue ?? '0',
-            maxValue: base.numeric.maxValue ?? '0',
+            minValue: base.numeric.minValue,
+            maxValue: base.numeric.maxValue,
             ...(base.numeric.step !== null ? { step: base.numeric.step } : {}),
-            ...(base.numeric.unitEn !== null ? { unitEn: base.numeric.unitEn } : {}),
-            ...(base.numeric.unitAr !== null ? { unitAr: base.numeric.unitAr } : {}),
+            unitEn: base.numeric.unitEn,
+            unitAr: base.numeric.unitAr,
           },
         }
       : {}),
     ...(base.type === 'TEXT' ? { text: { maxLength: base.maxLength } } : {}),
-    ...(gate !== null ? { enabledWhen: gate as SeedEnabledWhen } : {}),
+    ...(gate !== null ? { enabledWhen: gate } : {}),
     ...(enumCoded !== undefined ? { optionsFromEnumCodes: enumCoded } : {}),
     options:
       enumCoded === undefined && (base.type === 'SINGLE_SELECT' || base.type === 'MULTI_SELECT')
@@ -365,19 +397,16 @@ function baseSeedQuestion(code: string): SeedQuestion {
 }
 
 /**
- * The fixed set's work-and-income block, in the client's order: the job, its follow-ups (the
- * show-when rules open them per job group), where the applicant lives, then other income and
- * the bank statement. The SAME block in personal, car and mortgage — the loan types a payslip
- * programme is sold under — because the set is asked identically in each.
+ * The fixed set's work-and-income block, in the client's order: time in the job, the salary
+ * transfer, where the applicant lives, then other income and the bank statement. The SAME
+ * block in personal, car and mortgage — the loan types a payslip programme is sold under —
+ * because the set is asked identically in each. No job question and none of the follow-ups it
+ * opened (v30.18.0): the program the applicant picked answers it; re-running this seed on an
+ * older database switches them off.
  */
 const INCOME_PROOF_BLOCK: readonly SeedQuestion[] = [
-  'employment_status',
   'months_in_current_job',
-  'years_as_doctor',
-  'commercial_register_18m',
-  'has_tax_card',
   'can_transfer_salary',
-  'can_provide_payroll',
   'residence_governorate',
   'residence_area',
   ADDITIONAL_INCOME_QUESTION_CODE,
@@ -411,20 +440,6 @@ const CURRENT_LOANS_Q: SeedQuestion = {
   ],
 };
 
-// ONE band set for the down payment, shared by car + mortgage. Authored once
-// because the pool is GLOBAL and dedupes by code while UNIONing options: two
-// per-category band sets (10/20/30 vs 20/40) merged into one 8-option list where
-// "Less than 20%", "10% – 20%" and "20% – 30%" sat side by side and no applicant
-// could tell which one they were in.
-const DOWN_PAYMENT_OPTIONS: SeedOption[] = [
-  { code: 'no_down_payment', labelEn: 'Nothing up front', labelAr: 'بدون دفعة مقدمة' },
-  { code: 'less_than_10', labelEn: 'Less than 10%', labelAr: 'أقل من 10%' },
-  { code: '10_20', labelEn: '10% – 20%', labelAr: '10% – 20%' },
-  { code: '20_30', labelEn: '20% – 30%', labelAr: '20% – 30%' },
-  { code: '30_40', labelEn: '30% – 40%', labelAr: '30% – 40%' },
-  { code: 'more_than_40', labelEn: 'More than 40%', labelAr: 'أكثر من 40%' },
-];
-
 /**
  * The car's price and the down payment, as AMOUNTS the applicant types.
  *
@@ -433,8 +448,8 @@ const DOWN_PAYMENT_OPTIONS: SeedOption[] = [
  * (`income = down payment ÷ 3.6`) and caps the loan at a share of the price, so a midpoint is
  * not an approximation of the answer, it is a different customer's quote. Both are exact.
  *
- * CAR ONLY. Mortgage keeps `DOWN_PAYMENT_Q` below: its property value is still a bucket, and
- * one question cannot be a percentage there and an amount here.
+ * CAR ONLY. Mortgage asked a down-payment BAND (`down_payment`) until v31.0.0, when it was
+ * retired: nothing priced it.
  *
  * No `step`: `answer-validation.ts` refuses a value off the step, and a dealer's price is
  * whatever the quotation says.
@@ -549,7 +564,9 @@ const CAR_ORIGIN_Q: SeedQuestion = {
  */
 const CAR_FUEL_TYPE_Q: SeedQuestion = {
   code: 'car_fuel_type',
-  isRequired: false,
+  // Required since v31.0.0: a fixed question for car loans (operator decision), asked of every
+  // car applicant. Only the first run writes it — the admin owns a fixed question after.
+  isRequired: true,
   questionEn: 'What does the car run on?',
   questionAr: 'ما نوع وقود السيارة؟',
   helperTextEn: 'Some banks price an electric or hybrid car differently.',
@@ -586,7 +603,9 @@ const CAR_FUEL_TYPE_Q: SeedQuestion = {
  */
 const CAR_DEALER_Q: SeedQuestion = {
   code: 'car_dealer',
-  isRequired: false,
+  // Required since v31.0.0: a fixed question for car loans (operator decision), asked of every
+  // car applicant. Only the first run writes it — the admin owns a fixed question after.
+  isRequired: true,
   questionEn: 'Who are you buying the car from?',
   questionAr: 'من أين تشتري السيارة؟',
   helperTextEn: 'Some banks finance a car for longer when it is bought through certain dealers.',
@@ -611,7 +630,9 @@ const CAR_DEALER_Q: SeedQuestion = {
  */
 const CAR_MODEL_YEAR_Q: SeedQuestion = {
   code: 'car_model_year',
-  isRequired: false,
+  // Required since v31.0.0: a fixed question for car loans (operator decision), asked of every
+  // car applicant. Only the first run writes it — the admin owns a fixed question after.
+  isRequired: true,
   type: 'NUMERIC',
   questionEn: "What is the car's model year?",
   questionAr: 'ما سنة موديل السيارة؟',
@@ -656,16 +677,6 @@ const GREEN_BUYER_TYPE_Q: SeedQuestion = {
     { code: 'instalment_buyer', labelEn: 'Paying in instalments', labelAr: 'بالتقسيط' },
     { code: 'cash_buyer', labelEn: 'Paying cash', labelAr: 'نقدًا' },
   ],
-};
-
-const DOWN_PAYMENT_Q: SeedQuestion = {
-  code: 'down_payment',
-  questionEn: 'How much is your down payment?',
-  questionAr: 'كم المقدم الذي يمكنك دفعه؟',
-  // Optional (2026-09-24): no programme reads it — lead data for the bank, not a figure, so
-  // it must not block an applicant.
-  isRequired: false,
-  options: DOWN_PAYMENT_OPTIONS,
 };
 
 // The questions below are asked for MORE THAN ONE category and are therefore
@@ -1067,33 +1078,9 @@ const ADDITIONAL_INCOME_Q: SeedQuestion = baseSeedQuestion(ADDITIONAL_INCOME_QUE
 // commitment is computed. Card presence and card cost were therefore asked
 // three times, and the two option-based versions were the least precise.
 
-const PRIOR_REJECTION_Q: SeedQuestion = {
-  code: 'prior_rejection', questionEn: 'Has a bank ever refused your loan request?', questionAr: 'هل رفض بنك طلب تمويل لك من قبل؟',
-  isRequired: false, options: YESNO(),
-};
-
-/**
- * ONE priority list for all four categories. The pool is global and dedupes by
- * code, so four per-category lists could only ever UNION into one question
- * anyway — and did, badly: eleven options that included both `fastest_approval`
- * ("The fastest answer") and business's `fast_approval` ("Fast Approval"), which
- * is the same choice offered twice. Authored once, the list is a deliberate
- * cross-category set instead of an accident of merge order.
- */
-const PRIORITY_FACTOR_Q: SeedQuestion = {
-  code: 'priority_factor', questionEn: 'What matters most to you in a loan?', questionAr: 'ما أهم شيء لك في التمويل؟',
-  isRequired: false,
-  options: [
-    { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
-    { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
-    { code: 'lowest_down_payment', labelEn: 'The smallest amount up front', labelAr: 'أقل دفعة مقدمة' },
-    { code: 'longest_repayment_period', labelEn: 'The longest time to pay', labelAr: 'أطول مدة سداد' },
-    { code: 'highest_financing_amount', labelEn: 'The biggest amount', labelAr: 'أعلى مبلغ تمويل' },
-    { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
-    { code: 'least_documentation_required', labelEn: 'The fewest papers', labelAr: 'أقل أوراق مطلوبة' },
-    { code: 'flexible_repayment', labelEn: 'Easy ways to pay it back', labelAr: 'سداد مرن' },
-  ],
-};
+// `priority_factor` ("What matters most to you in a loan?") and `prior_rejection` lived here
+// until v31.0.0, when both were retired: nothing priced either answer. Unasked, the app sends
+// `fastest_approval` (partner bank first, then fewest documents) and no rejection.
 
 // ── Feature 010: the four bound money questions ─────────────────────────────
 // These carry the real figures the engine prices on. Until now the app mapped a
@@ -1546,13 +1533,8 @@ const PERSONAL: CategoryConfig = {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
     },
-    {
-      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والأهلية',
-      questions: [
-        PRIORITY_FACTOR_Q,
-        PRIOR_REJECTION_Q,
-      ],
-    },
+    // The preferences step (offer priority, past rejection) was retired in v31.0.0: nothing
+    // priced either answer, and the app sends its defaults (`fastest_approval`, no rejection).
   ],
 };
 
@@ -1560,41 +1542,8 @@ const PERSONAL: CategoryConfig = {
 const MORTGAGE: CategoryConfig = {
   category: 'mortgage',
   groups: [
-    {
-      code: 'property_financing', titleEn: 'About the home', titleAr: 'معلومات العقار والتمويل',
-      questions: [
-        {
-          // Options expanded from the active `governorate` platform-enumeration members.
-          code: 'governorate', questionEn: 'Which governorate is the place in?', questionAr: 'في أي محافظة يقع العقار؟', isRequired: false,
-          optionsFromEnum: 'governorate', options: [],
-        },
-        {
-          code: 'property_type', questionEn: 'What type of property?', questionAr: 'ما نوع العقار؟', isRequired: false,
-          options: [
-            { code: 'apartment', labelEn: 'Apartment', labelAr: 'شقة' },
-            { code: 'villa', labelEn: 'Villa', labelAr: 'فيلا' },
-            { code: 'duplex', labelEn: 'Duplex', labelAr: 'دوبلكس' },
-            { code: 'commercial_shop', labelEn: 'Shop', labelAr: 'محل تجاري' },
-            { code: 'administrative_office', labelEn: 'Office', labelAr: 'مكتب إداري' },
-            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
-          ],
-        },
-        {
-          // Optional (2026-09-24): no mortgage programme reads it yet — no LTV is stated.
-          code: 'property_value', questionEn: 'About how much is the property worth?', questionAr: 'ما القيمة التقريبية للعقار؟', isRequired: false,
-          options: [
-            { code: 'less_than_egp_1_million', labelEn: 'Less than 1 million EGP', labelAr: 'أقل من مليون جنيه' },
-            { code: 'egp_1_3_million', labelEn: '1 – 3 million EGP', labelAr: '1 – 3 مليون جنيه' },
-            { code: 'egp_3_5_million', labelEn: '3 – 5 million EGP', labelAr: '3 – 5 مليون جنيه' },
-            { code: 'more_than_egp_5_million', labelEn: 'More than 5 million EGP', labelAr: 'أكثر من 5 مليون جنيه' },
-          ],
-        },
-        // The client's mortgage order (2026-10-13): where the home is, what it is, what it is
-        // worth, then the deposit against that worth — so the deposit sits in this step, not in
-        // the financing step it used to open.
-        DOWN_PAYMENT_Q,
-      ],
-    },
+    // The home questions (governorate, type, value, down payment) were retired in v31.0.0:
+    // nothing priced them (no mortgage programme states an LTV), and the app sends its defaults.
     // Shared groups are referenced by CODE, never re-declared with a new code:
     // an `income_employment` of its own held only questions that dedupe into
     // PERSONAL's `employment_income`, so it published as an empty step and sat in
@@ -1618,13 +1567,8 @@ const MORTGAGE: CategoryConfig = {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
     },
-    {
-      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات',
-      questions: [
-        PRIORITY_FACTOR_Q,
-        PRIOR_REJECTION_Q,
-      ],
-    },
+    // The preferences step (offer priority, past rejection) was retired in v31.0.0: nothing
+    // priced either answer, and the app sends its defaults (`fastest_approval`, no rejection).
   ],
 };
 
@@ -1701,15 +1645,8 @@ const CAR: CategoryConfig = {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
     },
-    {
-      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات',
-      questions: [
-        PRIORITY_FACTOR_Q,
-        PRIOR_REJECTION_Q,
-        // `wants_insurance` ("car insurance offers?") USED TO STAND HERE. `CAR_ASKS` never
-        // listed it, so it was active and asked by nobody; it leaves the pool (2026-09-24).
-      ],
-    },
+    // The preferences step (offer priority, past rejection) was retired in v31.0.0: nothing
+    // priced either answer, and the app sends its defaults (`fastest_approval`, no rejection).
   ],
 };
 
@@ -1719,39 +1656,9 @@ const BUSINESS: CategoryConfig = {
   groups: [
     {
       code: 'business_financing', titleEn: 'About your business', titleAr: 'معلومات النشاط والتمويل',
-      questions: [
-        {
-          code: 'activity_type', questionEn: 'What kind of work does your business do?', questionAr: 'ما نوع النشاط التجاري الذي تديره؟', isRequired: false,
-          options: [
-            { code: 'trade', labelEn: 'Buying and selling', labelAr: 'تجارة' },
-            { code: 'services', labelEn: 'Services', labelAr: 'خدمات' },
-            { code: 'restaurants_cafes', labelEn: 'Food and coffee shops', labelAr: 'مطاعم وكافيهات' },
-            { code: 'manufacturing', labelEn: 'Making or producing goods', labelAr: 'تصنيع' },
-            { code: 'technology', labelEn: 'Technology', labelAr: 'تكنولوجيا' },
-            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
-          ],
-        },
-        {
-          // Optional (2026-09-24): read by no programme's figures, only shown as a match reason.
-          code: 'business_age', questionEn: 'How long has your business been open?', questionAr: 'منذ متى بدأ نشاطك؟', isRequired: false,
-          options: [
-            { code: 'less_than_1_year', labelEn: 'Less than 1 year', labelAr: 'أقل من سنة' },
-            { code: '1_to_2_years', labelEn: '1 to 2 years', labelAr: 'من 1 إلى 2 سنة' },
-            { code: 'more_than_2_years', labelEn: 'More than 2 years', labelAr: 'أكثر من سنتين' },
-          ],
-        },
-        {
-          code: 'financing_purpose', questionEn: 'What will the business use the money for?', questionAr: 'ما الغرض الأساسي من التمويل؟', isRequired: false,
-          options: [
-            { code: 'expansion', labelEn: 'Growing the business', labelAr: 'توسع' },
-            { code: 'purchasing_equipment', labelEn: 'Buying equipment', labelAr: 'شراء معدات' },
-            { code: 'working_capital', labelEn: 'Day to day running costs', labelAr: 'رأس مال عامل' },
-            { code: 'opening_a_new_branch', labelEn: 'Opening a new branch', labelAr: 'فتح فرع جديد' },
-            { code: 'settling_obligations', labelEn: 'Paying off what we owe', labelAr: 'سداد التزامات' },
-            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
-          ],
-        },
-      ],
+      // Empty since v31.0.0 — the business questions nothing read (activity, age, purpose) were
+      // retired — and declared still: `GROUP_MERGES` folds the other business steps into it.
+      questions: [],
     },
     {
       // Declared with no questions of its own on purpose: `amount_requested` and
@@ -1761,18 +1668,8 @@ const BUSINESS: CategoryConfig = {
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
       questions: [],
     },
-    {
-      code: 'financial_info', titleEn: 'Your business money', titleAr: 'المعلومات المالية',
-      questions: [
-        { code: 'business_account', questionEn: 'Do you have a bank account for the business?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO() },
-        { code: 'registered', questionEn: 'Is your business officially registered?', questionAr: 'هل النشاط مسجل رسميًا؟', isRequired: false, options: [
-          { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
-          { code: 'no', labelEn: 'No', labelAr: 'لا' },
-          { code: 'registration_in_progress', labelEn: 'We are registering it now', labelAr: 'التسجيل جارٍ' },
-        ] },
-        { code: 'tax_registration', questionEn: 'Do you have a tax card or commercial register?', questionAr: 'هل لديك سجل ضريبي أو تجاري؟', isRequired: false, options: YESNO() },
-      ],
-    },
+    // `financial_info` (business account, registration, tax card) was retired in v31.0.0:
+    // nothing read those answers.
     {
       code: 'obligations_credit', titleEn: 'Business loans you have', titleAr: 'الالتزامات والحالة الائتمانية',
       // The itemised debt flow every other loan type has (2026-09-24). It replaces
@@ -1782,13 +1679,8 @@ const BUSINESS: CategoryConfig = {
       // automatically — their categories are derived from it below.
       questions: [CURRENT_LOANS_Q],
     },
-    {
-      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والدعم',
-      questions: [
-        PRIORITY_FACTOR_Q,
-        PRIOR_REJECTION_Q,
-      ],
-    },
+    // The preferences step (offer priority, past rejection) was retired in v31.0.0: nothing
+    // priced either answer, and the app sends its defaults (`fastest_approval`, no rejection).
   ],
 };
 
@@ -1860,16 +1752,16 @@ export interface SeedPool {
  *   the surrogate facts        `green_buyer_type`, `total_savings` — read by
  *                              `down_payment_income`'s savings way; and `home_ownership`,
  *                              read by the car financed-share table
- *   the applicant type         `employment_status` — CAE's car cards cap a self-employed
- *                              buyer at 60 months; unasked, the app sent `salaried` for all
- *                              (added 2026-09-24)
- *   the two operator asks      `priority_factor` — losing it drops all four mobile priority
- *                              mappers to their default arm and freezes the wrong offer order
- *                              onto immutable rows (Principle V) — and `i_score_band`
- *
- * PLUS the fixed question set (`base-question-set.ts`, v30.11.0): every question the set asks
- * in car is car's whatever this list says — `narrowCarCategory` never strips one — because the
- * set, not this list, decides what a payslip car applicant is asked.
+ *   (not the applicant type)   `employment_status` was here from 2026-09-24 — CAE's car
+ *                              cards cap a self-employed buyer at 60 months — and left on
+ *                              2026-10-26 (v30.18.0): the program the applicant picked answers
+ *                              the job, and the app's `salaried` default prices everyone, the
+ *                              operator's call made knowing that
+ *   the bureau score           `i_score_band` (`priority_factor` stood beside it until v31.0.0,
+ *                              when it was retired: nothing priced it)
+ *   the fixed income block     the first-run fixed questions car is asked
+ *                              (`FIXED_FIRST_RUN_SHAPES`): months in the job, the salary
+ *                              transfer, residence ×2, other income ×2, the bank statement
  *
  * `check:question-scope` is the standing gate on this list: it fails if any live programme
  * reads a fact whose question the car category no longer asks.
@@ -1884,7 +1776,6 @@ const CAR_ASKS: ReadonlySet<string> = new Set<string>([
   'car_price',
   'credit_card_total_limit',
   'current_loans',
-  'employment_status',
   'green_buyer_type',
   'home_ownership',
   'i_score_band',
@@ -1893,9 +1784,16 @@ const CAR_ASKS: ReadonlySet<string> = new Set<string>([
   'obligation_mortgage',
   'obligation_other',
   'obligation_personal_loan',
-  'priority_factor',
   'repayment_period_months',
   'total_savings',
+  // The first-run fixed income block (v31.0.0 — the code registry used to say so instead).
+  'months_in_current_job',
+  'can_transfer_salary',
+  'residence_governorate',
+  'residence_area',
+  'additional_income',
+  'other_income_monthly',
+  'has_bank_statement',
 ]);
 
 /**
@@ -1967,8 +1865,7 @@ function mergeThinGroups(
 
 function narrowCarCategory(categoriesByQuestion: Record<string, Set<Category>>): void {
   for (const [code, categories] of Object.entries(categoriesByQuestion)) {
-    const fixedInCar = baseQuestion(code)?.categories.includes('car') === true;
-    if (categories.has('car') && !CAR_ASKS.has(code) && !fixedInCar) categories.delete('car');
+    if (categories.has('car') && !CAR_ASKS.has(code)) categories.delete('car');
   }
 }
 
@@ -2224,6 +2121,11 @@ export async function seedQuestionnaire(): Promise<void> {
   for (const code of questionOrder) {
     const q = questionByCode.get(code)!;
     qOrder += 1;
+    // A FIXED question is the admin's once it exists (v31.0.0): this seed only INSERTS one, as
+    // a first-run default, and never rewrites its wording, answers, loan types or place —
+    // `qOrder` still advances so every other question keeps its position.
+    const owned = await prisma.question.findUnique({ where: { code }, select: { fixedServedOn: true } });
+    if (owned !== null && owned.fixedServedOn !== null) continue;
     // Per-type rule columns: only the owning type keeps them, so a bucket
     // question converted to NUMERIC does not carry stale text rules (and vice versa).
     const typeColumns = {
@@ -2258,6 +2160,7 @@ export async function seedQuestionnaire(): Promise<void> {
       create: {
         groupId: groupIdByCode.get(q.groupCode)!, code,
         questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder, isRequired: q.isRequired,
+        fixedServedOn: FIXED_FIRST_RUN_SERVED_ON[code] ?? null,
         ...helperColumns, ...typeColumns, ...branchColumn,
       },
     });
@@ -2300,8 +2203,12 @@ export async function seedQuestionnaire(): Promise<void> {
       });
     }
   }
-  // Deactivate stale questions + groups (dropped/renamed across the whole pool).
-  await prisma.question.updateMany({ where: { code: { notIn: questionOrder } }, data: { isActive: false } });
+  // Deactivate stale questions + groups (dropped/renamed across the whole pool). Never a FIXED
+  // one: the admin owns it, and only their confirmed delete switches one off.
+  await prisma.question.updateMany({
+    where: { code: { notIn: questionOrder }, fixedServedOn: null },
+    data: { isActive: false },
+  });
   await prisma.questionGroup.updateMany({ where: { code: { notIn: groupOrder } }, data: { isActive: false } });
 
   // ---- 2a-ii. Put back the ones a live product still reads --------------------
@@ -2325,6 +2232,9 @@ export async function seedQuestionnaire(): Promise<void> {
   const revived = await prisma.question.updateMany({
     where: {
       isActive: false,
+      // A deleted FIXED question stays deleted, even where a product asks it: the admin's
+      // confirmed delete is the one way out, and this seed must not overrule it (v31.0.0).
+      fixedServedOn: null,
       id: {
         in: (
           await prisma.surrogateProductAsk.findMany({

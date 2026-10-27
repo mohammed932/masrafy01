@@ -63,6 +63,7 @@ export interface RailTabItem {
       [class.vertical]="orientation() === 'vertical'"
       [class.segmented]="appearance() === 'segmented'"
       [class.uniform]="uniform()"
+      [class.wrap-labels]="wrapLabels()"
       [class.has-notes]="hasNotes()"
       role="tablist"
       [attr.aria-orientation]="orientation()"
@@ -418,6 +419,15 @@ export interface RailTabItem {
       .rail.segmented.uniform .tab-label {
         white-space: normal;
       }
+      /* Opt-in: a pill never wider than its rail, its label wrapping inside it. Padding-block
+         keeps a two-line label off the pill's rounded edge. */
+      .rail.wrap-labels .tab {
+        max-inline-size: 100%;
+        padding-block: var(--space-1-5);
+      }
+      .rail.wrap-labels .tab-label {
+        white-space: normal;
+      }
       /* Secondary, not tertiary. Both of these run at --text-xxs (11px), and
          tertiary on the light surface (#8C7E75 on #FDFCFB) is 3.83:1 — under AA
          for text this size. Secondary is 6.1:1 and still plainly subordinate:
@@ -521,6 +531,12 @@ export class RailTabsComponent {
    * a ragged last row and cap a long label for no gain.
    */
   readonly uniform = input(false);
+  /**
+   * A long label wraps inside its pill instead of running the pill past the rail's edge. For
+   * labels that are data (a questionnaire page's title), which a narrow screen cannot be
+   * trusted to fit on one line; the default keeps one line and an ellipsis.
+   */
+  readonly wrapLabels = input(false);
 
   readonly select = output<string>();
 

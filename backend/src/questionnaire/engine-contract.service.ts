@@ -9,7 +9,12 @@ import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform
 import { planAssignment } from './assignment-plan';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import {
-  baseCategoryRemoved,
+  fixedRuleBreaks,
+  fixedServedOnOf,
+  type FixedRuleQuestion,
+  type FixedServedOn,
+} from './validation/fixed-questions';
+import {
   engineContractViolations,
   engineLocks,
   introducedViolations,
@@ -38,10 +43,8 @@ export interface QuestionPatch {
   enabledWhen?: unknown;
   /** The numeric unit (ar or en) would change. */
   unitChanged?: boolean;
-  /** A numeric bound or the step would change (value compare — a resend is no change). */
-  boundsChanged?: boolean;
-  /** A text question's length cap would change. */
-  maxLengthChanged?: boolean;
+  /** Marked FIXED (v31.0.0), moved, or — `null` — un-fixed (v31.1.0, the admin's both ways). */
+  fixedServedOn?: FixedServedOn | null;
   /** The wording it would have — judged for its quantities only (`wordingNumberBreaks`). */
   questionAr?: string;
   questionEn?: string;
@@ -72,15 +75,21 @@ export type QuestionnaireWrite =
       labelEn?: string;
     }
   /** A rollback: the questionnaire becomes what this frozen snapshot holds. */
-  | { kind: 'snapshot'; snapshot: unknown };
+  | { kind: 'snapshot'; snapshot: unknown }
+  /**
+   * A super admin's CONFIRMED delete of a fixed question (they typed its code) — the one write
+   * that may switch off a question the lock holds, and the ratchet does not refuse it. The fixed
+   * rules still judge it, so it switches off that question and nothing else.
+   */
+  | { kind: 'fixed_delete'; questionId: string };
 
 /** What the editor shows on a locked question. */
 export interface QuestionEngineLockView {
   reason: EngineLock['reason'];
   optionsFixed: boolean;
-  /** In the fixed question set: only its wording and its place in the order may change. */
+  /** Always `false` since v31.0.0 — kept one release for an admin bundle built before. */
   shapeFixed: boolean;
-  /** The loan types a `shapeFixed` question may never leave. */
+  /** Always empty since v31.0.0 (see `shapeFixed`). */
   baseCategories: LoanCategory[];
   programNames: { key: string; labelAr: string; labelEn: string }[];
 }
@@ -126,6 +135,13 @@ export class EngineContractService {
     const live = await this.contractQuestions(rows);
     const locks = engineLocks(ctx);
 
+    // The confirmed delete skips the lock and the ratchet — what it breaks was shown to the
+    // super admin before they typed the code (`fixedDeleteViolations`) — but not the fixed rules.
+    if (write.kind === 'fixed_delete') {
+      assertFixedRules(live, await this.playForward(live, write), rows, write.questionId);
+      return;
+    }
+
     const refuse = (row: Question, lock: EngineLock, change: EngineLockedChange): never => {
       throw new DomainException(ERROR_CODES.QUESTION_ENGINE_LOCKED, {
         questionId: row.id,
@@ -164,24 +180,9 @@ export class EngineContractService {
 
     const after = await this.playForward(live, write);
 
-    // A fixed-set question may never leave a loan type the set asks it in — the category
-    // replace is judged on what it would leave behind, exactly as the repository writes it.
-    if (write.kind === 'categories') {
-      const next = new Map(after.map((q) => [q.id, q]));
-      for (const { questionId } of write.assignments) {
-        const row = rows.find((r) => r.id === questionId);
-        const lock = row === undefined ? undefined : locks.get(row.code);
-        const before = live.find((q) => q.id === questionId);
-        const changed = next.get(questionId);
-        if (row === undefined || lock === undefined || before === undefined || !changed) continue;
-        if (
-          baseCategoryRemoved(row.code, before, changed) &&
-          isRefusedForLock(lock, 'category_removed')
-        ) {
-          refuse(row, lock, 'category_removed');
-        }
-      }
-    }
+    // The FIXED rules (v31.0.0), on what every write — rollback included — would leave behind:
+    // a category replace exactly as the repository writes it, a rollback as the version holds it.
+    assertFixedRules(live, after, rows);
 
     // A rollback changes many questions at once; each locked one is judged as if its changes
     // had been made one by one. Without this a version that froze I-Score as optional, or an
@@ -232,6 +233,27 @@ export class EngineContractService {
         violations: introduced.map((v) => ({ ...v })),
       });
     }
+  }
+
+  /**
+   * What a confirmed delete of `questionId` would do, for the warning the super admin reads
+   * before typing the code: the lock it would bypass (`null` = nothing reads it by code or
+   * table) and every engine-input violation it would introduce — the ratchet's own dry run.
+   */
+  async fixedDeleteImpact(
+    questionId: string,
+  ): Promise<{ lock: EngineLock | null; wouldBreak: EngineContractViolation[] }> {
+    const [ctx, rows] = await Promise.all([this.context(), this.repo.questions()]);
+    const live = await this.contractQuestions(rows);
+    const code = rows.find((r) => r.id === questionId)?.code;
+    const after = await this.playForward(live, { kind: 'fixed_delete', questionId });
+    return {
+      lock: code === undefined ? null : (engineLocks(ctx).get(code) ?? null),
+      wouldBreak: introducedViolations(
+        engineContractViolations(live, ctx),
+        engineContractViolations(after, ctx),
+      ),
+    };
   }
 
   /** The lock on every locked question, by code, with the names a `program` lock is read by. */
@@ -368,6 +390,7 @@ export class EngineContractService {
         numericMax: r.numericMaxValue?.toFixed(2) ?? null,
         numericStep: r.numericStep?.toFixed(2) ?? null,
         textMaxLength: r.textMaxLength,
+        fixedServedOn: r.fixedServedOn ?? null,
         wording: {
           questionAr: r.questionAr,
           questionEn: r.questionEn,
@@ -398,9 +421,15 @@ export class EngineContractService {
                 isRequired: p.isRequired ?? q.isRequired,
                 isActive: p.isActive ?? q.isActive,
                 enabledWhen: p.enabledWhen === undefined ? q.enabledWhen : p.enabledWhen,
+                fixedServedOn:
+                  p.fixedServedOn === undefined ? (q.fixedServedOn ?? null) : p.fixedServedOn,
               },
         );
       }
+      // Switched off and nothing else: a deleted fixed question keeps its mark, loan types and
+      // answers on the row, so a restore brings it back whole.
+      case 'fixed_delete':
+        return live.map((q) => (q.id !== write.questionId ? q : { ...q, isActive: false }));
       case 'option':
         return live.map((q) => {
           if (q.id !== write.questionId) return q;
@@ -513,14 +542,59 @@ function lockedChangeOf(row: Question, write: QuestionnaireWrite): EngineLockedC
   const p = write.patch;
   if (p.type !== undefined && p.type !== row.type) return 'type';
   if (p.isActive === false && row.isActive) return 'switched_off';
-  if (p.isRequired === false && row.isRequired) return 'optional';
   if (p.enabledWhen !== undefined && !sameGate(p.enabledWhen, row.enabledWhen ?? null)) {
     return 'gate';
   }
   if (p.unitChanged === true) return 'unit';
-  if (p.boundsChanged === true) return 'bounds';
-  if (p.maxLengthChanged === true) return 'max_length';
   return null;
+}
+
+/** The contract's row as the fixed rules read it. */
+function asFixedRuleQuestion(q: ContractQuestion): FixedRuleQuestion {
+  return {
+    id: q.id,
+    code: q.code,
+    isActive: q.isActive,
+    enabledWhen: q.enabledWhen,
+    categories: q.categories,
+    optInCategories: q.optInCategories,
+    fixedServedOn: q.fixedServedOn ?? null,
+  };
+}
+
+/**
+ * Refuse a write (or rollback) that breaks a FIXED rule (`fixed-questions.ts`, v31.0.0), naming
+ * the first break. `confirmedDeleteId` is the question a super admin confirmed deleting.
+ */
+function assertFixedRules(
+  live: readonly ContractQuestion[],
+  after: readonly ContractQuestion[],
+  rows: readonly Question[],
+  confirmedDeleteId?: string,
+): void {
+  const first = fixedRuleBreaks(
+    live.map(asFixedRuleQuestion),
+    after.map(asFixedRuleQuestion),
+    confirmedDeleteId,
+  )[0];
+  if (first === undefined) return;
+  const row = rows.find((r) => r.id === first.questionId);
+  const at = {
+    questionId: first.questionId,
+    code: first.code,
+    questionAr: row?.questionAr ?? first.code,
+    questionEn: row?.questionEn ?? first.code,
+  };
+  if (first.rule === 'gate_not_fixed') {
+    const source = rows.find((r) => r.code === first.sourceCode);
+    throw new DomainException(ERROR_CODES.QUESTION_FIXED_GATE_NOT_FIXED, {
+      ...at,
+      sourceCode: first.sourceCode ?? '',
+      sourceAr: source?.questionAr ?? first.sourceCode ?? '',
+      sourceEn: source?.questionEn ?? first.sourceCode ?? '',
+    });
+  }
+  throw new DomainException(ERROR_CODES.QUESTION_FIXED_LOCKED, { ...at, rule: first.rule });
 }
 
 /**
@@ -555,6 +629,7 @@ function snapshotQuestions(
       questionEn?: unknown;
       helperTextAr?: unknown;
       helperTextEn?: unknown;
+      fixedServedOn?: unknown;
     };
     if (typeof q.code !== 'string' || frozen.has(q.code)) continue;
     const text = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -591,6 +666,9 @@ function snapshotQuestions(
       numericMax: typeof q.numeric?.maxValue === 'string' ? q.numeric.maxValue : null,
       numericStep: typeof q.numeric?.step === 'string' ? q.numeric.step : null,
       textMaxLength: typeof q.text?.maxLength === 'number' ? q.text.maxLength : null,
+      // Frozen since v31.0.0; a version published before marks nothing, so rolling back to one
+      // serves every question as ordinary — allowed since un-fixing is the admin's (v31.1.0).
+      fixedServedOn: fixedServedOnOf(q.fixedServedOn),
       wording,
     });
   }

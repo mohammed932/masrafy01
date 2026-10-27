@@ -170,6 +170,39 @@ export class QuestionnaireRepository {
     return row?.displayOrder ?? -1;
   }
 
+  /** Answers stored against a question on applications — what a delete leaves where it is. */
+  answerCount(questionId: string): Promise<number> {
+    return this.prisma.applicationAnswer.count({ where: { questionId } });
+  }
+
+  /**
+   * A question marked FIXED is asked on every name of its loan types (v31.0.0): any per-name
+   * skip or addition of it goes, in the same breath as the mark.
+   */
+  clearNamePolicyFor(questionId: string): Promise<unknown> {
+    return this.prisma.$transaction([
+      this.prisma.programNameQuestionExclusion.deleteMany({ where: { questionId } }),
+      this.prisma.programNameQuestionAddition.deleteMany({ where: { questionId } }),
+    ]);
+  }
+
+  /** The FIXED questions a super admin deleted — switched off, mark kept — for Restore. */
+  deletedFixedQuestions(): Promise<Question[]> {
+    return this.prisma.question.findMany({
+      where: { isActive: false, fixedServedOn: { not: null } },
+      orderBy: { displayOrder: 'asc' },
+    });
+  }
+
+  /** The products whose live (not detached) asks reach a question through its bound fact. */
+  async productAsksFor(questionId: string): Promise<string[]> {
+    const rows = await this.prisma.surrogateProductAsk.findMany({
+      where: { detachedAt: null, fact: { boundQuestionId: questionId } },
+      select: { product: { select: { key: true } } },
+    });
+    return [...new Set(rows.map((r) => r.product.key))].sort();
+  }
+
   /** Active questions whose enabledWhen references the given question code (delete guard). */
   async dependentsOf(questionCode: string): Promise<string[]> {
     const rows = await this.prisma.question.findMany({

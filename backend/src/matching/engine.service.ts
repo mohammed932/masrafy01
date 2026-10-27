@@ -188,7 +188,18 @@ export class EngineService {
     // All money math lives in `quoteProgram` — the one implementation shared by
     // matching preview, apply, the admin draft preview and the calculator. That
     // sharing is what makes FR-025 preview/apply parity structural.
-    const outcome = quoteProgram({ profile, program, skipDbrCheck, incomeResolution });
+    // `parentKeyByValue` rides into the quote too, not only into the income resolution above:
+    // a cap table keyed by a parent class (`rowVia: 'parentClass'` — the doctors' city tiers,
+    // the compound classes) misses without it and falls back to the programme maximum.
+    // Preview always passed it (`matching-preview.service.ts`), so apply froze a higher
+    // amount onto the offer than the preview had shown.
+    const outcome = quoteProgram({
+      profile,
+      program,
+      skipDbrCheck,
+      incomeResolution,
+      ...(flags.parentKeyByValue !== undefined ? { parentKeyByValue: flags.parentKeyByValue } : {}),
+    });
     if (!outcome.ok) {
       return {
         programCode: program.programCode,

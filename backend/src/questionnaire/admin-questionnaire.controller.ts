@@ -25,6 +25,7 @@ import {
   CreateOptionDto,
   CreateQuestionDto,
   CreateQuestionWithOptionsDto,
+  DeleteQuestionQueryDto,
   ReorderCategoryQuestionsDto,
   ReorderQuestionsDto,
   AddQuestionCategoriesBulkDto,
@@ -151,9 +152,38 @@ export class AdminQuestionnaireController {
   }
 
   @Delete('questions/:id')
-  @ApiOperation({ summary: 'Soft-delete a question (blocked if a branch depends on it)' })
-  async deleteQuestion(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return ok(await this.service.softDeleteQuestion(id, user.sub));
+  @ApiOperation({
+    summary: 'Soft-delete a question (blocked if a branch depends on it)',
+    description:
+      'A FIXED question (v31.0.0) is deleted only by a super_admin who sends its code as ' +
+      '`confirmCode` — the one write that may switch off a question the loan engine reads.',
+  })
+  async deleteQuestion(
+    @Param('id') id: string,
+    @Query() query: DeleteQuestionQueryDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return ok(
+      await this.service.softDeleteQuestion(id, user.sub, {
+        role: user.role,
+        confirmCode: query.confirmCode,
+      }),
+    );
+  }
+
+  // Static segment, declared before any `questions/:id…` read could shadow it.
+  @Get('questions/deleted-fixed')
+  @ApiOperation({ summary: 'The FIXED questions a super admin deleted — what Restore lists' })
+  async deletedFixedQuestions() {
+    return ok(await this.service.deletedFixedQuestions());
+  }
+
+  @Get('questions/:id/delete-impact')
+  @ApiOperation({
+    summary: 'What deleting a question would do — read before the typed-confirm dialog',
+  })
+  async deleteImpact(@Param('id') id: string) {
+    return ok(await this.service.deleteImpact(id));
   }
 
   // Static segment, so it cannot be shadowed by `questions/:id/categories`

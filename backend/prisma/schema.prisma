@@ -1630,6 +1630,14 @@ enum QuestionType {
   NUMERIC
 }
 
+// v31.0.0 — where a FIXED question is asked (`question.fixedServedOn`). `every_name`: on
+// every program of the loan types it is in; `income_proof`: on every income-proof (payslip)
+// program of them. Set when the admin creates or marks the question, and never cleared.
+enum FixedQuestionServedOn {
+  every_name
+  income_proof
+}
+
 // Feature 010 — questions are GLOBAL (no category). A single question pool feeds
 // one global questionnaire, narrowed per applicant by `question_loan_category`.
 //
@@ -1679,6 +1687,15 @@ model Question {
   numericUnitAr   String?  @db.VarChar(24) // display unit, e.g. "جنيه"
   numericUnitEn   String?  @db.VarChar(24) // display unit, e.g. "EGP"
   textMaxLength   Int? // TEXT only; 1…2000
+
+  /// FIXED (v31.0.0): asked on every program of its loan types (`every_name`), or on every
+  /// income-proof program of them (`income_proof`); `null` = an ordinary question. The admin
+  /// owns it — set at create, or by marking an existing question once — and it is never
+  /// cleared: a fixed question stays required, is never opt-in, skipped or added per program
+  /// name, never leaves one of its loan types, and is gated only on another fixed question
+  /// (`questionnaire/validation/fixed-questions.ts`). Frozen into the published snapshot.
+  /// A deleted one keeps it, so a restore brings the question back whole.
+  fixedServedOn FixedQuestionServedOn?
 
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)

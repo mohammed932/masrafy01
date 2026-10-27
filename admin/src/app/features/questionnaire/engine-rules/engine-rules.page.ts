@@ -60,6 +60,7 @@ import {
 } from './engine-rules.labels';
 import {
   IMPACT_AREAS,
+  changesOffer,
   filterRules,
   groupOf,
   impactOf,
@@ -81,9 +82,11 @@ const AREA_ICONS: Record<ImpactArea, string> = {
 /** One question in the picker. */
 interface PickItem {
   q: EngineRuleQuestion;
-  /** Its place in the owner's list, from 1 — kept while a search narrows the list. */
+  /** Its place in the asked order, from 1 — kept while a search narrows the list. */
   n: number;
   meta: string;
+  /** Its answer changes the offer today; otherwise it is asked and saved, and nothing reads it. */
+  onOffer: boolean;
 }
 
 /** One answer row of the selected question. */
@@ -120,22 +123,22 @@ interface DetailView {
 }
 
 /**
- * LOAN ENGINE — the third Questionnaire tab (route `engine-rules`).
+ * FIXED QUESTIONS — the third Questionnaire tab (route `engine-rules`).
  *
- * The owner's fixed questions («أسئلة إثبات الدخل», `BASE_QUESTIONS`), numbered in the owner's
- * order, and what each of their answers means to the loan engine — on two tabs, by who asks
- * them (`?basis=`, the Program catalog's own Income proof / Surrogate switch): every
- * income-proof program asks all of them; a surrogate program asks all but the declared income
- * (`noPayslip`), the loan amount only where it does not work it out from the car figures. They
- * are MANDATORY and none can be switched off, so nothing here ticks, toggles or unticks a
- * question. Each says only WHEN it is asked (always, or once another answer opens it) and, on
- * Surrogate, which program question is asked instead where a program has its own
- * (`answeredBy`). Surrogate programs add their own questions in the Program catalog. Both tabs
- * show the SAME questions, so a reworded answer changes on both.
+ * The FIXED questions (`question.fixedServedOn` — the admin's since v31.0.0, marked on the
+ * Questions tab), numbered in the order they are asked, and what each of their answers means to
+ * the loan engine — on two tabs, by who asks them (`?basis=`, the Program catalog's own Income
+ * proof / Surrogate switch): every income-proof program asks all of them; a surrogate program
+ * asks the `every_name` ones (`noPayslip`), the loan amount only where it does not work it out
+ * from the car figures. They are MANDATORY and none can be skipped, so nothing here ticks,
+ * toggles or unticks a question. Each says only WHEN it is asked (always, or once another answer
+ * opens it). Surrogate programs add their own questions in the Program catalog. Both tabs show
+ * the SAME questions, so a reworded answer changes on both.
  *
- * ONE thing an admin can change: an answer's wording, in a side sheet, keeping the numbers it
- * states (the engine prices the answer, the customer picks it by its words — the server refuses
- * a reword that changes a number, `ENGINE_WORDING_NUMBERS_CHANGED`).
+ * ONE thing changes here: an answer's wording, in a side sheet, keeping the numbers it states
+ * (the engine prices the answer, the customer picks it by its words — the server refuses a
+ * reword that changes a number, `ENGINE_WORDING_NUMBERS_CHANGED`). Everything else about a fixed
+ * question is changed on the Questions tab, linked from every question here.
  *
  * Laid out as the three steps an operator takes, so the screen reads as what to DO rather than
  * as a reference to study: (1) open a question from the numbered list on the start side, (2)
@@ -181,11 +184,12 @@ interface DetailView {
       <p class="sr-only" role="status" aria-live="polite">{{ status() }}</p>
       <header class="bar">
         <div class="bar-lead">
-          <h1 i18n="@@qrules.title">Loan engine questions</h1>
+          <h1 i18n="@@qrules.title">Fixed questions</h1>
           <p class="sub" i18n="@@qrules.sub">
-            The fixed questions the loan engine reads, in the owner's order. They are mandatory: no
-            program can switch them off. Here you can only change how an answer is worded, and the
-            numbers in it must stay the same.
+            The fixed questions, in the order customers are asked them. Every program in their loan
+            types asks them, and no program can skip them. Each one says whether its answer changes
+            the offer, or is only saved on the application. Here you can reword an answer, keeping
+            the numbers in it; change anything else on the Questions tab.
           </p>
         </div>
         <span class="autosave" i18n="@@qcat.autosave">Saves &amp; publishes automatically</span>
@@ -222,11 +226,10 @@ interface DetailView {
           @if (basis() === 'no_payslip') {
             <p class="catalog-note">
               <span i18n="@@qrules.surrogate_note"
-                >Surrogate programs don't ask what work the customer does: the customer picks the
-                program before the questions start, and the pick says it. They don't ask monthly
-                income, other income or the bank statement either: they work the income out another
-                way. Each program also asks its own questions, set in the Program catalog. These are
-                the same questions as on Income proof, so a reworded answer changes on both.</span
+                >Surrogate programs skip the fixed questions asked on income-proof programs only:
+                they work the income out another way. Each program also asks its own questions, set
+                in the Program catalog. These are the same questions as on Income proof, so a
+                reworded answer changes on both.</span
               >
               <a
                 *can="['super_admin']"
@@ -274,7 +277,7 @@ interface DetailView {
                   </button>
                 </div>
               } @else {
-                <!-- In the owner's order, numbered per tab; a question keeps its number while a search narrows the list. -->
+                <!-- In the order they are asked, numbered per tab; a question keeps its number while a search narrows the list. -->
                 <ol class="picks">
                   @for (it of picks(); track it.q.id) {
                     <li>
@@ -290,6 +293,13 @@ interface DetailView {
                         <span class="pick-body">
                           <span class="pick-q">{{ wordingOf(it.q) }}</span>
                           <span class="pick-meta">{{ it.meta }}</span>
+                          @if (it.onOffer) {
+                            <span class="use" i18n="@@qrules.use_offer">Changes the offer</span>
+                          } @else {
+                            <span class="use unused" i18n="@@qrules.use_none"
+                              >Doesn't change the offer</span
+                            >
+                          }
                         </span>
                       </button>
                     </li>
@@ -318,6 +328,13 @@ interface DetailView {
                 <p class="q-alt">
                   <bdi [attr.lang]="altLang">{{ d.alt }}</bdi>
                 </p>
+                <a
+                  class="edit-link"
+                  [routerLink]="['../questions']"
+                  [queryParams]="{ q: d.q.code }"
+                  i18n="@@qrules.edit_link"
+                  >Edit this question</a
+                >
 
                 <dl class="summary">
                   <div class="summary-row">
@@ -378,7 +395,8 @@ interface DetailView {
                         </ul>
                       } @else {
                         <span class="quiet" i18n="@@qrules.impact_none">
-                          Nothing by itself — it is one of the fixed questions.
+                          Nothing — the answer is saved and shown on the application, but no program
+                          uses it to work out an offer.
                         </span>
                       }
                     </dd>
@@ -444,9 +462,17 @@ interface DetailView {
                     }
 
                     <table class="answers">
-                      <caption class="answers-caption" i18n="@@qrules.no_add_note">
-                        Answers can't be added or removed here: each one means something to the loan
-                        engine.
+                      <caption class="answers-caption">
+                        @if (d.q.lock !== null) {
+                          <span i18n="@@qrules.no_add_note">
+                            Answers can't be added or removed here: each one means something to the
+                            loan engine.
+                          </span>
+                        } @else {
+                          <span i18n="@@qrules.no_add_note_pool">
+                            Add or remove answers on the Questions tab.
+                          </span>
+                        }
                       </caption>
                       <thead>
                         <tr>
@@ -780,7 +806,7 @@ interface DetailView {
         border-inline-start-color: var(--primary);
         background: var(--primary-subtle);
       }
-      /* The question's place in the owner's list — the number an operator reads off the sheet. */
+      /* The question's place in the asked order — the number an operator reads off the list. */
       .pick-n {
         flex: none;
         min-inline-size: var(--space-5);
@@ -815,6 +841,31 @@ interface DetailView {
         font-size: var(--text-xs);
         color: var(--text-secondary);
         font-variant-numeric: tabular-nums lining-nums;
+      }
+      /* Whether the answer changes the offer: a filled dot if it does, a hollow one if not. */
+      .use {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-primary);
+      }
+      .use::before {
+        content: '';
+        flex: none;
+        inline-size: var(--space-2);
+        block-size: var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--color-success-dot);
+      }
+      .use.unused {
+        font-weight: var(--font-weight-regular);
+        color: var(--text-secondary);
+      }
+      .use.unused::before {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--border-strong);
       }
 
       /* ---- Step 2: the question ------------------------------------------------------------ */
@@ -859,6 +910,16 @@ interface DetailView {
         margin: calc(-1 * var(--space-2)) 0 0;
         font-size: var(--text-sm);
         color: var(--text-secondary);
+      }
+      .edit-link {
+        justify-self: start;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--primary-visible);
+      }
+      .edit-link:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       .summary {
         display: grid;
@@ -1273,13 +1334,13 @@ export class EngineRulesPageComponent implements OnInit {
   protected readonly search = signal('');
   /** Which programs' questions are on screen: `payslip` = Income proof, `no_payslip` = Surrogate. */
   protected readonly basis = signal<IncomeBasis>('payslip');
-  /** The opened question's code; `null` = the first in the owner's list. */
+  /** The opened question's code; `null` = the first in the list. */
   private readonly selectedCode = signal<string | null>(null);
   /** On a narrow screen only one pane shows: the list, or the opened question. */
   protected readonly narrowView = signal<'list' | 'detail'>('list');
   protected readonly searching = computed(() => this.search().trim() !== '');
 
-  /** The questions the tab's programs ask, in the owner's order. */
+  /** The questions the tab's programs ask, in the order they are asked. */
   private readonly shown = computed<readonly EngineRuleQuestion[]>(() =>
     this.basis() === 'payslip' ? this.questions() : this.questions().filter(asksWithoutPayslip),
   );
@@ -1306,15 +1367,21 @@ export class EngineRulesPageComponent implements OnInit {
     ];
   });
 
-  /** Every question on the tab with its number in the owner's list, worded once per load. */
-  private readonly numbered = computed<PickItem[]>(() =>
-    this.shown().map((q, index) => {
+  /** Every question on the tab with its number in the asked order, worded once per load. */
+  private readonly numbered = computed<PickItem[]>(() => {
+    const byCode = new Map(this.questions().map((q) => [q.code, q]));
+    return this.shown().map((q, index) => {
       const meta = pickMeta(q, numberedAnswerCount(q), this.isAr);
-      return { q, n: index + 1, meta: q.askedWhen === null ? meta : `${meta} · ${followUpTag()}` };
-    }),
-  );
+      return {
+        q,
+        n: index + 1,
+        meta: q.askedWhen === null ? meta : `${meta} · ${followUpTag()}`,
+        onOffer: changesOffer(q, byCode),
+      };
+    });
+  });
 
-  /** The list as searched — in the owner's order, each question keeping its own number. */
+  /** The list as searched — in the asked order, each question keeping its own number. */
   protected readonly picks = computed<PickItem[]>(() => {
     const matching = new Set(filterRules(this.shown(), this.search()).map((q) => q.id));
     return this.numbered().filter((it) => matching.has(it.q.id));
@@ -1339,12 +1406,12 @@ export class EngineRulesPageComponent implements OnInit {
     return $localize`:@@qrules.showing:${shown}:shown: of ${total}:total: questions`;
   });
 
-  protected readonly loadingAria = $localize`:@@qrules.loading_aria:Loading the loan engine questions`;
-  protected readonly loadFailedTitle = $localize`:@@qrules.load_failed:Couldn't load the loan engine questions`;
+  protected readonly loadingAria = $localize`:@@qrules.loading_aria:Loading the fixed questions`;
+  protected readonly loadFailedTitle = $localize`:@@qrules.load_failed:Couldn't load the fixed questions`;
   protected readonly loadFailedSub = $localize`:@@qrules.load_failed_sub:Check your connection and try again.`;
-  protected readonly emptyTitle = $localize`:@@qrules.empty_title:No loan engine question is switched on`;
+  protected readonly emptyTitle = $localize`:@@qrules.empty_title:No fixed question is switched on`;
   protected readonly searchPlaceholder = $localize`:@@qrules.search_ph:Search questions or answers`;
-  protected readonly pickAria = $localize`:@@qrules.pick_aria:Loan engine questions, in the owner's order`;
+  protected readonly pickAria = $localize`:@@qrules.pick_aria:Fixed questions, in the order they are asked`;
   protected readonly basisAria = $localize`:@@qrules.basis_aria:Which programs ask them`;
   private readonly proofNote = $localize`:@@qrules.basis_proof_note:Asked on every income-proof program`;
   private readonly surrogateNote = $localize`:@@qrules.basis_surrogate_note:Asked on every surrogate program`;

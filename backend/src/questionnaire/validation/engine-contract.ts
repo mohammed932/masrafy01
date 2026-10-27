@@ -13,22 +13,22 @@
  * Two halves, both pure:
  *
  *   1. THE LOCK (`engineLocks` + `isRefusedForLock` + `lockedChangesBetween`). A question the
- *      engine reads keeps its type, its unit, its required flag, its show-when rule, its place
- *      in the pool, and the answers it offers. Its wording stays editable — all but the
+ *      engine reads keeps its type, its unit, its show-when rule, its place in the pool, and the
+ *      answers it offers. Whether it is REQUIRED is the admin's (v31.1.0, operator decision
+ *      2026-10-27): an applicant who skips an optional one is quoted without that answer. Its wording stays editable — all but the
  *      quantities in it (`wordingNumberBreaks`, v30.12.0): "Less than 6 months" may become
  *      "Under 6 months", never "Under 12 months", because the engine reads the CODE and the
  *      applicant picks by the WORDS. A question is locked for one of these reasons, derived —
  *      never ticked by hand, so it can be neither forgotten nor removed by mistake:
  *        - `engine`: every quote reads it — the four money figures, the debts and their amounts,
- *          the job type, what the app reads by code — or the platform owns the fact it answers
- *          (I-Score, the car figures).
+ *          the job type, the months in the job and the salary transfer the server reads itself
+ *          — or the platform owns the fact it answers (I-Score, the car figures).
  *        - `program`: a live bank programme reads it, through its calculation or a table.
- *        - `base`: it is in the FIXED QUESTION SET (`base-question-set.ts`, v30.11.0) — the
- *          client's income-proof questions, owned in code. On top of everything above, such a
- *          question keeps its bounds, its text length and the loan types it is asked in
- *          (`shapeFixed`): only its wording (question, helper text, answer labels) and its
- *          place in the order change. An engine question in the set keeps reason `engine` and
- *          gains `shapeFixed`.
+ *      A FIXED question (`question.fixedServedOn`, the admin's since v31.0.0) is held by its
+ *      own rules besides while it is fixed (`fixed-questions.ts`, applied by
+ *      `EngineContractService`): never opt-in, never out of a loan type, gated only on a fixed
+ *      question, and switched off only by a super admin's confirmed delete — the one write that
+ *      may switch off a question this lock holds. The mark itself is the admin's both ways.
  *      No answer may be ADDED to a locked question, whoever reads it (v30.12.0, operator
  *      decision). Until then a question only a table read could gain one, on the reasoning that
  *      the table might just lack the row — but nothing checks that a new answer has a row, and
@@ -62,14 +62,19 @@ import {
   ASKED_MONEY_FIELD_BINDING_KEYS,
   MONEY_FIELD_BINDING_KEYS,
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
-  PRIORITY_QUESTION_CODE,
   obligationItemQuestionFor,
   type MoneyFieldBinding,
 } from '@/matching/pipeline/money-field-bindings';
 import { sortCategories } from '@/common/loan-category.util';
 import { sameQuantities, wordingQuantities } from './wording-numbers';
 import { Decimal } from '@prisma/client/runtime/library';
-import { BASE_QUESTIONS, baseQuestion } from '@/matching/pipeline/base-question-set';
+import {
+  CAN_TRANSFER_SALARY_QUESTION_CODE,
+  I_SCORE_BAND_QUESTION_CODE,
+  MONTHS_IN_JOB_QUESTION_CODE,
+  OTHER_INCOME_QUESTION_CODE,
+} from '@/matching/pipeline/base-question-set';
+import type { FixedServedOn } from './fixed-questions';
 import { isKnownEmploymentType } from '@/matching/pipeline/employment-type';
 import { narrowAskedQuestions, type NarrowingScope } from './question-scope';
 import { enabledWhenGate } from './question-visibility';
@@ -88,53 +93,48 @@ const ENGINE_INPUT_TYPES: ReadonlyMap<string, string> = new Map<string, string>(
   [EMPLOYMENT_TYPE_QUESTION_CODE, 'SINGLE_SELECT'],
 ]);
 
-/**
- * Questions the MOBILE APP reads by code to fill the apply request, per loan type — one line
- * per `*_apply_mapper.dart`: the job type, the order offers are ranked in, months in the job or
- * the business, where the salary is paid, a past rejection, and the mortgage's property. The
- * server takes those fields from the request body, so it never sees one break: a question that
- * stops being asked, or an answer the app has no arm for, is sent as the app's default (24
- * months, `none`, an apartment, the fastest-approval order, `salaried`) with nothing anywhere
- * saying so. Per loan type because each mapper reads its own set — the car mapper reads no
- * property question, and holding car to one would make an accidental tick impossible to undo.
- * Mirrors the mappers: a code a mapper starts reading is added here in the same change.
- */
-//
-// Time in the job and the salary transfer are NOT here any more (v30.11.0): `job_tenure` and
-// `salary_transfer` left the pool for the fixed question set's `months_in_current_job` and
-// `can_transfer_salary`, which the server reads itself (`engine-inputs-from-answers.ts`) —
-// the app's own copy is a fallback for an older build — and which the fixed-set lock already
-// holds to their answers and their loan types.
-export const APP_MAPPED_QUESTIONS_BY_CATEGORY: Readonly<Record<LoanCategory, readonly string[]>> = {
-  personal: [EMPLOYMENT_TYPE_QUESTION_CODE, PRIORITY_QUESTION_CODE, 'prior_rejection'],
-  car: [EMPLOYMENT_TYPE_QUESTION_CODE, PRIORITY_QUESTION_CODE],
-  // The mortgage mapper ALSO reads `prior_rejection`, which is left off on purpose (2026-10-13,
-  // v30.10.0): no mortgage programme moves money on it (eligibility is skipped on apply), and
-  // the two mortgage names skip it to ask the client's questions. A mortgage programme that
-  // starts pricing on it puts it back here in the same change.
-  mortgage: [
-    EMPLOYMENT_TYPE_QUESTION_CODE,
-    PRIORITY_QUESTION_CODE,
-    'property_type',
-    'property_value',
-    'down_payment',
-  ],
-  business: [PRIORITY_QUESTION_CODE, 'business_age', 'prior_rejection'],
-};
+// The questions the MOBILE APP read by code to fill the apply request — the order offers are
+// ranked in, a past rejection, the business's age, the mortgage's property — were held here
+// per loan type until v31.0.0, when all six were switched off: nothing prices them, and the app
+// sends its defaults unasked (the fastest-approval order, no rejection, 24 months, an
+// apartment). The job left before them (v30.18.0); the time in the job and the salary transfer
+// are read by the server itself (`engine-inputs-from-answers.ts`) and are listed below.
 
-/** Every code some mapper reads. */
-export const APP_MAPPED_QUESTION_CODES: readonly string[] = [
-  ...new Set(Object.values(APP_MAPPED_QUESTIONS_BY_CATEGORY).flat()),
+/**
+ * The questions the SERVER reads by code beside the bindings above
+ * (`engine-inputs-from-answers.ts`): the months in the job, and the salary transfer, whose
+ * answers map one by one to a rate-table key (`TRANSFER_TYPE_BY_OPTION`). Locked like the
+ * engine's own inputs, so no answer without a meaning can be added to them — the fixed-set lock
+ * used to hold them, and since v31.0.0 a fixed question is otherwise the admin's to edit.
+ */
+const SERVER_READ_QUESTION_CODES: readonly string[] = [
+  MONTHS_IN_JOB_QUESTION_CODE,
+  CAN_TRANSFER_SALARY_QUESTION_CODE,
 ];
 
 /**
- * The engine's own inputs, by code: locked with `optionsFixed`, because the engine or the app
- * maps each of their answers one by one.
+ * The engine's own inputs, by code: locked with `optionsFixed`, because the engine maps each of
+ * their answers one by one.
  */
 export const ENGINE_INPUT_QUESTION_CODES: ReadonlySet<string> = new Set([
   ...ENGINE_INPUT_TYPES.keys(),
-  ...APP_MAPPED_QUESTION_CODES,
+  ...SERVER_READ_QUESTION_CODES,
 ]);
+
+/**
+ * Every question code the engine reads BY CODE today — the four money figures it asks, the
+ * debts, the two the server reads itself, the I-Score band and the other income. Deleting one
+ * of them is allowed (a super admin's confirmed delete of a fixed question), and changes quotes;
+ * `check:questionnaire` warns while one is switched off.
+ */
+export const ENGINE_READ_CODES: readonly string[] = [
+  ...ASKED_MONEY_FIELD_BINDING_KEYS.map((key) => MONEY_FIELD_BINDINGS[key]),
+  DEBT_TYPES_QUESTION_CODE,
+  ...Object.values(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE),
+  ...SERVER_READ_QUESTION_CODES,
+  I_SCORE_BAND_QUESTION_CODE,
+  OTHER_INCOME_QUESTION_CODE,
+];
 
 /** The debt-type pick each obligation amount question is shown for. */
 const DEBT_TYPE_BY_ITEM: ReadonlyMap<string, string> = new Map(
@@ -218,6 +218,11 @@ export interface ContractQuestion {
   /** A text question's length cap; `null` = none. */
   readonly textMaxLength: number | null;
   /**
+   * FIXED (`question.fixedServedOn`, v31.0.0): core wherever it is served, so the narrowing
+   * this contract walks serves it as serve and apply do. Absent = not fixed.
+   */
+  readonly fixedServedOn?: FixedServedOn | null;
+  /**
    * What the applicant reads — judged only for the quantities in it (`wordingNumberBreaks`).
    * Absent where the caller has no wording to give; then nothing about wording is judged.
    */
@@ -292,8 +297,6 @@ export type EngineContractRule =
   | 'engine_question_off'
   /** …is the wrong type for its reader (a number turned into text, a pick into a number). */
   | 'engine_question_wrong_type'
-  /** …is optional. Skipped, it reads as no figure, or as zero debts. */
-  | 'engine_question_optional'
   /** …has a show-when rule, or a debt amount shown for the wrong debt. */
   | 'engine_question_gated'
   /** …is not asked (an ordinary row) in a loan type that is on sale and reads it. */
@@ -375,8 +378,8 @@ export function engineContractViolations(
     );
   };
 
-  // 1. The engine's own inputs: on, the right type, required, and shown unconditionally (or,
-  //    for a debt amount, shown exactly when its own debt is ticked).
+  // 1. The engine's own inputs: on, the right type, and shown unconditionally (or, for a debt
+  //    amount, shown exactly when its own debt is ticked). Required is the admin's (v31.1.0).
   for (const [code, expectedType] of ENGINE_INPUT_TYPES) {
     const q = byCode.get(code);
     if (q === undefined) {
@@ -385,7 +388,6 @@ export function engineContractViolations(
     }
     if (q.type !== expectedType)
       out.push({ rule: 'engine_question_wrong_type', questionCode: code });
-    if (!q.isRequired) out.push({ rule: 'engine_question_optional', questionCode: code });
     const gate = gateOf(q.enabledWhen);
     const debtType = DEBT_TYPE_BY_ITEM.get(code);
     const gateIsRight =
@@ -434,10 +436,7 @@ export function engineContractViolations(
   //    `check:questionnaire` 1, and each loan type's own mapper).
   const categoriesOnSale = [...new Set(ctx.flows.map((f) => f.category))].sort();
   for (const category of categoriesOnSale) {
-    for (const code of [
-      ...ASKED_IN_EVERY_LOAN_TYPE,
-      ...APP_MAPPED_QUESTIONS_BY_CATEGORY[category],
-    ]) {
+    for (const code of ASKED_IN_EVERY_LOAN_TYPE) {
       if (askedIn(code, category)) continue;
       if (
         code === MONEY_FIELD_BINDINGS.requested_amount &&
@@ -519,13 +518,11 @@ export function engineContractViolations(
           code: q.code,
           enabledWhen: q.enabledWhen,
           optIn: q.optInCategories.includes(category),
+          fixedServedOn: q.fixedServedOn ?? null,
         })),
       path.scope,
     ).keep;
-    for (const code of [
-      ...SERVED_UNDER_EVERY_NAME,
-      ...APP_MAPPED_QUESTIONS_BY_CATEGORY[category],
-    ]) {
+    for (const code of SERVED_UNDER_EVERY_NAME) {
       if (inCategory(code, category) && !keep.has(code)) {
         out.push({ rule: 'engine_question_not_served', questionCode: code, ...where });
       }
@@ -549,13 +546,17 @@ export function engineContractViolations(
 export type EngineLockReason = 'engine' | 'base' | 'program';
 
 export interface EngineLock {
+  /**
+   * `engine` or `program` here. `base` (a FIXED question this path serves) is the program-name
+   * board's reason (`questionLockReason`); the fixed rules themselves are `fixed-questions.ts`.
+   */
   readonly reason: EngineLockReason;
   /**
-   * In the fixed question set: its bounds, its text length and the loan types in `baseCategories`
-   * are locked too — only wording and order may change (`base-question-set.ts`).
+   * Always `false` since v31.0.0: the registry-only bounds / length / loan-type lock went with
+   * the code registry. Kept on the wire one release for an admin bundle built before.
    */
   readonly shapeFixed: boolean;
-  /** The loan types a `shapeFixed` question may never leave (empty otherwise). */
+  /** Always empty since v31.0.0 (see `shapeFixed`). */
   readonly baseCategories: readonly LoanCategory[];
   /**
    * No answer may be ADDED. True on every lock since v30.12.0 (see the header); kept on the wire
@@ -605,8 +606,9 @@ export function programReaders(
 }
 
 /**
- * Which questions are locked, and why. An `engine` reason wins over `base`, and both over
- * `program`; the fixed set adds `shapeFixed` whatever the reason.
+ * Which questions are locked, and why: an `engine` reason wins over `program`. A FIXED question
+ * is locked here only where the engine or a programme reads it; otherwise the admin edits it
+ * within the fixed rules (`fixed-questions.ts`, v31.0.0).
  */
 export function engineLocks(ctx: EngineContractContext): ReadonlyMap<string, EngineLock> {
   const out = new Map<string, EngineLock>();
@@ -621,16 +623,6 @@ export function engineLocks(ctx: EngineContractContext): ReadonlyMap<string, Eng
   }
   for (const code of ENGINE_INPUT_QUESTION_CODES) {
     out.set(code, { reason: 'engine', ...unshaped });
-  }
-  // The fixed set: answers owned in code, and the shape with them.
-  for (const q of BASE_QUESTIONS) {
-    out.set(q.code, {
-      reason: out.get(q.code)?.reason ?? 'base',
-      optionsFixed: true,
-      shapeFixed: true,
-      baseCategories: q.categories,
-      programNameKeys: [],
-    });
   }
   for (const [code, readers] of programReaders(ctx)) {
     if (out.has(code)) continue;
@@ -649,31 +641,18 @@ export function engineLocks(ctx: EngineContractContext): ReadonlyMap<string, Eng
 export type EngineLockedChange =
   | 'type'
   | 'unit'
-  | 'optional'
   | 'switched_off'
   | 'gate'
   | 'option_removed'
-  | 'option_added'
-  /** A numeric bound or step would change (fixed set only). */
-  | 'bounds'
-  /** A text question's length cap would change (fixed set only). */
-  | 'max_length'
-  /** It would leave, or turn opt-in in, a loan type the fixed set asks it in. */
-  | 'category_removed';
+  | 'option_added';
 
 /**
- * Whether `lock` refuses `change`. Everything is refused — adding an answer included, on every
- * lock since v30.12.0 — except the three shape changes only the fixed set locks.
+ * Whether `lock` refuses `change`. Every locked change is refused — adding an answer included,
+ * on every lock since v30.12.0. (The registry-only bounds / length / loan-type changes went with
+ * the code registry in v31.0.0; a fixed question's loan types are the fixed rules' now.)
  */
-export function isRefusedForLock(lock: EngineLock, change: EngineLockedChange): boolean {
-  switch (change) {
-    case 'bounds':
-    case 'max_length':
-    case 'category_removed':
-      return lock.shapeFixed;
-    default:
-      return true;
-  }
+export function isRefusedForLock(_lock: EngineLock, _change: EngineLockedChange): boolean {
+  return true;
 }
 
 /**
@@ -724,22 +703,6 @@ export function wordingNumberBreaks(
 }
 
 /**
- * Whether `after` drops `code` from a loan type the fixed set asks it in, that `before` asked it
- * in as an ordinary row — removed, or turned opt-in. A loan type it was never in is no change.
- */
-export function baseCategoryRemoved(
-  code: string,
-  before: Pick<ContractQuestion, 'categories' | 'optInCategories'>,
-  after: Pick<ContractQuestion, 'categories' | 'optInCategories'>,
-): boolean {
-  const ordinary = (q: typeof before, c: LoanCategory): boolean =>
-    q.categories.includes(c) && !q.optInCategories.includes(c);
-  return (baseQuestion(code)?.categories ?? []).some(
-    (c) => ordinary(before, c) && !ordinary(after, c),
-  );
-}
-
-/**
  * Every locked change between a question as it is and as it would be — what a ROLLBACK does to
  * a locked question in one go, judged exactly as the same edits made one at a time would be.
  * `before` is the live row; `after` is the frozen one (`undefined` = the version does not ask
@@ -753,7 +716,6 @@ export function lockedChangesBetween(
   if (after === undefined || !after.isActive) return ['switched_off'];
   const out: EngineLockedChange[] = [];
   if (after.type !== before.type) out.push('type');
-  if (before.isRequired && !after.isRequired) out.push('optional');
   if (!sameGate(before.enabledWhen, after.enabledWhen)) out.push('gate');
   if (
     before.type === 'NUMERIC' &&
@@ -768,23 +730,6 @@ export function lockedChangesBetween(
   if (after.optionCodes.some((code) => !before.optionCodes.includes(code))) {
     out.push('option_added');
   }
-  if (
-    before.type === 'NUMERIC' &&
-    after.type === 'NUMERIC' &&
-    (!sameDecimal(before.numericMin, after.numericMin) ||
-      !sameDecimal(before.numericMax, after.numericMax) ||
-      !sameDecimal(before.numericStep, after.numericStep))
-  ) {
-    out.push('bounds');
-  }
-  if (
-    before.type === 'TEXT' &&
-    after.type === 'TEXT' &&
-    before.textMaxLength !== after.textMaxLength
-  ) {
-    out.push('max_length');
-  }
-  if (baseCategoryRemoved(before.code, before, after)) out.push('category_removed');
   return out;
 }
 

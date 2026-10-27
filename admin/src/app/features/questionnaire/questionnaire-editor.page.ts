@@ -1,13 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
-  Injector,
   LOCALE_ID,
   OnInit,
-  afterNextRender,
+  type TemplateRef,
   computed,
   inject,
   signal,
@@ -21,7 +19,6 @@ import {
   CdkDragPlaceholder,
   CdkDropList,
   type CdkDragDrop,
-  moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
@@ -32,10 +29,10 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { A11yModule } from '@angular/cdk/a11y';
 import {
   ArrowDownOutline,
   ArrowUpOutline,
@@ -48,21 +45,41 @@ import {
   LockOutline,
   PlusOutline,
   SearchOutline,
+  UndoOutline,
   WarningOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   QuestionnaireApiService,
   isChoiceQuestionType,
+  type DeletedFixedQuestion,
   type EnabledWhenRule,
+  type FixedServedOn,
   type OptionRow,
   type PublishWarning,
   type QuestionEngineLock,
   type QuestionRow,
   type QuestionType,
+  type UpdateQuestionBody,
 } from './questionnaire.api.service';
+import {
+  engineLockOf,
+  isFixed,
+  isListed,
+  reorderWithin,
+  servedOnHint,
+  servedOnLabel,
+} from './question-pool-view';
+import {
+  DeleteFixedQuestionDialog,
+  type DeleteFixedQuestionData,
+} from './delete-fixed-question.dialog';
 import { ruleCodes } from '@shared/questions/enabled-when';
+import { CanDirective } from '@shared/can.directive';
+import { AuthService } from '@core/auth/auth.service';
+import { categoryLabel, isLoanCategory } from '@core/loan-category';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { MoneyInputDirective, formatGroupedNumber } from '@core/directives/money-input.directive';
+import { DrawerSectionComponent, FormDrawerComponent, openFormDrawer } from '@shared/ui';
 
 /** Ordered for the segmented control: the two choice types, then the two value types. */
 const TYPE_ORDER: readonly QuestionType[] = ['SINGLE_SELECT', 'MULTI_SELECT', 'NUMERIC', 'TEXT'];
@@ -84,6 +101,12 @@ const INLINE_OPTION_PREVIEW = 8;
  */
 const PAGE_SIZE = 10;
 
+/**
+ * The editor sheet's width: wider than a one-column form's default, because a numeric question
+ * puts three bounds on one row and a branch rule is a sentence with two pickers in it.
+ */
+const SHEET_WIDTH = 'min(640px, calc(100vw - 32px))';
+
 type TypeFilter = QuestionType | 'ALL';
 
 /** The comparisons `enabledWhen` can carry — the server's own closed set. */
@@ -101,10 +124,17 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
  * not: the whole questionnaire is visible and searchable at once, and order is a
  * single global sequence you can drag, instead of a per-section number you type.
  *
- * Editing happens INLINE, in the row's own position — there is no drawer. A drawer
- * costs the admin the surrounding questions (the context that tells them whether
- * this question is redundant), and for a two-field option form it is pure overhead.
- * Every edit auto-publishes a new global version.
+ * Editing happens in a SIDE SHEET (the shared app-form-drawer), like every other add/edit
+ * form in the dashboard: the list stays on screen beside it, so the admin keeps the
+ * surrounding questions in view while they edit one. Every edit auto-publishes a new
+ * global version.
+ *
+ * FIXED questions are data the admin owns, both ways (v31.0.0, v31.1.0): a question is made
+ * fixed — asked on every program of its loan types — or ordinary again at will, and made
+ * required or optional like any other. The list shows the fixed questions and every
+ * ordinary one no surrogate product asks; those are managed from the Program catalog, stay in
+ * `rows` (branch rules, the reorder and `?q=` need them) and open here only by link. Deleting
+ * a fixed question is a super admin's, through a type-the-code dialog.
  */
 @Component({
   standalone: true,
@@ -113,6 +143,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    RouterLink,
+    CanDirective,
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
@@ -127,8 +159,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
     NzIconModule,
     NzSelectModule,
     NzToolTipModule,
-    A11yModule,
     MoneyInputDirective,
+    FormDrawerComponent,
+    DrawerSectionComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -143,6 +176,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       LockOutline,
       PlusOutline,
       SearchOutline,
+      UndoOutline,
       WarningOutline,
     ]),
   ],
@@ -184,7 +218,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
               <span i18n="@@qedit.health_issues">{{ issueCount() }} to fix</span>
             </button>
-          } @else if (!loading() && rows().length > 0) {
+          } @else if (!loading() && listed().length > 0) {
             <span class="health ok">
               <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
               <span i18n="@@qedit.health_ok">Ready to ask</span>
@@ -232,7 +266,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
 
       @if (loading()) {
         <div class="center"><nz-spin nzSimple /></div>
-      } @else if (rows().length === 0) {
+      } @else if (listed().length === 0) {
+        <ng-container [ngTemplateOutlet]="hiddenNote"></ng-container>
         <div class="empty-card">
           <nz-empty
             nzNotFoundContent="No questions yet — the first one you add becomes the first thing every applicant is asked"
@@ -295,6 +330,21 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             }
           </div>
 
+          <!-- Only where it narrows: on a list of nothing but fixed questions it would be a
+               filter whose one result is the list already on screen. -->
+          @if (fixedNarrows()) {
+            <button
+              type="button"
+              class="chip fixed"
+              [class.on]="onlyFixed()"
+              [attr.aria-pressed]="onlyFixed()"
+              (click)="setOnlyFixed(!onlyFixed())"
+            >
+              <span i18n="@@qedit.filter_fixed">Fixed</span>
+              <span class="chip-n">{{ fixedCount() }}</span>
+            </button>
+          }
+
           @if (incomplete().length > 0) {
             <button
               type="button"
@@ -308,10 +358,27 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             </button>
           }
 
+          <!-- Not a filter: the deleted fixed questions are not in the pool, so this opens
+               their own list, with Restore. A super admin's, like the delete itself. -->
+          @if (deletedFixed().length > 0) {
+            <button
+              *can="['super_admin']"
+              type="button"
+              class="chip"
+              [class.on]="deletedShown()"
+              [attr.aria-expanded]="deletedShown()"
+              aria-controls="qedit-deleted"
+              (click)="deletedOpen.set(!deletedOpen())"
+            >
+              <span i18n="@@qedit.deleted_chip">Deleted</span>
+              <span class="chip-n">{{ deletedFixed().length }}</span>
+            </button>
+          }
+
           <p class="showing">
             @if (filtering()) {
               <span i18n="@@qedit.showing"
-                >{{ visible().length }} of {{ rows().length }} questions</span
+                >{{ visible().length }} of {{ listed().length }} questions</span
               >
               <button
                 type="button"
@@ -323,11 +390,47 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               </button>
             } @else {
               <span i18n="@@qedit.total"
-                >{{ rows().length }} questions · {{ totalOptions() }} answers</span
+                >{{ listed().length }} questions · {{ totalOptions() }} answers</span
               >
             }
           </p>
         </div>
+
+        <ng-container [ngTemplateOutlet]="hiddenNote"></ng-container>
+
+        @if (deletedShown()) {
+          <section class="deleted-panel" id="qedit-deleted" aria-labelledby="qedit-deleted-title">
+            <p class="dp-title" id="qedit-deleted-title" i18n="@@qedit.deleted_title">
+              Deleted fixed questions
+            </p>
+            <p class="dp-hint" i18n="@@qedit.deleted_hint">
+              Restore brings a question back with its answers and loan types, and every program asks
+              it again right away.
+            </p>
+            <ul class="dp-list">
+              @for (d of deletedFixed(); track d.id) {
+                <li class="dp-row">
+                  <span class="dp-text">
+                    <span class="dp-q">{{ isAr ? d.questionAr : d.questionEn }}</span>
+                    <span class="dp-meta">{{ deletedMeta(d) }}</span>
+                  </span>
+                  <button
+                    nz-button
+                    nzSize="small"
+                    type="button"
+                    [nzLoading]="restoringId() === d.id"
+                    [disabled]="restoringId() !== null"
+                    [attr.aria-label]="restoreAria(d)"
+                    (click)="restore(d)"
+                  >
+                    <span nz-icon nzType="undo" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@qedit.restore">Restore</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          </section>
+        }
 
         @if (filtering() && visible().length > 0) {
           <p class="drag-note" i18n="@@qedit.drag_disabled">
@@ -347,7 +450,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
           <div class="empty-card">
             <p class="nm-title" i18n="@@qedit.no_matches_title">Nothing matches that filter</p>
             <p class="nm-body" i18n="@@qedit.no_matches_body">
-              The pool still has {{ rows().length }} questions — they're just filtered out.
+              The pool still has {{ listed().length }} questions — they're just filtered out.
             </p>
             <button nz-button (click)="clearFilters()" i18n="@@qedit.clear_filters">Clear</button>
           </div>
@@ -409,10 +512,18 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                        column on every row — an optional required-chip cell of its
                        own would shift every kebab it is missing from. -->
                   <span class="row-meta">
+                    <!-- A fact about where the question is asked, not a lock: worded, so it
+                         never reads as the padlock beside it. -->
+                    @if (isFixed(q)) {
+                      <span class="fixed-chip" nz-tooltip [nzTooltipTitle]="fixedTip(q)"
+                        ><span i18n="@@qedit.fixed_chip">Fixed</span
+                        ><span class="sr-only">{{ fixedTip(q) }}</span></span
+                      >
+                    }
                     <!-- The engine reads this answer, so the server refuses anything but
                          its wording and answer order. Said on the row so the admin knows
                          before opening it, not after a refused save. -->
-                    @if (q.engineLock; as lock) {
+                    @if (engineLockOf(q); as lock) {
                       <span class="lock-chip" nz-tooltip [nzTooltipTitle]="lockSummary(lock)"
                         ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
                         ><span class="sr-only">{{ lockSummary(lock) }}</span></span
@@ -522,318 +633,276 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       }
     </section>
 
-    <!-- Editor modal — rendered OUTSIDE section.page so the fixed scrim resolves
-         against the viewport rather than the page's animated containing block (A34).
-         A modal rather than an inline panel: expanding a row in place pushed every
-         question below it down by ~400px, so the list moved under the cursor at the
-         exact moment the admin was trying to read it. -->
-    @if (modalOpen()) {
-      <div class="scrim" (click)="cancel()" aria-hidden="true"></div>
-      <!-- The wrap is the scroll container. Owning the scroll (plus overscroll
-           containment) is what keeps the page behind from scrolling, with no
-           body-overflow bookkeeping to get out of sync with nz-modal's own. -->
-      <div class="modal-wrap">
-        <section
-          class="modal"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="qedit-modal-title"
-          cdkTrapFocus
-          [cdkTrapFocusAutoCapture]="true"
-          (keydown.escape)="cancel()"
-        >
-          <header class="modal-head">
-            <div class="mh-lead">
-              @if (editingQuestion(); as eq) {
-                <p class="mh-eyebrow">
-                  <span i18n="@@qedit.modal_pos"
-                    >Question {{ positionOf(eq) }} of {{ rows().length }}</span
-                  >
+    <!-- The editor is a SIDE SHEET — app-form-drawer, opened through NzDrawerService like every
+         other add/edit form in the dashboard (openSheet). The template stays in this page, so
+         the form keeps the page's own state: the pool, the branch sources, the move buttons.
+         The drawer owns the full-viewport mask (A34), the focus trap, Esc, and the end-edge
+         placement in both directions; the list stays on screen beside the sheet. -->
+    <ng-template #editorSheet>
+      <app-form-drawer
+        class="qe-sheet"
+        [title]="sheetTitle()"
+        [subtitle]="sheetSubtitle()"
+        [submitLabel]="saveLabel()"
+        [submitDisabled]="saveBlocked()"
+        [submitting]="saving()"
+        (cancelled)="cancel()"
+        (submitted)="submitQuestion()"
+      >
+        <span drawerIcon nz-icon [nzType]="editing() ? 'edit' : 'plus'" nzTheme="outline"></span>
+        <!-- Reordering lives here: the keyboard twin of the drag handle, and the only way to
+             move a question while filtered. A question this tab does not list has no place in
+             it to move. -->
+        @if (movableQuestion(); as eq) {
+          <span drawerHeadActions class="sheet-moves">
+            <button
+              type="button"
+              class="icon-btn"
+              [disabled]="positionOf(eq) === 1"
+              (click)="moveBy(eq, -1)"
+              nz-tooltip
+              nzTooltipTitle="Move up"
+              i18n-nzTooltipTitle="@@qedit.move_up"
+              aria-label="Move up"
+              i18n-aria-label="@@qedit.move_up"
+            >
+              <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
+            </button>
+            <button
+              type="button"
+              class="icon-btn"
+              [disabled]="positionOf(eq) === listed().length"
+              (click)="moveBy(eq, 1)"
+              nz-tooltip
+              nzTooltipTitle="Move down"
+              i18n-nzTooltipTitle="@@qedit.move_down"
+              aria-label="Move down"
+              i18n-aria-label="@@qedit.move_down"
+            >
+              <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
+            </button>
+          </span>
+        }
+        <!-- On the footer's start edge, away from Save. A fixed question is a super admin's to
+             delete, through the dialog that says what the delete costs and asks for the code;
+             one the loan engine reads (and is not fixed) is not deleted from here at all. -->
+        @if (deletableQuestion(); as eq) {
+          <button
+            drawerFootStart
+            type="button"
+            nz-button
+            nzType="text"
+            nzDanger
+            (click)="deleteQuestion(eq)"
+            i18n="@@qedit.delete_question"
+          >
+            Delete question
+          </button>
+        }
+        <ng-container [ngTemplateOutlet]="questionEditor"></ng-container>
+      </app-form-drawer>
+    </ng-template>
+
+    <!-- One editor for both edit and create: the two differ only in whether a question is
+         already saved, so duplicating the form would be two places to fix every rule. ONE
+         column of labelled sections, read top to bottom in the order an admin decides them:
+         what is asked, how it is answered, who must answer it, and when it is asked. -->
+    <ng-template #questionEditor>
+      <form [formGroup]="questionForm" class="form" (ngSubmit)="submitQuestion()" novalidate>
+        <!-- First, because it explains every control below that is greyed out. -->
+        @if (editLock(); as lock) {
+          <div class="lock-note" role="note">
+            <span
+              class="lock-ico"
+              nz-icon
+              nzType="lock"
+              nzTheme="outline"
+              aria-hidden="true"
+            ></span>
+            <div class="lock-text">
+              @if (lock.reason === 'program') {
+                <p class="lock-title" i18n="@@qedit.lock_title_program">
+                  Bank programs work out offers from this answer
                 </p>
-                <h2 id="qedit-modal-title" i18n="@@qedit.modal_edit">Edit question</h2>
               } @else {
-                <p class="mh-eyebrow">
-                  <span i18n="@@qedit.modal_pos_new">Position {{ rows().length + 1 }}</span>
+                <p class="lock-title" i18n="@@qedit.lock_title_engine">
+                  The loan engine reads this answer
                 </p>
-                <h2 id="qedit-modal-title" i18n="@@qedit.modal_new">New question</h2>
+              }
+              <!-- Said by what may still change, not by who reads it. A fixed one leaves out
+                   the delete: a super admin may still delete it, through the dialog that says
+                   what the engine loses. -->
+              @if (editingFixed()) {
+                <p class="lock-body" i18n="@@qedit.lock_body_fixed_q">
+                  Its answer type, unit, when-to-ask rule and answers stay as they are. Its wording,
+                  and whether it is required or fixed, can change.
+                </p>
+              } @else {
+                <p class="lock-body" i18n="@@qedit.lock_body_fixed">
+                  Its answer type, unit, when-to-ask rule and answers stay as they are, and it can't
+                  be deleted. Its wording, and whether it is required or fixed, can change.
+                </p>
+              }
+              <p class="lock-body" i18n="@@qedit.lock_numbers">
+                Keep the numbers in its wording as they are, in the question, the helper text and
+                the answers: applicants choose by them.
+              </p>
+              @if (lock.reason === 'program') {
+                <p class="lock-who" i18n="@@qedit.lock_who">Read by {{ programNamesOf(lock) }}</p>
               }
             </div>
-            <div class="mh-actions">
-              <!-- Reordering lives here now: it is the keyboard twin of the drag
-                   handle, and the only way to move a question while filtered. -->
-              @if (editingQuestion(); as eq) {
-                <button
-                  type="button"
-                  class="icon-btn"
-                  [disabled]="positionOf(eq) === 1"
-                  (click)="moveBy(eq, -1)"
-                  nz-tooltip
-                  nzTooltipTitle="Move up"
-                  i18n-nzTooltipTitle="@@qedit.move_up"
-                  aria-label="Move up"
-                  i18n-aria-label="@@qedit.move_up"
-                >
-                  <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn"
-                  [disabled]="positionOf(eq) === rows().length"
-                  (click)="moveBy(eq, 1)"
-                  nz-tooltip
-                  nzTooltipTitle="Move down"
-                  i18n-nzTooltipTitle="@@qedit.move_down"
-                  aria-label="Move down"
-                  i18n-aria-label="@@qedit.move_down"
-                >
-                  <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
-                </button>
-              }
+          </div>
+        }
+
+        <app-drawer-section [label]="secQuestion">
+          <label class="field">
+            <span class="lbl" i18n="@@qedit.lang_en">English</span>
+            <input
+              nz-input
+              formControlName="questionEn"
+              placeholder="e.g. What is your monthly income?"
+            />
+          </label>
+          <label class="field">
+            <span class="lbl" i18n="@@qedit.lang_ar">العربية</span>
+            <input
+              nz-input
+              formControlName="questionAr"
+              dir="rtl"
+              placeholder="مثال: ما هو دخلك الشهري؟"
+            />
+          </label>
+        </app-drawer-section>
+
+        <!-- Optional sub-label. It carries the sentence that stops a figure being misread — the
+             credit-card question asks for a total LIMIT across every card, which an applicant
+             answers with a balance unless the prompt says otherwise, and a wrong figure there
+             moves the DBR. -->
+        <app-drawer-section [label]="secHelper" [optionalLabel]="optionalLabel" [hint]="helperHint">
+          <label class="field">
+            <span class="lbl" i18n="@@qedit.lang_en">English</span>
+            <input
+              nz-input
+              formControlName="helperTextEn"
+              placeholder="e.g. Add up the limit on every card, not what you owe."
+            />
+          </label>
+          <label class="field">
+            <span class="lbl" i18n="@@qedit.lang_ar">العربية</span>
+            <input
+              nz-input
+              formControlName="helperTextAr"
+              dir="rtl"
+              placeholder="مثال: اجمع الحد الائتماني لكل بطاقة، وليس المبلغ المستخدم."
+            />
+          </label>
+        </app-drawer-section>
+
+        <app-drawer-section [label]="secAnswer">
+          <!-- Typed reactive control, not ngModel (Principle XXII / A16). A radiogroup rather
+               than a dropdown: four options are worth showing at once, and the choice changes
+               the rest of the form. -->
+          <div class="type-group" role="radiogroup" [attr.aria-label]="answerTypeLabel">
+            @for (t of types; track t) {
               <button
                 type="button"
-                class="icon-btn mh-close"
-                (click)="cancel()"
-                aria-label="Close"
-                i18n-aria-label="@@qedit.close_aria"
+                role="radio"
+                class="type-btn"
+                [class.on]="selectedType() === t"
+                [attr.aria-checked]="selectedType() === t"
+                [disabled]="typeLocked()"
+                (click)="pickType(t)"
               >
-                <span nz-icon nzType="close" nzTheme="outline"></span>
+                {{ typeLabel(t) }}
               </button>
-            </div>
-          </header>
-
-          <div class="modal-body">
-            <ng-container [ngTemplateOutlet]="questionEditor"></ng-container>
-          </div>
-        </section>
-      </div>
-    }
-
-    <!-- One editor for both edit and create: the two differ only in whether a
-         question is already saved, so duplicating 120 lines of form would be two
-         places to fix every rule. -->
-    <ng-template #questionEditor>
-      <form [formGroup]="questionForm" class="form" (ngSubmit)="submitQuestion()">
-        <div class="form-cols">
-          <!-- First thing in the form, spanning both columns: it explains every
-               control below that is greyed out, and the save the server would refuse. -->
-          @if (editLock(); as lock) {
-            <div class="lock-note" role="note">
-              <span
-                class="lock-ico"
-                nz-icon
-                nzType="lock"
-                nzTheme="outline"
-                aria-hidden="true"
-              ></span>
-              <div class="lock-text">
-                <!-- Wording-only first: a fixed income-proof question may still carry an
-                     engine reason, and what the admin needs to hear is what is left to edit. -->
-                @if (wordingOnly()) {
-                  <p class="lock-title" i18n="@@qedit.lock_title_base">
-                    A fixed question no program can skip
-                  </p>
-                } @else if (lock.reason === 'program') {
-                  <p class="lock-title" i18n="@@qedit.lock_title_program">
-                    Bank programs work out offers from this answer
-                  </p>
-                } @else {
-                  <p class="lock-title" i18n="@@qedit.lock_title_engine">
-                    The loan engine reads this answer
-                  </p>
-                }
-                <!-- Said by what may still change, not by who reads it. No locked question
-                     gains an answer from here any more, whoever reads it (v30.12.0). -->
-                @if (wordingOnly()) {
-                  <p class="lock-body" i18n="@@qedit.lock_body_base">
-                    Only its wording can change: the question, its helper text and its answers'
-                    labels, in both languages.
-                  </p>
-                } @else {
-                  <p class="lock-body" i18n="@@qedit.lock_body_fixed">
-                    Only its wording can change. Its answer type, unit, required setting,
-                    when-to-ask rule and answers are fixed, and it can't be deleted.
-                  </p>
-                }
-                <p class="lock-body" i18n="@@qedit.lock_numbers">
-                  Keep the numbers in its wording as they are, in the question, the helper text and
-                  the answers: applicants choose by them.
-                </p>
-                @if (lock.reason === 'program') {
-                  <p class="lock-who" i18n="@@qedit.lock_who">Read by {{ programNamesOf(lock) }}</p>
-                }
-              </div>
-            </div>
-          }
-          <div class="col">
-            <p class="section-lbl" i18n="@@qedit.sec_content">Content</p>
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.q_en">Question (English)</span>
-              <input
-                #firstField
-                nz-input
-                formControlName="questionEn"
-                placeholder="e.g. What is your monthly income?"
-              />
-            </label>
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.q_ar">السؤال (عربي)</span>
-              <input
-                nz-input
-                formControlName="questionAr"
-                dir="rtl"
-                placeholder="مثال: ما هو دخلك الشهري؟"
-              />
-            </label>
-            <!-- Optional sub-label. It carries the sentence that stops a figure
-                 being misread — the credit-card question asks for a total LIMIT
-                 across every card, which an applicant answers with a balance
-                 unless the prompt says otherwise, and a wrong figure there moves
-                 the DBR. -->
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.helper_en">Helper text (English)</span>
-              <input
-                nz-input
-                formControlName="helperTextEn"
-                placeholder="e.g. Add up the limit on every card, not what you owe."
-              />
-            </label>
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.helper_ar">نص مساعد (عربي)</span>
-              <input
-                nz-input
-                formControlName="helperTextAr"
-                dir="rtl"
-                placeholder="مثال: اجمع الحد الائتماني لكل بطاقة، وليس المبلغ المستخدم."
-              />
-            </label>
-            <p class="hint" i18n="@@qedit.helper_hint">
-              Shown under the question in the app. Leave both empty for no sub-label.
-            </p>
-
-            <p class="section-lbl" i18n="@@qedit.sec_answer">Answer type</p>
-            <!-- Typed reactive control, not ngModel (Principle XXII / A16).
-                 A radiogroup rather than a dropdown: four options are worth showing
-                 at once, and the choice changes the rest of the form. -->
-            <div class="type-group" role="radiogroup" aria-labelledby="type-lbl">
-              <span class="sr-only" id="type-lbl" i18n="@@qedit.answer_type">Answer type</span>
-              @for (t of types; track t) {
-                <button
-                  type="button"
-                  role="radio"
-                  class="type-btn"
-                  [class.on]="selectedType() === t"
-                  [attr.aria-checked]="selectedType() === t"
-                  [disabled]="typeLocked()"
-                  (click)="pickType(t)"
-                >
-                  {{ typeLabel(t) }}
-                </button>
-              }
-            </div>
-            <p class="hint">{{ typeHint(selectedType()) }}</p>
-            @if (typeLocked()) {
-              <p class="hint warn" i18n="@@qedit.type_locked">
-                The answer type can't change once applicants have answered this question — their
-                stored answers would no longer match it. Add a new question instead.
-              </p>
             }
-            <!-- A non-choice answer has no option list, so nothing on this form
-                 says what it is FOR. It is read by the money bindings and by a
-                 program's income rule, which is worth saying once here — otherwise
-                 the type reads as collected and unused. -->
-            @if (!isChoice(selectedType())) {
-              <p class="hint" i18n="@@qedit.scoring_by_type">
-                A number or free text has no options to configure. Banks read this answer through
-                their money bindings and income rules.
-              </p>
-            }
-
-            <label class="switch-field">
-              <nz-switch formControlName="isRequired" />
-              <span i18n="@@qedit.required">Required</span>
-            </label>
           </div>
+          <p class="hint">
+            {{ typeHint(selectedType()) }}
+            <!-- Every saved question is locked to its type; the lock note above already says so
+                 when the engine reads it. -->
+            @if (typeLocked() && !editLock()) {
+              <span i18n="@@qedit.type_locked_short"
+                >It can't change once a question is saved — add a new question instead.</span
+              >
+            }
+          </p>
 
-          <div class="col">
-            <!-- Per-type rules. Only the owning type's block is rendered, so the form
-                 cannot express a combination the server rejects with
-                 QUESTION_TYPE_RULES_INVALID. -->
-            @if (selectedType() === 'NUMERIC') {
-              <p class="section-lbl" i18n="@@qedit.sec_rules">Accepted values</p>
-              <div formGroupName="numeric" class="rule-box">
-                <div class="field-row">
-                  <label class="field grow">
-                    <span class="lbl" i18n="@@qedit.num_min">Minimum</span>
-                    <input
-                      nz-input
-                      appMoneyInput
-                      formControlName="minValue"
-                      inputmode="decimal"
-                      placeholder="1,000"
-                    />
-                  </label>
-                  <label class="field grow">
-                    <span class="lbl" i18n="@@qedit.num_max">Maximum</span>
-                    <input
-                      nz-input
-                      appMoneyInput
-                      formControlName="maxValue"
-                      inputmode="decimal"
-                      placeholder="20,000,000"
-                    />
-                  </label>
-                </div>
-                <div class="field-row">
-                  <label class="field grow">
-                    <span class="lbl" i18n="@@qedit.num_step">Step</span>
-                    <input
-                      nz-input
-                      appMoneyInput
-                      formControlName="step"
-                      inputmode="decimal"
-                      placeholder="1,000"
-                    />
-                  </label>
-                  <label class="field grow">
-                    <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
-                    <input nz-input formControlName="unitEn" placeholder="EGP" />
-                  </label>
-                  <label class="field grow">
-                    <span class="lbl" i18n="@@qedit.num_unit_ar">الوحدة (عربي)</span>
-                    <input nz-input formControlName="unitAr" dir="rtl" placeholder="جنيه" />
-                  </label>
-                </div>
-                @if (numericRangeInverted()) {
-                  <p class="hint error" i18n="@@qedit.num_inverted">
-                    The maximum must be greater than or equal to the minimum.
-                  </p>
-                }
-                <!-- An instruction to edit, so not over the read-only bounds of a fixed question. -->
-                @if (!wordingOnly()) {
-                  <p class="hint" i18n="@@qedit.num_hint">
-                    Bounds are inclusive, and the step counts up from the minimum. Leave a field
-                    empty for no limit.
-                  </p>
-                }
-              </div>
-            } @else if (selectedType() === 'TEXT') {
-              <p class="section-lbl" i18n="@@qedit.sec_rules">Accepted values</p>
-              <div formGroupName="text" class="rule-box">
-                <label class="field">
-                  <span class="lbl" i18n="@@qedit.text_max">Maximum length</span>
-                  <nz-input-number formControlName="maxLength" [nzMin]="1" [nzMax]="2000" />
+          <!-- Per-type rules. Only the owning type's block is rendered, so the form cannot
+               express a combination the server rejects with QUESTION_TYPE_RULES_INVALID. -->
+          @if (selectedType() === 'NUMERIC') {
+            <div formGroupName="numeric" class="rule-box">
+              <p class="sub-lbl" i18n="@@qedit.sec_rules">Accepted values</p>
+              <div class="field-row">
+                <label class="field grow">
+                  <span class="lbl" i18n="@@qedit.num_min">Minimum</span>
+                  <input
+                    nz-input
+                    appMoneyInput
+                    formControlName="minValue"
+                    inputmode="decimal"
+                    placeholder="1,000"
+                  />
                 </label>
-                <p class="hint" i18n="@@qedit.text_hint">
-                  Free text is never written to logs, because applicants may type personal details
-                  into it.
-                </p>
+                <label class="field grow">
+                  <span class="lbl" i18n="@@qedit.num_max">Maximum</span>
+                  <input
+                    nz-input
+                    appMoneyInput
+                    formControlName="maxValue"
+                    inputmode="decimal"
+                    placeholder="20,000,000"
+                  />
+                </label>
+                <label class="field grow">
+                  <span class="lbl" i18n="@@qedit.num_step">Step</span>
+                  <input
+                    nz-input
+                    appMoneyInput
+                    formControlName="step"
+                    inputmode="decimal"
+                    placeholder="1,000"
+                  />
+                </label>
               </div>
-            } @else {
-              @if (editingQuestion(); as eq) {
-                <!-- Options are edited here, in place. A choice question's answers are
-                   the substance of it, so they belong beside the wording, not behind
-                   a second trip through a drawer. -->
-                <p class="section-lbl">
+              <div class="field-row">
+                <label class="field grow">
+                  <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
+                  <input nz-input formControlName="unitEn" placeholder="EGP" />
+                </label>
+                <label class="field grow">
+                  <span class="lbl" i18n="@@qedit.num_unit_ar">الوحدة (عربي)</span>
+                  <input nz-input formControlName="unitAr" dir="rtl" placeholder="جنيه" />
+                </label>
+              </div>
+              @if (numericRangeInverted()) {
+                <p class="hint error" i18n="@@qedit.num_inverted">
+                  The maximum must be greater than or equal to the minimum.
+                </p>
+              }
+              <p class="hint" i18n="@@qedit.num_hint">
+                Bounds are inclusive, and the step counts up from the minimum. Leave a field empty
+                for no limit.
+              </p>
+            </div>
+          } @else if (selectedType() === 'TEXT') {
+            <div formGroupName="text" class="rule-box">
+              <p class="sub-lbl" i18n="@@qedit.sec_rules">Accepted values</p>
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.text_max">Maximum length</span>
+                <nz-input-number formControlName="maxLength" [nzMin]="1" [nzMax]="2000" />
+              </label>
+              <p class="hint" i18n="@@qedit.text_hint">
+                Free text is never written to logs, because applicants may type personal details
+                into it.
+              </p>
+            </div>
+          } @else {
+            @if (editingQuestion(); as eq) {
+              <!-- Options are edited here, in place: a choice question's answers are the
+                   substance of it, so they belong beside the wording. -->
+              <div class="opt-block">
+                <p class="sub-lbl">
                   <span i18n="@@qedit.sec_answers">Answer options</span>
                   <span class="count-pill">{{ eq.options.length }}</span>
                 </p>
@@ -878,7 +947,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                     </li>
                   }
                   @if (canAddOption()) {
-                    <li class="opt-row" [class.editing]="addingOption()">
+                    <li class="opt-row add" [class.editing]="addingOption()">
                       @if (addingOption()) {
                         <ng-container
                           [ngTemplateOutlet]="optionEditor"
@@ -893,55 +962,128 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                     </li>
                   }
                 </ul>
-              } @else {
-                <p class="section-lbl" i18n="@@qedit.sec_answers">Answer options</p>
-                <p class="hint" i18n="@@qedit.choice_hint_new">
-                  Save the question first, then add its options here — at least two are needed
-                  before it can be asked.
+              </div>
+            } @else {
+              <p class="hint" i18n="@@qedit.choice_hint_new">
+                Save the question first, then add its options here — at least two are needed before
+                it can be asked.
+              </p>
+            }
+          }
+          <!-- A non-choice answer has no option list, so nothing else on this form says what it
+               is FOR: it is read by the money bindings and by a program's income rule. -->
+          @if (!isChoice(selectedType())) {
+            <p class="hint" i18n="@@qedit.scoring_by_type">
+              A number or free text has no options to configure. Banks read this answer through
+              their money bindings and income rules.
+            </p>
+          }
+        </app-drawer-section>
+
+        <!-- Who must answer it, and where it is asked. Both are the admin's, both ways
+             (v31.1.0): a question is made required or optional, fixed or ordinary, at will.
+             nz-switch carries nzId so its label's for= names it — a switch wrapped in a label
+             is unlabelled to a screen reader. -->
+        <app-drawer-section [label]="secSettings">
+          <div class="settings">
+            <div class="setting">
+              <div class="setting-row">
+                <div class="setting-text">
+                  <label class="setting-title" for="qedit-required" i18n="@@qedit.required"
+                    >Required</label
+                  >
+                  @if (requiredOn()) {
+                    <p class="setting-desc" i18n="@@qedit.required_on">
+                      Applicants must answer it before they can go on.
+                    </p>
+                  } @else {
+                    <p class="setting-desc" i18n="@@qedit.required_off">Applicants may skip it.</p>
+                  }
+                </div>
+                <nz-switch nzId="qedit-required" formControlName="isRequired" />
+              </div>
+              <!-- Allowed, but never silent: the quote reads this answer. -->
+              @if (editLock() && !requiredOn()) {
+                <p class="hint warn" i18n="@@qedit.optional_engine_warn">
+                  Offers are worked out from this answer. An applicant who skips it is quoted
+                  without it.
                 </p>
               }
-            }
-          </div>
-          <!-- Branch rule. Spans BOTH columns and lives inside .form-cols, which is
-               the scrollport: as a sibling of it this box was a full-bleed band with
-               no body padding, pinned between the columns and the action bar, taking
-               that height off the option list at every scroll offset. It is here
-               rather than in a column because "when is this asked" is a different
-               question from "what does it accept", and because the source list
-               depends on this question's POSITION, not on its type. -->
-          <div formGroupName="enabledWhen" class="branch-box">
-            <p class="section-lbl">
-              <span i18n="@@qedit.sec_branch">When to ask this</span>
-              @if (branchOn() && !editLock()) {
-                <!-- Undoes the whole rule, so it sits at the far edge of the heading
-                     rather than beside the row it would clear. No icon: a close glyph
-                     says "dismiss" while the label states an outcome, and the two read
-                     as contradicting each other. -->
-                <button
-                  type="button"
-                  class="clear-branch"
-                  (click)="clearBranch()"
-                  i18n="@@qedit.branch_clear"
-                >
-                  Always ask instead
-                </button>
+            </div>
+
+            <div class="setting">
+              <div class="setting-row">
+                <div class="setting-text">
+                  <label class="setting-title" for="qedit-fixed" i18n="@@qedit.fixed_label"
+                    >Fixed question</label
+                  >
+                  <p class="setting-desc" i18n="@@qedit.fixed_hint">
+                    Every program in its loan types asks it, and no program can skip it.
+                  </p>
+                </div>
+                <nz-switch
+                  nzId="qedit-fixed"
+                  formControlName="fixed"
+                  (ngModelChange)="onFixedChange($event)"
+                />
+              </div>
+              @if (fixedTicked()) {
+                <fieldset class="served">
+                  <legend class="served-legend" i18n="@@qedit.served_legend">Asked on</legend>
+                  <div class="served-options">
+                    @for (s of servedOptions; track s) {
+                      <label class="radio" [class.on]="servedOnValue() === s">
+                        <input
+                          type="radio"
+                          name="servedOn"
+                          formControlName="servedOn"
+                          [value]="s"
+                          (change)="syncServedOn()"
+                        />
+                        <span>{{ servedOnLabel(s) }}</span>
+                      </label>
+                    }
+                  </div>
+                  <p class="hint">{{ servedOnHint(servedOnValue()) }}</p>
+                </fieldset>
+              } @else if (unfixBlockedBy() !== null) {
+                <!-- The server would refuse it (QUESTION_FIXED_GATE_NOT_FIXED): a fixed question
+                     may only follow a fixed one. Said here, and Save waits. -->
+                <p class="hint warn">{{ unfixBlockedText() }}</p>
+              } @else if (editingFixed()) {
+                <p class="hint warn" i18n="@@qedit.unfix_note">
+                  Saving makes it an ordinary question, so a program can skip it.
+                </p>
               }
-            </p>
-            <!-- A locked question shows its (disabled) rule and why it is fixed, even
-                 when nothing earlier could be branched on: "nothing to branch on yet"
-                 would promise an edit the server refuses. -->
-            @if (branchSources().length === 0 && !editLock()) {
-              <p class="hint" i18n="@@qedit.branch_none">
-                Nothing to branch on yet — a rule reads an answer from an earlier question that
-                offers options.
-              </p>
+            </div>
+          </div>
+        </app-drawer-section>
+
+        <!-- Branch rule — its own section because "when is this asked" is a different question
+             from "what does it accept", and because the source list depends on this question's
+             POSITION, not on its type. -->
+        <app-drawer-section [label]="secBranch">
+          <div formGroupName="enabledWhen" class="branch">
+            <!-- A locked question shows its (disabled) rule and why it is locked, even when
+                 nothing earlier could be branched on: "nothing to branch on yet" would promise
+                 an edit the server refuses. So does a rule already set, so it can still be read
+                 and cleared. -->
+            @if (branchSources().length === 0 && !editLock() && !branchOn()) {
+              @if (fixedTicked()) {
+                <p class="hint" i18n="@@qedit.branch_none_fixed">
+                  Nothing to branch on yet — a fixed question can only follow an earlier fixed
+                  question that offers options.
+                </p>
+              } @else {
+                <p class="hint" i18n="@@qedit.branch_none">
+                  Nothing to branch on yet — a rule reads an answer from an earlier question that
+                  offers options.
+                </p>
+              }
             } @else {
-              <!-- ONE sentence, read start to end, instead of three caps micro-labels
-                   over three 52px selects: "Depends on / Condition / This answer" is
-                   query-builder vocabulary for a rule that states itself in words.
-                   A span + aria-labelledby rather than a label/for pair: nz-select
-                   renders a div, not an input, so a wrapping label associates with
-                   nothing. Same pattern as the simulator's question select. -->
+              <!-- ONE sentence, read start to end. A span + aria-labelledby rather than a
+                   label/for pair: nz-select renders a div, not an input, so a wrapping label
+                   associates with nothing. -->
               <div class="rule-line">
                 <span class="rule-lead" id="branch-src-lbl" i18n="@@qedit.branch_source">
                   Ask this only when the answer to
@@ -966,11 +1108,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               </div>
               @if (branchOn()) {
                 <div class="rule-line">
-                  <!-- Three values, all worth showing at once: as a select the panel
-                       inherited the trigger's content width, so "is not" arrived
-                       ellipsised to "is …" — a picker whose options cannot be read.
-                       role=radiogroup is the honest semantics for one-of-three, and it
-                       reuses the answer-type picker's segmented vocabulary. -->
+                  <!-- role=radiogroup is the honest semantics for one-of-three, and it reuses
+                       the answer-type picker's segmented vocabulary. -->
                   <span class="sr-only" id="branch-op-lbl" i18n="@@qedit.branch_compare">
                     How the answer is compared
                   </span>
@@ -990,8 +1129,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                     }
                   </div>
                   <!-- "is one of" names several answers, so its picker takes several: one
-                       select per comparison rather than one select whose mode flips, which
-                       would carry a single code into a list control or the reverse. -->
+                       select per comparison rather than one select whose mode flips. -->
                   @if (branchOperator() === 'in') {
                     <span class="sr-only" id="branch-opts-lbl" i18n="@@qedit.branch_options">
                       The answers that turn this question on
@@ -1036,14 +1174,17 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                   }
                 </div>
               }
-              @if (wordingOnly()) {
-                <p class="hint" i18n="@@qedit.branch_locked_base">
-                  Fixed: this is one of the fixed questions no program can skip.
-                </p>
-              } @else if (editLock()) {
+              @if (editLock()) {
                 <p class="hint" i18n="@@qedit.branch_locked">
-                  Fixed because offers are worked out from this answer: changing when it is asked
+                  Locked because offers are worked out from this answer: changing when it is asked
                   would change who answers it.
+                </p>
+              } @else if (branchNotFixed()) {
+                <!-- Fixed over a rule on an ordinary question: the server would refuse it
+                     (QUESTION_FIXED_GATE_NOT_FIXED), so it is said here, before Save. -->
+                <p class="hint warn" i18n="@@qedit.branch_not_fixed">
+                  That question is not fixed, and a fixed question can only follow another fixed
+                  question. Pick a fixed one, or always ask this one.
                 </p>
               } @else if (branchIncomplete()) {
                 @if (branchOperator() === 'in') {
@@ -1056,9 +1197,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                   </p>
                 }
               } @else if (branchSourceIsMulti()) {
-                <!-- The one thing the sentence above cannot say: the source accepts
-                     several picks, and the rule fires on any one of them. Shown only
-                     when it is true, instead of as a standing caveat. -->
                 <p class="hint" i18n="@@qedit.branch_hint_multi">
                   That question accepts several picks — any one of them matching is enough.
                 </p>
@@ -1067,47 +1205,33 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                   Asked of every applicant in this question's loan types.
                 </p>
               }
+              @if (fixedTicked() && !editLock() && !branchNotFixed()) {
+                <p class="hint" i18n="@@qedit.branch_fixed_only">
+                  Only fixed questions are listed: a fixed question can only follow another fixed
+                  question.
+                </p>
+              }
+              <!-- Undoes the whole rule, so it closes the section rather than sitting beside
+                   the row it would clear. No icon: the label states the outcome. -->
+              @if (branchOn() && !editLock()) {
+                <button
+                  type="button"
+                  class="clear-branch"
+                  (click)="clearBranch()"
+                  i18n="@@qedit.branch_clear"
+                >
+                  Always ask instead
+                </button>
+              }
             }
           </div>
-          <!-- Also inside the scrollport: as a sibling of it this note was a
-               full-bleed tinted band pinned above the action bar. -->
-          @if (!editing()) {
-            <p class="ins-note" i18n="@@qedit.code_note">
-              A stable code is generated automatically — no need to type one.
-            </p>
-          }
-        </div>
+        </app-drawer-section>
 
-        <!-- Its own grid ROW beside the scrollport, so a long option list can never
-             bury the save button and the bar never covers a control. Delete is pushed
-             to the far edge: it belongs to this question and had nowhere else to go
-             once the row menu was removed, but it must not sit next to Save. -->
-        <div class="form-actions">
-          @if (editingQuestion(); as eq) {
-            @if (!eq.engineLock) {
-              <button
-                type="button"
-                nz-button
-                nzType="text"
-                nzDanger
-                class="del-q"
-                (click)="confirmDeleteQuestion(eq)"
-                i18n="@@qedit.delete_question"
-              >
-                Delete question
-              </button>
-            }
-          }
-          <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
-          <button
-            nz-button
-            nzType="primary"
-            [disabled]="questionForm.invalid"
-            i18n="@@qedit.save_q"
-          >
-            Save question
-          </button>
-        </div>
+        @if (!editing()) {
+          <p class="ins-note" i18n="@@qedit.code_note">
+            A stable code is generated automatically — no need to type one.
+          </p>
+        }
       </form>
     </ng-template>
 
@@ -1161,10 +1285,40 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         </div>
       </div>
     </ng-template>
+
+    <!-- What the list leaves out, said once under the toolbar: the questions surrogate
+         products ask live in the Program catalog, and a list that silently dropped them would
+         read as a pool that lost them. The link is a super admin's, like the catalog. -->
+    <ng-template #hiddenNote>
+      @if (hiddenCount() > 0) {
+        <p class="hidden-note">
+          <span i18n="@@qedit.hidden_note">{hiddenCount(), plural,
+            =1 {
+              1 question that surrogate programs ask is not listed here. Edit it from its product in
+              the Program catalog.
+            }
+            other {
+              {{ hiddenCount() }} questions that surrogate programs ask are not listed here. Edit
+              them from their products in the Program catalog.
+            }
+          }</span>
+          <a
+            *can="['super_admin']"
+            [routerLink]="['/program-catalog']"
+            [queryParams]="{ basis: 'no_payslip' }"
+            i18n="@@qedit.hidden_link"
+            >Open the Program catalog</a
+          >
+        </p>
+      }
+    </ng-template>
   `,
   styles: [
     `
-      :host {
+      /* The sheet is rendered in the drawer overlay, outside this host, so it re-declares the
+         same variables — without them every border and track in the form paints nothing. */
+      :host,
+      .qe-sheet {
         /* Global pool → single brand azure accent (no per-category tint). */
         --cat: var(--primary, var(--ant-primary-color, #0869c3));
         --qe-line: var(--color-border-subtle, #efeae5);
@@ -1696,136 +1850,28 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         transition: transform var(--motion-duration-base, 180ms) var(--qe-ease);
       }
 
-      /* ---- Editor modal ------------------------------------------------- */
-      /* Below nz-modal's 1000 on purpose: the delete confirmation is an nz-modal and
-         has to layer ABOVE this one. */
-      .scrim {
-        position: fixed;
-        inset: 0;
-        z-index: 900;
-        background: var(--color-overlay-backdrop, rgba(16, 24, 40, 0.45));
-        backdrop-filter: blur(2px);
-        -webkit-backdrop-filter: blur(2px);
-        animation: qe-fade var(--motion-duration-base, 180ms) var(--qe-ease);
-      }
-      .modal-wrap {
-        position: fixed;
-        inset: 0;
-        z-index: 901;
-        display: grid;
-        place-items: center;
-        padding: var(--space-6, 32px);
-        overflow-y: auto;
-        overscroll-behavior: contain;
-      }
-      .modal {
-        display: grid;
-        grid-template-rows: auto minmax(0, 1fr);
-        inline-size: min(1080px, 100%);
-        max-block-size: min(880px, calc(100vh - var(--space-7, 48px) * 2));
-        background: var(--qe-surface);
-        border-radius: var(--qe-radius);
-        box-shadow: var(--shadow-xl, 0 24px 64px rgba(16, 24, 40, 0.24));
-        animation: qe-rise var(--motion-duration-base, 180ms) var(--qe-ease);
-      }
-      .modal-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: var(--space-4, 16px);
-        padding: var(--space-4, 16px) var(--space-5, 24px);
-        border-block-end: 1px solid var(--qe-line);
-      }
-      .mh-lead {
-        min-inline-size: 0;
-      }
-      .mh-eyebrow {
-        margin: 0;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--qe-muted);
-        font-variant-numeric: tabular-nums;
-      }
-      .mh-lead h2 {
-        margin: 2px 0 0;
-        font-family: var(--heading-font, var(--font-sans));
-        font-size: var(--text-lg, 18px);
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        color: var(--qe-text);
-      }
-      .mh-actions {
-        display: flex;
+      /* ---- Editor sheet --------------------------------------------------
+         The shell (app-form-drawer) owns the header, the scroll and the footer; this is the
+         form inside it — one column of sections, a section's breathing room apart, so each
+         decision reads as its own block without a box drawn round it. */
+      .sheet-moves {
+        display: inline-flex;
         align-items: center;
-        gap: 4px;
-        flex-shrink: 0;
+        gap: var(--space-1, 4px);
       }
-      .mh-close {
-        margin-inline-start: var(--space-2, 8px);
-      }
-      /* Holds the form and nothing else. The SCROLL belongs to .form-cols, one
-         level down, so the action bar can be a sibling of the scrollport instead
-         of an overlay inside it. */
-      .modal-body {
-        display: grid;
-        min-block-size: 0;
-        overflow: hidden;
-      }
-      @keyframes qe-fade {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
-        }
-      }
-      @keyframes qe-rise {
-        from {
-          opacity: 0;
-          transform: translateY(8px) scale(0.99);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
-      }
-      /* Scrolling region + action bar, as two grid ROWS. Rows cannot overlap, so
-         no control can end up under the bar — which is what the previous sticky
-         bar did to the Required switch at every scroll offset but the last. */
       .form {
-        display: grid;
-        grid-template-rows: minmax(0, 1fr) auto;
-        min-block-size: 0;
-      }
-      /* The width the group rail used to occupy now goes to the editor: wording on
-         one side, the answers it produces on the other, both visible at once.
-         This is also the scrollport — it owns the body padding, so the last
-         control in a column clears the bar by a full 24px of its own padding. */
-      .form-cols {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: var(--space-5, 24px);
-        align-items: start;
-        padding: var(--space-5, 24px);
-        min-block-size: 0;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-      }
-      .col {
         display: flex;
         flex-direction: column;
-        gap: var(--space-3, 12px);
-        min-inline-size: 0;
+        gap: var(--space-6, 32px);
       }
       .field {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--space-1, 4px);
+        min-inline-size: 0;
       }
       .field.grow {
-        flex: 1;
+        flex: 1 1 0;
       }
       .field-row {
         display: flex;
@@ -1834,31 +1880,19 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       }
       .lbl {
         font-size: var(--text-xs, 12px);
-        font-weight: 600;
-        color: var(--qe-text);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text-2);
       }
-      .switch-field {
+      /* A heading INSIDE a section (the answers, the accepted values): sentence case at body
+         weight, so it never competes with the small-caps section legend above it. */
+      .sub-lbl {
         display: flex;
         align-items: center;
         gap: var(--space-2, 8px);
-        font-size: 13px;
-      }
-      /* A flex item with an intrinsic min-width still shrinks below its track; the
-         switch loses its knob before the label loses a letter. */
-      .switch-field nz-switch {
-        flex-shrink: 0;
-      }
-      .section-lbl {
-        display: flex;
-        align-items: center;
-        gap: 8px;
         margin: 0;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        /* 11px caps is small text, not large: tertiary ink is 3.83:1 on this card. */
-        color: var(--qe-text-2);
+        font-size: var(--text-sm, 14px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text);
       }
       .count-pill {
         min-inline-size: 24px;
@@ -1866,27 +1900,62 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         font-size: var(--text-xs, 12px);
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        letter-spacing: 0;
-        color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 12%, transparent);
-        padding: 1px 8px;
+        color: var(--color-tonal-accent-ink, var(--cat));
+        background: var(--color-tonal-accent-bg, color-mix(in srgb, var(--cat) 12%, transparent));
+        padding: 1px var(--space-2, 8px);
         border-radius: var(--radius-pill, 999px);
       }
-      /* Its OWN grid row on the modal's bottom edge: always visible, never over
-         anything. No sticky, no negative margins to cancel. */
-      .form-actions {
+      .opt-block {
         display: flex;
-        align-items: center;
-        justify-content: flex-end;
+        flex-direction: column;
         gap: var(--space-2, 8px);
-        padding: var(--space-3, 12px) var(--space-5, 24px);
-        background: var(--qe-surface);
-        border-block-start: 1px solid var(--qe-line);
-        border-end-start-radius: var(--qe-radius);
-        border-end-end-radius: var(--qe-radius);
       }
-      .del-q {
-        margin-inline-end: auto;
+      /* ---- Settings: Required and Fixed ----------------------------------
+         One bordered list, a hairline between its two rows: the only box in the form, because
+         these two switches are the only controls that change who is asked rather than what. */
+      .settings {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--qe-line-strong);
+        border-radius: var(--radius-md, 8px);
+      }
+      .setting {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3, 12px);
+        padding: var(--space-4, 16px);
+      }
+      .setting + .setting {
+        border-block-start: 1px solid var(--qe-line);
+      }
+      .setting-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4, 16px);
+      }
+      .setting-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-0-5, 2px);
+        min-inline-size: 0;
+      }
+      .setting-title {
+        font-size: var(--text-sm, 14px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text);
+        cursor: pointer;
+      }
+      .setting-desc {
+        margin: 0;
+        font-size: var(--text-xs, 12px);
+        line-height: var(--leading-normal, 1.5);
+        color: var(--qe-text-2);
+      }
+      /* Sits on the title's line, and never loses its knob to a long description. */
+      .setting-row nz-switch {
+        flex-shrink: 0;
+        margin-block-start: var(--space-0-5, 2px);
       }
       /* ---- Engine lock ---------------------------------------------------
          Neutral, not warning-tinted: a locked question is not a problem to fix,
@@ -1905,7 +1974,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         line-height: 1.4;
       }
       .lock-note {
-        grid-column: 1 / -1;
         display: flex;
         align-items: flex-start;
         gap: var(--space-3, 12px);
@@ -1943,8 +2011,160 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       .lock-who {
         color: var(--qe-text);
       }
+      /* ---- Fixed (v31.0.0) -----------------------------------------------
+         A fact about where a question is asked, worded rather than drawn as a
+         second padlock: accent INK on its own faint tint (the tonal pair keeps
+         the ink above AA in both themes; the raw accent on its tint does not). */
+      .fixed-chip {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        padding: 1px var(--space-2, 8px);
+        border-radius: var(--radius-pill, 999px);
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent-ink);
+        font-size: var(--text-xs, 12px);
+        font-weight: var(--font-semibold, 600);
+        line-height: 1.4;
+      }
+      .served {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2, 8px);
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-inline-size: 0;
+      }
+      .served-legend {
+        padding: 0;
+        margin-block-end: var(--space-1, 4px);
+        font-size: var(--text-xs, 12px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text-2);
+      }
+      .served-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2, 8px);
+      }
+      /* Each answer is a 44px target, the whole bordered pill clickable. */
+      .radio {
+        display: flex;
+        cursor: pointer;
+        align-items: center;
+        gap: var(--space-2, 8px);
+        min-block-size: 44px;
+        padding-inline: var(--space-3, 12px);
+        border: 1px solid var(--qe-line-strong);
+        border-radius: var(--radius-md, 8px);
+        background: var(--qe-surface);
+        color: var(--qe-text-2);
+        font-size: var(--text-sm, 14px);
+      }
+      .radio input {
+        flex: none;
+        inline-size: var(--space-4, 16px);
+        block-size: var(--space-4, 16px);
+        margin: 0;
+        accent-color: var(--cat);
+        cursor: inherit;
+      }
+      .radio input:focus-visible {
+        outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, var(--cat));
+        outline-offset: 2px;
+      }
+      .radio.on {
+        border-color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 6%, var(--qe-surface));
+        color: var(--qe-text);
+      }
+
+      /* ---- What the list leaves out, and what was deleted ---------------- */
+      .hidden-note {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-1, 4px) var(--space-2, 8px);
+        margin: 0 0 var(--space-3, 12px);
+        font-size: var(--text-xs, 12px);
+        line-height: var(--leading-normal, 1.5);
+        color: var(--qe-text-2);
+      }
+      .hidden-note a {
+        color: var(--primary-visible, var(--cat));
+        font-weight: var(--font-semibold, 600);
+      }
+      .hidden-note a:focus-visible {
+        outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, var(--cat));
+        outline-offset: 2px;
+        border-radius: var(--radius-sm, 4px);
+      }
+      .deleted-panel {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2, 8px);
+        margin-block-end: var(--space-3, 12px);
+        padding: var(--space-3, 12px) var(--space-4, 16px);
+        border: 1px solid var(--qe-line-strong);
+        border-radius: var(--radius-md, 8px);
+        background: var(--qe-surface);
+      }
+      .dp-title {
+        margin: 0;
+        font-size: var(--text-sm, 14px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text);
+      }
+      .dp-hint {
+        margin: 0;
+        font-size: var(--text-xs, 12px);
+        line-height: var(--leading-normal, 1.5);
+        color: var(--qe-text-2);
+      }
+      .dp-list {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .dp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3, 12px);
+        padding-block: var(--space-2, 8px);
+        border-block-start: 1px solid var(--qe-line);
+      }
+      .dp-row:first-child {
+        border-block-start: 0;
+      }
+      .dp-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-0-5, 2px);
+        min-inline-size: 0;
+      }
+      .dp-q {
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-text);
+        overflow-wrap: anywhere;
+      }
+      .dp-meta {
+        font-size: var(--text-xs, 12px);
+        color: var(--qe-text-2);
+      }
+      .dp-row button {
+        flex: none;
+      }
+      @media (max-width: 480px) {
+        .dp-row {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
       .ins-note {
-        grid-column: 1 / -1;
         margin: 0;
         padding: var(--space-2, 8px) var(--space-3, 12px);
         font-size: 12px;
@@ -2004,27 +2224,21 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         background: var(--qe-surface-muted);
         border-radius: var(--radius-md, 8px);
       }
-      /* Spans both columns of the scrollport. A hairline PANEL on the modal's own
-         ground rather than a muted fill: the fill made it read as a second action
-         bar above the real one, and it left an inner segmented track (also muted)
-         with nothing to sit on. */
-      .branch-box {
-        grid-column: 1 / -1;
+      .branch {
         display: flex;
         flex-direction: column;
         gap: var(--space-3, 12px);
-        margin-block-start: var(--space-2, 8px);
-        padding: var(--space-4, 16px);
-        border: 1px solid var(--qe-line);
-        border-radius: var(--radius-md, 8px);
       }
-      /* Sits at the far edge of the section label — it undoes the whole rule, so
-         it must not read as part of the row it would clear. */
-      .branch-box .section-lbl {
-        justify-content: space-between;
-        gap: var(--space-3, 12px);
+      @keyframes qe-fade {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
       }
       .clear-branch {
+        align-self: flex-start;
         display: inline-flex;
         align-items: center;
         min-block-size: 32px;
@@ -2348,11 +2562,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       }
 
       /* ---- Narrow ------------------------------------------------------- */
-      @media (max-width: 1100px) {
-        .form-cols {
-          grid-template-columns: minmax(0, 1fr);
-        }
-      }
       @media (max-width: 900px) {
         .page {
           padding: var(--space-4, 16px);
@@ -2393,24 +2602,17 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         .pager {
           justify-content: center;
         }
-        .modal-wrap {
-          padding: var(--space-3, 12px);
-        }
-        .modal {
-          max-block-size: calc(100vh - var(--space-5, 24px));
-        }
-        .form-cols {
-          padding: var(--space-4, 16px);
-        }
-        .form-actions {
-          padding-inline: var(--space-4, 16px);
+      }
+      /* A phone-width sheet: the numeric bounds stack instead of squeezing three to a row. */
+      @media (max-width: 560px) {
+        .field-row {
+          flex-direction: column;
+          align-items: stretch;
         }
       }
 
       @media (prefers-reduced-motion: reduce) {
         .health-panel,
-        .scrim,
-        .modal,
         .opt-edit {
           animation: none;
         }
@@ -2435,8 +2637,9 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly router = inject(Router);
   private readonly message = inject(NzMessageService);
   private readonly modal = inject(NzModalService);
+  private readonly drawer = inject(NzDrawerService);
   private readonly errorCodes = inject(ErrorCodeService);
-  private readonly injector = inject(Injector);
+  private readonly auth = inject(AuthService);
 
   /** Active admin locale drives label language (ar build → Arabic, else English). */
   readonly isAr = inject(LOCALE_ID).startsWith('ar');
@@ -2457,21 +2660,29 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly bindingWarnings = signal<PublishWarning[]>([]);
   readonly healthOpen = signal(false);
 
-  /** Which question the editor modal is open on; null when it is closed. */
+  /** Which question the editor sheet is open on; null when it is closed. */
   readonly expandedId = signal<string | null>(null);
-  /** True while the modal holds a blank question form. */
+  /** True while the sheet holds a blank question form. */
   readonly creating = signal(false);
   readonly editing = computed(() => this.expandedId() !== null);
-  readonly modalOpen = computed(() => this.editing() || this.creating());
+  /** A save in flight: the sheet's Save spins and nothing is sent twice. */
+  readonly saving = signal(false);
+  /** The open sheet; null when it is closed (or closing, after `collapse`). */
+  private sheetRef: NzDrawerRef | null = null;
+  private readonly editorSheet = viewChild.required<TemplateRef<unknown>>('editorSheet');
   readonly editingQuestion = computed<QuestionRow | null>(() => {
     const id = this.expandedId();
     return id === null ? null : (this.rows().find((q) => q.id === id) ?? null);
   });
 
-  /** The engine lock on the question being edited — what greys out half the form. */
-  readonly editLock = computed<QuestionEngineLock | null>(
-    () => this.editingQuestion()?.engineLock ?? null,
-  );
+  /**
+   * The engine lock on the question being edited — what greys out half the form. The server's
+   * `base` reason is the fixed mark, which the form shows with its own controls (`engineLockOf`).
+   */
+  readonly editLock = computed<QuestionEngineLock | null>(() => {
+    const q = this.editingQuestion();
+    return q === null ? null : engineLockOf(q);
+  });
   /**
    * No answer may be ADDED to a locked question, whoever reads it (v30.12.0): nothing checks a
    * new answer has a row in the tables that read it, and one without is quoted on whatever a
@@ -2479,14 +2690,78 @@ export class QuestionnaireEditorPage implements OnInit {
    */
   readonly canAddOption = computed(() => this.editLock() === null);
 
+  /** The question being edited is fixed as saved — un-ticking the box would un-fix it. */
+  readonly editingFixed = computed(() => {
+    const q = this.editingQuestion();
+    return q !== null && isFixed(q);
+  });
+  /** Opened by link from the Program catalog: not on this tab's list. */
+  readonly editingHidden = computed(() => {
+    const q = this.editingQuestion();
+    return q !== null && !isListed(q);
+  });
+  /** The question the sheet header may move: one this tab lists. */
+  readonly movableQuestion = computed<QuestionRow | null>(() => {
+    const q = this.editingQuestion();
+    return q !== null && isListed(q) ? q : null;
+  });
   /**
-   * One of the fixed income-proof questions: asked on every program name that sells a payslip
-   * programme, so only its WORDING may change — the question, its helper text, its answers'
-   * labels. Keyed on `shapeFixed`, never on the reason, which may still read `engine`.
+   * The question the sheet's Delete acts on: a fixed one for a super admin (the type-the-code
+   * dialog), any other one the loan engine does not read.
    */
-  readonly wordingOnly = computed(() => this.editLock()?.shapeFixed === true);
+  readonly deletableQuestion = computed<QuestionRow | null>(() => {
+    const q = this.editingQuestion();
+    if (q === null) return null;
+    if (isFixed(q)) return this.auth.role() === 'super_admin' ? q : null;
+    return engineLockOf(q) === null ? q : null;
+  });
 
-  /** Option sub-editors inside the expanded row. */
+  readonly sheetTitle = computed(() =>
+    this.editing()
+      ? $localize`:@@qedit.modal_edit:Edit question`
+      : $localize`:@@qedit.modal_new:New question`,
+  );
+  /** Where the question sits in the asked order — or that the catalog owns it. */
+  readonly sheetSubtitle = computed(() => {
+    const q = this.editingQuestion();
+    if (q === null) {
+      const position = this.listed().length + 1;
+      return $localize`:@@qedit.sheet_pos_new:Asked last, at position ${position}:position:`;
+    }
+    // Opened by link from the Program catalog: not on this tab's list, so no place to number.
+    if (!isListed(q)) return $localize`:@@qedit.modal_catalog_q:Program catalog question`;
+    const position = this.positionOf(q);
+    const total = this.listed().length;
+    return $localize`:@@qedit.sheet_pos:Question ${position}:position: of ${total}:total:`;
+  });
+  readonly saveLabel = computed(() =>
+    this.editing()
+      ? $localize`:@@qedit.save_q:Save question`
+      : $localize`:@@qedit.add_q:Add question`,
+  );
+
+  // Section legends. Properties, not method calls: they are plain string inputs.
+  readonly secQuestion = $localize`:@@qedit.sec_question:Question`;
+  readonly secHelper = $localize`:@@qedit.sec_helper:Helper text`;
+  readonly optionalLabel = $localize`:@@qedit.sec_optional:Optional`;
+  readonly helperHint = $localize`:@@qedit.helper_hint:Shown under the question in the app. Leave both empty for no sub-label.`;
+  readonly secAnswer = $localize`:@@qedit.sec_answer_block:Answer`;
+  readonly answerTypeLabel = $localize`:@@qedit.answer_type:Answer type`;
+  readonly secSettings = $localize`:@@qedit.sec_settings:Settings`;
+  readonly secBranch = $localize`:@@qedit.sec_branch:When to ask this`;
+
+  /** Mirrors the form's Fixed tick and its "Asked on" choice, for the template. */
+  readonly fixedTicked = signal(false);
+  readonly servedOnValue = signal<FixedServedOn>('every_name');
+  readonly servedOptions: readonly FixedServedOn[] = ['every_name', 'income_proof'];
+
+  // ---- Deleted fixed questions (super admin) --------------------------------
+  readonly deletedFixed = signal<DeletedFixedQuestion[]>([]);
+  readonly deletedOpen = signal(false);
+  readonly deletedShown = computed(() => this.deletedOpen() && this.deletedFixed().length > 0);
+  readonly restoringId = signal<string | null>(null);
+
+  /** Option sub-editors inside the sheet. */
   readonly editingOptionId = signal<string | null>(null);
   readonly addingOption = signal(false);
 
@@ -2495,16 +2770,36 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
   readonly typeFilter = signal<TypeFilter>('ALL');
   readonly onlyIncomplete = signal(false);
+  readonly onlyFixed = signal(false);
+
+  /**
+   * What this tab LISTS: the fixed questions and every ordinary one no surrogate product asks
+   * (v31.0.0). The rest stay in `rows` — branch rules, the reorder and `?q=` links need them.
+   */
+  readonly listed = computed<QuestionRow[]>(() => this.rows().filter((q) => isListed(q)));
+  /** Questions surrogate products ask, managed from the Program catalog — said under the toolbar. */
+  readonly hiddenCount = computed(() => this.rows().length - this.listed().length);
+  readonly fixedCount = computed(() => this.listed().filter((q) => isFixed(q)).length);
+  /** The Fixed chip is offered only when it narrows the list. */
+  readonly fixedNarrows = computed(
+    () => this.fixedCount() > 0 && this.fixedCount() < this.listed().length,
+  );
 
   readonly filtering = computed(
-    () => this.query().trim() !== '' || this.typeFilter() !== 'ALL' || this.onlyIncomplete(),
+    () =>
+      this.query().trim() !== '' ||
+      this.typeFilter() !== 'ALL' ||
+      this.onlyIncomplete() ||
+      this.onlyFixed(),
   );
 
   readonly visible = computed<QuestionRow[]>(() => {
     const needle = this.query().trim().toLowerCase();
     const type = this.typeFilter();
     const incompleteOnly = this.onlyIncomplete();
-    return this.rows().filter((q) => {
+    const fixedOnly = this.onlyFixed();
+    return this.listed().filter((q) => {
+      if (fixedOnly && !isFixed(q)) return false;
       if (type !== 'ALL' && q.type !== type) return false;
       if (incompleteOnly && !this.needsOptions(q)) return false;
       if (needle === '') return true;
@@ -2533,14 +2828,16 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly rangeEnd = computed(() => this.pageOffset() + this.paged().length);
 
   /** Choice questions the server would refuse to ask: fewer than two options. */
-  readonly incomplete = computed(() => this.rows().filter((q) => this.needsOptions(q)));
+  readonly incomplete = computed(() => this.listed().filter((q) => this.needsOptions(q)));
   readonly issueCount = computed(() => this.incomplete().length + this.bindingWarnings().length);
-  readonly totalOptions = computed(() => this.rows().reduce((sum, q) => sum + q.options.length, 0));
+  readonly totalOptions = computed(() =>
+    this.listed().reduce((sum, q) => sum + q.options.length, 0),
+  );
 
   /**
    * Reordering is only offered on the unfiltered list: in a filtered view the
    * visible sequence is not the asked sequence, so a drop would move a question
-   * somewhere the admin cannot see. The modal covers the list while it is open, so
+   * somewhere the admin cannot see. The sheet's mask covers the list while it is open, so
    * it needs no separate guard — the move buttons in its header cover that case.
    */
   readonly reorderable = computed(() => !this.filtering());
@@ -2554,8 +2851,6 @@ export class QuestionnaireEditorPage implements OnInit {
    */
   readonly typeLocked = signal(false);
 
-  private readonly firstField = viewChild<ElementRef<HTMLInputElement>>('firstField');
-
   readonly questionForm = new FormGroup({
     questionEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     questionAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -2564,6 +2859,10 @@ export class QuestionnaireEditorPage implements OnInit {
     helperTextEn: new FormControl('', { nonNullable: true }),
     helperTextAr: new FormControl('', { nonNullable: true }),
     isRequired: new FormControl(true, { nonNullable: true }),
+    /** FIXED — the admin's mark, both ways (v31.1.0): asked on every program of its loan types. */
+    fixed: new FormControl(false, { nonNullable: true }),
+    /** Where a fixed question is asked; read only while `fixed` is ticked. */
+    servedOn: new FormControl<FixedServedOn>('every_name', { nonNullable: true }),
     /** Typed reactive control (Principle XXII) — the radiogroup writes to this. */
     type: new FormControl<QuestionType>('SINGLE_SELECT', { nonNullable: true }),
     // Money crosses as decimal STRINGS even here, where these are bounds rather
@@ -2650,13 +2949,25 @@ export class QuestionnaireEditorPage implements OnInit {
     return this.isChoice(q.type) && q.options.length < 2;
   }
 
-  /** 1-based position in the ASKED order, not in the filtered view. */
+  /** 1-based position in the ASKED order of this tab's list, not in the filtered view. */
   positionOf(q: QuestionRow): number {
-    return this.rows().findIndex((r) => r.id === q.id) + 1;
+    return this.listed().findIndex((r) => r.id === q.id) + 1;
   }
 
   countOfType(type: QuestionType): number {
-    return this.rows().filter((q) => q.type === type).length;
+    return this.listed().filter((q) => q.type === type).length;
+  }
+
+  readonly isFixed = isFixed;
+  readonly engineLockOf = engineLockOf;
+  readonly servedOnLabel = servedOnLabel;
+  readonly servedOnHint = servedOnHint;
+
+  /** The Fixed badge's tooltip, and its screen-reader text. */
+  fixedTip(q: QuestionRow): string {
+    return q.fixedServedOn === 'income_proof'
+      ? $localize`:@@qedit.fixed_tip_proof:Fixed: every income-proof program in its loan types asks it`
+      : $localize`:@@qedit.fixed_tip_every:Fixed: every program in its loan types asks it`;
   }
 
   previewOptions(q: QuestionRow): OptionRow[] {
@@ -2669,9 +2980,6 @@ export class QuestionnaireEditorPage implements OnInit {
 
   /** The row chip's tooltip, and its screen-reader text. */
   lockSummary(lock: QuestionEngineLock): string {
-    if (lock.shapeFixed === true) {
-      return $localize`:@@qedit.lock_tip_base:Locked: a fixed question no program can skip`;
-    }
     return lock.reason === 'program'
       ? $localize`:@@qedit.lock_tip_program:Locked: read by ${this.programNamesOf(lock)}:names:`
       : $localize`:@@qedit.lock_tip_engine:Locked: the loan engine reads this answer`;
@@ -2779,10 +3087,16 @@ export class QuestionnaireEditorPage implements OnInit {
     this.pageRequest.set(1);
   }
 
+  setOnlyFixed(only: boolean): void {
+    this.onlyFixed.set(only);
+    this.pageRequest.set(1);
+  }
+
   clearFilters(): void {
     this.searchCtrl.setValue('');
     this.typeFilter.set('ALL');
     this.onlyIncomplete.set(false);
+    this.onlyFixed.set(false);
     this.pageRequest.set(1);
   }
 
@@ -2849,41 +3163,43 @@ export class QuestionnaireEditorPage implements OnInit {
       },
       text: { maxLength: q.textMaxLength },
       enabledWhen: branchFormValue(q.enabledWhen),
+      fixed: isFixed(q),
+      servedOn: q.fixedServedOn ?? 'every_name',
     } as never);
-    this.applyEngineLock(q.engineLock ?? null);
+    this.fixedTicked.set(isFixed(q));
+    this.servedOnValue.set(q.fixedServedOn ?? 'every_name');
+    this.applyLocks(q);
     this.expandedId.set(q.id);
-    this.focusFirstField();
+    this.openSheet();
   }
 
   /**
-   * Grey out what the server would refuse on a locked question: making it optional, its unit,
-   * and its when-to-ask rule. Disabled controls still travel in `getRawValue()`, so a save sends
-   * them unchanged and the server sees no change to refuse. Re-enabled for every other row and
-   * for a new question.
+   * Grey out what the server would refuse: on a question the loan engine or a bank program
+   * reads, its unit and its when-to-ask rule. Disabled controls still travel in
+   * `getRawValue()`, so a save sends them unchanged and the server sees no change to refuse.
+   * Required and Fixed are never greyed out — both are the admin's, both ways (v31.1.0).
    */
-  private applyEngineLock(lock: QuestionEngineLock | null): void {
+  private applyLocks(q: QuestionRow | null): void {
     const c = this.questionForm.controls;
-    type Toggleable = {
-      enable(opts?: { emitEvent?: boolean }): void;
-      disable(opts?: { emitEvent?: boolean }): void;
-    };
-    const set = (control: Toggleable, locked: boolean): void => {
+    const locked = q !== null && engineLockOf(q) !== null;
+    for (const control of [c.numeric.controls.unitEn, c.numeric.controls.unitAr, c.enabledWhen]) {
       if (locked) control.disable({ emitEvent: false });
       else control.enable({ emitEvent: false });
-    };
-    // Either way, not only required->optional: an optional question made required could never be
-    // made optional again, so the switch would be a one-way door nothing on screen warns about.
-    set(c.isRequired, lock !== null);
-    set(c.numeric.controls.unitEn, lock !== null);
-    set(c.numeric.controls.unitAr, lock !== null);
-    set(c.enabledWhen, lock !== null);
-    // A fixed income-proof question keeps its bounds too: only its wording may change. Shown,
-    // read-only, so the admin still sees what the app accepts.
-    const fixed = lock?.shapeFixed === true;
-    set(c.numeric.controls.minValue, fixed);
-    set(c.numeric.controls.maxValue, fixed);
-    set(c.numeric.controls.step, fixed);
-    set(c.text.controls.maxLength, fixed);
+    }
+  }
+
+  /** Mirrors the Fixed switch for the template: "Asked on" shows while it is on. */
+  onFixedChange(ticked: boolean): void {
+    this.fixedTicked.set(ticked);
+  }
+
+  /** The Required switch, for the line under it and the engine warning. */
+  requiredOn(): boolean {
+    return this.questionForm.controls.isRequired.value;
+  }
+
+  syncServedOn(): void {
+    this.servedOnValue.set(this.questionForm.controls.servedOn.value);
   }
 
   startCreate(): void {
@@ -2901,25 +3217,60 @@ export class QuestionnaireEditorPage implements OnInit {
       numeric: { minValue: '', maxValue: '', step: '', unitEn: '', unitAr: '' },
       text: { maxLength: null },
       enabledWhen: { questionCode: '', operator: 'equals', optionCode: '', optionCodes: [] },
+      fixed: false,
+      servedOn: 'every_name',
     } as never);
-    this.applyEngineLock(null);
+    this.fixedTicked.set(false);
+    this.servedOnValue.set('every_name');
+    this.applyLocks(null);
     this.creating.set(true);
-    this.focusFirstField();
+    this.openSheet();
   }
 
+  /**
+   * Hand the editor template to the shared side sheet, once: opening another question while it
+   * is open only swaps the state the template reads. `openFormDrawer` lands the caret in the
+   * first text field after the slide-in.
+   *
+   * The sheet's own exits (Esc, the close button) reach `afterClose`, which clears the editor —
+   * unless another sheet was opened meanwhile, whose state a late close must not wipe.
+   */
+  private openSheet(): void {
+    if (this.sheetRef !== null) return;
+    const ref = openFormDrawer<object, object, void>(this.drawer, {
+      content: this.editorSheet(),
+      data: {},
+      width: SHEET_WIDTH,
+    });
+    this.sheetRef = ref;
+    ref.afterClose.subscribe(() => {
+      if (this.sheetRef === ref) this.sheetRef = null;
+      if (this.sheetRef === null) this.resetEditorState();
+    });
+  }
+
+  /**
+   * Close the sheet. The editor state is cleared when the slide-out ENDS (`afterClose`), so
+   * the closing sheet keeps showing the question it was on instead of flashing a blank form.
+   */
   collapse(): void {
-    this.expandedId.set(null);
-    this.creating.set(false);
-    this.resetOptionEditors();
+    const ref = this.sheetRef;
+    if (ref === null) {
+      this.resetEditorState();
+      return;
+    }
+    this.sheetRef = null;
+    ref.close();
   }
 
   cancel(): void {
     this.collapse();
   }
 
-  /** The editor opens in place, so focus has to follow it or the keyboard is stranded. */
-  private focusFirstField(): void {
-    afterNextRender(() => this.firstField()?.nativeElement.focus(), { injector: this.injector });
+  private resetEditorState(): void {
+    this.expandedId.set(null);
+    this.creating.set(false);
+    this.resetOptionEditors();
   }
 
   pickType(type: QuestionType): void {
@@ -2988,9 +3339,12 @@ export class QuestionnaireEditorPage implements OnInit {
    */
   branchSources(): QuestionRow[] {
     const selfOrder = this.rows().find((q) => q.id === this.expandedId())?.displayOrder;
+    // A fixed question may only follow another fixed one (`QUESTION_FIXED_GATE_NOT_FIXED`).
+    const fixedOnly = this.fixedTicked();
     return this.rows().filter(
       (q) =>
         q.isActive &&
+        (!fixedOnly || isFixed(q)) &&
         isChoiceQuestionType(q.type) &&
         q.id !== this.expandedId() &&
         q.options.some((o) => o.isActive) &&
@@ -3021,6 +3375,18 @@ export class QuestionnaireEditorPage implements OnInit {
     const c = this.questionForm.controls.enabledWhen.controls;
     c.optionCode.setValue('');
     c.optionCodes.setValue([]);
+  }
+
+  /**
+   * Fixed is ticked over a rule that hangs on an ordinary question: the server would refuse it
+   * (`QUESTION_FIXED_GATE_NOT_FIXED`), so it is said here and Save waits.
+   */
+  branchNotFixed(): boolean {
+    if (!this.fixedTicked() || this.editLock() !== null) return false;
+    const code = this.questionForm.controls.enabledWhen.controls.questionCode.value;
+    if (code === '') return false;
+    const source = this.rows().find((q) => q.code === code);
+    return source === undefined || !isFixed(source);
   }
 
   /** Drop the rule entirely — the question becomes unconditional. */
@@ -3057,14 +3423,51 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   // ---- Question writes -----------------------------------------------------
+  /**
+   * What keeps Save off: a missing wording, inverted bounds, a half-set rule, or Fixed over a
+   * rule on an ordinary question. Each one is said by a line in the form, so a disabled Save
+   * always has its reason on screen.
+   */
+  saveBlocked(): boolean {
+    return (
+      this.questionForm.invalid ||
+      this.numericRangeInverted() ||
+      // What is not sent cannot block: a locked question's rule.
+      (this.editLock() === null && this.branchIncomplete()) ||
+      this.branchNotFixed() ||
+      this.unfixBlockedBy() !== null
+    );
+  }
+
+  /**
+   * Un-ticking Fixed on a question other FIXED questions are asked after: they may only follow
+   * a fixed question, so the server refuses it (`QUESTION_FIXED_GATE_NOT_FIXED`). The followers'
+   * wording, joined, or `null` when the un-fix may go ahead.
+   */
+  unfixBlockedBy(): string | null {
+    const q = this.editingQuestion();
+    if (q === null || !isFixed(q) || this.fixedTicked()) return null;
+    const followers = this.rows().filter(
+      (r) => r.isActive && isFixed(r) && r.enabledWhen?.questionCode === q.code,
+    );
+    if (followers.length === 0) return null;
+    return followers
+      .map((r) => `“${this.isAr ? r.questionAr : r.questionEn}”`)
+      .join(this.isAr ? '، ' : ', ');
+  }
+
+  unfixBlockedText(): string {
+    const names = this.unfixBlockedBy() ?? '';
+    return $localize`:@@qedit.unfix_blocked:Fixed questions are asked only after this answer: ${names}:names:. Make them ordinary first, then this one.`;
+  }
+
   async submitQuestion(): Promise<void> {
+    if (this.saveBlocked() || this.saving()) return;
     const lock = this.editLock();
-    const wordingOnly = this.wordingOnly();
-    if (this.questionForm.invalid) return;
-    // What is not sent cannot block: a fixed question's bounds, a locked question's rule.
-    if (!wordingOnly && this.numericRangeInverted()) return;
-    if (lock === null && this.branchIncomplete()) return;
     const v = this.questionForm.getRawValue();
+    // FIXED is the admin's both ways (v31.1.0): sent on every save, `null` un-fixes it. The
+    // server ignores a mark that is already what it is.
+    const fixedServedOn: FixedServedOn | null = v.fixed ? v.servedOn : null;
     // Send only the rule block the chosen type owns. Sending both would fail the
     // server's QUESTION_TYPE_RULES_INVALID check; sending `null` clears the other.
     const rules = {
@@ -3076,70 +3479,66 @@ export class QuestionnaireEditorPage implements OnInit {
     // key is simply omitted.
     const branch = branchRule(v.enabledWhen);
     const id = this.expandedId();
-    if (id !== null) {
-      // `code` is immutable (A33) — never sent. `type` is not sent either: it is
-      // locked in edit mode, because answers already reference this shape.
-      // `displayOrder` is not sent: order is owned by drag / move, not this form.
-      const wording = {
+    this.saving.set(true);
+    try {
+      if (id !== null) {
+        // `code` is immutable (A33) — never sent. `type` is not sent either: it is
+        // locked in edit mode, because answers already reference this shape.
+        // `displayOrder` is not sent: order is owned by drag / move, not this form.
+        const body: UpdateQuestionBody = {
+          questionEn: v.questionEn,
+          questionAr: v.questionAr,
+          // Always sent, empty included: an emptied box must CLEAR the sub-label,
+          // which omitting the key would silently decline to do.
+          helperTextEn: v.helperTextEn.trim(),
+          helperTextAr: v.helperTextAr.trim(),
+          isRequired: v.isRequired,
+          // A locked question leaves its rule out: the rule cannot change here, and re-sending
+          // a copy of it is one more thing that could fail to round-trip.
+          ...(lock === null ? { enabledWhen: branch } : {}),
+          ...rules,
+          fixedServedOn,
+        };
+        await this.api.updateQuestion(id, body);
+        this.message.success($localize`:@@qedit.question_saved:Question saved`);
+        await this.reload();
+        this.collapse();
+        return;
+      }
+      // No groupId, no displayOrder: the server places it at the end of the pool.
+      const created = await this.api.createQuestion({
         questionEn: v.questionEn,
         questionAr: v.questionAr,
-        // Always sent, empty included: an emptied box must CLEAR the sub-label,
-        // which omitting the key would silently decline to do.
-        helperTextEn: v.helperTextEn.trim(),
-        helperTextAr: v.helperTextAr.trim(),
-      };
-      try {
-        // A fixed income-proof question sends its wording and NOTHING else: an omitted key
-        // is "unchanged", and every other field is the server's to refuse. A locked question
-        // leaves its rule out the same way — the rule cannot change here, and re-sending a
-        // copy of it is one more thing that could fail to round-trip.
-        await this.api.updateQuestion(
-          id,
-          wordingOnly
-            ? wording
-            : {
-                ...wording,
-                isRequired: v.isRequired,
-                ...(lock === null ? { enabledWhen: branch } : {}),
-                ...rules,
-              },
-        );
-      } catch {
-        // A refusal (an engine lock, a rule the server rejects) is already a toast from the
-        // interceptor. The modal stays open with the admin's edits so nothing typed is lost.
-        return;
-      }
-      this.message.success($localize`:@@qedit.question_saved:Question saved`);
+        ...(v.helperTextEn.trim() ? { helperTextEn: v.helperTextEn.trim() } : {}),
+        ...(v.helperTextAr.trim() ? { helperTextAr: v.helperTextAr.trim() } : {}),
+        isRequired: v.isRequired,
+        type: v.type,
+        ...(branch ? { enabledWhen: branch } : {}),
+        ...rules,
+        ...(fixedServedOn !== null ? { fixedServedOn } : {}),
+      });
+      this.message.success($localize`:@@qedit.question_added:Question added`);
       await this.reload();
-      return;
-    }
-    // No groupId, no displayOrder: the server places it at the end of the pool.
-    const created = await this.api.createQuestion({
-      questionEn: v.questionEn,
-      questionAr: v.questionAr,
-      ...(v.helperTextEn.trim() ? { helperTextEn: v.helperTextEn.trim() } : {}),
-      ...(v.helperTextAr.trim() ? { helperTextAr: v.helperTextAr.trim() } : {}),
-      isRequired: v.isRequired,
-      type: v.type,
-      ...(branch ? { enabledWhen: branch } : {}),
-      ...rules,
-    });
-    this.message.success($localize`:@@qedit.question_added:Question added`);
-    await this.reload();
-    // The server appends, so the new question is on the LAST page — follow it, or
-    // the admin closes the editor onto a list their question is not in.
-    this.revealQuestion(created.id);
-    // A choice question is unpublishable until it has options, so stay on it with
-    // the option editor open rather than collapsing to a row flagged "needs options".
-    if (isChoiceQuestionType(created.type)) {
-      const fresh = this.rows().find((q) => q.id === created.id);
-      if (fresh) {
-        this.openRow(fresh);
-        this.startAddOption();
-        return;
+      // The server appends, so the new question is on the LAST page — follow it, or
+      // the admin closes the editor onto a list their question is not in.
+      this.revealQuestion(created.id);
+      // A choice question is unpublishable until it has options, so stay on it with
+      // the option editor open rather than closing onto a row flagged "needs options".
+      if (isChoiceQuestionType(created.type)) {
+        const fresh = this.rows().find((q) => q.id === created.id);
+        if (fresh) {
+          this.openRow(fresh);
+          this.startAddOption();
+          return;
+        }
       }
+      this.collapse();
+    } catch {
+      // A refusal (an engine lock, a rule the server rejects) is already a toast from the
+      // interceptor. The sheet stays open with the admin's edits so nothing typed is lost.
+    } finally {
+      this.saving.set(false);
     }
-    this.collapse();
   }
 
   // ---- Reordering ----------------------------------------------------------
@@ -3151,8 +3550,13 @@ export class QuestionnaireEditorPage implements OnInit {
   async drop(event: CdkDragDrop<unknown>): Promise<void> {
     if (event.previousIndex === event.currentIndex) return;
     const offset = this.pageOffset();
-    const next = [...this.rows()];
-    moveItemInArray(next, offset + event.previousIndex, offset + event.currentIndex);
+    // Within the LISTED questions: a hidden (program-catalog) question keeps its own slot.
+    const next = reorderWithin(
+      this.rows(),
+      this.listed(),
+      offset + event.previousIndex,
+      offset + event.currentIndex,
+    );
     await this.commitOrder(next);
   }
 
@@ -3161,12 +3565,11 @@ export class QuestionnaireEditorPage implements OnInit {
    * only way to move a question ACROSS a page boundary.
    */
   async moveBy(q: QuestionRow, delta: number): Promise<void> {
-    const current = [...this.rows()];
-    const from = current.findIndex((r) => r.id === q.id);
+    const listed = this.listed();
+    const from = listed.findIndex((r) => r.id === q.id);
     const to = from + delta;
-    if (from < 0 || to < 0 || to >= current.length) return;
-    moveItemInArray(current, from, to);
-    await this.commitOrder(current);
+    if (from < 0 || to < 0 || to >= listed.length) return;
+    await this.commitOrder(reorderWithin(this.rows(), listed, from, to));
     this.revealQuestion(q.id);
   }
 
@@ -3275,6 +3678,67 @@ export class QuestionnaireEditorPage implements OnInit {
     });
   }
 
+  /** The sheet's Delete: the type-the-code dialog for a fixed question, a confirm otherwise. */
+  deleteQuestion(q: QuestionRow): void {
+    if (isFixed(q)) this.openDeleteFixed(q);
+    else this.confirmDeleteQuestion(q);
+  }
+
+  /**
+   * A FIXED question — loan-engine ones included — is deleted by a super admin through the
+   * type-the-code dialog, which reads what the delete does first. Closed while a delete is in
+   * flight only by the dialog itself, so the request is never orphaned.
+   */
+  openDeleteFixed(q: QuestionRow): void {
+    const ref = this.modal.create<DeleteFixedQuestionDialog, DeleteFixedQuestionData, boolean>({
+      nzContent: DeleteFixedQuestionDialog,
+      nzData: { id: q.id, code: q.code, questionEn: q.questionEn, questionAr: q.questionAr },
+      nzWidth: 520,
+      nzCentered: true,
+      nzFooter: null,
+      nzMaskClosable: false,
+      nzAutofocus: null,
+      nzOnCancel: (dialog) => !dialog.busy(),
+    });
+    ref.afterClose.subscribe((deleted) => {
+      if (deleted !== true) return;
+      this.message.success($localize`:@@qedit.question_deleted:Question deleted`);
+      if (this.expandedId() === q.id) this.collapse();
+      void this.reload();
+    });
+  }
+
+  /** Bring a deleted fixed question back — whole, and asked again by every program at once. */
+  async restore(d: DeletedFixedQuestion): Promise<void> {
+    this.restoringId.set(d.id);
+    try {
+      await this.api.restoreQuestion(d.id);
+      this.message.success($localize`:@@qedit.restored:Question restored`);
+      await this.reload();
+      if (this.deletedFixed().length === 0) this.deletedOpen.set(false);
+    } catch {
+      /* refused — localized toast already shown by the interceptor */
+    } finally {
+      this.restoringId.set(null);
+    }
+  }
+
+  /** "Every program · Personal, Car" — where a deleted fixed question was asked. */
+  deletedMeta(d: DeletedFixedQuestion): string {
+    const types = d.categories
+      .filter(isLoanCategory)
+      .map((c) => categoryLabel(c))
+      .join(this.isAr ? '، ' : ', ');
+    return types === ''
+      ? servedOnLabel(d.fixedServedOn)
+      : `${servedOnLabel(d.fixedServedOn)} · ${types}`;
+  }
+
+  restoreAria(d: DeletedFixedQuestion): string {
+    const question = this.isAr ? d.questionAr : d.questionEn;
+    return $localize`:@@qedit.restore_aria:Restore “${question}:question:”`;
+  }
+
   confirmDeleteOption(o: OptionRow): void {
     this.modal.confirm({
       nzTitle: $localize`:@@qedit.del_option_title:Delete this option?`,
@@ -3314,6 +3778,17 @@ export class QuestionnaireEditorPage implements OnInit {
     } finally {
       this.loading.set(false);
     }
+    await this.loadDeletedFixed();
+  }
+
+  /** The restore list — a super admin's, and a safety net: a failed read stays quiet. */
+  private async loadDeletedFixed(): Promise<void> {
+    if (this.auth.role() !== 'super_admin') return;
+    try {
+      this.deletedFixed.set(await this.api.deletedFixed({ silent: true }));
+    } catch {
+      this.deletedFixed.set([]);
+    }
   }
 
   /** After a mutation, re-fetch. Every mutation auto-publishes server-side. */
@@ -3322,8 +3797,10 @@ export class QuestionnaireEditorPage implements OnInit {
     this.rows.set(flatten(tree ?? []));
     this.published.set(true);
     this.bindingWarnings.set(warnings ?? []);
-    // The open question's lock is re-read with the tree; keep the greyed-out controls in step.
-    if (this.expandedId() !== null) this.applyEngineLock(this.editLock());
+    await this.loadDeletedFixed();
+    // The open question's lock is re-read with the tree; keep the controls in step.
+    const open = this.editingQuestion();
+    if (open !== null) this.applyLocks(open);
   }
 }
 

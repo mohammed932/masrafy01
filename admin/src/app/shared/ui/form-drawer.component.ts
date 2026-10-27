@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  type TemplateRef,
   type Type,
   booleanAttribute,
   input,
@@ -57,6 +58,11 @@ import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
             <p class="fd__sub">{{ s }}</p>
           }
         </div>
+        <!-- Optional controls that act on the object itself (move it, step to the next one),
+             kept beside the close button rather than mixed into the form. -->
+        <div class="fd__head-acts">
+          <ng-content select="[drawerHeadActions]" />
+        </div>
         <button
           class="fd__close"
           type="button"
@@ -77,6 +83,8 @@ import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
       </div>
 
       <footer class="fd__foot">
+        <!-- A destructive action on the object (Delete), on the start edge — never beside Save. -->
+        <ng-content select="[drawerFootStart]" />
         @if (hint(); as h) {
           <p class="fd__hint">
             <svg class="fd__glyph" viewBox="64 64 896 896" fill="currentColor" aria-hidden="true">
@@ -177,6 +185,15 @@ import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
         color: var(--text-secondary);
       }
 
+      .fd__head-acts {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        flex: 0 0 auto;
+      }
+      .fd__head-acts:empty {
+        display: none;
+      }
       .fd__close {
         flex: 0 0 auto;
         display: inline-flex;
@@ -340,8 +357,11 @@ export class DrawerSectionComponent {
 }
 
 export interface FormDrawerOptions<D> {
-  /** The form component rendered inside the sheet. It hosts its own app-form-drawer. */
-  content: Type<unknown>;
+  /**
+   * The form rendered inside the sheet — a component, or a template of the page that opens it
+   * (the form then keeps the page's own state). Either hosts its own app-form-drawer.
+   */
+  content: Type<unknown> | TemplateRef<unknown>;
   data: D;
   /** Override only when the form is genuinely wider than one column of fields. */
   width?: string;
@@ -375,7 +395,9 @@ export function openFormDrawer<C extends object, D extends object, R>(
   // unbound. The caller's own typing is kept by FormDrawerOptions<D> above, and by
   // the content component's `inject<D>(NZ_DRAWER_DATA)`.
   const ref = drawer.create<C, object, R>({
-    nzContent: options.content as Type<C>,
+    nzContent: options.content as
+      | Type<C>
+      | TemplateRef<{ $implicit: object; drawerRef: NzDrawerRef }>,
     nzData: options.data,
     nzPlacement: rtl ? 'left' : 'right',
     nzWidth: options.width ?? DEFAULT_DRAWER_WIDTH,

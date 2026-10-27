@@ -33,7 +33,7 @@
  */
 
 import { enabledWhenGate } from './question-visibility';
-import { baseCodesServed, fixedQuestionsAnsweredBy } from '@/matching/pipeline/base-question-set';
+import { fixedCodesServed, fixedServedHere, type FixedServedOn } from './fixed-questions';
 import {
   DEBT_TYPES_QUESTION_CODE,
   EMPLOYMENT_TYPE_QUESTION_CODE,
@@ -82,10 +82,10 @@ export const NEVER_PRODUCT_SCOPED_QUESTION_CODES: ReadonlySet<string> = new Set<
  *   - the loan duration. The plan tables and caps give a CEILING per band, not a term; unasked,
  *     the app sent the longest one, which is the lowest instalment and the most generous DBR.
  *
- * Since 2026-10-26 every one of these is also in the fixed question set's every-name part
- * (`base-question-set.ts`), which is core on these names ahead of this list — together with the
- * time in the job and the residence. This list stays the floor for the day one of them leaves
- * that set.
+ * Since 2026-10-26 every one of these is also a FIXED question asked on every name
+ * (`question.fixedServedOn = every_name`, `fixed-questions.ts`), which is core on these names
+ * ahead of this list — together with the time in the job and the residence. This list stays the
+ * floor for the day the admin deletes one of them.
  *
  * Still NOT asked on those names: the declared salary (the product works the income out), the
  * other income and the bank statement (operator decision, 2026-10-26), the requested amount
@@ -130,6 +130,12 @@ export interface ScopableQuestion {
    * reads it — never through the core, and never with no name. Absent = an ordinary row.
    */
   optIn?: boolean;
+  /**
+   * FIXED (`question.fixedServedOn`, frozen as `fixedServedOn`, v31.0.0): core on every name of
+   * the loan type (`every_name`) or on every income-proof one (`income_proof`), and never
+   * unticked. Absent or `null` = an ordinary question — every snapshot published before then.
+   */
+  fixedServedOn?: FixedServedOn | null;
 }
 
 /**
@@ -152,7 +158,7 @@ export interface NarrowingScope {
   /**
    * PRODUCT-ONLY (operator decision, 2026-09-23; narrowed 2026-09-24): the name quotes off a
    * surrogate product and EVERY active programme under it is `income_surrogate`. The core is
-   * then the fixed set's every-name part and `ASKED_EVEN_WHEN_PRODUCT_ONLY` — plus what the
+   * then the `every_name` fixed questions and `ASKED_EVEN_WHEN_PRODUCT_ONLY` — plus what the
    * product and its programmes read. The app's own fallback (`apply_mapping.dart`) still covers
    * the rest: no declared income (the product works it out) and, for a car, the amount as price
    * minus down payment. Absent = false, which is every payslip or mixed name.
@@ -212,9 +218,9 @@ export interface NarrowingScope {
  *   - `engine`: every quote reads it — the money bindings, the debts and their amounts,
  *     employment type (the allow-lists and the per-type debt-burden cap), or a fact the
  *     platform owns (I-Score, the car figures).
- *   - `base`: it is in the fixed question set (`base-question-set.ts`) and this path serves it
- *     — any name for an every-name question, an income-proof name for the rest. Still `base`
- *     where a product question answers it instead (`answeredBy`): not asked, never unticked.
+ *   - `base`: it is a FIXED question (`question.fixedServedOn`, `fixed-questions.ts`) and this
+ *     path serves it — any name for an `every_name` question, an income-proof name for an
+ *     `income_proof` one.
  *   - `program`: a bank programme under the name reads it, through its income rule, a cap,
  *     rate, tenor or fee table, its I-Score table, or a refusal that needs the answer.
  */
@@ -224,14 +230,18 @@ export type QuestionLockReason = 'engine' | 'base' | 'program';
 export type QuestionLockScope = Pick<NarrowingScope, 'platformQuestionCodes'> &
   Partial<Pick<NarrowingScope, 'neededQuestionCodes' | 'mustAnswerQuestionCodes' | 'incomeProof'>>;
 
-/** `null` = the operator may untick it. The one rule serve, apply, preview and admin share. */
+/**
+ * `null` = the operator may untick it. The one rule serve, apply, preview and admin share.
+ * `fixedServedOn` is the question's own mark (`question.fixedServedOn`); absent = not fixed.
+ */
 export function questionLockReason(
   code: string,
   scope: QuestionLockScope,
+  fixedServedOn: FixedServedOn | null = null,
 ): QuestionLockReason | null {
   const outside = lockReasonOutsideFixedSet(code, scope);
   if (outside === 'engine') return 'engine';
-  if (baseCodesServed(scope.incomeProof === true).has(code)) return 'base';
+  if (fixedServedHere(fixedServedOn, scope.incomeProof === true)) return 'base';
   return outside;
 }
 
@@ -273,11 +283,6 @@ export interface NarrowingDecision {
   gateSourcesRetained: readonly string[];
   /** Gate-only sources dropped because every question behind them dropped. */
   gateSourcesDropped: readonly string[];
-  /**
-   * Fixed questions NOT served because a served product question answers them
-   * (`base-question-set.ts#answeredBy`): fixed code → the product question asked instead.
-   */
-  answeredBy: ReadonlyMap<string, string>;
   disabledReason: NarrowingDisabledReason | null;
 }
 
@@ -338,23 +343,6 @@ function closeOverGates(
 }
 
 /**
- * Take out of `keep` every fixed question a kept product question answers (operator decision,
- * 2026-10-26: never ask the same thing twice; the product's own question is the answer). Run
- * before the gate passes: no fixed question this drops is the gate source of another, and its
- * own gate source (`employment_status`) is never a gate-only source, so neither pass undoes it.
- */
-function dropAnsweredFixedQuestions(keep: Set<string>): ReadonlyMap<string, string> {
-  // Only a fixed question this path was about to serve: one it never serves (the job's
-  // follow-ups on a no-payslip name) is not asked anyway, and naming a stand-in for it would
-  // report a swap that never happened.
-  const answeredBy = new Map(
-    [...fixedQuestionsAnsweredBy(keep)].filter(([code]) => keep.has(code)),
-  );
-  for (const code of answeredBy.keys()) keep.delete(code);
-  return answeredBy;
-}
-
-/**
  * Narrowing OFF. Nothing is narrowed, and the one thing still left out is an OPT-IN question
  * nobody put in scope: with no name — or a name with no programme yet — there is nobody to have
  * added it and nothing reading it. Closed over gates like the narrowed path, so an opt-in
@@ -366,7 +354,6 @@ function off(
   questions: readonly ScopableQuestion[],
 ): NarrowingDecision {
   const keep = new Set(questions.filter((q) => q.optIn !== true).map((q) => q.code));
-  const answeredBy = dropAnsweredFixedQuestions(keep);
   const gateSourcesRetained = closeOverGates(questions, gateMaps(questions).byCode, keep);
   return {
     narrowed: false,
@@ -375,7 +362,6 @@ function off(
     dropped: questions.filter((q) => !keep.has(q.code)).map((q) => q.code),
     gateSourcesRetained,
     gateSourcesDropped: [],
-    answeredBy,
     disabledReason: reason,
   };
 }
@@ -400,12 +386,10 @@ function off(
  *      `employment_status` — read by no income rule, but driving the employment allow-lists
  *      and the debt-burden cap for every program — without a hand-written exception.
  *
- * Plus, ahead of all four, the FIXED QUESTION SET this path serves (`base-question-set.ts`,
- * v30.11.0): its every-name part on every name (all of it bar eleven, since 2026-10-26), its
- * income-proof part wherever a payslip programme is sold under the name. Those are core on
- * product-only names too, can never be unticked, and pass A never drops one. The one way out is
- * a served product question that answers one (`answeredBy`): then the product's question is
- * asked and the fixed one is not, so nobody answers the same thing twice.
+ * Plus, ahead of all four, the FIXED questions this path serves (`question.fixedServedOn`,
+ * v31.0.0 — the admin's, `fixed-questions.ts`): the `every_name` ones on every name, the
+ * `income_proof` ones wherever a payslip programme is sold under the name. Those are core on
+ * product-only names too, can never be unticked, and pass A never drops one.
  *
  * An OPT-IN row is never core; the operator's ADDED questions are kept whatever reads them,
  * survive pass A, and win over an exclusion of the same question.
@@ -437,9 +421,9 @@ export function narrowAskedQuestions(
   // Only what this category can serve: an addition whose row has since left the category
   // scopes nothing, exactly as a dangling gate does not.
   const added = new Set((scope.addedQuestionCodes ?? []).filter((code) => byCode.has(code)));
-  // The fixed question set this path must serve (`base-question-set.ts`): core whatever reads
-  // it, never unticked (`questionLockReason` says `base`), never dropped by the gate clean-up.
-  const base = baseCodesServed(scope.incomeProof === true);
+  // The fixed questions this path must serve (their own `fixedServedOn`): core whatever reads
+  // them, never unticked (`questionLockReason` says `base`), never dropped by the gate clean-up.
+  const base = fixedCodesServed(questions, scope.incomeProof === true);
 
   // An OPT-IN row is never core. Clause 1 alone ("bound to no fact") would otherwise ask an
   // added business question of every name in the category, which is the one thing the opt-in
@@ -464,11 +448,10 @@ export function narrowAskedQuestions(
   // An addition of the same question wins: the tick is the later, narrower statement.
   for (const code of scope.excludedQuestionCodes ?? []) {
     if (added.has(code)) continue;
-    if (questionLockReason(code, scope) === null) keep.delete(code);
+    if (questionLockReason(code, scope, byCode.get(code)?.fixedServedOn ?? null) === null) {
+      keep.delete(code);
+    }
   }
-  // A fixed question a served product question already answers is not asked here — locked or
-  // not, the applicant answers it once, through the question the product's rules read.
-  const answeredBy = dropAnsweredFixedQuestions(keep);
 
   // ---- pass A: a gate-only source goes once everything behind it has -------
   const gateSourcesDropped: string[] = [];
@@ -527,7 +510,6 @@ export function narrowAskedQuestions(
     dropped: questions.filter((q) => !keep.has(q.code)).map((q) => q.code),
     gateSourcesRetained,
     gateSourcesDropped: gateSourcesDropped.filter((code) => !keep.has(code)),
-    answeredBy,
     disabledReason: null,
   };
 }

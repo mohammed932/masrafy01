@@ -5,11 +5,8 @@ import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { I_SCORE_CLASS_TYPE } from '@/matching/pipeline/iscore-classes';
-import {
-  BASE_QUESTIONS,
-  baseQuestion,
-  fixedQuestionsAnsweredBy,
-} from '@/matching/pipeline/base-question-set';
+import { OTHER_INCOME_FACT_KEY } from '@/matching/pipeline/base-question-set';
+import { I_SCORE_FACT_KEY } from '@/matching/pipeline/product-template';
 import {
   EnumerationCategoriesNotApplicableException,
   EnumerationCategoryNotAssignedException,
@@ -1488,22 +1485,22 @@ export class PlatformEnumerationsAdminService {
         ...(await this.repo.questionAdditions(programNameKey as string, category)),
       ];
     }
-    // Which loan types the fixed set's income-proof part binds: every loan type a new name could
-    // be offered under (the create flow), else the name's own, each judged on its programmes.
-    // Its every-name part binds every loan type the question is asked in.
+    // Which loan types a FIXED question binds (its own mark, v31.0.0): an `every_name` one every
+    // loan type it is asked in; an `income_proof` one those where the name sells a payslip
+    // programme — every loan type it is asked in for a new name (the create flow).
     const incomeProofIn = new Map<LoanCategory, boolean>();
     for (const category of categories) {
       const scope = await this.repo.questionLockScopeFor(programNameKey, category);
       incomeProofIn.set(category, scope.incomeProof === true);
     }
-    const baseCategoriesOf = (code: string): LoanCategory[] => {
-      const base = baseQuestion(code);
-      if (base === undefined) return [];
-      if (programNameKey === null) return [...base.categories];
-      return base.categories.filter(
+    const baseCategoriesOf = (q: (typeof pool)[number]): LoanCategory[] => {
+      if (q.fixedServedOn === null) return [];
+      const asked = q.categories.filter((c) => !q.optInCategories.includes(c));
+      if (programNameKey === null) return asked;
+      return asked.filter(
         (c) =>
           categories.includes(c) &&
-          (base.servedOn === 'every_name' || incomeProofIn.get(c) === true),
+          (q.fixedServedOn === 'every_name' || incomeProofIn.get(c) === true),
       );
     };
     // Every question in the pool, asked here or not: the `engine` lock also says which
@@ -1515,7 +1512,7 @@ export class PlatformEnumerationsAdminService {
     const locks = pool.flatMap((q) => {
       const reason = lockReasonOutsideFixedSet(q.code, lockScope);
       if (reason === 'engine') return [{ code: q.code, reason }];
-      const baseIn = baseCategoriesOf(q.code);
+      const baseIn = baseCategoriesOf(q);
       const out: { code: string; reason: QuestionLockReason; categories?: LoanCategory[] }[] = [];
       if (baseIn.length > 0) out.push({ code: q.code, reason: 'base', categories: baseIn });
       if (reason === 'program') {
@@ -1525,13 +1522,8 @@ export class PlatformEnumerationsAdminService {
       }
       return out;
     });
+    // Retired with `answeredBy` (v31.0.0); kept on the wire, always empty, for one release.
     const answeredByCategory: Partial<Record<LoanCategory, Record<string, string>>> = {};
-    if (programNameKey !== null) {
-      for (const served of await this.questionnaire.servedForProgramName(programNameKey)) {
-        const answered = fixedQuestionsAnsweredBy(new Set(served.servedQuestionCodes));
-        if (answered.size > 0) answeredByCategory[served.category] = Object.fromEntries(answered);
-      }
-    }
     return { excludedByCategory, addedByCategory, locks, answeredByCategory };
   }
 
@@ -1569,7 +1561,7 @@ export class PlatformEnumerationsAdminService {
       if (question === undefined) {
         throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId });
       }
-      const reason = questionLockReason(question.code, lockScope);
+      const reason = questionLockReason(question.code, lockScope, question.fixedServedOn);
       if (reason !== null) {
         throw new QuestionExclusionLockedException({ questionId, code: question.code, reason });
       }
@@ -1649,11 +1641,11 @@ export class PlatformEnumerationsAdminService {
           reason: 'inactive',
         });
       }
-      // The fixed set is asked wherever it applies already; whether it is asked is the set's
-      // call, never one name's — the same refusal as an engine question.
+      // A FIXED question is asked wherever it applies already; whether it is asked is its own
+      // mark's call, never one name's — the same refusal as an engine question.
       if (
-        questionLockReason(q.code, lockScope) === 'engine' ||
-        baseQuestion(q.code) !== undefined
+        questionLockReason(q.code, lockScope, q.fixedServedOn) === 'engine' ||
+        q.fixedServedOn !== null
       ) {
         throw new QuestionAdditionLockedException({ questionId: q.id, code: q.code });
       }
@@ -1914,18 +1906,16 @@ export class PlatformEnumerationsAdminService {
       });
     }
     if (def.mirrorQuestionId === question.id) return;
-    // A fixed-set question's answers are owned in code (`base-question-set.ts`): a mirrored list
-    // would rewrite them from Manage values, a path the engine-input contract never sees.
-    if (baseQuestion(question.code) !== undefined) {
+    // A FIXED question's answers are the questionnaire's (v31.0.0): a mirrored list would
+    // rewrite them from Manage values, a path the fixed rules and the contract never see.
+    if (question.fixedServedOn !== null) {
       const row = (await this.questionnaire.listQuestions()).find((q) => q.id === question.id);
-      throw new DomainException(ERROR_CODES.QUESTION_ENGINE_LOCKED, {
+      throw new DomainException(ERROR_CODES.QUESTION_FIXED_LOCKED, {
         questionId: question.id,
         code: question.code,
         questionAr: row?.questionAr ?? question.code,
         questionEn: row?.questionEn ?? question.code,
-        reason: 'base',
-        change: 'option_added',
-        programNameKeys: [],
+        rule: 'mirrored',
       });
     }
     await this.repo.updateTypeDefinition(typeKey, { mirrorQuestionId: question.id });
@@ -1952,9 +1942,9 @@ export class PlatformEnumerationsAdminService {
     if (!isQuestionBoundEnumerationType(existing.type)) {
       throw new EnumerationQuestionBindingNotApplicableException({ type: existing.type });
     }
-    // A fact the fixed question set reads through (`base-question-set.ts`: the bureau score, the
-    // other-income amount) stays on the question the set binds it to.
-    if (BASE_QUESTIONS.some((q) => q.factKey === existing.key)) {
+    // A fact the ENGINE reads by key (the bureau score, the other-income amount) stays on the
+    // question it is bound to: rebinding it would feed the engine another question's answer.
+    if (existing.key === I_SCORE_FACT_KEY || existing.key === OTHER_INCOME_FACT_KEY) {
       throw new EnumerationSystemOnlyException({ type: existing.type, key: existing.key });
     }
 

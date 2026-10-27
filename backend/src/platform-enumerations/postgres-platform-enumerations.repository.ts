@@ -1322,6 +1322,21 @@ export class PostgresPlatformEnumerationsRepository
     });
   }
 
+  async askScopedQuestionCodes(): Promise<readonly string[]> {
+    const facts = await this.prisma.platformEnumeration.findMany({
+      // The same tombstone predicate `narrowingScopeFor` repeats: a detached ask asks nothing.
+      where: { type: FACT_TYPE, askedByProducts: { some: { detachedAt: null } } },
+      select: { key: true, boundQuestion: { select: { code: true } } },
+    });
+    const out = new Set<string>();
+    for (const fact of facts) {
+      const code = fact.boundQuestion?.code ?? bankAxisByFactKey(fact.key)?.questionCode;
+      if (code !== undefined) out.add(code);
+    }
+    for (const axis of BANK_AXES) out.add(axis.questionCode);
+    return [...out].sort();
+  }
+
   async questionAdditionCounts(): Promise<
     ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
   > {
@@ -2065,12 +2080,13 @@ export class PostgresPlatformEnumerationsRepository
     code: string;
     type: string;
     isActive: boolean;
+    fixedServedOn: string | null;
   } | null> {
     // The `id` is carried for `linkMirrorQuestion`: `EnumerationTypeDef.mirrorQuestionId` is
     // a foreign key, and the code is what every other reader speaks.
     return this.prisma.question.findUnique({
       where: { code },
-      select: { id: true, code: true, type: true, isActive: true },
+      select: { id: true, code: true, type: true, isActive: true, fixedServedOn: true },
     });
   }
 

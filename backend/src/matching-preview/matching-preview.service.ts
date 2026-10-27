@@ -31,6 +31,7 @@ import type { ApplicantProfile, Quote } from '@/matching/types';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { validateAnswer } from '@/questionnaire/validation/answer-validation';
 import { narrowAskedQuestions } from '@/questionnaire/validation/question-scope';
+import { fixedServedOnOf } from '@/questionnaire/validation/fixed-questions';
 
 interface SnapshotOption {
   code: string;
@@ -51,6 +52,8 @@ interface SnapshotQuestion {
   optInCategories?: string[] | null;
   /** Frozen branching rule; absent means always shown. */
   enabledWhen?: unknown;
+  /** Frozen since v31.0.0 (`question.fixedServedOn`); absent = not fixed. */
+  fixedServedOn?: unknown;
   options: SnapshotOption[];
   numeric?: { minValue?: string | null; maxValue?: string | null; step?: string | null } | null;
   text?: { maxLength?: number | null } | null;
@@ -275,6 +278,7 @@ export class MatchingPreviewService {
         code: q.code,
         enabledWhen: q.enabledWhen ?? null,
         optIn: q.optInCategories?.includes(category) === true,
+        fixedServedOn: fixedServedOnOf(q.fixedServedOn),
       })),
       programNameKey === undefined
         ? null

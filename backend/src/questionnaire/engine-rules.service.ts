@@ -46,6 +46,7 @@ export class EngineRulesService {
         optInCategories: optIns.get(r.id) ?? [],
         numeric: numericRulesOf(r),
         text: textRulesOf(r),
+        fixedServedOn: r.fixedServedOn,
         options: (options.get(r.id) ?? [])
           .filter((o) => o.isActive)
           .map((o) => ({

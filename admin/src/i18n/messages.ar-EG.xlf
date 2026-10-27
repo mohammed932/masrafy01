@@ -699,28 +699,17 @@
       <trans-unit id="qedit.move_up" datatype="html"><source>Move up</source><target>تحريك للأعلى</target></trans-unit>
       <trans-unit id="qedit.move_down" datatype="html"><source>Move down</source><target>تحريك للأسفل</target></trans-unit>
       <trans-unit id="qedit.add_question_inline" datatype="html"><source>Add a question to the end</source><target>أضف سؤالًا في النهاية</target></trans-unit>
-      <trans-unit id="qedit.sec_content" datatype="html"><source>Content</source><target>المحتوى</target></trans-unit>
-      <trans-unit id="qedit.q_en" datatype="html"><source>Question (English)</source><target>السؤال (إنجليزي)</target></trans-unit>
-      <trans-unit id="qedit.q_ar" datatype="html"><source>السؤال (عربي)</source><target>السؤال (عربي)</target></trans-unit>
-      <trans-unit id="qedit.helper_en" datatype="html"><source>Helper text (English)</source><target>نص مساعد (إنجليزي)</target></trans-unit>
-      <trans-unit id="qedit.helper_ar" datatype="html"><source>نص مساعد (عربي)</source><target>نص مساعد (عربي)</target></trans-unit>
       <trans-unit id="qedit.helper_hint" datatype="html"><source>Shown under the question in the app. Leave both empty for no sub-label.</source><target>يظهر أسفل السؤال في التطبيق. اتركه فارغًا في الحقلين إذا لم تكن هناك حاجة لنص مساعد.</target></trans-unit>
-      <trans-unit id="qedit.sec_answer" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
       <trans-unit id="qedit.answer_type" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
-      <trans-unit id="qedit.type_locked" datatype="html"><source>The answer type can&apos;t change once applicants have answered this question — their stored answers would no longer match it. Add a new question instead.</source><target>لا يمكن تغيير نوع الإجابة بعد أن أجاب المتقدمون على هذا السؤال — إجاباتهم المحفوظة لن تطابقه. أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
       <trans-unit id="qedit.lock_title_engine" datatype="html"><source>The loan engine reads this answer</source><target>محرك التمويل يقرأ إجابة هذا السؤال</target></trans-unit>
       <trans-unit id="qedit.lock_title_program" datatype="html"><source>Bank programs work out offers from this answer</source><target>برامج البنوك تحسب العروض من إجابة هذا السؤال</target></trans-unit>
-      <trans-unit id="qedit.lock_body_fixed" datatype="html"><source>Only its wording can change. Its answer type, unit, required setting, when-to-ask rule and answers are fixed, and it can&apos;t be deleted.</source><target>يمكن تعديل صياغته فقط. نوع الإجابة والوحدة وكونه إلزاميًا وشرط ظهوره وإجاباته ثابتة، ولا يمكن حذفه.</target></trans-unit>
+      <trans-unit id="qedit.lock_body_fixed" datatype="html"><source> Its answer type, unit, when-to-ask rule and answers stay as they are, and it can&apos;t be deleted. Its wording, and whether it is required or fixed, can change. </source><target>نوع الإجابة والوحدة وقاعدة الطرح والإجابات تبقى كما هي، ولا يمكن حذفه. يمكن تغيير صياغته، وكونه مطلوبًا أو ثابتًا.</target></trans-unit>
       <trans-unit id="qedit.lock_numbers" datatype="html"><source>Keep the numbers in its wording as they are, in the question, the helper text and the answers: applicants choose by them.</source><target>احتفظ بالأرقام في صياغته كما هي، في السؤال والنص المساعد والإجابات: فالعميل يختار بناءً عليها.</target></trans-unit>
       <trans-unit id="qedit.lock_who" datatype="html"><source>Read by <x id="INTERPOLATION" equiv-text="{{ programNamesOf(lock) }}"/></source><target>تقرؤه: <x id="INTERPOLATION" equiv-text="{{ programNamesOf(lock) }}"/></target></trans-unit>
-      <trans-unit id="qedit.branch_locked" datatype="html"><source>Fixed because offers are worked out from this answer: changing when it is asked would change who answers it.</source><target>ثابت لأن العروض تُحسب من هذه الإجابة: تغيير وقت طرحه يغيّر من يجيب عنه.</target></trans-unit>
+      <trans-unit id="qedit.branch_locked" datatype="html"><source> Locked because offers are worked out from this answer: changing when it is asked would change who answers it. </source><target>مقفل لأن العروض تُحسب من هذه الإجابة: تغيير وقت طرحه يغيّر من يجيب عنه.</target></trans-unit>
       <trans-unit id="qedit.lock_tip_engine" datatype="html"><source>Locked: the loan engine reads this answer</source><target>مقفل: محرك التمويل يقرأ هذه الإجابة</target></trans-unit>
       <trans-unit id="qedit.lock_tip_program" datatype="html"><source>Locked: read by <x id="names" equiv-text="this.programNamesOf(lock)"/></source><target>مقفل: تقرؤه <x id="names" equiv-text="this.programNamesOf(lock)"/></target></trans-unit>
       <!-- The fixed income-proof questions: wording only. And the "is one of" show-when rule. -->
-      <trans-unit id="qedit.lock_title_base" datatype="html"><source> A fixed question no program can skip </source><target> سؤال ثابت لا يمكن لأي برنامج تخطيه </target></trans-unit>
-      <trans-unit id="qedit.lock_body_base" datatype="html"><source> Only its wording can change: the question, its helper text and its answers&apos; labels, in both languages. </source><target> يمكن تعديل صياغته فقط: نص السؤال ونصه المساعد وأسماء إجاباته، باللغتين. </target></trans-unit>
-      <trans-unit id="qedit.lock_tip_base" datatype="html"><source>Locked: a fixed question no program can skip</source><target>مقفل: سؤال ثابت لا يمكن لأي برنامج تخطيه</target></trans-unit>
-      <trans-unit id="qedit.branch_locked_base" datatype="html"><source> Fixed: this is one of the fixed questions no program can skip. </source><target> ثابت: هذا أحد الأسئلة الثابتة التي لا يمكن لأي برنامج تخطيها. </target></trans-unit>
       <trans-unit id="qedit.branch_compare" datatype="html"><source> How the answer is compared </source><target> طريقة مقارنة الإجابة </target></trans-unit>
       <trans-unit id="qedit.branch_options" datatype="html"><source> The answers that turn this question on </source><target> الإجابات التي تُظهر هذا السؤال </target></trans-unit>
       <trans-unit id="qedit.branch_pick_options" datatype="html"><source>Pick two or more answers</source><target>اختر إجابتين أو أكثر</target></trans-unit>
@@ -732,7 +721,6 @@
       <trans-unit id="qedit.branch_clear" datatype="html"><source> Always ask instead </source><target> اطرحه دائمًا بدلًا من ذلك </target></trans-unit>
       <trans-unit id="qedit.branch_none" datatype="html"><source> Nothing to branch on yet — a rule reads an answer from an earlier question that offers options. </source><target> لا يوجد ما يمكن التفريع عليه بعد — القاعدة تقرأ إجابة من سؤال أسبق يعرض خيارات. </target></trans-unit>
       <trans-unit id="qedit.branch_source" datatype="html"><source> Ask this only when the answer to </source><target> اطرح هذا فقط عندما تكون الإجابة على </target></trans-unit>
-      <trans-unit id="qedit.branch_operator" datatype="html"><source> Matches or does not match </source><target> مطابق أو غير مطابق </target></trans-unit>
       <trans-unit id="qedit.branch_option" datatype="html"><source> The answer that turns this question on </source><target> الإجابة التي تُظهر هذا السؤال </target></trans-unit>
       <trans-unit id="qedit.branch_incomplete" datatype="html"><source> Pick which answer turns this question on — a half-set rule hides nothing. </source><target> اختر الإجابة التي تُظهر هذا السؤال — القاعدة الناقصة لا تُخفي شيئًا. </target></trans-unit>
       <trans-unit id="qedit.branch_hint_off" datatype="html"><source> Asked of every applicant in this question&apos;s loan types. </source><target> يُطرح على كل متقدم في أنواع التمويل الخاصة بهذا السؤال. </target></trans-unit>
@@ -787,13 +775,10 @@
       <trans-unit id="qedit.opt_more" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="{{ q.options.length - INLINE_OPTION_PREVIEW }}"/> more</source><target>+<x id="INTERPOLATION" equiv-text="{{ q.options.length - INLINE_OPTION_PREVIEW }}"/> أخرى</target></trans-unit>
       <trans-unit id="qedit.optional_chip" datatype="html"><source>optional</source><target>اختياري</target></trans-unit>
       <trans-unit id="qedit.optional_tip" datatype="html"><source>Applicants may skip this</source><target>يمكن للمتقدمين تخطيه</target></trans-unit>
-      <trans-unit id="qedit.close_aria" datatype="html"><source>Close</source><target>إغلاق</target></trans-unit>
       <trans-unit id="qedit.delete_question" datatype="html"><source>Delete question</source><target>حذف السؤال</target></trans-unit>
       <trans-unit id="qedit.edit_question_aria" datatype="html"><source>Edit question</source><target>تعديل السؤال</target></trans-unit>
       <trans-unit id="qedit.modal_edit" datatype="html"><source>Edit question</source><target>تعديل السؤال</target></trans-unit>
       <trans-unit id="qedit.modal_new" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
-      <trans-unit id="qedit.modal_pos" datatype="html"><source>Question <x id="INTERPOLATION" equiv-text="{{ positionOf(eq) }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/></source><target>السؤال <x id="INTERPOLATION" equiv-text="{{ positionOf(eq) }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/></target></trans-unit>
-      <trans-unit id="qedit.modal_pos_new" datatype="html"><source>Position <x id="INTERPOLATION" equiv-text="{{ rows().length + 1 }}"/></source><target>الترتيب <x id="INTERPOLATION" equiv-text="{{ rows().length + 1 }}"/></target></trans-unit>
       <trans-unit id="qedit.lang_en" datatype="html"><source>English</source><target>الإنجليزية</target></trans-unit>
       <trans-unit id="qedit.lang_ar" datatype="html"><source>العربية</source><target>العربية</target></trans-unit>
 
@@ -867,21 +852,21 @@
       <trans-unit id="qtabs.aria" datatype="html"><source>Questionnaire sections</source><target>أقسام الاستبيان</target></trans-unit>
       <trans-unit id="qtabs.pool" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
       <trans-unit id="qtabs.categories" datatype="html"><source>Loan categories</source><target>أنواع التمويل</target></trans-unit>
-      <trans-unit id="qtabs.engine_rules" datatype="html"><source>Loan engine</source><target>محرك التمويل</target></trans-unit>
+      <trans-unit id="qtabs.engine_rules" datatype="html"><source>Fixed questions</source><target>الأسئلة الثابتة</target></trans-unit>
 
       <trans-unit id="qcat.eyebrow" datatype="html"><source>Matching engine</source><target>محرك المطابقة</target></trans-unit>
       <trans-unit id="qcat.title" datatype="html"><source>Who gets asked what</source><target>مَن يُسأل عن ماذا</target></trans-unit>
       <trans-unit id="qcat.sub" datatype="html"><source>One question can be asked for several loan categories. Untick every category to park a question — it stays here, but nobody is asked it.</source><target>يمكن طرح السؤال نفسه في أكثر من نوع تمويل. أزل التحديد عن كل الأنواع لتوقيف السؤال — يبقى هنا، لكن لا يُسأل عنه أحد.</target></trans-unit>
       <trans-unit id="qcat.health_issues" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> to look at</source><target><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> تحتاج مراجعة</target></trans-unit>
       <trans-unit id="qcat.autosave" datatype="html"><source>Saves &amp; publishes automatically</source><target>يُحفظ ويُنشر تلقائيًا</target></trans-unit>
-      <trans-unit id="qrules.surrogate_note" datatype="html"><source>Surrogate programs don&apos;t ask what work the customer does: the customer picks the program before the questions start, and the pick says it. They don&apos;t ask monthly income, other income or the bank statement either: they work the income out another way. Each program also asks its own questions, set in the Program catalog. These are the same questions as on Income proof, so a reworded answer changes on both.</source><target>برامج بديل الدخل لا تسأل عن نوع عمل العميل: فالعميل يختار البرنامج قبل أن تبدأ الأسئلة، واختياره يحدد ذلك. ولا تسأل أيضًا عن الدخل الشهري ولا الدخل الآخر ولا كشف الحساب البنكي: فهي تحسب الدخل بطريقة أخرى. ويطرح كل برنامج أيضًا أسئلته الخاصة، المحددة في «كتالوج البرامج». هذه هي نفس أسئلة تبويب «إثبات الدخل»، لذا أي إجابة تُعاد صياغتها تتغير في التبويبين.</target></trans-unit>
+      <trans-unit id="qrules.surrogate_note" datatype="html"><source>Surrogate programs skip the fixed questions asked on income-proof programs only: they work the income out another way. Each program also asks its own questions, set in the Program catalog. These are the same questions as on Income proof, so a reworded answer changes on both.</source><target>تتخطى برامج بديل الدخل الأسئلة الثابتة المطروحة في برامج إثبات الدخل فقط: فهي تحسب الدخل بطريقة أخرى. ويطرح كل برنامج أيضًا أسئلته الخاصة، المحددة في كتالوج البرامج. هذه هي نفس أسئلة إثبات الدخل، لذا فإن إعادة صياغة إجابة تغيّرها في الاثنين.</target></trans-unit>
       <trans-unit id="qrules.basis_aria" datatype="html"><source>Which programs ask them</source><target>أي البرامج تطرحها</target></trans-unit>
       <trans-unit id="qrules.basis_proof_note" datatype="html"><source>Asked on every income-proof program</source><target>تُطرح في كل برنامج إثبات دخل</target></trans-unit>
       <trans-unit id="qrules.basis_surrogate_note" datatype="html"><source>Asked on every surrogate program</source><target>تُطرح في كل برنامج بديل دخل</target></trans-unit>
       <trans-unit id="qrules.basis_count" datatype="html"><source>questions</source><target>أسئلة</target></trans-unit>
       <trans-unit id="qrules.asked_unless_derived" datatype="html"><source>Always, unless the program works the amount out from the car price and down payment</source><target>دائمًا، إلا إذا حسب البرنامج المبلغ من سعر السيارة والمقدَّم</target></trans-unit>
-      <trans-unit id="qrules.title" datatype="html"><source>Loan engine questions</source><target>أسئلة محرك التمويل</target></trans-unit>
-      <trans-unit id="qrules.sub" datatype="html"><source>The fixed questions the loan engine reads, in the owner&apos;s order. They are mandatory: no program can switch them off. Here you can only change how an answer is worded, and the numbers in it must stay the same.</source><target>الأسئلة الثابتة التي يقرؤها محرك التمويل، بترتيب مالك التطبيق. وهي إلزامية: لا يمكن لأي برنامج إيقافها. هنا يمكنك فقط تغيير صياغة الإجابة، ويجب أن تبقى الأرقام التي فيها كما هي.</target></trans-unit>
+      <trans-unit id="qrules.title" datatype="html"><source>Fixed questions</source><target>الأسئلة الثابتة</target></trans-unit>
+      <trans-unit id="qrules.sub" datatype="html"><source> The fixed questions, in the order customers are asked them. Every program in their loan types asks them, and no program can skip them. Each one says whether its answer changes the offer, or is only saved on the application. Here you can reword an answer, keeping the numbers in it; change anything else on the Questions tab. </source><target>الأسئلة الثابتة، بترتيب طرحها على العملاء. يطرحها كل برنامج في أنواع تمويلها، ولا يمكن لأي برنامج تخطيها. كل سؤال يوضّح هل إجابته تغيّر العرض، أم تُحفظ في الطلب فقط. هنا يمكنك إعادة صياغة الإجابة مع الإبقاء على الأرقام التي فيها؛ وغيّر أي شيء آخر من تبويب الأسئلة.</target></trans-unit>
       <trans-unit id="qrules.retry" datatype="html"><source>Try again</source><target>حاول مرة أخرى</target></trans-unit>
       <trans-unit id="qrules.search_label" datatype="html"><source>Search the rules</source><target>ابحث في القواعد</target></trans-unit>
       <trans-unit id="qrules.clear" datatype="html"><source>Clear search</source><target>مسح البحث</target></trans-unit>
@@ -891,10 +876,10 @@
       <trans-unit id="qrules.mirrored_link" datatype="html"><source>Open the list</source><target>افتح القائمة</target></trans-unit>
       <trans-unit id="qrules.no_add_note" datatype="html"><source>Answers can't be added or removed here: each one means something to the loan engine.</source><target>لا يمكن إضافة إجابات أو حذفها هنا: لكل إجابة معنى عند محرك التمويل.</target></trans-unit>
       <trans-unit id="qrules.showing" datatype="html"><source><x id="shown" equiv-text="shown"/> of <x id="total" equiv-text="total"/> questions</source><target><x id="shown" equiv-text="shown"/> من <x id="total" equiv-text="total"/> سؤال</target></trans-unit>
-      <trans-unit id="qrules.loading_aria" datatype="html"><source>Loading the loan engine questions</source><target>جارٍ تحميل أسئلة محرك التمويل</target></trans-unit>
-      <trans-unit id="qrules.load_failed" datatype="html"><source>Couldn&apos;t load the loan engine questions</source><target>تعذّر تحميل أسئلة محرك التمويل</target></trans-unit>
+      <trans-unit id="qrules.loading_aria" datatype="html"><source>Loading the fixed questions</source><target>جارٍ تحميل الأسئلة الثابتة</target></trans-unit>
+      <trans-unit id="qrules.load_failed" datatype="html"><source>Couldn&apos;t load the fixed questions</source><target>تعذّر تحميل الأسئلة الثابتة</target></trans-unit>
       <trans-unit id="qrules.load_failed_sub" datatype="html"><source>Check your connection and try again.</source><target>تحقق من الاتصال وحاول مرة أخرى.</target></trans-unit>
-      <trans-unit id="qrules.empty_title" datatype="html"><source>No loan engine question is switched on</source><target>لا يوجد سؤال مفعَّل لمحرك التمويل</target></trans-unit>
+      <trans-unit id="qrules.empty_title" datatype="html"><source>No fixed question is switched on</source><target>لا يوجد سؤال ثابت مفعَّل</target></trans-unit>
       <trans-unit id="qrules.no_match_title" datatype="html"><source>No question matches your search</source><target>لا يوجد سؤال يطابق بحثك</target></trans-unit>
       <trans-unit id="qrules.search_ph" datatype="html"><source>Search questions or answers</source><target>ابحث في الأسئلة أو الإجابات</target></trans-unit>
       <trans-unit id="qrules.saved" datatype="html"><source>Answer wording saved and published</source><target>تم حفظ صياغة الإجابة ونشرها</target></trans-unit>
@@ -919,7 +904,9 @@
       <trans-unit id="qrules.reader_base_income_proof" datatype="html"><source>A fixed income-proof question, asked on every payslip program (<x id="types" equiv-text="types"/>)</source><target>سؤال إثبات دخل ثابت، يُطرح في كل برنامج بقسيمة راتب (<x id="types" equiv-text="types"/>)</target></trans-unit>
       <trans-unit id="qrules.reader_base_every_name" datatype="html"><source>A fixed question, asked on every program name (<x id="types" equiv-text="types"/>)</source><target>سؤال ثابت، يُطرح في كل اسم برنامج (<x id="types" equiv-text="types"/>)</target></trans-unit>
       <trans-unit id="qrules.more" datatype="html"><source>+<x id="count" equiv-text="count"/> more</source><target>+<x id="count" equiv-text="count"/> أخرى</target></trans-unit>
-      <trans-unit id="qrules.impact_none" datatype="html"><source> Nothing by itself — it is one of the fixed questions. </source><target>لا شيء بمفرده — إنه أحد الأسئلة الثابتة.</target></trans-unit>
+      <trans-unit id="qrules.impact_none" datatype="html"><source> Nothing — the answer is saved and shown on the application, but no program uses it to work out an offer. </source><target>لا شيء — الإجابة تُحفظ وتظهر في الطلب، لكن لا يستخدمها أي برنامج لحساب العرض.</target></trans-unit>
+      <trans-unit id="qrules.use_offer" datatype="html"><source>Changes the offer</source><target>يغيّر العرض</target></trans-unit>
+      <trans-unit id="qrules.use_none" datatype="html"><source>Doesn&apos;t change the offer</source><target>لا يغيّر العرض</target></trans-unit>
       <trans-unit id="qrules.area_amount" datatype="html"><source>Loan amount</source><target>مبلغ التمويل</target></trans-unit>
       <trans-unit id="qrules.area_rate" datatype="html"><source>Interest rate</source><target>سعر العائد</target></trans-unit>
       <trans-unit id="qrules.area_term" datatype="html"><source>Loan term</source><target>مدة التمويل</target></trans-unit>
@@ -990,7 +977,7 @@
       <trans-unit id="qrules.meta_number_unit" datatype="html"><source>Number in <x id="unit" equiv-text="unit"/></source><target>رقم (<x id="unit" equiv-text="unit"/>)</target></trans-unit>
       <trans-unit id="qrules.meta_numbered" datatype="html"><source><x id="count" equiv-text="numbered"/> with numbers</source><target><x id="count" equiv-text="numbered"/> بها أرقام</target></trans-unit>
       <trans-unit id="qrules.meta_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
-      <trans-unit id="qrules.pick_aria" datatype="html"><source>Loan engine questions, in the owner&apos;s order</source><target>أسئلة محرك التمويل، بترتيب مالك التطبيق</target></trans-unit>
+      <trans-unit id="qrules.pick_aria" datatype="html"><source>Fixed questions, in the order they are asked</source><target>الأسئلة الثابتة، بترتيب طرحها</target></trans-unit>
       <trans-unit id="qrules.sheet_rule_body" datatype="html"><source>Customers pick an answer by its words, but the loan engine prices the answer itself. If a number changed, a customer could pick this answer by mistake and get the wrong offer.</source><target>يختار العميل الإجابة بكلماتها، لكن محرك التمويل يسعّر الإجابة نفسها. لو تغيّر رقم، قد يختار العميل هذه الإجابة بالخطأ ويحصل على عرض خاطئ.</target></trans-unit>
       <trans-unit id="qrules.sheet_rule_title" datatype="html"><source>Change the words. Keep the numbers.</source><target>غيّر الكلمات، وأبقِ الأرقام.</target></trans-unit>
       <trans-unit id="qrules.step_meaning" datatype="html"><source>See what each answer means</source><target>اعرف معنى كل إجابة</target></trans-unit>
@@ -1018,17 +1005,11 @@
       <trans-unit id="qcat.empty" datatype="html"><source>No questions to assign yet — add some on the Questions tab first</source><target>لا توجد أسئلة لربطها بعد — أضف أسئلة من تبويب الأسئلة أولًا</target></trans-unit>
       <trans-unit id="qcat.search_ph" datatype="html"><source>Search questions, answers, or codes</source><target>ابحث في الأسئلة أو الإجابات أو الأكواد</target></trans-unit>
       <trans-unit id="qcat.search_aria" datatype="html"><source>Search the question pool</source><target>ابحث في مجموعة الأسئلة</target></trans-unit>
-      <trans-unit id="qcat.filter_aria" datatype="html"><source>Show only one category&apos;s questions</source><target>اعرض أسئلة نوع تمويل واحد فقط</target></trans-unit>
-      <trans-unit id="qcat.filter_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
       <trans-unit id="qcat.showing" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
       <trans-unit id="qcat.clear" datatype="html"><source>Clear</source><target>مسح</target></trans-unit>
       <trans-unit id="qcat.total" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
       <trans-unit id="qcat.no_matches_title" datatype="html"><source>Nothing matches that filter</source><target>لا نتائج مطابقة لهذا التصفية</target></trans-unit>
-      <trans-unit id="qcat.caption" datatype="html"><source>Questions down the side, loan categories across the top. Tick a cell to ask that question for that category.</source><target>الأسئلة في العمود الجانبي وأنواع التمويل في الصف الأعلى. حدّد الخانة ليُطرح السؤال في ذلك النوع.</target></trans-unit>
-      <trans-unit id="qcat.col_question" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
-      <trans-unit id="qcat.col_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
       <trans-unit id="qcat.col_all_tip" datatype="html"><source>Ask every listed question for this category</source><target>اطرح كل الأسئلة المعروضة في هذا النوع</target></trans-unit>
-      <trans-unit id="qcat.col_none" datatype="html"><source>None</source><target>لا شيء</target></trans-unit>
       <trans-unit id="qcat.col_none_tip" datatype="html"><source>Stop asking every listed question for this category</source><target>أوقف طرح كل الأسئلة المعروضة في هذا النوع</target></trans-unit>
       <trans-unit id="qcat.parked_tag" datatype="html"><source>Parked</source><target>موقوف</target></trans-unit>
       <trans-unit id="qcat.optin_tag" datatype="html"><source>Only programs that add it · <x id="COUNT" equiv-text="n"/></source><target>البرامج التي تضيفه فقط · <x id="COUNT" equiv-text="n"/></target></trans-unit>
@@ -4835,7 +4816,7 @@
       <trans-unit id="srvp.hide" datatype="html"><source>Hide pages</source><target>إخفاء الصفحات</target></trans-unit>
       <trans-unit id="srvp.reorder_hint" datatype="html"><source>Drag a question or use the arrows to move it within its page. The order belongs to <x id="TYPE" equiv-text="this.categoryName()"/>, so every program under it changes with it. A question asked after another one&apos;s answer stays below it.</source><target>اسحب السؤال أو استخدم الأسهم لنقله داخل صفحته. الترتيب خاص بـ <x id="TYPE" equiv-text="this.categoryName()"/>، لذا يتغير معه كل برنامج تحته. السؤال الذي يُطرح بعد إجابة سؤال آخر يبقى أسفله.</target></trans-unit>
       <trans-unit id="qorder.blocked" datatype="html"><source>“<x id="QUESTION" equiv-text="row"/>” is asked only after an answer to “<x id="SOURCE" equiv-text="above"/>”, so it has to stay below it.</source><target>«<x id="QUESTION" equiv-text="row"/>» لا يُطرح إلا بعد الإجابة عن «<x id="SOURCE" equiv-text="above"/>»، لذا يجب أن يبقى أسفله.</target></trans-unit>
-      <trans-unit id="caq.base_hint2" datatype="html"><source> This program must ask these. Only their wording can change. </source><target>يجب أن يطرح هذا البرنامج هذه الأسئلة. يمكن تغيير صياغتها فقط.</target></trans-unit>
+      <trans-unit id="caq.base_hint2" datatype="html"><source> This program must ask these. Change them on the Questions tab. </source><target>يجب أن يطرح هذا البرنامج هذه الأسئلة. غيّرها من تبويب الأسئلة.</target></trans-unit>
       <trans-unit id="caq.base_hint_answered" datatype="html"><source> This program must ask these, except the dimmed ones: its own question asks the same thing. Only their wording can change. </source><target>يجب أن يطرح هذا البرنامج هذه الأسئلة، عدا الباهتة منها: فسؤاله الخاص يسأل عن الشيء نفسه. يمكن تغيير صياغتها فقط.</target></trans-unit>
       <trans-unit id="caq.base_answered_by" datatype="html"><source>Not asked here: this program asks “<x id="INTERPOLATION" equiv-text="{{ standIn }}"/>” instead.</source><target>لا يُطرح هنا: يطرح هذا البرنامج «<x id="INTERPOLATION" equiv-text="{{ standIn }}"/>» بدلًا منه.</target></trans-unit>
       <trans-unit id="caq.asked_hint2" datatype="html"><source> Untick to stop asking it here. Locked ones are needed for the quote. </source><target>ألغِ التحديد لإيقاف طرح السؤال هنا. الأسئلة المقفلة لازمة لحساب العرض.</target></trans-unit>
@@ -4853,11 +4834,84 @@
       <trans-unit id="caq.dlg_of" datatype="html"><source>of the <x id="TOTAL" equiv-text="total"/> <x id="TYPE" equiv-text="type"/> questions</source><target>من أصل <x id="TOTAL" equiv-text="total"/> سؤالًا في <x id="TYPE" equiv-text="type"/></target></trans-unit>
       <trans-unit id="srvp.summary2" datatype="html"><source><x id="PAGES" equiv-text="pages.length"/> pages · <x id="TOTAL" equiv-text="total"/> questions · <x id="REQUIRED" equiv-text="required"/> required</source><target><x id="PAGES" equiv-text="pages.length"/> صفحات · <x id="TOTAL" equiv-text="total"/> سؤالاً · <x id="REQUIRED" equiv-text="required"/> إلزامية</target></trans-unit>
       <trans-unit id="srvp.reorder_hint2" datatype="html"><source>Drag or use the arrows to move a question within its page. This changes the order for every <x id="TYPE" equiv-text="this.categoryName()"/> program.</source><target>اسحب أو استخدم الأسهم لنقل السؤال داخل صفحته. يتغير الترتيب لكل برامج <x id="TYPE" equiv-text="this.categoryName()"/>.</target></trans-unit>
+      <trans-unit id="srvp.pages_aria" datatype="html"><source>Pages of the questionnaire</source><target>صفحات الاستبيان</target></trans-unit>
+      <trans-unit id="srvp.answers_aria" datatype="html"><source>Answers</source><target>الإجابات</target></trans-unit>
+      <trans-unit id="srvp.gate_if" datatype="html"><source>If: <x id="ANSWERS" equiv-text="answers"/></source><target>فقط عند: <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
+      <trans-unit id="srvp.gate_unless" datatype="html"><source>Unless: <x id="ANSWERS" equiv-text="answers"/></source><target>إلا عند: <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
       <trans-unit id="caq.lists_h" datatype="html"><source>Edit the questions</source><target>تعديل الأسئلة</target></trans-unit>
       <trans-unit id="caq.lists_show" datatype="html"><source>Show</source><target>إظهار</target></trans-unit>
       <trans-unit id="caq.lists_hide" datatype="html"><source>Hide</source><target>إخفاء</target></trans-unit>
       <trans-unit id="caq.lists_sum_base" datatype="html"><source><x id="BASE" equiv-text="this.base().length"/> fixed · <x id="ASKED" equiv-text="this.required().length"/> asked of <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> other questions</source><target><x id="BASE" equiv-text="this.base().length"/> ثابتة · <x id="ASKED" equiv-text="this.required().length"/> مطروحة في <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> أسئلة أخرى</target></trans-unit>
       <trans-unit id="caq.lists_sum" datatype="html"><source><x id="ASKED" equiv-text="this.required().length"/> asked of <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> other questions</source><target><x id="ASKED" equiv-text="this.required().length"/> مطروحة في <x id="TYPE" equiv-text="this.typeName()"/> · <x id="OTHER" equiv-text="this.others().length"/> أسئلة أخرى</target></trans-unit>
+      <trans-unit id="qedit.branch_fixed_only" datatype="html"><source> Only fixed questions are listed: a fixed question can only follow another fixed question. </source><target>تظهر الأسئلة الثابتة فقط: السؤال الثابت لا يأتي إلا بعد سؤال ثابت آخر.</target></trans-unit>
+      <trans-unit id="qedit.branch_none_fixed" datatype="html"><source> Nothing to branch on yet — a fixed question can only follow an earlier fixed question that offers options. </source><target>لا يوجد ما يمكن الاعتماد عليه بعد — السؤال الثابت لا يأتي إلا بعد سؤال ثابت سابق له إجابات.</target></trans-unit>
+      <trans-unit id="qedit.branch_not_fixed" datatype="html"><source> That question is not fixed, and a fixed question can only follow another fixed question. Pick a fixed one, or always ask this one. </source><target>هذا السؤال ليس ثابتًا، والسؤال الثابت لا يأتي إلا بعد سؤال ثابت آخر. اختر سؤالًا ثابتًا، أو اطرح هذا السؤال دائمًا.</target></trans-unit>
+      <trans-unit id="qedit.deleted_chip" datatype="html"><source>Deleted</source><target>المحذوفة</target></trans-unit>
+      <trans-unit id="qedit.deleted_hint" datatype="html"><source> Restore brings a question back with its answers and loan types, and every program asks it again right away. </source><target>الاستعادة تعيد السؤال بإجاباته وأنواع تمويله، ويطرحه كل برنامج من جديد فورًا.</target></trans-unit>
+      <trans-unit id="qedit.deleted_title" datatype="html"><source> Deleted fixed questions </source><target>الأسئلة الثابتة المحذوفة</target></trans-unit>
+      <trans-unit id="qedit.filter_fixed" datatype="html"><source>Fixed</source><target>ثابت</target></trans-unit>
+      <trans-unit id="qedit.fixed_chip" datatype="html"><source>Fixed</source><target>ثابت</target></trans-unit>
+      <trans-unit id="qedit.fixed_hint" datatype="html"><source>Every program in its loan types asks it, and no program can skip it.</source><target>يطرحه كل برنامج في أنواع تمويله، ولا يمكن لأي برنامج تخطيه.</target></trans-unit>
+      <trans-unit id="qedit.sheet_pos" datatype="html"><source>Question <x id="position" equiv-text="position"/> of <x id="total" equiv-text="total"/></source><target>السؤال <x id="position" equiv-text="position"/> من <x id="total" equiv-text="total"/></target></trans-unit>
+      <trans-unit id="qedit.sheet_pos_new" datatype="html"><source>Asked last, at position <x id="position" equiv-text="position"/></source><target>يُطرح في النهاية، في الموضع <x id="position" equiv-text="position"/></target></trans-unit>
+      <trans-unit id="qedit.add_q" datatype="html"><source>Add question</source><target>إضافة السؤال</target></trans-unit>
+      <trans-unit id="qedit.sec_question" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="qedit.sec_helper" datatype="html"><source>Helper text</source><target>النص المساعد</target></trans-unit>
+      <trans-unit id="qedit.sec_optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
+      <trans-unit id="qedit.sec_answer_block" datatype="html"><source>Answer</source><target>الإجابة</target></trans-unit>
+      <trans-unit id="qedit.sec_settings" datatype="html"><source>Settings</source><target>الإعدادات</target></trans-unit>
+      <trans-unit id="qedit.type_locked_short" datatype="html"><source>It can&apos;t change once a question is saved — add a new question instead.</source><target>لا يمكن تغييره بعد حفظ السؤال — أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
+      <trans-unit id="qedit.required_on" datatype="html"><source> Applicants must answer it before they can go on. </source><target>يجب على المتقدمين الإجابة عنه قبل المتابعة.</target></trans-unit>
+      <trans-unit id="qedit.required_off" datatype="html"><source>Applicants may skip it.</source><target>يمكن للمتقدمين تخطيه.</target></trans-unit>
+      <trans-unit id="qedit.optional_engine_warn" datatype="html"><source> Offers are worked out from this answer. An applicant who skips it is quoted without it. </source><target>تُحسب العروض من هذه الإجابة. المتقدم الذي يتخطاه يحصل على عرض محسوب بدونها.</target></trans-unit>
+      <trans-unit id="qedit.unfix_blocked" datatype="html"><source>Fixed questions are asked only after this answer: <x id="names" equiv-text="names"/>. Make them ordinary first, then this one.</source><target>أسئلة ثابتة تُطرح فقط بعد هذه الإجابة: <x id="names" equiv-text="names"/>. اجعلها أسئلة عادية أولًا، ثم هذا السؤال.</target></trans-unit>
+      <trans-unit id="qedit.unfix_note" datatype="html"><source> Saving makes it an ordinary question, so a program can skip it. </source><target>عند الحفظ يصبح سؤالًا عاديًا، ويمكن لأي برنامج تخطيه.</target></trans-unit>
+      <trans-unit id="qedit.fixed_label" datatype="html"><source>Fixed question</source><target>سؤال ثابت</target></trans-unit>
+      <trans-unit id="qedit.fixed_tip_every" datatype="html"><source>Fixed: every program in its loan types asks it</source><target>ثابت: يطرحه كل برنامج في أنواع تمويله</target></trans-unit>
+      <trans-unit id="qedit.fixed_tip_proof" datatype="html"><source>Fixed: every income-proof program in its loan types asks it</source><target>ثابت: يطرحه كل برنامج إثبات دخل في أنواع تمويله</target></trans-unit>
+      <trans-unit id="qedit.hidden_link" datatype="html"><source>Open the Program catalog</source><target>افتح كتالوج البرامج</target></trans-unit>
+      <trans-unit id="qedit.hidden_note" datatype="html"><source>{VAR_PLURAL, plural, =1 {1 question that surrogate programs ask is not listed here. Edit it from its product in the Program catalog.} other {<x id="INTERPOLATION"/> questions that surrogate programs ask are not listed here. Edit them from their products in the Program catalog.}}</source><target>{VAR_PLURAL, plural, =1 {سؤال واحد تطرحه برامج بديل الدخل غير معروض هنا. عدّله من منتجه في كتالوج البرامج.} =2 {سؤالان تطرحهما برامج بديل الدخل غير معروضين هنا. عدّلهما من منتجاتهما في كتالوج البرامج.} few {<x id="INTERPOLATION"/> أسئلة تطرحها برامج بديل الدخل غير معروضة هنا. عدّلها من منتجاتها في كتالوج البرامج.} other {<x id="INTERPOLATION"/> سؤالًا تطرحها برامج بديل الدخل غير معروضة هنا. عدّلها من منتجاتها في كتالوج البرامج.}}</target></trans-unit>
+      <trans-unit id="qedit.lock_body_fixed_q" datatype="html"><source> Its answer type, unit, when-to-ask rule and answers stay as they are. Its wording, and whether it is required or fixed, can change. </source><target>نوع الإجابة والوحدة وقاعدة الطرح والإجابات تبقى كما هي. يمكن تغيير صياغته، وكونه مطلوبًا أو ثابتًا.</target></trans-unit>
+      <trans-unit id="qedit.modal_catalog_q" datatype="html"><source>Program catalog question</source><target>سؤال من كتالوج البرامج</target></trans-unit>
+      <trans-unit id="qedit.restore" datatype="html"><source>Restore</source><target>استعادة</target></trans-unit>
+      <trans-unit id="qedit.restore_aria" datatype="html"><source>Restore “<x id="question" equiv-text="question"/>”</source><target>استعادة «<x id="question" equiv-text="question"/>»</target></trans-unit>
+      <trans-unit id="qedit.restored" datatype="html"><source>Question restored</source><target>تمت استعادة السؤال</target></trans-unit>
+      <trans-unit id="qedit.served_every" datatype="html"><source>Every program</source><target>كل البرامج</target></trans-unit>
+      <trans-unit id="qedit.served_every_hint" datatype="html"><source>Income-proof and surrogate programs both ask it.</source><target>تطرحه برامج إثبات الدخل وبرامج بديل الدخل معًا.</target></trans-unit>
+      <trans-unit id="qedit.served_legend" datatype="html"><source>Asked on</source><target>يُطرح في</target></trans-unit>
+      <trans-unit id="qedit.served_proof" datatype="html"><source>Only income-proof programs</source><target>برامج إثبات الدخل فقط</target></trans-unit>
+      <trans-unit id="qedit.served_proof_hint" datatype="html"><source>Surrogate programs skip it, because they work out the income another way. Use this for questions about pay or income.</source><target>تتخطاه برامج بديل الدخل لأنها تحسب الدخل بطريقة أخرى. استخدمه لأسئلة الراتب أو الدخل.</target></trans-unit>
+      <trans-unit id="qfixdel.answers" datatype="html"><source>{VAR_PLURAL, plural, =0 {None yet} =1 {1 answer. It stays on its application.} other {<x id="INTERPOLATION"/> answers. They stay on their applications.}}</source><target>{VAR_PLURAL, plural, =0 {لا توجد إجابات بعد} =1 {إجابة واحدة، وتبقى في طلبها.} =2 {إجابتان، وتبقيان في طلبيهما.} few {<x id="INTERPOLATION"/> إجابات، وتبقى في طلباتها.} other {<x id="INTERPOLATION"/> إجابة، وتبقى في طلباتها.}}</target></trans-unit>
+      <trans-unit id="qfixdel.answers_label" datatype="html"><source>Answers so far</source><target>الإجابات حتى الآن</target></trans-unit>
+      <trans-unit id="qfixdel.asked_by" datatype="html"><source>Asked by</source><target>يطرحه</target></trans-unit>
+      <trans-unit id="qfixdel.asked_in" datatype="html"><source>Asked in</source><target>يُطرح في</target></trans-unit>
+      <trans-unit id="qfixdel.asked_on" datatype="html"><source>Asked on</source><target>يُطرح على</target></trans-unit>
+      <trans-unit id="qfixdel.blocked_body" datatype="html"><source> They are only asked after this question&apos;s answer, so they have to go first: </source><target>هذه الأسئلة لا تُطرح إلا بعد إجابة هذا السؤال، لذا يجب حذفها أولًا:</target></trans-unit>
+      <trans-unit id="qfixdel.blocked_title" datatype="html"><source>Delete these first</source><target>احذف هذه أولًا</target></trans-unit>
+      <trans-unit id="qfixdel.cancel" datatype="html"><source> Cancel </source><target>إلغاء</target></trans-unit>
+      <trans-unit id="qfixdel.confirm_label" datatype="html"><source>Type <x id="START_TAG_BDI" ctype="x-bdi" equiv-text="&lt;bdi class=&quot;mono code&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ data.code }}"/><x id="CLOSE_TAG_BDI" ctype="x-bdi" equiv-text="&lt;/bdi&gt;"/> to confirm</source><target>اكتب <x id="START_TAG_BDI" ctype="x-bdi" equiv-text="&lt;bdi class=&quot;mono code&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ data.code }}"/><x id="CLOSE_TAG_BDI" ctype="x-bdi" equiv-text="&lt;/bdi&gt;"/> للتأكيد</target></trans-unit>
+      <trans-unit id="qfixdel.cta" datatype="html"><source> Delete question </source><target>احذف السؤال</target></trans-unit>
+      <trans-unit id="qfixdel.engine_warn" datatype="html"><source> The loan engine uses this answer to work out offers. Deleting it can stop offers or make them wrong (too high or too low). </source><target>محرك التمويل يستخدم هذه الإجابة لحساب العروض. حذفه قد يوقف العروض أو يجعلها خاطئة (أعلى أو أقل مما يجب).</target></trans-unit>
+      <trans-unit id="qfixdel.lede" datatype="html"><source>Every program stops asking it right away.</source><target>يتوقف كل برنامج عن طرحه فورًا.</target></trans-unit>
+      <trans-unit id="qfixdel.load_failed" datatype="html"><source> Couldn&apos;t check what this question is used for, so it can&apos;t be deleted yet. </source><target>تعذّر التحقق من استخدامات هذا السؤال، لذا لا يمكن حذفه الآن.</target></trans-unit>
+      <trans-unit id="qfixdel.loading_aria" datatype="html"><source>Checking what this question is used for</source><target>جارٍ التحقق من استخدامات هذا السؤال</target></trans-unit>
+      <trans-unit id="qfixdel.products" datatype="html"><source>{VAR_PLURAL, plural, =1 {1 surrogate product} other {<x id="INTERPOLATION"/> surrogate products}}</source><target>{VAR_PLURAL, plural, =1 {منتج بديل دخل واحد} =2 {منتجا بديل دخل} few {<x id="INTERPOLATION"/> منتجات بديل دخل} other {<x id="INTERPOLATION"/> منتجًا لبديل الدخل}}</target></trans-unit>
+      <trans-unit id="qfixdel.programs" datatype="html"><source>{VAR_PLURAL, plural, =1 {1 program} other {<x id="INTERPOLATION"/> programs}}</source><target>{VAR_PLURAL, plural, =1 {برنامج واحد} =2 {برنامجان} few {<x id="INTERPOLATION"/> برامج} other {<x id="INTERPOLATION"/> برنامجًا}}</target></trans-unit>
+      <trans-unit id="qfixdel.read_by" datatype="html"><source>Read by</source><target>تقرؤه</target></trans-unit>
+      <trans-unit id="qfixdel.retry" datatype="html"><source>Try again</source><target>حاول مرة أخرى</target></trans-unit>
+      <trans-unit id="qfixdel.title" datatype="html"><source> Delete this fixed question? </source><target>حذف هذا السؤال الثابت؟</target></trans-unit>
+      <trans-unit id="qfixdel.would_break" datatype="html"><source>What stops working</source><target>ما الذي سيتوقف عن العمل</target></trans-unit>
+      <trans-unit id="qedit.branch_operator" datatype="html"><source> Matches or does not match </source><target> مطابق أو غير مطابق </target></trans-unit>
+      <trans-unit id="qcat.filter_aria" datatype="html"><source>Show only one category&apos;s questions</source><target>اعرض أسئلة نوع تمويل واحد فقط</target></trans-unit>
+      <trans-unit id="qcat.filter_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="qcat.caption" datatype="html"><source>Questions down the side, loan categories across the top. Tick a cell to ask that question for that category.</source><target>الأسئلة في العمود الجانبي وأنواع التمويل في الصف الأعلى. حدّد الخانة ليُطرح السؤال في ذلك النوع.</target></trans-unit>
+      <trans-unit id="qcat.col_question" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="qcat.col_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="qcat.col_none" datatype="html"><source>None</source><target>لا شيء</target></trans-unit>
+      <trans-unit id="spd.ask.edit_question" datatype="html"><source>Edit question</source><target>عدّل السؤال</target></trans-unit>
+      <trans-unit id="spd.ask.edit_question_aria" datatype="html"><source>Edit the question “<x id="label" equiv-text="label"/>”</source><target>عدّل السؤال «<x id="label" equiv-text="label"/>»</target></trans-unit>
+      <trans-unit id="qrules.edit_link" datatype="html"><source>Edit this question</source><target>عدّل هذا السؤال</target></trans-unit>
+      <trans-unit id="qrules.no_add_note_pool" datatype="html"><source> Add or remove answers on the Questions tab. </source><target>أضف الإجابات أو احذفها من تبويب الأسئلة.</target></trans-unit>
     </body>
   </file>
 </xliff>

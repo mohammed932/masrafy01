@@ -117,6 +117,7 @@ async function main(): Promise<void> {
           code: true,
           isRequired: true,
           enabledWhen: true,
+          fixedServedOn: true,
           loanCategories: { select: { category: true, optIn: true } },
         },
         orderBy: { displayOrder: 'asc' },
@@ -226,6 +227,7 @@ async function main(): Promise<void> {
             code: q.code,
             enabledWhen: q.enabledWhen,
             optIn: q.loanCategories.some((c) => c.category === category && c.optIn),
+            fixedServedOn: q.fixedServedOn,
           })),
           scope,
         );

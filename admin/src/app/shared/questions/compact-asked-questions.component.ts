@@ -374,7 +374,7 @@ import {
               </p>
             } @else {
               <p class="hint" i18n="@@caq.base_hint2">
-                This program must ask these. Only their wording can change.
+                This program must ask these. Change them on the Questions tab.
               </p>
             }
             <ul class="grid is-paged" [style.--caq-cols]="cols()">

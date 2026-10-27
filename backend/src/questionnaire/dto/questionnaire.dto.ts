@@ -19,7 +19,7 @@ import {
 import { Type } from 'class-transformer';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BankProgramType, LoanCategory, QuestionType } from '@prisma/client';
+import { BankProgramType, FixedQuestionServedOn, LoanCategory, QuestionType } from '@prisma/client';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
 
 /**
@@ -127,6 +127,15 @@ export class CreateQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(0, 500) helperTextAr?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(0, 500) helperTextEn?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isRequired?: boolean;
+  /**
+   * FIXED (v31.0.0): asked on every program of its loan types (`every_name`) or on every
+   * income-proof one (`income_proof`). Omitted = an ordinary question. A fixed question's
+   * show-when source must be fixed too (`fixed-questions.ts`).
+   */
+  @ApiPropertyOptional({ enum: FixedQuestionServedOn })
+  @IsOptional()
+  @IsEnum(FixedQuestionServedOn)
+  fixedServedOn?: FixedQuestionServedOn;
   /** Omitted → appended to the end of the pool. Order is set by drag, not typed. */
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
   @ApiPropertyOptional({ type: EnabledWhenDto })
@@ -252,6 +261,18 @@ export class AddQuestionCategoriesBulkDto {
   assignments!: AddQuestionCategoriesAssignmentDto[];
 }
 
+/**
+ * `DELETE …/questions/:id` — a FIXED question is deleted only by a super admin who types its
+ * code (GitHub-style), and the code rides here. Ignored for an ordinary question.
+ */
+export class DeleteQuestionQueryDto {
+  @ApiPropertyOptional({ description: "A fixed question's own code, typed to confirm" })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  confirmCode?: string;
+}
+
 export class UpdateQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 500) questionAr?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 500) questionEn?: string;
@@ -260,6 +281,14 @@ export class UpdateQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isRequired?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+  /**
+   * Mark the question FIXED (v31.0.0), move it between `every_name` and `income_proof`, or —
+   * `null` — un-fix it (v31.1.0: the admin's both ways). Omitted = left as it is.
+   */
+  @ApiPropertyOptional({ enum: FixedQuestionServedOn, nullable: true })
+  @IsOptional()
+  @IsEnum(FixedQuestionServedOn)
+  fixedServedOn?: FixedQuestionServedOn | null;
   @ApiPropertyOptional({ type: EnabledWhenDto, nullable: true })
   @IsOptional()
   @ValidateNested()

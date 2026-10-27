@@ -59,7 +59,7 @@ What each step leaves behind, measured on the empty database:
 | 1 | `prisma migrate deploy` | Every table, plus the reference lists: governorates, employment and transfer types, required documents, the 21 catalog program names, the I-Score classes with their ranges and income percentages — no score given 85% · 300–520 (Defaulted, High Risk) 60% · 521–625 (Unsatisfactory) 90% · 626+ (Satisfactory, Very Good, Excellent) 100% — the shared I-Score table. No questions, banks, programs or products yet. |
 | 2 | `prisma db seed` | The super_admin (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`). The first login forces a password change. |
 | 3 | `seed:banks` | 14 banks. |
-| 4 | `seed:questionnaire` | 6 groups, 69 questions, each assigned to its loan types, and a published questionnaire version. Auto Loan asks the I-Score question. |
+| 4 | `seed:questionnaire` | 4 groups, 44 questions, each assigned to its loan types, and a published questionnaire version — 22 of them FIXED (the client's income-proof questions and the 5 car questions), inserted with their marks as first-run defaults (v31.0.0). Auto Loan asks the I-Score question. |
 | 5 | `seed:catalog` | Which loan types each catalog name is offered under, and its income basis (payslip / no payslip). `--dry` prints the plan first. |
 | 6 | `seed:programs` | 47 catalog bank programs — 35 payslip, 12 business/professional no-payslip ones read on a declared income. None states an I-Score table; they read the shared one. |
 | 7 | `npm run build` | `dist/` — required: steps 8 and 9 run the compiled commands, and a stale build seeds stale data. |
@@ -67,8 +67,8 @@ What each step leaves behind, measured on the empty database:
 | 9 | `seed:sheet-figures` | Each product's figures (tables, amounts, durations, plan tables), the no-payslip catalog names linked to them, and 24 surrogate bank programs. No product or program is given an I-Score table: all of them read the shared one. |
 
 End state: **71 bank programs** (42 payslip, 29 no-payslip), **13 products** (10 with a
-calculation, 3 cap-only), 85 active questions (measured 2026-09-23; v30.5.1 takes one away — the
-compound blueprint no longer mints "Do you own more than one unit?"), and every program scored on the shared I-Score
+calculation, 3 cap-only), 59 active questions — 22 fixed (16 asked on every program, 6 on
+income-proof programs only) and 37 the products ask (measured 2026-10-27, v31.0.0), and every program scored on the shared I-Score
 table — edit a class on **Manage values → I-Score classes** and every program that states no
 table of its own follows it.
 
@@ -133,23 +133,22 @@ npx tsx scripts/publish-questionnaire.ts   # category assignments are frozen int
 
 ### The mortgage skips are not seeded (v30.10.0)
 
-The two mortgage names skip the questions no mortgage programme reads (migration
-`20261013120000_client_question_flows`, section C.6). Skips are operator data, which no seed
-authors, and on an empty database that migration runs before the questionnaire exists, so it
-writes none. After step 9 on a FRESH database, untick `prior_rejection` on **Program catalog →
-Home Purchase / Home Finishing → step ② (Mortgage)** — the one skip still worth making: of the
-original eleven, seven questions have since left the pool (v30.10.0's cleanup and v30.11.0's
-fixed question set, which replaced `job_tenure` and `salary_transfer`), and the fixed set cannot
-be skipped at all. An upgraded database gets the skip from the migration. The question ORDER
-those migrations set is likewise the upgraded database's; a fresh one keeps the seed's pool order.
+Nothing to do since v31.0.0. The one skip still worth making after a fresh install was
+`prior_rejection` on the two mortgage names, and v31.0.0 retired that question everywhere
+(nothing read it). The other questions those skips covered left the pool earlier, and a fixed
+question cannot be skipped at all. The question ORDER the old migrations set is the upgraded
+database's; a fresh one keeps the seed's pool order.
 
-### The fixed question set (v30.11.0)
+### The fixed questions (v31.0.0)
 
-The client's income-proof questions are owned in code (`src/matching/pipeline/base-question-set.ts`)
-and written by `seed:questionnaire` on a fresh database and by migration
-`20261019100000_income_proof_question_set` on an existing one. `npm run check:questionnaire`
-(invariants 9 and 10) proves the live rows equal the registry and that every payslip name serves
-them; run it after either path.
+Which questions are fixed is data the admin owns: `question.fixedServedOn` (`every_name`,
+`income_proof`, or null). On a fresh database `seed:questionnaire` INSERTS the 22 fixed
+questions (the client's 17 income-proof questions and the 5 car questions) with their marks, as
+first-run defaults. After that the admin owns them, and a re-run never rewrites, re-orders or
+revives one. An existing database got the marks from migration
+`20261027090000_fixed_questions_are_data`. `npm run check:questionnaire` (invariants 9 and 10)
+proves every fixed question is required, keeps only ordinary loan-type rows, is gated only on a
+fixed question, and is served on every name of its loan types. Run it after either path.
 
 ## Optional demo data
 

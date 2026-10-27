@@ -61,17 +61,15 @@ export function lockProgramLabel(): string {
 }
 
 /**
- * The pills on a question: why it is locked, and — for a question every quote reads that is
- * also one of the fixed income-proof questions — that too. A lock is a fact, not a fault, so
- * no pill is a warning colour.
+ * The pills on a question: why the engine locks it, if it does, and that it is fixed — every
+ * question this tab lists is (v31.0.0, the server lists the marked ones). A lock is a fact, not
+ * a fault, so no pill is a warning colour.
  */
 export function lockPills(q: EngineRuleQuestion): { label: string; tone: StatusTone }[] {
   const out: { label: string; tone: StatusTone }[] = [];
-  if (q.lock.reason === 'engine') out.push({ label: lockEngineLabel(), tone: 'info' });
-  if (q.lock.reason === 'program') out.push({ label: lockProgramLabel(), tone: 'neutral' });
-  if (q.lock.shapeFixed || q.lock.reason === 'base') {
-    out.push({ label: lockBaseLabel(), tone: 'tonal' });
-  }
+  if (q.lock?.reason === 'engine') out.push({ label: lockEngineLabel(), tone: 'info' });
+  if (q.lock?.reason === 'program') out.push({ label: lockProgramLabel(), tone: 'neutral' });
+  out.push({ label: lockBaseLabel(), tone: 'tonal' });
   return out;
 }
 

@@ -75,7 +75,8 @@ export interface EngineRuleQuestion {
   categories: LoanCategory[];
   /** Loan types only some program names ask it in. */
   optInCategories: LoanCategory[];
-  lock: QuestionEngineLock;
+  /** The engine-input lock, or `null` for a fixed question nothing reads by code or table. */
+  lock: QuestionEngineLock | null;
   readers: EngineReader[];
   numeric: {
     minValue: string | null;

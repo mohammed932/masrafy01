@@ -30,15 +30,15 @@
  *   8. ADDITIONS HAVE A ROW — every question a program name ADDS is active, sits in that loan
  *      type (ordinary or opt-in), under a name offered in it, and is not also one the name
  *      SKIPS. An addition without its row asks nothing and looks like a choice that still works.
- *   9. FIXED SET = REGISTRY — every question of the fixed set (`base-question-set.ts`) is live,
- *      required, and exactly the shape the registry states: type, bounds, unit, text length,
- *      show-when rule, the answers it offers, an ordinary row in each of its loan types, its
- *      fact bound to it, and no Manage-values list mirroring it. A seed, a migration or a direct
- *      write that drifts from the code is caught here; the admin cannot drift it (the lock).
+ *   9. FIXED SET SANE — every active FIXED question (`question.fixedServedOn`, the admin's since
+ *      v31.0.0; required or not is the admin's too since v31.1.0) sits only in ordinary rows, is
+ *      asked in some loan type, is gated only on another active fixed question, and has no
+ *      per-name skip or addition. Beside it, a WARNING for every question the engine reads
+ *      by code (`ENGINE_READ_CODES`) that is switched off or not fixed — a super admin may
+ *      delete one, and quotes then go without it.
  *  10. FIXED SET SERVED — under every offerable program name, the served questionnaire keeps the
- *      fixed set's questions that path must ask: the every-name ones always, the income-proof
- *      ones wherever the name sells a payslip programme in that loan type — except one a served
- *      product question answers (`answeredBy`), which must then NOT be served (asked twice).
+ *      fixed questions that path must ask: the `every_name` ones always, the `income_proof`
+ *      ones wherever the name sells a payslip programme in that loan type.
  *  (warning) I-SCORE BAND EDGES — an I-Score tier that straddles a band edge (521, 626) is
  *      priced at the band's weakest tier for the whole band; reported so it is a choice.
  *
@@ -48,15 +48,9 @@
  */
 import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
-import {
-  BASE_QUESTIONS,
-  I_SCORE_BANDS,
-  baseCodesServed,
-  baseGateJson,
-  baseOptionCodes,
-  fixedQuestionsAnsweredBy,
-} from '../src/matching/pipeline/base-question-set';
-import { sameDecimal, sameGate, sameText } from '../src/questionnaire/validation/engine-contract';
+import { I_SCORE_BANDS } from '../src/matching/pipeline/base-question-set';
+import { ENGINE_READ_CODES } from '../src/questionnaire/validation/engine-contract';
+import { fixedServedHere, fixedServedOnOf } from '../src/questionnaire/validation/fixed-questions';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
 import { narrowAskedQuestions } from '../src/questionnaire/validation/question-scope';
@@ -79,6 +73,8 @@ interface SnapshotQuestion {
   categories?: string[];
   /** Disjoint from `categories`; absent before opt-in rows existed. */
   optInCategories?: string[];
+  /** Frozen since v31.0.0; absent = not fixed. */
+  fixedServedOn?: unknown;
 }
 
 function gateSourceOf(enabledWhen: unknown): string | null {
@@ -107,6 +103,7 @@ async function main(): Promise<void> {
       numericUnitEn: true,
       numericUnitAr: true,
       textMaxLength: true,
+      fixedServedOn: true,
       options: { select: { code: true, isActive: true } },
     },
   });
@@ -155,7 +152,10 @@ async function main(): Promise<void> {
     const n = categoriesOf.get(q.code)?.size ?? 0;
     if (q.isActive && n === 0)
       add('4 active ⇔ assigned', `${q.code}: active, asked by no loan type`);
-    if (!q.isActive && n > 0) add('4 active ⇔ assigned', `${q.code}: inactive, still assigned`);
+    // A deleted FIXED question keeps its rows, so a restore brings it back whole (v31.0.0).
+    if (!q.isActive && n > 0 && q.fixedServedOn === null) {
+      add('4 active ⇔ assigned', `${q.code}: inactive, still assigned`);
+    }
   }
 
   // 5. SNAPSHOT = LIVE
@@ -180,6 +180,13 @@ async function main(): Promise<void> {
     const frozen = Array.isArray(sq.categories) ? [...sq.categories].sort().join(',') : '(all)';
     if (live !== frozen) {
       add('5 snapshot = live', `${sq.code}: published [${frozen}], live [${live}] — publish`);
+    }
+    const liveMark = fixedServedOnOf(byCode.get(sq.code)?.fixedServedOn);
+    if (liveMark !== fixedServedOnOf(sq.fixedServedOn)) {
+      add(
+        '5 snapshot = live',
+        `${sq.code}: published fixed [${String(sq.fixedServedOn ?? 'no')}], live [${liveMark ?? 'no'}] — publish`,
+      );
     }
     const liveOptIn = [...optIn].sort().join(',');
     const frozenOptIn = [...(sq.optInCategories ?? [])].sort().join(',');
@@ -220,6 +227,7 @@ async function main(): Promise<void> {
         code: q.code,
         enabledWhen: q.enabledWhen ?? null,
         optIn: isOptIn(q),
+        fixedServedOn: fixedServedOnOf(q.fixedServedOn),
       })),
       scope,
     );
@@ -230,88 +238,43 @@ async function main(): Promise<void> {
         add('2 debts served per name', `${productCategory}/${programNameKey}: ${code} not served`);
       }
     }
-    // 10. FIXED SET SERVED — same path, same decision. A fixed question a served product
-    // question answers (`answeredBy`) must be the one thing NOT served: asking both is asking
-    // the applicant the same thing twice.
-    const answered = fixedQuestionsAnsweredBy(served);
-    for (const code of baseCodesServed(scope?.incomeProof === true)) {
-      const assigned = inCategory.some((q) => q.code === code && !isOptIn(q));
-      const standIn = answered.get(code);
-      if (standIn !== undefined) {
-        if (served.has(code)) {
-          add(
-            '10 fixed set served',
-            `${productCategory}/${programNameKey}: ${code} served beside ${standIn}, which answers it`,
-          );
-        }
-      } else if (assigned && !served.has(code)) {
-        add('10 fixed set served', `${productCategory}/${programNameKey}: ${code} not served`);
+    // 10. FIXED SET SERVED — same path, same decision.
+    for (const q of inCategory) {
+      if (isOptIn(q) || !fixedServedHere(fixedServedOnOf(q.fixedServedOn), scope?.incomeProof === true)) {
+        continue;
+      }
+      if (!served.has(q.code)) {
+        add('10 fixed set served', `${productCategory}/${programNameKey}: ${q.code} not served`);
       }
     }
   }
 
-  // 9. FIXED SET = REGISTRY
-  const mirrored = new Set(
-    (
-      await prisma.enumerationTypeDef.findMany({
-        where: { mirrorQuestionId: { not: null } },
-        select: { mirrorQuestionId: true },
-      })
-    ).map((d) => d.mirrorQuestionId),
+  // 9. FIXED SET SANE
+  const namePolicy = new Set(
+    [
+      ...(await prisma.programNameQuestionExclusion.findMany({ select: { questionId: true } })),
+      ...(await prisma.programNameQuestionAddition.findMany({ select: { questionId: true } })),
+    ].map((r) => r.questionId),
   );
-  const factRows = await prisma.platformEnumeration.findMany({
-    where: { type: 'surrogate_fact' },
-    select: { key: true, active: true, boundQuestionId: true },
-  });
-  for (const base of BASE_QUESTIONS) {
-    const q = byCode.get(base.code);
-    const at = (detail: string): void => add('9 fixed set = registry', `${base.code}: ${detail}`);
-    if (!q || !q.isActive) {
-      at('missing or switched off');
-      continue;
-    }
-    if (q.type !== base.type) at(`type ${q.type}, registry ${base.type}`);
-    if (!q.isRequired) at('optional');
-    if (!sameGate(q.enabledWhen ?? null, baseGateJson(base.gate))) at('show-when rule differs');
-    if (base.type === 'NUMERIC') {
-      const n = base.numeric;
-      if (
-        !sameDecimal(q.numericMinValue?.toFixed(2) ?? null, n.minValue) ||
-        !sameDecimal(q.numericMaxValue?.toFixed(2) ?? null, n.maxValue) ||
-        !sameDecimal(q.numericStep?.toFixed(2) ?? null, n.step)
-      ) {
-        at('bounds differ');
-      }
-      if (!sameText(q.numericUnitEn, n.unitEn) || !sameText(q.numericUnitAr, n.unitAr)) {
-        at('unit differs');
+  const fixedWarnings: string[] = [];
+  for (const q of questions) {
+    if (!q.isActive || q.fixedServedOn === null) continue;
+    const at = (detail: string): void => add('9 fixed set sane', `${q.code}: ${detail}`);
+    if ((optInOf.get(q.code)?.size ?? 0) > 0) at('opt-in in a loan type');
+    if ((categoriesOf.get(q.code)?.size ?? 0) === 0) at('asked in no loan type');
+    const source = gateSourceOf(q.enabledWhen);
+    if (source !== null) {
+      const gate = byCode.get(source);
+      if (!gate || !gate.isActive || gate.fixedServedOn === null) {
+        at(`gated on ${source}, which is not fixed`);
       }
     }
-    if (base.type === 'TEXT' && q.textMaxLength !== base.maxLength) {
-      at(`text length ${q.textMaxLength ?? 'none'}, registry ${base.maxLength}`);
-    }
-    const live = q.options
-      .filter((o) => o.isActive)
-      .map((o) => o.code)
-      .sort()
-      .join(',');
-    const stated = [...baseOptionCodes(base)].sort().join(',');
-    if (live !== stated) at(`answers [${live}], registry [${stated}]`);
-    for (const category of base.categories) {
-      if (!categoriesOf.get(base.code)?.has(category)) at(`not asked in ${category}`);
-      else if (optInOf.get(base.code)?.has(category)) at(`opt-in in ${category}`);
-    }
-    if (base.factKey !== null) {
-      const fact = factRows.find((f) => f.key === base.factKey);
-      if (!fact || !fact.active || fact.boundQuestionId !== q.id) {
-        at(`fact ${base.factKey} is not bound to it`);
-      }
-    }
-    if (mirrored.has(q.id)) at('a Manage-values list mirrors it');
-    // A stand-in that is no question at all never serves, so the fixed question would quietly
-    // come back beside the product's own — the code rename this would miss.
-    for (const standIn of base.answeredBy ?? []) {
-      if (!byCode.has(standIn)) at(`answeredBy ${standIn} is no question`);
-    }
+    if (namePolicy.has(q.id)) at('a program name skips or adds it');
+  }
+  for (const code of ENGINE_READ_CODES) {
+    const q = byCode.get(code);
+    if (!q || !q.isActive) fixedWarnings.push(`${code}: switched off — quotes go without it`);
+    else if (q.fixedServedOn === null) fixedWarnings.push(`${code}: the engine reads it, not fixed`);
   }
 
   // (warning) I-SCORE BAND EDGES
@@ -434,6 +397,7 @@ async function main(): Promise<void> {
 
   console.log('\n[check:questionnaire-integrity]\n');
   for (const w of warnings) console.log(`  ! [I-Score band edges] ${w}`);
+  for (const w of fixedWarnings) console.log(`  ! [engine reads it] ${w}`);
   if (violations.length === 0) {
     console.log('  clean — all ten invariants hold.');
   } else {

@@ -1042,6 +1042,16 @@ interface ReadList {
                                             Stop reading this
                                           </button>
                                         }
+                                        @if (card.code !== '' && !card.questionInactive) {
+                                          <a
+                                            class="linkish"
+                                            [routerLink]="['/questionnaire/questions']"
+                                            [queryParams]="{ q: card.code }"
+                                            [attr.aria-label]="editQuestionAria(card.label)"
+                                            i18n="@@spd.ask.edit_question"
+                                            >Edit question</a
+                                          >
+                                        }
                                       </span>
                                     </div>
                                   } @else {
@@ -1126,6 +1136,20 @@ interface ReadList {
                                         }
                                       </span>
                                     </button>
+                                    <!-- Beside the card, never inside it: a link inside a
+                                         role="checkbox" button is invalid markup. The one
+                                         place a product's question is reworded (v31.0.0 —
+                                         the Questions tab lists fixed questions only). -->
+                                    @if (card.code !== '' && !card.questionInactive) {
+                                      <a
+                                        class="linkish ask-edit"
+                                        [routerLink]="['/questionnaire/questions']"
+                                        [queryParams]="{ q: card.code }"
+                                        [attr.aria-label]="editQuestionAria(card.label)"
+                                        i18n="@@spd.ask.edit_question"
+                                        >Edit question</a
+                                      >
+                                    }
                                   }
                                 </li>
                               }
@@ -3384,6 +3408,12 @@ interface ReadList {
           inline-size: 100%;
         }
       }
+      .ask-edit {
+        display: inline-flex;
+        align-items: center;
+        margin-block-start: var(--space-1, 4px);
+        font-size: var(--text-xs, 12px);
+      }
       .ask-acts {
         display: inline-flex;
         align-items: center;
@@ -4216,7 +4246,8 @@ interface ReadList {
 
       /* A link and a button in the same row need a real target under the finger. */
       @media (hover: none) {
-        .ask-acts .linkish {
+        .ask-acts .linkish,
+        .ask-edit {
           min-block-size: 44px;
         }
       }
@@ -5734,6 +5765,11 @@ export class SurrogateProductDetailPage {
 
   protected alsoAskedLabel(products: readonly string[]): string {
     return $localize`:@@spd.ask.also:${products.length}:COUNT: other products read this too`;
+  }
+
+  /** The "Edit question" link's name — which question it opens, not just "Edit question". */
+  protected editQuestionAria(label: string): string {
+    return $localize`:@@spd.ask.edit_question_aria:Edit the question “${label}:label:”`;
   }
 
   protected askCardAria(card: AskCard): string {

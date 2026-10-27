@@ -691,6 +691,14 @@ export abstract class PlatformEnumerationsRepository {
   >;
 
   /**
+   * Every question a live product ask reaches — bound to a fact some product asks (an ask not
+   * detached) — plus the per-bank axis questions, which are always product-scoped. The set
+   * `narrowingScopeFor` calls ask-scoped, without a name: what the Questions tab hides as
+   * program-catalog questions (`surrogateSideCodes`, v31.0.0). Uncached.
+   */
+  abstract askScopedQuestionCodes(): Promise<readonly string[]>;
+
+  /**
    * One catalog program name, with the two fields its income rule needs.
    *
    * By KEY, not by id: the key is what a bank program stores, what the URL carries and

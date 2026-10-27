@@ -27,18 +27,15 @@ import type { LoanCategory } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import {
-  BASE_QUESTION_CODES,
   CAN_TRANSFER_SALARY_QUESTION_CODE,
   EMPLOYMENT_BUCKET_BY_OPTION,
   I_SCORE_BAND_QUESTION_CODE,
   MONTHS_IN_JOB_QUESTION_CODE,
   TRANSFER_TYPE_BY_OPTION,
-  baseQuestion,
   iScoreBandRange,
-  isBaseQuestionCode,
-  type BaseQuestionServedOn,
   type EmploymentBucket,
 } from '@/matching/pipeline/base-question-set';
+import type { FixedServedOn } from './validation/fixed-questions';
 import {
   CREDIT_CARD_DEBT_TYPE_OPTION,
   CREDIT_CARD_LIMIT_MONTHLY_PERCENT,
@@ -54,10 +51,7 @@ import type {
   LabelledKey,
   QuestionEngineLockView,
 } from './engine-contract.service';
-import {
-  APP_MAPPED_QUESTIONS_BY_CATEGORY,
-  engineInputReaderOf,
-} from './validation/engine-contract';
+import { engineInputReaderOf } from './validation/engine-contract';
 import { enabledWhenGate } from './validation/question-visibility';
 import { wordingQuantities } from './validation/wording-numbers';
 
@@ -82,12 +76,15 @@ export type EngineReader =
   | { kind: 'employment_type' }
   /** Read by the server off the answers (`engine-inputs-from-answers.ts`). */
   | { kind: 'server_input'; input: 'months_in_job' | 'salary_transfer' }
-  /** The mobile app maps each answer into the application it sends, in these loan types. */
+  /**
+   * The mobile app mapped each answer into the application it sends. Retired with the six
+   * questions it named (v31.0.0): never produced now, kept so an older admin bundle still reads.
+   */
   | { kind: 'app_mapping'; categories: LoanCategory[] }
   /** It answers a fact the platform owns (I-Score, the car figures). */
   | { kind: 'platform_fact'; facts: LabelledKey[] }
   /** In the fixed question set (the client's income-proof sheet), asked in these loan types. */
-  | { kind: 'fixed_set'; servedOn: BaseQuestionServedOn; categories: LoanCategory[] }
+  | { kind: 'fixed_set'; servedOn: FixedServedOn; categories: LoanCategory[] }
   /** Live bank programmes read it, under these program names and loan types. */
   | { kind: 'programs'; programNames: (LabelledKey & { categories: LoanCategory[] })[] };
 
@@ -134,7 +131,8 @@ export interface EngineRuleQuestion {
   categories: LoanCategory[];
   /** The loan types only some program names ask it in (opt-in rows). */
   optInCategories: LoanCategory[];
-  lock: QuestionEngineLockView;
+  /** The engine-input lock, or `null` for a fixed question nothing reads by code or table. */
+  lock: QuestionEngineLockView | null;
   readers: EngineReader[];
   numeric: {
     minValue: string | null;
@@ -151,10 +149,7 @@ export interface EngineRuleQuestion {
    * always asked. Every question listed is mandatory — this is WHEN, never WHETHER.
    */
   askedWhen: AskedWhen | null;
-  /**
-   * The product questions that answer it (`BaseQuestion.answeredBy`): where a program name asks
-   * one of them, this one is not asked — never twice. Empty for most of the set.
-   */
+  /** Retired with `answeredBy` (v31.0.0): always empty, kept on the wire one release. */
   answeredBy: QuestionRef[];
   /**
    * Whether a NO-PAYSLIP program asks it — the admin's Surrogate tab. Every income-proof program
@@ -206,6 +201,8 @@ export interface EngineRulesInputQuestion {
   optInCategories: readonly LoanCategory[];
   numeric: EngineRuleQuestion['numeric'];
   text: EngineRuleQuestion['text'];
+  /** FIXED (`question.fixedServedOn`, v31.0.0); `null` = an ordinary question, not listed. */
+  fixedServedOn: FixedServedOn | null;
   /** ACTIVE answers. */
   options: readonly {
     id: string;
@@ -226,22 +223,18 @@ export interface EngineRulesInput {
 
 // ---- The view -------------------------------------------------------------------------------
 
-/** Each owner's question's place in the client's order — the order `BASE_QUESTIONS` is written in. */
-const OWNER_ORDER: ReadonlyMap<string, number> = new Map(
-  BASE_QUESTION_CODES.map((code, index) => [code, index]),
-);
-
 export function engineRulesView(input: EngineRulesInput): EngineRulesView {
   // Looked up over the WHOLE pool: an answer may open or hide a question outside the owner's set.
   const byCode = new Map(input.questions.map((q) => [q.code, q]));
   const followUps = followUpsByAnswer(input.questions);
+  // The FIXED questions (v31.0.0, the admin's), in the questionnaire's own order.
   const questions = [...input.questions]
-    .filter((q) => isBaseQuestionCode(q.code) && input.readers.locks.has(q.code))
-    .sort((a, b) => (OWNER_ORDER.get(a.code) ?? 0) - (OWNER_ORDER.get(b.code) ?? 0));
+    .filter((q) => q.fixedServedOn !== null)
+    .sort((a, b) => a.displayOrder - b.displayOrder);
 
   return {
     questions: questions.map((q) => {
-      const lock = input.readers.locks.get(q.code) as QuestionEngineLockView;
+      const lock = input.readers.locks.get(q.code) ?? null;
       return {
         id: q.id,
         code: q.code,
@@ -254,18 +247,13 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
         categories: ordered(q.categories.filter((c) => !q.optInCategories.includes(c))),
         optInCategories: ordered(q.optInCategories),
         lock,
-        readers: readersOf(q.code, input.readers),
+        readers: readersOf(q, input.readers),
         numeric: q.type === 'NUMERIC' ? q.numeric : null,
         text: q.type === 'TEXT' ? q.text : null,
         mirroredList: input.readers.mirroredLists.get(q.id) ?? null,
         askedWhen: askedWhenOf(q, byCode),
-        answeredBy: (baseQuestion(q.code)?.answeredBy ?? []).flatMap((code) => {
-          const standIn = byCode.get(code);
-          return standIn === undefined
-            ? []
-            : [{ code, questionAr: standIn.questionAr, questionEn: standIn.questionEn }];
-        }),
-        noPayslip: noPayslipAsk(q.code),
+        answeredBy: [],
+        noPayslip: noPayslipAsk(q),
         options: [...q.options]
           .sort((a, b) => a.displayOrder - b.displayOrder)
           .map((o) => ({
@@ -285,12 +273,13 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
   };
 }
 
-function noPayslipAsk(code: string): NoPayslipAsk {
-  if (baseQuestion(code)?.servedOn === 'every_name') return 'always';
-  return code === MONEY_FIELD_BINDINGS.requested_amount ? 'unless_derived' : 'never';
+function noPayslipAsk(q: EngineRulesInputQuestion): NoPayslipAsk {
+  if (q.fixedServedOn === 'every_name') return 'always';
+  return q.code === MONEY_FIELD_BINDINGS.requested_amount ? 'unless_derived' : 'never';
 }
 
-function readersOf(code: string, views: EngineReaderViews): EngineReader[] {
+export function readersOf(q: EngineRulesInputQuestion, views: EngineReaderViews): EngineReader[] {
+  const code = q.code;
   const out: EngineReader[] = [];
   const own = engineInputReaderOf(code);
   if (own !== null) {
@@ -311,14 +300,15 @@ function readersOf(code: string, views: EngineReaderViews): EngineReader[] {
   if (code === CAN_TRANSFER_SALARY_QUESTION_CODE) {
     out.push({ kind: 'server_input', input: 'salary_transfer' });
   }
-  const app = ALL_LOAN_CATEGORIES.filter((c) => APP_MAPPED_QUESTIONS_BY_CATEGORY[c].includes(code));
-  if (app.length > 0) out.push({ kind: 'app_mapping', categories: app });
   const facts = views.platformFacts.get(code);
   if (facts !== undefined && facts.length > 0)
     out.push({ kind: 'platform_fact', facts: [...facts] });
-  const base = baseQuestion(code);
-  if (base !== undefined) {
-    out.push({ kind: 'fixed_set', servedOn: base.servedOn, categories: ordered(base.categories) });
+  if (q.fixedServedOn !== null) {
+    out.push({
+      kind: 'fixed_set',
+      servedOn: q.fixedServedOn,
+      categories: ordered(q.categories.filter((c) => !q.optInCategories.includes(c))),
+    });
   }
   const programs = views.programReaders.get(code);
   if (programs !== undefined && programs.length > 0) {

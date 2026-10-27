@@ -677,6 +677,27 @@ export const ERROR_CODES = {
    * `meta: { questionsAr, questionsEn, violations: EngineContractViolation[] }`.
    */
   ENGINE_INPUT_WOULD_BREAK: 'ENGINE_INPUT_WOULD_BREAK',
+  /**
+   * A FIXED question (`question.fixedServedOn`, v31.0.0 — `questionnaire/validation/fixed-questions.ts`)
+   * is deleted only by a super admin who types its code: `DELETE …/questions/:id?confirmCode=`
+   * was sent without it, or with something else. `meta: { questionId, code, questionAr, questionEn }`.
+   */
+  QUESTION_FIXED_DELETE_CONFIRM_REQUIRED: 'QUESTION_FIXED_DELETE_CONFIRM_REQUIRED',
+  /**
+   * A write — or a rollback — would break a FIXED question's rules while it stays fixed: make it
+   * opt-in, take a loan type from it, or switch it off other than through the confirmed delete.
+   * (Un-fixing it, moving it, or making it optional is the admin's since v31.1.0.)
+   * `meta: { questionId, code, questionAr, questionEn, rule: 'switched_off' | 'opt_in' |
+   * 'category_removed' }`.
+   */
+  QUESTION_FIXED_LOCKED: 'QUESTION_FIXED_LOCKED',
+  /**
+   * A FIXED question may only be shown after another FIXED question's answer: its show-when
+   * source would be an ordinary question (which a program name could skip, leaving it
+   * unreachable). `meta: { questionId, code, questionAr, questionEn, sourceCode, sourceAr,
+   * sourceEn }` — the source's own wording.
+   */
+  QUESTION_FIXED_GATE_NOT_FIXED: 'QUESTION_FIXED_GATE_NOT_FIXED',
   QUESTION_GROUP_NOT_EMPTY: 'QUESTION_GROUP_NOT_EMPTY',
   REQUIRED_ANSWER_MISSING: 'REQUIRED_ANSWER_MISSING',
   PROGRAM_NO_LONGER_MATCHES: 'PROGRAM_NO_LONGER_MATCHES',
@@ -1283,6 +1304,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   QUESTION_IN_USE: 409,
   QUESTION_ENGINE_LOCKED: 409,
   ENGINE_WORDING_NUMBERS_CHANGED: 409,
+  QUESTION_FIXED_DELETE_CONFIRM_REQUIRED: 422,
+  QUESTION_FIXED_LOCKED: 409,
+  QUESTION_FIXED_GATE_NOT_FIXED: 422,
   ENGINE_INPUT_WOULD_BREAK: 409,
   QUESTION_OPTION_IN_USE: 409,
   QUESTION_GROUP_NOT_EMPTY: 409,
