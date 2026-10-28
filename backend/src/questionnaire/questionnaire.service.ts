@@ -44,7 +44,11 @@ import {
   type FixedServedOn,
 } from './validation/fixed-questions';
 import { sameText } from './validation/engine-contract';
-import type { AnswerEffectSource } from '@/matching/pipeline/answer-effects';
+import {
+  numberEffectRangesProblem,
+  type AnswerEffectSource,
+  type NumberEffectRange,
+} from '@/matching/pipeline/answer-effects';
 import type {
   CreateGroupDto,
   CreateOptionDto,
@@ -52,6 +56,7 @@ import type {
   CreateQuestionWithOptionsDto,
   NumericRulesDto,
   OptionEffectDto,
+  SetNumberEffectsDto,
   TextRulesDto,
   UpdateGroupDto,
   UpdateOptionDto,
@@ -180,6 +185,10 @@ export class QuestionnaireService {
    * `pages` is the served snapshot's groups themselves — the app renders one step per group
    * (`questionnaire_state.dart`), so the admin can list the applicant's pages as they appear,
    * with the `isRequired` that already folds in what a programme under the name reads.
+   *
+   * `fixedQuestionCodes` are the served questions the admin marked fixed — read off the same
+   * frozen snapshot, because the customer payload leaves the mark out (the app has no use for
+   * it). The rest are asked because a programme under the name reads them or it added them.
    */
   async servedForProgramName(programNameKey: string): Promise<
     {
@@ -190,6 +199,7 @@ export class QuestionnaireService {
       servedRequired: number;
       servedExtra: number;
       servedQuestionCodes: string[];
+      fixedQuestionCodes: string[];
       nameAxisActive: boolean;
       pages: unknown[];
     }[]
@@ -200,6 +210,12 @@ export class QuestionnaireService {
     if (member === undefined) return [];
     const version = await this.repo.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
+    const fixed = new Set(
+      ((version.snapshot as StoredSnapshot).groups ?? [])
+        .flatMap((g) => g.questions ?? [])
+        .filter((q) => fixedServedOnOf(q['fixedServedOn']) !== null)
+        .map((q) => q.code),
+    );
     const out = [];
     for (const category of sortCategories(member.categories)) {
       // The same projection `activeSnapshot` serves, with the scope read once so the report
@@ -217,6 +233,7 @@ export class QuestionnaireService {
         servedRequired: narrowed.required,
         servedExtra: narrowed.codes.filter((code) => !inWhole.has(code)).length,
         servedQuestionCodes: narrowed.codes,
+        fixedQuestionCodes: narrowed.codes.filter((code) => fixed.has(code)),
         nameAxisActive: scope !== null,
         pages: (served as { groups?: unknown[] }).groups ?? [],
       });
@@ -487,6 +504,15 @@ export class QuestionnaireService {
     const categories = dedupeCategories(dto.categories ?? [...ALL_LOAN_CATEGORIES]);
     const fixedServedOn = dto.fixedServedOn ?? null;
     if (fixedServedOn !== null) await this.assertFixedAtCreate(dto);
+    // Only a fixed question's answers change the offer (v31.3.0).
+    if (fixedServedOn === null && options.some((o) => effectSet(o.effect))) {
+      throw new DomainException(ERROR_CODES.ANSWER_EFFECT_NEEDS_FIXED, {
+        questionId: '',
+        code: '',
+        questionAr: dto.questionAr,
+        questionEn: dto.questionEn,
+      });
+    }
 
     const created = await this.repo.createQuestionWithOptions(
       {
@@ -873,6 +899,10 @@ export class QuestionnaireService {
     }
     // `code` is immutable post-creation (A33).
     const updated = await this.repo.updateQuestion(id, data);
+    // An ordinary question's answers change nothing (v31.3.0): un-fixing takes every offer
+    // effect off it — its answers' and its number ranges — so a later re-fix starts clean
+    // instead of silently reviving figures the admin last saw on a fixed question.
+    if (marking === null) await this.repo.clearAnswerEffects(id);
     if (opts.publish !== false) await this.publish(actor);
     return updated;
   }
@@ -1111,6 +1141,7 @@ export class QuestionnaireService {
   async createOption(questionId: string, dto: CreateOptionDto, actor: string) {
     const question = await this.repo.findQuestion(questionId);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
+    if (effectSet(dto.effect)) assertEffectAllowed(question);
     const existing = new Set((await this.repo.optionCodes(questionId)).map((o) => o.code));
     const code = uniqueSlug(dto.labelEn, existing);
     await this.contract?.assertWrite({
@@ -1138,6 +1169,7 @@ export class QuestionnaireService {
     if (!option) throw new DomainException(ERROR_CODES.QUESTION_OPTION_NOT_FOUND);
     const question = await this.repo.findQuestion(option.questionId);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
+    if (effectSet(dto.effect)) assertEffectAllowed(question);
     // Deactivating an option must honour the same branch guard as delete (A33).
     if (dto.isActive === false && option.isActive) {
       const dependents = await this.repo.optionDependentsOf(question.code, option.code);
@@ -1184,6 +1216,33 @@ export class QuestionnaireService {
       (dto.isActive !== undefined && dto.isActive !== option.isActive);
     if (contentChanged) await this.publish(actor);
     return updated;
+  }
+
+  /**
+   * A FIXED number question's offer ranges (v31.3.0): the whole list, replaced. Pricing, not
+   * content — never in the snapshot, so nothing publishes; the engine reads them live
+   * (`answerEffectSources`). An empty list removes them.
+   */
+  async setNumberEffects(questionId: string, dto: SetNumberEffectsDto) {
+    const question = await this.repo.findQuestion(questionId);
+    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
+    if (question.type !== 'NUMERIC') {
+      throw new DomainException(ERROR_CODES.ANSWER_EFFECT_RANGES_INVALID, { reason: 'not_number' });
+    }
+    if (dto.ranges.length > 0) assertEffectAllowed(question);
+    const ranges: NumberEffectRange[] = dto.ranges.map((r) => ({
+      fromInclusive: r.fromInclusive ?? null,
+      toExclusive: r.toExclusive ?? null,
+      ...(r.maxLoanPercent != null ? { maxLoanPercent: r.maxLoanPercent } : {}),
+      ...(r.ratePoints != null ? { ratePoints: r.ratePoints } : {}),
+      ...(r.maxTenorMonths != null ? { maxTenorMonths: r.maxTenorMonths } : {}),
+    }));
+    const problem = numberEffectRangesProblem(ranges);
+    if (problem !== null) {
+      throw new DomainException(ERROR_CODES.ANSWER_EFFECT_RANGES_INVALID, { reason: problem });
+    }
+    await this.repo.setNumberEffects(questionId, ranges);
+    return { questionId, ranges };
   }
 
   /** Soft-delete an option; blocked while a branch (enabledWhen) references it. */
@@ -1821,6 +1880,25 @@ export function numericRulesOf(q: QuestionRuleColumns): {
 
 export function textRulesOf(q: QuestionRuleColumns): { maxLength: number } | null {
   return q.textMaxLength === null ? null : { maxLength: q.textMaxLength };
+}
+
+/** True when a request carries an effect with a lever set — null or all-empty sets none. */
+function effectSet(effect: OptionEffectDto | null | undefined): boolean {
+  return (
+    effect != null &&
+    (effect.maxLoanPercent != null || effect.ratePoints != null || effect.maxTenorMonths != null)
+  );
+}
+
+/** Only a FIXED question's answers change the offer (v31.3.0). */
+function assertEffectAllowed(question: Question): void {
+  if (question.fixedServedOn !== null) return;
+  throw new DomainException(ERROR_CODES.ANSWER_EFFECT_NEEDS_FIXED, {
+    questionId: question.id,
+    code: question.code,
+    questionAr: question.questionAr,
+    questionEn: question.questionEn,
+  });
 }
 
 /**

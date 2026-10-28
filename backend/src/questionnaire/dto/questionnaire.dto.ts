@@ -21,7 +21,7 @@ import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BankProgramType, FixedQuestionServedOn, LoanCategory, QuestionType } from '@prisma/client';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
-import { ANSWER_EFFECT_LIMITS } from '@/matching/pipeline/answer-effects';
+import { ANSWER_EFFECT_LIMITS, NUMBER_EFFECT_RANGES_MAX } from '@/matching/pipeline/answer-effects';
 
 /**
  * A show-when rule. `equals` / `not_equals` name ONE answer (`optionCode`); `in` names several
@@ -350,6 +350,36 @@ export class OptionEffectDto {
   @Min(ANSWER_EFFECT_LIMITS.maxTenorMonths.min)
   @Max(ANSWER_EFFECT_LIMITS.maxTenorMonths.max)
   maxTenorMonths?: number | null;
+}
+
+/**
+ * One range of a FIXED number question's answer and what it does to every offer (v31.3.0):
+ * `[fromInclusive, toExclusive)`, null edge = open. The levers are `OptionEffectDto`'s, so
+ * their bounds cannot drift; the list rules (an edge, From under To, a lever, no overlap) are
+ * `numberEffectRangesProblem`'s, judged by the service.
+ */
+export class NumberEffectRangeDto extends OptionEffectDto {
+  /** Included. Null or omitted = no lower edge. */
+  @ApiPropertyOptional({ type: String, nullable: true, example: '0' })
+  @IsOptional()
+  @IsDecimalString({ scale: 4 })
+  fromInclusive?: string | null;
+
+  /** NOT included. Null or omitted = no upper edge ("and above"). */
+  @ApiPropertyOptional({ type: String, nullable: true, example: '12' })
+  @IsOptional()
+  @IsDecimalString({ scale: 4 })
+  toExclusive?: string | null;
+}
+
+/** `PUT questions/:id/number-effects` — the whole list, replaced; empty removes them. */
+export class SetNumberEffectsDto {
+  @ApiProperty({ type: [NumberEffectRangeDto] })
+  @IsArray()
+  @ArrayMaxSize(NUMBER_EFFECT_RANGES_MAX)
+  @ValidateNested({ each: true })
+  @Type(() => NumberEffectRangeDto)
+  ranges!: NumberEffectRangeDto[];
 }
 
 export class CreateOptionDto {

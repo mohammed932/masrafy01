@@ -23,7 +23,11 @@
  * Pure: structural input, structured output, no sentences (the admin's catalog holds those,
  * Principle III) and no Prisma rows (A8).
  */
-import { hasAnyLever, type AnswerEffectLevers } from '@/matching/pipeline/answer-effects';
+import {
+  hasAnyLever,
+  type AnswerEffectLevers,
+  type NumberEffectRange,
+} from '@/matching/pipeline/answer-effects';
 import type { LoanCategory } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
@@ -161,6 +165,8 @@ export interface EngineRuleQuestion {
   noPayslip: NoPayslipAsk;
   /** ACTIVE answers, in their order. */
   options: EngineRuleOption[];
+  /** A Number question's offer ranges (v31.3.0), in order; empty for every other type. */
+  numberEffects: NumberEffectRange[];
 }
 
 /**
@@ -216,6 +222,8 @@ export interface EngineRulesInputQuestion {
     /** The admin's offer effect, when the answer carries one (v31.2.0). */
     effect?: AnswerEffectLevers;
   }[];
+  /** A Number question's offer ranges (v31.3.0). */
+  numberEffects?: readonly NumberEffectRange[];
 }
 
 export interface EngineRulesInput {
@@ -259,6 +267,7 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
         askedWhen: askedWhenOf(q, byCode),
         answeredBy: [],
         noPayslip: noPayslipAsk(q),
+        numberEffects: q.type === 'NUMERIC' ? [...(q.numberEffects ?? [])] : [],
         options: [...q.options]
           .sort((a, b) => a.displayOrder - b.displayOrder)
           .map((o) => ({

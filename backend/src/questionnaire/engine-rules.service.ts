@@ -3,6 +3,7 @@ import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform
 import { EngineContractService } from './engine-contract.service';
 import { engineRulesView, type EngineRulesView } from './engine-rules-view';
 import { optionEffectLevers, QuestionnaireRepository } from './questionnaire.repository';
+import { numberEffectRangesOf } from '@/matching/pipeline/answer-effects';
 import { numericRulesOf, textRulesOf } from './questionnaire.service';
 
 /**
@@ -47,6 +48,7 @@ export class EngineRulesService {
         numeric: numericRulesOf(r),
         text: textRulesOf(r),
         fixedServedOn: r.fixedServedOn,
+        numberEffects: numberEffectRangesOf(r.numberEffects),
         options: (options.get(r.id) ?? [])
           .filter((o) => o.isActive)
           .map((o) => ({

@@ -39,6 +39,10 @@
  *  10. FIXED SET SERVED — under every offerable program name, the served questionnaire keeps the
  *      fixed questions that path must ask: the `every_name` ones always, the `income_proof`
  *      ones wherever the name sells a payslip programme in that loan type.
+ *  11. OFFER EFFECTS ON FIXED ONLY (v31.3.0) — an answer's offer effect sits only on a fixed
+ *      question; number ranges sit only on a fixed NUMBER question and pass the API's own range
+ *      rules (`numberEffectRangesProblem`). A fixed TEXT question carries neither: it is asked
+ *      and saved for the record and changes no offer.
  *  (warning) I-SCORE BAND EDGES — an I-Score tier that straddles a band edge (521, 626) is
  *      priced at the band's weakest tier for the whole band; reported so it is a choice.
  *
@@ -50,6 +54,10 @@ import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
 import { I_SCORE_BANDS } from '../src/matching/pipeline/base-question-set';
 import { ENGINE_READ_CODES } from '../src/questionnaire/validation/engine-contract';
+import {
+  numberEffectRangesOf,
+  numberEffectRangesProblem,
+} from '../src/matching/pipeline/answer-effects';
 import { fixedServedHere, fixedServedOnOf } from '../src/questionnaire/validation/fixed-questions';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
@@ -104,7 +112,16 @@ async function main(): Promise<void> {
       numericUnitAr: true,
       textMaxLength: true,
       fixedServedOn: true,
-      options: { select: { code: true, isActive: true } },
+      numberEffects: true,
+      options: {
+        select: {
+          code: true,
+          isActive: true,
+          effectMaxLoanPercent: true,
+          effectRatePoints: true,
+          effectMaxTenorMonths: true,
+        },
+      },
     },
   });
   const assignments = await prisma.questionLoanCategory.findMany({
@@ -270,6 +287,25 @@ async function main(): Promise<void> {
       }
     }
     if (namePolicy.has(q.id)) at('a program name skips or adds it');
+  }
+  for (const q of questions) {
+    const at = (detail: string): void => add('11 offer effects on fixed only', `${q.code}: ${detail}`);
+    const withEffect = q.options.filter(
+      (o) =>
+        o.effectMaxLoanPercent !== null ||
+        o.effectRatePoints !== null ||
+        o.effectMaxTenorMonths !== null,
+    );
+    if (q.fixedServedOn === null && withEffect.length > 0) {
+      at(`ordinary, yet answers ${withEffect.map((o) => o.code).join(', ')} change the offer`);
+    }
+    const ranges = numberEffectRangesOf(q.numberEffects);
+    if (ranges.length > 0) {
+      if (q.fixedServedOn === null) at('ordinary, yet carries number ranges');
+      if (q.type !== 'NUMERIC') at(`a ${q.type} question carrying number ranges`);
+      const problem = numberEffectRangesProblem(ranges);
+      if (problem !== null) at(`its number ranges break the rules: ${problem}`);
+    }
   }
   for (const code of ENGINE_READ_CODES) {
     const q = byCode.get(code);

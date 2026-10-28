@@ -698,6 +698,19 @@ export const ERROR_CODES = {
    * sourceEn }` — the source's own wording.
    */
   QUESTION_FIXED_GATE_NOT_FIXED: 'QUESTION_FIXED_GATE_NOT_FIXED',
+  /**
+   * Only a FIXED question's answers change the offer (v31.3.0): an effect was sent for an
+   * answer, or ranges for a number, of an ordinary question. `meta: { questionId, code,
+   * questionAr, questionEn }`.
+   */
+  ANSWER_EFFECT_NEEDS_FIXED: 'ANSWER_EFFECT_NEEDS_FIXED',
+  /**
+   * A number question's offer ranges cannot be saved (v31.3.0): `meta.reason` is `not_number`
+   * (the question is not a Number one), `no_bounds` (a range with neither From nor To),
+   * `bad_number`, `order` (From not under To), `overlap` (two ranges share a number),
+   * `no_lever` (a range that changes nothing) or `too_many`.
+   */
+  ANSWER_EFFECT_RANGES_INVALID: 'ANSWER_EFFECT_RANGES_INVALID',
   QUESTION_GROUP_NOT_EMPTY: 'QUESTION_GROUP_NOT_EMPTY',
   REQUIRED_ANSWER_MISSING: 'REQUIRED_ANSWER_MISSING',
   PROGRAM_NO_LONGER_MATCHES: 'PROGRAM_NO_LONGER_MATCHES',
@@ -1307,6 +1320,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   QUESTION_FIXED_DELETE_CONFIRM_REQUIRED: 422,
   QUESTION_FIXED_LOCKED: 409,
   QUESTION_FIXED_GATE_NOT_FIXED: 422,
+  ANSWER_EFFECT_NEEDS_FIXED: 422,
+  ANSWER_EFFECT_RANGES_INVALID: 422,
   ENGINE_INPUT_WOULD_BREAK: 409,
   QUESTION_OPTION_IN_USE: 409,
   QUESTION_GROUP_NOT_EMPTY: 409,

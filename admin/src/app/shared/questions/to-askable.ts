@@ -23,6 +23,8 @@ export function toAskable(q: QuestionRow, group?: GroupTreeRow): AskableQuestion
     // asked of every name — so an opt-in row is set apart rather than read as asked.
     categories: q.categories.filter((c) => !optIn.includes(c)),
     optInCategories: optIn,
+    fixed: q.fixedServedOn != null,
+    surrogateSide: q.surrogateSide === true,
     gateSourceCode: q.enabledWhen?.questionCode ?? null,
     haystack: [q.questionEn, q.questionAr, q.code, ...q.options.map((o) => o.labelEn)]
       .join(' ')

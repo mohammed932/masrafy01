@@ -1,4 +1,4 @@
-import type { AnswerEffectLevers } from '../answer-effect';
+import type { AnswerEffectLevers, NumberEffectRange } from '../answer-effect';
 import type { LoanCategory } from '@core/loan-category';
 import type { QuestionEngineLock } from '../questionnaire.api.service';
 
@@ -105,6 +105,8 @@ export interface EngineRuleQuestion {
    */
   noPayslip: NoPayslipAsk;
   options: EngineRuleOption[];
+  /** A Number question's offer ranges (v31.3.0); absent on an older server. */
+  numberEffects?: NumberEffectRange[];
 }
 
 export type NoPayslipAsk = 'always' | 'unless_derived' | 'never';

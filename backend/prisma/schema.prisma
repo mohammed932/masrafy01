@@ -1696,6 +1696,12 @@ model Question {
   /// (`questionnaire/validation/fixed-questions.ts`). Frozen into the published snapshot.
   /// A deleted one keeps it, so a restore brings the question back whole.
   fixedServedOn FixedQuestionServedOn?
+  /// v31.3.0 — what a NUMBER answer does to every offer, by range, as the admin set it on a
+  /// FIXED number question: `[{fromInclusive, toExclusive, maxLoanPercent?, ratePoints?,
+  /// maxTenorMonths?}]`, decimal strings, half-open, null edge = open
+  /// (`matching/pipeline/answer-effects.ts`). Pricing, not content: read live at preview and
+  /// apply, never frozen into the snapshot nor served to the app. Null = no ranges.
+  numberEffects Json?
 
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import type { AnswerEffectBody } from './answer-effect';
+import type { AnswerEffectBody, NumberEffectRangeBody } from './answer-effect';
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -153,6 +153,11 @@ export interface QuestionRow {
    * `null` = an ordinary question. Absent on an older server — read as not fixed.
    */
   fixedServedOn?: FixedServedOn | null;
+  /**
+   * A FIXED number question's offer ranges (v31.3.0), as stored — read with
+   * `numberRangesOf` (`answer-effect.ts`). Null or absent = none.
+   */
+  numberEffects?: unknown;
   /**
    * A question surrogate (no-payslip) products ask — a product reads its answer, or it keys a
    * bank's table, or such a question shows only after its answer. Managed from the Program
@@ -613,6 +618,14 @@ export class QuestionnaireApiService {
 
   deleteOption(optionId: string): Promise<OptionRow> {
     return this.del<OptionRow>(`/questionnaire/options/${optionId}`);
+  }
+
+  /** A fixed number question's offer ranges — the whole list, replaced; empty removes them. */
+  setNumberEffects(
+    questionId: string,
+    ranges: readonly NumberEffectRangeBody[],
+  ): Promise<{ questionId: string; ranges: unknown }> {
+    return this.put(`/questionnaire/questions/${questionId}/number-effects`, { ranges });
   }
 
   versionHistory(): Promise<QuestionnaireVersionRow[]> {

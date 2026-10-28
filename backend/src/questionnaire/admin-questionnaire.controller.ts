@@ -30,6 +30,7 @@ import {
   ReorderQuestionsDto,
   AddQuestionCategoriesBulkDto,
   SetQuestionCategoriesBulkDto,
+  SetNumberEffectsDto,
   SetQuestionCategoriesDto,
   UpdateGroupDto,
   UpdateOptionDto,
@@ -268,6 +269,14 @@ export class AdminQuestionnaireController {
     @CurrentUser() user: JwtPayload,
   ) {
     return ok(await this.service.createOption(id, dto, user.sub));
+  }
+
+  @Put('questions/:id/number-effects')
+  @ApiOperation({
+    summary: "Set a fixed number question's offer ranges (replace-all; no publish)",
+  })
+  async setNumberEffects(@Param('id') id: string, @Body() dto: SetNumberEffectsDto) {
+    return ok(await this.service.setNumberEffects(id, dto));
   }
 
   @Patch('options/:optionId')

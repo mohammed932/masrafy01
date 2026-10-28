@@ -214,6 +214,10 @@ export function impactWhyText(area: ImpactArea, why: ImpactWhy, isAr: boolean): 
       const count = why.answers;
       return $localize`:@@qrules.why_answer_effects:${count}:count: of its answers change it, as set on the answer`;
     }
+    case 'range_effects': {
+      const count = why.ranges;
+      return $localize`:@@qrules.why_range_effects:${count}:count: ranges of the number change it, as set on the question`;
+    }
   }
 }
 

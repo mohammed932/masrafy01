@@ -67,8 +67,6 @@ async function main(): Promise<void> {
     scope.incomeProof === true,
   );
 
-  const factBound = new Set(scope.factBoundQuestionCodes);
-  const askScoped = new Set(scope.askScopedQuestionCodes);
   const platform = new Set(scope.platformQuestionCodes);
   const needed = new Set(scope.neededQuestionCodes);
   const retained = new Set(d.gateSourcesRetained);
@@ -99,9 +97,7 @@ async function main(): Promise<void> {
       return '??';
     }
     if (NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code)) return 'CORE: money/obligation code';
-    if (!factBound.has(code)) return 'CORE: bound to no fact';
     if (platform.has(code)) return 'CORE: platform-owned fact (reserved)';
-    if (!askScoped.has(code)) return 'CORE: no product anywhere asks its fact';
     if (needed.has(code)) return 'NEEDED: a programme under this name reads it';
     if (retained.has(code)) return 'GATE SOURCE: kept so a surviving gate stays evaluable';
     return '??';

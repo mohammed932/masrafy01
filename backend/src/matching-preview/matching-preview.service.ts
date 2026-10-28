@@ -20,7 +20,6 @@ import {
 } from '@/matching/pipeline/money-field-bindings';
 import {
   surrogateFactsFromAnswers,
-  surrogateOptionPick,
   type SurrogateFacts,
 } from '@/matching/pipeline/surrogate-facts-from-answers';
 import {
@@ -34,39 +33,9 @@ import {
 } from '@/matching/pipeline/answer-effects';
 import type { ApplicantProfile, Quote } from '@/matching/types';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
-import { validateAnswer } from '@/questionnaire/validation/answer-validation';
+import { questionsAnsweredIn, readSubmittedAnswers, type Snapshot } from './answer-reading';
 import { narrowAskedQuestions } from '@/questionnaire/validation/question-scope';
 import { fixedServedOnOf } from '@/questionnaire/validation/fixed-questions';
-
-interface SnapshotOption {
-  code: string;
-}
-interface SnapshotQuestion {
-  code: string;
-  /** Absent on a pre-010 snapshot — read as SINGLE_SELECT (FR-045). */
-  type?: string | null;
-  /**
-   * Frozen at publish (v12.0.0). Absent on a pre-v12 snapshot, which predates
-   * per-category assignment and therefore reads as "asked for all categories".
-   */
-  categories?: string[] | null;
-  /**
-   * The categories it sits in as an OPT-IN row — asked only where a program name adds it.
-   * Disjoint from `categories`; absent on every snapshot published before opt-in rows existed.
-   */
-  optInCategories?: string[] | null;
-  /** Frozen branching rule; absent means always shown. */
-  enabledWhen?: unknown;
-  /** Frozen since v31.0.0 (`question.fixedServedOn`); absent = not fixed. */
-  fixedServedOn?: unknown;
-  options: SnapshotOption[];
-  numeric?: { minValue?: string | null; maxValue?: string | null; step?: string | null } | null;
-  text?: { maxLength?: number | null } | null;
-}
-interface Snapshot {
-  category: string;
-  groups: { questions: SnapshotQuestion[] }[];
-}
 
 /** The money block a quoted program carries. Decimal strings (Principle I). */
 export interface PreviewFigures {
@@ -255,27 +224,9 @@ export class MatchingPreviewService {
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const snapshot = version.snapshot as unknown as Snapshot;
-    const questions: SnapshotQuestion[] = [];
-    for (const g of snapshot.groups ?? []) {
-      for (const q of g.questions ?? []) {
-        // ABSENT vs EMPTY are different snapshots, not the same one:
-        //   absent (pre-v12, the key was never frozen) → asked for every
-        //     category, or every legacy snapshot would suddenly ask nothing;
-        //   [] (v12+, explicitly frozen by `publish()` as
-        //     `sortCategories(assignments.get(q.id) ?? [])`) → PARKED, asked by
-        //     nobody. Assignment is authoritative (Principle V, v12.0.0).
-        // Testing `.length > 0` conflates the two and lets a parked question
-        // into the asked set here while apply's `resolveAnswers` and the
-        // customer read both exclude it — the same answers would then score
-        // differently before and after apply.
-        // An OPT-IN row is in the category too — answerable here like any other; whether it
-        // was ASKED is the name axis's call below.
-        const frozen = q.categories;
-        const optIn = q.optInCategories?.includes(category) === true;
-        if (frozen != null && !frozen.includes(category) && !optIn) continue;
-        questions.push(q);
-      }
-    }
+    // The category's answerable questions, opt-in rows included — the same reading the loan
+    // calculator makes (`answer-reading.ts`).
+    const questions = questionsAnsweredIn(snapshot, category);
     const byCode = new Map(questions.map((q) => [q.code, q]));
 
     // The program-name axis, through the SAME function serve and apply use. Acceptance below
@@ -296,54 +247,17 @@ export class MatchingPreviewService {
      * authoritative with or without a name, exactly as serve and apply read it. */
     const served = (code: string): boolean => decision.keep.has(code);
 
-    const numeric = new Map<string, string>();
-    /**
-     * Feature 011 — the SINGLE_SELECT picks, for the surrogate facts. Collected here
-     * rather than re-derived later because `validateAnswer` has already normalised
-     * them against the snapshot, and re-reading the raw answers would be a second
-     * derivation of the same input (A33).
-     */
-    const optionByCode = new Map<string, string>();
-    /** Multi-picks by question code — the bank-relationship answer is a set, not a key. */
-    const multiByCode = new Map<string, readonly string[]>();
-    /** Text answers by question code — read for PRESENCE only by a TEXT-bound fact. */
-    const textByCode = new Map<string, string>();
+    // Every answer validated and read through the helper the loan calculator shares
+    // (`answer-reading.ts`): the SINGLE_SELECT picks for the surrogate facts (FR-017), the
+    // multi-picks (the bank-relationship answer is a set), the numbers and the text presence —
+    // collected once, because `validateAnswer` has already normalised them against the snapshot
+    // and re-reading the raw answers would be a second derivation of the same input (A33).
+    const read = readSubmittedAnswers(byCode, answers);
+    const numeric = read.numericByCode;
+    const { optionByCode, multiByCode, textByCode } = read;
     /** The debt-type picks, once validated — the basis for the obligations sum. */
-    let pickedDebtTypes: readonly string[] | undefined;
-    for (const ans of answers) {
-      const q = byCode.get(ans.questionCode);
-      if (!q)
-        throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: ans.questionCode });
-      const normalised = validateAnswer(
-        {
-          code: q.code,
-          type: q.type,
-          isRequired: false,
-          optionCodes: (q.options ?? []).map((o) => o.code),
-          numeric: q.numeric ?? null,
-          text: q.text ?? null,
-        },
-        ans,
-      );
-      // A numeric answer prices the loan.
-      if (normalised?.numericValue != null) numeric.set(q.code, normalised.numericValue);
-      // A single pick — the option code, which IS the registry key an income rule's
-      // table is keyed by (FR-017). Through the SAME predicate apply uses, so the two
-      // paths cannot bind a fact differently for one set of answers (A33).
-      const picked = normalised
-        ? surrogateOptionPick({ type: q.type, selectedOptionCodes: normalised.selectedOptionCodes })
-        : undefined;
-      if (picked !== undefined) optionByCode.set(q.code, picked);
-      if (q.type === 'MULTI_SELECT' && normalised && normalised.selectedOptionCodes.length > 0) {
-        multiByCode.set(q.code, normalised.selectedOptionCodes);
-      }
-      if (normalised?.textValue != null && normalised.textValue.trim().length > 0) {
-        textByCode.set(q.code, normalised.textValue);
-      }
-      if (q.code === DEBT_TYPES_QUESTION_CODE && normalised) {
-        pickedDebtTypes = normalised.selectedOptionCodes;
-      }
-    }
+    const pickedDebtTypes: readonly string[] | undefined =
+      read.normalisedByCode.get(DEBT_TYPES_QUESTION_CODE)?.selectedOptionCodes;
 
     // Itemised obligations. Three distinct states, and collapsing any two of them
     // would produce a wrong figure rather than no figure:
@@ -376,7 +290,7 @@ export class MatchingPreviewService {
       // Live, like apply: an effect is pricing, not snapshot content (v31.2.0).
       answerEffects: answerEffectsFromAnswers(
         await this.questionnaire.answerEffectSources(),
-        answerPicksFromMaps({ optionByCode, multiByCode }),
+        answerPicksFromMaps({ optionByCode, multiByCode, numericByCode: numeric }),
       ),
     };
   }

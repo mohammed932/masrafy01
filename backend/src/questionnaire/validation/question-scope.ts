@@ -370,26 +370,26 @@ function off(
  * Which of the category's questions this program name is asked, and which of them its programs
  * make required.
  *
- * CORE — asked whatever the name — is four clauses, every one of them derived:
+ * CORE — asked whatever the name — is the FIXED questions this path serves
+ * (`question.fixedServedOn`, the admin's, `fixed-questions.ts`): the `every_name` ones on every
+ * name, the `income_proof` ones wherever a payslip programme is sold under the name. They are
+ * core on product-only names too, can never be unticked, and pass A never drops one. Beside
+ * them, on a name that is not product-only, two derived floors:
  *
- *   1. bound to no fact. Nothing can name it, so nothing may narrow it. This is what keeps the
- *      tenure, transfer and preference questions, and `priority_factor`, whose loss would drop
- *      all four mobile mappers to their default arm and freeze the wrong offer order onto
- *      immutable rows.
- *   2. bound to a fact the PLATFORM owns (a reserved key: the derived bank axes, the bureau
- *      score, the two car figures).
- *   3. a money or obligation code — the set above.
- *   4. bound to a fact NO product anywhere asks. The conservative clause, and the one that
- *      makes a whole class of breakage unrepresentable: without it, one tick on one product's
- *      board would silently un-ask a question for every OTHER name. With it, a tick can only
- *      ever subtract a question that nothing in scope reads. It is also what keeps
- *      `employment_status` — read by no income rule, but driving the employment allow-lists
- *      and the debt-burden cap for every program — without a hand-written exception.
+ *   - bound to a fact the PLATFORM owns (a reserved key: the derived bank axes, the bureau
+ *     score, the two car figures).
+ *   - a money or obligation code — the set above — the floor for the day the admin deletes one.
  *
- * Plus, ahead of all four, the FIXED questions this path serves (`question.fixedServedOn`,
- * v31.0.0 — the admin's, `fixed-questions.ts`): the `every_name` ones on every name, the
- * `income_proof` ones wherever a payslip programme is sold under the name. Those are core on
- * product-only names too, can never be unticked, and pass A never drops one.
+ * Any other question is asked only when a programme under the name reads it (NEEDED), the
+ * operator added it for the name, or a kept question branches off it.
+ *
+ * Two more clauses used to sit here and are gone (v31.5.0, operator, 2026-10-28: "for now the
+ * questions in the system are just the fixed questions"). "Bound to no fact" kept the tenure,
+ * transfer and preference questions before any of them was fixed, and then kept whatever an
+ * admin created bound to nothing — a test question, and the compound product's "Do you own a
+ * unit in a compound?" — asked of every payslip applicant with nothing reading the answer.
+ * "Bound to a fact no product asks" kept `employment_status`, retired since v30.18.0. Every
+ * question either clause still kept on 2026-10-28 was fixed or read by nothing.
  *
  * An OPT-IN row is never core; the operator's ADDED questions are kept whatever reads them,
  * survive pass A, and win over an exclusion of the same question.
@@ -413,7 +413,6 @@ export function narrowAskedQuestions(
   if (scope === null) return off('no_name', questions);
 
   const factBound = new Set(scope.factBoundQuestionCodes);
-  const askScoped = new Set(scope.askScopedQuestionCodes);
   const platform = new Set(scope.platformQuestionCodes);
   const needed = new Set(scope.neededQuestionCodes);
   const optIn = new Set(questions.filter((q) => q.optIn === true).map((q) => q.code));
@@ -425,19 +424,14 @@ export function narrowAskedQuestions(
   // them, never unticked (`questionLockReason` says `base`), never dropped by the gate clean-up.
   const base = fixedCodesServed(questions, scope.incomeProof === true);
 
-  // An OPT-IN row is never core. Clause 1 alone ("bound to no fact") would otherwise ask an
-  // added business question of every name in the category, which is the one thing the opt-in
-  // row exists to prevent.
+  // An OPT-IN row is never core: it is asked only of the names that add it or read it.
   const isCore = (code: string): boolean =>
     !optIn.has(code) &&
     (base.has(code) ||
       (scope.productOnly === true
         ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code) ||
           (code === PRIORITY_QUESTION_CODE && (scope.programCount ?? 1) > 1)
-        : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) ||
-          !factBound.has(code) ||
-          platform.has(code) ||
-          !askScoped.has(code)));
+        : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) || platform.has(code)));
 
   const keep = new Set<string>();
   for (const q of questions) {

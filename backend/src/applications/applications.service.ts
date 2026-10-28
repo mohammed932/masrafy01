@@ -1001,8 +1001,10 @@ export class ApplicationsService {
 /**
  * Validated answers → the lookup maps both answer mappers take (`surrogateFactsFromAnswers`,
  * `employmentInputsFromAnswers`). One builder, so the two cannot read one answer two ways.
+ * Exported for the preview / calculator / apply consistency spec — apply's own reading, not a
+ * copy of it.
  */
-function answerMapsOf(resolved: readonly ResolvedAnswer[]): {
+export function answerMapsOf(resolved: readonly ResolvedAnswer[]): {
   optionByCode: Map<string, string>;
   numericByCode: Map<string, string>;
   multiByCode: Map<string, readonly string[]>;

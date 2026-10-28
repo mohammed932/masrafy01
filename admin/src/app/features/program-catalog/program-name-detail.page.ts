@@ -3,49 +3,58 @@ import {
   Component,
   LOCALE_ID,
   OnInit,
+  type TemplateRef,
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
+import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import {
   ArrowLeftOutline,
   ArrowRightOutline,
   CloseCircleOutline,
+  LockOutline,
+  PlusOutline,
 } from '@ant-design/icons-angular/icons';
 import {
+  FormDrawerComponent,
   LoanCategorySwitchesComponent,
   PageHeaderComponent,
   WizardStepsComponent,
+  openFormDrawer,
   type WizardStepItem,
 } from '@shared/ui';
+import { RailTabsComponent, type RailTabItem } from '@shared/ui/rail-tabs.component';
 import { toAskablePool } from '@shared/questions/to-askable';
-import { CompactAskedQuestionsComponent } from '@shared/questions/compact-asked-questions.component';
 import {
+  addableQuestions,
   additionWithChain,
   additionsToSave,
   exclusionsToSave,
   lockMapFor,
   type AskableQuestion,
   type ServedCount,
-  type AskedPicks,
-  type AskedRow,
   type ServerLock,
 } from '@shared/questions/asked-questions.rules';
-import {
-  QuestionnaireApiService,
-  type GroupTreeRow,
-} from '@features/questionnaire/questionnaire.api.service';
-import { stepsForCategory, type OrderStep } from '@shared/questions/category-order';
+import { QuestionnaireApiService } from '@features/questionnaire/questionnaire.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
+import type { IncomeBasis } from '@core/income-basis';
 import { LookupsApiService } from '../lookups/lookups.api.service';
 import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-name-row';
-import { ServedPagesComponent } from './served-pages.component';
+import {
+  ServedPagesComponent,
+  type ServedFilter,
+  type ServedRowState,
+} from './served-pages.component';
+import { AddableQuestionsComponent, type AddableRow } from './addable-questions.component';
 
 /**
  * One catalog program name, in two steps.
@@ -59,7 +68,9 @@ import { ServedPagesComponent } from './served-pages.component';
  * - **Where it is offered** — the authoritative per-loan-type assignment. The
  *   bank-program builder filters its Program name picker on it and the API rejects
  *   an unassigned pair. Saved on every tap.
- * - **What applicants are asked** — per-name skips and additions. Saved on every tap.
+ * - **What applicants are asked** — the questions the app shows someone who picks this name,
+ *   page by page, filterable to the fixed set or the rest; Add opens a side sheet, Remove sits
+ *   on each row this name may drop (v31.6.0). Fixed questions are edited on Questionnaire.
  *
  * The screen used to open on a third step, "How the income is worked out": the
  * name's one surrogate income rule. Cut for the MVP — Add program makes income-proof
@@ -77,10 +88,20 @@ import { ServedPagesComponent } from './served-pages.component';
     PageHeaderComponent,
     WizardStepsComponent,
     LoanCategorySwitchesComponent,
-    CompactAskedQuestionsComponent,
+    RailTabsComponent,
     ServedPagesComponent,
+    AddableQuestionsComponent,
+    FormDrawerComponent,
   ],
-  providers: [provideNzIconsPatch([ArrowLeftOutline, ArrowRightOutline, CloseCircleOutline])],
+  providers: [
+    provideNzIconsPatch([
+      ArrowLeftOutline,
+      ArrowRightOutline,
+      CloseCircleOutline,
+      LockOutline,
+      PlusOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -175,27 +196,43 @@ import { ServedPagesComponent } from './served-pages.component';
 
             @case (1) {
               <!-- ── STEP 2 · What applicants are asked ────────────────────────
-                   The screen carried a third step once and lost it with approval
-                   scoring: a per-loan-type list the name "suggests scoring on", read
-                   by nothing. This one writes the axis the engine actually asks from
-                   — the question-to-loan-type table, the same rows the "Who gets asked
-                   what" screen sets — so the decision an operator makes while creating a name is
-                   editable afterwards in the same words and the same control.
-
-                   Every tick here is about THIS name: an untick skips a question the
-                   loan type asks (program_name_question_exclusion) and a tick under
-                   "Other questions" asks one it does not (program_name_question_addition).
-                   The loan type's own list is set on Questionnaire, Categories. Each tick
-                   writes on its own, because the name exists and there is no Finish to
-                   batch into. -->
+                   The list the app shows someone who picks this name, page by page, and the
+                   questions this name adds or drops for its own applicants. A fixed question
+                   is drawn as is, with a lock: it is asked on every program, and only
+                   Questionnaire changes it. Every Add / Remove writes at once — for THIS name
+                   only (program_name_question_addition / _exclusion); the loan type's own list
+                   is not touched. -->
               <section class="card is-bare stage-card">
-                <header class="stage-head">
-                  <!-- No sub-line: the rail's caption above already says what a tick here
-                       touches, and saying it twice was the first thing the step read. -->
-                  <h2 class="stage-title" i18n="@@pnd.asks_title">
-                    What are these applicants asked?
-                  </h2>
+                <!-- The one action of the step sits on the heading, where it is seen before the
+                     list, instead of under twenty-odd rows. The pick list it opens is a side sheet:
+                     the list being added to stays on screen beside it. -->
+                <header class="stage-head has-action">
+                  <div class="stage-head-text">
+                    <h2 class="stage-title" i18n="@@pnd.asks_title">
+                      What are these applicants asked?
+                    </h2>
+                    <p class="stage-sub" i18n="@@pnd.asks_sub_edit">
+                      Add or remove questions for this program only — other programs don't change.
+                    </p>
+                  </div>
+                  @if (editable()) {
+                    <button nz-button nzType="primary" type="button" (click)="openAddSheet()">
+                      <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@pnd.add_title">Add a question</span>
+                    </button>
+                  }
                 </header>
+
+                @if (n.categories.length > 1) {
+                  <app-rail-tabs
+                    [items]="askTabs()"
+                    [activeId]="askCategory()"
+                    [ariaLabel]="askTabsAria"
+                    idPrefix="pnd-asks"
+                    appearance="segmented"
+                    (select)="selectAskTab($event)"
+                  />
+                }
 
                 @if (asksError(); as err) {
                   <p class="stage-warn" role="alert">
@@ -204,49 +241,93 @@ import { ServedPagesComponent } from './served-pages.component';
                   </p>
                 }
 
-                <!-- Not the full board: what is REQUIRED, what was added in this visit, and a
-                     search that suggests the rest. The whole pool grouped by section is one
-                     click away by searching, not the first thing on the screen. -->
-                <app-compact-asked-questions
-                  [pool]="pool()"
-                  [offered]="n.categories"
-                  [category]="askCategory()"
-                  [picks]="sessionPicks()"
-                  [search]="askSearch()"
-                  [isAr]="isAr"
-                  [busy]="savingAsk().size > 0"
-                  [removable]="false"
-                  [served]="served()"
-                  (categorySelect)="setAskCategory($event)"
-                  (searchChange)="askSearch.set($event)"
-                  [excluded]="excludedHere()"
-                  [locks]="locks()"
-                  [answeredBy]="answeredHere()"
-                  [added]="addedHere()"
-                  (add)="askToAdd($event)"
-                  (exclude)="setSkipped($event, true)"
-                  (include)="setSkipped($event, false)"
-                  (addHere)="addForName($event)"
-                  (removeHere)="removeForName($event)"
-                  [summarySheet]="true"
-                  [listsCollapsible]="true"
+                <div
+                  class="asks"
+                  [attr.role]="n.categories.length > 1 ? 'tabpanel' : null"
+                  [attr.id]="n.categories.length > 1 ? 'pnd-asks-panel-' + askCategory() : null"
+                  [attr.aria-labelledby]="
+                    n.categories.length > 1 ? 'pnd-asks-tab-' + askCategory() : null
+                  "
                 >
-                  <!-- Projected under the board's tabs and summary line: what the app shows,
-                         page by page, for the tab it sits under. -->
                   @if (servedHere(); as sv) {
-                    @if (sv.pages) {
-                      <app-served-pages
-                        [pages]="sv.pages"
-                        [isAr]="isAr"
-                        [categoryName]="categoryName(sv.category)"
-                        [nameAxisActive]="sv.nameAxisActive !== false"
-                        [steps]="orderSteps()"
-                        [busy]="reordering()"
-                        (reorder)="reorderCategory(sv.category, $event)"
-                      />
+                    @if (sv.nameAxisActive === false) {
+                      <p class="stage-note" role="status" i18n="@@pnd.asks_no_bank2">
+                        No bank sells this program yet, so its applicants are asked every question
+                        the loan type asks. You can add or remove questions once a bank program is
+                        filed under it.
+                      </p>
                     }
+
+                    <!-- Most rows are fixed and can't be touched here; the filter lets the admin
+                         see just the few this program owns, or just the fixed set, without
+                         losing the app's page order or numbering. -->
+                    <div class="asks-bar">
+                      @if (showRowFilter()) {
+                        <app-rail-tabs
+                          [items]="filterTabs()"
+                          [activeId]="rowFilter()"
+                          [ariaLabel]="filterAria"
+                          idPrefix="pnd-rows"
+                          (select)="selectRowFilter($event)"
+                        />
+                      }
+                      <p class="asks-summary">{{ askSummary(sv) }}</p>
+                    </div>
+
+                    @if (editable() && rowFilter() !== 'other') {
+                      <p class="asks-hint">
+                        <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+                        <span i18n="@@pnd.asks_fixed_note">
+                          Fixed questions are asked on every program and can't be removed here. To
+                          change one, open
+                          <a class="stage-link" routerLink="/questionnaire/questions"
+                            >Questionnaire</a
+                          >.
+                        </span>
+                      </p>
+                    }
+
+                    <div
+                      [attr.role]="showRowFilter() ? 'tabpanel' : null"
+                      [attr.id]="showRowFilter() ? 'pnd-rows-panel-' + rowFilter() : null"
+                      [attr.aria-labelledby]="
+                        showRowFilter() ? 'pnd-rows-tab-' + rowFilter() : null
+                      "
+                    >
+                      @if (rowFilter() === 'other' && otherCountHere() === 0) {
+                        <div class="asks-empty">
+                          <p class="asks-empty-text" i18n="@@pnd.asks_only_fixed">
+                            Only the fixed questions are asked here. Add one to ask this program's
+                            applicants something more.
+                          </p>
+                          @if (editable()) {
+                            <button nz-button type="button" (click)="openAddSheet()">
+                              <span
+                                nz-icon
+                                nzType="plus"
+                                nzTheme="outline"
+                                aria-hidden="true"
+                              ></span>
+                              <span i18n="@@pnd.add_title">Add a question</span>
+                            </button>
+                          }
+                        </div>
+                      } @else {
+                        <app-served-pages
+                          [pages]="sv.pages ?? []"
+                          [isAr]="isAr"
+                          [states]="rowStates()"
+                          [editable]="editable()"
+                          [busy]="busyCodes()"
+                          [filter]="rowFilter()"
+                          (remove)="removeQuestion($event)"
+                        />
+                      }
+                    </div>
+                  } @else if (servedLoading()) {
+                    <div class="loading"><nz-spin nzSimple></nz-spin></div>
                   }
-                </app-compact-asked-questions>
+                </div>
               </section>
             }
           }
@@ -290,6 +371,36 @@ import { ServedPagesComponent } from './served-pages.component';
         }
       }
     </section>
+
+    <!-- Add a question: a side sheet over the list it adds to. Declared here, outside every
+         block, so the page's own state (the pool, what is in flight) is what it reads. Every Add
+         saves at once, so the sheet has one exit, Done, and no Cancel. -->
+    <ng-template #addSheet>
+      <app-form-drawer
+        [title]="addSheetTitle()"
+        [subtitle]="addSheetSub"
+        [hint]="addSheetHint"
+        [submitLabel]="doneLabel"
+        [showCancel]="false"
+        (cancelled)="closeAddSheet()"
+        (submitted)="closeAddSheet()"
+      >
+        <span drawerIcon nz-icon nzType="plus" nzTheme="outline"></span>
+        <div class="sheet-body">
+          @if (asksError(); as err) {
+            <p class="stage-warn" role="alert">
+              <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+              <span>{{ err }}</span>
+            </p>
+          }
+          <app-addable-questions
+            [rows]="addableRows()"
+            [busy]="savingAsk()"
+            (add)="askToAdd($event)"
+          />
+        </div>
+      </app-form-drawer>
+    </ng-template>
   `,
   styles: [
     `
@@ -388,6 +499,22 @@ import { ServedPagesComponent } from './served-pages.component';
         flex-direction: column;
         gap: var(--space-1);
       }
+      /* Heading on the start side, its one action on the end side; the button drops under the
+         words when they need the width. */
+      .stage-head.has-action {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-3) var(--space-4);
+      }
+      .stage-head-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        flex: 1 1 20rem;
+        min-inline-size: 0;
+      }
       .stage-title {
         margin: 0;
         font-size: 1rem;
@@ -400,6 +527,94 @@ import { ServedPagesComponent } from './served-pages.component';
         font-size: 0.8125rem;
         line-height: 1.55;
         color: var(--text-secondary);
+      }
+      .stage-link {
+        color: var(--color-text-link);
+        font-weight: var(--font-weight-medium);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .stage-link:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
+      }
+      .asks {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .asks-summary {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .stage-note {
+        margin: 0;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        border-inline-start: var(--rule-width-accent) solid var(--color-info);
+        background: var(--color-info-bg);
+        color: var(--text-primary);
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+      /* The filter and the count, on one line. */
+      .asks-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2) var(--space-4);
+      }
+      .asks-bar .asks-summary {
+        margin-inline-start: auto;
+      }
+      /* Wrapped under the filter on a phone: start-aligned like everything else there. */
+      @media (max-width: 560px) {
+        .asks-bar .asks-summary {
+          margin-inline-start: 0;
+        }
+      }
+      /* A line, not a banner: it explains the locks on the rows below and should read as
+         quietly as they do. */
+      .asks-hint {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-xs);
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+      .asks-hint [nz-icon] {
+        flex: none;
+        margin-block-start: 0.25em;
+        color: var(--text-tertiary);
+      }
+      .asks-empty {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3) var(--space-4);
+        padding: var(--space-5);
+        border: 1px dashed var(--border-default);
+        border-radius: var(--radius-md);
+      }
+      .asks-empty-text {
+        flex: 1 1 18rem;
+        margin: 0;
+        font-size: var(--text-sm);
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+      .sheet-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
       }
       /* Four rows, one decision. A grid at two columns from 720px, because the four
          together are the thing being read and a single column makes the last one
@@ -598,7 +813,6 @@ import { ServedPagesComponent } from './served-pages.component';
 export class ProgramNameDetailPage implements OnInit {
   private readonly api = inject(LookupsApiService);
   private readonly questionnaire = inject(QuestionnaireApiService);
-  private readonly modal = inject(NzModalService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   protected readonly isAr = inject(LOCALE_ID).startsWith('ar');
@@ -610,6 +824,7 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly savingOffer = signal(false);
 
   private readonly errors = inject(ErrorCodeService);
+  private readonly modal = inject(NzModalService);
 
   // --- The two steps ---------------------------------------------------------
   //
@@ -652,8 +867,8 @@ export class ProgramNameDetailPage implements OnInit {
       id: 'asks',
       label: this.stepLabels[1] ?? '',
       // Never `invalid`, and never `todo`: what a loan type asks is a fact this step
-      // reports and can widen, not an answer this name owes. It is unreachable while the
-      // name is offered nowhere, because there is nothing to put a tab on.
+      // reports, not an answer this name owes. It is unreachable while the name is offered
+      // nowhere, because there is nothing to put a tab on.
       status: 'done',
       disabled: this.offeredCount() === 0,
     },
@@ -664,7 +879,7 @@ export class ProgramNameDetailPage implements OnInit {
     if (this.stepIndex() === 0) {
       return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
     }
-    return $localize`:@@pnd.step_asks_cap:Ticks and unticks here apply to this program only. The loan type's own list is set on Questionnaire → Categories.`;
+    return $localize`:@@pnd.step_asks_cap2:What the app asks someone who picks this program, page by page.`;
   });
 
   protected nextStepLabel(): string {
@@ -673,7 +888,7 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected goToStep(index: number): void {
     const next = Math.min(Math.max(index, 0), this.stepLabels.length - 1);
-    if (next === 1) void this.loadPool();
+    if (next === 1) this.loadAsks();
     if (next === this.stepIndex()) return;
     this.stepIndex.set(next);
     void this.router.navigate([], {
@@ -694,73 +909,219 @@ export class ProgramNameDetailPage implements OnInit {
 
   // --- Step 2 · what applicants are asked ------------------------------------
 
-  /**
-   * The global question pool, read on first arrival at step 2 and not before.
-   *
-   * The heaviest read on the page — every active question with every answer. Deferring it
-   * keeps the step that does not need it off its latency.
-   */
-  protected readonly pool = signal<readonly AskableQuestion[]>([]);
   /** What an applicant of this name is served per loan type; empty until the read lands. */
   protected readonly served = signal<readonly ServedCount[]>([]);
+  protected readonly servedLoading = signal(false);
+  protected readonly asksError = signal<string | null>(null);
   /** The served set for the loan type on the tab, pages included. */
   protected readonly servedHere = computed<ServedCount | null>(
     () => this.served().find((s) => s.category === this.askCategory()) ?? null,
   );
-  /** The draft tree the pool was built from — what a reorder must send whole. */
-  private readonly tree = signal<readonly GroupTreeRow[]>([]);
-  /** The loan type's asked list per app step, for the served section's moves. */
-  protected readonly orderSteps = computed<readonly OrderStep[]>(() =>
-    stepsForCategory(this.tree(), this.askCategory()),
-  );
-  protected readonly reordering = signal(false);
-  protected readonly poolLoading = signal(false);
-  protected readonly asksError = signal<string | null>(null);
-  private poolRequested = false;
-  /** Ids with a write in flight. This page writes per tap; the create flow batches. */
-  protected readonly savingAsk = signal<ReadonlySet<string>>(new Set<string>());
-  protected readonly askSearch = signal('');
-  private readonly askTab = signal<LoanCategory | null>(null);
-  /**
-   * Nothing is "pending" on this page: a tick is written at once and comes back in the
-   * pool, so the board's session-pick layer is always empty here. One frozen instance
-   * rather than a fresh `new Map()` per change detection, which would make the editor's
-   * `computed`s recompute on every tick of the app.
-   */
-  /** Questions ticked during THIS visit, per loan type — what "You added" lists. */
-  protected readonly sessionPicks = signal<AskedPicks>(
-    new Map<LoanCategory, ReadonlySet<string>>(),
-  );
 
-  /** Questions this name skips, per loan type — as stored, re-read after every write. */
+  /**
+   * The whole question pool: what an Add picks from, and how a served code maps to the id a
+   * write names. Read once per visit to step 2, and again after a write that republished.
+   */
+  private readonly pool = signal<readonly AskableQuestion[]>([]);
+  private poolRequested = false;
+  private readonly poolByCode = computed(
+    () => new Map(this.pool().map((q) => [q.code, q] as const)),
+  );
+  /** Codes this name may not drop, with the reason — the server's, never a list kept here. */
+  private readonly locks = signal<readonly ServerLock[]>([]);
+  /** Question ids this name skips, per loan type — as stored, re-read after every write. */
   private readonly skipped = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
     new Map<LoanCategory, ReadonlySet<string>>(),
   );
-  /**
-   * Codes this name may not skip: the engine's inputs, the fixed question set (all of it where it
-   * sells a payslip programme, all but the declared-income part elsewhere), and what its bank
-   * programs read. As sent — read per loan type through `lockMapFor`.
-   */
-  protected readonly locks = signal<readonly ServerLock[]>([]);
-  protected readonly excludedHere = computed<ReadonlySet<string>>(
-    () => this.skipped().get(this.askCategory()) ?? new Set<string>(),
-  );
-  /** Per loan type: fixed question code → this name's own question asked in its place. */
-  private readonly answeredByCat = signal<Partial<Record<LoanCategory, Record<string, string>>>>(
-    {},
-  );
-  protected readonly answeredHere = computed<Readonly<Record<string, string>>>(
-    () => this.answeredByCat()[this.askCategory()] ?? {},
-  );
-  /** Questions this name ADDS, per loan type — as stored, re-read after every write. */
+  /** Question ids this name adds, per loan type — as stored, re-read after every write. */
   private readonly addedByCat = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
     new Map<LoanCategory, ReadonlySet<string>>(),
   );
-  protected readonly addedHere = computed<ReadonlySet<string>>(
-    () => this.addedByCat().get(this.askCategory()) ?? new Set<string>(),
+  /**
+   * Question ids with a write in flight. One at a time: every write replaces this name's whole
+   * set for the loan type, so two in flight would race each other.
+   */
+  protected readonly savingAsk = signal<ReadonlySet<string>>(new Set<string>());
+  /** The same, by code — what the served list marks busy. */
+  protected readonly busyCodes = computed<ReadonlySet<string>>(() => {
+    const codeOf = new Map(this.pool().map((q) => [q.id, q.code] as const));
+    return new Set([...this.savingAsk()].map((id) => codeOf.get(id) ?? id));
+  });
+
+  /**
+   * Add / Remove are open once the pool is read and a bank sells the name. Before that the
+   * applicant is asked the loan type's whole list, and a per-name pick would change nothing
+   * on screen.
+   */
+  protected readonly editable = computed(
+    () => this.pool().length > 0 && this.servedHere()?.nameAxisActive !== false,
   );
 
-  /** Clamped to a loan type the name is actually offered under — see the create flow. */
+  private readonly servedCodesHere = computed<ReadonlySet<string>>(() => {
+    const out = new Set<string>();
+    for (const page of this.servedHere()?.pages ?? []) {
+      for (const q of page.questions) out.add(q.code);
+    }
+    return out;
+  });
+
+  /**
+   * Why each served question is here. A fixed one is locked whatever else reads it; a gate
+   * source is locked while a question it shows is on the list (drop that one first — the server
+   * would put the source back anyway).
+   */
+  protected readonly rowStates = computed<ReadonlyMap<string, ServedRowState>>(() => {
+    const category = this.askCategory();
+    const sv = this.servedHere();
+    const fixed = new Set(sv?.fixedQuestionCodes ?? []);
+    const locks = lockMapFor(this.locks(), category);
+    const added = this.addedByCat().get(category) ?? new Set<string>();
+    const byCode = this.poolByCode();
+    const questions = (sv?.pages ?? []).flatMap((p) => p.questions);
+    const sources = new Set<string>();
+    for (const q of questions) {
+      const source = q.enabledWhen?.questionCode;
+      if (source) sources.add(source);
+    }
+    const out = new Map<string, ServedRowState>();
+    for (const q of questions) {
+      const row = byCode.get(q.code);
+      const lock = locks.get(q.code);
+      if (fixed.has(q.code) || row?.fixed === true || lock === 'base') out.set(q.code, 'fixed');
+      else if (lock === 'engine') out.set(q.code, 'engine');
+      else if (lock === 'program') out.set(q.code, 'program');
+      else if (row === undefined) continue;
+      else if (sources.has(q.code)) out.set(q.code, 'gate');
+      else out.set(q.code, added.has(row.id) ? 'added' : 'free');
+    }
+    return out;
+  });
+
+  private readonly fixedCountHere = computed(
+    () => [...this.rowStates().values()].filter((s) => s === 'fixed').length,
+  );
+
+  /** Served here and not fixed: what this program owns, a bank reads, or a follow-up needs. */
+  protected readonly otherCountHere = computed(
+    () => this.servedCodesHere().size - this.fixedCountHere(),
+  );
+
+  // --- Step 2 · the row filter -----------------------------------------------
+  //
+  // Twenty-odd fixed rows bury the two or three this program owns. The filter narrows the list
+  // without reordering it: numbers and pages stay the app's. Kept across loan-type tabs.
+
+  protected readonly rowFilter = signal<ServedFilter>('all');
+  protected readonly filterAria = $localize`:@@pnd.rows_filter_aria:Show questions`;
+
+  /** Nothing to split when no question here is fixed. */
+  protected readonly showRowFilter = computed(() => this.fixedCountHere() > 0);
+
+  protected readonly filterTabs = computed<RailTabItem[]>(() => {
+    const total = this.servedCodesHere().size;
+    const fixed = this.fixedCountHere();
+    const other = this.otherCountHere();
+    return [
+      {
+        id: 'all',
+        label: $localize`:@@pnd.rows_all:All`,
+        count: total,
+        countLabel: this.questionsLabel(total),
+      },
+      {
+        id: 'fixed',
+        label: $localize`:@@pnd.rows_fixed:Fixed`,
+        count: fixed,
+        countLabel: this.questionsLabel(fixed),
+      },
+      {
+        id: 'other',
+        label: $localize`:@@pnd.rows_other:Not fixed`,
+        count: other,
+        countLabel: this.questionsLabel(other),
+      },
+    ];
+  });
+
+  protected selectRowFilter(id: string): void {
+    if (id === 'all' || id === 'fixed' || id === 'other') this.rowFilter.set(id);
+  }
+
+  // --- Step 2 · the Add sheet ------------------------------------------------
+
+  private readonly drawer = inject(NzDrawerService);
+  private readonly message = inject(NzMessageService);
+  private readonly addSheet = viewChild.required<TemplateRef<unknown>>('addSheet');
+  private addSheetRef: NzDrawerRef | null = null;
+
+  protected readonly addSheetSub = $localize`:@@pnd.add_sheet_sub:Asked only of this program's applicants, on the page the question sits in.`;
+  protected readonly addSheetHint = $localize`:@@pnd.add_sheet_hint:Each question saves as soon as you add it.`;
+  protected readonly doneLabel = $localize`:@@pnd.add_sheet_done:Done`;
+
+  /** Names the program — and the loan type, when the name is sold under more than one. */
+  protected readonly addSheetTitle = computed<string>(() => {
+    const n = this.name();
+    const head = n
+      ? $localize`:@@pnd.add_sheet_title:Add a question to ${this.nameOf(n)}:NAME:`
+      : $localize`:@@pnd.add_title:Add a question`;
+    return n && n.categories.length > 1 ? `${head} · ${categoryLabel(this.askCategory())}` : head;
+  });
+
+  /** Opened once; a second click while it is open does nothing. */
+  protected openAddSheet(): void {
+    if (this.addSheetRef !== null) return;
+    const ref = openFormDrawer<object, object, void>(this.drawer, {
+      content: this.addSheet(),
+      data: {},
+    });
+    this.addSheetRef = ref;
+    ref.afterClose.subscribe(() => {
+      if (this.addSheetRef === ref) this.addSheetRef = null;
+    });
+  }
+
+  protected closeAddSheet(): void {
+    this.addSheetRef?.close();
+  }
+
+  /**
+   * What an Add may pick: every live question that is not asked here yet, not fixed, and not
+   * read by every quote (both are the loan type's call, and the server refuses them). A
+   * follow-up names the questions it needs first; one whose chain runs through a locked or
+   * switched-off question is left out, because the server would refuse the whole write.
+   *
+   * Only the questions of the name's own income type (v31.7.0): a payslip name picks from the
+   * income-proof questions — the ones the Questionnaire section lists — a no-payslip name from
+   * the ones surrogate products ask, a name sold both ways from both. A name no bank sells yet
+   * reads as payslip, the only kind Add program makes.
+   */
+  protected readonly addableRows = computed<readonly AddableRow[]>(() => {
+    const category = this.askCategory();
+    const bases = this.name()?.bases[category] ?? [];
+    return addableQuestions(
+      this.pool(),
+      this.servedCodesHere(),
+      lockMapFor(this.locks(), category),
+      new Set<IncomeBasis>(bases.length === 0 ? ['payslip'] : bases),
+    ).map(({ question: q, chain }) => ({
+      id: q.id,
+      code: q.code,
+      label: this.labelOf(q),
+      groupKey: q.groupKey ?? '',
+      group: (this.isAr ? q.groupAr : q.groupEn) || q.groupEn || q.groupAr || '',
+      isRequired: q.isRequired,
+      alsoAdds: chain.map((c) => this.labelOf(c)),
+      haystack: q.haystack,
+    }));
+  });
+
+  private labelOf(q: AskableQuestion): string {
+    return (this.isAr ? q.labelAr : q.labelEn) || q.code;
+  }
+
+  private readonly askTab = signal<LoanCategory | null>(null);
+
+  /** Clamped to a loan type the name is actually offered under. */
   protected readonly askCategory = computed<LoanCategory>(() => {
     const on = this.name()?.categories ?? [];
     const picked = this.askTab();
@@ -768,121 +1129,56 @@ export class ProgramNameDetailPage implements OnInit {
     return on[0] ?? 'personal';
   });
 
-  protected setAskCategory(category: LoanCategory): void {
-    this.askTab.set(category);
-  }
+  protected readonly askTabsAria = $localize`:@@pnd.asks_tabs_aria:Loan type`;
 
-  /**
-   * A tick, written immediately. ADD-ONLY, and confirmed when the question is required.
-   *
-   * Requiredness is enforced from the live assignment table while customers are served a
-   * frozen snapshot, so widening a required question refuses every application already in
-   * flight in that loan type until it is answered.
-   */
-  protected askToAdd(row: AskedRow): void {
-    if (!row.isRequired) {
-      void this.writeAsk(row.id);
-      return;
-    }
-    const type = categoryLabel(this.askCategory());
-    this.modal.confirm({
-      nzTitle: $localize`:@@pnd.req_title:Ask “${row.label}:QUESTION:” of every ${type}:TYPE: applicant?`,
-      nzContent: $localize`:@@pnd.req_body:It must be answered, so every ${type}:TYPE: application already in progress has to answer it before it can be submitted.`,
-      nzOkText: $localize`:@@pnd.req_ok:Ask it`,
-      nzCancelText: $localize`:@@pnd.req_cancel:Leave it`,
-      nzOnOk: () => {
-        void this.writeAsk(row.id);
-        // `nzOnOk` must RETURN TRUE: a void handler is read as a cancel, and the modal
-        // then reports the operator's confirmation as a dismissal.
-        return true;
-      },
+  /** One tab per loan type the name is offered under, in the platform's order. */
+  protected readonly askTabs = computed<RailTabItem[]>(() => {
+    const on = this.name()?.categories ?? [];
+    return LOAN_CATEGORIES.filter((c) => on.includes(c)).map((c) => {
+      const count = this.served().find((s) => s.category === c)?.servedTotal;
+      return {
+        id: c,
+        label: categoryLabel(c),
+        ...(count === undefined ? {} : { count, countLabel: this.questionsLabel(count) }),
+      };
     });
+  });
+
+  protected selectAskTab(id: string): void {
+    const category = LOAN_CATEGORIES.find((c) => c === id);
+    if (category !== undefined) this.askTab.set(category);
   }
 
-  /**
-   * ADD-ONLY on the wire, not just in the UI. `setQuestionCategories` would replace the
-   * whole set from a copy of the pool this page read minutes ago — so a loan type somebody
-   * else ticked in between would be silently un-asked. The add endpoint has no field that
-   * can express a removal.
-   *
-   * No optimistic patch: the write returns what actually moved, and the pool is re-read
-   * from it. A tick that the server folded into "already asked" must not leave a row
-   * looking added.
-   */
-  private async writeAsk(questionId: string): Promise<void> {
-    if (this.savingAsk().has(questionId)) return;
-    this.savingAsk.update((set) => new Set([...set, questionId]));
-    this.asksError.set(null);
-    try {
-      const category = this.askCategory();
-      await this.questionnaire.addQuestionCategoriesBulk([{ questionId, categories: [category] }]);
-      const next = new Map(this.sessionPicks());
-      next.set(category, new Set([...(next.get(category) ?? []), questionId]));
-      this.sessionPicks.set(next);
-      this.poolRequested = false;
-      await this.loadPool();
-    } catch (err) {
-      this.asksError.set(this.localizedError(err));
-    } finally {
-      this.savingAsk.update((set) => {
-        const next = new Set(set);
-        next.delete(questionId);
-        return next;
-      });
-    }
+  /** "23 questions on 3 pages · all required". */
+  protected askSummary(sv: ServedCount): string {
+    const pages = (sv.pages ?? []).filter((p) => p.questions.length > 0).length;
+    const questions = this.questionsLabel(sv.servedTotal);
+    const head =
+      pages === 1
+        ? $localize`:@@pnd.asks_summary_one:${questions}:QUESTIONS: on 1 page`
+        : $localize`:@@pnd.asks_summary:${questions}:QUESTIONS: on ${pages}:PAGES: pages`;
+    const required =
+      sv.servedRequired === sv.servedTotal
+        ? $localize`:@@pnd.asks_all_required:all required`
+        : $localize`:@@pnd.asks_some_required:${sv.servedRequired}:N: required`;
+    return `${head} · ${required}`;
   }
 
-  /**
-   * Untick (or tick again) one question for THIS name, written at once. The loan type's own
-   * assignment is not touched, so its other names keep asking it.
-   */
-  protected async setSkipped(row: AskedRow, skip: boolean): Promise<void> {
-    if (this.savingAsk().has(row.id)) return;
-    const category = this.askCategory();
-    const set = new Set(this.skipped().get(category) ?? []);
-    if (skip) set.add(row.id);
-    else set.delete(row.id);
-    this.savingAsk.update((ids) => new Set([...ids, row.id]));
-    this.asksError.set(null);
-    try {
-      const saved = await this.api.setProgramNameQuestionExclusions(
-        this.routeKey(),
-        category,
-        exclusionsToSave(this.pool(), set, lockMapFor(this.locks(), category)),
-      );
-      const next = new Map(this.skipped());
-      next.set(category, new Set(saved));
-      this.skipped.set(next);
-      void this.loadServed();
-    } catch (err) {
-      this.asksError.set(this.localizedError(err));
-      // A lock the page did not know about (a bank program filed since the read): re-read.
-      void this.loadScope();
-    } finally {
-      this.savingAsk.update((ids) => {
-        const next = new Set(ids);
-        next.delete(row.id);
-        return next;
-      });
-    }
+  private questionsLabel(n: number): string {
+    return n === 1
+      ? $localize`:@@srvp.count_one:1 question`
+      : $localize`:@@srvp.count_many:${n}:N: questions`;
   }
 
+  // --- Step 2 writes ---------------------------------------------------------
+
   /**
-   * A tick under "Other questions": this name asks it too, written at once with the gate
-   * sources it needs. Confirmed when REQUIRED, because an application already in progress
-   * under this name then has to answer it before it can be submitted — the same consequence
-   * the loan-type-wide tick names, for one program instead of all of them.
+   * An Add, confirmed when the question is REQUIRED: an application already in progress under
+   * this program then has to answer it before it can be submitted.
    */
-  protected addForName(row: AskedRow): void {
-    const question = this.pool().find((q) => q.id === row.id);
-    if (question === undefined) return;
-    const category = this.askCategory();
-    const current = this.addedByCat().get(category) ?? new Set<string>();
-    const ids = additionWithChain(this.pool(), question, category, this.sessionPicks(), current);
-    const write = (): void =>
-      void this.writeAdditions(category, new Set([...current, ...ids]), row.id);
+  protected askToAdd(row: AddableRow): void {
     if (!row.isRequired) {
-      write();
+      void this.addQuestion(row);
       return;
     }
     this.modal.confirm({
@@ -891,140 +1187,168 @@ export class ProgramNameDetailPage implements OnInit {
       nzOkText: $localize`:@@pnd.req_ok:Ask it`,
       nzCancelText: $localize`:@@pnd.req_cancel:Leave it`,
       nzOnOk: () => {
-        write();
+        void this.addQuestion(row);
+        // `nzOnOk` must RETURN TRUE: a void handler is read as a cancel.
         return true;
       },
     });
   }
 
-  /** Untick an added question, written at once. A source another added one needs is locked. */
-  protected removeForName(row: AskedRow): void {
+  /**
+   * Add one question for this name, with the gate sources it needs. A question this name had
+   * skipped is un-skipped too, so the stored rows say what the screen says.
+   */
+  private async addQuestion(row: AddableRow): Promise<void> {
     const category = this.askCategory();
-    const set = new Set(this.addedByCat().get(category) ?? []);
-    if (!set.delete(row.id)) return;
-    void this.writeAdditions(category, set, row.id);
+    const question = this.pool().find((q) => q.id === row.id);
+    if (question === undefined) return;
+    const current = this.addedByCat().get(category) ?? new Set<string>();
+    const ids = additionWithChain(this.pool(), question, category, new Map(), current);
+    const saved = await this.write(row.id, async () => {
+      const skipped = this.skipped().get(category);
+      if (skipped?.has(row.id)) {
+        const next = new Set(skipped);
+        next.delete(row.id);
+        await this.saveSkipped(category, next);
+      }
+      await this.saveAdded(category, new Set([...current, ...ids]));
+    });
+    // The row leaves the sheet as it lands in the list behind it; say where it went.
+    if (saved) {
+      this.message.success(
+        $localize`:@@pnd.add_done:Added “${row.label}:QUESTION:” to “${row.group}:PAGE:”`,
+      );
+    }
   }
 
-  /**
-   * Replace this name's added set for one loan type. When the server had to put a question
-   * into the loan type for the first time it republished the questionnaire, and the pool this
-   * page holds no longer says which rows are opt-in — so it is re-read; otherwise only the
-   * served counts move.
-   */
-  private async writeAdditions(
-    category: LoanCategory,
-    set: ReadonlySet<string>,
-    busyId: string,
-  ): Promise<void> {
-    if (this.savingAsk().has(busyId)) return;
-    this.savingAsk.update((ids) => new Set([...ids, busyId]));
-    this.asksError.set(null);
-    try {
-      const saved = await this.api.setProgramNameQuestionAdditions(
-        this.routeKey(),
-        category,
-        additionsToSave(this.pool(), set),
-      );
-      const next = new Map(this.addedByCat());
-      next.set(category, new Set(saved.added));
-      this.addedByCat.set(next);
-      if (saved.published) {
-        this.poolRequested = false;
-        await this.loadPool();
-      } else {
-        void this.loadServed();
-      }
-    } catch (err) {
-      this.asksError.set(this.localizedError(err));
-      void this.loadScope();
-    } finally {
-      this.savingAsk.update((ids) => {
-        const next = new Set(ids);
-        next.delete(busyId);
-        return next;
-      });
+  /** Remove one question from this name: drop its addition, or skip the loan type's question. */
+  protected async removeQuestion(code: string): Promise<void> {
+    const category = this.askCategory();
+    const question = this.poolByCode().get(code);
+    const state = this.rowStates().get(code);
+    if (question === undefined) return;
+    if (state === 'added') {
+      const next = new Set(this.addedByCat().get(category) ?? []);
+      next.delete(question.id);
+      await this.write(question.id, () => this.saveAdded(category, next));
+    } else if (state === 'free') {
+      const next = new Set([...(this.skipped().get(category) ?? []), question.id]);
+      await this.write(question.id, () => this.saveSkipped(category, next));
     }
   }
 
   /**
-   * The loan type's new order, from the served section. It is the LOAN TYPE's — the same write
-   * Questionnaire → Categories makes — and it publishes, so the served read is taken again after
-   * it: the pages come from the published snapshot. Taken again on a refusal too, which is what
-   * drops the section's optimistic order.
+   * One write at a time; the served list is read again after it, refused or not. True when the
+   * write landed.
    */
-  protected async reorderCategory(category: LoanCategory, ids: string[]): Promise<void> {
-    if (this.reordering()) return;
-    this.reordering.set(true);
+  private async write(busyId: string, run: () => Promise<void>): Promise<boolean> {
+    if (this.savingAsk().size > 0) return false;
+    this.savingAsk.set(new Set([busyId]));
     this.asksError.set(null);
     try {
-      const tree = await this.questionnaire.reorderCategoryQuestions(category, ids);
-      this.tree.set(tree);
-      this.pool.set(toAskablePool(tree));
+      await run();
+      return true;
     } catch (err) {
       this.asksError.set(this.localizedError(err));
+      // A lock the page did not know about (a bank program filed since the read): re-read.
+      await this.loadScope();
+      return false;
     } finally {
-      await this.loadServed();
-      this.reordering.set(false);
+      await this.loadServed({ quiet: true });
+      this.savingAsk.set(new Set<string>());
+    }
+  }
+
+  private async saveAdded(category: LoanCategory, set: ReadonlySet<string>): Promise<void> {
+    const saved = await this.api.setProgramNameQuestionAdditions(
+      this.routeKey(),
+      category,
+      additionsToSave(this.pool(), set),
+    );
+    const next = new Map(this.addedByCat());
+    next.set(category, new Set(saved.added));
+    this.addedByCat.set(next);
+    // A question that gained an opt-in row republished the questionnaire: the pool's
+    // opt-in marks are stale until it is read again.
+    if (saved.published) {
+      this.poolRequested = false;
+      await this.loadPool();
+    }
+  }
+
+  private async saveSkipped(category: LoanCategory, set: ReadonlySet<string>): Promise<void> {
+    const saved = await this.api.setProgramNameQuestionExclusions(
+      this.routeKey(),
+      category,
+      exclusionsToSave(this.pool(), set, lockMapFor(this.locks(), category)),
+    );
+    const next = new Map(this.skipped());
+    next.set(category, new Set(saved));
+    this.skipped.set(next);
+  }
+
+  // --- Step 2 reads ----------------------------------------------------------
+
+  /** Everything step 2 draws. The served read is taken on every arrival; the pool once. */
+  private loadAsks(): void {
+    void this.loadServed();
+    void this.loadPool();
+  }
+
+  /**
+   * Read on every arrival at step 2, not once: turning a loan type on or off on step 1 changes
+   * what is served. `quiet` keeps the list on screen while it is read again after a write.
+   */
+  private async loadServed(opts: { quiet?: boolean } = {}): Promise<void> {
+    const key = this.routeKey();
+    if (!opts.quiet) {
+      this.servedLoading.set(true);
+      this.asksError.set(null);
+    }
+    try {
+      this.served.set(await this.questionnaire.servedForName(key));
+    } catch (err) {
+      if (!opts.quiet) this.served.set([]);
+      this.asksError.set(this.localizedError(err));
+    } finally {
+      this.servedLoading.set(false);
+    }
+  }
+
+  /** The pool and this name's stored picks. A failed read leaves editing off, never wrong. */
+  private async loadPool(): Promise<void> {
+    if (this.poolRequested) return;
+    this.poolRequested = true;
+    try {
+      const [tree] = await Promise.all([this.questionnaire.tree(), this.loadScope()]);
+      this.pool.set(toAskablePool(tree));
+    } catch (err) {
+      this.poolRequested = false;
+      this.pool.set([]);
+      this.asksError.set(this.localizedError(err));
     }
   }
 
   private async loadScope(): Promise<void> {
-    try {
-      const scope = await this.api.programNameQuestionScope(this.routeKey());
-      this.locks.set(scope.locks);
-      this.answeredByCat.set(scope.answeredByCategory ?? {});
-      this.skipped.set(
-        new Map(
-          Object.entries(scope.excludedByCategory).map(([category, ids]) => [
-            category as LoanCategory,
-            new Set(ids ?? []),
-          ]),
-        ),
+    const scope = await this.api.programNameQuestionScope(this.routeKey());
+    const toMap = (
+      byCategory: Partial<Record<LoanCategory, string[]>> | undefined,
+    ): ReadonlyMap<LoanCategory, ReadonlySet<string>> =>
+      new Map(
+        Object.entries(byCategory ?? {}).map(([category, ids]) => [
+          category as LoanCategory,
+          new Set(ids ?? []),
+        ]),
       );
-      this.addedByCat.set(
-        new Map(
-          Object.entries(scope.addedByCategory ?? {}).map(([category, ids]) => [
-            category as LoanCategory,
-            new Set(ids ?? []),
-          ]),
-        ),
-      );
-    } catch (err) {
-      this.asksError.set(this.localizedError(err));
-    }
-  }
-
-  /** Advisory: a failed read leaves the callout off rather than blocking the board. */
-  private async loadServed(): Promise<void> {
-    const key = this.routeKey();
-    try {
-      this.served.set(await this.questionnaire.servedForName(key));
-    } catch {
-      this.served.set([]);
-    }
-  }
-
-  private async loadPool(): Promise<void> {
-    if (this.poolRequested) return;
-    this.poolRequested = true;
-    this.poolLoading.set(true);
-    try {
-      const [tree] = await Promise.all([this.questionnaire.tree(), this.loadScope()]);
-      this.tree.set(tree);
-      this.pool.set(toAskablePool(tree));
-      void this.loadServed();
-    } catch (err) {
-      this.asksError.set(this.localizedError(err));
-      this.pool.set([]);
-    } finally {
-      this.poolLoading.set(false);
-    }
+    this.locks.set(scope.locks);
+    this.skipped.set(toMap(scope.excludedByCategory));
+    this.addedByCat.set(toMap(scope.addedByCategory));
   }
 
   ngOnInit(): void {
     // A deep link can land straight on step 2 — `newNameLanding` sends every freshly
-    // created name there — so the pool read cannot wait for a click on the rail.
-    if (this.stepIndex() === 1) void this.loadPool();
+    // created name there — so the reads cannot wait for a click on the rail.
+    if (this.stepIndex() === 1) this.loadAsks();
     void this.load();
   }
 
@@ -1032,10 +1356,6 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected nameOf(row: ProgramNameRow): string {
     return this.isAr ? row.labelAr : row.labelEn;
-  }
-
-  protected categoryName(category: LoanCategory): string {
-    return categoryLabel(category);
   }
 
   protected usageLabel(row: ProgramNameRow): string {

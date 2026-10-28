@@ -102,8 +102,10 @@ describe('narrowAskedQuestions — gates', () => {
    */
   const ANCHOR = { code: 'monthly_income', enabledWhen: null };
 
-  it('drops a gate-only source once everything behind it has gone', () => {
-    // `owns_compound_unit` in miniature: it binds no fact of its own and exists to gate.
+  it('never asks a gate-only source when nothing behind it is needed', () => {
+    // `owns_compound_unit` in miniature: it binds no fact of its own and exists to gate. Since
+    // v31.5.0 a question bound to no fact is not core, so it is never kept in the first place
+    // — there is nothing for the gate clean-up to drop.
     const decision = narrowAskedQuestions(
       [
         ANCHOR,
@@ -118,7 +120,7 @@ describe('narrowAskedQuestions — gates', () => {
     );
     expect(decision.narrowed).toBe(true);
     expect([...decision.keep]).toEqual(['monthly_income']);
-    expect(decision.gateSourcesDropped).toEqual(['owns_a_unit']);
+    expect(decision.gateSourcesDropped).toEqual([]);
   });
 
   it('keeps the source when anything behind it survives', () => {
@@ -138,8 +140,8 @@ describe('narrowAskedQuestions — gates', () => {
   });
 
   it('refuses to drop a source that binds a fact of its own', () => {
-    // `employment_status` is the live case: its only gated dependent is `military_grade`,
-    // and it drives the employment allow-lists and the debt-burden cap for every program.
+    // A programme reads the source's own answer (`employment_status` was the case until it was
+    // retired in v30.18.0), so it stays when the only question behind it goes.
     const decision = narrowAskedQuestions(
       [
         ANCHOR,
@@ -148,8 +150,8 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['employment_status', 'military_grade'],
-        askScopedQuestionCodes: ['military_grade'],
-        neededQuestionCodes: [],
+        askScopedQuestionCodes: ['employment_status', 'military_grade'],
+        neededQuestionCodes: ['employment_status'],
       }),
     );
     expect([...decision.keep].sort()).toEqual(['employment_status', 'monthly_income']);

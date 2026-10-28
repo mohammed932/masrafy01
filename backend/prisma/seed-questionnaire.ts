@@ -327,6 +327,7 @@ const FIXED_FIRST_RUN_SHAPES: Readonly<Record<string, FixedFirstRunShape>> = {
 const FIXED_FIRST_RUN_SERVED_ON: Readonly<Record<string, 'every_name' | 'income_proof'>> = {
   months_in_current_job: 'every_name',
   residence_governorate: 'every_name',
+  // A text answer: asked and saved for the record, and changes no offer (v31.3.0).
   residence_area: 'every_name',
   [I_SCORE_BAND_QUESTION_CODE]: 'every_name',
   [MONEY_FIELD_BINDINGS.tenor_months]: 'every_name',
@@ -339,6 +340,8 @@ const FIXED_FIRST_RUN_SERVED_ON: Readonly<Record<string, 'every_name' | 'income_
   car_model_year: 'every_name',
   car_fuel_type: 'every_name',
   car_dealer: 'every_name',
+  // Fixed since v31.5.0 (migration `20261028120000_car_down_payment_fixed`).
+  car_down_payment: 'every_name',
   can_transfer_salary: 'income_proof',
   [MONEY_FIELD_BINDINGS.requested_amount]: 'income_proof',
   [MONEY_FIELD_BINDINGS.monthly_income]: 'income_proof',

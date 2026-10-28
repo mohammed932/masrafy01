@@ -14,6 +14,12 @@
  *   maxInstallment = income × dbrCap ÷ 100 − obligations
  *   maxLoan        = maxInstallment × (1 − (1+r)⁻ⁿ) ÷ r        (r = APR ÷ 12)
  *
+ * Answer effects (v31.3.x): with a named program and the applicant's answers, the offer
+ * effects the admin set on FIXED questions apply here exactly as on preview and apply — the
+ * answers are read by the preview's own reader (`answer-reading.ts`), selected by the shared
+ * `answerEffectsFromAnswers`, and applied inside the same `quoteProgram`. No answers, or a
+ * generic quote, and the figures are the bank's own, untouched.
+ *
  * Persists nothing (Principle X — read-only, no repository writes).
  */
 
@@ -32,10 +38,26 @@ import {
 import { quoteProgram } from '@/matching/pipeline/quote';
 import { carInsuranceDisclosureOf } from '@/matching/pipeline/fees';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
+import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
+import {
+  answerEffectsForProgram,
+  answerEffectsFromAnswers,
+  answerEffectsTenorCap,
+  answerPicksFromMaps,
+  applyAnswerEffectsToCap,
+  applyAnswerEffectsToRate,
+  type AnswerEffect,
+} from '@/matching/pipeline/answer-effects';
+import {
+  questionsAnsweredIn,
+  readSubmittedAnswers,
+  type Snapshot,
+} from '@/matching-preview/answer-reading';
 import type { ApplicantProfile, BankProgramSnapshot, Quote } from '@/matching/types';
 import {
   CALCULATOR_DISCLAIMER_CODE,
   type AffordabilityQuoteResponseDto,
+  type CalculatorAnswerEffectDto,
   type CalculatorQuoteDto,
   type CostQuoteResponseDto,
 } from './dto/calculator.dto';
@@ -55,6 +77,7 @@ export class CalculatorService {
     private readonly programs: BankProgramRepository,
     private readonly config: ConfigService,
     private readonly enumerations: PlatformEnumerationsRepository,
+    private readonly questionnaire: QuestionnaireRepository,
   ) {}
 
   /** `age` is derived from the caller's `birthday` by the controller — never sent by the client. */
@@ -63,9 +86,36 @@ export class CalculatorService {
     age: number,
   ): Promise<CostQuoteResponseDto | AffordabilityQuoteResponseDto> {
     const { program, isRepresentativeRate } = await this.resolveProgram(dto);
+    const effects = isRepresentativeRate ? [] : await this.answerEffectsFor(dto, program);
     return dto.mode === 'cost'
-      ? this.costQuote(dto, age, program, isRepresentativeRate)
-      : this.affordabilityQuote(dto, age, program, isRepresentativeRate);
+      ? this.costQuote(dto, age, program, isRepresentativeRate, effects)
+      : this.affordabilityQuote(dto, age, program, isRepresentativeRate, effects);
+  }
+
+  /**
+   * The offer effects the applicant's answers switch on, for this program's loan type — read,
+   * validated and selected by the SAME functions the preview uses (`readSubmittedAnswers`,
+   * `answerPicksFromMaps`, `answerEffectsFromAnswers`), from the same live effect table
+   * (`answerEffectSources`, fixed questions only). Which of them apply to THIS program — an
+   * income-proof question's effect never reaches a no-payslip program — is `quoteProgram`'s
+   * call, through `answerEffectsForProgram`, exactly as on preview and apply.
+   */
+  private async answerEffectsFor(
+    dto: CalculatorQuoteDto,
+    program: BankProgramSnapshot,
+  ): Promise<AnswerEffect[]> {
+    if (dto.answers === undefined || dto.answers.length === 0) return [];
+    const version = await this.questionnaire.activeVersion();
+    if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
+    const questions = questionsAnsweredIn(
+      version.snapshot as unknown as Snapshot,
+      program.productCategory,
+    );
+    const read = readSubmittedAnswers(new Map(questions.map((q) => [q.code, q])), dto.answers);
+    return answerEffectsFromAnswers(
+      await this.questionnaire.answerEffectSources(),
+      answerPicksFromMaps(read),
+    );
   }
 
   // ── cost ─────────────────────────────────────────────────────────────────
@@ -75,6 +125,7 @@ export class CalculatorService {
     age: number,
     program: BankProgramSnapshot,
     isRepresentativeRate: boolean,
+    effects: readonly AnswerEffect[],
   ): CostQuoteResponseDto {
     const requested = new Decimal(this.required(dto.amountEGP, 'amountEGP'));
     const quote = this.runQuote({
@@ -85,9 +136,11 @@ export class CalculatorService {
       obligations: new Decimal(0),
       overrideAmountEGP: requested,
       skipDbrCheck: true, // …so DBR must not shrink the amount that was asked for.
+      effects,
     });
 
     const limits = program.loanLimits;
+    const applied = answerEffectsForProgram(effects, program.programType);
     return {
       mode: 'cost',
       ...(isRepresentativeRate ? {} : { programCode: program.programCode }),
@@ -110,12 +163,19 @@ export class CalculatorService {
         amount: !quote.cashToCustomerEGP.equals(requested),
         tenor: quote.effectiveTenorMonths !== dto.tenorMonths,
       },
+      // The program's limits as THIS applicant's answers leave them — the same cap and term
+      // ceiling `quoteProgram` priced against, so a slider bound never offers a figure the
+      // quote then clamps without saying why.
       limits: {
         minAmountEGP: new Decimal(limits?.minAmountEGP ?? 0).toFixed(2),
-        maxAmountEGP: new Decimal(limits?.maxAmountEGP ?? 0).toFixed(2),
+        maxAmountEGP: applyAnswerEffectsToCap(
+          new Decimal(limits?.maxAmountEGP ?? 0),
+          applied,
+        ).cap.toFixed(2),
         minTenorMonths: program.tenor.minMonths,
-        maxTenorMonths: program.tenor.maxMonths,
+        maxTenorMonths: this.maxTenorFor(program, applied),
       },
+      ...this.effectsPart(applied),
       disclaimerCode: CALCULATOR_DISCLAIMER_CODE,
     };
   }
@@ -127,7 +187,9 @@ export class CalculatorService {
     age: number,
     program: BankProgramSnapshot,
     isRepresentativeRate: boolean,
+    effects: readonly AnswerEffect[],
   ): AffordabilityQuoteResponseDto {
+    const applied = answerEffectsForProgram(effects, program.programType);
     const income = new Decimal(this.required(dto.monthlyIncomeEGP, 'monthlyIncomeEGP'));
     const stated = new Decimal(this.required(dto.existingObligationsEGP, 'existingObligationsEGP'));
     // Cards are stated as a limit and discounted here by the SAME constant the
@@ -142,9 +204,21 @@ export class CalculatorService {
     // Price at the program ceiling and let the DBR reduction find the answer:
     // whatever the engine would offer someone asking for the maximum IS the
     // maximum. Same code path as a real offer, so the two cannot diverge.
-    const ceiling = new Decimal(program.loanLimits.maxAmountEGP ?? 0);
+    // The ceiling as the answers leave it: asking for the bank's own maximum would price the
+    // instalment of a loan a max-loan effect has already raised or cut.
+    const ceiling = applyAnswerEffectsToCap(
+      new Decimal(program.loanLimits.maxAmountEGP ?? 0),
+      applied,
+    ).cap;
     const outcome = quoteProgram({
-      profile: this.buildProfile({ dto, age, income, obligations, requested: ceiling }),
+      profile: this.buildProfile({
+        dto,
+        age,
+        income,
+        obligations,
+        requested: ceiling,
+        effects,
+      }),
       program,
       overrideAmountEGP: ceiling,
       overrideTenorMonths: dto.tenorMonths,
@@ -173,7 +247,12 @@ export class CalculatorService {
         mode: 'affordability',
         ...(isRepresentativeRate ? {} : { programCode: program.programCode }),
         isRepresentativeRate,
-        effectiveRatePercent: this.representativeRate(program).toFixed(4),
+        // The program's own rate with the answers' points on it — the same adjustment the
+        // quote makes, on the figure this no-figures answer has always shown.
+        effectiveRatePercent: applyAnswerEffectsToRate(
+          this.representativeRate(program),
+          applied,
+        ).toFixed(4),
         recognisedIncomeEGP: (u.recognisedIncomeEGP ?? income).toFixed(2),
         existingObligationsEGP: obligations.toFixed(2),
         creditCardMonthlyEGP: creditCardMonthly.toFixed(2),
@@ -191,6 +270,7 @@ export class CalculatorService {
         monthlyInstallmentEGP: '0.00',
         tenorMonths: dto.tenorMonths,
         bindingConstraint: null,
+        ...this.effectsPart(applied),
         disclaimerCode: CALCULATOR_DISCLAIMER_CODE,
       };
     }
@@ -215,7 +295,33 @@ export class CalculatorService {
       monthlyInstallmentEGP: quote.monthlyInstallmentEGP.toFixed(2),
       tenorMonths: quote.effectiveTenorMonths,
       bindingConstraint: quote.bindingConstraint,
+      ...this.effectsPart(applied),
       disclaimerCode: CALCULATOR_DISCLAIMER_CODE,
+    };
+  }
+
+  /** The program's longest term once the answers' term ceilings are on it — never under its floor. */
+  private maxTenorFor(program: BankProgramSnapshot, applied: readonly AnswerEffect[]): number {
+    const cap = answerEffectsTenorCap(applied);
+    if (cap === null) return program.tenor.maxMonths;
+    return Math.max(program.tenor.minMonths, Math.min(program.tenor.maxMonths, cap));
+  }
+
+  /** The effects that moved this quote, said on the response — absent when none did. */
+  private effectsPart(applied: readonly AnswerEffect[]): {
+    answerEffects?: CalculatorAnswerEffectDto[];
+  } {
+    if (applied.length === 0) return {};
+    return {
+      answerEffects: applied.map((e) => ({
+        questionCode: e.questionCode,
+        ...(e.optionCode !== undefined ? { optionCode: e.optionCode } : {}),
+        ...(e.range !== undefined ? { range: e.range } : {}),
+        ...(e.value !== undefined ? { value: e.value } : {}),
+        ...(e.maxLoanPercent !== undefined ? { maxLoanPercent: e.maxLoanPercent } : {}),
+        ...(e.ratePoints !== undefined ? { ratePoints: e.ratePoints } : {}),
+        ...(e.maxTenorMonths !== undefined ? { maxTenorMonths: e.maxTenorMonths } : {}),
+      })),
     };
   }
 
@@ -235,6 +341,7 @@ export class CalculatorService {
     obligations: Decimal;
     overrideAmountEGP: Decimal;
     skipDbrCheck?: boolean;
+    effects: readonly AnswerEffect[];
   }): Quote {
     const outcome = quoteProgram({
       profile: this.buildProfile({
@@ -243,6 +350,7 @@ export class CalculatorService {
         income: args.income,
         obligations: args.obligations,
         requested: args.overrideAmountEGP,
+        effects: args.effects,
       }),
       program: args.program,
       overrideAmountEGP: args.overrideAmountEGP,
@@ -275,6 +383,7 @@ export class CalculatorService {
     income: Decimal;
     obligations: Decimal;
     requested: Decimal;
+    effects: readonly AnswerEffect[];
   }): ApplicantProfile {
     return {
       age: args.age,
@@ -304,6 +413,9 @@ export class CalculatorService {
             },
           }
         : {}),
+      // The answers' offer effects, applied by `quoteProgram` as on preview and apply. Absent
+      // when there are none, so a quote without answers is byte-identical to before.
+      ...(args.effects.length > 0 ? { answerEffects: args.effects } : {}),
     };
   }
 

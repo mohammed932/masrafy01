@@ -15,6 +15,8 @@
  *     OPT-IN, never skipped or added per program name (`question-scope.ts`, reason `base`);
  *   - never out of one of its loan types while it is fixed (it may join more);
  *   - its show-when source is itself an active fixed question;
+ *   - any answer type: a Text one is asked and saved for the record, and changes no offer — offer
+ *     effects sit on a choice question's answers or a number's ranges only (v31.3.0);
  *   - switched off only through the confirmed delete — a super admin typing its code (the one
  *     bypass of the engine lock and the ratchet, `EngineContractService`). A deleted one keeps
  *     its mark, loan types and answers, so a restore brings it back whole.

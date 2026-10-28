@@ -99,15 +99,17 @@ import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
           </p>
         }
         <div class="fd__acts">
-          <button
-            nz-button
-            nzType="default"
-            type="button"
-            [disabled]="submitting()"
-            (click)="cancelled.emit()"
-          >
-            {{ cancelLabel() }}
-          </button>
+          @if (showCancel()) {
+            <button
+              nz-button
+              nzType="default"
+              type="button"
+              [disabled]="submitting()"
+              (click)="cancelled.emit()"
+            >
+              {{ cancelLabel() }}
+            </button>
+          }
           <button
             nz-button
             nzType="primary"
@@ -280,6 +282,11 @@ export class FormDrawerComponent {
   readonly closeLabel = input<string>($localize`:@@fd.close:Close`);
   readonly submitDisabled = input(false, { transform: booleanAttribute });
   readonly submitting = input(false, { transform: booleanAttribute });
+  /**
+   * Off for a sheet whose every pick saves on the spot (an add-from-list sheet): there is
+   * nothing to cancel, and a Cancel beside Done would promise an undo that does not exist.
+   */
+  readonly showCancel = input(true, { transform: booleanAttribute });
 
   readonly cancelled = output<void>();
   readonly submitted = output<void>();

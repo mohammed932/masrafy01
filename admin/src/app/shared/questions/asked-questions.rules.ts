@@ -57,6 +57,17 @@ export interface AskableQuestion {
    * applicants. Disjoint from `categories`. Absent on a bare fixture — read as none.
    */
   readonly optInCategories?: readonly LoanCategory[];
+  /**
+   * A FIXED question (`fixedServedOn` set): asked wherever its mark says, never added or skipped
+   * per program name. Absent on a bare fixture or an older server — read as not fixed.
+   */
+  readonly fixed?: boolean;
+  /**
+   * A question surrogate (no-payslip) products ask — the server's `surrogateSide`. The rest are
+   * the income-proof questions the Questionnaire section lists. Absent on a bare fixture or an
+   * older server — read as income-proof.
+   */
+  readonly surrogateSide?: boolean;
   /** `enabledWhen.questionCode` — the question this one branches off, or `null`. */
   readonly gateSourceCode: string | null;
   /** Wording + code + answer labels, already lower-cased. What search matches. */
@@ -122,6 +133,8 @@ export interface ServedCount {
   readonly servedExtra?: number;
   /** Codes of the questions served, when the endpoint sends them. */
   readonly servedQuestionCodes?: readonly string[];
+  /** Which of the served questions the admin marked fixed. Absent on an older server. */
+  readonly fixedQuestionCodes?: readonly string[];
   /**
    * False while no active bank program is filed under the name: the name's unticks and
    * additions are stored but not in force, and the applicant is asked what the loan type asks.
@@ -410,15 +423,16 @@ const MONEY_CORE: readonly string[] = [
  * Per loan type, the answers a quote reads beyond the money four.
  *
  * `car`: price and down payment are typed numbers now and cap the loan by the share the bank
- * finances. `mortgage`: the property value and the down payment. `personal` needs only the
- * money four. `business` is deliberately not validated here — its product is priced off the
- * money four too, but nothing on the platform sells a business program off a checklist this
- * short, and inventing one would refuse a name over a rule nobody stated.
+ * finances. `personal` and `mortgage` need only the money four — mortgage's property value and
+ * down payment left the pool in v30.10.0, and listing them here refused every mortgage name.
+ * `business` is deliberately not validated here — its product is priced off the money four too,
+ * but nothing on the platform sells a business program off a checklist this short, and
+ * inventing one would refuse a name over a rule nobody stated.
  */
 export const CORE_QUESTION_CODES: Readonly<Partial<Record<LoanCategory, readonly string[]>>> = {
   personal: MONEY_CORE,
   car: [...MONEY_CORE, 'car_price', 'car_down_payment'],
-  mortgage: [...MONEY_CORE, 'property_value', 'down_payment'],
+  mortgage: MONEY_CORE,
 };
 
 export type CoreState =
@@ -747,6 +761,55 @@ export function otherRows(
       askedIn: canonicalCategories(q.categories.filter((c) => c !== category)),
       heldByGate: held.has(q.id),
     });
+  }
+  return out;
+}
+
+/** A question a program name may add, with the questions an Add brings along before it. */
+export interface AddableQuestion {
+  readonly question: AskableQuestion;
+  /** Its show-when sources that are not asked yet, nearest first — added with it. */
+  readonly chain: readonly AskableQuestion[];
+}
+
+/**
+ * Every question one program name may add in one loan type: live, not fixed, not locked by the
+ * server (`engine` / `base` — the server refuses those), not in `asked` (codes the name asks
+ * already), and on one of the name's income `sides` — a payslip name picks from the income-proof
+ * questions, a no-payslip one from the surrogate ones (v31.7.0). A question whose show-when chain
+ * runs through one it may not add is left out, because the server would refuse the whole write.
+ *
+ * ONE rule for both screens: the create flow passes the fixed questions as `asked`, the name's
+ * own page passes what the server serves it.
+ */
+export function addableQuestions(
+  pool: readonly AskableQuestion[],
+  asked: ReadonlySet<string>,
+  locks: ReadonlyMap<string, QuestionLockReason>,
+  sides: ReadonlySet<'payslip' | 'no_payslip'>,
+): readonly AddableQuestion[] {
+  const byCode = new Map(pool.map((q) => [q.code, q] as const));
+  const blocked = (q: AskableQuestion): boolean =>
+    !sides.has(q.surrogateSide === true ? 'no_payslip' : 'payslip') ||
+    !q.isActive ||
+    q.fixed === true ||
+    locks.get(q.code) === 'engine' ||
+    locks.get(q.code) === 'base';
+  const out: AddableQuestion[] = [];
+  for (const q of pool) {
+    if (asked.has(q.code) || blocked(q)) continue;
+    const chain: AskableQuestion[] = [];
+    const seen = new Set<string>([q.id]);
+    let at: AskableQuestion = q;
+    while (at.gateSourceCode !== null) {
+      const source = byCode.get(at.gateSourceCode);
+      if (source === undefined || seen.has(source.id) || asked.has(source.code)) break;
+      seen.add(source.id);
+      chain.push(source);
+      at = source;
+    }
+    if (chain.some(blocked)) continue;
+    out.push({ question: q, chain });
   }
   return out;
 }

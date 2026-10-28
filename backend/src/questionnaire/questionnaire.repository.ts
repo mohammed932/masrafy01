@@ -10,7 +10,13 @@ import type {
   QuestionnaireVersion,
 } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
-import type { AnswerEffectLevers, AnswerEffectSource } from '@/matching/pipeline/answer-effects';
+import {
+  leversOf,
+  numberEffectRangesOf,
+  type AnswerEffectLevers,
+  type AnswerEffectSource,
+  type NumberEffectRange,
+} from '@/matching/pipeline/answer-effects';
 
 /**
  * Rows per `UPDATE ... FROM (VALUES ...)` statement in the mirrored-option sync.
@@ -650,16 +656,18 @@ export class QuestionnaireRepository {
 
   /**
    * Every answer that changes the offer (v31.2.0), in the fixed order the engine applies
-   * them: question code, then option display order. LIVE, never the snapshot — an effect is
-   * pricing, not content, and both preview and apply read it from here (A33).
+   * them: question code, then option display order or range order. LIVE, never the snapshot —
+   * an effect is pricing, not content, and both preview and apply read it from here (A33).
    *
-   * Switched-off answers and switched-off questions carry no effect: nobody can pick them.
+   * FIXED questions only (v31.3.0): an ordinary question's answers change nothing, even if a
+   * row still carried an effect. Switched-off answers and questions carry none either: nobody
+   * can pick them. A number question's ranges come off `question.numberEffects`.
    */
   async answerEffectSources(): Promise<AnswerEffectSource[]> {
-    const rows = await this.prisma.questionOption.findMany({
+    const optionRows = await this.prisma.questionOption.findMany({
       where: {
         isActive: true,
-        question: { isActive: true },
+        question: { isActive: true, fixedServedOn: { not: null } },
         OR: [
           { effectMaxLoanPercent: { not: null } },
           { effectRatePoints: { not: null } },
@@ -675,12 +683,64 @@ export class QuestionnaireRepository {
       },
       orderBy: [{ question: { code: 'asc' } }, { displayOrder: 'asc' }, { code: 'asc' }],
     });
-    return rows.map((row) => ({
-      questionCode: row.question.code,
-      optionCode: row.code,
-      incomeProofOnly: row.question.fixedServedOn === 'income_proof',
-      levers: optionEffectLevers(row),
-    }));
+    // A handful of rows: every active fixed NUMBER question, its ranges filtered here rather
+    // than through a JSON-null filter.
+    const numberRows = await this.prisma.question.findMany({
+      where: { isActive: true, type: 'NUMERIC', fixedServedOn: { not: null } },
+      select: { code: true, fixedServedOn: true, numberEffects: true },
+      orderBy: { code: 'asc' },
+    });
+    const sources: AnswerEffectSource[] = [
+      ...optionRows.map((row) => ({
+        kind: 'option' as const,
+        questionCode: row.question.code,
+        optionCode: row.code,
+        incomeProofOnly: row.question.fixedServedOn === 'income_proof',
+        levers: optionEffectLevers(row),
+      })),
+      ...numberRows.flatMap((row) =>
+        numberEffectRangesOf(row.numberEffects).map((range) => ({
+          kind: 'range' as const,
+          questionCode: row.code,
+          range: { fromInclusive: range.fromInclusive, toExclusive: range.toExclusive },
+          incomeProofOnly: row.fixedServedOn === 'income_proof',
+          levers: leversOf(range),
+        })),
+      ),
+    ];
+    // One order across both lists — question code; a stable sort keeps each question's own
+    // option or range order. A question is a choice OR a number, never both.
+    return sources.sort((a, b) =>
+      a.questionCode < b.questionCode ? -1 : a.questionCode > b.questionCode ? 1 : 0,
+    );
+  }
+
+  /** Replace a number question's ranges; an empty list stores none (v31.3.0). */
+  async setNumberEffects(questionId: string, ranges: readonly NumberEffectRange[]): Promise<void> {
+    await this.prisma.question.update({
+      where: { id: questionId },
+      data: {
+        numberEffects:
+          ranges.length > 0 ? (ranges as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+      },
+    });
+  }
+
+  /**
+   * Take every offer effect off a question — its answers' and its ranges (v31.3.0). Run when
+   * a question stops being fixed: an ordinary question's answers change nothing.
+   */
+  async clearAnswerEffects(questionId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.questionOption.updateMany({
+        where: { questionId },
+        data: { effectMaxLoanPercent: null, effectRatePoints: null, effectMaxTenorMonths: null },
+      }),
+      this.prisma.question.update({
+        where: { id: questionId },
+        data: { numberEffects: Prisma.DbNull },
+      }),
+    ]);
   }
 
   optionCodes(questionId: string): Promise<{ code: string }[]> {

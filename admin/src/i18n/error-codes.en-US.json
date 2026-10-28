@@ -131,6 +131,8 @@
   "QUESTION_FIXED_DELETE_CONFIRM_REQUIRED": "Not deleted: type the question's code exactly to confirm.",
   "QUESTION_FIXED_LOCKED": "Not saved: “{questionEn}” is a fixed question. While it is fixed it stays asked on every program of its loan types and can't be switched off here — make it ordinary first, or a super admin can delete it.",
   "QUESTION_FIXED_GATE_NOT_FIXED": "Not saved: a fixed question can only follow another fixed question, and “{sourceEn}” isn't one.",
+  "ANSWER_EFFECT_NEEDS_FIXED": "Not saved: only a fixed question's answers can change the offer, and “{questionEn}” isn't fixed. Make it fixed first.",
+  "ANSWER_EFFECT_RANGES_INVALID": "Not saved: check the ranges — each needs a From or a To, From under To, at least one change, and no two ranges can share a number.",
   "QUESTION_GROUP_NOT_EMPTY": "Cannot delete: remove the group's questions first.",
   "UNKNOWN_QUESTION_CODE": "This answer references a question that no longer exists.",
   "UNKNOWN_OPTION_CODE": "This answer references an option that no longer exists.",

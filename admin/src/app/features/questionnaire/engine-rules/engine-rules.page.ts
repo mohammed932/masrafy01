@@ -69,6 +69,7 @@ import {
   type RuleGroup,
 } from './engine-rules.rules';
 import type { EngineRuleOption, EngineRuleQuestion, LabelledKey } from './engine-rules.types';
+import { effectParts, rangeText } from '../answer-effect';
 
 const AREA_ICONS: Record<ImpactArea, string> = {
   amount: 'wallet',
@@ -120,6 +121,8 @@ interface DetailView {
   /** At least one answer states a number its wording has to keep. */
   hasNumbers: boolean;
   typedParts: string[];
+  /** A Number question's offer ranges, one line each (v31.3.0). */
+  ranges: string[];
 }
 
 /**
@@ -417,6 +420,16 @@ interface DetailView {
                         <ul class="typed-parts">
                           @for (part of d.typedParts; track $index) {
                             <li>{{ part }}</li>
+                          }
+                        </ul>
+                      }
+                      @if (d.ranges.length > 0) {
+                        <p class="typed-lead" i18n="@@qrules.typed_ranges">
+                          What the number does to the offer:
+                        </p>
+                        <ul class="typed-parts">
+                          @for (line of d.ranges; track $index) {
+                            <li>{{ line }}</li>
                           }
                         </ul>
                       }
@@ -1570,6 +1583,10 @@ export class EngineRulesPageComponent implements OnInit {
           : q.options.length === 0
             ? numericRuleParts(q, this.isAr)
             : [],
+      ranges: (q.numberEffects ?? []).map(
+        (r) =>
+          `${rangeText(r, (this.isAr ? q.numeric?.unitAr : q.numeric?.unitEn) ?? null)} → ${effectParts(r).join(' · ')}`,
+      ),
     };
   }
 

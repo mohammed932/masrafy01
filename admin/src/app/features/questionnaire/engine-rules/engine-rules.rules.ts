@@ -68,7 +68,9 @@ export type ImpactWhy =
   | { kind: 'app_mapping' }
   | { kind: 'follow_ups'; answers: number }
   /** The admin set an offer effect on this many of its answers (v31.2.0). */
-  | { kind: 'answer_effects'; answers: number };
+  | { kind: 'answer_effects'; answers: number }
+  /** …or on this many ranges of its number (v31.3.0). */
+  | { kind: 'range_effects'; ranges: number };
 
 export type QuestionImpact = ReadonlyMap<ImpactArea, readonly ImpactWhy[]>;
 
@@ -157,9 +159,12 @@ export function impactOf(q: EngineRuleQuestion): QuestionImpact {
     ['ratePoints', 'rate'],
     ['maxTenorMonths', 'term'],
   ];
+  const ranges = q.numberEffects ?? [];
   for (const [lever, area] of leverArea) {
     const answers = effects.filter((m) => m[lever] !== undefined).length;
     if (answers > 0) add(area, { kind: 'answer_effects', answers });
+    const inRanges = ranges.filter((r) => r[lever] !== undefined).length;
+    if (inRanges > 0) add(area, { kind: 'range_effects', ranges: inRanges });
   }
   const out = new Map<ImpactArea, readonly ImpactWhy[]>();
   for (const area of IMPACT_AREAS) {

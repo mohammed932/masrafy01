@@ -10,8 +10,22 @@
  */
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, IsString, Length, Max, Min, ValidateIf } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  Min,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
+import { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 
 export const CALCULATOR_MODES = ['cost', 'affordability'] as const;
 export type CalculatorMode = (typeof CALCULATOR_MODES)[number];
@@ -97,6 +111,21 @@ export class CalculatorQuoteDto {
   @Max(1000)
   iScore?: number;
 
+  /**
+   * The applicant's questionnaire answers, as the app holds them (v31.3.x) — the same shape the
+   * preview takes. With a `bankProgramId`, the offer effects the admin set on FIXED questions'
+   * answers and number ranges apply to this quote exactly as they do on preview and apply (one
+   * reader, one selector, one `quoteProgram`). Omitted = no effects: the quote is the bank's own.
+   * A generic quote has no program, so answers move nothing there.
+   */
+  @ApiPropertyOptional({ type: [SubmittedAnswerDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(300)
+  @ValidateNested({ each: true })
+  @Type(() => SubmittedAnswerDto)
+  answers?: SubmittedAnswerDto[];
+
   // Age is NOT a field here: it drives the age-at-maturity tenor shortening and
   // is DERIVED from the authenticated customer's `birthday` (Principle XXXVII /
   // A31), so the figures shown here can never disagree with the ones apply
@@ -140,6 +169,29 @@ export class CalculatorLimitsDto {
   @ApiProperty() maxTenorMonths!: number;
 }
 
+/** A number range an answer fell in: `[fromInclusive, toExclusive)`, null edge = open. */
+export class CalculatorAnswerEffectRangeDto {
+  @ApiProperty({ nullable: true, type: String }) fromInclusive!: string | null;
+  @ApiProperty({ nullable: true, type: String }) toExclusive!: string | null;
+}
+
+/**
+ * One offer effect the applicant's answers applied to this quote (v31.3.x) — the same record
+ * an applied offer freezes in `cascadeTrace.answerEffects`.
+ */
+export class CalculatorAnswerEffectDto {
+  @ApiProperty() questionCode!: string;
+  @ApiPropertyOptional({ description: 'The answer picked, on a choice question.' })
+  optionCode?: string;
+  @ApiPropertyOptional({ type: CalculatorAnswerEffectRangeDto })
+  range?: CalculatorAnswerEffectRangeDto;
+  @ApiPropertyOptional({ description: 'The number answered, on a number question.' })
+  value?: string;
+  @ApiPropertyOptional({ example: '-20' }) maxLoanPercent?: string;
+  @ApiPropertyOptional({ example: '2' }) ratePoints?: string;
+  @ApiPropertyOptional({ example: 48 }) maxTenorMonths?: number;
+}
+
 export class CostQuoteResponseDto {
   @ApiProperty({ enum: ['cost'] }) mode!: 'cost';
   @ApiPropertyOptional() programCode?: string;
@@ -156,6 +208,8 @@ export class CostQuoteResponseDto {
   @ApiProperty({ type: CalculatorFeesDto }) fees!: CalculatorFeesDto;
   @ApiProperty({ type: CalculatorClampedDto }) clamped!: CalculatorClampedDto;
   @ApiProperty({ type: CalculatorLimitsDto }) limits!: CalculatorLimitsDto;
+  @ApiPropertyOptional({ type: [CalculatorAnswerEffectDto] })
+  answerEffects?: CalculatorAnswerEffectDto[];
   @ApiProperty({ example: CALCULATOR_DISCLAIMER_CODE }) disclaimerCode!: string;
 }
 
@@ -183,5 +237,7 @@ export class AffordabilityQuoteResponseDto {
   @ApiProperty() monthlyInstallmentEGP!: string;
   @ApiProperty() tenorMonths!: number;
   @ApiProperty({ nullable: true, type: String }) bindingConstraint!: string | null;
+  @ApiPropertyOptional({ type: [CalculatorAnswerEffectDto] })
+  answerEffects?: CalculatorAnswerEffectDto[];
   @ApiProperty({ example: CALCULATOR_DISCLAIMER_CODE }) disclaimerCode!: string;
 }
