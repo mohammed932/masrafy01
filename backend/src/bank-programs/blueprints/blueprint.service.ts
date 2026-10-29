@@ -27,7 +27,6 @@
  */
 
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
-import type { LoanCategory } from '@prisma/client';
 import { DomainException } from '../../common/errors/domain.exceptions';
 import { ERROR_CODES } from '../../common/errors/error-codes';
 import { PlatformEnumerationsAdminService } from '../../platform-enumerations/platform-enumerations-admin.service';
@@ -36,7 +35,7 @@ import { PlatformEnumerationsRepository } from '../../platform-enumerations/plat
 import { QuestionnaireService } from '../../questionnaire/questionnaire.service';
 import { BankProgramsService } from '../bank-programs.service';
 import { slugify } from '../../questionnaire/slug.util';
-import { planBlueprint, askCategories, askQuestionCode } from './blueprint-plan';
+import { planBlueprint, askQuestionCode } from './blueprint-plan';
 import type { BlueprintExistingState, BlueprintPlan } from './blueprint-plan';
 import { waySlot, waysOf } from '../../matching/pipeline/product-template';
 import { productBlueprint, productBlueprints } from './product-blueprints';
@@ -164,11 +163,10 @@ export class BlueprintService {
       values: 0,
       questions: [],
       facts: [],
-      widened: [],
       revived: [],
     };
     // Resolved as the plan runs: a fact created for a question created moments earlier needs
-    // that question's id, and a widening names a question this run may have just made.
+    // that question's id.
     const questionIdByCode = new Map(
       (await this.questionnaire.questionAssignments()).map((q) => [q.code, q.id]),
     );
@@ -291,7 +289,6 @@ export class BlueprintService {
               // everyone it is visible to — including the people the product is not for.
               // A blueprint stating `required` has accepted that, for that one ask.
               isRequired: step.required === true,
-              categories: step.categories,
               ...(step.optionsFromEnumerationType !== undefined
                 ? { optionsFromEnumerationType: step.optionsFromEnumerationType }
                 : {}),
@@ -356,28 +353,6 @@ export class BlueprintService {
           // unbound rather than one silently reading the wrong question.
           await this.enums.setBoundQuestion(fact.id, questionCode, actor);
           created.facts.push(step.factKey);
-          break;
-        }
-
-        case 'widenCategories': {
-          const id = questionIdByCode.get(mintedCode.get(step.questionCode) ?? step.questionCode);
-          // A question the blueprint names and the pool does not have. Not an error: the
-          // product it belongs to may simply not be built yet, and refusing here would block
-          // a create over a question this product does not read.
-          if (id === undefined) break;
-          // ADD, not replace. The plan computes the union at PLAN time off
-          // `existing.categoriesByQuestion`, so a whole-set write here silently DROPPED any
-          // assignment made in the gap between planning and running — a gap that is a whole
-          // HTTP round trip, not two browser tabs. The additive write ignores what is already
-          // there, so the plan needs no change; and `publishNeeded` now follows what actually
-          // moved, where before a run that widened nothing still cut a questionnaire version.
-          const widened = await this.questionnaire.addQuestionCategoriesBulk(
-            [{ questionId: id, categories: step.categories as LoanCategory[] }],
-            actor.staffId,
-            { publish: false },
-          );
-          created.widened.push(step.questionCode);
-          if (widened.added.length > 0) publishNeeded = true;
           break;
         }
 
@@ -490,9 +465,6 @@ export class BlueprintService {
       inactiveQuestionCodes: new Set(
         questions.filter((question) => !question.isActive).map((question) => question.code),
       ),
-      categoriesByQuestion: new Map(
-        questions.map((question) => [question.code, new Set(question.categories)]),
-      ),
       factKeys: new Set(factRows.map((row) => row.key)),
       unboundFactKeys: new Set(
         factRows.filter((row) => !boundFactKeys.has(row.key)).map((row) => row.key),
@@ -510,15 +482,6 @@ export class BlueprintService {
   ): ProductBlueprintDto {
     const asks: ProductBlueprintAskDto[] = blueprint.asks.map((ask) => {
       const questionCode = askQuestionCode(ask, existing);
-      // `askCategories`, not `ask.categories`: a REUSED fact states its need as `alsoAskIn`,
-      // and that is precisely the case where a missing assignment is invisible everywhere
-      // else — the question exists, so every screen reads it as set up, while the category it
-      // is not assigned to never puts it to an applicant.
-      const wanted = askCategories(ask);
-      const have =
-        questionCode === null
-          ? new Set<LoanCategory>()
-          : (existing.categoriesByQuestion.get(questionCode) ?? new Set<LoanCategory>());
       return {
         factKey: ask.factKey,
         kind: ask.kind,
@@ -531,13 +494,6 @@ export class BlueprintService {
           ask.kind === 'derivedFact',
         questionExists: questionCode !== null && existing.questionCodes.has(questionCode),
         listExists: ask.kind === 'choice' ? existing.typeKeys.has(ask.list.typeKey) : true,
-        // Only for a question that ALREADY exists. A question this create is about to make is
-        // born asked in every category the blueprint states, so listing them as "missing"
-        // would put a warning on the screen about the very thing the button is going to fix.
-        missingCategories:
-          questionCode !== null && existing.questionCodes.has(questionCode)
-            ? wanted.filter((category) => !have.has(category))
-            : [],
       };
     });
 
@@ -582,7 +538,6 @@ export class BlueprintService {
           ),
         questions: plan.steps.filter((step) => step.op === 'createQuestion').length,
         facts: plan.steps.filter((step) => step.op === 'createFact').length,
-        widens: plan.steps.filter((step) => step.op === 'widenCategories').length,
       },
       suggestedBands: (blueprint.suggestedBands ?? []).flatMap((suggestion) => {
         const ways = blueprint.template === null ? [] : waysOf(blueprint.template);

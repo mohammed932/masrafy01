@@ -307,13 +307,7 @@ function isVisible(
           }
         </div>
       } @else if (total() === 0) {
-        @if (anyActiveQuestions()) {
-          <p class="muted" i18n="@@sim.no_category_questions">
-            No questions are assigned to this loan category yet.
-          </p>
-        } @else {
-          <p class="muted" i18n="@@sim.no_questions">No published questions yet.</p>
-        }
+        <p class="muted" i18n="@@sim.no_questions">No published questions yet.</p>
       } @else {
         <!-- ── Wizard ────────────────────────────────────────── -->
         <div class="wizard">
@@ -1218,28 +1212,18 @@ export class MatchingSimulatorPage {
 
   readonly pickPlaceholder = $localize`:@@sim.pick_one:Choose one`;
 
-  /** True while the pool holds any active question at all — separates "nothing
-   *  published" from "nothing assigned to THIS category" in the empty state. */
-  readonly anyActiveQuestions = computed(() =>
-    this.tree().some((g) => g.questions.some((q) => q.isActive)),
-  );
-
   /**
-   * The questions this category asks, minus the ones a branch rule hides.
+   * Every live question, minus the ones a branch rule hides.
    *
-   * Category assignment is authoritative (Principle V, v12.0.0): the chip picks
-   * BOTH which programs are simulated and which of the global pool's questions
-   * the applicant is asked — empty `categories` means parked, asked by nobody.
-   * `byCode` is built from the already-filtered set so branch resolution matches
-   * `resolveSelectedOptions`, which also maps codes only over the asked set: a
-   * rule pointing outside this category is dangling, and `isVisible` shows the
-   * child rather than hiding it.
+   * A question carries no loan type (v32.0.0): the chip picks only which programs are
+   * simulated, and the simulator asks the whole live pool, which the server accepts from any
+   * applicant (`resolveSelectedOptions`). `byCode` is built from the same set so branch
+   * resolution matches the server's.
    */
   readonly questions = computed<QuestionRow[]>(() => {
-    const category = this.category();
     const asked = this.tree()
       .flatMap((g) => g.questions)
-      .filter((q) => q.isActive && q.categories.includes(category));
+      .filter((q) => q.isActive);
     const byCode = new Map(asked.map((q) => [q.code, q]));
     const answers = this.answers();
     return asked.filter((q) => isVisible(q, answers, byCode));
@@ -1371,12 +1355,9 @@ export class MatchingSimulatorPage {
   pickCategory(c: LoanCategory): void {
     if (c === this.category()) return;
     this.category.set(c);
-    // The chip changes the ASKED question set, not just the program set, so the
-    // step index no longer points at the same question — restart the walk.
-    // Answers survive: `payload()` maps over `questions()`, so an answer to a
-    // question this category never asks is dropped from the request instead of
-    // being rejected by the API as an unknown code.
-    this.step.set(0);
+    // The chip picks which programs are simulated; the questions are the same live pool
+    // whatever the loan type (v32.0.0), so the walk and the answers stay — only the result
+    // belongs to the old loan type.
     this.result.set(null);
   }
 

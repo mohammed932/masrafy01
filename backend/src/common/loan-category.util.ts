@@ -2,7 +2,7 @@ import { LoanCategory } from '@prisma/client';
 
 /**
  * Canonical loan-category set and ordering, shared by every module that stores
- * a category assignment.
+ * a loan category.
  *
  * Promoted out of `questionnaire.service.ts` when the program-name catalog
  * gained its own assignment axis: two modules that must serialise the same set
@@ -29,16 +29,13 @@ export const ALL_LOAN_CATEGORIES: readonly LoanCategory[] = [
 // then `['personal','car','fast']`. Both were product opinions frozen into code, and
 // each widening needed a release.
 //
-// Capability is now DERIVED and admin-configurable: a category can sell a no-payslip
-// program exactly when its applicants are ASKED at least one of the four surrogate facts
-// (`matching/pipeline/surrogate-fact-bindings.ts`), which is recorded per question in
-// `question_loan_category` and edited on the admin questionnaire screen. That is not a
-// proxy for the old list — it is the real precondition: a bank cannot work an income out
-// from a fact nobody was asked, whatever a constant says.
+// Any loan type may sell a no-payslip program (v32.0.0). Until then capability was derived
+// from which loan types ASKED a surrogate fact (`question_loan_category`); questions carry no
+// loan type any more, and a program asks the facts its own programmes read
+// (`questionnaire/validation/question-scope.ts`), so the precondition — a bank cannot work an
+// income out from a fact nobody was asked — holds per program by construction.
 //
-// So there is no `isSurrogateCapableCategory(category)` to call. Callers that need the
-// question is one of: derive it from the assignments they already hold (admin, publish
-// warnings), or drop the category term entirely because the engine gate is
+// So there is no `isSurrogateCapableCategory(category)` to call. The engine gate is
 // `bank_program.programType` alone (`quote.ts#shouldConsultIncomeRule`).
 
 const CATEGORY_ORDER = new Map(ALL_LOAN_CATEGORIES.map((c, i) => [c, i]));

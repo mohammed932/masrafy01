@@ -203,9 +203,17 @@ describe('the plan grids', () => {
     onNoMatch: 'reject',
   });
 
-  it('reads the financed-share table’s axes', () => {
+  it('reads the financed-share table’s axes — and the car figures the share is OF', () => {
+    // v32.0.0: the ceiling is a share of the car's price, and the amount it caps is the price
+    // less the deposit — read whatever the table is keyed on (`ltv-ceiling.ts#ltvAmountFor`).
     expect([...factsReadByLoanLimits({ ltvCeilingByFact: grid('home_ownership') })]).toEqual([
       'home_ownership',
+      'car_price',
+      'car_down_payment',
+    ]);
+    expect([...factsReadByLoanLimits({ ltvCeilingPercent: '80' })]).toEqual([
+      'car_price',
+      'car_down_payment',
     ]);
   });
 
@@ -223,7 +231,9 @@ describe('the plan grids', () => {
         minAmountByFact: grid('car_origin'),
       }),
     ];
-    expect(new Set(keys)).toEqual(new Set(['employer_coding', 'home_ownership', 'car_origin']));
+    expect(new Set(keys)).toEqual(
+      new Set(['employer_coding', 'home_ownership', 'car_origin', 'car_price', 'car_down_payment']),
+    );
   });
 
   it('reads the SHORTEST-term table’s axes, not only the longest', () => {
@@ -250,8 +260,10 @@ describe('the plan grids', () => {
     // programme keys a figure off — and a fact deleted out from under it makes every cell
     // miss, which reads as "no cover required". A disclosure that silently stops being made
     // is worse than one that errors, which is why this surface is in the file at all.
+    // The cover is a rate OF THE CAR'S PRICE, so the price is read too (v32.0.0).
     expect([...factsReadByFees({ carInsuranceRateByFact: grid('car_origin') })]).toEqual([
       'car_origin',
+      'car_price',
     ]);
   });
 
@@ -277,6 +289,8 @@ describe('the plan grids', () => {
         'car_fuel_type',
         'car_origin',
         'vehicle_condition',
+        'car_price',
+        'car_down_payment',
       ]),
     );
   });

@@ -71,11 +71,10 @@ export interface SurrogateFactSpec {
 }
 
 /**
- * No per-fact category field, and no expected set of categories anywhere. Assignment is
- * authoritative and lives ONLY in `question_loan_category` (A33, v12.0.0) — and since
- * v16.0.0 it is also the DEFINITION of which categories can sell a no-payslip program:
- * a category whose applicants are asked one of these facts can, one whose applicants are
- * not, cannot. Nothing to compare it against, so nothing here to drift.
+ * No per-fact category field, and no expected set of categories anywhere. Any loan type may
+ * sell a no-payslip program (v32.0.0): a question carries no loan type, and a program asks the
+ * fact its programmes read on its own (`question-scope.ts`). Nothing to compare against, so
+ * nothing here to drift.
  */
 
 export const SURROGATE_FACT_SPECS: Readonly<Record<SurrogateFact, SurrogateFactSpec>> =
@@ -113,24 +112,17 @@ export const SURROGATE_FACT_SPECS: Readonly<Record<SurrogateFact, SurrogateFactS
  * Why a binding does not resolve. Warning payload only — publish is never blocked, and a
  * program is never refused.
  *
- * All four ride ONE error code (`SURROGATE_FACT_BINDING_MISSING`) and are told apart by
+ * All three ride ONE error code (`SURROGATE_FACT_BINDING_MISSING`) and are told apart by
  * `meta.reason`, rather than minting a code per shade of the same fault.
  *
- * `not_asked_by_any_category` replaced `not_assigned_to_surrogate_categories` in v16.0.0:
- * with capability derived from these assignments, a fact missing from one category is a
- * product decision, and only a fact asked NOWHERE is broken.
- *
- * The per-CATEGORY question — "does this program's own category ask the fact its method
- * reads?" — is answered in the admin bank-program form, at the moment the method is
- * picked, from the question pool that screen already holds. It is not a publish warning:
- * publish knows nothing about which programs exist, and at quote time the applicant
- * already gets `SURROGATE_FACT_MISSING` with a stated reason rather than a zero.
+ * `not_asked_by_any_category` is gone (v32.0.0): a question carries no loan type, and a
+ * program asks the fact its programmes read on its own (`question-scope.ts`), so a bound
+ * question is asked exactly where it is read and "asked nowhere" is no longer a state.
  */
 export type SurrogateBindingWarningReason =
   | 'missing_or_inactive'
   | 'wrong_type'
-  | 'option_codes_drifted'
-  | 'not_asked_by_any_category';
+  | 'option_codes_drifted';
 
 /** The fact a bound question code serves, if any. */
 export function surrogateFactForQuestionCode(code: string): SurrogateFact | undefined {

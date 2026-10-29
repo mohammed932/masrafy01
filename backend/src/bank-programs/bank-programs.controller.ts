@@ -519,10 +519,9 @@ export class BankProgramsController {
    * and what the screen already renders. One address for both would force one of them to
    * name something that is not there.
    *
-   * ONE COMPOSITE CALL. The server creates or joins the fact, binds it, records the ask,
-   * adds the loan types the tick asks for, and publishes the questionnaire once — and only
-   * if a loan type actually moved. `askIn` is ADDITIVE and never narrows: the assignment is
-   * global to the question and shared with every other product that reads it.
+   * ONE COMPOSITE CALL. The server creates or joins the fact, binds it and records the ask.
+   * The product's programs then ask the question on their own (`question-scope.ts`, v32.0.0);
+   * nothing about the questionnaire itself changes, so nothing is published.
    *
    * REUSE FIRST. A question already answered by a fact joins THAT fact rather than minting
    * a second key over one answer, which is what makes ticking a platform fact or one a
@@ -540,7 +539,6 @@ export class BankProgramsController {
     status: 422,
     description:
       'SURROGATE_FACT_QUESTION_INACTIVE | SURROGATE_FACT_QUESTION_TYPE_INVALID | ' +
-      'SURROGATE_FACT_WIDEN_REQUIRED | ' +
       'SURROGATE_FACT_KEY_RESERVED',
   })
   async attachProductAsk(
@@ -598,7 +596,6 @@ export class BankProgramsController {
   @Roles('super_admin')
   @ApiOperation({ summary: 'Ask every fact the engine needs for a surrogate product' })
   @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
-  @ApiResponse({ status: 409, description: 'PRODUCT_NOT_SOLD_ANYWHERE' })
   async askAllNeeded(
     @Param('key') key: string,
     @CurrentUser() user: JwtPayload,
@@ -617,11 +614,9 @@ export class BankProgramsController {
   @Roles('super_admin')
   @ApiOperation({ summary: 'Ask one fact the engine needs for a surrogate product' })
   @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
-  @ApiResponse({ status: 409, description: 'PRODUCT_NOT_SOLD_ANYWHERE' })
   @ApiResponse({
     status: 422,
-    description:
-      'NEEDED_FACT_SHAPE_UNKNOWN | SURROGATE_FACT_WIDEN_REQUIRED | VALIDATION_FAILED (not needed / already covered)',
+    description: 'NEEDED_FACT_SHAPE_UNKNOWN | VALIDATION_FAILED (not needed / already covered)',
   })
   async askOneNeeded(
     @Param('key') key: string,

@@ -48,7 +48,13 @@ import { additionalIncomeFactKeys } from './additional-income';
 import { factsReadBy } from './product-rule';
 import type { ProductRule } from './product-rule';
 import { SURROGATE_FACTS_BY_STRATEGY } from './surrogate-fact-bindings';
-import { CAR_MODEL_YEAR_FACT_KEY, DERIVED_FACT_INPUTS, isGridOnlyFactKey } from './car-details';
+import {
+  CAR_DOWN_PAYMENT_FACT_KEY,
+  CAR_MODEL_YEAR_FACT_KEY,
+  CAR_PRICE_FACT_KEY,
+  DERIVED_FACT_INPUTS,
+  isGridOnlyFactKey,
+} from './car-details';
 import { factKeyOf } from '../types';
 
 /** Where a fact key was found, and what an operator would have to open to remove it. */
@@ -194,6 +200,20 @@ export function factsReadByLoanLimits(raw: unknown): Set<string> {
   for (const key of gridAxisKeys(raw.ltvCeilingByFact)) keys.add(key);
   for (const key of gridAxisKeys(raw.minAmountByFact)) keys.add(key);
 
+  // THE FINANCED SHARE reads the car's figures whatever its table is keyed on: the ceiling is a
+  // share OF THE PRICE (`ltv-ceiling.ts#ltvAmountFor`, which caps nothing without one), and the
+  // amount it caps is the price less the deposit. Until v32.0.0 both were fixed questions, asked
+  // on every car program, so nothing had to say a programme read them; since then a car program
+  // asks them because it ticked them or because a programme reads them — and this is the read.
+  if (raw.ltvCeilingPercent !== undefined && raw.ltvCeilingPercent !== null) {
+    keys.add(CAR_PRICE_FACT_KEY);
+    keys.add(CAR_DOWN_PAYMENT_FACT_KEY);
+  }
+  if (isRecord(raw.ltvCeilingByFact)) {
+    keys.add(CAR_PRICE_FACT_KEY);
+    keys.add(CAR_DOWN_PAYMENT_FACT_KEY);
+  }
+
   return keys;
 }
 
@@ -240,7 +260,11 @@ export function factsReadByTenor(raw: unknown): Set<string> {
  */
 export function factsReadByFees(raw: unknown): Set<string> {
   if (!isRecord(raw)) return new Set<string>();
-  return gridAxisKeys(raw.carInsuranceRateByFact);
+  const keys = gridAxisKeys(raw.carInsuranceRateByFact);
+  // The cover is a rate OF THE CAR'S PRICE (`car-insurance.ts`), whatever the grid is keyed on —
+  // read, for the reason the financed share above is.
+  if (isRecord(raw.carInsuranceRateByFact)) keys.add(CAR_PRICE_FACT_KEY);
+  return keys;
 }
 
 /**

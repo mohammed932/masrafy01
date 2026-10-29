@@ -17,7 +17,6 @@ import {
   registerDecorator,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BankProgramType, FixedQuestionServedOn, LoanCategory, QuestionType } from '@prisma/client';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
@@ -159,107 +158,6 @@ export class CreateQuestionDto {
   @ValidateNested()
   @Type(() => TextRulesDto)
   text?: TextRulesDto | null;
-
-  /**
-   * Which loan categories this question is asked for. Omitted → all four, so a
-   * newly added question is never invisible; narrow it on the assignment tab.
-   */
-  @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
-  @IsEnum(LoanCategory, { each: true })
-  categories?: LoanCategory[];
-}
-
-/**
- * Replace one question's loan-category assignment. The submitted array IS the new
- * set (not a delta), and MAY be empty — an empty set parks the question: kept and
- * editable, asked for nothing.
- *
- * `categories` is the ORDINARY set — asked of every program name. `optInCategories`, when
- * sent, says which of the question's OPT-IN rows (a program name's "ask this too") to keep;
- * absent, they are all kept. It can drop one, never create one.
- */
-export class SetQuestionCategoriesDto {
-  @ApiProperty({ enum: LoanCategory, isArray: true })
-  @IsArray()
-  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
-  @IsEnum(LoanCategory, { each: true })
-  categories!: LoanCategory[];
-
-  @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
-  @IsEnum(LoanCategory, { each: true })
-  optInCategories?: LoanCategory[];
-}
-
-export class QuestionCategoryAssignmentDto {
-  @ApiProperty() @IsString() @Length(1, 30) questionId!: string;
-  @ApiProperty({ enum: LoanCategory, isArray: true })
-  @IsArray()
-  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
-  @IsEnum(LoanCategory, { each: true })
-  categories!: LoanCategory[];
-
-  /** As on `SetQuestionCategoriesDto`: the opt-in rows to keep; absent = all of them. */
-  @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
-  @IsEnum(LoanCategory, { each: true })
-  optInCategories?: LoanCategory[];
-}
-
-/** Reassign many questions in ONE transaction + ONE publish (column actions). */
-export class SetQuestionCategoriesBulkDto {
-  @ApiProperty({ type: [QuestionCategoryAssignmentDto] })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(500)
-  @ValidateNested({ each: true })
-  @Type(() => QuestionCategoryAssignmentDto)
-  assignments!: QuestionCategoryAssignmentDto[];
-}
-
-/**
- * One question the caller wants WIDENED into more loan types.
- *
- * Deliberately not `QuestionCategoryAssignmentDto` above, although the fields match: on that
- * one the array IS the new set and `[]` PARKS the question, which is a destructive gesture.
- * Here the array is a set of categories to ADD and `[]` would be a request to do nothing, so
- * the validation that is right for one is wrong for the other — `@ArrayMinSize(1)` refuses the
- * empty entry at the door instead of letting it read as "park".
- */
-export class AddQuestionCategoriesAssignmentDto {
-  @ApiProperty() @IsString() @Length(1, 30) questionId!: string;
-  @ApiProperty({ enum: LoanCategory, isArray: true })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
-  @IsEnum(LoanCategory, { each: true })
-  categories!: LoanCategory[];
-}
-
-/**
- * ADD loan types to many questions in ONE transaction + AT MOST ONE publish.
- *
- * The add-only counterpart of `SetQuestionCategoriesBulkDto`, and a separate route rather than
- * a flag on that one: a flag would make the destructive branch the default for any client that
- * drops the field, and would put the "this cannot un-ask a question" guarantee in a body value
- * instead of in the URL, where it can be read, granted and logged. Nothing here can express a
- * removal.
- */
-export class AddQuestionCategoriesBulkDto {
-  @ApiProperty({ type: [AddQuestionCategoriesAssignmentDto] })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(500)
-  @ValidateNested({ each: true })
-  @Type(() => AddQuestionCategoriesAssignmentDto)
-  assignments!: AddQuestionCategoriesAssignmentDto[];
 }
 
 /**
@@ -455,22 +353,6 @@ export class CreateQuestionWithOptionsDto extends CreateQuestionDto {
  */
 export class ReorderQuestionsDto {
   @ApiProperty({ type: [String], description: 'Question ids in their new order' })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(500)
-  @IsString({ each: true })
-  @Length(1, 30, { each: true })
-  ids!: string[];
-}
-
-/**
- * One loan category's asked questions, in their new order.
- *
- * The category rides on the PATH, not in the body: it is what the request is about, and the
- * route already names the resource being rewritten.
- */
-export class ReorderCategoryQuestionsDto {
-  @ApiProperty({ type: [String], description: "Question ids in this category's new order" })
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(500)

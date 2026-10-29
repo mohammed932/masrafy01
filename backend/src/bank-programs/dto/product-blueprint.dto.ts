@@ -17,7 +17,6 @@
  * what a build would have to create — which is also what the seed's `--dry` reports.
  */
 
-import type { LoanCategory } from '@prisma/client';
 import type { BlueprintGroup } from '../blueprints/product-blueprint.types';
 
 /** One thing a product asks, and whether the platform can already ask it. */
@@ -30,14 +29,6 @@ export interface ProductBlueprintAskDto {
   factExists: boolean;
   questionExists: boolean;
   listExists: boolean;
-  /**
-   * Loan categories the question is NOT asked in yet.
-   *
-   * The half of "is this set up?" that is invisible on every other screen: a question that
-   * exists but is assigned to no category is asked by nobody, so a product reading it quotes
-   * the standard column for every applicant and says nothing about why.
-   */
-  missingCategories: LoanCategory[];
 }
 
 /** What creating this product would write. Reported before anything is written. */
@@ -46,7 +37,6 @@ export interface ProductBlueprintCreatesDto {
   values: number;
   questions: number;
   facts: number;
-  widens: number;
 }
 
 export interface ProductBlueprintDto {
@@ -104,7 +94,6 @@ export interface CreateFromBlueprintResultDto {
     values: number;
     questions: string[];
     facts: string[];
-    widened: string[];
     /**
      * Questions that existed, switched off, and were switched back on.
      *

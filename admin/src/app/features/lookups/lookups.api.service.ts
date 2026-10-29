@@ -8,25 +8,24 @@ import type { IncomeBasis } from '@core/income-basis';
 import type { ServerLock } from '@shared/questions/asked-questions.rules';
 
 /**
- * Why a program name may not skip a question, and one lock as the scope endpoint sends it. See
- * the backend's `questionLockReason`. Declared beside the board that reads them.
+ * Why a program may not tick or untick a question, and one lock as the scope endpoint sends it.
+ * See the backend's `questionLockReason`. Declared beside the board that reads them.
  */
 export type { QuestionLockReason, ServerLock } from '@shared/questions/asked-questions.rules';
 
-/** What the program-name questions board may untick, per loan type. */
+/** What the program-name questions board may tick and untick, per loan type. */
 export interface ProgramNameQuestionScope {
-  /** Question IDS the name skips, per loan type it is offered under. */
-  excludedByCategory: Partial<Record<LoanCategory, string[]>>;
   /**
-   * Question IDS the name ADDS, per loan type — asked of its applicants although the loan type
-   * does not ask them of every name. Absent on an older server: read as none.
+   * Question IDS the name TICKED, per loan type it is offered under — asked of its applicants
+   * beyond the fixed questions and what its bank programs read (v32.0.0: a question has no loan
+   * type). Absent on an older server: read as none.
    */
   addedByCategory?: Partial<Record<LoanCategory, string[]>>;
   /**
-   * Question CODES it may not skip, with the reason. A `base` lock names the loan types it holds
-   * in (`categories`); every other lock holds in all of them. Read per loan type through
-   * `lockMapFor`. With no key (the create flow) the `base` locks come back too: every name made
-   * there is income proof.
+   * Question CODES it may not tick or untick, with the reason. A `base` or `program` lock names
+   * the loan types it holds in (`categories`); an `engine` lock holds in all of them. Read per
+   * loan type through `lockMapFor`. With no key (the create flow) the `base` locks come back
+   * too: every name made there is income proof.
    */
   locks: ServerLock[];
   /**
@@ -40,19 +39,6 @@ export interface ProgramNameQuestionScope {
 /** One entry's new assignment set, for the bulk write. */
 export interface EnumerationCategoryAssignment {
   id: string;
-  categories: LoanCategory[];
-}
-
-/** Question answer types, mirroring the backend `QuestionType` enum. */
-export type CatalogQuestionType = 'SINGLE_SELECT' | 'MULTI_SELECT' | 'NUMERIC' | 'TEXT';
-
-/** One active question, as the catalog's question-template board renders it. */
-export interface CatalogQuestion {
-  code: string;
-  labelAr: string;
-  labelEn: string;
-  type: CatalogQuestionType;
-  /** The loan categories that ASK this question. Empty = parked. */
   categories: LoanCategory[];
 }
 
@@ -422,38 +408,41 @@ export class LookupsApiService {
     return res.data;
   }
 
-  /** Replace the questions one name skips under one loan type. The array IS the new set. */
-  async setProgramNameQuestionExclusions(
-    key: string,
-    category: LoanCategory,
-    questionIds: readonly string[],
-  ): Promise<string[]> {
-    const res = await firstValueFrom(
-      this.http.put<SuccessEnvelope<{ excluded: string[] }>>(
-        `${this.base}/program-names/${encodeURIComponent(key)}/question-exclusions`,
-        { category, questionIds: [...questionIds] },
-      ),
-    );
-    return res.data.excluded;
-  }
-
   /**
-   * Replace the questions one name ADDS under one loan type. The array IS the new set and may
-   * be empty. The server closes it over gates and, when a question enters the loan type as an
-   * opt-in row for the first time, publishes the questionnaire (`published`).
+   * Replace the questions one name TICKS under one loan type. The array IS the new set and may
+   * be empty. The server closes it over gates. Nothing is published: a program's questions are
+   * read live.
    */
   async setProgramNameQuestionAdditions(
     key: string,
     category: LoanCategory,
     questionIds: readonly string[],
-  ): Promise<{ added: string[]; published: boolean }> {
+  ): Promise<{ added: string[] }> {
     const res = await firstValueFrom(
-      this.http.put<SuccessEnvelope<{ added: string[]; published: boolean }>>(
+      this.http.put<SuccessEnvelope<{ added: string[] }>>(
         `${this.base}/program-names/${encodeURIComponent(key)}/question-additions`,
         { category, questionIds: [...questionIds] },
       ),
     );
     return res.data;
+  }
+
+  /**
+   * Replace the ORDER one name asks its questions in under one loan type — question ids, first
+   * to last (v32.0.0). Read live by the served questionnaire; nothing is published.
+   */
+  async setProgramNameQuestionOrder(
+    key: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+  ): Promise<string[]> {
+    const res = await firstValueFrom(
+      this.http.put<SuccessEnvelope<{ order: string[] }>>(
+        `${this.base}/program-names/${encodeURIComponent(key)}/question-order`,
+        { category, questionIds: [...questionIds] },
+      ),
+    );
+    return res.data.order;
   }
 
   async setCategories(id: string, categories: LoanCategory[]): Promise<EnumerationRow> {
@@ -549,17 +538,6 @@ export class LookupsApiService {
       this.http.put<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}/bound-question`, {
         questionCode,
       }),
-    );
-    return res.data;
-  }
-
-  /**
-   * The active question pool. Read by the new-question screen so its slug preview
-   * avoids colliding with a code the server already holds.
-   */
-  async catalogQuestions(): Promise<CatalogQuestion[]> {
-    const res = await firstValueFrom(
-      this.http.get<SuccessEnvelope<CatalogQuestion[]>>(`${this.base}/questions`),
     );
     return res.data;
   }

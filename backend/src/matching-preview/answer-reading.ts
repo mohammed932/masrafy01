@@ -25,16 +25,6 @@ export interface SnapshotQuestion {
   code: string;
   /** Absent on a pre-010 snapshot — read as SINGLE_SELECT (FR-045). */
   type?: string | null;
-  /**
-   * Frozen at publish (v12.0.0). Absent on a pre-v12 snapshot, which predates
-   * per-category assignment and therefore reads as "asked for all categories".
-   */
-  categories?: string[] | null;
-  /**
-   * The categories it sits in as an OPT-IN row — asked only where a program name adds it.
-   * Disjoint from `categories`; absent on every snapshot published before opt-in rows existed.
-   */
-  optInCategories?: string[] | null;
   /** Frozen branching rule; absent means always shown. */
   enabledWhen?: unknown;
   /** Frozen since v31.0.0 (`question.fixedServedOn`); absent = not fixed. */
@@ -50,29 +40,13 @@ export interface Snapshot {
 }
 
 /**
- * The questions an answer may be given to in `category`: the ones its frozen assignment names,
- * opt-in rows included.
- *
- * ABSENT vs EMPTY are different snapshots, not the same one:
- *   absent (pre-v12, the key was never frozen) → asked for every category, or every legacy
- *     snapshot would suddenly ask nothing;
- *   [] (v12+, explicitly frozen by `publish()`) → PARKED, asked by nobody. Assignment is
- *     authoritative (Principle V, v12.0.0).
- * Testing `.length > 0` conflates the two and lets a parked question into the asked set here
- * while apply's `resolveAnswers` and the customer read both exclude it. An OPT-IN row is in the
- * category too — answerable here like any other; whether it was ASKED is the name axis's call.
+ * The questions an answer may be given to: every question the snapshot holds. A question carries
+ * no loan type since v32.0.0, and what may be ANSWERED is never narrowed — apply's
+ * `resolveAnswers` accepts any live question the same way. Whether one was ASKED is the program's
+ * call (`question-scope.ts`).
  */
-export function questionsAnsweredIn(snapshot: Snapshot, category: string): SnapshotQuestion[] {
-  const questions: SnapshotQuestion[] = [];
-  for (const g of snapshot.groups ?? []) {
-    for (const q of g.questions ?? []) {
-      const frozen = q.categories;
-      const optIn = q.optInCategories?.includes(category) === true;
-      if (frozen != null && !frozen.includes(category) && !optIn) continue;
-      questions.push(q);
-    }
-  }
-  return questions;
+export function questionsAnsweredIn(snapshot: Snapshot): SnapshotQuestion[] {
+  return (snapshot.groups ?? []).flatMap((g) => g.questions ?? []);
 }
 
 /** Every validated answer, read into the maps the engine's answer mappers take. */

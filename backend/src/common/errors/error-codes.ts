@@ -85,16 +85,9 @@ export const ERROR_CODES = {
   /** Loan categories were submitted for an enumeration type that has no such axis. */
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 'ENUMERATION_CATEGORIES_NOT_APPLICABLE',
   /**
-   * A program name may not skip this question: every quote reads it, or a bank program under
-   * the name does (`questionLockReason`). `meta: { questionId, code, reason: 'engine' | 'program' }`.
-   */
-  QUESTION_EXCLUSION_LOCKED: 'QUESTION_EXCLUSION_LOCKED',
-  /**
-   * A program name may not ADD this question for its own applicants: every quote reads it (the
-   * money bindings, the debts, employment type, a platform-owned fact such as I-Score or the car
-   * figures), so whether it is asked is the loan type's call, on `/questionnaire/categories`.
-   * Also raised when a picked question's gate source is one of those.
-   * `meta: { questionId, code }`.
+   * A program name may not TICK this question for its own applicants: every program asks it
+   * already — a FIXED question, or one every quote reads (the money bindings, the debts). Also
+   * raised when a picked question's gate source is one of those. `meta: { questionId, code }`.
    */
   QUESTION_ADDITION_LOCKED: 'QUESTION_ADDITION_LOCKED',
   /**
@@ -399,14 +392,6 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_NO_CAP: 'SURROGATE_PRODUCT_NO_CAP',
   /**
-   * "Ask it" / "Create question" on a product no live catalog name sells.
-   *
-   * A question is asked per LOAN TYPE, and a product is in a loan type only through the
-   * names that sell it. With none, there is no loan type to ask in — asking in all four
-   * would put the question in front of every applicant for a product nobody can pick.
-   */
-  PRODUCT_NOT_SOLD_ANYWHERE: 'PRODUCT_NOT_SOLD_ANYWHERE',
-  /**
    * A needed fact whose answer's shape its readers do not settle — read both as options and
    * as a number, keyed by classes rather than answers, or keyed by fewer than two options /
    * by keys that are not plain option codes. A question for it needs a person to decide
@@ -505,19 +490,6 @@ export const ERROR_CODES = {
    * `check:codes` compares in both directions.
    */
   SURROGATE_FACT_QUESTION_NOT_ELIGIBLE: 'SURROGATE_FACT_QUESTION_NOT_ELIGIBLE',
-  /**
-   * Ticking would start asking a REQUIRED question of a loan type that is not asked it yet.
-   *
-   * The apply path reads live category assignments while the customer is served a frozen
-   * snapshot, so between the assignment and the publish — and permanently if the publish
-   * fails — every application in that loan type is refused for not answering a question
-   * its questionnaire never contained. A required question the loan type ALREADY asks is
-   * fine: nothing is widened, and the tick goes through.
-   *
-   * The fix is not on this screen: make the question optional, or ask it there deliberately
-   * on `/questionnaire/categories`, where widening is the whole point of the surface.
-   */
-  SURROGATE_FACT_WIDEN_REQUIRED: 'SURROGATE_FACT_WIDEN_REQUIRED',
   /**
    * An ask that came with the predefined product cannot be removed on the product's screen.
    *
@@ -684,11 +656,9 @@ export const ERROR_CODES = {
    */
   QUESTION_FIXED_DELETE_CONFIRM_REQUIRED: 'QUESTION_FIXED_DELETE_CONFIRM_REQUIRED',
   /**
-   * A write — or a rollback — would break a FIXED question's rules while it stays fixed: make it
-   * opt-in, take a loan type from it, or switch it off other than through the confirmed delete.
-   * (Un-fixing it, moving it, or making it optional is the admin's since v31.1.0.)
-   * `meta: { questionId, code, questionAr, questionEn, rule: 'switched_off' | 'opt_in' |
-   * 'category_removed' }`.
+   * A write — or a rollback — would switch a FIXED question off other than through the
+   * confirmed delete. (Un-fixing it, moving it, or making it optional is the admin's since
+   * v31.1.0.) `meta: { questionId, code, questionAr, questionEn, rule: 'switched_off' }`.
    */
   QUESTION_FIXED_LOCKED: 'QUESTION_FIXED_LOCKED',
   /**
@@ -1183,7 +1153,6 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_KEY_DUPLICATE: 409,
   ENUMERATION_SYSTEM_ONLY: 403,
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 422,
-  QUESTION_EXCLUSION_LOCKED: 422,
   QUESTION_ADDITION_LOCKED: 422,
   ENUMERATION_CATEGORY_NOT_ASSIGNED: 422,
   ENUMERATION_QUESTION_UNKNOWN: 422,
@@ -1219,7 +1188,6 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_PRODUCT_NOT_FOUND: 404,
   SURROGATE_PRODUCT_CAP_ONLY: 422,
   SURROGATE_PRODUCT_NO_CAP: 422,
-  PRODUCT_NOT_SOLD_ANYWHERE: 409,
   NEEDED_FACT_SHAPE_UNKNOWN: 422,
   // 409, like `SURROGATE_PRODUCT_IN_USE` above: the request is well-formed and the product
   // exists — what refuses it is the state of the programmes underneath.
@@ -1233,7 +1201,6 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_FACT_KEY_RESERVED: 422,
   SURROGATE_FACT_QUESTION_INACTIVE: 422,
   SURROGATE_FACT_QUESTION_NOT_ELIGIBLE: 422,
-  SURROGATE_FACT_WIDEN_REQUIRED: 422,
   PRODUCT_ASK_BLUEPRINT_OWNED: 422,
   // 409, like `ENUMERATION_IN_USE`: state, not shape.
   PRODUCT_ASK_READ_BY_OWN_RULE: 409,

@@ -33,9 +33,9 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
   String? programType,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
-  // Feature 011 — the surrogate-income facts. Which loan types ask them is the
-  // admin's `question_loan_category` assignment (personal + car seeded), not a list
-  // in code, so the car mapper reads them the same way. The server derives the same
+  // Feature 011 — the surrogate-income facts. Which programs ask them is decided
+  // server-side (a program asks what its bank program reads), not by a list in
+  // code, so the car mapper reads them the same way. The server derives the same
   // facts from `questionnaireAnswers`; these body fields are the documented duplicate.
   final facts = SurrogateFacts.fromAnswers(answers);
   final employmentType =

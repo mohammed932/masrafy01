@@ -22,7 +22,6 @@
  * lookups screen, one row at a time.
  */
 
-import type { LoanCategory } from '@prisma/client';
 import { bankAxisByFactKey } from '../../matching/pipeline/bank-relationship';
 import { sharedBlueprintFactKeys } from './product-blueprints';
 import { slugify } from '../../questionnaire/slug.util';
@@ -46,8 +45,6 @@ export interface BlueprintExistingState {
    * wording would mint `..._2` and put two identical questions in the pool, one of them dead.
    */
   inactiveQuestionCodes: ReadonlySet<string>;
-  /** Which loan categories each question is asked in today. */
-  categoriesByQuestion: ReadonlyMap<string, ReadonlySet<LoanCategory>>;
   /**
    * Every `surrogate_fact` KEY that exists — bound or not.
    *
@@ -67,11 +64,7 @@ export interface BlueprintExistingState {
    * The question each existing fact is bound to (`platform_enumeration.boundQuestionId`).
    *
    * Handed in rather than looked up while planning, because that join lives only in the
-   * database and the planner is pure — and because without it the widening step below cannot
-   * fire for a fact the blueprint reuses. That was not a cosmetic gap: the governorate
-   * question is seeded for mortgages only, so the doctors' product's column would have read
-   * nothing on a personal loan and the card would have quoted the standard column for every
-   * applicant, silently.
+   * database and the planner is pure.
    */
   questionCodeByFact: ReadonlyMap<string, string>;
 }
@@ -96,7 +89,6 @@ export type BlueprintPlanStep =
       helperEn?: string;
       helperAr?: string;
       type: 'SINGLE_SELECT' | 'NUMERIC';
-      categories: LoanCategory[];
       optionsFromEnumerationType?: string;
       numeric?: { min: number; max: number };
       enabledWhen?: { questionCode: string; optionCode: string };
@@ -127,7 +119,6 @@ export type BlueprintPlanStep =
     }
   /** A fact row that exists and is bound to nothing — the other half of a half-done create. */
   | { op: 'bindFact'; factKey: string; questionCode: string }
-  | { op: 'widenCategories'; questionCode: string; categories: LoanCategory[] }
   | { op: 'setProductTemplate'; key: string };
 
 /** Everything the plan will reuse rather than create — what the screen shows before writing. */
@@ -233,8 +224,7 @@ export function planBlueprint(args: {
 
   for (const ask of blueprint.asks) {
     // 2. A derived axis has no registry row and no question of its own — the platform
-    //    computes it from the bank the program belongs to. All it can need is that the
-    //    question behind it is asked in this product's categories.
+    //    computes it from the bank the program belongs to.
     if (ask.kind === 'derivedFact') {
       if (!reuse.factKeys.includes(ask.factKey)) reuse.factKeys.push(ask.factKey);
       continue;
@@ -340,7 +330,6 @@ export function planBlueprint(args: {
         ...(ask.helperEn ? { helperEn: ask.helperEn } : {}),
         ...(ask.helperAr ? { helperAr: ask.helperAr } : {}),
         type: ask.kind === 'choice' ? 'SINGLE_SELECT' : 'NUMERIC',
-        categories: [...ask.categories],
         ...(ask.kind === 'choice'
           ? { optionsFromEnumerationType: ask.list.typeKey }
           : { numeric: ask.numeric }),
@@ -390,31 +379,6 @@ export function planBlueprint(args: {
     }
   }
 
-  // 6. Widen the questions this product needs, and only those.
-  //
-  //    A category assignment is what decides whether an applicant is ASKED — a product whose
-  //    column reads a governorate is dead in a category where the question is never put. Only
-  //    the missing categories are added: narrowing somebody else's assignment because this
-  //    blueprint does not need it would silently change another product.
-  for (const ask of blueprint.asks) {
-    const wanted = askCategories(ask);
-    if (wanted.length === 0) continue;
-    const questionCode = askQuestionCode(ask, existing);
-    if (questionCode === null) continue;
-    const have = existing.categoriesByQuestion.get(questionCode) ?? new Set<LoanCategory>();
-    // A question this plan is about to create already carries its categories.
-    if (steps.some((step) => step.op === 'createQuestion' && step.questionCode === questionCode)) {
-      continue;
-    }
-    const missing = wanted.filter((category) => !have.has(category));
-    if (missing.length === 0) continue;
-    steps.push({
-      op: 'widenCategories',
-      questionCode,
-      categories: [...new Set([...have, ...missing])],
-    });
-  }
-
   // 7. The calculation last: the validator checks every fact it names, so the facts have to
   //    be there, and a rule written first would be refused for objects this plan is creating.
   if (makesProduct && productKey !== null) {
@@ -428,19 +392,6 @@ export function planBlueprint(args: {
     touchedMirroredTypes: [...touchedMirroredTypes],
     noop: writes.length === 0,
   };
-}
-
-/** Which loan categories an ask needs its question to be asked in. */
-export function askCategories(ask: BlueprintAsk): LoanCategory[] {
-  switch (ask.kind) {
-    case 'choice':
-    case 'number':
-      return [...ask.categories];
-    case 'bindQuestion':
-    case 'platformFact':
-    case 'derivedFact':
-      return [...(ask.alsoAskIn ?? [])];
-  }
 }
 
 /**

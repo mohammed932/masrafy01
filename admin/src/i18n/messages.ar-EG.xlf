@@ -723,7 +723,6 @@
       <trans-unit id="qedit.branch_source" datatype="html"><source> Ask this only when the answer to </source><target> اطرح هذا فقط عندما تكون الإجابة على </target></trans-unit>
       <trans-unit id="qedit.branch_option" datatype="html"><source> The answer that turns this question on </source><target> الإجابة التي تُظهر هذا السؤال </target></trans-unit>
       <trans-unit id="qedit.branch_incomplete" datatype="html"><source> Pick which answer turns this question on — a half-set rule hides nothing. </source><target> اختر الإجابة التي تُظهر هذا السؤال — القاعدة الناقصة لا تُخفي شيئًا. </target></trans-unit>
-      <trans-unit id="qedit.branch_hint_off" datatype="html"><source> Asked of every applicant in this question&apos;s loan types. </source><target> يُطرح على كل متقدم في أنواع التمويل الخاصة بهذا السؤال. </target></trans-unit>
       <trans-unit id="qedit.branch_hint_multi" datatype="html"><source> That question accepts several picks — any one of them matching is enough. </source><target> هذا السؤال يسمح بعدة اختيارات — تطابق أي واحد منها يكفي. </target></trans-unit>
       <trans-unit id="qedit.branch_always" datatype="html"><source>Pick an earlier question</source><target>اختر سؤالًا أسبق</target></trans-unit>
       <trans-unit id="qedit.branch_is" datatype="html"><source>is</source><target>يساوي</target></trans-unit>
@@ -851,13 +850,8 @@
 
       <trans-unit id="qtabs.aria" datatype="html"><source>Questionnaire sections</source><target>أقسام الاستبيان</target></trans-unit>
       <trans-unit id="qtabs.pool" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
-      <trans-unit id="qtabs.categories" datatype="html"><source>Loan categories</source><target>أنواع التمويل</target></trans-unit>
       <trans-unit id="qtabs.engine_rules" datatype="html"><source>Fixed questions</source><target>الأسئلة الثابتة</target></trans-unit>
 
-      <trans-unit id="qcat.eyebrow" datatype="html"><source>Matching engine</source><target>محرك المطابقة</target></trans-unit>
-      <trans-unit id="qcat.title" datatype="html"><source>Who gets asked what</source><target>مَن يُسأل عن ماذا</target></trans-unit>
-      <trans-unit id="qcat.sub" datatype="html"><source>One question can be asked for several loan categories. Untick every category to park a question — it stays here, but nobody is asked it.</source><target>يمكن طرح السؤال نفسه في أكثر من نوع تمويل. أزل التحديد عن كل الأنواع لتوقيف السؤال — يبقى هنا، لكن لا يُسأل عنه أحد.</target></trans-unit>
-      <trans-unit id="qcat.health_issues" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> to look at</source><target><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> تحتاج مراجعة</target></trans-unit>
       <trans-unit id="qcat.autosave" datatype="html"><source>Saves &amp; publishes automatically</source><target>يُحفظ ويُنشر تلقائيًا</target></trans-unit>
       <trans-unit id="qrules.surrogate_note" datatype="html"><source>Surrogate programs skip the fixed questions asked on income-proof programs only: they work the income out another way. Each program also asks its own questions, set in the Program catalog. These are the same questions as on Income proof, so a reworded answer changes on both.</source><target>تتخطى برامج بديل الدخل الأسئلة الثابتة المطروحة في برامج إثبات الدخل فقط: فهي تحسب الدخل بطريقة أخرى. ويطرح كل برنامج أيضًا أسئلته الخاصة، المحددة في كتالوج البرامج. هذه هي نفس أسئلة إثبات الدخل، لذا فإن إعادة صياغة إجابة تغيّرها في الاثنين.</target></trans-unit>
       <trans-unit id="qrules.basis_aria" datatype="html"><source>Which programs ask them</source><target>أي البرامج تطرحها</target></trans-unit>
@@ -866,12 +860,9 @@
       <trans-unit id="qrules.basis_count" datatype="html"><source>questions</source><target>أسئلة</target></trans-unit>
       <trans-unit id="qrules.asked_unless_derived" datatype="html"><source>Always, unless the program works the amount out from the car price and down payment</source><target>دائمًا، إلا إذا حسب البرنامج المبلغ من سعر السيارة والمقدَّم</target></trans-unit>
       <trans-unit id="qrules.title" datatype="html"><source>Fixed questions</source><target>الأسئلة الثابتة</target></trans-unit>
-      <trans-unit id="qrules.sub" datatype="html"><source> The fixed questions, in the order customers are asked them. Every program in their loan types asks them, and no program can skip them. Each one says whether its answer changes the offer, or is only saved on the application. Here you can reword an answer, keeping the numbers in it; change anything else on the Questions tab. </source><target>الأسئلة الثابتة، بترتيب طرحها على العملاء. يطرحها كل برنامج في أنواع تمويلها، ولا يمكن لأي برنامج تخطيها. كل سؤال يوضّح هل إجابته تغيّر العرض، أم تُحفظ في الطلب فقط. هنا يمكنك إعادة صياغة الإجابة مع الإبقاء على الأرقام التي فيها؛ وغيّر أي شيء آخر من تبويب الأسئلة.</target></trans-unit>
       <trans-unit id="qrules.retry" datatype="html"><source>Try again</source><target>حاول مرة أخرى</target></trans-unit>
       <trans-unit id="qrules.search_label" datatype="html"><source>Search the rules</source><target>ابحث في القواعد</target></trans-unit>
       <trans-unit id="qrules.clear" datatype="html"><source>Clear search</source><target>مسح البحث</target></trans-unit>
-      <trans-unit id="qrules.asked_in" datatype="html"><source>Asked in</source><target>يُطرح في</target></trans-unit>
-      <trans-unit id="qrules.asked_nowhere" datatype="html"><source>Not asked in any loan type</source><target>لا يُطرح في أي نوع تمويل</target></trans-unit>
       <trans-unit id="qrules.readers_title" datatype="html"><source>Who uses it</source><target>من يستخدمه</target></trans-unit>
       <trans-unit id="qrules.mirrored_link" datatype="html"><source>Open the list</source><target>افتح القائمة</target></trans-unit>
       <trans-unit id="qrules.no_add_note" datatype="html"><source>Answers can't be added or removed here: each one means something to the loan engine.</source><target>لا يمكن إضافة إجابات أو حذفها هنا: لكل إجابة معنى عند محرك التمويل.</target></trans-unit>
@@ -883,7 +874,6 @@
       <trans-unit id="qrules.no_match_title" datatype="html"><source>No question matches your search</source><target>لا يوجد سؤال يطابق بحثك</target></trans-unit>
       <trans-unit id="qrules.search_ph" datatype="html"><source>Search questions or answers</source><target>ابحث في الأسئلة أو الإجابات</target></trans-unit>
       <trans-unit id="qrules.saved" datatype="html"><source>Answer wording saved and published</source><target>تم حفظ صياغة الإجابة ونشرها</target></trans-unit>
-      <trans-unit id="qrules.opt_in" datatype="html"><source><x id="category" equiv-text="category"/> · some names</source><target><x id="category" equiv-text="category"/> · بعض الأسماء</target></trans-unit>
       <trans-unit id="qrules.mirrored_note" datatype="html"><source>These answers come from the list “<x id="list" equiv-text="name"/>”. Reword them on Manage values, not here.</source><target>هذه الإجابات تأتي من القائمة «<x id="list" equiv-text="name"/>». عدّل صياغتها من «إدارة القيم»، وليس هنا.</target></trans-unit>
       <trans-unit id="qrules.edit_aria" datatype="html"><source>Edit the wording of “<x id="label" equiv-text="label"/>”</source><target>عدّل صياغة «<x id="label" equiv-text="label"/>»</target></trans-unit>
       <trans-unit id="qrules.lock_engine" datatype="html"><source>Used in every offer</source><target>يُستخدم في كل عرض</target></trans-unit>
@@ -901,8 +891,6 @@
       <trans-unit id="qrules.reader_salary_transfer" datatype="html"><source>Read by the server as the salary-transfer row of the rate table</source><target>يقرؤه الخادم كصف تحويل الراتب في جدول العائد</target></trans-unit>
       <trans-unit id="qrules.reader_app" datatype="html"><source>The app turns each answer into what it sends with the application (<x id="types" equiv-text="types"/>)</source><target>يحوّل التطبيق كل إجابة إلى ما يرسله مع الطلب (<x id="types" equiv-text="types"/>)</target></trans-unit>
       <trans-unit id="qrules.reader_platform_fact" datatype="html"><source>Answers a fact the platform owns: <x id="facts" equiv-text="facts"/></source><target>يجيب عن معلومة يملكها النظام: <x id="facts" equiv-text="facts"/></target></trans-unit>
-      <trans-unit id="qrules.reader_base_income_proof" datatype="html"><source>A fixed income-proof question, asked on every payslip program (<x id="types" equiv-text="types"/>)</source><target>سؤال إثبات دخل ثابت، يُطرح في كل برنامج بقسيمة راتب (<x id="types" equiv-text="types"/>)</target></trans-unit>
-      <trans-unit id="qrules.reader_base_every_name" datatype="html"><source>A fixed question, asked on every program name (<x id="types" equiv-text="types"/>)</source><target>سؤال ثابت، يُطرح في كل اسم برنامج (<x id="types" equiv-text="types"/>)</target></trans-unit>
       <trans-unit id="qrules.more" datatype="html"><source>+<x id="count" equiv-text="count"/> more</source><target>+<x id="count" equiv-text="count"/> أخرى</target></trans-unit>
       <trans-unit id="qrules.impact_none" datatype="html"><source> Nothing — the answer is saved and shown on the application, but no program uses it to work out an offer. </source><target>لا شيء — الإجابة تُحفظ وتظهر في الطلب، لكن لا يستخدمها أي برنامج لحساب العرض.</target></trans-unit>
       <trans-unit id="qrules.use_offer" datatype="html"><source>Changes the offer</source><target>يغيّر العرض</target></trans-unit>
@@ -1000,47 +988,7 @@
       <trans-unit id="qrules.asked_unless" datatype="html"><source>Unless the answer to <x id="question" equiv-text="question"/> is <x id="answers" equiv-text="answers"/></source><target>إلا إذا كانت إجابة <x id="question" equiv-text="question"/> هي <x id="answers" equiv-text="answers"/></target></trans-unit>
       <trans-unit id="qrules.meta_follow_up" datatype="html"><source>follow-up</source><target>سؤال تابع</target></trans-unit>
       <trans-unit id="qrules.or" datatype="html"><source>or</source><target>أو</target></trans-unit>
-      <trans-unit id="qcat.parked_title" datatype="html"><source>These questions are asked for no category — nobody sees them.</source><target>هذه الأسئلة غير مرتبطة بأي نوع تمويل — لا يراها أحد.</target></trans-unit>
-      <trans-unit id="qcat.dangling_title" datatype="html"><source>These questions only appear after another answer, but that other question isn&apos;t asked in every category they&apos;re assigned to — so they&apos;ll always show there.</source><target>هذه الأسئلة تظهر فقط بعد إجابة سؤال آخر، لكن ذلك السؤال غير مطروح في كل أنواع التمويل المرتبطة بها — لذا ستظهر دائمًا هناك.</target></trans-unit>
-      <trans-unit id="qcat.empty" datatype="html"><source>No questions to assign yet — add some on the Questions tab first</source><target>لا توجد أسئلة لربطها بعد — أضف أسئلة من تبويب الأسئلة أولًا</target></trans-unit>
-      <trans-unit id="qcat.search_ph" datatype="html"><source>Search questions, answers, or codes</source><target>ابحث في الأسئلة أو الإجابات أو الأكواد</target></trans-unit>
-      <trans-unit id="qcat.search_aria" datatype="html"><source>Search the question pool</source><target>ابحث في مجموعة الأسئلة</target></trans-unit>
-      <trans-unit id="qcat.showing" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
-      <trans-unit id="qcat.clear" datatype="html"><source>Clear</source><target>مسح</target></trans-unit>
-      <trans-unit id="qcat.total" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
-      <trans-unit id="qcat.no_matches_title" datatype="html"><source>Nothing matches that filter</source><target>لا نتائج مطابقة لهذا التصفية</target></trans-unit>
-      <trans-unit id="qcat.col_all_tip" datatype="html"><source>Ask every listed question for this category</source><target>اطرح كل الأسئلة المعروضة في هذا النوع</target></trans-unit>
-      <trans-unit id="qcat.col_none_tip" datatype="html"><source>Stop asking every listed question for this category</source><target>أوقف طرح كل الأسئلة المعروضة في هذا النوع</target></trans-unit>
-      <trans-unit id="qcat.parked_tag" datatype="html"><source>Parked</source><target>موقوف</target></trans-unit>
-      <trans-unit id="qcat.optin_tag" datatype="html"><source>Only programs that add it · <x id="COUNT" equiv-text="n"/></source><target>البرامج التي تضيفه فقط · <x id="COUNT" equiv-text="n"/></target></trans-unit>
-      <trans-unit id="qcat.optin_confirm_title" datatype="html"><source>Ask “<x id="QUESTION" equiv-text="wording"/>” of every <x id="TYPE" equiv-text="cat"/> applicant?</source><target>هل يُطرح «<x id="QUESTION" equiv-text="wording"/>» على كل متقدم في <x id="TYPE" equiv-text="cat"/>؟</target></trans-unit>
-      <trans-unit id="qcat.optin_confirm_body" datatype="html"><source>Today only the programs that added it ask it — <x id="COUNT" equiv-text="n"/> of them. Every <x id="TYPE" equiv-text="cat"/> program will ask it from now on.</source><target>اليوم تطرحه فقط البرامج التي أضافته — وعددها <x id="COUNT" equiv-text="n"/>. ومن الآن سيطرحه كل برنامج في <x id="TYPE" equiv-text="cat"/>.</target></trans-unit>
-      <trans-unit id="qcat.optin_confirm_ok" datatype="html"><source>Ask everyone</source><target>اطرحه على الجميع</target></trans-unit>
-      <trans-unit id="qcat.optin_confirm_cancel" datatype="html"><source>Leave it</source><target>اتركه</target></trans-unit>
-      <trans-unit id="qcat.live_added" datatype="html"><source><x id="count" equiv-text="count"/> questions are now asked for <x id="category" equiv-text="cat"/></source><target><x id="count" equiv-text="count"/> سؤالًا تُطرح الآن في <x id="category" equiv-text="cat"/></target></trans-unit>
-      <trans-unit id="qcat.live_removed" datatype="html"><source><x id="count" equiv-text="count"/> questions are no longer asked for <x id="category" equiv-text="cat"/></source><target><x id="count" equiv-text="count"/> سؤالًا لم تُعد تُطرح في <x id="category" equiv-text="cat"/></target></trans-unit>
-      <trans-unit id="qcat.cell_aria" datatype="html"><source>Ask &quot;<x id="question" equiv-text="wording"/>&quot; for <x id="category" equiv-text="cat"/></source><target>اطرح &quot;<x id="question" equiv-text="wording"/>&quot; في <x id="category" equiv-text="cat"/></target></trans-unit>
       <!-- A fixed income-proof question in a loan type it may never leave. -->
-      <trans-unit id="qcat.base_tag" datatype="html"><source>Always asked</source><target>يُطرح دائمًا</target></trans-unit>
-      <trans-unit id="qcat.base_tip" datatype="html"><source>A fixed question, so <x id="category" equiv-text="cat"/> always asks it.</source><target>سؤال ثابت، لذا يبقى مطروحًا دائمًا في <x id="category" equiv-text="cat"/>.</target></trans-unit>
-      <trans-unit id="qcat.cell_aria_base" datatype="html"><source>&quot;<x id="question" equiv-text="wording"/>&quot; is always asked for <x id="category" equiv-text="cat"/> — it is a fixed question.</source><target>&quot;<x id="question" equiv-text="wording"/>&quot; يُطرح دائمًا في <x id="category" equiv-text="cat"/> — إنه سؤال ثابت.</target></trans-unit>
-      <trans-unit id="qcat.rail_aria" datatype="html"><source>Loan categories</source><target>أنواع التمويل</target></trans-unit>
-      <trans-unit id="qcat.panel_count" datatype="html"><source>of <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions asked</source><target>من <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا مطروحة</target></trans-unit>
-      <trans-unit id="qcat.ask_all" datatype="html"><source>Ask all listed</source><target>اطرح كل المعروض</target></trans-unit>
-      <trans-unit id="qcat.remove_all" datatype="html"><source>Remove all listed</source><target>أزل كل المعروض</target></trans-unit>
-      <trans-unit id="qcat.order_mode" datatype="html"><source>Set the order</source><target>ترتيب الأسئلة</target></trans-unit>
-      <trans-unit id="qcat.order_done" datatype="html"><source>Done ordering</source><target>إنهاء الترتيب</target></trans-unit>
-      <trans-unit id="qcat.order_tip" datatype="html"><source>Set the order these questions are asked in, step by step</source><target>حدّد ترتيب طرح هذه الأسئلة، خطوة بخطوة</target></trans-unit>
-      <trans-unit id="qcat.order_lede" datatype="html"><source> Drag a question to move it, or use the arrows. Each step is one screen in the app, so a question can only move within its own. The other categories keep their own order. </source><target>اسحب السؤال لتحريكه، أو استخدم الأسهم. كل خطوة هي شاشة واحدة في التطبيق، لذلك يتحرك السؤال داخل خطوته فقط. وتحتفظ الأنواع الأخرى بترتيبها الخاص.</target></trans-unit>
-      <trans-unit id="qcat.order_filtered" datatype="html"><source> Dragging is off while the list is filtered — the order you'd see isn't the order applicants get. Use the arrows, or clear the search. </source><target>السحب متوقف أثناء تصفية القائمة — الترتيب الظاهر ليس الترتيب الذي يحصل عليه المتقدمون. استخدم الأسهم أو امسح البحث.</target></trans-unit>
-      <trans-unit id="qcat.reorder_aria" datatype="html"><source>Drag to reorder</source><target>اسحب لإعادة الترتيب</target></trans-unit>
-      <trans-unit id="qcat.move_up" datatype="html"><source>Move up</source><target>تحريك لأعلى</target></trans-unit>
-      <trans-unit id="qcat.move_down" datatype="html"><source>Move down</source><target>تحريك لأسفل</target></trans-unit>
-      <trans-unit id="qcat.live_reordered" datatype="html"><source>Order saved for <x id="category" equiv-text="this.label(category)"/></source><target>تم حفظ الترتيب لـ<x id="category" equiv-text="this.label(category)"/></target></trans-unit>
-      <trans-unit id="qcat.sec_asked" datatype="html"><source>Asked in this category</source><target>مطروحة في هذا النوع</target></trans-unit>
-      <trans-unit id="qcat.sec_not_asked" datatype="html"><source>Not asked here</source><target>غير مطروحة هنا</target></trans-unit>
-      <trans-unit id="qcat.none_asked" datatype="html"><source>Nothing is asked here yet — tick a question below to add it.</source><target>لا توجد أسئلة مطروحة هنا بعد — حدّد سؤالًا بالأسفل لإضافته.</target></trans-unit>
-      <trans-unit id="sim.no_category_questions" datatype="html"><source>No questions are assigned to this loan category yet.</source><target>لا توجد أسئلة مرتبطة بنوع التمويل هذا بعد.</target></trans-unit>
       <trans-unit id="sim.derived_total" datatype="html"><source>Added up from the payments above — not typed.</source><target>محسوب تلقائيًا من الأقساط بالأعلى — غير مُدخل يدويًا.</target></trans-unit>
       <trans-unit id="sim.step_range" datatype="html"><source>Questions <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></source><target>الأسئلة <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></target></trans-unit>
 
@@ -1177,87 +1125,15 @@
       <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The customer has no payslip. The bank works out what they earn from something else about them, such as their job grade or years of work.</source><target>العميل ليس لديه إثبات راتب. فيحسب البنك دخله من معلومة أخرى عنه، مثل درجته الوظيفية أو سنوات عمله.</target></trans-unit>
       <trans-unit id="program_catalog.basis.aria" datatype="html"><source>How the bank reads the income</source><target>طريقة قراءة البنك للدخل</target></trans-unit>
 
-      <trans-unit id="pnd.new_question_title" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
 
-      <trans-unit id="pnq.type_h" datatype="html"><source>What kind of answer do you want back?</source><target>ما نوع الإجابة التي تريدها؟</target></trans-unit>
-      <trans-unit id="pnq.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
-      <trans-unit id="pnq.type_single_hint" datatype="html"><source>One answer from a list you write.</source><target>إجابة واحدة من قائمة تكتبها.</target></trans-unit>
-      <trans-unit id="pnq.type_multi" datatype="html"><source>Pick several</source><target>اختيار متعدد</target></trans-unit>
-      <trans-unit id="pnq.type_multi_hint" datatype="html"><source>Any number of answers from your list.</source><target>أي عدد من الإجابات من قائمتك.</target></trans-unit>
-      <trans-unit id="pnq.type_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
-      <trans-unit id="pnq.type_number_hint" datatype="html"><source>A figure — salary, rent, years.</source><target>قيمة — راتب أو إيجار أو عدد سنوات.</target></trans-unit>
-      <trans-unit id="pnq.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
-      <trans-unit id="pnq.type_text_hint" datatype="html"><source>Typed in freely, in the applicant&apos;s own words.</source><target>يُكتب بحرية، بكلمات المتقدم نفسه.</target></trans-unit>
 
-      <trans-unit id="pnq.wording_h" datatype="html"><source>How is it worded?</source><target>كيف يُصاغ السؤال؟</target></trans-unit>
-      <trans-unit id="pnq.q_en" datatype="html"><source>Question — English</source><target>السؤال — بالإنجليزية</target></trans-unit>
-      <trans-unit id="pnq.q_en_ph" datatype="html"><source>How old is the company?</source><target>How old is the company?</target></trans-unit>
-      <trans-unit id="pnq.q_ar" datatype="html"><source>Question — Arabic</source><target>السؤال — بالعربية</target></trans-unit>
-      <trans-unit id="pnq.q_ar_ph" datatype="html"><source>عمر الشركة؟</source><target>عمر الشركة؟</target></trans-unit>
-      <trans-unit id="pnq.help_en" datatype="html"><source>Sub-label — English</source><target>سطر توضيحي — بالإنجليزية</target></trans-unit>
-      <trans-unit id="pnq.help_ar" datatype="html"><source>Sub-label — Arabic</source><target>سطر توضيحي — بالعربية</target></trans-unit>
-      <trans-unit id="pnq.help_hint" datatype="html"><source>Optional. Says what you want, when the question alone could be read two ways — “the limit, not the balance”.</source><target>اختياري. يوضّح المقصود عندما يحتمل السؤال أكثر من قراءة — «الحد، لا الرصيد».</target></trans-unit>
-      <trans-unit id="pnq.code" datatype="html"><source>code</source><target>الكود</target></trans-unit>
-      <trans-unit id="pnq.code_hint" datatype="html"><source>made from the English wording, and permanent</source><target>مشتق من الصياغة الإنجليزية، ولا يتغير بعد ذلك</target></trans-unit>
 
-      <trans-unit id="pnq.answers_h" datatype="html"><source>The answers to pick from</source><target>الإجابات المتاحة للاختيار</target></trans-unit>
-      <trans-unit id="pnq.ans_en_ph" datatype="html"><source>English</source><target>بالإنجليزية</target></trans-unit>
-      <trans-unit id="pnq.ans_ar_ph" datatype="html"><source>عربي</source><target>بالعربية</target></trans-unit>
-      <trans-unit id="pnq.add_answer" datatype="html"><source>Add an answer</source><target>أضف إجابة</target></trans-unit>
-      <trans-unit id="pnq.answers_hint" datatype="html"><source>Drag to reorder, or use the arrows. Enter in the Arabic box adds the next one.</source><target>اسحب لإعادة الترتيب، أو استخدم الأسهم. الضغط على Enter في الخانة العربية يضيف الإجابة التالية.</target></trans-unit>
-      <trans-unit id="pnq.aria_up" datatype="html"><source>Move this answer up</source><target>حرّك هذه الإجابة لأعلى</target></trans-unit>
-      <trans-unit id="pnq.aria_down" datatype="html"><source>Move this answer down</source><target>حرّك هذه الإجابة لأسفل</target></trans-unit>
-      <trans-unit id="pnq.aria_remove" datatype="html"><source>Remove this answer</source><target>احذف هذه الإجابة</target></trans-unit>
-      <trans-unit id="pnq.min_answers_tip" datatype="html"><source>A pick-one question needs at least two answers</source><target>سؤال الاختيار يحتاج إجابتين على الأقل</target></trans-unit>
-      <trans-unit id="pnq.aria_ans_en" datatype="html"><source>Answer <x id="n" equiv-text="n"/>, English</source><target>الإجابة <x id="n" equiv-text="n"/>، بالإنجليزية</target></trans-unit>
-      <trans-unit id="pnq.aria_ans_ar" datatype="html"><source>Answer <x id="n" equiv-text="n"/>, Arabic</source><target>الإجابة <x id="n" equiv-text="n"/>، بالعربية</target></trans-unit>
-      <trans-unit id="pnq.live_added" datatype="html"><source>Answer added, <x id="n" equiv-text="n"/> in total</source><target>أُضيفت إجابة، الإجمالي <x id="n" equiv-text="n"/></target></trans-unit>
-      <trans-unit id="pnq.live_removed" datatype="html"><source>Answer removed, <x id="n" equiv-text="n"/> left</source><target>حُذفت إجابة، تبقّى <x id="n" equiv-text="n"/></target></trans-unit>
-      <trans-unit id="pnq.live_moved" datatype="html"><source>Answer moved to position <x id="pos" equiv-text="pos"/> of <x id="n" equiv-text="n"/></source><target>انتقلت الإجابة إلى الموضع <x id="pos" equiv-text="pos"/> من <x id="n" equiv-text="n"/></target></trans-unit>
 
-      <trans-unit id="pnq.number_h" datatype="html"><source>What counts as a valid number?</source><target>ما الرقم المقبول؟</target></trans-unit>
-      <trans-unit id="pnq.num_min" datatype="html"><source>Smallest allowed</source><target>أقل قيمة مسموحة</target></trans-unit>
-      <trans-unit id="pnq.num_max" datatype="html"><source>Largest allowed</source><target>أكبر قيمة مسموحة</target></trans-unit>
-      <trans-unit id="pnq.num_step" datatype="html"><source>Step</source><target>خطوة الزيادة</target></trans-unit>
-      <trans-unit id="pnq.unit_en" datatype="html"><source>Unit — English</source><target>الوحدة — بالإنجليزية</target></trans-unit>
-      <trans-unit id="pnq.unit_ar" datatype="html"><source>Unit — Arabic</source><target>الوحدة — بالعربية</target></trans-unit>
-      <trans-unit id="pnq.number_hint" datatype="html"><source>All optional. Leave them empty to accept any number.</source><target>كلها اختيارية. اتركها فارغة لقبول أي رقم.</target></trans-unit>
 
-      <trans-unit id="pnq.text_h" datatype="html"><source>How long can the answer be?</source><target>ما أقصى طول للإجابة؟</target></trans-unit>
-      <trans-unit id="pnq.text_len" datatype="html"><source>Longest answer, in characters</source><target>أطول إجابة، بعدد الحروف</target></trans-unit>
-      <trans-unit id="pnq.text_hint" datatype="html"><source>Free text is stored as the applicant typed it. Nothing reads what it says.</source><target>يُحفظ النص الحر كما كتبه المتقدم. لا شيء يقرأ محتواه.</target></trans-unit>
 
-      <trans-unit id="pnq.where_h" datatype="html"><source>Who gets asked this?</source><target>من يُسأل هذا السؤال؟</target></trans-unit>
-      <trans-unit id="pnq.where_none" datatype="html"><source>Pick at least one loan type — a question no one is asked is a question that does nothing.</source><target>اختر نوع تمويل واحداً على الأقل — سؤال لا يُطرح على أحد سؤال بلا فائدة.</target></trans-unit>
-      <trans-unit id="pnq.where_note" datatype="html"><source>Every <x id="types" equiv-text="list"/> applicant will be asked this, in every program — not only “<x id="name" equiv-text="this.data.nameLabel"/>”. Questions are one shared pool.</source><target>سيُسأل كل متقدم <x id="types" equiv-text="list"/> هذا السؤال، في كل البرامج — وليس في «<x id="name" equiv-text="this.data.nameLabel"/>» فقط. الأسئلة مجموعة واحدة مشتركة.</target></trans-unit>
-      <trans-unit id="pnq.required" datatype="html"><source>Must be answered</source><target>إجابته إلزامية</target></trans-unit>
-      <trans-unit id="pnq.required_hint" datatype="html"><source>Applicants cannot move on without it.</source><target>لا يستطيع المتقدم المتابعة بدونه.</target></trans-unit>
 
-      <trans-unit id="pnq.branch_toggle" datatype="html"><source>Ask this only sometimes</source><target>اطرحه في حالات معينة فقط</target></trans-unit>
-      <trans-unit id="pnq.branch_loading" datatype="html"><source>Loading the other questions…</source><target>جارٍ تحميل بقية الأسئلة…</target></trans-unit>
-      <trans-unit id="pnq.branch_none" datatype="html"><source>No earlier pick-one question to depend on yet, so this one is always asked.</source><target>لا يوجد سؤال اختيار سابق يعتمد عليه، لذا يُطرح هذا السؤال دائماً.</target></trans-unit>
-      <trans-unit id="pnq.branch_q" datatype="html"><source>Only when this question</source><target>فقط عندما يكون هذا السؤال</target></trans-unit>
-      <trans-unit id="pnq.branch_q_ph" datatype="html"><source>Pick a question</source><target>اختر سؤالاً</target></trans-unit>
-      <trans-unit id="pnq.branch_op" datatype="html"><source>was</source><target>الحالة</target></trans-unit>
-      <trans-unit id="pnq.op_equals" datatype="html"><source>was answered</source><target>أُجيب بـ</target></trans-unit>
-      <trans-unit id="pnq.op_not_equals" datatype="html"><source>was NOT answered</source><target>لم يُجب بـ</target></trans-unit>
-      <trans-unit id="pnq.branch_a" datatype="html"><source>this answer</source><target>هذه الإجابة</target></trans-unit>
-      <trans-unit id="pnq.branch_a_ph" datatype="html"><source>Pick an answer</source><target>اختر إجابة</target></trans-unit>
 
-      <trans-unit id="pnq.block_wording" datatype="html"><source>Write the question in English and Arabic</source><target>اكتب السؤال بالإنجليزية والعربية</target></trans-unit>
-      <trans-unit id="pnq.block_min_answers" datatype="html"><source>Add one more answer</source><target>أضف إجابة أخرى</target></trans-unit>
-      <trans-unit id="pnq.block_answer_labels" datatype="html"><source>Every answer needs both languages</source><target>كل إجابة تحتاج اللغتين</target></trans-unit>
-      <trans-unit id="pnq.block_decimal" datatype="html"><source>Numbers take at most two decimal places</source><target>الأرقام تقبل رقمين عشريين على الأكثر</target></trans-unit>
-      <trans-unit id="pnq.block_range" datatype="html"><source>The largest allowed cannot be below the smallest</source><target>أكبر قيمة لا يمكن أن تقل عن أصغر قيمة</target></trans-unit>
-      <trans-unit id="pnq.block_step" datatype="html"><source>The step has to be more than zero</source><target>خطوة الزيادة يجب أن تكون أكبر من صفر</target></trans-unit>
-      <trans-unit id="pnq.block_step_wide" datatype="html"><source>The step is wider than the whole range</source><target>خطوة الزيادة أوسع من المدى كله</target></trans-unit>
-      <trans-unit id="pnq.block_unit" datatype="html"><source>Give the unit in both languages, or in neither</source><target>اكتب الوحدة باللغتين، أو لا تكتبها إطلاقاً</target></trans-unit>
-      <trans-unit id="pnq.block_len" datatype="html"><source>The longest answer has to be between 1 and 2000</source><target>أطول إجابة يجب أن تكون بين ١ و٢٠٠٠</target></trans-unit>
-      <trans-unit id="pnq.block_categories" datatype="html"><source>Pick at least one loan type</source><target>اختر نوع تمويل واحداً على الأقل</target></trans-unit>
-      <trans-unit id="pnq.block_branch" datatype="html"><source>Finish the condition, or close it</source><target>أكمل الشرط، أو أغلقه</target></trans-unit>
 
-      <trans-unit id="pnq.summary_plain" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>.</target></trans-unit>
-      <trans-unit id="pnq.save" datatype="html"><source>Create question</source><target>أنشئ السؤال</target></trans-unit>
 
       <trans-unit id="bank_programs.form.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
       <trans-unit id="bank_programs.form.title_create" datatype="html"><source>Add bank program</source><target>إضافة برنامج بنكي</target></trans-unit>
@@ -1323,20 +1199,12 @@
       <trans-unit id="bank_programs.income.aria" datatype="html"><source>How the bank reads the income</source><target>كيف يقرأ البنك الدخل</target></trans-unit>
       <trans-unit id="bank_programs.form.income_step.title" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
       <trans-unit id="bank_programs.step.issue_income" datatype="html"><source>Choose how the bank reads the income before you continue.</source><target>اختر كيف يقرأ البنك الدخل قبل المتابعة.</target></trans-unit>
-      <trans-unit id="bank_programs.income.binding_ok" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are asked <x id="INTERPOLATION_1" equiv-text="x"/>.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> يُسألون <x id="INTERPOLATION_1" equiv-text="x"/>.</target></trans-unit>
-      <trans-unit id="bank_programs.income.binding_missing" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are never asked <x id="INTERPOLATION_1" equiv-text="x"/>, so this rule will produce no income.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> لا يُسألون <x id="INTERPOLATION_1" equiv-text="x"/> أبدًا، لذا لن تنتج هذه القاعدة أي دخل.</target></trans-unit>
-      <trans-unit id="bank_programs.income.binding_fix" datatype="html"><source>Ask it</source><target>أضف السؤال</target></trans-unit>
       <trans-unit id="bank_programs.field.min_months_job.no_payslip_hint" datatype="html"><source>Still asked — tenure is not the same thing as income proof.</source><target>ما زال مطلوبًا — مدة العمل ليست نفس إثبات الدخل.</target></trans-unit>
       <trans-unit id="bank_programs.review.income_basis" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
       <trans-unit id="bank_programs.review.income_rule" datatype="html"><source>How the income is worked out</source><target>كيف يُحسب الدخل</target></trans-unit>
-      <trans-unit id="bank_programs.review.income_rule_unbound" datatype="html"><source>fact not set up — no income</source><target>المعلومة غير مهيأة — لا دخل</target></trans-unit>
       <trans-unit id="bank_programs.strategy.group.asked" datatype="html"><source>Reads an answer the customer gives</source><target>يعتمد على إجابة يقدّمها العميل</target></trans-unit>
       <trans-unit id="bank_programs.strategy.group.documents" datatype="html"><source>Reads a figure from documents</source><target>يعتمد على رقم من المستندات</target></trans-unit>
       <trans-unit id="bank_programs.strategy.group.none" datatype="html"><source>No rule</source><target>بدون قاعدة</target></trans-unit>
-      <trans-unit id="surrogate.fact.military_grade" datatype="html"><source>Military grade</source><target>الرتبة العسكرية</target></trans-unit>
-      <trans-unit id="surrogate.fact.academic_rank" datatype="html"><source>Academic rank</source><target>الدرجة العلمية</target></trans-unit>
-      <trans-unit id="surrogate.fact.years_in_practice" datatype="html"><source>Years in practice</source><target>سنوات الممارسة</target></trans-unit>
-      <trans-unit id="surrogate.fact.credit_card_total_limit" datatype="html"><source>Total credit-card limit</source><target>إجمالي حد البطاقات الائتمانية</target></trans-unit>
       <trans-unit id="bank_detail.program.no_payslip_tip" datatype="html"><source>The bank works the income out from a fact about the applicant</source><target>يحسب البنك الدخل من معلومة عن العميل</target></trans-unit>
       <trans-unit id="bank_detail.program.income_proof_tip" datatype="html"><source>The bank lends against a salary the customer is paid</source><target>يُقرض البنك مقابل راتب يتقاضاه العميل</target></trans-unit>
       <trans-unit id="bank_detail.basis.unknown" datatype="html"><source>Basis not stated</source><target>الأساس غير محدد</target></trans-unit>
@@ -2314,8 +2182,6 @@
       <trans-unit id="spd.step_asks" datatype="html"><source>What it asks</source><target>ما الذي يسأل عنه</target></trans-unit>
       <trans-unit id="spd.cap_asks" datatype="html"><source>The questions this product puts to the applicant, the answers they pick from, the classes a bank keys its table by, and the amount each one carries.</source><target>الأسئلة التي يطرحها هذا المنتج على العميل، والإجابات التي يختار منها، والفئات التي يبني عليها البنك جدوله، والمبلغ الذي تحمله كل منها.</target></trans-unit>
       <trans-unit id="spd.ask.fixed_note" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> of these come with the product. You can still untick one, and it stays unticked — the predefined library will not put it back. </source><target> <x id="INTERPOLATION" equiv-text="{{ fixedAskCount() }}"/> منها تأتي مع المنتج. يمكنك مع ذلك إلغاء اختيار أي منها، وسيظل ملغى — لن تعيده المكتبة الجاهزة مرة أخرى. </target></trans-unit>
-      <trans-unit id="spd.ask.unpublished" datatype="html"><source>The question is attached, but the questionnaire was not published, so nobody is being asked it yet. Tick it again to retry.</source><target>تم ربط السؤال، لكن الاستبيان لم يُنشر، فلا أحد يُسأل عنه بعد. اضغط عليه مرة أخرى لإعادة المحاولة.</target></trans-unit>
-      <trans-unit id="spd.ask.dismiss" datatype="html"><source> Dismiss </source><target>إخفاء</target></trans-unit>
       <trans-unit id="spd.ask.search_ph" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
       <trans-unit id="spd.ask.clear_aria" datatype="html"><source>Clear the search</source><target>إلغاء البحث</target></trans-unit>
       <trans-unit id="spd.ask.load_failed_title" datatype="html"><source> The question list did not load. </source><target>تعذّر تحميل قائمة الأسئلة.</target></trans-unit>
@@ -2327,7 +2193,6 @@
                                 }}"/>).</target></trans-unit>
       <trans-unit id="spd.needed.gaps" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ neededGaps() }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ neededRowsList().length }}"/> answers the engine reads are not asked yet.</source><target><x id="INTERPOLATION" equiv-text="{{ neededGaps() }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ neededRowsList().length }}"/> إجابة يقرؤها المحرك لا يُطرح سؤالها بعد.</target></trans-unit>
       <trans-unit id="spd.needed.fix_all" datatype="html"><source>Fix all (<x id="INTERPOLATION" equiv-text="{{ neededFixable() }}"/>)</source><target>إصلاح الكل (<x id="INTERPOLATION" equiv-text="{{ neededFixable() }}"/>)</target></trans-unit>
-      <trans-unit id="spd.needed.not_sold" datatype="html"><source> No program name sells this product yet, so there is no loan type to ask these in. Link a program name to it on the catalog first. </source><target> لا يوجد اسم برنامج يبيع هذا المنتج بعد، فلا يوجد نوع قرض تُطرح فيه هذه الأسئلة. اربط اسم برنامج به من الكتالوج أولًا. </target></trans-unit>
       <trans-unit id="spd.needed.group_action" datatype="html"><source>Needs your action</source><target>تحتاج إلى إجراء منك</target></trans-unit>
       <trans-unit id="spd.needed.group_product" datatype="html"><source>Asked by this product</source><target>يسألها هذا المنتج</target></trans-unit>
       <trans-unit id="spd.needed.group_platform" datatype="html"><source>Asked by the platform</source><target>تسألها المنصة</target></trans-unit>
@@ -2336,7 +2201,6 @@
       <trans-unit id="spd.needed.uses" datatype="html"><source>{VAR_PLURAL, plural, =1 {Read in 1 place} other {Read in <x id="INTERPOLATION"/> places}}</source><target>{VAR_PLURAL, plural, =1 {يُقرأ في موضع واحد} =2 {يُقرأ في موضعين} few {يُقرأ في <x id="INTERPOLATION"/> مواضع} other {يُقرأ في <x id="INTERPOLATION"/> موضعًا}}</target></trans-unit>
       <trans-unit id="spd.needed.used_program" datatype="html"><source>Bank program <x id="CODE" equiv-text="onlyProgram"/></source><target>البرنامج البنكي <x id="CODE" equiv-text="onlyProgram"/></target></trans-unit>
       <trans-unit id="spd.needed.used_programs" datatype="html"><source><x id="COUNT" equiv-text="programs.length"/> bank programs</source><target><x id="COUNT" equiv-text="programs.length"/> برامج بنكية</target></trans-unit>
-      <trans-unit id="spd.needed.status_not_asked" datatype="html"><source>Not asked in <x id="INTERPOLATION" equiv-text="{{ neededMissingLabel(row) }}"/></source><target>لا يُسأل في <x id="INTERPOLATION" equiv-text="{{ neededMissingLabel(row) }}"/></target></trans-unit>
       <trans-unit id="spd.needed.status_parked" datatype="html"><source>Question switched off</source><target>السؤال متوقف</target></trans-unit>
       <trans-unit id="spd.needed.status_no_question" datatype="html"><source>No question yet</source><target>لا يوجد سؤال بعد</target></trans-unit>
       <trans-unit id="spd.needed.ask" datatype="html"><source> Ask it </source><target> اطرح السؤال </target></trans-unit>
@@ -2357,36 +2221,26 @@
       <trans-unit id="spd.needed.via_car_age" datatype="html"><source>Through the car&apos;s age</source><target>عبر عمر السيارة</target></trans-unit>
       <trans-unit id="spd.ask.load_failed" datatype="html"><source> Nothing has changed — what this product asks could not be read just now, so none of it can be shown or ticked. </source><target>لم يتغيّر شيء — تعذّرت قراءة ما يسأله هذا المنتج الآن، فلا يمكن عرض أي منه أو تحديده.</target></trans-unit>
       <trans-unit id="spd.ask.retry" datatype="html"><source> Try again </source><target>حاول مرة أخرى</target></trans-unit>
-      <trans-unit id="spd.ask.sec_asked" datatype="html"><source>Read, and asked here</source><target>يقرأها، وتُطرح هنا</target></trans-unit>
-      <trans-unit id="spd.ask.sec_unasked" datatype="html"><source>Read, but not asked of <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants</source><target>يقرأها، لكنها لا تُطرح على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/></target></trans-unit>
       <trans-unit id="spd.ask.sec_rest" datatype="html"><source>Not read yet</source><target>لا يقرأها بعد</target></trans-unit>
       <trans-unit id="spd.ask.nomatch" datatype="html"><source>No question matches “<x id="INTERPOLATION" equiv-text="{{ askQuery() }}"/>”. Try a shorter word, or clear the search to see the whole pool.</source><target>لا يوجد سؤال يطابق «<x id="INTERPOLATION" equiv-text="{{ askQuery() }}"/>». جرّب كلمة أقصر، أو ألغِ البحث لعرض كل الأسئلة.</target></trans-unit>
       <trans-unit id="spd.ask.clear2" datatype="html"><source> Clear the search </source><target>إلغاء البحث</target></trans-unit>
       <trans-unit id="spd.ask.status_none" datatype="html"><source>No question matches <x id="QUERY" equiv-text="q"/></source><target>لا يوجد سؤال يطابق <x id="QUERY" equiv-text="q"/></target></trans-unit>
       <trans-unit id="spd.ask.status_some" datatype="html"><source><x id="COUNT" equiv-text="n"/> questions match <x id="QUERY" equiv-text="q"/></source><target><x id="COUNT" equiv-text="n"/> سؤالاً يطابق <x id="QUERY" equiv-text="q"/></target></trans-unit>
       <trans-unit id="spd.ask.none_read" datatype="html"><source> Nothing yet — tap a question below and this product reads its answer. </source><target>لا شيء بعد — اضغط على سؤال بالأسفل ليقرأ هذا المنتج إجابته.</target></trans-unit>
-      <trans-unit id="spd.ask.unasked_note" datatype="html"><source> This product reads these, but nobody applying for this loan type is asked them, so it gets no answer from them. </source><target>هذا المنتج يقرأ هذه الإجابات، لكن لا أحد من المتقدمين لهذا النوع من التمويل يُسأل عنها، فلا يحصل منها على إجابة.</target></trans-unit>
-      <trans-unit id="spd.ask.nobody" datatype="html"><source>Asked of nobody</source><target>لا يُسأل لأحد</target></trans-unit>
-      <trans-unit id="spd.ask.ask_here" datatype="html"><source> Ask it here </source><target>اطرحه هنا</target></trans-unit>
-      <trans-unit id="spd.ask.stop" datatype="html"><source> Stop reading this </source><target>أوقف قراءته</target></trans-unit>
       <trans-unit id="spd.ask.off" datatype="html"><source>The question is switched off</source><target>السؤال موقوف</target></trans-unit>
       <trans-unit id="spd.ask.t_one" datatype="html"><source>Single select</source><target>اختيار واحد</target></trans-unit>
       <trans-unit id="spd.ask.t_number" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
       <trans-unit id="spd.ask.t_many" datatype="html"><source>Multi select</source><target>اختيار متعدد</target></trans-unit>
       <trans-unit id="spd.ask.t_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
       <trans-unit id="spd.ask.t_unknown" datatype="html"><source>Unknown</source><target>غير معروف</target></trans-unit>
-      <trans-unit id="spd.ask.rail_aria" datatype="html"><source>Loan type</source><target>نوع التمويل</target></trans-unit>
       <trans-unit id="spd.ask.search_aria" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
       <trans-unit id="spd.ask.pager_aria" datatype="html"><source>Question pages</source><target>صفحات الأسئلة</target></trans-unit>
       <trans-unit id="spd.ask.page_range" datatype="html"><source> Showing <x id="INTERPOLATION" equiv-text="{{ section.from }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ section.to }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ section.total }}"/> </source><target>عرض <x id="INTERPOLATION" equiv-text="{{ section.from }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ section.to }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ section.total }}"/></target></trans-unit>
-      <trans-unit id="spd.ask.tab_count" datatype="html"><source>answers read</source><target>إجابة يقرأها</target></trans-unit>
-      <trans-unit id="spd.ask.tab_warn" datatype="html"><source><x id="COUNT" equiv-text="tab.unasked"/> read but not asked here</source><target><x id="COUNT" equiv-text="tab.unasked"/> يقرأها ولا تُطرح هنا</target></trans-unit>
       <trans-unit id="spd.ask.also" datatype="html"><source><x id="COUNT" equiv-text="products.length"/> other products read this too</source><target><x id="COUNT" equiv-text="products.length"/> منتجات أخرى تقرأ هذه الإجابة</target></trans-unit>
       <trans-unit id="income_rule.fact.presence_key" datatype="html"><source>They answered the question</source><target>أجاب على السؤال</target></trans-unit>
       <trans-unit id="spd.ask.why_unsupported" datatype="html"><source>This kind of answer has no reader yet, so a bank could not look a figure up against it.</source><target>هذا النوع من الإجابات ليس له قارئ بعد، فلا يستطيع البنك البحث عن رقم مقابله.</target></trans-unit>
       <trans-unit id="spd.ask.why_in_rule" datatype="html"><source>The calculation on the next step still reads this answer. Take it out of the calculation first.</source><target>الحساب في الخطوة التالية ما زال يقرأ هذه الإجابة. أزِلها من الحساب أولًا.</target></trans-unit>
       <trans-unit id="spd.ask.why_in_use" datatype="html"><source>A bank program still reads this answer, so it cannot be removed yet.</source><target>ما زال أحد برامج البنوك يقرأ هذه الإجابة، فلا يمكن إزالتها بعد.</target></trans-unit>
-      <trans-unit id="spd.ask.aria_read" datatype="html"><source>Read <x id="NAME" equiv-text="name"/> and ask it of <x id="TYPE" equiv-text="this.askCategoryLabel()"/> applicants</source><target>اقرأ <x id="NAME" equiv-text="name"/> واطرحه على عملاء <x id="TYPE" equiv-text="this.askCategoryLabel()"/></target></trans-unit>
       <trans-unit id="spd.ask.aria_stop" datatype="html"><source>Stop reading <x id="NAME" equiv-text="name"/></source><target>أوقف قراءة <x id="NAME" equiv-text="name"/></target></trans-unit>
       <trans-unit id="spd.ask.said_read" datatype="html"><source><x id="NAME" equiv-text="card.label"/> is now read by this product</source><target><x id="NAME" equiv-text="card.label"/> يقرأه هذا المنتج الآن</target></trans-unit>
       <trans-unit id="spd.ask.said_stopped" datatype="html"><source><x id="NAME" equiv-text="card.label"/> is no longer read by this product</source><target><x id="NAME" equiv-text="card.label"/> لم يعد هذا المنتج يقرأه</target></trans-unit>
@@ -2490,8 +2344,6 @@
       <trans-unit id="banks.form.subEdit" datatype="html"><source>Updates the partner's details everywhere its programs and offers are shown.</source><target>يحدّث بيانات البنك في كل مكان تظهر فيه برامجه وعروضه.</target></trans-unit>
       <trans-unit id="banks.form.create" datatype="html"><source>Create bank</source><target>أنشئ البنك</target></trans-unit>
       <trans-unit id="program_catalog.dialog.edit_sub2" datatype="html"><source>Renames the name everywhere banks already use it.</source><target>يعيد تسمية الاسم في كل مكان تستخدمه فيه البنوك بالفعل.</target></trans-unit>
-      <trans-unit id="pnq.eyebrow" datatype="html"><source>Question pool</source><target>بنك الأسئلة</target></trans-unit>
-      <trans-unit id="pnq.subtitle" datatype="html"><source>Opened from “<x id="name" equiv-text="label"/>”, but written into the one shared question pool — every applicant in the loan types you pick is asked it.</source><target>فُتِح من «<x id="name" equiv-text="label"/>»، لكنه يُكتب في بنك الأسئلة المشترك الواحد — ويُطرح على كل متقدم في أنواع التمويل التي تختارها.</target></trans-unit>
       <trans-unit id="program_catalog.dialog.add_cta" datatype="html"><source>Add program</source><target>أضف برنامج</target></trans-unit>
     
       <!-- The friendly form for a no-payslip product: the shape picker, the three
@@ -4665,8 +4517,6 @@
       <trans-unit id="pnd.asks_summary_one" datatype="html"><source><x id="QUESTIONS" equiv-text="questions"/> on 1 page</source><target><x id="QUESTIONS" equiv-text="questions"/> في صفحة واحدة</target></trans-unit>
       <trans-unit id="pnd.asks_all_required" datatype="html"><source>all required</source><target>كلها إلزامية</target></trans-unit>
       <trans-unit id="pnd.asks_some_required" datatype="html"><source><x id="N" equiv-text="sv.servedRequired"/> required</source><target><x id="N" equiv-text="sv.servedRequired"/> إلزامية</target></trans-unit>
-      <trans-unit id="pnd.asks_sub_edit" datatype="html"><source> Add or remove questions for this program only — other programs don&apos;t change. </source><target>أضف أسئلة أو احذفها لهذا البرنامج فقط — لا تتغير البرامج الأخرى.</target></trans-unit>
-      <trans-unit id="pnd.asks_no_bank2" datatype="html"><source> No bank sells this program yet, so its applicants are asked every question the loan type asks. You can add or remove questions once a bank program is filed under it. </source><target>لا يبيع أي بنك هذا البرنامج بعد، لذا يُسأل المتقدمون عليه كل أسئلة نوع التمويل. يمكنك إضافة أسئلة أو حذفها بعد تسجيل برنامج بنك تحته.</target></trans-unit>
       <trans-unit id="pnd.asks_fixed_note" datatype="html"><source> Fixed questions are asked on every program and can&apos;t be removed here. To change one, open <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;stage-link&quot; routerLink=&quot;/questionnaire/questions&quot;
                             &gt;"/>Questionnaire<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a
                           &gt;"/>. </source><target>الأسئلة الثابتة تُطرح في كل برنامج ولا يمكن حذفها من هنا. لتغيير أحدها، افتح <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;stage-link&quot; routerLink=&quot;/questionnaire/questions&quot;
@@ -4765,52 +4615,14 @@
       <trans-unit id="caq.prev" datatype="html"><source>Previous page</source><target>الصفحة السابقة</target></trans-unit>
       <trans-unit id="caq.next" datatype="html"><source>Next page</source><target>الصفحة التالية</target></trans-unit>
       <trans-unit id="caq.total" datatype="html"><source><x id="TYPE" equiv-text="this.typeName()"/> applicants are asked <x id="TOTAL" equiv-text="this.askedTotal()"/> questions in all — <x id="REQUIRED" equiv-text="this.requiredTotal()"/> required, <x id="OPTIONAL" equiv-text="this.optionalTotal()"/> optional. Untick any this program should not ask, and tick any of the other questions below to ask it of this program's applicants only. Each applicant is then asked only what a bank program behind this name reads.</source><target>يُطرح على متقدمي <x id="TYPE" equiv-text="this.typeName()"/> <x id="TOTAL" equiv-text="this.askedTotal()"/> سؤالًا إجمالًا — <x id="REQUIRED" equiv-text="this.requiredTotal()"/> إلزامي و<x id="OPTIONAL" equiv-text="this.optionalTotal()"/> اختياري. ألغِ تحديد أي سؤال لا يجب أن يطرحه هذا البرنامج، وأشّر على أي سؤال من الأسئلة الأخرى أدناه ليُطرح على متقدمي هذا البرنامج وحدهم. ثم يُسأل كل متقدم فقط عمّا يقرؤه برنامج بنكي تحت هذا الاسم.</target></trans-unit>
-      <trans-unit id="askq.sec_pinned_req" datatype="html"><source>Required of <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> applicants</source><target>إلزامية على متقدمي <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/></target></trans-unit>
-      <trans-unit id="askq.pinned_less" datatype="html"><source>Show fewer</source><target>عرض أقل</target></trans-unit>
-      <trans-unit id="askq.pinned_more" datatype="html"><source>Show all <x id="COUNT" equiv-text="this.pinned().length"/></source><target>عرض الكل (<x id="COUNT" equiv-text="this.pinned().length"/>)</target></trans-unit>
-      <trans-unit id="askq.sec_pinned" datatype="html"><source>Asked of this name's applicants</source><target>المطروحة على متقدمي هذا الاسم</target></trans-unit>
-      <trans-unit id="askq.sec_asked_also" datatype="html"><source>Also asked in this loan type</source><target>مطروحة أيضًا في نوع التمويل هذا</target></trans-unit>
-      <trans-unit id="askq.served" datatype="html"><source>An applicant who picks this name answers <x id="SERVED" equiv-text="sv.servedTotal"/> of <x id="TOTAL" equiv-text="sv.categoryTotal"/> <x id="TYPE" equiv-text="this.categoryName()"/> questions, <x id="REQUIRED" equiv-text="sv.servedRequired"/> of them required.</source><target>المتقدم الذي يختار هذا الاسم يجيب على <x id="SERVED" equiv-text="sv.servedTotal"/> من <x id="TOTAL" equiv-text="sv.categoryTotal"/> سؤالًا (<x id="TYPE" equiv-text="this.categoryName()"/>)، منها <x id="REQUIRED" equiv-text="sv.servedRequired"/> إلزامية.</target></trans-unit>
       <trans-unit id="askq.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
       <trans-unit id="askq.type_multi" datatype="html"><source>Pick several</source><target>اختيار متعدد</target></trans-unit>
       <trans-unit id="askq.type_number" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
       <trans-unit id="askq.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
-      <trans-unit id="askq.no_types" datatype="html"><source> Pick at least one loan type first — what applicants are asked is set per loan type. </source><target>اختر نوع تمويل واحدًا على الأقل أولًا — ما يُسأل عنه المتقدمون يُحدَّد لكل نوع تمويل.</target></trans-unit>
-      <trans-unit id="askq.reach" datatype="html"><source>These are the questions every <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> applicant answers — not only this program.</source><target>هذه هي الأسئلة التي يُجيب عنها كل متقدم في <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> — وليس هذا البرنامج وحده.</target></trans-unit>
-      <trans-unit id="askq.reach_narrow" datatype="html"><source>Each applicant is then asked only the ones a bank program behind this name reads.</source><target>ثم لا يُسأل كل متقدم إلا عمّا يقرأه برنامج بنكي تحت هذا الاسم.</target></trans-unit>
-      <trans-unit id="askq.count" datatype="html"><source>asked here</source><target>مطروح هنا</target></trans-unit>
-      <trans-unit id="askq.adding" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="{{ addingHere() }}"/> you added</source><target>+<x id="INTERPOLATION" equiv-text="{{ addingHere() }}"/> أضفتها</target></trans-unit>
-      <trans-unit id="askq.search_aria" datatype="html"><source>Search the question pool</source><target>ابحث في بنك الأسئلة</target></trans-unit>
-      <trans-unit id="askq.search_ph" datatype="html"><source>Search questions, answers or codes</source><target>ابحث في الأسئلة أو الإجابات أو الأكواد</target></trans-unit>
-      <trans-unit id="askq.sec_asked" datatype="html"><source>Asked in this loan type</source><target>مطروح في نوع التمويل هذا</target></trans-unit>
-      <trans-unit id="askq.sec_asked_empty" datatype="html"><source> Nothing is asked here yet. Tick a question below and every applicant of this loan type will be asked it. </source><target>لا شيء مطروح هنا بعد. أشِّر سؤالًا بالأسفل ليُطرح على كل متقدم في نوع التمويل هذا.</target></trans-unit>
-      <trans-unit id="askq.tag_added" datatype="html"><source>Added by you</source><target>أضفته أنت</target></trans-unit>
-      <trans-unit id="askq.tag_required" datatype="html"><source>Required</source><target>إلزامي</target></trans-unit>
-      <trans-unit id="askq.sec_rest" datatype="html"><source>Not asked here</source><target>غير مطروح هنا</target></trans-unit>
-      <trans-unit id="askq.no_match" datatype="html"><source>Nothing in the pool matches “<x id="INTERPOLATION" equiv-text="{{ search() }}"/>”.</source><target>لا شيء في بنك الأسئلة يطابق «<x id="INTERPOLATION" equiv-text="{{ search() }}"/>».</target></trans-unit>
-      <trans-unit id="askq.clear" datatype="html"><source> Clear the search </source><target>امسح البحث</target></trans-unit>
-      <trans-unit id="askq.sec_rest_empty" datatype="html"><source>Every question in the pool is already asked for this loan type.</source><target>كل أسئلة بنك الأسئلة مطروحة بالفعل لنوع التمويل هذا.</target></trans-unit>
-      <trans-unit id="askq.tag_parked" datatype="html"><source>Switched off — asks nobody</source><target>مُطفأ — لا يُسأل لأحد</target></trans-unit>
-      <trans-unit id="askq.remove_hint" datatype="html"><source>To stop a question being asked, change it where every loan type&apos;s questions are set —</source><target>لإيقاف طرح سؤال، غيِّره حيث تُحدَّد أسئلة كل أنواع التمويل —</target></trans-unit>
-      <trans-unit id="askq.remove_link" datatype="html"><source>Who gets asked what</source><target>مَن يُسأل عن ماذا</target></trans-unit>
-      <trans-unit id="askq.rail_aria" datatype="html"><source>Loan types this name is offered under</source><target>أنواع التمويل التي يُعرض تحتها هذا الاسم</target></trans-unit>
-      <trans-unit id="askq.tab_count" datatype="html"><source>questions asked</source><target>سؤالًا مطروحًا</target></trans-unit>
-      <trans-unit id="askq.also_adds" datatype="html"><source>Also adds <x id="QUESTIONS" equiv-text="row.alsoAdds.join(&apos; · &apos;)"/></source><target>يضيف أيضًا <x id="QUESTIONS" equiv-text="row.alsoAdds.join(&apos; · &apos;)"/></target></trans-unit>
-      <trans-unit id="askq.add_aria" datatype="html"><source>Ask <x id="QUESTION" equiv-text="row.label"/> of every <x id="TYPE" equiv-text="this.categoryName()"/> applicant</source><target>اطرح <x id="QUESTION" equiv-text="row.label"/> على كل متقدم في <x id="TYPE" equiv-text="this.categoryName()"/></target></trans-unit>
       <trans-unit id="lcs.aria_on_unnamed" datatype="html"><source>Offered under <x id="TYPE" equiv-text="type"/>. Turn off.</source><target>معروض تحت <x id="TYPE" equiv-text="type"/>. أوقِف.</target></trans-unit>
       <trans-unit id="lcs.aria_off_unnamed" datatype="html"><source>Not offered under <x id="TYPE" equiv-text="type"/>. Turn on.</source><target>غير معروض تحت <x id="TYPE" equiv-text="type"/>. فعِّل.</target></trans-unit>
       <trans-unit id="lcs.aria_on" datatype="html"><source><x id="NAME" equiv-text="name"/> is offered under <x id="TYPE" equiv-text="type"/>. Turn off.</source><target>«<x id="NAME" equiv-text="name"/>» معروض تحت <x id="TYPE" equiv-text="type"/>. أوقِف.</target></trans-unit>
       <trans-unit id="lcs.aria_off" datatype="html"><source><x id="NAME" equiv-text="name"/> is not offered under <x id="TYPE" equiv-text="type"/>. Turn on.</source><target>«<x id="NAME" equiv-text="name"/>» غير معروض تحت <x id="TYPE" equiv-text="type"/>. فعِّل.</target></trans-unit>
-      <trans-unit id="askq.reach_blank" datatype="html"><source>Nothing is ticked. You pick what these applicants are asked.</source><target>لا شيء مؤشَّر. أنت من يختار ما يُطرح على هؤلاء المتقدمين.</target></trans-unit>
-      <trans-unit id="askq.reach_blank_global" datatype="html"><source>A tick asks it of every <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/> applicant, not only this program — and a question this loan type already asks stays asked whether you tick it or not.</source><target>التأشير يطرح السؤال على كل متقدم في <x id="INTERPOLATION" equiv-text="{{ categoryName() }}"/>، وليس على هذا البرنامج وحده — والسؤال الذي يطرحه نوع التمويل هذا بالفعل يظل مطروحًا سواء أشَّرته أم لا.</target></trans-unit>
-      <trans-unit id="askq.count_ticked" datatype="html"><source>ticked</source><target>مؤشَّر</target></trans-unit>
-      <trans-unit id="askq.sec_ticked" datatype="html"><source>Ticked by you</source><target>أشَّرتها أنت</target></trans-unit>
-      <trans-unit id="askq.sec_ticked_empty" datatype="html"><source> Nothing ticked yet. Tick a question below to have it asked. </source><target>لا شيء مؤشَّر بعد. أشِّر سؤالًا بالأسفل ليُطرح.</target></trans-unit>
-      <trans-unit id="askq.tag_already" datatype="html"><source>Already asked anyway</source><target>مطروح بالفعل على أي حال</target></trans-unit>
-      <trans-unit id="askq.sec_not_ticked" datatype="html"><source>Not ticked</source><target>غير مؤشَّر</target></trans-unit>
-      <trans-unit id="askq.sec_not_ticked_empty" datatype="html"><source>You have ticked every question in the pool.</source><target>أشَّرت كل سؤال في بنك الأسئلة.</target></trans-unit>
-      <trans-unit id="askq.remove_aria" datatype="html"><source>Untick <x id="QUESTION" equiv-text="row.label"/></source><target>ألغِ تأشير <x id="QUESTION" equiv-text="row.label"/></target></trans-unit>
-      <trans-unit id="askq.tab_count_ticked" datatype="html"><source>questions ticked</source><target>سؤال مؤشَّر</target></trans-unit>
       <trans-unit id="bank_programs.duplicate.title" datatype="html"><source>Duplicate this program</source><target>نسخ هذا البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.duplicate.body" datatype="html"><source> The copy is an inactive draft at the same bank and loan type, and needs a program name the bank does not sell yet. </source><target>النسخة مسودة غير مفعّلة في البنك نفسه ونوع التمويل نفسه، وتحتاج إلى اسم برنامج لا يبيعه البنك بعد.</target></trans-unit>
       <trans-unit id="bank_programs.duplicate.name_label" datatype="html"><source>Program name for the copy</source><target>اسم البرنامج للنسخة</target></trans-unit>
@@ -4819,14 +4631,6 @@
       <trans-unit id="bank_programs.duplicate.empty" datatype="html"><source>No free program name</source><target>لا يوجد اسم برنامج متاح</target></trans-unit>
       <trans-unit id="bank_programs.field.name_taken" datatype="html"><source> — already added for this bank</source><target> — مضاف بالفعل لهذا البنك</target></trans-unit>
       <trans-unit id="bank_programs.duplicate.created" datatype="html"><source>Draft copy created — review and activate it.</source><target>أُنشئت مسودة النسخة — راجعها ثم فعّلها.</target></trans-unit>
-      <trans-unit id="spd.ask.order_done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
-      <trans-unit id="spd.ask.order_open" datatype="html"><source>Change order</source><target>تغيير الترتيب</target></trans-unit>
-      <trans-unit id="spd.ask.order_lede" datatype="html"><source> Drag a question to move it, or use the arrows. This is the order <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> applicants are asked in, so it also moves for every other <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> program that asks these questions. A question can only move within its own step. </source><target>اسحب السؤال لتحريكه، أو استخدم الأسهم. هذا هو الترتيب الذي تُطرح به الأسئلة على عملاء <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/>، لذا يتغيّر أيضًا في كل برنامج <x id="INTERPOLATION" equiv-text="{{ askCategoryLabel() }}"/> آخر يطرح هذه الأسئلة. لا يمكن تحريك السؤال إلا داخل خطوته.</target></trans-unit>
-      <trans-unit id="spd.ask.order_loading" datatype="html"><source> Loading the order… </source><target>جارٍ تحميل الترتيب…</target></trans-unit>
-      <trans-unit id="spd.ask.order_drag" datatype="html"><source>Drag to reorder</source><target>اسحب لإعادة الترتيب</target></trans-unit>
-      <trans-unit id="spd.ask.order_up" datatype="html"><source>Move up</source><target>تحريك لأعلى</target></trans-unit>
-      <trans-unit id="spd.ask.order_down" datatype="html"><source>Move down</source><target>تحريك لأسفل</target></trans-unit>
-      <trans-unit id="spd.ask.order_saved" datatype="html"><source>Order saved for <x id="category" equiv-text="categoryLabel(category)"/></source><target>تم حفظ الترتيب لـ<x id="category" equiv-text="categoryLabel(category)"/></target></trans-unit>
       <trans-unit id="lookups.field.rangeFrom" datatype="html"><source>Lowest score</source><target>أقل درجة</target></trans-unit>
       <trans-unit id="lookups.field.rangeTo" datatype="html"><source>Highest score</source><target>أعلى درجة</target></trans-unit>
       <trans-unit id="lookups.field.range.hint" datatype="html"><source> Both ends count: 701 to 750 means a score of 701 and a score of 750 are both in this class. A table already saved on a product or a bank program keeps its own ranges. </source><target>الطرفين محسوبين: من 701 إلى 750 يعني إن درجة 701 ودرجة 750 الاتنين في التصنيف ده. أي جدول متحفظ بالفعل على منتج أو برنامج بنك بيحتفظ بنطاقاته.</target></trans-unit>
@@ -4874,11 +4678,9 @@
       <trans-unit id="qedit.branch_none_fixed" datatype="html"><source> Nothing to branch on yet — a fixed question can only follow an earlier fixed question that offers options. </source><target>لا يوجد ما يمكن الاعتماد عليه بعد — السؤال الثابت لا يأتي إلا بعد سؤال ثابت سابق له إجابات.</target></trans-unit>
       <trans-unit id="qedit.branch_not_fixed" datatype="html"><source> That question is not fixed, and a fixed question can only follow another fixed question. Pick a fixed one, or always ask this one. </source><target>هذا السؤال ليس ثابتًا، والسؤال الثابت لا يأتي إلا بعد سؤال ثابت آخر. اختر سؤالًا ثابتًا، أو اطرح هذا السؤال دائمًا.</target></trans-unit>
       <trans-unit id="qedit.deleted_chip" datatype="html"><source>Deleted</source><target>المحذوفة</target></trans-unit>
-      <trans-unit id="qedit.deleted_hint" datatype="html"><source> Restore brings a question back with its answers and loan types, and every program asks it again right away. </source><target>الاستعادة تعيد السؤال بإجاباته وأنواع تمويله، ويطرحه كل برنامج من جديد فورًا.</target></trans-unit>
       <trans-unit id="qedit.deleted_title" datatype="html"><source> Deleted fixed questions </source><target>الأسئلة الثابتة المحذوفة</target></trans-unit>
       <trans-unit id="qedit.filter_fixed" datatype="html"><source>Fixed</source><target>ثابت</target></trans-unit>
       <trans-unit id="qedit.fixed_chip" datatype="html"><source>Fixed</source><target>ثابت</target></trans-unit>
-      <trans-unit id="qedit.fixed_hint" datatype="html"><source>Every program in its loan types asks it, and no program can skip it. Its answers can change the offer.</source><target>يطرحه كل برنامج في أنواع تمويله، ولا يمكن لأي برنامج تخطيه. ويمكن لإجاباته أن تغيّر العرض.</target></trans-unit>
       <trans-unit id="qedit.sheet_pos" datatype="html"><source>Question <x id="position" equiv-text="position"/> of <x id="total" equiv-text="total"/></source><target>السؤال <x id="position" equiv-text="position"/> من <x id="total" equiv-text="total"/></target></trans-unit>
       <trans-unit id="qedit.sheet_pos_new" datatype="html"><source>Asked last, at position <x id="position" equiv-text="position"/></source><target>يُطرح في النهاية، في الموضع <x id="position" equiv-text="position"/></target></trans-unit>
       <trans-unit id="qedit.add_q" datatype="html"><source>Add question</source><target>إضافة السؤال</target></trans-unit>
@@ -4894,12 +4696,16 @@
       <trans-unit id="qedit.unfix_blocked" datatype="html"><source>Fixed questions are asked only after this answer: <x id="names" equiv-text="names"/>. Make them ordinary first, then this one.</source><target>أسئلة ثابتة تُطرح فقط بعد هذه الإجابة: <x id="names" equiv-text="names"/>. اجعلها أسئلة عادية أولًا، ثم هذا السؤال.</target></trans-unit>
       <trans-unit id="qedit.unfix_note" datatype="html"><source> Saving makes it an ordinary question, so a program can skip it. </source><target>عند الحفظ يصبح سؤالًا عاديًا، ويمكن لأي برنامج تخطيه.</target></trans-unit>
       <trans-unit id="qedit.fixed_label" datatype="html"><source>Fixed question</source><target>سؤال ثابت</target></trans-unit>
-      <trans-unit id="qedit.fixed_tip_every" datatype="html"><source>Fixed: every program in its loan types asks it</source><target>ثابت: يطرحه كل برنامج في أنواع تمويله</target></trans-unit>
-      <trans-unit id="qedit.fixed_tip_proof" datatype="html"><source>Fixed: every income-proof program in its loan types asks it</source><target>ثابت: يطرحه كل برنامج إثبات دخل في أنواع تمويله</target></trans-unit>
       <trans-unit id="qedit.hidden_link" datatype="html"><source>Open the Program catalog</source><target>افتح كتالوج البرامج</target></trans-unit>
-      <trans-unit id="qedit.hidden_note" datatype="html"><source>{VAR_PLURAL, plural, =1 {1 question that surrogate programs ask is not listed here. Edit it from its product in the Program catalog.} other {<x id="INTERPOLATION"/> questions that surrogate programs ask are not listed here. Edit them from their products in the Program catalog.}}</source><target>{VAR_PLURAL, plural, =1 {سؤال واحد تطرحه برامج بديل الدخل غير معروض هنا. عدّله من منتجه في كتالوج البرامج.} =2 {سؤالان تطرحهما برامج بديل الدخل غير معروضين هنا. عدّلهما من منتجاتهما في كتالوج البرامج.} few {<x id="INTERPOLATION"/> أسئلة تطرحها برامج بديل الدخل غير معروضة هنا. عدّلها من منتجاتها في كتالوج البرامج.} other {<x id="INTERPOLATION"/> سؤالًا تطرحها برامج بديل الدخل غير معروضة هنا. عدّلها من منتجاتها في كتالوج البرامج.}}</target></trans-unit>
+      <trans-unit id="qedit.surrogate_note" datatype="html"><source>Each product picks which of these it asks, in the Program catalog. Surrogate programs also ask the fixed questions every program asks — those are on Income proof.</source><target>يختار كل منتج أيًّا من هذه الأسئلة يطرحه، في كتالوج البرامج. وتطرح برامج بديل الدخل أيضًا الأسئلة الثابتة التي يطرحها كل برنامج — وهي في تبويب إثبات الدخل.</target></trans-unit>
+      <trans-unit id="qedit.empty_surrogate" datatype="html"><source>No surrogate product asks a question yet</source><target>لا يطرح أي منتج بديل دخل سؤالًا بعد</target></trans-unit>
+      <trans-unit id="qedit.basis_proof_note" datatype="html"><source>Fixed and income-proof questions</source><target>الأسئلة الثابتة وأسئلة إثبات الدخل</target></trans-unit>
+      <trans-unit id="qedit.basis_surrogate_note" datatype="html"><source>Asked by surrogate products</source><target>تطرحها منتجات بديل الدخل</target></trans-unit>
+      <trans-unit id="qedit.basis_warn" datatype="html"><source>A question here needs options</source><target>سؤال هنا يحتاج خيارات</target></trans-unit>
+      <trans-unit id="qedit.tab_all" datatype="html"><source>All questions</source><target>كل الأسئلة</target></trans-unit>
+      <trans-unit id="qedit.tab_all_note" datatype="html"><source>Fixed, income-proof and surrogate</source><target>الثابتة وإثبات الدخل وبديل الدخل</target></trans-unit>
+      <trans-unit id="qedit.surrogate_chip_tip" datatype="html"><source>Asked by surrogate products — which ones is set in the Program catalog</source><target>تطرحه منتجات بديل الدخل — وتُحدَّد المنتجات في كتالوج البرامج</target></trans-unit>
       <trans-unit id="qedit.lock_body_fixed_q" datatype="html"><source> Its answer type, unit, when-to-ask rule and answers stay as they are. Its wording, and whether it is required or fixed, can change. </source><target>نوع الإجابة والوحدة وقاعدة الطرح والإجابات تبقى كما هي. يمكن تغيير صياغته، وكونه مطلوبًا أو ثابتًا.</target></trans-unit>
-      <trans-unit id="qedit.modal_catalog_q" datatype="html"><source>Program catalog question</source><target>سؤال من كتالوج البرامج</target></trans-unit>
       <trans-unit id="qedit.restore" datatype="html"><source>Restore</source><target>استعادة</target></trans-unit>
       <trans-unit id="qedit.restore_aria" datatype="html"><source>Restore “<x id="question" equiv-text="question"/>”</source><target>استعادة «<x id="question" equiv-text="question"/>»</target></trans-unit>
       <trans-unit id="qedit.restored" datatype="html"><source>Question restored</source><target>تمت استعادة السؤال</target></trans-unit>
@@ -4911,7 +4717,6 @@
       <trans-unit id="qfixdel.answers" datatype="html"><source>{VAR_PLURAL, plural, =0 {None yet} =1 {1 answer. It stays on its application.} other {<x id="INTERPOLATION"/> answers. They stay on their applications.}}</source><target>{VAR_PLURAL, plural, =0 {لا توجد إجابات بعد} =1 {إجابة واحدة، وتبقى في طلبها.} =2 {إجابتان، وتبقيان في طلبيهما.} few {<x id="INTERPOLATION"/> إجابات، وتبقى في طلباتها.} other {<x id="INTERPOLATION"/> إجابة، وتبقى في طلباتها.}}</target></trans-unit>
       <trans-unit id="qfixdel.answers_label" datatype="html"><source>Answers so far</source><target>الإجابات حتى الآن</target></trans-unit>
       <trans-unit id="qfixdel.asked_by" datatype="html"><source>Asked by</source><target>يطرحه</target></trans-unit>
-      <trans-unit id="qfixdel.asked_in" datatype="html"><source>Asked in</source><target>يُطرح في</target></trans-unit>
       <trans-unit id="qfixdel.asked_on" datatype="html"><source>Asked on</source><target>يُطرح على</target></trans-unit>
       <trans-unit id="qfixdel.blocked_body" datatype="html"><source> They are only asked after this question&apos;s answer, so they have to go first: </source><target>هذه الأسئلة لا تُطرح إلا بعد إجابة هذا السؤال، لذا يجب حذفها أولًا:</target></trans-unit>
       <trans-unit id="qfixdel.blocked_title" datatype="html"><source>Delete these first</source><target>احذف هذه أولًا</target></trans-unit>
@@ -4929,12 +4734,6 @@
       <trans-unit id="qfixdel.title" datatype="html"><source> Delete this fixed question? </source><target>حذف هذا السؤال الثابت؟</target></trans-unit>
       <trans-unit id="qfixdel.would_break" datatype="html"><source>What stops working</source><target>ما الذي سيتوقف عن العمل</target></trans-unit>
       <trans-unit id="qedit.branch_operator" datatype="html"><source> Matches or does not match </source><target> مطابق أو غير مطابق </target></trans-unit>
-      <trans-unit id="qcat.filter_aria" datatype="html"><source>Show only one category&apos;s questions</source><target>اعرض أسئلة نوع تمويل واحد فقط</target></trans-unit>
-      <trans-unit id="qcat.filter_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
-      <trans-unit id="qcat.caption" datatype="html"><source>Questions down the side, loan categories across the top. Tick a cell to ask that question for that category.</source><target>الأسئلة في العمود الجانبي وأنواع التمويل في الصف الأعلى. حدّد الخانة ليُطرح السؤال في ذلك النوع.</target></trans-unit>
-      <trans-unit id="qcat.col_question" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
-      <trans-unit id="qcat.col_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
-      <trans-unit id="qcat.col_none" datatype="html"><source>None</source><target>لا شيء</target></trans-unit>
       <trans-unit id="spd.ask.edit_question" datatype="html"><source>Edit question</source><target>عدّل السؤال</target></trans-unit>
       <trans-unit id="spd.ask.edit_question_aria" datatype="html"><source>Edit the question “<x id="label" equiv-text="label"/>”</source><target>عدّل السؤال «<x id="label" equiv-text="label"/>»</target></trans-unit>
       <trans-unit id="qrules.edit_link" datatype="html"><source>Edit this question</source><target>عدّل هذا السؤال</target></trans-unit>
@@ -4946,11 +4745,11 @@
       <trans-unit id="qedit.effect_toggle" datatype="html"><source>Changes the offer</source><target>يغيّر العرض</target></trans-unit>
       <trans-unit id="qedit.effect_toggle_hint" datatype="html"><source>When an applicant picks this answer, every program's offer changes like this. Leave a box empty for no change.</source><target>عندما يختار المتقدم هذه الإجابة، يتغير عرض كل برنامج بهذا الشكل. اترك الخانة فارغة إن لم يكن هناك تغيير.</target></trans-unit>
       <trans-unit id="qedit.effect_loan" datatype="html"><source>Max loan</source><target>الحد الأقصى للقرض</target></trans-unit>
-      <trans-unit id="qedit.effect_loan_range" datatype="html"><source>-90 to 100. -10 means 10% lower.</source><target>من ‎-90 إلى 100. ‎-10 تعني أقل بنسبة 10%.</target></trans-unit>
+      <trans-unit id="qedit.effect_loan_range" datatype="html"><source>-10 means 10% less, 20 means 20% more. Allowed: -90 to 100.</source><target>‎-10 تعني أقل بنسبة 10%، و20 تعني أكثر بنسبة 20%. المسموح: من ‎-90 إلى 100.</target></trans-unit>
       <trans-unit id="qedit.effect_rate" datatype="html"><source>Interest rate</source><target>سعر الفائدة</target></trans-unit>
-      <trans-unit id="qedit.effect_rate_range" datatype="html"><source>-20 to 20. 1.5 means 1.5 points higher.</source><target>من ‎-20 إلى 20. 1.5 تعني أعلى بـ 1.5 نقطة.</target></trans-unit>
+      <trans-unit id="qedit.effect_rate_range" datatype="html"><source>Added to the bank's rate: 1.5 turns 20% into 21.5%. Allowed: -20 to 20.</source><target>يُضاف إلى فائدة البنك: 1.5 تجعل 20% تصبح 21.5%. المسموح: من ‎-20 إلى 20.</target></trans-unit>
       <trans-unit id="qedit.effect_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
-      <trans-unit id="qedit.effect_term_range" datatype="html"><source>1 to 480 months.</source><target>من 1 إلى 480 شهرًا.</target></trans-unit>
+      <trans-unit id="qedit.effect_term_range" datatype="html"><source>The loan can't run longer than this. Allowed: 1 to 480 months.</source><target>لا تزيد مدة القرض عن هذا الرقم. المسموح: من 1 إلى 480 شهرًا.</target></trans-unit>
       <trans-unit id="qedit.effect_invalid" datatype="html"><source>Check the figures: each box takes a number in its range, and not 0.</source><target>راجع الأرقام: كل خانة تقبل رقمًا داخل نطاقها، وليس 0.</target></trans-unit>
       <trans-unit id="qedit.effect_better" datatype="html"><source>This makes the offer better than the bank's own figures. The bank may not agree to it.</source><target>هذا يجعل العرض أفضل من أرقام البنك نفسه. قد لا يوافق البنك عليه.</target></trans-unit>
       <trans-unit id="qedit.effect_empty" datatype="html"><source>Type at least one figure, or untick this.</source><target>اكتب رقمًا واحدًا على الأقل، أو ألغِ التحديد.</target></trans-unit>
@@ -4998,11 +4797,28 @@
       <trans-unit id="pcn.other_sub" datatype="html"><source> Not asked unless you tick them. A tick asks it of this program&apos;s applicants only. </source><target>لا تُطرح إلا إذا حددتها. والسؤال المحدد يُطرح على متقدمي هذا البرنامج فقط.</target></trans-unit>
       <trans-unit id="pcn.other_none" datatype="html"><source> There are no other income-proof questions yet. Create one on <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;link&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>Questionnaire<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/> and it shows up here. </source><target>لا توجد أسئلة إثبات دخل أخرى بعد. أنشئ سؤالًا من <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;link&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>الاستبيانات<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/> وسيظهر هنا.</target></trans-unit>
       <trans-unit id="pcn.cap_asks2" datatype="html"><source>Fixed questions are set on Questionnaire. A tick here asks a question of this program only.</source><target>الأسئلة الثابتة تُضبط من الاستبيانات. والتحديد هنا يطرح السؤال على هذا البرنامج فقط.</target></trans-unit>
-      <trans-unit id="pcn.block_core2" datatype="html"><source>A loan type can&apos;t be priced — turn its switched-off question back on in Questionnaire.</source><target>لا يمكن تسعير أحد أنواع التمويل — أعد تشغيل سؤاله المتوقف من الاستبيانات.</target></trans-unit>
       <trans-unit id="pcn.other_held" datatype="html"><source>A question you ticked needs it</source><target>يحتاجه سؤال حددته</target></trans-unit>
       <trans-unit id="pcn.other_count" datatype="html"><source><x id="ON" equiv-text="on"/> of <x id="TOTAL" equiv-text="this.otherHere().length"/> ticked</source><target>تم تحديد <x id="ON" equiv-text="on"/> من <x id="TOTAL" equiv-text="this.otherHere().length"/></target></trans-unit>
-      <trans-unit id="pcn.fixed_elsewhere_one" datatype="html"><source><x id="TYPE" equiv-text="type"/> asks <x id="HERE" equiv-text="here"/> of the <x id="TOTAL" equiv-text="total"/> fixed questions — the other one is for <x id="TYPES" equiv-text="types"/> only.</source><target><x id="TYPE" equiv-text="type"/> يطرح <x id="HERE" equiv-text="here"/> من <x id="TOTAL" equiv-text="total"/> سؤالًا ثابتًا — والسؤال الباقي خاص بـ<x id="TYPES" equiv-text="types"/> فقط.</target></trans-unit>
-      <trans-unit id="pcn.fixed_elsewhere" datatype="html"><source><x id="TYPE" equiv-text="type"/> asks <x id="HERE" equiv-text="here"/> of the <x id="TOTAL" equiv-text="total"/> fixed questions — the other <x id="N" equiv-text="others.length"/> are for <x id="TYPES" equiv-text="types"/> only.</source><target><x id="TYPE" equiv-text="type"/> يطرح <x id="HERE" equiv-text="here"/> من <x id="TOTAL" equiv-text="total"/> سؤالًا ثابتًا — والـ<x id="N" equiv-text="others.length"/> الباقية خاصة بـ<x id="TYPES" equiv-text="types"/> فقط.</target></trans-unit>
+      <trans-unit id="pcn.block_core3" datatype="html"><source>A loan type can&apos;t be priced yet — tick the questions it needs, or turn a switched-off one back on in Questionnaire.</source><target>لا يمكن تسعير نوع تمويل بعد — اختر الأسئلة التي يحتاجها، أو أعد تشغيل سؤال متوقف من الاستبيان.</target></trans-unit>
+      <trans-unit id="pcn.core_tick" datatype="html"><source>This loan type can&apos;t be priced until these are ticked:</source><target>لا يمكن تسعير هذا النوع من التمويل حتى تختار هذه الأسئلة:</target></trans-unit>
+      <trans-unit id="pcn.core_tick_btn" datatype="html"><source>Tick them</source><target>اخترها</target></trans-unit>
+      <trans-unit id="pnd.asks_sub_edit2" datatype="html"><source> Add, remove or reorder questions for this program only — other programs don&apos;t change. </source><target>أضف أسئلة أو احذفها أو غيّر ترتيبها لهذا البرنامج فقط — لا تتغير البرامج الأخرى.</target></trans-unit>
+      <trans-unit id="pnd.order_lede" datatype="html"><source> Drag a question, or use its arrows, to move it on its page. Each move saves at once, for this program only. </source><target>اسحب السؤال، أو استخدم أسهمه، لتغيير مكانه في صفحته. يُحفظ كل نقل فورًا، لهذا البرنامج فقط.</target></trans-unit>
+      <trans-unit id="pnd.order_open" datatype="html"><source>Change order</source><target>غيّر الترتيب</target></trans-unit>
+      <trans-unit id="pnd.order_status" datatype="html"><source>“<x id="QUESTION" equiv-text="label"/>” is now <x id="POS" equiv-text="move.to + 1"/> of <x id="TOTAL" equiv-text="rows.length"/> on “<x id="PAGE" equiv-text="title"/>”</source><target>«<x id="QUESTION" equiv-text="label"/>» الآن رقم <x id="POS" equiv-text="move.to + 1"/> من <x id="TOTAL" equiv-text="rows.length"/> في «<x id="PAGE" equiv-text="title"/>»</target></trans-unit>
+      <trans-unit id="qedit.branch_hint_off2" datatype="html"><source> Asked of every applicant of the programs that ask this question. </source><target>يُطرح على كل المتقدمين للبرامج التي تطرح هذا السؤال.</target></trans-unit>
+      <trans-unit id="qedit.deleted_hint2" datatype="html"><source> Restore brings a question back with its answers, and every program asks it again right away. </source><target>الاستعادة تعيد السؤال بإجاباته، وتطرحه كل البرامج من جديد فورًا.</target></trans-unit>
+      <trans-unit id="qedit.fixed_hint2" datatype="html"><source> Every program asks it, and no program can skip it. Its answers can change the offer. </source><target>تطرحه كل البرامج، ولا يمكن لأي برنامج تخطيه. ويمكن أن تغيّر إجاباته العرض.</target></trans-unit>
+      <trans-unit id="qedit.fixed_tip_every2" datatype="html"><source>Fixed: every program asks it</source><target>ثابت: تطرحه كل البرامج</target></trans-unit>
+      <trans-unit id="qedit.fixed_tip_proof2" datatype="html"><source>Fixed: every income-proof program asks it</source><target>ثابت: تطرحه كل برامج إثبات الدخل</target></trans-unit>
+      <trans-unit id="qrules.reader_base_every_name2" datatype="html"><source>A fixed question, asked on every program</source><target>سؤال ثابت، يُطرح في كل البرامج</target></trans-unit>
+      <trans-unit id="qrules.reader_base_income_proof2" datatype="html"><source>A fixed income-proof question, asked on every payslip program</source><target>سؤال ثابت لإثبات الدخل، يُطرح في كل برامج مفردات المرتب</target></trans-unit>
+      <trans-unit id="qrules.sub2" datatype="html"><source> The fixed questions, in the default order customers are asked them. Every program asks them, and no program can skip them. Each one says whether its answer changes the offer, or is only saved on the application. Here you can reword an answer, keeping the numbers in it; change anything else on the Questions tab. </source><target>الأسئلة الثابتة، بالترتيب الافتراضي الذي تُطرح به على العملاء. تطرحها كل البرامج، ولا يمكن لأي برنامج تخطيها. يوضح كل سؤال هل تغيّر إجابته العرض، أم تُحفظ في الطلب فقط. يمكنك هنا إعادة صياغة الإجابة مع الإبقاء على الأرقام فيها؛ وغيّر أي شيء آخر من تبويب الأسئلة.</target></trans-unit>
+      <trans-unit id="spd.ask.aria_read2" datatype="html"><source>Read <x id="NAME" equiv-text="name"/></source><target>اقرأ <x id="NAME" equiv-text="name"/></target></trans-unit>
+      <trans-unit id="spd.ask.sec_read" datatype="html"><source>Read by this product</source><target>يقرؤها هذا المنتج</target></trans-unit>
+      <trans-unit id="spd.needed.status_not_asked2" datatype="html"><source>Not read by this product yet</source><target>لا يقرؤها هذا المنتج بعد</target></trans-unit>
+      <trans-unit id="srvp.down_aria" datatype="html"><source>Move “<x id="QUESTION" equiv-text="label"/>” down</source><target>انقل «<x id="QUESTION" equiv-text="label"/>» لأسفل</target></trans-unit>
+      <trans-unit id="srvp.up_aria" datatype="html"><source>Move “<x id="QUESTION" equiv-text="label"/>” up</source><target>انقل «<x id="QUESTION" equiv-text="label"/>» لأعلى</target></trans-unit>
     </body>
   </file>
 </xliff>

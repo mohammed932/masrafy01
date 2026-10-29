@@ -1,8 +1,10 @@
 /**
- * FIXED QUESTIONS — the questions every program of their loan types is quoted from, owned by the
- * ADMIN as data (v31.0.0, operator decision 2026-10-26). `question.fixedServedOn` says where one
- * is asked: `every_name` on every program of the loan types it is in, `income_proof` on every
- * income-proof (payslip) program of them; `null` is an ordinary question.
+ * FIXED QUESTIONS — the questions every program is quoted from, owned by the ADMIN as data
+ * (v31.0.0, operator decision 2026-10-26). `question.fixedServedOn` says where one is asked:
+ * `every_name` on every program, `income_proof` on every income-proof (payslip) program; `null`
+ * is an ordinary question. Every program of EVERY loan type since v32.0.0, when questions stopped
+ * carrying loan types: a question only one kind of loan needs (the car's price) is ticked on the
+ * programs that need it instead (`program_name_question_addition`).
  *
  * Until v31.0.0 the set was a list in code (`BASE_QUESTIONS`), and every change to it took a
  * developer and a release. What each ANSWER means to the engine stays in code — the I-Score
@@ -11,15 +13,14 @@
  * (`engine-contract.ts`). Which questions are fixed is the admin's.
  *
  * THE FIXED RULES, enforced on every questionnaire write, rollback included (`fixedRuleBreaks`):
- *   - asked on every program of its loan types (all programs, or the income-proof ones) — never
- *     OPT-IN, never skipped or added per program name (`question-scope.ts`, reason `base`);
- *   - never out of one of its loan types while it is fixed (it may join more);
+ *   - asked on every program (all programs, or the income-proof ones) — never ticked or unticked
+ *     per program (`question-scope.ts`, reason `base`);
  *   - its show-when source is itself an active fixed question;
  *   - any answer type: a Text one is asked and saved for the record, and changes no offer — offer
  *     effects sit on a choice question's answers or a number's ranges only (v31.3.0);
  *   - switched off only through the confirmed delete — a super admin typing its code (the one
  *     bypass of the engine lock and the ratchet, `EngineContractService`). A deleted one keeps
- *     its mark, loan types and answers, so a restore brings it back whole.
+ *     its mark and answers, so a restore brings it back whole.
  * The mark itself is the admin's both ways (v31.1.0, operator decision 2026-10-27: "everything
  * dynamic"): a question is fixed, un-fixed, moved between `every_name` and `income_proof`, and
  * made optional or required like any other — the rules above hold only while it is fixed.
@@ -36,6 +37,27 @@ export type FixedServedOn = 'every_name' | 'income_proof';
 /** A stored or frozen mark as the rules read it. Anything else — absent included — is `null`. */
 export function fixedServedOnOf(raw: unknown): FixedServedOn | null {
   return raw === 'every_name' || raw === 'income_proof' ? raw : null;
+}
+
+/**
+ * The fixed mark a FROZEN snapshot question carries for one loan type.
+ *
+ * A version published before v32.0.0 froze the loan types a question was asked in (`categories`)
+ * beside its mark, and there the mark held only in those loan types — the six car questions were
+ * fixed for car loans alone. Such a version is still served for a moment after the deploy (until
+ * the republish the retiring migration asks for) and comes back whole on a rollback, so its old
+ * key is honoured here, the one place it is still read. A version published since carries no
+ * `categories`: the mark holds on every program. No loan type asked (the admin's whole-pool read)
+ * = the mark as frozen.
+ */
+export function frozenFixedServedOn(
+  q: { readonly [key: string]: unknown },
+  category: string | undefined,
+): FixedServedOn | null {
+  const mark = fixedServedOnOf(q['fixedServedOn']);
+  if (mark === null || category === undefined) return mark;
+  const legacy = q['categories'];
+  return Array.isArray(legacy) && !legacy.includes(category) ? null : mark;
 }
 
 /** Whether a question marked `servedOn` is asked on a path that sells (or not) a payslip programme. */
@@ -65,20 +87,12 @@ export interface FixedRuleQuestion {
   readonly code: string;
   readonly isActive: boolean;
   readonly enabledWhen: unknown;
-  /** Every loan type it is in, OPT-IN rows included. */
-  readonly categories: readonly string[];
-  /** The opt-in subset of `categories`. */
-  readonly optInCategories: readonly string[];
   readonly fixedServedOn: FixedServedOn | null;
 }
 
 export type FixedRule =
   /** A fixed question would be switched off outside the confirmed delete. */
   | 'switched_off'
-  /** …would sit in a loan type as an opt-in row. */
-  | 'opt_in'
-  /** …would leave a loan type it is asked in, or turn opt-in there. */
-  | 'category_removed'
   /** …would be gated on a question that is not an active fixed question. */
   | 'gate_not_fixed';
 
@@ -95,9 +109,9 @@ export interface FixedRuleBreak {
  *
  * Two halves. TRANSITIONS, for each question fixed and active in `before` and still fixed in
  * `after` (un-fixing is the admin's, v31.1.0): switched off (except `confirmedDeleteId`, the
- * question a super admin confirmed deleting), or out of one of its loan types. STATE, for each
- * question fixed and active in `after`: opt-in, or gated on something other than an active fixed
- * question — reported only where `before` did not
+ * question a super admin confirmed deleting). STATE, for each question fixed and active in
+ * `after`: gated on something other than an active fixed question — reported only where `before`
+ * did not
  * already break it, so a standing fault never freezes every edit, the way the engine-input
  * ratchet works. A question switched back ON (a restore) is judged by the state half alone.
  */
@@ -114,14 +128,7 @@ export function fixedRuleBreaks(
     const now = afterById.get(was.id);
     // Un-fixed (or gone from a rolled-back version): an ordinary question now, no rule of these.
     if (now === undefined || now.fixedServedOn === null) continue;
-    if (!now.isActive) {
-      if (was.id !== confirmedDeleteId) out.push({ ...at, rule: 'switched_off' });
-      continue;
-    }
-    const kept = new Set(ordinaryCategories(now));
-    if (ordinaryCategories(was).some((c) => !kept.has(c))) {
-      out.push({ ...at, rule: 'category_removed' });
-    }
+    if (!now.isActive && was.id !== confirmedDeleteId) out.push({ ...at, rule: 'switched_off' });
   }
   const standing = new Set(stateBreaks(before).map(breakKey));
   for (const b of stateBreaks(after)) {
@@ -137,17 +144,12 @@ function stateBreaks(questions: readonly FixedRuleQuestion[]): FixedRuleBreak[] 
   for (const q of active.values()) {
     if (q.fixedServedOn === null) continue;
     const at = { questionId: q.id, code: q.code };
-    if (q.optInCategories.length > 0) out.push({ ...at, rule: 'opt_in' });
     const gate = enabledWhenGate(q);
     if (gate !== null && (active.get(gate.questionCode)?.fixedServedOn ?? null) === null) {
       out.push({ ...at, rule: 'gate_not_fixed', sourceCode: gate.questionCode });
     }
   }
   return out;
-}
-
-function ordinaryCategories(q: FixedRuleQuestion): string[] {
-  return q.categories.filter((c) => !q.optInCategories.includes(c));
 }
 
 function breakKey(b: FixedRuleBreak): string {
@@ -163,14 +165,20 @@ function breakKey(b: FixedRuleBreak): string {
  * `narrowingScopeFor` calls ask-scoped), a per-bank axis question (`BANK_AXES`), or the
  * show-when source of one of those, to a fixpoint. NEVER a fixed question: several fixed ones
  * are read by a product too (the loan duration, the debts behind `current_loans`, the other
- * income behind `additional_income`), and they stay fixed and listed.
+ * income behind `additional_income`), and they stay fixed and listed. Nor a question bound to a
+ * fact the PLATFORM owns (`platformCodes`: the car figures, the bureau score): those belong to no
+ * product — `car_down_payment` is asked by the down-payment product AND ticked on every payslip
+ * car program, so it stays an income-proof question (v32.0.0, when it stopped being fixed).
  */
 export function surrogateSideCodes(
   active: readonly { code: string; enabledWhen: unknown; fixedServedOn?: FixedServedOn | null }[],
   askScoped: Iterable<string>,
+  platformCodes: Iterable<string> = [],
 ): ReadonlySet<string> {
   const byCode = new Map(active.map((q) => [q.code, q]));
-  const fixed = (code: string): boolean => (byCode.get(code)?.fixedServedOn ?? null) !== null;
+  const platform = new Set(platformCodes);
+  const fixed = (code: string): boolean =>
+    (byCode.get(code)?.fixedServedOn ?? null) !== null || platform.has(code);
   const out = new Set<string>();
   for (const code of [...askScoped, ...BANK_AXES.map((axis) => axis.questionCode)]) {
     if (byCode.has(code) && !fixed(code)) out.add(code);

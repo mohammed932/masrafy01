@@ -20,8 +20,8 @@ import {
   TRANSFER_ANSWERS,
 } from '../src/matching/pipeline/base-question-set';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
+import { CAR_QUESTION_CODES } from '../src/questionnaire/car-questions';
 import { bankSlug } from '../src/matching/pipeline/bank-relationship';
-import { frozenCategories } from '../src/questionnaire/frozen-categories';
 import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
@@ -207,9 +207,10 @@ interface CategoryConfig {
 //
 // Which questions are fixed is the ADMIN's (`question.fixedServedOn`, v31.0.0). This seed
 // INSERTS the fixed questions on a database that has none — the client's income-proof questions
-// and the five car questions — each with its mark, and never touches one again: an existing
-// fixed row is skipped whole by the upsert below, and neither the sweep nor the revive step
-// switches one off or on. Their wording is here, and the shape of the ones authored through
+// — each with its mark, and never touches one again: an existing fixed row is skipped whole by
+// the upsert below, and neither the sweep nor the revive step switches one off or on. The six
+// car questions are the admin's the same way (`ADMIN_OWNED_CAR_QUESTIONS`) though no longer
+// fixed: since v32.0.0 a car program asks them because it ticked them. Their wording is here, and the shape of the ones authored through
 // `baseSeedQuestion` with it (`FIXED_FIRST_RUN_SHAPES`). What an answer MEANS to the engine
 // stays in `src/matching/pipeline/base-question-set.ts`.
 interface BaseWording {
@@ -335,13 +336,6 @@ const FIXED_FIRST_RUN_SERVED_ON: Readonly<Record<string, 'every_name' | 'income_
   ...Object.fromEntries(
     Object.values(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE).map((code) => [code, 'every_name' as const]),
   ),
-  car_price: 'every_name',
-  car_origin: 'every_name',
-  car_model_year: 'every_name',
-  car_fuel_type: 'every_name',
-  car_dealer: 'every_name',
-  // Fixed since v31.5.0 (migration `20261028120000_car_down_payment_fixed`).
-  car_down_payment: 'every_name',
   can_transfer_salary: 'income_proof',
   [MONEY_FIELD_BINDINGS.requested_amount]: 'income_proof',
   [MONEY_FIELD_BINDINGS.monthly_income]: 'income_proof',
@@ -349,6 +343,15 @@ const FIXED_FIRST_RUN_SERVED_ON: Readonly<Record<string, 'every_name' | 'income_
   [OTHER_INCOME_QUESTION_CODE]: 'income_proof',
   has_bank_statement: 'income_proof',
 };
+
+/**
+ * The six car questions — fixed until v32.0.0, when "fixed" came to mean every program of every
+ * loan type and they became ticks on each car program instead (migration
+ * `20261029100000_program_question_order`; `seed-program-catalog.ts` ticks them on a name
+ * offered under car). The admin owned them while they were fixed and still does: this seed only
+ * INSERTS one, on a database that has none, and never rewrites, sweeps or revives it.
+ */
+const ADMIN_OWNED_CAR_QUESTIONS: ReadonlySet<string> = new Set(CAR_QUESTION_CODES);
 
 /** A first-run fixed question as this seed authors it: its shape and its words from above. */
 function baseSeedQuestion(code: string): SeedQuestion {
@@ -709,17 +712,9 @@ const GREEN_BUYER_TYPE_Q: SeedQuestion = {
 // assign them to (v16.0.0): whether a bank reads a payslip or works an income out from one
 // of these facts is that program's own `programType`, not the product the customer picked.
 //
-// Which categories reference them here IS the configuration of where no-payslip programs
-// can be sold — a category whose applicants are never asked any of the four cannot have a
-// working one, and nothing else in the codebase asserts a list. `personal` and `car` are
-// the seeded DEFAULT, not a rule: assigning `military_grade` to `mortgage` on the admin
-// questionnaire screen is all it takes to sell no-payslip mortgages, and the seed must not
-// be re-run to allow it.
-//
-// Assignment lives ONLY in `question_loan_category`, never a `category` column (A33,
-// v12.0.0), and happens by which CategoryConfig references the question below. Publish
-// warns only when a fact is asked by NO category at all (`not_asked_by_any_category`) —
-// then no program anywhere could read it.
+// Any loan type may sell a no-payslip program (v32.0.0): a question carries no loan type, and
+// a program asks the facts its own programmes read (`question-scope.ts`). Which config below
+// names a question only places it in the pool.
 //
 // **Neither select is gated** (the rank since it was found to hide private-university staff,
 // the grade since 2026-10-13). A gate on the job type was the old way to keep them off other
@@ -1055,9 +1050,8 @@ const COLLATERAL_GATES_GROUP: SeedGroup = {
  * reads the answers it unlocks — the same defect this change removes from the compound asks,
  * one level up.
  *
- * `mergeSeedPool` dedupes groups by code and unions each question's categories, so all three
- * configs naming `collateral_gates` produce ONE group whose members carry exactly the
- * categories that referenced them.
+ * `mergeSeedPool` dedupes groups by code, so all three configs naming `collateral_gates`
+ * produce ONE group.
  */
 const collateralGatesGroup = (...gateSources: SeedQuestion[]): SeedGroup => ({
   ...COLLATERAL_GATES_GROUP,
@@ -1105,9 +1099,8 @@ const ADDITIONAL_INCOME_Q: SeedQuestion = baseSeedQuestion(ADDITIONAL_INCOME_QUE
  * In the fixed question set (`base-question-set.ts`, every name): shape and answers come from
  * there. ALL FOUR CATEGORIES: a bureau score is a property of the person, not of the loan.
  */
-const I_SCORE_QUESTION: { groupCode: string; question: SeedQuestion; categories: readonly Category[] } = {
+const I_SCORE_QUESTION: { groupCode: string; question: SeedQuestion } = {
   groupCode: 'commitments',
-  categories: ['personal', 'mortgage', 'car', 'business'],
   question: baseSeedQuestion(I_SCORE_BAND_QUESTION_CODE),
 };
 
@@ -1186,15 +1179,12 @@ const ADDITIONAL_INCOME_SOURCES: ReadonlyArray<{ key: string; question: SeedQues
   },
 ];
 
-const ADDITIONAL_INCOME_CATEGORIES: readonly Category[] = ['personal', 'mortgage', 'car', 'business'];
-
 /** The group that already asks whether there IS other money — the amounts follow it. */
 const ADDITIONAL_INCOME_Q_GROUP = 'employment_income';
 
-const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion; categories: readonly Category[] }> = [
+const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion }> = [
   {
     groupCode: 'financing_info',
-    categories: ['personal', 'mortgage', 'car', 'business'],
     question: {
       code: MONEY_FIELD_BINDINGS.requested_amount, // amount_requested
       type: 'NUMERIC',
@@ -1208,7 +1198,6 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
   },
   {
     groupCode: 'financing_info',
-    categories: ['personal', 'mortgage', 'car', 'business'],
     question: {
       code: MONEY_FIELD_BINDINGS.tenor_months, // repayment_period_months
       type: 'NUMERIC',
@@ -1223,7 +1212,6 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
   },
   {
     groupCode: 'employment_income',
-    categories: ['personal', 'mortgage', 'car', 'business'],
     question: {
       code: MONEY_FIELD_BINDINGS.monthly_income, // monthly_income
       type: 'NUMERIC',
@@ -1295,7 +1283,6 @@ const CAR_LOAN_DETAIL_QUESTION_CODES = [
 const OBLIGATION_QUESTIONS: ReadonlyArray<{
   groupCode: string;
   question: SeedQuestion;
-  categories: readonly Category[];
 }> = [
   ...(
     [
@@ -1353,7 +1340,6 @@ const OBLIGATION_QUESTIONS: ReadonlyArray<{
     }>
   ).map(({ debtType, questionEn, questionAr, helperTextEn, helperTextAr, maxValue }) => ({
     groupCode: 'commitments',
-    categories: ['personal', 'mortgage', 'car', 'business'] as readonly Category[],
     question: {
       code: OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE[debtType],
       type: 'NUMERIC' as QuestionType,
@@ -1414,11 +1400,6 @@ const OBLIGATION_QUESTIONS: ReadonlyArray<{
     }>
   ).map(({ code, questionEn, questionAr, helperTextEn, helperTextAr, numeric }) => ({
     groupCode: 'commitments',
-    // Personal and car only. The cross-sell is a PERSONAL product; `car` carries it for the
-    // same reason it carries every other surrogate fact (an auto loan may be sold off an
-    // assumed income). The injection loop intersects this with whoever asks the branch
-    // source anyway, so business is dropped there rather than needing to be remembered here.
-    categories: ['personal', 'car'] as readonly Category[],
     question: {
       code,
       type: 'NUMERIC' as QuestionType,
@@ -1528,9 +1509,6 @@ const PERSONAL: CategoryConfig = {
         HOSPITAL_SECTOR_Q,
       ],
     },
-    // The reference here IS the assignment (`question_loan_category`, A33) — nothing else in
-    // the codebase holds a list of which categories ask this, so widening it is an admin
-    // action on the questionnaire screen, never a release.
     collateralGatesGroup(OWNS_COMPOUND_UNIT_Q, CLUB_MEMBERSHIP_Q),
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
@@ -1562,9 +1540,6 @@ const MORTGAGE: CategoryConfig = {
         // exactly the defect this change removes from the compound asks.
       ],
     },
-    // The reference here IS the assignment (`question_loan_category`, A33) — nothing else in
-    // the codebase holds a list of which categories ask this, so widening it is an admin
-    // action on the questionnaire screen, never a release.
     COLLATERAL_GATES_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
@@ -1678,8 +1653,7 @@ const BUSINESS: CategoryConfig = {
       // The itemised debt flow every other loan type has (2026-09-24). It replaces
       // `current_facilities`, a required yes/no nothing read: a "yes" with commitments of 0
       // went straight through, and the typed lump sum asked the owner to work out the 5% of
-      // a card limit themselves. The five amounts follow `current_loans` into business
-      // automatically — their categories are derived from it below.
+      // a card limit themselves. The five amounts follow `current_loans` (their show-when).
       questions: [CURRENT_LOANS_Q],
     },
     // The preferences step (offer priority, past rejection) was retired in v31.0.0: nothing
@@ -1712,100 +1686,8 @@ export interface SeedPool {
   /** Pool display order. */
   questionOrder: string[];
   questionByCode: Map<string, MergedQuestion>;
-  /** questionCode → the categories that ASK it (`question_loan_category`). */
-  categoriesByQuestion: Record<string, Set<Category>>;
 }
 
-/**
- * The ONLY questions the CAR category asks — every other question in the pool has `'car'`
- * stripped by `narrowCarCategory` below, whatever its own `categories` array says.
- *
- * WHY A WHITELIST AND NOT 37 EDITS. The alternative was deleting `'car'` from each question's
- * own `categories` array. Three things made that worse: the four additional-income amounts and
- * the five obligation amounts DERIVE their categories from a source question, so the edit would
- * live somewhere different for them than for the rest; a question added to the pool later would
- * silently reappear in the car flow; and the reasoning below would have no home. A positive
- * list fails CLOSED — a new question is not asked of a car applicant until somebody adds it.
- *
- * WHAT IS IN IT, and none of it is a preference. The car flow was cut from 63 questions to
- * the list below (21 since the stated total retired, 2026-10-26), the rest narrowed away per
- * programme name by `question-scope.ts`. Every one is here for a measured reason:
- *
- *   the money bindings         `amount_requested`, `repayment_period_months`, `monthly_income`
- *                              — the engine cannot quote without them (`money-field-bindings.ts`)
- *   the debt-type source       `current_loans` — what the applicant owes is asked through it
- *                              (the stated total `current_installments` retired 2026-10-26), so
- *                              dropping it leaves an applicant unable to state any obligation
- *                              and the debt burden measured against zero. That is over-lending,
- *                              not a shorter form
- *   all five obligation amounts `obligation_car_loan`, `credit_card_total_limit`,
- *                              `obligation_personal_loan`, `obligation_mortgage`,
- *                              `obligation_other` — one per `current_loans` pick. The list once
- *                              carried only the last two, so a car applicant who ticked a car
- *                              loan, a mortgage or a card was never asked its amount and the
- *                              debt burden counted it as ZERO (fixed 2026-09-24). Each is
- *                              gated on its pick, so none is seen unless it applies
- *   the car figures            `car_price`, `car_down_payment` — the LTV ceiling; plus
- *                              `car_dealer`, `car_origin`, `car_fuel_type`, `car_model_year`,
- *                              each read by a live car programme's rate or term grid
- *                              (`vehicle_condition` and `car_insurance` left 2026-09-24: no grid
- *                              read either). A grid that misses its fact does
- *                              not report an error: `onNoMatch: 'useProgramMax'` quietly quotes
- *                              the programme's own maximum instead of the bank's row
- *   the surrogate facts        `green_buyer_type`, `total_savings` — read by
- *                              `down_payment_income`'s savings way; and `home_ownership`,
- *                              read by the car financed-share table
- *   (not the applicant type)   `employment_status` was here from 2026-09-24 — CAE's car
- *                              cards cap a self-employed buyer at 60 months — and left on
- *                              2026-10-26 (v30.18.0): the program the applicant picked answers
- *                              the job, and the app's `salaried` default prices everyone, the
- *                              operator's call made knowing that
- *   the bureau score           `i_score_band` (`priority_factor` stood beside it until v31.0.0,
- *                              when it was retired: nothing priced it)
- *   the fixed income block     the first-run fixed questions car is asked
- *                              (`FIXED_FIRST_RUN_SHAPES`): months in the job, the salary
- *                              transfer, residence ×2, other income ×2, the bank statement
- *
- * `check:question-scope` is the standing gate on this list: it fails if any live programme
- * reads a fact whose question the car category no longer asks.
- */
-const CAR_ASKS: ReadonlySet<string> = new Set<string>([
-  'amount_requested',
-  'car_dealer',
-  'car_down_payment',
-  'car_fuel_type',
-  'car_model_year',
-  'car_origin',
-  'car_price',
-  'credit_card_total_limit',
-  'current_loans',
-  'green_buyer_type',
-  'home_ownership',
-  'i_score_band',
-  'monthly_income',
-  'obligation_car_loan',
-  'obligation_mortgage',
-  'obligation_other',
-  'obligation_personal_loan',
-  'repayment_period_months',
-  'total_savings',
-  // The first-run fixed income block (v31.0.0 — the code registry used to say so instead).
-  'months_in_current_job',
-  'can_transfer_salary',
-  'residence_governorate',
-  'residence_area',
-  'additional_income',
-  'other_income_monthly',
-  'has_bank_statement',
-]);
-
-/**
- * Strip `'car'` from every question `CAR_ASKS` does not name.
- *
- * Runs AFTER every derivation — the additional-income amounts, the obligation amounts and the
- * bureau score each compute their own categories from a source question, so a narrowing
- * applied earlier would be undone by whichever of them ran last.
- */
 /**
  * Thin steps merged into full ones.
  *
@@ -1815,9 +1697,8 @@ const CAR_ASKS: ReadonlySet<string> = new Set<string>([
  * fifteen questions, every one of them thin.
  *
  * Applied as a post-merge remap rather than by re-cutting the group blocks in the four
- * category configs, for the reason `narrowCarCategory` is: the configs are the authored
- * record of what each loan type asks, and twenty blocks edited by hand is twenty chances
- * to drop a question. Here the merge is one table, and a question that names a retired
+ * category configs: the configs are the authored record of the pool, and twenty blocks edited
+ * by hand is twenty chances to drop a question. Here the merge is one table, and a question that names a retired
  * group is a loud failure rather than a silent orphan.
  *
  * Titles come from the ABSORBING group and are widened to cover both halves — "About the
@@ -1866,12 +1747,6 @@ function mergeThinGroups(
   }
 }
 
-function narrowCarCategory(categoriesByQuestion: Record<string, Set<Category>>): void {
-  for (const [code, categories] of Object.entries(categoriesByQuestion)) {
-    if (categories.has('car') && !CAR_ASKS.has(code)) categories.delete('car');
-  }
-}
-
 /**
  * Steps 1–1d: merge the four category configs into ONE global deduped pool.
  * Reads only (the bank + enumeration registries back some option lists); writes
@@ -1879,14 +1754,13 @@ function narrowCarCategory(categoriesByQuestion: Record<string, Set<Category>>):
  */
 export async function mergeSeedPool(client: PrismaClient = prisma): Promise<SeedPool> {
   // Feature 010: questions carry no category. Groups + questions dedupe by code
-  // (first config wins for content; option sets are UNIONed by code). Each
-  // question remembers which categories it appeared in, so a program can be
-  // pre-assigned exactly its own category's questions (the migration's rule).
+  // (first config wins for content; option sets are UNIONed by code). Which loan type's
+  // config named a question says nothing about who is asked it any more (v32.0.0): a
+  // program asks its fixed questions, what its bank programs read and its ticks.
   const groupOrder: string[] = [];
   const groupByCode = new Map<string, SeedGroup>();
   const questionOrder: string[] = [];
   const questionByCode = new Map<string, MergedQuestion>();
-  const categoriesByQuestion: Record<string, Set<Category>> = {};
 
   for (const cfg of CONFIGS) {
     for (const g of cfg.groups) {
@@ -1898,7 +1772,6 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
         // Feature 010: a bucket question superseded by a bound NUMERIC question
         // never enters the pool. The four money figures come from real numbers.
         if (SUPERSEDED_BUCKET_CODES.has(q.code)) continue;
-        (categoriesByQuestion[q.code] ??= new Set()).add(cfg.category);
         const optionList = q.optionsFromBanks
           ? [...(await bankOptions(client)), ...(q.withNoneOption ? [NONE_OF_THESE_BANKS] : [])]
           : q.optionsFromEnumCodes
@@ -1939,13 +1812,12 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   // Added after the merge so they cannot be shadowed by a bucket question of the
   // same code, and so they sort to the front of their group (the amount and term
   // are the first things a customer is asked).
-  for (const { groupCode, question, categories } of MONEY_QUESTIONS) {
+  for (const { groupCode, question } of MONEY_QUESTIONS) {
     if (!groupByCode.has(groupCode)) {
       throw new Error(
         `seed-questionnaire: money question '${question.code}' targets unknown group '${groupCode}'`,
       );
     }
-    categoriesByQuestion[question.code] = new Set(categories);
     questionByCode.set(question.code, {
       code: question.code,
       groupCode,
@@ -1966,13 +1838,12 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   // through a fact — but NOT `unshift`ed: it is the least important thing in its group and
   // belongs at the end of it, not in front of what the customer came to answer.
   {
-    const { groupCode, question, categories } = I_SCORE_QUESTION;
+    const { groupCode, question } = I_SCORE_QUESTION;
     if (!groupByCode.has(groupCode)) {
       throw new Error(
         `seed-questionnaire: I-Score question targets unknown group '${groupCode}'`,
       );
     }
-    categoriesByQuestion[question.code] = new Set(categories);
     questionByCode.set(question.code, {
       code: question.code,
       groupCode,
@@ -2004,15 +1875,6 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
         `seed-questionnaire: additional-income question '${question.code}' targets unknown group '${groupCode}'`,
       );
     }
-    // Narrowed to the categories that ask the branch source, exactly like the obligation
-    // amounts below: a gated question published where its source is never asked can never
-    // become visible, and shows up as a dangling branch in the admin's matrix.
-    const sourceCategories = categoriesByQuestion[ADDITIONAL_INCOME_Q.code];
-    categoriesByQuestion[question.code] = new Set(
-      sourceCategories
-        ? ADDITIONAL_INCOME_CATEGORIES.filter((c) => sourceCategories.has(c))
-        : ADDITIONAL_INCOME_CATEGORIES,
-    );
     questionByCode.set(question.code, {
       code: question.code,
       groupCode,
@@ -2031,22 +1893,12 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
 
   // ---- 1c. Inject the itemised obligations block -----------------------------
   // Registered after 1b, then the whole block is re-ordered as one unit below.
-  for (const { groupCode, question, categories } of OBLIGATION_QUESTIONS) {
+  for (const { groupCode, question } of OBLIGATION_QUESTIONS) {
     if (!groupByCode.has(groupCode)) {
       throw new Error(
         `seed-questionnaire: obligation question '${question.code}' targets unknown group '${groupCode}'`,
       );
     }
-    // Narrow to the categories that actually ask the branch source. `current_loans`
-    // is asked by personal / car / mortgage but NOT business, so claiming all four
-    // here would publish amount questions into a category where their branch source
-    // is never asked — questions that can never become visible, and a dangling
-    // branch in the admin's category matrix. Derived rather than hardcoded so that
-    // adding the source to a category automatically brings its amounts along.
-    const sourceCategories = categoriesByQuestion[DEBT_TYPES_QUESTION_CODE];
-    categoriesByQuestion[question.code] = new Set(
-      sourceCategories ? categories.filter((c) => sourceCategories.has(c)) : categories,
-    );
     questionByCode.set(question.code, {
       code: question.code,
       groupCode,
@@ -2093,19 +1945,16 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
     .reduce((max, code) => Math.max(max, questionOrder.indexOf(code)), -1);
   questionOrder.splice(lastMoneyIndex + 1, 0, ...obligationBlock);
 
-  // The CAR narrowing, applied last so no derivation can undo it — see `CAR_ASKS`.
-  narrowCarCategory(categoriesByQuestion);
-
   // Steps merged last, after every question has been placed and ordered: the remap only
   // rewrites `groupCode`, so the order within a merged step is the order built above.
   mergeThinGroups(groupOrder, groupByCode, questionByCode);
 
-  return { groupOrder, groupByCode, questionOrder, questionByCode, categoriesByQuestion };
+  return { groupOrder, groupByCode, questionOrder, questionByCode };
 }
 
 export async function seedQuestionnaire(): Promise<void> {
   const pool = await mergeSeedPool(prisma);
-  const { groupOrder, groupByCode, questionOrder, questionByCode, categoriesByQuestion } = pool;
+  const { groupOrder, groupByCode, questionOrder, questionByCode } = pool;
 
   // ---- 2. Upsert the global groups / questions / options (unique by code) ---
   const groupIdByCode = new Map<string, string>();
@@ -2125,10 +1974,12 @@ export async function seedQuestionnaire(): Promise<void> {
     const q = questionByCode.get(code)!;
     qOrder += 1;
     // A FIXED question is the admin's once it exists (v31.0.0): this seed only INSERTS one, as
-    // a first-run default, and never rewrites its wording, answers, loan types or place —
-    // `qOrder` still advances so every other question keeps its position.
+    // a first-run default, and never rewrites its wording, answers or place — `qOrder` still
+    // advances so every other question keeps its position. The car questions likewise.
     const owned = await prisma.question.findUnique({ where: { code }, select: { fixedServedOn: true } });
-    if (owned !== null && owned.fixedServedOn !== null) continue;
+    if (owned !== null && (owned.fixedServedOn !== null || ADMIN_OWNED_CAR_QUESTIONS.has(code))) {
+      continue;
+    }
     // Per-type rule columns: only the owning type keeps them, so a bucket
     // question converted to NUMERIC does not carry stale text rules (and vice versa).
     const typeColumns = {
@@ -2167,6 +2018,23 @@ export async function seedQuestionnaire(): Promise<void> {
         ...helperColumns, ...typeColumns, ...branchColumn,
       },
     });
+    // A car question created on THIS run (a fresh database) is ticked on every name already
+    // offered under car — the ticks the v32.0.0 migration gave every car name on an existing
+    // database. Never on a later run: the ticks are the admin's from then on.
+    if (owned === null && ADMIN_OWNED_CAR_QUESTIONS.has(code)) {
+      const carNames = await prisma.platformEnumerationLoanCategory.findMany({
+        where: { category: 'car', enumeration: { type: 'program_name' } },
+        select: { enumerationId: true },
+      });
+      await prisma.programNameQuestionAddition.createMany({
+        data: carNames.map((n) => ({
+          enumerationId: n.enumerationId,
+          category: 'car' as const,
+          questionId: question.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
     const optionCodes: string[] = [];
     let oOrder = 0;
     for (const o of q.options) {
@@ -2182,34 +2050,14 @@ export async function seedQuestionnaire(): Promise<void> {
       where: { questionId: question.id, code: { notIn: optionCodes } },
       data: { isActive: false },
     });
-    // Which loan categories ask this question (v12.0.0). Authored data like the
-    // rest of the seed, so it is rewritten on every run: a question moved between
-    // category configs must not keep the assignment it had before the move. The
-    // set comes from the SAME `categoriesByQuestion` map that pre-assigns each
-    // program's scoring below, so the two can never disagree.
-    const askedBy = [...(categoriesByQuestion[code] ?? new Set<Category>())];
-    // Ordinary rows only. An OPT-IN row is a program name's "ask this too" — operator data like
-    // `program_name_question_addition`, which this seed does not author and must not delete.
-    await prisma.questionLoanCategory.deleteMany({
-      where: { questionId: question.id, category: { notIn: askedBy }, optIn: false },
-    });
-    if (askedBy.length > 0) {
-      await prisma.questionLoanCategory.createMany({
-        data: askedBy.map((category) => ({ questionId: question.id, category })),
-        skipDuplicates: true,
-      });
-      // The config says EVERY name in these categories asks it — the same statement a global
-      // add makes — so an opt-in row it lists becomes ordinary.
-      await prisma.questionLoanCategory.updateMany({
-        where: { questionId: question.id, category: { in: askedBy }, optIn: true },
-        data: { optIn: false },
-      });
-    }
   }
   // Deactivate stale questions + groups (dropped/renamed across the whole pool). Never a FIXED
   // one: the admin owns it, and only their confirmed delete switches one off.
   await prisma.question.updateMany({
-    where: { code: { notIn: questionOrder }, fixedServedOn: null },
+    where: {
+      code: { notIn: [...questionOrder, ...ADMIN_OWNED_CAR_QUESTIONS] },
+      fixedServedOn: null,
+    },
     data: { isActive: false },
   });
   await prisma.questionGroup.updateMany({ where: { code: { notIn: groupOrder } }, data: { isActive: false } });
@@ -2581,28 +2429,15 @@ async function publishVersion(): Promise<void> {
     const qOut = [];
     for (const q of questions) {
       const options = await prisma.questionOption.findMany({ where: { questionId: q.id, isActive: true }, orderBy: { displayOrder: 'asc' } });
-      // Which categories ask this question is FROZEN here, exactly as
-      // `QuestionnaireService.publish()` does it (A33 — never re-derived at read
-      // time). Omitting it is not a smaller snapshot, it is a WRONG one: a
-      // question with no `categories` key is read as "asked by all four"
-      // (pre-v12 compatibility in `askedFor`), so `GET /v1/questionnaire?
-      // category=car` served the whole 38-question pool — every mortgage and
-      // business question included — to a car applicant.
-      //
-      // OPT-IN rows (a program name's "ask this too") are frozen apart, as `optInCategories` —
-      // the shared `frozenCategories`, so this and the service cannot drift on it.
-      const assigned = await prisma.questionLoanCategory.findMany({
-        where: { questionId: q.id },
-        orderBy: { category: 'asc' },
-      });
-      const frozen = frozenCategories(
-        assigned.map((c) => c.category),
-        assigned.filter((c) => c.optIn).map((c) => c.category),
-      );
+      // The FIXED mark is frozen exactly as `QuestionnaireService.publish()` freezes it
+      // (v31.0.0): it is what makes a fixed question core on every program, and a version
+      // without it would serve none of them. No loan types are frozen (v32.0.0): a question
+      // carries none.
       qOut.push({
-        code: q.code, type: q.type, ...frozen, questionAr: q.questionAr, questionEn: q.questionEn,
+        code: q.code, type: q.type, questionAr: q.questionAr, questionEn: q.questionEn,
         helperTextAr: q.helperTextAr, helperTextEn: q.helperTextEn, isRequired: q.isRequired,
         displayOrder: q.displayOrder, enabledWhen: q.enabledWhen ?? null,
+        fixedServedOn: q.fixedServedOn,
         // Feature 010 — rule blocks, emitted only for the type that owns them.
         ...(q.type === 'NUMERIC'
           ? {

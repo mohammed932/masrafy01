@@ -1,32 +1,33 @@
 /**
- * The SECOND axis narrowing which questions an applicant is put in front of: the catalog
- * PROGRAM NAME they picked.
+ * Which questions an applicant is put in front of: the ones the PROGRAM they picked asks
+ * (v32.0.0 — a question carries no loan type; operator decision 2026-10-29: "questions in app
+ * show per selected program not loan category ... make assignment to program only").
  *
- * The first axis is the loan category (`question_loan_category`, frozen into the snapshot as
- * `categories`, read by `askedFor`). This one narrows inside it: of the questions the category
- * asks, serve the ones a program behind the picked name can actually be quoted from, plus a
- * core every quote needs. It applies to BOTH income bases — a payslip program's cap table
- * reads facts exactly as a no-payslip program's calculation does, so there is one rule.
+ * A program here is a catalog program NAME under one loan type, and it asks:
+ *   - the FIXED questions (`question.fixedServedOn`, the admin's): the `every_name` ones on every
+ *     program, the `income_proof` ones on every program that sells a payslip programme;
+ *   - the money and debt questions every quote reads (the core below);
+ *   - what a bank programme filed under the name IN THIS LOAN TYPE reads (NEEDED) — on both
+ *     income bases, because a payslip programme's cap table reads facts exactly as a no-payslip
+ *     programme's calculation does;
+ *   - what the operator TICKED for it (`program_name_question_addition`);
+ *   - and the show-when source of anything kept.
+ * There is no other list in between. Until v32.0.0 a loan-type assignment
+ * (`question_loan_category`) bounded all of this from above and silently dropped what it did not
+ * hold; it is gone, and so are the per-name SKIPS, which only ever made sense against it.
  *
- * The operator adjusts it per name with two lists, both read live with the rest of this axis:
- * questions the name SKIPS (`program_name_question_exclusion`, bounded by `questionLockReason`)
- * and questions it ADDS (`program_name_question_addition`). An added question the category
- * does not ask of everyone sits in it as an OPT-IN row (frozen as `optInCategories`), which
- * this rule serves only where a name added it or a programme under the name reads it. So the
- * axis is still a NARROWING of the category's frozen set — never a widening of it.
- *
- * READ LIVE, and NOT frozen into the snapshot. That is the opposite of the category axis and
- * it is deliberate. The category assignment is questionnaire content, so freezing it is what
- * stops a reassignment rewriting what an older version asked. This axis is derived from
+ * READ LIVE, and NOT frozen into the snapshot. The inputs are derived from
  * `surrogate_product_ask`, `bank_program.incomeAssumption`, `bank_program.loanLimits` and
- * `platform_enumeration.incomeRule` — none of it questionnaire content, and `factsReadBy` says
+ * `platform_enumeration.incomeRule` — none of it questionnaire content — and `factsReadBy` says
  * in its own docstring why a stored copy is the wrong shape: "DERIVED, never stored. The rule
  * already names each fact it reads, so a second list saying which questions the product needs
  * could only ever drift out of step with it." A frozen copy would be that second list, and it
  * would go stale in the direction that RAISES a ceiling: editing a cap table publishes no
  * questionnaire version, so the stale copy would keep hiding a question the cap started
  * reading, `maxLoanByFact` would miss, and `onNoMatch: 'useProgramMax'` would quote above the
- * bank's own table with nothing reporting it.
+ * bank's own table with nothing reporting it. The ticks and the program's ORDER
+ * (`program_name_question_order`, `orderServed` below) are read live with the rest, for the
+ * same reason: they belong to the program, not to questionnaire content.
  *
  * Pure, and structural about the question rows for the reason `question-visibility.ts` is: the
  * frozen snapshot and the live `question` table are different shapes and both have to fit.
@@ -125,15 +126,9 @@ export interface ScopableQuestion {
   code: string;
   enabledWhen: unknown;
   /**
-   * In this category as an OPT-IN row (`question_loan_category.optIn`, frozen as
-   * `optInCategories`): asked only where the picked name ADDS it or a programme under the name
-   * reads it — never through the core, and never with no name. Absent = an ordinary row.
-   */
-  optIn?: boolean;
-  /**
-   * FIXED (`question.fixedServedOn`, frozen as `fixedServedOn`, v31.0.0): core on every name of
-   * the loan type (`every_name`) or on every income-proof one (`income_proof`), and never
-   * unticked. Absent or `null` = an ordinary question — every snapshot published before then.
+   * FIXED (`question.fixedServedOn`, frozen as `fixedServedOn`, v31.0.0): core on every program
+   * (`every_name`) or on every income-proof one (`income_proof`), and never unticked. Absent or
+   * `null` = an ordinary question — every snapshot published before then.
    */
   fixedServedOn?: FixedServedOn | null;
 }
@@ -149,75 +144,79 @@ export interface NarrowingScope {
   programNameKey: string;
   /** Every question bound to a `surrogate_fact`. Outside this set, a question is nobody's. */
   factBoundQuestionCodes: readonly string[];
-  /** Bound to a fact at least one LIVE (non-detached) product ask points at. */
-  askScopedQuestionCodes: readonly string[];
-  /** Bound to a fact the platform owns — a reserved key. Never a product's to narrow. */
+  /**
+   * Bound to a fact the PLATFORM owns — a reserved key: the bureau score, the car figures, the
+   * derived bank axes. NOT core (v32.0.0: with no loan type left to bound it, a car figure would be
+   * asked of every personal applicant); it is asked where a programme reads it, a tick puts it, or
+   * it is fixed. Read here only so such a question keeps its OWN requiredness where a programme
+   * reads it (`extraRequired`).
+   */
   platformQuestionCodes: readonly string[];
-  /** Bound to a fact something in scope reads: a rule, a cap table, or a declared ask. */
+  /**
+   * Bound to a fact something in scope reads: a rule, a cap table or a refusal of a programme
+   * filed under this name IN THE REQUESTED LOAN TYPE, or a declared ask of the product the name
+   * quotes off. Per loan type since v32.0.0: a union over the name's other loan types would ask a
+   * mortgage applicant what only the name's personal programme reads.
+   */
   neededQuestionCodes: readonly string[];
   /**
+   * The part of `neededQuestionCodes` the programmes themselves read — without the product's
+   * declared asks. NOT read by the narrowing; read by the engine-input contract, which holds a
+   * loan type to what its programmes actually read, exactly as `check:question-scope` does.
+   * Absent = not computed.
+   */
+  programReadQuestionCodes?: readonly string[];
+  /**
    * PRODUCT-ONLY (operator decision, 2026-09-23; narrowed 2026-09-24): the name quotes off a
-   * surrogate product and EVERY active programme under it is `income_surrogate`. The core is
-   * then the `every_name` fixed questions and `ASKED_EVEN_WHEN_PRODUCT_ONLY` — plus what the
-   * product and its programmes read. The app's own fallback (`apply_mapping.dart`) still covers
-   * the rest: no declared income (the product works it out) and, for a car, the amount as price
-   * minus down payment. Absent = false, which is every payslip or mixed name.
+   * surrogate product and EVERY active programme under it in this loan type is
+   * `income_surrogate` (and there is at least one). The core is then the `every_name` fixed
+   * questions and `ASKED_EVEN_WHEN_PRODUCT_ONLY` — plus what the product and its programmes read.
+   * The app's own fallback (`apply_mapping.dart`) still covers the rest: no declared income (the
+   * product works it out) and, for a car, the amount as price minus down payment. Absent = false,
+   * which is every payslip or mixed name.
    */
   productOnly?: boolean;
   /**
-   * An INCOME-PROOF programme is sold under this name in the requested loan type (any loan type
-   * when the request named none). The fixed question set's `income_proof` part — the declared
-   * salary, other income, bank statement and requested amount (`base-question-set.ts`) — is then
-   * served here whatever any untick says, and locked against one. Absent = false.
+   * An INCOME-PROOF programme is sold under this name in the requested loan type, or none is sold
+   * there yet (a name created from the admin is payslip-only, v30.8.0). The fixed question set's
+   * `income_proof` part — the declared salary, other income, bank statement and requested amount —
+   * is then served here, and locked against an untick. Absent = false.
    */
   incomeProof?: boolean;
   /**
-   * How many active programmes under the name an applicant of THIS loan type is quoted on (all
-   * loan types when the request named none). Read only by the product-only core: the priority
-   * question orders offers, so it is asked there when there is more than one. Absent = unknown,
-   * read as one.
+   * How many active programmes under the name an applicant of THIS loan type is quoted on. Read
+   * only by the product-only core: the priority question orders offers, so it is asked there when
+   * there is more than one. Absent = unknown, read as one.
    */
   programCount?: number;
   /**
    * Questions a programme under this name reads through a REFUSAL that is skipped when the
    * answer is missing — today the vehicle-age limit, which cannot refuse a car whose model year
-   * nobody gave. Required wherever served, whatever their core clause (a platform fact keeps
-   * its own requiredness otherwise). Absent = none.
+   * nobody gave. Served and required wherever the program is, whatever their core clause (a
+   * platform fact keeps its own requiredness otherwise). Absent = none.
    */
   mustAnswerQuestionCodes?: readonly string[];
   /**
-   * What the programmes of each LOAN TYPE under the name read, as question codes — the reads
-   * behind `neededQuestionCodes` and `mustAnswerQuestionCodes`, split by the reading
-   * programme's own loan type, without the product's declared asks. NOT read by the narrowing
-   * (which serves a name's union on purpose); read by the engine-input contract, which holds a
-   * mortgage applicant to what the name's mortgage programmes read and no more, exactly as
-   * `check:question-scope` does. Absent = not computed.
-   */
-  neededByCategory?: Readonly<Partial<Record<string, readonly string[]>>>;
-  /**
-   * Questions the operator UNTICKED for this name under the requested loan type
-   * (`program_name_question_exclusion`). Subtracted after the core and the needed set are
-   * built, EXCEPT a locked one (`questionLockReason`): the quote's own inputs cannot be
-   * unticked, and a fact a programme started reading after the untick brings its question
-   * back on its own. Absent = none.
-   */
-  excludedQuestionCodes?: readonly string[];
-  /**
    * Questions the operator TICKED for this name under the requested loan type
-   * (`program_name_question_addition`) — the mirror of `excludedQuestionCodes`. Kept even when
-   * nothing reads them and even when the row is OPT-IN, and never REQUIRED because they were
-   * added: a question keeps its own requiredness. An addition beats an exclusion of the same
-   * question (the writes keep the two apart anyway). Absent = none.
+   * (`program_name_question_addition`). Kept even when nothing reads them, and never REQUIRED
+   * because they were ticked: a question keeps its own requiredness. Absent = none.
    */
   addedQuestionCodes?: readonly string[];
+  /**
+   * The program's own ORDER under the requested loan type (`program_name_question_order`), as
+   * question codes in position order. Read by the serve path only (`orderServed`); the narrowing
+   * never looks at it. Absent or empty = the pool's order.
+   */
+  orderedQuestionCodes?: readonly string[];
 }
 
 /**
  * Why a question cannot be unticked for a program name.
  *
  *   - `engine`: every quote reads it — the money bindings, the debts and their amounts,
- *     employment type (the allow-lists and the per-type debt-burden cap), or a fact the
- *     platform owns (I-Score, the car figures).
+ *     employment type (the allow-lists and the per-type debt-burden cap). A fact the platform
+ *     owns (I-Score, the car figures) is no longer one (v32.0.0): with no loan type to bound it,
+ *     it is asked where a programme reads it (`program`), it is fixed (`base`) or it is ticked.
  *   - `base`: it is a FIXED question (`question.fixedServedOn`, `fixed-questions.ts`) and this
  *     path serves it — any name for an `every_name` question, an income-proof name for an
  *     `income_proof` one.
@@ -227,8 +226,9 @@ export interface NarrowingScope {
 export type QuestionLockReason = 'engine' | 'base' | 'program';
 
 /** The lock inputs, available with or without a name that has programmes behind it. */
-export type QuestionLockScope = Pick<NarrowingScope, 'platformQuestionCodes'> &
-  Partial<Pick<NarrowingScope, 'neededQuestionCodes' | 'mustAnswerQuestionCodes' | 'incomeProof'>>;
+export type QuestionLockScope = Partial<
+  Pick<NarrowingScope, 'neededQuestionCodes' | 'mustAnswerQuestionCodes' | 'incomeProof'>
+>;
 
 /**
  * `null` = the operator may untick it. The one rule serve, apply, preview and admin share.
@@ -254,9 +254,7 @@ export function lockReasonOutsideFixedSet(
   code: string,
   scope: QuestionLockScope,
 ): Exclude<QuestionLockReason, 'base'> | null {
-  if (NEVER_A_GATE_ONLY_SOURCE.has(code) || scope.platformQuestionCodes.includes(code)) {
-    return 'engine';
-  }
+  if (NEVER_A_GATE_ONLY_SOURCE.has(code)) return 'engine';
   if (
     (scope.neededQuestionCodes ?? []).includes(code) ||
     (scope.mustAnswerQuestionCodes ?? []).includes(code)
@@ -266,14 +264,14 @@ export function lockReasonOutsideFixedSet(
   return null;
 }
 
-export type NarrowingDisabledReason = 'no_name' | 'no_programs' | 'empty_result';
+export type NarrowingDisabledReason = 'no_name' | 'empty_result';
 
 export interface NarrowingDecision {
-  /** The picked NAME narrowed the list. False = no name, no programme, or an empty result. */
+  /** The picked NAME narrowed the list. False = no name, or a name whose rule kept nothing. */
   narrowed: boolean;
   /**
-   * Serve these — in EVERY path, narrowed or not. With narrowing off it is the whole list minus
-   * any OPT-IN question nobody put in scope, so a caller never falls back to the raw list.
+   * Serve these — in EVERY path, narrowed or not. With narrowing off it is the BASELINE (the
+   * fixed questions and the money core), so a caller never falls back to the raw list.
    */
   keep: ReadonlySet<string>;
   /** Kept AND required BECAUSE a program in scope reads the answer. */
@@ -343,17 +341,26 @@ function closeOverGates(
 }
 
 /**
- * Narrowing OFF. Nothing is narrowed, and the one thing still left out is an OPT-IN question
- * nobody put in scope: with no name — or a name with no programme yet — there is nobody to have
- * added it and nothing reading it. Closed over gates like the narrowed path, so an opt-in
- * question another kept one branches off stays. With no opt-in row in the list this is the
- * whole list, which is what every caller served before `keep` was authoritative here.
+ * Narrowing OFF — no program to narrow by: no name was sent, or the name's rule kept nothing.
+ * The BASELINE is served, never the whole pool (v32.0.0, when the loan-type list it used to fall
+ * back to was retired): the fixed questions — both kinds, since with no program there is no
+ * income basis to tell them apart — and the money and debt questions every quote reads, closed
+ * over gates like the narrowed path. Every bank programme has a name and the app makes the
+ * applicant pick one whenever there is one to pick, so this is the floor of a path nobody walks
+ * today, not a questionnaire anyone is served.
  */
 function off(
   reason: NarrowingDisabledReason,
   questions: readonly ScopableQuestion[],
 ): NarrowingDecision {
-  const keep = new Set(questions.filter((q) => q.optIn !== true).map((q) => q.code));
+  const keep = new Set(
+    questions
+      .filter(
+        (q) =>
+          fixedServedHere(q.fixedServedOn, true) || NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(q.code),
+      )
+      .map((q) => q.code),
+  );
   const gateSourcesRetained = closeOverGates(questions, gateMaps(questions).byCode, keep);
   return {
     narrowed: false,
@@ -367,32 +374,26 @@ function off(
 }
 
 /**
- * Which of the category's questions this program name is asked, and which of them its programs
- * make required.
+ * Which of the questions this program asks, and which of them its programmes make required.
  *
- * CORE — asked whatever the name — is the FIXED questions this path serves
+ * CORE — asked whatever the program — is the FIXED questions this path serves
  * (`question.fixedServedOn`, the admin's, `fixed-questions.ts`): the `every_name` ones on every
- * name, the `income_proof` ones wherever a payslip programme is sold under the name. They are
- * core on product-only names too, can never be unticked, and pass A never drops one. Beside
- * them, on a name that is not product-only, two derived floors:
+ * program, the `income_proof` ones wherever a payslip programme is sold under the name in this
+ * loan type. They are core on product-only names too, can never be unticked, and pass A never
+ * drops one. Beside them, on a name that is not product-only, the money and debt codes — the set
+ * above — the floor for the day the admin deletes one of them.
  *
- *   - bound to a fact the PLATFORM owns (a reserved key: the derived bank axes, the bureau
- *     score, the two car figures).
- *   - a money or obligation code — the set above — the floor for the day the admin deletes one.
+ * Any other question is asked only when a programme under the name in this loan type reads it
+ * (NEEDED, or a refusal that needs its answer), the operator ticked it for the program, or a kept
+ * question branches off it.
  *
- * Any other question is asked only when a programme under the name reads it (NEEDED), the
- * operator added it for the name, or a kept question branches off it.
+ * Gone from the core: "bound to no fact" and "bound to a fact no product asks" (v31.5.0, operator,
+ * 2026-10-28: "for now the questions in the system are just the fixed questions"), and "bound to a
+ * fact the platform owns" (v32.0.0): the loan-type assignment was what kept the car figures off a
+ * personal applicant's screen, and with it gone that clause would ask every applicant the price of
+ * a car. A car program gets them from its ticks and from what its programmes read.
  *
- * Two more clauses used to sit here and are gone (v31.5.0, operator, 2026-10-28: "for now the
- * questions in the system are just the fixed questions"). "Bound to no fact" kept the tenure,
- * transfer and preference questions before any of them was fixed, and then kept whatever an
- * admin created bound to nothing — a test question, and the compound product's "Do you own a
- * unit in a compound?" — asked of every payslip applicant with nothing reading the answer.
- * "Bound to a fact no product asks" kept `employment_status`, retired since v30.18.0. Every
- * question either clause still kept on 2026-10-28 was fixed or read by nothing.
- *
- * An OPT-IN row is never core; the operator's ADDED questions are kept whatever reads them,
- * survive pass A, and win over an exclusion of the same question.
+ * The operator's TICKED questions are kept whatever reads them and survive pass A.
  *
  * Then the gate passes, and their order is load-bearing. `isQuestionVisible` SHOWS a question
  * whose gate source is missing, so dropping a source while a question behind it survives would
@@ -415,35 +416,26 @@ export function narrowAskedQuestions(
   const factBound = new Set(scope.factBoundQuestionCodes);
   const platform = new Set(scope.platformQuestionCodes);
   const needed = new Set(scope.neededQuestionCodes);
-  const optIn = new Set(questions.filter((q) => q.optIn === true).map((q) => q.code));
+  const mustAnswer = new Set(scope.mustAnswerQuestionCodes ?? []);
   const { byCode, dependentsOf } = gateMaps(questions);
-  // Only what this category can serve: an addition whose row has since left the category
-  // scopes nothing, exactly as a dangling gate does not.
+  // Only what the questionnaire still holds: a tick on a question since switched off scopes
+  // nothing, exactly as a dangling gate does not.
   const added = new Set((scope.addedQuestionCodes ?? []).filter((code) => byCode.has(code)));
   // The fixed questions this path must serve (their own `fixedServedOn`): core whatever reads
   // them, never unticked (`questionLockReason` says `base`), never dropped by the gate clean-up.
   const base = fixedCodesServed(questions, scope.incomeProof === true);
 
-  // An OPT-IN row is never core: it is asked only of the names that add it or read it.
   const isCore = (code: string): boolean =>
-    !optIn.has(code) &&
-    (base.has(code) ||
-      (scope.productOnly === true
-        ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code) ||
-          (code === PRIORITY_QUESTION_CODE && (scope.programCount ?? 1) > 1)
-        : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code) || platform.has(code)));
+    base.has(code) ||
+    (scope.productOnly === true
+      ? ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code) ||
+        (code === PRIORITY_QUESTION_CODE && (scope.programCount ?? 1) > 1)
+      : NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code));
 
   const keep = new Set<string>();
   for (const q of questions) {
-    if (isCore(q.code) || needed.has(q.code) || added.has(q.code)) keep.add(q.code);
-  }
-  // The operator's unticks, before the gate passes so a gate source whose every dependent was
-  // unticked goes with them (pass A), and one a kept question still needs comes back (pass B).
-  // An addition of the same question wins: the tick is the later, narrower statement.
-  for (const code of scope.excludedQuestionCodes ?? []) {
-    if (added.has(code)) continue;
-    if (questionLockReason(code, scope, byCode.get(code)?.fixedServedOn ?? null) === null) {
-      keep.delete(code);
+    if (isCore(q.code) || needed.has(q.code) || mustAnswer.has(q.code) || added.has(q.code)) {
+      keep.add(q.code);
     }
   }
 
@@ -506,4 +498,36 @@ export function narrowAskedQuestions(
     gateSourcesDropped: gateSourcesDropped.filter((code) => !keep.has(code)),
     disabledReason: null,
   };
+}
+
+/**
+ * One step's questions in the order THIS program asks them (v32.0.0,
+ * `program_name_question_order`, read live with the rest of the program — `NarrowingScope.
+ * orderedQuestionCodes`).
+ *
+ * `questions` arrive in the POOL's order (the Questions tab's: `question.displayOrder`, then the
+ * code). A question the program placed sorts by its position. One it never placed — a new tick, a
+ * new fixed question, a question a bank programme started reading — sits right after the placed
+ * question it follows in the pool, so it lands where the Questions tab put it rather than at the
+ * end of the step. With no order at all (no name, or a program nobody has ordered) this is the
+ * pool's order, unchanged.
+ *
+ * Within one step only: a step is one screen of the app, and a position across steps means
+ * nothing. Shared by the customer read and the admin's served pages, so the screen the operator
+ * drags on is the order the applicant gets.
+ */
+export function orderServed<T extends { code: string }>(
+  questions: readonly T[],
+  orderedCodes: readonly string[] | undefined,
+): T[] {
+  if (orderedCodes === undefined || orderedCodes.length === 0) return [...questions];
+  const position = new Map(orderedCodes.map((code, index) => [code, index]));
+  let anchor = -1;
+  const keyed = questions.map((q, poolIndex) => {
+    const own = position.get(q.code);
+    if (own !== undefined) anchor = own;
+    return { q, primary: own ?? anchor, placed: own === undefined ? 1 : 0, poolIndex };
+  });
+  keyed.sort((a, b) => a.primary - b.primary || a.placed - b.placed || a.poolIndex - b.poolIndex);
+  return keyed.map((k) => k.q);
 }

@@ -14,28 +14,28 @@
  * unless something looks for it. This is that something. Each invariant below names the
  * failure it would have caught.
  *
- *   1. DEBTS CLOSED — a loan type that asks "which loans do you have" (`current_loans`) asks the
- *      amount behind EVERY pick. Car asked 2 of 5, so a car loan, mortgage or card counted as 0.
+ *   1. DEBTS CLOSED — while "which loans do you have" (`current_loans`) is live, the amount
+ *      behind EVERY pick is live too. Car once asked 2 of 5, so a car loan, mortgage or card
+ *      counted as 0.
  *   2. DEBTS SERVED PER NAME — under every offerable program name, the served questionnaire keeps
- *      the debt questions and the loan duration. Ten no-payslip names dropped all of them.
- *   3. GATE SOURCE ASKED — a question is never assigned where the question gating it is not: a
- *      gate that is not there never hides its target, so the child shows to everybody.
- *   4. ACTIVE ⇔ ASSIGNED — an active question is asked by at least one loan type, an inactive one
- *      by none.
- *   5. SNAPSHOT = LIVE — the published questionnaire's per-question loan types equal the live
- *      join table. A migration that changes assignments and forgets to publish shows up here.
+ *      the debt questions and the loan duration. Ten no-payslip names once dropped all of them.
+ *   3. GATE SOURCE LIVE — a live question is never gated on a question that is not: a gate that
+ *      is not there never hides its target, so the child shows to everybody.
+ *   4. (warning) ASKED NOWHERE — a live question no program asks: not fixed, read by no
+ *      programme, ticked by no program, and the source of no gate that is served.
+ *   5. SNAPSHOT = LIVE — the published questionnaire holds exactly the live questions with their
+ *      live fixed marks, and none of the loan-type keys retired in v32.0.0. A migration that
+ *      changes questions and forgets to publish shows up here.
  *   6. NO DEAD CONDITION — a product condition whose allow-list accepts every answer refuses
  *      nobody, and still forces the question on every applicant. The car product had four.
  *   7. FACT ⇒ QUESTION — an active fact is bound to an active question.
- *   8. ADDITIONS HAVE A ROW — every question a program name ADDS is active, sits in that loan
- *      type (ordinary or opt-in), under a name offered in it, and is not also one the name
- *      SKIPS. An addition without its row asks nothing and looks like a choice that still works.
- *   9. FIXED SET SANE — every active FIXED question (`question.fixedServedOn`, the admin's since
- *      v31.0.0; required or not is the admin's too since v31.1.0) sits only in ordinary rows, is
- *      asked in some loan type, is gated only on another active fixed question, and has no
- *      per-name skip or addition. Beside it, a WARNING for every question the engine reads
- *      by code (`ENGINE_READ_CODES`) that is switched off or not fixed — a super admin may
- *      delete one, and quotes then go without it.
+ *   8. TICKS AND ORDER IN PLACE — every question a program TICKS is live, not fixed, not one every
+ *      quote reads (those are asked everywhere already), and ticked under a loan type the name
+ *      is offered in; every ORDER row sits under such a loan type too.
+ *   9. FIXED SET SANE — every live FIXED question (`question.fixedServedOn`, the admin's since
+ *      v31.0.0) is gated only on another live fixed question and is ticked by no program. Beside
+ *      it, a WARNING for every question the engine reads by code (`ENGINE_READ_CODES`) that is
+ *      switched off or not fixed — a super admin may delete one, and quotes then go without it.
  *  10. FIXED SET SERVED — under every offerable program name, the served questionnaire keeps the
  *      fixed questions that path must ask: the `every_name` ones always, the `income_proof`
  *      ones wherever the name sells a payslip programme in that loan type.
@@ -46,22 +46,27 @@
  *  (warning) I-SCORE BAND EDGES — an I-Score tier that straddles a band edge (521, 626) is
  *      priced at the band's weakest tier for the whole band; reported so it is a choice.
  *
- * OPT-IN rows (`question_loan_category.optIn`, a program name's "ask this too") count as
- * assigned for 1, 3 and 4 — they are in the category. 5 compares them with the snapshot's
- * `optInCategories` and the ordinary rows with its `categories`.
+ * A question carries no loan type since v32.0.0: what an applicant is asked is the PROGRAM's
+ * (`question-scope.ts`), so the per-loan-type invariants this script once held are gone with it.
  */
 import { PrismaClient } from '@prisma/client';
-import type { LoanCategory } from '@prisma/client';
 import { I_SCORE_BANDS } from '../src/matching/pipeline/base-question-set';
 import { ENGINE_READ_CODES } from '../src/questionnaire/validation/engine-contract';
 import {
   numberEffectRangesOf,
   numberEffectRangesProblem,
 } from '../src/matching/pipeline/answer-effects';
-import { fixedServedHere, fixedServedOnOf } from '../src/questionnaire/validation/fixed-questions';
+import {
+  fixedServedHere,
+  fixedServedOnOf,
+  frozenFixedServedOn,
+} from '../src/questionnaire/validation/fixed-questions';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
-import { narrowAskedQuestions } from '../src/questionnaire/validation/question-scope';
+import {
+  NEVER_PRODUCT_SCOPED_QUESTION_CODES,
+  narrowAskedQuestions,
+} from '../src/questionnaire/validation/question-scope';
 import {
   DEBT_TYPES_QUESTION_CODE,
   MONEY_FIELD_BINDINGS,
@@ -78,11 +83,9 @@ interface Violation {
 interface SnapshotQuestion {
   code: string;
   enabledWhen?: unknown;
-  categories?: string[];
-  /** Disjoint from `categories`; absent before opt-in rows existed. */
-  optInCategories?: string[];
   /** Frozen since v31.0.0; absent = not fixed. */
   fixedServedOn?: unknown;
+  [key: string]: unknown;
 }
 
 function gateSourceOf(enabledWhen: unknown): string | null {
@@ -124,54 +127,25 @@ async function main(): Promise<void> {
       },
     },
   });
-  const assignments = await prisma.questionLoanCategory.findMany({
-    select: { questionId: true, category: true, optIn: true },
-  });
   const byId = new Map(questions.map((q) => [q.id, q]));
-  /** Every row — "is it in the category at all". */
-  const categoriesOf = new Map<string, Set<LoanCategory>>();
-  /** The opt-in subset, for 5. */
-  const optInOf = new Map<string, Set<LoanCategory>>();
-  for (const q of questions) {
-    categoriesOf.set(q.code, new Set());
-    optInOf.set(q.code, new Set());
-  }
-  for (const a of assignments) {
-    const q = byId.get(a.questionId);
-    if (!q) continue;
-    categoriesOf.get(q.code)!.add(a.category);
-    if (a.optIn) optInOf.get(q.code)!.add(a.category);
-  }
+  const byCode = new Map(questions.map((q) => [q.code, q]));
+  const live = questions.filter((q) => q.isActive);
+  const liveCodes = new Set(live.map((q) => q.code));
 
   // 1. DEBTS CLOSED
-  for (const category of categoriesOf.get(DEBT_TYPES_QUESTION_CODE) ?? []) {
+  if (liveCodes.has(DEBT_TYPES_QUESTION_CODE)) {
     for (const item of OBLIGATION_ITEM_QUESTION_CODES) {
-      if (!categoriesOf.get(item)?.has(category)) {
-        add('1 debts closed', `${category}: asks ${DEBT_TYPES_QUESTION_CODE} but not ${item}`);
+      if (!liveCodes.has(item)) {
+        add('1 debts closed', `${DEBT_TYPES_QUESTION_CODE} is live but ${item} is not`);
       }
     }
   }
 
-  // 3. GATE SOURCE ASKED
-  const byCode = new Map(questions.map((q) => [q.code, q]));
-  for (const q of questions) {
+  // 3. GATE SOURCE LIVE
+  for (const q of live) {
     const source = gateSourceOf(q.enabledWhen);
-    if (source === null || !byCode.has(source)) continue;
-    for (const category of categoriesOf.get(q.code) ?? []) {
-      if (!categoriesOf.get(source)?.has(category)) {
-        add('3 gate source asked', `${category}: ${q.code} is gated on ${source}, not asked there`);
-      }
-    }
-  }
-
-  // 4. ACTIVE ⇔ ASSIGNED
-  for (const q of questions) {
-    const n = categoriesOf.get(q.code)?.size ?? 0;
-    if (q.isActive && n === 0)
-      add('4 active ⇔ assigned', `${q.code}: active, asked by no loan type`);
-    // A deleted FIXED question keeps its rows, so a restore brings it back whole (v31.0.0).
-    if (!q.isActive && n > 0 && q.fixedServedOn === null) {
-      add('4 active ⇔ assigned', `${q.code}: inactive, still assigned`);
+    if (source !== null && !liveCodes.has(source)) {
+      add('3 gate source live', `${q.code} is gated on ${source}, which is not live`);
     }
   }
 
@@ -187,16 +161,11 @@ async function main(): Promise<void> {
     : [];
   if (version === null) add('5 snapshot = live', 'no active questionnaire version');
   const inSnapshot = new Set<string>();
+  let retiredKeys = 0;
   for (const sq of snapshotQuestions) {
     inSnapshot.add(sq.code);
-    const optIn = optInOf.get(sq.code) ?? new Set<LoanCategory>();
-    const live = [...(categoriesOf.get(sq.code) ?? [])]
-      .filter((c) => !optIn.has(c))
-      .sort()
-      .join(',');
-    const frozen = Array.isArray(sq.categories) ? [...sq.categories].sort().join(',') : '(all)';
-    if (live !== frozen) {
-      add('5 snapshot = live', `${sq.code}: published [${frozen}], live [${live}] — publish`);
+    if (!liveCodes.has(sq.code)) {
+      add('5 snapshot = live', `${sq.code}: published, switched off live — publish`);
     }
     const liveMark = fixedServedOnOf(byCode.get(sq.code)?.fixedServedOn);
     if (liveMark !== fixedServedOnOf(sq.fixedServedOn)) {
@@ -205,80 +174,88 @@ async function main(): Promise<void> {
         `${sq.code}: published fixed [${String(sq.fixedServedOn ?? 'no')}], live [${liveMark ?? 'no'}] — publish`,
       );
     }
-    const liveOptIn = [...optIn].sort().join(',');
-    const frozenOptIn = [...(sq.optInCategories ?? [])].sort().join(',');
-    if (liveOptIn !== frozenOptIn) {
-      add(
-        '5 snapshot = live',
-        `${sq.code}: published opt-in [${frozenOptIn}], live opt-in [${liveOptIn}] — publish`,
-      );
-    }
+    if ('categories' in sq || 'optInCategories' in sq || 'categoryOrder' in sq) retiredKeys += 1;
   }
-  for (const q of questions) {
-    if ((categoriesOf.get(q.code)?.size ?? 0) > 0 && !inSnapshot.has(q.code)) {
-      add('5 snapshot = live', `${q.code}: assigned live, missing from the published version`);
+  if (retiredKeys > 0) {
+    add(
+      '5 snapshot = live',
+      `${retiredKeys} published question(s) still carry the loan-type keys retired in v32.0.0 — publish`,
+    );
+  }
+  for (const q of live) {
+    if (!inSnapshot.has(q.code)) {
+      add('5 snapshot = live', `${q.code}: live, missing from the published version`);
     }
   }
 
-  // 2. DEBTS SERVED PER NAME
+  // 2 and 10, per path — and the union of what every path serves, for 4.
   const repo = new PostgresPlatformEnumerationsRepository(prisma as unknown as PrismaService);
   const offered = await prisma.bankProgram.groupBy({
     by: ['programNameKey', 'productCategory'],
     where: { active: true, programNameKey: { not: null } },
+  });
+  const offeredPairs = await prisma.platformEnumerationLoanCategory.findMany({
+    where: { enumeration: { type: 'program_name', active: true, deprecatedAt: null } },
+    select: { category: true, enumeration: { select: { key: true } } },
   });
   const mustServe = [
     DEBT_TYPES_QUESTION_CODE,
     ...OBLIGATION_ITEM_QUESTION_CODES,
     MONEY_FIELD_BINDINGS.tenor_months,
   ];
-  for (const { programNameKey, productCategory } of offered) {
-    if (programNameKey === null) continue;
-    const isOptIn = (q: SnapshotQuestion): boolean =>
-      q.optInCategories?.includes(productCategory) === true;
-    const inCategory = snapshotQuestions.filter(
-      (q) => !Array.isArray(q.categories) || q.categories.includes(productCategory) || isOptIn(q),
-    );
-    const scope = await repo.narrowingScopeFor(programNameKey, productCategory);
+  const servedAnywhere = new Set<string>();
+  const servedOn = async (
+    programNameKey: string,
+    category: (typeof offeredPairs)[number]['category'],
+  ): Promise<{ served: ReadonlySet<string>; incomeProof: boolean }> => {
+    const scope = await repo.narrowingScopeFor(programNameKey, category);
     const decision = narrowAskedQuestions(
-      inCategory.map((q) => ({
+      snapshotQuestions.map((q) => ({
         code: q.code,
         enabledWhen: q.enabledWhen ?? null,
-        optIn: isOptIn(q),
-        fixedServedOn: fixedServedOnOf(q.fixedServedOn),
+        fixedServedOn: frozenFixedServedOn(q, category),
       })),
       scope,
     );
-    const served = decision.keep;
+    for (const code of decision.keep) servedAnywhere.add(code);
+    return { served: decision.keep, incomeProof: scope?.incomeProof === true };
+  };
+  for (const pair of offeredPairs) await servedOn(pair.enumeration.key, pair.category);
+  for (const { programNameKey, productCategory } of offered) {
+    if (programNameKey === null) continue;
+    const category = productCategory as (typeof offeredPairs)[number]['category'];
+    const { served, incomeProof } = await servedOn(programNameKey, category);
+    // 2. DEBTS SERVED PER NAME
     for (const code of mustServe) {
-      const assigned = inCategory.some((q) => q.code === code);
-      if (assigned && !served.has(code)) {
+      if (inSnapshot.has(code) && !served.has(code)) {
         add('2 debts served per name', `${productCategory}/${programNameKey}: ${code} not served`);
       }
     }
     // 10. FIXED SET SERVED — same path, same decision.
-    for (const q of inCategory) {
-      if (isOptIn(q) || !fixedServedHere(fixedServedOnOf(q.fixedServedOn), scope?.incomeProof === true)) {
-        continue;
-      }
+    for (const q of snapshotQuestions) {
+      if (!fixedServedHere(frozenFixedServedOn(q, category), incomeProof)) continue;
       if (!served.has(q.code)) {
         add('10 fixed set served', `${productCategory}/${programNameKey}: ${q.code} not served`);
       }
     }
   }
 
+  // 4. (warning) ASKED NOWHERE
+  const nowhere: string[] = [];
+  for (const q of live) {
+    if (!servedAnywhere.has(q.code)) nowhere.push(`${q.code}: live, asked by no program`);
+  }
+
   // 9. FIXED SET SANE
   const namePolicy = new Set(
-    [
-      ...(await prisma.programNameQuestionExclusion.findMany({ select: { questionId: true } })),
-      ...(await prisma.programNameQuestionAddition.findMany({ select: { questionId: true } })),
-    ].map((r) => r.questionId),
+    (await prisma.programNameQuestionAddition.findMany({ select: { questionId: true } })).map(
+      (r) => r.questionId,
+    ),
   );
   const fixedWarnings: string[] = [];
   for (const q of questions) {
     if (!q.isActive || q.fixedServedOn === null) continue;
     const at = (detail: string): void => add('9 fixed set sane', `${q.code}: ${detail}`);
-    if ((optInOf.get(q.code)?.size ?? 0) > 0) at('opt-in in a loan type');
-    if ((categoriesOf.get(q.code)?.size ?? 0) === 0) at('asked in no loan type');
     const source = gateSourceOf(q.enabledWhen);
     if (source !== null) {
       const gate = byCode.get(source);
@@ -286,7 +263,7 @@ async function main(): Promise<void> {
         at(`gated on ${source}, which is not fixed`);
       }
     }
-    if (namePolicy.has(q.id)) at('a program name skips or adds it');
+    if (namePolicy.has(q.id)) at('a program ticks it');
   }
   for (const q of questions) {
     const at = (detail: string): void => add('11 offer effects on fixed only', `${q.code}: ${detail}`);
@@ -396,10 +373,9 @@ async function main(): Promise<void> {
       add('7 fact ⇒ question', `${f.key}: active fact, bound question inactive`);
   }
 
-  // 8. ADDITIONS HAVE A ROW
+  // 8. TICKS AND ORDER IN PLACE
   const additions = await prisma.programNameQuestionAddition.findMany({
     select: {
-      enumerationId: true,
       category: true,
       questionId: true,
       enumeration: {
@@ -407,35 +383,45 @@ async function main(): Promise<void> {
       },
     },
   });
-  const exclusions = new Set(
-    (
-      await prisma.programNameQuestionExclusion.findMany({
-        select: { enumerationId: true, category: true, questionId: true },
-      })
-    ).map((row) => `${row.enumerationId}|${row.category}|${row.questionId}`),
-  );
   for (const a of additions) {
     const q = byId.get(a.questionId);
     const where = `${a.category}/${a.enumeration.key}`;
     if (!q) continue; // the FK cascades a deleted question's rows away
-    if (!q.isActive)
-      add('8 additions have a row', `${where}: adds ${q.code}, which is switched off`);
-    if (!categoriesOf.get(q.code)?.has(a.category)) {
-      add('8 additions have a row', `${where}: adds ${q.code}, not in ${a.category} at all`);
+    if (!q.isActive) add('8 ticks and order in place', `${where}: ticks ${q.code}, which is off`);
+    if (q.fixedServedOn !== null) {
+      add('8 ticks and order in place', `${where}: ticks ${q.code}, which is fixed`);
+    }
+    if (NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(q.code)) {
+      add('8 ticks and order in place', `${where}: ticks ${q.code}, which every quote reads`);
     }
     if (!a.enumeration.loanCategories.some((c) => c.category === a.category)) {
-      add('8 additions have a row', `${where}: the name is not offered under ${a.category}`);
+      add('8 ticks and order in place', `${where}: the name is not offered under ${a.category}`);
     }
-    if (exclusions.has(`${a.enumerationId}|${a.category}|${a.questionId}`)) {
-      add('8 additions have a row', `${where}: ${q.code} is both added and skipped`);
+  }
+  const orders = await prisma.programNameQuestionOrder.groupBy({
+    by: ['enumerationId', 'category'],
+  });
+  const names = await prisma.platformEnumeration.findMany({
+    where: { id: { in: orders.map((o) => o.enumerationId) } },
+    select: { id: true, key: true, loanCategories: { select: { category: true } } },
+  });
+  const nameById = new Map(names.map((n) => [n.id, n]));
+  for (const o of orders) {
+    const name = nameById.get(o.enumerationId);
+    if (name !== undefined && !name.loanCategories.some((c) => c.category === o.category)) {
+      add(
+        '8 ticks and order in place',
+        `${o.category}/${name.key}: an order is kept under a loan type the name is not offered in`,
+      );
     }
   }
 
   console.log('\n[check:questionnaire-integrity]\n');
   for (const w of warnings) console.log(`  ! [I-Score band edges] ${w}`);
   for (const w of fixedWarnings) console.log(`  ! [engine reads it] ${w}`);
+  for (const w of nowhere) console.log(`  ! [asked nowhere] ${w}`);
   if (violations.length === 0) {
-    console.log('  clean — all ten invariants hold.');
+    console.log('  clean — every invariant holds.');
   } else {
     for (const v of violations) console.log(`  ✗ [${v.invariant}] ${v.detail}`);
     console.log(`\n  ${violations.length} violation(s).`);

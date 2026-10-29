@@ -15,6 +15,8 @@ export interface AddableRow {
   readonly isRequired: boolean;
   /** Questions it needs first, which an Add brings with it — named so it is said before. */
   readonly alsoAdds: readonly string[];
+  /** The same questions by id, nearest first — what the Add writes beside it. */
+  readonly chainIds: readonly string[];
   /** Wording + code + answers, lower-cased. What search matches. */
   readonly haystack: string;
 }

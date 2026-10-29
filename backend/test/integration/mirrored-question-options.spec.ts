@@ -67,11 +67,6 @@ function makeService(
       { id: 'g_1', code: 'about', titleAr: 'ع', titleEn: 'A', displayOrder: 1, isActive: true },
     ],
     questions: async () => [],
-    categoryAssignments: async () => new Map<string, string[]>(),
-    optInAssignments: async () => new Map<string, string[]>(),
-    // Beside the assignment set, because `publish` freezes both: which categories ask a
-    // question, and WHERE each of them asks it.
-    categoryOrders: async () => new Map<string, Record<string, number>>(),
     optionsByQuestion: async () => [],
     // `publish()` reads every question's options in ONE query now, not one per question.
     optionsByQuestions: async () => new Map(),

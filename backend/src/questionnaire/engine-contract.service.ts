@@ -2,11 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type { LoanCategory, Question } from '@prisma/client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
-import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
-import { CAR_DOWN_PAYMENT_FACT_KEY, CAR_PRICE_FACT_KEY } from '@/matching/pipeline/car-details';
 import { isReservedFactKey } from '@/matching/pipeline/fact-question-eligibility';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
-import { planAssignment } from './assignment-plan';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import {
   fixedRuleBreaks,
@@ -56,14 +53,6 @@ export interface QuestionPatch {
 /** Every write the contract judges, by what it changes. */
 export type QuestionnaireWrite =
   | { kind: 'question'; questionId: string; patch: QuestionPatch }
-  | {
-      kind: 'categories';
-      assignments: ReadonlyArray<{
-        questionId: string;
-        categories: readonly LoanCategory[];
-        optInCategories?: readonly LoanCategory[];
-      }>;
-    }
   /** An answer turned on (created, or a retired one brought back) or off. */
   | { kind: 'option'; questionId: string; optionCode: string; active: boolean }
   /** An answer relabelled; `undefined` = that language left as it is. */
@@ -118,9 +107,8 @@ export interface EngineReaderViews {
  *
  * Every write to the questionnaire publishes on the spot, so there is no later moment to refuse
  * it at: the refusal has to come BEFORE the write lands. `assertWrite` reads the world once,
- * plays the write forward in memory — category replaces through the same `planAssignment` the
- * repository writes with — and refuses it if it changes a locked question, or leaves the engine
- * without an answer it gets today.
+ * plays the write forward in memory, and refuses it if it changes a locked question, or leaves
+ * the engine without an answer it gets today.
  */
 @Injectable()
 export class EngineContractService {
@@ -181,7 +169,7 @@ export class EngineContractService {
     const after = await this.playForward(live, write);
 
     // The FIXED rules (v31.0.0), on what every write — rollback included — would leave behind:
-    // a category replace exactly as the repository writes it, a rollback as the version holds it.
+    // a rollback as the version holds it.
     assertFixedRules(live, after, rows);
 
     // A rollback changes many questions at once; each locked one is judged as if its changes
@@ -339,10 +327,10 @@ export class EngineContractService {
 
   /** Everything the contract reads that no questionnaire write can change. */
   private async context(): Promise<EngineContractContext> {
-    const [offered, facts, lockScope] = await Promise.all([
+    const [offered, facts, platformQuestionCodes] = await Promise.all([
       this.enums.offeredProgramFlows(),
       this.enums.getActiveMembers('surrogate_fact'),
-      this.enums.questionLockScopeFor(null),
+      this.enums.platformQuestionCodes(),
     ]);
     const flows = await Promise.all(
       offered.map(async (flow) => ({
@@ -353,25 +341,16 @@ export class EngineContractService {
             : await this.enums.narrowingScopeFor(flow.programNameKey, flow.category),
       })),
     );
-    const codeOf = (key: string): string | undefined =>
-      facts.find((f) => f.key === key)?.boundQuestion?.code;
-    const price = codeOf(CAR_PRICE_FACT_KEY);
-    const down = codeOf(CAR_DOWN_PAYMENT_FACT_KEY);
     return {
       flows,
       facts: facts.map((f) => ({ key: f.key, questionCode: f.boundQuestion?.code ?? null })),
-      platformQuestionCodes: lockScope.platformQuestionCodes,
-      amountDerivableFrom: price !== undefined && down !== undefined ? [price, down] : [],
+      platformQuestionCodes,
     };
   }
 
   /** The live pool, inactive questions included (a write may switch one back on). */
   private async contractQuestions(rows: readonly Question[]): Promise<ContractQuestion[]> {
-    const [assignments, optIns, options] = await Promise.all([
-      this.repo.categoryAssignments(),
-      this.repo.optInAssignments(),
-      this.repo.optionsByQuestions(rows.map((r) => r.id)),
-    ]);
+    const options = await this.repo.optionsByQuestions(rows.map((r) => r.id));
     return rows.map((r) => {
       const active = (options.get(r.id) ?? []).filter((o) => o.isActive);
       return {
@@ -381,8 +360,6 @@ export class EngineContractService {
         isActive: r.isActive,
         isRequired: r.isRequired,
         enabledWhen: r.enabledWhen ?? null,
-        categories: assignments.get(r.id) ?? [],
-        optInCategories: optIns.get(r.id) ?? [],
         optionCodes: active.map((o) => o.code),
         unitAr: r.numericUnitAr,
         unitEn: r.numericUnitEn,
@@ -426,8 +403,8 @@ export class EngineContractService {
               },
         );
       }
-      // Switched off and nothing else: a deleted fixed question keeps its mark, loan types and
-      // answers on the row, so a restore brings it back whole.
+      // Switched off and nothing else: a deleted fixed question keeps its mark and answers on
+      // the row, so a restore brings it back whole.
       case 'fixed_delete':
         return live.map((q) => (q.id !== write.questionId ? q : { ...q, isActive: false }));
       case 'option':
@@ -436,29 +413,6 @@ export class EngineContractService {
           const others = q.optionCodes.filter((code) => code !== write.optionCode);
           return { ...q, optionCodes: write.active ? [...others, write.optionCode] : others };
         });
-      case 'categories': {
-        const addedIn = await this.enums.questionAdditionCounts();
-        const byId = new Map(write.assignments.map((a) => [a.questionId, a]));
-        return live.map((q) => {
-          const a = byId.get(q.id);
-          if (a === undefined) return q;
-          const counts = addedIn.get(q.id) ?? {};
-          const plan = planAssignment(
-            q.categories.map((category) => ({
-              category,
-              optIn: q.optInCategories.includes(category),
-            })),
-            a.categories,
-            a.optInCategories,
-            new Set((Object.keys(counts) as LoanCategory[]).filter((c) => (counts[c] ?? 0) > 0)),
-          );
-          return {
-            ...q,
-            categories: [...plan.ordinary, ...plan.optIn],
-            optInCategories: plan.optIn,
-          };
-        });
-      }
       case 'option_label':
         return [...live];
       case 'snapshot':
@@ -556,8 +510,6 @@ function asFixedRuleQuestion(q: ContractQuestion): FixedRuleQuestion {
     code: q.code,
     isActive: q.isActive,
     enabledWhen: q.enabledWhen,
-    categories: q.categories,
-    optInCategories: q.optInCategories,
     fixedServedOn: q.fixedServedOn ?? null,
   };
 }
@@ -599,8 +551,8 @@ function assertFixedRules(
 
 /**
  * The questionnaire a frozen snapshot describes, in the contract's shape. A question absent
- * from it is switched off; one frozen before loan-type assignment existed carries no
- * `categories` and was asked in all four (v12.0.0).
+ * from it is switched off. The loan types a version froze before v32.0.0 (`categories`) are not
+ * read: a question carries none any more, and what a program asks is the program's.
  */
 function snapshotQuestions(
   snapshot: unknown,
@@ -614,8 +566,6 @@ function snapshotQuestions(
       type?: unknown;
       isRequired?: unknown;
       enabledWhen?: unknown;
-      categories?: unknown;
-      optInCategories?: unknown;
       options?: { code?: unknown; labelAr?: unknown; labelEn?: unknown }[];
       numeric?: {
         unitAr?: unknown;
@@ -646,10 +596,6 @@ function snapshotQuestions(
         ),
       ),
     };
-    const ordinary = Array.isArray(q.categories)
-      ? (q.categories as LoanCategory[])
-      : [...ALL_LOAN_CATEGORIES];
-    const optIn = Array.isArray(q.optInCategories) ? (q.optInCategories as LoanCategory[]) : [];
     frozen.set(q.code, {
       id: live.find((l) => l.code === q.code)?.id ?? q.code,
       code: q.code,
@@ -657,8 +603,6 @@ function snapshotQuestions(
       isActive: true,
       isRequired: q.isRequired === true,
       enabledWhen: q.enabledWhen ?? null,
-      categories: [...ordinary, ...optIn],
-      optInCategories: optIn,
       optionCodes: (q.options ?? []).flatMap((o) => (typeof o.code === 'string' ? [o.code] : [])),
       unitAr: typeof q.numeric?.unitAr === 'string' ? q.numeric.unitAr : null,
       unitEn: typeof q.numeric?.unitEn === 'string' ? q.numeric.unitEn : null,
@@ -672,9 +616,7 @@ function snapshotQuestions(
       wording,
     });
   }
-  const off = live
-    .filter((l) => !frozen.has(l.code))
-    .map((l) => ({ ...l, isActive: false, categories: [], optInCategories: [] }));
+  const off = live.filter((l) => !frozen.has(l.code)).map((l) => ({ ...l, isActive: false }));
   return [...frozen.values(), ...off];
 }
 

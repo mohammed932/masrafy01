@@ -26,9 +26,9 @@
  *        - `program`: a live bank programme reads it, through its calculation or a table.
  *      A FIXED question (`question.fixedServedOn`, the admin's since v31.0.0) is held by its
  *      own rules besides while it is fixed (`fixed-questions.ts`, applied by
- *      `EngineContractService`): never opt-in, never out of a loan type, gated only on a fixed
- *      question, and switched off only by a super admin's confirmed delete — the one write that
- *      may switch off a question this lock holds. The mark itself is the admin's both ways.
+ *      `EngineContractService`): gated only on a fixed question, and switched off only by a
+ *      super admin's confirmed delete — the one write that may switch off a question this lock
+ *      holds. The mark itself is the admin's both ways.
  *      No answer may be ADDED to a locked question, whoever reads it (v30.12.0, operator
  *      decision). Until then a question only a table read could gain one, on the reasoning that
  *      the table might just lack the row — but nothing checks that a new answer has a row, and
@@ -44,13 +44,11 @@
  *      absolute state instead would freeze the whole editor on the first standing problem —
  *      including the edit that might be fixing it.
  *
- * "Asked in a loan type" means an ORDINARY row there. An OPT-IN row is asked only by the names
- * that added it (never core, never served without a name), so counting one as "asked" would let
- * a question every applicant needs quietly become one only some names are asked.
- *
- * Paths are walked per (loan type, program name), the way `check:question-scope` walks them,
- * plus the applicant who picked NO name: a mortgage applicant is held to what the name's
- * MORTGAGE programmes read, never to the union over every loan type the name is sold under.
+ * Paths are walked per (loan type, program name), the way `check:question-scope` walks them: a
+ * mortgage applicant is held to what the name's MORTGAGE programmes read, never to the union
+ * over every loan type the name is sold under. A question carries no loan type since v32.0.0,
+ * so there is no "asked in the loan type" to hold any more — what a path SERVES is the whole of
+ * it (`question-scope.ts`).
  */
 import type { LoanCategory } from '@prisma/client';
 import {
@@ -164,10 +162,10 @@ export function engineInputReaderOf(code: string): EngineInputReader | null {
 }
 
 /**
- * Asked in EVERY loan type on sale: the money figures and the debt-type pick (`check:money`).
- * Not the stated obligations total: the debts it summed are asked instead (2026-10-26).
+ * The money figures and the debt-type pick (`check:money`) — never gated. Not the stated
+ * obligations total: the debts it summed are asked instead (2026-10-26).
  */
-const ASKED_IN_EVERY_LOAN_TYPE: readonly string[] = [
+const ASKED_OF_EVERY_APPLICANT: readonly string[] = [
   ...ASKED_MONEY_FIELD_BINDING_KEYS.map((key) => MONEY_FIELD_BINDINGS[key]),
   DEBT_TYPES_QUESTION_CODE,
 ];
@@ -178,11 +176,11 @@ const ASKED_IN_EVERY_LOAN_TYPE: readonly string[] = [
  * no income, no debts, or as `salaried`.
  */
 const NEVER_GATED: ReadonlySet<string> = new Set([
-  ...ASKED_IN_EVERY_LOAN_TYPE,
+  ...ASKED_OF_EVERY_APPLICANT,
   EMPLOYMENT_TYPE_QUESTION_CODE,
 ]);
 
-/** Served under every program name wherever the loan type asks them (`check:questionnaire` 2). */
+/** Served under every program name (`check:questionnaire` 2). */
 const SERVED_UNDER_EVERY_NAME: readonly string[] = [
   DEBT_TYPES_QUESTION_CODE,
   ...Object.values(OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE),
@@ -202,10 +200,6 @@ export interface ContractQuestion {
   readonly isActive: boolean;
   readonly isRequired: boolean;
   readonly enabledWhen: unknown;
-  /** Every loan type it is in, OPT-IN rows included. */
-  readonly categories: readonly LoanCategory[];
-  /** The opt-in subset of `categories`. */
-  readonly optInCategories: readonly LoanCategory[];
   /** ACTIVE option codes. */
   readonly optionCodes: readonly string[];
   /** The numeric unit, ar and en — what a figure IS (EGP a month, months). */
@@ -269,7 +263,7 @@ export interface WordingNumberBreak {
 export interface ContractFlow {
   readonly category: LoanCategory;
   readonly programNameKey: string | null;
-  /** `narrowingScopeFor(name, category)`; `null` with no name, or a name nothing is sold under. */
+  /** `narrowingScopeFor(name, category)`; `null` with no name, or an unknown or retired name. */
   readonly scope: NarrowingScope | null;
 }
 
@@ -285,11 +279,6 @@ export interface EngineContractContext {
   readonly facts: readonly ContractFact[];
   /** Questions bound to a fact the platform owns (`isReservedFactKey`). */
   readonly platformQuestionCodes: readonly string[];
-  /**
-   * The car price and down-payment questions. A loan type that asks both may leave the amount
-   * unasked: the app works it out as price minus down payment (`check:money`).
-   */
-  readonly amountDerivableFrom: readonly string[];
 }
 
 export type EngineContractRule =
@@ -299,9 +288,7 @@ export type EngineContractRule =
   | 'engine_question_wrong_type'
   /** …has a show-when rule, or a debt amount shown for the wrong debt. */
   | 'engine_question_gated'
-  /** …is not asked (an ordinary row) in a loan type that is on sale and reads it. */
-  | 'engine_question_not_asked'
-  /** …is asked in the loan type but an applicant's path drops it. */
+  /** …is on, but an applicant's path drops it. */
   | 'engine_question_not_served'
   /** A debt type the applicant can tick has no amount question: it counts as zero. */
   | 'debt_type_unmapped'
@@ -311,13 +298,9 @@ export type EngineContractRule =
   | 'employment_option_unknown'
   /** An active fact is bound to no question, or to one that is switched off. */
   | 'fact_question_off'
-  /** An active fact's question is in no loan type: nobody can answer it. */
-  | 'fact_question_not_asked'
   /** A question a live programme reads is switched off. */
   | 'program_question_off'
-  /** …is not in the loan type that programme is sold under. */
-  | 'program_question_not_asked'
-  /** …is in it, but an applicant's path drops it. */
+  /** …is on, but the path of the program it is read under drops it. */
   | 'program_question_not_served';
 
 export interface EngineContractViolation {
@@ -367,16 +350,6 @@ export function engineContractViolations(
   const out: EngineContractViolation[] = [];
   const active = questions.filter((q) => q.isActive);
   const byCode = new Map(active.map((q) => [q.code, q]));
-  /** In the loan type through ANY row — what a programme's own name can be served. */
-  const inCategory = (code: string, category: LoanCategory): boolean =>
-    byCode.get(code)?.categories.includes(category) === true;
-  /** Asked of EVERY applicant of the loan type: an ordinary row, not an opt-in one. */
-  const askedIn = (code: string, category: LoanCategory): boolean => {
-    const q = byCode.get(code);
-    return (
-      q !== undefined && q.categories.includes(category) && !q.optInCategories.includes(category)
-    );
-  };
 
   // 1. The engine's own inputs: on, the right type, and shown unconditionally (or, for a debt
   //    amount, shown exactly when its own debt is ticked). Required is the admin's (v31.1.0).
@@ -432,106 +405,42 @@ export function engineContractViolations(
     }
   }
 
-  // 4. Asked of every applicant in every loan type on sale that reads it (`check:money`,
-  //    `check:questionnaire` 1, and each loan type's own mapper).
-  const categoriesOnSale = [...new Set(ctx.flows.map((f) => f.category))].sort();
-  for (const category of categoriesOnSale) {
-    for (const code of ASKED_IN_EVERY_LOAN_TYPE) {
-      if (askedIn(code, category)) continue;
-      if (
-        code === MONEY_FIELD_BINDINGS.requested_amount &&
-        ctx.amountDerivableFrom.length > 0 &&
-        ctx.amountDerivableFrom.every((c) => askedIn(c, category))
-      ) {
-        continue;
-      }
-      out.push({ rule: 'engine_question_not_asked', questionCode: code, category });
-    }
-    if (askedIn(DEBT_TYPES_QUESTION_CODE, category)) {
-      for (const item of DEBT_TYPE_BY_ITEM.keys()) {
-        if (!askedIn(item, category)) {
-          out.push({ rule: 'engine_question_not_asked', questionCode: item, category });
-        }
-      }
-    }
-  }
-
-  // 5. Facts: every active one bound to a question that is on and asked somewhere.
+  // 4. Facts: every active one bound to a question that is on. Where it is ASKED is the
+  //    program's (v32.0.0): a programme that reads it puts it on its own path (rule 5).
   for (const fact of ctx.facts) {
     if (fact.questionCode === null) {
       out.push({ rule: 'fact_question_off', questionCode: '', factKey: fact.key });
       continue;
     }
-    const q = byCode.get(fact.questionCode);
-    if (q === undefined) {
+    if (!byCode.has(fact.questionCode)) {
       out.push({ rule: 'fact_question_off', questionCode: fact.questionCode, factKey: fact.key });
-    } else if (q.categories.length === 0) {
-      out.push({
-        rule: 'fact_question_not_asked',
-        questionCode: fact.questionCode,
-        factKey: fact.key,
-      });
     }
   }
 
-  // 6. Per path — each (loan type, program name), and each loan type's applicant who picked NO
-  //    name — what the narrowing SERVES still holds what the engine, the app and that path's
-  //    programmes read (`check:questionnaire` 2, `check:question-scope`). The no-name applicant
-  //    is quoted on every programme of the loan type, so is held to the union of their reads.
-  const readsInCategory = new Map<LoanCategory, Set<string>>();
+  // 5. Per path — each (loan type, program name) an applicant can be quoted under — what the
+  //    narrowing SERVES still holds what the engine and that path's programmes read
+  //    (`check:questionnaire` 2, `check:question-scope`). A programme sold under no name has no
+  //    path of its own: every active programme carries a name, and the app makes the applicant
+  //    pick one whenever there is one to pick.
   for (const flow of ctx.flows) {
-    const reads = readsInCategory.get(flow.category) ?? new Set<string>();
-    for (const code of flow.scope?.neededByCategory?.[flow.category] ?? []) reads.add(code);
-    readsInCategory.set(flow.category, reads);
-  }
-  const paths: {
-    category: LoanCategory;
-    programNameKey?: string;
-    scope: NarrowingScope | null;
-    reads: readonly string[];
-  }[] = [
-    ...ctx.flows.flatMap((flow) =>
-      flow.programNameKey === null
-        ? []
-        : [
-            {
-              category: flow.category,
-              programNameKey: flow.programNameKey,
-              scope: flow.scope,
-              reads: flow.scope?.neededByCategory?.[flow.category] ?? [],
-            },
-          ],
-    ),
-    ...categoriesOnSale.map((category) => ({
-      category,
-      scope: null,
-      reads: [...(readsInCategory.get(category) ?? [])].sort(),
-    })),
-  ];
-  for (const path of paths) {
-    const { category, programNameKey } = path;
-    const where = programNameKey === undefined ? { category } : { category, programNameKey };
+    if (flow.programNameKey === null || flow.scope === null) continue;
+    const where = { category: flow.category, programNameKey: flow.programNameKey };
     const keep = narrowAskedQuestions(
-      active
-        .filter((q) => q.categories.includes(category))
-        .map((q) => ({
-          code: q.code,
-          enabledWhen: q.enabledWhen,
-          optIn: q.optInCategories.includes(category),
-          fixedServedOn: q.fixedServedOn ?? null,
-        })),
-      path.scope,
+      active.map((q) => ({
+        code: q.code,
+        enabledWhen: q.enabledWhen,
+        fixedServedOn: q.fixedServedOn ?? null,
+      })),
+      flow.scope,
     ).keep;
     for (const code of SERVED_UNDER_EVERY_NAME) {
-      if (inCategory(code, category) && !keep.has(code)) {
+      if (byCode.has(code) && !keep.has(code)) {
         out.push({ rule: 'engine_question_not_served', questionCode: code, ...where });
       }
     }
-    for (const code of path.reads) {
+    for (const code of flow.scope.programReadQuestionCodes ?? []) {
       if (!byCode.has(code)) {
         out.push({ rule: 'program_question_off', questionCode: code, ...where });
-      } else if (!inCategory(code, category)) {
-        out.push({ rule: 'program_question_not_asked', questionCode: code, ...where });
       } else if (!keep.has(code)) {
         out.push({ rule: 'program_question_not_served', questionCode: code, ...where });
       }
@@ -584,7 +493,7 @@ export function programReaders(
   const byCode = new Map<string, Map<string, Set<LoanCategory>>>();
   for (const flow of ctx.flows) {
     if (flow.programNameKey === null) continue;
-    for (const code of flow.scope?.neededByCategory?.[flow.category] ?? []) {
+    for (const code of flow.scope?.programReadQuestionCodes ?? []) {
       const names = byCode.get(code) ?? new Map<string, Set<LoanCategory>>();
       const categories = names.get(flow.programNameKey) ?? new Set<LoanCategory>();
       categories.add(flow.category);

@@ -26,11 +26,7 @@ export class EngineRulesService {
       this.enums.getActiveMembers('transfer_type'),
     ]);
     const active = rows.filter((r) => r.isActive);
-    const [assignments, optIns, options] = await Promise.all([
-      this.repo.categoryAssignments(),
-      this.repo.optInAssignments(),
-      this.repo.optionsByQuestions(active.map((r) => r.id)),
-    ]);
+    const options = await this.repo.optionsByQuestions(active.map((r) => r.id));
     return engineRulesView({
       questions: active.map((r) => ({
         id: r.id,
@@ -43,8 +39,6 @@ export class EngineRulesService {
         isRequired: r.isRequired,
         displayOrder: r.displayOrder,
         enabledWhen: r.enabledWhen ?? null,
-        categories: assignments.get(r.id) ?? [],
-        optInCategories: optIns.get(r.id) ?? [],
         numeric: numericRulesOf(r),
         text: textRulesOf(r),
         fixedServedOn: r.fixedServedOn,

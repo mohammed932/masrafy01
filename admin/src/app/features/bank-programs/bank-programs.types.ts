@@ -301,8 +301,6 @@ export interface RegistryFact {
      */
     optionsEnumerationType?: string;
     parentEnumerationType?: string;
-    /** Loan categories the questionnaire actually asks this question of. */
-    askedIn: readonly LoanCategory[];
     /**
      * The answer this question is asked behind, or `null` when it is asked of everyone.
      *
@@ -357,7 +355,6 @@ export function registryFacts(
           ...(q.parentEnumerationType !== undefined
             ? { parentEnumerationType: q.parentEnumerationType }
             : {}),
-          askedIn: q.askedIn ?? [],
           // Spread conditionally for the same reason as the two above: `undefined` here
           // means "an older backend did not send it", which is not the same claim as
           // `null` ("asked unconditionally"), and an `in` check must be able to tell them
@@ -1290,14 +1287,6 @@ export interface ProductBlueprintAsk {
   factExists: boolean;
   questionExists: boolean;
   listExists: boolean;
-  /**
-   * Loan categories the question is not asked in yet.
-   *
-   * The half of "is this set up?" that is invisible on every other screen: a question can
-   * exist and be assigned to no category, in which case it is asked of nobody and the product
-   * reading it quotes its standard column for every applicant, silently.
-   */
-  missingCategories: LoanCategory[];
 }
 
 /** One predefined product. Structure and existence — the words are this bundle's. */
@@ -1315,7 +1304,7 @@ export interface ProductBlueprint {
   /** A question only a bank can answer, which changes every figure the product quotes. */
   openQuestion?: string;
   asks: ProductBlueprintAsk[];
-  creates: { lists: number; values: number; questions: number; facts: number; widens: number };
+  creates: { lists: number; values: number; questions: number; facts: number };
   /** The brackets a published sheet prints, offered to the figures form. Edges, never amounts. */
   suggestedBands: Array<{
     wayIndex: number;
@@ -1449,8 +1438,6 @@ export interface ProductAsk {
   questionLabelEn: string;
   questionType: AskQuestionType | null;
   questionActive: boolean;
-  /** The loan categories that ASK the question. Empty = asked of nobody. */
-  askedIn: LoanCategory[];
   /** The registry list its options came from, when they came from one. Derived server-side. */
   listType: string | null;
   parentListType: string | null;
@@ -1477,7 +1464,6 @@ export interface AskPoolQuestion {
   labelEn: string;
   type: AskQuestionType;
   isRequired: boolean;
-  categories: LoanCategory[];
   eligible: boolean;
   ineligibleReason?: AskIneligibleReason;
   /** The fact already reading this question — what a tick would JOIN rather than mint. */
@@ -1496,8 +1482,6 @@ export interface AskPoolQuestion {
 export interface ProductAskServed {
   programNameKey: string;
   category: LoanCategory;
-  categoryTotal: number;
-  categoryRequired: number;
   servedTotal: number;
   servedRequired: number;
   servedQuestionCodes: string[];
@@ -1553,7 +1537,6 @@ export interface NeededFact {
   labelAr: string;
   labelEn: string;
   readBy: NeededFactReader[];
-  missingIn: LoanCategory[];
   shape: 'choice' | 'number' | 'unknown';
   derivedFrom: string | null;
   actionable: boolean;
@@ -1575,14 +1558,7 @@ export interface AskWriteResult {
     askAdded: boolean;
     askRemoved: boolean;
     factDeleted: boolean;
-    /** Loan types this write STARTED asking the question in. Never a narrowing. */
-    widened: LoanCategory[];
-    /**
-     * Whether a questionnaire version was cut.
-     *
-     * `false` with a non-empty `widened` is the one outcome a toast would lie about: the
-     * assignment landed and no applicant is being served it yet.
-     */
+    /** Whether a questionnaire version was cut. */
     published: boolean;
   };
   state: ProductAsksBoard;

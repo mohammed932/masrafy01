@@ -38,7 +38,7 @@ export type EngineReader =
   | { kind: 'server_input'; input: 'months_in_job' | 'salary_transfer' }
   | { kind: 'app_mapping'; categories: LoanCategory[] }
   | { kind: 'platform_fact'; facts: LabelledKey[] }
-  | { kind: 'fixed_set'; servedOn: 'income_proof' | 'every_name'; categories: LoanCategory[] }
+  | { kind: 'fixed_set'; servedOn: 'income_proof' | 'every_name' }
   | { kind: 'programs'; programNames: (LabelledKey & { categories: LoanCategory[] })[] };
 
 /** What one answer means to the engine, where the server owns the meaning. */
@@ -74,10 +74,6 @@ export interface EngineRuleQuestion {
   helperTextAr: string | null;
   helperTextEn: string | null;
   isRequired: boolean;
-  /** Loan types that ask it of everyone. */
-  categories: LoanCategory[];
-  /** Loan types only some program names ask it in. */
-  optInCategories: LoanCategory[];
   /** The engine-input lock, or `null` for a fixed question nothing reads by code or table. */
   lock: QuestionEngineLock | null;
   readers: EngineReader[];

@@ -18,10 +18,10 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// derives it from the profile's birthday (A31).
 ///
 /// Carries the SURROGATE FACTS ([SurrogateFacts]) for the same reason the personal
-/// mapper does: car asks them (the seeded `question_loan_category` default, which the
-/// admin can widen — there is no capable-category list in code), so a bank may finance
-/// a car off an assumed income worked out from a grade, a rank, years in practice or a
-/// card limit. The backend derives the same facts from `questionnaireAnswers`, so these
+/// mapper does: a car program asks them when its bank program reads them (a question
+/// carries no loan type, and there is no capable-category list in code), so a bank may
+/// finance a car off an assumed income worked out from a grade, a rank, years in
+/// practice or a card limit. The backend derives the same facts from `questionnaireAnswers`, so these
 /// body fields are the documented duplicate rather than the only path — they exist so a
 /// car apply reads identically to a personal one (A25).
 ///

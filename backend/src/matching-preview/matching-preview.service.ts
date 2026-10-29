@@ -35,7 +35,7 @@ import type { ApplicantProfile, Quote } from '@/matching/types';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { questionsAnsweredIn, readSubmittedAnswers, type Snapshot } from './answer-reading';
 import { narrowAskedQuestions } from '@/questionnaire/validation/question-scope';
-import { fixedServedOnOf } from '@/questionnaire/validation/fixed-questions';
+import { frozenFixedServedOn } from '@/questionnaire/validation/fixed-questions';
 
 /** The money block a quoted program carries. Decimal strings (Principle I). */
 export interface PreviewFigures {
@@ -201,12 +201,9 @@ export class MatchingPreviewService {
    * `isRequired` is forced off: preview and the admin simulator accept a PARTIAL
    * answer set by design; required-question enforcement belongs to apply.
    *
-   * Scoped to `category`, matching apply (`resolveAnswers`). Previously this
-   * read the whole pool, so preview and apply could disagree about which
-   * questions existed for an applicant. That gap now also moves the score: the
-   * asked set returned here is the scoring denominator (Constitution V,
-   * v13.0.0), so the two paths must derive it identically or the same answers
-   * yield different numbers before and after apply.
+   * What was ASKED comes from the program the applicant picked, through the same
+   * function apply uses (`question-scope.ts`), so the two paths cannot disagree
+   * about which questions an applicant was put in front of.
    */
   private async resolveSelectedOptions(
     answers: SubmittedAnswerDto[],
@@ -224,20 +221,20 @@ export class MatchingPreviewService {
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const snapshot = version.snapshot as unknown as Snapshot;
-    // The category's answerable questions, opt-in rows included — the same reading the loan
-    // calculator makes (`answer-reading.ts`).
-    const questions = questionsAnsweredIn(snapshot, category);
+    // Every answerable question — the same reading the loan calculator makes
+    // (`answer-reading.ts`).
+    const questions = questionsAnsweredIn(snapshot);
     const byCode = new Map(questions.map((q) => [q.code, q]));
 
-    // The program-name axis, through the SAME function serve and apply use. Acceptance below
-    // stays category-wide, exactly as apply's does — exploring must never 422, and the admin
-    // simulator posts whatever answer set it likes.
+    // The program the applicant picked, through the SAME function serve and apply use.
+    // Acceptance below stays wide, exactly as apply's does — exploring must never 422, and the
+    // admin simulator posts whatever answer set it likes.
     const decision = narrowAskedQuestions(
       questions.map((q) => ({
         code: q.code,
         enabledWhen: q.enabledWhen ?? null,
-        optIn: q.optInCategories?.includes(category) === true,
-        fixedServedOn: fixedServedOnOf(q.fixedServedOn),
+        // An OLD snapshot's frozen fixed mark holds only in the loan types it froze.
+        fixedServedOn: frozenFixedServedOn(q as unknown as Record<string, unknown>, category),
       })),
       programNameKey === undefined
         ? null

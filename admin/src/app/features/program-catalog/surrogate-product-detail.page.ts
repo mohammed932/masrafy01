@@ -38,8 +38,6 @@ import {
   Component,
   LOCALE_ID,
   computed,
-  effect,
-  untracked,
   inject,
   signal,
   viewChild,
@@ -51,18 +49,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
-  ArrowDownOutline,
   ArrowLeftOutline,
-  ArrowUpOutline,
   CheckOutline,
   CloseCircleFill,
   ExclamationCircleOutline,
-  HolderOutline,
   InfoCircleOutline,
   PoweroffOutline,
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
-import { DragDropModule } from '@angular/cdk/drag-drop';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
@@ -122,11 +116,6 @@ import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import {
-  QuestionnaireApiService,
-  type GroupTreeRow,
-} from '@features/questionnaire/questionnaire.api.service';
-import { categoryOrderAfterMove, productOrderSteps } from './product-ask-order';
-import {
   factKeysReadBy,
   incomeMethodLabel,
   incomeMethodShape,
@@ -153,12 +142,10 @@ import {
 import { PRODUCT_BASE, surrogateBoardLink } from './program-catalog.paths';
 import {
   ASK_PAGE_SIZE,
-  askInFor,
   askMatchCount,
   askPagedSections,
   askSections,
   askStepStatus,
-  askTabs,
   type AskCard,
   type AskSectionKey,
 } from './product-asks';
@@ -213,7 +200,6 @@ interface ReadList {
   imports: [
     NgTemplateOutlet,
     RouterLink,
-    DragDropModule,
     ReactiveFormsModule,
     NzButtonModule,
     NzIconModule,
@@ -235,13 +221,10 @@ interface ReadList {
   ],
   providers: [
     provideNzIconsPatch([
-      ArrowDownOutline,
       ArrowLeftOutline,
-      ArrowUpOutline,
       CheckOutline,
       CloseCircleFill,
       ExclamationCircleOutline,
-      HolderOutline,
       InfoCircleOutline,
       PoweroffOutline,
       SearchOutline,
@@ -489,12 +472,6 @@ interface ReadList {
                         }
                       </div>
 
-                      @if (neededSoldIn().length === 0) {
-                        <p class="need-note" i18n="@@spd.needed.not_sold">
-                          No program name sells this product yet, so there is no loan type to ask
-                          these in. Link a program name to it on the catalog first.
-                        </p>
-                      }
                       @if (neededResult()) {
                         <p class="need-note">{{ neededResult() }}</p>
                       }
@@ -595,8 +572,8 @@ interface ReadList {
                                             >
                                           }
                                           @default {
-                                            <span i18n="@@spd.needed.status_not_asked"
-                                              >Not asked in {{ neededMissingLabel(row) }}</span
+                                            <span i18n="@@spd.needed.status_not_asked2"
+                                              >Not read by this product yet</span
                                             >
                                           }
                                         }
@@ -656,54 +633,7 @@ interface ReadList {
                     </section>
                   }
 
-                  @if (!soleCategory()) {
-                    <div class="ask-rail">
-                      <!-- The tablist's own accessible name, rendered. One string, so the word
-                         on screen and the word a screen reader hears cannot drift. -->
-                      <p class="ask-rail-label" aria-hidden="true">{{ asksAria }}</p>
-                      <app-rail-tabs
-                        [uniform]="true"
-                        idPrefix="spd-asks"
-                        [items]="askTabItems()"
-                        [activeId]="askCategory()"
-                        [ariaLabel]="asksAria"
-                        (select)="pickAskCategory($event)"
-                      />
-                    </div>
-                  }
-
-                  <div
-                    class="ask-stage"
-                    [id]="'spd-asks-panel-' + askCategory()"
-                    role="tabpanel"
-                    [attr.aria-labelledby]="'spd-asks-tab-' + askCategory()"
-                  >
-                    @if (askUnpublished()) {
-                      <!-- The one outcome a toast would lie about: the tick DID land and the
-                           questionnaire version did not, so no applicant is being served the
-                           question yet. Stated persistently, because it needs an action. -->
-                      <p class="ask-alert" role="alert">
-                        <span
-                          nz-icon
-                          nzType="exclamation-circle"
-                          nzTheme="outline"
-                          aria-hidden="true"
-                        ></span>
-                        <span i18n="@@spd.ask.unpublished"
-                          >The question is attached, but the questionnaire was not published, so
-                          nobody is being asked it yet. Tick it again to retry.</span
-                        >
-                        <button
-                          type="button"
-                          class="linkish"
-                          (click)="dismissAskAlert()"
-                          i18n="@@spd.ask.dismiss"
-                        >
-                          Dismiss
-                        </button>
-                      </p>
-                    }
-
+                  <div class="ask-stage">
                     <p class="sr-only" role="status" aria-live="polite">{{ askStatus() }}</p>
                     <!-- The filter's own outcome, separately: a narrowed grid is a change a
                          sighted operator reads off the counts and a screen-reader user is told
@@ -721,12 +651,7 @@ interface ReadList {
                           <h3 class="ask-sec-title">
                             @switch (section.key) {
                               @case ('asked') {
-                                <span i18n="@@spd.ask.sec_asked">Read, and asked here</span>
-                              }
-                              @case ('unasked') {
-                                <span i18n="@@spd.ask.sec_unasked"
-                                  >Read, but not asked of {{ askCategoryLabel() }} applicants</span
-                                >
+                                <span i18n="@@spd.ask.sec_read">Read by this product</span>
                               }
                               @default {
                                 <span i18n="@@spd.ask.sec_rest">Not read yet</span>
@@ -734,22 +659,6 @@ interface ReadList {
                             }
                             <span class="ask-sec-count">{{ section.total }}</span>
                           </h3>
-
-                          @if (section.key === 'asked' && section.total > 1) {
-                            <button
-                              nz-button
-                              nzSize="small"
-                              type="button"
-                              [attr.aria-pressed]="askOrdering()"
-                              (click)="toggleAskOrdering()"
-                            >
-                              @if (askOrdering()) {
-                                <span i18n="@@spd.ask.order_done">Done</span>
-                              } @else {
-                                <span i18n="@@spd.ask.order_open">Change order</span>
-                              }
-                            </button>
-                          }
 
                           @if (section.key === 'rest') {
                             <div class="ask-controls">
@@ -865,12 +774,6 @@ interface ReadList {
                               </button>
                             </p>
                           }
-                          @if (section.key === 'unasked') {
-                            <p class="ask-sec-note" i18n="@@spd.ask.unasked_note">
-                              This product reads these, but nobody applying for this loan type is
-                              asked them, so it gets no answer from them.
-                            </p>
-                          }
                           @if (section.key === 'asked' && fixedAskCount() > 0) {
                             <!-- Once, for the section, rather than on every card: on a seeded
                                  product this is the state of all of them. It says the
@@ -883,203 +786,34 @@ interface ReadList {
                               put it back.
                             </p>
                           }
-                          @if (section.key === 'asked' && askOrdering()) {
-                            <!-- ORDER MODE. The loan type's own order, narrowed to this
-                                 product's questions, split by step because the app pages one
-                                 step per group and sorts inside it. -->
-                            <p class="ask-sec-note" i18n="@@spd.ask.order_lede">
-                              Drag a question to move it, or use the arrows. This is the order
-                              {{ askCategoryLabel() }} applicants are asked in, so it also moves for
-                              every other {{ askCategoryLabel() }} program that asks these
-                              questions. A question can only move within its own step.
-                            </p>
-                            <p class="sr-only" role="status" aria-live="polite">
-                              {{ orderStatus() }}
-                            </p>
-                            @if (orderSteps().length === 0) {
-                              <p class="ask-sec-empty" i18n="@@spd.ask.order_loading">
-                                Loading the order…
-                              </p>
-                            }
-                            @for (step of orderSteps(); track step.id) {
-                              <p class="order-step">
-                                <span>{{ step.title }}</span>
-                                <span class="ask-sec-count">{{ step.rows.length }}</span>
-                              </p>
-                              <ul
-                                class="order-list"
-                                cdkDropList
-                                [cdkDropListDisabled]="orderBusy()"
-                                (cdkDropListDropped)="
-                                  moveAskInStep(step.id, $event.previousIndex, $event.currentIndex)
-                                "
-                              >
-                                @for (row of step.rows; track row.id; let i = $index) {
-                                  <li
-                                    class="order-row"
-                                    cdkDrag
-                                    cdkDragLockAxis="y"
-                                    [cdkDragDisabled]="orderBusy()"
-                                  >
-                                    <button
-                                      type="button"
-                                      class="order-handle"
-                                      cdkDragHandle
-                                      [disabled]="orderBusy()"
-                                      aria-label="Drag to reorder"
-                                      i18n-aria-label="@@spd.ask.order_drag"
-                                    >
-                                      <span
-                                        nz-icon
-                                        nzType="holder"
-                                        nzTheme="outline"
-                                        aria-hidden="true"
-                                      ></span>
-                                    </button>
-                                    <span class="order-n" aria-hidden="true">{{ i + 1 }}</span>
-                                    <span class="order-label">{{ row.label }}</span>
-                                    <span class="order-acts">
-                                      <button
-                                        type="button"
-                                        class="order-btn"
-                                        [disabled]="i === 0 || orderBusy()"
-                                        (click)="moveAskInStep(step.id, i, i - 1)"
-                                        aria-label="Move up"
-                                        i18n-aria-label="@@spd.ask.order_up"
-                                      >
-                                        <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        class="order-btn"
-                                        [disabled]="i === step.rows.length - 1 || orderBusy()"
-                                        (click)="moveAskInStep(step.id, i, i + 1)"
-                                        aria-label="Move down"
-                                        i18n-aria-label="@@spd.ask.order_down"
-                                      >
-                                        <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
-                                      </button>
+                          <ul class="ask-grid" role="list">
+                            @for (card of section.cards; track card.code || card.factKey) {
+                              <li>
+                                <button
+                                  type="button"
+                                  class="ask-card"
+                                  role="checkbox"
+                                  [class.on]="card.read"
+                                  [class.is-blocked]="!!card.blocked || !!card.detachBlocked"
+                                  [attr.aria-checked]="card.read"
+                                  [attr.aria-disabled]="!!card.blocked || !!card.detachBlocked"
+                                  [attr.aria-describedby]="
+                                    card.blocked || card.detachBlocked
+                                      ? 'spd-why-' + card.code
+                                      : null
+                                  "
+                                  [attr.aria-label]="askCardAria(card)"
+                                  [attr.aria-busy]="card.saving || askBusy()"
+                                  (click)="toggleAsk(card)"
+                                >
+                                  <span class="ask-card-head">
+                                    <span class="ask-tick" aria-hidden="true">
+                                      @if (card.read) {
+                                        <span nz-icon nzType="check" nzTheme="outline"></span>
+                                      }
                                     </span>
-                                    <div class="order-ghost" *cdkDragPlaceholder></div>
-                                  </li>
-                                }
-                              </ul>
-                            }
-                          } @else {
-                            <ul class="ask-grid" role="list">
-                              @for (card of section.cards; track card.code || card.factKey) {
-                                <li>
-                                  @if (section.key === 'unasked') {
-                                    <!-- NOT a checkbox: this row offers two different acts —
-                                       start asking it here, or stop reading it — and nesting a
-                                       second control inside a role="checkbox" button is invalid
-                                       markup that a screen reader reads as one thing. -->
-                                    <div class="ask-card is-partial">
-                                      <span class="ask-card-head">
-                                        <span class="ask-tick is-warn" aria-hidden="true">
-                                          <span
-                                            nz-icon
-                                            nzType="exclamation-circle"
-                                            nzTheme="outline"
-                                          ></span>
-                                        </span>
-                                        <span class="ask-label">{{ card.label }}</span>
-                                      </span>
-                                      <span class="ask-meta">
-                                        <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
-                                        @if (card.askedIn.length === 0) {
-                                          <span class="tag is-warn" i18n="@@spd.ask.nobody"
-                                            >Asked of nobody</span
-                                          >
-                                        } @else {
-                                          <span class="muted">{{
-                                            askedInLabel(card.askedIn)
-                                          }}</span>
-                                        }
-                                      </span>
-                                      <span class="ask-acts">
-                                        <button
-                                          nz-button
-                                          nzSize="small"
-                                          type="button"
-                                          [disabled]="card.saving || askBusy()"
-                                          (click)="askHere(card)"
-                                          i18n="@@spd.ask.ask_here"
-                                        >
-                                          Ask it here
-                                        </button>
-                                        @if (card.detachBlocked) {
-                                          <!-- Progressive disclosure, matching the "asked"
-                                             card's own refused-glyph pattern below: the reason
-                                             is real (a live calculation still reads this
-                                             answer) but a full sentence repeated down every
-                                             row in this section was the loudest thing on the
-                                             screen for the one card in six that needs it. The
-                                             icon is focusable so the reason still reaches a
-                                             keyboard or screen-reader user, not only a mouse. -->
-                                          <span
-                                            class="ask-why-hint"
-                                            nz-tooltip
-                                            [nzTooltipTitle]="detachWhy(card)"
-                                            tabindex="0"
-                                            role="img"
-                                            [attr.aria-label]="detachWhy(card)"
-                                          >
-                                            <span
-                                              nz-icon
-                                              nzType="exclamation-circle"
-                                              nzTheme="outline"
-                                            ></span>
-                                          </span>
-                                        } @else {
-                                          <button
-                                            type="button"
-                                            class="linkish"
-                                            [disabled]="card.saving || askBusy()"
-                                            (click)="stopReading(card)"
-                                            i18n="@@spd.ask.stop"
-                                          >
-                                            Stop reading this
-                                          </button>
-                                        }
-                                        @if (card.code !== '' && !card.questionInactive) {
-                                          <a
-                                            class="linkish"
-                                            [routerLink]="['/questionnaire/questions']"
-                                            [queryParams]="{ q: card.code }"
-                                            [attr.aria-label]="editQuestionAria(card.label)"
-                                            i18n="@@spd.ask.edit_question"
-                                            >Edit question</a
-                                          >
-                                        }
-                                      </span>
-                                    </div>
-                                  } @else {
-                                    <button
-                                      type="button"
-                                      class="ask-card"
-                                      role="checkbox"
-                                      [class.on]="card.read"
-                                      [class.is-blocked]="!!card.blocked || !!card.detachBlocked"
-                                      [attr.aria-checked]="card.read"
-                                      [attr.aria-disabled]="!!card.blocked || !!card.detachBlocked"
-                                      [attr.aria-describedby]="
-                                        card.blocked || card.detachBlocked
-                                          ? 'spd-why-' + card.code
-                                          : null
-                                      "
-                                      [attr.aria-label]="askCardAria(card)"
-                                      [attr.aria-busy]="card.saving || askBusy()"
-                                      (click)="toggleAsk(card)"
-                                    >
-                                      <span class="ask-card-head">
-                                        <span class="ask-tick" aria-hidden="true">
-                                          @if (card.read) {
-                                            <span nz-icon nzType="check" nzTheme="outline"></span>
-                                          }
-                                        </span>
-                                        <span class="ask-label">{{ card.label }}</span>
-                                        <!-- The REASON A TICK WOULD DO NOTHING, as a hint: the
+                                    <span class="ask-label">{{ card.label }}</span>
+                                    <!-- The REASON A TICK WOULD DO NOTHING, as a hint: the
                                          sentence is long, each reason repeats down a grid of
                                          59 cards, and the operator reads it only when they have
                                          just tried the card. The glyph is always visible, so
@@ -1091,25 +825,25 @@ interface ReadList {
                                          tooltip is not announced by a screen reader on a card
                                          it cannot hover — the reason must not become
                                          mouse-only. -->
-                                        @if (card.blocked || card.detachBlocked) {
-                                          <span
-                                            class="ask-why-hint"
-                                            nz-tooltip
-                                            [nzTooltipTitle]="askWhy(card)"
-                                            aria-hidden="true"
-                                          >
-                                            <span
-                                              nz-icon
-                                              nzType="exclamation-circle"
-                                              nzTheme="outline"
-                                            ></span>
-                                          </span>
-                                          <span class="sr-only" [id]="'spd-why-' + card.code">{{
-                                            askWhy(card)
-                                          }}</span>
-                                        }
+                                    @if (card.blocked || card.detachBlocked) {
+                                      <span
+                                        class="ask-why-hint"
+                                        nz-tooltip
+                                        [nzTooltipTitle]="askWhy(card)"
+                                        aria-hidden="true"
+                                      >
+                                        <span
+                                          nz-icon
+                                          nzType="exclamation-circle"
+                                          nzTheme="outline"
+                                        ></span>
                                       </span>
-                                      <!-- ONE chip, and it is the question TYPE. What used to
+                                      <span class="sr-only" [id]="'spd-why-' + card.code">{{
+                                        askWhy(card)
+                                      }}</span>
+                                    }
+                                  </span>
+                                  <!-- ONE chip, and it is the question TYPE. What used to
                                          sit here — "In the calculation", "comes with the
                                          product", and the untick refusal — repeated down a
                                          grid of cards, and two of the three said the same
@@ -1122,58 +856,56 @@ interface ReadList {
                                          announced (aria-describedby) rather than hover-only.
                                          The two that stay are STATES, not labels: they fire
                                          on a handful of cards and each names a defect. -->
-                                      <span class="ask-meta">
-                                        <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
-                                        @if (card.questionInactive) {
-                                          <span class="tag is-warn" i18n="@@spd.ask.off"
-                                            >The question is switched off</span
-                                          >
-                                        }
-                                        @if (card.alsoAskedBy.length > 0) {
-                                          <span class="muted">{{
-                                            alsoAskedLabel(card.alsoAskedBy)
-                                          }}</span>
-                                        }
-                                      </span>
-                                    </button>
-                                    <!-- Beside the card, never inside it: a link inside a
-                                         role="checkbox" button is invalid markup. The one
-                                         place a product's question is reworded (v31.0.0 —
-                                         the Questions tab lists fixed questions only). -->
-                                    @if (card.code !== '' && !card.questionInactive) {
-                                      <a
-                                        class="linkish ask-edit"
-                                        [routerLink]="['/questionnaire/questions']"
-                                        [queryParams]="{ q: card.code }"
-                                        [attr.aria-label]="editQuestionAria(card.label)"
-                                        i18n="@@spd.ask.edit_question"
-                                        >Edit question</a
+                                  <span class="ask-meta">
+                                    <span class="ask-type">{{ askTypeLabel(card.type) }}</span>
+                                    @if (card.questionInactive) {
+                                      <span class="tag is-warn" i18n="@@spd.ask.off"
+                                        >The question is switched off</span
                                       >
                                     }
-                                  }
-                                </li>
-                              }
-                            </ul>
-
-                            <!-- Pager below the grid, and only past one page: a control whose
-                               only state is "page 1 of 1" is chrome, not navigation. Per
-                               SECTION — the three hold unlike things and one of them is the
-                               whole question pool. -->
-                            @if (section.pages > 1) {
-                              <nav class="ask-pager" [attr.aria-label]="askPagerAria">
-                                <p class="ask-pager-range" i18n="@@spd.ask.page_range">
-                                  Showing {{ section.from }}–{{ section.to }} of
-                                  {{ section.total }}
-                                </p>
-                                <nz-pagination
-                                  [nzPageIndex]="section.page"
-                                  [nzPageSize]="ASK_PAGE_SIZE"
-                                  [nzTotal]="section.total"
-                                  nzSize="small"
-                                  (nzPageIndexChange)="setAskPage(section.key, $event)"
-                                />
-                              </nav>
+                                    @if (card.alsoAskedBy.length > 0) {
+                                      <span class="muted">{{
+                                        alsoAskedLabel(card.alsoAskedBy)
+                                      }}</span>
+                                    }
+                                  </span>
+                                </button>
+                                <!-- Beside the card, never inside it: a link inside a
+                                         role="checkbox" button is invalid markup. Opens the
+                                         question on the Questions tab's Surrogate list
+                                         (v31.8.0), where it is reworded. -->
+                                @if (card.code !== '' && !card.questionInactive) {
+                                  <a
+                                    class="linkish ask-edit"
+                                    [routerLink]="['/questionnaire/questions']"
+                                    [queryParams]="{ q: card.code }"
+                                    [attr.aria-label]="editQuestionAria(card.label)"
+                                    i18n="@@spd.ask.edit_question"
+                                    >Edit question</a
+                                  >
+                                }
+                              </li>
                             }
+                          </ul>
+
+                          <!-- Pager below the grid, and only past one page: a control whose
+                               only state is "page 1 of 1" is chrome, not navigation. Per
+                               SECTION — the two hold unlike things and one of them is the
+                               whole question pool. -->
+                          @if (section.pages > 1) {
+                            <nav class="ask-pager" [attr.aria-label]="askPagerAria">
+                              <p class="ask-pager-range" i18n="@@spd.ask.page_range">
+                                Showing {{ section.from }}–{{ section.to }} of
+                                {{ section.total }}
+                              </p>
+                              <nz-pagination
+                                [nzPageIndex]="section.page"
+                                [nzPageSize]="ASK_PAGE_SIZE"
+                                [nzTotal]="section.total"
+                                nzSize="small"
+                                (nzPageIndexChange)="setAskPage(section.key, $event)"
+                              />
+                            </nav>
                           }
                         }
                       </section>
@@ -4272,7 +4004,6 @@ export class SurrogateProductDetailPage {
   protected readonly productBase = PRODUCT_BASE;
 
   private readonly api = inject(BankProgramsApiService);
-  private readonly questionnaire = inject(QuestionnaireApiService);
   /** Via NzModalService so the scrim covers the whole viewport, never the panel (A34). */
   private readonly modal = inject(NzModalService);
   private readonly enums = inject(PlatformEnumerationsService);
@@ -5406,9 +5137,6 @@ export class SurrogateProductDetailPage {
    */
   protected readonly asksState = signal<'loading' | 'ready' | 'error'>('loading');
 
-  /** Which loan type's tab is open. Decides what a tick will start asking. */
-  protected readonly askCategory = signal<LoanCategory>('personal');
-
   protected readonly askSearch = new FormControl<string>('', { nonNullable: true });
   /**
    * The query as a SIGNAL, and the template reads this rather than `askSearch.value`.
@@ -5430,8 +5158,7 @@ export class SurrogateProductDetailPage {
    * almost never what the operator came to browse; they came with one question in mind and
    * typed it. This toggle is the escape hatch for the rarer case of actually wanting to scan
    * the pool, so browsing stays possible — nothing here removes a capability, only its default
-   * visibility. Reset on every loan-type switch: a newly opened tab is a different pool, and a
-   * toggle left on from the last one would show a full grid nobody asked for.
+   * visibility.
    */
   protected readonly askRestExpanded = signal(false);
 
@@ -5449,8 +5176,6 @@ export class SurrogateProductDetailPage {
   private readonly attaching = signal<ReadonlySet<string>>(new Set());
   private readonly detaching = signal<ReadonlySet<string>>(new Set());
   protected readonly askBusy = signal(false);
-  /** Set when a tick landed and the questionnaire publish did not. */
-  protected readonly askUnpublished = signal(false);
   protected readonly askStatus = signal('');
 
   // ── What the engine needs ───────────────────────────────────────────────────
@@ -5463,7 +5188,6 @@ export class SurrogateProductDetailPage {
   protected readonly neededRowsList = computed(() => neededRows(this.asksBoard(), this.isAr));
   protected readonly neededGaps = computed(() => neededGapCount(this.neededRowsList()));
   protected readonly neededFixable = computed(() => neededFixableCount(this.neededRowsList()));
-  protected readonly neededSoldIn = computed(() => this.asksBoard()?.soldIn ?? []);
   /** The same rows, grouped by who answers them — gaps, this product, the platform. */
   protected readonly neededGroupList = computed(() => neededGroups(this.neededRowsList()));
   /** Which groups are unfolded. Gaps start open; the covered groups start folded. */
@@ -5473,14 +5197,12 @@ export class SurrogateProductDetailPage {
   /** What the last click did, said on screen until the next one. */
   protected readonly neededResult = signal<string>('');
 
-  protected readonly asksAria = $localize`:@@spd.ask.rail_aria:Loan type`;
   protected readonly askSearchAria = $localize`:@@spd.ask.search_aria:Search questions`;
   protected readonly askPagerAria = $localize`:@@spd.ask.pager_aria:Question pages`;
 
   private askInput() {
     return {
       board: this.asksBoard(),
-      category: this.askCategory(),
       search: this.askQuery(),
       isAr: this.isAr,
       attaching: this.attaching(),
@@ -5489,86 +5211,6 @@ export class SurrogateProductDetailPage {
   }
 
   protected readonly askSections = computed(() => askSections(this.askInput()));
-
-  // ---- Order -----------------------------------------------------------------
-  /**
-   * "Change order" on "Read, and asked here". There is no per-product order: the applicant is
-   * served the LOAN TYPE's order (the one /questionnaire/categories edits), narrowed to what
-   * the picked name reads. So this edits that same order, limited to this product's rows —
-   * see `product-ask-order.ts`. Other products under the same loan type see the move too.
-   */
-  protected readonly askOrdering = signal(false);
-  /** The questionnaire tree the order is read from and written back to. Loaded on open. */
-  private readonly orderTree = signal<readonly GroupTreeRow[] | null>(null);
-  protected readonly orderBusy = signal(false);
-  protected readonly orderStatus = signal('');
-
-  /** Codes of the questions this product reads AND the open loan type asks. */
-  private readonly askedHereCodes = computed(
-    () =>
-      new Set(
-        (this.askSections().find((s) => s.key === 'asked')?.cards ?? [])
-          .map((c) => c.code)
-          .filter((code) => code !== ''),
-      ),
-  );
-
-  protected readonly orderSteps = computed(() => {
-    const tree = this.orderTree();
-    if (tree === null) return [];
-    return productOrderSteps(tree, this.askCategory(), this.askedHereCodes()).map((step) => ({
-      id: step.id,
-      title: this.isAr ? step.titleAr : step.titleEn,
-      rows: step.rows.map((q) => ({
-        id: q.id,
-        label: this.isAr ? q.questionAr : q.questionEn,
-      })),
-    }));
-  });
-
-  protected async toggleAskOrdering(): Promise<void> {
-    if (this.askOrdering()) {
-      this.askOrdering.set(false);
-      return;
-    }
-    this.askOrdering.set(true);
-    await this.loadOrderTree();
-  }
-
-  private async loadOrderTree(): Promise<void> {
-    this.orderBusy.set(true);
-    try {
-      this.orderTree.set(await this.questionnaire.tree());
-    } catch {
-      // Localized toast already shown by the interceptor.
-      this.askOrdering.set(false);
-    } finally {
-      this.orderBusy.set(false);
-    }
-  }
-
-  protected async moveAskInStep(stepId: string, from: number, to: number): Promise<void> {
-    const tree = this.orderTree();
-    if (tree === null || this.orderBusy()) return;
-    const category = this.askCategory();
-    const ids = categoryOrderAfterMove(tree, category, this.askedHereCodes(), stepId, from, to);
-    if (ids === null) return;
-    this.orderBusy.set(true);
-    try {
-      // The WHOLE category, in its new order — the endpoint's contract. It publishes, so
-      // the app serves the new order at once.
-      this.orderTree.set(await this.questionnaire.reorderCategoryQuestions(category, ids));
-      this.orderStatus.set(
-        $localize`:@@spd.ask.order_saved:Order saved for ${categoryLabel(category)}:category:`,
-      );
-    } catch {
-      // Localized toast already shown by the interceptor; re-read what the server kept.
-      this.orderBusy.set(false);
-      await this.loadOrderTree();
-    } finally {
-      this.orderBusy.set(false);
-    }
-  }
 
   /** What the filter did, for the live region. Empty with an empty box — see the template. */
   protected readonly askSearchStatus = computed(() => {
@@ -5583,17 +5225,15 @@ export class SurrogateProductDetailPage {
   protected readonly ASK_PAGE_SIZE = ASK_PAGE_SIZE;
 
   /**
-   * The page each section is on, held against the (loan type, search) it was chosen under.
+   * The page each section is on, held against the search it was chosen under.
    *
-   * The key travels WITH the pages rather than being reset by an effect: switching tab or
-   * typing in the search box builds a different list, and a page 4 carried into it would
-   * open on cards nobody asked to see (and, when the new list is shorter, on the clamped
-   * last page — which reads as the search having found less than it did). A stale key means
-   * page 1 everywhere, derived, so nothing writes a signal from a computed.
+   * The key travels WITH the pages rather than being reset by an effect: typing in the search
+   * box builds a different list, and a page 4 carried into it would open on cards nobody asked
+   * to see (and, when the new list is shorter, on the clamped last page — which reads as the
+   * search having found less than it did). A stale key means page 1 everywhere, derived, so
+   * nothing writes a signal from a computed.
    */
-  private readonly askPageKey = computed(
-    () => `${this.askCategory()}|${this.askQuery().trim().toLowerCase()}`,
-  );
+  private readonly askPageKey = computed(() => this.askQuery().trim().toLowerCase());
   private readonly askPageState = signal<{
     key: string;
     pages: Partial<Record<AskSectionKey, number>>;
@@ -5603,9 +5243,7 @@ export class SurrogateProductDetailPage {
   protected readonly askSectionPages = computed(() => {
     const state = this.askPageState();
     const pages = state.key === this.askPageKey() ? state.pages : {};
-    // "Read, but not asked of <loan type> applicants" is not rendered (operator decision,
-    // 2026-09-23). The loan-type tab's warn accent still flags a product in that state.
-    return askPagedSections(this.askSections(), pages).filter((s) => s.key !== 'unasked');
+    return askPagedSections(this.askSections(), pages);
   });
 
   protected setAskPage(key: AskSectionKey, page: number): void {
@@ -5616,47 +5254,6 @@ export class SurrogateProductDetailPage {
       pages: { ...(live ? current.pages : {}), [key]: page },
     });
   }
-
-  protected readonly askTabItems = computed<RailTabItem[]>(() => {
-    // With no board there is no count — and `0` is not the honest stand-in. `askTabs` falls
-    // back to zero per tab, which reads as "this product asks nothing here" when the truth is
-    // that nobody has been told yet. Both fields are optional on the rail, so they are omitted.
-    const known = this.asksBoard() !== null;
-    return askTabs(this.asksBoard()).map((tab) => ({
-      id: tab.id,
-      label: categoryLabel(tab.id),
-      // The same per-category accent the catalog name's own loan-type rail carries. Four
-      // identities rather than four azure chips: the loan type is the one axis an operator
-      // reads across two screens, and it should look the same on both.
-      accent: `var(--color-cat-${tab.id})`,
-      ...(known ? { count: tab.reads } : {}),
-      countLabel: $localize`:@@spd.ask.tab_count:answers read`,
-      // The warn accent is for the state that makes the product quote nothing HERE: it reads
-      // a fact this loan type never asks. A loan type that reads nothing at all is not
-      // warned about — a product not sold as a mortgage is the normal case.
-      warn: known && tab.unasked > 0 && tab.reads > 0,
-      warnLabel:
-        known && tab.unasked > 0 && tab.reads > 0
-          ? $localize`:@@spd.ask.tab_warn:${tab.unasked}:COUNT: read but not asked here`
-          : undefined,
-    }));
-  });
-
-  /**
-   * The one loan type this product is sold under, or `null` when it is sold under several
-   * (or none yet). With only one there is nothing to switch, so the rail is hidden and the
-   * open tab is pinned to it.
-   */
-  protected readonly soleCategory = computed<LoanCategory | null>(() => {
-    const board = this.asksBoard();
-    if (!board) return null;
-    const sold = new Set(board.served.map((row) => row.category));
-    if (sold.size !== 1) return null;
-    const [only] = [...sold];
-    return only !== undefined && isLoanCategory(only) ? only : null;
-  });
-
-  protected readonly askCategoryLabel = computed(() => categoryLabel(this.askCategory()));
 
   /** The loan types the names selling this product are filed under, as read off the board. */
   private readonly soldCategories = computed<LoanCategory[]>(() => {
@@ -5686,21 +5283,6 @@ export class SurrogateProductDetailPage {
       .map((category) => categoryLabel(category))
       .join($localize`:@@spd.plans.categories_joiner: and `),
   );
-
-  protected pickAskCategory(id: string): void {
-    if (!isLoanCategory(id)) return;
-    this.askCategory.set(id);
-    this.askRestExpanded.set(false);
-    // Mirrored onto the URL beside `?step=`, so a pasted link and a reload land on the loan
-    // type the operator was looking at. `replaceUrl`, or flipping tabs fills the back button
-    // with filter states.
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { loan: id },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
-    });
-  }
 
   protected askTypeLabel(type: AskQuestionType | null): string {
     switch (type) {
@@ -5778,7 +5360,7 @@ export class SurrogateProductDetailPage {
     if (card.detachBlocked) return `${name} — ${this.detachWhy(card)}`;
     return card.read
       ? $localize`:@@spd.ask.aria_stop:Stop reading ${name}:NAME:`
-      : $localize`:@@spd.ask.aria_read:Read ${name}:NAME: and ask it of ${this.askCategoryLabel()}:TYPE: applicants`;
+      : $localize`:@@spd.ask.aria_read2:Read ${name}:NAME:`;
   }
 
   /**
@@ -5791,13 +5373,7 @@ export class SurrogateProductDetailPage {
   protected toggleAsk(card: AskCard): void {
     if (card.blocked || card.detachBlocked || card.saving || this.askBusy()) return;
     if (card.read) void this.runDetach(card);
-    else void this.runAttach(card, askInFor(this.askCategory()));
-  }
-
-  /** Start asking a question this product already reads of the loan type on the rail. */
-  protected askHere(card: AskCard): void {
-    if (card.saving || this.askBusy()) return;
-    void this.runAttach(card, askInFor(this.askCategory()));
+    else void this.runAttach(card);
   }
 
   protected stopReading(card: AskCard): void {
@@ -5805,16 +5381,12 @@ export class SurrogateProductDetailPage {
     void this.runDetach(card);
   }
 
-  protected dismissAskAlert(): void {
-    this.askUnpublished.set(false);
-  }
-
-  private async runAttach(card: AskCard, askIn: readonly LoanCategory[]): Promise<void> {
+  private async runAttach(card: AskCard): Promise<void> {
     if (card.code === '') return;
     this.markAttaching(card.code, true);
     this.askBusy.set(true);
     try {
-      const res = await this.api.attachProductAsk(this.key, card.code, askIn);
+      const res = await this.api.attachProductAsk(this.key, card.code);
       this.absorbAskWrite(res.data);
       this.askStatus.set(
         $localize`:@@spd.ask.said_read:${card.label}:NAME: is now read by this product`,
@@ -5822,7 +5394,6 @@ export class SurrogateProductDetailPage {
     } catch {
       // The interceptor has already said why (A22). Dropping the overlay restores the
       // derived truth, so there is nothing to roll back.
-      this.askUnpublished.set(false);
     } finally {
       this.markAttaching(card.code, false);
       this.askBusy.set(false);
@@ -5931,10 +5502,6 @@ export class SurrogateProductDetailPage {
     return parts.join(' · ');
   }
 
-  protected neededMissingLabel(row: NeededRow): string {
-    return row.missingIn.map((category) => categoryLabel(category)).join(', ');
-  }
-
   protected readonly neededCalculationLabel = $localize`:@@spd.needed.reader_calculation:Calculation`;
   protected readonly neededCapLabel = $localize`:@@spd.needed.reader_cap:Loan cap`;
   private readonly neededTableLabels: Readonly<Record<string, string>> = {
@@ -5964,7 +5531,6 @@ export class SurrogateProductDetailPage {
   private absorbAskWrite(result: AskWriteResult): void {
     this.asksBoard.set(result.state);
     this.asksState.set('ready');
-    this.askUnpublished.set(result.changed.widened.length > 0 && !result.changed.published);
     void this.enums.refresh('surrogate_fact');
     void this.enumTypes.refresh();
     void this.load({ silent: true, keepEdits: true });
@@ -6347,8 +5913,6 @@ export class SurrogateProductDetailPage {
       .catch(() => this.typeSummaries.set([]));
     void this.load();
     void this.loadAsks();
-    // In the constructor, because `takeUntilDestroyed` needs an injection context.
-    this.watchAskCategory();
   }
 
   /**
@@ -6369,10 +5933,6 @@ export class SurrogateProductDetailPage {
     return this.typeSummaries().find((s) => s.type === type)?.deletable ?? true;
   }
 
-  protected askedInLabel(cats: readonly LoanCategory[]): string {
-    return cats.map((c) => categoryLabel(c)).join(' · ');
-  }
-
   protected label(p: SurrogateProductDetail): string {
     return this.isAr ? p.labelAr : p.labelEn;
   }
@@ -6391,35 +5951,6 @@ export class SurrogateProductDetailPage {
   private initialStep(): number {
     const raw = Number(this.route.snapshot.queryParamMap.get('step'));
     return Number.isInteger(raw) && raw >= 1 && raw <= 3 ? raw - 1 : 0;
-  }
-
-  /**
-   * The loan type step ①'s rail opens on, from `?loan=`.
-   *
-   * The signal is the truth and the URL is a copy of it (mirrored with `replaceUrl`, so
-   * flipping tabs does not fill the back button with filter states) — the same posture
-   * `?step=` takes here and on the catalog name's page. An unknown value falls back rather
-   * than throwing: it is a URL somebody typed.
-   *
-   * SUBSCRIBED, not read once from the snapshot, and that is not a nicety. Angular REUSES
-   * this component when only the query string changes, so a constructor-time read leaves the
-   * rail on `personal` while the URL says `business` — measured in a browser, where the tab
-   * strip said "6 read but not asked here" and the grid below it, still on the old category,
-   * showed all seven as asked. Two halves of one screen disagreeing about which loan type is
-   * open. This also makes the back button work.
-   */
-  private watchAskCategory(): void {
-    effect(
-      () => {
-        const only = this.soleCategory();
-        if (only !== null && untracked(this.askCategory) !== only) this.askCategory.set(only);
-      },
-      { allowSignalWrites: true },
-    );
-    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
-      const raw = params.get('loan');
-      this.askCategory.set(raw !== null && isLoanCategory(raw) ? raw : 'personal');
-    });
   }
 
   protected markDirty(): void {

@@ -360,17 +360,6 @@ export interface BoundQuestion {
    */
   parentAxisType?: string;
   /**
-   * The loan categories whose applicants are ASKED this question — the questionnaire's
-   * own answer, read straight off `question_loan_category`.
-   *
-   * Carried here because it is the only honest source for "can a program in this
-   * category be priced off this fact at all". The bank-program form used to ask a
-   * catalog NAME instead (a per-name tick-list the operator had to keep in step by
-   * hand, which no quote, publish check or save validation ever read); the question's
-   * own assignment is the thing the engine actually depends on.
-   */
-  askedIn: LoanCategory[];
-  /**
    * The question this one is GATED ON, when the questionnaire only asks it under an answer
    * to another question — read straight off `question.enabledWhen`.
    *
@@ -590,22 +579,20 @@ export abstract class PlatformEnumerationsRepository {
   abstract enumerationParentKeys(): Promise<Readonly<Record<string, string>>>;
 
   /**
-   * Everything the question-scope rule needs about one catalog program name, or `null` when
-   * the name narrows nothing.
+   * Everything the question-scope rule needs about one catalog program name under one loan type,
+   * or `null` when the name is unknown, inactive or retired.
    *
-   * The SECOND narrowing axis (`questionnaire/validation/question-scope.ts`): of the questions
-   * the loan category asks, an applicant is put in front of the ones a program behind the name
-   * they picked can actually be quoted from, plus the core every quote needs. This is the one
-   * place the three inputs meet — the product's declared ask set, the facts the name's own
-   * programs read, and the fact-to-question bindings — so serve, apply and preview cannot
-   * disagree about what was asked.
+   * The program axis (`questionnaire/validation/question-scope.ts`), the only one since v32.0.0:
+   * an applicant is put in front of the fixed questions, the core every quote needs, what a bank
+   * programme filed under the name IN THIS LOAN TYPE reads, and what the operator ticked for it.
+   * This is the one place those inputs meet — the product's declared ask set, the facts the
+   * name's programmes read, the fact-to-question bindings, the ticks and the program's own order
+   * — so serve, apply and preview cannot disagree about what was asked.
    *
    * Returns question CODES, never fact keys. The derived bank axes have no registry binding at
    * all, so resolving a fact to its question is knowledge that belongs here and not in the pure
-   * rule.
-   *
-   * `null` when the name is unknown, inactive, or has no active program: with no program there
-   * is no read set to trust, and serving the whole category is the safe answer.
+   * rule. A name with no programme in the loan type yet is NOT null: it reads nothing, so it is
+   * served the fixed questions, the core and its ticks.
    *
    * Uncached by contract, like `surrogateFactRegistry` and `programNameIncomeRules`. It decides
    * which questions an applicant is asked, so a 60s window is a window in which an operator's
@@ -614,20 +601,27 @@ export abstract class PlatformEnumerationsRepository {
    */
   abstract narrowingScopeFor(
     programNameKey: string,
-    category?: LoanCategory,
+    category: LoanCategory,
   ): Promise<NarrowingScope | null>;
 
   /**
-   * What an operator may NOT untick for a name — the inputs of `questionLockReason`. With no
-   * key (the create flow: the name does not exist yet) or a name with no active programme, the
-   * programme half is empty and the engine's own inputs lock, plus the fixed question set: a
-   * name created from the admin is payslip-only (v30.8.0), so it counts as income-proof.
-   * `category` narrows the programme half and the income-proof test to one loan type.
+   * What an operator may NOT untick for a name under one loan type — the inputs of
+   * `questionLockReason`. With no key (the create flow: the name does not exist yet) or a name
+   * with no active programme there, the programme half is empty and the engine's own inputs
+   * lock, plus the fixed question set: a name created from the admin is payslip-only (v30.8.0),
+   * so it counts as income-proof.
    */
   abstract questionLockScopeFor(
     programNameKey: string | null,
-    category?: LoanCategory,
+    category: LoanCategory,
   ): Promise<QuestionLockScope>;
+
+  /**
+   * The questions bound to a fact the PLATFORM owns (a reserved key — the bureau score, the car
+   * figures, the derived bank axes), resolved exactly as `narrowingScopeFor` resolves them. What
+   * the engine-input contract and the Questions tab need without a name. Uncached.
+   */
+  abstract platformQuestionCodes(): Promise<readonly string[]>;
 
   /**
    * Every (loan type, program name) an applicant can be quoted under — one row per distinct
@@ -639,26 +633,9 @@ export abstract class PlatformEnumerationsRepository {
     readonly { category: LoanCategory; programNameKey: string | null }[]
   >;
 
-  /** Question ids the name skips under one loan type (`program_name_question_exclusion`). */
-  abstract questionExclusions(
-    programNameKey: string,
-    category: LoanCategory,
-  ): Promise<readonly string[]>;
-
   /**
-   * Replace the name's skipped set for one loan type, in one transaction. Returns the set it
-   * replaced, for the audit event. `null` when the key is not a `program_name`.
-   */
-  abstract replaceQuestionExclusions(
-    programNameKey: string,
-    category: LoanCategory,
-    questionIds: readonly string[],
-    actorId: string | null,
-  ): Promise<{ before: readonly string[] } | null>;
-
-  /**
-   * Question ids the name ADDS under one loan type (`program_name_question_addition`) — asked of
-   * its applicants although the loan type does not ask them of every name.
+   * Question ids the name ASKS under one loan type because the operator ticked them
+   * (`program_name_question_addition`) — beyond the fixed questions and what its programmes read.
    */
   abstract questionAdditions(
     programNameKey: string,
@@ -666,29 +643,37 @@ export abstract class PlatformEnumerationsRepository {
   ): Promise<readonly string[]>;
 
   /**
-   * Replace the name's added set for one loan type, in ONE transaction: a question the category
-   * does not hold yet goes in as an OPT-IN row (seeded from the pool position, like every other
-   * insert into `question_loan_category`), the name's exclusion of the same question goes, and
-   * the addition rows are replaced. The caller has already validated and gate-closed the ids.
-   *
-   * Returns the set it replaced (for the audit event) and the questions that gained an opt-in
-   * row — non-empty means the snapshot must be republished before anyone is served them.
-   * `null` when the key is not a `program_name`.
+   * Replace the name's ticked set for one loan type, in ONE transaction. The caller has already
+   * validated and gate-closed the ids. Returns the set it replaced (for the audit event); `null`
+   * when the key is not a `program_name`. Never publishes: the program axis is read live.
    */
   abstract replaceQuestionAdditions(
     programNameKey: string,
     category: LoanCategory,
     questionIds: readonly string[],
     actorId: string | null,
-  ): Promise<{ before: readonly string[]; optInInserted: readonly string[] } | null>;
+  ): Promise<{ before: readonly string[] } | null>;
 
   /**
-   * How many program names add each question, per loan type — what `/questionnaire/categories`
-   * prints on an opt-in cell ("Some programs · 2").
+   * The name's own question ORDER under one loan type (`program_name_question_order`), as
+   * question ids in position order. Empty = never ordered: the pool's order applies.
    */
-  abstract questionAdditionCounts(): Promise<
-    ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
-  >;
+  abstract questionOrder(
+    programNameKey: string,
+    category: LoanCategory,
+  ): Promise<readonly string[]>;
+
+  /**
+   * Replace the name's order for one loan type with `questionIds`, positions 0..n-1, in ONE
+   * transaction. Returns the order it replaced (for the audit event); `null` when the key is not
+   * a `program_name`. Never publishes: the order is read live with the rest of the program.
+   */
+  abstract replaceQuestionOrder(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actorId: string | null,
+  ): Promise<{ before: readonly string[] } | null>;
 
   /**
    * Every question a live product ask reaches — bound to a fact some product asks (an ask not

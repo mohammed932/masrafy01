@@ -155,10 +155,10 @@ export interface EnumerationCategoryAssignment {
 /**
  * One active pool question, as the ask board on a product's step ① needs it.
  *
- * Its own row type rather than a reuse of the questionnaire's, because it carries the two
- * fields the ask door decides on and nothing else needs: `id`, to write the loan-category
- * assignment, and `isRequired`, because starting to ask a REQUIRED question of a new loan
- * type refuses every application in it until the next publish lands.
+ * Its own row type rather than a reuse of the questionnaire's, because it carries the fields
+ * the ask door decides on and nothing else needs: `id`, and `isRequired`, which the board shows
+ * because a product that starts asking a REQUIRED question makes every applicant of its programs
+ * answer it.
  */
 export interface FactCandidateQuestionRow {
   id: string;
@@ -167,8 +167,6 @@ export interface FactCandidateQuestionRow {
   labelEn: string;
   type: QuestionType;
   isRequired: boolean;
-  /** The loan categories that ASK this question. Empty = parked. */
-  categories: LoanCategory[];
 }
 
 /** How many programs behind one name prove income each way, under one loan category. */
@@ -367,10 +365,6 @@ const BOUND_QUESTION_SELECT = {
     orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
     select: { code: true, labelAr: true, labelEn: true },
   },
-  // Who is ASKED this question. Rides along because it is what the bank-program form
-  // needs to say "this loan type is never asked the figure your rule reads" — the one
-  // condition under which a fact-keyed table quotes nothing at all.
-  loanCategories: { select: { category: true } },
 } as const satisfies Prisma.QuestionSelect;
 
 /** The one type whose members bind a question; see `QUESTION_BOUND_ENUMERATION_TYPES`. */
@@ -835,30 +829,34 @@ export class PostgresPlatformEnumerationsRepository
   }
 
   /**
-   * The question-scope inputs for one catalog program name. See the abstract for the contract.
+   * The question-scope inputs for one catalog program name under one loan type. See the
+   * abstract for the contract.
    *
-   * FOUR reads, and the shape of the third is the point: the facts a program reads come from
-   * its EFFECTIVE rule, never from the stored `incomeAssumption` column. A program on
-   * `amounts: 'catalog'` carries no `steps` of its own — the structure lives on the name — so
-   * reading the column would report exactly the programs this feature exists for as needing
-   * nothing at all, and every question their calculation reads would be narrowed away.
+   * The facts a program reads come from its EFFECTIVE rule, never from the stored
+   * `incomeAssumption` column. A program on `amounts: 'catalog'` carries no `steps` of its own —
+   * the structure lives on the name — so reading the column would report exactly the programs
+   * this feature exists for as needing nothing at all, and every question their calculation
+   * reads would be narrowed away.
    *
-   * The needed set is a UNION over every ACTIVE program under the name, both income bases, and
-   * that breadth is deliberate twice over. A payslip program reads its facts only through
-   * `loanLimits.maxLoanByFact` / `maxLoanAdjustments`, which is the whole reader set of a
-   * cap-only product and would otherwise be invisible here — and a cap that misses its answer
-   * falls through `onNoMatch: 'useProgramMax'`, quoting ABOVE the bank's own table with nothing
-   * reporting it. Not filtering by basis also means a customer who fetches on one basis and
-   * changes their mind is never under-asked.
+   * The needed set is a union over every ACTIVE program filed under the name IN THE REQUESTED
+   * LOAN TYPE, both income bases. Both bases, because a payslip program reads its facts only
+   * through `loanLimits.maxLoanByFact` / `maxLoanAdjustments`, which is the whole reader set of a
+   * cap-only product and would otherwise be invisible here — a cap that misses its answer falls
+   * through `onNoMatch: 'useProgramMax'`, quoting ABOVE the bank's own table with nothing
+   * reporting it — and because a customer who fetches on one basis and changes their mind is then
+   * never under-asked. One loan type, because those are the programmes the applicant is quoted on
+   * (v32.0.0): until then the loan-type assignment cut a union over all of them back down, and
+   * with it gone a mortgage applicant would be asked what only the name's personal programme reads.
    *
-   * The declared ask set is unioned in as well, so a question an operator ticked before any
-   * bank filled a figure is still asked and the product's own board does not lie.
+   * The linked product's declared asks are unioned in where the product is what this loan type
+   * sells under the name — a no-payslip programme there, or none yet — so a question an operator
+   * ticked before any bank filled a figure is still asked and the product's own board does not lie.
    */
   async narrowingScopeFor(
     programNameKey: string,
-    category?: LoanCategory,
+    category: LoanCategory,
   ): Promise<NarrowingScope | null> {
-    const [nameRow, factRows, programs, excludedRows, addedRows] = await Promise.all([
+    const [nameRow, factRows, allPrograms, addedRows, orderRows] = await Promise.all([
       this.prisma.platformEnumeration.findUnique({
         where: { idx_platform_enumeration_type_key: { type: 'program_name', key: programNameKey } },
         select: { active: true, deprecatedAt: true, incomeRule: true, surrogateProductKey: true },
@@ -895,28 +893,25 @@ export class PostgresPlatformEnumerationsRepository
           plansSource: true,
         },
       }),
-      // The operator's unticks for this loan type. None without a category: a caller that does
-      // not say which loan type it serves gets the programme-read narrowing and nothing more.
-      category === undefined
-        ? Promise.resolve([])
-        : this.prisma.programNameQuestionExclusion.findMany({
-            where: { category, enumeration: { type: 'program_name', key: programNameKey } },
-            select: { question: { select: { code: true } } },
-          }),
-      // The operator's ticks for this loan type — the mirror of the unticks, same rule.
-      category === undefined
-        ? Promise.resolve([])
-        : this.prisma.programNameQuestionAddition.findMany({
-            where: { category, enumeration: { type: 'program_name', key: programNameKey } },
-            select: { question: { select: { code: true } } },
-          }),
+      // The operator's ticks for this loan type.
+      this.prisma.programNameQuestionAddition.findMany({
+        where: { category, enumeration: { type: 'program_name', key: programNameKey } },
+        select: { question: { select: { code: true } } },
+      }),
+      // The program's own order for this loan type (`orderServed`).
+      this.prisma.programNameQuestionOrder.findMany({
+        where: { category, enumeration: { type: 'program_name', key: programNameKey } },
+        orderBy: [{ position: 'asc' }, { questionId: 'asc' }],
+        select: { question: { select: { code: true } } },
+      }),
     ]);
 
-    // Unknown, retired, or backed by nothing: there is no read set to trust, and serving the
-    // whole category is the safe answer rather than a stub questionnaire that looks like it
-    // worked. An unofferable name is refused earlier, by `assertOfferedUnder`.
+    // Unknown or retired: there is no program to scope by. An unofferable name is refused
+    // earlier, by `assertOfferedUnder`.
     if (nameRow === null || !nameRow.active || nameRow.deprecatedAt !== null) return null;
-    if (programs.length === 0) return null;
+    // The programmes an applicant of THIS loan type is quoted on. None yet is not "no scope":
+    // the name reads nothing, so it is served the fixed questions, the core and its ticks.
+    const programs = allPrograms.filter((p) => asLoanCategory(p.productCategory) === category);
 
     const productKey = nameRow.surrogateProductKey;
     const productRow =
@@ -965,9 +960,6 @@ export class PostgresPlatformEnumerationsRepository
     const needed = new Set<string>();
     // Facts read by a refusal that an unanswered question skips (see `mustAnswerQuestionCodes`).
     const mustAnswer = new Set<string>();
-    // The same reads, split by the loan type of the programme doing the reading
-    // (`NarrowingScope.neededByCategory`). Collected per programme, then folded into both.
-    const neededInCategory = new Map<LoanCategory, Set<string>>();
     const platformTiers = await this.platformIScoreTiers();
     for (const program of programs) {
       const reads = new Set<string>();
@@ -1025,60 +1017,55 @@ export class PostgresPlatformEnumerationsRepository
         reads.add(I_SCORE_FACT_KEY);
       }
       for (const key of reads) needed.add(key);
-      const category = asLoanCategory(program.productCategory);
-      if (category !== null) {
-        const inCategory = neededInCategory.get(category) ?? new Set<string>();
-        for (const key of reads) inCategory.add(key);
-        // A refusal that is skipped when unanswered reads its fact as surely as a table does.
-        if (tenor.maxVehicleAgeYearsByFact !== undefined) inCategory.add(CAR_MODEL_YEAR_FACT_KEY);
-        neededInCategory.set(category, inCategory);
-      }
     }
 
+    // The product's own declared asks reach this loan type's applicants only where the product
+    // is what is sold here under the name: a no-payslip programme, or nothing yet.
+    const productAsksHere =
+      productKey !== null &&
+      (programs.length === 0 || programs.some((p) => p.programType === 'income_surrogate'));
+
     const factBoundQuestionCodes: string[] = [];
-    const askScopedQuestionCodes: string[] = [];
     const platformQuestionCodes: string[] = [];
     const neededQuestionCodes: string[] = [];
+    const programReadQuestionCodes: string[] = [];
     for (const fact of factRows) {
       // A derived bank axis has no registry binding: its question is named by the axis itself.
       const code = fact.boundQuestion?.code ?? bankAxisByFactKey(fact.key)?.questionCode;
       if (code === undefined) continue;
       factBoundQuestionCodes.push(code);
-      if (fact.askedByProducts.length > 0) askScopedQuestionCodes.push(code);
       if (isReservedFactKey(fact.key)) platformQuestionCodes.push(code);
       const askedByThisProduct =
-        productKey !== null && fact.askedByProducts.some((ask) => ask.product.key === productKey);
+        productAsksHere && fact.askedByProducts.some((ask) => ask.product.key === productKey);
+      if (needed.has(fact.key) || mustAnswer.has(fact.key)) programReadQuestionCodes.push(code);
       if (needed.has(fact.key) || askedByThisProduct) neededQuestionCodes.push(code);
     }
     // A derived bank axis a programme reads but the registry has no row for: its question is
-    // named by the axis itself. Invisible to the loop above, and until product-only names that
-    // was harmless because an unbound question was always core. It is not core there, so it
-    // has to be NEEDED or a programme's cap table reads an answer nobody was asked for.
+    // named by the axis itself, and it has to be NEEDED or a programme's cap table reads an
+    // answer nobody was asked for.
     const registryKeys = new Set(factRows.map((f) => f.key));
     for (const key of needed) {
       if (registryKeys.has(key)) continue;
       const axis = bankAxisByFactKey(key);
-      if (axis !== undefined) neededQuestionCodes.push(axis.questionCode);
+      if (axis !== undefined) {
+        neededQuestionCodes.push(axis.questionCode);
+        programReadQuestionCodes.push(axis.questionCode);
+      }
     }
-    // The three bank axes are ALWAYS product-scoped (2026-09-24). Their questions are bound
-    // to no registry row on most databases, so the core's "bound to no fact" clause kept all
-    // three on every name — `existing_bank_relationships` read by nothing anywhere, and the
-    // other two read only by the compound-owner product and the doctors' clinic programme.
-    // Counted as fact-bound and product-asked here, each is served exactly where a programme
-    // under the name reads its column (the `needed` pass above), and nowhere else.
+    // The three bank axes are fact-bound whether or not the registry holds a row for them: each
+    // is served exactly where a programme under the name reads its column, and nowhere else.
     for (const axis of BANK_AXES) {
       if (!factBoundQuestionCodes.includes(axis.questionCode)) {
         factBoundQuestionCodes.push(axis.questionCode);
       }
-      if (!askScopedQuestionCodes.includes(axis.questionCode)) {
-        askScopedQuestionCodes.push(axis.questionCode);
-      }
     }
 
-    // See `NarrowingScope.productOnly`. A linked product and no payslip programme in scope:
-    // one payslip programme under the name puts the whole core back.
+    // See `NarrowingScope.productOnly`. A linked product and only no-payslip programmes in this
+    // loan type — at least one: a name with nothing filed here yet is not product-only.
     const productOnly =
-      productRow !== null && programs.every((p) => p.programType === 'income_surrogate');
+      productRow !== null &&
+      programs.length > 0 &&
+      programs.every((p) => p.programType === 'income_surrogate');
     // The one money figure a product-only name cannot go without: the principal. The app
     // derives it as price minus down payment when BOTH car figures are served
     // (`apply_mapping.dart`), and has nothing to derive it from otherwise — it would refuse
@@ -1098,79 +1085,57 @@ export class PostgresPlatformEnumerationsRepository
       mustAnswer.has(f.key) && f.boundQuestion !== null ? [f.boundQuestion.code] : [],
     );
 
-    // What the programmes of each loan type read, as question codes — resolved exactly as
-    // `neededQuestionCodes` resolves a fact key (its registry binding, else the derived axis),
-    // and WITHOUT the product's declared asks: the contract holds a loan type to what its
-    // programmes actually read, the way `check:question-scope` does.
-    const neededByCategory: Partial<Record<LoanCategory, readonly string[]>> = {};
-    for (const [category, keys] of neededInCategory) {
-      const codes = new Set<string>();
-      for (const key of keys) {
-        const code =
-          factRows.find((f) => f.key === key)?.boundQuestion?.code ??
-          bankAxisByFactKey(key)?.questionCode;
-        if (code !== undefined) codes.add(code);
-      }
-      neededByCategory[category] = [...codes].sort();
-    }
-
     // See `NarrowingScope.incomeProof`. A loan type the name has no programme in yet counts as
     // income-proof: a name created from the admin is payslip-only (v30.8.0), and the fixed
     // question set must already be what its first programme is quoted from.
-    const inRequestedCategory =
-      category === undefined
-        ? programs
-        : programs.filter((p) => asLoanCategory(p.productCategory) === category);
     const incomeProof =
-      inRequestedCategory.length === 0 ||
-      inRequestedCategory.some((p) => p.programType === 'income_proof');
+      programs.length === 0 || programs.some((p) => p.programType === 'income_proof');
 
     return {
       programNameKey,
       factBoundQuestionCodes,
-      askScopedQuestionCodes,
       platformQuestionCodes,
       neededQuestionCodes,
+      programReadQuestionCodes: [...new Set(programReadQuestionCodes)].sort(),
       productOnly,
       incomeProof,
       mustAnswerQuestionCodes,
-      neededByCategory,
-      programCount:
-        category === undefined
-          ? programs.length
-          : programs.filter((p) => asLoanCategory(p.productCategory) === category).length,
-      excludedQuestionCodes: excludedRows.map((row) => row.question.code),
+      programCount: programs.length,
       addedQuestionCodes: addedRows.map((row) => row.question.code),
+      orderedQuestionCodes: orderRows.map((row) => row.question.code),
     };
   }
 
   async questionLockScopeFor(
     programNameKey: string | null,
-    category?: LoanCategory,
+    category: LoanCategory,
   ): Promise<QuestionLockScope> {
     const scope =
       programNameKey === null ? null : await this.narrowingScopeFor(programNameKey, category);
     if (scope !== null) {
       return {
-        platformQuestionCodes: scope.platformQuestionCodes,
         neededQuestionCodes: scope.neededQuestionCodes,
         mustAnswerQuestionCodes: scope.mustAnswerQuestionCodes ?? [],
         incomeProof: scope.incomeProof === true,
       };
     }
-    // No programme to read from: the platform's own facts, resolved exactly as the loop in
-    // `narrowingScopeFor` resolves them.
+    // No name yet (the create flow): a name created from the admin is payslip-only (v30.8.0),
+    // so the fixed question set already binds it, and nothing else does.
+    return { incomeProof: true };
+  }
+
+  async platformQuestionCodes(): Promise<readonly string[]> {
     const facts = await this.prisma.platformEnumeration.findMany({
       where: { type: FACT_TYPE },
       select: { key: true, boundQuestion: { select: { code: true } } },
     });
-    const platformQuestionCodes = facts.flatMap((fact) => {
+    const out = new Set<string>();
+    for (const fact of facts) {
+      // Resolved exactly as the loop in `narrowingScopeFor` resolves them.
       const code = fact.boundQuestion?.code ?? bankAxisByFactKey(fact.key)?.questionCode;
-      return code !== undefined && isReservedFactKey(fact.key) ? [code] : [];
-    });
-    // No programme yet: a name created from the admin is payslip-only (v30.8.0), so the fixed
-    // question set already binds it.
-    return { platformQuestionCodes, incomeProof: true };
+      if (code !== undefined && isReservedFactKey(fact.key)) out.add(code);
+    }
+    return [...out].sort();
   }
 
   async offeredProgramFlows(): Promise<
@@ -1186,57 +1151,6 @@ export class PostgresPlatformEnumerationsRepository
     return rows.flatMap((row) => {
       const category = asLoanCategory(row.productCategory);
       return category === null ? [] : [{ category, programNameKey: row.programNameKey }];
-    });
-  }
-
-  async questionExclusions(
-    programNameKey: string,
-    category: LoanCategory,
-  ): Promise<readonly string[]> {
-    const rows = await this.prisma.programNameQuestionExclusion.findMany({
-      where: { category, enumeration: { type: 'program_name', key: programNameKey } },
-      select: { questionId: true },
-      orderBy: { questionId: 'asc' },
-    });
-    return rows.map((row) => row.questionId);
-  }
-
-  async replaceQuestionExclusions(
-    programNameKey: string,
-    category: LoanCategory,
-    questionIds: readonly string[],
-    actorId: string | null,
-  ): Promise<{ before: readonly string[] } | null> {
-    return this.prisma.$transaction(async (tx) => {
-      const name = await tx.platformEnumeration.findUnique({
-        where: { idx_platform_enumeration_type_key: { type: 'program_name', key: programNameKey } },
-        select: { id: true },
-      });
-      if (name === null) return null;
-      const before = await tx.programNameQuestionExclusion.findMany({
-        where: { enumerationId: name.id, category },
-        select: { questionId: true },
-        orderBy: { questionId: 'asc' },
-      });
-      await tx.programNameQuestionExclusion.deleteMany({
-        where: { enumerationId: name.id, category },
-      });
-      if (questionIds.length > 0) {
-        await tx.programNameQuestionExclusion.createMany({
-          data: [...new Set(questionIds)].map((questionId) => ({
-            enumerationId: name.id,
-            category,
-            questionId,
-            createdBy: actorId,
-          })),
-        });
-        // A skipped question is not also an ADDED one: the two lists stay apart, so the board
-        // never has to guess which of them a row's tick state came from.
-        await tx.programNameQuestionAddition.deleteMany({
-          where: { enumerationId: name.id, category, questionId: { in: [...questionIds] } },
-        });
-      }
-      return { before: before.map((row) => row.questionId) };
     });
   }
 
@@ -1257,7 +1171,7 @@ export class PostgresPlatformEnumerationsRepository
     category: LoanCategory,
     questionIds: readonly string[],
     actorId: string | null,
-  ): Promise<{ before: readonly string[]; optInInserted: readonly string[] } | null> {
+  ): Promise<{ before: readonly string[] } | null> {
     const ids = [...new Set(questionIds)];
     return this.prisma.$transaction(async (tx) => {
       const name = await tx.platformEnumeration.findUnique({
@@ -1270,41 +1184,6 @@ export class PostgresPlatformEnumerationsRepository
         select: { questionId: true },
         orderBy: { questionId: 'asc' },
       });
-
-      // Into the category as OPT-IN, where it is not there at all yet. A question the category
-      // already holds — ordinary or opt-in — keeps its row as it is: the addition alone is what
-      // makes this name ask it.
-      const held = new Set(
-        (
-          await tx.questionLoanCategory.findMany({
-            where: { category, questionId: { in: ids } },
-            select: { questionId: true },
-          })
-        ).map((row) => row.questionId),
-      );
-      const missing = ids.filter((id) => !held.has(id));
-      if (missing.length > 0) {
-        const seeds = await tx.question.findMany({
-          where: { id: { in: missing } },
-          select: { id: true, displayOrder: true },
-        });
-        await tx.questionLoanCategory.createMany({
-          data: seeds.map((q) => ({
-            questionId: q.id,
-            category,
-            optIn: true,
-            displayOrder: q.displayOrder,
-          })),
-          skipDuplicates: true,
-        });
-      }
-
-      // An added question is not also a skipped one (see `replaceQuestionExclusions`).
-      if (ids.length > 0) {
-        await tx.programNameQuestionExclusion.deleteMany({
-          where: { enumerationId: name.id, category, questionId: { in: ids } },
-        });
-      }
       await tx.programNameQuestionAddition.deleteMany({
         where: { enumerationId: name.id, category },
       });
@@ -1318,7 +1197,52 @@ export class PostgresPlatformEnumerationsRepository
           })),
         });
       }
-      return { before: before.map((row) => row.questionId), optInInserted: missing };
+      return { before: before.map((row) => row.questionId) };
+    });
+  }
+
+  async questionOrder(programNameKey: string, category: LoanCategory): Promise<readonly string[]> {
+    const rows = await this.prisma.programNameQuestionOrder.findMany({
+      where: { category, enumeration: { type: 'program_name', key: programNameKey } },
+      orderBy: [{ position: 'asc' }, { questionId: 'asc' }],
+      select: { questionId: true },
+    });
+    return rows.map((row) => row.questionId);
+  }
+
+  async replaceQuestionOrder(
+    programNameKey: string,
+    category: LoanCategory,
+    questionIds: readonly string[],
+    actorId: string | null,
+  ): Promise<{ before: readonly string[] } | null> {
+    const ids = [...new Set(questionIds)];
+    return this.prisma.$transaction(async (tx) => {
+      const name = await tx.platformEnumeration.findUnique({
+        where: { idx_platform_enumeration_type_key: { type: 'program_name', key: programNameKey } },
+        select: { id: true },
+      });
+      if (name === null) return null;
+      const before = await tx.programNameQuestionOrder.findMany({
+        where: { enumerationId: name.id, category },
+        orderBy: [{ position: 'asc' }, { questionId: 'asc' }],
+        select: { questionId: true },
+      });
+      await tx.programNameQuestionOrder.deleteMany({
+        where: { enumerationId: name.id, category },
+      });
+      if (ids.length > 0) {
+        await tx.programNameQuestionOrder.createMany({
+          data: ids.map((questionId, position) => ({
+            enumerationId: name.id,
+            category,
+            questionId,
+            position,
+            createdBy: actorId,
+          })),
+        });
+      }
+      return { before: before.map((row) => row.questionId) };
     });
   }
 
@@ -1335,22 +1259,6 @@ export class PostgresPlatformEnumerationsRepository
     }
     for (const axis of BANK_AXES) out.add(axis.questionCode);
     return [...out].sort();
-  }
-
-  async questionAdditionCounts(): Promise<
-    ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
-  > {
-    const rows = await this.prisma.programNameQuestionAddition.groupBy({
-      by: ['questionId', 'category'],
-      _count: { _all: true },
-    });
-    const out = new Map<string, Partial<Record<LoanCategory, number>>>();
-    for (const row of rows) {
-      const entry = out.get(row.questionId) ?? {};
-      entry[row.category] = row._count._all;
-      out.set(row.questionId, entry);
-    }
-    return out;
   }
 
   /**
@@ -2068,7 +1976,6 @@ export class PostgresPlatformEnumerationsRepository
         labelEn: q.questionEn,
         active: q.isActive,
         options: q.options,
-        askedIn: sortCategories(q.loanCategories.map((c) => c.category)),
       });
     }
     return out;
@@ -2607,6 +2514,14 @@ export class PostgresPlatformEnumerationsRepository
         before.map((r) => [r.category, { payslip: r.payslip, noPayslip: r.noPayslip }]),
       );
       await tx.platformEnumerationLoanCategory.deleteMany({ where: { enumerationId } });
+      // A loan type the name leaves takes the name's ticks and order there with it (v32.0.0):
+      // the program is no longer sold there, so nothing there is asked or ordered any more.
+      await tx.programNameQuestionAddition.deleteMany({
+        where: { enumerationId, category: { notIn: [...categories] } },
+      });
+      await tx.programNameQuestionOrder.deleteMany({
+        where: { enumerationId, category: { notIn: [...categories] } },
+      });
       if (categories.length === 0) return;
       const row = await tx.platformEnumeration.findUnique({
         where: { id: enumerationId },
@@ -2642,7 +2557,6 @@ export class PostgresPlatformEnumerationsRepository
         questionEn: true,
         type: true,
         isRequired: true,
-        loanCategories: { select: { category: true } },
       },
       orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
     });
@@ -2653,7 +2567,6 @@ export class PostgresPlatformEnumerationsRepository
       labelEn: q.questionEn,
       type: q.type,
       isRequired: q.isRequired,
-      categories: sortCategories(q.loanCategories.map((c) => c.category)),
     }));
   }
 
@@ -2690,6 +2603,13 @@ export class PostgresPlatformEnumerationsRepository
         );
         await tx.platformEnumerationLoanCategory.deleteMany({
           where: { enumerationId: a.enumerationId },
+        });
+        // Ticks and order leave with the loan type, as in `setCategories`.
+        await tx.programNameQuestionAddition.deleteMany({
+          where: { enumerationId: a.enumerationId, category: { notIn: [...a.categories] } },
+        });
+        await tx.programNameQuestionOrder.deleteMany({
+          where: { enumerationId: a.enumerationId, category: { notIn: [...a.categories] } },
         });
         if (a.categories.length === 0) continue;
         await tx.platformEnumerationLoanCategory.createMany({
@@ -3167,7 +3087,6 @@ type PlatformEnumerationWithCategories = PlatformEnumeration & {
     questionEn: string;
     isActive: boolean;
     options: Array<{ code: string; labelAr: string; labelEn: string }>;
-    loanCategories?: Array<{ category: LoanCategory }>;
     /** Stored JSON. Optional so a caller selecting a narrower shape still type-checks. */
     enabledWhen?: unknown;
   } | null;
@@ -3214,7 +3133,6 @@ function boundQuestionOf(row: PlatformEnumerationWithCategories): BoundQuestion 
     labelEn: q.questionEn,
     active: q.isActive,
     options: q.options,
-    askedIn: sortCategories((q.loanCategories ?? []).map((c) => c.category)),
     // Read through the questionnaire's own rule reader, so "what is this gated on" and
     // "is this shown" can never answer differently about the same stored blob.
     enabledWhen: 'enabledWhen' in q ? enabledWhenGate({ enabledWhen: q.enabledWhen }) : undefined,

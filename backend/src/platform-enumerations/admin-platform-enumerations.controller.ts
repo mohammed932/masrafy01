@@ -34,7 +34,7 @@ import {
   type EnumerationBulkCreateResult,
   SetEnumerationCategoriesDto,
   SetEnumerationIncomeBasisDto,
-  SetProgramNameQuestionExclusionsDto,
+  SetProgramNameQuestionOrderDto,
   SetProgramNameQuestionAdditionsDto,
   UpdateEnumerationDto,
   UpdateEnumerationTypeDto,
@@ -246,11 +246,11 @@ export class AdminPlatformEnumerationsController {
   }
 
   /**
-   * The program-name questions board: what the name skips and adds per loan type, and what it
-   * may not skip. `key` absent = the create flow, before the name exists.
+   * The program-name questions board: what the name ticks per loan type, and what it may not
+   * tick or untick. `key` absent = the create flow, before the name exists.
    */
   @Get('program-names/question-scope')
-  @ApiOperation({ summary: 'Questions a program name skips, and the ones it cannot' })
+  @ApiOperation({ summary: 'Questions a program name ticks, and the ones it cannot change' })
   async programNameQuestionScope(@Query('key') key?: string) {
     const trimmed = key?.trim();
     return {
@@ -261,27 +261,8 @@ export class AdminPlatformEnumerationsController {
     };
   }
 
-  @Put('program-names/:key/question-exclusions')
-  @ApiOperation({ summary: 'Replace the questions one program name skips under one loan type' })
-  async setProgramNameQuestionExclusions(
-    @Param('key') key: string,
-    @Body() body: SetProgramNameQuestionExclusionsDto,
-    @CurrentUser() user: JwtPayload,
-    @Ip() ip: string,
-  ) {
-    return {
-      success: true as const,
-      data: await this.service.setProgramNameQuestionExclusions(
-        key,
-        body.category,
-        body.questionIds,
-        { staffId: user.sub, sourceIp: ip ?? null },
-      ),
-    };
-  }
-
   @Put('program-names/:key/question-additions')
-  @ApiOperation({ summary: 'Replace the questions one program name adds under one loan type' })
+  @ApiOperation({ summary: 'Replace the questions one program name ticks under one loan type' })
   async setProgramNameQuestionAdditions(
     @Param('key') key: string,
     @Body() body: SetProgramNameQuestionAdditionsDto,
@@ -296,6 +277,25 @@ export class AdminPlatformEnumerationsController {
         body.questionIds,
         { staffId: user.sub, sourceIp: ip ?? null },
       ),
+    };
+  }
+
+  @Put('program-names/:key/question-order')
+  @ApiOperation({
+    summary: 'Replace the order one program name asks its questions in under one loan type',
+  })
+  async setProgramNameQuestionOrder(
+    @Param('key') key: string,
+    @Body() body: SetProgramNameQuestionOrderDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    return {
+      success: true as const,
+      data: await this.service.setProgramNameQuestionOrder(key, body.category, body.questionIds, {
+        staffId: user.sub,
+        sourceIp: ip ?? null,
+      }),
     };
   }
 

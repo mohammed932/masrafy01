@@ -81,7 +81,6 @@ describe('narrowAskedQuestions — gates', () => {
   const scope = (over: Partial<NarrowingScope>): NarrowingScope => ({
     programNameKey: 'a_name',
     factBoundQuestionCodes: [],
-    askScopedQuestionCodes: [],
     platformQuestionCodes: [],
     neededQuestionCodes: [],
     ...over,
@@ -114,7 +113,6 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['which_unit'],
-        askScopedQuestionCodes: ['which_unit'],
         neededQuestionCodes: [],
       }),
     );
@@ -132,7 +130,6 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['which_unit'],
-        askScopedQuestionCodes: ['which_unit'],
         neededQuestionCodes: ['which_unit'],
       }),
     );
@@ -150,7 +147,6 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['employment_status', 'military_grade'],
-        askScopedQuestionCodes: ['employment_status', 'military_grade'],
         neededQuestionCodes: ['employment_status'],
       }),
     );
@@ -172,7 +168,6 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['top', 'middle', 'leaf'],
-        askScopedQuestionCodes: ['top', 'middle', 'leaf'],
         neededQuestionCodes: ['leaf'],
       }),
     );
@@ -192,7 +187,6 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['middle', 'leaf'],
-        askScopedQuestionCodes: ['middle', 'leaf'],
         neededQuestionCodes: [],
       }),
     );
@@ -213,7 +207,6 @@ describe('narrowAskedQuestions — gates', () => {
         questions,
         scope({
           factBoundQuestionCodes: ['which_unit', 'unit_price'],
-          askScopedQuestionCodes: ['which_unit', 'unit_price'],
           neededQuestionCodes: needed,
         }),
       );
@@ -235,7 +228,6 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['which_unit'],
-        askScopedQuestionCodes: ['which_unit'],
         neededQuestionCodes: ['which_unit'],
       }),
     );
@@ -257,13 +249,16 @@ describe('narrowAskedQuestions — gates', () => {
     // And they survive a scope that asks for none of them and would otherwise scope them.
     const decision = narrowAskedQuestions(
       codes.map((code) => ({ code, enabledWhen: null })),
-      scope({ factBoundQuestionCodes: codes, askScopedQuestionCodes: codes }),
+      scope({ factBoundQuestionCodes: codes }),
     );
     expect([...decision.keep].sort()).toEqual([...codes].sort());
     expect([...decision.extraRequired]).toEqual([]);
   });
 
-  it('leaves the platform its own questions', () => {
+  it('asks a platform-owned question only where something puts it on the program', () => {
+    // v32.0.0: with no loan type to bound it, a platform fact (I-Score, the car figures) is no
+    // longer core — a car price would otherwise be asked of every personal applicant. It is
+    // asked when it is fixed, a programme here reads it, or the program ticked it.
     const decision = narrowAskedQuestions(
       [
         ANCHOR,
@@ -272,10 +267,9 @@ describe('narrowAskedQuestions — gates', () => {
       ],
       scope({
         factBoundQuestionCodes: ['i_score', 'academic_rank'],
-        askScopedQuestionCodes: ['i_score', 'academic_rank'],
         platformQuestionCodes: ['i_score'],
       }),
     );
-    expect([...decision.keep].sort()).toEqual(['i_score', 'monthly_income']);
+    expect([...decision.keep].sort()).toEqual(['monthly_income']);
   });
 });

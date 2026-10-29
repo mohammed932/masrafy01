@@ -801,9 +801,8 @@ model PlatformEnumeration {
   /// values by picking the question that answers it.
   ///
   /// A COLUMN HERE, NOT A FIELD ON `question` — A33 forbids a scoring or
-  /// profile-mapping field on `Question`, and this is the same binding
-  /// `question_loan_category` is: it says what the REGISTRY reads, not what the
-  /// question is. The question stays pure content.
+  /// profile-mapping field on `Question`: it says what the REGISTRY reads, not what
+  /// the question is. The question stays pure content.
   ///
   /// `ON DELETE SET NULL`, deliberately not cascade: a fact whose question left the
   /// pool is a fact that still has bank tables written against it, and the operator
@@ -1051,18 +1050,18 @@ model PlatformEnumeration {
   createdBy           String?   @db.VarChar(30)
   updatedBy           String?   @db.VarChar(30)
 
-  loanCategories     PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
-  boundQuestion      Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
+  loanCategories    PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
+  boundQuestion     Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
   /// `surrogate_product` side of the ask set — which facts this product reads.
-  asks               SurrogateProductAsk[]             @relation("SurrogateProductAsks")
+  asks              SurrogateProductAsk[]             @relation("SurrogateProductAsks")
   /// `surrogate_fact` side of the same rows — which products read this fact. This is
   /// the direction `surrogateProductKey` cannot express: it is one column, and a fact
   /// is legitimately read by several products.
-  askedByProducts    SurrogateProductAsk[]             @relation("SurrogateFactAskedBy")
-  /// `program_name` only: questions its loan types ask that THIS name skips.
-  questionExclusions ProgramNameQuestionExclusion[]    @relation("ProgramNameQuestionExclusions")
-  /// `program_name` only: questions THIS name asks beyond what its loan types ask everyone.
-  questionAdditions  ProgramNameQuestionAddition[]     @relation("ProgramNameQuestionAdditions")
+  askedByProducts   SurrogateProductAsk[]             @relation("SurrogateFactAskedBy")
+  /// `program_name` only: questions THIS name asks because the operator ticked them.
+  questionAdditions ProgramNameQuestionAddition[]     @relation("ProgramNameQuestionAdditions")
+  /// `program_name` only: where THIS name asks each question, per loan type (v32.0.0).
+  questionOrders    ProgramNameQuestionOrder[]        @relation("ProgramNameQuestionOrders")
 
   @@unique([type, key], name: "idx_platform_enumeration_type_key")
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
@@ -1290,11 +1289,9 @@ model PlatformEnumerationLoanCategory {
 /// used to be refused. An `operator` ask carries no tombstone — nothing re-asserts it, so
 /// its untick is a plain delete.
 ///
-/// NOT keyed by loan category. What a product READS is one decision; which loan types
-/// ASK the question behind it is `question_loan_category`, which is global to the question
-/// and shared with every other reader of it. A per-category ask set would be a second,
-/// quieter statement of the same thing, free to disagree with the questionnaire about
-/// what an applicant is actually asked.
+/// NOT keyed by loan category. What a product READS is one decision, and the programs that
+/// quote off the product ask it because the product reads it (`question-scope.ts`, v32.0.0).
+/// A per-category ask set would be a second, quieter statement of the same thing.
 model SurrogateProductAsk {
   /// `platform_enumeration.id` of the `surrogate_product` row.
   productId  String             @db.VarChar(30)
@@ -1631,15 +1628,16 @@ enum QuestionType {
 }
 
 // v31.0.0 — where a FIXED question is asked (`question.fixedServedOn`). `every_name`: on
-// every program of the loan types it is in; `income_proof`: on every income-proof (payslip)
-// program of them. Set when the admin creates or marks the question, and never cleared.
+// every program; `income_proof`: on every income-proof (payslip) program — of every loan type
+// since v32.0.0. Set when the admin creates or marks the question; the admin's both ways.
 enum FixedQuestionServedOn {
   every_name
   income_proof
 }
 
 // Feature 010 — questions are GLOBAL (no category). A single question pool feeds
-// one global questionnaire, narrowed per applicant by `question_loan_category`.
+// one global questionnaire, narrowed per applicant by the PROGRAM they picked (v32.0.0,
+// `question-scope.ts`): its fixed questions, what its bank programs read, and its ticks.
 //
 // NOTE (v25.0.0): this used to add "per-program scoring picks which questions it uses
 // via `ScoringWeightSet.weights.questionWeights`". Both authorities named there are
@@ -1688,13 +1686,12 @@ model Question {
   numericUnitEn   String?  @db.VarChar(24) // display unit, e.g. "EGP"
   textMaxLength   Int? // TEXT only; 1…2000
 
-  /// FIXED (v31.0.0): asked on every program of its loan types (`every_name`), or on every
-  /// income-proof program of them (`income_proof`); `null` = an ordinary question. The admin
-  /// owns it — set at create, or by marking an existing question once — and it is never
-  /// cleared: a fixed question stays required, is never opt-in, skipped or added per program
-  /// name, never leaves one of its loan types, and is gated only on another fixed question
-  /// (`questionnaire/validation/fixed-questions.ts`). Frozen into the published snapshot.
-  /// A deleted one keeps it, so a restore brings the question back whole.
+  /// FIXED (v31.0.0): asked on every program (`every_name`), or on every income-proof program
+  /// (`income_proof`) — of every loan type since v32.0.0; `null` = an ordinary question, asked
+  /// where a program's bank programs read it or the program ticked it. The admin's both ways
+  /// (v31.1.0). While fixed it is never ticked per program and is gated only on another fixed
+  /// question (`questionnaire/validation/fixed-questions.ts`). Frozen into the published
+  /// snapshot. A deleted one keeps it, so a restore brings the question back whole.
   fixedServedOn FixedQuestionServedOn?
   /// v31.3.0 — what a NUMBER answer does to every offer, by range, as the admin set it on a
   /// FIXED number question: `[{fromInclusive, toExclusive, maxLoanPercent?, ratePoints?,
@@ -1706,114 +1703,32 @@ model Question {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  group                 QuestionGroup                  @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
-  options               QuestionOption[]               @relation("QuestionOptions")
-  answers               ApplicationAnswer[]            @relation("QuestionAnswers")
-  loanCategories        QuestionLoanCategory[]         @relation("QuestionLoanCategories")
+  group                QuestionGroup                 @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
+  options              QuestionOption[]              @relation("QuestionOptions")
+  answers              ApplicationAnswer[]           @relation("QuestionAnswers")
   /// Surrogate income FACTS answered by this question — registry rows, not a
   /// property of the question (see `PlatformEnumeration.boundQuestionId`).
-  surrogateFacts        PlatformEnumeration[]          @relation("QuestionSurrogateFactBindings")
+  surrogateFacts       PlatformEnumeration[]         @relation("QuestionSurrogateFactBindings")
   /// Lists whose values ARE this question's options, one-for-one by code. Again a
   /// statement the REGISTRY makes about itself, not a field on the question
   /// (see `EnumerationTypeDef.mirrorQuestionId`).
-  mirroredLists         EnumerationTypeDef[]           @relation("QuestionMirroredEnumerationTypes")
-  /// Program names that skip this question (`ProgramNameQuestionExclusion`).
-  programNameExclusions ProgramNameQuestionExclusion[] @relation("QuestionProgramNameExclusions")
+  mirroredLists        EnumerationTypeDef[]          @relation("QuestionMirroredEnumerationTypes")
   /// Program names that add this question (`ProgramNameQuestionAddition`).
-  programNameAdditions  ProgramNameQuestionAddition[]  @relation("QuestionProgramNameAdditions")
+  programNameAdditions ProgramNameQuestionAddition[] @relation("QuestionProgramNameAdditions")
+  /// Where each program name asks this question (`ProgramNameQuestionOrder`).
+  programNameOrders    ProgramNameQuestionOrder[]    @relation("QuestionProgramNameOrders")
 
   @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")
 }
 
-// Which loan categories a GLOBAL-pool question is asked for. A join row, NOT a
-// `category` column on `question` (A33): the pool stays one canonical list of
-// questions and one question serves many categories. The assignment set is
-// AUTHORITATIVE — a question with no rows here is asked for no category, so the
-// admin's "assign" tab warns on an empty row and `createQuestion` seeds all four
-// by default (nothing silently disappears from the wizard on create).
-model QuestionLoanCategory {
-  questionId   String       @db.VarChar(30)
-  category     LoanCategory
-  /// WHERE this category asks the question — the second axis of the order, beside
-  /// `question.displayOrder`.
-  ///
-  /// That one is the POOL's sequence and is shared: three categories asking the same row
-  /// were served it in the same place, so moving it for one moved it for all. This column
-  /// is the category's own answer, so a question can sit third in mortgage and tenth in
-  /// personal.
-  ///
-  /// WITHIN A STEP. The app renders one step per `question_group` and sorts the questions
-  /// inside it; a position across steps means nothing. The admin list that writes this is
-  /// grouped by step and `toCustomerSnapshot` sorts inside each group.
-  ///
-  /// SEEDED, never zero-by-default in practice: the migration backfilled every existing row
-  /// from `question.displayOrder` (so nothing moved), and every new assignment copies the
-  /// same figure — a question ticked into a category lands where the pool already put it,
-  /// rather than at the end of a list the operator was not looking at.
-  ///
-  /// TIES ARE LEGAL and are broken by `question.displayOrder` then `code` at read time: a
-  /// reorder writes a dense 0…n-1 over one category, and a row seeded later from the pool
-  /// can collide with it. A collision is a stable order, not a wrong one.
-  ///
-  /// FROZEN INTO THE SNAPSHOT (A33) as `categoryOrder`, never re-derived at read time: a
-  /// version served yesterday must go on asking in yesterday's order.
-  displayOrder Int          @default(0)
-  /// OPT-IN: in this category, but asked only of the program names that ADD it
-  /// (`program_name_question_addition`) or whose bank programs read it. `false` — every row
-  /// before 2026-09-26 — is the ordinary assignment: asked of every name.
-  ///
-  /// Written only by a program name's "tick an extra question", so ticking a car question on
-  /// a Personal name never asks it of every Personal applicant. A global add
-  /// (`/questionnaire/categories`, the product-ask widen, a blueprint) turns the row ordinary.
-  ///
-  /// FROZEN INTO THE SNAPSHOT as `optInCategories`, DISJOINT from `categories`, so a reader
-  /// that does not know the key treats the row as unassigned: not served, not required.
-  optIn        Boolean      @default(false)
-  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
-
-  question Question @relation("QuestionLoanCategories", fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@id([questionId, category], name: "pk_question_loan_category")
-  @@index([category], name: "idx_question_loan_category_category")
-  /// The read this table exists for now: one category's asked set, in its own order.
-  @@index([category, displayOrder], name: "idx_question_loan_category_order")
-  @@map("question_loan_category")
-}
-
-/// A question a program NAME's applicants are NOT asked, though its loan type asks it.
+/// A question a program NAME's applicants are asked under one loan type because the operator
+/// TICKED it — beyond the fixed questions and what the name's bank programs read (v32.0.0:
+/// questions carry no loan type; a program's questions are its own).
 ///
-/// The operator's untick on the program-name questions board. SUBTRACTIVE and per
-/// (name, category): other names and the global `question_loan_category` assignment are
-/// untouched. BOUNDED, never authoritative: `question-scope.ts` ignores a row whose question
-/// the quote needs — the engine's money/debt inputs, or a fact a bank program under the name
-/// reads — so a bank program filed later that reads an unticked question brings it back
-/// without anyone editing this table. Read LIVE with the rest of the name axis, never frozen
-/// into the snapshot (v29.0.0). Narrows what is ASKED, never what may be ANSWERED (A33).
-model ProgramNameQuestionExclusion {
-  enumerationId String       @db.VarChar(30)
-  category      LoanCategory
-  questionId    String       @db.VarChar(30)
-  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
-  createdBy     String?      @db.VarChar(30)
-
-  enumeration PlatformEnumeration @relation("ProgramNameQuestionExclusions", fields: [enumerationId], references: [id], onDelete: Cascade)
-  question    Question            @relation("QuestionProgramNameExclusions", fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@id([enumerationId, category, questionId], name: "pk_program_name_question_exclusion")
-  @@index([questionId], name: "idx_program_name_question_exclusion_question")
-  @@map("program_name_question_exclusion")
-}
-
-/// A question a program NAME's applicants ARE asked, though its loan type does not ask it of
-/// every name — the mirror of `ProgramNameQuestionExclusion`.
-///
-/// The operator's tick on the program-name questions board. ADDITIVE and per (name,
-/// category): the question sits in the category as an OPT-IN row
-/// (`QuestionLoanCategory.optIn`), which other names never serve. Added for a name means
-/// asked, never REQUIRED because of it — the question keeps its own requiredness. Read LIVE
-/// with the rest of the name axis, never frozen (v29.0.0); a snapshot freezes only which
-/// rows are opt-in. Answers stay accepted category-wide (A33).
+/// Ticked for a name means asked, never REQUIRED because of it — the question keeps its own
+/// requiredness. Read LIVE with the rest of the program, never frozen (v29.0.0). Narrows what is
+/// ASKED, never what may be ANSWERED (A33). A loan type the name leaves takes its ticks with it.
 model ProgramNameQuestionAddition {
   enumerationId String       @db.VarChar(30)
   category      LoanCategory
@@ -1827,6 +1742,36 @@ model ProgramNameQuestionAddition {
   @@id([enumerationId, category, questionId], name: "pk_program_name_question_addition")
   @@index([questionId], name: "idx_program_name_question_addition_question")
   @@map("program_name_question_addition")
+}
+
+/// WHERE a program NAME asks each question, per loan type (v32.0.0) — the program's own order.
+///
+/// Read LIVE with the rest of the name axis (its ticks, what its bank programs read), never
+/// frozen into the snapshot: the order a program serves belongs to the program, not to
+/// questionnaire content, exactly like its ticks. WITHIN A STEP: the app renders one step per
+/// `question_group` and sorts inside it, so a position only means something among the same
+/// step's questions — `toCustomerSnapshot` sorts each group by it. A served question with no
+/// row here sits right after the question it follows in the pool's own order (`orderServed`,
+/// `question-scope.ts`), so a new tick or a new fixed question lands where the Questions tab put
+/// it rather than at the end of a page. Seeded from each loan type's old order
+/// (`question_loan_category.displayOrder`) by the migration that retired that table, so no
+/// applicant saw a question move.
+model ProgramNameQuestionOrder {
+  enumerationId String       @db.VarChar(30)
+  category      LoanCategory
+  questionId    String       @db.VarChar(30)
+  /// 0-based; dense after an admin save, possibly sparse after a seed. Ties break on the pool.
+  position      Int
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+  createdBy     String?      @db.VarChar(30)
+
+  enumeration PlatformEnumeration @relation("ProgramNameQuestionOrders", fields: [enumerationId], references: [id], onDelete: Cascade)
+  question    Question            @relation("QuestionProgramNameOrders", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([enumerationId, category, questionId], name: "pk_program_name_question_order")
+  @@index([enumerationId, category, position], name: "idx_program_name_question_order_position")
+  @@index([questionId], name: "idx_program_name_question_order_question")
+  @@map("program_name_question_order")
 }
 
 model QuestionOption {

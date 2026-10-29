@@ -19,19 +19,14 @@ import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.d
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { QuestionnaireService } from './questionnaire.service';
 import { EngineRulesService } from './engine-rules.service';
-import { parseCategory } from './category.util';
 import {
   CreateGroupDto,
   CreateOptionDto,
   CreateQuestionDto,
   CreateQuestionWithOptionsDto,
   DeleteQuestionQueryDto,
-  ReorderCategoryQuestionsDto,
   ReorderQuestionsDto,
-  AddQuestionCategoriesBulkDto,
-  SetQuestionCategoriesBulkDto,
   SetNumberEffectsDto,
-  SetQuestionCategoriesDto,
   UpdateGroupDto,
   UpdateOptionDto,
   UpdateQuestionDto,
@@ -185,74 +180,6 @@ export class AdminQuestionnaireController {
   })
   async deleteImpact(@Param('id') id: string) {
     return ok(await this.service.deleteImpact(id));
-  }
-
-  // Static segment, so it cannot be shadowed by `questions/:id/categories`
-  // (different method AND different depth) — same defensive posture as
-  // `questions/reorder` above.
-  @Post('questions/categories')
-  @ApiOperation({
-    summary: 'Reassign MANY questions to loan categories (one transaction, one publish)',
-    description:
-      'Each entry replaces that question’s whole category set. Backs the assignment tab’s column actions; a per-row toggle uses PUT questions/:id/categories instead.',
-  })
-  async setCategoriesBulk(
-    @Body() dto: SetQuestionCategoriesBulkDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
-    return ok(await this.service.setQuestionCategoriesBulk(dto.assignments, user.sub));
-  }
-
-  // Also a static segment, and declared beside its sibling above rather than after the
-  // `:id` routes for the same defensive reason.
-  @Post('questions/categories/add')
-  @ApiOperation({
-    summary: 'ADD loan categories to many questions (one transaction, at most one publish)',
-    description:
-      'Widens each question’s category set; it can never narrow one — there is no field here that expresses a removal. Publishes only if something actually moved. Backs the catalog-name flow’s “what applicants are asked” step, where un-asking a question would stop asking it for every program of that loan type.',
-  })
-  async addCategoriesBulk(
-    @Body() dto: AddQuestionCategoriesBulkDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
-    return ok(await this.service.addQuestionCategoriesBulk(dto.assignments, user.sub));
-  }
-
-  // Static up to the category segment, and declared with its siblings above the `:id`
-  // routes for the same defensive reason they are: `questions/...` must never be read as
-  // a question id.
-  @Post('questions/categories/:category/reorder')
-  @ApiOperation({
-    summary: 'Rewrite the order ONE loan category asks its questions in',
-    description:
-      "Body carries that category's WHOLE asked set exactly once, in its new order — a partial list is rejected with VALIDATION_FAILED. It moves nothing in the other categories and nothing in the pool's own order, which the Questions tab still owns. Publishes, like every write on that screen.",
-  })
-  async reorderCategoryQuestions(
-    @Param('category') category: string,
-    @Body() dto: ReorderCategoryQuestionsDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
-    // Parsed and REFUSED here, never narrowed silently: an unknown category must fail loudly
-    // rather than reorder something (A33's own rule for a category-filtered read).
-    return ok(
-      await this.service.reorderCategoryQuestions(parseCategory(category), dto.ids, user.sub),
-    );
-  }
-
-  @Put('questions/:id/categories')
-  @ApiOperation({
-    summary: 'Set which loan categories a question is asked for',
-    description:
-      'The submitted array replaces the set (not a delta). An empty array parks the question: kept and editable, asked for no category.',
-  })
-  async setCategories(
-    @Param('id') id: string,
-    @Body() dto: SetQuestionCategoriesDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
-    return ok(
-      await this.service.setQuestionCategories(id, dto.categories, user.sub, dto.optInCategories),
-    );
   }
 
   @Get('questions/:id/options')

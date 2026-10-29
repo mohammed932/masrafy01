@@ -24,8 +24,9 @@ type Pair = { category: LoanCategory } & Flags;
 
 /**
  * Enough Prisma to run the assignment transaction: the join table's read / delete /
- * createMany, the row read the born-basis fallback makes, and a `$transaction` that
- * simply hands the same client to the callback.
+ * createMany, the row read the born-basis fallback makes, the clean-up of the name's ticks and
+ * order under a loan type it leaves (v32.0.0), and a `$transaction` that simply hands the same
+ * client to the callback.
  */
 function makeRepo(before: Pair[], surrogateProductKey: string | null) {
   const created: Array<{ enumerationId: string; category: LoanCategory } & Flags> = [];
@@ -43,6 +44,8 @@ function makeRepo(before: Pair[], surrogateProductKey: string | null) {
       findUnique: vi.fn(async () => ({ surrogateProductKey })),
       findMany: vi.fn(async () => [{ id: 'pn_1', surrogateProductKey }]),
     },
+    programNameQuestionAddition: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    programNameQuestionOrder: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
   const prisma = {
     ...client,

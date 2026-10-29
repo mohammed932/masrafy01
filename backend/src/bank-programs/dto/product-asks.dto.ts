@@ -12,33 +12,15 @@
  * the product itself.
  */
 
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMaxSize, ArrayUnique, IsArray, IsEnum, IsOptional } from 'class-validator';
 import { LoanCategory, QuestionType } from '@prisma/client';
-import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 
-export class AttachProductAskDto {
-  /**
-   * Loan types this product needs the question ASKED in.
-   *
-   * ADDITIVE, never a replacement, and the two reasons are separate. One is the lost
-   * update: `question_loan_category` has no additive endpoint besides this path, and a
-   * four-tab screen is exactly where two whole-set writes interleave and one tick vanishes.
-   * The other is ownership — the assignment is GLOBAL to the question and shared with every
-   * other product and catalog name that reads it, so narrowing it from here would silently
-   * stop asking somebody else's question. Narrowing lives on `/questionnaire/categories`.
-   *
-   * Optional and may be empty: attaching a fact whose question is already asked everywhere
-   * it needs to be is a legitimate tick that widens nothing.
-   */
-  @ApiPropertyOptional({ enum: ALL_LOAN_CATEGORIES, isArray: true })
-  @IsOptional()
-  @IsArray()
-  @ArrayUnique()
-  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
-  @IsEnum(LoanCategory, { each: true })
-  askIn?: LoanCategory[];
-}
+/**
+ * The tick's body: nothing (v32.0.0). Until then it carried the loan types the product needed
+ * the question asked in (`askIn`); a question carries no loan type any more, and the product's
+ * programs ask what the product asks (`question-scope.ts`). Kept as a class so the route keeps
+ * its validated (empty) body.
+ */
+export class AttachProductAskDto {}
 
 /** Whether an ask can be removed here, and if not, what the operator must do instead. */
 export interface ProductAskDetachabilityDto {
@@ -68,8 +50,6 @@ export interface ProductAskDto {
   questionType: QuestionType | null;
   /** `false` when somebody switched the question off elsewhere: the product quotes nothing. */
   questionActive: boolean;
-  /** The loan categories that ASK the question. Empty = asked of nobody. */
-  askedIn: LoanCategory[];
   /**
    * The registry list the question's options came from, when they came from one.
    *
@@ -91,8 +71,6 @@ export interface AskPoolQuestionDto {
   labelEn: string;
   type: QuestionType;
   isRequired: boolean;
-  /** The loan categories that ASK it today. */
-  categories: LoanCategory[];
   /**
    * Whether it could be ticked at all.
    *
@@ -130,9 +108,6 @@ export interface AskPoolQuestionDto {
 export interface ProductAskServedDto {
   programNameKey: string;
   category: LoanCategory;
-  /** Everything this loan type asks, before the program narrows it. */
-  categoryTotal: number;
-  categoryRequired: number;
   /** What an applicant picking this name answers. */
   servedTotal: number;
   servedRequired: number;
@@ -172,14 +147,14 @@ export interface ProductAsksResponseDto {
    * `matching/pipeline/product-needed-facts.ts`.
    */
   needed: NeededFactDto[];
-  /** Loan types a live catalog name sells this product in. Empty: nothing can be asked. */
+  /** Loan types a live catalog name sells this product in — for display. */
   soldIn: LoanCategory[];
 }
 
 /**
  * `asked` — covered. `platform` — a key the platform answers itself (money, car figures).
- * `notAsked` — a question exists; the product does not ask it, or not in every loan type it
- * is sold in. `parked` — the bound question is switched off. `noQuestion` — the fact exists
+ * `notAsked` — a question exists; the product does not ask it. `parked` — the bound question
+ * is switched off. `noQuestion` — the fact exists
  * with no question behind it. `noFact` — read by a table or rule, with no registry row.
  */
 export type NeededFactStatus =
@@ -203,8 +178,6 @@ export interface NeededFactDto {
   labelAr: string;
   labelEn: string;
   readBy: NeededFactReaderDto[];
-  /** Loan types it is sold in that do not ask the question yet. */
-  missingIn: LoanCategory[];
   /** How the answer is read — what an auto-created question would be. */
   shape: 'choice' | 'number' | 'unknown';
   /** Needed only because this derived key is read (e.g. `car_down_payment_percent`). */
@@ -232,15 +205,7 @@ export interface AskWriteResultDto {
     askAdded: boolean;
     askRemoved: boolean;
     factDeleted: boolean;
-    /** Loan types this write STARTED asking the question in. Never a narrowing. */
-    widened: LoanCategory[];
-    /**
-     * Whether a questionnaire version was cut.
-     *
-     * `false` with a non-empty `widened` is the one outcome a toast would lie about: the
-     * assignment landed and the applicant is not being served it yet, which the screen has
-     * to state persistently rather than flash.
-     */
+    /** Whether a questionnaire version was cut. */
     published: boolean;
   };
   state: ProductAsksResponseDto;

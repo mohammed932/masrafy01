@@ -6,24 +6,11 @@
  * derivation living on a 1900-line component is one nothing exercises. Every state below is
  * a case in `admin/tests/product-asks.spec.ts`.
  *
- * THREE SECTIONS, NOT TWO, and the reason is that the tri-state is real. A two-section grid
- * (`in` / `out`) can only fold drift into the first with a warn tag, which works where a tick
- * means one thing. Here a card can be:
- *
- *   asked here      — this product reads it AND the open loan type asks the question
- *   read, not asked — this product reads it and the open loan type does not ask it. The
- *                     product gets no answer from an applicant of that type, and the fix is
- *                     one tap. Folded into "asked here" with a tag, this state reads as a
- *                     cosmetic warning rather than as the reason the product quotes nothing.
- *   not read yet    — the rest of the pool
- *
- * ATTACHMENT IS GLOBAL, NOT PER TAB. A fact is read by a product, full stop; what the tabs
- * decide is which loan type a tick will START ASKING the question in, and which cards carry
- * the warning. So the ticked SET does not change with the open tab — only the section a card
- * sits in, the counts, and the categories a tick would add. That is the one thing a reader of
- * a tabbed grid assumes wrong, and it is pinned by a test.
+ * TWO SECTIONS: what this product reads, and the rest of the pool. A question carries no loan
+ * type since v32.0.0, and a program that quotes off the product asks what the product reads
+ * (`question-scope.ts`), so a tick needs no loan type and there is no "read, but not asked
+ * here" state left to warn about — there was one per loan-type tab before.
  */
-import { LOAN_CATEGORIES, type LoanCategory } from '@core/loan-category';
 import type {
   AskIneligibleReason,
   AskQuestionType,
@@ -31,7 +18,7 @@ import type {
   ProductAsksBoard,
 } from '@features/bank-programs/bank-programs.types';
 
-export type AskSectionKey = 'asked' | 'unasked' | 'rest';
+export type AskSectionKey = 'asked' | 'rest';
 
 /** One card. Everything the template needs, and nothing it has to work out for itself. */
 export interface AskCard {
@@ -53,10 +40,6 @@ export interface AskCard {
    * is what tells an operator whether they are undoing a decision somebody else made.
    */
   source: 'blueprint' | 'operator' | null;
-  /** True when the loan type on the rail asks the question. */
-  askedHere: boolean;
-  /** The loan types that ask the question at all. Empty = asked of nobody. */
-  askedIn: readonly LoanCategory[];
   /** Somebody switched the question off elsewhere: the product can never get an answer. */
   questionInactive: boolean;
   /** Other products reading the same fact — an untick here does not touch them. */
@@ -77,17 +60,8 @@ export interface AskSection {
   cards: AskCard[];
 }
 
-export interface AskTab {
-  id: LoanCategory;
-  /** Facts this product reads whose question this loan type asks. */
-  reads: number;
-  /** Of the facts it reads, how many this loan type does not ask. */
-  unasked: number;
-}
-
 export interface AskBoardInput {
   board: ProductAsksBoard | null;
-  category: LoanCategory;
   search: string;
   isAr: boolean;
   /** Question codes with an attach in flight. */
@@ -127,8 +101,6 @@ function poolCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
       type: question.type,
       read,
       source: ask?.source ?? null,
-      askedHere: question.categories.includes(input.category),
-      askedIn: question.categories,
       // A pool question is active by construction — the pool is the ACTIVE pool. Only an ask
       // whose question was switched off afterwards can be inactive, and it is not in here.
       questionInactive: false,
@@ -168,8 +140,6 @@ function orphanCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
       type: ask.questionType,
       read: true,
       source: ask.source,
-      askedHere: ask.askedIn.includes(input.category),
-      askedIn: ask.askedIn,
       questionInactive: true,
       alsoAskedBy: ask.alsoAskedBy,
       readByRule: readByRule.has(ask.factKey),
@@ -186,29 +156,27 @@ export function askCards(input: AskBoardInput): AskCard[] {
 }
 
 /**
- * The three sections, with the search narrowing ONLY the last one.
+ * The two sections, with the search narrowing ONLY the second.
  *
  * The box sits on "Not read yet" and belongs to it: that section is the POOL an operator
  * picks from — 59 cards on a real database — and it is the only one a word is typed to walk.
- * The two READ sections are what this product holds; hiding a card there because somebody
- * typed a word to find something else would make a configured product read as empty, which
- * is the one thing this board exists to state.
+ * The READ section is what this product holds; hiding a card there because somebody typed a
+ * word to find something else would make a configured product read as empty, which is the
+ * one thing this board exists to state.
  *
  * `asked` is emitted even when empty, so the board says "nothing yet" rather than dropping
  * the heading and reading as though the product were finished. `rest` is emitted while a
  * query stands even when nothing matches — the search box lives in its heading, and a
  * section that vanished on the keystroke that emptied it would take the box out from under
- * the caret. `unasked` vanishes when it has nothing in it.
+ * the caret.
  */
 export function askSections(input: AskBoardInput): AskSection[] {
   const cards = askCards(input);
-  const asked = cards.filter((card) => card.read && card.askedHere);
-  const unasked = cards.filter((card) => card.read && !card.askedHere);
+  const asked = cards.filter((card) => card.read);
   const rest = cards.filter((card) => !card.read && matches(card, input.search));
   const searching = input.search.trim() !== '';
   const sections: AskSection[] = [
     { key: 'asked', cards: asked },
-    { key: 'unasked', cards: unasked },
     { key: 'rest', cards: rest },
   ];
   return sections.filter(
@@ -218,41 +186,8 @@ export function askSections(input: AskBoardInput): AskSection[] {
 }
 
 /**
- * The loan-type rail.
- *
- * Counts are taken BEFORE the search, unlike the sections: a tab count is a fact about the
- * product, and a count that moved because somebody typed in a search box would read as the
- * product having changed. `unasked` is what earns the warn accent — a fact this product
- * reads that this loan type never asks is the one state under which the product quotes
- * nothing for that type. A loan type that reads NOTHING is not warned about: a product not
- * sold as a mortgage is the normal case, the same argument the catalog name's rail makes.
- */
-export function askTabs(board: ProductAsksBoard | null): AskTab[] {
-  return LOAN_CATEGORIES.map((id) => {
-    const reads = board?.asks.filter((ask) => ask.askedIn.includes(id)).length ?? 0;
-    const unasked = board?.asks.filter((ask) => !ask.askedIn.includes(id)).length ?? 0;
-    return { id, reads, unasked };
-  });
-}
-
-/**
- * Which loan types a tick should start asking the question in.
- *
- * ONLY the open tab, never every tab this product might one day be sold under. The operator
- * ticked a card inside one loan type, and adding the other three would start asking a
- * question of applicants nobody chose to ask — on a global assignment shared with every
- * other product that reads the same question.
- */
-export function askInFor(category: LoanCategory): LoanCategory[] {
-  return [category];
-}
-
-/**
- * The status the wizard rail shows for step ①.
- *
- * `invalid` is new and is a strict improvement: today a product whose only fact is asked in
- * NO loan type reads `done`, and it can never quote. Per-TAB emptiness is not invalid — a
- * product not sold as a mortgage is normal.
+ * The status the wizard rail shows for step ①: `invalid` when a fact this product reads has
+ * its question switched off — the product can never get that answer.
  */
 export function askStepStatus(
   board: ProductAsksBoard | null,
@@ -260,7 +195,7 @@ export function askStepStatus(
 ): 'todo' | 'done' | 'invalid' {
   if (dirty) return 'invalid';
   if (board === null || board.asks.length === 0) return 'todo';
-  const broken = board.asks.some((ask) => ask.askedIn.length === 0 || !ask.questionActive);
+  const broken = board.asks.some((ask) => !ask.questionActive);
   return broken ? 'invalid' : 'done';
 }
 
@@ -321,9 +256,9 @@ export function askSectionPage(
 /**
  * Every section, each on its own page.
  *
- * Per SECTION and not per board: the three hold unlike things and are read one at a time —
+ * Per SECTION and not per board: the two hold unlike things and are read one at a time —
  * paging the whole board would put "not read yet" cards on a page whose heading says
- * "read, and asked here".
+ * "read by this product".
  */
 export function askPagedSections(
   sections: readonly AskSection[],
@@ -336,7 +271,7 @@ export function askPagedSections(
 /**
  * How many cards survived the search — the "not read yet" section, and only that one.
  *
- * The search narrows nothing else, so a total across all three would report the read cards
+ * The search narrows nothing else, so a total across both would report the read cards
  * as matches and announce "66 questions match" on a word that found seven. Zero here, with
  * a query in the box, is a DIFFERENT fact from zero with an empty one: one says the product
  * already reads every question in the pool, the other says the operator's word matched

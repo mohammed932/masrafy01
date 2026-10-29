@@ -42,7 +42,9 @@ three are listed:
 
 - **Source of truth.** Product rows and ask rows come from `platform_enumeration` (type
   `surrogate_product`) and `surrogate_product_ask` on `masrafy_dev`; question rows come from
-  `question` / `question_option` / `question_loan_category`; each programme's eligibility from
+  `question` / `question_option` / `question_loan_category` (dropped in v32.0.0 — questions carry
+  no loan type since; the "Loan types" column below records that table as of 2026-09-09); each
+  programme's eligibility from
   `bank_program.eligibility`; the shape of each calculation from
   `backend/src/bank-programs/blueprints/product-blueprints.ts`; the body mapping from
   `masrafy-app/…/personal_apply_mapper.dart` and `car_apply_mapper.dart`.

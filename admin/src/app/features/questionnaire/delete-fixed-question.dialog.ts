@@ -23,7 +23,6 @@ import {
   DownOutline,
   ExclamationCircleOutline,
 } from '@ant-design/icons-angular/icons';
-import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import { SkeletonRowsComponent } from '@shared/ui';
 import {
   QuestionnaireApiService,
@@ -109,16 +108,6 @@ export interface DeleteFixedQuestionData {
           <p class="lede" i18n="@@qfixdel.lede">Every program stops asking it right away.</p>
 
           <dl class="facts">
-            <div class="fact">
-              <dt i18n="@@qfixdel.asked_in">Asked in</dt>
-              <dd>
-                <ul class="cats">
-                  @for (c of i.loanTypes; track c) {
-                    <li class="cat" [style.--cat]="catColor(c)">{{ catLabel(c) }}</li>
-                  }
-                </ul>
-              </dd>
-            </div>
             @if (i.fixedServedOn; as servedOn) {
               <div class="fact">
                 <dt i18n="@@qfixdel.asked_on">Asked on</dt>
@@ -612,14 +601,6 @@ export class DeleteFixedQuestionDialog implements OnInit {
     } finally {
       this.busy.set(false);
     }
-  }
-
-  protected catLabel(c: LoanCategory): string {
-    return categoryLabel(c);
-  }
-
-  protected catColor(c: LoanCategory): string {
-    return `var(--color-cat-${c})`;
   }
 
   protected servedOnText(servedOn: FixedServedOn): string {

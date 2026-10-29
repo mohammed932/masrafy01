@@ -5,8 +5,8 @@
  * The cases worth writing are the ones that are only wrong SILENTLY: a plan that sends
  * `surrogateProductKey` at all (the DTO refuses `''` and `null` alike, and every name this
  * screen makes is income proof, so the field has to be ABSENT rather than empty), and — since
- * the flow ends on a question board — a write body that widens a question into a loan type
- * nothing asked for, or drops the gate source a newly asked question branches off.
+ * the flow ends on a question board — a tick that drops the gate source a newly asked question
+ * branches off, or offers a question the program asks already.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -23,15 +23,11 @@ import {
   type NewNameDraft,
 } from '../src/app/features/program-catalog/new-program-name';
 import {
-  askedSections,
-  askedTabs,
+  addableQuestions,
+  additionsToSave,
   gateChainFor,
-  isAsked,
-  pendingAdds,
   type AskableQuestion,
-  type AskedPicks,
 } from '../src/app/shared/questions/asked-questions.rules';
-import type { LoanCategory } from '../src/app/core/loan-category';
 
 function draft(over: Partial<NewNameDraft> = {}): NewNameDraft {
   return {
@@ -198,7 +194,7 @@ describe('RESERVED_NAME_KEYS', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The second write's body. Same flow, same spec file: this module IS what step ④
+// The second write's body. Same flow, same spec file: this module IS what step ③
 // sends, and both of its rules fail silently rather than loudly.
 // ---------------------------------------------------------------------------
 
@@ -209,66 +205,31 @@ function q(over: Partial<AskableQuestion> & { id: string }): AskableQuestion {
     labelAr: over.id,
     isActive: true,
     isRequired: false,
-    categories: [],
     gateSourceCode: null,
     haystack: over.id,
     ...over,
   };
 }
 
-function picks(entries: Record<string, string[]>): AskedPicks {
-  return new Map(
-    Object.entries(entries).map(([c, ids]) => [c as LoanCategory, new Set(ids)] as const),
-  );
-}
+const PAYSLIP = new Set(['payslip'] as const);
 
-describe('pendingAdds', () => {
+describe('gateChainFor / addableQuestions', () => {
   it('writes nothing when nothing was ticked', () => {
-    // The endpoint refuses an empty body, and a request that changes nothing would still be
-    // a round trip nobody asked for.
-    expect(pendingAdds([q({ id: 'a' })], ['personal'], picks({}))).toEqual([]);
+    // An empty list is a real write on the program page (untick everything); on the create
+    // flow there is nothing to replace, and the page skips the round trip.
+    expect(additionsToSave([q({ id: 'a' })], new Set())).toEqual([]);
   });
 
-  it('groups one question ticked under two loan types into ONE row', () => {
-    // The board is per loan type, so this is the ordinary case, not an edge one. Two rows
-    // for one id is what a whole-set write would collapse to the second one.
-    const adds = pendingAdds(
-      [q({ id: 'a' })],
-      ['personal', 'car'],
-      picks({ personal: ['a'], car: ['a'] }),
-    );
-    expect(adds).toEqual([{ questionId: 'a', categories: ['personal', 'car'] }]);
-  });
-
-  it('ignores a loan type the name is no longer offered under', () => {
-    // Walking back a step and un-ticking a loan type must not leave its picks in the write.
-    const adds = pendingAdds(
-      [q({ id: 'a' })],
-      ['personal'],
-      picks({ personal: ['a'], mortgage: ['a'] }),
-    );
-    expect(adds).toEqual([{ questionId: 'a', categories: ['personal'] }]);
-  });
-
-  it('skips a question that loan type already asks', () => {
-    expect(
-      pendingAdds(
-        [q({ id: 'a', categories: ['personal'] })],
-        ['personal'],
-        picks({ personal: ['a'] }),
-      ),
-    ).toEqual([]);
+  it('never offers a question the program asks already', () => {
+    expect(addableQuestions([q({ id: 'a' })], new Set(['a']), new Map(), PAYSLIP)).toEqual([]);
   });
 
   it('pulls in the gate source of a question that branches off another', () => {
     // The server SHOWS a question whose rule it cannot evaluate, so a missing source does
     // not break the branch — it silently stops branching and the question becomes
-    // unconditional for everyone in that loan type.
+    // unconditional for everyone on that program.
     const pool = [q({ id: 'src' }), q({ id: 'dep', gateSourceCode: 'src' })];
-    expect(pendingAdds(pool, ['personal'], picks({ personal: ['dep'] }))).toEqual([
-      { questionId: 'dep', categories: ['personal'] },
-      { questionId: 'src', categories: ['personal'] },
-    ]);
+    expect(gateChainFor(pool, pool[1]!, new Set()).map((s) => s.id)).toEqual(['src']);
   });
 
   it('follows a two-level chain, which one sweep would not', () => {
@@ -277,29 +238,19 @@ describe('pendingAdds', () => {
       q({ id: 'mid', gateSourceCode: 'root' }),
       q({ id: 'leaf', gateSourceCode: 'mid' }),
     ];
-    const ids = pendingAdds(pool, ['personal'], picks({ personal: ['leaf'] })).map(
-      (a) => a.questionId,
-    );
-    expect(ids.sort()).toEqual(['leaf', 'mid', 'root']);
+    expect(gateChainFor(pool, pool[2]!, new Set()).map((s) => s.id)).toEqual(['mid', 'root']);
   });
 
-  it('stops at a source the loan type already asks', () => {
-    const pool = [
-      q({ id: 'src', categories: ['personal'] }),
-      q({ id: 'dep', gateSourceCode: 'src' }),
-    ];
-    expect(pendingAdds(pool, ['personal'], picks({ personal: ['dep'] }))).toEqual([
-      { questionId: 'dep', categories: ['personal'] },
-    ]);
+  it('stops at a source the program asks already', () => {
+    const pool = [q({ id: 'src' }), q({ id: 'dep', gateSourceCode: 'src' })];
+    expect(gateChainFor(pool, pool[1]!, new Set(['src']))).toEqual([]);
   });
 
   it('survives a gate naming a question the pool does not carry', () => {
     // The pool editor's own guards own that case; refusing here would block a tick over
     // somebody else's broken row.
     const pool = [q({ id: 'dep', gateSourceCode: 'missing' })];
-    expect(pendingAdds(pool, ['personal'], picks({ personal: ['dep'] }))).toEqual([
-      { questionId: 'dep', categories: ['personal'] },
-    ]);
+    expect(gateChainFor(pool, pool[0]!, new Set())).toEqual([]);
   });
 
   it('terminates on a gate cycle rather than hanging', () => {
@@ -307,39 +258,12 @@ describe('pendingAdds', () => {
       q({ id: 'a', code: 'a', gateSourceCode: 'b' }),
       q({ id: 'b', code: 'b', gateSourceCode: 'a' }),
     ];
-    expect(gateChainFor(pool, pool[0]!, 'personal', picks({})).map((s) => s.id)).toEqual(['b']);
-  });
-});
-
-describe('askedSections / askedTabs', () => {
-  const pool = [
-    q({ id: 'asked', categories: ['personal'], haystack: 'asked salary' }),
-    q({ id: 'other', haystack: 'other rent' }),
-  ];
-
-  it('counts a tick as asked before it is written', () => {
-    expect(isAsked(pool[1]!, 'personal', picks({ personal: ['other'] }))).toBe(true);
-  });
-
-  it('searches the NOT-asked list only', () => {
-    // Hiding part of what the loan type already asks turns the count above it into a lie:
-    // the operator is searching for something to add, not auditing what is there.
-    const sections = askedSections(pool, 'personal', picks({}), 'rent', false);
-    expect(sections.asked.map((r) => r.id)).toEqual(['asked']);
-    expect(sections.rest.map((r) => r.id)).toEqual(['other']);
-    expect(askedSections(pool, 'personal', picks({}), 'zzz', false).rest).toEqual([]);
+    expect(gateChainFor(pool, pool[0]!, new Set()).map((s) => s.id)).toEqual(['b']);
   });
 
   it('names what a tick would drag in with it, before the tick', () => {
     const gated = [q({ id: 'src' }), q({ id: 'dep', gateSourceCode: 'src', labelEn: 'Dep' })];
-    const rest = askedSections(gated, 'personal', picks({}), '', false).rest;
-    expect(rest.find((r) => r.id === 'dep')?.alsoAdds).toEqual(['src']);
-  });
-
-  it('puts one tab per OFFERED loan type, in canonical order, counting the new ones', () => {
-    const tabs = askedTabs(pool, ['car', 'personal'], picks({ car: ['other'] }));
-    expect(tabs.map((t) => t.category)).toEqual(['personal', 'car']);
-    expect(tabs[0]).toEqual({ category: 'personal', asked: 1, adding: 0 });
-    expect(tabs[1]).toEqual({ category: 'car', asked: 1, adding: 1 });
+    const rows = addableQuestions(gated, new Set(), new Map(), PAYSLIP);
+    expect(rows.find((r) => r.question.id === 'dep')?.chain.map((s) => s.id)).toEqual(['src']);
   });
 });

@@ -1,8 +1,9 @@
 /**
  * Does every program still get asked what it reads?
  *
- * The program-name axis (`questionnaire/validation/question-scope.ts`) narrows the questions an
- * applicant answers to the ones a program behind the name they picked can be quoted from. This
+ * The program rule (`questionnaire/validation/question-scope.ts`) narrows the questions an
+ * applicant answers to the ones the program they picked asks — its fixed questions, what its bank
+ * programmes read and what the operator ticked (v32.0.0: questions carry no loan type). This
  * is the standing proof that the narrowing never hides an answer a live program needs — and the
  * one place the class of failure it guards against is even visible, because a cap table that
  * misses its fact does not report anything: `onNoMatch: 'useProgramMax'` quietly quotes the
@@ -52,7 +53,7 @@ import type {
 } from '../src/matching/types';
 
 interface Finding {
-  kind: 'HIDDEN' | 'PARKED' | 'UNASSIGNED' | 'UNBOUND' | 'ASK_MISSING';
+  kind: 'HIDDEN' | 'PARKED' | 'UNBOUND' | 'ASK_MISSING';
   name: string;
   category: string;
   factKey: string;
@@ -81,6 +82,7 @@ async function main(): Promise<void> {
           key: true,
           incomeRule: true,
           surrogateProductKey: true,
+          // The loan types the NAME is offered under — not a question's (v32.0.0).
           loanCategories: { select: { category: true } },
         },
         orderBy: { key: 'asc' },
@@ -118,7 +120,6 @@ async function main(): Promise<void> {
           isRequired: true,
           enabledWhen: true,
           fixedServedOn: true,
-          loanCategories: { select: { category: true, optIn: true } },
         },
         orderBy: { displayOrder: 'asc' },
       }),
@@ -167,8 +168,8 @@ async function main(): Promise<void> {
       const plans = catalogPlansOf(resolution);
 
       for (const category of name.loanCategories.map((c) => c.category)) {
-        // Per category: the operator's unticks are per loan type, and what is SERVED here has
-        // to be what the customer read serves, unticks included.
+        // Per category: the operator's ticks are per loan type, and what is SERVED here has to
+        // be what the customer read serves.
         const scope = await repo.narrowingScopeFor(name.key, category);
         // Per CATEGORY, not per name. A mortgage applicant who picks this name is quoted by
         // its mortgage programs alone, so a fact only its personal programs read is not one
@@ -217,16 +218,11 @@ async function main(): Promise<void> {
         const needed = new Set<string>([...loud, ...viaCap]);
         const silentOnly = new Set([...viaCap].filter((key) => !loud.has(key)));
 
-        // Every row, OPT-IN ones included — the list serve and apply hand the rule — each
-        // flagged, so the rule can tell "asked of every name" from "asked where a name adds it".
-        const inCategory = questions.filter((q) =>
-          q.loanCategories.some((c) => c.category === category),
-        );
+        // Every live question — the list serve and apply hand the rule.
         const decision = narrowAskedQuestions(
-          inCategory.map((q) => ({
+          questions.map((q) => ({
             code: q.code,
             enabledWhen: q.enabledWhen,
-            optIn: q.loanCategories.some((c) => c.category === category && c.optIn),
             fixedServedOn: q.fixedServedOn,
           })),
           scope,
@@ -272,17 +268,6 @@ async function main(): Promise<void> {
             });
             continue;
           }
-          if (!inCategory.some((q) => q.code === code)) {
-            findings.push({
-              kind: 'UNASSIGNED',
-              name: name.key,
-              category,
-              factKey,
-              detail: `${code} is not asked in ${category}`,
-              silent,
-            });
-            continue;
-          }
           if (!served.has(code)) {
             // The invariant. Zero by construction — if this fires the rule is broken.
             findings.push({
@@ -290,7 +275,7 @@ async function main(): Promise<void> {
               name: name.key,
               category,
               factKey,
-              detail: `${code} is asked in ${category} but the narrowing drops it`,
+              detail: `${code} is read under ${category} but the narrowing drops it`,
               silent,
             });
             continue;
@@ -318,22 +303,22 @@ async function main(): Promise<void> {
 
         if (report) {
           const requiredAfter = [...served].filter((code) => {
-            const q = inCategory.find((x) => x.code === code);
+            const q = questions.find((x) => x.code === code);
             return q?.isRequired === true || decision.extraRequired.has(code);
           }).length;
-          // What the operator ADDED for this name and it is served — printed only when there
-          // is some, so a database with no additions reports exactly what it always did.
+          // What the operator TICKED for this name and it is served — printed only when there
+          // is some.
           const added = (scope?.addedQuestionCodes ?? []).filter((code) => served.has(code));
           rows.push(
             [
               name.key.padEnd(26),
               category.padEnd(9),
-              String(inCategory.length).padStart(3),
+              String(questions.length).padStart(3),
               String(served.size).padStart(4),
-              String(inCategory.filter((q) => q.isRequired).length).padStart(4),
+              String(questions.filter((q) => q.isRequired).length).padStart(4),
               String(requiredAfter).padStart(4),
               decision.disabledReason ?? '',
-              ...(added.length > 0 ? [`+${added.length} added`] : []),
+              ...(added.length > 0 ? [`+${added.length} ticked`] : []),
             ].join(' '),
           );
         }
@@ -346,7 +331,7 @@ async function main(): Promise<void> {
   const out: string[] = ['', '[check:question-scope]', ''];
   if (report) {
     out.push(
-      `  ${'name'.padEnd(26)} ${'category'.padEnd(9)} q-> served req-> after  off`,
+      `  ${'name'.padEnd(26)} ${'category'.padEnd(9)} pool served req-> after  off`,
       ...rows.map((r) => `  ${r}`),
       '',
     );
@@ -356,7 +341,7 @@ async function main(): Promise<void> {
     console.log(out.join('\n'));
     return;
   }
-  for (const kind of ['HIDDEN', 'PARKED', 'UNASSIGNED', 'UNBOUND', 'ASK_MISSING'] as const) {
+  for (const kind of ['HIDDEN', 'PARKED', 'UNBOUND', 'ASK_MISSING'] as const) {
     const group = findings.filter((f) => f.kind === kind);
     if (group.length === 0) continue;
     out.push(`  ${kind} (${group.length})`);

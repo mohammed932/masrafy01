@@ -1,15 +1,16 @@
 /**
  * WHY is each question served for a (category, programNameKey)?
  *
- * Read-only diagnostic. Classifies every kept question by the clause of
- * `narrowAskedQuestions`' `isCore` that keeps it, so it is visible which ones a product's
- * ask board could actually subtract and which are structural.
+ *   npx tsx scripts/why-question-scope.ts <category> <programNameKey>
+ *
+ * Read-only diagnostic. Classifies every kept question by the clause of `narrowAskedQuestions`
+ * that keeps it — fixed, the money core, read by a programme, ticked, or a gate source.
  */
 import { PrismaClient } from '@prisma/client';
 import type { LoanCategory } from '@prisma/client';
 import { PostgresPlatformEnumerationsRepository } from '../src/platform-enumerations/postgres-platform-enumerations.repository';
 import type { PrismaService } from '../src/infra/prisma/prisma.service';
-import { fixedCodesServed, fixedServedOnOf } from '../src/questionnaire/validation/fixed-questions';
+import { fixedCodesServed, frozenFixedServedOn } from '../src/questionnaire/validation/fixed-questions';
 import {
   ASKED_EVEN_WHEN_PRODUCT_ONLY,
   narrowAskedQuestions,
@@ -28,101 +29,63 @@ async function main(): Promise<void> {
   });
   if (!version) throw new Error('no active questionnaire version');
   const snap = version.snapshot as {
-    groups: {
-      questions: {
-        code: string;
-        enabledWhen?: unknown;
-        categories?: string[];
-        optInCategories?: string[];
-      }[];
-    }[];
+    groups: { questions: { code: string; enabledWhen?: unknown; fixedServedOn?: unknown }[] }[];
   };
+  // Every question the snapshot holds: a question carries no loan type since v32.0.0.
   const all = snap.groups.flatMap((g) => g.questions);
-  const isOptIn = (q: { optInCategories?: string[] }): boolean =>
-    q.optInCategories?.includes(category) === true;
-  // The service's own rule (`askedFor` / `optInFor`): no `categories` array = a pre-v12
-  // snapshot, asked everywhere; an EMPTY array = parked, asked by nobody; an OPT-IN row is in
-  // the category for the names that add it.
-  const inCategory = all.filter(
-    (q) => !Array.isArray(q.categories) || q.categories.includes(category) || isOptIn(q),
-  );
 
   const scope = await repo.narrowingScopeFor(nameKey, category);
-  if (!scope) throw new Error(`no narrowing scope for ${nameKey}`);
+  if (!scope) throw new Error(`no program scope for ${nameKey}`);
 
   const d = narrowAskedQuestions(
-    inCategory.map((q) => ({
+    all.map((q) => ({
       code: q.code,
       enabledWhen: q.enabledWhen ?? null,
-      optIn: isOptIn(q),
-      fixedServedOn: fixedServedOnOf((q as { fixedServedOn?: unknown }).fixedServedOn),
+      fixedServedOn: frozenFixedServedOn(q, category),
     })),
     scope,
   );
   const fixed = fixedCodesServed(
-    inCategory.map((q) => ({
-      code: q.code,
-      fixedServedOn: fixedServedOnOf((q as { fixedServedOn?: unknown }).fixedServedOn),
-    })),
+    all.map((q) => ({ code: q.code, fixedServedOn: frozenFixedServedOn(q, category) })),
     scope.incomeProof === true,
   );
 
-  const platform = new Set(scope.platformQuestionCodes);
   const needed = new Set(scope.neededQuestionCodes);
+  const mustAnswer = new Set(scope.mustAnswerQuestionCodes ?? []);
   const retained = new Set(d.gateSourcesRetained);
   const added = new Set(scope.addedQuestionCodes ?? []);
-  const optIn = new Set(inCategory.filter(isOptIn).map((q) => q.code));
 
   const reason = (code: string): string => {
-    // An OPT-IN row is never core: it is kept only because this name added it, a programme
-    // reads it, or a kept question branches off it.
-    if (optIn.has(code)) {
-      if (needed.has(code)) return 'NEEDED (opt-in row): a programme under this name reads it';
-      if (added.has(code)) return 'ADDED (opt-in row): the operator ticked it for this name';
-      if (retained.has(code)) return 'GATE SOURCE (opt-in row): a kept question branches off it';
-      return '??';
-    }
-    if (added.has(code) && !needed.has(code)) {
-      return 'ADDED: the operator ticked it for this name';
-    }
     if (fixed.has(code)) {
-      return 'FIXED: the admin marked it fixed, asked on this path whatever reads it';
+      return 'FIXED: the admin marked it fixed, asked on every program whatever reads it';
     }
-    if (scope.productOnly === true) {
-      if (ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code))
-        return 'CORE (product-only name): debts or duration';
-      if (needed.has(code))
-        return 'NEEDED (product-only name): the product or a programme reads it';
-      if (retained.has(code)) return 'GATE SOURCE: kept so a surviving gate stays evaluable';
-      return '??';
+    if (scope.productOnly === true && ASKED_EVEN_WHEN_PRODUCT_ONLY.has(code)) {
+      return 'CORE (product-only name): debts or duration';
     }
-    if (NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code)) return 'CORE: money/obligation code';
-    if (platform.has(code)) return 'CORE: platform-owned fact (reserved)';
-    if (needed.has(code)) return 'NEEDED: a programme under this name reads it';
+    if (scope.productOnly !== true && NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(code)) {
+      return 'CORE: money/obligation code';
+    }
+    if (needed.has(code)) return 'NEEDED: a programme here (or its product) reads it';
+    if (mustAnswer.has(code)) return 'NEEDED: a programme here refuses without the answer';
+    if (added.has(code)) return 'TICKED: the operator ticked it for this program';
     if (retained.has(code)) return 'GATE SOURCE: kept so a surviving gate stays evaluable';
     return '??';
   };
 
   const buckets = new Map<string, string[]>();
-  for (const q of inCategory) {
+  for (const q of all) {
     if (!d.keep.has(q.code)) continue;
     const r = reason(q.code);
     (buckets.get(r) ?? buckets.set(r, []).get(r)!).push(q.code);
   }
 
   console.log(`\n${category} / ${nameKey}`);
-  console.log(
-    `  category pool ${inCategory.length}  ->  served ${d.keep.size}  (dropped ${d.dropped.length})\n`,
-  );
+  console.log(`  pool ${all.length}  ->  served ${d.keep.size}  (dropped ${d.dropped.length})\n`);
   for (const [r, codes] of [...buckets].sort((a, b) => b[1].length - a[1].length)) {
     console.log(`  ${String(codes.length).padStart(3)}  ${r}`);
     for (const c of codes.sort()) console.log(`         ${c}`);
   }
-  console.log(`\n  dropped (${d.dropped.length}): ${d.dropped.sort().join(', ')}`);
-  const optInDropped = d.dropped.filter((code) => optIn.has(code));
-  if (optInDropped.length > 0) {
-    console.log(`  of which opt-in, not added here: ${optInDropped.sort().join(', ')}`);
-  }
+  console.log(`\n  dropped (${d.dropped.length}): ${[...d.dropped].sort().join(', ')}`);
 }
 
 main()

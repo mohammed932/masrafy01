@@ -21,6 +21,7 @@ import {
   ArrowRightOutline,
   CloseCircleOutline,
   LockOutline,
+  OrderedListOutline,
   PlusOutline,
 } from '@ant-design/icons-angular/icons';
 import {
@@ -35,14 +36,20 @@ import { RailTabsComponent, type RailTabItem } from '@shared/ui/rail-tabs.compon
 import { toAskablePool } from '@shared/questions/to-askable';
 import {
   addableQuestions,
-  additionWithChain,
   additionsToSave,
-  exclusionsToSave,
   lockMapFor,
   type AskableQuestion,
   type ServedCount,
+  type ServedPage,
   type ServerLock,
 } from '@shared/questions/asked-questions.rules';
+import {
+  moveBlock,
+  moveBlockText,
+  pagesAfterMove,
+  servedOrder,
+  type PageMove,
+} from '@shared/questions/question-order';
 import { QuestionnaireApiService } from '@features/questionnaire/questionnaire.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
@@ -70,7 +77,9 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
  *   an unassigned pair. Saved on every tap.
  * - **What applicants are asked** — the questions the app shows someone who picks this name,
  *   page by page, filterable to the fixed set or the rest; Add opens a side sheet, Remove sits
- *   on each row this name may drop (v31.6.0). Fixed questions are edited on Questionnaire.
+ *   on each row this name ticked (v31.6.0), and Change order moves a question on its page
+ *   (v32.0.0: each program keeps its own order). A question carries no loan type — this is the
+ *   one place a program's questions are set. Fixed questions are edited on Questionnaire.
  *
  * The screen used to open on a third step, "How the income is worked out": the
  * name's one surrogate income rule. Cut for the MVP — Add program makes income-proof
@@ -99,6 +108,7 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
       ArrowRightOutline,
       CloseCircleOutline,
       LockOutline,
+      OrderedListOutline,
       PlusOutline,
     ]),
   ],
@@ -196,12 +206,11 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
 
             @case (1) {
               <!-- ── STEP 2 · What applicants are asked ────────────────────────
-                   The list the app shows someone who picks this name, page by page, and the
-                   questions this name adds or drops for its own applicants. A fixed question
-                   is drawn as is, with a lock: it is asked on every program, and only
-                   Questionnaire changes it. Every Add / Remove writes at once — for THIS name
-                   only (program_name_question_addition / _exclusion); the loan type's own list
-                   is not touched. -->
+                   The list the app shows someone who picks this name, page by page, the
+                   questions this name ticks for its own applicants, and the order it asks them
+                   in. A fixed question is drawn as is, with a lock: it is asked on every
+                   program, and only Questionnaire changes it. Every Add / Remove / move writes
+                   at once — for THIS name only (program_name_question_addition / _order). -->
               <section class="card is-bare stage-card">
                 <!-- The one action of the step sits on the heading, where it is seen before the
                      list, instead of under twenty-odd rows. The pick list it opens is a side sheet:
@@ -211,8 +220,9 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
                     <h2 class="stage-title" i18n="@@pnd.asks_title">
                       What are these applicants asked?
                     </h2>
-                    <p class="stage-sub" i18n="@@pnd.asks_sub_edit">
-                      Add or remove questions for this program only — other programs don't change.
+                    <p class="stage-sub" i18n="@@pnd.asks_sub_edit2">
+                      Add, remove or reorder questions for this program only — other programs don't
+                      change.
                     </p>
                   </div>
                   @if (editable()) {
@@ -250,31 +260,46 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
                   "
                 >
                   @if (servedHere(); as sv) {
-                    @if (sv.nameAxisActive === false) {
-                      <p class="stage-note" role="status" i18n="@@pnd.asks_no_bank2">
-                        No bank sells this program yet, so its applicants are asked every question
-                        the loan type asks. You can add or remove questions once a bank program is
-                        filed under it.
-                      </p>
-                    }
-
-                    <!-- Most rows are fixed and can't be touched here; the filter lets the admin
+                    <!-- Most rows are fixed and can't be removed here; the filter lets the admin
                          see just the few this program owns, or just the fixed set, without
-                         losing the app's page order or numbering. -->
+                         losing the app's page order or numbering. Change order swaps the filter
+                         for the order editor: every row, a handle and arrows on each. -->
                     <div class="asks-bar">
-                      @if (showRowFilter()) {
-                        <app-rail-tabs
-                          [items]="filterTabs()"
-                          [activeId]="rowFilter()"
-                          [ariaLabel]="filterAria"
-                          idPrefix="pnd-rows"
-                          (select)="selectRowFilter($event)"
-                        />
+                      @if (ordering()) {
+                        <p class="order-lede" i18n="@@pnd.order_lede">
+                          Drag a question, or use its arrows, to move it on its page. Each move
+                          saves at once, for this program only.
+                        </p>
+                        <button nz-button nzType="primary" type="button" (click)="stopOrdering()">
+                          <span i18n="@@pnd.add_sheet_done">Done</span>
+                        </button>
+                      } @else {
+                        @if (showRowFilter()) {
+                          <app-rail-tabs
+                            [items]="filterTabs()"
+                            [activeId]="rowFilter()"
+                            [ariaLabel]="filterAria"
+                            idPrefix="pnd-rows"
+                            (select)="selectRowFilter($event)"
+                          />
+                        }
+                        <p class="asks-summary">{{ askSummary(sv) }}</p>
+                        @if (editable() && sv.servedTotal > 1) {
+                          <button nz-button type="button" (click)="startOrdering()">
+                            <span
+                              nz-icon
+                              nzType="ordered-list"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
+                            <span i18n="@@pnd.order_open">Change order</span>
+                          </button>
+                        }
                       }
-                      <p class="asks-summary">{{ askSummary(sv) }}</p>
                     </div>
+                    <p class="sr-only" role="status" aria-live="polite">{{ orderStatus() }}</p>
 
-                    @if (editable() && rowFilter() !== 'other') {
+                    @if (editable() && !ordering() && rowFilter() !== 'other') {
                       <p class="asks-hint">
                         <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
                         <span i18n="@@pnd.asks_fixed_note">
@@ -294,7 +319,7 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
                         showRowFilter() ? 'pnd-rows-tab-' + rowFilter() : null
                       "
                     >
-                      @if (rowFilter() === 'other' && otherCountHere() === 0) {
+                      @if (!ordering() && rowFilter() === 'other' && otherCountHere() === 0) {
                         <div class="asks-empty">
                           <p class="asks-empty-text" i18n="@@pnd.asks_only_fixed">
                             Only the fixed questions are asked here. Add one to ask this program's
@@ -319,8 +344,11 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
                           [states]="rowStates()"
                           [editable]="editable()"
                           [busy]="busyCodes()"
-                          [filter]="rowFilter()"
+                          [filter]="ordering() ? 'all' : rowFilter()"
+                          [ordering]="ordering()"
+                          [orderBusy]="savingOrder()"
                           (remove)="removeQuestion($event)"
+                          (move)="moveQuestion($event)"
                         />
                       }
                     </div>
@@ -551,17 +579,23 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
         color: var(--text-primary);
         font-variant-numeric: tabular-nums lining-nums;
       }
-      .stage-note {
+      /* The order editor's one line: what a drag does, and that it saves. */
+      .order-lede {
+        flex: 1 1 18rem;
         margin: 0;
-        padding: var(--space-3);
-        border-radius: var(--radius-md);
-        border-inline-start: var(--rule-width-accent) solid var(--color-info);
-        background: var(--color-info-bg);
-        color: var(--text-primary);
-        font-size: 0.8125rem;
+        font-size: var(--text-sm);
         line-height: 1.55;
+        color: var(--text-secondary);
       }
-      /* The filter and the count, on one line. */
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      /* The filter, the count and Change order, on one line. */
       .asks-bar {
         display: flex;
         flex-wrap: wrap;
@@ -866,8 +900,8 @@ export class ProgramNameDetailPage implements OnInit {
     {
       id: 'asks',
       label: this.stepLabels[1] ?? '',
-      // Never `invalid`, and never `todo`: what a loan type asks is a fact this step
-      // reports, not an answer this name owes. It is unreachable while the name is offered
+      // Never `invalid`, and never `todo`: what a program asks is a fact this step reports
+      // and lets the operator adjust, not an answer this name owes. It is unreachable while the name is offered
       // nowhere, because there is nothing to put a tab on.
       status: 'done',
       disabled: this.offeredCount() === 0,
@@ -920,7 +954,7 @@ export class ProgramNameDetailPage implements OnInit {
 
   /**
    * The whole question pool: what an Add picks from, and how a served code maps to the id a
-   * write names. Read once per visit to step 2, and again after a write that republished.
+   * write names. Read once per visit to step 2.
    */
   private readonly pool = signal<readonly AskableQuestion[]>([]);
   private poolRequested = false;
@@ -929,11 +963,7 @@ export class ProgramNameDetailPage implements OnInit {
   );
   /** Codes this name may not drop, with the reason — the server's, never a list kept here. */
   private readonly locks = signal<readonly ServerLock[]>([]);
-  /** Question ids this name skips, per loan type — as stored, re-read after every write. */
-  private readonly skipped = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
-    new Map<LoanCategory, ReadonlySet<string>>(),
-  );
-  /** Question ids this name adds, per loan type — as stored, re-read after every write. */
+  /** Question ids this name ticks, per loan type — as stored, re-read after every write. */
   private readonly addedByCat = signal<ReadonlyMap<LoanCategory, ReadonlySet<string>>>(
     new Map<LoanCategory, ReadonlySet<string>>(),
   );
@@ -949,13 +979,11 @@ export class ProgramNameDetailPage implements OnInit {
   });
 
   /**
-   * Add / Remove are open once the pool is read and a bank sells the name. Before that the
-   * applicant is asked the loan type's whole list, and a per-name pick would change nothing
-   * on screen.
+   * Add / Remove / Change order are open once the pool is read: a write names question ids,
+   * which only the pool maps a served code to. A name no bank sells yet is served its fixed
+   * questions and its ticks like any other (v32.0.0), so it is editable too.
    */
-  protected readonly editable = computed(
-    () => this.pool().length > 0 && this.servedHere()?.nameAxisActive !== false,
-  );
+  protected readonly editable = computed(() => this.pool().length > 0);
 
   private readonly servedCodesHere = computed<ReadonlySet<string>>(() => {
     const out = new Set<string>();
@@ -992,7 +1020,7 @@ export class ProgramNameDetailPage implements OnInit {
       else if (lock === 'program') out.set(q.code, 'program');
       else if (row === undefined) continue;
       else if (sources.has(q.code)) out.set(q.code, 'gate');
-      else out.set(q.code, added.has(row.id) ? 'added' : 'free');
+      else if (added.has(row.id)) out.set(q.code, 'added');
     }
     return out;
   });
@@ -1111,6 +1139,7 @@ export class ProgramNameDetailPage implements OnInit {
       group: (this.isAr ? q.groupAr : q.groupEn) || q.groupEn || q.groupAr || '',
       isRequired: q.isRequired,
       alsoAdds: chain.map((c) => this.labelOf(c)),
+      chainIds: chain.map((c) => c.id),
       haystack: q.haystack,
     }));
   });
@@ -1194,25 +1223,13 @@ export class ProgramNameDetailPage implements OnInit {
     });
   }
 
-  /**
-   * Add one question for this name, with the gate sources it needs. A question this name had
-   * skipped is un-skipped too, so the stored rows say what the screen says.
-   */
+  /** Tick one question for this name, with the gate sources it needs (nearest first). */
   private async addQuestion(row: AddableRow): Promise<void> {
     const category = this.askCategory();
-    const question = this.pool().find((q) => q.id === row.id);
-    if (question === undefined) return;
     const current = this.addedByCat().get(category) ?? new Set<string>();
-    const ids = additionWithChain(this.pool(), question, category, new Map(), current);
-    const saved = await this.write(row.id, async () => {
-      const skipped = this.skipped().get(category);
-      if (skipped?.has(row.id)) {
-        const next = new Set(skipped);
-        next.delete(row.id);
-        await this.saveSkipped(category, next);
-      }
-      await this.saveAdded(category, new Set([...current, ...ids]));
-    });
+    const saved = await this.write(row.id, () =>
+      this.saveAdded(category, new Set([...current, row.id, ...row.chainIds])),
+    );
     // The row leaves the sheet as it lands in the list behind it; say where it went.
     if (saved) {
       this.message.success(
@@ -1221,28 +1238,22 @@ export class ProgramNameDetailPage implements OnInit {
     }
   }
 
-  /** Remove one question from this name: drop its addition, or skip the loan type's question. */
+  /** Remove one question from this name: untick it. Only a ticked question can go. */
   protected async removeQuestion(code: string): Promise<void> {
     const category = this.askCategory();
     const question = this.poolByCode().get(code);
-    const state = this.rowStates().get(code);
-    if (question === undefined) return;
-    if (state === 'added') {
-      const next = new Set(this.addedByCat().get(category) ?? []);
-      next.delete(question.id);
-      await this.write(question.id, () => this.saveAdded(category, next));
-    } else if (state === 'free') {
-      const next = new Set([...(this.skipped().get(category) ?? []), question.id]);
-      await this.write(question.id, () => this.saveSkipped(category, next));
-    }
+    if (question === undefined || this.rowStates().get(code) !== 'added') return;
+    const next = new Set(this.addedByCat().get(category) ?? []);
+    next.delete(question.id);
+    await this.write(question.id, () => this.saveAdded(category, next));
   }
 
   /**
-   * One write at a time; the served list is read again after it, refused or not. True when the
-   * write landed.
+   * One write at a time — an order save included; the served list is read again after it,
+   * refused or not. True when the write landed.
    */
   private async write(busyId: string, run: () => Promise<void>): Promise<boolean> {
-    if (this.savingAsk().size > 0) return false;
+    if (this.savingAsk().size > 0 || this.savingOrder()) return false;
     this.savingAsk.set(new Set([busyId]));
     this.asksError.set(null);
     try {
@@ -1268,23 +1279,79 @@ export class ProgramNameDetailPage implements OnInit {
     const next = new Map(this.addedByCat());
     next.set(category, new Set(saved.added));
     this.addedByCat.set(next);
-    // A question that gained an opt-in row republished the questionnaire: the pool's
-    // opt-in marks are stale until it is read again.
-    if (saved.published) {
-      this.poolRequested = false;
-      await this.loadPool();
-    }
   }
 
-  private async saveSkipped(category: LoanCategory, set: ReadonlySet<string>): Promise<void> {
-    const saved = await this.api.setProgramNameQuestionExclusions(
-      this.routeKey(),
-      category,
-      exclusionsToSave(this.pool(), set, lockMapFor(this.locks(), category)),
+  // --- Step 2 · the program's own order ----------------------------------------
+  //
+  // Each program asks its questions in its own order, per loan type (v32.0.0,
+  // `program_name_question_order`); the Questions tab's order is only the default. The order
+  // editor works on the served pages themselves, so what the operator drags is what the app
+  // shows, and a move is saved at once: the whole served list, in the new order.
+
+  protected readonly ordering = signal(false);
+  protected readonly savingOrder = signal(false);
+  /** Said to a screen reader after each move: where the question now sits. */
+  protected readonly orderStatus = signal('');
+
+  protected startOrdering(): void {
+    this.orderStatus.set('');
+    this.ordering.set(true);
+  }
+
+  protected stopOrdering(): void {
+    this.ordering.set(false);
+  }
+
+  /**
+   * One move on one page: refused here when it would put a follow-up above the question it
+   * follows, saved otherwise. The list moves at once and goes back if the server refuses.
+   */
+  protected async moveQuestion(move: PageMove): Promise<void> {
+    if (this.savingOrder() || this.savingAsk().size > 0) return;
+    const category = this.askCategory();
+    const sv = this.servedHere();
+    if (sv === null) return;
+    const after = pagesAfterMove<ServedPage['questions'][number], ServedPage>(sv.pages ?? [], move);
+    if (after === null) return;
+    const page = after.pages.find((p) => p.code === move.page);
+    const rows = [...(page?.questions ?? [])].sort((a, b) => a.displayOrder - b.displayOrder);
+    const block = moveBlock(rows, after.movedCode);
+    if (block !== null) {
+      this.message.warning(moveBlockText(block, this.isAr));
+      return;
+    }
+    const byCode = this.poolByCode();
+    const ids: string[] = [];
+    for (const code of servedOrder(after.pages)) {
+      const q = byCode.get(code);
+      // A code the pool does not know (a question switched off since the read): save nothing
+      // rather than an order that leaves it out.
+      if (q === undefined) return;
+      ids.push(q.id);
+    }
+    const before = this.served();
+    this.served.set(
+      before.map((s) => (s.category === category ? { ...s, pages: after.pages } : s)),
     );
-    const next = new Map(this.skipped());
-    next.set(category, new Set(saved));
-    this.skipped.set(next);
+    this.savingOrder.set(true);
+    this.asksError.set(null);
+    try {
+      await this.api.setProgramNameQuestionOrder(this.routeKey(), category, ids);
+      const moved = rows.find((q) => q.code === after.movedCode);
+      if (moved !== undefined && page !== undefined) {
+        const label = this.isAr ? moved.questionAr : moved.questionEn;
+        const title = this.isAr ? page.titleAr : page.titleEn;
+        this.orderStatus.set(
+          $localize`:@@pnd.order_status:“${label}:QUESTION:” is now ${move.to + 1}:POS: of ${rows.length}:TOTAL: on “${title}:PAGE:”`,
+        );
+      }
+    } catch (err) {
+      this.served.set(before);
+      this.asksError.set(this.localizedError(err));
+    } finally {
+      await this.loadServed({ quiet: true });
+      this.savingOrder.set(false);
+    }
   }
 
   // --- Step 2 reads ----------------------------------------------------------
@@ -1341,7 +1408,6 @@ export class ProgramNameDetailPage implements OnInit {
         ]),
       );
     this.locks.set(scope.locks);
-    this.skipped.set(toMap(scope.excludedByCategory));
     this.addedByCat.set(toMap(scope.addedByCategory));
   }
 

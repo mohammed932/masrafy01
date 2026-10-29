@@ -16,12 +16,7 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { CheckOutline, LockOutline, SearchOutline } from '@ant-design/icons-angular/icons';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
-import {
-  LOAN_CATEGORIES,
-  canonicalCategories,
-  categoryLabel,
-  type LoanCategory,
-} from '@core/loan-category';
+import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
 import {
   FormPageComponent,
   LoanCategorySwitchesComponent,
@@ -244,15 +239,29 @@ interface CardGroup<T extends QuestionCard> {
                 }
 
                 <!-- A question every quote needs that is switched off or missing: the
-                     loan type cannot be priced, so Add program waits. Rare — they are all
-                     fixed — and only Questionnaire can fix it, so it says where. -->
-                @if (coreMissingHere().length > 0) {
+                     loan type cannot be priced, so Add program waits. Rare — only Questionnaire
+                     can fix it, so it says where. -->
+                @if (coreOffHere().length > 0) {
                   <p class="notice" role="alert">
                     <span i18n="@@pcn.core_missing"
                       >This loan type can't be priced — a question every quote needs is switched
                       off:</span
                     >
-                    <strong>{{ coreMissingHere().join(' · ') }}</strong>
+                    <strong>{{ coreOffHere().join(' · ') }}</strong>
+                  </p>
+                }
+                <!-- A question this loan type's quotes read that a program asks only when it is
+                     ticked (v32.0.0: a car's price and down payment, no longer fixed). Add
+                     program waits until both are ticked; one click ticks them. -->
+                @if (coreUntickedHere().length > 0) {
+                  <p class="notice" role="alert">
+                    <span i18n="@@pcn.core_tick"
+                      >This loan type can't be priced until these are ticked:</span
+                    >
+                    <strong>{{ coreUntickedHere().join(' · ') }}</strong>
+                    <button type="button" class="tick-core link" (click)="tickCore()">
+                      <span i18n="@@pcn.core_tick_btn">Tick them</span>
+                    </button>
                   </p>
                 }
 
@@ -275,11 +284,6 @@ interface CardGroup<T extends QuestionCard> {
                       Always asked, on every program. To change one, open
                       <a class="link" routerLink="/questionnaire/questions">Questionnaire</a>.
                     </p>
-                    <!-- Ties this tab's count to the one Questionnaire shows: the fixed list there
-                         counts every loan type, and some fixed questions belong to one only. -->
-                    @if (fixedElsewhereText(); as text) {
-                      <p class="hint is-aside">{{ text }}</p>
-                    }
                     @for (group of fixedGroups(); track group.key) {
                       <h4 class="group-h">
                         <span>{{ group.title }}</span>
@@ -546,6 +550,19 @@ interface CardGroup<T extends QuestionCard> {
       .notice,
       .error {
         max-inline-size: 62rem;
+      }
+      .tick-core {
+        margin-inline-start: var(--space-2);
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        cursor: pointer;
+      }
+      .tick-core:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
       }
       .notice {
         margin: 0;
@@ -934,20 +951,50 @@ export class NewProgramNamePage {
   });
 
   /**
-   * A question every quote needs that is switched off or out of the loan type, per loan type
-   * on. No ticks are passed: those questions are fixed, so nothing ticked here can fix one.
+   * A question every quote of a loan type needs that this name would not ask, per loan type on:
+   * switched off (only Questionnaire fixes it), or not ticked (a car's price and down payment,
+   * since v32.0.0 asked only where ticked — a tick here fixes it).
    */
   private readonly coreMissing = computed(() =>
-    coreProblems(this.pool(), this.offered(), new Map(), this.isAr),
+    coreProblems(this.pool(), this.offered(), this.added(), this.isAr),
   );
 
-  /** The same, for the loan type on screen — named, so the notice says which. */
-  protected readonly coreMissingHere = computed<readonly string[]>(
-    () =>
-      this.coreMissing()
-        .find((p) => p.category === this.askCategory())
-        ?.missing.map((c) => c.label) ?? [],
+  private readonly coreMissingChecks = computed(
+    () => this.coreMissing().find((p) => p.category === this.askCategory())?.missing ?? [],
   );
+
+  /** Switched off, on the loan type on screen — named, so the notice says which. */
+  protected readonly coreOffHere = computed<readonly string[]>(() =>
+    this.coreMissingChecks()
+      .filter((c) => c.state === 'unavailable')
+      .map((c) => c.label),
+  );
+
+  /** Not ticked yet, on the loan type on screen. */
+  protected readonly coreUntickedHere = computed<readonly string[]>(() =>
+    this.coreMissingChecks()
+      .filter((c) => c.state === 'not_asked')
+      .map((c) => c.label),
+  );
+
+  /** Tick every unticked core question of the loan type on screen, with what each needs first. */
+  protected tickCore(): void {
+    const category = this.askCategory();
+    const want = new Set(
+      this.coreMissingChecks()
+        .filter((c) => c.state === 'not_asked' && c.questionId !== null)
+        .map((c) => c.questionId as string),
+    );
+    const set = new Set(this.added().get(category) ?? []);
+    for (const card of this.otherHere()) {
+      if (!want.has(card.id)) continue;
+      set.add(card.id);
+      for (const id of card.chainIds) set.add(id);
+    }
+    const next = new Map(this.added());
+    next.set(category, set);
+    this.added.set(next);
+  }
 
   protected readonly keyPreview = computed<string | null>(() => {
     const key = slugify(this.formValue().labelEn ?? '');
@@ -1037,7 +1084,7 @@ export class NewProgramNamePage {
       case 'labels_key':
         return $localize`:@@pcn.block_name_latin:The English name needs at least one letter or digit — it becomes the key.`;
       case 'core':
-        return $localize`:@@pcn.block_core2:A loan type can't be priced — turn its switched-off question back on in Questionnaire.`;
+        return $localize`:@@pcn.block_core3:A loan type can't be priced yet — tick the questions it needs, or turn a switched-off one back on in Questionnaire.`;
       case 'offered':
         return $localize`:@@pcn.block_offered:Turn on at least one loan type — a name offered under none can be picked by no bank.`;
       default:
@@ -1103,7 +1150,7 @@ export class NewProgramNamePage {
     const on = this.offered();
     return LOAN_CATEGORIES.filter((c) => on.includes(c)).map((c) => {
       const count =
-        this.fixedFor(c).length +
+        this.fixedAll().length +
         additionsToSave(this.pool(), this.added().get(c) ?? new Set()).length;
       return { id: c, label: categoryLabel(c), count, countLabel: this.questionsLabel(count) };
     });
@@ -1121,55 +1168,23 @@ export class NewProgramNamePage {
   // --- step ③ · the fixed list -----------------------------------------------
 
   /**
-   * The fixed questions one loan type asks — on every program, so on this one. Every name made
-   * here is sold against a payslip, so the income-proof ones count as well as the every-name ones.
+   * The fixed questions — asked on every program of every loan type (v32.0.0), so on this one.
+   * Every name made here is sold against a payslip, so the income-proof ones count as well as
+   * the every-name ones.
    */
-  private fixedFor(category: LoanCategory): readonly AskableQuestion[] {
-    return this.pool().filter(
-      (q) => q.isActive && q.fixed === true && q.categories.includes(category),
-    );
-  }
+  private readonly fixedAll = computed<readonly AskableQuestion[]>(() =>
+    this.pool().filter((q) => q.isActive && q.fixed === true),
+  );
 
-  private readonly fixedHere = computed(() => this.fixedFor(this.askCategory()));
-
-  protected readonly fixedCountHere = computed(() => this.fixedHere().length);
-
-  /**
-   * "Personal Loan asks 17 of the 23 fixed questions — the other 6 are for Auto Loan only." The
-   * Questionnaire tab counts the fixed questions of every loan type; a fixed question keeps its
-   * loan types, so a car one is never asked on a personal loan. Null when this tab has them all.
-   */
-  protected readonly fixedElsewhereText = computed<string | null>(() => {
-    const category = this.askCategory();
-    const all = this.pool().filter((q) => q.isActive && q.fixed === true);
-    const others = all.filter((q) => !q.categories.includes(category));
-    if (others.length === 0) return null;
-    const type = categoryLabel(category);
-    const here = all.length - others.length;
-    const total = all.length;
-    const types = canonicalCategories(others.flatMap((q) => [...q.categories]))
-      .map((c) => categoryLabel(c))
-      .join(', ');
-    return others.length === 1
-      ? $localize`:@@pcn.fixed_elsewhere_one:${type}:TYPE: asks ${here}:HERE: of the ${total}:TOTAL: fixed questions — the other one is for ${types}:TYPES: only.`
-      : $localize`:@@pcn.fixed_elsewhere:${type}:TYPE: asks ${here}:HERE: of the ${total}:TOTAL: fixed questions — the other ${others.length}:N: are for ${types}:TYPES: only.`;
-  });
+  protected readonly fixedCountHere = computed(() => this.fixedAll().length);
 
   /**
    * The fixed cards under the app page each sits on, pages in the app's order and each question
-   * at its place in this loan type (`categoryOrder`) — the order the applicant meets them.
+   * in the pool's — the order a new program asks them in until it is given its own on its page.
    */
-  protected readonly fixedGroups = computed<readonly CardGroup<QuestionCard>[]>(() => {
-    const category = this.askCategory();
-    const order = new Map<string, number>();
-    for (const g of this.tree()) {
-      for (const q of g.questions) order.set(q.id, q.categoryOrder?.[category] ?? q.displayOrder);
-    }
-    const cards = [...this.fixedHere()]
-      .sort((x, y) => (order.get(x.id) ?? 0) - (order.get(y.id) ?? 0))
-      .map((q) => this.cardOf(q));
-    return this.groupByPage(cards);
-  });
+  protected readonly fixedGroups = computed<readonly CardGroup<QuestionCard>[]>(() =>
+    this.groupByPage(this.fixedAll().map((q) => this.cardOf(q))),
+  );
 
   // --- step ③ · the other questions ------------------------------------------
 
@@ -1186,7 +1201,7 @@ export class NewProgramNamePage {
     const held = gateHeldAdditions(this.pool(), added);
     return addableQuestions(
       this.pool(),
-      new Set(this.fixedHere().map((q) => q.code)),
+      new Set(this.fixedAll().map((q) => q.code)),
       lockMapFor(this.locks(), category),
       new Set(['payslip'] as const),
     ).map(({ question: q, chain }) => {

@@ -23,7 +23,6 @@ const choice = (over: Partial<AskQuestionInput> = {}): AskQuestionInput => ({
   labelEn: 'What kind of unit do you own?',
   type: 'SINGLE_SELECT',
   isRequired: false,
-  categories: ['personal'],
   ...over,
 });
 
@@ -43,7 +42,6 @@ const attach = (over: Partial<Parameters<typeof planAttach>[0]> = {}) =>
     question: choice(),
     facts: [],
     askedFactKeys: [],
-    askIn: [],
     blueprintsAsking: [],
     ...over,
   });
@@ -207,62 +205,13 @@ describe('planAttach — which questions may be ticked', () => {
   });
 });
 
-describe('planAttach — the loan types', () => {
-  it('adds only the loan types that do not ask it yet, and never removes one', () => {
-    const plan = attach({ askIn: ['personal', 'car'] });
-    if (plan.kind !== 'proceed') throw new Error('expected proceed');
-    expect(plan.steps.at(-1)).toEqual({
-      op: 'addCategories',
-      questionId: 'q1',
-      questionCode: 'owned_unit_type',
-      categories: ['car'],
-    });
-  });
-
-  it('adds no step when every loan type already asks it', () => {
-    const plan = attach({ askIn: ['personal'] });
-    if (plan.kind !== 'proceed') throw new Error('expected proceed');
-    // No `addCategories` means no publish: a byte-identical questionnaire version is noise
-    // in the one history an operator reads to see what they did.
-    expect(plan.steps.some((s) => s.op === 'addCategories')).toBe(false);
-  });
-
-  it('refuses to start asking a REQUIRED question of a new loan type', () => {
-    // Apply reads LIVE assignments while the customer is served a frozen snapshot, so
-    // between the write and the publish — and permanently if the publish fails — every
-    // application in that loan type is refused for not answering a question its
-    // questionnaire never contained.
-    expect(attach({ question: choice({ isRequired: true }), askIn: ['car'] })).toEqual({
-      kind: 'refuse',
-      refusal: {
-        code: 'widenRequired',
-        questionCode: 'owned_unit_type',
-        categories: ['car'],
-      },
-    });
-  });
-
-  it('allows a REQUIRED question the loan type already asks', () => {
-    expect(attach({ question: choice({ isRequired: true }), askIn: ['personal'] }).kind).toBe(
-      'proceed',
-    );
-  });
-
-  it('adds no ask row when the product already reads the fact, but still widens', () => {
-    const plan = attach({
-      facts: [fact()],
-      askedFactKeys: ['owned_unit_type'],
-      askIn: ['car'],
-    });
-    if (plan.kind !== 'proceed') throw new Error('expected proceed');
-    expect(plan.steps.map((s) => s.op)).toEqual(['addCategories']);
-  });
-
+describe('planAttach — a re-tick', () => {
   it('is a complete no-op on a re-tick', () => {
+    // A question carries no loan type since v32.0.0, so a tick never widens anything: a fact
+    // the product already reads is nothing to write at all.
     const plan = attach({
       facts: [fact()],
       askedFactKeys: ['owned_unit_type'],
-      askIn: ['personal'],
     });
     expect(plan).toEqual({
       kind: 'proceed',

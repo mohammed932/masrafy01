@@ -7,7 +7,6 @@
  * by key and reused, and picking the same product twice must plan nothing at all.
  */
 import { describe, expect, it } from 'vitest';
-import { LoanCategory } from '@prisma/client';
 import {
   planBlueprint,
   type BlueprintExistingState,
@@ -18,7 +17,6 @@ const EMPTY: BlueprintExistingState = {
   typeKeys: new Set(),
   valueKeysByType: new Map(),
   questionCodes: new Set(),
-  categoriesByQuestion: new Map(),
   factKeys: new Set(),
   mirroredTypeKeys: new Set(),
   productKeys: new Set(),
@@ -42,7 +40,6 @@ function afterRunning(key: string): BlueprintExistingState {
   const typeKeys = new Set<string>();
   const valueKeysByType = new Map<string, Set<string>>();
   const questionCodes = new Set<string>();
-  const categoriesByQuestion = new Map<string, Set<LoanCategory>>();
   const factKeys = new Set<string>();
   const mirroredTypeKeys = new Set<string>();
   const productKeys = new Set<string>();
@@ -63,7 +60,6 @@ function afterRunning(key: string): BlueprintExistingState {
       }
       case 'createQuestion':
         questionCodes.add(step.questionCode);
-        categoriesByQuestion.set(step.questionCode, new Set(step.categories));
         if (step.optionsFromEnumerationType) mirroredTypeKeys.add(step.optionsFromEnumerationType);
         break;
       case 'linkMirror':
@@ -75,9 +71,6 @@ function afterRunning(key: string): BlueprintExistingState {
         factKeys.add(step.factKey);
         break;
       case 'bindFact':
-        break;
-      case 'widenCategories':
-        categoriesByQuestion.set(step.questionCode, new Set(step.categories));
         break;
       case 'setProductTemplate':
         break;
@@ -91,7 +84,6 @@ function afterRunning(key: string): BlueprintExistingState {
     typeKeys,
     valueKeysByType,
     questionCodes,
-    categoriesByQuestion,
     factKeys,
     mirroredTypeKeys,
     productKeys,
@@ -196,10 +188,8 @@ describe('planning against an empty database', () => {
       type: 'NUMERIC',
       required: true,
       numeric: { min: 0, max: 100 },
-      // PERSONAL only now, and gated. Every programme on this product is sold as `personal`,
-      // so a car or mortgage applicant could never be quoted from this answer — and it is the
-      // one required question of the eight, which is why it was the one worth narrowing.
-      categories: [LoanCategory.personal],
+      // Gated: it is the one required question of the eight, so it is asked only of an
+      // applicant who said they own a unit.
       enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
     });
   });
@@ -305,44 +295,6 @@ describe('planning against a database that already holds some of it', () => {
     );
   });
 
-  it('widens a REUSED question to the categories the product needs, keeping the rest', () => {
-    // `practice_governorate` asks where the applicant WORKS. Needed in personal (the only loan
-    // type the doctors' products are sold in, since 2026-09-24), and a database that has it
-    // elsewhere only still leaves the column reading nothing there — and the standard column
-    // would then price those applicants, silently. Widening ADDS: narrowing somebody else's assignment because this product
-    // does not need it would break theirs.
-    const existing: BlueprintExistingState = {
-      ...EMPTY,
-      questionCodes: new Set([
-        'practice_governorate',
-        'years_in_practice',
-        'existing_bank_loans',
-      ]),
-      categoriesByQuestion: new Map([
-        ['practice_governorate', new Set([LoanCategory.mortgage])],
-        ['existing_bank_loans', new Set([LoanCategory.personal, LoanCategory.mortgage])],
-      ]),
-      factKeys: new Set(['years_in_practice', 'practice_governorate']),
-      questionCodeByFact: new Map([
-        ['years_in_practice', 'years_in_practice'],
-        ['practice_governorate', 'practice_governorate'],
-      ]),
-    };
-    const result = plan('doctors_clinic_owner', existing);
-    const widened = result.steps.filter((step) => step.op === 'widenCategories');
-    expect(
-      widened.map((step) => step.op === 'widenCategories' && step.questionCode).sort(),
-      // `existing_bank_loans` is already under personal, and personal is all this product's
-      // top-up axis needs since car was dropped from it (2026-09-24) — so no widen.
-    ).toEqual(['practice_governorate']);
-    const governorate = widened.find(
-      (step) => step.op === 'widenCategories' && step.questionCode === 'practice_governorate',
-    );
-    expect(
-      governorate && governorate.op === 'widenCategories' && governorate.categories.sort(),
-    ).toEqual(['mortgage', 'personal']);
-  });
-
   it('does not touch the mortgage governorate question, which asks something else', () => {
     // `governorate` asks where the PROPERTY is — in Arabic it says so literally. The doctors
     // product used to read it, which is why a personal-loan doctor was asked about a property
@@ -351,49 +303,12 @@ describe('planning against a database that already holds some of it', () => {
     const existing: BlueprintExistingState = {
       ...EMPTY,
       questionCodes: new Set(['governorate']),
-      categoriesByQuestion: new Map([['governorate', new Set([LoanCategory.mortgage])]]),
       factKeys: new Set(['property_governorate']),
       questionCodeByFact: new Map([['property_governorate', 'governorate']]),
     };
     const touched = JSON.stringify(plan('doctors_clinic_owner', existing).steps);
     expect(touched).not.toContain('property_governorate');
     expect(touched).not.toContain('"governorate"');
-  });
-
-  it('widens the question behind a DERIVED axis, which has no registry row', () => {
-    // A top-up column is computed from the bank the program belongs to, but the answer it is
-    // computed FROM is a question — and a database holding it under mortgage alone leaves the
-    // column unreachable on the personal loans this product is sold as.
-    const existing: BlueprintExistingState = {
-      ...EMPTY,
-      questionCodes: new Set(['existing_bank_loans']),
-      categoriesByQuestion: new Map([['existing_bank_loans', new Set([LoanCategory.mortgage])]]),
-    };
-    const widen = plan('doctors_clinic_owner', existing).steps.find(
-      (step) => step.op === 'widenCategories' && step.questionCode === 'existing_bank_loans',
-    );
-    expect(widen && widen.op === 'widenCategories' && widen.categories.sort()).toEqual([
-      'mortgage',
-      'personal',
-    ]);
-  });
-
-  it('leaves a question alone when it is already asked everywhere the product needs', () => {
-    const existing: BlueprintExistingState = {
-      ...EMPTY,
-      questionCodes: new Set(['practice_governorate']),
-      categoriesByQuestion: new Map([
-        [
-          'practice_governorate',
-          new Set([LoanCategory.personal, LoanCategory.car, LoanCategory.mortgage]),
-        ],
-      ]),
-      questionCodeByFact: new Map([['practice_governorate', 'practice_governorate']]),
-    };
-    const widened = plan('doctors_clinic_owner', existing).steps.filter(
-      (step) => step.op === 'widenCategories' && step.questionCode === 'practice_governorate',
-    );
-    expect(widened).toEqual([]);
   });
 
   it('plans no product row when the product already exists', () => {

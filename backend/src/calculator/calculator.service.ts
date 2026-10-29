@@ -86,31 +86,25 @@ export class CalculatorService {
     age: number,
   ): Promise<CostQuoteResponseDto | AffordabilityQuoteResponseDto> {
     const { program, isRepresentativeRate } = await this.resolveProgram(dto);
-    const effects = isRepresentativeRate ? [] : await this.answerEffectsFor(dto, program);
+    const effects = isRepresentativeRate ? [] : await this.answerEffectsFor(dto);
     return dto.mode === 'cost'
       ? this.costQuote(dto, age, program, isRepresentativeRate, effects)
       : this.affordabilityQuote(dto, age, program, isRepresentativeRate, effects);
   }
 
   /**
-   * The offer effects the applicant's answers switch on, for this program's loan type — read,
-   * validated and selected by the SAME functions the preview uses (`readSubmittedAnswers`,
+   * The offer effects the applicant's answers switch on — read, validated and selected by the
+   * SAME functions the preview uses (`readSubmittedAnswers`,
    * `answerPicksFromMaps`, `answerEffectsFromAnswers`), from the same live effect table
    * (`answerEffectSources`, fixed questions only). Which of them apply to THIS program — an
    * income-proof question's effect never reaches a no-payslip program — is `quoteProgram`'s
    * call, through `answerEffectsForProgram`, exactly as on preview and apply.
    */
-  private async answerEffectsFor(
-    dto: CalculatorQuoteDto,
-    program: BankProgramSnapshot,
-  ): Promise<AnswerEffect[]> {
+  private async answerEffectsFor(dto: CalculatorQuoteDto): Promise<AnswerEffect[]> {
     if (dto.answers === undefined || dto.answers.length === 0) return [];
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
-    const questions = questionsAnsweredIn(
-      version.snapshot as unknown as Snapshot,
-      program.productCategory,
-    );
+    const questions = questionsAnsweredIn(version.snapshot as unknown as Snapshot);
     const read = readSubmittedAnswers(new Map(questions.map((q) => [q.code, q])), dto.answers);
     return answerEffectsFromAnswers(
       await this.questionnaire.answerEffectSources(),

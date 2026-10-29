@@ -25,7 +25,7 @@
  *
  * Read-only. Exit 0 when clean, 1 when anything is reported, so it can gate a deploy.
  */
-import { PrismaClient, type LoanCategory } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import {
   ASKED_MONEY_FIELD_BINDING_KEYS,
   DEBT_TYPES_QUESTION_CODE,
@@ -65,19 +65,17 @@ async function main(): Promise<void> {
     (offered.get(cat) ?? offered.set(cat, new Set()).get(cat)!).add(p.programNameKey!);
   }
 
-  // The questions each category asks, with their required flag. One read, not one per flow:
-  // the money bindings are CORE, so they are never narrowed by the program-name axis — if a
-  // category asks one, every name under it does.
-  const assigned = await prisma.questionLoanCategory.findMany({
-    where: { question: { isActive: true, code: { in: REQUIRED_CODES } } },
-    select: { category: true, question: { select: { code: true, isRequired: true } } },
+  // The money questions, live and with their required flag. A question carries no loan type
+  // since v32.0.0, and these are CORE — every program asks them (`question-scope.ts`) — so
+  // "asked" is "switched on", and the answer is the same for every flow.
+  const live = await prisma.question.findMany({
+    where: {
+      isActive: true,
+      code: { in: [...REQUIRED_CODES, 'car_price', 'car_down_payment'] },
+    },
+    select: { code: true, isRequired: true },
   });
-  const byCategory = new Map<string, Map<string, boolean>>();
-  for (const row of assigned) {
-    const cat = row.category as unknown as string;
-    const map = byCategory.get(cat) ?? byCategory.set(cat, new Map()).get(cat)!;
-    map.set(row.question.code, row.question.isRequired);
-  }
+  const asked = new Map(live.map((q) => [q.code, q.isRequired]));
 
   /**
    * The amount need not be ASKED when the flow already states the two figures it is the
@@ -88,30 +86,14 @@ async function main(): Promise<void> {
   const DERIVABLE_FROM: Readonly<Record<string, readonly string[]>> = {
     [MONEY_FIELD_BINDINGS.requested_amount]: ['car_price', 'car_down_payment'],
   };
-  const alsoAsked = await prisma.questionLoanCategory.findMany({
-    where: {
-      question: { isActive: true, code: { in: ['car_price', 'car_down_payment'] } },
-    },
-    select: { category: true, question: { select: { code: true } } },
-  });
-  const derivableBy = new Map<string, Set<string>>();
-  for (const row of alsoAsked) {
-    const cat = row.category as unknown as string;
-    (derivableBy.get(cat) ?? derivableBy.set(cat, new Set()).get(cat)!).add(row.question.code);
-  }
-  const isDerivable = (category: string, code: string): boolean => {
-    const from = DERIVABLE_FROM[code];
-    if (from === undefined) return false;
-    const have = derivableBy.get(category) ?? new Set<string>();
-    return from.every((c) => have.has(c));
-  };
+  const isDerivable = (code: string): boolean =>
+    DERIVABLE_FROM[code]?.every((c) => asked.has(c)) ?? false;
 
   const failures: Failure[] = [];
   const rows: string[] = [];
+  const notAsked = REQUIRED_CODES.filter((c) => !asked.has(c) && !isDerivable(c));
+  const optional = REQUIRED_CODES.filter((c) => asked.get(c) === false);
   for (const [category, names] of [...offered].sort()) {
-    const asked = byCategory.get(category) ?? new Map<string, boolean>();
-    const notAsked = REQUIRED_CODES.filter((c) => !asked.has(c) && !isDerivable(category, c));
-    const optional = REQUIRED_CODES.filter((c) => asked.get(c) === false);
     for (const programNameKey of [...names].sort()) {
       rows.push(
         `  ${category.padEnd(10)} ${programNameKey.padEnd(28)} ` +
@@ -147,8 +129,8 @@ async function main(): Promise<void> {
     }
   }
   console.log(
-    `\n  ${failures.length} flow(s) a customer cannot finish. Assign the question to that loan ` +
-      `type on /questionnaire/categories, and keep it required.\n`,
+    `\n  ${failures.length} flow(s) a customer cannot finish. Switch the question back on ` +
+      `(Questionnaire → Questions), and keep it required.\n`,
   );
   process.exitCode = 1;
 }

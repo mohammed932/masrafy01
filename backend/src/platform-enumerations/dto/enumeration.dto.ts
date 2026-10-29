@@ -185,10 +185,11 @@ export class SetEnumerationIncomeBasisDto {
 }
 
 /**
- * Replace the questions one program name skips under one loan type. The array IS the new set
- * and MAY be empty — that is "ask this name everything its loan type asks" again.
+ * Replace the questions one program name TICKS under one loan type — asked of its applicants
+ * beyond the fixed questions and what its programmes read. The array IS the new set and MAY be
+ * empty (untick everything again).
  */
-export class SetProgramNameQuestionExclusionsDto {
+export class SetProgramNameQuestionAdditionsDto {
   @ApiProperty({ enum: LoanCategory })
   @IsEnum(LoanCategory)
   category!: LoanCategory;
@@ -202,11 +203,11 @@ export class SetProgramNameQuestionExclusionsDto {
 }
 
 /**
- * Replace the questions one program name ADDS under one loan type — asked of its applicants
- * although the loan type does not ask them of every name. The array IS the new set and MAY be
- * empty ("ask only what the loan type asks" again). The mirror of the exclusions DTO.
+ * Replace the ORDER one program name asks its questions in under one loan type — question ids,
+ * first to last (positions 0..n-1). Each id once; the service refuses an unknown or switched-off
+ * one. An empty list forgets the program's order: the pool's order applies again.
  */
-export class SetProgramNameQuestionAdditionsDto {
+export class SetProgramNameQuestionOrderDto {
   @ApiProperty({ enum: LoanCategory })
   @IsEnum(LoanCategory)
   category!: LoanCategory;
@@ -214,6 +215,7 @@ export class SetProgramNameQuestionAdditionsDto {
   @ApiProperty({ type: [String], maxItems: 500 })
   @IsArray()
   @ArrayMaxSize(500)
+  @ArrayUnique()
   @IsString({ each: true })
   @Length(1, 30, { each: true })
   questionIds!: string[];

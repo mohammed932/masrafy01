@@ -49,6 +49,7 @@ import {
   type CatalogIncomeBasis,
 } from './data/program-catalog-matrix';
 import { incomeRuleValidationContext } from './data/income-rule-validation-context';
+import { CAR_QUESTION_CODES } from '../src/questionnaire/car-questions';
 import { stableJson } from '../src/common/stable-json.util';
 
 const prisma = new PrismaClient();
@@ -155,6 +156,15 @@ export async function seedProgramCatalog(): Promise<void> {
     // carry-across only decided which value survived for the length of this
     // transaction. Writing the curated basis here keeps a newly created pair
     // correct from birth instead of correct one write later.
+    // A name newly offered under car asks the six car questions as TICKS (v32.0.0 — they are
+    // no longer fixed), exactly as the migration that unfixed them ticked every car name then.
+    const carTicks =
+      next.includes('car') && !before.includes('car')
+        ? await prisma.question.findMany({
+            where: { code: { in: [...CAR_QUESTION_CODES] }, isActive: true },
+            select: { id: true },
+          })
+        : [];
     await prisma.$transaction([
       prisma.platformEnumerationLoanCategory.deleteMany({ where: { enumerationId: name.id } }),
       prisma.platformEnumerationLoanCategory.createMany({
@@ -162,6 +172,22 @@ export async function seedProgramCatalog(): Promise<void> {
           enumerationId: name.id,
           category: category as LoanCategory,
           ...flagsOf(catalogIncomeBasis(key, category)),
+        })),
+        skipDuplicates: true,
+      }),
+      // A loan type the name leaves takes its ticks and its question order there with it — the
+      // same rule the admin's own write applies.
+      prisma.programNameQuestionAddition.deleteMany({
+        where: { enumerationId: name.id, category: { notIn: next as LoanCategory[] } },
+      }),
+      prisma.programNameQuestionOrder.deleteMany({
+        where: { enumerationId: name.id, category: { notIn: next as LoanCategory[] } },
+      }),
+      prisma.programNameQuestionAddition.createMany({
+        data: carTicks.map((q) => ({
+          enumerationId: name.id,
+          category: 'car' as LoanCategory,
+          questionId: q.id,
         })),
         skipDuplicates: true,
       }),

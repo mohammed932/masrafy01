@@ -16,7 +16,6 @@ import type {
   NeededFactStatus,
   ProductAsksBoard,
 } from '@features/bank-programs/bank-programs.types';
-import type { LoanCategory } from '@core/loan-category';
 
 export type NeededAction = 'ask' | 'create' | null;
 
@@ -36,7 +35,6 @@ export interface NeededRow {
   label: string;
   status: NeededFactStatus;
   readers: NeededFactReader[];
-  missingIn: LoanCategory[];
   derivedFrom: string | null;
   action: NeededAction;
   /** Covered — asked by this product, or answered by a platform question everywhere. */
@@ -62,14 +60,14 @@ export function neededRows(board: ProductAsksBoard | null, isAr: boolean): Neede
   // `?? []`: a backend that predates the field sends none, and the panel simply stays away.
   return (board.needed ?? [])
     .map((fact): NeededRow => {
-      const covered =
-        fact.status === 'asked' || (fact.status === 'platform' && fact.missingIn.length === 0);
+      // Asked by this product, or a platform figure — asked wherever a programme reads it
+      // (v32.0.0: a question carries no loan type to be missing from).
+      const covered = fact.status === 'asked' || fact.status === 'platform';
       return {
         factKey: fact.factKey,
         label: isAr ? fact.labelAr : fact.labelEn,
         status: fact.status,
         readers: fact.readBy,
-        missingIn: fact.missingIn,
         derivedFrom: fact.derivedFrom,
         action: actionOf(fact),
         covered,

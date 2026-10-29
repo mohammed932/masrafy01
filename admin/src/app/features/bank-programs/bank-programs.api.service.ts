@@ -1,7 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { LoanCategory } from '@core/loan-category';
 import { environment } from '../../../environments/environment';
 import type {
   BankProgramCreatePayload,
@@ -239,8 +238,8 @@ export class BankProgramsApiService {
    * Tick a pool question: this product starts reading its answer.
    *
    * Addressed by the QUESTION, because that is what the operator picked and the fact may not
-   * exist yet. `askIn` is ADDITIVE — it says which loan types should start asking the
-   * question and never narrows the set, which is shared with every other product reading it.
+   * exist yet. No loan type is sent (v32.0.0): the programs that quote off the product ask
+   * what it reads, on their own.
    *
    * Returns the whole recomputed board, so the screen absorbs one object per click instead
    * of re-reading three things that can disagree about what the click did.
@@ -248,13 +247,12 @@ export class BankProgramsApiService {
   async attachProductAsk(
     key: string,
     questionCode: string,
-    askIn: readonly LoanCategory[],
   ): Promise<SuccessEnvelope<AskWriteResult>> {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<AskWriteResult>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/asks/` +
           encodeURIComponent(questionCode),
-        { askIn: [...askIn] },
+        {},
       ),
     );
   }

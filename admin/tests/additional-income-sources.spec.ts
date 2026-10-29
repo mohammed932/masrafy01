@@ -24,7 +24,6 @@ function fact(
       active: true,
       options: [],
       parentOptions: [],
-      askedIn: ['personal'],
       enabledWhen: gate === null ? null : { questionCode: gate, optionCode: 'yes' },
     },
   };

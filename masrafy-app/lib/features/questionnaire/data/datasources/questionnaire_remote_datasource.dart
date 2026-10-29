@@ -10,16 +10,13 @@ import 'package:app/features/questionnaire/domain/enums/loan_category.dart';
 /// `appNetwork` (Principle XXX — no `package:dio` here). JWT +
 /// profile-complete gated on the backend.
 ///
-/// The question POOL is global (one list, one version), but each question is
-/// assigned in the dashboard to the loan categories that ask it, so [category]
-/// is sent as a query parameter and the server returns only that category's
-/// questions.
-///
-/// [programNameKey] narrows once more, to the program the applicant picked on the
-/// loan-setup step: of the questions their category asks, the server returns the ones
-/// a program behind that name reads, plus the core every quote needs. One program may
-/// need three questions and the next fifteen. Sent only when it is present, so a call
-/// without it produces the same request it always did — which is what makes the server
+/// The question POOL is global (one list, one version) and a question carries no
+/// loan type. [category] and [programNameKey] — the program the applicant picked on
+/// the loan-setup step — go out as query parameters, and the server returns what that
+/// program asks: the fixed questions, what a bank program behind it reads and what the
+/// admin ticked for it, in the program's own order. One program may need three
+/// questions and the next fifteen. [programNameKey] is sent only when it is present,
+/// so a call without it produces the same request it always did — which is what makes the server
 /// side safe to deploy ahead of an app release.
 @injectable
 class QuestionnaireRemoteDataSource extends BaseRemoteDataSource {

@@ -304,12 +304,6 @@ export class SurrogateProductNoCapException extends DomainException {
   }
 }
 
-export class ProductNotSoldAnywhereException extends DomainException {
-  constructor(meta: { productKey: string }) {
-    super(ERROR_CODES.PRODUCT_NOT_SOLD_ANYWHERE, meta);
-  }
-}
-
 export class NeededFactShapeUnknownException extends DomainException {
   constructor(meta: { productKey: string; factKey: string }) {
     super(ERROR_CODES.NEEDED_FACT_SHAPE_UNKNOWN, meta);
@@ -449,16 +443,6 @@ export class EnumerationCategoriesNotApplicableException extends DomainException
   }
 }
 
-/**
- * A program name tried to skip a question the quote reads, or one of the fixed question set
- * (`questionLockReason`: `engine` / `base` / `program`).
- */
-export class QuestionExclusionLockedException extends DomainException {
-  constructor(meta: { questionId: string; code: string; reason: 'engine' | 'base' | 'program' }) {
-    super(ERROR_CODES.QUESTION_EXCLUSION_LOCKED, meta);
-  }
-}
-
 /** A program name tried to add a question whose asking is the loan type's call (`engine` lock). */
 export class QuestionAdditionLockedException extends DomainException {
   constructor(meta: { questionId: string; code: string }) {
@@ -541,16 +525,6 @@ export class SurrogateFactQuestionInactiveException extends DomainException {
 export class SurrogateFactQuestionNotEligibleException extends DomainException {
   constructor(meta: { questionCode: string; reason: string }) {
     super(ERROR_CODES.SURROGATE_FACT_QUESTION_NOT_ELIGIBLE, meta);
-  }
-}
-
-/**
- * Ticking would start asking a REQUIRED question of a loan type that does not ask it yet,
- * which refuses every application in that loan type until the new snapshot is published.
- */
-export class SurrogateFactWidenRequiredException extends DomainException {
-  constructor(meta: { questionCode: string; categories: string[] }) {
-    super(ERROR_CODES.SURROGATE_FACT_WIDEN_REQUIRED, meta);
   }
 }
 

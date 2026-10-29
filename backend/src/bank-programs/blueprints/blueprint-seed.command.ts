@@ -226,14 +226,10 @@ async function main(): Promise<void> {
 
     // Drift an operator has to fix on the product's own screen: the create path cannot,
     // because it refuses a product that already holds a calculation. Reported, never a
-    // failure — the products quote fine, a question is just not being asked somewhere.
+    // failure — the products quote fine, a list, question or fact is just missing.
     for (const projected of await blueprints.list()) {
       const gaps = projected.asks.filter(
-        (ask) =>
-          !ask.factExists ||
-          !ask.questionExists ||
-          !ask.listExists ||
-          ask.missingCategories.length > 0,
+        (ask) => !ask.factExists || !ask.questionExists || !ask.listExists,
       );
       for (const ask of gaps) {
         if (!tally.unchanged.includes(projected.key)) continue;
@@ -243,9 +239,6 @@ async function main(): Promise<void> {
               ask.questionExists ? null : 'no question',
               ask.listExists ? null : 'no list',
               ask.factExists ? null : 'no fact',
-              ask.missingCategories.length > 0
-                ? `not asked in ${ask.missingCategories.join(', ')}`
-                : null,
             ]
               .filter((x) => x !== null)
               .join(' · '),

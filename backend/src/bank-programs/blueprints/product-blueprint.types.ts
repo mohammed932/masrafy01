@@ -34,7 +34,6 @@
  * bundle, keyed by these same blueprint keys — exactly where the starters' words already live.
  */
 
-import type { LoanCategory } from '@prisma/client';
 import type { GateReasonCode } from '../../matching/pipeline/product-rule';
 import type { ProductTemplate } from '../../matching/pipeline/product-template';
 import type { MaxLoanNoMatchAction } from '../../matching/pipeline/max-loan-by-fact';
@@ -98,15 +97,17 @@ export interface BlueprintGate {
  *   `bindQuestion`   a fact over a question that ALREADY exists — the car instalment is
  *                    already asked as an obligation, and asking it twice would be two
  *                    answers to one question that can disagree
- *   `platformFact`   a fact that already exists, optionally widened to more loan categories
+ *   `platformFact`   a fact that already exists
  *   `derivedFact`    an axis the platform computes (new-to-bank, top-up, holds-a-product);
  *                    it has no registry row and no bound question by construction
  *
  * `required` is OFF unless a blueprint states it, and stating it is a decision about every
- * applicant in the loan types the ask reaches — not about this product's customers. A
- * required question is enforced on apply for everyone it is VISIBLE to, so an ungated one
- * blocks people the product is not for until they answer it. Gate it with `enabledWhen`
- * whenever the answer only makes sense for some applicants.
+ * applicant of the programs that ask it. A required question is enforced on apply for everyone
+ * it is VISIBLE to, so an ungated one blocks applicants until they answer it. Gate it with
+ * `enabledWhen` whenever the answer only makes sense for some applicants.
+ *
+ * No ask states loan types (v32.0.0): a question carries none, and the product's programs ask
+ * what the product asks (`question-scope.ts`).
  */
 /**
  * ─── Why a created question states no code ────────────────────────────────────
@@ -131,7 +132,6 @@ export type BlueprintAsk =
       helperEn?: string;
       helperAr?: string;
       list: BlueprintList;
-      categories: readonly LoanCategory[];
       enabledWhen?: BlueprintGate;
       required?: boolean;
     }
@@ -143,7 +143,6 @@ export type BlueprintAsk =
       helperEn?: string;
       helperAr?: string;
       numeric: { min: number; max: number };
-      categories: readonly LoanCategory[];
       enabledWhen?: BlueprintGate;
       required?: boolean;
     }
@@ -159,17 +158,14 @@ export type BlueprintAsk =
        */
       labelEn?: string;
       labelAr?: string;
-      alsoAskIn?: readonly LoanCategory[];
     }
   | {
       kind: 'platformFact';
       factKey: string;
-      /** Categories the bound question must also be asked in for this product to work. */
-      alsoAskIn?: readonly LoanCategory[];
       /** Values the sheets need that the existing list is missing. Added by key, never renamed. */
       addValues?: { typeKey: string; values: BlueprintValue[] };
     }
-  | { kind: 'derivedFact'; factKey: string; alsoAskIn?: readonly LoanCategory[] };
+  | { kind: 'derivedFact'; factKey: string };
 
 /** The band edges a sheet prints, offered to the form for one way of the calculation. */
 export interface BlueprintBands {

@@ -305,9 +305,9 @@ describe('calculator — affordability mode with effects', () => {
 });
 
 describe('calculator — the answers are checked like preview checks them', () => {
-  it('refuses an answer to a question this loan type does not ask', async () => {
+  it('refuses an answer to a question the questionnaire does not hold', async () => {
     await expect(
-      costQuote(cost({ answers: [a('car_price', { numericValue: '500000' })] })),
+      costQuote(cost({ answers: [a('no_such_question', { numericValue: '500000' })] })),
     ).rejects.toMatchObject({ code: 'UNKNOWN_QUESTION_CODE' });
   });
 

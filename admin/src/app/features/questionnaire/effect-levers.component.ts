@@ -38,7 +38,7 @@ import {
           />
         </nz-input-group>
         <span class="hint" i18n="@@qedit.effect_loan_range">
-          -90 to 100. -10 means 10% lower.
+          -10 means 10% less, 20 means 20% more. Allowed: -90 to 100.
         </span>
       </label>
       <label class="field">
@@ -53,7 +53,7 @@ import {
           />
         </nz-input-group>
         <span class="hint" i18n="@@qedit.effect_rate_range">
-          -20 to 20. 1.5 means 1.5 points higher.
+          Added to the bank's rate: 1.5 turns 20% into 21.5%. Allowed: -20 to 20.
         </span>
       </label>
       <label class="field">
@@ -67,7 +67,9 @@ import {
             (keydown.enter)="enter.emit()"
           />
         </nz-input-group>
-        <span class="hint" i18n="@@qedit.effect_term_range">1 to 480 months.</span>
+        <span class="hint" i18n="@@qedit.effect_term_range">
+          The loan can't run longer than this. Allowed: 1 to 480 months.
+        </span>
       </label>
     </div>
     @if (group().invalid) {

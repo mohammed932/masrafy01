@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { LoanCategory, Prisma, QuestionType, type Question } from '@prisma/client';
 import { DomainException, MirroredListMinValuesException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
-import { ALL_LOAN_CATEGORIES, dedupeCategories, sortCategories } from '@/common/loan-category.util';
+import { sortCategories } from '@/common/loan-category.util';
 import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
@@ -20,7 +20,6 @@ import {
 import { isBindableQuestionType } from '@/matching/pipeline/surrogate-fact-registry';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { EngineContractService } from './engine-contract.service';
-import { frozenCategories } from './frozen-categories';
 import { QuestionnaireRepository, type OptionEffectColumns } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
 import {
@@ -37,9 +36,14 @@ import {
   type SubmittedAnswerValue,
 } from './validation/answer-validation';
 import { isQuestionVisible } from './validation/question-visibility';
-import { narrowAskedQuestions, type NarrowingScope } from './validation/question-scope';
+import {
+  narrowAskedQuestions,
+  orderServed,
+  type NarrowingScope,
+} from './validation/question-scope';
 import {
   fixedServedOnOf,
+  frozenFixedServedOn,
   surrogateSideCodes,
   type FixedServedOn,
 } from './validation/fixed-questions';
@@ -84,7 +88,7 @@ export class QuestionnaireService {
   ) {}
 
   /**
-   * The option codes, category assignments and registry members the surrogate-fact
+   * The option codes and registry members the surrogate-fact
    * checks read. Built once and shared by `publish()` and `bindingWarnings()`, so the
    * banner in the editor and the payload on publish cannot disagree.
    */
@@ -107,13 +111,6 @@ export class QuestionnaireService {
         q.code,
         options.filter((o) => o.isActive).map((o) => o.code),
       );
-    }
-
-    const assignments = await this.repo.categoryAssignments();
-    const categoriesByQuestion = new Map<string, readonly string[]>();
-    for (const q of activeQuestions) {
-      if (!wanted.has(q.code)) continue;
-      categoriesByQuestion.set(q.code, assignments.get(q.id) ?? []);
     }
 
     // The enumeration each of the two LEGACY choice facts draws its option codes from.
@@ -141,30 +138,26 @@ export class QuestionnaireService {
         questionType: f.boundQuestion?.type ?? null,
       })),
       optionCodesByQuestion,
-      categoriesByQuestion,
       registryMembers,
     };
   }
 
   // ---- Public read --------------------------------------------------------
   /**
-   * Customer-facing snapshot of the GLOBAL questionnaire, narrowed to the
-   * questions assigned to `category` when one is given. Questions/answers are
-   * pure content (MVP) — anything a program configures stays server-side, never in
-   * the snapshot — so this is a shape passthrough with no IP left to strip.
+   * Customer-facing snapshot of the GLOBAL questionnaire, narrowed to the questions the picked
+   * PROGRAM asks (`programNameKey` under `category`, `question-scope.ts`), in that program's own
+   * order. Questions/answers are pure content (MVP) — anything a program configures stays
+   * server-side, never in the snapshot — so this is a shape passthrough with no IP left to strip.
    *
-   * `category` is OPTIONAL: a client that does not send one gets the whole pool,
-   * which is what every client got before per-category assignment existed. The
-   * pool itself stays one canonical list; assignment decides which of its
-   * questions a given applicant is asked (A33 as amended).
+   * A category with no name is served the BASELINE (the fixed questions and the money core).
+   * No category at all is the whole pool, in the pool's order — what every client got before any
+   * narrowing existed. The controller refuses a name without a category.
    */
   async activeSnapshot(category?: LoanCategory, programNameKey?: string): Promise<unknown> {
     const version = await this.repo.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
-    // No name, no read. The un-narrowed path stays query-identical to what it always was,
-    // which is what lets a client that has never heard of this parameter keep working.
     const scope =
-      programNameKey === undefined
+      programNameKey === undefined || category === undefined
         ? null
         : await this.enums.narrowingScopeFor(programNameKey, category);
     return toCustomerSnapshot(version.snapshot, category, scope);
@@ -172,35 +165,25 @@ export class QuestionnaireService {
 
   /**
    * What an applicant of one catalog name is actually served, per loan type the name is
-   * offered under — read off `activeSnapshot`, the customer read itself, so the admin
-   * reports the narrowing being SERVED and not a second opinion about it. Same counting
-   * as the surrogate product's ask board. An unknown or retired name serves nothing.
+   * offered under — read off the same projection `activeSnapshot` serves, so the admin reports
+   * what is SERVED and not a second opinion about it. An unknown or retired name serves nothing.
    *
-   * `servedExtra` counts what this name is asked BEYOND the loan type's own list — the opt-in
-   * rows it added or its programmes read — so "answers 59 of 57" never has to be printed.
-   * `nameAxisActive` is false while the name has no active bank programme: the name axis is
-   * inert until then (`narrowingScopeFor` returns null), so its unticks and additions are
-   * stored but not yet in force, and the screen can say so.
-   *
-   * `pages` is the served snapshot's groups themselves — the app renders one step per group
-   * (`questionnaire_state.dart`), so the admin can list the applicant's pages as they appear,
-   * with the `isRequired` that already folds in what a programme under the name reads.
+   * `pages` is the served snapshot's groups themselves, in the program's own order — the app
+   * renders one step per group (`questionnaire_state.dart`), so the admin lists (and reorders)
+   * the applicant's pages exactly as they appear, with the `isRequired` that already folds in
+   * what a programme under the name reads.
    *
    * `fixedQuestionCodes` are the served questions the admin marked fixed — read off the same
    * frozen snapshot, because the customer payload leaves the mark out (the app has no use for
-   * it). The rest are asked because a programme under the name reads them or it added them.
+   * it). The rest are asked because a programme under the name reads them or it ticked them.
    */
   async servedForProgramName(programNameKey: string): Promise<
     {
       category: LoanCategory;
-      categoryTotal: number;
-      categoryRequired: number;
       servedTotal: number;
       servedRequired: number;
-      servedExtra: number;
       servedQuestionCodes: string[];
       fixedQuestionCodes: string[];
-      nameAxisActive: boolean;
       pages: unknown[];
     }[]
   > {
@@ -210,31 +193,25 @@ export class QuestionnaireService {
     if (member === undefined) return [];
     const version = await this.repo.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
-    const fixed = new Set(
-      ((version.snapshot as StoredSnapshot).groups ?? [])
-        .flatMap((g) => g.questions ?? [])
-        .filter((q) => fixedServedOnOf(q['fixedServedOn']) !== null)
-        .map((q) => q.code),
-    );
     const out = [];
     for (const category of sortCategories(member.categories)) {
-      // The same projection `activeSnapshot` serves, with the scope read once so the report
-      // can also say whether the name axis applied at all.
+      // A fixed mark as this loan type reads it (an old snapshot froze the car questions'
+      // marks for car alone).
+      const fixed = new Set(
+        ((version.snapshot as StoredSnapshot).groups ?? [])
+          .flatMap((g) => g.questions ?? [])
+          .filter((q) => frozenFixedServedOn(q, category) !== null)
+          .map((q) => q.code),
+      );
       const scope = await this.enums.narrowingScopeFor(programNameKey, category);
-      const whole = countServed(toCustomerSnapshot(version.snapshot, category, null));
       const served = toCustomerSnapshot(version.snapshot, category, scope);
-      const narrowed = countServed(served);
-      const inWhole = new Set(whole.codes);
+      const counted = countServed(served);
       out.push({
         category,
-        categoryTotal: whole.total,
-        categoryRequired: whole.required,
-        servedTotal: narrowed.total,
-        servedRequired: narrowed.required,
-        servedExtra: narrowed.codes.filter((code) => !inWhole.has(code)).length,
-        servedQuestionCodes: narrowed.codes,
-        fixedQuestionCodes: narrowed.codes.filter((code) => fixed.has(code)),
-        nameAxisActive: scope !== null,
+        servedTotal: counted.total,
+        servedRequired: counted.required,
+        servedQuestionCodes: counted.codes,
+        fixedQuestionCodes: counted.codes.filter((code) => fixed.has(code)),
         pages: (served as { groups?: unknown[] }).groups ?? [],
       });
     }
@@ -370,12 +347,8 @@ export class QuestionnaireService {
       ...numericColumns(type, dto.numeric ?? null),
       ...textColumns(type, dto.text ?? null),
     });
-    // A question with no assignment is asked for nothing, so a create that named
-    // no categories would add an invisible row. Default to ALL FOUR: the admin
-    // adds questions on one tab and narrows them on the other, never the reverse.
-    await this.repo.setCategories(created.id, dto.categories ?? ALL_LOAN_CATEGORIES);
     await this.publish(actor);
-    return { ...created, categories: dto.categories ?? [...ALL_LOAN_CATEGORIES] };
+    return created;
   }
 
   /**
@@ -499,9 +472,6 @@ export class QuestionnaireService {
         };
       });
 
-    // Same default as `createQuestion`: a question assigned to nothing is asked
-    // by nobody, so an omitted set means all four rather than none.
-    const categories = dedupeCategories(dto.categories ?? [...ALL_LOAN_CATEGORIES]);
     const fixedServedOn = dto.fixedServedOn ?? null;
     if (fixedServedOn !== null) await this.assertFixedAtCreate(dto);
     // Only a fixed question's answers change the offer (v31.3.0).
@@ -533,7 +503,6 @@ export class QuestionnaireService {
         ...textColumns(type, dto.text ?? null),
       },
       optionRows,
-      categories,
     );
     if (mirroredType !== null) {
       // AFTER the question exists, because the link needs its id. A failure here leaves a
@@ -545,7 +514,6 @@ export class QuestionnaireService {
     if (opts.publish !== false) await this.publish(actor);
     return {
       ...created,
-      categories,
       options: optionRows.map((o, i) => ({ ...o, displayOrder: i })),
     };
   }
@@ -646,176 +614,6 @@ export class QuestionnaireService {
     }));
   }
 
-  // ---- Loan-category assignment -------------------------------------------
-  /**
-   * Replace which loan categories a question is asked for. The submitted set is
-   * authoritative and MAY be empty — an empty set parks the question (kept, with
-   * its wording and options, but asked for nothing), which is the non-destructive
-   * alternative to deleting it. The admin tab flags those rows.
-   */
-  async setQuestionCategories(
-    id: string,
-    categories: LoanCategory[],
-    actor: string,
-    optInCategories?: LoanCategory[],
-  ) {
-    const question = await this.repo.findQuestion(id);
-    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
-    const unique = dedupeCategories(categories);
-    await this.contract?.assertWrite({
-      kind: 'categories',
-      assignments: [
-        {
-          questionId: id,
-          categories: unique,
-          ...(optInCategories === undefined
-            ? {}
-            : { optInCategories: dedupeCategories(optInCategories) }),
-        },
-      ],
-    });
-    // `categories` is the ordinary set; opt-in rows ride along unless the caller says which to
-    // keep (`replaceAssignment`). What the row now holds is read back, not re-derived here.
-    await this.repo.setCategories(
-      id,
-      unique,
-      optInCategories === undefined ? undefined : dedupeCategories(optInCategories),
-    );
-    await this.publish(actor);
-    const optIn = (await this.repo.optInAssignments()).get(id) ?? [];
-    return {
-      ...question,
-      categories: sortCategories([...unique, ...optIn]),
-      optInCategories: sortCategories(optIn),
-    };
-  }
-
-  /**
-   * Replace the assignment of MANY questions in one transaction + one publish.
-   * The column actions ("assign every question to mortgage", "clear car") would
-   * otherwise fire one publish per row and churn a version per question.
-   */
-  async setQuestionCategoriesBulk(
-    assignments: ReadonlyArray<{
-      questionId: string;
-      categories: LoanCategory[];
-      optInCategories?: LoanCategory[];
-    }>,
-    actor: string,
-    opts: { publish?: boolean } = {},
-  ) {
-    const known = new Set((await this.repo.questions()).map((q) => q.id));
-    const seen = new Set<string>();
-    for (const a of assignments) {
-      if (!known.has(a.questionId)) {
-        throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId: a.questionId });
-      }
-      // One entry per question. The write replays entries in order against one pre-read, so a
-      // duplicate's outcome depends on what the entry before it deleted — not something the
-      // engine-input contract can judge before it lands, nor anything a caller needs to send.
-      if (seen.has(a.questionId)) {
-        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
-          field: 'assignments',
-          value: a.questionId,
-        });
-      }
-      seen.add(a.questionId);
-    }
-    const planned = assignments.map((a) => ({
-      questionId: a.questionId,
-      categories: dedupeCategories(a.categories),
-      ...(a.optInCategories === undefined
-        ? {}
-        : { optInCategories: dedupeCategories(a.optInCategories) }),
-    }));
-    // Judged as ONE write: a column action either keeps every engine input or saves nothing.
-    await this.contract?.assertWrite({ kind: 'categories', assignments: planned });
-    await this.repo.setCategoriesBulk(planned);
-    if (opts.publish !== false) await this.publish(actor);
-    return this.draftTree();
-  }
-
-  /**
-   * ADD loan categories to a question, never remove any, and publish only if something
-   * actually moved.
-   *
-   * The in-process door for "this no-payslip product needs its question asked here":
-   * a product's step ① ticks a question inside one loan type's tab, and the fact it reads
-   * is worth nothing until an applicant of that loan type is actually asked it.
-   *
-   * ADDITIVE, and the two reasons are separate. One is the lost update `addCategories`
-   * documents. The other is ownership: `question_loan_category` is GLOBAL to the question
-   * and shared with every other product and catalog name that reads it, so narrowing it
-   * from a product's screen would silently stop asking somebody else's question. Narrowing
-   * lives on `/questionnaire/categories`, where it is the whole point of the surface.
-   *
-   * PUBLISHES ONLY ON A REAL CHANGE, unlike `setQuestionCategories`, which publishes
-   * unconditionally. A questionnaire version is a full copy of the pool and version history
-   * is how an operator reads what they did, so a byte-identical snapshot is noise — the
-   * same gate `syncMirroredOptions` already applies via `planIsEmpty`. Returns what it
-   * added so the caller can report it and audit it.
-   */
-  async addQuestionCategories(
-    id: string,
-    categories: readonly LoanCategory[],
-    actor: string,
-    opts: { publish?: boolean } = {},
-  ): Promise<{ added: LoanCategory[]; published: boolean }> {
-    const question = await this.repo.findQuestion(id);
-    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId: id });
-    const added = await this.repo.addCategories(id, dedupeCategories([...categories]));
-    if (added.length === 0) return { added: [], published: false };
-    if (opts.publish === false) return { added, published: false };
-    await this.publish(actor);
-    return { added, published: true };
-  }
-
-  /**
-   * `addQuestionCategories` for MANY questions in ONE transaction + AT MOST ONE publish.
-   *
-   * The write behind the catalog-name flow's "what applicants are asked" step, where an
-   * operator walks the loan types the name is offered under and ticks what each one asks. A
-   * per-tick write there would cut a questionnaire version per tick — each a full copy of the
-   * pool — for a name that has not been created yet and may be cancelled out of.
-   *
-   * VALIDATES EVERY ID BEFORE ANY WRITE, like `setQuestionCategoriesBulk` above: one bad id
-   * refuses the whole request rather than leaving half a tick list applied, which is the state
-   * an operator cannot see and cannot repair.
-   *
-   * Returns WHAT MOVED, not the tree. `draftTree()` is an N+1 over every active question and
-   * this caller renders none of it; what it needs is whether to say "3 added, 1 already asked"
-   * and whether a version was cut. Sorted, so one set always serialises one way.
-   */
-  async addQuestionCategoriesBulk(
-    assignments: ReadonlyArray<{ questionId: string; categories: LoanCategory[] }>,
-    actor: string,
-    opts: { publish?: boolean } = {},
-  ): Promise<{
-    added: { questionId: string; categories: LoanCategory[] }[];
-    published: boolean;
-  }> {
-    const known = new Set((await this.repo.questions()).map((q) => q.id));
-    for (const a of assignments) {
-      if (!known.has(a.questionId)) {
-        throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId: a.questionId });
-      }
-    }
-    const moved = await this.repo.addCategoriesBulk(
-      assignments.map((a) => ({
-        questionId: a.questionId,
-        categories: dedupeCategories(a.categories),
-      })),
-    );
-    const added = [...moved.entries()].map(([questionId, categories]) => ({
-      questionId,
-      categories: sortCategories(categories),
-    }));
-    if (added.length === 0) return { added: [], published: false };
-    if (opts.publish === false) return { added, published: false };
-    await this.publish(actor);
-    return { added, published: true };
-  }
-
   async updateQuestion(
     id: string,
     dto: UpdateQuestionDto,
@@ -872,8 +670,8 @@ export class QuestionnaireService {
       isActive: dto.isActive,
       ...(marking !== undefined ? { fixedServedOn: marking } : {}),
     };
-    // A fixed question is asked on every name of its loan types: no per-name skip or addition
-    // of it survives the mark. Un-fixing restores none — the names start from the loan type.
+    // A fixed question is asked on every program: no per-program tick of it survives the mark.
+    // Un-fixing restores none — a program asks it again only once it is ticked or read there.
     if (marking != null && question.fixedServedOn === null) {
       await this.repo.clearNamePolicyFor(id);
     }
@@ -950,7 +748,7 @@ export class QuestionnaireService {
 
   /**
    * What deleting a question would do — what the typed-confirm dialog says BEFORE the super
-   * admin types the code: the loan types it is asked in, the questions that must go first (a
+   * admin types the code: the questions that must go first (a
    * delete is refused while one is gated on it), who reads it (the lock, the bank programmes'
    * names, the products asking it) and what the engine-input ratchet would report, and how many
    * answers stay stored on applications.
@@ -958,9 +756,8 @@ export class QuestionnaireService {
   async deleteImpact(id: string) {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
-    const [rows, assignments, answersStored, productAsks, impact] = await Promise.all([
+    const [rows, answersStored, productAsks, impact] = await Promise.all([
       this.repo.questions(),
-      this.repo.categoryAssignments(),
       this.repo.answerCount(id),
       this.repo.productAsksFor(id),
       this.contract?.fixedDeleteImpact(id) ?? Promise.resolve({ lock: null, wouldBreak: [] }),
@@ -990,25 +787,20 @@ export class QuestionnaireService {
       engineReads: impact.lock !== null || wouldBreak.length > 0 || productAsks.length > 0,
       programNames: [...(impact.lock?.programNameKeys ?? [])],
       productAsks,
-      loanTypes: sortCategories(assignments.get(id) ?? []),
       wouldBreak,
       answersStored,
     };
   }
 
-  /** The FIXED questions a super admin deleted, for Restore — each with its loan types. */
+  /** The FIXED questions a super admin deleted, for Restore. */
   async deletedFixedQuestions() {
-    const [rows, assignments] = await Promise.all([
-      this.repo.deletedFixedQuestions(),
-      this.repo.categoryAssignments(),
-    ]);
+    const rows = await this.repo.deletedFixedQuestions();
     return rows.map((q) => ({
       id: q.id,
       code: q.code,
       questionEn: q.questionEn,
       questionAr: q.questionAr,
       fixedServedOn: q.fixedServedOn,
-      categories: sortCategories(assignments.get(q.id) ?? []),
     }));
   }
 
@@ -1016,8 +808,8 @@ export class QuestionnaireService {
    * The mark an update would WRITE — `undefined` = none (not sent, or already what it is), a
    * value to fix or move it, `null` to un-fix it. The admin's both ways since v31.1.0
    * (operator decision 2026-10-27, "everything dynamic"), program-catalog questions included.
-   * The rules that hold while it is fixed (gate, opt-in, loan types) are the contract's
-   * (`fixed-questions.ts`), judged on the write.
+   * The rule that holds while it is fixed (its show-when source is fixed too) is the
+   * contract's (`fixed-questions.ts`), judged on the write.
    */
   private fixedMarkingOf(
     question: Question,
@@ -1085,54 +877,6 @@ export class QuestionnaireService {
       });
     }
     await this.repo.reorderQuestions(ids);
-    await this.publish(actor);
-    return this.draftTree();
-  }
-
-  /**
-   * Rewrite the order ONE loan category asks its questions in.
-   *
-   * The category twin of `reorderQuestions` above, and deliberately the same contract: the
-   * body carries that category's WHOLE asked set exactly once, and the write is a dense
-   * rewrite rather than a neighbour shift — which is what guarantees no duplicate or gapped
-   * position comes out of it.
-   *
-   * THE WHOLE SET, not the step being dragged. The admin list is grouped by step because an
-   * order only means something inside one, but a step is a slice of one sequence: accepting
-   * a slice would leave the server guessing where it belongs among the others, and two
-   * concurrent drags in different steps would each renumber from zero.
-   *
-   * IT MOVES ONLY THIS CATEGORY. That is the whole feature — the same question keeps its
-   * place in the other three, and the pool's own order is untouched (the Questions tab still
-   * owns that one).
-   *
-   * Publishes, like every other write on this screen: the category tab saves and publishes
-   * automatically, and an order sitting unpublished would be an order the applicant is not
-   * being asked in.
-   */
-  async reorderCategoryQuestions(category: LoanCategory, ids: string[], actor: string) {
-    const asked = await this.repo.questionIdsInCategory(category);
-    const active = new Set(
-      (await this.repo.questions()).filter((q) => q.isActive).map((q) => q.id),
-    );
-    // Only the ACTIVE ones: a soft-deleted question keeps its join rows, and the admin list
-    // never showed it, so demanding it back would make every reorder fail.
-    const expected = new Set(asked.filter((id) => active.has(id)));
-    const seen = new Set<string>();
-    for (const id of ids) {
-      if (!expected.has(id) || seen.has(id)) {
-        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'ids', value: id });
-      }
-      seen.add(id);
-    }
-    if (seen.size !== expected.size) {
-      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
-        field: 'ids',
-        expected: expected.size,
-        received: seen.size,
-      });
-    }
-    await this.repo.reorderCategoryQuestions(category, ids);
     await this.publish(actor);
     return this.draftTree();
   }
@@ -1284,16 +1028,8 @@ export class QuestionnaireService {
   async publish(publishedBy: string): Promise<PublishResult> {
     const groups = (await this.repo.groups()).filter((g) => g.isActive);
     const questions = (await this.repo.questions()).filter((q) => q.isActive);
-    // Frozen INTO the snapshot: the customer read filters on it, so a later
-    // reassignment must not retroactively change what an older version asked.
-    const assignments = await this.repo.categoryAssignments();
-    // Which of those rows are OPT-IN — frozen apart from the ordinary ones (`frozenCategories`).
-    const optIns = await this.repo.optInAssignments();
-    // WHERE each category asks each question, frozen beside the set for the same reason the
-    // set is frozen: a reorder tomorrow must not retroactively change the order a version
-    // served yesterday. Absent on every version published before this existed, which the
-    // reader answers with the pool's order — what those versions were actually served.
-    const categoryOrders = await this.repo.categoryOrders();
+    // No loan types and no per-loan-type order are frozen any more (v32.0.0): a question has
+    // none, and WHERE a program asks it is the program's, read live (`question-scope.ts`).
     // ONE query for every question's options, not one per question. This runs on every write
     // to a mirrored list, and the snapshot it builds is the largest object in the system.
     const optionsOf = await this.repo.optionsByQuestions(questions.map((q) => q.id));
@@ -1319,16 +1055,6 @@ export class QuestionnaireService {
           // FIXED (v31.0.0): frozen like the rest of the question, `null` included, so the
           // narrowing serves it as core and a rollback across the mark is judged on it.
           fixedServedOn: q.fixedServedOn,
-          // `categories` (asked of every name) and, when there is one, `optInCategories` (asked
-          // only where a name adds it) — disjoint, so an older reader never serves an opt-in row.
-          ...frozenCategories(sortCategories(assignments.get(q.id) ?? []), optIns.get(q.id) ?? []),
-          // A MAP, not an order on the category list: `categories` is read by name everywhere
-          // (`askedFor`, the admin, the health panel) and turning it into objects would break
-          // every one of them for a field only the serve path sorts by. Emitted only when the
-          // question is asked somewhere, so a parked question carries nothing.
-          ...(Object.keys(categoryOrders.get(q.id) ?? {}).length > 0
-            ? { categoryOrder: categoryOrders.get(q.id) }
-            : {}),
           // Emitted only for the type that owns them, so the payload stays honest.
           ...(q.type === 'NUMERIC' && numeric ? { numeric } : {}),
           ...(q.type === 'TEXT' && text ? { text } : {}),
@@ -1387,12 +1113,10 @@ export class QuestionnaireService {
    * instead (FR-048 / FR-049).
    */
   /**
-   * Every question in the pool with the loan categories it is asked in.
-   *
-   * One read for the predefined-product library, which has to know before it writes anything
-   * whether a question it needs already exists and whether it is asked where this product
-   * will be sold. A question assigned to nothing is asked by nobody, so a product whose
-   * column reads it would quote the standard column for every applicant — silently.
+   * Every question in the pool, as the predefined-product library and the program-name board
+   * need it: whether a question already exists (and is live), what it is gated on, and whether
+   * it is fixed. Where it is ASKED is no longer a question's own fact (v32.0.0) — a program asks
+   * it when it is fixed, a programme there reads it, or the program ticked it.
    */
   async questionAssignments(): Promise<
     Array<{
@@ -1400,21 +1124,13 @@ export class QuestionnaireService {
       code: string;
       type: string;
       isActive: boolean;
-      /** Every row, OPT-IN ones included — "is it in this category at all". */
-      categories: LoanCategory[];
-      /** The opt-in subset: in the category only for the names that add it. */
-      optInCategories: LoanCategory[];
       /** The gate, for callers that must close a pick over `enabledWhen`. */
       enabledWhen: unknown;
-      /** FIXED (v31.0.0): where it is asked on every program of its loan types; `null` = not. */
+      /** FIXED (v31.0.0): asked on every program (or every payslip one); `null` = not. */
       fixedServedOn: FixedServedOn | null;
     }>
   > {
-    const [questions, assignments, optIns] = await Promise.all([
-      this.repo.questions(),
-      this.repo.categoryAssignments(),
-      this.repo.optInAssignments(),
-    ]);
+    const questions = await this.repo.questions();
     return questions.map((question) => ({
       id: question.id,
       code: question.code,
@@ -1424,8 +1140,6 @@ export class QuestionnaireService {
       // a second question with the same wording and get `..._2`: two questions asking one
       // thing, one of them dead. It has to be told apart from a live one, not hidden.
       isActive: question.isActive,
-      categories: assignments.get(question.id) ?? [],
-      optInCategories: optIns.get(question.id) ?? [],
       enabledWhen: question.enabledWhen ?? null,
       fixedServedOn: question.fixedServedOn,
     }));
@@ -1459,42 +1173,23 @@ export class QuestionnaireService {
   async draftTree() {
     const groups = (await this.repo.groups()).filter((g) => g.isActive);
     const questions = (await this.repo.questions()).filter((q) => q.isActive);
-    const assignments = await this.repo.categoryAssignments();
-    // Beside `categories` and for the same reason it rides here: the assign tab renders the
-    // rows AND the order it lets an operator drag, and a second fetch would be a second way
-    // for the two to disagree.
-    const categoryOrders = await this.repo.categoryOrders();
-    // Which rows are OPT-IN, and how many program names add each — the assign tab draws an
-    // opt-in cell as its own state, and the program-name board tells "asked of every name"
-    // from "in the category for the names that add it".
-    const [optIns, additionCounts, locks, askScoped] = await Promise.all([
-      this.repo.optInAssignments(),
-      this.enums.questionAdditionCounts(),
+    const [locks, askScoped, platformCodes] = await Promise.all([
       // What the loan engine reads, so the editor can say so BEFORE an edit is refused.
       this.contract?.lockViews() ?? Promise.resolve(new Map<string, never>()),
       this.enums.askScopedQuestionCodes(),
+      this.enums.platformQuestionCodes(),
     ]);
-    // The PROGRAM-CATALOG questions (v31.0.0): what a no-payslip product asks, which the
-    // Questions tab hides and the Program catalog manages. Never a fixed one.
-    const surrogateSide = surrogateSideCodes(questions, askScoped);
+    // The PROGRAM-CATALOG questions (v31.0.0): what a no-payslip product asks — the Questions
+    // tab's Surrogate list. Never a fixed one, nor one bound to a fact the platform owns.
+    const surrogateSide = surrogateSideCodes(questions, askScoped, platformCodes);
     const result = [];
     for (const g of groups) {
       const gQuestions = [];
       for (const q of questions.filter((qq) => qq.groupId === g.id)) {
         const options = (await this.repo.optionsByQuestion(q.id)).filter((o) => o.isActive);
-        // `categories` rides along on the tree rather than on its own endpoint:
-        // the assign tab and the pool tab render the same rows, so a second fetch
-        // would only give the two tabs two ways to disagree.
         gQuestions.push({
           ...q,
           options,
-          // EVERY row, opt-in included: "is it in this category at all", which is what every
-          // admin reader of this field means. `optInCategories` is the subset that is asked
-          // only by the names that add it — unlike the snapshot, where the two are disjoint.
-          categories: sortCategories(assignments.get(q.id) ?? []),
-          optInCategories: sortCategories(optIns.get(q.id) ?? []),
-          addedByNames: additionCounts.get(q.id) ?? {},
-          categoryOrder: categoryOrders.get(q.id) ?? {},
           engineLock: locks.get(q.code) ?? null,
           surrogateSide: surrogateSide.has(q.code),
         });
@@ -1510,8 +1205,8 @@ export class QuestionnaireService {
 
   /**
    * Serve an older version again. Judged like any edit: a version frozen before a question the
-   * engine reads today existed — or while it was asked in fewer loan types — would quote without
-   * it, so the contract refuses the rollback rather than serving that questionnaire.
+   * engine reads today existed would quote without it, so the contract refuses the rollback
+   * rather than serving that questionnaire.
    */
   async rollback(versionId: string) {
     const version = await this.repo.versionById(versionId);
@@ -1535,10 +1230,11 @@ export class QuestionnaireService {
    * Single choice still resolves `selectedOptionId`/`selectedOptionCode` so the
    * surrogate-fact mapper and the admin answer views keep working unchanged (FR-045).
    *
-   * `category` narrows the pool to the questions actually ASKED for this
-   * application's loan category. It has to: required-question enforcement runs
-   * here, so without the filter a personal-loan applicant would be rejected for
-   * not answering a mortgage-only question they were never shown.
+   * `programNameKey` + `category` decide which questions this applicant was ASKED — the
+   * program they picked (`question-scope.ts`), the same decision the served snapshot came
+   * from. It has to: required-question enforcement runs here, so without it a personal-loan
+   * applicant would be rejected for not answering a car question they were never shown. With
+   * no program the BASELINE is asked (the fixed questions and the money core).
    *
    * Returns that asked set alongside the resolved rows. It is NOT bookkeeping: it is
    * the precise test for "did the snapshot this application was served actually ASK a
@@ -1556,47 +1252,33 @@ export class QuestionnaireService {
     programNameKey?: string,
   ): Promise<{ resolved: ResolvedAnswer[]; askedQuestionCodes: string[] }> {
     const questions = await this.repo.questions();
-    const [assignments, optIns] = category
-      ? await Promise.all([this.repo.categoryAssignments(), this.repo.optInAssignments()])
-      : [null, null];
-    // Every row, OPT-IN ones included: an opt-in question is in the category, so its answer is
-    // accepted from anyone applying in it. Whether it is ASKED is the name axis's call below.
-    const active = questions.filter(
-      (q) =>
-        q.isActive &&
-        (assignments === null || (assignments.get(q.id) ?? []).includes(category as LoanCategory)),
-    );
-    const isOptIn = (questionId: string): boolean =>
-      optIns !== null && (optIns.get(questionId) ?? []).includes(category as LoanCategory);
-    // CATEGORY-wide, and it stays that way even when a program name narrows the set below.
-    // Two reasons, and both are load-bearing. It is the ACCEPTANCE map, and a backend deploy
-    // is not atomic with an app release — every build in the field posts the whole category
-    // set, so narrowing what may be answered would answer all of them with
+    // EVERY live question, whatever the program narrows to below. Two reasons, and both are
+    // load-bearing. It is the ACCEPTANCE map, and a backend deploy is not atomic with an app
+    // release — a build in the field posts what it was served, which may be more than today's
+    // program asks, so narrowing what may be answered would answer it with
     // `UNKNOWN_QUESTION_CODE`. It is also what `isQuestionVisible` reads to decide whether a
     // gate is dangling: keeping it wide means a narrowed-away gate SOURCE can never make its
     // target read as unconditionally visible, which is a second guard independent of the
     // narrowing rule's own gate closure.
+    const active = questions.filter((q) => q.isActive);
     const byCode = new Map(active.map((q) => [q.code, q]));
     const submitted = new Map(answers.map((a) => [a.questionCode, a]));
 
-    // The program-name axis. No name, no read — which is also what keeps this method working
-    // for a caller that never supplies one.
+    // The program the applicant picked. No program, no read: the baseline is asked.
     const decision = narrowAskedQuestions(
       active.map((q) => ({
         code: q.code,
         enabledWhen: q.enabledWhen,
-        optIn: isOptIn(q.id),
         fixedServedOn: q.fixedServedOn,
       })),
-      programNameKey === undefined
+      programNameKey === undefined || category === undefined
         ? null
         : await this.enums.narrowingScopeFor(programNameKey, category),
     );
 
-    // Unknown codes fail before anything else: a stale client must be told. A
-    // code that exists in the pool but is not asked for this category counts as
-    // unknown here — accepting it would store an answer to a question this
-    // applicant was never shown.
+    // Unknown codes fail before anything else: a stale client must be told. Only a code the
+    // pool does not hold (or holds switched off) is unknown — an answer to a live question this
+    // program did not ask is accepted and simply not stored (it is not served, below).
     for (const a of answers) {
       if (!byCode.has(a.questionCode)) {
         throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: a.questionCode });
@@ -1615,9 +1297,8 @@ export class QuestionnaireService {
     const resolved: ResolvedAnswer[] = [];
     const askedQuestionCodes: string[] = [];
     for (const q of active) {
-      // Not served: this program does not read the answer (or it is an opt-in row this name did
-      // not add), so it is neither required, nor stored, nor recorded as asked. `keep` is
-      // authoritative with or without a name. Before the visibility test, because a question
+      // Not served: this program does not ask it, so it is neither required, nor stored, nor
+      // recorded as asked. `keep` is authoritative with or without a name. Before the visibility test, because a question
       // nobody in scope reads is not a question whose gate is worth evaluating.
       if (!decision.keep.has(q.code)) continue;
 
@@ -1630,7 +1311,7 @@ export class QuestionnaireService {
         // asked and stay out of the asked set.
         continue;
       }
-      // Asked = active, in-category, and visible. Recorded BEFORE validation, so a
+      // Asked = active, served to this program, and visible. Recorded BEFORE validation, so a
       // question the applicant skipped still counts as one they were shown.
       askedQuestionCodes.push(q.code);
 
@@ -2059,9 +1740,7 @@ function collectPublishWarnings(
  *
  * The option codes matter because they must BE the registry keys the admin's table
  * is keyed by (FR-017): matching by label could never work — there are two labels,
- * ar and en. The category assignment matters because assignment is authoritative
- * (v12.0.0): a question assigned to nothing is asked by nobody, however correctly it
- * is otherwise configured.
+ * ar and en.
  */
 export interface SurrogateBindingContext {
   /**
@@ -2079,8 +1758,6 @@ export interface SurrogateBindingContext {
   }>;
   /** Active option codes per question code. */
   readonly optionCodesByQuestion: ReadonlyMap<string, readonly string[]>;
-  /** Categories each question is assigned to, per `question_loan_category`. */
-  readonly categoriesByQuestion: ReadonlyMap<string, readonly string[]>;
   /** Active members of each registry a choice fact draws its options from. */
   readonly registryMembers: ReadonlyMap<string, readonly string[]>;
 }
@@ -2106,17 +1783,9 @@ export interface SurrogateBindingContext {
  * zero — so the correct response is to tell the admin loudly, not to refuse the
  * publish that might be fixing something else.
  *
- * The assignment check asks only whether the fact is asked by ANY category. It used to
- * be a set difference against a hardcoded surrogate-capable list, which is wrong now
- * that capability is derived from these very assignments (v16.0.0): a fact absent from
- * `mortgage` is a category that does not sell no-payslip mortgages, not a defect, and
- * warning about it would make the correct configuration noisy. A fact assigned to
- * NOTHING is still a real break — no program anywhere can read it — so that one stands.
- *
- * The per-category question moved to where it can be answered precisely and acted on: the
- * admin bank-program form tells the operator, as they pick the method, whether their own
- * loan category asks the fact that method reads. Publish knows nothing about which
- * programs exist, so it could only ever have guessed.
+ * There is no "is it asked anywhere" check any more (v32.0.0): a question carries no loan
+ * type, and a program asks the fact its programmes read on its own (`question-scope.ts`), so a
+ * bound question is asked exactly where it is read.
  */
 function collectSurrogateBindingWarnings(
   byCode: ReadonlyMap<string, { code: string; type: QuestionType }>,
@@ -2174,24 +1843,8 @@ function collectSurrogateBindingWarnings(
           expected: entry.questionType,
         },
       });
-      // Keep going: a wrong-typed question can also be unassigned, and an admin
+      // Keep going: a wrong-typed question can also have drifted options, and an admin
       // fixing one only to find the other on the next publish is a wasted round.
-    }
-
-    const categories = ctx.categoriesByQuestion.get(questionCode);
-    // ABSENT and EMPTY differ. Absent means this caller does not know the
-    // assignments (nothing to say); an EMPTY array means the question is assigned to
-    // nothing, which is authoritative for "asked by nobody".
-    if (categories !== undefined && categories.length === 0) {
-      warnings.push({
-        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
-        meta: {
-          fact,
-          questionCode,
-          reason: 'not_asked_by_any_category' satisfies SurrogateBindingWarningReason,
-          assignedCategories: [],
-        },
-      });
     }
 
     // The enumeration pairing, for the two legacy choice facts that have one. A fact
@@ -2349,39 +2002,16 @@ function formatDecimalString(value: string): string {
 }
 
 /**
- * Is a snapshot question asked for `category`? A snapshot published BEFORE
- * per-category assignment existed carries no `categories` key at all — those
- * questions were asked of everyone, so a missing key reads as "all categories"
- * rather than "none" (the same backward-compatibility posture as the missing
- * `type` key below). An explicitly EMPTY array means parked: asked for nothing.
- */
-function askedFor(q: StoredQuestion, category: LoanCategory | undefined): boolean {
-  if (category === undefined) return true;
-  const raw = q['categories'];
-  if (!Array.isArray(raw)) return true;
-  return raw.includes(category);
-}
-
-/**
- * Is a snapshot question in `category` as an OPT-IN row — there, but asked only of the program
- * names that add it (or whose programmes read it)? Frozen as `optInCategories`, DISJOINT from
- * `categories`, so a version published before opt-in rows existed has none and every question
- * reads exactly as it did. Whether one is ASKED is the name axis's call (`narrowAskedQuestions`),
- * never this function's.
- */
-function optInFor(q: StoredQuestion, category: LoanCategory | undefined): boolean {
-  if (category === undefined) return false;
-  const raw = q['optInCategories'];
-  return Array.isArray(raw) && raw.includes(category);
-}
-
-/**
- * Project the stored snapshot into the customer payload, keeping only the
- * questions assigned to `category` (all of them when it is undefined). Questions
- * and answers are pure content (MVP) so the rest is a shape passthrough — no IP
- * fields to strip. A group left with no questions is dropped: the mobile wizard
- * renders one step per group, so an empty one is a blank screen with a live Next
- * button.
+ * Project the stored snapshot into the customer payload: the questions the picked program asks
+ * (`question-scope.ts` — with no program, the baseline), each step in the program's own order.
+ * Questions and answers are pure content (MVP), so the rest is a shape passthrough — no IP
+ * fields to strip. A group left with no questions is dropped: the mobile wizard renders one
+ * step per group, so an empty one is a blank screen with a live Next button.
+ *
+ * A question carries no loan type since v32.0.0. `category` is read only to honour an OLD
+ * snapshot's frozen fixed marks (`frozenFixedServedOn`, the deploy window and a rollback). With
+ * neither a category nor a program (the whole-pool read) every question is served, in the pool's
+ * order — what every client got before any narrowing existed.
  */
 function toCustomerSnapshot(
   raw: unknown,
@@ -2389,36 +2019,41 @@ function toCustomerSnapshot(
   scope: NarrowingScope | null = null,
 ): unknown {
   const snap = raw as StoredSnapshot;
-  const inCategory = (snap.groups ?? []).map((g) => ({
+  const num = (value: unknown): number => (typeof value === 'number' ? value : 0);
+  // Each step in the POOL's order first (the Questions tab's: `displayOrder`, then the code) —
+  // the order `orderServed` places a question the program never placed by.
+  const pooled = (snap.groups ?? []).map((g) => ({
     ...g,
-    questions: orderedForCategory(
-      (g.questions ?? []).filter((q) => askedFor(q, category) || optInFor(q, category)),
-      category,
+    questions: [...(g.questions ?? [])].sort(
+      (a, b) => num(a['displayOrder']) - num(b['displayOrder']) || a.code.localeCompare(b.code),
     ),
   }));
 
-  // The program-name axis, applied ACROSS groups and in one call: a question's gate may point
-  // at a question in another group, so a per-group decision could drop a source and leave its
-  // target dangling — which `isQuestionVisible` renders as unconditionally visible.
-  // `keep` is authoritative whether or not the name narrowed anything: with no name it is the
-  // category minus the opt-in rows nobody added, so the raw list is never served as-is.
-  const decision = narrowAskedQuestions(
-    inCategory.flatMap((g) =>
-      g.questions.map((q) => ({
-        code: q.code,
-        enabledWhen: q['enabledWhen'] ?? null,
-        optIn: optInFor(q, category),
-        // Frozen since v31.0.0; a snapshot published before reads as "nothing fixed".
-        fixedServedOn: fixedServedOnOf(q['fixedServedOn']),
-      })),
-    ),
-    scope,
-  );
+  // The program's rule, applied ACROSS groups and in one call: a question's gate may point at a
+  // question in another group, so a per-group decision could drop a source and leave its target
+  // dangling — which `isQuestionVisible` renders as unconditionally visible.
+  const decision =
+    category === undefined && scope === null
+      ? null
+      : narrowAskedQuestions(
+          pooled.flatMap((g) =>
+            g.questions.map((q) => ({
+              code: q.code,
+              enabledWhen: q['enabledWhen'] ?? null,
+              // Frozen since v31.0.0; a snapshot published before reads as "nothing fixed".
+              fixedServedOn: frozenFixedServedOn(q, category),
+            })),
+          ),
+          scope,
+        );
 
-  const groups = inCategory
+  const groups = pooled
     .map((g) => ({
       ...g,
-      questions: g.questions.filter((q) => decision.keep.has(q.code)),
+      questions: orderServed(
+        g.questions.filter((q) => decision === null || decision.keep.has(q.code)),
+        scope?.orderedQuestionCodes,
+      ),
     }))
     .filter((g) => g.questions.length > 0);
   return {
@@ -2428,7 +2063,7 @@ function toCustomerSnapshot(
       titleAr: g.titleAr,
       titleEn: g.titleEn,
       displayOrder: g.displayOrder,
-      questions: g.questions.map((q) => ({
+      questions: g.questions.map((q, index) => ({
         code: q.code,
         // A snapshot published before feature 010 has no `type` — it reads as
         // single choice, which is exactly what it was (FR-045).
@@ -2441,19 +2076,13 @@ function toCustomerSnapshot(
         // on screen is that the picked name's calculation needs the answer, and an unanswered
         // fact is not a smaller quote but no quote at all from that program. The app reads
         // requiredness straight off the snapshot, so this line is the whole of it client-side.
-        isRequired: q['isRequired'] === true || decision.extraRequired.has(q.code),
-        // THE CATEGORY'S POSITION, emitted into the field the app sorts by — not the pool's.
-        //
-        // The app reads `displayOrder` and sorts the questions of a step by it
-        // (`questionnaire_snapshot_model.dart`). Serving the category's own number here is
-        // what makes a reorder on the admin's category tab reach the applicant with no app
-        // change at all; sending the pool's alongside a second field would be two orders on
-        // the wire and a client choosing between them.
-        //
-        // The array is already in this order (`orderedForCategory` above). The number goes
-        // with it so a client that sorts rather than trusts the array agrees with one that
-        // does not.
-        displayOrder: categoryPositionOf(q, category),
+        isRequired: q['isRequired'] === true || (decision?.extraRequired.has(q.code) ?? false),
+        // THE PROGRAM'S POSITION within the step, emitted into the field the app sorts by
+        // (`questionnaire_snapshot_model.dart`). The array is already in this order
+        // (`orderServed` above); the number goes with it so a client that sorts rather than
+        // trusts the array agrees with one that does not, and a drag on the admin's program
+        // page reaches the applicant with no app change at all.
+        displayOrder: index,
         enabledWhen: q['enabledWhen'] ?? null,
         // Rule blocks travel to the client so the app can enforce bounds locally
         // for immediate feedback. The server remains the authority.
@@ -2468,51 +2097,6 @@ function toCustomerSnapshot(
       })),
     })),
   };
-}
-
-/**
- * A question's position in ONE category: the frozen per-category order when the version
- * carries one, the pool's own when it does not.
- *
- * THE FALLBACK IS THE WHOLE COMPATIBILITY STORY. Every version published before
- * `categoryOrder` existed was served the pool's order, and reading its absence as the pool's
- * order is what makes those versions go on asking in exactly the order they asked in. A zero
- * default would reorder history.
- *
- * No category asked (the admin's whole-pool read) is the pool's order too: there is no
- * category to have an opinion.
- */
-function categoryPositionOf(q: { [key: string]: unknown }, category?: LoanCategory): unknown {
-  const pool = q['displayOrder'];
-  if (category === undefined) return pool;
-  const orders = q['categoryOrder'];
-  if (orders === null || typeof orders !== 'object') return pool;
-  const own = (orders as Record<string, unknown>)[category];
-  return typeof own === 'number' ? own : pool;
-}
-
-/**
- * One group's questions in the order THIS category asks them.
- *
- * Sorted, not filtered — the filtering happened a line above. Within a group only, because a
- * group is a step on the app and a position across steps means nothing.
- *
- * TIES BREAK ON THE POOL then the CODE, the same chain `questionIdsInCategory` sorts by, so
- * the admin list and the served questionnaire cannot disagree about two questions that were
- * seeded to the same number. A stable, stated order beats a stable-but-accidental one.
- */
-function orderedForCategory<T extends { code: string; [key: string]: unknown }>(
-  questions: T[],
-  category?: LoanCategory,
-): T[] {
-  if (category === undefined) return questions;
-  const num = (value: unknown): number => (typeof value === 'number' ? value : 0);
-  return [...questions].sort(
-    (a, b) =>
-      num(categoryPositionOf(a, category)) - num(categoryPositionOf(b, category)) ||
-      num(a['displayOrder']) - num(b['displayOrder']) ||
-      a.code.localeCompare(b.code),
-  );
 }
 
 /** Question counts off a customer snapshot's shape (a projection of stored JSON). */

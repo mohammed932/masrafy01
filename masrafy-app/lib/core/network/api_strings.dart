@@ -30,9 +30,9 @@ class ApiStrings {
   static const String apply = '/api/v1/apply';
 
   // --- Feature 009 — Dynamic questionnaire + matching preview ---
-  /// ONE global question pool (one list, one published version). Each question is
-  /// assigned in the dashboard to the loan categories that ask it, so callers send
-  /// `?category=` and get back only that category's questions.
+  /// ONE global question pool (one list, one published version). A question carries
+  /// no loan type: callers send `?category=` and `?programNameKey=`, and the server
+  /// returns what the program picked on that loan type asks, in its own order.
   static const String questionnaire = '/api/v1/questionnaire';
   static const String matchingPreview = '/api/v1/matching/preview';
 

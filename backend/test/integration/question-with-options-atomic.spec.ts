@@ -23,7 +23,6 @@ import type { CreateQuestionWithOptionsDto } from '@/questionnaire/dto/questionn
 interface Written {
   question: Record<string, unknown>;
   options: { code: string; labelAr: string; labelEn: string }[];
-  categories: string[];
 }
 
 function makeService() {
@@ -40,9 +39,8 @@ function makeService() {
     async (
       question: Record<string, unknown>,
       options: { code: string; labelAr: string; labelEn: string }[],
-      categories: string[],
     ) => {
-      written.push({ question, options: [...options], categories: [...categories] });
+      written.push({ question, options: [...options] });
       return { id: 'q_new', ...question };
     },
   );
@@ -60,11 +58,6 @@ function makeService() {
       { id: 'g_1', code: 'financing_info', titleAr: 'ا', titleEn: 'F', displayOrder: 1, isActive: true },
     ],
     questions: async () => [],
-    categoryAssignments: async () => new Map<string, string[]>(),
-    optInAssignments: async () => new Map<string, string[]>(),
-    // Frozen by `publish` beside the assignment set — which categories ask a question, and
-    // where each of them asks it.
-    categoryOrders: async () => new Map<string, Record<string, number>>(),
     optionsByQuestion: async () => [],
     // `publish()` reads every question's options in ONE query now, not one per question.
     optionsByQuestions: async () => new Map(),
@@ -81,7 +74,6 @@ const CHOICE: CreateQuestionWithOptionsDto = {
   questionEn: 'How old is the company?',
   questionAr: 'عمر الشركة',
   type: 'SINGLE_SELECT',
-  categories: ['business'],
   options: [
     { labelEn: 'Under 2 years', labelAr: 'أقل من سنتين' },
     { labelEn: 'Over 2 years', labelAr: 'أكثر من سنتين' },
@@ -106,7 +98,7 @@ describe('a question and its answers are written once and published once', () =>
     expect(publishVersion).toHaveBeenCalledTimes(1);
   });
 
-  it('writes the question, its answers and its assignment in ONE repository call', async () => {
+  it('writes the question and its answers in ONE repository call', async () => {
     const { service, written, createQuestionWithOptions } = makeService();
     await service.createQuestionWithOptions(CHOICE, 'staff_1');
     expect(createQuestionWithOptions).toHaveBeenCalledTimes(1);
@@ -114,7 +106,6 @@ describe('a question and its answers are written once and published once', () =>
       'Under 2 years',
       'Over 2 years',
     ]);
-    expect(written[0]?.categories).toEqual(['business']);
   });
 
   it('auto-slugs the question code and every answer code', async () => {
@@ -143,13 +134,6 @@ describe('a question and its answers are written once and published once', () =>
     const { service, written } = makeService();
     await service.createQuestionWithOptions(CHOICE, 'staff_1');
     expect(written[0]?.question.displayOrder).toBe(8);
-  });
-
-  it('defaults an omitted category set to all four rather than to none', async () => {
-    const { service, written } = makeService();
-    const { categories: _dropped, ...noCategories } = CHOICE;
-    await service.createQuestionWithOptions(noCategories as CreateQuestionWithOptionsDto, 'staff_1');
-    expect(written[0]?.categories).toEqual(['personal', 'car', 'mortgage', 'business']);
   });
 });
 
@@ -193,7 +177,6 @@ describe('the real answer count is enforced before anything is written', () => {
         questionEn: 'Monthly rent',
         questionAr: 'الإيجار الشهري',
         type: 'NUMERIC',
-        categories: ['personal'],
         numeric: { minValue: '0.00', maxValue: '100000.00', unitEn: 'EGP', unitAr: 'جنيه' },
       } as CreateQuestionWithOptionsDto,
       'staff_1',

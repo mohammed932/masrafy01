@@ -37,7 +37,6 @@ function fact(
             active: true,
             options: [],
             parentOptions: [],
-            askedIn: [],
             ...over,
           },
   };

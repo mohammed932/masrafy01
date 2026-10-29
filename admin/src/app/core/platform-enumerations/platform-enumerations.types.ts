@@ -104,12 +104,6 @@ export interface EnumerationMember {
     optionsEnumerationType?: string;
     parentEnumerationType?: string;
     /**
-     * Loan categories whose applicants are ASKED this question — the questionnaire's
-     * own assignment, not a per-name tick. A program in a category outside this list
-     * reads an answer that never arrives, so its table quotes nothing.
-     */
-    askedIn: LoanCategory[];
-    /**
      * The question this one is asked BEHIND, when the questionnaire gates it on another
      * answer. `null` = asked unconditionally.
      *

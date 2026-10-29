@@ -92,8 +92,8 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
-    // Dynamic questionnaire — tab shell: `questions` (pool builder) +
-    // `categories` (which loan categories ask each question, v12.0.0).
+    // Dynamic questionnaire — tab shell: `questions` (pool builder) + `engine-rules` (the fixed
+    // questions). Which questions a program asks lives on the Program catalog (v32.0.0).
     path: 'questionnaire',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],

@@ -67,7 +67,6 @@ import { PlatformEnumerationsService } from '../../../core/platform-enumerations
 import type { EnumerationMember } from '../../../core/platform-enumerations/platform-enumerations.types';
 import { categoryLabel, isLoanCategory, type LoanCategory } from '@core/loan-category';
 import { basisOf, incomeBasisLabel, programTypeOf, type IncomeBasis } from '@core/income-basis';
-import { SURROGATE_FACT_BY_METHOD } from '@core/surrogate-facts';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import type {
   BankProgramCreatePayload,
@@ -93,7 +92,6 @@ import type {
   FeesConfig,
 } from '../bank-programs.types';
 import {
-  factKeyOf,
   PRODUCT_RULE_STRATEGY,
   incomeMethodLabel,
   incomeMethodShape,
@@ -1064,42 +1062,6 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                     <h3 class="band-label" i18n="@@bank_programs.income.band_calculation">
                       The calculation
                     </h3>
-
-                    <!-- The one thing the operator could not learn before saving: whether
-                       the figure this name reads is even asked of this loan type's
-                       applicants. It arrived as a toast after a failed save, or never —
-                       and an unasked figure means no income for anyone, quietly. -->
-                    @if (factBinding(); as fb) {
-                      <p class="binding" [class.warn]="!fb.asked" role="status">
-                        @if (fb.asked) {
-                          <span
-                            nz-icon
-                            nzType="check-circle"
-                            nzTheme="outline"
-                            aria-hidden="true"
-                          ></span>
-                          <span i18n="@@bank_programs.income.binding_ok"
-                            >{{ fb.category }} applicants are asked {{ fb.label }}.</span
-                          >
-                        } @else {
-                          <span
-                            nz-icon
-                            nzType="warning"
-                            nzTheme="outline"
-                            aria-hidden="true"
-                          ></span>
-                          <span i18n="@@bank_programs.income.binding_missing"
-                            >{{ fb.category }} applicants are never asked {{ fb.label }}, so this
-                            rule will produce no income.</span
-                          >
-                          <a
-                            routerLink="/questionnaire/categories"
-                            i18n="@@bank_programs.income.binding_fix"
-                            >Ask it</a
-                          >
-                        }
-                      </p>
-                    }
 
                     <!-- ALWAYS rendered, pre-filled from the catalog when this program is
                        inheriting. It used to appear only once the operator had committed
@@ -3354,27 +3316,6 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
       @supports selector(:has(*)) {
       }
 
-      /* ── Fact-binding line (step 4) ───────────────────────────────
-         The answer to "is the fact this method reads even set up?", shown while the
-         method is being picked rather than as a toast after a failed save. */
-      .binding {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: var(--space-2);
-        margin: var(--space-2) 0 0;
-        font-size: var(--text-xs);
-        color: var(--color-success);
-      }
-      .binding.warn {
-        color: var(--color-warning);
-      }
-      .binding a {
-        font-weight: var(--font-weight-semibold);
-        color: inherit;
-        text-decoration: underline;
-      }
-
       /* ── App-frame layout ────────────────────────────────────────
          The page grows to its content and lets the SHELL scroll it
          (<main class="content"> in app.component owns overflow-y). It used to
@@ -5174,75 +5115,6 @@ export class BankProgramFormPage implements OnInit {
    */
   readonly incomeBasis = computed<IncomeBasis>(() => basisOf(this.programTypeSignal()));
 
-  /**
-   * Is the figure this program's chosen METHOD reads actually asked of this loan type?
-   *
-   * `null` when there is nothing to say: the basis is payslip, the method reads no
-   * question at all (six of the eleven read profile fields no question fills), or the
-   * registry has not loaded.
-   *
-   * Answered from the QUESTIONNAIRE's own assignment, carried on the fact's bound
-   * question. It used to be answered from a per-name tick-list on the catalog screen —
-   * a second claim an operator had to keep in step by hand, which no quote, publish
-   * check or save validation ever read. A rule whose figure is never asked resolves to
-   * no income at all, in silence, and that depends on the question, not on the name.
-   */
-  protected readonly factBinding = computed<{
-    label: string;
-    category: string;
-    asked: boolean;
-  } | null>(() => {
-    if (this.incomeBasis() !== 'no_payslip') return null;
-    const cat = this.productCategorySignal();
-    if (!isLoanCategory(cat)) return null;
-    // Read through the draft SIGNAL, not the control: a bare `.value` inside a computed
-    // registers no dependency, so the line would freeze on whichever method happened to be
-    // selected when the program loaded.
-    const strategy = this.liveIncomeRuleDraft().strategy;
-    // A registry fact names its own question; the four built-in methods are looked up in
-    // the frozen map, because their tokens say nothing about what they read.
-    const factKey = factKeyOf(strategy);
-    const code =
-      factKey !== null
-        ? (this.incomeFacts().find((f) => f.key === factKey)?.question?.code ?? null)
-        : (SURROGATE_FACT_BY_METHOD[strategy] ?? null);
-    if (!code) return null;
-    const question = this.incomeFacts().find((f) => f.question?.code === code)?.question;
-    // The registry has not answered yet. Silence beats "never asked here": the warning
-    // would fire on every load and clear a moment later.
-    if (!question) return null;
-    return {
-      label: this.factLabel(code),
-      category: categoryLabel(cat),
-      asked: question.askedIn.includes(cat),
-    };
-  });
-
-  /**
-   * The fact's own words.
-   *
-   * A REGISTRY fact carries its question's label, so it is used as-is — that is the whole
-   * benefit of the binding being data. The four built-ins keep hardcoded wording: this
-   * form cannot read the question pool, and those four labels are the questions' own
-   * English text, which the backend test pins to the binding codes.
-   */
-  private factLabel(fact: string): string {
-    const fromRegistry = this.incomeFacts().find((f) => f.question?.code === fact);
-    if (fromRegistry?.question) return fromRegistry.question.label;
-    switch (fact) {
-      case 'military_grade':
-        return $localize`:@@surrogate.fact.military_grade:Military grade`;
-      case 'academic_rank':
-        return $localize`:@@surrogate.fact.academic_rank:Academic rank`;
-      case 'years_in_practice':
-        return $localize`:@@surrogate.fact.years_in_practice:Years in practice`;
-      case 'credit_card_total_limit':
-        return $localize`:@@surrogate.fact.credit_card_total_limit:Total credit-card limit`;
-      default:
-        return fact;
-    }
-  }
-
   /** Plum for no-payslip, neutral for the ordinary case (and for the unanswered
    * one) — the board-wide pairing. */
   protected basisAccent(): string {
@@ -6122,12 +5994,6 @@ export class BankProgramFormPage implements OnInit {
           ? this.stepFigureRowCount()
           : this.incomeKeyTable().length || this.incomeBands().length;
       if (rows > 0) parts.push(this.countLabel(rows));
-    }
-    const binding = this.factBinding();
-    if (binding && !binding.asked) {
-      parts.push(
-        $localize`:@@bank_programs.review.income_rule_unbound:fact not set up — no income`,
-      );
     }
     return { label, value: parts.join(' · ') };
   }

@@ -56,6 +56,7 @@ import {
 } from './sheet-figures.plan';
 import type { EstimatedPaths } from './sheet-figures';
 import { stableJson } from '../../common/stable-json.util';
+import { CAR_QUESTION_CODES } from '@/questionnaire/car-questions';
 
 const TAG = '[seed-sheet-figures]';
 const PROGRAM_NAME_TYPE = 'program_name';
@@ -413,6 +414,20 @@ async function main(): Promise<void> {
             enumActor,
           );
           id = created.id;
+          // A car name asks the six car questions as TICKS (v32.0.0 — no longer fixed), the
+          // same ticks the migration gave every car name and `seed:catalog` gives a new one.
+          if (spec.categories.includes(LoanCategory.car)) {
+            const carQuestions = await prisma.question.findMany({
+              where: { code: { in: [...CAR_QUESTION_CODES] }, isActive: true },
+              select: { id: true },
+            });
+            await enumsAdmin.setProgramNameQuestionAdditions(
+              spec.key,
+              LoanCategory.car,
+              carQuestions.map((q) => q.id),
+              enumActor,
+            );
+          }
           tally.namesCreated.push(spec.key);
           console.log(`${TAG} create  ${pad(spec.key)} → ${spec.productKey}`);
         } else {

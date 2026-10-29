@@ -119,12 +119,10 @@ export function readerText(r: EngineReader, isAr: boolean): string {
       );
       return $localize`:@@qrules.reader_platform_fact:Answers a fact the platform owns: ${facts}:facts:`;
     }
-    case 'fixed_set': {
-      const types = categoriesText(r.categories, isAr);
+    case 'fixed_set':
       return r.servedOn === 'income_proof'
-        ? $localize`:@@qrules.reader_base_income_proof:A fixed income-proof question, asked on every payslip program (${types}:types:)`
-        : $localize`:@@qrules.reader_base_every_name:A fixed question, asked on every program name (${types}:types:)`;
-    }
+        ? $localize`:@@qrules.reader_base_income_proof2:A fixed income-proof question, asked on every payslip program`
+        : $localize`:@@qrules.reader_base_every_name2:A fixed question, asked on every program`;
     case 'programs': {
       const all = r.programNames.map((p) => labelOf(p, isAr));
       const count = all.length - NAMES_SHOWN;

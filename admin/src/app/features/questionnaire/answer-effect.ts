@@ -261,6 +261,56 @@ export function effectParts(l: AnswerEffectLevers): string[] {
   return out;
 }
 
+/** One lever as a chip: what it moves, by how much, and which way that goes for the applicant. */
+export interface EffectChip {
+  key: 'loan' | 'rate' | 'term';
+  label: string;
+  /** The signed figure, read left to right in both directions: "−5%", "+2.3", "60". */
+  figure: string;
+  unit: string | null;
+  /** For the applicant: a bigger loan or a lower rate is better; a term cap is neither. */
+  tone: 'better' | 'worse' | 'neutral';
+  icon: 'arrow-up' | 'arrow-down' | 'clock-circle';
+}
+
+/** The levers set, as chips, in the same fixed order as `effectParts`. */
+export function effectChips(l: AnswerEffectLevers): EffectChip[] {
+  const out: EffectChip[] = [];
+  if (l.maxLoanPercent !== undefined) {
+    const up = Number(l.maxLoanPercent) > 0;
+    out.push({
+      key: 'loan',
+      label: $localize`:@@qedit.effect_loan:Max loan`,
+      figure: `${signed(l.maxLoanPercent)}%`,
+      unit: null,
+      tone: up ? 'better' : 'worse',
+      icon: up ? 'arrow-up' : 'arrow-down',
+    });
+  }
+  if (l.ratePoints !== undefined) {
+    const up = Number(l.ratePoints) > 0;
+    out.push({
+      key: 'rate',
+      label: $localize`:@@qedit.effect_rate:Interest rate`,
+      figure: signed(l.ratePoints),
+      unit: $localize`:@@qedit.effect_unit_points:points`,
+      tone: up ? 'worse' : 'better',
+      icon: up ? 'arrow-up' : 'arrow-down',
+    });
+  }
+  if (l.maxTenorMonths !== undefined) {
+    out.push({
+      key: 'term',
+      label: $localize`:@@qedit.effect_term:Longest term`,
+      figure: String(l.maxTenorMonths),
+      unit: $localize`:@@qedit.effect_unit_months:months`,
+      tone: 'neutral',
+      icon: 'clock-circle',
+    });
+  }
+  return out;
+}
+
 /**
  * True when the effect makes an offer BETTER than the bank's own figures — a bigger max loan
  * or a lower rate. Allowed (the operator's call: "everything dynamic"); the editor warns.

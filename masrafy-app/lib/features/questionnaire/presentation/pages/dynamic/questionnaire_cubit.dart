@@ -16,10 +16,9 @@ part 'questionnaire_state.dart';
 
 /// Orchestrates the generic, backend-driven questionnaire wizard used by every
 /// loan category (Principle II — the questionnaire is DATA). On [load] it
-/// fetches the published snapshot for that category: the question pool is GLOBAL
-/// (one list, one version) and each question is assigned in the dashboard to the
-/// categories that ask it, so the category decides both which questions are
-/// asked and which programs match. One group renders as one step. Holds the typed
+/// fetches the published snapshot: the question pool is GLOBAL (one list, one
+/// version), questions carry no loan type, and the program the applicant picked
+/// decides which are asked and in what order. One group renders as one step. Holds the typed
 /// answers (`questionCode → QuestionAnswer`) plus the active step. Pure
 /// orchestration — all derivation/validation lives on [QuestionnaireState]
 /// (Principle XXXI). Screen-scoped via the page's `BlocProvider`.
@@ -29,14 +28,13 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
 
   final QuestionnaireUseCase _useCase;
 
-  /// Fetch (or re-fetch, on retry) the snapshot for [category] — only the
-  /// questions that category asks, narrowed again to the ones a program behind
-  /// [programNameKey] reads.
+  /// Fetch (or re-fetch, on retry) the snapshot for [category] — the questions the
+  /// program behind [programNameKey] asks on that loan type.
   ///
   /// Every caller must pass the key it holds, the retry included: a re-fetch that
-  /// dropped it would quietly reload the whole category, and the applicant would then
-  /// be answering questions their program never reads while apply holds them to the
-  /// narrower set.
+  /// dropped it would quietly load the no-program baseline (the fixed and money
+  /// questions only), and the applicant would then skip questions their program
+  /// reads while apply holds them to its set.
   Future<void> load(LoanCategory category, {String? programNameKey}) async {
     emit(state.copyWith(status: RequestState.loading, failure: null));
     final result = await _useCase.getActive(

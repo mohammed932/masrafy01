@@ -38,9 +38,9 @@ class QuestionnaireView extends StatelessWidget {
 
   final LoanCategory category;
 
-  /// The catalog program the applicant picked on loan setup. It narrows the questions
-  /// the server serves to the ones a program behind that name reads, so two applicants
-  /// on the same loan type answer different sets. Null asks the whole category.
+  /// The catalog program the applicant picked on loan setup. The server serves what a
+  /// program behind that name asks, in its own order, so two applicants on the same
+  /// loan type answer different sets. Null asks only the fixed and money questions.
   final String? programNameKey;
 
   /// Maps the loaded state (visible answers + version) to the apply request.
@@ -149,8 +149,8 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
                 const QuestionnaireShimmer(),
               RequestState.error =>
                 // The key travels on the RETRY too. Without it a tap here reloads the
-                // whole category, and apply would then hold the applicant to the narrower
-                // set they were never shown.
+                // no-program baseline, and apply would then hold the applicant to
+                // questions they were never shown.
                 _MessageView(
                   onRetry: () => cubit.load(
                     widget.category,

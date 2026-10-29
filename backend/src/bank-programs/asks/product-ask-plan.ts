@@ -14,7 +14,7 @@
  * answer would put two bank tables under two names for one figure, with nothing on any
  * screen saying which a rule should read.
  */
-import type { LoanCategory, QuestionType } from '@prisma/client';
+import type { QuestionType } from '@prisma/client';
 import {
   BINDABLE_QUESTION_TYPES,
   isBindableQuestionType,
@@ -32,8 +32,6 @@ export interface AskQuestionInput {
   labelEn: string;
   type: QuestionType;
   isRequired: boolean;
-  /** The loan categories that ASK it today. */
-  categories: readonly LoanCategory[];
 }
 
 /** One `surrogate_fact` row, as the plan needs it. Includes inactive rows on purpose. */
@@ -54,8 +52,6 @@ export interface AttachPlanInput {
   facts: readonly AskFactInput[];
   /** Fact keys this product already asks. */
   askedFactKeys: readonly string[];
-  /** Loan types the tick should start asking the question in. May be empty. */
-  askIn: readonly LoanCategory[];
   /**
    * Blueprints that declare the derived key, and the question each names for it.
    * A blueprint that declares the key for a DIFFERENT question must refuse: the seed treats
@@ -68,7 +64,6 @@ export interface AttachPlanInput {
 export type AskRefusal =
   | { code: 'questionInactive'; questionCode: string }
   | { code: 'questionTypeInvalid'; questionCode: string; type: string; allowed: string[] }
-  | { code: 'widenRequired'; questionCode: string; categories: LoanCategory[] }
   | { code: 'ambiguousFact'; questionCode: string; factKeys: string[] }
   | { code: 'keyTaken'; questionCode: string; factKey: string; boundQuestionCode: string | null }
   | { code: 'keyReserved'; questionCode: string; factKey: string; reservedKeys: string[] }
@@ -93,8 +88,7 @@ export type AttachStep =
       fileUnderProduct: boolean;
     }
   | { op: 'bindFact'; factKey: string; questionCode: string }
-  | { op: 'addAsk'; factKey: string }
-  | { op: 'addCategories'; questionId: string; questionCode: string; categories: LoanCategory[] };
+  | { op: 'addAsk'; factKey: string };
 
 export type AttachPlan =
   | { kind: 'refuse'; refusal: AskRefusal }
@@ -102,7 +96,7 @@ export type AttachPlan =
       kind: 'proceed';
       factKey: string;
       questionCode: string;
-      /** Empty when the product already asks it and the loan types already ask the question. */
+      /** Empty when the product already asks it. */
       steps: AttachStep[];
     };
 
@@ -144,17 +138,9 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
     };
   }
 
-  // 2. Which loan types this tick would START asking. Computed before the fact decision
-  //    because the required-question refusal turns on it and nothing should be minted for
-  //    a tick that is about to be refused.
-  const asked = new Set(question.categories);
-  const widen = [...new Set(input.askIn)].filter((category) => !asked.has(category));
-  if (widen.length > 0 && question.isRequired) {
-    return {
-      kind: 'refuse',
-      refusal: { code: 'widenRequired', questionCode: question.code, categories: widen },
-    };
-  }
+  // 2. Where the tick asks the question is no longer the tick's to say (v32.0.0): a question
+  //    carries no loan type, and the product's programs ask what the product asks
+  //    (`question-scope.ts`). So nothing is widened and nothing is refused for it here.
 
   // 3. REUSE FIRST. Any fact already bound to this question IS the fact.
   const bound = input.facts.filter((fact) => fact.boundQuestionCode === question.code);
@@ -243,15 +229,6 @@ export function planAttach(input: AttachPlanInput): AttachPlan {
 
   if (!input.askedFactKeys.includes(factKey)) {
     steps.push({ op: 'addAsk', factKey });
-  }
-
-  if (widen.length > 0) {
-    steps.push({
-      op: 'addCategories',
-      questionId: question.id,
-      questionCode: question.code,
-      categories: widen,
-    });
   }
 
   return { kind: 'proceed', factKey, questionCode: question.code, steps };

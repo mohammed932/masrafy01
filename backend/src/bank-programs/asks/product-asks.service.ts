@@ -29,7 +29,6 @@
  */
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
-import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 import {
@@ -59,11 +58,9 @@ import {
   SurrogateFactKeyTakenException,
   SurrogateFactQuestionInactiveException,
   SurrogateFactQuestionTypeInvalidException,
-  SurrogateFactWidenRequiredException,
   SurrogateProductNotFoundException,
   EnumerationInUseException,
   NeededFactShapeUnknownException,
-  ProductNotSoldAnywhereException,
 } from '@/common/errors/domain.exceptions';
 import {
   blueprintKeysAsking,
@@ -181,7 +178,6 @@ export class ProductAsksService {
         questionLabelEn: question?.labelEn ?? row?.labelEn ?? ask.factKey,
         questionType: question?.type ?? null,
         questionActive: question?.active ?? false,
-        askedIn: question ? sortCategories([...question.askedIn]) : [],
         listType: member?.boundQuestion?.optionsEnumerationType ?? null,
         parentListType: member?.boundQuestion?.parentEnumerationType ?? null,
         alsoAskedBy: others,
@@ -221,7 +217,6 @@ export class ProductAsksService {
         labelEn: q.labelEn,
         type: q.type,
         isRequired: q.isRequired,
-        categories: q.categories,
         eligible: ineligible === undefined,
         ...(ineligible === undefined ? {} : { ineligibleReason: ineligible }),
         factKey,
@@ -290,7 +285,6 @@ export class ProductAsksService {
         labelAr: string;
         labelEn: string;
         active: boolean;
-        askedIn: readonly LoanCategory[];
       } | null;
       asked: boolean;
     },
@@ -298,14 +292,12 @@ export class ProductAsksService {
     const { facts, soldIn } = await this.rawNeeded(productKey, ruleRow);
     const needed = facts.map((fact): NeededFactDto => {
       const { row, question, asked } = lookup(fact.factKey);
-      const askedIn = question?.askedIn ?? [];
-      const missingIn = soldIn.filter((category) => !askedIn.includes(category));
       let status: NeededFactStatus;
       if (isReservedFactKey(fact.factKey)) status = 'platform';
       else if (row === null) status = 'noFact';
       else if (question === null) status = 'noQuestion';
       else if (!question.active) status = 'parked';
-      else if (asked && missingIn.length === 0) status = 'asked';
+      else if (asked) status = 'asked';
       else status = 'notAsked';
 
       const creatable =
@@ -317,12 +309,9 @@ export class ProductAsksService {
         labelAr: question?.labelAr ?? row?.labelAr ?? humanise(fact.factKey),
         labelEn: question?.labelEn ?? row?.labelEn ?? humanise(fact.factKey),
         readBy: fact.readBy.map(readerDto),
-        // Every loan type it is sold in that does not ask a question for it — all of them
-        // when there is no question, and still reported for a platform-answered fact.
-        missingIn: status === 'asked' ? [] : missingIn,
         shape: fact.shape.kind,
         derivedFrom: fact.derivedFrom ?? null,
-        actionable: soldIn.length > 0 && (status === 'notAsked' || creatable),
+        actionable: status === 'notAsked' || creatable,
       };
     });
     return { needed, soldIn };
@@ -332,9 +321,9 @@ export class ProductAsksService {
    * "Ask it" on one needed fact, or on every actionable one when `factKey` is omitted.
    *
    * A fact with a question is attached through the ordinary tick (`attach` → `planAttach`,
-   * every refusal it has). A fact with none gets a question CREATED — optional, in the
-   * product's loan types, typed and optioned from how its readers read it — then bound and
-   * asked, with one questionnaire publish at the end. On "fix all", a fact that cannot be
+   * every refusal it has). A fact with none gets a question CREATED — optional, typed and
+   * optioned from how its readers read it — then bound and asked, with one questionnaire
+   * publish at the end. On "fix all", a fact that cannot be
    * acted on is reported in `skipped` with its typed reason instead of failing the batch.
    */
   async askNeeded(
@@ -343,7 +332,6 @@ export class ProductAsksService {
     actor: AskActor,
   ): Promise<NeededWriteResultDto> {
     const state = await this.board(productKey);
-    if (state.soldIn.length === 0) throw new ProductNotSoldAnywhereException({ productKey });
 
     const targets =
       factKey === null
@@ -370,12 +358,7 @@ export class ProductAsksService {
     for (const need of targets) {
       try {
         if (need.status === 'notAsked' && need.questionCode !== null) {
-          const written = await this.attach(
-            productKey,
-            need.questionCode,
-            { askIn: state.soldIn },
-            actor,
-          );
+          const written = await this.attach(productKey, need.questionCode, {}, actor);
           result.asked.push(need.factKey);
           result.published = result.published || written.changed.published;
         } else if (need.status === 'noQuestion' || need.status === 'noFact') {
@@ -384,7 +367,7 @@ export class ProductAsksService {
           if (shape === null) {
             throw new NeededFactShapeUnknownException({ productKey, factKey: need.factKey });
           }
-          await this.createNeededQuestion(productKey, need, shape, state.soldIn, actor);
+          await this.createNeededQuestion(productKey, need, shape, actor);
           result.created.push(need.factKey);
         } else if (factKey !== null) {
           // Asked, platform-answered or parked: nothing this button can do.
@@ -416,7 +399,6 @@ export class ProductAsksService {
     productKey: string,
     need: NeededFactDto,
     shape: AutoShape,
-    soldIn: LoanCategory[],
     actor: AskActor,
   ): Promise<void> {
     const created = await this.questionnaire.createQuestionWithOptions(
@@ -425,7 +407,6 @@ export class ProductAsksService {
         questionAr: need.labelAr,
         type: shape.kind === 'number' ? 'NUMERIC' : 'SINGLE_SELECT',
         isRequired: false,
-        categories: soldIn,
         ...(shape.kind === 'choice'
           ? {
               options: shape.keys.map((key) => ({
@@ -446,7 +427,6 @@ export class ProductAsksService {
       askAdded: false,
       askRemoved: false,
       factDeleted: false,
-      widened: [],
       published: false,
     };
     const steps: AttachStep[] = [
@@ -469,8 +449,8 @@ export class ProductAsksService {
   }
 
   /**
-   * Tick: this product starts reading a pool question's answer, and the loan types on the
-   * rail start asking it.
+   * Tick: this product starts reading a pool question's answer — and so its programs start
+   * asking it (`question-scope.ts`, v32.0.0).
    */
   async attach(
     productKey: string,
@@ -509,7 +489,6 @@ export class ProductAsksService {
       question,
       facts,
       askedFactKeys: askRows.map((row) => row.factKey),
-      askIn: dto.askIn ?? [],
       // Keyed by the DERIVED FACT KEY, through the same function the plan derives it with,
       // rather than by the question code that happens to equal it today.
       blueprintsAsking: question === undefined ? [] : blueprintKeysAsking(derivedFactKey(question)),
@@ -523,7 +502,6 @@ export class ProductAsksService {
       askAdded: false,
       askRemoved: false,
       factDeleted: false,
-      widened: [] as LoanCategory[],
       published: false,
     };
 
@@ -535,8 +513,8 @@ export class ProductAsksService {
   }
 
   /**
-   * Untick: this product stops reading the answer. The question is untouched, and so are the
-   * loan types that ask it.
+   * Untick: this product stops reading the answer — and its programs stop asking it unless
+   * something else there reads it or a program ticked it. The question itself is untouched.
    */
   async detach(productKey: string, factKey: string, actor: AskActor): Promise<AskWriteResultDto> {
     const products = await this.repo.listSurrogateProducts();
@@ -590,7 +568,6 @@ export class ProductAsksService {
       askAdded: false,
       askRemoved: false,
       factDeleted: false,
-      widened: [] as LoanCategory[],
       published: false,
     };
 
@@ -614,9 +591,7 @@ export class ProductAsksService {
       }
     }
 
-    // No category write and no publish, deliberately, and the response says so by echoing
-    // an unchanged `widened`. Narrowing what a question is asked for belongs on
-    // `/questionnaire/categories`, where it is the whole point of the surface.
+    // No questionnaire write and no publish: what the product's programs ask is read live.
     return { changed, state: await this.board(productKey) };
   }
 
@@ -666,37 +641,6 @@ export class ProductAsksService {
         changed.askAdded = outcome === 'added' || outcome === 'revived';
         return;
       }
-      case 'addCategories': {
-        const result = await this.questionnaire.addQuestionCategories(
-          step.questionId,
-          step.categories,
-          actor.id,
-        );
-        changed.widened = sortCategories(result.added);
-        changed.published = result.published;
-        if (result.added.length > 0) {
-          // The category half of the click, audited on the FACT row so one target carries
-          // the whole gesture. Not a new `AuditEventType`: each value costs an `ALTER TYPE`,
-          // and `PLATFORM_ENUMERATION_UPDATED` with a named `changes` key is the shape every
-          // other assignment write here already uses.
-          const factRow = await this.repo.findByTypeAndKey(FACT_TYPE, changed.factKey);
-          await this.audit.write({
-            actorId: actor.id,
-            targetId: null,
-            eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
-            sourceIp: actor.sourceIp,
-            payload: {
-              type: FACT_TYPE,
-              key: changed.factKey,
-              id: factRow?.id ?? null,
-              questionCode: step.questionCode,
-              changes: { askedIn: { added: sortCategories(result.added) } },
-              source: PRODUCT_ASK_SOURCE.source,
-            },
-          });
-        }
-        return;
-      }
     }
   }
 
@@ -740,13 +684,8 @@ export class ProductAsksService {
   /**
    * What the ticks above actually cost an applicant, per catalog name and loan type.
    *
-   * Counted off `activeSnapshot`, the customer read itself, so this reports the narrowing
-   * being SERVED rather than a second opinion about it. The un-narrowed count comes from the
-   * same call with no name, memoised per loan type because it does not vary by name.
-   *
-   * A product with no linked name reports nothing: nothing narrows, so there is nothing to
-   * say. Same for a name whose programs are all switched off — `narrowingScopeFor` answers
-   * `null` there and the snapshot comes back whole, which the equal counts then show.
+   * Counted off `activeSnapshot`, the customer read itself, so this reports what is SERVED
+   * rather than a second opinion about it. A product with no linked name reports nothing.
    */
   private async servedPreview(productKey: string): Promise<ProductAskServedDto[]> {
     const nameKeys = await this.repo.programNamesLinkedTo(productKey);
@@ -754,24 +693,16 @@ export class ProductAsksService {
     const members = await this.repo.getActiveMembers('program_name');
     const byKey = new Map(members.map((m) => [m.key, m]));
 
-    const wholeCategory = new Map<LoanCategory, { total: number; required: number }>();
     const out: ProductAskServedDto[] = [];
     for (const programNameKey of nameKeys) {
       const member = byKey.get(programNameKey);
       if (member === undefined) continue; // retired name: it offers nothing to narrow
       for (const category of member.categories) {
-        let whole = wholeCategory.get(category);
-        if (whole === undefined) {
-          whole = countQuestions(await this.questionnaire.activeSnapshot(category));
-          wholeCategory.set(category, whole);
-        }
         const narrowed = await this.questionnaire.activeSnapshot(category, programNameKey);
         const counted = countQuestions(narrowed);
         out.push({
           programNameKey,
           category,
-          categoryTotal: whole.total,
-          categoryRequired: whole.required,
           servedTotal: counted.total,
           servedRequired: counted.required,
           servedQuestionCodes: counted.codes,
@@ -846,11 +777,6 @@ export class ProductAsksService {
           questionCode: refusal.questionCode,
           type: refusal.type,
           allowed: refusal.allowed,
-        });
-      case 'widenRequired':
-        return new SurrogateFactWidenRequiredException({
-          questionCode: refusal.questionCode,
-          categories: refusal.categories,
         });
       case 'ambiguousFact':
         return new SurrogateFactAmbiguousForQuestionException({

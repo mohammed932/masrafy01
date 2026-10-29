@@ -1337,8 +1337,8 @@ export function collectIncomeRuleWarnings(args: {
   // v15.1.0 also narrowed on a hardcoded surrogate-CAPABLE category list, which made
   // this report a rule as ignored on a category outside that list even though the engine
   // WOULD price off it — a warning that contradicted the runtime. v16.0.0 dropped the
-  // list (capability is derived from which categories ask the facts, and is configurable),
-  // so the term goes with it. `meta.productCategory` is still reported, because "a grade
+  // list (and since v32.0.0 any loan type may sell one: a program asks the facts its own
+  // programmes read), so the term goes with it. `meta.productCategory` is still reported, because "a grade
   // table on a mortgage" is context the admin wants even when the type is correct.
   const ruleIsRead = programType === 'income_surrogate';
   if (configured && !ruleIsRead) {

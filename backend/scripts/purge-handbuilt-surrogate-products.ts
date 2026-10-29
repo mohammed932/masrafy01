@@ -183,7 +183,6 @@ async function purge(doomed: Doomed[], force: boolean): Promise<void> {
           await tx.applicationAnswer.deleteMany({ where: { questionId: { in: d.questionIds } } });
         }
         await tx.questionOption.deleteMany({ where: { questionId: { in: d.questionIds } } });
-        await tx.questionLoanCategory.deleteMany({ where: { questionId: { in: d.questionIds } } });
         await tx.platformEnumeration.updateMany({
           where: { boundQuestionId: { in: d.questionIds } },
           data: { boundQuestionId: null },

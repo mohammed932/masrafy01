@@ -116,30 +116,6 @@ export interface QuestionRow {
   textMaxLength: number | null;
   options: OptionRow[];
   /**
-   * Which loan categories this question is asked for. The pool stays global — one
-   * canonical question list — and this narrows who gets asked. Empty means parked:
-   * the question is kept and editable but asked for no category.
-   */
-  categories: LoanCategory[];
-  /**
-   * The part of `categories` this question sits in only as an OPT-IN row: a program name ADDED
-   * it for its own applicants, so the loan type does not ask it of every name. Absent on a
-   * server that predates opt-in rows — read as none.
-   */
-  optInCategories?: LoanCategory[];
-  /** How many program names add it, per opt-in loan type — "Some programs · 2". */
-  addedByNames?: Partial<Record<LoanCategory, number>>;
-  /**
-   * WHERE each category asks this question — the second axis of the order.
-   *
-   * `displayOrder` above is the POOL's one sequence, shared by every category that asks the
-   * row. This is the category's own answer, so the same question can be third in mortgage and
-   * tenth in personal. A category missing from the map is one this question is not asked for;
-   * an absent map is a server that predates the field, and every category then reads the
-   * pool's order — which is what it was served before.
-   */
-  categoryOrder?: Partial<Record<LoanCategory, number>>;
-  /**
    * Set when the loan engine reads this question's answer, so the server refuses anything but
    * its wording (`QUESTION_ENGINE_LOCKED`), and a reword that changes the numbers in it
    * (`ENGINE_WORDING_NUMBERS_CHANGED`). Absent on a server that predates the lock — read as
@@ -200,7 +176,6 @@ export interface QuestionDeleteImpact {
   programNames: string[];
   /** The surrogate products that ask it. */
   productAsks: string[];
-  loanTypes: LoanCategory[];
   /** The server's own names for what would stop working — identifiers, not sentences. */
   wouldBreak: string[];
   /** Answers already given to it. They stay on the applications that hold them. */
@@ -214,7 +189,6 @@ export interface DeletedFixedQuestion {
   questionEn: string;
   questionAr: string;
   fixedServedOn: FixedServedOn;
-  categories: string[];
 }
 export type { ServedCount } from '@shared/questions/asked-questions.rules';
 import type { ServedCount } from '@shared/questions/asked-questions.rules';
@@ -316,8 +290,6 @@ export interface CreateQuestionBody {
   numeric?: Partial<NumericRules> | null;
   /** Sent only for TEXT. No binding field exists — money bindings are code constants (A33). */
   text?: Partial<TextRules> | null;
-  /** Omitted → the server assigns all four categories, so nothing is born invisible. */
-  categories?: LoanCategory[];
   /** Show this question only when the source answer matches. Omit for always-on. */
   enabledWhen?: EnabledWhenRule;
   /**
@@ -340,22 +312,6 @@ export type EnabledWhenRule =
   | { questionCode: string; operator: 'equals' | 'not_equals'; optionCode: string }
   | { questionCode: string; operator: 'in'; optionCodes: string[] };
 
-/** One row of a bulk reassignment: the array REPLACES that question's set. */
-export interface QuestionCategoryAssignment {
-  questionId: string;
-  categories: LoanCategory[];
-}
-
-/**
- * One row of a bulk WIDENING: the array is added to that question's set, never replaces it.
- * Same fields as `QuestionCategoryAssignment` and deliberately a separate type — the two
- * carry opposite meanings for the same shape, and `[]` is a park on one and a no-op on the
- * other, so a value must never be passed to the wrong call by accident.
- */
-export interface QuestionCategoryAdd {
-  questionId: string;
-  categories: LoanCategory[];
-}
 export interface CreateOptionBody {
   labelAr: string;
   labelEn: string;
@@ -495,30 +451,14 @@ export class QuestionnaireApiService {
   }
 
   /**
-   * Rewrite the flat pool order. `ids` must be EVERY active question id, in the
-   * order they should be asked — the server rejects a partial list, because a
-   * partial rewrite would leave untouched questions colliding on `displayOrder`.
+   * Rewrite the flat pool order — the DEFAULT order: each program keeps its own on its page
+   * in the Program catalog (v32.0.0), and a question it never placed sits right after the one
+   * it follows here. `ids` must be EVERY active question id, in order — the server rejects a
+   * partial list, because a partial rewrite would leave untouched questions colliding on
+   * `displayOrder`.
    */
   reorderQuestions(ids: string[]): Promise<GroupTreeRow[]> {
     return this.post<GroupTreeRow[]>(`/questionnaire/questions/reorder`, { ids });
-  }
-
-  /**
-   * Rewrite the order ONE loan category asks its questions in.
-   *
-   * The category twin of `reorderQuestions` above and the same contract: `ids` is that
-   * category's WHOLE asked set, once each, in its new order — a partial list is rejected,
-   * for the reason a partial pool rewrite is.
-   *
-   * It moves NOTHING in the other three categories and nothing in the pool's own sequence:
-   * the position lives on the assignment row, not on the question. Publishes, like every
-   * write on this screen.
-   */
-  reorderCategoryQuestions(category: LoanCategory, ids: string[]): Promise<GroupTreeRow[]> {
-    return this.post<GroupTreeRow[]>(
-      `/questionnaire/questions/categories/${encodeURIComponent(category)}/reorder`,
-      { ids },
-    );
   }
 
   updateQuestion(id: string, body: UpdateQuestionBody): Promise<QuestionRow> {
@@ -554,58 +494,10 @@ export class QuestionnaireApiService {
 
   /**
    * Bring a deleted question back — the ordinary switch-on, judged by the engine contract and
-   * published like every write. A fixed one comes back whole: its loan types, mark and answers.
+   * published like every write. A fixed one comes back whole: its mark and answers.
    */
   restoreQuestion(id: string): Promise<QuestionRow> {
     return this.updateQuestion(id, { isActive: true });
-  }
-
-  /**
-   * Replace which loan categories ONE question is asked for. The array is the new
-   * set, not a delta; `[]` parks the question. Auto-publishes, like every other
-   * questionnaire write.
-   *
-   * `categories` is the ORDINARY set — asked of every program name. A program name's OPT-IN
-   * rows ride along untouched unless `optInCategories` is sent, which says which of them to
-   * keep (the server never creates one from here).
-   */
-  setQuestionCategories(
-    id: string,
-    categories: LoanCategory[],
-    optInCategories?: LoanCategory[],
-  ): Promise<QuestionRow> {
-    return this.put<QuestionRow>(`/questionnaire/questions/${id}/categories`, {
-      categories,
-      ...(optInCategories === undefined ? {} : { optInCategories }),
-    });
-  }
-
-  /**
-   * Reassign many questions at once (the column actions). One request rather than
-   * N: the server does it in one transaction and publishes ONE new version, where
-   * a loop would churn a version per question. Returns the refreshed tree.
-   */
-  setQuestionCategoriesBulk(assignments: QuestionCategoryAssignment[]): Promise<GroupTreeRow[]> {
-    return this.post<GroupTreeRow[]>(`/questionnaire/questions/categories`, { assignments });
-  }
-
-  /**
-   * ADD loan types to many questions at once — the write behind a catalog name's
-   * "what applicants are asked" step.
-   *
-   * A different endpoint from `setQuestionCategoriesBulk`, not the same one used carefully:
-   * that one REPLACES each question's set, so a stale copy of the pool would un-ask a
-   * question for loan types nobody touched. Nothing in this body can express a removal.
-   * One transaction, and a publish only if something actually moved — so re-sending an
-   * unchanged tick list cuts no version.
-   */
-  addQuestionCategoriesBulk(
-    assignments: QuestionCategoryAdd[],
-  ): Promise<{ added: QuestionCategoryAdd[]; published: boolean }> {
-    return this.post<{ added: QuestionCategoryAdd[]; published: boolean }>(
-      `/questionnaire/questions/categories/add`,
-      { assignments },
-    );
   }
 
   createOption(questionId: string, body: CreateOptionBody): Promise<OptionRow> {

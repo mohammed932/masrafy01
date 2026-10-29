@@ -30,7 +30,6 @@ import {
 } from '@/matching/pipeline/answer-effects';
 import type { LoanCategory } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import {
   CAN_TRANSFER_SALARY_QUESTION_CODE,
   EMPLOYMENT_BUCKET_BY_OPTION,
@@ -88,8 +87,8 @@ export type EngineReader =
   | { kind: 'app_mapping'; categories: LoanCategory[] }
   /** It answers a fact the platform owns (I-Score, the car figures). */
   | { kind: 'platform_fact'; facts: LabelledKey[] }
-  /** In the fixed question set (the client's income-proof sheet), asked in these loan types. */
-  | { kind: 'fixed_set'; servedOn: FixedServedOn; categories: LoanCategory[] }
+  /** In the fixed question set: asked on every program (`every_name`) or every payslip one. */
+  | { kind: 'fixed_set'; servedOn: FixedServedOn }
   /** Live bank programmes read it, under these program names and loan types. */
   | { kind: 'programs'; programNames: (LabelledKey & { categories: LoanCategory[] })[] };
 
@@ -134,10 +133,6 @@ export interface EngineRuleQuestion {
   helperTextAr: string | null;
   helperTextEn: string | null;
   isRequired: boolean;
-  /** The loan types that ask it of everyone (ordinary rows). */
-  categories: LoanCategory[];
-  /** The loan types only some program names ask it in (opt-in rows). */
-  optInCategories: LoanCategory[];
   /** The engine-input lock, or `null` for a fixed question nothing reads by code or table. */
   lock: QuestionEngineLockView | null;
   readers: EngineReader[];
@@ -205,9 +200,6 @@ export interface EngineRulesInputQuestion {
   isRequired: boolean;
   displayOrder: number;
   enabledWhen: unknown;
-  /** Every loan type it is in, opt-in rows included. */
-  categories: readonly LoanCategory[];
-  optInCategories: readonly LoanCategory[];
   numeric: EngineRuleQuestion['numeric'];
   text: EngineRuleQuestion['text'];
   /** FIXED (`question.fixedServedOn`, v31.0.0); `null` = an ordinary question, not listed. */
@@ -257,8 +249,6 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
         helperTextAr: q.helperTextAr,
         helperTextEn: q.helperTextEn,
         isRequired: q.isRequired,
-        categories: ordered(q.categories.filter((c) => !q.optInCategories.includes(c))),
-        optInCategories: ordered(q.optInCategories),
         lock,
         readers: readersOf(q, input.readers),
         numeric: q.type === 'NUMERIC' ? q.numeric : null,
@@ -323,11 +313,7 @@ export function readersOf(q: EngineRulesInputQuestion, views: EngineReaderViews)
   if (facts !== undefined && facts.length > 0)
     out.push({ kind: 'platform_fact', facts: [...facts] });
   if (q.fixedServedOn !== null) {
-    out.push({
-      kind: 'fixed_set',
-      servedOn: q.fixedServedOn,
-      categories: ordered(q.categories.filter((c) => !q.optInCategories.includes(c))),
-    });
+    out.push({ kind: 'fixed_set', servedOn: q.fixedServedOn });
   }
   const programs = views.programReaders.get(code);
   if (programs !== undefined && programs.length > 0) {
@@ -448,9 +434,4 @@ function followUpsByAnswer(
 
 function answerKey(questionCode: string, optionCode: string): string {
   return `${questionCode}\u0000${optionCode}`;
-}
-
-/** Loan types in registry order. */
-function ordered(categories: readonly LoanCategory[]): LoanCategory[] {
-  return ALL_LOAN_CATEGORIES.filter((c) => categories.includes(c));
 }

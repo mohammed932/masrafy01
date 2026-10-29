@@ -26,8 +26,9 @@ Re-run each seed: must report 0 written / 0 refused.
 - Services never touch Prisma: use `*.repository.ts`. `common/` must not import features.
 - Money = `Decimal`, never float. No `if (programId === …)` bank branches (banks are data).
 - Loan categories are exactly four (`personal|car|mortgage|business`); no-payslip is an income basis (`bank_program.programType`), never a category.
+- Questions carry no loan type (v32.0.0): what a program asks lives in `program_name_question_addition` (ticks) + what its bank programs read, its order in `program_name_question_order` — both read live, so writing them needs no publish.
 - `programCode` is immutable; a rename = new code + delete/retire old.
 - Route order in controllers: literal paths before `:param` ones.
 - Matching engine is pure (no HTTP/DB); preview and apply must share the same functions (visibility, order, facts).
-- A migration that changes `question_loan_category` or `question.isActive` must be followed by `npx tsx scripts/publish-questionnaire.ts` (the snapshot is frozen), then `npm run check:questionnaire` — it fails on a forgotten publish, a debt amount missing where `current_loans` is asked, or an active question asked by nobody.
+- A migration that changes `question.isActive`, `question.fixedServedOn` or a question's content must be followed by `npx tsx scripts/publish-questionnaire.ts` (the snapshot is frozen), then `npm run check:questionnaire` — it fails on a forgotten publish, a debt amount missing where `current_loans` is asked, or an active question asked by nobody.
 - Then run `verify-change`.

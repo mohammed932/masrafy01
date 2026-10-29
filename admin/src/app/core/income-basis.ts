@@ -14,9 +14,8 @@
  * an Arabic target, and one file owning the pair is what keeps the six screens that ask
  * this question from drifting apart.
  *
- * Note what is NOT here: any list of loan categories. Whether a category can sell a
- * no-payslip program is derived from whether its applicants are asked one of the four
- * surrogate facts — see `categoryAsksAnySurrogateFact` in `surrogate-facts.ts` (v16.0.0).
+ * Note what is NOT here: any list of loan categories. Any loan type may sell a no-payslip
+ * program (v32.0.0): a program asks the facts its own bank programs read.
  */
 export type ProgramType = 'income_proof' | 'income_surrogate';
 

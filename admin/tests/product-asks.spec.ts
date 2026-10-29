@@ -1,22 +1,20 @@
 /**
  * THE ASK BOARD's derivation — the cases that fail silently and look right.
  *
- * The one a naive build gets wrong: a tabbed grid reads as though the TICK were per tab, so
- * switching tabs looks like it should change what is ticked. It must not — a fact is read by
- * a product, full stop — and what the tabs decide is which loan type a tick starts asking
- * the question in, and which cards carry the warning.
+ * The ones a naive build gets wrong: a search that also hides what the product already reads
+ * (a configured product then reads as empty), and an ask whose question left the pool dropped
+ * instead of shown. One list since v32.0.0 — a question carries no loan type, so the board has
+ * no per-loan-type tab left to get wrong.
  */
 import { describe, expect, it } from 'vitest';
 import {
   ASK_PAGE_SIZE,
   askCards,
-  askInFor,
   askMatchCount,
   askPagedSections,
   askSectionPage,
   askSections,
   askStepStatus,
-  askTabs,
   type AskBoardInput,
   type AskCard,
   type AskSection,
@@ -33,7 +31,6 @@ const question = (over: Partial<AskPoolQuestion> = {}): AskPoolQuestion => ({
   labelEn: 'What kind of unit do you own?',
   type: 'SINGLE_SELECT',
   isRequired: false,
-  categories: ['personal'],
   eligible: true,
   factKey: null,
   askedByThisProduct: false,
@@ -49,7 +46,6 @@ const ask = (over: Partial<ProductAsk> = {}): ProductAsk => ({
   questionLabelEn: 'What kind of unit do you own?',
   questionType: 'SINGLE_SELECT',
   questionActive: true,
-  askedIn: ['personal'],
   listType: null,
   parentListType: null,
   alsoAskedBy: [],
@@ -71,7 +67,6 @@ const board = (over: Partial<ProductAsksBoard> = {}): ProductAsksBoard => ({
 
 const input = (over: Partial<AskBoardInput> = {}): AskBoardInput => ({
   board: board(),
-  category: 'personal',
   search: '',
   isAr: false,
   attaching: new Set(),
@@ -86,7 +81,7 @@ describe('askSections', () => {
     expect(sections[1]?.cards.map((c) => c.code)).toEqual(['owned_unit_type']);
   });
 
-  it('puts a read question the open loan type asks in "asked here"', () => {
+  it('puts a question this product reads in "asked"', () => {
     const sections = askSections(
       input({ board: board({ asks: [ask()], pool: [question({ factKey: 'owned_unit_type' })] }) }),
     );
@@ -94,37 +89,9 @@ describe('askSections', () => {
     expect(sections.some((s) => s.key === 'rest')).toBe(false);
   });
 
-  it('separates a fact this product READS that the open loan type does not ask', () => {
-    // The state a two-section grid hides behind a tag, and the one that makes the product
-    // quote nothing for that loan type. Its own section, because the fix is a different act.
-    const sections = askSections(
-      input({
-        category: 'car',
-        board: board({
-          asks: [ask()],
-          pool: [question({ factKey: 'owned_unit_type', categories: ['personal'] })],
-        }),
-      }),
-    );
-    expect(sections.map((s) => s.key)).toEqual(['asked', 'unasked']);
-    expect(sections[1]?.cards[0]?.askedHere).toBe(false);
-  });
-
-  it('keeps the "asked here" heading when it is empty', () => {
+  it('keeps the "asked" heading when it is empty', () => {
     // Dropping it would make a product with nothing read look finished rather than empty.
     expect(askSections(input())[0]).toEqual({ key: 'asked', cards: [] });
-  });
-
-  it('DOES NOT change what is read when the tab changes', () => {
-    // Attachment is global. Only the section, the counts and what a tick would widen move.
-    const withAsk = board({
-      asks: [ask({ askedIn: ['personal'] })],
-      pool: [question({ factKey: 'owned_unit_type', categories: ['personal'] })],
-    });
-    for (const category of ['personal', 'car', 'mortgage', 'business'] as const) {
-      const cards = askCards(input({ board: withAsk, category }));
-      expect(cards.filter((c) => c.read).map((c) => c.code)).toEqual(['owned_unit_type']);
-    }
   });
 
   it('searches wording AND code', () => {
@@ -148,9 +115,9 @@ describe('askSections', () => {
    */
   it('narrows the pool only, never what the product already reads', () => {
     const withAsk = board({
-      asks: [ask({ askedIn: ['personal'] })],
+      asks: [ask()],
       pool: [
-        question({ factKey: 'owned_unit_type', categories: ['personal'] }),
+        question({ factKey: 'owned_unit_type' }),
         question({ code: 'school_stage', labelEn: 'Which stage?' }),
       ],
     });
@@ -173,8 +140,8 @@ describe('askSections', () => {
 
   it('drops the empty pool section when the box is empty', () => {
     const withAsk = board({
-      asks: [ask({ askedIn: ['personal'] })],
-      pool: [question({ factKey: 'owned_unit_type', categories: ['personal'] })],
+      asks: [ask()],
+      pool: [question({ factKey: 'owned_unit_type' })],
     });
     expect(askSections(input({ board: withAsk })).map((s) => s.key)).toEqual(['asked']);
   });
@@ -209,8 +176,8 @@ describe('askMatchCount — a query that matched nothing is not an empty product
    */
   it('counts the pool only, never the cards the product already reads', () => {
     const withAsk = board({
-      asks: [ask({ askedIn: ['personal'] })],
-      pool: [question({ factKey: 'owned_unit_type', categories: ['personal'] })],
+      asks: [ask()],
+      pool: [question({ factKey: 'owned_unit_type' })],
     });
     expect(askMatchCount(askSections(input({ board: withAsk, search: 'unit' })))).toBe(0);
   });
@@ -354,55 +321,13 @@ describe('askCards — what cannot be ticked', () => {
   });
 });
 
-describe('askTabs', () => {
-  it('counts what each loan type asks, and what it does not', () => {
-    const tabs = askTabs(
-      board({
-        asks: [
-          ask({ factKey: 'a', askedIn: ['personal', 'car'] }),
-          ask({ factKey: 'b', askedIn: ['personal'] }),
-        ],
-      }),
-    );
-    expect(tabs.find((t) => t.id === 'personal')).toEqual({ id: 'personal', reads: 2, unasked: 0 });
-    expect(tabs.find((t) => t.id === 'car')).toEqual({ id: 'car', reads: 1, unasked: 1 });
-    // A loan type that reads NOTHING is not warned about: a product not sold as a mortgage
-    // is the normal case.
-    expect(tabs.find((t) => t.id === 'mortgage')).toEqual({ id: 'mortgage', reads: 0, unasked: 2 });
-  });
-
-  it('renders four tabs with no board at all', () => {
-    expect(askTabs(null)).toHaveLength(4);
-  });
-
-  it('does not move a count because somebody typed in the search box', () => {
-    // Counts come from the board, not from the filtered sections: a tab count is a fact
-    // about the product.
-    const b = board({ asks: [ask()] });
-    expect(askTabs(b)).toEqual(askTabs(b));
-  });
-});
-
-describe('askInFor', () => {
-  it('widens ONLY the open loan type', () => {
-    // Never every type the product might one day be sold under: the assignment is global to
-    // the question and shared with every other product reading it.
-    expect(askInFor('car')).toEqual(['car']);
-  });
-});
-
 describe('askStepStatus', () => {
   it('is todo with nothing read', () => {
     expect(askStepStatus(board(), false)).toBe('todo');
   });
 
-  it('is done when everything read is asked somewhere', () => {
+  it('is done when every fact read has a live question', () => {
     expect(askStepStatus(board({ asks: [ask()] }), false)).toBe('done');
-  });
-
-  it('is INVALID when a fact is asked of nobody', () => {
-    // Today such a product reads `done` and can never quote.
-    expect(askStepStatus(board({ asks: [ask({ askedIn: [] })] }), false)).toBe('invalid');
   });
 
   it('is INVALID when the question behind a fact is switched off', () => {
@@ -421,8 +346,6 @@ const cardsOf = (n: number, prefix = 'q'): AskCard[] =>
     label: `Question ${i + 1}`,
     type: 'SINGLE_SELECT' as const,
     read: false,
-    askedHere: false,
-    askedIn: [],
     questionInactive: false,
     source: null,
     alsoAskedBy: [],

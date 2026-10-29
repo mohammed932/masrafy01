@@ -34,7 +34,6 @@
  * here" — is screen copy in the admin bundle, keyed by the same blueprint keys.
  */
 
-import { LoanCategory } from '@prisma/client';
 import type { BlueprintCap, ProductBlueprint } from './product-blueprint.types';
 
 /**
@@ -144,7 +143,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionAr: 'هل الجامعة حكومية أم خاصة؟',
         helperEn: 'Institutes are not included.',
         helperAr: 'المعاهد غير مشمولة.',
-        categories: [LoanCategory.personal],
         list: {
           typeKey: 'university_type',
           labelEn: 'University type',
@@ -216,9 +214,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // after its own slug — in the Arabic bundle too, where a Latin slug reads as nothing.
         labelEn: 'Governorate of practice',
         labelAr: 'محافظة مزاولة المهنة',
-        alsoAskIn: [LoanCategory.personal],
       },
-      { kind: 'derivedFact', factKey: 'loan_is_topup', alsoAskIn: [LoanCategory.personal] },
+      { kind: 'derivedFact', factKey: 'loan_is_topup' },
     ],
     template: {
       version: 1,
@@ -275,7 +272,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'hospital_sector',
         labelEn: 'Hospital sector',
         labelAr: 'قطاع المستشفى',
-        alsoAskIn: [LoanCategory.personal],
       },
       // The four "other income" amounts ABK-PER-DOCTORS_PRACTICE weighs (`additionalIncome`:
       // rent 50%, CD returns 75%, allowances 100/75). Recorded as this product's asks because
@@ -287,7 +283,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'rental_income_monthly',
         labelEn: 'Monthly rental income',
         labelAr: 'دخل الإيجار الشهري',
-        alsoAskIn: [LoanCategory.personal],
       },
       {
         kind: 'bindQuestion',
@@ -295,7 +290,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'cd_returns_monthly',
         labelEn: 'Monthly CD returns',
         labelAr: 'عائد الشهادات الشهري',
-        alsoAskIn: [LoanCategory.personal],
       },
       {
         kind: 'bindQuestion',
@@ -303,7 +297,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'fixed_allowances_monthly',
         labelEn: 'Fixed monthly allowances',
         labelAr: 'البدلات الثابتة الشهرية',
-        alsoAskIn: [LoanCategory.personal],
       },
       {
         kind: 'bindQuestion',
@@ -311,7 +304,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'variable_allowances_monthly',
         labelEn: 'Variable monthly allowances',
         labelAr: 'البدلات المتغيرة الشهرية',
-        alsoAskIn: [LoanCategory.personal],
       },
     ],
     template: {
@@ -380,7 +372,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperEn: 'The amount financed, not what is left to pay.',
         helperAr: 'المبلغ الممنوح، وليس المتبقي.',
         numeric: { min: 0, max: 20000000 },
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'current_loans', optionCode: 'car_loan' },
       },
       // The sheet's three conditions on the EXISTING loan. All three bind questions authored
@@ -394,7 +385,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'car_loan_original_tenor',
         labelEn: 'Original term of the car loan',
         labelAr: 'المدة الأصلية لقرض السيارة',
-        alsoAskIn: [LoanCategory.personal],
       },
       {
         kind: 'bindQuestion',
@@ -402,7 +392,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'car_loan_instalments_paid',
         labelEn: 'Instalments already paid',
         labelAr: 'الأقساط المسددة بالفعل',
-        alsoAskIn: [LoanCategory.personal],
       },
       {
         kind: 'bindQuestion',
@@ -410,7 +399,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'car_loan_down_payment',
         labelEn: 'Down payment on that car',
         labelAr: 'الدفعة المقدمة لتلك السيارة',
-        alsoAskIn: [LoanCategory.personal],
       },
     ],
     template: {
@@ -472,7 +460,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperEn: 'The free amount — what is not already pledged against something else.',
         helperAr: 'المبلغ الحر — وليس المرهون بالفعل مقابل شيء آخر.',
         numeric: { min: 0, max: 100000000 },
-        categories: [LoanCategory.personal],
       },
       {
         kind: 'number',
@@ -480,7 +467,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionEn: 'How many months ago was it issued?',
         questionAr: 'منذ كم شهر تم إصدارها؟',
         numeric: { min: 0, max: 600 },
-        categories: [LoanCategory.personal],
       },
     ],
     template: {
@@ -530,7 +516,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // the eight was nonetheless REQUIRED of them. And the gate is what makes that one
         // required question honest: required is enforced only for a question the shared
         // visibility rule shows, so it now binds every compound owner and nobody else.
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
         list: {
           typeKey: 'compound',
@@ -625,7 +610,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         factKey: 'owned_unit_type',
         questionEn: 'What kind of unit do you own?',
         questionAr: 'ما نوع الوحدة التي تملكها؟',
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
         list: {
           // The list already exists with exactly these three rows.
@@ -647,7 +631,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperEn: 'The down payment plus every instalment you have paid.',
         helperAr: 'المقدم بالإضافة إلى كل الأقساط التي سددتها.',
         numeric: { min: 0, max: 500000000 },
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
@@ -658,7 +641,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperEn: 'The contract payment only — not the instalments you have paid since.',
         helperAr: 'دفعة العقد فقط — بدون الأقساط التي سددتها بعدها.',
         numeric: { min: 0, max: 500000000 },
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
@@ -667,7 +649,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionEn: 'What is the contract price of the unit?',
         questionAr: 'ما سعر الوحدة في العقد؟',
         numeric: { min: 0, max: 500000000 },
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
@@ -676,7 +657,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionEn: 'How many months ago did you sign the contract?',
         questionAr: 'منذ كم شهر وقّعت العقد؟',
         numeric: { min: 0, max: 600 },
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       {
@@ -698,7 +678,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         helperAr: 'اكتب 100 إذا كنت تملكها بالكامل.',
         numeric: { min: 0, max: 100 },
         required: true,
-        categories: [LoanCategory.personal],
         enabledWhen: { questionCode: 'owns_compound_unit', optionCode: 'yes' },
       },
       // NO "Do you own more than one unit?" ask. It fed only the multi-unit uplift below and
@@ -708,8 +687,8 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // programme reads either bank axis (removed from car 2026-09-24).
       // `loan_is_topup` stays: the CAP still keys its column on it. Nobody fills that column
       // today, and repointing it is a separate decision from fixing the one that was read.
-      { kind: 'derivedFact', factKey: 'loan_is_topup', alsoAskIn: [LoanCategory.personal] },
-      { kind: 'derivedFact', factKey: 'holds_other_product', alsoAskIn: [LoanCategory.personal] },
+      { kind: 'derivedFact', factKey: 'loan_is_topup' },
+      { kind: 'derivedFact', factKey: 'holds_other_product' },
       // App. B CAE requires 24 months of trading and both papers from a self-employed
       // applicant. Personal only: every programme on this product is personal, and the auto
       // product that also read them dropped its sheet conditions (2026-09-24).
@@ -719,7 +698,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'business_months',
         labelEn: 'How long the business has been running',
         labelAr: 'مدة قيام النشاط التجاري',
-        alsoAskIn: [LoanCategory.personal],
       },
       {
         kind: 'bindQuestion',
@@ -727,7 +705,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'self_employed_licence',
         labelEn: 'Commercial register and tax card',
         labelAr: 'السجل التجاري والبطاقة الضريبية',
-        alsoAskIn: [LoanCategory.personal],
       },
     ],
     template: {
@@ -899,7 +876,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // assigned to personal and its one live programme
         // (`CAE-PER-TEACHERS_PREDEFINED`) is personal. Asking a car applicant
         // which stage they teach reads as a mistake and feeds no ceiling.
-        categories: [LoanCategory.personal],
         list: {
           typeKey: 'school_stage',
           labelEn: 'School stages',
@@ -921,7 +897,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // Personal only, matching `school_type_cap` — the same fact, and the two
         // programmes that read it are both personal. Left at personal+car, the
         // seed re-widened it on every run and put it back on the car form.
-        categories: [LoanCategory.personal],
         list: {
           typeKey: 'school_type',
           labelEn: 'School types',
@@ -964,7 +939,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionAr: 'عضويتك في أي فرع من النادي؟',
         // Personal only: its gate `club_membership` is asked in personal alone, so in car
         // this question could never be shown (removed from car 2026-09-24).
-        categories: [LoanCategory.personal],
         // Gated, because ungated this asked every personal and auto applicant which branch
         // their membership is at — including everyone who has none. Safe to gate where the
         // sheet conditions were not: this fact is the product's ONLY axis, so an applicant
@@ -1019,7 +993,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // Only `ABK-PER-SALARIED_CODING` does, and it is personal. A cap question
         // belongs to the loan types whose programmes quote that cap; anywhere else
         // it is a question the applicant cannot act on and nothing reads.
-        categories: [LoanCategory.personal],
         list: {
           typeKey: 'employer_coding',
           labelEn: 'Employer coding',
@@ -1055,7 +1028,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // programme that caps by `school_type` is `CAE-PER-TEACHERS_STANDARD`.
         // Asking a car applicant whether their school is international offers no
         // "I do not teach" answer and feeds no cap.
-        categories: [LoanCategory.personal],
         list: {
           typeKey: 'school_type',
           labelEn: 'School types',
@@ -1101,7 +1073,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     asks: [
       // Already asked of every car applicant as an amount, and read by the rate cascade and
       // the LTV ceiling as well. Asking it again would be two answers to one question.
-      { kind: 'platformFact', factKey: 'car_down_payment', alsoAskIn: [LoanCategory.car] },
+      { kind: 'platformFact', factKey: 'car_down_payment' },
       // Both Green questions are authored by `seed-questionnaire.ts` and bound here rather
       // than minted: that seed switches off every question outside its own pool, and
       // `seed:blueprints` skips a product that already holds a calculation without reviving
@@ -1112,7 +1084,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'total_savings',
         labelEn: 'Total savings',
         labelAr: 'إجمالي المدخرات',
-        alsoAskIn: [LoanCategory.car],
       },
       {
         kind: 'bindQuestion',
@@ -1120,7 +1091,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'green_buyer_type',
         labelEn: 'How the purchase is paid for',
         labelAr: 'طريقة سداد الشراء',
-        alsoAskIn: [LoanCategory.car],
       },
       // Read by the plan table's financed-share axis: the 20–30% deposit band finances only a
       // buyer who owns the home they live in, or whose first-degree relative does. Bound, not
@@ -1131,7 +1101,6 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         questionCode: 'home_ownership',
         labelEn: 'Who owns the home lived in',
         labelAr: 'مالك المنزل الذي يسكنه العميل',
-        alsoAskIn: [LoanCategory.car],
       },
     ],
     template: {

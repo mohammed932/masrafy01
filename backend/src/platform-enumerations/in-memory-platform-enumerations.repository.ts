@@ -117,20 +117,22 @@ export class InMemoryPlatformEnumerationsRepository
    * registry that files nothing under a parent.
    */
   /**
-   * Narrowing is OFF in the stub, always.
-   *
-   * The scope is derived from `bank_program` rows and the ask table, and this stub holds
-   * neither — it exists to serve the ENGINE. `null` is the same answer the real repository
-   * gives for a name with no active program: serve every question the category asks. That is
-   * the safe direction, and it keeps the stub honest rather than inventing a read set.
+   * The program axis is OFF in the stub, always: its inputs are derived from `bank_program` rows
+   * and the ask table, and this stub holds neither — it exists to serve the ENGINE. `null` is the
+   * answer the real repository gives an unknown name: the baseline is served (the fixed questions
+   * and the money core), and nothing is invented.
    */
   async narrowingScopeFor(): Promise<null> {
     return null;
   }
 
-  /** No registry, no programmes: only the engine's own inputs lock. */
+  /** No registry, no programmes: only the engine's own inputs and the fixed set lock. */
   async questionLockScopeFor(): Promise<QuestionLockScope> {
-    return { platformQuestionCodes: [] };
+    return { incomeProof: true };
+  }
+
+  async platformQuestionCodes(): Promise<readonly string[]> {
+    return [];
   }
 
   /** No programmes in this stub, so nothing is offered and the contract has no path to walk. */
@@ -138,14 +140,6 @@ export class InMemoryPlatformEnumerationsRepository
     readonly { category: LoanCategory; programNameKey: string | null }[]
   > {
     return [];
-  }
-
-  async questionExclusions(): Promise<readonly string[]> {
-    return [];
-  }
-
-  async replaceQuestionExclusions(): Promise<null> {
-    return null;
   }
 
   async questionAdditions(): Promise<readonly string[]> {
@@ -156,14 +150,16 @@ export class InMemoryPlatformEnumerationsRepository
     return null;
   }
 
-  async askScopedQuestionCodes(): Promise<readonly string[]> {
+  async questionOrder(): Promise<readonly string[]> {
     return [];
   }
 
-  async questionAdditionCounts(): Promise<
-    ReadonlyMap<string, Partial<Record<LoanCategory, number>>>
-  > {
-    return new Map();
+  async replaceQuestionOrder(): Promise<null> {
+    return null;
+  }
+
+  async askScopedQuestionCodes(): Promise<readonly string[]> {
+    return [];
   }
 
   async enumerationParentKeys(): Promise<Readonly<Record<string, string>>> {

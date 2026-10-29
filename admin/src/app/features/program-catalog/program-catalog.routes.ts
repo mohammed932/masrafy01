@@ -118,10 +118,11 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
 
   // --- Catalog names ------------------------------------------------------
   {
-    // Authoring a question is its own SCREEN, not a dialog over the name: the form branches
-    // on the answer type, grows a list of answers and can hold twenty fields.
+    // The by-name "new question" screen is gone (v32.0.0): nothing linked to it, and a question
+    // is authored once on Questionnaire → Questions and ticked on a program's page. An old link
+    // lands on the name.
     path: ':key/questions/new',
-    loadComponent: () => import('./new-question.page').then((m) => m.NewQuestionPage),
+    redirectTo: ':key',
   },
   {
     // The catalog KEY, not the id: it is stable, human-readable, and already the value every

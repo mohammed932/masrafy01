@@ -1,21 +1,39 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  output,
+} from '@angular/core';
+import { DragDropModule, type CdkDragDrop } from '@angular/cdk/drag-drop';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { CloseOutline, LockOutline } from '@ant-design/icons-angular/icons';
+import {
+  ArrowDownOutline,
+  ArrowUpOutline,
+  CloseOutline,
+  HolderOutline,
+  LockOutline,
+} from '@ant-design/icons-angular/icons';
 import { ruleCodes } from '@shared/questions/enabled-when';
 import type { ServedPage, ServedQuestion } from '@shared/questions/asked-questions.rules';
+import type { PageMove } from '@shared/questions/question-order';
 
 /**
  * Why a served question is on the list, and so whether this program may drop it.
  *
  *   - `fixed`: a fixed question — asked on every program, shown as is, never removed here.
- *   - `engine`: every quote reads it, so it is the loan type's, not one program's.
+ *   - `engine`: every quote reads it, so every program asks it.
  *   - `program`: a bank program under this name reads it.
  *   - `gate`: another question on the list appears only after an answer to this one.
- *   - `added`: added for this program — removable.
- *   - `free`: asked by the loan type, not locked — removable (a per-program skip).
+ *   - `added`: ticked for this program — removable (v32.0.0: the only removable kind; there is
+ *     no loan-type list to skip a question from any more).
  */
-export type ServedRowState = 'fixed' | 'engine' | 'program' | 'gate' | 'added' | 'free';
+export type ServedRowState = 'fixed' | 'engine' | 'program' | 'gate' | 'added';
 
 /** Which rows the list draws: every one, only the fixed ones, or only the rest. */
 export type ServedFilter = 'all' | 'fixed' | 'other';
@@ -57,6 +75,11 @@ interface PageView {
  * may drop. A fixed question is drawn as is, with a lock: it is asked on every program and only
  * Questionnaire changes it.
  *
+ * `ordering` turns the list into the program's ORDER editor (v32.0.0): each page is its own drop
+ * list — a question never changes page — with a drag handle on every row and up / down arrows as
+ * the keyboard path. A move is emitted (`move`); the host checks it, saves it and hands the
+ * pages back in the new order.
+ *
  * Read off the server's served snapshot — the customer read itself — so it is what the app
  * shows, not a second opinion. The app renders one step per question group
  * (`questionnaire_state.dart`), in group order; a gated question is listed with the answer
@@ -65,8 +88,16 @@ interface PageView {
 @Component({
   selector: 'app-served-pages',
   standalone: true,
-  imports: [NzButtonModule, NzIconModule],
-  providers: [provideNzIconsPatch([CloseOutline, LockOutline])],
+  imports: [NzButtonModule, NzIconModule, DragDropModule],
+  providers: [
+    provideNzIconsPatch([
+      ArrowDownOutline,
+      ArrowUpOutline,
+      CloseOutline,
+      HolderOutline,
+      LockOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (views().length === 0) {
@@ -80,9 +111,37 @@ interface PageView {
               <span class="page-name">{{ page.title }}</span>
               <span class="page-count">{{ countLabel(page.rows.length, page.total) }}</span>
             </h3>
-            <ol class="rows">
-              @for (row of page.rows; track row.q.code) {
-                <li class="row" [class.is-follow]="row.follow">
+            <ol
+              class="rows"
+              cdkDropList
+              [cdkDropListDisabled]="!ordering() || orderBusy()"
+              (cdkDropListDropped)="dropped(page.code, $event)"
+            >
+              @for (
+                row of page.rows;
+                track row.q.code;
+                let i = $index, first = $first, last = $last
+              ) {
+                <li
+                  class="row"
+                  [class.is-follow]="row.follow"
+                  [class.is-ordering]="ordering()"
+                  cdkDrag
+                  cdkDragLockAxis="y"
+                  [cdkDragDisabled]="!ordering() || orderBusy()"
+                >
+                  @if (ordering()) {
+                    <button
+                      type="button"
+                      class="handle"
+                      cdkDragHandle
+                      [disabled]="orderBusy()"
+                      aria-label="Drag to reorder"
+                      i18n-aria-label="@@qedit.reorder_aria"
+                    >
+                      <span nz-icon nzType="holder" nzTheme="outline" aria-hidden="true"></span>
+                    </button>
+                  }
                   <span class="num" aria-hidden="true">{{ row.pos }}</span>
                   <span class="text">
                     <span class="label">{{ row.label }}</span>
@@ -91,67 +150,128 @@ interface PageView {
                     }
                   </span>
                   <span class="tail">
-                    @if (!row.q.isRequired) {
-                      <span class="tag" i18n="@@srvp.tag_optional">Optional</span>
-                    }
-                    @switch (row.state) {
-                      @case ('fixed') {
-                        @if (filter() !== 'fixed') {
+                    @if (ordering()) {
+                      <span class="moves">
+                        <button
+                          nz-button
+                          nzType="text"
+                          nzSize="small"
+                          type="button"
+                          class="move-btn"
+                          [id]="'srvp-up-' + row.q.code"
+                          [disabled]="first"
+                          [attr.aria-disabled]="orderBusy() ? 'true' : null"
+                          [attr.aria-label]="upLabel(row.label)"
+                          [attr.title]="upLabel(row.label)"
+                          (click)="step(page.code, i, -1, row.q.code)"
+                        >
                           <span
-                            class="tag is-lock is-fixed"
-                            title="Asked on every program. Change it on Questionnaire."
-                            i18n-title="@@srvp.fixed_hint"
-                          >
-                            <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
-                            <span i18n="@@srvp.tag_fixed">Fixed</span>
-                          </span>
+                            nz-icon
+                            nzType="arrow-up"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                        </button>
+                        <button
+                          nz-button
+                          nzType="text"
+                          nzSize="small"
+                          type="button"
+                          class="move-btn"
+                          [id]="'srvp-down-' + row.q.code"
+                          [disabled]="last"
+                          [attr.aria-disabled]="orderBusy() ? 'true' : null"
+                          [attr.aria-label]="downLabel(row.label)"
+                          [attr.title]="downLabel(row.label)"
+                          (click)="step(page.code, i, 1, row.q.code)"
+                        >
+                          <span
+                            nz-icon
+                            nzType="arrow-down"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                        </button>
+                      </span>
+                    } @else {
+                      @if (!row.q.isRequired) {
+                        <span class="tag" i18n="@@srvp.tag_optional">Optional</span>
+                      }
+                      @switch (row.state) {
+                        @case ('fixed') {
+                          @if (filter() !== 'fixed') {
+                            <span
+                              class="tag is-lock is-fixed"
+                              title="Asked on every program. Change it on Questionnaire."
+                              i18n-title="@@srvp.fixed_hint"
+                            >
+                              <span
+                                nz-icon
+                                nzType="lock"
+                                nzTheme="outline"
+                                aria-hidden="true"
+                              ></span>
+                              <span i18n="@@srvp.tag_fixed">Fixed</span>
+                            </span>
+                          }
                         }
-                      }
-                      @case ('engine') {
-                        <span class="tag is-lock">
-                          <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
-                          <span i18n="@@srvp.tag_engine">Every quote reads it</span>
-                        </span>
-                      }
-                      @case ('program') {
-                        <span class="tag is-lock is-bank">
-                          <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
-                          <span i18n="@@srvp.tag_bank">A bank here needs it</span>
-                        </span>
-                      }
-                      @case ('gate') {
-                        @if (editable()) {
+                        @case ('engine') {
                           <span class="tag is-lock">
                             <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
-                            <span i18n="@@srvp.tag_gate">A question below follows it</span>
+                            <span i18n="@@srvp.tag_engine">Every quote reads it</span>
                           </span>
                         }
-                      }
-                      @case ('added') {
-                        <span class="tag is-added" i18n="@@srvp.tag_added"
-                          >Added for this program</span
-                        >
-                      }
-                    }
-                    @if (editable() && row.removable) {
-                      <button
-                        nz-button
-                        nzType="text"
-                        nzSize="small"
-                        type="button"
-                        class="remove"
-                        [nzLoading]="busy().has(row.q.code)"
-                        [disabled]="busy().size > 0"
-                        [attr.aria-label]="removeLabel(row.label)"
-                        (click)="remove.emit(row.q.code)"
-                      >
-                        @if (!busy().has(row.q.code)) {
-                          <span nz-icon nzType="close" nzTheme="outline" aria-hidden="true"></span>
+                        @case ('program') {
+                          <span class="tag is-lock is-bank">
+                            <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+                            <span i18n="@@srvp.tag_bank">A bank here needs it</span>
+                          </span>
                         }
-                        <span i18n="@@srvp.remove">Remove</span>
-                      </button>
+                        @case ('gate') {
+                          @if (editable()) {
+                            <span class="tag is-lock">
+                              <span
+                                nz-icon
+                                nzType="lock"
+                                nzTheme="outline"
+                                aria-hidden="true"
+                              ></span>
+                              <span i18n="@@srvp.tag_gate">A question below follows it</span>
+                            </span>
+                          }
+                        }
+                        @case ('added') {
+                          <span class="tag is-added" i18n="@@srvp.tag_added"
+                            >Added for this program</span
+                          >
+                        }
+                      }
+                      @if (editable() && row.removable) {
+                        <button
+                          nz-button
+                          nzType="text"
+                          nzSize="small"
+                          type="button"
+                          class="remove"
+                          [nzLoading]="busy().has(row.q.code)"
+                          [disabled]="busy().size > 0"
+                          [attr.aria-label]="removeLabel(row.label)"
+                          (click)="remove.emit(row.q.code)"
+                        >
+                          @if (!busy().has(row.q.code)) {
+                            <span
+                              nz-icon
+                              nzType="close"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
+                          }
+                          <span i18n="@@srvp.remove">Remove</span>
+                        </button>
+                      }
                     }
                   </span>
+                  <div class="drag-ghost" *cdkDragPlaceholder></div>
                 </li>
               }
             </ol>
@@ -309,6 +429,78 @@ interface PageView {
       .remove:not([disabled]):hover {
         color: var(--ant-error-color);
       }
+      /* ---- Order mode: a handle in front, arrows at the end ---- */
+      .row.is-ordering {
+        grid-template-columns: 1.75rem 1.75rem minmax(0, 1fr) auto;
+        padding-inline-start: var(--space-2);
+      }
+      .handle {
+        display: grid;
+        place-items: center;
+        inline-size: 1.75rem;
+        block-size: var(--size-field);
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: none;
+        color: var(--text-tertiary);
+        cursor: grab;
+      }
+      .handle:hover:not(:disabled) {
+        color: var(--text-secondary);
+      }
+      .handle:disabled {
+        cursor: default;
+        opacity: 0.4;
+      }
+      .handle:focus-visible,
+      .move-btn:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .moves {
+        display: inline-flex;
+        gap: var(--space-1);
+      }
+      .move-btn {
+        min-inline-size: 2.25rem;
+        color: var(--text-secondary);
+      }
+      /* The colour above outranks ng-zorro's disabled one, so the top row's up arrow would
+         look pressable. */
+      .move-btn:disabled {
+        opacity: 0.4;
+      }
+      /* A save in flight: still focusable (a disabled button drops the keyboard user's place),
+         but inert — step() ignores the press. */
+      .move-btn[aria-disabled='true'] {
+        cursor: progress;
+        opacity: 0.5;
+      }
+      .cdk-drag-preview {
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-lg);
+      }
+      .drag-ghost {
+        block-size: var(--size-field);
+        border: 1px dashed var(--primary-visible);
+        border-radius: var(--radius-md);
+        background: var(--primary-subtle);
+      }
+      .cdk-drop-list-dragging .row {
+        transition: transform var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      @media (hover: none) {
+        .handle,
+        .move-btn {
+          min-inline-size: var(--size-field);
+          min-block-size: var(--size-field);
+        }
+        .row.is-ordering {
+          grid-template-columns: var(--size-field) 1.75rem minmax(0, 1fr) auto;
+        }
+      }
       @media (max-width: 560px) {
         .row {
           grid-template-columns: 1.75rem minmax(0, 1fr);
@@ -318,9 +510,16 @@ interface PageView {
           grid-column: 2;
           justify-content: flex-start;
         }
+        .row.is-ordering {
+          grid-template-columns: 1.75rem 1.75rem minmax(0, 1fr);
+        }
+        .row.is-ordering .tail {
+          grid-column: 3;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
-        .row {
+        .row,
+        .cdk-drop-list-dragging .row {
           transition: none;
         }
       }
@@ -338,9 +537,18 @@ export class ServedPagesComponent {
   readonly busy = input<ReadonlySet<string>>(new Set<string>());
   /** Which rows to draw. Numbers and page order stay the app's, so a filtered row keeps its place. */
   readonly filter = input<ServedFilter>('all');
+  /** The order editor: handles and arrows instead of tags and Remove. The host forces `all`. */
+  readonly ordering = input(false);
+  /** A move is being saved: every handle and arrow waits. */
+  readonly orderBusy = input(false);
 
   /** A question's code: take it off this program. */
   readonly remove = output<string>();
+  /** A question moved within its page — `from` / `to` in the page's own order, 0-based. */
+  readonly move = output<PageMove>();
+
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   /** Every served question by code — a gate's source may sit on an earlier page. */
   private readonly byCode = computed(() => {
@@ -387,6 +595,43 @@ export class ServedPagesComponent {
     return $localize`:@@srvp.remove_aria:Remove “${label}:QUESTION:” from this program`;
   }
 
+  protected upLabel(label: string): string {
+    return $localize`:@@srvp.up_aria:Move “${label}:QUESTION:” up`;
+  }
+
+  protected downLabel(label: string): string {
+    return $localize`:@@srvp.down_aria:Move “${label}:QUESTION:” down`;
+  }
+
+  /** A drop inside one page. Drop lists are not connected, so a question never changes page. */
+  protected dropped(page: string, event: CdkDragDrop<unknown>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    this.move.emit({ page, from: event.previousIndex, to: event.currentIndex });
+  }
+
+  /**
+   * One arrow press: the keyboard path, one place at a time. The row's element moves with it, which
+   * drops focus, so the same arrow is focused again once the new order is drawn — or the other
+   * arrow, when the row has reached the end this one points at.
+   */
+  protected step(page: string, index: number, delta: -1 | 1, code: string): void {
+    // Not `disabled` while a save is in flight — focus would fall to the page — so refused here.
+    if (this.orderBusy()) return;
+    this.move.emit({ page, from: index, to: index + delta });
+    afterNextRender(
+      () => {
+        const id = (dir: 'up' | 'down'): HTMLButtonElement | null =>
+          this.host.nativeElement.querySelector<HTMLButtonElement>(
+            `#${CSS.escape(`srvp-${dir}-${code}`)}`,
+          );
+        const same = id(delta < 0 ? 'up' : 'down');
+        const other = id(delta < 0 ? 'down' : 'up');
+        (same !== null && !same.disabled ? same : other)?.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
   /**
    * A gated question is a follow-up when the question it hangs on is right above it, or above
    * an unbroken run of other follow-ups of that same question. Anywhere else the indent would
@@ -412,7 +657,7 @@ export class ServedPagesComponent {
         gate: follow ? this.gateShort(q) : gateFull,
         gateFull,
         state,
-        removable: state === 'added' || state === 'free',
+        removable: state === 'added',
       };
     });
   }

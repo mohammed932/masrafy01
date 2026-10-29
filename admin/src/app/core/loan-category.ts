@@ -17,10 +17,9 @@ export const LOAN_CATEGORIES: LoanCategory[] = ['personal', 'car', 'mortgage', '
 
 // NO SURROGATE-CAPABLE OR -REQUIRED LIST LIVES HERE (v16.0.0).
 //
-// v15.x had both, and every widening of the product needed a code change. Which categories
-// can sell a no-payslip program is now DERIVED from whether their applicants are asked one
-// of the four surrogate facts, which the admin controls on `/questionnaire/categories`.
-// Ask `categoryAsksAnySurrogateFact(pool, category)` from `core/surrogate-facts.ts`.
+// v15.x had both, and every widening of the product needed a code change. Any loan type may
+// sell a no-payslip program (v32.0.0): a question carries no loan type, and a program asks the
+// facts its own bank programs read.
 
 /** Type guard: is an arbitrary string one of the four loan categories? */
 export function isLoanCategory(value: string | null | undefined): value is LoanCategory {

@@ -28,7 +28,6 @@ import {
   WalletOutline,
 } from '@ant-design/icons-angular/icons';
 import { incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
-import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import { CanDirective } from '@shared/can.directive';
 import { EmptyStateComponent } from '@shared/empty-state.component';
 import {
@@ -188,11 +187,11 @@ interface DetailView {
       <header class="bar">
         <div class="bar-lead">
           <h1 i18n="@@qrules.title">Fixed questions</h1>
-          <p class="sub" i18n="@@qrules.sub">
-            The fixed questions, in the order customers are asked them. Every program in their loan
-            types asks them, and no program can skip them. Each one says whether its answer changes
-            the offer, or is only saved on the application. Here you can reword an answer, keeping
-            the numbers in it; change anything else on the Questions tab.
+          <p class="sub" i18n="@@qrules.sub2">
+            The fixed questions, in the default order customers are asked them. Every program asks
+            them, and no program can skip them. Each one says whether its answer changes the offer,
+            or is only saved on the application. Here you can reword an answer, keeping the numbers
+            in it; change anything else on the Questions tab.
           </p>
         </div>
         <span class="autosave" i18n="@@qcat.autosave">Saves &amp; publishes automatically</span>
@@ -340,26 +339,6 @@ interface DetailView {
                 >
 
                 <dl class="summary">
-                  <div class="summary-row">
-                    <dt i18n="@@qrules.asked_in">Asked in</dt>
-                    <dd>
-                      <ul class="cats">
-                        @for (c of d.q.categories; track c) {
-                          <li class="cat" [style.--cat]="catColor(c)">{{ catLabel(c) }}</li>
-                        }
-                        @for (c of d.q.optInCategories; track c) {
-                          <li class="cat opt-in" [style.--cat]="catColor(c)">
-                            {{ optInLabel(c) }}
-                          </li>
-                        }
-                        @if (d.q.categories.length + d.q.optInCategories.length === 0) {
-                          <li class="cat none" i18n="@@qrules.asked_nowhere">
-                            Not asked in any loan type
-                          </li>
-                        }
-                      </ul>
-                    </dd>
-                  </div>
                   <div class="summary-row">
                     <dt i18n="@@qrules.asked_when">When it is asked</dt>
                     <dd>{{ d.askedWhen }}</dd>
@@ -1514,19 +1493,6 @@ export class EngineRulesPageComponent implements OnInit {
 
   protected pills(q: EngineRuleQuestion) {
     return lockPills(q);
-  }
-
-  protected catLabel(c: LoanCategory): string {
-    return categoryLabel(c);
-  }
-
-  protected catColor(c: LoanCategory): string {
-    return `var(--color-cat-${c})`;
-  }
-
-  protected optInLabel(c: LoanCategory): string {
-    const category = categoryLabel(c);
-    return $localize`:@@qrules.opt_in:${category}:category: · some names`;
   }
 
   protected mirroredNote(list: LabelledKey): string {
