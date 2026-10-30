@@ -33,6 +33,19 @@ export function programTypeOf(basis: IncomeBasis): ProgramType {
 }
 
 /**
+ * Where a FIXED question is asked (`question.fixedServedOn`): on every program
+ * (`every_name`), or on one side only — the two `ProgramType` words, income-proof
+ * (`income_proof`) or surrogate (`income_surrogate`, v32.1.0). Here beside `IncomeBasis`
+ * because the questionnaire and the program catalog both read it.
+ */
+export type FixedServedOn = 'every_name' | ProgramType;
+
+/** Whether a fixed question marked `servedOn` is asked on programs of `basis`. */
+export function fixedAskedOn(servedOn: FixedServedOn, basis: IncomeBasis): boolean {
+  return servedOn === 'every_name' || basisOf(servedOn) === basis;
+}
+
+/**
  * Short label — a chip, a tag, a table cell.
  *
  * The words are the two the platform names its income types by — "Income proof" and

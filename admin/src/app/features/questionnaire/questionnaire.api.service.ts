@@ -124,9 +124,10 @@ export interface QuestionRow {
   engineLock?: QuestionEngineLock | null;
   /**
    * A FIXED question — data the admin owns, both ways (v31.0.0, v31.1.0): asked on every
-   * program of its loan types, never skipped or added per program name. Required or not is set
-   * like any question's. `every_name` = every program; `income_proof` = income-proof only.
-   * `null` = an ordinary question. Absent on an older server — read as not fixed.
+   * program of its side, never skipped or added per program name. Required or not is set like
+   * any question's. `every_name` = every program; `income_proof` = income-proof only;
+   * `income_surrogate` = surrogate only (v32.1.0). `null` = an ordinary question. Absent on an
+   * older server — read as not fixed.
    */
   fixedServedOn?: FixedServedOn | null;
   /**
@@ -136,15 +137,16 @@ export interface QuestionRow {
   numberEffects?: unknown;
   /**
    * A question surrogate (no-payslip) products ask — a product reads its answer, or it keys a
-   * bank's table, or such a question shows only after its answer. Managed from the Program
-   * catalog, so the Questions tab lists it only when it is also fixed. Never true of a fixed
-   * question. Absent on an older server — read as false.
+   * bank's table, or such a question shows only after its answer. Read by the Program
+   * catalog's Add a question (a program offers its own side's); the Questions library lists
+   * every question either way (v32.1.0). Never true of a fixed question. Absent on an older
+   * server — read as false.
    */
   surrogateSide?: boolean;
 }
 
-/** Where a fixed question is asked: on every program, or on income-proof programs only. */
-export type FixedServedOn = 'every_name' | 'income_proof';
+export type { FixedServedOn } from '@core/income-basis';
+import type { FixedServedOn } from '@core/income-basis';
 
 /**
  * Why a question is locked. `engine`: every quote reads it, or the platform owns the fact it
@@ -367,8 +369,9 @@ export interface UpdateQuestionBody {
   /** `null` CLEARS the branch, making the question unconditional again. */
   enabledWhen?: EnabledWhenRule | null;
   /**
-   * Make the question FIXED, move it between every program and income-proof ones, or — `null`
-   * — make it ordinary again (v31.1.0: the admin's both ways). Omitted = left as it is.
+   * Make the question FIXED, move it between every program, income-proof ones and surrogate
+   * ones, or — `null` — make it ordinary again (v31.1.0: the admin's both ways). Omitted = left
+   * as it is.
    */
   fixedServedOn?: FixedServedOn | null;
 }

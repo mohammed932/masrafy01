@@ -105,7 +105,7 @@ export interface DeleteFixedQuestionData {
               </p>
             </div>
           }
-          <p class="lede" i18n="@@qfixdel.lede">Every program stops asking it right away.</p>
+          <p class="lede" i18n="@@qfixdel.lede2">Every program that asks it stops right away.</p>
 
           <dl class="facts">
             @if (i.fixedServedOn; as servedOn) {

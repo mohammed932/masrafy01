@@ -1,8 +1,10 @@
 /**
  * FIXED QUESTIONS — the questions every program is quoted from, owned by the ADMIN as data
  * (v31.0.0, operator decision 2026-10-26). `question.fixedServedOn` says where one is asked:
- * `every_name` on every program, `income_proof` on every income-proof (payslip) program; `null`
- * is an ordinary question. Every program of EVERY loan type since v32.0.0, when questions stopped
+ * `every_name` on every program, `income_proof` on every income-proof (payslip) program,
+ * `income_surrogate` on every surrogate (no-payslip) program (v32.1.0, operator decision
+ * 2026-10-30: "income proof only or surrogate only or both"); `null` is an ordinary question.
+ * Every program of EVERY loan type since v32.0.0, when questions stopped
  * carrying loan types: a question only one kind of loan needs (the car's price) is ticked on the
  * programs that need it instead (`program_name_question_addition`).
  *
@@ -13,8 +15,8 @@
  * (`engine-contract.ts`). Which questions are fixed is the admin's.
  *
  * THE FIXED RULES, enforced on every questionnaire write, rollback included (`fixedRuleBreaks`):
- *   - asked on every program (all programs, or the income-proof ones) — never ticked or unticked
- *     per program (`question-scope.ts`, reason `base`);
+ *   - asked on every program (all programs, the income-proof ones, or the surrogate ones) —
+ *     never ticked or unticked per program (`question-scope.ts`, reason `base`);
  *   - its show-when source is itself an active fixed question;
  *   - any answer type: a Text one is asked and saved for the record, and changes no offer — offer
  *     effects sit on a choice question's answers or a number's ranges only (v31.3.0);
@@ -22,7 +24,7 @@
  *     bypass of the engine lock and the ratchet, `EngineContractService`). A deleted one keeps
  *     its mark and answers, so a restore brings it back whole.
  * The mark itself is the admin's both ways (v31.1.0, operator decision 2026-10-27: "everything
- * dynamic"): a question is fixed, un-fixed, moved between `every_name` and `income_proof`, and
+ * dynamic"): a question is fixed, un-fixed, moved between its three sides, and
  * made optional or required like any other — the rules above hold only while it is fixed.
  *
  * Pure, and structural about the question rows for the reason `question-scope.ts` is: the live
@@ -32,12 +34,25 @@ import { BANK_AXES } from '@/matching/pipeline/bank-relationship';
 import { enabledWhenGate } from './question-visibility';
 
 /** Where a fixed question is asked — the `FixedQuestionServedOn` enum, without the Prisma import. */
-export type FixedServedOn = 'every_name' | 'income_proof';
+export type FixedServedOn = 'every_name' | 'income_proof' | 'income_surrogate';
 
 /** A stored or frozen mark as the rules read it. Anything else — absent included — is `null`. */
 export function fixedServedOnOf(raw: unknown): FixedServedOn | null {
-  return raw === 'every_name' || raw === 'income_proof' ? raw : null;
+  return raw === 'every_name' || raw === 'income_proof' || raw === 'income_surrogate' ? raw : null;
 }
+
+/**
+ * Which kinds of programme a path sells: an income-proof (payslip) one, a surrogate
+ * (no-payslip) one, or both. `NarrowingScope` and `QuestionLockScope` carry these two flags, so
+ * a scope is passed as is. Absent = not sold.
+ */
+export interface FixedSides {
+  readonly incomeProof?: boolean;
+  readonly incomeSurrogate?: boolean;
+}
+
+/** Every side at once — the no-program baseline, where there is no income basis to tell apart. */
+export const ALL_FIXED_SIDES: FixedSides = { incomeProof: true, incomeSurrogate: true };
 
 /**
  * The fixed mark a FROZEN snapshot question carries for one loan type.
@@ -60,24 +75,34 @@ export function frozenFixedServedOn(
   return Array.isArray(legacy) && !legacy.includes(category) ? null : mark;
 }
 
-/** Whether a question marked `servedOn` is asked on a path that sells (or not) a payslip programme. */
+/** Whether a question marked `servedOn` is asked on a path that sells the programmes `sides` says. */
 export function fixedServedHere(
   servedOn: FixedServedOn | null | undefined,
-  incomeProof: boolean,
+  sides: FixedSides,
 ): boolean {
-  return servedOn === 'every_name' || (servedOn === 'income_proof' && incomeProof);
+  switch (servedOn) {
+    case 'every_name':
+      return true;
+    case 'income_proof':
+      return sides.incomeProof === true;
+    case 'income_surrogate':
+      return sides.incomeSurrogate === true;
+    default:
+      return false;
+  }
 }
 
 /**
  * The fixed codes a path must serve, of the questions it can serve: the `every_name` ones
- * always, the `income_proof` ones when the (name, loan type) sells a payslip programme.
+ * always, the `income_proof` ones when the (name, loan type) sells a payslip programme, the
+ * `income_surrogate` ones when it sells a no-payslip one.
  */
 export function fixedCodesServed(
   questions: readonly { code: string; fixedServedOn?: FixedServedOn | null }[],
-  incomeProof: boolean,
+  sides: FixedSides,
 ): ReadonlySet<string> {
   return new Set(
-    questions.filter((q) => fixedServedHere(q.fixedServedOn, incomeProof)).map((q) => q.code),
+    questions.filter((q) => fixedServedHere(q.fixedServedOn, sides)).map((q) => q.code),
   );
 }
 
@@ -157,9 +182,9 @@ function breakKey(b: FixedRuleBreak): string {
 }
 
 /**
- * The PROGRAM-CATALOG questions: the ones a no-payslip product asks, which the Questions tab
- * hides and the Program catalog manages — until the admin makes one fixed (v31.1.0), when it is
- * listed on the Questions tab like every fixed question.
+ * The PROGRAM-CATALOG questions: the ones a no-payslip product asks, which a no-payslip
+ * program's Add a question offers — until the admin makes one fixed (v31.1.0), when it is no
+ * longer one of them. (The Questions library lists every question on one list, v32.1.0.)
  *
  * A question bound to a fact some live product ask points at (`askScoped`, the same set
  * `narrowingScopeFor` calls ask-scoped), a per-bank axis question (`BANK_AXES`), or the

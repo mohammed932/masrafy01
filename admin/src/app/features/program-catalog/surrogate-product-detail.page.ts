@@ -872,8 +872,8 @@ interface ReadList {
                                 </button>
                                 <!-- Beside the card, never inside it: a link inside a
                                          role="checkbox" button is invalid markup. Opens the
-                                         question on the Questions tab's Surrogate list
-                                         (v31.8.0), where it is reworded. -->
+                                         question in the Questions library (one list since
+                                         v32.1.0), where it is reworded. -->
                                 @if (card.code !== '' && !card.questionInactive) {
                                   <a
                                     class="linkish ask-edit"

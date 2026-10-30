@@ -19,6 +19,7 @@ export function toAskable(q: QuestionRow, group?: GroupTreeRow): AskableQuestion
     isActive: q.isActive,
     isRequired: q.isRequired,
     fixed: q.fixedServedOn != null,
+    ...(q.fixedServedOn != null ? { fixedOn: q.fixedServedOn } : {}),
     surrogateSide: q.surrogateSide === true,
     gateSourceCode: q.enabledWhen?.questionCode ?? null,
     haystack: [q.questionEn, q.questionAr, q.code, ...q.options.map((o) => o.labelEn)]

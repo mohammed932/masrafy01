@@ -4,9 +4,9 @@ import { TabShellComponent, type TabShellTab } from '@shared/ui';
 /**
  * Tab shell over the GLOBAL question pool. Two jobs, one pool:
  *
- * - **Questions** — author the pool: wording, answer type, options, order. Two tabs inside
- *   (`?basis=`, v31.8.0): Income proof — the fixed questions and every one no surrogate product
- *   asks — and Surrogate — the ones surrogate products ask.
+ * - **Questions** — author the pool: wording, answer type, options, order. ONE library of
+ *   every question (v32.1.0; the Income proof / Surrogate tabs of v31.8.0 are gone). A question
+ *   made fixed says there which programs ask it: income-proof, surrogate, or both.
  * - **Fixed questions** (route `engine-rules`) — the owner's fixed, mandatory
  *   questions in the owner's order, split by who asks them (Income proof /
  *   Surrogate), and what each answer means; only answers' wording is edited

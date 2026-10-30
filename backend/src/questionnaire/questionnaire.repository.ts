@@ -326,6 +326,7 @@ export class QuestionnaireRepository {
         questionCode: row.question.code,
         optionCode: row.code,
         incomeProofOnly: row.question.fixedServedOn === 'income_proof',
+        ...(row.question.fixedServedOn === 'income_surrogate' ? { incomeSurrogateOnly: true } : {}),
         levers: optionEffectLevers(row),
       })),
       ...numberRows.flatMap((row) =>
@@ -334,6 +335,7 @@ export class QuestionnaireRepository {
           questionCode: row.code,
           range: { fromInclusive: range.fromInclusive, toExclusive: range.toExclusive },
           incomeProofOnly: row.fixedServedOn === 'income_proof',
+          ...(row.fixedServedOn === 'income_surrogate' ? { incomeSurrogateOnly: true } : {}),
           levers: leversOf(range),
         })),
       ),

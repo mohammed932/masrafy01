@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   );
   const fixed = fixedCodesServed(
     all.map((q) => ({ code: q.code, fixedServedOn: frozenFixedServedOn(q, category) })),
-    scope.incomeProof === true,
+    scope,
   );
 
   const needed = new Set(scope.neededQuestionCodes);

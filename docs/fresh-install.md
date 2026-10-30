@@ -142,13 +142,15 @@ database's; a fresh one keeps the seed's pool order.
 ### The fixed questions (v31.0.0)
 
 Which questions are fixed is data the admin owns: `question.fixedServedOn` (`every_name`,
-`income_proof`, or null). On a fresh database `seed:questionnaire` INSERTS the 22 fixed
+`income_proof`, `income_surrogate` since v32.1.0, or null). On a fresh database `seed:questionnaire` INSERTS the 22 fixed
 questions (the client's 17 income-proof questions and the 5 car questions) with their marks, as
 first-run defaults. After that the admin owns them, and a re-run never rewrites, re-orders or
 revives one. An existing database got the marks from migration
 `20261027090000_fixed_questions_are_data`. `npm run check:questionnaire` (invariants 9 and 10)
 proves every fixed question is required, keeps only ordinary loan-type rows, is gated only on a
-fixed question, and is served on every name of its loan types. Run it after either path.
+fixed question, and is served on every name of its side (every name for `every_name`, the
+names selling a payslip programme for `income_proof`, a no-payslip one for `income_surrogate`).
+Run it after either path.
 
 ## Optional demo data
 

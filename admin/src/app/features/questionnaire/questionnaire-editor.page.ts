@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -21,7 +21,6 @@ import {
   CdkDropList,
   type CdkDragDrop,
 } from '@angular/cdk/drag-drop';
-import { BreakpointObserver } from '@angular/cdk/layout';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
@@ -65,15 +64,16 @@ import {
   type UpdateQuestionBody,
 } from './questionnaire.api.service';
 import {
-  basisTabOf,
   engineLockOf,
+  flattenTree,
   isFixed,
-  listedOn,
-  reorderWithin,
+  moveAmongSiblings,
+  outlineLabels,
+  poolTree,
+  rootIdOf,
   servedOnHint,
   servedOnLabel,
-  tabOfParam,
-  type QuestionTab,
+  siblingsOf,
 } from './question-pool-view';
 import {
   DeleteFixedQuestionDialog,
@@ -100,16 +100,13 @@ import { EffectLeversComponent } from './effect-levers.component';
 import { ruleCodes } from '@shared/questions/enabled-when';
 import { CanDirective } from '@shared/can.directive';
 import { AuthService } from '@core/auth/auth.service';
-import { INCOME_BASES, incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { MoneyInputDirective, formatGroupedNumber } from '@core/directives/money-input.directive';
 import {
   DrawerSectionComponent,
   FormDrawerComponent,
   openFormDrawer,
-  RailTabsComponent,
   WizardStepsComponent,
-  type RailTabItem,
   type WizardStepItem,
 } from '@shared/ui';
 
@@ -166,13 +163,12 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
  * required or optional like any other. Deleting a fixed question is a super admin's, through a
  * type-the-code dialog.
  *
- * THREE TABS over the one list (`?basis=`, the Program catalog's own words). All, the first and
- * the default (v31.8.1): every question in the pool, a surrogate one tagged. Then the two halves
- * (v31.8.0): Income proof — the fixed questions and every ordinary one no surrogate product
- * asks — and Surrogate — the ones surrogate products ask (`basisTabOf`). Every question is on
- * exactly one half; each tab numbers, filters and reorders its own, and a question it does not
- * list keeps its slot. A new question is added on All or Income proof, never Surrogate: it
- * becomes a surrogate question once a product asks it, which is set on the product in the
+ * ONE LIBRARY (v32.1.0, operator decision 2026-10-30): every question in the pool on one list,
+ * numbered, filtered and reordered as one — the All / Income proof / Surrogate tabs of
+ * v31.8.0–v31.8.1 are gone. A new question is simply added to the library. Which programs ask
+ * one is said by the question itself: made fixed, it is asked on income-proof programs only,
+ * surrogate programs only, or both ("Asked on"), and listed by side on the Fixed questions tab;
+ * otherwise a program asks it where its bank programs read it or the program ticks it, in the
  * Program catalog.
  */
 @Component({
@@ -182,7 +178,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    RouterLink,
     CanDirective,
     CdkDropList,
     CdkDrag,
@@ -203,7 +198,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
     DrawerSectionComponent,
     EffectChipsComponent,
     EffectLeversComponent,
-    RailTabsComponent,
     WizardStepsComponent,
   ],
   providers: [
@@ -269,14 +263,10 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             </span>
           }
           <span class="autosave" i18n="@@qedit.autosave">Saves &amp; publishes automatically</span>
-          <!-- Income proof only: a question becomes a surrogate one when a product asks it, so one
-               added on the Surrogate tab would land on the other tab. -->
-          @if (canAddHere()) {
-            <button nz-button nzType="primary" (click)="startCreate()">
-              <span nz-icon nzType="plus" nzTheme="outline"></span>
-              <span i18n="@@qedit.add_question">Question</span>
-            </button>
-          }
+          <button nz-button nzType="primary" (click)="startCreate()">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            <span i18n="@@qedit.add_question">Question</span>
+          </button>
         </div>
       </header>
 
@@ -315,436 +305,439 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       @if (loading()) {
         <div class="center"><nz-spin nzSimple /></div>
       } @else {
-        <!-- Who asks them: All, then the Program catalog's own Income proof / Surrogate switch,
-             so the two words mean one thing on both screens. Every question is on exactly one
-             of those two. On a phone the three stack, as three equal cells cut their names. -->
-        <app-rail-tabs
-          class="basis-rail"
-          appearance="segmented"
-          [orientation]="narrowRail() ? 'vertical' : 'horizontal'"
-          [uniform]="!narrowRail()"
-          idPrefix="qedit-basis"
-          [items]="basisTabs()"
-          [activeId]="tab()"
-          [ariaLabel]="basisAria"
-          (select)="setTab($event)"
-        />
-        <div
-          class="basis-panel"
-          role="tabpanel"
-          [id]="'qedit-basis-panel-' + tab()"
-          [attr.aria-labelledby]="'qedit-basis-tab-' + tab()"
-        >
-          <!-- Where a surrogate question comes from, said once above its list: the products
-               that ask it are set in the Program catalog, and the fixed questions surrogate
-               programs ask too are on the other tab. The link is a super admin's, like the
-               catalog. -->
-          @if (tab() === 'no_payslip') {
-            <p class="basis-note">
-              <span i18n="@@qedit.surrogate_note"
-                >Each product picks which of these it asks, in the Program catalog. Surrogate
-                programs also ask the fixed questions every program asks — those are on Income
-                proof.</span
-              >
-              <a
-                *can="['super_admin']"
-                [routerLink]="['/program-catalog']"
-                [queryParams]="{ basis: 'no_payslip' }"
-                i18n="@@qedit.hidden_link"
-                >Open the Program catalog</a
-              >
-            </p>
-          }
+        @if (rows().length === 0) {
+          <div class="empty-card">
+            <nz-empty
+              nzNotFoundContent="No questions yet — the first one you add becomes the first thing every applicant is asked"
+              i18n-nzNotFoundContent="@@qedit.empty"
+            />
+            <button nz-button nzType="primary" (click)="startCreate()" i18n="@@qedit.empty_cta">
+              Add the first question
+            </button>
+          </div>
+        } @else {
+          <!-- Toolbar — search + type filter + the incomplete-only shortcut. A global
+               pool is dozens of rows long; without these it is a scroll hunt. -->
+          <div class="toolbar" role="search">
+            <!-- nz-input-group owns the icon's gutter. A hand-placed absolute icon
+                 sat on top of the placeholder's first character. -->
+            <nz-input-group class="search" nzPrefixIcon="search" nzSize="large">
+              <input
+                nz-input
+                [formControl]="searchCtrl"
+                placeholder="Search questions, answers, or codes"
+                i18n-placeholder="@@qedit.search_ph"
+                aria-label="Search the question pool"
+                i18n-aria-label="@@qedit.search_aria"
+              />
+            </nz-input-group>
 
-          @if (listed().length === 0) {
-            <div class="empty-card">
-              @if (!canAddHere()) {
-                <nz-empty
-                  nzNotFoundContent="No surrogate product asks a question yet"
-                  i18n-nzNotFoundContent="@@qedit.empty_surrogate"
-                />
-              } @else {
-                <nz-empty
-                  nzNotFoundContent="No questions yet — the first one you add becomes the first thing every applicant is asked"
-                  i18n-nzNotFoundContent="@@qedit.empty"
-                />
-                <button nz-button nzType="primary" (click)="startCreate()" i18n="@@qedit.empty_cta">
-                  Add the first question
-                </button>
-              }
-            </div>
-          } @else {
-            <!-- Toolbar — search + type filter + the incomplete-only shortcut. A global
-                 pool is dozens of rows long; without these it is a scroll hunt. -->
-            <div class="toolbar" role="search">
-              <!-- nz-input-group owns the icon's gutter. A hand-placed absolute icon
-                   sat on top of the placeholder's first character. -->
-              <nz-input-group class="search" nzPrefixIcon="search" nzSize="large">
-                <input
-                  nz-input
-                  [formControl]="searchCtrl"
-                  placeholder="Search questions, answers, or codes"
-                  i18n-placeholder="@@qedit.search_ph"
-                  aria-label="Search the question pool"
-                  i18n-aria-label="@@qedit.search_aria"
-                />
-              </nz-input-group>
-
-              <div
-                class="filters"
-                role="radiogroup"
-                aria-label="Filter by answer type"
-                i18n-aria-label="@@qedit.filter_aria"
+            <div
+              class="filters"
+              role="radiogroup"
+              aria-label="Filter by answer type"
+              i18n-aria-label="@@qedit.filter_aria"
+            >
+              <button
+                type="button"
+                role="radio"
+                class="chip"
+                [class.on]="typeFilter() === 'ALL'"
+                [attr.aria-checked]="typeFilter() === 'ALL'"
+                (click)="setTypeFilter('ALL')"
+                i18n="@@qedit.filter_all"
               >
+                All
+              </button>
+              <!-- A type with no questions is disabled rather than hidden: it still
+                   tells the admin the type exists, without offering a filter whose
+                   only possible result is an empty list. -->
+              @for (t of types; track t) {
                 <button
                   type="button"
                   role="radio"
                   class="chip"
-                  [class.on]="typeFilter() === 'ALL'"
-                  [attr.aria-checked]="typeFilter() === 'ALL'"
-                  (click)="setTypeFilter('ALL')"
-                  i18n="@@qedit.filter_all"
+                  [class.on]="typeFilter() === t"
+                  [attr.aria-checked]="typeFilter() === t"
+                  [disabled]="countOfType(t) === 0"
+                  (click)="setTypeFilter(t)"
                 >
-                  All
-                </button>
-                <!-- A type with no questions is disabled rather than hidden: it still
-                     tells the admin the type exists, without offering a filter whose
-                     only possible result is an empty list. -->
-                @for (t of types; track t) {
-                  <button
-                    type="button"
-                    role="radio"
-                    class="chip"
-                    [class.on]="typeFilter() === t"
-                    [attr.aria-checked]="typeFilter() === t"
-                    [disabled]="countOfType(t) === 0"
-                    (click)="setTypeFilter(t)"
-                  >
-                    {{ typeLabel(t) }}
-                    <span class="chip-n">{{ countOfType(t) }}</span>
-                  </button>
-                }
-              </div>
-
-              <!-- Only where it narrows: on a list of nothing but fixed questions it would be a
-                   filter whose one result is the list already on screen. -->
-              @if (fixedNarrows()) {
-                <button
-                  type="button"
-                  class="chip fixed"
-                  [class.on]="onlyFixed()"
-                  [attr.aria-pressed]="onlyFixed()"
-                  (click)="setOnlyFixed(!onlyFixed())"
-                >
-                  <span i18n="@@qedit.filter_fixed">Fixed</span>
-                  <span class="chip-n">{{ fixedCount() }}</span>
+                  {{ typeLabel(t) }}
+                  <span class="chip-n">{{ countOfType(t) }}</span>
                 </button>
               }
-
-              @if (incompleteHere().length > 0) {
-                <button
-                  type="button"
-                  class="chip warn"
-                  [class.on]="onlyIncomplete()"
-                  [attr.aria-pressed]="onlyIncomplete()"
-                  (click)="setOnlyIncomplete(!onlyIncomplete())"
-                >
-                  <span i18n="@@qedit.only_incomplete">Needs options</span>
-                  <span class="chip-n">{{ incompleteHere().length }}</span>
-                </button>
-              }
-
-              <!-- Not a filter: the deleted fixed questions are not in the pool, so this opens
-                   their own list, with Restore. A super admin's, like the delete itself. -->
-              @if (deletedOffered()) {
-                <button
-                  *can="['super_admin']"
-                  type="button"
-                  class="chip"
-                  [class.on]="deletedShown()"
-                  [attr.aria-expanded]="deletedShown()"
-                  aria-controls="qedit-deleted"
-                  (click)="deletedOpen.set(!deletedOpen())"
-                >
-                  <span i18n="@@qedit.deleted_chip">Deleted</span>
-                  <span class="chip-n">{{ deletedFixed().length }}</span>
-                </button>
-              }
-
-              <p class="showing">
-                @if (filtering()) {
-                  <span i18n="@@qedit.showing"
-                    >{{ visible().length }} of {{ listed().length }} questions</span
-                  >
-                  <button
-                    type="button"
-                    class="link"
-                    (click)="clearFilters()"
-                    i18n="@@qedit.clear_filters"
-                  >
-                    Clear
-                  </button>
-                } @else {
-                  <span i18n="@@qedit.total"
-                    >{{ listed().length }} questions · {{ totalOptions() }} answers</span
-                  >
-                }
-              </p>
             </div>
 
-            @if (deletedShown()) {
-              <section
-                class="deleted-panel"
-                id="qedit-deleted"
-                aria-labelledby="qedit-deleted-title"
+            @if (incomplete().length > 0) {
+              <button
+                type="button"
+                class="chip warn"
+                [class.on]="onlyIncomplete()"
+                [attr.aria-pressed]="onlyIncomplete()"
+                (click)="setOnlyIncomplete(!onlyIncomplete())"
               >
-                <p class="dp-title" id="qedit-deleted-title" i18n="@@qedit.deleted_title">
-                  Deleted fixed questions
-                </p>
-                <p class="dp-hint" i18n="@@qedit.deleted_hint2">
-                  Restore brings a question back with its answers, and every program asks it again
-                  right away.
-                </p>
-                <ul class="dp-list">
-                  @for (d of deletedFixed(); track d.id) {
-                    <li class="dp-row">
-                      <span class="dp-text">
-                        <span class="dp-q">{{ isAr ? d.questionAr : d.questionEn }}</span>
-                        <span class="dp-meta">{{ deletedMeta(d) }}</span>
-                      </span>
-                      <button
-                        nz-button
-                        nzSize="small"
-                        type="button"
-                        [nzLoading]="restoringId() === d.id"
-                        [disabled]="restoringId() !== null"
-                        [attr.aria-label]="restoreAria(d)"
-                        (click)="restore(d)"
-                      >
-                        <span nz-icon nzType="undo" nzTheme="outline" aria-hidden="true"></span>
-                        <span i18n="@@qedit.restore">Restore</span>
-                      </button>
-                    </li>
-                  }
-                </ul>
-              </section>
+                <span i18n="@@qedit.only_incomplete">Needs options</span>
+                <span class="chip-n">{{ incomplete().length }}</span>
+              </button>
             }
 
-            @if (filtering() && visible().length > 0) {
-              <p class="drag-note" i18n="@@qedit.drag_disabled">
-                Dragging is off while the list is filtered — the order you'd see isn't the order
-                applicants get. Use the row menu to move a question, or clear the filter.
-              </p>
-            } @else if (pageCount() > 1) {
-              <!-- A drag cannot cross a page boundary, so the one move the list can't
-                   do is spelled out where the admin would otherwise try it. -->
-              <p class="drag-note" i18n="@@qedit.drag_page">
-                Dragging reorders within this page. To move a question to another page, open it and
-                use the arrows in the editor's header.
-              </p>
+            <!-- Not a filter: the deleted fixed questions are not in the pool, so this opens
+                 their own list, with Restore. A super admin's, like the delete itself. -->
+            @if (deletedFixed().length > 0) {
+              <button
+                *can="['super_admin']"
+                type="button"
+                class="chip"
+                [class.on]="deletedShown()"
+                [attr.aria-expanded]="deletedShown()"
+                aria-controls="qedit-deleted"
+                (click)="deletedOpen.set(!deletedOpen())"
+              >
+                <span i18n="@@qedit.deleted_chip">Deleted</span>
+                <span class="chip-n">{{ deletedFixed().length }}</span>
+              </button>
             }
 
-            @if (visible().length === 0) {
-              <div class="empty-card">
-                <p class="nm-title" i18n="@@qedit.no_matches_title">Nothing matches that filter</p>
-                <p class="nm-body" i18n="@@qedit.no_matches_body">
-                  The pool still has {{ listed().length }} questions — they're just filtered out.
-                </p>
-                <button nz-button (click)="clearFilters()" i18n="@@qedit.clear_filters">
+            <p class="showing">
+              @if (filtering()) {
+                <span i18n="@@qedit.showing"
+                  >{{ visible().length }} of {{ rows().length }} questions</span
+                >
+                <button
+                  type="button"
+                  class="link"
+                  (click)="clearFilters()"
+                  i18n="@@qedit.clear_filters"
+                >
                   Clear
                 </button>
-              </div>
-            } @else {
-              <!-- The list is the page. Rows sit directly on one surface, separated by
-                   hairlines: a card per question would nest a card inside a card and
-                   spend ~24px of chrome on every row for no added meaning. -->
-              <ul
-                class="list"
-                [class.has-pager]="pageCount() > 1"
-                cdkDropList
-                [cdkDropListDisabled]="!reorderable()"
-                (cdkDropListDropped)="drop($event)"
-              >
-                @for (q of paged(); track q.id) {
-                  <li
-                    class="row"
-                    cdkDrag
-                    cdkDragLockAxis="y"
-                    [cdkDragDisabled]="!reorderable()"
-                    [class.open]="expandedId() === q.id"
-                    [class.flagged]="needsOptions(q)"
-                  >
-                    <div class="row-head">
-                      <button
-                        type="button"
-                        class="handle"
-                        cdkDragHandle
-                        [disabled]="!reorderable()"
-                        aria-label="Drag to reorder"
-                        i18n-aria-label="@@qedit.reorder_aria"
-                      >
-                        <span nz-icon nzType="holder" nzTheme="outline" aria-hidden="true"></span>
-                      </button>
+              } @else {
+                <span i18n="@@qedit.total"
+                  >{{ rows().length }} questions · {{ totalOptions() }} answers</span
+                >
+              }
+            </p>
+          </div>
 
-                      <span class="ord" aria-hidden="true">{{ positionOf(q) }}</span>
-
-                      <button
-                        type="button"
-                        class="row-main"
-                        [attr.aria-expanded]="expandedId() === q.id"
-                        (click)="toggleRow(q)"
-                      >
-                        <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                          isAr ? q.questionAr : q.questionEn
-                        }}</span>
-                        <!-- The auto-generated code is deliberately NOT shown here: it is
-                             machine identity the admin never types (A33), and it competed
-                             with the question for the eye on all 41 rows. Search still
-                             matches it. -->
-                        <!-- A value type's rule is short and belongs on the title line;
-                             only choice answers need the width of a second line. -->
-                        @if (!isChoice(q.type)) {
-                          <span class="rule-line">{{ ruleSummary(q) }}</span>
-                        }
-                      </button>
-
-                      <!-- Both chips share one cell so the kebab stays in the same
-                           column on every row — an optional required-chip cell of its
-                           own would shift every kebab it is missing from. -->
-                      <span class="row-meta">
-                        <!-- A fact about where the question is asked, not a lock: worded, so it
-                             never reads as the padlock beside it. -->
-                        @if (isFixed(q)) {
-                          <span class="fixed-chip" nz-tooltip [nzTooltipTitle]="fixedTip(q)"
-                            ><span i18n="@@qedit.fixed_chip">Fixed</span
-                            ><span class="sr-only">{{ fixedTip(q) }}</span></span
-                          >
-                        }
-                        <!-- All lists both halves, so it says which one a question is on; the
-                             other two tabs say it with their name. -->
-                        @if (tab() === 'all' && basisTabOf(q) === 'no_payslip') {
-                          <span
-                            class="surrogate-chip"
-                            nz-tooltip
-                            [nzTooltipTitle]="surrogateChipTip"
-                            >{{ surrogateChipLabel
-                            }}<span class="sr-only">{{ surrogateChipTip }}</span></span
-                          >
-                        }
-                        <!-- The engine reads this answer, so the server refuses anything but
-                             its wording and answer order. Said on the row so the admin knows
-                             before opening it, not after a refused save. -->
-                        @if (engineLockOf(q); as lock) {
-                          <span class="lock-chip" nz-tooltip [nzTooltipTitle]="lockSummary(lock)"
-                            ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
-                            ><span class="sr-only">{{ lockSummary(lock) }}</span></span
-                          >
-                        }
-                        <span
-                          class="type-chip"
-                          [class.value-type]="!isChoice(q.type)"
-                          nz-tooltip
-                          [nzTooltipTitle]="typeHint(q.type)"
-                          >{{ typeLabel(q.type) }}</span
-                        >
-                        <!-- Required is the DEFAULT, so 41 identical "required" chips
-                             said nothing. Only the exception is worth a chip. -->
-                        @if (!q.isRequired) {
-                          <span
-                            class="req"
-                            nz-tooltip
-                            nzTooltipTitle="Applicants may skip this"
-                            i18n-nzTooltipTitle="@@qedit.optional_tip"
-                            i18n="@@qedit.optional_chip"
-                            >optional</span
-                          >
-                        }
-                      </span>
-
-                      <!-- Opens the editor, same as clicking the row. It used to open a
-                           4-item dropdown; move/delete now live in the editor itself, so
-                           there is nothing left for a menu to hold. -->
-                      <button
-                        type="button"
-                        class="kebab"
-                        nz-button
-                        nzType="text"
-                        nzShape="circle"
-                        (click)="toggleRow(q)"
-                        aria-label="Edit question"
-                        i18n-aria-label="@@qedit.edit_question_aria"
-                      >
-                        <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
-                      </button>
-                    </div>
-
-                    <!-- Answers get their own full-width line under the question. Squeezed
-                         into a column beside it they truncated to "Getti…" / "Scho…",
-                         which is worse than not showing them: the admin has to open the
-                         row to learn what it already looked like it was telling them. -->
-                    @if (isChoice(q.type)) {
-                      <div class="row-answers">
-                        @if (q.options.length === 0) {
-                          <span class="pill warn" i18n="@@qedit.needs_options_short"
-                            >needs options</span
-                          >
-                        } @else {
-                          @for (o of previewOptions(q); track o.id) {
-                            <span class="pill" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                              isAr ? o.labelAr : o.labelEn
-                            }}</span>
-                          }
-                          @if (q.options.length > INLINE_OPTION_PREVIEW) {
-                            <span
-                              class="pill more"
-                              nz-tooltip
-                              [nzTooltipTitle]="allOptionLabels(q)"
-                              i18n="@@qedit.opt_more"
-                              >+{{ q.options.length - INLINE_OPTION_PREVIEW }} more</span
-                            >
-                          }
-                        }
-                      </div>
-                    }
-
-                    <div class="drag-ghost" *cdkDragPlaceholder></div>
-                  </li>
-                }
-
-                <!-- The new question lands where it will actually be asked (last), so the
-                     affordance sits at the end of the list rather than only in the bar —
-                     and only on the page that IS the end, of the tab a new question joins. -->
-                @if (canAddHere() && !filtering() && page() === pageCount()) {
-                  <li class="row add-row">
-                    <button type="button" class="add-inline" (click)="startCreate()">
-                      <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                      <span i18n="@@qedit.add_question_inline">Add a question to the end</span>
+          @if (deletedShown()) {
+            <section class="deleted-panel" id="qedit-deleted" aria-labelledby="qedit-deleted-title">
+              <p class="dp-title" id="qedit-deleted-title" i18n="@@qedit.deleted_title">
+                Deleted fixed questions
+              </p>
+              <p class="dp-hint" i18n="@@qedit.deleted_hint3">
+                Restore brings a question back with its answers, and the programs that asked it ask
+                it again right away.
+              </p>
+              <ul class="dp-list">
+                @for (d of deletedFixed(); track d.id) {
+                  <li class="dp-row">
+                    <span class="dp-text">
+                      <span class="dp-q">{{ isAr ? d.questionAr : d.questionEn }}</span>
+                      <span class="dp-meta">{{ deletedMeta(d) }}</span>
+                    </span>
+                    <button
+                      nz-button
+                      nzSize="small"
+                      type="button"
+                      [nzLoading]="restoringId() === d.id"
+                      [disabled]="restoringId() !== null"
+                      [attr.aria-label]="restoreAria(d)"
+                      (click)="restore(d)"
+                    >
+                      <span nz-icon nzType="undo" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@qedit.restore">Restore</span>
                     </button>
                   </li>
                 }
               </ul>
+            </section>
+          }
 
-              <!-- Pager sits below the list and is hidden on a single page: a control
-                   whose only state is "page 1 of 1" is chrome, not navigation. -->
-              @if (pageCount() > 1) {
-                <nav class="pager" aria-label="Question pages" i18n-aria-label="@@qedit.pager_aria">
-                  <p class="pager-range" i18n="@@qedit.page_range">
-                    Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ visible().length }}
-                  </p>
-                  <nz-pagination
-                    [nzPageIndex]="page()"
-                    [nzPageSize]="PAGE_SIZE"
-                    [nzTotal]="visible().length"
-                    nzSize="small"
-                    (nzPageIndexChange)="setPage($event)"
+          @if (filtering() && visible().length > 0) {
+            <p class="drag-note" i18n="@@qedit.drag_disabled">
+              Dragging is off while the list is filtered — the order you'd see isn't the order
+              applicants get. Use the row menu to move a question, or clear the filter.
+            </p>
+          } @else if (pageCount() > 1) {
+            <!-- A drag cannot cross a page boundary, so the one move the list can't
+                 do is spelled out where the admin would otherwise try it. -->
+            <p class="drag-note" i18n="@@qedit.drag_page">
+              Dragging reorders within this page. To move a question to another page, open it and
+              use the arrows in the editor's header.
+            </p>
+          }
+
+          @if (visible().length === 0) {
+            <div class="empty-card">
+              <p class="nm-title" i18n="@@qedit.no_matches_title">Nothing matches that filter</p>
+              <p class="nm-body" i18n="@@qedit.no_matches_body">
+                The pool still has {{ rows().length }} questions — they're just filtered out.
+              </p>
+              <button nz-button (click)="clearFilters()" i18n="@@qedit.clear_filters">Clear</button>
+            </div>
+          } @else {
+            <!-- The list is the page. Rows sit directly on one surface, separated by
+                 hairlines: a card per question would nest a card inside a card and
+                 spend ~24px of chrome on every row for no added meaning.
+                 Unfiltered, it is a TREE: a follow-up hangs under the question whose answer
+                 opens it, and a page is ten top-level questions with their follow-ups, so a
+                 page never splits a question from what it opens. Filtered, it is the flat
+                 list of matches, each follow-up still saying which answer opens it. -->
+            <ul
+              class="list"
+              [class.has-pager]="pageCount() > 1"
+              cdkDropList
+              [cdkDropListDisabled]="!reorderable()"
+              (cdkDropListDropped)="drop($event)"
+            >
+              @for (q of paged(); track q.id) {
+                <li
+                  class="row"
+                  cdkDrag
+                  cdkDragLockAxis="y"
+                  [cdkDragDisabled]="!reorderable()"
+                  [class.open]="expandedId() === q.id"
+                  [class.flagged]="needsOptions(q)"
+                >
+                  <div class="row-head">
+                    <button
+                      type="button"
+                      class="handle"
+                      cdkDragHandle
+                      [disabled]="!reorderable()"
+                      aria-label="Drag to reorder"
+                      i18n-aria-label="@@qedit.reorder_aria"
+                    >
+                      <span nz-icon nzType="holder" nzTheme="outline" aria-hidden="true"></span>
+                    </button>
+                    <ng-container
+                      [ngTemplateOutlet]="rowBody"
+                      [ngTemplateOutletContext]="{ $implicit: q }"
+                    />
+                  </div>
+                  <ng-container
+                    [ngTemplateOutlet]="rowAnswers"
+                    [ngTemplateOutletContext]="{ $implicit: q }"
                   />
-                </nav>
+                  @if (!filtering() && followersOf(q).length > 0) {
+                    <ng-container
+                      [ngTemplateOutlet]="followerList"
+                      [ngTemplateOutletContext]="{ $implicit: q }"
+                    />
+                  }
+                  <div class="drag-ghost" *cdkDragPlaceholder></div>
+                </li>
               }
+
+              <!-- The new question lands where it will actually be asked (last), so the
+                   affordance sits at the end of the list rather than only in the bar —
+                   and only on the page that IS the end. -->
+              @if (!filtering() && page() === pageCount()) {
+                <li class="row add-row">
+                  <button type="button" class="add-inline" (click)="startCreate()">
+                    <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@qedit.add_question_inline">Add a question to the end</span>
+                  </button>
+                </li>
+              }
+            </ul>
+
+            <!-- Pager sits below the list and is hidden on a single page: a control
+                 whose only state is "page 1 of 1" is chrome, not navigation. -->
+            @if (pageCount() > 1) {
+              <nav class="pager" aria-label="Question pages" i18n-aria-label="@@qedit.pager_aria">
+                <p class="pager-range" i18n="@@qedit.page_range">
+                  Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ pageUnits().length }}
+                </p>
+                <nz-pagination
+                  [nzPageIndex]="page()"
+                  [nzPageSize]="PAGE_SIZE"
+                  [nzTotal]="pageUnits().length"
+                  nzSize="small"
+                  (nzPageIndexChange)="setPage($event)"
+                />
+              </nav>
+            }
+          }
+        }
+      }
+    </section>
+
+    <!-- A question's follow-ups, under it: one list per question, so a drag moves a follow-up
+         only among its siblings, and a question dragged in the list above carries its whole
+         block. The list, its rows and their handles are declared HERE, together: a drag handle
+         finds its row, and a row its list, through the template they are written in, not the
+         one they are drawn into. Recursive, so a follow-up's own follow-ups hang under it. -->
+    <ng-template #followerList let-parent>
+      <ul
+        class="followers"
+        cdkDropList
+        [cdkDropListDisabled]="!reorderable()"
+        (cdkDropListDropped)="dropFollower(parent, $event)"
+        [attr.aria-label]="followersAria"
+      >
+        @for (f of followersOf(parent); track f.id) {
+          <li
+            class="row"
+            cdkDrag
+            cdkDragLockAxis="y"
+            [cdkDragDisabled]="!reorderable()"
+            [class.open]="expandedId() === f.id"
+            [class.flagged]="needsOptions(f)"
+          >
+            <div class="row-head">
+              <button
+                type="button"
+                class="handle"
+                cdkDragHandle
+                [disabled]="!reorderable()"
+                aria-label="Drag to reorder"
+                i18n-aria-label="@@qedit.reorder_aria"
+              >
+                <span nz-icon nzType="holder" nzTheme="outline" aria-hidden="true"></span>
+              </button>
+              <ng-container
+                [ngTemplateOutlet]="rowBody"
+                [ngTemplateOutletContext]="{ $implicit: f }"
+              />
+            </div>
+            <ng-container
+              [ngTemplateOutlet]="rowAnswers"
+              [ngTemplateOutletContext]="{ $implicit: f }"
+            />
+            @if (followersOf(f).length > 0) {
+              <ng-container
+                [ngTemplateOutlet]="followerList"
+                [ngTemplateOutletContext]="{ $implicit: f }"
+              />
+            }
+            <div class="drag-ghost" *cdkDragPlaceholder></div>
+          </li>
+        }
+      </ul>
+    </ng-template>
+
+    <!-- A row's title line after its drag handle — the same for a question and a follow-up.
+         Drawn straight into the row's grid, so its four cells line up with the handle. -->
+    <ng-template #rowBody let-q>
+      <span class="ord" aria-hidden="true">{{ ordOf(q) }}</span>
+
+      <button
+        type="button"
+        class="row-main"
+        [attr.aria-expanded]="expandedId() === q.id"
+        (click)="toggleRow(q)"
+      >
+        <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{
+          isAr ? q.questionAr : q.questionEn
+        }}</span>
+        <!-- The auto-generated code is deliberately NOT shown here: it is
+             machine identity the admin never types (A33), and it competed
+             with the question for the eye on all 41 rows. Search still
+             matches it. -->
+        <!-- A value type's rule is short and belongs on the title line;
+             only choice answers need the width of a second line. -->
+        @if (!isChoice(q.type)) {
+          <span class="rule-line">{{ ruleSummary(q) }}</span>
+        }
+      </button>
+
+      <!-- Both chips share one cell so the kebab stays in the same
+           column on every row — an optional required-chip cell of its
+           own would shift every kebab it is missing from. -->
+      <span class="row-meta">
+        <!-- A follow-up says which answer opens it — first, because it is what sets the row
+             apart. The answer alone: the question it follows is the row it hangs under (or,
+             filtered, its number). The whole sentence is the tooltip. -->
+        @if (gateOf(q); as gate) {
+          <span class="gate-chip" nz-tooltip [nzTooltipTitle]="gate.full"
+            ><span aria-hidden="true">{{ gate.short }}</span
+            ><span class="sr-only">{{ gate.full }}</span></span
+          >
+        }
+        <!-- A fact about where the question is asked, not a lock: worded, so it
+             never reads as the padlock beside it. -->
+        @if (isFixed(q)) {
+          <span class="fixed-chip" nz-tooltip [nzTooltipTitle]="fixedTip(q)"
+            ><span i18n="@@qedit.fixed_chip">Fixed</span
+            ><span class="sr-only">{{ fixedTip(q) }}</span></span
+          >
+        }
+        <!-- The engine reads this answer, so the server refuses anything but
+             its wording and answer order. Said on the row so the admin knows
+             before opening it, not after a refused save. -->
+        @if (engineLockOf(q); as lock) {
+          <span class="lock-chip" nz-tooltip [nzTooltipTitle]="lockSummary(lock)"
+            ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+            ><span class="sr-only">{{ lockSummary(lock) }}</span></span
+          >
+        }
+        <span
+          class="type-chip"
+          [class.value-type]="!isChoice(q.type)"
+          nz-tooltip
+          [nzTooltipTitle]="typeHint(q.type)"
+          >{{ typeLabel(q.type) }}</span
+        >
+        <!-- Required is the DEFAULT, so 41 identical "required" chips
+             said nothing. Only the exception is worth a chip. -->
+        @if (!q.isRequired) {
+          <span
+            class="req"
+            nz-tooltip
+            nzTooltipTitle="Applicants may skip this"
+            i18n-nzTooltipTitle="@@qedit.optional_tip"
+            i18n="@@qedit.optional_chip"
+            >optional</span
+          >
+        }
+      </span>
+
+      <!-- Opens the editor, same as clicking the row. It used to open a
+           4-item dropdown; move/delete now live in the editor itself, so
+           there is nothing left for a menu to hold. -->
+      <button
+        type="button"
+        class="kebab"
+        nz-button
+        nzType="text"
+        nzShape="circle"
+        (click)="toggleRow(q)"
+        aria-label="Edit question"
+        i18n-aria-label="@@qedit.edit_question_aria"
+      >
+        <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
+      </button>
+    </ng-template>
+
+    <!-- Answers get their own full-width line under the question. Squeezed
+         into a column beside it they truncated to "Getti…" / "Scho…",
+         which is worse than not showing them: the admin has to open the
+         row to learn what it already looked like it was telling them. -->
+    <ng-template #rowAnswers let-q>
+      @if (isChoice(q.type)) {
+        <div class="row-answers">
+          @if (q.options.length === 0) {
+            <span class="pill warn" i18n="@@qedit.needs_options_short">needs options</span>
+          } @else {
+            @for (o of previewOptions(q); track o.id) {
+              <span class="pill" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                isAr ? o.labelAr : o.labelEn
+              }}</span>
+            }
+            @if (q.options.length > INLINE_OPTION_PREVIEW) {
+              <span
+                class="pill more"
+                nz-tooltip
+                [nzTooltipTitle]="allOptionLabels(q)"
+                i18n="@@qedit.opt_more"
+                >+{{ q.options.length - INLINE_OPTION_PREVIEW }} more</span
+              >
             }
           }
         </div>
       }
-    </section>
+    </ng-template>
 
     <!-- The editor is a SIDE SHEET — app-form-drawer, opened through NzDrawerService like every
          other add/edit form in the dashboard (openSheet). The template stays in this page, so
@@ -764,14 +757,13 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       >
         <span drawerIcon nz-icon [nzType]="editing() ? 'edit' : 'plus'" nzTheme="outline"></span>
         <!-- Reordering lives here: the keyboard twin of the drag handle, and the only way to
-             move a question while filtered. A question this tab does not list has no place in
-             it to move. -->
-        @if (movableQuestion(); as eq) {
+             move a question while filtered. -->
+        @if (editingQuestion(); as eq) {
           <span drawerHeadActions class="sheet-moves">
             <button
               type="button"
               class="icon-btn"
-              [disabled]="positionOf(eq) === 1"
+              [disabled]="!canMove(eq, -1)"
               (click)="moveBy(eq, -1)"
               nz-tooltip
               nzTooltipTitle="Move up"
@@ -784,7 +776,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             <button
               type="button"
               class="icon-btn"
-              [disabled]="positionOf(eq) === listed().length"
+              [disabled]="!canMove(eq, 1)"
               (click)="moveBy(eq, 1)"
               nz-tooltip
               nzTooltipTitle="Move down"
@@ -1040,9 +1032,10 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                       <span i18n="@@qedit.sec_ranges">Changes the offer</span>
                       <span class="count-pill">{{ rangesOf(eq).length }}</span>
                     </p>
-                    <p class="hint" i18n="@@qedit.ranges_hint">
-                      When the applicant's number falls in a range, every program's offer changes
-                      like this. Ranges can't overlap; a number in no range changes nothing.
+                    <p class="hint" i18n="@@qedit.ranges_hint2">
+                      When the applicant's number falls in a range, the offer of every program that
+                      asks it changes like this. Ranges can't overlap; a number in no range changes
+                      nothing.
                     </p>
                     <ul class="opt-list">
                       @for (r of rangesOf(eq); track $index) {
@@ -1113,9 +1106,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                 <!-- A FIXED text question (v31.3.0): asked everywhere, collected, never priced —
                    offer effects sit on a choice question's answers or a number's ranges only. -->
                 @if (fixedTicked()) {
-                  <p class="hint" i18n="@@qedit.text_fixed_note">
-                    Fixed: asked on every program and saved with the application, for your records.
-                    A text answer doesn't change the offer.
+                  <p class="hint" i18n="@@qedit.text_fixed_note2">
+                    Fixed: asked on every program of its side and saved with the application, for
+                    your records. A text answer doesn't change the offer.
                   </p>
                 }
               </div>
@@ -1324,9 +1317,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                     <label class="setting-title" for="qedit-fixed" i18n="@@qedit.fixed_label"
                       >Fixed question</label
                     >
-                    <p class="setting-desc" i18n="@@qedit.fixed_hint2">
-                      Every program asks it, and no program can skip it. Its answers can change the
-                      offer.
+                    <p class="setting-desc" i18n="@@qedit.fixed_hint3">
+                      Every program on the side you pick asks it, and none of them can skip it. Its
+                      answers can change the offer.
                     </p>
                   </div>
                   <nz-switch
@@ -1583,9 +1576,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               <input type="checkbox" class="oe-check" [formControl]="optionEffect.controls.on" />
               <span class="oe-effect-title" i18n="@@qedit.effect_toggle">Changes the offer</span>
             </label>
-            <p class="hint" i18n="@@qedit.effect_toggle_hint">
-              When an applicant picks this answer, every program's offer changes like this. Leave a
-              box empty for no change.
+            <p class="hint" i18n="@@qedit.effect_toggle_hint2">
+              When an applicant picks this answer, the offer of every program that asks it changes
+              like this. Leave a box empty for no change.
             </p>
             @if (optionEffect.controls.on.value) {
               <app-effect-levers
@@ -1704,12 +1697,17 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
   styles: [
     `
       /* The sheet is rendered in the drawer overlay, outside this host, so it re-declares the
-         same variables — without them every border and track in the form paints nothing. */
+         same variables — without them every border and track in the form paints nothing. So
+         does a drag preview, which the CDK moves to the body: without them the dragged row was
+         see-through over the rows it passed. */
       :host,
-      .qe-sheet {
+      .qe-sheet,
+      .cdk-drag-preview {
         /* Global pool → single brand azure accent (no per-category tint). */
         --cat: var(--primary, var(--ant-primary-color, #0869c3));
-        --qe-line: var(--color-border-subtle, #efeae5);
+        /* --border-subtle is the palette's own (light and dark). The --color-border-subtle this
+           read never existed, so every hairline fell back to a light-mode beige in dark mode. */
+        --qe-line: var(--border-subtle, var(--color-border-default));
         --qe-line-strong: var(--color-border-default, #ddd8d3);
         --qe-muted: var(--color-text-tertiary, #8c7e75);
         --qe-text: var(--color-text-primary, #2b2320);
@@ -1718,6 +1716,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         --qe-surface-muted: var(--color-surface-muted, #efeae5);
         --qe-radius: var(--radius-lg, 12px);
         --qe-ease: var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+        /* A follow-up's number column: wide enough for "12.10" without the ring a top-level
+           question's number wears. */
+        --qe-follow-ord: 36px;
       }
       .page {
         padding: var(--space-6, 32px);
@@ -1881,14 +1882,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       }
 
       /* ---- Toolbar ------------------------------------------------------ */
-      /* Income proof / Surrogate: the rail sits on the page, its panel holds the list. */
-      .basis-rail {
-        display: block;
-        margin-block-end: var(--space-4, 16px);
-      }
-      .basis-panel {
-        min-inline-size: 0;
-      }
       .toolbar {
         display: flex;
         align-items: center;
@@ -2097,7 +2090,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
           background var(--motion-duration-fast, 120ms) ease;
       }
       .row-head:hover .ord,
-      .row.open .ord {
+      .row.open > .row-head .ord {
         color: var(--cat);
         border-color: color-mix(in srgb, var(--cat) 35%, transparent);
         background: color-mix(in srgb, var(--cat) 12%, transparent);
@@ -2226,6 +2219,58 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       .kebab span[nz-icon] {
         transform: rotate(90deg);
       }
+      /* ---- Follow-ups ---------------------------------------------------
+         Under the question whose answer opens them, on a guide that drops from the centre of
+         that question's number — a tree, not a box: the list already has one surface, and a
+         card inside it would be a card in a card. */
+      .followers {
+        list-style: none;
+        margin: 0;
+        margin-inline: calc(var(--space-3, 12px) + 28px + var(--space-2, 8px) + 11px)
+          var(--space-3, 12px);
+        margin-block-end: var(--space-3, 12px);
+        padding: 0;
+        border-inline-start: 2px solid var(--qe-line-strong);
+      }
+      /* A nested follow-up list sits under its own row's number, inside the guide above. */
+      .followers .followers {
+        margin-inline-start: calc(var(--space-2, 8px) + 28px + var(--space-2, 8px) + 17px);
+      }
+      .followers .row-head {
+        grid-template-columns: auto var(--qe-follow-ord) minmax(0, 1fr) auto auto;
+        padding-inline: var(--space-2, 8px) 0;
+      }
+      .followers .row-answers {
+        padding-inline: calc(var(--space-2, 8px) * 3 + 28px + var(--qe-follow-ord)) 0;
+      }
+      /* Numbered, but not ringed: the ring belongs to the top level, so the eye can run down
+         the questions everyone is asked and skip what hangs off them. */
+      .followers .ord {
+        inline-size: var(--qe-follow-ord);
+        border-color: transparent;
+        background: none;
+        font-weight: 600;
+      }
+      .followers .q-text {
+        font-weight: 500;
+      }
+      /* The answer that opens the follow-up. Neutral, not accented: it is a condition, and the
+         accent on this list means "the row you are on". */
+      .gate-chip {
+        flex-shrink: 1;
+        min-inline-size: 0;
+        max-inline-size: 28ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--qe-text-2);
+        background: var(--qe-surface-muted);
+        padding: 1px 8px;
+        border-radius: var(--radius-pill, 999px);
+      }
+
       /* Drag affordances. */
       .cdk-drag-preview {
         border-radius: var(--radius-md, 8px);
@@ -2233,7 +2278,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         box-shadow: var(--shadow-xl, 0 12px 32px rgba(16, 24, 40, 0.18));
       }
       .cdk-drag-placeholder .row-head,
-      .cdk-drag-placeholder .row-answers {
+      .cdk-drag-placeholder .row-answers,
+      .cdk-drag-placeholder .followers {
         display: none;
       }
       .drag-ghost {
@@ -2411,8 +2457,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
          A fact about where a question is asked, worded rather than drawn as a
          second padlock: accent INK on its own faint tint (the tonal pair keeps
          the ink above AA in both themes; the raw accent on its tint does not). */
-      .fixed-chip,
-      .surrogate-chip {
+      .fixed-chip {
         flex-shrink: 0;
         display: inline-flex;
         align-items: center;
@@ -2423,10 +2468,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         font-size: var(--text-xs, 12px);
         font-weight: var(--font-semibold, 600);
         line-height: 1.4;
-      }
-      .surrogate-chip {
-        background: var(--color-income-surrogate-bg);
-        color: var(--color-income-surrogate);
       }
       .served {
         display: flex;
@@ -2444,9 +2485,11 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         font-weight: var(--font-semibold, 600);
         color: var(--qe-text-2);
       }
+      /* Three choices of one setting, one per line: wrapped two-and-one, the last read as a
+         setting of its own. */
       .served-options {
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
         gap: var(--space-2, 8px);
       }
       /* Each answer is a 44px target, the whole bordered pill clickable. */
@@ -2481,27 +2524,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         color: var(--qe-text);
       }
 
-      /* ---- What a tab says about itself, and what was deleted ------------ */
-      .basis-note {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: var(--space-1, 4px) var(--space-2, 8px);
-        max-inline-size: 72ch;
-        margin: 0 0 var(--space-3, 12px);
-        font-size: var(--text-xs, 12px);
-        line-height: var(--leading-normal, 1.5);
-        color: var(--qe-text-2);
-      }
-      .basis-note a {
-        color: var(--primary-visible, var(--cat));
-        font-weight: var(--font-semibold, 600);
-      }
-      .basis-note a:focus-visible {
-        outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, var(--cat));
-        outline-offset: 2px;
-        border-radius: var(--radius-sm, 4px);
-      }
+      /* ---- What was deleted ---------------------------------------------- */
       .deleted-panel {
         display: flex;
         flex-direction: column;
@@ -3101,12 +3124,41 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         .row-answers {
           padding-inline: var(--space-3, 12px);
         }
+        .followers .row-head {
+          grid-template-columns: auto var(--qe-follow-ord) minmax(0, 1fr) auto;
+        }
+        .followers .row-answers {
+          padding-inline: var(--space-2, 8px) 0;
+        }
+        /* The meta line under a follow-up shares its number's column. */
+        .followers .row-meta {
+          flex-wrap: wrap;
+        }
         .showing {
           margin-inline-start: 0;
         }
         /* The range text and the page buttons stop competing for one row. */
         .pager {
           justify-content: center;
+        }
+      }
+      /* A phone: a title wraps rather than ellipsising to two words, the rule line under it
+         wraps rather than running out of the row, and the follow-up guide drops from the
+         drag handle instead of the number, which gives a nested title the width back. */
+      @media (max-width: 600px) {
+        .q-text {
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+        .rule-line {
+          flex-shrink: 1;
+          min-inline-size: 0;
+        }
+        .followers {
+          margin-inline-start: calc(var(--space-3, 12px) + 13px);
+        }
+        .followers .followers {
+          margin-inline-start: calc(var(--space-2, 8px) + 13px);
         }
       }
       /* A phone-width sheet: the numeric bounds stack instead of squeezing three to a row. */
@@ -3208,15 +3260,6 @@ export class QuestionnaireEditorPage implements OnInit {
     return q !== null && isFixed(q);
   });
   /**
-   * The question the sheet header may move: one the tab on screen lists, the only order its
-   * arrows can move it in. Opening one the tab does not list switches tab first
-   * (`revealQuestion`).
-   */
-  readonly movableQuestion = computed<QuestionRow | null>(() => {
-    const q = this.editingQuestion();
-    return q !== null && listedOn(this.tab(), q) ? q : null;
-  });
-  /**
    * The question the sheet's Delete acts on: a fixed one for a super admin (the type-the-code
    * dialog), any other one the loan engine does not read.
    */
@@ -3232,15 +3275,24 @@ export class QuestionnaireEditorPage implements OnInit {
       ? $localize`:@@qedit.modal_edit:Edit question`
       : $localize`:@@qedit.modal_new:New question`,
   );
-  /** Where the question sits in the asked order of its tab. */
+  /**
+   * Where the question sits in the library: its number among the top-level questions, or — a
+   * follow-up — the question it hangs under.
+   */
   readonly sheetSubtitle = computed(() => {
     const q = this.editingQuestion();
+    const tree = this.tree();
     if (q === null) {
-      const position = this.listed().length + 1;
+      const position = tree.roots.length + 1;
       return $localize`:@@qedit.sheet_pos_new:Asked last, at position ${position}:position:`;
     }
-    const position = this.positionOf(q);
-    const total = this.listed().length;
+    const parentId = tree.parentOf.get(q.id);
+    if (parentId !== undefined) {
+      const parent = this.ordOf({ id: parentId });
+      return $localize`:@@qedit.sheet_pos_follow:Follow-up to question ${parent}:parent:`;
+    }
+    const position = this.ordOf(q);
+    const total = tree.roots.length;
     return $localize`:@@qedit.sheet_pos:Question ${position}:position: of ${total}:total:`;
   });
   readonly saveLabel = computed(() =>
@@ -3264,16 +3316,17 @@ export class QuestionnaireEditorPage implements OnInit {
   /** Mirrors the form's Fixed tick and its "Asked on" choice, for the template. */
   readonly fixedTicked = signal(false);
   readonly servedOnValue = signal<FixedServedOn>('every_name');
-  readonly servedOptions: readonly FixedServedOn[] = ['every_name', 'income_proof'];
+  /** Income proof only, surrogate only, or both — the operator's order (2026-10-30). */
+  readonly servedOptions: readonly FixedServedOn[] = [
+    'income_proof',
+    'income_surrogate',
+    'every_name',
+  ];
 
   // ---- Deleted fixed questions (super admin) --------------------------------
   readonly deletedFixed = signal<DeletedFixedQuestion[]>([]);
   readonly deletedOpen = signal(false);
-  /** On All and Income proof: a deleted question was fixed, and fixed questions are listed there. */
-  readonly deletedOffered = computed(
-    () => this.tab() !== 'no_payslip' && this.deletedFixed().length > 0,
-  );
-  readonly deletedShown = computed(() => this.deletedOpen() && this.deletedOffered());
+  readonly deletedShown = computed(() => this.deletedOpen() && this.deletedFixed().length > 0);
   readonly restoringId = signal<string | null>(null);
 
   /** Option sub-editors inside the sheet. */
@@ -3285,104 +3338,25 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
   readonly typeFilter = signal<TypeFilter>('ALL');
   readonly onlyIncomplete = signal(false);
-  readonly onlyFixed = signal(false);
-
-  // ---- Tabs ----------------------------------------------------------------
-  /**
-   * The tab on screen (`?basis=`): `all` = All, the default; `payslip` = Income proof;
-   * `no_payslip` = Surrogate.
-   */
-  readonly tab = signal<QuestionTab>('all');
-
-  /**
-   * What the tab on screen LISTS (`listedOn`): the whole pool on All, one half of it on the
-   * other two. Everything the page counts, numbers, filters or reorders reads this, so each tab
-   * does all of it over its own questions — and a question it does not list keeps its slot.
-   */
-  readonly listed = computed<QuestionRow[]>(() => {
-    const tab = this.tab();
-    return this.rows().filter((q) => listedOn(tab, q));
-  });
-
-  /** The rail: each tab's count, and a mark on a tab holding a question that needs options. */
-  readonly basisTabs = computed<RailTabItem[]>(() => {
-    const rows = this.rows();
-    const all: RailTabItem = {
-      id: 'all',
-      label: this.allTabLabel,
-      note: this.allTabNote,
-      count: rows.length,
-      countLabel: this.tabCountLabel,
-      warn: rows.some((q) => this.needsOptions(q)),
-      warnLabel: this.tabWarnLabel,
-      accent: 'var(--color-brand-primary)',
-    };
-    const halves = INCOME_BASES.map((basis): RailTabItem => {
-      const own = rows.filter((q) => basisTabOf(q) === basis);
-      return {
-        id: basis,
-        label: incomeBasisLabel(basis),
-        note: basis === 'payslip' ? this.proofTabNote : this.surrogateTabNote,
-        count: own.length,
-        countLabel: this.tabCountLabel,
-        warn: own.some((q) => this.needsOptions(q)),
-        warnLabel: this.tabWarnLabel,
-        accent:
-          basis === 'payslip' ? 'var(--color-brand-primary)' : 'var(--color-income-surrogate)',
-      };
-    });
-    return [all, ...halves];
-  });
-
-  /**
-   * A question is added on All or Income proof, never Surrogate. It becomes a surrogate question
-   * once a product asks it — set on the product, in the Program catalog — so one added on the
-   * Surrogate tab would land on another tab.
-   */
-  readonly canAddHere = computed(() => this.tab() !== 'no_payslip');
-
-  /**
-   * A phone: three equal cells leave each about 90px, and "Income proof" or "Surrogate" plus its
-   * count does not fit — the NAME is cut to an ellipsis. Stacked, each tab has the full width.
-   */
-  readonly narrowRail = toSignal(
-    inject(BreakpointObserver)
-      .observe('(max-width: 600px)')
-      .pipe(map((state) => state.matches)),
-    { initialValue: false },
-  );
-
-  readonly basisAria = $localize`:@@qrules.basis_aria:Which programs ask them`;
-  readonly surrogateChipLabel = incomeBasisLabel('no_payslip');
-  readonly surrogateChipTip = $localize`:@@qedit.surrogate_chip_tip:Asked by surrogate products — which ones is set in the Program catalog`;
-  private readonly allTabLabel = $localize`:@@qedit.tab_all:All questions`;
-  private readonly allTabNote = $localize`:@@qedit.tab_all_note:Fixed, income-proof and surrogate`;
-  private readonly proofTabNote = $localize`:@@qedit.basis_proof_note:Fixed and income-proof questions`;
-  private readonly surrogateTabNote = $localize`:@@qedit.basis_surrogate_note:Asked by surrogate products`;
-  private readonly tabCountLabel = $localize`:@@qrules.basis_count:questions`;
-  private readonly tabWarnLabel = $localize`:@@qedit.basis_warn:A question here needs options`;
-
-  readonly fixedCount = computed(() => this.listed().filter((q) => isFixed(q)).length);
-  /** The Fixed chip is offered only when it narrows the list. */
-  readonly fixedNarrows = computed(
-    () => this.fixedCount() > 0 && this.fixedCount() < this.listed().length,
-  );
 
   readonly filtering = computed(
-    () =>
-      this.query().trim() !== '' ||
-      this.typeFilter() !== 'ALL' ||
-      this.onlyIncomplete() ||
-      this.onlyFixed(),
+    () => this.query().trim() !== '' || this.typeFilter() !== 'ALL' || this.onlyIncomplete(),
   );
+
+  /**
+   * The library as a tree — a follow-up under the question whose answer opens it — and the
+   * same tree read flat, a question before its follow-ups: the order the list shows, numbers
+   * and saves (`question-pool-view.ts`).
+   */
+  readonly tree = computed(() => poolTree(this.rows()));
+  private readonly ordered = computed(() => flattenTree(this.tree().roots, this.tree().children));
+  private readonly labels = computed(() => outlineLabels(this.tree()));
 
   readonly visible = computed<QuestionRow[]>(() => {
     const needle = this.query().trim().toLowerCase();
     const type = this.typeFilter();
     const incompleteOnly = this.onlyIncomplete();
-    const fixedOnly = this.onlyFixed();
-    return this.listed().filter((q) => {
-      if (fixedOnly && !isFixed(q)) return false;
+    return this.ordered().filter((q) => {
       if (type !== 'ALL' && q.type !== type) return false;
       if (incompleteOnly && !this.needsOptions(q)) return false;
       if (needle === '') return true;
@@ -3398,29 +3372,32 @@ export class QuestionnaireEditorPage implements OnInit {
    */
   private readonly pageRequest = signal(1);
 
-  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.visible().length / PAGE_SIZE)));
+  /**
+   * What a page counts. Unfiltered: the top-level questions, each drawn with its follow-ups
+   * under it, so a page never splits a question from what it opens. Filtered: the matches.
+   */
+  readonly pageUnits = computed<readonly QuestionRow[]>(() =>
+    this.filtering() ? this.visible() : this.tree().roots,
+  );
+  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.pageUnits().length / PAGE_SIZE)));
   readonly page = computed(() => Math.min(Math.max(1, this.pageRequest()), this.pageCount()));
   private readonly pageOffset = computed(() => (this.page() - 1) * PAGE_SIZE);
 
-  /** The rows actually rendered — one page of the FILTERED list. */
-  readonly paged = computed<QuestionRow[]>(() =>
-    this.visible().slice(this.pageOffset(), this.pageOffset() + PAGE_SIZE),
+  /** The rows the outer list renders — one page of top-level questions, or of matches. */
+  readonly paged = computed<readonly QuestionRow[]>(() =>
+    this.pageUnits().slice(this.pageOffset(), this.pageOffset() + PAGE_SIZE),
   );
 
-  readonly rangeStart = computed(() => (this.visible().length === 0 ? 0 : this.pageOffset() + 1));
+  readonly rangeStart = computed(() => (this.pageUnits().length === 0 ? 0 : this.pageOffset() + 1));
   readonly rangeEnd = computed(() => this.pageOffset() + this.paged().length);
 
   /**
-   * Choice questions the server would refuse to ask: fewer than two options. On BOTH tabs — the
-   * health chip speaks for the page, and a jump to one opens its tab.
+   * Choice questions the server would refuse to ask: fewer than two options. The health chip
+   * lists them, and the Needs options filter narrows to them.
    */
   readonly incomplete = computed(() => this.rows().filter((q) => this.needsOptions(q)));
-  /** The same, on the tab on screen: what the Needs options filter narrows to. */
-  readonly incompleteHere = computed(() => this.listed().filter((q) => this.needsOptions(q)));
   readonly issueCount = computed(() => this.incomplete().length + this.bindingWarnings().length);
-  readonly totalOptions = computed(() =>
-    this.listed().reduce((sum, q) => sum + q.options.length, 0),
-  );
+  readonly totalOptions = computed(() => this.rows().reduce((sum, q) => sum + q.options.length, 0));
 
   /**
    * Reordering is only offered on the unfiltered list: in a filtered view the
@@ -3555,8 +3532,6 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    // Before the load, so the tab the link names is the one the list first renders on.
-    this.tab.set(tabOfParam(this.route.snapshot.queryParamMap.get('basis')));
     await this.loadAll();
     this.openFromUrl();
   }
@@ -3572,8 +3547,8 @@ export class QuestionnaireEditorPage implements OnInit {
    * Read ONCE, after the rows are in hand — a question that is not in the pool is left alone
    * rather than reported, because a stale link is a link, not a fault the operator can fix
    * from here. The parameter is then cleared from the URL so a reload does not re-open a form
-   * the operator deliberately closed. A product's question opens on the Surrogate tab: the link
-   * names the question, and the question knows its tab.
+   * the operator deliberately closed — and so is a `?basis=` left by a bookmark of the tabs
+   * this page had until v32.1.0.
    */
   private openFromUrl(): void {
     const code = this.route.snapshot.queryParamMap.get('q');
@@ -3585,7 +3560,7 @@ export class QuestionnaireEditorPage implements OnInit {
     this.openRow(row);
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { q: null, basis: this.basisParam() },
+      queryParams: { q: null, basis: null },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
@@ -3601,26 +3576,83 @@ export class QuestionnaireEditorPage implements OnInit {
     return this.isChoice(q.type) && q.options.length < 2;
   }
 
-  /** 1-based position in the ASKED order of this tab's list, not in the filtered view. */
-  positionOf(q: QuestionRow): number {
-    return this.listed().findIndex((r) => r.id === q.id) + 1;
+  /** The row's number in the library's outline — 4, or 4.1 for a follow-up of 4. */
+  ordOf(q: Pick<QuestionRow, 'id'>): string {
+    return this.labels().get(q.id) ?? '';
+  }
+
+  /** A question's follow-ups, drawn under it. */
+  followersOf(q: QuestionRow): readonly QuestionRow[] {
+    return this.tree().children.get(q.id) ?? [];
+  }
+
+  /** The sheet's arrows move a question among its siblings, never out from under its parent. */
+  canMove(q: QuestionRow, delta: number): boolean {
+    const siblings = siblingsOf(this.tree(), q);
+    const to = siblings.findIndex((s) => s.id === q.id) + delta;
+    return to >= 0 && to < siblings.length;
+  }
+
+  readonly followersAria = $localize`:@@qedit.followers_aria:Follow-up questions`;
+
+  /**
+   * Which answer opens each follow-up: the answer alone for the chip, and the whole sentence
+   * for its tooltip. Only for a question the tree hangs under another — a rule that cannot hide
+   * its question is not drawn as one.
+   */
+  private readonly gates = computed(() => {
+    const tree = this.tree();
+    const byId = new Map(this.rows().map((q) => [q.id, q]));
+    const gates = new Map<string, { short: string; full: string }>();
+    for (const [id, parentId] of tree.parentOf) {
+      const q = byId.get(id);
+      const source = byId.get(parentId);
+      if (q === undefined || source === undefined) continue;
+      const codes = ruleCodes(q.enabledWhen);
+      const answers = codes
+        .map((code) => source.options.find((o) => o.code === code))
+        .map((o, i) => (o ? (this.isAr ? o.labelAr : o.labelEn) : codes[i]))
+        .join(' / ');
+      const asked = this.isAr ? source.questionAr : source.questionEn;
+      gates.set(
+        id,
+        q.enabledWhen?.operator === 'not_equals'
+          ? {
+              short: $localize`:@@srvp.gate_unless:Unless: ${answers}:ANSWERS:`,
+              full: $localize`:@@srvp.gate_not:Asked unless “${asked}:SOURCE:” is ${answers}:ANSWERS:`,
+            }
+          : {
+              short: $localize`:@@srvp.gate_if:If: ${answers}:ANSWERS:`,
+              full: $localize`:@@srvp.gate_is:Asked only when “${asked}:SOURCE:” is ${answers}:ANSWERS:`,
+            },
+      );
+    }
+    return gates;
+  });
+
+  gateOf(q: QuestionRow): { short: string; full: string } | null {
+    return this.gates().get(q.id) ?? null;
   }
 
   countOfType(type: QuestionType): number {
-    return this.listed().filter((q) => q.type === type).length;
+    return this.rows().filter((q) => q.type === type).length;
   }
 
   readonly isFixed = isFixed;
-  readonly basisTabOf = basisTabOf;
   readonly engineLockOf = engineLockOf;
   readonly servedOnLabel = servedOnLabel;
   readonly servedOnHint = servedOnHint;
 
   /** The Fixed badge's tooltip, and its screen-reader text. */
   fixedTip(q: QuestionRow): string {
-    return q.fixedServedOn === 'income_proof'
-      ? $localize`:@@qedit.fixed_tip_proof2:Fixed: every income-proof program asks it`
-      : $localize`:@@qedit.fixed_tip_every2:Fixed: every program asks it`;
+    switch (q.fixedServedOn) {
+      case 'income_proof':
+        return $localize`:@@qedit.fixed_tip_proof2:Fixed: every income-proof program asks it`;
+      case 'income_surrogate':
+        return $localize`:@@qedit.fixed_tip_surrogate:Fixed: every surrogate program asks it`;
+      default:
+        return $localize`:@@qedit.fixed_tip_every2:Fixed: every program asks it`;
+    }
   }
 
   previewOptions(q: QuestionRow): OptionRow[] {
@@ -3740,44 +3772,11 @@ export class QuestionnaireEditorPage implements OnInit {
     this.pageRequest.set(1);
   }
 
-  setOnlyFixed(only: boolean): void {
-    this.onlyFixed.set(only);
-    this.pageRequest.set(1);
-  }
-
   clearFilters(): void {
     this.searchCtrl.setValue('');
     this.typeFilter.set('ALL');
     this.onlyIncomplete.set(false);
-    this.onlyFixed.set(false);
     this.pageRequest.set(1);
-  }
-
-  // ---- Tabs ----------------------------------------------------------------
-  /**
-   * Switch tab. The chip filters reset — their counts were the other tab's — and the search is
-   * kept, so a word typed on one tab can be looked for on the other.
-   */
-  setTab(id: string): void {
-    const next = tabOfParam(id);
-    if (next === this.tab()) return;
-    this.tab.set(next);
-    this.typeFilter.set('ALL');
-    this.onlyIncomplete.set(false);
-    this.onlyFixed.set(false);
-    this.pageRequest.set(1);
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { basis: this.basisParam() },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
-    });
-  }
-
-  /** The URL's word for the tab on screen: none for All, the first. */
-  private basisParam(): IncomeBasis | null {
-    const tab = this.tab();
-    return tab === 'all' ? null : tab;
   }
 
   // ---- Paging --------------------------------------------------------------
@@ -3796,16 +3795,11 @@ export class QuestionnaireEditorPage implements OnInit {
    * anything that can move a question off the current page (a create appends to
    * the end, a move crosses a boundary), so the row they are working on is still
    * behind the modal when it closes.
-   *
-   * On a TAB that lists it first: a jump from the health panel, a `?q=` link, and a save that
-   * moves a question across (made fixed → Income proof; un-fixed while a product asks it →
-   * Surrogate) stay on All, which lists every question, and on the other two follow it to its
-   * own tab rather than leave the admin on a list it has left.
    */
   private revealQuestion(id: string): void {
-    const row = this.rows().find((q) => q.id === id);
-    if (row !== undefined && !listedOn(this.tab(), row)) this.setTab(basisTabOf(row));
-    const index = this.visible().findIndex((q) => q.id === id);
+    // Unfiltered, a page is top-level questions: a follow-up is on its top-level question's.
+    const target = this.filtering() ? id : rootIdOf(this.tree(), id);
+    const index = this.pageUnits().findIndex((q) => q.id === target);
     if (index < 0) return;
     this.pageRequest.set(Math.floor(index / PAGE_SIZE) + 1);
   }
@@ -4307,7 +4301,6 @@ export class QuestionnaireEditorPage implements OnInit {
         const wasFixed = this.editingQuestion()?.fixedServedOn != null;
         await this.api.updateQuestion(id, body);
         await this.reload();
-        // Made fixed, or un-fixed while a product asks it, the question is on the other tab now.
         this.revealQuestion(id);
         // Just made FIXED: what its answers (or ranges) do to the offer is set on the saved
         // question, so stay on it — the same as a question created fixed — rather than close.
@@ -4381,45 +4374,52 @@ export class QuestionnaireEditorPage implements OnInit {
 
   // ---- Reordering ----------------------------------------------------------
   /**
-   * CDK reports indexes within the RENDERED list, which is one page. Dragging is
-   * only offered unfiltered, so the page is a contiguous window over `rows()` and
-   * the page offset converts a page index into the global one `commitOrder` needs.
+   * A top-level question dropped among the top-level questions, its follow-ups carried with it.
+   * CDK reports indexes within the RENDERED list, which is one page; dragging is only offered
+   * unfiltered, so the page is a contiguous window over the top level and the page offset
+   * converts a page index into the one `moveAmongSiblings` needs.
    */
   async drop(event: CdkDragDrop<unknown>): Promise<void> {
     if (event.previousIndex === event.currentIndex) return;
-    const offset = this.pageOffset();
-    // Within this tab's questions: one on the other tab keeps its own slot.
-    const next = reorderWithin(
-      this.rows(),
-      this.listed(),
-      offset + event.previousIndex,
-      offset + event.currentIndex,
-    );
-    await this.commitOrder(next);
+    const q = this.paged()[event.previousIndex];
+    if (q === undefined) return;
+    const next = moveAmongSiblings(this.tree(), q, this.pageOffset() + event.currentIndex);
+    if (next !== null) await this.commitOrder(next);
+  }
+
+  /** A follow-up dropped among its parent's follow-ups — its own list, never another's. */
+  async dropFollower(parent: QuestionRow, event: CdkDragDrop<unknown>): Promise<void> {
+    if (event.previousIndex === event.currentIndex) return;
+    const q = this.followersOf(parent)[event.previousIndex];
+    if (q === undefined) return;
+    const next = moveAmongSiblings(this.tree(), q, event.currentIndex);
+    if (next !== null) await this.commitOrder(next);
   }
 
   /**
-   * Menu-driven move: the keyboard path, the only path while filtered, and the
-   * only way to move a question ACROSS a page boundary.
+   * The sheet's arrows: the keyboard path, the only path while filtered, and the only way to
+   * move a question ACROSS a page boundary. Among its siblings, like a drag.
    */
   async moveBy(q: QuestionRow, delta: number): Promise<void> {
-    const listed = this.listed();
-    const from = listed.findIndex((r) => r.id === q.id);
-    const to = from + delta;
-    if (from < 0 || to < 0 || to >= listed.length) return;
-    await this.commitOrder(reorderWithin(this.rows(), listed, from, to));
+    const from = siblingsOf(this.tree(), q).findIndex((s) => s.id === q.id);
+    const next = moveAmongSiblings(this.tree(), q, from + delta);
+    if (next === null) return;
+    await this.commitOrder(next);
     this.revealQuestion(q.id);
   }
 
   /**
    * Optimistic: the list re-renders before the round-trip so a drag does not snap
-   * back under the cursor. A rejected reorder reloads the server's truth.
+   * back under the cursor. A rejected reorder reloads the server's truth. The reply is the
+   * pool as saved, so the rows take its new `displayOrder` — which the when-to-ask picker
+   * compares to offer only earlier questions.
    */
   private async commitOrder(next: QuestionRow[]): Promise<void> {
     const previous = this.rows();
     this.rows.set(next);
     try {
-      await this.api.reorderQuestions(next.map((q) => q.id));
+      const saved = await this.api.reorderQuestions(next.map((q) => q.id));
+      if (saved) this.rows.set(flatten(saved));
       this.published.set(true);
     } catch {
       // Localized toast already shown by the interceptor.

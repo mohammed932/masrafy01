@@ -1,6 +1,6 @@
 import type { AnswerEffectLevers, NumberEffectRange } from '../answer-effect';
 import type { LoanCategory } from '@core/loan-category';
-import type { QuestionEngineLock } from '../questionnaire.api.service';
+import type { FixedServedOn, QuestionEngineLock } from '../questionnaire.api.service';
 
 /**
  * `GET /admin/questionnaire/engine-rules` — mirrors `backend/src/questionnaire/engine-rules-view.ts`.
@@ -38,7 +38,7 @@ export type EngineReader =
   | { kind: 'server_input'; input: 'months_in_job' | 'salary_transfer' }
   | { kind: 'app_mapping'; categories: LoanCategory[] }
   | { kind: 'platform_fact'; facts: LabelledKey[] }
-  | { kind: 'fixed_set'; servedOn: 'income_proof' | 'every_name' }
+  | { kind: 'fixed_set'; servedOn: FixedServedOn }
   | { kind: 'programs'; programNames: (LabelledKey & { categories: LoanCategory[] })[] };
 
 /** What one answer means to the engine, where the server owns the meaning. */
@@ -97,9 +97,15 @@ export interface EngineRuleQuestion {
   /**
    * Whether a no-payslip (surrogate) program asks it: `always`; `unless_derived` — the loan
    * amount, unless the program works it out from the car price and down payment; `never` — the
-   * declared income. Every income-proof program asks them all.
+   * declared income.
    */
   noPayslip: NoPayslipAsk;
+  /**
+   * Where it is asked (`question.fixedServedOn`): every program, income-proof ones only, or
+   * surrogate ones only (`income_surrogate`, v32.1.0). Absent on an older server — read as
+   * asked on every income-proof program.
+   */
+  fixedServedOn?: FixedServedOn | null;
   options: EngineRuleOption[];
   /** A Number question's offer ranges (v31.3.0); absent on an older server. */
   numberEffects?: NumberEffectRange[];

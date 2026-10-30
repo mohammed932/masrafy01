@@ -77,6 +77,12 @@ export interface AnswerEffect extends AnswerEffectLevers {
    * there only — a no-payslip program never asked it and must not be priced by it.
    */
   incomeProofOnly: boolean;
+  /**
+   * The mirror (v32.1.0): fixed and asked on surrogate (no-payslip) programs only, so its
+   * effect is read there only. Present only when true — an effect frozen on an offer before
+   * v32.1.0 has no such key, and one written since keeps that shape unless it is one-sided.
+   */
+  incomeSurrogateOnly?: boolean;
 }
 
 /** A range of a number answer: `[fromInclusive, toExclusive)`, decimal strings, null = open. */
@@ -95,6 +101,7 @@ export type AnswerEffectSource =
       questionCode: string;
       optionCode: string;
       incomeProofOnly: boolean;
+      incomeSurrogateOnly?: boolean;
       levers: AnswerEffectLevers;
     }
   | {
@@ -102,6 +109,7 @@ export type AnswerEffectSource =
       questionCode: string;
       range: AnswerEffectRange;
       incomeProofOnly: boolean;
+      incomeSurrogateOnly?: boolean;
       levers: AnswerEffectLevers;
     };
 
@@ -259,6 +267,7 @@ export function answerEffectsFromAnswers(
         questionCode: source.questionCode,
         optionCode: source.optionCode,
         incomeProofOnly: source.incomeProofOnly,
+        ...surrogateOnlyOf(source),
         ...source.levers,
       });
       continue;
@@ -273,19 +282,32 @@ export function answerEffectsFromAnswers(
       range: source.range,
       value: value.toString(),
       incomeProofOnly: source.incomeProofOnly,
+      ...surrogateOnlyOf(source),
       ...source.levers,
     });
   }
   return effects;
 }
 
-/** The effects that apply to a program of this income basis. */
+/** The surrogate-only mark, carried only when set — see `AnswerEffect.incomeSurrogateOnly`. */
+function surrogateOnlyOf(source: AnswerEffectSource): { incomeSurrogateOnly?: true } {
+  return source.incomeSurrogateOnly === true ? { incomeSurrogateOnly: true } : {};
+}
+
+/**
+ * The effects that apply to a program of this income basis: a one-sided question's effect only
+ * on its own side's programs.
+ */
 export function answerEffectsForProgram(
   effects: readonly AnswerEffect[] | undefined,
   programType: string,
 ): AnswerEffect[] {
   if (effects === undefined || effects.length === 0) return [];
-  return effects.filter((e) => !e.incomeProofOnly || programType === 'income_proof');
+  return effects.filter(
+    (e) =>
+      (!e.incomeProofOnly || programType === 'income_proof') &&
+      (e.incomeSurrogateOnly !== true || programType === 'income_surrogate'),
+  );
 }
 
 function toDecimal(raw: string | undefined): Decimal | null {

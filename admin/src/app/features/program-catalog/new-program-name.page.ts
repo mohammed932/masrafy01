@@ -30,6 +30,7 @@ import {
   addableQuestions,
   additionsToSave,
   coreProblems,
+  fixedAskedHere,
   gateHeldAdditions,
   lockMapFor,
   type AskableQuestion,
@@ -238,14 +239,15 @@ interface CardGroup<T extends QuestionCard> {
                   />
                 }
 
-                <!-- A question every quote needs that is switched off or missing: the
-                     loan type cannot be priced, so Add program waits. Rare — only Questionnaire
-                     can fix it, so it says where. -->
+                <!-- A question every quote needs that is switched off, missing, or fixed for
+                     surrogate programs only (v32.1.0): the loan type cannot be priced, so Add
+                     program waits. Rare — only Questionnaire can fix it, so it says where. -->
                 @if (coreOffHere().length > 0) {
                   <p class="notice" role="alert">
-                    <span i18n="@@pcn.core_missing"
+                    <span i18n="@@pcn.core_missing2"
                       >This loan type can't be priced — a question every quote needs is switched
-                      off:</span
+                      off, or is fixed for surrogate programs only. Change it in
+                      Questionnaire:</span
                     >
                     <strong>{{ coreOffHere().join(' · ') }}</strong>
                   </p>
@@ -1170,10 +1172,10 @@ export class NewProgramNamePage {
   /**
    * The fixed questions — asked on every program of every loan type (v32.0.0), so on this one.
    * Every name made here is sold against a payslip, so the income-proof ones count as well as
-   * the every-name ones.
+   * the every-name ones — and the surrogate-only ones do not (v32.1.0).
    */
   private readonly fixedAll = computed<readonly AskableQuestion[]>(() =>
-    this.pool().filter((q) => q.isActive && q.fixed === true),
+    this.pool().filter((q) => q.isActive && fixedAskedHere(q, 'payslip')),
   );
 
   protected readonly fixedCountHere = computed(() => this.fixedAll().length);

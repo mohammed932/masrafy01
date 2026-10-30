@@ -38,7 +38,8 @@
  *      switched off or not fixed — a super admin may delete one, and quotes then go without it.
  *  10. FIXED SET SERVED — under every offerable program name, the served questionnaire keeps the
  *      fixed questions that path must ask: the `every_name` ones always, the `income_proof`
- *      ones wherever the name sells a payslip programme in that loan type.
+ *      ones wherever the name sells a payslip programme in that loan type, the
+ *      `income_surrogate` ones wherever it sells a no-payslip one (v32.1.0).
  *  11. OFFER EFFECTS ON FIXED ONLY (v31.3.0) — an answer's offer effect sits only on a fixed
  *      question; number ranges sit only on a fixed NUMBER question and pass the API's own range
  *      rules (`numberEffectRangesProblem`). A fixed TEXT question carries neither: it is asked
@@ -58,6 +59,7 @@ import {
 } from '../src/matching/pipeline/answer-effects';
 import {
   fixedServedHere,
+  type FixedSides,
   fixedServedOnOf,
   frozenFixedServedOn,
 } from '../src/questionnaire/validation/fixed-questions';
@@ -207,7 +209,7 @@ async function main(): Promise<void> {
   const servedOn = async (
     programNameKey: string,
     category: (typeof offeredPairs)[number]['category'],
-  ): Promise<{ served: ReadonlySet<string>; incomeProof: boolean }> => {
+  ): Promise<{ served: ReadonlySet<string>; sides: FixedSides }> => {
     const scope = await repo.narrowingScopeFor(programNameKey, category);
     const decision = narrowAskedQuestions(
       snapshotQuestions.map((q) => ({
@@ -218,13 +220,19 @@ async function main(): Promise<void> {
       scope,
     );
     for (const code of decision.keep) servedAnywhere.add(code);
-    return { served: decision.keep, incomeProof: scope?.incomeProof === true };
+    return {
+      served: decision.keep,
+      sides: {
+        incomeProof: scope?.incomeProof === true,
+        incomeSurrogate: scope?.incomeSurrogate === true,
+      },
+    };
   };
   for (const pair of offeredPairs) await servedOn(pair.enumeration.key, pair.category);
   for (const { programNameKey, productCategory } of offered) {
     if (programNameKey === null) continue;
     const category = productCategory as (typeof offeredPairs)[number]['category'];
-    const { served, incomeProof } = await servedOn(programNameKey, category);
+    const { served, sides } = await servedOn(programNameKey, category);
     // 2. DEBTS SERVED PER NAME
     for (const code of mustServe) {
       if (inSnapshot.has(code) && !served.has(code)) {
@@ -233,7 +241,7 @@ async function main(): Promise<void> {
     }
     // 10. FIXED SET SERVED — same path, same decision.
     for (const q of snapshotQuestions) {
-      if (!fixedServedHere(frozenFixedServedOn(q, category), incomeProof)) continue;
+      if (!fixedServedHere(frozenFixedServedOn(q, category), sides)) continue;
       if (!served.has(q.code)) {
         add('10 fixed set served', `${productCategory}/${programNameKey}: ${q.code} not served`);
       }

@@ -56,6 +56,7 @@ import {
   type QuestionLockReason,
   type QuestionLockScope,
 } from '@/questionnaire/validation/question-scope';
+import { fixedServedHere } from '@/questionnaire/validation/fixed-questions';
 import { enabledWhenGate } from '@/questionnaire/validation/question-visibility';
 import { ALL_LOAN_CATEGORIES, dedupeCategories } from '@/common/loan-category.util';
 import { dedupeBases, type IncomeBasis } from '@/common/income-basis.util';
@@ -197,6 +198,12 @@ function isCreatableBySource(
 
 /** How many bad rows a refusal names before it stops. See `EnumerationBulkInvalidException`. */
 const BULK_PROBLEM_REPORT_CAP = 200;
+
+/**
+ * The sides a name being CREATED sells, before it has a key: an admin-created name is
+ * payslip-only (v30.8.0), so its fixed set is the every-program and income-proof parts.
+ */
+const CREATE_FLOW_SIDES = { incomeProof: true, incomeSurrogate: false } as const;
 
 @Injectable()
 export class PlatformEnumerationsAdminService {
@@ -1453,8 +1460,10 @@ export class PlatformEnumerationsAdminService {
    *     No `categories`: it binds every loan type.
    *   - `base`: FIXED (its own mark) — asked here already. PER LOAN TYPE (`categories`): an
    *     `every_name` question every loan type the name is offered under, an `income_proof` one
-   *     those where it sells a payslip programme, or has none yet. With no key (the create flow)
-   *     every loan type: a name created here is payslip-only.
+   *     those where it sells a payslip programme, or has none yet, an `income_surrogate` one
+   *     those where it sells a no-payslip programme (`fixedServedHere`, the serve path's own
+   *     rule). With no key (the create flow) every loan type, but never the surrogate-only part:
+   *     a name created here is payslip-only.
    *   - `program`: a bank programme filed under the name in that loan type reads it
    *     (`categories`).
    *
@@ -1485,12 +1494,9 @@ export class PlatformEnumerationsAdminService {
       if (lockReasonOutsideFixedSet(q.code, {}) === 'engine') {
         return [{ code: q.code, reason: 'engine' as const }];
       }
-      const baseIn =
-        q.fixedServedOn === null
-          ? []
-          : bound.filter(
-              (c) => q.fixedServedOn === 'every_name' || (scopeIn.get(c)?.incomeProof ?? true),
-            );
+      const baseIn = bound.filter((c) =>
+        fixedServedHere(q.fixedServedOn, scopeIn.get(c) ?? CREATE_FLOW_SIDES),
+      );
       const programIn = categories.filter(
         (c) =>
           !baseIn.includes(c) &&

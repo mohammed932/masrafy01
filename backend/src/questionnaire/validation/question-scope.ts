@@ -5,7 +5,8 @@
  *
  * A program here is a catalog program NAME under one loan type, and it asks:
  *   - the FIXED questions (`question.fixedServedOn`, the admin's): the `every_name` ones on every
- *     program, the `income_proof` ones on every program that sells a payslip programme;
+ *     program, the `income_proof` ones on every program that sells a payslip programme, the
+ *     `income_surrogate` ones on every program that sells a no-payslip one (v32.1.0);
  *   - the money and debt questions every quote reads (the core below);
  *   - what a bank programme filed under the name IN THIS LOAN TYPE reads (NEEDED) — on both
  *     income bases, because a payslip programme's cap table reads facts exactly as a no-payslip
@@ -34,7 +35,12 @@
  */
 
 import { enabledWhenGate } from './question-visibility';
-import { fixedCodesServed, fixedServedHere, type FixedServedOn } from './fixed-questions';
+import {
+  ALL_FIXED_SIDES,
+  fixedCodesServed,
+  fixedServedHere,
+  type FixedServedOn,
+} from './fixed-questions';
 import {
   DEBT_TYPES_QUESTION_CODE,
   EMPLOYMENT_TYPE_QUESTION_CODE,
@@ -127,8 +133,9 @@ export interface ScopableQuestion {
   enabledWhen: unknown;
   /**
    * FIXED (`question.fixedServedOn`, frozen as `fixedServedOn`, v31.0.0): core on every program
-   * (`every_name`) or on every income-proof one (`income_proof`), and never unticked. Absent or
-   * `null` = an ordinary question — every snapshot published before then.
+   * (`every_name`), on every income-proof one (`income_proof`) or on every surrogate one
+   * (`income_surrogate`, v32.1.0), and never unticked. Absent or `null` = an ordinary question —
+   * every snapshot published before then.
    */
   fixedServedOn?: FixedServedOn | null;
 }
@@ -169,8 +176,9 @@ export interface NarrowingScope {
   /**
    * PRODUCT-ONLY (operator decision, 2026-09-23; narrowed 2026-09-24): the name quotes off a
    * surrogate product and EVERY active programme under it in this loan type is
-   * `income_surrogate` (and there is at least one). The core is then the `every_name` fixed
-   * questions and `ASKED_EVEN_WHEN_PRODUCT_ONLY` — plus what the product and its programmes read.
+   * `income_surrogate` (and there is at least one). The core is then the `every_name` and
+   * `income_surrogate` fixed questions and `ASKED_EVEN_WHEN_PRODUCT_ONLY` — plus what the product
+   * and its programmes read.
    * The app's own fallback (`apply_mapping.dart`) still covers the rest: no declared income (the
    * product works it out) and, for a car, the amount as price minus down payment. Absent = false,
    * which is every payslip or mixed name.
@@ -183,6 +191,13 @@ export interface NarrowingScope {
    * is then served here, and locked against an untick. Absent = false.
    */
   incomeProof?: boolean;
+  /**
+   * A SURROGATE (no-payslip) programme is sold under this name in the requested loan type, or
+   * none is sold there yet and a no-payslip product is linked to the name (v32.1.0). The fixed
+   * questions marked `income_surrogate` are then served here, and locked against an untick.
+   * Absent = false.
+   */
+  incomeSurrogate?: boolean;
   /**
    * How many active programmes under the name an applicant of THIS loan type is quoted on. Read
    * only by the product-only core: the priority question orders offers, so it is asked there when
@@ -219,7 +234,7 @@ export interface NarrowingScope {
  *     it is asked where a programme reads it (`program`), it is fixed (`base`) or it is ticked.
  *   - `base`: it is a FIXED question (`question.fixedServedOn`, `fixed-questions.ts`) and this
  *     path serves it — any name for an `every_name` question, an income-proof name for an
- *     `income_proof` one.
+ *     `income_proof` one, a surrogate name for an `income_surrogate` one.
  *   - `program`: a bank programme under the name reads it, through its income rule, a cap,
  *     rate, tenor or fee table, its I-Score table, or a refusal that needs the answer.
  */
@@ -227,7 +242,10 @@ export type QuestionLockReason = 'engine' | 'base' | 'program';
 
 /** The lock inputs, available with or without a name that has programmes behind it. */
 export type QuestionLockScope = Partial<
-  Pick<NarrowingScope, 'neededQuestionCodes' | 'mustAnswerQuestionCodes' | 'incomeProof'>
+  Pick<
+    NarrowingScope,
+    'neededQuestionCodes' | 'mustAnswerQuestionCodes' | 'incomeProof' | 'incomeSurrogate'
+  >
 >;
 
 /**
@@ -241,7 +259,7 @@ export function questionLockReason(
 ): QuestionLockReason | null {
   const outside = lockReasonOutsideFixedSet(code, scope);
   if (outside === 'engine') return 'engine';
-  if (fixedServedHere(fixedServedOn, scope.incomeProof === true)) return 'base';
+  if (fixedServedHere(fixedServedOn, scope)) return 'base';
   return outside;
 }
 
@@ -343,7 +361,7 @@ function closeOverGates(
 /**
  * Narrowing OFF — no program to narrow by: no name was sent, or the name's rule kept nothing.
  * The BASELINE is served, never the whole pool (v32.0.0, when the loan-type list it used to fall
- * back to was retired): the fixed questions — both kinds, since with no program there is no
+ * back to was retired): the fixed questions — every kind, since with no program there is no
  * income basis to tell them apart — and the money and debt questions every quote reads, closed
  * over gates like the narrowed path. Every bank programme has a name and the app makes the
  * applicant pick one whenever there is one to pick, so this is the floor of a path nobody walks
@@ -357,7 +375,8 @@ function off(
     questions
       .filter(
         (q) =>
-          fixedServedHere(q.fixedServedOn, true) || NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(q.code),
+          fixedServedHere(q.fixedServedOn, ALL_FIXED_SIDES) ||
+          NEVER_PRODUCT_SCOPED_QUESTION_CODES.has(q.code),
       )
       .map((q) => q.code),
   );
@@ -379,7 +398,7 @@ function off(
  * CORE — asked whatever the program — is the FIXED questions this path serves
  * (`question.fixedServedOn`, the admin's, `fixed-questions.ts`): the `every_name` ones on every
  * program, the `income_proof` ones wherever a payslip programme is sold under the name in this
- * loan type. They are core on product-only names too, can never be unticked, and pass A never
+ * loan type, the `income_surrogate` ones wherever a no-payslip one is. They are core on product-only names too, can never be unticked, and pass A never
  * drops one. Beside them, on a name that is not product-only, the money and debt codes — the set
  * above — the floor for the day the admin deletes one of them.
  *
@@ -423,7 +442,7 @@ export function narrowAskedQuestions(
   const added = new Set((scope.addedQuestionCodes ?? []).filter((code) => byCode.has(code)));
   // The fixed questions this path must serve (their own `fixedServedOn`): core whatever reads
   // them, never unticked (`questionLockReason` says `base`), never dropped by the gate clean-up.
-  const base = fixedCodesServed(questions, scope.incomeProof === true);
+  const base = fixedCodesServed(questions, scope);
 
   const isCore = (code: string): boolean =>
     base.has(code) ||

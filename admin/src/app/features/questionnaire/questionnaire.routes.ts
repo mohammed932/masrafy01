@@ -2,8 +2,9 @@ import type { Routes } from '@angular/router';
 
 /**
  * Feature 010 admin routes — the GLOBAL question pool. Two tabs over ONE pool:
- * `questions` authors it (split into Income proof and Surrogate by `?basis=`, v31.8.0), and
- * `engine-rules` (the "Fixed questions" tab) lists the fixed questions, split the same way, and
+ * `questions` authors it (one library, v32.1.0 — the `?basis=` split of v31.8.0 is gone), and
+ * `engine-rules` (the "Fixed questions" tab) lists the fixed questions, split by side (Income
+ * proof / Surrogate), and
  * lets only answers' wording change (v30.12.0, narrowed v30.13.0, split v30.16.0 — the path is
  * kept so links survive). Role gating applied at the parent mount in app.routes.ts.
  *

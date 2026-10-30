@@ -1090,6 +1090,12 @@ export class PostgresPlatformEnumerationsRepository
     // question set must already be what its first programme is quoted from.
     const incomeProof =
       programs.length === 0 || programs.some((p) => p.programType === 'income_proof');
+    // See `NarrowingScope.incomeSurrogate`: the fixed questions marked `income_surrogate` are
+    // served where a no-payslip programme is sold — or nothing yet, under a name a no-payslip
+    // product is linked to, which is where `productAsksHere` already serves that product's asks.
+    const incomeSurrogate =
+      programs.some((p) => p.programType === 'income_surrogate') ||
+      (programs.length === 0 && productKey !== null);
 
     return {
       programNameKey,
@@ -1099,6 +1105,7 @@ export class PostgresPlatformEnumerationsRepository
       programReadQuestionCodes: [...new Set(programReadQuestionCodes)].sort(),
       productOnly,
       incomeProof,
+      incomeSurrogate,
       mustAnswerQuestionCodes,
       programCount: programs.length,
       addedQuestionCodes: addedRows.map((row) => row.question.code),
@@ -1117,11 +1124,13 @@ export class PostgresPlatformEnumerationsRepository
         neededQuestionCodes: scope.neededQuestionCodes,
         mustAnswerQuestionCodes: scope.mustAnswerQuestionCodes ?? [],
         incomeProof: scope.incomeProof === true,
+        incomeSurrogate: scope.incomeSurrogate === true,
       };
     }
     // No name yet (the create flow): a name created from the admin is payslip-only (v30.8.0),
-    // so the fixed question set already binds it, and nothing else does.
-    return { incomeProof: true };
+    // so the fixed question set's income-proof and every-program parts already bind it, and
+    // nothing else does — not the surrogate-only part.
+    return { incomeProof: true, incomeSurrogate: false };
   }
 
   async platformQuestionCodes(): Promise<readonly string[]> {

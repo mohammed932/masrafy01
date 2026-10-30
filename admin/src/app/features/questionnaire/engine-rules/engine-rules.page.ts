@@ -18,13 +18,17 @@ import {
   ArrowLeftOutline,
   BranchesOutline,
   CalendarOutline,
+  CheckCircleOutline,
+  ClockCircleOutline,
   DashboardOutline,
   DownOutline,
   EditOutline,
   InfoCircleOutline,
+  LineChartOutline,
   PercentageOutline,
   SearchOutline,
   SendOutline,
+  SwapOutline,
   WalletOutline,
 } from '@ant-design/icons-angular/icons';
 import { incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
@@ -68,7 +72,8 @@ import {
   type RuleGroup,
 } from './engine-rules.rules';
 import type { EngineRuleOption, EngineRuleQuestion, LabelledKey } from './engine-rules.types';
-import { effectParts, rangeText } from '../answer-effect';
+import { rangeText, type AnswerEffectLevers } from '../answer-effect';
+import { EffectChipsComponent } from '../effect-chips.component';
 
 const AREA_ICONS: Record<ImpactArea, string> = {
   amount: 'wallet',
@@ -98,10 +103,20 @@ interface AnswerRow {
   keep: string[];
 }
 
+/** One range of a Number question's offer effects: the range in words, and its levers. */
+interface RangeRow {
+  text: string;
+  levers: AnswerEffectLevers;
+}
+
 /** Everything the right-hand pane shows about the selected question, worded once. */
 interface DetailView {
   q: EngineRuleQuestion;
   group: RuleGroup;
+  /** "Question 5 of 18" — its place in the tab's asked order. */
+  position: string;
+  followUp: boolean;
+  onOffer: boolean;
   wording: string;
   alt: string;
   /** "Always", or which answer opens it — when, never whether: every question here is asked. */
@@ -120,8 +135,8 @@ interface DetailView {
   /** At least one answer states a number its wording has to keep. */
   hasNumbers: boolean;
   typedParts: string[];
-  /** A Number question's offer ranges, one line each (v31.3.0). */
-  ranges: string[];
+  /** A Number question's offer ranges, one row each (v31.3.0). */
+  ranges: RangeRow[];
 }
 
 /**
@@ -130,25 +145,30 @@ interface DetailView {
  * The FIXED questions (`question.fixedServedOn` — the admin's since v31.0.0, marked on the
  * Questions tab), numbered in the order they are asked, and what each of their answers means to
  * the loan engine — on two tabs, by who asks them (`?basis=`, the Program catalog's own Income
- * proof / Surrogate switch): every income-proof program asks all of them; a surrogate program
- * asks the `every_name` ones (`noPayslip`), the loan amount only where it does not work it out
- * from the car figures. They are MANDATORY and none can be skipped, so nothing here ticks,
- * toggles or unticks a question. Each says only WHEN it is asked (always, or once another answer
- * opens it). Surrogate programs add their own questions in the Program catalog. Both tabs show
- * the SAME questions, so a reworded answer changes on both.
+ * proof / Surrogate switch). Each question is asked on one side or both (its "Asked on",
+ * v32.1.0): an income-proof program asks every one but the surrogate-only ones
+ * (`fixedServedOn`); a surrogate program asks the `every_name` and surrogate-only ones
+ * (`noPayslip`), the loan amount only where it does not work it out from the car figures. They
+ * are MANDATORY and none can be skipped, so nothing here ticks, toggles or unticks a question.
+ * Each says only WHEN it is asked (always, or once another answer opens it). Programs add their
+ * own questions in the Program catalog. A question asked on both sides is listed on both tabs,
+ * so a reworded answer changes on both.
  *
  * ONE thing changes here: an answer's wording, in a side sheet, keeping the numbers it states
  * (the engine prices the answer, the customer picks it by its words — the server refuses a
  * reword that changes a number, `ENGINE_WORDING_NUMBERS_CHANGED`). Everything else about a fixed
  * question is changed on the Questions tab, linked from every question here.
  *
- * Laid out as the three steps an operator takes, so the screen reads as what to DO rather than
- * as a reference to study: (1) open a question from the numbered list on the start side, (2)
- * read what each of its answers means on the end side, (3) reword one. Both panes pin under the
- * top bar and scroll on their own — one question is on screen at a time. A question the
- * customer types into has nothing to reword and says so; one whose answers ARE a Manage-values
- * list is read-only (the list re-syncs them on every write). Who reads a question and why it is
- * locked are kept, folded under "Technical details".
+ * A master–detail inspector: the numbered list on the start side (each row two lines — the
+ * question, then a dot that is filled when its answer changes the offer and hollow when it is
+ * only saved, explained once in a legend under the search), the opened question on the end
+ * side. The question reads top to bottom as identity (its place in the order, its tags, its
+ * wording, Edit), a band of facts (when it is asked, what it changes), then its answers — or,
+ * for a question the customer types into, the rule the number keeps and the ranges that move
+ * the offer. Both panes pin under the top bar and scroll on their own, one question on screen
+ * at a time. One whose answers ARE a Manage-values list is read-only (the list re-syncs them on
+ * every write). Who reads a question and why it is locked are kept, folded under "Technical
+ * details".
  */
 @Component({
   standalone: true,
@@ -165,19 +185,24 @@ interface DetailView {
     StatusPillComponent,
     RailTabsComponent,
     AnswerMeaningsComponent,
+    EffectChipsComponent,
   ],
   providers: [
     provideNzIconsPatch([
       ArrowLeftOutline,
       BranchesOutline,
       CalendarOutline,
+      CheckCircleOutline,
+      ClockCircleOutline,
       DashboardOutline,
       DownOutline,
       EditOutline,
       InfoCircleOutline,
+      LineChartOutline,
       PercentageOutline,
       SearchOutline,
       SendOutline,
+      SwapOutline,
       WalletOutline,
     ]),
   ],
@@ -186,15 +211,17 @@ interface DetailView {
       <p class="sr-only" role="status" aria-live="polite">{{ status() }}</p>
       <header class="bar">
         <div class="bar-lead">
+          <p class="eyebrow" i18n="@@qedit.eyebrow">Matching engine</p>
           <h1 i18n="@@qrules.title">Fixed questions</h1>
-          <p class="sub" i18n="@@qrules.sub2">
-            The fixed questions, in the default order customers are asked them. Every program asks
-            them, and no program can skip them. Each one says whether its answer changes the offer,
-            or is only saved on the application. Here you can reword an answer, keeping the numbers
-            in it; change anything else on the Questions tab.
+          <p class="sub" i18n="@@qrules.sub4">
+            Every program on a question's side asks it, in this order, and none can skip it. Reword
+            an answer here, keeping its numbers; change anything else on the Questions tab.
           </p>
         </div>
-        <span class="autosave" i18n="@@qcat.autosave">Saves &amp; publishes automatically</span>
+        <span class="autosave">
+          <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
+          <span i18n="@@qcat.autosave">Saves &amp; publishes automatically</span>
+        </span>
       </header>
 
       @if (loading()) {
@@ -227,46 +254,64 @@ interface DetailView {
         >
           @if (basis() === 'no_payslip') {
             <p class="catalog-note">
-              <span i18n="@@qrules.surrogate_note"
-                >Surrogate programs skip the fixed questions asked on income-proof programs only:
-                they work the income out another way. Each program also asks its own questions, set
-                in the Program catalog. These are the same questions as on Income proof, so a
-                reworded answer changes on both.</span
-              >
-              <a
-                *can="['super_admin']"
-                [routerLink]="['/program-catalog']"
-                [queryParams]="{ basis: 'no_payslip' }"
-                i18n="@@qrules.catalog_link"
-                >Open the Program catalog</a
-              >
+              <span
+                class="catalog-note-icon"
+                nz-icon
+                nzType="info-circle"
+                nzTheme="outline"
+                aria-hidden="true"
+              ></span>
+              <span class="catalog-note-body">
+                <span i18n="@@qrules.surrogate_note2"
+                  >Surrogate programs skip the fixed questions asked on income-proof programs only:
+                  they work the income out another way. Each program also asks its own questions,
+                  set in the Program catalog. A question asked on both sides is on both tabs, so a
+                  reworded answer changes on both.</span
+                >
+                <a
+                  *can="['super_admin']"
+                  [routerLink]="['/program-catalog']"
+                  [queryParams]="{ basis: 'no_payslip' }"
+                  i18n="@@qrules.catalog_link"
+                  >Open the Program catalog</a
+                >
+              </span>
             </p>
           }
           <div class="workspace" [attr.data-view]="narrowView()">
-            <!-- STEP 1: open a question. Opening is all it does: nothing here ticks or unticks one. -->
+            <!-- The list. Opening is all it does: nothing here ticks or unticks a question. -->
             <nav class="pane pane-pick" [attr.aria-label]="pickAria">
-              <h2 class="step-title">
-                <span class="step" aria-hidden="true">1</span>
-                <span i18n="@@qrules.step_pick">Open a question</span>
-              </h2>
-              <div class="search" role="search">
-                <label class="sr-only" for="qrules-search" i18n="@@qrules.search_label"
-                  >Search the rules</label
-                >
-                <nz-input-group [nzPrefix]="searchIcon">
-                  <input
-                    nz-input
-                    id="qrules-search"
-                    type="search"
-                    autocomplete="off"
-                    [value]="search()"
-                    [placeholder]="searchPlaceholder"
-                    (input)="onSearch($event)"
-                  />
-                </nz-input-group>
-                <ng-template #searchIcon>
-                  <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
-                </ng-template>
+              <div class="pick-head">
+                <div class="search" role="search">
+                  <label class="sr-only" for="qrules-search" i18n="@@qrules.search_label"
+                    >Search the rules</label
+                  >
+                  <nz-input-group [nzPrefix]="searchIcon">
+                    <input
+                      nz-input
+                      id="qrules-search"
+                      type="search"
+                      autocomplete="off"
+                      [value]="search()"
+                      [placeholder]="searchPlaceholder"
+                      (input)="onSearch($event)"
+                    />
+                  </nz-input-group>
+                  <ng-template #searchIcon>
+                    <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
+                  </ng-template>
+                </div>
+                <!-- Said once here instead of on every row; each row's dot carries it for a screen reader. -->
+                <p class="legend" aria-hidden="true">
+                  <span class="legend-item">
+                    <span class="dot"></span>
+                    <span i18n="@@qrules.use_offer">Changes the offer</span>
+                  </span>
+                  <span class="legend-item">
+                    <span class="dot off"></span>
+                    <span i18n="@@qrules.use_none">Doesn't change the offer</span>
+                  </span>
+                </p>
               </div>
 
               @if (picks().length === 0) {
@@ -294,14 +339,19 @@ interface DetailView {
                         <span class="pick-n" aria-hidden="true">{{ it.n }}</span>
                         <span class="pick-body">
                           <span class="pick-q">{{ wordingOf(it.q) }}</span>
-                          <span class="pick-meta">{{ it.meta }}</span>
-                          @if (it.onOffer) {
-                            <span class="use" i18n="@@qrules.use_offer">Changes the offer</span>
-                          } @else {
-                            <span class="use unused" i18n="@@qrules.use_none"
-                              >Doesn't change the offer</span
-                            >
-                          }
+                          <span class="pick-meta">
+                            <span class="dot" [class.off]="!it.onOffer" aria-hidden="true"></span>
+                            @if (it.onOffer) {
+                              <span class="sr-only" i18n="@@qrules.use_offer"
+                                >Changes the offer</span
+                              >
+                            } @else {
+                              <span class="sr-only" i18n="@@qrules.use_none"
+                                >Doesn't change the offer</span
+                              >
+                            }
+                            <span class="pick-meta-text">{{ it.meta }}</span>
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -310,7 +360,7 @@ interface DetailView {
               }
             </nav>
 
-            <!-- STEP 2 (and 3): the selected question. -->
+            <!-- The opened question. -->
             <article class="pane pane-rule" #rulePane [attr.aria-labelledby]="'qr-rule-title'">
               @if (detail(); as d) {
                 <button type="button" class="back" (click)="backToList()">
@@ -318,48 +368,64 @@ interface DetailView {
                   <span i18n="@@qrules.back">All questions</span>
                 </button>
 
-                <p class="step-title step-title-quiet">
-                  <span class="step" aria-hidden="true">2</span>
-                  @if (d.group === 'typed') {
-                    <span i18n="@@qrules.step_typed">See what the customer types</span>
-                  } @else {
-                    <span i18n="@@qrules.step_meaning">See what each answer means</span>
-                  }
-                </p>
-                <h2 class="q" id="qr-rule-title" tabindex="-1" #ruleTitle>{{ d.wording }}</h2>
-                <p class="q-alt">
-                  <bdi [attr.lang]="altLang">{{ d.alt }}</bdi>
-                </p>
-                <a
-                  class="edit-link"
-                  [routerLink]="['../questions']"
-                  [queryParams]="{ q: d.q.code }"
-                  i18n="@@qrules.edit_link"
-                  >Edit this question</a
-                >
+                <header class="rule-head">
+                  <div class="rule-id">
+                    <p class="rule-tags">
+                      <span class="position">{{ d.position }}</span>
+                      <span class="tag" [class.tag-on]="d.onOffer">
+                        <span class="dot" [class.off]="!d.onOffer" aria-hidden="true"></span>
+                        @if (d.onOffer) {
+                          <span i18n="@@qrules.use_offer">Changes the offer</span>
+                        } @else {
+                          <span i18n="@@qrules.use_none">Doesn't change the offer</span>
+                        }
+                      </span>
+                      @if (d.followUp) {
+                        <span class="tag">
+                          <span
+                            nz-icon
+                            nzType="branches"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                          <span i18n="@@qrules.tag_follow_up">Follow-up</span>
+                        </span>
+                      }
+                    </p>
+                    <h2 class="q" id="qr-rule-title" tabindex="-1" #ruleTitle>{{ d.wording }}</h2>
+                    <p class="q-alt">
+                      <bdi [attr.lang]="altLang">{{ d.alt }}</bdi>
+                    </p>
+                  </div>
+                  <a
+                    nz-button
+                    class="edit-btn"
+                    [routerLink]="['../questions']"
+                    [queryParams]="{ q: d.q.code }"
+                  >
+                    <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@qrules.edit_link">Edit this question</span>
+                  </a>
+                </header>
 
-                <dl class="summary">
-                  <div class="summary-row">
-                    <dt i18n="@@qrules.asked_when">When it is asked</dt>
+                <dl class="facts">
+                  <div class="fact">
+                    <dt>
+                      <span
+                        nz-icon
+                        nzType="clock-circle"
+                        nzTheme="outline"
+                        aria-hidden="true"
+                      ></span>
+                      <span i18n="@@qrules.asked_when">When it is asked</span>
+                    </dt>
                     <dd>{{ d.askedWhen }}</dd>
                   </div>
-                  @if (d.answeredBy.length > 0) {
-                    <div class="summary-row">
-                      <dt i18n="@@qrules.answered_by">Asked instead</dt>
-                      <dd class="instead">
-                        <span i18n="@@qrules.answered_by_hint"
-                          >Where a program asks its own version:</span
-                        >
-                        <ul class="impacts">
-                          @for (w of d.answeredBy; track w) {
-                            <li class="impact">{{ w }}</li>
-                          }
-                        </ul>
-                      </dd>
-                    </div>
-                  }
-                  <div class="summary-row">
-                    <dt i18n="@@qrules.changes">Changes the customer's</dt>
+                  <div class="fact">
+                    <dt>
+                      <span nz-icon nzType="line-chart" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@qrules.changes">Changes the customer's</span>
+                    </dt>
                     <dd>
                       @if (d.impact.length > 0) {
                         <ul class="impacts">
@@ -383,36 +449,76 @@ interface DetailView {
                       }
                     </dd>
                   </div>
+                  @if (d.answeredBy.length > 0) {
+                    <div class="fact fact-wide">
+                      <dt>
+                        <span nz-icon nzType="swap" nzTheme="outline" aria-hidden="true"></span>
+                        <span i18n="@@qrules.answered_by">Asked instead</span>
+                      </dt>
+                      <dd class="instead">
+                        <span class="quiet" i18n="@@qrules.answered_by_hint"
+                          >Where a program asks its own version:</span
+                        >
+                        <ul class="impacts">
+                          @for (w of d.answeredBy; track w) {
+                            <li class="impact">{{ w }}</li>
+                          }
+                        </ul>
+                      </dd>
+                    </div>
+                  }
                 </dl>
 
                 @switch (d.group) {
                   @case ('typed') {
-                    <div class="typed">
-                      <p class="typed-lead">
-                        @if (d.q.type === 'TEXT') {
-                          <span i18n="@@qrules.typed_text">The customer types text.</span>
-                        } @else {
-                          <span i18n="@@qrules.typed_number">The customer types a number.</span>
-                        }
-                      </p>
-                      @if (d.typedParts.length > 0) {
-                        <ul class="typed-parts">
-                          @for (part of d.typedParts; track $index) {
-                            <li>{{ part }}</li>
+                    <section class="block" aria-labelledby="qr-typed-h">
+                      <div class="block-head">
+                        <h3 class="block-title" id="qr-typed-h" i18n="@@qrules.typed_title">
+                          What the customer types
+                        </h3>
+                      </div>
+                      <div class="spec">
+                        <p class="spec-lead">
+                          @if (d.q.type === 'TEXT') {
+                            <span i18n="@@qrules.typed_text">The customer types text.</span>
+                          } @else {
+                            <span i18n="@@qrules.typed_number">The customer types a number.</span>
                           }
-                        </ul>
-                      }
-                      @if (d.ranges.length > 0) {
-                        <p class="typed-lead" i18n="@@qrules.typed_ranges">
-                          What the number does to the offer:
                         </p>
-                        <ul class="typed-parts">
-                          @for (line of d.ranges; track $index) {
-                            <li>{{ line }}</li>
-                          }
-                        </ul>
+                        @if (d.typedParts.length > 0) {
+                          <ul class="spec-parts">
+                            @for (part of d.typedParts; track $index) {
+                              <li>{{ part }}</li>
+                            }
+                          </ul>
+                        }
+                      </div>
+                      @if (d.ranges.length > 0) {
+                        <div class="frame">
+                          <table class="grid ranges">
+                            <caption class="frame-caption" i18n="@@qrules.ranges_title">
+                              What the number does to the offer
+                            </caption>
+                            <thead>
+                              <tr>
+                                <th scope="col" i18n="@@qrules.col_range">When the number is</th>
+                                <th scope="col" i18n="@@qrules.use_offer">Changes the offer</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (r of d.ranges; track $index) {
+                                <tr>
+                                  <td class="cell-range">{{ r.text }}</td>
+                                  <td [attr.data-label]="colOffer">
+                                    <app-effect-chips [levers]="r.levers" />
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
                       }
-                      <p class="typed-note">
+                      <p class="block-foot">
                         <span i18n="@@qrules.typed_note">There are no answers to reword here.</span>
                         <a
                           [routerLink]="['../questions']"
@@ -421,134 +527,143 @@ interface DetailView {
                           >Change the question's wording</a
                         >
                       </p>
-                    </div>
+                    </section>
                   }
                   @default {
-                    @if (d.q.mirroredList; as list) {
-                      <p class="banner">
-                        <span
-                          class="banner-icon"
-                          nz-icon
-                          nzType="info-circle"
-                          nzTheme="outline"
-                          aria-hidden="true"
-                        ></span>
-                        <span>
-                          {{ mirroredNote(list) }}
-                          <a
-                            *can="['super_admin']"
-                            [routerLink]="['/lookups']"
-                            [queryParams]="{ type: list.key }"
-                            i18n="@@qrules.mirrored_link"
-                            >Open the list</a
-                          >
-                        </span>
-                      </p>
-                    }
-                    @if (!d.hasMeanings) {
-                      <ul class="usage">
-                        @for (line of d.usage; track $index) {
-                          <li>{{ line }}</li>
-                        }
-                      </ul>
-                    }
+                    <section class="block" aria-labelledby="qr-answers-h">
+                      <div class="block-head">
+                        <h3 class="block-title" id="qr-answers-h">
+                          <span i18n="@@qrules.answers_title">Answers</span>
+                          <span class="count">{{ d.rows.length }}</span>
+                        </h3>
+                        <p class="block-note">
+                          @if (d.q.lock !== null) {
+                            <span i18n="@@qrules.no_add_note">
+                              Answers can't be added or removed here: each one means something to
+                              the loan engine.
+                            </span>
+                          } @else {
+                            <span i18n="@@qrules.no_add_note_pool">
+                              Add or remove answers on the Questions tab.
+                            </span>
+                          }
+                        </p>
+                      </div>
+                      @if (d.q.mirroredList; as list) {
+                        <p class="banner">
+                          <span
+                            class="banner-icon"
+                            nz-icon
+                            nzType="info-circle"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                          <span>
+                            {{ mirroredNote(list) }}
+                            <a
+                              *can="['super_admin']"
+                              [routerLink]="['/lookups']"
+                              [queryParams]="{ type: list.key }"
+                              i18n="@@qrules.mirrored_link"
+                              >Open the list</a
+                            >
+                          </span>
+                        </p>
+                      }
+                      @if (!d.hasMeanings) {
+                        <ul class="usage">
+                          @for (line of d.usage; track $index) {
+                            <li>{{ line }}</li>
+                          }
+                        </ul>
+                      }
 
-                    <table class="answers">
-                      <caption class="answers-caption">
-                        @if (d.q.lock !== null) {
-                          <span i18n="@@qrules.no_add_note">
-                            Answers can't be added or removed here: each one means something to the
-                            loan engine.
-                          </span>
-                        } @else {
-                          <span i18n="@@qrules.no_add_note_pool">
-                            Add or remove answers on the Questions tab.
-                          </span>
-                        }
-                      </caption>
-                      <thead>
-                        <tr>
-                          <th scope="col" i18n="@@qrules.col_sees">The customer sees</th>
-                          @if (d.hasMeanings) {
-                            <th scope="col" i18n="@@qrules.col_means">
-                              The loan engine understands
-                            </th>
-                          }
-                          @if (d.hasNumbers) {
-                            <th scope="col" i18n="@@qrules.col_keep">Numbers to keep</th>
-                          }
-                          @if (d.group === 'reword') {
-                            <th scope="col" class="col-act">
-                              <span class="step" aria-hidden="true">3</span>
-                              <span i18n="@@qrules.col_reword">Reword</span>
-                            </th>
-                          }
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (r of d.rows; track r.option.id) {
-                          <tr>
-                            <td class="cell-sees">
-                              <span class="label">{{ r.label }}</span>
-                              <span class="label-alt"
-                                ><bdi [attr.lang]="altLang">{{ r.alt }}</bdi></span
-                              >
-                            </td>
-                            @if (d.hasMeanings) {
-                              <td class="cell-means" [attr.data-label]="colMeans">
-                                @if (r.option.meanings.length > 0) {
-                                  <app-answer-meanings
-                                    [meanings]="r.option.meanings"
-                                    [isAr]="isAr"
-                                  />
-                                } @else {
-                                  <span class="dash" aria-hidden="true">—</span>
-                                }
-                              </td>
-                            }
-                            @if (d.hasNumbers) {
-                              <td class="cell-keep" [attr.data-label]="colKeep">
-                                @if (r.keep.length > 0) {
-                                  <ul class="keep">
-                                    @for (k of r.keep; track $index) {
-                                      <li>
-                                        <bdi>{{ k }}</bdi>
-                                      </li>
-                                    }
-                                  </ul>
-                                } @else {
-                                  <span class="dash" aria-hidden="true">—</span>
-                                  <span class="sr-only" i18n="@@qrules.keep_cell_none"
-                                    >No numbers</span
+                      <div class="frame">
+                        <table class="grid answers" aria-labelledby="qr-answers-h">
+                          <thead>
+                            <tr>
+                              <th scope="col" i18n="@@qrules.col_sees">The customer sees</th>
+                              @if (d.hasMeanings) {
+                                <th scope="col" i18n="@@qrules.col_means">
+                                  The loan engine understands
+                                </th>
+                              }
+                              @if (d.hasNumbers) {
+                                <th scope="col" i18n="@@qrules.col_keep">Numbers to keep</th>
+                              }
+                              @if (d.group === 'reword') {
+                                <th scope="col" class="col-act">
+                                  <span class="sr-only" i18n="@@qrules.col_reword">Reword</span>
+                                </th>
+                              }
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (r of d.rows; track r.option.id) {
+                              <tr>
+                                <td class="cell-sees">
+                                  <span class="label">{{ r.label }}</span>
+                                  <span class="label-alt"
+                                    ><bdi [attr.lang]="altLang">{{ r.alt }}</bdi></span
                                   >
+                                </td>
+                                @if (d.hasMeanings) {
+                                  <td class="cell-means" [attr.data-label]="colMeans">
+                                    @if (r.option.meanings.length > 0) {
+                                      <app-answer-meanings
+                                        [meanings]="r.option.meanings"
+                                        [isAr]="isAr"
+                                      />
+                                    } @else {
+                                      <span class="dash" aria-hidden="true">—</span>
+                                    }
+                                  </td>
                                 }
-                              </td>
+                                @if (d.hasNumbers) {
+                                  <td class="cell-keep" [attr.data-label]="colKeep">
+                                    @if (r.keep.length > 0) {
+                                      <ul class="keep">
+                                        @for (k of r.keep; track $index) {
+                                          <li>
+                                            <bdi>{{ k }}</bdi>
+                                          </li>
+                                        }
+                                      </ul>
+                                    } @else {
+                                      <span class="dash" aria-hidden="true">—</span>
+                                      <span class="sr-only" i18n="@@qrules.keep_cell_none"
+                                        >No numbers</span
+                                      >
+                                    }
+                                  </td>
+                                }
+                                @if (d.group === 'reword') {
+                                  <td class="cell-act">
+                                    <button
+                                      nz-button
+                                      nzType="text"
+                                      type="button"
+                                      class="reword"
+                                      [id]="'qr-edit-' + r.option.id"
+                                      [attr.aria-label]="editAria(r.label)"
+                                      (click)="edit(d.q, r.option)"
+                                    >
+                                      <span
+                                        nz-icon
+                                        nzType="edit"
+                                        nzTheme="outline"
+                                        aria-hidden="true"
+                                      ></span>
+                                      <span i18n="@@qrules.col_reword">Reword</span>
+                                    </button>
+                                  </td>
+                                }
+                              </tr>
                             }
-                            @if (d.group === 'reword') {
-                              <td class="cell-act">
-                                <button
-                                  nz-button
-                                  nzType="default"
-                                  type="button"
-                                  class="reword"
-                                  [id]="'qr-edit-' + r.option.id"
-                                  [attr.aria-label]="editAria(r.label)"
-                                  (click)="edit(d.q, r.option)"
-                                >
-                                  <span
-                                    nz-icon
-                                    nzType="edit"
-                                    nzTheme="outline"
-                                    aria-hidden="true"
-                                  ></span>
-                                  <span i18n="@@qrules.col_reword">Reword</span>
-                                </button>
-                              </td>
-                            }
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
                   }
                 }
 
@@ -628,10 +743,12 @@ interface DetailView {
         clip-path: inset(50%);
         white-space: nowrap;
       }
+
+      /* ---- Header: the Questions tab's command bar, so the two tabs read as one section ---- */
       .bar {
         display: flex;
         flex-wrap: wrap;
-        align-items: flex-start;
+        align-items: flex-end;
         justify-content: space-between;
         gap: var(--space-2) var(--space-4);
         margin-block-end: var(--space-4);
@@ -640,7 +757,16 @@ interface DetailView {
         display: grid;
         gap: var(--space-1);
         min-inline-size: 0;
-        max-inline-size: 72ch;
+        max-inline-size: 68ch;
+      }
+      /* The ink, not the plain accent: the plain one is under AA at this size in light mode. */
+      .eyebrow {
+        margin: 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-tonal-accent-ink);
       }
       h1 {
         margin: 0;
@@ -658,8 +784,14 @@ interface DetailView {
         color: var(--text-secondary);
       }
       .autosave {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
         font-size: var(--text-xs);
         color: var(--text-secondary);
+      }
+      .autosave [nz-icon] {
+        color: var(--color-success);
       }
       .basis-rail {
         display: block;
@@ -672,21 +804,32 @@ interface DetailView {
       }
       .catalog-note {
         display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-2-5) var(--space-3);
+        border-radius: var(--radius-md);
+        background: var(--color-info-bg);
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-primary);
+      }
+      .catalog-note-icon {
+        flex: none;
+        margin-block-start: var(--space-0-5);
+        color: var(--color-info);
+      }
+      .catalog-note-body {
+        display: flex;
         flex-wrap: wrap;
         gap: var(--space-1) var(--space-2);
-        max-inline-size: 72ch;
-        margin: 0;
-        font-size: var(--text-xs);
-        line-height: var(--leading-normal);
-        color: var(--text-secondary);
+        max-inline-size: 96ch;
       }
-      .catalog-note a {
+      .catalog-note a,
+      .block-foot a,
+      .banner a {
         color: var(--primary-visible);
         font-weight: var(--font-weight-semibold);
-      }
-      .catalog-note a:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
       }
 
       /* ---- The two panes ------------------------------------------------------------------
@@ -695,7 +838,7 @@ interface DetailView {
       .workspace {
         --pane-max: calc(100dvh - var(--topbar-height) - var(--space-6) * 2);
         display: grid;
-        grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+        grid-template-columns: minmax(17rem, 23rem) minmax(0, 1fr);
         align-items: start;
         gap: var(--space-4);
       }
@@ -713,53 +856,59 @@ interface DetailView {
       .pane-pick {
         display: grid;
         align-content: start;
-        gap: var(--space-2);
-        padding: var(--space-4);
       }
       .pane-rule {
         display: grid;
         align-content: start;
-        gap: var(--space-3);
-        padding: var(--space-5);
+        gap: var(--space-5);
+        padding: var(--space-5) var(--space-6) var(--space-6);
         container-type: inline-size;
       }
 
-      .step-title {
-        display: flex;
-        align-items: center;
+      /* ---- The list ------------------------------------------------------------------------ */
+      /* Search and legend stay put while the list scrolls under them. */
+      .pick-head {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 1;
+        display: grid;
         gap: var(--space-2);
+        padding: var(--space-3) var(--space-3) var(--space-2);
+        border-block-end: 1px solid var(--border-subtle);
+        background: var(--bg-surface);
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-3);
         margin: 0;
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--text-primary);
-      }
-      .step-title-quiet {
-        color: var(--text-secondary);
-        font-weight: var(--font-weight-medium);
-      }
-      .step {
-        flex: none;
-        display: inline-grid;
-        place-items: center;
-        inline-size: var(--space-5);
-        block-size: var(--space-5);
-        border-radius: var(--radius-pill);
-        background: var(--primary-subtle);
-        color: var(--primary-visible);
+        padding-inline: var(--space-1);
         font-size: var(--text-xs);
-        font-weight: var(--font-weight-bold);
-        font-variant-numeric: tabular-nums lining-nums;
+        color: var(--text-secondary);
       }
-
-      /* ---- Step 1: the picker -------------------------------------------------------------- */
-      .search {
-        margin-block-end: var(--space-1);
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
+      }
+      /* Filled: the answer changes the offer. Hollow: it is only saved on the application. */
+      .dot {
+        flex: none;
+        display: inline-block;
+        inline-size: var(--space-2);
+        block-size: var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--color-success-dot);
+      }
+      .dot.off {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--border-strong);
       }
       .no-match {
         display: grid;
         justify-items: start;
         gap: var(--space-2);
-        padding-block: var(--space-3);
+        padding: var(--space-4);
       }
       .no-match-title {
         margin: 0;
@@ -770,7 +919,7 @@ interface DetailView {
         display: grid;
         gap: var(--space-0-5);
         margin: 0;
-        padding: 0;
+        padding: var(--space-2);
         list-style: none;
       }
       .pick {
@@ -778,44 +927,50 @@ interface DetailView {
         align-items: flex-start;
         gap: var(--space-2-5);
         inline-size: 100%;
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-2) var(--space-2-5);
         border: 0;
-        border-inline-start: var(--rule-width-accent) solid transparent;
         border-radius: var(--radius-md);
         background: transparent;
         color: var(--text-primary);
         font: inherit;
         text-align: start;
         cursor: pointer;
-        transition:
-          background var(--motion-duration-fast) var(--motion-easing-standard),
-          border-color var(--motion-duration-fast) var(--motion-easing-standard);
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .pick:hover {
         background: var(--bg-subtle);
       }
       .pick.on {
-        border-inline-start-color: var(--primary);
         background: var(--primary-subtle);
       }
-      /* The question's place in the asked order — the number an operator reads off the list. */
+      /* The question's place in the asked order: the number the Questions tab prints too. */
       .pick-n {
         flex: none;
-        min-inline-size: var(--space-5);
-        padding-block-start: var(--space-0-5);
+        display: inline-grid;
+        place-items: center;
+        inline-size: var(--space-6);
+        block-size: var(--space-6);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-pill);
+        background: var(--bg-surface);
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
-        text-align: end;
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
         font-variant-numeric: tabular-nums lining-nums;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .pick.on .pick-n {
-        color: var(--primary-visible);
+        border-color: var(--primary);
+        background: var(--primary);
+        color: var(--text-on-primary);
       }
       .pick-body {
         display: grid;
         gap: var(--space-0-5);
         min-inline-size: 0;
+        padding-block-start: var(--space-0-5);
       }
       .pick-q {
         display: -webkit-box;
@@ -823,44 +978,29 @@ interface DetailView {
         -webkit-box-orient: vertical;
         overflow: hidden;
         font-size: var(--text-sm);
-        line-height: var(--leading-normal);
+        line-height: var(--leading-snug);
       }
       .pick.on .pick-q {
         font-weight: var(--font-weight-semibold);
         color: var(--primary-visible);
       }
       .pick-meta {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1-5);
+        min-inline-size: 0;
         font-size: var(--text-xs);
         color: var(--text-secondary);
         font-variant-numeric: tabular-nums lining-nums;
       }
-      /* Whether the answer changes the offer: a filled dot if it does, a hollow one if not. */
-      .use {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1-5);
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--text-primary);
-      }
-      .use::before {
-        content: '';
-        flex: none;
-        inline-size: var(--space-2);
-        block-size: var(--space-2);
-        border-radius: var(--radius-pill);
-        background: var(--color-success-dot);
-      }
-      .use.unused {
-        font-weight: var(--font-weight-regular);
-        color: var(--text-secondary);
-      }
-      .use.unused::before {
-        background: transparent;
-        box-shadow: inset 0 0 0 1px var(--border-strong);
+      .pick-meta-text {
+        min-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      /* ---- Step 2: the question ------------------------------------------------------------ */
+      /* ---- The opened question: identity ---------------------------------------------------- */
       .back {
         display: none;
         justify-self: start;
@@ -869,6 +1009,7 @@ interface DetailView {
         min-block-size: var(--size-field);
         padding: 0 var(--space-2);
         margin-inline-start: calc(-1 * var(--space-2));
+        margin-block-end: calc(-1 * var(--space-3));
         border: 0;
         border-radius: var(--radius-md);
         background: transparent;
@@ -877,6 +1018,7 @@ interface DetailView {
         font-size: var(--text-sm);
         font-weight: var(--font-weight-semibold);
         cursor: pointer;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .back:hover {
         background: var(--bg-subtle);
@@ -884,139 +1026,176 @@ interface DetailView {
       :host-context([dir='rtl']) .back [nz-icon] {
         transform: scaleX(-1);
       }
+      .rule-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-3) var(--space-4);
+      }
+      .rule-id {
+        flex: 999 1 20rem;
+        display: grid;
+        gap: var(--space-2);
+        min-inline-size: 0;
+      }
+      .rule-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1-5) var(--space-2);
+        margin: 0;
+      }
+      .position {
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
+        padding: var(--space-0-5) var(--space-2);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-pill);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-secondary);
+      }
+      .tag-on {
+        border-color: transparent;
+        background: var(--color-success-bg);
+        color: var(--color-success);
+      }
       .q {
         margin: 0;
+        font-family: var(--heading-font);
         font-size: var(--text-xl);
         font-weight: var(--font-weight-semibold);
+        letter-spacing: -0.01em;
         line-height: var(--leading-tight);
         color: var(--text-primary);
       }
       .q:focus {
         outline: none;
       }
-      .q:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
       .q-alt {
-        margin: calc(-1 * var(--space-2)) 0 0;
+        margin: calc(-1 * var(--space-1)) 0 0;
         font-size: var(--text-sm);
         color: var(--text-secondary);
       }
-      .edit-link {
-        justify-self: start;
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--primary-visible);
+      .edit-btn {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
       }
-      .edit-link:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-      .summary {
+
+      /* ---- Facts: one tinted band, a column per fact ---------------------------------------- */
+      .facts {
         display: grid;
-        grid-template-columns: max-content minmax(0, 1fr);
-        gap: var(--space-2) var(--space-4);
-        margin: var(--space-1) 0 0;
+        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+        gap: var(--space-3) var(--space-5);
+        margin: 0;
         padding: var(--space-3) var(--space-4);
         border-radius: var(--radius-md);
         background: var(--bg-subtle);
       }
-      .summary-row {
-        display: contents;
+      .fact {
+        display: grid;
+        align-content: start;
+        gap: var(--space-1-5);
+        min-inline-size: 0;
       }
-      .summary dt {
-        padding-block-start: var(--space-0-5);
+      .fact-wide {
+        grid-column: 1 / -1;
+      }
+      .fact dt {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
       }
-      .summary dd {
+      .fact dd {
         margin: 0;
         min-inline-size: 0;
         font-size: var(--text-sm);
+        line-height: var(--leading-normal);
         color: var(--text-primary);
       }
       .quiet {
         color: var(--text-secondary);
       }
-      .cats,
       .impacts {
         display: flex;
         flex-wrap: wrap;
-        gap: var(--space-1) var(--space-2);
+        gap: var(--space-1) var(--space-1-5);
         margin: 0;
         padding: 0;
         list-style: none;
       }
-      .cat,
       .impact {
         display: inline-flex;
         align-items: center;
         gap: var(--space-1);
         padding: var(--space-0-5) var(--space-2);
+        border: 1px solid var(--border-subtle);
         border-radius: var(--radius-pill);
         background: var(--bg-surface);
         font-size: var(--text-xs);
-        color: var(--text-primary);
-      }
-      .cat::before {
-        content: '';
-        inline-size: var(--space-2);
-        block-size: var(--space-2);
-        border-radius: var(--radius-pill);
-        background: var(--cat, var(--border-strong));
-      }
-      .cat.opt-in {
-        background: transparent;
-        border: 1px dashed var(--border-default);
-      }
-      .cat.none::before {
-        display: none;
-      }
-      .impact {
         font-weight: var(--font-weight-medium);
-      }
-      .instead {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-1-5);
+        color: var(--text-primary);
       }
       .impact [nz-icon] {
         color: var(--primary-visible);
       }
-
-      /* A typed question: its fixed rule, and where its wording is changed instead. */
-      .typed {
+      .instead {
         display: grid;
-        gap: var(--space-2);
-        padding: var(--space-4);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-md);
+        justify-items: start;
+        gap: var(--space-1-5);
       }
-      .typed-lead {
+
+      /* ---- A section: the answers, or what the customer types ------------------------------- */
+      .block {
+        display: grid;
+        gap: var(--space-3);
+        min-inline-size: 0;
+      }
+      .block-head {
+        display: grid;
+        gap: var(--space-1);
+      }
+      .block-title {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
         margin: 0;
         font-size: var(--text-base);
         font-weight: var(--font-weight-semibold);
         color: var(--text-primary);
       }
-      .typed-parts {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-1) var(--space-2);
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      .typed-parts li {
-        padding: var(--space-0-5) var(--space-2);
-        border-radius: var(--radius-sm);
+      .count {
+        display: inline-grid;
+        place-items: center;
+        min-inline-size: var(--space-5);
+        padding: 0 var(--space-1-5);
+        border-radius: var(--radius-pill);
         background: var(--bg-muted);
-        font-size: var(--text-sm);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-secondary);
         font-variant-numeric: tabular-nums lining-nums;
       }
-      .typed-note {
+      .block-note {
+        margin: 0;
+        font-size: var(--text-xs);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+      }
+      .block-foot {
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-1) var(--space-2);
@@ -1024,26 +1203,39 @@ interface DetailView {
         font-size: var(--text-sm);
         color: var(--text-secondary);
       }
-      .typed-note a,
-      .banner a {
-        color: var(--primary-visible);
-        font-weight: var(--font-weight-semibold);
+      .spec {
+        display: grid;
+        gap: var(--space-2);
       }
-      .typed-note a:focus-visible,
-      .banner a:focus-visible,
-      .pick:focus-visible,
-      .back:focus-visible,
-      .tech summary:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
+      .spec-lead {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--text-primary);
       }
-
+      .spec-parts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1-5);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      /* Read-only facts, so tinted and borderless: a bordered box here read as a button. */
+      .spec-parts li {
+        padding: var(--space-0-5) var(--space-2);
+        border-radius: var(--radius-sm);
+        background: var(--bg-muted);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums lining-nums;
+      }
       .banner {
         display: flex;
         align-items: flex-start;
         gap: var(--space-2);
         margin: 0;
-        padding: var(--space-3) var(--space-4);
+        padding: var(--space-2-5) var(--space-3);
         border-radius: var(--radius-md);
         background: var(--color-info-bg);
         color: var(--text-primary);
@@ -1066,57 +1258,68 @@ interface DetailView {
         color: var(--text-secondary);
       }
 
-      /* ---- The answers ---------------------------------------------------------------------- */
-      .answers {
+      /* ---- Tables: the answers and the number ranges ---------------------------------------- */
+      .frame {
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+      .grid {
         inline-size: 100%;
         border-collapse: collapse;
         font-size: var(--text-sm);
       }
-      .answers-caption {
+      .frame-caption {
         caption-side: top;
-        padding-block-end: var(--space-2);
-        font-size: var(--text-xs);
-        line-height: var(--leading-normal);
+        padding: var(--space-2-5) var(--space-3);
+        border-block-end: 1px solid var(--border-subtle);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
         text-align: start;
-        color: var(--text-secondary);
+        color: var(--text-primary);
       }
-      .answers th {
+      .grid th {
         padding: var(--space-2) var(--space-3);
         border-block-end: 1px solid var(--border-default);
+        background: var(--bg-subtle);
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
         text-align: start;
         color: var(--text-secondary);
         white-space: nowrap;
       }
-      .answers th.col-act {
+      .grid th.col-act {
         inline-size: 1%;
       }
-      .answers th.col-act .step {
-        margin-inline-end: var(--space-1);
-      }
-      .answers td {
+      .grid td {
         padding: var(--space-3);
         border-block-end: 1px solid var(--border-subtle);
         vertical-align: top;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .answers tbody tr:last-child td {
+      .grid tbody tr:last-child td {
         border-block-end: 0;
       }
-      .answers tbody tr:hover td {
+      .grid tbody tr:hover td {
         background: var(--bg-subtle);
       }
-      .cell-sees {
-        display: grid;
-        gap: var(--space-0-5);
-        min-inline-size: 0;
+      .cell-range {
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums lining-nums;
       }
+      /* Blocks inside the cell, never a grid ON it: a td that is not a table-cell drops out of
+         the row, and its rule stops short of a tall neighbour. */
       .label {
+        display: block;
         font-weight: var(--font-weight-semibold);
         color: var(--text-primary);
         overflow-wrap: anywhere;
       }
       .label-alt {
+        display: block;
+        margin-block-start: var(--space-0-5);
         font-size: var(--text-xs);
         color: var(--text-secondary);
         overflow-wrap: anywhere;
@@ -1143,40 +1346,42 @@ interface DetailView {
       .cell-act {
         text-align: end;
         white-space: nowrap;
+        vertical-align: middle;
       }
       .reword {
         display: inline-flex;
         align-items: center;
         gap: var(--space-1-5);
+        color: var(--primary-visible);
       }
 
-      /* A narrow pane stacks each answer: words, then meaning, then numbers, then Reword. */
+      /* A narrow pane stacks each row: words, then meaning, then numbers, then Reword. */
       @container (max-width: 34rem) {
-        .answers thead {
+        .grid thead {
           position: absolute;
           inline-size: 1px;
           block-size: 1px;
           overflow: hidden;
           clip-path: inset(50%);
         }
-        .answers tr {
+        .grid tr {
           display: grid;
           gap: var(--space-2);
-          padding-block: var(--space-3);
+          padding: var(--space-3);
           border-block-end: 1px solid var(--border-subtle);
         }
-        .answers tbody tr:last-child {
+        .grid tbody tr:last-child {
           border-block-end: 0;
         }
-        .answers td {
+        .grid td {
           display: block;
           padding: 0;
           border: 0;
         }
-        .answers tbody tr:hover td {
+        .grid tbody tr:hover td {
           background: transparent;
         }
-        .answers td[data-label]::before {
+        .grid td[data-label]::before {
           content: attr(data-label);
           display: block;
           margin-block-end: var(--space-1);
@@ -1187,13 +1392,15 @@ interface DetailView {
         .cell-act {
           text-align: start;
         }
+        .reword {
+          margin-inline-start: calc(-1 * var(--space-2));
+        }
       }
 
       /* ---- Technical details --------------------------------------------------------------- */
       .tech {
-        margin-block-start: var(--space-2);
         border-block-start: 1px solid var(--border-subtle);
-        padding-block-start: var(--space-2);
+        padding-block-start: var(--space-3);
       }
       .tech summary {
         display: inline-flex;
@@ -1208,6 +1415,9 @@ interface DetailView {
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
         cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .tech summary::-webkit-details-marker {
         display: none;
@@ -1226,8 +1436,11 @@ interface DetailView {
       .tech-list {
         display: grid;
         grid-template-columns: max-content minmax(0, 1fr);
-        gap: var(--space-2) var(--space-4);
-        margin: var(--space-2) 0 0;
+        gap: var(--space-2-5) var(--space-5);
+        margin: var(--space-3) 0 0;
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
       }
       .tech-row {
         display: contents;
@@ -1264,6 +1477,18 @@ interface DetailView {
         overflow-wrap: anywhere;
       }
 
+      /* ---- Focus ----------------------------------------------------------------------------- */
+      .catalog-note a:focus-visible,
+      .block-foot a:focus-visible,
+      .banner a:focus-visible,
+      .pick:focus-visible,
+      .back:focus-visible,
+      .q:focus-visible,
+      .tech summary:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+
       /* ---- Narrow screens: one pane at a time ---------------------------------------------- */
       @media (max-width: 900px) {
         .workspace {
@@ -1274,6 +1499,9 @@ interface DetailView {
           max-block-size: none;
           overflow: visible;
         }
+        .pick-head {
+          position: static;
+        }
         .workspace[data-view='list'] .pane-rule,
         .workspace[data-view='detail'] .pane-pick {
           display: none;
@@ -1281,24 +1509,32 @@ interface DetailView {
         .back {
           display: inline-flex;
         }
+        /* A finger, not a pointer: every action a full touch target tall. */
+        .edit-btn,
+        .reword {
+          min-block-size: var(--size-field);
+        }
         .page {
           padding: var(--space-4);
         }
         .pane-rule {
+          gap: var(--space-4);
           padding: var(--space-4);
         }
-        .summary,
         .tech-list {
           grid-template-columns: minmax(0, 1fr);
           gap: var(--space-1);
         }
-        .summary dd + dt,
         .tech-list dd + dt {
           margin-block-start: var(--space-2);
         }
       }
       @media (prefers-reduced-motion: reduce) {
         .pick,
+        .pick-n,
+        .back,
+        .grid td,
+        .tech summary,
         .tech-chevron {
           transition: none;
         }
@@ -1334,7 +1570,7 @@ export class EngineRulesPageComponent implements OnInit {
 
   /** The questions the tab's programs ask, in the order they are asked. */
   private readonly shown = computed<readonly EngineRuleQuestion[]>(() =>
-    this.basis() === 'payslip' ? this.questions() : this.questions().filter(asksWithoutPayslip),
+    this.questions().filter(this.basis() === 'payslip' ? asksWithPayslip : asksWithoutPayslip),
   );
 
   protected readonly basisTabs = computed<RailTabItem[]>(() => {
@@ -1344,7 +1580,7 @@ export class EngineRulesPageComponent implements OnInit {
         id: 'payslip',
         label: incomeBasisLabel('payslip'),
         note: this.proofNote,
-        count: all.length,
+        count: all.filter(asksWithPayslip).length,
         countLabel: this.countLabel,
         accent: 'var(--color-brand-primary)',
       },
@@ -1388,7 +1624,10 @@ export class EngineRulesPageComponent implements OnInit {
 
   protected readonly detail = computed<DetailView | null>(() => {
     const q = this.selected();
-    return q === null ? null : this.detailOf(q);
+    if (q === null) return null;
+    const all = this.numbered();
+    const it = all.find((p) => p.q.id === q.id);
+    return this.detailOf(q, it?.n ?? 1, all.length, it?.onOffer ?? false);
   });
 
   protected readonly status = computed(() => {
@@ -1411,6 +1650,7 @@ export class EngineRulesPageComponent implements OnInit {
   private readonly unlessDerivedText = $localize`:@@qrules.asked_unless_derived:Always, unless the program works the amount out from the car price and down payment`;
   protected readonly colMeans = $localize`:@@qrules.col_means:The loan engine understands`;
   protected readonly colKeep = $localize`:@@qrules.col_keep:Numbers to keep`;
+  protected readonly colOffer = $localize`:@@qrules.use_offer:Changes the offer`;
   private readonly savedText = $localize`:@@qrules.saved:Answer wording saved and published`;
 
   ngOnInit(): void {
@@ -1504,8 +1744,9 @@ export class EngineRulesPageComponent implements OnInit {
     return $localize`:@@qrules.edit_aria:Edit the wording of “${label}:label:”`;
   }
 
-  private detailOf(q: EngineRuleQuestion): DetailView {
+  private detailOf(q: EngineRuleQuestion, n: number, total: number, onOffer: boolean): DetailView {
     const surrogate = this.basis() === 'no_payslip';
+    const unit = (this.isAr ? q.numeric?.unitAr : q.numeric?.unitEn) ?? null;
     const impact = impactOf(q);
     const areas = IMPACT_AREAS.filter((a) => impact.has(a));
     const rows: AnswerRow[] = q.options.map((o) => {
@@ -1522,6 +1763,9 @@ export class EngineRulesPageComponent implements OnInit {
     return {
       q,
       group: groupOf(q),
+      position: $localize`:@@qrules.position:Question ${n}:n: of ${total}:total:`,
+      followUp: q.askedWhen !== null,
+      onOffer,
       wording: wordingOf(q, this.isAr),
       alt: wordingOf(q, !this.isAr),
       askedWhen:
@@ -1549,10 +1793,7 @@ export class EngineRulesPageComponent implements OnInit {
           : q.options.length === 0
             ? numericRuleParts(q, this.isAr)
             : [],
-      ranges: (q.numberEffects ?? []).map(
-        (r) =>
-          `${rangeText(r, (this.isAr ? q.numeric?.unitAr : q.numeric?.unitEn) ?? null)} → ${effectParts(r).join(' · ')}`,
-      ),
+      ranges: (q.numberEffects ?? []).map((r) => ({ text: rangeText(r, unit), levers: r })),
     };
   }
 
@@ -1574,6 +1815,21 @@ export class EngineRulesPageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+    if (first) this.revealPick();
+  }
+
+  /**
+   * A question opened from a link (`?q=`) may sit far down the list: bring its row into view
+   * beside it. "Nearest" moves nothing when the row already shows; otherwise it scrolls the list
+   * pane and, for a row near the end, the page too — until the header scrolls away the pane runs
+   * past the bottom of the window, and its last rows can only be shown by moving the page.
+   */
+  private revealPick(): void {
+    const id = this.selected()?.id;
+    if (id === undefined || this.isNarrow()) return;
+    requestAnimationFrame(() =>
+      document.getElementById('qr-pick-' + id)?.scrollIntoView({ block: 'nearest' }),
+    );
   }
 
   private syncUrl(): void {
@@ -1593,6 +1849,14 @@ export class EngineRulesPageComponent implements OnInit {
   private focusEdit(optionId: string): void {
     requestAnimationFrame(() => document.getElementById('qr-edit-' + optionId)?.focus());
   }
+}
+
+/**
+ * An income-proof program asks it: every fixed question but the surrogate-only ones (v32.1.0).
+ * A server too old to send `fixedServedOn` had no surrogate-only question, so every one is.
+ */
+function asksWithPayslip(q: EngineRuleQuestion): boolean {
+  return q.fixedServedOn !== 'income_surrogate';
 }
 
 /**

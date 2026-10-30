@@ -1,3 +1,4 @@
+import { fixedAskedOn, type FixedServedOn, type IncomeBasis } from '@core/income-basis';
 import { canonicalCategories, type LoanCategory } from '@core/loan-category';
 import type { EnabledWhenLike } from './enabled-when';
 
@@ -36,14 +37,20 @@ export interface AskableQuestion {
    */
   readonly isRequired: boolean;
   /**
-   * A FIXED question (`fixedServedOn` set): asked on every program, never ticked or unticked
-   * per program. Absent on a bare fixture or an older server — read as not fixed.
+   * A FIXED question (`fixedServedOn` set): asked on every program of its side, never ticked or
+   * unticked per program. Absent on a bare fixture or an older server — read as not fixed.
    */
   readonly fixed?: boolean;
   /**
+   * Which side a fixed question is asked on (`fixedServedOn`, v32.1.0): every program, income-
+   * proof ones only or surrogate ones only. Absent with `fixed` (a bare fixture, an older
+   * server) — read as every program.
+   */
+  readonly fixedOn?: FixedServedOn;
+  /**
    * A question surrogate (no-payslip) products ask — the server's `surrogateSide`. The rest are
-   * the income-proof questions the Questionnaire section lists. Absent on a bare fixture or an
-   * older server — read as income-proof.
+   * income-proof questions. (The Questions library lists both on one list since v32.1.0.) Absent
+   * on a bare fixture or an older server — read as income-proof.
    */
   readonly surrogateSide?: boolean;
   /** `enabledWhen.questionCode` — the question this one branches off, or `null`. */
@@ -194,7 +201,20 @@ export function isValidatedCategory(category: LoanCategory): boolean {
   return CORE_QUESTION_CODES[category] !== undefined;
 }
 
-/** One loan type's checklist, in the order the codes are listed above. `ticked` = question ids. */
+/**
+ * A fixed question a program of `basis` asks: fixed, and on that side (v32.1.0) — a
+ * surrogate-only one is not asked on a payslip name, nor an income-proof-only one on a
+ * no-payslip name.
+ */
+export function fixedAskedHere(q: AskableQuestion, basis: IncomeBasis): boolean {
+  return q.fixed === true && fixedAskedOn(q.fixedOn ?? 'every_name', basis);
+}
+
+/**
+ * One loan type's checklist, in the order the codes are listed above. `ticked` = question ids.
+ * For a name made in Add program, which is payslip-only (v30.8.0): a fixed question counts as
+ * asked where a payslip program asks it.
+ */
 export function coreChecks(
   pool: readonly AskableQuestion[],
   category: LoanCategory,
@@ -208,8 +228,13 @@ export function coreChecks(
       return { code, label: code, state: 'unavailable', questionId: null, isRequired: false };
     }
     const label = (isAr ? q.labelAr : q.labelEn) || code;
+    // Fixed for surrogate programs only (v32.1.0): a payslip program never asks it, and a fixed
+    // question cannot be ticked — only its "Asked on" in Questionnaire can change that.
+    if (q.fixed === true && !fixedAskedHere(q, 'payslip')) {
+      return { code, label, state: 'unavailable', questionId: null, isRequired: q.isRequired };
+    }
     const state: CoreState =
-      q.fixed === true || MONEY_CORE.includes(code)
+      fixedAskedHere(q, 'payslip') || MONEY_CORE.includes(code)
         ? 'asked'
         : ticked.has(q.id)
           ? 'picked'
@@ -248,8 +273,9 @@ export function coreProblems(
  * list kept here (A33: which questions are which comes from the server alone).
  *
  *   - `engine`: every quote reads it — the money and debt questions, asked on every program.
- *   - `base`: a fixed question, asked on every program — the declared-income part only where it
- *     sells a payslip programme. Changed on Questionnaire, never per program.
+ *   - `base`: a fixed question, asked on every program of its side — an income-proof-only one
+ *     where the name sells a payslip programme, a surrogate-only one where it sells a no-payslip
+ *     one (v32.1.0). Changed on Questionnaire, never per program.
  *   - `program`: a bank program under the name, in that loan type, reads it.
  */
 export type QuestionLockReason = 'engine' | 'base' | 'program';
@@ -260,8 +286,9 @@ export interface ServerLock {
   readonly reason: QuestionLockReason;
   /**
    * `base` and `program` locks: the loan types where the lock holds for this name — for a fixed
-   * question every loan type it is offered under (its declared-income part only where it sells
-   * a payslip programme), for a bank's read the loan types that bank's programs are filed in.
+   * question every loan type it is offered under on its side (an income-proof-only one where it
+   * sells a payslip programme, a surrogate-only one where it sells a no-payslip one), for a
+   * bank's read the loan types that bank's programs are filed in.
    * Absent = every loan type.
    */
   readonly categories?: readonly LoanCategory[];

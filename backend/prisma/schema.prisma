@@ -1629,10 +1629,13 @@ enum QuestionType {
 
 // v31.0.0 — where a FIXED question is asked (`question.fixedServedOn`). `every_name`: on
 // every program; `income_proof`: on every income-proof (payslip) program — of every loan type
-// since v32.0.0. Set when the admin creates or marks the question; the admin's both ways.
+// since v32.0.0; `income_surrogate` (v32.1.0): on every surrogate (no-payslip) program. The two
+// one-sided values are `bank_program.programType`'s own words. Set when the admin creates or
+// marks the question; the admin's both ways.
 enum FixedQuestionServedOn {
   every_name
   income_proof
+  income_surrogate
 }
 
 // Feature 010 — questions are GLOBAL (no category). A single question pool feeds
@@ -1686,8 +1689,9 @@ model Question {
   numericUnitEn   String?  @db.VarChar(24) // display unit, e.g. "EGP"
   textMaxLength   Int? // TEXT only; 1…2000
 
-  /// FIXED (v31.0.0): asked on every program (`every_name`), or on every income-proof program
-  /// (`income_proof`) — of every loan type since v32.0.0; `null` = an ordinary question, asked
+  /// FIXED (v31.0.0): asked on every program (`every_name`), on every income-proof program
+  /// (`income_proof`) or on every surrogate program (`income_surrogate`, v32.1.0) — of every
+  /// loan type since v32.0.0; `null` = an ordinary question, asked
   /// where a program's bank programs read it or the program ticked it. The admin's both ways
   /// (v31.1.0). While fixed it is never ticked per program and is gated only on another fixed
   /// question (`questionnaire/validation/fixed-questions.ts`). Frozen into the published

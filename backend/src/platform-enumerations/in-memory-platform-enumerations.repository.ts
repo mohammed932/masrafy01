@@ -128,7 +128,7 @@ export class InMemoryPlatformEnumerationsRepository
 
   /** No registry, no programmes: only the engine's own inputs and the fixed set lock. */
   async questionLockScopeFor(): Promise<QuestionLockScope> {
-    return { incomeProof: true };
+    return { incomeProof: true, incomeSurrogate: false };
   }
 
   async platformQuestionCodes(): Promise<readonly string[]> {

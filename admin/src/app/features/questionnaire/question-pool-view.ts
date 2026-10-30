@@ -1,60 +1,43 @@
-import { moveItemInArray } from '@angular/cdk/drag-drop';
-import type { IncomeBasis } from '@core/income-basis';
+import { ruleCodes } from '@shared/questions/enabled-when';
 import type { FixedServedOn, QuestionEngineLock, QuestionRow } from './questionnaire.api.service';
 
 /**
- * WHICH TAB OF THE QUESTIONS PAGE LISTS A QUESTION — pure, so the page holds signals and
- * nothing it would have to re-derive.
+ * How the Questions library reads a question — pure, so the page holds signals and nothing it
+ * would have to re-derive.
  *
- * Three tabs (v31.8.1). All, the first: every question in the pool. Then two that split it, and
- * every question on exactly one of those (v31.8.0). Income proof: the FIXED questions and every
- * ordinary one no surrogate product asks. Surrogate: the questions surrogate products ask —
- * which product asks which is still set on the product, in the Program catalog. A fixed
- * question surrogate programs ask too stays on Income proof: one place to edit it.
+ * The library is ONE list of every question (v32.1.0, operator decision 2026-10-30: "this
+ * screen must be like library for all questions"). It used to split into All / Income proof /
+ * Surrogate tabs (v31.8.0–v31.8.1); which programs ask a question is now said by the question
+ * itself — its Fixed mark and "Asked on" — and listed by side on the Fixed questions tab only.
  */
 
-/** A tab of the Questions page: All, or one of the two halves it splits into. */
-export type QuestionTab = 'all' | IncomeBasis;
-
-/** A fixed question: asked on every program of its loan types (v31.0.0; un-fixable, v31.1.0). */
+/** A fixed question: asked on every program of its side (v31.0.0; un-fixable, v31.1.0). */
 export function isFixed(q: Pick<QuestionRow, 'fixedServedOn'>): boolean {
-  return q.fixedServedOn === 'every_name' || q.fixedServedOn === 'income_proof';
+  return q.fixedServedOn != null;
 }
 
 /** Where a fixed question is asked, in the words of the form's "Asked on" choice. */
 export function servedOnLabel(servedOn: FixedServedOn): string {
-  return servedOn === 'income_proof'
-    ? $localize`:@@qedit.served_proof:Only income-proof programs`
-    : $localize`:@@qedit.served_every:Every program`;
+  switch (servedOn) {
+    case 'income_proof':
+      return $localize`:@@qedit.served_proof:Only income-proof programs`;
+    case 'income_surrogate':
+      return $localize`:@@qedit.served_surrogate:Only surrogate programs`;
+    case 'every_name':
+      return $localize`:@@qedit.served_both:Both — every program`;
+  }
 }
 
-/** What that choice means for the programs that do not read a payslip. */
+/** What that choice means for the programs on the other side. */
 export function servedOnHint(servedOn: FixedServedOn): string {
-  return servedOn === 'income_proof'
-    ? $localize`:@@qedit.served_proof_hint:Surrogate programs skip it, because they work out the income another way. Use this for questions about pay or income.`
-    : $localize`:@@qedit.served_every_hint:Income-proof and surrogate programs both ask it.`;
-}
-
-/**
- * The tab a question is listed on: `no_payslip` (Surrogate) when a surrogate product asks it,
- * else `payslip` (Income proof). Fixed wins — the server never marks a fixed question
- * `surrogateSide`, and an older server that did would still not split one across two tabs.
- */
-export function basisTabOf(q: Pick<QuestionRow, 'fixedServedOn' | 'surrogateSide'>): IncomeBasis {
-  return isFixed(q) || q.surrogateSide !== true ? 'payslip' : 'no_payslip';
-}
-
-/** The tab a `?basis=` value names; anything else (none, a stale word) is All, the default. */
-export function tabOfParam(raw: string | null): QuestionTab {
-  return raw === 'payslip' || raw === 'no_payslip' ? raw : 'all';
-}
-
-/** Whether `tab` lists the question: All lists every one, the other two their half. */
-export function listedOn(
-  tab: QuestionTab,
-  q: Pick<QuestionRow, 'fixedServedOn' | 'surrogateSide'>,
-): boolean {
-  return tab === 'all' || basisTabOf(q) === tab;
+  switch (servedOn) {
+    case 'income_proof':
+      return $localize`:@@qedit.served_proof_hint:Surrogate programs skip it, because they work out the income another way. Use this for questions about pay or income.`;
+    case 'income_surrogate':
+      return $localize`:@@qedit.served_surrogate_hint:Income-proof programs skip it. Use this for questions only a program without a payslip needs.`;
+    case 'every_name':
+      return $localize`:@@qedit.served_every_hint:Income-proof and surrogate programs both ask it.`;
+  }
 }
 
 /**
@@ -68,30 +51,126 @@ export function engineLockOf(q: Pick<QuestionRow, 'engineLock'>): QuestionEngine
 }
 
 /**
- * Move one question within the questions its tab lists, and give back the WHOLE pool in its
- * new order — the reorder endpoint takes every active id or none.
+ * The library as a TREE (operator, 2026-10-30: "show dependable questions under parent
+ * questions"): a follow-up — a question with a show-when rule — hangs under the question whose
+ * answer opens it, its own follow-ups under it, and so on.
  *
- * `from` and `to` index into `subset`, which is `all` narrowed and still in `all`'s order. The
- * tab's questions trade places among the slots they already hold; a question on the other tab
- * keeps its own slot, so a drag on one tab never moves a question the admin cannot see.
+ * The tree IS the library's order: a question, then its follow-ups (in library order), then the
+ * next question. A reorder moves a question among its siblings only, carrying its follow-ups with
+ * it, and writes the whole tree back flat — so a source is always asked before what it opens,
+ * which is the server's own rule for a show-when source (an earlier question). Until the first
+ * reorder the pool may still hold a follow-up far below its source; the tree draws it under the
+ * source regardless, and that reorder closes the gap.
+ *
+ * A rule that cannot hide its question (`gateOpen`: no answer named, a source not in the pool, a
+ * loop) does not nest it either — it is drawn where everyone is asked it, at the top level.
  */
-export function reorderWithin<T extends { id: string }>(
-  all: readonly T[],
-  subset: readonly T[],
-  from: number,
+export interface PoolTree {
+  /** The questions that follow no other, in library order. */
+  readonly roots: readonly QuestionRow[];
+  /** Each question's follow-ups, in library order. A question with none has no entry. */
+  readonly children: ReadonlyMap<string, readonly QuestionRow[]>;
+  /** Each follow-up's parent, by id. A top-level question has no entry. */
+  readonly parentOf: ReadonlyMap<string, string>;
+}
+
+/** The question a rule hangs `q` on, or null — by the rule's source code, never itself. */
+function gateSource(q: QuestionRow, byCode: ReadonlyMap<string, QuestionRow>): QuestionRow | null {
+  const rule = q.enabledWhen;
+  if (!rule?.questionCode || ruleCodes(rule).length === 0) return null;
+  const source = byCode.get(rule.questionCode);
+  return source !== undefined && source.id !== q.id ? source : null;
+}
+
+/** Builds the tree over `rows`, which arrive in the pool's order. */
+export function poolTree(rows: readonly QuestionRow[]): PoolTree {
+  const byCode = new Map(rows.map((q) => [q.code, q]));
+  const roots: QuestionRow[] = [];
+  const children = new Map<string, QuestionRow[]>();
+  const parentOf = new Map<string, string>();
+  for (const q of rows) {
+    let parent = gateSource(q, byCode);
+    // Walk the sources up: a chain that comes back round (stored data the editor would never
+    // write) leaves the question at the top level rather than nowhere.
+    const seen = new Set([q.id]);
+    for (let p = parent; p !== null; p = gateSource(p, byCode)) {
+      if (seen.has(p.id)) {
+        parent = null;
+        break;
+      }
+      seen.add(p.id);
+    }
+    if (parent === null) {
+      roots.push(q);
+      continue;
+    }
+    parentOf.set(q.id, parent.id);
+    const list = children.get(parent.id);
+    if (list) list.push(q);
+    else children.set(parent.id, [q]);
+  }
+  return { roots, children, parentOf };
+}
+
+/** The tree written flat, a question before its follow-ups — the order a reorder saves. */
+export function flattenTree(
+  roots: readonly QuestionRow[],
+  children: ReadonlyMap<string, readonly QuestionRow[]>,
+): QuestionRow[] {
+  const out: QuestionRow[] = [];
+  const walk = (q: QuestionRow): void => {
+    out.push(q);
+    for (const c of children.get(q.id) ?? []) walk(c);
+  };
+  roots.forEach(walk);
+  return out;
+}
+
+/** The questions `q` moves among: its parent's follow-ups, or the top level. */
+export function siblingsOf(tree: PoolTree, q: Pick<QuestionRow, 'id'>): readonly QuestionRow[] {
+  const parentId = tree.parentOf.get(q.id);
+  return parentId === undefined ? tree.roots : (tree.children.get(parentId) ?? []);
+}
+
+/**
+ * The library's order after `q` moves from one place among its siblings to another, follow-ups
+ * carried along; null when the move goes nowhere.
+ */
+export function moveAmongSiblings(
+  tree: PoolTree,
+  q: Pick<QuestionRow, 'id'>,
   to: number,
-): T[] {
-  const ids = new Set(subset.map((q) => q.id));
-  const slots: number[] = [];
-  all.forEach((q, index) => {
-    if (ids.has(q.id)) slots.push(index);
-  });
-  const moved = [...subset];
-  moveItemInArray(moved, from, to);
-  const next = [...all];
-  slots.forEach((slot, i) => {
-    const q = moved[i];
-    if (q !== undefined) next[slot] = q;
-  });
-  return next;
+): QuestionRow[] | null {
+  const siblings = [...siblingsOf(tree, q)];
+  const from = siblings.findIndex((s) => s.id === q.id);
+  if (from < 0 || to < 0 || to >= siblings.length || from === to) return null;
+  const [moved] = siblings.splice(from, 1);
+  if (moved === undefined) return null;
+  siblings.splice(to, 0, moved);
+  const parentId = tree.parentOf.get(q.id);
+  if (parentId === undefined) return flattenTree(siblings, tree.children);
+  const children = new Map(tree.children);
+  children.set(parentId, siblings);
+  return flattenTree(tree.roots, children);
+}
+
+/** Outline numbers: 1, 2, 3 at the top level; 4.1, 4.2 under question 4; 4.1.1 below that. */
+export function outlineLabels(tree: PoolTree): Map<string, string> {
+  const labels = new Map<string, string>();
+  const walk = (q: QuestionRow, label: string): void => {
+    labels.set(q.id, label);
+    (tree.children.get(q.id) ?? []).forEach((c, i) => walk(c, `${label}.${i + 1}`));
+  };
+  tree.roots.forEach((q, i) => walk(q, String(i + 1)));
+  return labels;
+}
+
+/** The top-level question `id` hangs under (itself, at the top level). */
+export function rootIdOf(tree: PoolTree, id: string): string {
+  let current = id;
+  for (let parent = tree.parentOf.get(current); parent !== undefined; ) {
+    current = parent;
+    parent = tree.parentOf.get(current);
+  }
+  return current;
 }

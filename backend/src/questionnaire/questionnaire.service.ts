@@ -42,6 +42,8 @@ import {
   type NarrowingScope,
 } from './validation/question-scope';
 import {
+  ALL_FIXED_SIDES,
+  fixedServedHere,
   fixedServedOnOf,
   frozenFixedServedOn,
   surrogateSideCodes,
@@ -195,15 +197,19 @@ export class QuestionnaireService {
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const out = [];
     for (const category of sortCategories(member.categories)) {
-      // A fixed mark as this loan type reads it (an old snapshot froze the car questions'
-      // marks for car alone).
+      const scope = await this.enums.narrowingScopeFor(programNameKey, category);
+      // The fixed questions THIS path asks as fixed: a mark as this loan type reads it (an old
+      // snapshot froze the car questions' marks for car alone), on this name's side (v32.1.0) —
+      // a one-sided question served here for another reason (a bank reads it, it opens a
+      // follow-up) is not drawn as fixed. No scope = the baseline, which serves every side.
       const fixed = new Set(
         ((version.snapshot as StoredSnapshot).groups ?? [])
           .flatMap((g) => g.questions ?? [])
-          .filter((q) => frozenFixedServedOn(q, category) !== null)
+          .filter((q) =>
+            fixedServedHere(frozenFixedServedOn(q, category), scope ?? ALL_FIXED_SIDES),
+          )
           .map((q) => q.code),
       );
-      const scope = await this.enums.narrowingScopeFor(programNameKey, category);
       const served = toCustomerSnapshot(version.snapshot, category, scope);
       const counted = countServed(served);
       out.push({
@@ -1126,7 +1132,7 @@ export class QuestionnaireService {
       isActive: boolean;
       /** The gate, for callers that must close a pick over `enabledWhen`. */
       enabledWhen: unknown;
-      /** FIXED (v31.0.0): asked on every program (or every payslip one); `null` = not. */
+      /** FIXED (v31.0.0): asked on every program, or every payslip or surrogate one; `null` = not. */
       fixedServedOn: FixedServedOn | null;
     }>
   > {
@@ -1179,8 +1185,9 @@ export class QuestionnaireService {
       this.enums.askScopedQuestionCodes(),
       this.enums.platformQuestionCodes(),
     ]);
-    // The PROGRAM-CATALOG questions (v31.0.0): what a no-payslip product asks — the Questions
-    // tab's Surrogate list. Never a fixed one, nor one bound to a fact the platform owns.
+    // The PROGRAM-CATALOG questions (v31.0.0): what a no-payslip product asks — what a
+    // no-payslip program's Add a question offers (the Questions library lists every question on
+    // one list since v32.1.0). Never a fixed one, nor one bound to a fact the platform owns.
     const surrogateSide = surrogateSideCodes(questions, askScoped, platformCodes);
     const result = [];
     for (const g of groups) {

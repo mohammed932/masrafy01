@@ -1015,7 +1015,9 @@ export class ProgramNameDetailPage implements OnInit {
     for (const q of questions) {
       const row = byCode.get(q.code);
       const lock = locks.get(q.code);
-      if (fixed.has(q.code) || row?.fixed === true || lock === 'base') out.set(q.code, 'fixed');
+      // On the server's word, which is per side (v32.1.0): a fixed question of the OTHER side,
+      // served here because a bank reads it or it opens a follow-up, is not drawn as fixed.
+      if (fixed.has(q.code) || lock === 'base') out.set(q.code, 'fixed');
       else if (lock === 'engine') out.set(q.code, 'engine');
       else if (lock === 'program') out.set(q.code, 'program');
       else if (row === undefined) continue;
@@ -1119,8 +1121,8 @@ export class ProgramNameDetailPage implements OnInit {
    * switched-off question is left out, because the server would refuse the whole write.
    *
    * Only the questions of the name's own income type (v31.7.0): a payslip name picks from the
-   * income-proof questions — the ones the Questionnaire section lists — a no-payslip name from
-   * the ones surrogate products ask, a name sold both ways from both. A name no bank sells yet
+   * income-proof questions, a no-payslip name from the ones surrogate products ask, a name sold
+   * both ways from both. A name no bank sells yet
    * reads as payslip, the only kind Add program makes.
    */
   protected readonly addableRows = computed<readonly AddableRow[]>(() => {

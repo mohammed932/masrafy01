@@ -128,9 +128,10 @@ export class CreateQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(0, 500) helperTextEn?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isRequired?: boolean;
   /**
-   * FIXED (v31.0.0): asked on every program of its loan types (`every_name`) or on every
-   * income-proof one (`income_proof`). Omitted = an ordinary question. A fixed question's
-   * show-when source must be fixed too (`fixed-questions.ts`).
+   * FIXED (v31.0.0): asked on every program (`every_name`), on every income-proof one
+   * (`income_proof`) or on every surrogate one (`income_surrogate`, v32.1.0). Omitted = an
+   * ordinary question. A fixed question's show-when source must be fixed too
+   * (`fixed-questions.ts`).
    */
   @ApiPropertyOptional({ enum: FixedQuestionServedOn })
   @IsOptional()
@@ -181,8 +182,9 @@ export class UpdateQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
   /**
-   * Mark the question FIXED (v31.0.0), move it between `every_name` and `income_proof`, or —
-   * `null` — un-fix it (v31.1.0: the admin's both ways). Omitted = left as it is.
+   * Mark the question FIXED (v31.0.0), move it between `every_name`, `income_proof` and
+   * `income_surrogate` (v32.1.0), or — `null` — un-fix it (v31.1.0: the admin's both ways).
+   * Omitted = left as it is.
    */
   @ApiPropertyOptional({ enum: FixedQuestionServedOn, nullable: true })
   @IsOptional()

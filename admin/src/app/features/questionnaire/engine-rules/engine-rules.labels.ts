@@ -120,9 +120,14 @@ export function readerText(r: EngineReader, isAr: boolean): string {
       return $localize`:@@qrules.reader_platform_fact:Answers a fact the platform owns: ${facts}:facts:`;
     }
     case 'fixed_set':
-      return r.servedOn === 'income_proof'
-        ? $localize`:@@qrules.reader_base_income_proof2:A fixed income-proof question, asked on every payslip program`
-        : $localize`:@@qrules.reader_base_every_name2:A fixed question, asked on every program`;
+      switch (r.servedOn) {
+        case 'income_proof':
+          return $localize`:@@qrules.reader_base_income_proof2:A fixed income-proof question, asked on every payslip program`;
+        case 'income_surrogate':
+          return $localize`:@@qrules.reader_base_surrogate:A fixed surrogate question, asked on every program without a payslip`;
+        default:
+          return $localize`:@@qrules.reader_base_every_name2:A fixed question, asked on every program`;
+      }
     case 'programs': {
       const all = r.programNames.map((p) => labelOf(p, isAr));
       const count = all.length - NAMES_SHOWN;

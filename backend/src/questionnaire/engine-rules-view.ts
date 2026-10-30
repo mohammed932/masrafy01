@@ -87,7 +87,10 @@ export type EngineReader =
   | { kind: 'app_mapping'; categories: LoanCategory[] }
   /** It answers a fact the platform owns (I-Score, the car figures). */
   | { kind: 'platform_fact'; facts: LabelledKey[] }
-  /** In the fixed question set: asked on every program (`every_name`) or every payslip one. */
+  /**
+   * In the fixed question set: asked on every program (`every_name`), every payslip one
+   * (`income_proof`) or every surrogate one (`income_surrogate`, v32.1.0).
+   */
   | { kind: 'fixed_set'; servedOn: FixedServedOn }
   /** Live bank programmes read it, under these program names and loan types. */
   | { kind: 'programs'; programNames: (LabelledKey & { categories: LoanCategory[] })[] };
@@ -154,10 +157,15 @@ export interface EngineRuleQuestion {
   /** Retired with `answeredBy` (v31.0.0): always empty, kept on the wire one release. */
   answeredBy: QuestionRef[];
   /**
-   * Whether a NO-PAYSLIP program asks it — the admin's Surrogate tab. Every income-proof program
-   * asks the whole set.
+   * Whether a NO-PAYSLIP program asks it — the admin's Surrogate tab.
    */
   noPayslip: NoPayslipAsk;
+  /**
+   * Where it is asked (`question.fixedServedOn`): `every_name`, `income_proof` or
+   * `income_surrogate` (v32.1.0). The admin's Income proof tab lists every one but the
+   * surrogate-only ones, on this word.
+   */
+  fixedServedOn: FixedServedOn | null;
   /** ACTIVE answers, in their order. */
   options: EngineRuleOption[];
   /** A Number question's offer ranges (v31.3.0), in order; empty for every other type. */
@@ -166,7 +174,8 @@ export interface EngineRuleQuestion {
 
 /**
  * How a no-payslip program asks a fixed question:
- *   - `always`: the set's every-name part (`servedOn: 'every_name'`);
+ *   - `always`: the set's every-name part (`servedOn: 'every_name'`) and its surrogate-only part
+ *     (`income_surrogate`, v32.1.0);
  *   - `unless_derived`: the requested amount, served on a product-only name unless that name works
  *     it out from the car price and down payment (`narrowingScopeFor`, the `productOnly` push);
  *   - `never`: the declared-income part — monthly income, other income and its amount, the bank
@@ -257,6 +266,7 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
         askedWhen: askedWhenOf(q, byCode),
         answeredBy: [],
         noPayslip: noPayslipAsk(q),
+        fixedServedOn: q.fixedServedOn,
         numberEffects: q.type === 'NUMERIC' ? [...(q.numberEffects ?? [])] : [],
         options: [...q.options]
           .sort((a, b) => a.displayOrder - b.displayOrder)
@@ -283,7 +293,7 @@ export function engineRulesView(input: EngineRulesInput): EngineRulesView {
 }
 
 function noPayslipAsk(q: EngineRulesInputQuestion): NoPayslipAsk {
-  if (q.fixedServedOn === 'every_name') return 'always';
+  if (q.fixedServedOn === 'every_name' || q.fixedServedOn === 'income_surrogate') return 'always';
   return q.code === MONEY_FIELD_BINDINGS.requested_amount ? 'unless_derived' : 'never';
 }
 
