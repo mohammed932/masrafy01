@@ -132,15 +132,18 @@ describe('preview figures', () => {
     expect(Number(match?.figures?.dbrPercent)).toBeLessThanOrEqual(60);
   });
 
-  it('still lists a program the applicant cannot afford, with the reason (A33)', async () => {
-    const { matches } = await preview(moneyAnswers('60000')); // eats the whole allowance
-    const match = matches[0];
+  it('hides a program the applicant cannot afford — the reason goes to the admin (v36.0.0)', async () => {
+    const answers = moneyAnswers('60000'); // eats the whole allowance
+    const { matches } = await preview(answers);
+    expect(matches).toHaveLength(0); // the customer is shown only what they match
 
-    expect(matches).toHaveLength(1); // listed, not filtered out
-    expect(match?.eligible).toBe(true);
-    expect(match?.figures).toBeNull();
-    expect(match?.figuresUnavailableReason).toBe('OBLIGATIONS_EXCEED_ALLOWANCE');
-    expect(match?.maxAffordableAmountEGP).toBe('0.00');
+    const admin = (await makeService().preview({
+      category: 'personal' as never,
+      answers,
+      age: 34,
+      includeHidden: true,
+    })) as { hidden?: { reason: string }[] };
+    expect(admin.hidden?.[0]?.reason).toBe('OBLIGATIONS_EXCEED_ALLOWANCE');
   });
 
   it('lists programs without figures until every money answer is in', async () => {

@@ -165,11 +165,21 @@ const CARD_PAGE_SIZE = 16;
   template: `
     <section class="page">
       <header class="head">
-        <h2 class="title" i18n="@@clsb.title">Where each value is priced</h2>
-        <p class="lede" i18n="@@clsb.lede">
-          A bank states one amount per class. A customer picks a value by name. This is where the
-          two meet — so a value in the wrong class is priced at the wrong ceiling.
-        </p>
+        <!-- On a product's page the fold it opens from already names it; the page title and
+             its explanation are the shared list's (Manage values). -->
+        @if (!productKey()) {
+          <h2 class="title" i18n="@@clsb.title">Where each value is priced</h2>
+          <p class="lede" i18n="@@clsb.lede">
+            A bank states one amount per class. A customer picks a value by name. This is where the
+            two meet — so a value in the wrong class is priced at the wrong ceiling.
+          </p>
+        }
+        @if (productKey()) {
+          <p class="lede" i18n="@@clsb.product_scope">
+            These classes are this product's own. Moving a value here changes this product's
+            programs only — other products and the shared list keep theirs.
+          </p>
+        }
         @if (!loading()) {
           <p class="counts">
             <span>{{ boardValues().length }} <span i18n="@@clsb.count_values">values</span></span>
@@ -655,11 +665,9 @@ const CARD_PAGE_SIZE = 16;
 
       .group {
         margin: var(--space-5) 0 var(--space-3);
-        color: var(--color-text-tertiary);
-        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
         font-weight: 600;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
       }
       .group:first-of-type {
         margin-block-start: 0;
@@ -678,6 +686,8 @@ const CARD_PAGE_SIZE = 16;
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+        /* Equal boxes: a long value name wraps without making its card the odd one. */
+        grid-auto-rows: 1fr;
         gap: var(--space-2);
         margin: 0;
         padding: 0;
@@ -961,6 +971,14 @@ export class ParentClassBoardComponent {
   readonly fallbackParentKey = input<string | null>(null);
 
   /**
+   * GROUPS PER PRODUCT (v36.1.0). Set on a product's page: the board shows where each value
+   * sits FOR THIS PRODUCT (its own class, else the shared one) and every move is written for
+   * this product only — the shared list on Manage values, and every other product, keep theirs.
+   * `null` = the shared list itself.
+   */
+  readonly productKey = input<string | null>(null);
+
+  /**
    * Raised after any move that changed a row.
    *
    * The board cannot know what else on the host depends on these values — a product page
@@ -1067,12 +1085,21 @@ export class ParentClassBoardComponent {
     if (!opts.silent) this.loading.set(true);
     this.loadError.set(false);
     try {
-      const [classes, values] = await Promise.all([
+      const product = this.productKey();
+      const [classes, values, own] = await Promise.all([
         this.api.list(this.parentType()),
         this.api.list(this.childType()),
+        product === null
+          ? Promise.resolve<Record<string, string>>({})
+          : this.api.productGroups(product, this.childType()),
       ]);
       this.classRows.set(classes);
-      this.valueRows.set(values);
+      // On a product's board a value sits where THIS product filed it, else where it is shared.
+      this.valueRows.set(
+        values.map((row) =>
+          own[row.key] === undefined ? row : { ...row, parentKey: own[row.key] ?? null },
+        ),
+      );
     } catch {
       // Rendered as a stated failure rather than as an empty board: "no values" and
       // "we could not read the values" are different facts with the same shape.
@@ -1471,7 +1498,7 @@ export class ParentClassBoardComponent {
     this.setSaving(value.id, true);
     this.applyLocal(value.id, target);
     try {
-      await this.api.setParentKeysBulk([{ id: value.id, parentKey: target }]);
+      await this.writeClasses([{ id: value.id, parentKey: target }]);
       this.flashMoved(value.id);
       this.changed.emit();
       this.announcement.set(
@@ -1515,7 +1542,11 @@ export class ParentClassBoardComponent {
       // key from here would make the client a second authority on a pricing decision. The
       // optimistic write above is a PREDICTION of the server's answer, corrected by the
       // reload the host runs on `changed`.
-      await this.api.setParentKeysBulk([{ id: value.id, parentKey: null }]);
+      // On a product's board `null` would mean "back to the shared class", so the catch-all
+      // is named instead.
+      await this.writeClasses([
+        { id: value.id, parentKey: this.productKey() === null ? null : target },
+      ]);
       this.flashMoved(value.id);
       this.changed.emit();
       this.announcement.set(
@@ -1580,7 +1611,7 @@ export class ParentClassBoardComponent {
     this.bulkSaving.set(true);
     for (const c of moving) this.applyLocal(c.id, target);
     try {
-      const { moved } = await this.api.setParentKeysBulk(
+      const { moved } = await this.writeClasses(
         moving.map((c) => ({ id: c.id, parentKey: target })),
       );
       for (const c of moving) this.flashMoved(c.id);
@@ -1619,6 +1650,19 @@ export class ParentClassBoardComponent {
         nzOnCancel: () => resolve(false),
       });
     });
+  }
+
+  /** One write path: the shared list, or this product's own classes (`productKey`). */
+  private writeClasses(
+    assignments: readonly { id: string; parentKey: string | null }[],
+  ): Promise<{ moved: number }> {
+    const product = this.productKey();
+    return product === null
+      ? this.api.setParentKeysBulk(assignments)
+      : this.api.setProductGroups(
+          product,
+          assignments.map((a) => ({ valueId: a.id, parentKey: a.parentKey })),
+        );
   }
 
   private applyLocal(id: string, parentKey: string | null): void {

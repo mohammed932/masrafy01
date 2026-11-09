@@ -28,6 +28,10 @@ export class MobileRateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
+    // The developer's switch (v30.8.2) turns EVERY request limit off, this one included — it
+    // was the one left on, which stopped `check:engine` after five applies. The env schema
+    // refuses to boot with it under NODE_ENV=production.
+    if (this.config.get<boolean>('THROTTLE_DISABLED') === true) return true;
     const req = ctx.switchToHttp().getRequest<RateLimitRequest>();
     const user = (req as Request & { user?: { sub?: string } }).user;
     const customerId = user?.sub ?? 'unknown';

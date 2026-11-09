@@ -56,7 +56,13 @@ function makeService(opts: { exists?: boolean } = {}) {
     {} as never,
     enums as never,
     enumsAdmin as never,
-    { asksByProduct: async () => new Map() } as never,
+    {
+      asksByProduct: async () => new Map(),
+      // Switching ON checks readiness (v33.0.0): every product here asks one answer.
+      asksFor: async (productKey: string) => [
+        { productKey, factKey: 'employer_coding', source: 'blueprint' },
+      ],
+    } as never,
   );
   return { service, enums, enumsAdmin };
 }

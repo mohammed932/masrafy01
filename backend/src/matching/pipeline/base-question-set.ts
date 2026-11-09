@@ -30,6 +30,8 @@
  * the questionnaire's contract and engine-rules view, the seed and `check:questionnaire` all read
  * it, so it imports nothing that could import one of them back.
  */
+
+import type { ApplicationPriority } from '../types';
 import { I_SCORE_FACT_KEY } from './product-template';
 
 // ---- Answer meanings ------------------------------------------------------------------------
@@ -113,6 +115,34 @@ export const TRANSFER_ANSWERS: readonly TransferAnswer[] = [
 export const TRANSFER_TYPE_BY_OPTION: Readonly<Record<string, string>> = Object.fromEntries(
   TRANSFER_ANSWERS.map((a) => [a.code, a.transferType]),
 );
+
+/** One answer to "what matters most to you?" and the order (`rankOffers`) it asks for. */
+export interface PriorityAnswer {
+  readonly code: string;
+  readonly priority: ApplicationPriority;
+}
+
+/**
+ * "What matters most to you in a loan?" — back on 2026-11-01 (operator), after v31.0.0 retired it
+ * as "nothing reads it": the ORDER of the offers reads it. Four answers, one per sort key
+ * `rankOffers` has; the four it used to carry beyond those (smallest down payment, longest term,
+ * biggest amount, flexible repayment) all sorted by instalment, so they promised a choice the
+ * engine never made. The codes are the ones the app's `mapPriority` already maps.
+ */
+export const PRIORITY_ANSWERS: readonly PriorityAnswer[] = [
+  { code: 'lowest_monthly_installment', priority: 'lowest_installment' },
+  { code: 'lowest_interest_rate', priority: 'lowest_interest' },
+  { code: 'fastest_approval', priority: 'fastest_approval' },
+  { code: 'least_documentation_required', priority: 'least_paperwork' },
+];
+
+/** Unanswered (it is optional) — the engine's documented default, the app's too. */
+export const DEFAULT_PRIORITY: ApplicationPriority = 'fastest_approval';
+
+/** The order an answer asks for; the default for no answer or a code this list does not hold. */
+export function priorityFromAnswer(code: string | undefined): ApplicationPriority {
+  return PRIORITY_ANSWERS.find((a) => a.code === code)?.priority ?? DEFAULT_PRIORITY;
+}
 
 /**
  * The 27 governorates, as the `governorate` registry keys them — the answers the seed gives

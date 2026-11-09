@@ -295,7 +295,8 @@ export interface RailTabItem {
       .rail.segmented.uniform {
         display: inline-grid;
         grid-auto-flow: column;
-        grid-auto-columns: minmax(0, 1fr);
+        /* --rail-seg-min: a host may ask for wider segments (default: content width). */
+        grid-auto-columns: minmax(var(--rail-seg-min, 0px), 1fr);
       }
       .rail.segmented .tab {
         /* Above the thumb, which is a sibling painted at z-index 0. */

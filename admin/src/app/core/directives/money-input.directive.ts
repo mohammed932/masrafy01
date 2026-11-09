@@ -5,14 +5,29 @@ import { displayValue, formatGroupedNumber, toRaw } from './money-format';
 // Re-exported so every existing importer keeps working after the pure half moved out.
 export { displayValue, formatGroupedNumber };
 
-/** Caret position just after the Nth digit of a grouped string. */
-function caretAfterDigit(formatted: string, digitCount: number): number {
-  if (digitCount <= 0) return 0;
+/**
+ * The characters that carry the number — digits, the decimal point, the sign. The caret goes
+ * back with as many of them AFTER it as before the reformat. Counting digits from the start
+ * parked it before a just-typed "." (after "12." it sat after the "2"), so "12.5" typed key
+ * by key came out as "125."; counting from the end also survives a "0" the format adds in
+ * front (".5" shown as "0.5").
+ */
+const MEANINGFUL = /[\d.-]/;
+
+function meaningfulCount(text: string): number {
+  let n = 0;
+  for (const c of text) if (MEANINGFUL.test(c)) n += 1;
+  return n;
+}
+
+/** The caret position in `formatted` that leaves `after` meaningful characters after it. */
+function caretBefore(formatted: string, after: number): number {
+  if (after <= 0) return formatted.length;
   let seen = 0;
-  for (let i = 0; i < formatted.length; i++) {
-    if (/\d/.test(formatted.charAt(i)) && ++seen === digitCount) return i + 1;
+  for (let i = formatted.length - 1; i >= 0; i--) {
+    if (MEANINGFUL.test(formatted.charAt(i)) && ++seen === after) return i;
   }
-  return formatted.length;
+  return 0;
 }
 
 /**
@@ -82,15 +97,10 @@ export class MoneyInputDirective implements ControlValueAccessor {
   onInput(): void {
     const previous = this.el.value;
     const caret = this.el.selectionStart ?? previous.length;
-    const digitsBeforeCaret = previous.slice(0, caret).replace(/\D/g, '').length;
+    const after = meaningfulCount(previous.slice(caret));
     const formatted = displayValue(previous, this.grouping, this.signed);
     this.el.value = formatted;
-    // A lone minus has no digit to sit after, so the offset rule would park the caret in
-    // front of it and the next keystroke would land on the wrong side of the sign.
-    const next =
-      this.signed && digitsBeforeCaret === 0 && formatted.startsWith('-')
-        ? 1
-        : caretAfterDigit(formatted, digitsBeforeCaret);
+    const next = Math.min(caretBefore(formatted, after), formatted.length);
     this.el.setSelectionRange(next, next);
     this.onChange(toRaw(previous, this.signed));
   }

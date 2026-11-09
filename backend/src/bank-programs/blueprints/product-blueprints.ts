@@ -1266,6 +1266,17 @@ export function isCapOnlyProductKey(key: string): boolean {
 }
 
 /**
+ * True when a product ROW is cap-only (v33.1.0): its stored marker, or a cap blueprint's key.
+ *
+ * The ONE predicate every surface reads. The key half keeps the two seeded cap products
+ * recognised on a fresh install, where the seed mints their rows after the migration that
+ * backfills the marker has already run; the marker half is what lets an operator create one.
+ */
+export function isCapOnlyProduct(row: { key: string; capOnly?: boolean }): boolean {
+  return row.capOnly === true || isCapOnlyProductKey(row.key);
+}
+
+/**
  * The facts a cap-only product's switch may turn off with it — the ones it asks for and
  * nobody else does.
  *

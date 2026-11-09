@@ -182,6 +182,13 @@ export function toBankProgramSnapshot(
       );
       return tiers === undefined ? {} : { iScoreTiers: tiers };
     })(),
+    ...(() => {
+      const own =
+        p.programNameKey === null
+          ? undefined
+          : catalogRules?.productParentKeysByName?.get(p.programNameKey);
+      return own === undefined ? {} : { productParentKeys: own };
+    })(),
     performanceCriteria: p.performanceCriteria as unknown as
       | BankProgramSnapshot['performanceCriteria']
       | undefined,

@@ -654,6 +654,22 @@ export abstract class PlatformEnumerationsRepository {
     actorId: string | null,
   ): Promise<{ before: readonly string[] } | null>;
 
+  /** Every product's own groups (v36.1.0): product key → (value key → class key). */
+  abstract productParentKeyMaps(): Promise<Map<string, Record<string, string>>>;
+
+  /** One product's own groups for one value list: value key → class key. */
+  abstract productParentKeys(
+    productKey: string,
+    valueType: string,
+  ): Promise<Record<string, string>>;
+
+  /** File values in a class for one product; `null` = back to the shared class. */
+  abstract setProductParentKeys(
+    productId: string,
+    assignments: readonly { valueId: string; parentKey: string | null }[],
+    actorId: string | null,
+  ): Promise<number>;
+
   /**
    * The name's own question ORDER under one loan type (`program_name_question_order`), as
    * question ids in position order. Empty = never ordered: the pool's order applies.
@@ -1027,6 +1043,8 @@ export interface ProgramNameIncomeRuleRow {
    * those apart.
    */
   surrogateProductKey: string | null;
+  /** `surrogate_product` only — stored cap-only marker (v33.1.0); `false` on a name. */
+  capOnly: boolean;
 }
 
 /** One member whose parent actually changed — what a bulk re-file audits. */
@@ -1062,6 +1080,11 @@ export interface SurrogateProductListRow {
   templateSpec: ProductTemplate | null;
   /** Catalog names taking their calculation from it. Empty = nothing sells it yet. */
   usedBy: string[];
+  /** Stored cap-only marker (v33.1.0). Read through `isCapOnlyProduct`, never alone. */
+  capOnly: boolean;
+  /** When the product was created and last changed — shown on its catalog card. */
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 /** One surrogate bank program filed under a catalog name. */

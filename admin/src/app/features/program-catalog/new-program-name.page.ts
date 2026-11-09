@@ -16,7 +16,12 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { CheckOutline, LockOutline, SearchOutline } from '@ant-design/icons-angular/icons';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
-import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-category';
+import {
+  LOAN_CATEGORIES,
+  canonicalCategories,
+  categoryLabel,
+  type LoanCategory,
+} from '@core/loan-category';
 import {
   FormPageComponent,
   LoanCategorySwitchesComponent,
@@ -43,7 +48,7 @@ import {
   type GroupTreeRow,
 } from '@features/questionnaire/questionnaire.api.service';
 import { ENUM_TYPE } from './program-name-row';
-import { CATALOG_BASE, newNameLanding } from './program-catalog.paths';
+import { CATALOG_BASE, newNameLanding, surrogateBoardLink } from './program-catalog.paths';
 import {
   NEW_NAME_STEP_ORDER,
   RESERVED_NAME_KEYS,
@@ -112,9 +117,8 @@ interface CardGroup<T extends QuestionCard> {
     <app-form-page
       wide
       stepped
-      [eyebrow]="eyebrow"
       [title]="title"
-      [subtitle]="subtitle"
+      [subtitle]="copiedFrom() ? copySubtitle() : subtitle"
       [backLabel]="backLabel"
       [showPrev]="stepIndex() > 0"
       [submitLabel]="primaryLabel()"
@@ -145,9 +149,19 @@ interface CardGroup<T extends QuestionCard> {
           @if (step() === 'program') {
             <section class="step">
               <h2 class="step-h" i18n="@@pcn.name_h">What is this program called?</h2>
-              <p class="lede" i18n="@@pcn.payslip_only">
-                Every program added here is sold against a payslip. Surrogate programs come with
-                their own calculation, so they are built into the platform rather than added here.
+              <p class="lede">
+                <span i18n="@@pcn.payslip_only2"
+                  >Every program added here is sold against a payslip. To sell one without a
+                  payslip, open its product on the Surrogate tab and choose Sell it as a
+                  program.</span
+                >
+                <a
+                  class="linkish"
+                  [routerLink]="surrogateLink.commands"
+                  [queryParams]="surrogateLink.queryParams"
+                  i18n="@@pcn.to_surrogate"
+                  >Go to the Surrogate tab</a
+                >
               </p>
               <!-- One name in two locales is ONE decision, so the pair sits on one row.
                    Stacked, they read as two unrelated fields. -->
@@ -452,6 +466,13 @@ interface CardGroup<T extends QuestionCard> {
   `,
   styles: [
     `
+      /* The Program catalog's frame, the same on every page of the section. */
+      app-form-page {
+        display: block;
+        padding: var(--space-6);
+        max-inline-size: 1120px;
+        margin-inline: auto;
+      }
       :host {
         display: block;
       }
@@ -490,6 +511,11 @@ interface CardGroup<T extends QuestionCard> {
       }
       /* SECONDARY, not tertiary: these sentences are read every time, and tertiary lands
          under 4.5:1 at this size. */
+      .lede .linkish {
+        margin-inline-start: var(--space-1);
+        color: var(--accent);
+        font-weight: var(--font-semibold);
+      }
       .lede {
         margin: 0;
         max-inline-size: 62ch;
@@ -849,6 +875,8 @@ interface CardGroup<T extends QuestionCard> {
   ],
 })
 export class NewProgramNamePage {
+  /** The Surrogate tab, where a no-payslip product is sold as a program (v33.1.0). */
+  protected readonly surrogateLink = surrogateBoardLink();
   private readonly lookups = inject(LookupsApiService);
   private readonly questionnaire = inject(QuestionnaireApiService);
   private readonly errors = inject(ErrorCodeService);
@@ -925,7 +953,6 @@ export class NewProgramNamePage {
 
   protected readonly stepId = signal<NewNameStepId>('program');
 
-  protected readonly eyebrow = $localize`:@@pcn.eyebrow:Program catalog`;
   protected readonly title = $localize`:@@program_catalog.dialog.add:Add program`;
   protected readonly subtitle = $localize`:@@pcn.subtitle3:A catalog name banks file their programs under. Three answers: what it is, which loan types sell it, and what those applicants are asked.`;
   protected readonly backLabel = $localize`:@@pcn.back:Back to the catalog`;
@@ -938,6 +965,51 @@ export class NewProgramNamePage {
 
   constructor() {
     this.stepId.set(this.initialStep());
+    const copy = this.route.snapshot.queryParamMap.get('copy');
+    if (copy) void this.loadCopy(copy);
+  }
+
+  // --- copy (`?copy=<key>`) ----------------------------------------------------
+
+  /** The name this one is copied from — its label, for the subtitle. */
+  protected readonly copiedFrom = signal<string | null>(null);
+  protected readonly copySubtitle = computed(
+    () =>
+      $localize`:@@pcn.copy_subtitle:A copy of ${this.copiedFrom() ?? ''}:name: — its loan types, questions and order are filled in. Change what differs, then save.`,
+  );
+  /** The source's own question order per loan type, written after the copy exists. */
+  private copyOrder: Partial<Record<LoanCategory, string[]>> = {};
+
+  /**
+   * Fill every step from another name, as a template: labels (marked as a copy), the loan
+   * types it is offered under, the questions it ticks and the order it asks them in. Nothing
+   * is written until Save, and the source is never touched.
+   */
+  private async loadCopy(key: string): Promise<void> {
+    try {
+      const [rows, scope] = await Promise.all([
+        this.lookups.list(ENUM_TYPE),
+        this.lookups.programNameQuestionScope(key),
+      ]);
+      const source = rows.find((r) => r.key === key);
+      if (source === undefined) return;
+      this.form.patchValue({
+        // The names are DATA in both languages, so each gets its own language's mark.
+        labelEn: `${source.labelEn} (copy)`.slice(0, this.nameMax),
+        labelAr: `${source.labelAr} (نسخة)`.slice(0, this.nameMax),
+      });
+      this.offered.set(canonicalCategories([...(source.categories ?? [])]));
+      const added = new Map<LoanCategory, ReadonlySet<string>>();
+      for (const [category, ids] of Object.entries(scope.addedByCategory ?? {})) {
+        added.set(category as LoanCategory, new Set(ids ?? []));
+      }
+      this.added.set(added);
+      this.copyOrder = scope.orderByCategory ?? {};
+      this.copiedFrom.set(this.isAr ? source.labelAr : source.labelEn);
+      void this.loadPool();
+    } catch {
+      // The form stays blank — a new name can still be made by hand.
+    }
   }
 
   // --- the draft -------------------------------------------------------------
@@ -1397,6 +1469,14 @@ export class NewProgramNamePage {
           const ids = additionsToSave(this.pool(), this.added().get(category) ?? new Set<string>());
           if (ids.length > 0) {
             await this.lookups.setProgramNameQuestionAdditions(made.key, category, ids);
+          }
+          // A copy asks in its source's order. Best-effort: a refused order leaves the pool's,
+          // and the name already exists, so it must not read as a failed save.
+          const order = this.copyOrder[category] ?? [];
+          if (order.length > 0) {
+            await this.lookups
+              .setProgramNameQuestionOrder(made.key, category, order)
+              .catch(() => []);
           }
         }
       }

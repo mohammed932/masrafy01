@@ -9,7 +9,10 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { categoryLabel } from '@core/loan-category';
+import type { ServedPage } from '@shared/questions/asked-questions.rules';
+import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookups.api.service';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -29,6 +32,7 @@ import {
   type QuestionRow,
   type SimulatedAnswer,
   type SimulationMatch,
+  type HiddenProgram,
   type SimulationResult,
 } from './questionnaire.api.service';
 import { bindingConstraintLabel } from './simulation-labels';
@@ -208,17 +212,56 @@ function isVisible(
         </p>
       </header>
 
-      <div class="cat-row" role="tablist" aria-label="Loan category">
-        @for (c of categories; track c) {
-          <button
-            type="button"
-            class="cat-pill"
-            [class.on]="category() === c"
-            (click)="pickCategory(c)"
-          >
-            {{ c }}
-          </button>
-        }
+      <!-- FILTERS (v33.4.2): the picks an applicant makes in the app before the questionnaire —
+           loan type, then program — and the sample age the server prices by. -->
+      <div class="filters">
+        <div class="filter">
+          <span class="filter-label" id="sim-cat-label" i18n="@@sim.loan_type">Loan type</span>
+          <div class="cat-row" role="radiogroup" aria-labelledby="sim-cat-label">
+            @for (c of categories; track c) {
+              <button
+                type="button"
+                class="cat-pill"
+                role="radio"
+                [class.on]="category() === c"
+                [attr.aria-checked]="category() === c"
+                (click)="pickCategory(c)"
+              >
+                {{ categoryText(c) }}
+              </button>
+            }
+          </div>
+        </div>
+        <div class="filter-row">
+          <div class="filter program">
+            <span class="filter-label" i18n="@@sim.program">Program</span>
+            <nz-select
+              class="filter-select"
+              [formControl]="programCtrl"
+              [attr.aria-label]="programLabel"
+              nzShowSearch
+              [nzLoading]="loadingPrograms()"
+            >
+              <nz-option nzValue="" [nzLabel]="anyProgramLabel"></nz-option>
+              @for (pr of programsHere(); track pr.key) {
+                <nz-option [nzValue]="pr.key" [nzLabel]="pr.label"></nz-option>
+              }
+            </nz-select>
+          </div>
+          <label class="filter age">
+            <span class="filter-label" i18n="@@sim.age">Age</span>
+            <input
+              class="ctl age-input"
+              type="text"
+              inputmode="numeric"
+              [formControl]="ageCtrl"
+              [attr.aria-invalid]="ageError() !== null"
+            />
+          </label>
+          @if (ageError(); as e) {
+            <p class="err age-err" role="alert">{{ e }}</p>
+          }
+        </div>
       </div>
 
       @if (loadingTree()) {
@@ -230,6 +273,7 @@ function isVisible(
             <h2 class="section-h" i18n="@@sim.results">Results</h2>
             <button nz-button (click)="editAnswers()" i18n="@@sim.edit">← Edit answers</button>
           </div>
+          <p class="results-sum">{{ resultSummary() }}</p>
           @if (result()!.matches.length === 0) {
             <nz-empty
               nzNotFoundContent="No programs evaluated"
@@ -237,7 +281,7 @@ function isVisible(
             />
           } @else {
             <ul class="matches">
-              @for (m of result()!.matches; track m.programCode) {
+              @for (m of quotedMatches(); track m.programCode) {
                 <!-- The whole card opens the offer drawer. Keyboard reaches it the
                      same way (Enter / Space on the focused row), so the pointer
                      shortcut adds no control the keyboard lacks. -->
@@ -304,6 +348,37 @@ function isVisible(
                 </li>
               }
             </ul>
+            <!-- With no program picked, a no-payslip program cannot be quoted: its own questions
+                 were never asked. Listed apart, once, instead of as a run of empty cards. -->
+            @if (needsProgram().length > 0) {
+              <details class="needs">
+                <summary>{{ needsProgramSummary() }}</summary>
+                <ul class="needs-list">
+                  @for (m of needsProgram(); track m.programCode) {
+                    <li>
+                      <span class="m-bank">{{ m.bankName }}</span>
+                      <span class="needs-prog">{{ m.programFriendlyName }}</span>
+                    </li>
+                  }
+                </ul>
+              </details>
+            }
+          }
+          <!-- What the applicant is NOT shown (v36.0.0): a rule they fail or a quote that
+               refused. Here only — the customer sees what they match. -->
+          @if (hiddenPrograms().length > 0) {
+            <details class="needs hidden-progs">
+              <summary>{{ hiddenSummary() }}</summary>
+              <ul class="needs-list">
+                @for (h of hiddenPrograms(); track h.programCode) {
+                  <li>
+                    <span class="m-bank">{{ h.bankName }}</span>
+                    <span class="needs-prog">{{ h.programFriendlyName }}</span>
+                    <span class="hidden-why">{{ hiddenWhy(h) }}</span>
+                  </li>
+                }
+              </ul>
+            </details>
           }
         </div>
       } @else if (total() === 0) {
@@ -338,19 +413,21 @@ function isVisible(
               <div class="q-page">
                 @for (q of page; track q.code) {
                   <div class="q-block" [class.wide]="isWide(q)">
-                    <h2 class="q-text">
-                      {{ questionText(q) }}
-                      @if (!q.isRequired) {
-                        <span class="opt-tag" i18n="@@sim.optional">optional</span>
-                      }
-                    </h2>
-                    <!-- The admin-authored sub-label the app shows under the prompt.
+                    <div class="q-head">
+                      <h2 class="q-text">
+                        {{ questionText(q) }}
+                        @if (!q.isRequired) {
+                          <span class="opt-tag" i18n="@@sim.optional">optional</span>
+                        }
+                      </h2>
+                      <!-- The admin-authored sub-label the app shows under the prompt.
                        Rendered here too or the simulator misrepresents the question:
                        the credit-card figure means a total LIMIT across every card,
                        which only this line says. -->
-                    @if (questionHelper(q); as helper) {
-                      <p class="hint q-helper">{{ helper }}</p>
-                    }
+                      @if (questionHelper(q); as helper) {
+                        <p class="hint q-helper">{{ helper }}</p>
+                      }
+                    </div>
 
                     @switch (q.type) {
                       @case ('MULTI_SELECT') {
@@ -544,7 +621,7 @@ function isVisible(
                   nzSize="large"
                   nzType="primary"
                   [nzLoading]="running()"
-                  [disabled]="answeredCount() === 0"
+                  [disabled]="answeredCount() === 0 || ageError() !== null"
                   (click)="run()"
                 >
                   <span i18n="@@sim.run">Run simulation</span>
@@ -574,6 +651,7 @@ function isVisible(
         margin: 0;
         font-size: var(--text-2xl, 24px);
         font-weight: var(--font-weight-bold, 700);
+        color: var(--text-primary);
       }
       .muted {
         color: var(--color-text-secondary, #6b7280);
@@ -582,6 +660,65 @@ function isVisible(
         margin: 0;
         font-size: var(--text-lg, 18px);
         font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      /* Filters: one card, loan type on top, program + age beneath (v33.4.2). */
+      .filters {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        margin-block-end: var(--space-5);
+        padding: var(--space-4) var(--space-5);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+      }
+      .filters .cat-row {
+        margin-block-end: 0;
+      }
+      .filter {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-inline-size: 0;
+      }
+      .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: var(--space-4);
+      }
+      .filter.program {
+        flex: 1 1 280px;
+        max-inline-size: 460px;
+      }
+      .filter-select {
+        inline-size: 100%;
+      }
+      .age-input {
+        inline-size: 96px;
+        min-block-size: 32px;
+        padding: var(--space-1) var(--space-3);
+      }
+      .age-err {
+        margin: 0;
+        align-self: center;
+      }
+      .filter-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--text-secondary);
+      }
+      /* A question's heading and its helper line are ONE part of the pair, so the subgrid's
+         three rows (heading / field / footnote) hold for every question — a helper used to
+         take the field's row and sit on top of the input. */
+      .q-head {
+        display: flex;
+        flex-direction: column;
+      }
+      .q-head .q-text {
+        margin-block-end: var(--space-2);
       }
 
       .cat-row {
@@ -719,6 +856,7 @@ function isVisible(
       }
 
       .q-text {
+        color: var(--text-primary);
         margin: 0 0 var(--space-3, 12px);
         font-size: var(--text-lg, 18px);
         font-weight: 700;
@@ -885,6 +1023,8 @@ function isVisible(
          its own, or it draws a second control inside the first. */
       .ctl-affix .ctl {
         min-block-size: 0;
+        /* Without it the input's intrinsic width pushes the unit out of the box. */
+        min-inline-size: 0;
         padding-inline: 0;
         border: none;
         background: none;
@@ -1155,6 +1295,43 @@ function isVisible(
       }
       /* Not a red pill: an unquotable program is a configuration/answer state, not
          a rejection, and the sentence has to be readable to say which. */
+      .results-sum {
+        margin: 0 0 var(--space-3, 12px);
+        font-size: var(--text-sm, 14px);
+        color: var(--text-secondary);
+      }
+      .needs {
+        margin-block-start: var(--space-4, 16px);
+        padding: var(--space-3, 12px) var(--space-4, 16px);
+        border: 1px dashed var(--border-default);
+        border-radius: var(--radius-lg, 12px);
+        color: var(--text-secondary);
+        font-size: var(--text-sm, 14px);
+      }
+      .needs summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .needs-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: var(--space-2, 8px) var(--space-4, 16px);
+        margin: var(--space-3, 12px) 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .needs-list li {
+        display: flex;
+        flex-direction: column;
+      }
+      .needs-prog {
+        color: var(--text-primary);
+      }
+      .hidden-why {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
       .m-reason {
         margin: var(--space-3, 12px) 0 0;
         font-size: 12px;
@@ -1193,6 +1370,57 @@ export class MatchingSimulatorPage {
   readonly answers = signal<Record<string, AnswerValue>>({});
   readonly running = signal(false);
   readonly result = signal<SimulationResult | null>(null);
+
+  /**
+   * A program that needs a no-payslip fact nobody was asked — only possible with no program
+   * picked, since a picked program asks its own. Kept out of the quoted list.
+   */
+  private needsOwnQuestions(m: SimulationResult['matches'][number]): boolean {
+    return this.programKey() === '' && m.figuresUnavailableReason === 'SURROGATE_FACT_MISSING';
+  }
+  readonly quotedMatches = computed(() =>
+    (this.result()?.matches ?? []).filter((m) => !this.needsOwnQuestions(m)),
+  );
+  readonly needsProgram = computed(() =>
+    (this.result()?.matches ?? []).filter((m) => this.needsOwnQuestions(m)),
+  );
+  readonly resultSummary = computed(() => {
+    const quoted = this.quotedMatches();
+    const withFigures = quoted.filter((m) => m.figures !== null).length;
+    const without = quoted.length - withFigures;
+    return $localize`:@@sim.sum:${withFigures}:QUOTED: quoted · ${without}:NOFIG: without figures · ${this.needsProgram().length}:NEEDS: need their own questions`;
+  });
+  readonly hiddenPrograms = computed<readonly HiddenProgram[]>(() => this.result()?.hidden ?? []);
+  readonly hiddenSummary = computed(
+    () =>
+      $localize`:@@sim.hidden_sum:${this.hiddenPrograms().length}:COUNT: programs are not shown to this applicant — why, per program`,
+  );
+
+  /** Why a program is hidden, in words: the rules it failed, or the quote's refusal. */
+  hiddenWhy(h: HiddenProgram): string {
+    if (h.reason !== 'NOT_ELIGIBLE') return this.reasonText(h.reason);
+    return (h.failedRules ?? []).map((r) => this.ruleLabel(r)).join(' · ');
+  }
+
+  private ruleLabel(rule: string): string {
+    switch (rule) {
+      case 'age':
+        return $localize`:@@sim.rule_age:Outside the age range`;
+      case 'monthly_income':
+        return $localize`:@@sim.rule_income:Below the minimum income`;
+      case 'months_in_job':
+        return $localize`:@@sim.rule_months:Not long enough in the job`;
+      case 'salary_transfer':
+        return $localize`:@@sim.rule_transfer:Salary transfer required`;
+      default:
+        return rule;
+    }
+  }
+
+  readonly needsProgramSummary = computed(
+    () =>
+      $localize`:@@sim.needs_sum:${this.needsProgram().length}:COUNT: no-payslip programs need their own questions — pick one under Program above to quote it`,
+  );
   readonly step = signal(0);
 
   private readonly destroyRef = inject(DestroyRef);
@@ -1221,9 +1449,22 @@ export class MatchingSimulatorPage {
    * resolution matches the server's.
    */
   readonly questions = computed<QuestionRow[]>(() => {
-    const asked = this.tree()
+    const pool = this.tree()
       .flatMap((g) => g.questions)
       .filter((q) => q.isActive);
+    // A program picked: exactly what its applicants are served in this loan type — its
+    // questions, its order, its required set (v33.4.2). None: the whole pool, as before.
+    const served = this.servedPages();
+    const poolByCode = new Map(pool.map((q) => [q.code, q]));
+    const asked =
+      this.programKey() !== '' && served !== null
+        ? served.flatMap((page) =>
+            page.questions.flatMap((sq) => {
+              const row = poolByCode.get(sq.code);
+              return row ? [{ ...row, isRequired: sq.isRequired }] : [];
+            }),
+          )
+        : pool;
     const byCode = new Map(asked.map((q) => [q.code, q]));
     const answers = this.answers();
     return asked.filter((q) => isVisible(q, answers, byCode));
@@ -1287,6 +1528,79 @@ export class MatchingSimulatorPage {
 
   constructor() {
     void this.loadTree();
+    void this.loadPrograms();
+    this.programCtrl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => void this.loadServed());
+  }
+
+  // ---- filters (v33.4.2) --------------------------------------------------------------
+
+  private readonly lookups = inject(LookupsApiService);
+  readonly programs = signal<EnumerationRow[]>([]);
+  readonly loadingPrograms = signal(false);
+  readonly programCtrl = new FormControl<string>('', { nonNullable: true });
+  readonly programKey = toSignal(this.programCtrl.valueChanges, { initialValue: '' });
+  readonly servedPages = signal<readonly ServedPage[] | null>(null);
+  readonly ageCtrl = new FormControl<string>('35', { nonNullable: true });
+  private readonly ageValue = toSignal(this.ageCtrl.valueChanges, { initialValue: '35' });
+  readonly anyProgramLabel = $localize`:@@sim.any_program:Any program — every question`;
+  readonly programLabel = $localize`:@@sim.program:Program`;
+
+  /** Program names offered under the loan type on screen, with their income basis. */
+  readonly programsHere = computed(() => {
+    const cat = this.category();
+    return this.programs()
+      .filter((p) => p.active && p.deprecatedAt === null && (p.categories ?? []).includes(cat))
+      .map((p) => {
+        const name = (this.isAr ? p.labelAr : p.labelEn) || p.labelEn;
+        const noPayslip = (p.incomeBasesByCategory?.[cat] ?? []).includes('no_payslip');
+        return {
+          key: p.key,
+          label: noPayslip ? $localize`:@@sim.no_payslip_tag:${name}:NAME: — no payslip` : name,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  });
+
+  readonly ageError = computed(() => {
+    const raw = this.ageValue().trim();
+    const n = Number(raw);
+    return raw !== '' && Number.isInteger(n) && n >= 18 && n <= 80
+      ? null
+      : $localize`:@@sim.age_err:Between 18 and 80`;
+  });
+
+  categoryText(c: LoanCategory): string {
+    return categoryLabel(c);
+  }
+
+  private async loadPrograms(): Promise<void> {
+    this.loadingPrograms.set(true);
+    try {
+      this.programs.set(await this.lookups.list('program_name'));
+    } catch {
+      // The interceptor said why; "Any program" still works.
+    } finally {
+      this.loadingPrograms.set(false);
+    }
+  }
+
+  /** What the picked program asks in this loan type; the walk starts again. */
+  private async loadServed(): Promise<void> {
+    const key = this.programKey();
+    this.result.set(null);
+    this.step.set(0);
+    if (key === '') {
+      this.servedPages.set(null);
+      return;
+    }
+    try {
+      const counts = await this.api.servedForName(key);
+      this.servedPages.set(counts.find((c) => c.category === this.category())?.pages ?? []);
+    } catch {
+      this.servedPages.set(null);
+    }
   }
 
   /**
@@ -1359,6 +1673,11 @@ export class MatchingSimulatorPage {
     // whatever the loan type (v32.0.0), so the walk and the answers stay — only the result
     // belongs to the old loan type.
     this.result.set(null);
+    // A program not offered under the new loan type falls back to "any program".
+    const key = this.programKey();
+    if (key !== '' && !this.programsHere().some((p) => p.key === key))
+      this.programCtrl.setValue('');
+    else if (key !== '') void this.loadServed();
   }
 
   /** Pick a single-select option. No auto-advance: the step holds sibling
@@ -1399,7 +1718,12 @@ export class MatchingSimulatorPage {
     if (payload.length === 0) return;
     this.running.set(true);
     try {
-      this.result.set(await this.api.simulateMatching(this.category(), payload));
+      this.result.set(
+        await this.api.simulateMatching(this.category(), payload, {
+          programNameKey: this.programKey(),
+          age: Number(this.ageValue()),
+        }),
+      );
     } catch {
       this.message.error($localize`:@@sim.failed:Simulation failed`);
     } finally {

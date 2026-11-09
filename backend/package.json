@@ -42,6 +42,7 @@
     "quote:surrogate": "tsx scripts/quote-surrogate-programmes.ts",
     "quote:iscore": "tsx scripts/quote-iscore.ts",
     "quote:rates": "tsx scripts/quote-rates.ts",
+    "check:engine": "tsx scripts/check-engine.ts",
     "check:money": "tsx scripts/check-money-bindings.ts",
     "check:question-scope": "tsx scripts/check-question-scope.ts",
     "check:questionnaire": "tsx scripts/check-questionnaire-integrity.ts",

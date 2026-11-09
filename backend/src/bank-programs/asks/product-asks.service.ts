@@ -65,7 +65,7 @@ import {
 import {
   blueprintKeysAsking,
   capShapeOf,
-  isCapOnlyProductKey,
+  isCapOnlyProduct,
 } from '../blueprints/product-blueprints';
 import type {
   AskPoolQuestionDto,
@@ -241,7 +241,7 @@ export class ProductAsksService {
       labelAr: product.labelAr,
       labelEn: product.labelEn,
       active: product.active,
-      capOnly: isCapOnlyProductKey(productKey),
+      capOnly: isCapOnlyProduct(product),
       served: await this.servedPreview(productKey),
       asks,
       pool: poolDtos,

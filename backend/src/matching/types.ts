@@ -90,6 +90,11 @@ export interface ApplicantProfile {
   priority: ApplicationPriority;
   nationalId?: string;
   employment: EmploymentProfile;
+  /**
+   * Which of the rules' inputs the customer actually ANSWERED (not defaulted). A rule whose
+   * answer is still to come is not held against them (`match-gate.ts`).
+   */
+  answered?: { monthsInJob?: boolean; salaryTransfer?: boolean };
   obligations: ObligationsProfile;
   assets: AssetsProfile;
   mortgageDetails?: MortgageDetails;
@@ -835,6 +840,12 @@ export interface BankProgramSnapshot {
   active: boolean;
   /** Islamic-finance program. Carried onto every offer so the badge cannot go stale. */
   isShariaCompliant: boolean;
+  /**
+   * The program's product's OWN groups (v36.1.0): value key → class key, for the values the
+   * product filed differently from the shared lists. Absent = the shared classes only.
+   * Merged by `groupsFor`.
+   */
+  productParentKeys?: Readonly<Record<string, string>>;
   version: number;
   requiredDocuments: string[];
   createdAt: Date;

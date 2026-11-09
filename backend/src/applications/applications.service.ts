@@ -8,6 +8,7 @@
  *   5. Project to the spec response envelope (PII masked for admin reads).
  */
 
+import { hidesProgram } from '@/matching/pipeline/match-gate';
 import { Injectable } from '@nestjs/common';
 // Constitution Principle X (Repository Pattern Mandatory): this service no
 // longer imports the `Prisma` namespace at runtime. Isolation-level options
@@ -443,7 +444,6 @@ export class ApplicationsService {
     const result = this.engine.run({
       profile,
       programs: snapshots,
-      skipEligibility: true,
       parentKeyByValue,
     });
 
@@ -461,9 +461,13 @@ export class ApplicationsService {
     // these used to vanish from the customer's list with no reason given. The
     // engine already carried the reason for exactly this purpose; apply just
     // never read `result.results`.
+    // Constitution v36.0.0: the customer is shown only what they match. A program the engine
+    // could not price for a reason that is a verdict about this customer is HIDDEN — kept on
+    // the application for the admin (`hiddenPrograms`), never in the customer's list. Only
+    // "an answer is still to come" stays listed (`hidesProgram`).
     const unavailablePrograms: UnavailableProgramDto[] = result.results.flatMap((r) => {
       const u = r.unavailable;
-      if (!u) return [];
+      if (!u || hidesProgram(u.reason)) return [];
       const program = activePrograms.find((p) => p.programCode === r.programCode);
       return [
         {
@@ -492,6 +496,14 @@ export class ApplicationsService {
       // Persisted so `toResponse` — which serves both the fresh apply and the
       // idempotency replay off the stored row — returns the identical payload.
       unavailablePrograms: unavailablePrograms as unknown as JsonValueInput,
+      // What the customer was NOT shown, and why — the rules they failed, or the reason the
+      // bank's own figures refused them. For the admin's view of the application.
+      hiddenPrograms: result.results
+        .filter((r) => !r.offer && (!r.unavailable || hidesProgram(r.unavailable.reason)))
+        .map((r) => ({
+          programCode: r.programCode,
+          ...(r.unavailable ? { reason: r.unavailable.reason } : { failedChecks: r.failedChecks }),
+        })) as unknown as JsonValueInput,
     };
 
     const noMatchJson: JsonValueInput | undefined =
@@ -935,6 +947,12 @@ export class ApplicationsService {
         companyName: dto.employment.companyName,
         companyType: dto.employment.companyType,
         bankCategory: dto.employment.bankCategory,
+      },
+      // Which rule inputs were ANSWERED — the body's fallback copies are not held against the
+      // customer (`match-gate.ts`).
+      answered: {
+        monthsInJob: employmentInputs.monthsInJob !== undefined,
+        salaryTransfer: employmentInputs.salaryTransferType !== undefined,
       },
       obligations: {
         // Summed from the per-debt answers, NOT read off the request body — see

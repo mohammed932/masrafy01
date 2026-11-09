@@ -250,6 +250,9 @@ export interface SurrogateProductSummaryDto {
   labelAr: string;
   labelEn: string;
   active: boolean;
+  /** ISO timestamps, on the list (the catalog card shows them). */
+  createdAt?: string;
+  updatedAt?: string;
   /** The proof it reads — `IncomeAssumptionConfig['strategy']`, or null when it states none. */
   strategy: string | null;
   /**
@@ -295,7 +298,18 @@ export interface SurrogateProductSummaryDto {
    * refuse.
    */
   capOnly: boolean;
+  /**
+   * What stops it going live, or `[]` when nothing does (v33.0.0). `no_calculation`: an
+   * income or ceiling product with no calculation; `asks_nothing`: it reads no answer.
+   * `PUT …/active {active: true}` refuses with `SURROGATE_PRODUCT_NOT_READY` while this is
+   * non-empty, and the board reads an OFF product with reasons as a DRAFT.
+   */
+  notReady: SurrogateProductNotReadyReason[];
+  /** How many answers it reads — its live ask rows. */
+  askCount: number;
 }
+
+export type SurrogateProductNotReadyReason = 'no_calculation' | 'asks_nothing';
 
 /** A surrogate product's own page: the calculation, and who uses it. */
 export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {

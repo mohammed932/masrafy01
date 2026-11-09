@@ -114,6 +114,17 @@ function makeRepo(rows: FakeRow[], bases: Record<string, string[]> = {}) {
         .filter((r) => r.type === type && r.active && r.deprecatedAt === null)
         .map((r) => ({ key: r.key })),
     ),
+    // Cap-only is read off the product ROW since v33.1.0 (`isCapOnlyProduct`); these rows carry
+    // no stored marker, so the seeded cap keys are what make one cap-only here.
+    listSurrogateProducts: vi.fn(async () =>
+      rows
+        .filter((r) => r.type === 'surrogate_product' && r.deprecatedAt === null)
+        .map((r) => ({ key: r.key, active: r.active, capOnly: false })),
+    ),
+    findSurrogateProduct: vi.fn(async (key: string) => {
+      const found = rows.find((r) => r.type === 'surrogate_product' && r.key === key);
+      return found ? { key: found.key, capOnly: false } : null;
+    }),
     typeDefinitions: vi.fn(async () => fakeTypeDefinitions()),
     countChildren: vi.fn(async () => 0),
     programNamesLinkedTo: vi.fn(async (productKey: string) =>

@@ -21,6 +21,8 @@ export interface ProgramNameQuestionScope {
    * type). Absent on an older server: read as none.
    */
   addedByCategory?: Partial<Record<LoanCategory, string[]>>;
+  /** Question ids in the name's own order, per loan type; empty = the pool's order. */
+  orderByCategory?: Partial<Record<LoanCategory, string[]>>;
   /**
    * Question CODES it may not tick or untick, with the reason. A `base` or `program` lock names
    * the loan types it holds in (`categories`); an `engine` lock holds in all of them. Read per
@@ -476,6 +478,34 @@ export class LookupsApiService {
    * missing one: `''` and an absent field are both refused, because a stored empty string looks
    * filed to the engine's `parentKey IS NOT NULL` filter and then prices nothing anyway.
    */
+  /**
+   * A no-payslip product's OWN classes for one value list (v36.1.0, groups per product): the
+   * values it filed differently from the shared list, value key → class key.
+   */
+  async productGroups(productKey: string, valueType: string): Promise<Record<string, string>> {
+    const res = await firstValueFrom(
+      this.http.get<SuccessEnvelope<{ own: Record<string, string> }>>(
+        `${environment.apiBaseUrl}/bank-programs/surrogate-products/${encodeURIComponent(productKey)}/groups`,
+        { params: { valueType } },
+      ),
+    );
+    return res.data.own;
+  }
+
+  /** File values in a class for ONE product; `parentKey: null` = back to the shared class. */
+  async setProductGroups(
+    productKey: string,
+    assignments: readonly { valueId: string; parentKey: string | null }[],
+  ): Promise<{ moved: number }> {
+    const res = await firstValueFrom(
+      this.http.put<SuccessEnvelope<{ moved: number }>>(
+        `${environment.apiBaseUrl}/bank-programs/surrogate-products/${encodeURIComponent(productKey)}/groups`,
+        { assignments },
+      ),
+    );
+    return res.data;
+  }
+
   async setParentKeysBulk(
     assignments: readonly { id: string; parentKey: string | null }[],
   ): Promise<{ moved: number }> {

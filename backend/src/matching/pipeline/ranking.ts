@@ -14,14 +14,20 @@
 
 import type { Offer, ApplicationPriority } from '../types';
 
-export function rankOffers(offers: Offer[], priority: ApplicationPriority): Offer[] {
+/** What the order reads — all `rankOffers` needs of a row, offer or preview match alike. */
+export type RankableOffer = Pick<
+  Offer,
+  'monthlyInstallmentEGP' | 'effectiveRatePercent' | 'requiredDocuments' | 'bankIsFeatured' | 'programCode'
+>;
+
+export function rankOffers<T extends RankableOffer>(offers: T[], priority: ApplicationPriority): T[] {
   const sorted = [...offers];
-  const featuredTiebreak = (a: Offer, b: Offer): number => {
+  const featuredTiebreak = (a: T, b: T): number => {
     // true sorts before false
     if (a.bankIsFeatured === b.bankIsFeatured) return 0;
     return a.bankIsFeatured ? -1 : 1;
   };
-  const codeTiebreak = (a: Offer, b: Offer): number =>
+  const codeTiebreak = (a: T, b: T): number =>
     a.programCode.localeCompare(b.programCode);
 
   switch (priority) {

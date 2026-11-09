@@ -324,6 +324,15 @@ async function main(): Promise<void> {
         );
         continue;
       }
+      // A set that states no figures and no baseline has nothing to write. Writing its empty
+      // `stepParams` anyway re-stamped the product on every run and reported "1 product
+      // written" on a database already seeded (`doctors_in_practice`: its sheet publishes no
+      // years table, so it carries only the defaults written above).
+      if (countFigureLeaves(set.stepParams) === 0 && set.baselineDbrPercent === undefined) {
+        tally.productsSkipped.push(set.productKey);
+        console.log(`${TAG} skip    ${pad(set.productKey)} the sheet states no figures for it`);
+        continue;
+      }
       if (dry) {
         tally.productsWritten.push(set.productKey);
         console.log(

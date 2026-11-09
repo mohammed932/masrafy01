@@ -27,6 +27,7 @@
  */
 
 import { Decimal } from '@prisma/client/runtime/library';
+import { groupsFor } from './product-groups';
 import type {
   ApplicantProfile,
   BankProgramSnapshot,
@@ -34,6 +35,7 @@ import type {
   CascadeTrace,
   IncomeResolution,
   QuoteOutcome,
+  QuoteUnavailable,
 } from '../types';
 import { runCascade, type CascadeBundle, type CascadeExtras } from './cascade-adapter';
 import { resolveAssumedIncome } from './income-resolver';
@@ -262,7 +264,13 @@ function resolveTenor(input: {
   return { requested: input.requested, months, constraints, belowFloorCause };
 }
 
-export function quoteProgram(input: QuoteInput): QuoteOutcome {
+export function quoteProgram(raw: QuoteInput): QuoteOutcome {
+  // The program's product's own groups over the shared ones — read once, here, so every
+  // class-keyed table below reads the same map (`product-groups.ts`).
+  const input: QuoteInput = {
+    ...raw,
+    parentKeyByValue: groupsFor(raw.program, raw.parentKeyByValue),
+  };
   const { profile, program } = input;
 
   // ── 0. The platform is withholding the calculation ───────────────────────
@@ -351,15 +359,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
         return { ok: false, unavailable: { reason: 'VEHICLE_NOT_ELIGIBLE' } };
       }
       if (!hit.matched && hit.action === 'reject') {
-        return {
-          ok: false,
-          unavailable: {
-            reason: 'VEHICLE_NOT_ELIGIBLE',
-            ...(hit.missingFactKeys.length > 0
-              ? { missingFactKeys: [...hit.missingFactKeys] }
-              : {}),
-          },
-        };
+        return { ok: false, unavailable: vehicleRefusal(hit.missingFactKeys) };
       }
       // `!hit.matched && hit.action === 'useFallback'`: this table has nothing to say about
       // this applicant's origin/dealer combination, so no extra age restriction applies.
@@ -403,13 +403,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       // The bank finances no car of this age, origin or down payment. A stated refusal, not
       // a filter: the program stays listed and ranked (Principle V / A33), and the reason is
       // the customer's to act on — a different car, or a bigger deposit.
-      return {
-        ok: false,
-        unavailable: {
-          reason: 'VEHICLE_NOT_ELIGIBLE',
-          ...(hit.missingFactKeys.length > 0 ? { missingFactKeys: [...hit.missingFactKeys] } : {}),
-        },
-      };
+      return { ok: false, unavailable: vehicleRefusal(hit.missingFactKeys) };
     }
   }
 
@@ -429,13 +423,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     } else if (hit.action === 'reject') {
       // Same refusal and the same reason code as the ceiling one above: a plan that states
       // no shortest term for this applicant is a plan this bank does not sell them.
-      return {
-        ok: false,
-        unavailable: {
-          reason: 'VEHICLE_NOT_ELIGIBLE',
-          ...(hit.missingFactKeys.length > 0 ? { missingFactKeys: [...hit.missingFactKeys] } : {}),
-        },
-      };
+      return { ok: false, unavailable: vehicleRefusal(hit.missingFactKeys) };
     }
   }
 
@@ -831,15 +819,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     // to somebody who owns their home states rows for an owner and none for a renter. The
     // refusal therefore binds IN THAT BAND, and the same applicant is priced normally in
     // every other one. Listed with a stated reason, never filtered (A33).
-    return {
-      ok: false,
-      unavailable: {
-        reason: 'VEHICLE_NOT_ELIGIBLE',
-        ...(ltvByFact.missingFactKeys.length > 0
-          ? { missingFactKeys: [...ltvByFact.missingFactKeys] }
-          : {}),
-      },
-    };
+    return { ok: false, unavailable: vehicleRefusal(ltvByFact.missingFactKeys) };
   }
   const ltvCeilingEGP =
     ltvByFact.kind === 'percent'
@@ -1219,6 +1199,18 @@ export function buildCascadeTrace(cascade: CascadeBundle): CascadeTrace {
     pricingDerivation: cascade.pricing.derivationChain,
     steps: cascade.steps,
   };
+}
+
+/**
+ * A vehicle table that refused. When it refused because a fact it keys on was never ANSWERED
+ * (home ownership, say, on a name that did not ask it), the car was never judged: that is the
+ * missing-fact reason — "a detail we haven't asked you for yet" — not "this bank does not
+ * finance that car", which sent the applicant off to change a car nothing was wrong with.
+ */
+function vehicleRefusal(missingFactKeys: readonly string[]): QuoteUnavailable {
+  return missingFactKeys.length > 0
+    ? { reason: 'SURROGATE_FACT_MISSING', missingFactKeys: [...missingFactKeys] }
+    : { reason: 'VEHICLE_NOT_ELIGIBLE' };
 }
 
 function round2(value: Decimal): Decimal {

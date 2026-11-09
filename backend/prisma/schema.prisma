@@ -876,6 +876,11 @@ model PlatformEnumeration {
   /// hand edit is how a screen ends up describing a calculation that is not the one
   /// running.
   templateSpec        Json?
+  /// `surrogate_product` ONLY (v33.1.0) — a CAP-ONLY product: it works out no income; it asks
+  /// one answer each bank caps its own maximum by (`loanLimits.maxLoanByFact`). Stored so a
+  /// product an operator creates can be one; the two seeded ones are also recognised by
+  /// their blueprint key (`isCapOnlyProductKey`), so a fresh install needs no backfill.
+  capOnly             Boolean   @default(false)
   /// `surrogate_product` ONLY — the AMOUNTS every new bank program starts its
   /// maximum-loan grid from. Shape: `{ "rows": MaxLoanByFactRow[] }`.
   ///
@@ -1058,6 +1063,12 @@ model PlatformEnumeration {
   /// the direction `surrogateProductKey` cannot express: it is one column, and a fact
   /// is legitimately read by several products.
   askedByProducts   SurrogateProductAsk[]             @relation("SurrogateFactAskedBy")
+  /// `surrogate_product` rows: the product's OWN groups — which class each value sits in for
+  /// this product's programs only (v36.1.0). A value with no row here reads its shared
+  /// `parentKey`.
+  ownParentKeys     SurrogateProductParentKey[]       @relation("ProductOwnParentKeys")
+  /// Value rows: the products that file this value in a class of their own.
+  productParentKeys SurrogateProductParentKey[]       @relation("ParentKeyOfValue")
   /// `program_name` only: questions THIS name asks because the operator ticked them.
   questionAdditions ProgramNameQuestionAddition[]     @relation("ProgramNameQuestionAdditions")
   /// `program_name` only: where THIS name asks each question, per loan type (v32.0.0).
@@ -1315,6 +1326,29 @@ model SurrogateProductAsk {
   @@id([productId, factId], name: "pk_surrogate_product_ask")
   @@index([factId], name: "idx_surrogate_product_ask_fact")
   @@map("surrogate_product_ask")
+}
+
+/// One value's class FOR ONE PRODUCT (v36.1.0) — groups per product: the doctors' product may
+/// put Giza in tier 1 while another product keeps it in tier 2. Overrides the value's shared
+/// `platform_enumeration.parentKey` for the programs sold from that product only; a value
+/// with no row here keeps the shared class. Engine reads it through the program's product
+/// (`program_name.surrogateProductKey`).
+model SurrogateProductParentKey {
+  /// `platform_enumeration.id` of the `surrogate_product` row.
+  productId String   @db.VarChar(30)
+  /// `platform_enumeration.id` of the value (a governorate, a compound…).
+  valueId   String   @db.VarChar(30)
+  /// The class key the value sits in for this product — a row of the value's parent kind.
+  parentKey String   @db.VarChar(64)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedBy String?  @db.VarChar(30)
+
+  product PlatformEnumeration @relation("ProductOwnParentKeys", fields: [productId], references: [id], onDelete: Cascade)
+  value   PlatformEnumeration @relation("ParentKeyOfValue", fields: [valueId], references: [id], onDelete: Cascade)
+
+  @@id([productId, valueId], name: "pk_surrogate_product_parent_key")
+  @@index([valueId], name: "idx_surrogate_product_parent_key_value")
+  @@map("surrogate_product_parent_key")
 }
 
 /// Who put an ask on a product. `blueprint` is the predefined library's own statement of

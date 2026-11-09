@@ -217,6 +217,7 @@ interface CaseGroup {
                         [fieldId]="'plan-band-' + row.index"
                         [value]="row.band.fromInclusive"
                         (valueChange)="onEdge(row.index, $event)"
+                        [commitOnLeave]="true"
                         unit="%"
                         [ariaLabel]="edgeAria(row.index)"
                       />
@@ -235,6 +236,9 @@ interface CaseGroup {
                     </li>
                   }
                 </ul>
+                @if (edgeNote(); as note) {
+                  <p class="prt__note" role="alert">{{ note }}</p>
+                }
 
                 <div class="prt__add">
                   <label class="prt__micro" for="prt-new-band" i18n="@@spd.plan_table.add_band"
@@ -684,8 +688,6 @@ interface CaseGroup {
         color: var(--color-text-secondary);
         font-size: var(--text-xs);
         font-weight: var(--font-semibold);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
       }
 
       /* ─── THE DELTA STRIP ──────────────────────────────────────────────────── */
@@ -1705,10 +1707,32 @@ export class PlanRowsEditorComponent {
     this.emit(setPlanCaseDelta(this.grids(), t, slot, columnIndex, delta));
   }
 
+  /** Why the last edge typed was not applied — it left its place between its neighbours. */
+  protected readonly edgeNote = signal<string | null>(null);
+
   protected onEdge(rowIndex: number, raw: string): void {
     const t = this.table();
     if (t === null) return;
-    this.emit(setPlanBandEdge(this.grids(), t, rowIndex, raw));
+    const edge = Number(raw.trim());
+    const below = rowIndex > 0 ? Number(t.rows[rowIndex - 1]?.band.fromInclusive) : -1;
+    const above = Number(t.rows[rowIndex + 1]?.band.fromInclusive ?? Infinity);
+    // An edge at or past a neighbour's would swallow that band, or turn this one inside out —
+    // refused and said, rather than re-sorting the steps under the operator.
+    if (raw.trim() === '' || !Number.isFinite(edge) || edge < 0 || edge <= below || edge >= above) {
+      const lo = below;
+      this.edgeNote.set(
+        rowIndex === 0 && !Number.isFinite(above)
+          ? $localize`:@@spd.plan_table.edge_only:A step's start must be 0% or more. It was put back.`
+          : rowIndex === 0
+            ? $localize`:@@spd.plan_table.edge_first:The first step's start must be 0% or more and less than ${above}:hi:%. It was put back.`
+            : Number.isFinite(above)
+              ? $localize`:@@spd.plan_table.edge_between:A step's start must be more than ${lo}:lo:% and less than ${above}:hi:%. It was put back.`
+              : $localize`:@@spd.plan_table.edge_above:The last step's start must be more than ${lo}:lo:%. It was put back.`,
+      );
+      return;
+    }
+    this.edgeNote.set(null);
+    this.emit(setPlanBandEdge(this.grids(), t, rowIndex, raw.trim()));
   }
 
   protected onSplit(rowIndex: number, columnIndex: number): void {

@@ -28,6 +28,12 @@ import type {
   SurrogateProductTemplateResponse,
   ProductBlueprint,
   ValueSourceMap,
+  CreateSurrogateProductRequest,
+  ProductStartFrom,
+  SurrogateProductDeleted,
+  SurrogateProductCheckInputs,
+  SurrogateProductCheckAnswer,
+  SurrogateProductCheckResult,
 } from './bank-programs.types';
 import type { MaxLoanByFactRow } from '@shared/ui/max-loan-by-fact.rules';
 
@@ -213,6 +219,66 @@ export class BankProgramsApiService {
       this.http.put<SuccessEnvelope<{ key: string; active: boolean; factsChanged: string[] }>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/active`,
         { active },
+      ),
+    );
+  }
+
+  // --- Product lifecycle (v33.0.0) -------------------------------------------
+
+  /** A new product — blank, from a starter, or a copy. Created OFF. */
+  async createSurrogateProduct(
+    body: CreateSurrogateProductRequest,
+  ): Promise<SuccessEnvelope<{ key: string; startFrom: ProductStartFrom }>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<{ key: string; startFrom: ProductStartFrom }>>(
+        `${this.base}/surrogate-products`,
+        body,
+      ),
+    );
+  }
+
+  /** Both names; the key never changes. Answers with the product's page. */
+  async renameSurrogateProduct(
+    key: string,
+    labels: { labelEn: string; labelAr: string },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/labels`,
+        labels,
+      ),
+    );
+  }
+
+  /** Refused with `SURROGATE_PRODUCT_IN_USE` while anything quotes from it. */
+  async deleteSurrogateProduct(key: string): Promise<SuccessEnvelope<SurrogateProductDeleted>> {
+    return firstValueFrom(
+      this.http.delete<SuccessEnvelope<SurrogateProductDeleted>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}`,
+      ),
+    );
+  }
+
+  /** What the test panel asks. */
+  async getSurrogateProductCheckInputs(
+    key: string,
+  ): Promise<SuccessEnvelope<SurrogateProductCheckInputs>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<SurrogateProductCheckInputs>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/check`,
+      ),
+    );
+  }
+
+  /** Sample answers through the product's calculation. Persists nothing. */
+  async checkSurrogateProduct(
+    key: string,
+    body: { wayId?: string; answers: SurrogateProductCheckAnswer[] },
+  ): Promise<SuccessEnvelope<SurrogateProductCheckResult>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<SurrogateProductCheckResult>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/check`,
+        body,
       ),
     );
   }

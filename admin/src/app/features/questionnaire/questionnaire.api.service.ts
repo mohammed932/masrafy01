@@ -258,10 +258,26 @@ export interface SimulationSuggestion {
   programsUnlocked: number;
 }
 
+/**
+ * A program the applicant is NOT shown (v36.0.0, `match-gate.ts`): a rule they fail, or a
+ * quote that refused. The simulator is the one screen that lists them, with the reason.
+ */
+export interface HiddenProgram {
+  programCode: string;
+  bankName: string;
+  programFriendlyName: string;
+  /** `NOT_ELIGIBLE` (see `failedRules`) or the error code the quote refused with. */
+  reason: string;
+  /** `age` · `monthly_income` · `months_in_job` · `salary_transfer`. */
+  failedRules?: string[];
+}
+
 export interface SimulationResult {
   category: LoanCategory;
   matches: SimulationMatch[];
   suggestions: SimulationSuggestion[];
+  /** Programs this applicant is not shown, and why. */
+  hidden?: HiddenProgram[];
 }
 
 /**
@@ -427,11 +443,18 @@ export class QuestionnaireApiService {
   simulateMatching(
     category: LoanCategory,
     answers: SimulatedAnswer[],
-    opts: { silent?: boolean } = {},
+    opts: { silent?: boolean; programNameKey?: string; age?: number } = {},
   ): Promise<SimulationResult> {
     return this.post<SimulationResult>(
       `/matching/simulate`,
-      { category, answers },
+      {
+        category,
+        answers,
+        // The program the applicant picked narrows the programs quoted, exactly as in the app.
+        ...(opts.programNameKey ? { programNameKey: opts.programNameKey } : {}),
+        // The sample applicant's age — the server defaults to 18, below many programs' floor.
+        ...(opts.age !== undefined ? { age: opts.age } : {}),
+      },
       opts.silent === true ? new HttpContext().set(SKIP_TOAST_INTERCEPTOR, true) : undefined,
     );
   }

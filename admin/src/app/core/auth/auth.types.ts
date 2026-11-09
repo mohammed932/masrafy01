@@ -50,6 +50,8 @@ export type ErrorCode =
   | 'REQUESTED_BELOW_PROGRAM_MIN_AMOUNT'
   | 'AGE_AT_MATURITY'
   | 'PROGRAM_MISCONFIGURED'
+  | 'SURROGATE_PRODUCT_IN_USE'
+  | 'SURROGATE_PRODUCT_NOT_READY'
   | 'INTERNAL_ERROR';
 
 export interface AuthenticatedUser {

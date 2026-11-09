@@ -8,10 +8,10 @@ import { MatchingPreviewService, SIMULATOR_DEFAULT_AGE } from './matching-previe
 import { SimulateMatchesDto } from './dto/simulate-matches.dto';
 
 /**
- * Admin matching simulator. Runs the SAME per-bank weighted approval scoring as
- * the customer preview (`MatchingPreviewService`), but admin-JWT-gated — lets ops
- * test "how would programs rank for applicant X" (approval %) without creating a
- * real application. Read-only: persists nothing.
+ * Admin matching simulator. Runs the SAME quoting and ordering as the customer preview
+ * (`MatchingPreviewService`), but admin-JWT-gated — lets ops see what each program would
+ * offer applicant X, and in what order, without creating a real application. There is no
+ * approval score (removed v25.0.0). Read-only: persists nothing.
  */
 @ApiTags('Admin · Matching simulator')
 @ApiBearerAuth()
@@ -23,7 +23,7 @@ export class AdminMatchingController {
 
   @Post('simulate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Run full matching + approval scoring for a sample applicant (no persistence)' })
+  @ApiOperation({ summary: 'Quote and order every program for a sample applicant (no persistence)' })
   async simulate(@Body() dto: SimulateMatchesDto): Promise<{ success: true; data: unknown }> {
     const result = await this.service.preview({
       category: dto.category,
@@ -36,6 +36,8 @@ export class AdminMatchingController {
       // applicant saw.
       programNameKey: dto.programNameKey,
       programType: dto.programType,
+      // The simulator shows what the customer would NOT see too, with the reason.
+      includeHidden: true,
     });
     return ok(result);
   }

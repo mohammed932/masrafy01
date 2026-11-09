@@ -114,6 +114,10 @@ Every seed is idempotent. A second run of steps 3–9 on the same database repor
 
 Both `dist/` seeds take `--dry` to report without writing.
 
+**A product an operator deleted is not seeded back (v33.0.0).** `seed:blueprints` reads the
+delete's audit event and reports `skip … deleted by an operator — not seeded back`. Products
+an operator creates (Program catalog → Surrogate → New product) are not in any seed.
+
 **Do not re-run `seed:questionnaire` after step 8.** It deactivates the questions the
 blueprints created, and the served questionnaire goes stale. If it was run by mistake,
 reactivate only the questions a live `surrogate_product_ask` row points at and republish

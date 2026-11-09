@@ -53,7 +53,11 @@ export function checkEligibility(
       : elig.minAge;
   const maxAge =
     isSelfEmployed && elig.selfEmployedMaxAge != null ? elig.selfEmployedMaxAge : elig.maxAge;
-  push(profile.age >= minAge && profile.age <= maxAge, 'age');
+  // A bound the program does not state is no bound (and never a crash).
+  push(
+    (minAge == null || profile.age >= minAge) && (maxAge == null || profile.age <= maxAge),
+    'age',
+  );
 
   // A COLLATERAL product has no income to check here.
   //
@@ -72,10 +76,10 @@ export function checkEligibility(
       isSelfEmployed && elig.selfEmployedMinMonthlyIncomeEGP
         ? elig.selfEmployedMinMonthlyIncomeEGP
         : elig.minMonthlyIncomeEGP;
-    push(assumedIncomeEGP.greaterThanOrEqualTo(minIncomeRaw), 'monthly_income');
+    push(assumedIncomeEGP.greaterThanOrEqualTo(minIncomeRaw ?? 0), 'monthly_income');
   }
 
-  push(profile.employment.monthsInJob >= elig.minMonthsInJob, 'months_in_job');
+  push(profile.employment.monthsInJob >= (elig.minMonthsInJob ?? 0), 'months_in_job');
   push(
     accepts(elig.acceptedSalaryTransferTypes, profile.employment.salaryTransferType),
     'salary_transfer_type',

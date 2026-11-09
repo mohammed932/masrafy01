@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 
@@ -49,8 +49,10 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
         [attr.placeholder]="hint()"
         [attr.aria-label]="label() ? null : ariaLabel()"
         [attr.aria-describedby]="describedBy()"
-        [ngModel]="value()"
-        (ngModelChange)="valueChange.emit($event)"
+        [ngModel]="draft() ?? value()"
+        (ngModelChange)="onType($event)"
+        (blur)="commit()"
+        (keydown.enter)="commit()"
         [ngModelOptions]="{ standalone: true }"
       />
       @if (unit()) {
@@ -279,7 +281,31 @@ export class FigureFieldComponent {
   /** What the placeholder is, said in words for a screen reader. */
   readonly placeholderNote = input<string>('');
 
+  /**
+   * Report the figure when the operator LEAVES the box (or presses Enter), not on every key.
+   *
+   * For a figure whose every intermediate value means something else: a band's lower edge
+   * typed as "25" passes through "2", which sits below the band before it — applied per key,
+   * the bands re-sorted under the caret and the "5" landed on another row.
+   */
+  readonly commitOnLeave = input<boolean>(false);
+
   readonly valueChange = output<string>();
+
+  /** What is typed but not yet reported (`commitOnLeave` only). */
+  protected readonly draft = signal<string | null>(null);
+
+  protected onType(raw: string): void {
+    if (this.commitOnLeave()) this.draft.set(raw);
+    else this.valueChange.emit(raw);
+  }
+
+  protected commit(): void {
+    const raw = this.draft();
+    if (raw === null) return;
+    this.draft.set(null);
+    if (raw !== this.value()) this.valueChange.emit(raw);
+  }
 
   /** The shape hint, or — when the product states one — the figure it states. */
   protected readonly hint = computed(() => this.placeholder() ?? (this.money() ? '0.00' : '0'));

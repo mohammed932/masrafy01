@@ -150,6 +150,18 @@ export class InMemoryPlatformEnumerationsRepository
     return null;
   }
 
+  async productParentKeyMaps(): Promise<Map<string, Record<string, string>>> {
+    return new Map();
+  }
+
+  async productParentKeys(): Promise<Record<string, string>> {
+    return {};
+  }
+
+  async setProductParentKeys(): Promise<number> {
+    throw new Error('setProductParentKeys: not supported by the in-memory repository');
+  }
+
   async questionOrder(): Promise<readonly string[]> {
     return [];
   }

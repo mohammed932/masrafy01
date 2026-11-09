@@ -126,6 +126,8 @@ describe('programNameIncomeRules resolves the link', () => {
   function repoOver(rows: unknown[]) {
     const prisma = {
       platformEnumeration: { findMany: vi.fn(async () => rows) },
+      // No product files a value in a class of its own (v36.1.0).
+      surrogateProductParentKey: { findMany: vi.fn(async () => []) },
     };
     return new PostgresPlatformEnumerationsRepository(prisma as never);
   }

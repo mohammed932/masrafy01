@@ -4,7 +4,13 @@ import { Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
-import { SunOutline, MoonOutline, DownOutline } from '@ant-design/icons-angular/icons';
+import {
+  SunOutline,
+  MoonOutline,
+  DownOutline,
+  LockOutline,
+  LogoutOutline,
+} from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { ThemeService } from '@core/theme/theme.service';
 
@@ -12,7 +18,9 @@ import { ThemeService } from '@core/theme/theme.service';
   selector: 'app-top-bar',
   standalone: true,
   imports: [CommonModule, RouterLink, NzButtonModule, NzIconModule, NzDropDownModule],
-  providers: [provideNzIconsPatch([SunOutline, MoonOutline, DownOutline])],
+  providers: [
+    provideNzIconsPatch([SunOutline, MoonOutline, DownOutline, LockOutline, LogoutOutline]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="top-bar" role="banner">
@@ -54,22 +62,38 @@ import { ThemeService } from '@core/theme/theme.service';
           >
             <span class="avatar" aria-hidden="true">
               <span class="avatar-text">{{ initials(user.name) }}</span>
-              <span class="online-dot" aria-hidden="true"></span>
             </span>
             <span class="user-name" [attr.title]="user.name">{{ firstName(user.name) }}</span>
-            <span class="user-divider" aria-hidden="true"></span>
-            <span class="role-chip" [attr.data-role]="user.role">{{ roleLabel(user.role) }}</span>
             <span nz-icon nzType="down" nzTheme="outline" class="chevron" aria-hidden="true"></span>
           </button>
         </div>
         <nz-dropdown-menu #userMenu="nzDropdownMenu">
-          <ul nz-menu>
-            <li nz-menu-item>
-              <a routerLink="/auth/self-password" i18n="@@topBar.changePassword">
-                Change password
-              </a>
+          <ul nz-menu class="acct-menu">
+            <!-- Who is signed in: the whole name, the email and the role, said once here
+                 rather than squeezed into the bar. -->
+            <li class="acct-head" role="presentation">
+              <span class="acct-avatar" aria-hidden="true">{{ initials(user.name) }}</span>
+              <span class="acct-who">
+                <span class="acct-name">{{ user.name }}</span>
+                <span class="acct-email" dir="ltr">{{ user.email }}</span>
+                <span class="acct-role">{{ roleLabel(user.role) }}</span>
+              </span>
             </li>
-            <li nz-menu-item (click)="logout()" i18n="@@topBar.signOut">Sign out</li>
+            <li nz-menu-divider></li>
+            <li
+              nz-menu-item
+              tabindex="0"
+              (click)="changePassword()"
+              (keydown.enter)="changePassword()"
+            >
+              <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@topBar.changePassword">Change password</span>
+            </li>
+            <li nz-menu-divider></li>
+            <li nz-menu-item nzDanger tabindex="0" (click)="logout()" (keydown.enter)="logout()">
+              <span nz-icon nzType="logout" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@topBar.signOut">Sign out</span>
+            </li>
           </ul>
         </nz-dropdown-menu>
       }
@@ -211,13 +235,6 @@ import { ThemeService } from '@core/theme/theme.service';
           inset 0 0 0 1px rgba(255, 255, 255, 0.3),
           0 0 0 var(--focus-ring-width) var(--color-topbar-text);
       }
-      // Hairline divider between name and role chip
-      .user-divider {
-        width: 1px;
-        height: 18px;
-        background: rgba(255, 255, 255, 0.14);
-        flex-shrink: 0;
-      }
       .avatar {
         position: relative;
         display: inline-flex;
@@ -243,16 +260,6 @@ import { ThemeService } from '@core/theme/theme.service';
       .avatar-text {
         line-height: 1;
       }
-      .online-dot {
-        position: absolute;
-        inset-block-end: -1px;
-        inset-inline-end: -1px;
-        width: 10px;
-        height: 10px;
-        border-radius: var(--radius-pill);
-        background: var(--color-success);
-        box-shadow: 0 0 0 2px var(--color-brand-primary);
-      }
       .user-name {
         font-weight: var(--font-weight-semibold);
         font-size: var(--text-sm);
@@ -260,33 +267,70 @@ import { ThemeService } from '@core/theme/theme.service';
         line-height: 1;
         white-space: nowrap;
       }
-      .role-chip {
-        display: inline-flex;
+      /* ---- Account menu ---- */
+      .acct-menu {
+        min-inline-size: 260px;
+        padding: var(--space-1);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+      }
+      .acct-head {
+        display: flex;
         align-items: center;
-        height: 20px;
-        padding-inline: 8px;
+        gap: var(--space-3);
+        padding: var(--space-3);
+        cursor: default;
+      }
+      .acct-avatar {
+        flex: none;
+        display: inline-grid;
+        place-items: center;
+        inline-size: 40px;
+        block-size: 40px;
         border-radius: var(--radius-pill);
-        background: rgba(255, 255, 255, 0.14);
-        color: var(--color-topbar-text);
-        font-size: var(--text-xxs);
+        background: var(--color-brand-primary);
+        color: var(--text-on-primary);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.04em;
+      }
+      .acct-who {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-inline-size: 0;
+      }
+      .acct-name {
+        font-size: var(--text-sm);
         font-weight: var(--font-weight-semibold);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        line-height: 1;
+        color: var(--text-primary);
+      }
+      .acct-email {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
-        flex-shrink: 0;
+        text-align: start;
       }
-      .role-chip[data-role='super_admin'] {
-        background: rgba(255, 255, 255, 0.24);
+      .acct-role {
+        align-self: flex-start;
+        margin-block-start: var(--space-1);
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent-ink);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
       }
-      .role-chip[data-role='sales_manager'] {
-        background: rgba(255, 255, 255, 0.18);
+      .acct-menu li[nz-menu-item] span[nz-icon] {
+        margin-inline-end: var(--space-2);
       }
-      .role-chip[data-role='sales_agent'] {
-        background: rgba(255, 255, 255, 0.12);
-      }
-      .role-chip[data-role='analyst'] {
-        background: rgba(255, 255, 255, 0.1);
+      .acct-menu li[nz-menu-item] {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        border-radius: var(--radius-md);
       }
       .chevron {
         font-size: 16px;
@@ -302,8 +346,6 @@ import { ThemeService } from '@core/theme/theme.service';
           padding-inline: var(--space-3);
         }
         .user-name,
-        .user-divider,
-        .role-chip,
         .chevron {
           display: none;
         }
@@ -362,6 +404,10 @@ export class TopBarComponent {
     }
     // Single-word name → first two characters (avoids single-letter "0"-looking avatar)
     return trimmed.slice(0, 2).toUpperCase();
+  }
+
+  protected changePassword(): void {
+    void this.router.navigateByUrl('/auth/self-password');
   }
 
   async logout(): Promise<void> {

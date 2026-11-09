@@ -70,6 +70,10 @@ import {
   type ProductCard,
 } from './catalog-board';
 import { CATALOG_BASE, CATALOG_NEW, PRODUCT_BASE } from './program-catalog.paths';
+import {
+  DeleteProductDialogComponent,
+  type DeleteProductDialogData,
+} from './delete-product.dialog';
 
 const ENUM_TYPE = 'program_name';
 
@@ -183,6 +187,14 @@ const ENUM_TYPE = 'program_name';
             <span i18n="@@program_catalog.dialog.add">Add program</span>
           </a>
         }
+        <!-- The no-payslip side's own errand: a new PRODUCT, as the first step of the
+             product wizard on a full page (v33.3.0) — no side sheet in between. -->
+        @if (showSurrogate() && !loading()) {
+          <a nz-button nzType="primary" class="add-btn" [routerLink]="[productBase, 'new']">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            <span i18n="@@program_catalog.product.new">New product</span>
+          </a>
+        }
       </div>
 
       @if (loading()) {
@@ -219,6 +231,7 @@ const ENUM_TYPE = 'program_name';
         <app-rail-tabs
           appearance="segmented"
           [uniform]="true"
+          class="basis-rail"
           idPrefix="basis"
           [items]="basisChips()"
           [activeId]="basisFilter()"
@@ -317,9 +330,9 @@ const ENUM_TYPE = 'program_name';
                 } @else {
                   <div class="board-empty">
                     <span nz-icon nzType="function" nzTheme="outline" aria-hidden="true"></span>
-                    <p i18n="@@program_catalog.surrogate.empty2">
-                      No calculation for a customer with no payslip yet. Each one is built into the
-                      platform with the questions it asks — none can be added here.
+                    <p i18n="@@program_catalog.surrogate.empty3">
+                      No calculation for a customer with no payslip yet. Add the first one with New
+                      product.
                     </p>
                   </div>
                 }
@@ -513,6 +526,7 @@ const ENUM_TYPE = 'program_name';
               <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
             </span>
           </div>
+          <p class="card-dates">{{ datesLine(r.createdAt, r.updatedAt) }}</p>
         </li>
       </ng-template>
 
@@ -602,7 +616,9 @@ const ENUM_TYPE = 'program_name';
             <!-- The SAME word the name cards use for the same state. "Retired" implied
                  permanence, and one board with two vocabularies for one gesture is worse
                  than either word. -->
-            @if (!c.product.active) {
+            @if (isDraftCard(c)) {
+              <span class="tag warn">{{ draftLabel }}</span>
+            } @else if (!c.product.active) {
               <span class="tag">{{ inactiveLabel }}</span>
             }
             <!-- Switched off while names still sell it: three live names quoting nothing, on
@@ -616,6 +632,19 @@ const ENUM_TYPE = 'program_name';
                  action row uses: an <a> inside an <a> is invalid and the browser closes the
                  outer one. -->
             <div class="row-actions">
+              <!-- Edit, power, Delete: the name card's three, in its order. A product's name
+                   is step 1 of its own page, so Edit opens that. -->
+              <button
+                class="icon-action"
+                type="button"
+                (click)="editProduct(c)"
+                nz-tooltip
+                nzTooltipTitle="Edit"
+                i18n-nzTooltipTitle="@@program_catalog.edit"
+                [attr.aria-label]="editLabel"
+              >
+                <span nz-icon nzType="edit" nzTheme="outline"></span>
+              </button>
               <button
                 class="icon-action"
                 type="button"
@@ -626,11 +655,27 @@ const ENUM_TYPE = 'program_name';
               >
                 <span nz-icon nzType="poweroff" nzTheme="outline"></span>
               </button>
+              <!-- The same Delete the name card carries; its dialog refuses while anything
+                   still quotes from the product. -->
+              <button
+                class="icon-action danger"
+                type="button"
+                (click)="deleteProduct(c)"
+                nz-tooltip
+                nzTooltipTitle="Delete"
+                i18n-nzTooltipTitle="@@program_catalog.delete"
+                [attr.aria-label]="deleteLabel"
+              >
+                <span nz-icon nzType="delete" nzTheme="outline"></span>
+              </button>
             </div>
             <span class="go" aria-hidden="true">
               <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
             </span>
           </div>
+          @if (c.product.createdAt) {
+            <p class="card-dates">{{ datesLine(c.product.createdAt, c.product.updatedAt) }}</p>
+          }
         </li>
       </ng-template>
     </section>
@@ -695,6 +740,10 @@ const ENUM_TYPE = 'program_name';
         color: var(--color-text-tertiary);
       }
       /* --- Income-basis panels ---------------------------------------------- */
+      /* The two income bases read as two roomy cards, not two snug labels. */
+      .basis-rail {
+        --rail-seg-min: min(280px, calc(50vw - 48px));
+      }
       /* The control itself is the shared segmented rail; only the PANEL is styled here.
          It enters rather than cutting: the two panels hold different objects, so a swap
          with no transition reads as the page having reloaded under the pointer. Short and
@@ -878,6 +927,8 @@ const ENUM_TYPE = 'program_name';
         padding: 0;
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+        /* Every row as tall as the tallest card: one set of equal boxes. */
+        grid-auto-rows: 1fr;
         /* Same gap as the stat strip above, so at 1120px both grids land on
            three columns whose edges line up. */
         gap: var(--space-4);
@@ -1102,6 +1153,13 @@ const ENUM_TYPE = 'program_name';
       .foot-spacer {
         flex: 1;
       }
+      /* When the card was made and last changed — a full-width quiet line at its foot. */
+      .card-dates {
+        margin: calc(-1 * var(--space-2)) 0 0;
+        font-size: var(--text-xs);
+        color: var(--text-tertiary);
+        font-variant-numeric: tabular-nums;
+      }
       .tag {
         flex: none;
         padding-inline: var(--space-2);
@@ -1236,6 +1294,20 @@ export class ProgramCatalogPage implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
+  private readonly dateFmt = new Intl.DateTimeFormat(this.isAr ? 'ar-EG' : 'en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  /** "Created 31 Oct 2026 · Updated 6 Nov 2026" — the second half only when it differs. */
+  protected datesLine(createdAt: string, updatedAt: string | undefined): string {
+    const created = this.dateFmt.format(new Date(createdAt));
+    const updated = updatedAt ? this.dateFmt.format(new Date(updatedAt)) : created;
+    return updated === created
+      ? $localize`:@@program_catalog.card.created:Created ${created}:DATE:`
+      : $localize`:@@program_catalog.card.created_updated:Created ${created}:CREATED: · Updated ${updated}:UPDATED:`;
+  }
 
   protected readonly loading = signal(true);
   private readonly rows = signal<EnumerationRow[]>([]);
@@ -1258,6 +1330,14 @@ export class ProgramCatalogPage implements OnInit {
 
   // Localized action labels reused across tooltips + aria.
   protected readonly inactiveLabel = $localize`:@@program_catalog.status.inactive:Inactive`;
+
+  /** OFF, sold by nothing, and missing what it needs to go live — a product being built. */
+  protected readonly draftLabel = $localize`:@@program_catalog.status.draft:Draft — not ready`;
+
+  protected isDraftCard(c: ProductCard): boolean {
+    return !c.product.active && c.names.length === 0 && (c.product.notReady?.length ?? 0) > 0;
+  }
+
   protected readonly deprecatedLabel = $localize`:@@program_catalog.status.deprecated:Deprecated`;
   protected readonly editLabel = $localize`:@@program_catalog.edit:Edit`;
   protected readonly activateLabel = $localize`:@@program_catalog.activate:Activate`;
@@ -1694,6 +1774,26 @@ export class ProgramCatalogPage implements OnInit {
     );
     ref.afterClose.subscribe((saved: boolean | undefined) => {
       if (saved) void this.reload({ silent: true });
+    });
+  }
+
+  protected editProduct(c: ProductCard): void {
+    void this.router.navigate([this.productBase, c.product.key], { queryParams: { step: 1 } });
+  }
+
+  protected deleteProduct(c: ProductCard): void {
+    const ref = this.modal.create<
+      DeleteProductDialogComponent,
+      DeleteProductDialogData,
+      boolean | undefined
+    >({
+      nzContent: DeleteProductDialogComponent,
+      nzData: { key: c.product.key, label: this.productName(c) },
+      nzWidth: 520,
+      nzFooter: null,
+    });
+    ref.afterClose.subscribe((deleted) => {
+      if (deleted) void this.reload({ silent: true });
     });
   }
 

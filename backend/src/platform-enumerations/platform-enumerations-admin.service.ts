@@ -44,7 +44,7 @@ import {
 // the dependency is one-way at the file level as well as at runtime. The blueprint library
 // is what DEFINES which products guess no income, so reading the answer from anywhere else
 // would be a second statement of it.
-import { isCapOnlyProductKey } from '@/bank-programs/blueprints/product-blueprints';
+import { isCapOnlyProduct } from '@/bank-programs/blueprints/product-blueprints';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 // ONE slug rule, not two. The key a pasted row mints must be the key the questionnaire's
 // options carry, because `question_option.code === platform_enumeration.key` is what makes
@@ -113,7 +113,7 @@ const FACT_TYPE = 'surrogate_fact';
  * pick would file their row, and its audit event, as the library's own work.
  */
 export interface CreateEnumerationOptions {
-  source: 'blueprint' | 'product_ask';
+  source: 'blueprint' | 'product_ask' | 'product_admin';
 }
 
 export interface AdminActor {
@@ -174,17 +174,19 @@ const SEEDED_ONLY_TYPES = new Set<string>(['surrogate_product', 'surrogate_fact'
 /**
  * Which of the closed kinds each named source may create.
  *
- * `product_ask` reaches `surrogate_fact` and NOT `surrogate_product`, and that asymmetry is
- * the whole of v22.0.0's decision that survives here: an operator picks WHICH of the seeded
- * products this platform sells and what one of them reads, and never mints a product of
- * their own. A product row created by hand is one no blueprint describes and no seed run
- * can resume — the state the three deleted admin screens used to produce.
+ * `product_ask` reaches `surrogate_fact` and NOT `surrogate_product`: ticking a question on
+ * a product's step ① files a fact under it, never a product. `product_admin` (v33.0.0) is
+ * the operator's "New product" door (`SurrogateProductLifecycleService`) and reaches
+ * `surrogate_product` alone — it creates the row OFF, and the product goes live only once
+ * it has a calculation and asks something (`SURROGATE_PRODUCT_NOT_READY`). The generic
+ * `POST admin/enumerations` and the bulk paste still refuse both kinds.
  */
 const CREATABLE_BY_SOURCE: Readonly<
   Record<NonNullable<CreateEnumerationOptions['source']>, readonly string[]>
 > = {
   blueprint: ['surrogate_product', 'surrogate_fact'],
   product_ask: ['surrogate_fact'],
+  product_admin: ['surrogate_product'],
 };
 
 function isCreatableBySource(
@@ -1005,8 +1007,9 @@ export class PlatformEnumerationsAdminService {
    * the very next refusal rejects.
    */
   private async linkableProductKeys(): Promise<string[]> {
-    const active = await this.repo.getActiveMembers(SURROGATE_PRODUCT_TYPE);
-    return active.map((m) => m.key).filter((key) => !isCapOnlyProductKey(key));
+    return (await this.repo.listSurrogateProducts())
+      .filter((p) => p.active && !isCapOnlyProduct(p))
+      .map((p) => p.key);
   }
 
   /**
@@ -1048,7 +1051,11 @@ export class PlatformEnumerationsAdminService {
     if (productKey === undefined || productKey === null) return null;
 
     const product = await this.repo.findByTypeAndKey(SURROGATE_PRODUCT_TYPE, productKey);
-    if (!product || !product.active || product.deprecatedAt !== null) {
+    // A NAME links only to a live product — it would sell it. A FACT may be filed under an OFF
+    // one (v33.0.0): a product an operator creates starts OFF and is given its questions
+    // before it can go live, and filing records authorship, not a sale.
+    const liveEnough = product !== null && (product.active || type === FACT_TYPE);
+    if (!product || !liveEnough || product.deprecatedAt !== null) {
       const activeProducts = (await this.repo.getActiveMembers(SURROGATE_PRODUCT_TYPE)).map(
         (m) => m.key,
       );
@@ -1068,7 +1075,9 @@ export class PlatformEnumerationsAdminService {
     // Names only. A cap-only product's own FACT is filed under it and must stay filable,
     // which is the whole reason this refusal is keyed on the type rather than on the
     // product.
-    if (type === PROGRAM_NAME_TYPE && isCapOnlyProductKey(productKey)) {
+    const productRow =
+      type === PROGRAM_NAME_TYPE ? await this.repo.findSurrogateProduct(productKey) : null;
+    if (productRow !== null && isCapOnlyProduct(productRow)) {
       throw new SurrogateProductCapOnlyException({
         type,
         key: productKey,
@@ -1472,6 +1481,8 @@ export class PlatformEnumerationsAdminService {
   async programNameQuestionScope(programNameKey: string | null): Promise<{
     /** Question IDS the name TICKED, per loan type — `program_name_question_addition`. */
     addedByCategory: Partial<Record<LoanCategory, string[]>>;
+    /** Question IDS in the name's own order, per loan type — empty = the pool's order. */
+    orderByCategory: Partial<Record<LoanCategory, string[]>>;
     locks: { code: string; reason: QuestionLockReason; categories?: LoanCategory[] }[];
     answeredByCategory: Partial<Record<LoanCategory, Record<string, string>>>;
   }> {
@@ -1482,10 +1493,14 @@ export class PlatformEnumerationsAdminService {
         : this.repo.memberCategories(PROGRAM_NAME_TYPE, programNameKey),
     ]);
     const addedByCategory: Partial<Record<LoanCategory, string[]>> = {};
+    const orderByCategory: Partial<Record<LoanCategory, string[]>> = {};
     const scopeIn = new Map<LoanCategory, QuestionLockScope>();
     for (const category of categories) {
       addedByCategory[category] = [
         ...(await this.repo.questionAdditions(programNameKey as string, category)),
+      ];
+      orderByCategory[category] = [
+        ...(await this.repo.questionOrder(programNameKey as string, category)),
       ];
       scopeIn.set(category, await this.repo.questionLockScopeFor(programNameKey, category));
     }
@@ -1508,7 +1523,7 @@ export class PlatformEnumerationsAdminService {
         out.push({ code: q.code, reason: 'program', categories: programIn });
       return out;
     });
-    return { addedByCategory, locks, answeredByCategory: {} };
+    return { addedByCategory, orderByCategory, locks, answeredByCategory: {} };
   }
 
   /**

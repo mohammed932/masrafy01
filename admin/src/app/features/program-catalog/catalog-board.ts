@@ -245,17 +245,18 @@ function cardCategories(names: readonly EnumerationRow[]): readonly LoanCategory
  * both segments' chips for a loan type where it is only sold one way. `'all'` asks the plain
  * question: sold that way anywhere.
  */
-export function soldWith(row: EnumerationRow, basis: IncomeBasis, category: CategoryFilter): boolean {
+export function soldWith(
+  row: EnumerationRow,
+  basis: IncomeBasis,
+  category: CategoryFilter,
+): boolean {
   if (category === 'all') return basesOf(row).includes(basis);
   if (!rowCategories(row).includes(category)) return false;
   const per = row.incomeBasesByCategory?.[category];
   return per && per.length > 0 ? per.includes(basis) : basesOf(row).includes(basis);
 }
 
-function matchesCategory(
-  categories: readonly LoanCategory[],
-  filter: CategoryFilter,
-): boolean {
+function matchesCategory(categories: readonly LoanCategory[], filter: CategoryFilter): boolean {
   return filter === 'all' || categories.includes(filter);
 }
 
@@ -328,7 +329,9 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const products =
     categoryFilter === 'all'
       ? searchedProducts
-      : searchedProducts.filter((c) => c.names.some((r) => soldWith(r, 'no_payslip', categoryFilter)));
+      : searchedProducts.filter((c) =>
+          c.names.some((r) => soldWith(r, 'no_payslip', categoryFilter)),
+        );
   const unlinked = searchedUnlinked.filter((u) => soldWith(u.row, 'no_payslip', categoryFilter));
 
   const deprecated = q
@@ -349,9 +352,7 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
     categoryCounts[cat] = searchedProducts.filter((c) =>
       c.names.some((r) => soldWith(r, 'no_payslip', cat)),
     ).length;
-    proofCategoryCounts[cat] = searchedProofNames.filter((r) =>
-      soldWith(r, 'payslip', cat),
-    ).length;
+    proofCategoryCounts[cat] = searchedProofNames.filter((r) => soldWith(r, 'payslip', cat)).length;
   }
 
   return {

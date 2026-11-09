@@ -1083,10 +1083,14 @@ interface PortfolioHealth {
         padding: 0;
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        /* Every row as tall as the tallest card: one set of equal boxes. */
+        grid-auto-rows: 1fr;
         gap: var(--space-3);
       }
       .prog {
         position: relative;
+        /* One card height across the income-type groups on this page, not just within one. */
+        min-block-size: 11.5rem;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);

@@ -477,13 +477,9 @@ export type {
             >
           </label>
           <label nz-radio nzValue="reject">
-            <span i18n="@@max_loan_by_fact.reject">Gets no figures, with a stated reason</span>
+            <span i18n="@@max_loan_by_fact.reject2">Isn't shown this program</span>
           </label>
         </nz-radio-group>
-        <p class="mlf__hint" i18n="@@max_loan_by_fact.no_match_hint">
-          There is no third option on purpose. “No cap” would quote above the bank’s policy and “cap
-          zero” is a blank card, so one of these two has to be the bank’s answer.
-        </p>
       </fieldset>
     </ng-template>
   `,

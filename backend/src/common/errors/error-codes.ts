@@ -324,19 +324,23 @@ export const ERROR_CODES = {
    */
   SURROGATE_PRODUCT_REQUIRED: 'SURROGATE_PRODUCT_REQUIRED',
   /**
-   * RETIRED BUT RETAINED — nothing throws this any more, and nothing should.
+   * A product cannot be DELETED while anything still quotes from it (v33.0.0): a catalog
+   * name linked to it, a bank program filed under one of those names, or a bank program
+   * capping its maximum by one of its answers. `names` / `programCodes` / `capPrograms` say
+   * which, so the screen confirms against a list; `count` is what the sentence interpolates.
    *
-   * It refused two things, and both are now allowed on purpose. Switching a product off
-   * while catalog names still link to it is the operator's one lifecycle action on a
-   * product, and its whole point is that those names stop quoting: the calculation is
-   * withheld and every affected program comes back listed with
-   * `SURROGATE_PRODUCT_RETIRED`. Deleting a product is no longer an admin action at all.
-   *
-   * Kept rather than deleted because it has SHIPPED: a client on an older bundle would
-   * render a raw code, and the parity check is bidirectional, so removing it would force a
-   * same-commit frontend and translation change for no gain.
+   * Switching a product OFF never throws this: OFF is how an operator stops a product while
+   * names still link to it, and every affected program comes back listed with
+   * `SURROGATE_PRODUCT_RETIRED`.
    */
   SURROGATE_PRODUCT_IN_USE: 'SURROGATE_PRODUCT_IN_USE',
+  /**
+   * A product cannot go live yet (v33.0.0). `reasons` lists what is missing:
+   * `no_calculation` (an income or ceiling product with no calculation saved) and
+   * `asks_nothing` (it reads no answer at all). A product an operator creates starts OFF and
+   * goes live only once both are in place, so a half-built product never quotes.
+   */
+  SURROGATE_PRODUCT_NOT_READY: 'SURROGATE_PRODUCT_NOT_READY',
   /**
    * A rule was written onto a catalog program name that takes its calculation from a
    * surrogate product.
@@ -1184,6 +1188,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_PRODUCT_REQUIRED: 422,
   // 409, like the two above: state, not shape.
   SURROGATE_PRODUCT_IN_USE: 409,
+  SURROGATE_PRODUCT_NOT_READY: 409,
   PROGRAM_NAME_RULE_LINKED: 422,
   SURROGATE_PRODUCT_NOT_FOUND: 404,
   SURROGATE_PRODUCT_CAP_ONLY: 422,

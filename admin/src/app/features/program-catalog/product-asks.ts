@@ -53,6 +53,8 @@ export interface AskCard {
   detachMeta?: Record<string, unknown>;
   /** A write for this card is in flight. */
   saving: boolean;
+  /** A tick or untick is HELD, waiting for Save (v33.2.0) — `read` already shows it. */
+  pending: boolean;
 }
 
 export interface AskSection {
@@ -68,6 +70,10 @@ export interface AskBoardInput {
   attaching: ReadonlySet<string>;
   /** Fact keys with a detach in flight. */
   detaching: ReadonlySet<string>;
+  /** Question codes ticked but not saved yet (v33.2.0). */
+  stagedAttach?: ReadonlySet<string>;
+  /** Fact keys unticked but not saved yet (v33.2.0). */
+  stagedDetach?: ReadonlySet<string>;
 }
 
 function label(row: { labelAr: string; labelEn: string }, isAr: boolean): string {
@@ -91,9 +97,15 @@ function poolCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
   const asks = new Map(board.asks.map((ask) => [ask.factKey, ask]));
   const readByRule = new Set(board.factsReadByRule);
 
+  const stagedAttach = input.stagedAttach ?? new Set<string>();
+  const stagedDetach = input.stagedDetach ?? new Set<string>();
   return board.pool.map((question) => {
     const ask = question.factKey === null ? undefined : asks.get(question.factKey);
-    const read = ask !== undefined;
+    const attachHeld = ask === undefined && stagedAttach.has(question.code);
+    const detachHeld = ask !== undefined && stagedDetach.has(ask.factKey);
+    // What the card SHOWS is what Save will make true: a held tick reads as read, a held
+    // untick as not.
+    const read = (ask !== undefined && !detachHeld) || attachHeld;
     return {
       code: question.code,
       factKey: ask?.factKey ?? '',
@@ -113,6 +125,7 @@ function poolCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
       saving:
         input.attaching.has(question.code) ||
         (ask !== undefined && input.detaching.has(ask.factKey)),
+      pending: attachHeld || detachHeld,
     } satisfies AskCard;
   });
 }
@@ -126,6 +139,7 @@ function poolCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
  * it still reads, which is the failure the whole board exists to remove.
  */
 function orphanCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
+  const stagedDetach = input.stagedDetach ?? new Set<string>();
   const poolCodes = new Set(board.pool.map((q) => q.code));
   const readByRule = new Set(board.factsReadByRule);
   return board.asks
@@ -138,13 +152,14 @@ function orphanCards(input: AskBoardInput, board: ProductAsksBoard): AskCard[] {
           ? ask.factKey
           : label({ labelAr: ask.questionLabelAr, labelEn: ask.questionLabelEn }, input.isAr),
       type: ask.questionType,
-      read: true,
+      read: !stagedDetach.has(ask.factKey),
       source: ask.source,
       questionInactive: true,
       alsoAskedBy: ask.alsoAskedBy,
       readByRule: readByRule.has(ask.factKey),
       ...(ask.detach.ok ? {} : { detachBlocked: ask.detach.reason, detachMeta: ask.detach.meta }),
       saving: input.detaching.has(ask.factKey),
+      pending: stagedDetach.has(ask.factKey),
     }));
 }
 

@@ -176,6 +176,8 @@ interface RenderedGroup {
       .qa-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        /* Equal boxes in every row. */
+        grid-auto-rows: 1fr;
         gap: var(--space-4) var(--space-5);
         margin: 0;
       }

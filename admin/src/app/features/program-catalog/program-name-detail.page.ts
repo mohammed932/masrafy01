@@ -20,6 +20,7 @@ import {
   ArrowLeftOutline,
   ArrowRightOutline,
   CloseCircleOutline,
+  CopyOutline,
   LockOutline,
   OrderedListOutline,
   PlusOutline,
@@ -107,6 +108,7 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
       ArrowLeftOutline,
       ArrowRightOutline,
       CloseCircleOutline,
+      CopyOutline,
       LockOutline,
       OrderedListOutline,
       PlusOutline,
@@ -127,8 +129,6 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
              only legal on a PRIMARY @if. -->
         @if (name(); as n) {
           <app-page-header
-            eyebrow="Program catalog"
-            i18n-eyebrow="@@pnd.eyebrow"
             [title]="nameOf(n)"
             subtitle="Two steps: which loan types banks may sell it under, and what its applicants are asked. Every change saves as you tap."
             i18n-subtitle="@@pnd.sub3"
@@ -141,6 +141,20 @@ import { AddableQuestionsComponent, type AddableRow } from './addable-questions.
                   {{ usageLabel(n) }}
                 }
               </span>
+              <!-- COPY: Add program with every step filled from this one (loan types,
+                   ticked questions, order) — a payslip name only; a no-payslip name is
+                   made from its product ("Sell it as a program"). -->
+              @if (!soldWithoutPayslip(n)) {
+                <a
+                  nz-button
+                  nzSize="small"
+                  [routerLink]="['/program-catalog/new']"
+                  [queryParams]="{ copy: n.key }"
+                >
+                  <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@pnd.copy">Copy</span>
+                </a>
+              }
               @if (stepIndex() === 0) {
                 <span class="autosave" i18n="@@pnd.autosave_offer"
                   >Turning a loan type on or off saves at once</span
@@ -853,6 +867,11 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected readonly routeKey = signal<string>(this.route.snapshot.paramMap.get('key') ?? '');
   protected readonly name = signal<ProgramNameRow | null>(null);
+
+  /** Sold without a payslip under any loan type — made from its product, so not copied here. */
+  protected soldWithoutPayslip(n: ProgramNameRow): boolean {
+    return Object.values(n.bases).some((b) => b.includes('no_payslip'));
+  }
 
   protected readonly loading = signal(true);
   protected readonly savingOffer = signal(false);

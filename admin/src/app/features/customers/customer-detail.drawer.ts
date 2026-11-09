@@ -341,6 +341,8 @@ export interface CustomerDetailDrawerData {
       .row-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        /* Equal boxes in every row. */
+        grid-auto-rows: 1fr;
         gap: var(--space-3);
         margin: 0;
       }

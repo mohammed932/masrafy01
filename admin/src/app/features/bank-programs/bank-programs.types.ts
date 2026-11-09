@@ -635,6 +635,8 @@ export interface RuleStep {
    * the heading renders as a raw slug unless the class list is consulted instead.
    */
   branchOn?: 'answer' | 'parentClass';
+  /** A product's own groups name their columns here (v36.1.0); screens only. */
+  branchLabels?: Readonly<Record<string, { labelEn: string; labelAr: string }>>;
 }
 
 export interface ProductRuleOutput {
@@ -1127,6 +1129,9 @@ export interface SurrogateProductSummary {
   labelAr: string;
   labelEn: string;
   active: boolean;
+  /** ISO timestamps — on the list only (the catalog card shows them). */
+  createdAt?: string;
+  updatedAt?: string;
   /** The proof it reads. `null` = it states no calculation yet. */
   strategy: string | null;
   /** What the calculation arrives at: an assumed income, or a borrowing ceiling. */
@@ -1163,7 +1168,62 @@ export interface SurrogateProductSummary {
    * answer instead. Optional on the wire, absent reads as `false`.
    */
   capOnly?: boolean;
+  /**
+   * What stops it going live, `[]` when nothing does (v33.0.0). An OFF product with reasons
+   * is a DRAFT. Optional on the wire; absent reads as ready.
+   */
+  notReady?: SurrogateProductNotReadyReason[];
+  /** How many answers it reads. */
+  askCount?: number;
 }
+
+export type SurrogateProductNotReadyReason = 'no_calculation' | 'asks_nothing';
+
+// ---------------------------------------------------------------------------
+// Product lifecycle (v33.0.0)
+// ---------------------------------------------------------------------------
+
+export type ProductStartFrom = 'blank' | 'starter' | 'copy' | 'cap';
+
+export interface CreateSurrogateProductRequest {
+  labelEn: string;
+  labelAr: string;
+  startFrom: ProductStartFrom;
+  blueprintKey?: string;
+  sourceKey?: string;
+}
+
+export interface SurrogateProductDeleted {
+  key: string;
+  deletedFacts: string[];
+  keptFacts: string[];
+}
+
+export interface SurrogateProductCheckInput {
+  factKey: string;
+  questionCode: string | null;
+  labelEn: string;
+  labelAr: string;
+  type: 'choice' | 'number';
+  options: { code: string; labelEn: string; labelAr: string }[];
+}
+
+export interface SurrogateProductCheckInputs {
+  key: string;
+  outputKind: 'monthlyIncome' | 'maxAmount' | null;
+  ways: string[];
+  inputs: SurrogateProductCheckInput[];
+}
+
+export interface SurrogateProductCheckAnswer {
+  factKey: string;
+  optionCode?: string;
+  value?: string;
+}
+
+export type SurrogateProductCheckResult =
+  | { ok: true; kind: 'monthlyIncome' | 'maxAmount'; valueEGP: string }
+  | { ok: false; reason: string; factKey?: string; gateId?: string; gateReasonCode?: string };
 
 // ---------------------------------------------------------------------------
 // The friendly form
@@ -1189,6 +1249,15 @@ export interface TemplateColumn {
   fact: string;
   branches: string[];
   branchOn?: 'answer' | 'parentClass';
+  /** The product's own groups, one per branch in branch order (v36.1.0). */
+  groups?: TemplateGroup[];
+}
+
+/** One of a product's own groups. `key` never changes on a rename: figures hang off it. */
+export interface TemplateGroup {
+  key: string;
+  labelEn: string;
+  labelAr: string;
 }
 
 type MechanismShape =
@@ -1243,6 +1312,8 @@ export interface ProductTemplate {
   /** Every other way to reach the figure. Each bank fills in the ones it sells. */
   alternatives?: TemplateMechanism[];
   combine?: 'lower' | 'higher';
+  /** Two ways or more: alternatives (one is read) or summed. Absent reads as `exclusive`. */
+  waysAre?: 'exclusive' | 'combined';
   secondColumn?: TemplateColumn;
   uplift?: {
     fact: string;

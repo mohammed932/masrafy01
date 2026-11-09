@@ -670,11 +670,8 @@
       <!-- Questionnaire editor — flat global question pool -->
       <trans-unit id="qedit.eyebrow" datatype="html"><source>Matching engine</source><target>محرك المطابقة</target></trans-unit>
       <trans-unit id="qedit.title" datatype="html"><source>Question pool</source><target>مجموعة الأسئلة</target></trans-unit>
-      <trans-unit id="qedit.live_title" datatype="html"><source>A version is published</source><target>هناك إصدار منشور</target></trans-unit>
       <trans-unit id="qedit.live" datatype="html"><source>Live</source><target>منشور</target></trans-unit>
       <trans-unit id="qedit.health_issues" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> to fix</source><target><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> تحتاج إصلاحًا</target></trans-unit>
-      <trans-unit id="qedit.health_ok" datatype="html"><source>Ready to ask</source><target>جاهزة للسؤال</target></trans-unit>
-      <trans-unit id="qedit.autosave" datatype="html"><source>Saves &amp; publishes automatically</source><target>يُحفظ ويُنشر تلقائيًا</target></trans-unit>
       <trans-unit id="qedit.add_question" datatype="html"><source>Question</source><target>سؤال</target></trans-unit>
       <trans-unit id="qedit.binding_warn_title" datatype="html"><source>Some figures the engine prices on are not being collected</source><target>بعض الأرقام التي يحسب عليها المحرك لا يتم جمعها</target></trans-unit>
       <trans-unit id="qedit.hp_incomplete_title" datatype="html"><source>These questions can&apos;t be asked yet — a choice question needs at least two options.</source><target>هذه الأسئلة لا يمكن طرحها بعد — سؤال الاختيار يحتاج خيارين على الأقل.</target></trans-unit>
@@ -687,11 +684,8 @@
       <trans-unit id="qedit.only_incomplete" datatype="html"><source>Needs options</source><target>تحتاج خيارات</target></trans-unit>
       <trans-unit id="qedit.showing" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
       <trans-unit id="qedit.clear_filters" datatype="html"><source>Clear</source><target>إلغاء التصفية</target></trans-unit>
-      <trans-unit id="qedit.total" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions · <x id="INTERPOLATION_1" equiv-text="{{ totalOptions() }}"/> answers</source><target><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا · <x id="INTERPOLATION_1" equiv-text="{{ totalOptions() }}"/> إجابة</target></trans-unit>
       <trans-unit id="qedit.drag_disabled" datatype="html"><source>Dragging is off while the list is filtered — the order you&apos;d see isn&apos;t the order applicants get. Use the row menu to move a question, or clear the filter.</source><target>السحب معطّل أثناء التصفية — الترتيب الظاهر ليس الترتيب الذي يراه المتقدمون. استخدم قائمة الصف لتحريك سؤال، أو ألغِ التصفية.</target></trans-unit>
-      <trans-unit id="qedit.drag_page" datatype="html"><source>Dragging reorders within this page. To move a question to another page, open it and use the arrows in the editor&apos;s header.</source><target>السحب يعيد الترتيب داخل هذه الصفحة فقط. لنقل سؤال إلى صفحة أخرى، افتحه واستخدم الأسهم في رأس المحرّر.</target></trans-unit>
       <trans-unit id="qedit.pager_aria" datatype="html"><source>Question pages</source><target>صفحات الأسئلة</target></trans-unit>
-      <trans-unit id="qedit.page_range" datatype="html"><source>Showing <x id="INTERPOLATION" equiv-text="{{ rangeStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ rangeEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ visible().length }}"/></source><target>عرض <x id="INTERPOLATION" equiv-text="{{ rangeStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ rangeEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ visible().length }}"/></target></trans-unit>
       <trans-unit id="qedit.no_matches_title" datatype="html"><source>Nothing matches that filter</source><target>لا شيء يطابق هذه التصفية</target></trans-unit>
       <trans-unit id="qedit.no_matches_body" datatype="html"><source>The pool still has <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions — they&apos;re just filtered out.</source><target>المجموعة بها <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا — لكنها مستبعدة بالتصفية.</target></trans-unit>
       <trans-unit id="qedit.reorder_aria" datatype="html"><source>Drag to reorder</source><target>اسحب لإعادة الترتيب</target></trans-unit>
@@ -701,10 +695,6 @@
       <trans-unit id="qedit.add_question_inline" datatype="html"><source>Add a question to the end</source><target>أضف سؤالًا في النهاية</target></trans-unit>
       <trans-unit id="qedit.helper_hint" datatype="html"><source>Shown under the question in the app. Leave both empty for no sub-label.</source><target>يظهر أسفل السؤال في التطبيق. اتركه فارغًا في الحقلين إذا لم تكن هناك حاجة لنص مساعد.</target></trans-unit>
       <trans-unit id="qedit.answer_type" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
-      <trans-unit id="qedit.lock_title_engine" datatype="html"><source>The loan engine reads this answer</source><target>محرك التمويل يقرأ إجابة هذا السؤال</target></trans-unit>
-      <trans-unit id="qedit.lock_title_program" datatype="html"><source>Bank programs work out offers from this answer</source><target>برامج البنوك تحسب العروض من إجابة هذا السؤال</target></trans-unit>
-      <trans-unit id="qedit.lock_body_fixed" datatype="html"><source> Its answer type, unit, when-to-ask rule and answers stay as they are, and it can&apos;t be deleted. Its wording, and whether it is required or fixed, can change. </source><target>نوع الإجابة والوحدة وقاعدة الطرح والإجابات تبقى كما هي، ولا يمكن حذفه. يمكن تغيير صياغته، وكونه مطلوبًا أو ثابتًا.</target></trans-unit>
-      <trans-unit id="qedit.lock_numbers" datatype="html"><source>Keep the numbers in its wording as they are, in the question, the helper text and the answers: applicants choose by them.</source><target>احتفظ بالأرقام في صياغته كما هي، في السؤال والنص المساعد والإجابات: فالعميل يختار بناءً عليها.</target></trans-unit>
       <trans-unit id="qedit.lock_who" datatype="html"><source>Read by <x id="INTERPOLATION" equiv-text="{{ programNamesOf(lock) }}"/></source><target>تقرؤه: <x id="INTERPOLATION" equiv-text="{{ programNamesOf(lock) }}"/></target></trans-unit>
       <trans-unit id="qedit.branch_locked" datatype="html"><source> Locked because offers are worked out from this answer: changing when it is asked would change who answers it. </source><target>مقفل لأن العروض تُحسب من هذه الإجابة: تغيير وقت طرحه يغيّر من يجيب عنه.</target></trans-unit>
       <trans-unit id="qedit.lock_tip_engine" datatype="html"><source>Locked: the loan engine reads this answer</source><target>مقفل: محرك التمويل يقرأ هذه الإجابة</target></trans-unit>
@@ -735,7 +725,6 @@
       <trans-unit id="qedit.num_unit_en" datatype="html"><source>Unit (English)</source><target>الوحدة (إنجليزي)</target></trans-unit>
       <trans-unit id="qedit.num_unit_ar" datatype="html"><source>الوحدة (عربي)</source><target>الوحدة (عربي)</target></trans-unit>
       <trans-unit id="qedit.num_inverted" datatype="html"><source>The maximum must be greater than or equal to the minimum.</source><target>يجب أن يكون الحد الأقصى أكبر من أو يساوي الحد الأدنى.</target></trans-unit>
-      <trans-unit id="qedit.num_hint" datatype="html"><source>Bounds are inclusive, and the step counts up from the minimum. Leave a field empty for no limit.</source><target>الحدود شاملة، والخطوة تُحسب صعودًا من الحد الأدنى. اترك الحقل فارغًا لعدم وضع حد.</target></trans-unit>
       <trans-unit id="qedit.text_max" datatype="html"><source>Maximum length</source><target>أقصى طول</target></trans-unit>
       <trans-unit id="qedit.text_hint" datatype="html"><source>Free text is never written to logs, because applicants may type personal details into it.</source><target>النص الحر لا يُكتب في السجلات أبدًا، لأن المتقدمين قد يكتبون بيانات شخصية فيه.</target></trans-unit>
       <trans-unit id="qedit.sec_answers" datatype="html"><source>Answer options</source><target>خيارات الإجابة</target></trans-unit>
@@ -746,7 +735,6 @@
       <trans-unit id="qedit.delete_option_aria" datatype="html"><source>Delete option</source><target>حذف الخيار</target></trans-unit>
       <trans-unit id="qedit.add_o" datatype="html"><source>Add</source><target>إضافة</target></trans-unit>
       <trans-unit id="qedit.add_option" datatype="html"><source>option</source><target>خيار</target></trans-unit>
-      <trans-unit id="qedit.choice_hint_new" datatype="html"><source>Save the question first, then add its options here — at least two are needed before it can be asked.</source><target>احفظ السؤال أولًا، ثم أضف خياراته هنا — يحتاج خيارين على الأقل قبل أن يُطرح.</target></trans-unit>
       <trans-unit id="qedit.code_note" datatype="html"><source>A stable code is generated automatically — no need to type one.</source><target>يُنشأ كود ثابت تلقائيًا — لا حاجة لكتابته.</target></trans-unit>
       <trans-unit id="qedit.save_q" datatype="html"><source>Save question</source><target>حفظ السؤال</target></trans-unit>
       <trans-unit id="qedit.type_single" datatype="html"><source>One choice</source><target>اختيار واحد</target></trans-unit>
@@ -772,10 +760,10 @@
       <trans-unit id="qedit.del_option_body" datatype="html"><source>&quot;<x id="name" equiv-text="this.isAr ? o.labelAr : o.labelEn"/>&quot; will no longer be offered. Answers that already picked it are kept, and any per-program score for it is dropped.</source><target>«<x id="name" equiv-text="this.isAr ? o.labelAr : o.labelEn"/>» لن يُعرض بعد الآن. الإجابات التي اختارته تبقى محفوظة، ويُحذف أي تقييم خاص به لكل برنامج.</target></trans-unit>
       <trans-unit id="qedit.option_deleted" datatype="html"><source>Option deleted</source><target>تم حذف الخيار</target></trans-unit>
       <trans-unit id="qedit.opt_more" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="{{ q.options.length - INLINE_OPTION_PREVIEW }}"/> more</source><target>+<x id="INTERPOLATION" equiv-text="{{ q.options.length - INLINE_OPTION_PREVIEW }}"/> أخرى</target></trans-unit>
+      <trans-unit id="qedit.all_answers2" datatype="html"><source><x id="COUNT" equiv-text="q.options.length"/> answers</source><target><x id="COUNT" equiv-text="q.options.length"/> إجابة</target></trans-unit>
       <trans-unit id="qedit.optional_chip" datatype="html"><source>optional</source><target>اختياري</target></trans-unit>
       <trans-unit id="qedit.optional_tip" datatype="html"><source>Applicants may skip this</source><target>يمكن للمتقدمين تخطيه</target></trans-unit>
       <trans-unit id="qedit.delete_question" datatype="html"><source>Delete question</source><target>حذف السؤال</target></trans-unit>
-      <trans-unit id="qedit.edit_question_aria" datatype="html"><source>Edit question</source><target>تعديل السؤال</target></trans-unit>
       <trans-unit id="qedit.modal_edit" datatype="html"><source>Edit question</source><target>تعديل السؤال</target></trans-unit>
       <trans-unit id="qedit.modal_new" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
       <trans-unit id="qedit.lang_en" datatype="html"><source>English</source><target>الإنجليزية</target></trans-unit>
@@ -987,7 +975,6 @@
       <trans-unit id="qrules.or" datatype="html"><source>or</source><target>أو</target></trans-unit>
       <!-- A fixed income-proof question in a loan type it may never leave. -->
       <trans-unit id="sim.derived_total" datatype="html"><source>Added up from the payments above — not typed.</source><target>محسوب تلقائيًا من الأقساط بالأعلى — غير مُدخل يدويًا.</target></trans-unit>
-      <trans-unit id="sim.step_range" datatype="html"><source>Questions <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></source><target>الأسئلة <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></target></trans-unit>
 
 
       <!-- The scored question set belongs to the program NAME in the catalog, not
@@ -1739,11 +1726,9 @@
       <trans-unit id="spd.iscore.value" datatype="html"><source>Percentage (%)</source><target>النسبة المئوية (%)</target></trans-unit>
       <trans-unit id="spd.tenor.readers_clear" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ readers }}"/> bank program(s) have no duration of their own and are using these months. Emptying the boxes would leave them unable to quote, so it will be refused — give each of them its own duration first.</source><target><x id="INTERPOLATION" equiv-text="{{ readers }}"/> برنامج بنكي ليس له مدة خاصة ويستخدم هذه الأشهر. إفراغ الحقول سيجعلها غير قادرة على تقديم أي عرض، ولذلك سيُرفض — حدّد مدة خاصة لكل منها أولًا.</target></trans-unit>
       <trans-unit id="spd.reach_none" datatype="html"><source>Nothing sells this yet, so a change here reaches no bank.</source><target>لا شيء يبيع هذا بعد، فالتغيير هنا لا يصل إلى أي بنك.</target></trans-unit>
-      <trans-unit id="spd.save" datatype="html"><source>Save the calculation</source><target>احفظ الحساب</target></trans-unit>
       <trans-unit id="spd.sold_as" datatype="html"><source>Sold as</source><target>يُباع كـ</target></trans-unit>
       <trans-unit id="spd.sold_as_more" datatype="html"><source><x id="COUNT" equiv-text="this.soldAsMore()"/> more</source><target><x id="COUNT" equiv-text="this.soldAsMore()"/> أخرى</target></trans-unit>
       <trans-unit id="spd.step_rule" datatype="html"><source>How the income is worked out</source><target>كيف يُحتسب الدخل</target></trans-unit>
-      <trans-unit id="spd.step_uses" datatype="html"><source>Who uses it</source><target>مَن يستخدمه</target></trans-unit>
       <trans-unit id="spd.steps_aria" datatype="html"><source>Surrogate product setup</source><target>إعداد المنتج البديل</target></trans-unit>
       <trans-unit id="spd.takes_catalog" datatype="html"><source>takes these amounts</source><target>يأخذ هذه المبالغ</target></trans-unit>
       <trans-unit id="spd.takes_catalog_aria" datatype="html"><source>takes the catalog amounts</source><target>يأخذ مبالغ الكتالوج</target></trans-unit>
@@ -2202,8 +2187,6 @@
       <trans-unit id="spd.needed.status_no_question" datatype="html"><source>No question yet</source><target>لا يوجد سؤال بعد</target></trans-unit>
       <trans-unit id="spd.needed.ask" datatype="html"><source> Ask it </source><target> اطرح السؤال </target></trans-unit>
       <trans-unit id="spd.needed.create" datatype="html"><source> Create question </source><target> أنشئ السؤال </target></trans-unit>
-      <trans-unit id="spd.needed.result" datatype="html"><source><x id="ASKED" equiv-text="asked.length"/> now asked, <x id="CREATED" equiv-text="created.length"/> question(s) created</source><target>أصبح <x id="ASKED" equiv-text="asked.length"/> يُسأل، وأُنشئ <x id="CREATED" equiv-text="created.length"/> سؤال</target></trans-unit>
-      <trans-unit id="spd.needed.result_skipped" datatype="html"><source>, <x id="SKIPPED" equiv-text="skipped.length"/> left for you to fix</source><target>، و<x id="SKIPPED" equiv-text="skipped.length"/> تُركت لتصلحها بنفسك</target></trans-unit>
       <trans-unit id="spd.needed.reader_calculation" datatype="html"><source>Calculation</source><target>الحساب</target></trans-unit>
       <trans-unit id="spd.needed.reader_cap" datatype="html"><source>Loan cap</source><target>حد القرض</target></trans-unit>
       <trans-unit id="spd.needed.table_rate" datatype="html"><source>Rate table</source><target>جدول الفائدة</target></trans-unit>
@@ -2239,8 +2222,6 @@
       <trans-unit id="spd.ask.why_in_rule" datatype="html"><source>The calculation on the next step still reads this answer. Take it out of the calculation first.</source><target>الحساب في الخطوة التالية ما زال يقرأ هذه الإجابة. أزِلها من الحساب أولًا.</target></trans-unit>
       <trans-unit id="spd.ask.why_in_use" datatype="html"><source>A bank program still reads this answer, so it cannot be removed yet.</source><target>ما زال أحد برامج البنوك يقرأ هذه الإجابة، فلا يمكن إزالتها بعد.</target></trans-unit>
       <trans-unit id="spd.ask.aria_stop" datatype="html"><source>Stop reading <x id="NAME" equiv-text="name"/></source><target>أوقف قراءة <x id="NAME" equiv-text="name"/></target></trans-unit>
-      <trans-unit id="spd.ask.said_read" datatype="html"><source><x id="NAME" equiv-text="card.label"/> is now read by this product</source><target><x id="NAME" equiv-text="card.label"/> يقرأه هذا المنتج الآن</target></trans-unit>
-      <trans-unit id="spd.ask.said_stopped" datatype="html"><source><x id="NAME" equiv-text="card.label"/> is no longer read by this product</source><target><x id="NAME" equiv-text="card.label"/> لم يعد هذا المنتج يقرأه</target></trans-unit>
       <trans-unit id="spd.lists_title" datatype="html"><source>The answers they pick from</source><target>الإجابات التي يختار منها</target></trans-unit>
       <trans-unit id="spd.list_owned" datatype="html"><source>The answers to one of the questions above.</source><target>إجابات أحد الأسئلة أعلاه.</target></trans-unit>
       <trans-unit id="spd.def.title" datatype="html"><source>The amount each answer carries</source><target>المبلغ الذي تحمله كل إجابة</target></trans-unit>
@@ -2253,7 +2234,6 @@
       <trans-unit id="spd.def.as_column" datatype="html"><source>These answers carry no amount of their own. They pick which column of the amounts on <x id="INTERPOLATION" equiv-text="{{ home }}"/> is read — so each of them does have a figure, one for every value on that list.</source><target>هذه الإجابات لا تحمل مبلغًا خاصًا بها. هي تحدّد أي عمود من مبالغ <x id="INTERPOLATION" equiv-text="{{ home }}"/> يُقرأ — فلكل إجابة منها مبلغ، واحد لكل عنصر في تلك القائمة.</target></trans-unit>
       <trans-unit id="spd.def.as_column_plain" datatype="html"><source>These answers carry no amount of their own. They pick which column of another list&apos;s amounts is read.</source><target>هذه الإجابات لا تحمل مبلغًا خاصًا بها. هي تحدّد أي عمود من مبالغ قائمة أخرى يُقرأ.</target></trans-unit>
       <trans-unit id="spd.def.go_figures" datatype="html"><source>Open <x id="INTERPOLATION" equiv-text="{{ home }}"/></source><target>افتح <x id="INTERPOLATION" equiv-text="{{ home }}"/></target></trans-unit>
-      <trans-unit id="spd.save_hint" datatype="html"><source>One Save covers every amount on this product, on both steps.</source><target>حفظ واحد يشمل كل مبالغ هذا المنتج، في الخطوتين معًا.</target></trans-unit>
       <trans-unit id="spd.list_owned_filed" datatype="html"><source>The answers to one of the questions above, each filed under a class.</source><target>إجابات أحد الأسئلة أعلاه، كل إجابة مُدرجة تحت فئة.</target></trans-unit>
       <trans-unit id="clsb.title" datatype="html"><source>Where each value is priced</source><target>في أي فئة يُسعَّر كل عنصر</target></trans-unit>
       <trans-unit id="clsb.lede" datatype="html"><source>A bank states one amount per class. A customer picks a value by name. This is where the two meet — so a value in the wrong class is priced at the wrong ceiling.</source><target>البنك يحدد مبلغًا واحدًا لكل فئة، والعميل يختار العنصر بالاسم. هنا يلتقي الاثنان — فالعنصر في الفئة الخطأ يُسعَّر بسقف خطأ.</target></trans-unit>
@@ -3240,7 +3220,6 @@
                   </source><target>
                     لا يوجد اسم برنامج بكشف راتب مطابق لهذا الفلتر.
                   </target></trans-unit>
-      <trans-unit id="program_catalog.surrogate.empty2" datatype="html"><source> No calculation for a customer with no payslip yet. Each one is built into the platform with the questions it asks — none can be added here. </source><target>لا توجد طريقة حساب لعميل بلا كشف راتب بعد. كل طريقة تُبنى داخل المنصة مع الأسئلة التي تطرحها — ولا يمكن إضافتها من هنا.</target></trans-unit>
       <trans-unit id="program_catalog.surrogate.no_match" datatype="html"><source>
                     No calculation matches this filter.
                   </source><target>
@@ -3272,7 +3251,6 @@
       <trans-unit id="pcn.back" datatype="html"><source>Back to the catalog</source><target>العودة إلى الكتالوج</target></trans-unit>
       <trans-unit id="pcn.steps_aria" datatype="html"><source>Adding a program name</source><target>إضافة اسم برنامج</target></trans-unit>
       <trans-unit id="pcn.name_h" datatype="html"><source>What is this program called?</source><target>ما اسم هذا البرنامج؟</target></trans-unit>
-      <trans-unit id="pcn.payslip_only" datatype="html"><source> Every program added here is sold against a payslip. Surrogate programs come with their own calculation, so they are built into the platform rather than added here. </source><target>كل برنامج يُضاف هنا يُباع مقابل كشف راتب. أما برامج بديل الدخل فتأتي بطريقة حسابها الخاصة، لذا تُبنى داخل المنصة ولا تُضاف من هنا.</target></trans-unit>
       <trans-unit id="pcn.key_preview" datatype="html"><source>Filed under</source><target>مُدرَج تحت</target></trans-unit>
       <trans-unit id="pcn.eg_en" datatype="html"><source>e.g. Doctors — Practice</source><target>مثال: أطباء — عيادة</target></trans-unit>
       <trans-unit id="pcn.eg_ar" datatype="html"><source>مثال: أطباء — عيادة</source><target>مثال: أطباء — عيادة</target></trans-unit>
@@ -4420,6 +4398,105 @@
       <trans-unit id="spd.plan_table.band_open" datatype="html"><source><x id="from" equiv-text="band.fromInclusive"/>% and above</source><target><x id="from" equiv-text="band.fromInclusive"/>% فأكثر</target></trans-unit>
       <trans-unit id="spd.plan_table.band_range" datatype="html"><source><x id="from" equiv-text="band.fromInclusive"/>% to under <x id="to" equiv-text="band.toExclusive"/>%</source><target><x id="from" equiv-text="band.fromInclusive"/>% إلى أقل من <x id="to" equiv-text="band.toExclusive"/>%</target></trans-unit>
       <trans-unit id="spd.plan_table.cell_aria" datatype="html"><source><x id="band" equiv-text="band"/>, <x id="column" equiv-text="name"/></source><target><x id="band" equiv-text="band"/>، <x id="column" equiv-text="name"/></target></trans-unit>
+      <trans-unit id="spd.plan_table.edge_only" datatype="html"><source>A step's start must be 0% or more. It was put back.</source><target>يجب أن تبدأ الشريحة عند 0% أو أكثر. أُعيدت كما كانت.</target></trans-unit>
+      <trans-unit id="spd.plan_table.edge_first" datatype="html"><source>The first step's start must be 0% or more and less than <x id="hi" equiv-text="above"/>%. It was put back.</source><target>يجب أن تبدأ الشريحة الأولى عند 0% أو أكثر وأقل من <x id="hi" equiv-text="above"/>%. أُعيدت كما كانت.</target></trans-unit>
+      <trans-unit id="spd.plan_table.edge_between" datatype="html"><source>A step's start must be more than <x id="lo" equiv-text="lo"/>% and less than <x id="hi" equiv-text="above"/>%. It was put back.</source><target>يجب أن تبدأ الشريحة عند أكثر من <x id="lo" equiv-text="lo"/>% وأقل من <x id="hi" equiv-text="above"/>%. أُعيدت كما كانت.</target></trans-unit>
+      <trans-unit id="spd.plan_table.edge_above" datatype="html"><source>The last step's start must be more than <x id="lo" equiv-text="lo"/>%. It was put back.</source><target>يجب أن تبدأ الشريحة الأخيرة عند أكثر من <x id="lo" equiv-text="lo"/>%. أُعيدت كما كانت.</target></trans-unit>
+      <trans-unit id="spd.fixed.title" datatype="html"><source>Fixed questions</source><target>الأسئلة الثابتة</target></trans-unit>
+      <trans-unit id="spd.fixed.note" datatype="html"><source>Asked on every no-payslip program and can't be removed here. To change one, open <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;linkish&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>Questionnaire<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>.</source><target>تُسأل في كل برنامج بدون إثبات دخل ولا يمكن حذفها من هنا. لتغيير أحدها افتح <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;linkish&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>الاستبيان<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>.</target></trans-unit>
+      <trans-unit id="spd.fixed.unless_derived" datatype="html"><source>not on car — worked out from price and down payment</source><target>لا يُسأل في السيارات — يُحسب من السعر والمقدم</target></trans-unit>
+      <trans-unit id="pnd.copy" datatype="html"><source>Copy</source><target>نسخ</target></trans-unit>
+      <trans-unit id="bank_programs.action.copy" datatype="html"><source>Copy</source><target>نسخ</target></trans-unit>
+      <trans-unit id="bank_programs.form.copied_from" datatype="html"><source> A copy of <x id="INTERPOLATION" equiv-text="{{ from }}"/> — every step is filled in. Change what differs, then create it. </source><target> نسخة من <x id="INTERPOLATION" equiv-text="{{ from }}"/> — كل الخطوات معبأة. غيّر ما يختلف ثم أنشئه. </target></trans-unit>
+      <trans-unit id="pcn.copy_subtitle" datatype="html"><source>A copy of <x id="name" equiv-text="this.copiedFrom() ?? &apos;&apos;"/> — its loan types, questions and order are filled in. Change what differs, then save.</source><target>نسخة من <x id="name" equiv-text="this.copiedFrom() ?? &apos;&apos;"/> — أنواع القروض والأسئلة وترتيبها معبأة. غيّر ما يختلف ثم احفظ.</target></trans-unit>
+      <trans-unit id="sim.hidden_sum" datatype="html"><source><x id="COUNT" equiv-text="this.hiddenPrograms().length"/> programs are not shown to this applicant — why, per program</source><target><x id="COUNT" equiv-text="this.hiddenPrograms().length"/> برنامجًا لا يظهر لهذا المتقدم — والسبب لكل برنامج</target></trans-unit>
+      <trans-unit id="sim.rule_age" datatype="html"><source>Outside the age range</source><target>خارج نطاق السن</target></trans-unit>
+      <trans-unit id="sim.rule_income" datatype="html"><source>Below the minimum income</source><target>أقل من الحد الأدنى للدخل</target></trans-unit>
+      <trans-unit id="sim.rule_months" datatype="html"><source>Not long enough in the job</source><target>مدة العمل غير كافية</target></trans-unit>
+      <trans-unit id="sim.rule_transfer" datatype="html"><source>Salary transfer required</source><target>يشترط تحويل الراتب</target></trans-unit>
+      <trans-unit id="clsb.product_scope" datatype="html"><source> These classes are this product&apos;s own. Moving a value here changes this product&apos;s programs only — other products and the shared list keep theirs. </source><target> هذه الفئات خاصة بهذا المنتج. نقل عنصر هنا يغيّر برامج هذا المنتج فقط — المنتجات الأخرى والقائمة المشتركة تحتفظ بفئاتها. </target></trans-unit>
+      <trans-unit id="spd.step_name2" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="spd.step_asks2" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
+      <trans-unit id="spd.step_calc2" datatype="html"><source>Calculation</source><target>الحساب</target></trans-unit>
+      <trans-unit id="spd.step_figures2" datatype="html"><source>Figures</source><target>الأرقام</target></trans-unit>
+      <trans-unit id="spd.step_live" datatype="html"><source>Check and go live</source><target>التجربة والتفعيل</target></trans-unit>
+      <trans-unit id="spd.cap_live" datatype="html"><source>Try sample answers, then switch it on. Nothing you try is saved.</source><target>جرّب إجابات نموذجية ثم فعّله. لا يُحفظ شيء مما تجربه.</target></trans-unit>
+      <trans-unit id="spd.ready.ok_body4" datatype="html"><source> It has what it needs. Try it and go live on the last step, then sell it as a program. </source><target> لديه كل ما يحتاجه. جرّبه وفعّله في الخطوة الأخيرة، ثم بِعه كبرنامج. </target></trans-unit>
+      <trans-unit id="np.hint2" datatype="html"><source> Next creates the product, switched off. Nothing reaches a customer until you go live on the last step. </source><target> «التالي» ينشئ المنتج متوقفًا. لا يصل شيء إلى العملاء حتى تفعّله في الخطوة الأخيرة. </target></trans-unit>
+      <trans-unit id="spd.fixed.summary" datatype="html"><source>Also asked on every no-payslip program</source><target>يُسأل أيضًا في كل برنامج بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="spd.fixed.note2" datatype="html"><source> Fixed questions. They can&apos;t be removed here — change them on <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;linkish&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>Questionnaire<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>. </source><target> أسئلة ثابتة. لا يمكن حذفها من هنا — غيّرها من <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;linkish&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>الاستبيان<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>. </target></trans-unit>
+      <trans-unit id="spd.ask.sec_asks" datatype="html"><source>This product asks</source><target>يسأل هذا المنتج</target></trans-unit>
+      <trans-unit id="spd.ask.sec_add" datatype="html"><source>Add a question</source><target>إضافة سؤال</target></trans-unit>
+      <trans-unit id="spd.ask.rest_collapsed2" datatype="html"><source>Search for a question to add, or</source><target>ابحث عن سؤال لإضافته، أو</target></trans-unit>
+      <trans-unit id="spd.cap_name2" datatype="html"><source>What it is called.</source><target>اسمه.</target></trans-unit>
+      <trans-unit id="spd.cap_asks2" datatype="html"><source>What the applicant is asked for this product.</source><target>ما يُسأل عنه المتقدم لهذا المنتج.</target></trans-unit>
+      <trans-unit id="spd.cap_calc2" datatype="html"><source>How the bank works a figure out from the answers.</source><target>كيف يحسب البنك الرقم من الإجابات.</target></trans-unit>
+      <trans-unit id="spd.cap_figures2" datatype="html"><source>The figures every bank selling this product starts from.</source><target>الأرقام التي يبدأ منها كل بنك يبيع هذا المنتج.</target></trans-unit>
+      <trans-unit id="spt.addon.conditions.note2" datatype="html"><source>Each bank turns on the ones it applies. A customer who fails one is not shown the program; the admin sees why.</source><target>كل بنك يفعّل الشروط التي يطبقها. العميل الذي لا يستوفي أحدها لا يظهر له البرنامج، ويرى المسؤول السبب.</target></trans-unit>
+      <trans-unit id="spd.sec.inherited_lede2" datatype="html"><source> A bank uses these where its own program states nothing. Changes reach live quotes. </source><target> يستخدم البنك هذه الأرقام حين لا يحدد برنامجه غيرها. التغييرات تصل إلى العروض الحالية. </target></trans-unit>
+      <trans-unit id="spd.iscore.lede2" datatype="html"><source> How much of the worked-out figure counts at each I-Score. Leave it empty to use the standard I-Score classes. </source><target> كم يُحتسب من الرقم المحسوب عند كل تصنيف I-Score. اتركه فارغًا لاستخدام فئات I-Score القياسية. </target></trans-unit>
+      <trans-unit id="spd.sec.calc_figures" datatype="html"><source>The calculation&apos;s own figures</source><target>أرقام الحساب نفسه</target></trans-unit>
+      <trans-unit id="spd.rate.priced_by_table2" datatype="html"><source> The rate comes from the plans above. </source><target> سعر الفائدة يأتي من الخطط أعلاه. </target></trans-unit>
+      <trans-unit id="spd.list_shared_link" datatype="html"><source>A shared list — its values are edited on</source><target>قائمة مشتركة — تُعدَّل قيمها من</target></trans-unit>
+      <trans-unit id="spd.list_manage_values" datatype="html"><source>Manage values</source><target>إدارة القيم</target></trans-unit>
+      <trans-unit id="max_loan_by_fact.reject2" datatype="html"><source>Isn&apos;t shown this program</source><target>لا يظهر له هذا البرنامج</target></trans-unit>
+      <trans-unit id="spd.figures.calc_unfinished" datatype="html"><source>The calculation was changed but isn&apos;t finished: <x id="INTERPOLATION" equiv-text="{{ why }}"/></source><target>تم تغيير الحساب لكنه غير مكتمل: <x id="INTERPOLATION" equiv-text="{{ why }}"/></target></trans-unit>
+      <trans-unit id="spd.figures.calc_unsaved" datatype="html"><source>The calculation was changed. Save or discard it first.</source><target>تم تغيير الحساب. احفظه أو تجاهله أولًا.</target></trans-unit>
+      <trans-unit id="spd.figures.calc_go" datatype="html"><source>Go to Calculation</source><target>اذهب إلى الحساب</target></trans-unit>
+      <trans-unit id="np.caption2" datatype="html"><source>Name it. The rest opens once it exists.</source><target>سمِّه. باقي الخطوات تُفتح بعد إنشائه.</target></trans-unit>
+      <trans-unit id="np.copy_of" datatype="html"><source> A copy of <x id="INTERPOLATION" equiv-text="{{ copyLabel() }}"/> — its questions, calculation and figures come with it. </source><target> نسخة من <x id="INTERPOLATION" equiv-text="{{ copyLabel() }}"/> — أسئلته وحسابه وأرقامه تأتي معه. </target></trans-unit>
+      <trans-unit id="spd.asks_sub" datatype="html"><source> Fixed questions are asked on every no-payslip program. Add the ones this product needs. </source><target> الأسئلة الثابتة تُسأل في كل برنامج بدون إثبات دخل. أضف ما يحتاجه هذا المنتج. </target></trans-unit>
+      <trans-unit id="spd.add_question" datatype="html"><source>Add a question</source><target>إضافة سؤال</target></trans-unit>
+      <trans-unit id="spd.asks_page" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
+      <trans-unit id="spd.add_group" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
+      <trans-unit id="spd.add_sheet_sub" datatype="html"><source>Asked of this product&apos;s applicants. Saved with your other changes.</source><target>يُسأل لمتقدمي هذا المنتج. يُحفظ مع تغييراتك الأخرى.</target></trans-unit>
+      <trans-unit id="srvp.tag_calc" datatype="html"><source>The calculation reads it</source><target>يقرؤه الحساب</target></trans-unit>
+      <trans-unit id="spt.q1b" datatype="html"><source>Which answer decides the income?</source><target>أي إجابة تحدد الدخل؟</target></trans-unit>
+      <trans-unit id="spt.q1b.lede" datatype="html"><source> A choice question gets a figure for each answer, a number question a figure for each range. The bank then applies its DBR. </source><target> سؤال الاختيار له رقم لكل إجابة، وسؤال الرقم له رقم لكل نطاق. ثم يطبق البنك نسبة عبء الدين. </target></trans-unit>
+      <trans-unit id="spt.kept_way" datatype="html"><source> Today it is worked out as: <x id="INTERPOLATION" equiv-text="{{ mechanismLabel(form.controls.primaryKind.value) }}"/>. It stays as it is unless you pick a question below. </source><target> يُحسب حاليًا بطريقة: <x id="INTERPOLATION" equiv-text="{{ mechanismLabel(form.controls.primaryKind.value) }}"/>. يبقى كما هو ما لم تختر سؤالًا أدناه. </target></trans-unit>
+      <trans-unit id="spt.q1b.label" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="spt.more" datatype="html"><source>More options</source><target>خيارات أخرى</target></trans-unit>
+      <trans-unit id="spt.more_note" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
+      <trans-unit id="spt.q1.no_facts3" datatype="html"><source>Add a choice or number question in the Questions tab first.</source><target>أضِف سؤال اختيار أو سؤال رقم من تبويب الأسئلة أولًا.</target></trans-unit>
+      <trans-unit id="spt.q1c" datatype="html"><source>Which question decides the income?</source><target>أي سؤال يحدد الدخل؟</target></trans-unit>
+      <trans-unit id="spt.q1b.from_tab" datatype="html"><source>Lists the questions in the Questions tab.</source><target>تظهر هنا أسئلة تبويب الأسئلة.</target></trans-unit>
+      <trans-unit id="spd.cap_calc4" datatype="html"><source>Which questions decide the customer&apos;s assumed monthly income.</source><target>الأسئلة التي تحدد الدخل الشهري المفترض للعميل.</target></trans-unit>
+      <trans-unit id="spt.q1.fact2" datatype="html"><source>Which question does it read?</source><target>أي سؤال يقرأه؟</target></trans-unit>
+      <trans-unit id="spt.addon.column.fact2" datatype="html"><source>Which question splits the columns?</source><target>أي سؤال يقسم الأعمدة؟</target></trans-unit>
+      <trans-unit id="spt.addon.uplift.fact2" datatype="html"><source>Which question?</source><target>أي سؤال؟</target></trans-unit>
+      <trans-unit id="spt.addon.column.shared" datatype="html"><source> Split by the shared groups: <x id="INTERPOLATION" equiv-text="{{ sharedClassNames() }}"/>. Move answers between them on the Figures step. </source><target> مقسّم حسب المجموعات المشتركة: <x id="INTERPOLATION" equiv-text="{{ sharedClassNames() }}"/>. انقل الإجابات بينها من خطوة الأرقام. </target></trans-unit>
+      <trans-unit id="spt.addon.column.mode_answer" datatype="html"><source>One column for each answer</source><target>عمود لكل إجابة</target></trans-unit>
+      <trans-unit id="spt.addon.column.mode_groups" datatype="html"><source>Put the answers in groups</source><target>ضع الإجابات في مجموعات</target></trans-unit>
+      <trans-unit id="spt.groups.title" datatype="html"><source>Groups</source><target>المجموعات</target></trans-unit>
+      <trans-unit id="spt.groups.name_en" datatype="html"><source>Name in English</source><target>الاسم بالإنجليزية</target></trans-unit>
+      <trans-unit id="spt.groups.name_ar" datatype="html"><source>Name in Arabic</source><target>الاسم بالعربية</target></trans-unit>
+      <trans-unit id="spt.groups.remove" datatype="html"><source> Remove </source><target> إزالة </target></trans-unit>
+      <trans-unit id="spt.groups.add" datatype="html"><source> Add a group </source><target> أضف مجموعة </target></trans-unit>
+      <trans-unit id="spt.groups.help" datatype="html"><source>At least two. The first group is the standard column: an answer in no group is priced on it.</source><target>مجموعتان على الأقل. المجموعة الأولى هي العمود الأساسي: الإجابة التي ليست في أي مجموعة تُحسب عليه.</target></trans-unit>
+      <trans-unit id="spt.groups.place" datatype="html"><source> Which group is each answer in? </source><target> في أي مجموعة كل إجابة؟ </target></trans-unit>
+      <trans-unit id="spt.groups.none" datatype="html"><source>No group</source><target>بدون مجموعة</target></trans-unit>
+      <trans-unit id="spt.groups.name_aria" datatype="html"><source>Name of group <x id="N" equiv-text="index + 1"/></source><target>اسم المجموعة <x id="N" equiv-text="index + 1"/></target></trans-unit>
+      <trans-unit id="spt.form.block_groups" datatype="html"><source>Add at least two groups.</source><target>أضف مجموعتين على الأقل.</target></trans-unit>
+      <trans-unit id="spt.form.block_group_names" datatype="html"><source>Give every group a name in English and Arabic.</source><target>اكتب اسم كل مجموعة بالإنجليزية والعربية.</target></trans-unit>
+      <trans-unit id="spd.plans.unfinished" datatype="html"><source>Not finished</source><target>غير مكتمل</target></trans-unit>
+      <trans-unit id="spd.bar.blocked_calc_here" datatype="html"><source>Fill in the calculation&apos;s own figures, at the bottom of this step.</source><target>أكمل أرقام الحساب نفسه، في أسفل هذه الخطوة.</target></trans-unit>
+      <trans-unit id="spd.bar.blocked_plan" datatype="html"><source>Finish or clear the <x id="TABLE" equiv-text="unfinished"/> table.</source><target>أكمل جدول <x id="TABLE" equiv-text="unfinished"/> أو امسحه.</target></trans-unit>
+      <trans-unit id="spd.plans.err2" datatype="html"><source>The <x id="INTERPOLATION" equiv-text="{{ broken }}"/> table is not finished: pick the question it goes by and fill in every box — or clear what you typed.</source><target>جدول <x id="INTERPOLATION" equiv-text="{{ broken }}"/> غير مكتمل: اختر السؤال الذي يعتمد عليه واملأ كل الخانات — أو امسح ما كتبته.</target></trans-unit>
+      <trans-unit id="spd.plans.as_one" datatype="html"><source>Show the plans as one table</source><target>اعرض الخطط في جدول واحد</target></trans-unit>
+      <trans-unit id="spd.plans.err3" datatype="html"><source>The <x id="INTERPOLATION" equiv-text="{{ broken }}"/> table is not finished: <x id="INTERPOLATION_1" equiv-text="{{ planErrorDetail() }}"/> — or clear what you typed.</source><target>جدول <x id="INTERPOLATION" equiv-text="{{ broken }}"/> غير مكتمل: <x id="INTERPOLATION_1" equiv-text="{{ planErrorDetail() }}"/> — أو امسح ما كتبته.</target></trans-unit>
+      <trans-unit id="spd.plans.err_question" datatype="html"><source>pick the question it goes by</source><target>اختر السؤال الذي يعتمد عليه</target></trans-unit>
+      <trans-unit id="spd.plans.err_duplicate" datatype="html"><source>two columns go by the same question</source><target>عمودان يعتمدان على السؤال نفسه</target></trans-unit>
+      <trans-unit id="spd.plans.err_value" datatype="html"><source>fill in the value of every row</source><target>املأ القيمة في كل صف</target></trans-unit>
+      <trans-unit id="spd.plans.err_range" datatype="html"><source>fill in the range of every row</source><target>املأ النطاق في كل صف</target></trans-unit>
+      <trans-unit id="spt.way.band" datatype="html"><source>A figure for each range</source><target>رقم لكل نطاق</target></trans-unit>
+      <trans-unit id="spt.way.share" datatype="html"><source>A percentage of the answer</source><target>نسبة مئوية من الإجابة</target></trans-unit>
+      <trans-unit id="spt.way.multiple" datatype="html"><source>A multiple of the answer</source><target>مضاعف للإجابة</target></trans-unit>
+      <trans-unit id="spt.way.divided" datatype="html"><source>The answer divided by a figure</source><target>الإجابة مقسومة على رقم</target></trans-unit>
+      <trans-unit id="spt.way.aria" datatype="html"><source>How the income follows from the number</source><target>كيف يُحسب الدخل من الرقم</target></trans-unit>
+      <trans-unit id="spt.q1b.lede2" datatype="html"><source> A choice question gets a figure for each answer. For a number question, choose how the income follows from it. The bank then applies its DBR. </source><target> سؤال الاختيار له رقم لكل إجابة. ولسؤال الرقم، اختر كيف يُحسب الدخل منه. ثم يطبق البنك نسبة عبء الدين. </target></trans-unit>
+      <trans-unit id="spt.addon.alt.ways_are" datatype="html"><source>How a bank uses these ways</source><target>كيف يستخدم البنك هذه الطرق</target></trans-unit>
+      <trans-unit id="spt.addon.alt.exclusive" datatype="html"><source> Each bank picks one of them </source><target> كل بنك يختار واحدة منها </target></trans-unit>
+      <trans-unit id="spt.addon.alt.combined" datatype="html"><source> Every bank uses all of them </source><target> كل بنك يستخدمها كلها </target></trans-unit>
       <trans-unit id="spd.plan_table.edge_aria" datatype="html"><source>Band <x id="n" equiv-text="n"/> starts at this percent</source><target>الشريحة <x id="n" equiv-text="n"/> تبدأ عند هذه النسبة</target></trans-unit>
       <trans-unit id="spd.plan_table.remove_row_aria" datatype="html"><source>Remove the <x id="band" equiv-text="label"/> band</source><target>احذف شريحة <x id="band" equiv-text="label"/></target></trans-unit>
       <trans-unit id="spd.plan_table.split_aria" datatype="html"><source>State <x id="cell" equiv-text="name"/> band by band</source><target>حدّد <x id="cell" equiv-text="name"/> شريحة بشريحة</target></trans-unit>
@@ -4664,8 +4741,8 @@
       <trans-unit id="caq.dlg_optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
       <trans-unit id="caq.dlg_not_asked" datatype="html"><source>Not asked here</source><target>لا يُسأل هنا</target></trans-unit>
       <trans-unit id="caq.dlg_of" datatype="html"><source>of the <x id="TOTAL" equiv-text="total"/> <x id="TYPE" equiv-text="type"/> questions</source><target>من أصل <x id="TOTAL" equiv-text="total"/> سؤالًا في <x id="TYPE" equiv-text="type"/></target></trans-unit>
-      <trans-unit id="srvp.gate_if" datatype="html"><source>If: <x id="ANSWERS" equiv-text="answers"/></source><target>فقط عند: <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
-      <trans-unit id="srvp.gate_unless" datatype="html"><source>Unless: <x id="ANSWERS" equiv-text="answers"/></source><target>إلا عند: <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
+      <trans-unit id="srvp.gate_if" datatype="html"><source><x id="ANSWERS" equiv-text="answers"/></source><target><x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
+      <trans-unit id="srvp.gate_unless" datatype="html"><source>Not <x id="ANSWERS" equiv-text="answers"/></source><target>ليس <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
       <trans-unit id="caq.lists_h" datatype="html"><source>Edit the questions</source><target>تعديل الأسئلة</target></trans-unit>
       <trans-unit id="caq.lists_show" datatype="html"><source>Show</source><target>إظهار</target></trans-unit>
       <trans-unit id="caq.lists_hide" datatype="html"><source>Hide</source><target>إخفاء</target></trans-unit>
@@ -4687,14 +4764,12 @@
       <trans-unit id="qedit.sec_optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
       <trans-unit id="qedit.sec_answer_block" datatype="html"><source>Answer</source><target>الإجابة</target></trans-unit>
       <trans-unit id="qedit.sec_settings" datatype="html"><source>Settings</source><target>الإعدادات</target></trans-unit>
-      <trans-unit id="qedit.type_locked_short" datatype="html"><source>It can&apos;t change once a question is saved — add a new question instead.</source><target>لا يمكن تغييره بعد حفظ السؤال — أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
       <trans-unit id="qedit.required_on" datatype="html"><source> Applicants must answer it before they can go on. </source><target>يجب على المتقدمين الإجابة عنه قبل المتابعة.</target></trans-unit>
       <trans-unit id="qedit.required_off" datatype="html"><source>Applicants may skip it.</source><target>يمكن للمتقدمين تخطيه.</target></trans-unit>
       <trans-unit id="qedit.optional_engine_warn" datatype="html"><source> Offers are worked out from this answer. An applicant who skips it is quoted without it. </source><target>تُحسب العروض من هذه الإجابة. المتقدم الذي يتخطاه يحصل على عرض محسوب بدونها.</target></trans-unit>
       <trans-unit id="qedit.unfix_blocked" datatype="html"><source>Fixed questions are asked only after this answer: <x id="names" equiv-text="names"/>. Make them ordinary first, then this one.</source><target>أسئلة ثابتة تُطرح فقط بعد هذه الإجابة: <x id="names" equiv-text="names"/>. اجعلها أسئلة عادية أولًا، ثم هذا السؤال.</target></trans-unit>
       <trans-unit id="qedit.unfix_note" datatype="html"><source> Saving makes it an ordinary question, so a program can skip it. </source><target>عند الحفظ يصبح سؤالًا عاديًا، ويمكن لأي برنامج تخطيه.</target></trans-unit>
       <trans-unit id="qedit.fixed_label" datatype="html"><source>Fixed question</source><target>سؤال ثابت</target></trans-unit>
-      <trans-unit id="qedit.lock_body_fixed_q" datatype="html"><source> Its answer type, unit, when-to-ask rule and answers stay as they are. Its wording, and whether it is required or fixed, can change. </source><target>نوع الإجابة والوحدة وقاعدة الطرح والإجابات تبقى كما هي. يمكن تغيير صياغته، وكونه مطلوبًا أو ثابتًا.</target></trans-unit>
       <trans-unit id="qedit.restore" datatype="html"><source>Restore</source><target>استعادة</target></trans-unit>
       <trans-unit id="qedit.restore_aria" datatype="html"><source>Restore “<x id="question" equiv-text="question"/>”</source><target>استعادة «<x id="question" equiv-text="question"/>»</target></trans-unit>
       <trans-unit id="qedit.restored" datatype="html"><source>Question restored</source><target>تمت استعادة السؤال</target></trans-unit>
@@ -4726,9 +4801,6 @@
       <trans-unit id="qfixdel.retry" datatype="html"><source>Try again</source><target>حاول مرة أخرى</target></trans-unit>
       <trans-unit id="qfixdel.title" datatype="html"><source> Delete this fixed question? </source><target>حذف هذا السؤال الثابت؟</target></trans-unit>
       <trans-unit id="qfixdel.would_break" datatype="html"><source>What stops working</source><target>ما الذي سيتوقف عن العمل</target></trans-unit>
-      <trans-unit id="qedit.branch_operator" datatype="html"><source> Matches or does not match </source><target> مطابق أو غير مطابق </target></trans-unit>
-      <trans-unit id="spd.ask.edit_question" datatype="html"><source>Edit question</source><target>عدّل السؤال</target></trans-unit>
-      <trans-unit id="spd.ask.edit_question_aria" datatype="html"><source>Edit the question “<x id="label" equiv-text="label"/>”</source><target>عدّل السؤال «<x id="label" equiv-text="label"/>»</target></trans-unit>
       <trans-unit id="qrules.edit_link" datatype="html"><source>Edit this question</source><target>عدّل هذا السؤال</target></trans-unit>
       <trans-unit id="qrules.no_add_note_pool" datatype="html"><source> Add or remove answers on the Questions tab. </source><target>أضف الإجابات أو احذفها من تبويب الأسئلة.</target></trans-unit>
       <trans-unit id="answer_effect.part_loan" datatype="html"><source>Max loan <x id="pct" equiv-text="pct"/>%</source><target>الحد الأقصى للقرض <x id="pct" equiv-text="pct"/>%</target></trans-unit>
@@ -4765,7 +4837,6 @@
       <trans-unit id="qedit.effect_save_fixed_first" datatype="html"><source>Save the question as fixed first, then set what its answers do to the offer.</source><target>احفظ السؤال كسؤال ثابت أولًا، ثم حدّد ما تفعله إجاباته بالعرض.</target></trans-unit>
       <trans-unit id="qedit.unfix_effects_note" datatype="html"><source>Its answers will stop changing the offer, and those settings are removed.</source><target>ستتوقف إجاباته عن تغيير العرض، وستُحذف تلك الإعدادات.</target></trans-unit>
       <trans-unit id="qedit.sec_ranges" datatype="html"><source>Changes the offer</source><target>يغيّر العرض</target></trans-unit>
-      <trans-unit id="qedit.ranges_hint2" datatype="html"><source> When the applicant's number falls in a range, the offer of every program that asks it changes like this. Ranges can't overlap; a number in no range changes nothing. </source><target>عندما يقع رقم المتقدم في نطاق، يتغير بهذا الشكل عرض كل برنامج يطرح السؤال. لا يمكن أن تتداخل النطاقات، والرقم خارج كل النطاقات لا يغيّر شيئًا.</target></trans-unit>
       <trans-unit id="qedit.edit_range_aria" datatype="html"><source>Edit range</source><target>تعديل النطاق</target></trans-unit>
       <trans-unit id="qedit.delete_range_aria" datatype="html"><source>Delete range</source><target>حذف النطاق</target></trans-unit>
       <trans-unit id="qedit.add_range" datatype="html"><source>range</source><target>نطاق</target></trans-unit>
@@ -4800,7 +4871,6 @@
       <trans-unit id="pnd.order_status" datatype="html"><source>“<x id="QUESTION" equiv-text="label"/>” is now <x id="POS" equiv-text="move.to + 1"/> of <x id="TOTAL" equiv-text="rows.length"/> on “<x id="PAGE" equiv-text="title"/>”</source><target>«<x id="QUESTION" equiv-text="label"/>» الآن رقم <x id="POS" equiv-text="move.to + 1"/> من <x id="TOTAL" equiv-text="rows.length"/> في «<x id="PAGE" equiv-text="title"/>»</target></trans-unit>
       <trans-unit id="qedit.branch_hint_off2" datatype="html"><source> Asked of every applicant of the programs that ask this question. </source><target>يُطرح على كل المتقدمين للبرامج التي تطرح هذا السؤال.</target></trans-unit>
       <trans-unit id="qedit.deleted_hint3" datatype="html"><source> Restore brings a question back with its answers, and the programs that asked it ask it again right away. </source><target>الاستعادة تعيد السؤال بإجاباته، وتطرحه من جديد فورًا البرامج التي كانت تطرحه.</target></trans-unit>
-      <trans-unit id="qedit.fixed_hint3" datatype="html"><source> Every program on the side you pick asks it, and none of them can skip it. Its answers can change the offer. </source><target>تطرحه كل البرامج في الجانب الذي تختاره، ولا يمكن لأي منها تخطيه. ويمكن أن تغيّر إجاباته العرض.</target></trans-unit>
       <trans-unit id="qedit.fixed_tip_every2" datatype="html"><source>Fixed: every program asks it</source><target>ثابت: تطرحه كل البرامج</target></trans-unit>
       <trans-unit id="qedit.fixed_tip_proof2" datatype="html"><source>Fixed: every income-proof program asks it</source><target>ثابت: تطرحه كل برامج إثبات الدخل</target></trans-unit>
 
@@ -4822,6 +4892,235 @@
       <trans-unit id="qrules.typed_title" datatype="html"><source> What the customer types </source><target>ما يكتبه العميل</target></trans-unit>
       <trans-unit id="qrules.ranges_title" datatype="html"><source> What the number does to the offer </source><target>ما يفعله الرقم بالعرض</target></trans-unit>
       <trans-unit id="qrules.col_range" datatype="html"><source>When the number is</source><target>عندما يكون الرقم</target></trans-unit>
+      <trans-unit id="pdel.title" datatype="html"><source>Permanently delete this product?</source><target>حذف هذا المنتج نهائيًا؟</target></trans-unit>
+      <trans-unit id="pdel.in_use" datatype="html"><source>It can&apos;t be deleted while these still use it.</source><target>لا يمكن حذفه ما دامت هذه تستخدمه.</target></trans-unit>
+      <trans-unit id="pdel.names" datatype="html"><source>Catalog names</source><target>أسماء البرامج</target></trans-unit>
+      <trans-unit id="pdel.programs" datatype="html"><source>Bank programs</source><target>البرامج البنكية</target></trans-unit>
+      <trans-unit id="pdel.in_use_body" datatype="html"><source> Move them to another product first — or switch this one off, which stops it quoting and can be undone. </source><target> انقلها إلى منتج آخر أولًا، أو أوقف هذا المنتج؛ الإيقاف يمنعه من التسعير ويمكن التراجع عنه. </target></trans-unit>
+      <trans-unit id="pdel.body" datatype="html"><source> This can&apos;t be undone. Its calculation, figures and the questions only it asked are removed. Offers already issued keep their own figures. </source><target> لا يمكن التراجع عن هذا. تُحذف طريقة حسابه وأرقامه والأسئلة التي يسألها هو وحده. تحتفظ العروض الصادرة بأرقامها. </target></trans-unit>
+      <trans-unit id="pdel.confirm_label" datatype="html"><source>Type the product&apos;s name to confirm</source><target>اكتب اسم المنتج للتأكيد</target></trans-unit>
+      <trans-unit id="pdel.cancel" datatype="html"><source> Cancel </source><target> إلغاء </target></trans-unit>
+      <trans-unit id="pdel.cta" datatype="html"><source> Delete product </source><target> حذف المنتج </target></trans-unit>
+      <trans-unit id="pdel.done" datatype="html"><source>Product deleted.</source><target>تم حذف المنتج.</target></trans-unit>
+      <trans-unit id="pform.name_en" datatype="html"><source>Name (English)</source><target>الاسم (بالإنجليزية)</target></trans-unit>
+      <trans-unit id="pform.name_taken" datatype="html"><source>A product with this name already exists. Pick another name.</source><target>يوجد منتج بهذا الاسم بالفعل. اختر اسمًا آخر.</target></trans-unit>
+      <trans-unit id="pform.name_required" datatype="html"><source>Enter a name.</source><target>أدخل اسمًا.</target></trans-unit>
+      <trans-unit id="pform.name_ar" datatype="html"><source>Name (Arabic)</source><target>الاسم (بالعربية)</target></trans-unit>
+      <trans-unit id="pform.start_legend" datatype="html"><source>Start from</source><target>ابدأ من</target></trans-unit>
+      <trans-unit id="pform.starter_label" datatype="html"><source>Starter</source><target>نموذج جاهز</target></trans-unit>
+      <trans-unit id="pform.copy_label" datatype="html"><source>Product to copy</source><target>المنتج المراد نسخه</target></trans-unit>
+      <trans-unit id="pform.title_copy" datatype="html"><source>Duplicate product</source><target>نسخ المنتج</target></trans-unit>
+      <trans-unit id="pform.title_new" datatype="html"><source>New no-payslip product</source><target>منتج جديد بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="pform.sub_new" datatype="html"><source>A way to lend to someone who has no payslip — by a grade, an amount they own, or anything else they can show.</source><target>طريقة للإقراض لمن لا يملك إثبات دخل — بالرتبة، أو بمبلغ يملكه، أو بأي شيء آخر يستطيع إثباته.</target></trans-unit>
+      <trans-unit id="pform.pick" datatype="html"><source>Pick one</source><target>اختر واحدًا</target></trans-unit>
+      <trans-unit id="pform.blank" datatype="html"><source>Blank</source><target>فارغ</target></trans-unit>
+      <trans-unit id="pform.blank_body" datatype="html"><source>Just the name. You add its questions and build its calculation next.</source><target>الاسم فقط. تضيف أسئلته وتبني طريقة حسابه بعد ذلك.</target></trans-unit>
+      <trans-unit id="pform.starter" datatype="html"><source>From a starter</source><target>من نموذج جاهز</target></trans-unit>
+      <trans-unit id="pform.starter_body" datatype="html"><source>A ready-made shape — its questions, lists and calculation. You type the figures.</source><target>شكل جاهز — أسئلته وقوائمه وطريقة حسابه. أنت تُدخل الأرقام.</target></trans-unit>
+      <trans-unit id="pform.copy" datatype="html"><source>Copy of a product</source><target>نسخة من منتج</target></trans-unit>
+      <trans-unit id="pform.copy_body" datatype="html"><source>Everything another product has — questions, calculation, figures and defaults.</source><target>كل ما في منتج آخر — الأسئلة وطريقة الحساب والأرقام والقيم الافتراضية.</target></trans-unit>
+      <trans-unit id="pform.created" datatype="html"><source>Product created — switched off until it is ready.</source><target>تم إنشاء المنتج — موقوف حتى يصبح جاهزًا.</target></trans-unit>
+      <trans-unit id="ptest.title" datatype="html"><source>Try it with sample answers</source><target>جرّبه بإجابات تجريبية</target></trans-unit>
+      <trans-unit id="ptest.lede" datatype="html"><source> Answer as an applicant would and see what this product works out — before any bank&apos;s own debt-burden cap, maximum loan or rate. Nothing is saved. </source><target> أجب كما سيجيب العميل وشاهد ما يحسبه هذا المنتج — قبل حد عبء الدين والحد الأقصى للقرض والعائد الخاصة بأي بنك. لا يُحفظ شيء. </target></trans-unit>
+      <trans-unit id="ptest.load_failed" datatype="html"><source>The sample form could not be loaded. Reload the page.</source><target>تعذر تحميل النموذج التجريبي. حدّث الصفحة.</target></trans-unit>
+      <trans-unit id="ptest.nothing" datatype="html"><source> This product has no calculation yet, so there is nothing to try. Build its calculation first. </source><target> لا توجد طريقة حساب لهذا المنتج بعد، فلا شيء لتجربته. ابنِ طريقة حسابه أولًا. </target></trans-unit>
+      <trans-unit id="ptest.way" datatype="html"><source>Way a bank uses</source><target>الطريقة التي يستخدمها البنك</target></trans-unit>
+      <trans-unit id="ptest.run" datatype="html"><source>Work it out</source><target>احسب</target></trans-unit>
+      <trans-unit id="ptest.not_answered" datatype="html"><source>Not answered</source><target>لم تتم الإجابة</target></trans-unit>
+      <trans-unit id="ptest.income" datatype="html"><source>Monthly income it counts</source><target>الدخل الشهري المحتسب</target></trans-unit>
+      <trans-unit id="ptest.ceiling" datatype="html"><source>Most it would lend</source><target>أقصى مبلغ يقرضه</target></trans-unit>
+      <trans-unit id="ptest.way_main" datatype="html"><source>Main way</source><target>الطريقة الأساسية</target></trans-unit>
+      <trans-unit id="ptest.way_n" datatype="html"><source>Way <x id="N" equiv-text="index + 1"/></source><target>الطريقة <x id="N" equiv-text="index + 1"/></target></trans-unit>
+      <trans-unit id="ptest.egp" datatype="html"><source><x id="AMOUNT" equiv-text="formatGroupedNumber(value)"/> EGP</source><target><x id="AMOUNT" equiv-text="formatGroupedNumber(value)"/> جنيه</target></trans-unit>
+      <trans-unit id="ptest.miss_unanswered" datatype="html"><source>Answer “<x id="FACT" equiv-text="fact"/>” — the calculation reads it.</source><target>أجب عن «<x id="FACT" equiv-text="fact"/>» — طريقة الحساب تقرؤه.</target></trans-unit>
+      <trans-unit id="ptest.miss_no_row" datatype="html"><source>No figure is set for this answer, so nothing is worked out. Pick another answer, or fill in the figure.</source><target>لا يوجد رقم لهذه الإجابة، فلم يُحسب شيء. اختر إجابة أخرى أو أدخل الرقم.</target></trans-unit>
+      <trans-unit id="ptest.miss_gate" datatype="html"><source>A condition of this product is not met by these answers.</source><target>هذه الإجابات لا تستوفي أحد شروط هذا المنتج.</target></trans-unit>
+      <trans-unit id="ptest.miss_unconfigured" datatype="html"><source>This product&apos;s calculation is not finished, or this way has no figures yet.</source><target>طريقة حساب هذا المنتج غير مكتملة، أو لا توجد أرقام لهذه الطريقة بعد.</target></trans-unit>
+      <trans-unit id="ptest.miss_other" datatype="html"><source>Nothing could be worked out from these answers (<x id="REASON" equiv-text="r.reason"/>).</source><target>تعذر حساب شيء من هذه الإجابات (<x id="REASON" equiv-text="r.reason"/>).</target></trans-unit>
+      <trans-unit id="program_catalog.product.new" datatype="html"><source>New product</source><target>منتج جديد</target></trans-unit>
+      <trans-unit id="program_catalog.surrogate.empty3" datatype="html"><source> No calculation for a customer with no payslip yet. Add the first one with New product. </source><target> لا توجد طريقة حساب لعميل بلا إثبات دخل بعد. أضف أول واحدة من «منتج جديد». </target></trans-unit>
+      <trans-unit id="program_catalog.status.draft" datatype="html"><source>Draft — not ready</source><target>مسودة — غير جاهز</target></trans-unit>
+      <trans-unit id="spd.life.copy" datatype="html"><source>Copy</source><target>نسخ</target></trans-unit>
+      <trans-unit id="spd.life.delete" datatype="html"><source>Delete</source><target>حذف</target></trans-unit>
+      <trans-unit id="spd.power.go_live" datatype="html"><source>Go live</source><target>تفعيل</target></trans-unit>
+      <trans-unit id="spd.ready.title" datatype="html"><source>Before this can go live</source><target>قبل أن يمكن تفعيله</target></trans-unit>
+      <trans-unit id="spd.ready.asks" datatype="html"><source>It asks the applicant nothing yet.</source><target>لا يسأل العميل أي شيء بعد.</target></trans-unit>
+      <trans-unit id="spd.ready.asks_go" datatype="html"><source> Add a question </source><target> أضف سؤالًا </target></trans-unit>
+      <trans-unit id="spd.ready.calc" datatype="html"><source>It has no calculation yet.</source><target>لا توجد طريقة حساب بعد.</target></trans-unit>
+      <trans-unit id="spd.ready.calc_go" datatype="html"><source>Build the calculation</source><target>ابنِ طريقة الحساب</target></trans-unit>
+      <trans-unit id="spd.ready.ok_title" datatype="html"><source>Ready to go live</source><target>جاهز للتفعيل</target></trans-unit>
+      <trans-unit id="spd.step_try" datatype="html"><source>Try it</source><target>جرّبه</target></trans-unit>
+      <trans-unit id="spd.cap_try" datatype="html"><source>Sample answers through this product&apos;s calculation and figures — nothing is saved.</source><target>إجابات تجريبية على طريقة حساب هذا المنتج وأرقامه — لا يُحفظ شيء.</target></trans-unit>
+      <trans-unit id="pcn.payslip_only2" datatype="html"><source>Every program added here is sold against a payslip. To sell one without a payslip, open its product on the Surrogate tab and choose Sell it as a program.</source><target>كل برنامج يُضاف هنا يُباع مقابل إثبات دخل. لبيع برنامج بدون إثبات دخل، افتح منتجه في تبويب «بديل الدخل» واختر «بيعه كبرنامج».</target></trans-unit>
+      <trans-unit id="pcn.to_surrogate" datatype="html"><source>Go to the Surrogate tab</source><target>اذهب إلى تبويب بديل الدخل</target></trans-unit>
+      <trans-unit id="pform.cap" datatype="html"><source>A cap on one answer</source><target>حد أقصى حسب إجابة واحدة</target></trans-unit>
+      <trans-unit id="pform.cap_body" datatype="html"><source>Works out no income. Asks one answer, and each bank sets the most it lends for each answer on its own program.</source><target>لا يحسب دخلًا. يسأل إجابة واحدة، ويحدد كل بنك أقصى ما يقرضه لكل إجابة في برنامجه.</target></trans-unit>
+      <trans-unit id="spd.sell.cap_only" datatype="html"><source> A cap-only product is not sold as a program: a bank caps its own program by the answer instead. </source><target> منتج الحد الأقصى فقط لا يُباع كبرنامج: البنك يحدد الحد الأقصى لبرنامجه حسب الإجابة. </target></trans-unit>
+      <trans-unit id="spd.sell.off" datatype="html"><source>Switch it on to sell it as a program.</source><target>فعّله لتبيعه كبرنامج.</target></trans-unit>
+      <trans-unit id="spd.sell.cta" datatype="html"><source>Sell it as a program</source><target>بيعه كبرنامج</target></trans-unit>
+      <trans-unit id="sell.name_en" datatype="html"><source>Program name (English)</source><target>اسم البرنامج (بالإنجليزية)</target></trans-unit>
+      <trans-unit id="sell.name_ar" datatype="html"><source>Program name (Arabic)</source><target>اسم البرنامج (بالعربية)</target></trans-unit>
+      <trans-unit id="sell.offered" datatype="html"><source>Offered under</source><target>متاح ضمن</target></trans-unit>
+      <trans-unit id="sell.hint" datatype="html"><source> Customers pick this name in the app, and it is worked out with this product&apos;s calculation — no payslip asked. Banks then add their own program under it from Banks. </source><target> يختار العملاء هذا الاسم في التطبيق، ويُحسب بطريقة حساب هذا المنتج — دون طلب إثبات دخل. بعدها تضيف البنوك برامجها تحته من صفحة البنوك. </target></trans-unit>
+      <trans-unit id="sell.title" datatype="html"><source>Sell it as a program</source><target>بيعه كبرنامج</target></trans-unit>
+      <trans-unit id="sell.sub" datatype="html"><source>A program name customers can pick, worked out with this product.</source><target>اسم برنامج يختاره العملاء، ويُحسب بهذا المنتج.</target></trans-unit>
+      <trans-unit id="sell.create" datatype="html"><source>Create program</source><target>إنشاء البرنامج</target></trans-unit>
+      <trans-unit id="sell.done" datatype="html"><source>Program created — banks can now add their program under it.</source><target>تم إنشاء البرنامج — يمكن للبنوك الآن إضافة برامجها تحته.</target></trans-unit>
+      <trans-unit id="spd.calc.cap_only" datatype="html"><source> A cap-only product works out no income, so there is no calculation to build. It asks one answer, and each bank caps its own maximum by it. </source><target> منتج الحد الأقصى فقط لا يحسب دخلًا، فلا توجد طريقة حساب لبنائها. يسأل إجابة واحدة، ويحدد كل بنك الحد الأقصى لقرضه حسبها. </target></trans-unit>
+      <trans-unit id="spd.try.cap_only" datatype="html"><source> A cap-only product works nothing out, so there is nothing to try here. Each bank&apos;s maximum for its answer is set on the bank&apos;s own program. </source><target> منتج الحد الأقصى فقط لا يحسب شيئًا، فلا شيء لتجربته هنا. الحد الأقصى لكل إجابة يحدده كل بنك في برنامجه. </target></trans-unit>
+      <trans-unit id="spd.step_figures" datatype="html"><source>Figures and defaults</source><target>الأرقام والقيم الافتراضية</target></trans-unit>
+      <trans-unit id="spd.cap_calc" datatype="html"><source>What the bank reads instead of a payslip, and how a figure is worked out from it — built from fixed building blocks.</source><target>ما يقرؤه البنك بدلًا من إثبات الدخل، وكيف يُحسب الرقم منه — مبني من وحدات ثابتة.</target></trans-unit>
+      <trans-unit id="spd.lede_cap" datatype="html"><source>Works out no income — it asks one answer, and each bank caps its own maximum by it.</source><target>لا يحسب دخلًا — يسأل إجابة واحدة، ويحدد كل بنك الحد الأقصى لقرضه حسبها.</target></trans-unit>
+      <trans-unit id="spt.embed_invalid" datatype="html"><source>Some answers on the calculation step are missing.</source><target>بعض الإجابات في خطوة طريقة الحساب ناقصة.</target></trans-unit>
+      <trans-unit id="spd.ready.ok_body3" datatype="html"><source> It has what it needs. Try it with sample answers, then go live and sell it as a program on the Review step. </source><target> لديه كل ما يحتاجه. جرّبه بإجابات تجريبية، ثم فعّله وبِعه كبرنامج في خطوة المراجعة. </target></trans-unit>
+      <trans-unit id="spd.ask.pending" datatype="html"><source>Not saved yet</source><target>لم يُحفظ بعد</target></trans-unit>
+      <trans-unit id="spd.calc.dirty2" datatype="html"><source> You have changed figures that are not saved yet. Save or discard them first — a calculation change replaces the figures it was built on. </source><target> غيّرت أرقامًا لم تُحفظ بعد. احفظها أو تجاهلها أولًا — تغيير طريقة الحساب يستبدل الأرقام المبنية عليها. </target></trans-unit>
+      <trans-unit id="spd.figures.calc_dirty" datatype="html"><source> The calculation has changes that are not saved yet. Save or discard them first — the figures follow the calculation they belong to. </source><target> في طريقة الحساب تغييرات لم تُحفظ بعد. احفظها أو تجاهلها أولًا — الأرقام تتبع طريقة الحساب التي تخصها. </target></trans-unit>
+      <trans-unit id="spd.review.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="spd.review.asks" datatype="html"><source>Questions it asks</source><target>الأسئلة التي يطرحها</target></trans-unit>
+      <trans-unit id="spd.review.calc" datatype="html"><source>How it is worked out</source><target>طريقة الحساب</target></trans-unit>
+      <trans-unit id="spd.review.sold" datatype="html"><source>Sold as</source><target>يُباع كـ</target></trans-unit>
+      <trans-unit id="spd.review.unsaved" datatype="html"><source> You have changes that are not saved yet — save them before going live. </source><target> لديك تغييرات لم تُحفظ بعد — احفظها قبل التفعيل. </target></trans-unit>
+      <trans-unit id="spd.review.not_ready" datatype="html"><source> It can&apos;t go live yet — see “Before this can go live” above. </source><target> لا يمكن تفعيله بعد — راجع «قبل أن يمكن تفعيله» بالأعلى. </target></trans-unit>
+      <trans-unit id="spd.review.uses" datatype="html"><source>Who uses it</source><target>من يستخدمه</target></trans-unit>
+      <trans-unit id="spd.bar.discard" datatype="html"><source>Discard</source><target>تجاهل</target></trans-unit>
+      <trans-unit id="spd.bar.save" datatype="html"><source>Save changes</source><target>حفظ التغييرات</target></trans-unit>
+      <trans-unit id="spd.ask.held_read" datatype="html"><source><x id="NAME" equiv-text="card.label"/> will be read once you save</source><target>سيُقرأ <x id="NAME" equiv-text="card.label"/> بعد الحفظ</target></trans-unit>
+      <trans-unit id="spd.ask.held_stop" datatype="html"><source><x id="NAME" equiv-text="card.label"/> will stop being read once you save</source><target>ستتوقف قراءة <x id="NAME" equiv-text="card.label"/> بعد الحفظ</target></trans-unit>
+      <trans-unit id="spd.ask.held_undo" datatype="html"><source><x id="NAME" equiv-text="card.label"/> — change taken back</source><target><x id="NAME" equiv-text="card.label"/> — تم التراجع عن التغيير</target></trans-unit>
+      <trans-unit id="spd.needed.held" datatype="html"><source>Will be asked once you save.</source><target>سيُطرح بعد الحفظ.</target></trans-unit>
+      <trans-unit id="spd.bar.one" datatype="html"><source>1 change not saved yet</source><target>تغيير واحد لم يُحفظ بعد</target></trans-unit>
+      <trans-unit id="spd.bar.many" datatype="html"><source><x id="N" equiv-text="n"/> changes not saved yet</source><target><x id="N" equiv-text="n"/> تغييرات لم تُحفظ بعد</target></trans-unit>
+      <trans-unit id="spd.bar.aria" datatype="html"><source>Unsaved changes</source><target>تغييرات غير محفوظة</target></trans-unit>
+      <trans-unit id="spd.bar.blocked_figures" datatype="html"><source>Some figures are missing — see the Figures step.</source><target>بعض الأرقام ناقصة — راجع خطوة الأرقام.</target></trans-unit>
+      <trans-unit id="spd.leave.title" datatype="html"><source>Leave without saving?</source><target>المغادرة دون حفظ؟</target></trans-unit>
+      <trans-unit id="spd.leave.body" datatype="html"><source><x id="N" equiv-text="this.changeCount()"/> change(s) on this product are not saved and will be lost.</source><target><x id="N" equiv-text="this.changeCount()"/> تغيير على هذا المنتج لم يُحفظ وسيضيع.</target></trans-unit>
+      <trans-unit id="spd.leave.ok" datatype="html"><source>Leave</source><target>مغادرة</target></trans-unit>
+      <trans-unit id="spd.leave.stay" datatype="html"><source>Stay</source><target>البقاء</target></trans-unit>
+      <trans-unit id="spd.confirm.title" datatype="html"><source>Save changes to a live product?</source><target>حفظ تغييرات على منتج مفعّل؟</target></trans-unit>
+      <trans-unit id="spd.confirm.body" datatype="html"><source><x id="NAMES" equiv-text="p.names.length"/> program name(s) and <x id="PROGRAMS" equiv-text="programs"/> bank program(s) quote from this product. They use the change from the next quote. Offers already issued keep their own figures.</source><target><x id="NAMES" equiv-text="p.names.length"/> اسم برنامج و<x id="PROGRAMS" equiv-text="programs"/> برنامج بنكي يحتسبون من هذا المنتج، وسيستخدمون التغيير من التسعير التالي. تحتفظ العروض الصادرة بأرقامها.</target></trans-unit>
+      <trans-unit id="spd.confirm.ok" datatype="html"><source>Save changes</source><target>حفظ التغييرات</target></trans-unit>
+      <trans-unit id="spd.confirm.cancel" datatype="html"><source>Not yet</source><target>ليس الآن</target></trans-unit>
+      <trans-unit id="spd.bar.calc_failed" datatype="html"><source>The calculation was not saved — see step 2.</source><target>لم تُحفظ طريقة الحساب — راجع الخطوة 2.</target></trans-unit>
+      <trans-unit id="spd.bar.saved" datatype="html"><source>Changes saved.</source><target>تم حفظ التغييرات.</target></trans-unit>
+      <trans-unit id="spd.step_review" datatype="html"><source>Review</source><target>المراجعة</target></trans-unit>
+      <trans-unit id="spd.review.live" datatype="html"><source>Live</source><target>مفعّل</target></trans-unit>
+      <trans-unit id="spd.review.draft" datatype="html"><source>Draft — not live yet</source><target>مسودة — غير مفعّل بعد</target></trans-unit>
+      <trans-unit id="spd.review.off" datatype="html"><source>Switched off</source><target>موقوف</target></trans-unit>
+      <trans-unit id="spd.review.asks_none" datatype="html"><source>None yet</source><target>لا يوجد بعد</target></trans-unit>
+      <trans-unit id="spd.review.asks_n" datatype="html"><source><x id="N" equiv-text="n"/> question(s)</source><target><x id="N" equiv-text="n"/> سؤال</target></trans-unit>
+      <trans-unit id="spd.review.sold_none" datatype="html"><source>Not sold as a program yet</source><target>لم يُبع كبرنامج بعد</target></trans-unit>
+      <trans-unit id="spd.review.sold_n" datatype="html"><source><x id="NAMES" equiv-text="p.names.length"/> program name(s), <x id="PROGRAMS" equiv-text="programs"/> bank program(s)</source><target><x id="NAMES" equiv-text="p.names.length"/> اسم برنامج، <x id="PROGRAMS" equiv-text="programs"/> برنامج بنكي</target></trans-unit>
+      <trans-unit id="spd.cap_review" datatype="html"><source>What this product is, whether it can go live, and who sells it.</source><target>ما هذا المنتج، وهل يمكن تفعيله، ومن يبيعه.</target></trans-unit>
+      <trans-unit id="np.hint" datatype="html"><source> Next creates the product, switched off, and takes you to what it asks. Nothing it does reaches a customer until you go live on the Review step. </source><target> «التالي» ينشئ المنتج موقوفًا وينقلك إلى ما يسأله. لا يصل شيء منه إلى أي عميل حتى تفعّله في خطوة المراجعة. </target></trans-unit>
+      <trans-unit id="np.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="np.next" datatype="html"><source>Create and continue</source><target>إنشاء ومتابعة</target></trans-unit>
+      <trans-unit id="np.caption" datatype="html"><source>Name it, and choose where it starts. The rest opens once it exists.</source><target>سمِّه واختر من أين يبدأ. تُفتح بقية الخطوات بعد إنشائه.</target></trans-unit>
+      <trans-unit id="spd.step_name" datatype="html"><source>Name and start</source><target>الاسم والبداية</target></trans-unit>
+      <trans-unit id="spd.name.key" datatype="html"><source>Key</source><target>المفتاح</target></trans-unit>
+      <trans-unit id="spd.name.key_hint" datatype="html"><source>— never changes; banks and programs point at it.</source><target>— لا يتغير أبدًا؛ البنوك والبرامج تشير إليه.</target></trans-unit>
+      <trans-unit id="spd.bar.blocked_name" datatype="html"><source>Both names are needed — see the first step.</source><target>الاسمان مطلوبان — راجع الخطوة الأولى.</target></trans-unit>
+      <trans-unit id="spd.cap_name" datatype="html"><source>What applicants and staff see it called, and its key — which never changes.</source><target>الاسم الذي يراه العملاء والموظفون، ومفتاحه الذي لا يتغير.</target></trans-unit>
+      <trans-unit id="sim.title" datatype="html"><source>Matching simulator</source><target>محاكي المطابقة</target></trans-unit>
+      <trans-unit id="sim.loan_type" datatype="html"><source>Loan type</source><target>نوع القرض</target></trans-unit>
+      <trans-unit id="sim.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="sim.age" datatype="html"><source>Age</source><target>العمر</target></trans-unit>
+      <trans-unit id="sim.no_questions" datatype="html"><source>No published questions yet.</source><target>لا توجد أسئلة منشورة بعد.</target></trans-unit>
+      <trans-unit id="sim.optional" datatype="html"><source>optional</source><target>اختياري</target></trans-unit>
+      <trans-unit id="sim.search_hint" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ q.options.length }}"/> options — type to search </source><target> <x id="INTERPOLATION" equiv-text="{{ q.options.length }}"/> خيار — اكتب للبحث </target></trans-unit>
+      <trans-unit id="sim.empty" datatype="html"><source>No programs evaluated</source><target>لم يُقيَّم أي برنامج</target></trans-unit>
+      <trans-unit id="sim.installment" datatype="html"><source>Installment</source><target>القسط</target></trans-unit>
+      <trans-unit id="sim.featured" datatype="html"><source>Featured</source><target>مميز</target></trans-unit>
+      <trans-unit id="sim.sharia" datatype="html"><source>Sharia-compliant</source><target>متوافق مع الشريعة</target></trans-unit>
+      <trans-unit id="sim.rate" datatype="html"><source>Rate</source><target>العائد</target></trans-unit>
+      <trans-unit id="sim.binding" datatype="html"><source>Capped by</source><target>حُدّد بواسطة</target></trans-unit>
+      <trans-unit id="sim.open_offer" datatype="html"><source>Offer details →</source><target>تفاصيل العرض ←</target></trans-unit>
+      <trans-unit id="sim.pick_one" datatype="html"><source>Choose one</source><target>اختر واحدًا</target></trans-unit>
+      <trans-unit id="sim.err_number" datatype="html"><source>Enter a number</source><target>أدخل رقمًا</target></trans-unit>
+      <trans-unit id="sim.err_step" datatype="html"><source>Must be a multiple of <x id="step" equiv-text="grouped(step)"/></source><target>يجب أن يكون من مضاعفات <x id="step" equiv-text="grouped(step)"/></target></trans-unit>
+      <trans-unit id="sim.any_program" datatype="html"><source>Any program — every question</source><target>أي برنامج — كل الأسئلة</target></trans-unit>
+      <trans-unit id="sim.no_payslip_tag" datatype="html"><source><x id="NAME" equiv-text="name"/> — no payslip</source><target><x id="NAME" equiv-text="name"/> — بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="sim.age_err" datatype="html"><source>Between 18 and 80</source><target>بين 18 و80</target></trans-unit>
+      <trans-unit id="sim.failed" datatype="html"><source>Simulation failed</source><target>فشلت المحاكاة</target></trans-unit>
+      <trans-unit id="sim.open_offer_aria" datatype="html"><source>Offer details for <x id="bank" equiv-text="m.bankName"/> — <x id="program" equiv-text="m.programFriendlyName"/></source><target>تفاصيل العرض لـ <x id="bank" equiv-text="m.bankName"/> — <x id="program" equiv-text="m.programFriendlyName"/></target></trans-unit>
+      <trans-unit id="sim.range" datatype="html"><source>Between <x id="min" equiv-text="grouped(min)"/> and <x id="max" equiv-text="grouped(max)"/></source><target>بين <x id="min" equiv-text="grouped(min)"/> و<x id="max" equiv-text="grouped(max)"/></target></trans-unit>
+      <trans-unit id="sim.range_min" datatype="html"><source><x id="min" equiv-text="grouped(min)"/> or more</source><target><x id="min" equiv-text="grouped(min)"/> أو أكثر</target></trans-unit>
+      <trans-unit id="sim.range_max" datatype="html"><source><x id="max" equiv-text="grouped(max ?? 0)"/> or less</source><target><x id="max" equiv-text="grouped(max ?? 0)"/> أو أقل</target></trans-unit>
+      <trans-unit id="sim.detail.estimate" datatype="html"><source>Estimate for this applicant</source><target>تقدير لهذا العميل</target></trans-unit>
+      <trans-unit id="sim.detail.installment" datatype="html"><source>Monthly installment</source><target>القسط الشهري</target></trans-unit>
+      <trans-unit id="sim.detail.rate" datatype="html"><source>Effective rate</source><target>العائد الفعلي</target></trans-unit>
+      <trans-unit id="sim.detail.tenor" datatype="html"><source>Term</source><target>المدة</target></trans-unit>
+      <trans-unit id="sim.detail.months" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ f.effectiveTenorMonths }}"/> months</source><target><x id="INTERPOLATION" equiv-text="{{ f.effectiveTenorMonths }}"/> شهر</target></trans-unit>
+      <trans-unit id="sim.detail.offered" datatype="html"><source>Booked principal</source><target>أصل القرض</target></trans-unit>
+      <trans-unit id="sim.detail.cash" datatype="html"><source>Cash to customer</source><target>المبلغ للعميل</target></trans-unit>
+      <trans-unit id="sim.detail.fees" datatype="html"><source>Fees (financed)</source><target>الرسوم (ممولة)</target></trans-unit>
+      <trans-unit id="sim.detail.total_payable" datatype="html"><source>Total payable</source><target>إجمالي المستحق</target></trans-unit>
+      <trans-unit id="sim.detail.cost_of_credit" datatype="html"><source>Cost of credit</source><target>تكلفة الائتمان</target></trans-unit>
+      <trans-unit id="sim.detail.dbr" datatype="html"><source>Debt burden</source><target>عبء الدين</target></trans-unit>
+      <trans-unit id="sim.detail.ceiling" datatype="html"><source>Borrowing ceiling</source><target>سقف الاقتراض</target></trans-unit>
+      <trans-unit id="sim.detail.binding" datatype="html"><source>What capped it</source><target>ما حدّد المبلغ</target></trans-unit>
+      <trans-unit id="sim.detail.fee_admin" datatype="html"><source>Admin fee</source><target>رسوم إدارية</target></trans-unit>
+      <trans-unit id="sim.detail.fee_stamp" datatype="html"><source>Stamp duty</source><target>دمغة</target></trans-unit>
+      <trans-unit id="sim.detail.fee_life" datatype="html"><source>Life insurance</source><target>تأمين على الحياة</target></trans-unit>
+      <trans-unit id="sim.detail.terms" datatype="html"><source>Program terms</source><target>شروط البرنامج</target></trans-unit>
+      <trans-unit id="sim.detail.terms_loading" datatype="html"><source>Loading program terms</source><target>جارٍ تحميل شروط البرنامج</target></trans-unit>
+      <trans-unit id="sim.detail.list_rate" datatype="html"><source>Listed rate</source><target>العائد المعلن</target></trans-unit>
+      <trans-unit id="sim.detail.term_range" datatype="html"><source>Term range</source><target>نطاق المدة</target></trans-unit>
+      <trans-unit id="sim.detail.months_range" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ p.tenor.minMonths }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ p.tenor.maxMonths }}"/> months</source><target><x id="INTERPOLATION" equiv-text="{{ p.tenor.minMonths }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ p.tenor.maxMonths }}"/> شهر</target></trans-unit>
+      <trans-unit id="sim.detail.amount_range" datatype="html"><source>Amount range (EGP)</source><target>نطاق المبلغ (جنيه)</target></trans-unit>
+      <trans-unit id="sim.detail.age_range" datatype="html"><source>Age</source><target>العمر</target></trans-unit>
+      <trans-unit id="sim.detail.dbr_cap" datatype="html"><source>DBR cap</source><target>حد عبء الدين</target></trans-unit>
+      <trans-unit id="sim.detail.min_income" datatype="html"><source>Minimum income</source><target>الحد الأدنى للدخل</target></trans-unit>
+      <trans-unit id="sim.detail.fee_rates" datatype="html"><source>Fee rates</source><target>نسب الرسوم</target></trans-unit>
+      <trans-unit id="sim.detail.updated" datatype="html"><source>Last updated</source><target>آخر تحديث</target></trans-unit>
+      <trans-unit id="sim.detail.docs" datatype="html"><source>Required documents</source><target>المستندات المطلوبة</target></trans-unit>
+      <trans-unit id="sim.detail.open_program" datatype="html"><source>Open the full program →</source><target>فتح البرنامج كاملًا ←</target></trans-unit>
+      <trans-unit id="sim.detail.terms_failed" datatype="html"><source> The program&apos;s terms could not be loaded. The figures above are unaffected. </source><target> تعذر تحميل شروط البرنامج. الأرقام أعلاه غير متأثرة. </target></trans-unit>
+      <trans-unit id="sim.detail.sharia" datatype="html"><source>Sharia-compliant</source><target>متوافق مع الشريعة</target></trans-unit>
+      <trans-unit id="sim.detail.rate_variable" datatype="html"><source><x id="rate" equiv-text="percent(value)"/>% (variable)</source><target><x id="rate" equiv-text="percent(value)"/>% (متغير)</target></trans-unit>
+      <trans-unit id="sim.binding.dbr" datatype="html"><source>Debt burden ceiling</source><target>سقف عبء الدين</target></trans-unit>
+      <trans-unit id="sim.binding.program_max" datatype="html"><source>Program maximum</source><target>الحد الأقصى للبرنامج</target></trans-unit>
+      <trans-unit id="sim.binding.age" datatype="html"><source>Age at maturity</source><target>العمر عند انتهاء القرض</target></trans-unit>
+      <trans-unit id="sim.binding.tenor" datatype="html"><source>Maximum term</source><target>أقصى مدة</target></trans-unit>
+      <trans-unit id="sim.binding.tenor_min" datatype="html"><source>Minimum term</source><target>أدنى مدة</target></trans-unit>
+      <trans-unit id="sim.binding.requested" datatype="html"><source>Nothing — the full request was priced</source><target>لا شيء — تم تسعير المبلغ المطلوب كاملًا</target></trans-unit>
+      <trans-unit id="sim.subtitle" datatype="html"><source> Walk a sample applicant through the questionnaire and see what every active program would quote — eligibility, amount, rate, installment. Nothing is saved. </source><target> مرّر عميلًا تجريبيًا على الأسئلة وشاهد ما يعرضه كل برنامج نشط — الأهلية والمبلغ والعائد والقسط. لا يُحفظ شيء. </target></trans-unit>
+      <trans-unit id="sim.results" datatype="html"><source>Results</source><target>النتائج</target></trans-unit>
+      <trans-unit id="sim.edit" datatype="html"><source>← Edit answers</source><target>→ تعديل الإجابات</target></trans-unit>
+      <trans-unit id="sim.review" datatype="html"><source>Review</source><target>المراجعة</target></trans-unit>
+      <trans-unit id="sim.step" datatype="html"><source>Question <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ total() }}"/></source><target>السؤال <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ total() }}"/></target></trans-unit>
+      <trans-unit id="sim.step_range" datatype="html"><source>Questions <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></source><target>الأسئلة <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></target></trans-unit>
+      <trans-unit id="sim.back" datatype="html"><source> Back </source><target> رجوع </target></trans-unit>
+      <trans-unit id="sim.next" datatype="html"><source> Next </source><target> التالي </target></trans-unit>
+      <trans-unit id="sim.review_h" datatype="html"><source>Review answers</source><target>مراجعة الإجابات</target></trans-unit>
+      <trans-unit id="sim.run" datatype="html"><source>Run simulation</source><target>تشغيل المحاكاة</target></trans-unit>
+      <trans-unit id="qedit.lock_short" datatype="html"><source>Used in pricing</source><target>يُستخدم في التسعير</target></trans-unit>
+      <trans-unit id="qedit.lock_short_body" datatype="html"><source>— its type, unit, answers and when-to-ask are locked. Keep the numbers in its wording.</source><target>— نوعه ووحدته وإجاباته وشرط ظهوره مقفلة. أبقِ الأرقام في صياغته كما هي.</target></trans-unit>
+      <trans-unit id="qedit.ro_type" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
+      <trans-unit id="qedit.ro_type_note" datatype="html"><source>· can&apos;t change once saved</source><target>· لا يتغير بعد الحفظ</target></trans-unit>
+      <trans-unit id="qedit.ro_unit" datatype="html"><source>Unit</source><target>الوحدة</target></trans-unit>
+      <trans-unit id="qedit.num_hint2" datatype="html"><source> Inclusive. Leave a field empty for no limit. </source><target> شاملة. اترك الحقل فارغًا لعدم وجود حد. </target></trans-unit>
+      <trans-unit id="qedit.ranges_hint3" datatype="html"><source> A number inside a range changes every offer as shown. Ranges can&apos;t overlap. </source><target> الرقم داخل نطاق يغيّر كل عرض كما هو موضح. لا يجوز أن تتداخل النطاقات. </target></trans-unit>
+      <trans-unit id="qedit.fixed_hint4" datatype="html"><source> Every program on the chosen side asks it; its answers can change the offer. </source><target> يسأله كل برنامج في الجانب المختار؛ ويمكن لإجاباته أن تغيّر العرض. </target></trans-unit>
+      <trans-unit id="qedit.live_title2" datatype="html"><source>Live — a change goes to the app as soon as it is saved</source><target>منشور — يصل أي تغيير إلى التطبيق بمجرد حفظه</target></trans-unit>
+      <trans-unit id="qedit.total2" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ tree().roots.length }}"/> questions · <x id="INTERPOLATION_1" equiv-text="{{ followUpCount() }}"/> follow-ups · <x id="INTERPOLATION_2" equiv-text="{{ totalOptions() }}"/> answers</source><target><x id="INTERPOLATION" equiv-text="{{ tree().roots.length }}"/> سؤالًا · <x id="INTERPOLATION_1" equiv-text="{{ followUpCount() }}"/> سؤالًا تابعًا · <x id="INTERPOLATION_2" equiv-text="{{ totalOptions() }}"/> إجابة</target></trans-unit>
+      <trans-unit id="qedit.page_range2" datatype="html"><source> Questions <x id="INTERPOLATION" equiv-text="{{ rangeStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ rangeEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ pageUnits().length }}"/> </source><target> الأسئلة <x id="INTERPOLATION" equiv-text="{{ rangeStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ rangeEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ pageUnits().length }}"/> </target></trans-unit>
+      <trans-unit id="qedit.priced_chip" datatype="html"><source>Used in pricing</source><target>يُستخدم في التسعير</target></trans-unit>
+      <trans-unit id="qedit.effect_chip" datatype="html"><source>Changes the offer</source><target>يغيّر العرض</target></trans-unit>
+      <trans-unit id="qedit.effect_tip" datatype="html"><source>Some answers change the max loan, the rate or the term on every offer</source><target>بعض الإجابات تغيّر الحد الأقصى للقرض أو العائد أو المدة في كل عرض</target></trans-unit>
+      <trans-unit id="qedit.filter_fixed" datatype="html"><source>Fixed</source><target>ثابتة</target></trans-unit>
+      <trans-unit id="qedit.filter_priced" datatype="html"><source>Used in pricing</source><target>تُستخدم في التسعير</target></trans-unit>
+      <trans-unit id="qedit.show_only" datatype="html"><source>Show only</source><target>إظهار فقط</target></trans-unit>
+      <trans-unit id="qedit.tabs_aria" datatype="html"><source>Parts of the question</source><target>أجزاء السؤال</target></trans-unit>
+      <trans-unit id="qedit.actions_aria" datatype="html"><source>Question actions</source><target>إجراءات السؤال</target></trans-unit>
+      <trans-unit id="qedit.menu_edit" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
+      <trans-unit id="qedit.menu_follow_up" datatype="html"><source>Add a follow-up</source><target>إضافة سؤال تابع</target></trans-unit>
+      <trans-unit id="qedit.delete_blocked_fixed" datatype="html"><source>Only a super admin can delete a fixed question.</source><target>لا يحذف السؤال الثابت إلا المشرف الأعلى.</target></trans-unit>
+      <trans-unit id="qedit.delete_blocked_priced" datatype="html"><source>Used in pricing, so it can&apos;t be deleted.</source><target>يُستخدم في التسعير، لذا لا يمكن حذفه.</target></trans-unit>
+      <trans-unit id="sim.sum" datatype="html"><source><x id="QUOTED" equiv-text="withFigures"/> quoted · <x id="NOFIG" equiv-text="without"/> without figures · <x id="NEEDS" equiv-text="this.needsProgram().length"/> need their own questions</source><target><x id="QUOTED" equiv-text="withFigures"/> بعروض · <x id="NOFIG" equiv-text="without"/> بلا أرقام · <x id="NEEDS" equiv-text="this.needsProgram().length"/> تحتاج أسئلتها الخاصة</target></trans-unit>
+      <trans-unit id="sim.needs_sum" datatype="html"><source><x id="COUNT" equiv-text="this.needsProgram().length"/> no-payslip programs need their own questions — pick one under Program above to quote it</source><target><x id="COUNT" equiv-text="this.needsProgram().length"/> برامج بلا قسيمة راتب تحتاج أسئلتها الخاصة — اختر أحدها من «البرنامج» بالأعلى لعرض أرقامه</target></trans-unit>
+      <trans-unit id="program_catalog.card.created" datatype="html"><source>Created <x id="DATE" equiv-text="created"/></source><target>أُنشئ <x id="DATE" equiv-text="created"/></target></trans-unit>
+      <trans-unit id="program_catalog.card.created_updated" datatype="html"><source>Created <x id="CREATED" equiv-text="created"/> · Updated <x id="UPDATED" equiv-text="updated"/></source><target>أُنشئ <x id="CREATED" equiv-text="created"/> · عُدّل <x id="UPDATED" equiv-text="updated"/></target></trans-unit>
     </body>
   </file>
 </xliff>

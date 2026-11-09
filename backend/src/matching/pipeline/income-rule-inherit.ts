@@ -318,6 +318,11 @@ export type CatalogIncomeRules = ReadonlyMap<string, CatalogRuleResolution> & {
    * built without it (a test, a script) — which quotes exactly as it did before.
    */
   readonly platformIScoreTiers?: IScoreTiers;
+  /**
+   * Per catalog NAME: its product's own groups (value key → class key, v36.1.0). Carried on
+   * the same map for the same reason as `platformIScoreTiers`; absent = shared classes only.
+   */
+  readonly productParentKeysByName?: ReadonlyMap<string, Readonly<Record<string, string>>>;
 };
 
 /** The product row as this module needs to read it: its rule, and whether it is live. */

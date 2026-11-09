@@ -40,6 +40,13 @@ import { BankProgramsService } from './bank-programs.service';
 import { BlueprintService } from './blueprints/blueprint.service';
 import { ProductAsksService } from './asks/product-asks.service';
 import { AttachProductAskDto } from './dto/product-asks.dto';
+import { SurrogateProductLifecycleService } from './products/surrogate-product-lifecycle.service';
+import {
+  CheckSurrogateProductDto,
+  CreateSurrogateProductDto,
+  RenameSurrogateProductDto,
+  SetProductGroupsDto,
+} from './products/surrogate-product-lifecycle.dto';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 
 interface ActorCtx {
@@ -55,6 +62,7 @@ export class BankProgramsController {
     private readonly service: BankProgramsService,
     private readonly blueprints: BlueprintService,
     private readonly asks: ProductAsksService,
+    private readonly lifecycle: SurrogateProductLifecycleService,
   ) {}
 
   @Get()
@@ -422,9 +430,7 @@ export class BankProgramsController {
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ) {
-    return ok(
-      await this.service.setSurrogateProductPlanDefaults(key, body, this.actor(user, req)),
-    );
+    return ok(await this.service.setSurrogateProductPlanDefaults(key, body, this.actor(user, req)));
   }
 
   /**
@@ -486,6 +492,107 @@ export class BankProgramsController {
     return ok(
       await this.service.setSurrogateProductActive(key, body.active, this.actor(user, req)),
     );
+  }
+
+  // --- PRODUCT LIFECYCLE (v33.0.0) ------------------------------------------
+  // Create / rename / delete / test. Declared with the rest of the `surrogate-products`
+  // block and BEFORE `@Post(':programCode')`, which would otherwise take the bare
+  // `POST surrogate-products` as a program code.
+
+  @Post('surrogate-products')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: 'Create a no-payslip product — blank, from a starter, as a copy, or cap-only',
+    description:
+      'The key follows from the English name and never changes. The product is created OFF; ' +
+      'it goes live through `PUT …/active` once it has a calculation and asks something.',
+  })
+  @ApiResponse({ status: 409, description: 'ENUMERATION_KEY_DUPLICATE — the name is taken' })
+  @ApiResponse({ status: 422, description: 'PRODUCT_BLUEPRINT_UNKNOWN / VALIDATION_FAILED' })
+  async createSurrogateProduct(
+    @Body() body: CreateSurrogateProductDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.lifecycle.create(body, this.actor(user, req)));
+  }
+
+  @Put('surrogate-products/:key/labels')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Rename a no-payslip product (both locales; the key stays)' })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  async renameSurrogateProduct(
+    @Param('key') key: string,
+    @Body() body: RenameSurrogateProductDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    await this.lifecycle.rename(key, body, this.actor(user, req));
+    return ok(await this.service.getSurrogateProduct(key));
+  }
+
+  @Get('surrogate-products/:key/groups')
+  @ApiOperation({
+    summary: 'A no-payslip product own classes for one value list (groups per product)',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  async surrogateProductGroups(@Param('key') key: string, @Query('valueType') valueType: string) {
+    return ok(await this.lifecycle.groups(key, valueType ?? ''));
+  }
+
+  @Put('surrogate-products/:key/groups')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: 'Move values between classes for this product only; null = the shared class again',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 422,
+    description: 'ENUMERATION_PARENT_UNKNOWN | ENUMERATION_PARENT_NOT_APPLICABLE',
+  })
+  async setSurrogateProductGroups(
+    @Param('key') key: string,
+    @Body() body: SetProductGroupsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.lifecycle.setGroups(key, body, this.actor(user, req)));
+  }
+
+  @Delete('surrogate-products/:key')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: 'Delete a no-payslip product nothing quotes from',
+    description:
+      'Refused with `SURROGATE_PRODUCT_IN_USE` (naming the names, programs and cap programs) ' +
+      'while anything uses it — switch it off instead. Facts only it read go with it; its ' +
+      'questions stay in the pool.',
+  })
+  @ApiResponse({ status: 409, description: 'SURROGATE_PRODUCT_IN_USE' })
+  async deleteSurrogateProduct(
+    @Param('key') key: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.lifecycle.delete(key, this.actor(user, req)));
+  }
+
+  @Get('surrogate-products/:key/check')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({ summary: 'What the test panel asks: the answers this calculation reads' })
+  async surrogateProductCheckInputs(@Param('key') key: string) {
+    return ok(await this.lifecycle.checkInputs(key));
+  }
+
+  @Post('surrogate-products/:key/check')
+  @Roles('super_admin', 'sales_manager')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Run sample answers through the product’s calculation and figures',
+    description: 'Persists nothing. The figure before any bank’s own DBR, cap and rate.',
+  })
+  async checkSurrogateProduct(@Param('key') key: string, @Body() body: CheckSurrogateProductDto) {
+    return ok(await this.lifecycle.check(key, body));
   }
 
   /**

@@ -33,10 +33,6 @@ import { CanDirective } from '../../../shared/can.directive';
 import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
-import {
-  DuplicateProgramDialog,
-  type DuplicateProgramDialogData,
-} from './duplicate-program.dialog';
 import type { BankProgramResponse, PricingConfig, RateBandMap } from '../bank-programs.types';
 import { incomeMethodLabel } from '../bank-programs.types';
 import { basisOf, incomeBasisLabel } from '@core/income-basis';
@@ -129,18 +125,17 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
               <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
               <span i18n="@@bank_programs.action.edit">Edit</span>
             </a>
-            <button
-              *can="['super_admin']"
+            <!-- COPY: the New program wizard, every step filled from this one, for the admin
+                 to change what differs (name, bank, a figure) before creating it. -->
+            <a
+              *can="['super_admin', 'sales_manager']"
               nz-button
-              [nzLoading]="duplicating()"
-              [disabled]="duplicating()"
-              (click)="duplicate()"
+              [routerLink]="['/banks/programs/new']"
+              [queryParams]="{ copy: p.programCode }"
             >
-              @if (!duplicating()) {
-                <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
-              }
-              <span i18n="@@bank_programs.action.duplicate">Duplicate</span>
-            </button>
+              <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@bank_programs.action.copy">Copy</span>
+            </a>
             <button
               *can="['super_admin']"
               nz-button
@@ -1916,40 +1911,6 @@ export class BankProgramDetailPage {
     if (!code) return;
     const res = await this.api.getByCode(code);
     this.program.set(res.data);
-  }
-
-  readonly duplicating = signal(false);
-
-  /**
-   * FR-013 — copy this program into a new INACTIVE draft and open it for editing.
-   * The copy carries every configuration value; only the name and code differ,
-   * which is the whole point when a bank runs 12–14 near-identical programs.
-   */
-  async duplicate(): Promise<void> {
-    const p = this.program();
-    if (!p || this.duplicating()) return;
-    // The copy needs a name of its own — a bank sells one program per name per loan type —
-    // so the name is picked before anything is created.
-    this.duplicating.set(true);
-    const ref = this.modal.create<
-      DuplicateProgramDialog,
-      DuplicateProgramDialogData,
-      string | undefined
-    >({
-      nzContent: DuplicateProgramDialog,
-      nzData: { source: p },
-      nzWidth: 520,
-      nzFooter: null,
-    });
-    ref.afterClose.subscribe((programCode) => {
-      this.duplicating.set(false);
-      if (!programCode) return;
-      this.message.success(
-        $localize`:@@bank_programs.duplicate.created:Draft copy created — review and activate it.`,
-        { nzDuration: 5000 },
-      );
-      void this.router.navigate(['/banks/programs', programCode, 'edit']);
-    });
   }
 
   openDelete(): void {

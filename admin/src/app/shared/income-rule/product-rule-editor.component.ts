@@ -3106,6 +3106,9 @@ export class ProductRuleEditorComponent {
     // figures into. The class list is already on the fact (`parentOptions`, derived
     // server-side by coverage), which is where the words are.
     if (step.branchOn === 'parentClass') {
+      // The product's OWN groups carry their names on the step.
+      const own = step.branchLabels?.[code];
+      if (own) return this.isAr ? own.labelAr : own.labelEn;
       const parent = this.factByKey()
         .get(step.fact ?? '')
         ?.question?.parentOptions.find((o) => o.code === code);

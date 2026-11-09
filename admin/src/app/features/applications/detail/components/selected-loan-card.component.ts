@@ -401,6 +401,8 @@ interface FeeLine {
       .stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        /* Equal boxes in every row. */
+        grid-auto-rows: 1fr;
         gap: var(--space-3) var(--space-4);
         margin: 0;
       }

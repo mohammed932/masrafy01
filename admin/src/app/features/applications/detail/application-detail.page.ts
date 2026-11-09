@@ -397,6 +397,8 @@ import { orderOffers } from './offer-order';
       .offer-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        /* Equal boxes in every row. */
+        grid-auto-rows: 1fr;
         gap: var(--space-3);
         margin: 0;
       }

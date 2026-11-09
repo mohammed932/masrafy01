@@ -13,6 +13,7 @@ import { PlatformEnumerationsAdminService } from '../platform-enumerations/platf
 import {
   capShapeOf,
   exclusiveFactKeysOf,
+  isCapOnlyProduct,
   isCapOnlyProductKey,
 } from './blueprints/product-blueprints';
 import type { BlueprintCap } from './blueprints/product-blueprint.types';
@@ -29,6 +30,7 @@ import {
   SetSurrogateProductTemplateDto,
   type ProgramNameIncomeRuleResponseDto,
   type SurrogateProductDetailDto,
+  type SurrogateProductNotReadyReason,
   type SurrogateProductSummaryDto,
   type SurrogateProductTemplateResponseDto,
 } from './dto/program-name-income-rule.dto';
@@ -167,6 +169,7 @@ import {
 } from '@/matching/pipeline/product-template-starters';
 import { paramKeysOf } from '@/matching/pipeline/product-rule';
 import { quoteProgram } from '@/matching/pipeline/quote';
+import { groupsFor } from '@/matching/pipeline/product-groups';
 import { resolveAssumedIncome } from '@/matching/pipeline/income-resolver';
 import { toBankProgramSnapshot } from './bank-program-snapshot.mapper';
 import {
@@ -183,6 +186,7 @@ import {
   type IncomeAssumptionConfig,
 } from '@/matching/types';
 import { ERROR_CODES } from '../common/errors/error-codes';
+import { DomainException } from '../common/errors/domain.exceptions';
 import { stableJson } from '../common/stable-json.util';
 
 /**
@@ -1942,7 +1946,7 @@ export class BankProgramsService {
     // ONE repository call. It already carries the rule and the linked names, so there is
     // no per-row follow-up — this used to be 2N+1 round trips, serially.
     const products = await this.enums.listSurrogateProducts();
-    const capUsage = await this.capUsageByProduct();
+    const { capUsage, askCounts } = await this.productUsage();
     return products.map((p) => ({
       key: p.key,
       labelAr: p.labelAr,
@@ -1958,12 +1962,17 @@ export class BankProgramsService {
       readsFactKeys: wayFactKeysOf(p.templateSpec),
       usedBy: p.usedBy,
       capPrograms: capUsage.get(p.key) ?? [],
-      capOnly: isCapOnlyProductKey(p.key),
+      capOnly: isCapOnlyProduct(p),
+      notReady: notReadyReasons(isCapOnlyProduct(p), p.incomeRule, askCounts.get(p.key) ?? 0),
+      askCount: askCounts.get(p.key) ?? 0,
+      ...(p.createdAt ? { createdAt: p.createdAt.toISOString() } : {}),
+      ...(p.updatedAt ? { updatedAt: p.updatedAt.toISOString() } : {}),
     }));
   }
 
   /**
-   * Product key → the programs capping their maximum by one of its answers.
+   * Product key → the programs capping their maximum by one of its answers, and how many
+   * answers it reads.
    *
    * Two reads and an intersection in memory, rather than a query per product: the ask table
    * and the program table are each one scan, and the board asks this for every product at
@@ -1971,21 +1980,36 @@ export class BankProgramsService {
    * derived — the answer is already stated twice (in the product's asks and in the bank's cap
    * table) and a third statement is the one that goes stale.
    */
-  private async capUsageByProduct(): Promise<Map<string, string[]>> {
+  private async productUsage(): Promise<{
+    capUsage: Map<string, string[]>;
+    askCounts: Map<string, number>;
+  }> {
     const [asksByProduct, capFacts] = await Promise.all([
       this.productAsks.asksByProduct(),
       this.repo.capFactsByProgram(),
     ]);
-    const out = new Map<string, string[]>();
+    const capUsage = new Map<string, string[]>();
+    const askCounts = new Map<string, number>();
     for (const [productKey, asks] of asksByProduct) {
+      askCounts.set(productKey, asks.length);
       const asked = new Set(asks.map((ask) => ask.factKey));
       const codes = capFacts
         .filter((program) => program.factKeys.some((key) => asked.has(key)))
         .map((program) => program.programCode)
         .sort();
-      if (codes.length > 0) out.set(productKey, codes);
+      if (codes.length > 0) capUsage.set(productKey, codes);
     }
-    return out;
+    return { capUsage, askCounts };
+  }
+
+  /** What stops one product going live — the readiness `PUT …/active` enforces. */
+  async surrogateProductNotReady(key: string): Promise<SurrogateProductNotReadyReason[]> {
+    const [row, asks] = await Promise.all([
+      this.enums.findSurrogateProduct(key),
+      this.productAsks.asksFor(key),
+    ]);
+    if (!row) throw await this.surrogateProductNotFound(key);
+    return notReadyReasons(isCapOnlyProduct(row), row.incomeRule, asks.length);
   }
 
   /**
@@ -2010,9 +2034,10 @@ export class BankProgramsService {
     // the whole set rather than a second fan-out — the screen renders the name, and a slug
     // is not a name (the operator read the slug `doctors_in_practice` on a card labelled
     // "Doctors" and concluded the clinic-owner product had never been built).
-    const [perName, labels] = await Promise.all([
+    const [perName, labels, usage] = await Promise.all([
       Promise.all(nameKeys.map((n) => this.enums.programsUnderName(n))),
       this.enums.programNameLabels(nameKeys),
+      this.productUsage(),
     ]);
     const names = nameKeys.map((nameKey, i) => ({
       key: nameKey,
@@ -2048,8 +2073,14 @@ export class BankProgramsService {
       wayCount: wayCountOf(row.templateSpec),
       readsFactKeys: wayFactKeysOf(row.templateSpec),
       usedBy: nameKeys,
-      capPrograms: (await this.capUsageByProduct()).get(row.key) ?? [],
-      capOnly: isCapOnlyProductKey(row.key),
+      capPrograms: usage.capUsage.get(row.key) ?? [],
+      capOnly: isCapOnlyProduct(row),
+      notReady: notReadyReasons(
+        isCapOnlyProduct(row),
+        row.incomeRule,
+        usage.askCounts.get(row.key) ?? 0,
+      ),
+      askCount: usage.askCounts.get(row.key) ?? 0,
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
       // The same two fields the catalog name's response carries, from the same resolver and
       // the same column — this is the screen that AUTHORS the amounts, so it has to be able
@@ -3072,14 +3103,38 @@ export class BankProgramsService {
     const row = await this.enums.findSurrogateProduct(key);
     if (!row) throw await this.surrogateProductNotFound(key);
 
+    // Going live is refused while the product could not quote a figure: a product an
+    // operator creates starts OFF (v33.0.0), and this is what keeps a half-built one off.
+    // Switching OFF is never refused — it is how a product is stopped.
+    if (active) {
+      const notReady = await this.surrogateProductNotReady(key);
+      if (notReady.length > 0) {
+        throw new DomainException(ERROR_CODES.SURROGATE_PRODUCT_NOT_READY, {
+          key,
+          reasons: notReady,
+        });
+      }
+    }
+
     await this.enumsAdmin.update(
       row.id,
       { active },
       { staffId: actor.id, sourceIp: actor.sourceIp },
     );
 
-    const factsChanged = isCapOnlyProductKey(key)
-      ? await this.enumsAdmin.setFactsActive(exclusiveFactKeysOf(key), active, {
+    // A cap-only product's switch also stops its answer being read. A seeded one names its
+    // facts through its blueprint; one an operator created (v33.1.0) through its asks — only
+    // the facts no other product asks, so a shared answer is never taken from another product.
+    let capFacts: readonly string[] = [];
+    if (isCapOnlyProductKey(key)) {
+      capFacts = exclusiveFactKeysOf(key);
+    } else if (row.capOnly) {
+      const own = (await this.productAsks.asksFor(key)).map((ask) => ask.factKey);
+      const asking = await this.productAsks.asksForFacts(own);
+      capFacts = own.filter((factKey) => (asking.get(factKey) ?? []).every((p) => p === key));
+    }
+    const factsChanged = isCapOnlyProduct(row)
+      ? await this.enumsAdmin.setFactsActive(capFacts, active, {
           staffId: actor.id,
           sourceIp: actor.sourceIp,
         })
@@ -3325,7 +3380,7 @@ export class BankProgramsService {
     // category). Read here so the panel reproduces exactly what a quote would do — the
     // panel is the operator's only way to see a `factParentTable` step resolve, and a panel
     // that skipped the map would report `no_matching_row` for a correctly configured rule.
-    const parentKeyByValue = await this.enums.enumerationParentKeys();
+    const parentKeyByValue = groupsFor(snapshot, await this.enums.enumerationParentKeys());
     const resolution = resolveAssumedIncome({
       profile,
       income: draft,
@@ -3816,6 +3871,23 @@ function wayCountOf(template: ProductTemplate | null | undefined): number | null
 function wayFactKeysOf(template: ProductTemplate | null | undefined): string[] {
   if (template === null || template === undefined) return [];
   return waysOf(template).flatMap((way) => ('fact' in way ? [way.fact] : []));
+}
+
+/**
+ * What stops a product going live (v33.0.0). A cap-only product works out nothing by design,
+ * so only its asks count; every other one needs a calculation too.
+ */
+function notReadyReasons(
+  capOnly: boolean,
+  incomeRule: unknown,
+  askCount: number,
+): SurrogateProductNotReadyReason[] {
+  const reasons: SurrogateProductNotReadyReason[] = [];
+  if (!capOnly && (incomeRule === null || incomeRule === undefined)) {
+    reasons.push('no_calculation');
+  }
+  if (askCount === 0) reasons.push('asks_nothing');
+  return reasons;
 }
 
 function outputKindOf(

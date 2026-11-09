@@ -16,7 +16,7 @@ Masrafy is a financial application that helps users in Egypt:
 - Get an analysis of their eligibility profile.
 - View the best loan and mortgage offers tailored to that profile.
 - Compare offers side-by-side (rate, monthly installment, fees,
-  approval probability, required documents).
+  total cost, required documents).
 - Apply directly inside the app for the offer they choose.
 
 **Goal:** convert the user from "I need money" to "Application
@@ -57,14 +57,19 @@ Egyptian consumers struggle with:
 
 Masrafy analyses user data and surfaces a clear recommendation for the
 best-suited option instead of leaving the user lost between banks.
-Through the app, users can apply for loans and get an expected approval
-probability, with monthly installments and administrative fees shown
-clearly. Crucially, **the user can compare offers from multiple banks in
-one place** — something none of the competitors offer.
+Through the app, users can apply for loans with monthly installments,
+the effective rate and every fee shown clearly, ordered by what the user
+said matters most to them. Crucially, **the user can compare offers from
+multiple banks in one place** — something none of the competitors offer.
+
+> **No approval probability.** Constitution v25.0.0 removed the approval
+> score platform-wide: it was a weighted sum of admin-typed figures never
+> once compared against a real bank decision. Re-introducing one under any
+> name needs a constitution amendment (A33).
 
 We also explain every procedure and arrange the process on the user's
-behalf. The transparency + comparison + improved approval chances are
-our wedge.
+behalf. Transparency + comparison + a recommendation ordered by the
+user's own priority are our wedge.
 
 ### Competition
 
@@ -100,8 +105,8 @@ presented — before the user applies. **No surprises.**
 - **Awareness:** most users are not fully aware of financial products
   → the app must simplify and educate without being condescending.
 - **Mix:** both knowledgeable and non-knowledgeable users. Onboarding
-  defaults toward simplification; expert detail (cascade trace, factor
-  weights, qualitative-review badges) is one tap deeper.
+  defaults toward simplification; expert detail (cascade trace,
+  qualitative-review badges) is one tap deeper.
 
 ---
 
@@ -149,6 +154,11 @@ Required:
   - Lowest interest.
   - Least paperwork.
 
+  Live as `priority_factor` ("What matters most to you in a loan?"): a
+  fixed question on every program, optional, that orders the offers
+  (`rankOffers`). Unanswered, offers are ordered partner bank first, then
+  fewest documents. Retired in v31.0.0 and restored 2026-11-01.
+
 Asked but optional / branched:
 
 - Financing type: Personal / Mortgage / Car / Business.
@@ -180,9 +190,10 @@ Two modes are valid in the stakeholder spec:
 - **Show only** — user browses offers anonymously.
 - **Show + apply** — user applies in-app after picking an offer.
 
-Both ship behind the same wizard. The login gate fires only at the
-"Apply" moment (Constitution v1.7.0 dual-stack auth: HMAC for guest
-catalog + customer JWT for signed-in writes).
+Both ship behind the same wizard. **There is no guest mode**
+(Constitution v3.0.0 / Principle XIII): HMAC was removed platform-wide and
+every request after sign-up carries a customer JWT. The questionnaire,
+matching and apply are gated on a complete profile (Principle XXXVII).
 
 ### 5.4 After offer selection
 
@@ -195,31 +206,38 @@ catalog + customer JWT for signed-in writes).
 
 ### 5.5 Edge cases
 
-- **Not eligible:** the UI surfaces the friendly Arabic copy *"فرص
-  الموافقة ضعيفة حاليًا، ولكن يمكننا تحسينها معًا. تواصل مع فريق خدمة
-  العملاء"* (approval chances are weak right now, but we can improve
-  them together — contact our customer service). The CTA opens a
-  support request.
-- **Incomplete data:** the engine returns typed `suggestions` that
-  describe how the user could modify their inputs to unlock more
-  programs (raise tenor, lower amount, etc.).
+- **Not eligible:** *open decision.* Eligibility gating is switched off
+  for the MVP (Principle V): every active program in the loan type is
+  listed, and a program's limits shape the AMOUNT, never whether it is
+  listed. The rules are stored on every program (minimum income, months
+  in job, accepted salary transfer, age) but not applied. Bringing them
+  back — hidden, or flagged with the friendly copy *"فرص الموافقة ضعيفة
+  حاليًا، ولكن يمكننا تحسينها معًا. تواصل مع فريق خدمة العملاء"* and a
+  support CTA — needs a constitution amendment (A33).
+- **No figures for a program:** the program stays listed with a typed
+  reason (e.g. a detail not asked yet, the bank does not finance that
+  car, the term runs past the age limit). The `suggestions` list is
+  returned empty today.
 
 ---
 
 ## 6. User Account
 
-Three account states are supported:
+Two ways in, both completed by a mandatory profile step (Principle
+XXXVII):
 
-- **Login** — phone + password customer JWT (Phase 1 customer auth,
-  Constitution v1.7.0 / Principle XIII).
-- **Guest** — HMAC-only mobile session; applications carry
-  `isGuest: true` and link to `mobileClientId`.
-- **Guest → user upgrade** — at apply time, the user signs up and the
-  recent guest applications (within 24h, same `mobileClientId`) are
-  claimed via `POST /api/v1/auth/claim-applications`.
+- **Phone** — mobile + OTP, then first name, last name, birthday and a
+  password.
+- **Google** — the only social provider (v11.0.0; Apple was removed),
+  then mobile + OTP, first name, last name and birthday.
+
+Customer JWT: 15-minute access + 30-day refresh, rotated with reuse
+detection. **No guest mode** — `isGuest`, `mobileClientId` and the claim
+endpoint were removed and must not come back (v3.0.0). National ID is
+required only when the customer selects an offer.
 
 The mobile app starts on a placeholder screen post-Figma; data + domain
-layers (HMAC + JWT interceptors, secure-storage session persistence,
+layers (JWT interceptors, secure-storage session persistence,
 auth + wizard repositories, typed `*Request` DTOs, `ApiHandler.callApi`
 error funnel) are already wired.
 
@@ -236,8 +254,7 @@ error funnel) are already wired.
   fee, penalty rates).
 - Eligibility conditions list.
 - Required documents per program.
-- Approval-probability % + tier (excellent / good / moderate / low /
-  very_low).
+- Total payable and total cost of credit.
 - **FEATURED** chip when the program belongs to a partner bank
   (`Bank.isFeatured`) — used as a final tiebreaker by the ranking
   engine.
@@ -261,18 +278,26 @@ Principle V). Outputs:
 
 - Minimum down payment.
 - Monthly installment (PMT).
-- Debt-Burden Ratio (DBR ≤ 50%).
+- Debt-Burden Ratio, against each program's own cap (a band table by
+  income where the bank states one).
 - Maximum loan available.
 - Ranked matched programs — sorted by the user's chosen priority, with
-  `Bank.isFeatured` as the final tiebreaker.
+  `Bank.isFeatured` as the tiebreaker; the order is frozen on the offer
+  (`bank_offer.rankIndex`).
 - Required documents per program.
-- Approval-probability % + factor breakdown.
 
 Real Egyptian bank rates range 18.5% to 29% — a 10.5pp spread —
 depending on employment type, corporate partnerships, salary-transfer
 type, salary-category tier, loan size, credit score, and profession.
 Picking the wrong program costs the user hundreds of thousands of EGP
 over the loan lifetime. The matching engine is the moat.
+
+> **Data gap (2026-11-01).** The engine can price by salary-transfer type,
+> job type, credit score and profession; the live data mostly does not
+> yet. Every rate-by-transfer table holds one row, every applicant is
+> priced as salaried (operator's call, v30.18.0), and 17 of 71 programs
+> state an I-Score table. Real bank rate tables are what turns this
+> capability into the moat.
 
 ---
 
@@ -327,9 +352,9 @@ Three codebases governed by **one constitution**
 
 | Platform | Stack | Audience | Auth | Status |
 |---|---|---|---|---|
-| **Backend** | NestJS + PostgreSQL 16 + Prisma 5 + Redis 7 | Both clients | HMAC (mobile) + JWT (admin + customer) | Active — Phase 1 endpoints shipped |
-| **Admin dashboard** | Angular 18 + Signals + standalone + NG-ZORRO + PrimeNG | Internal staff | Admin JWT (15min access + 7-day refresh httpOnly cookie) | Active — features 001–007 + customers + support + onboarding + funnel landed |
-| **Mobile app** | Flutter 3.27 + auto_route + flutter_bloc + freezed + get_it + injectable + dio + dartz | Egyptian end users | HMAC-signed requests + customer JWT (15min access + 30-day refresh, secure-storage) | Data + domain layers wired; UI rebuild post-Figma |
+| **Backend** | NestJS + PostgreSQL 16 + Prisma 5 + Redis 7 | Both clients | JWT (admin + customer) | Active — Phase 1 endpoints shipped |
+| **Admin dashboard** | Angular 18 + Signals + standalone + NG-ZORRO (the one UI library) | Internal staff | Admin JWT (15min access + 7-day refresh httpOnly cookie) | Active — features 001–007 + customers + support + onboarding + funnel landed |
+| **Mobile app** | Flutter 3.27 + auto_route + flutter_bloc + freezed + get_it + injectable + dio + dartz | Egyptian end users | Customer JWT only (15min access + 30-day refresh, secure-storage); no HMAC | Data + domain layers wired; UI rebuild post-Figma |
 
 Brand color **#0869C3** (azure blue), primary across all surfaces.
 
@@ -343,8 +368,9 @@ Brand color **#0869C3** (azure blue), primary across all surfaces.
 - **III.** Typed errors end-to-end; English error strings never cross
   the API boundary.
 - **IV.** Arabic-first i18n, RTL native.
-- **V.** Matching engine is the core IP; ≥ 90% test coverage,
-  weight changes need PR review.
+- **V.** Matching engine is the core IP: a pure module, every offer's
+  figures from one quote function, order by the user's priority. No
+  approval score (removed v25.0.0).
 - **VI.** PII protection; logs never carry PII; documents in S3 with
   presigned URLs.
 - **VII.** Observability — `X-Correlation-Id` everywhere, structured
@@ -373,9 +399,8 @@ A1–A27 are binding review blocks.
 
 Already shipped (backend + admin):
 
-- Customer auth (signup / login / refresh / logout / me / claim-applications).
-- Apply endpoint + matching engine + scoring + approval-probability
-  display.
+- Customer auth (phone + Google sign-up, login / refresh / logout / me).
+- Apply endpoint + matching engine (quotes, DBR, fees, priority order).
 - User-intent gate (select-offer).
 - Bank programs CRUD + tier cascade.
 - Banks CRUD + logos + `isFeatured` ranking boost.
@@ -417,8 +442,8 @@ When the user asks about masrafy, default to this stack of references:
 3. **`.specify/memory/constitution.md`** — binding architectural
    principles and anti-patterns.
 4. **`specs/00X-...`** — feature specs (001 admin auth, 002 bank
-   programs, 003 matching engine, 004 approval probability, 005 lead
-   management, 007 banks).
+   programs, 003 matching engine, 004 approval probability — superseded
+   by v25.0.0, 005 lead management, 007 banks).
 5. **`backend/prisma/schema.prisma`** — single source of truth for
    data model.
 6. **`/Users/mfathy/.claude/plans/`** — most recent execution plans.

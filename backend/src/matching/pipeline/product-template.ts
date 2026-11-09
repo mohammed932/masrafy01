@@ -110,7 +110,24 @@ export interface TemplateColumn {
   fact: string;
   branches: string[];
   branchOn?: 'answer' | 'parentClass';
+  /**
+   * The product's OWN groups (v36.1.0): one per branch, in branch order, named here. Each
+   * answer is filed under one of them for this product only (`surrogate_product_parent_key`),
+   * so the column is read by `parentClass` exactly like a shared class, and the names travel
+   * to every screen on the compiled step (`branchLabels`). Absent: the branches are answers,
+   * or classes of a shared list.
+   */
+  groups?: TemplateGroup[];
 }
+
+/** One of a product's own groups. `key` is a slot id fragment, so it never changes on a rename. */
+export interface TemplateGroup {
+  key: string;
+  labelEn: string;
+  labelAr: string;
+}
+
+const GROUP_KEY = /^[a-z][a-z0-9_]{0,39}$/;
 
 type MechanismShape =
   /** A table keyed by what the applicant picked — a grade, a rank, a unit type. */
@@ -509,6 +526,7 @@ export const TEMPLATE_INVALID_REASONS = [
   'unknown_share_kind',
   'unknown_adjustment_scope',
   'second_column_branch_on_invalid',
+  'second_column_groups_invalid',
   'condition_id_invalid',
   'condition_duplicate_id',
   'unknown_condition_test',
@@ -692,6 +710,27 @@ function columnProblem(column: TemplateColumn): TemplateViolation | undefined {
     column.branchOn !== 'parentClass'
   ) {
     return { reason: 'second_column_branch_on_invalid', detail: String(column.branchOn) };
+  }
+  if (column.groups !== undefined) {
+    // Own groups are classes: one per branch, same order, each with a key a slot id can hold
+    // and a name in both languages.
+    const groups = column.groups;
+    const bad =
+      column.branchOn !== 'parentClass' ||
+      !Array.isArray(groups) ||
+      groups.length !== column.branches.length ||
+      groups.some(
+        (g, i) =>
+          g.key !== column.branches[i] ||
+          !GROUP_KEY.test(g.key) ||
+          typeof g.labelEn !== 'string' ||
+          typeof g.labelAr !== 'string' ||
+          g.labelEn.trim() === '' ||
+          g.labelAr.trim() === '' ||
+          g.labelEn.length > 80 ||
+          g.labelAr.length > 80,
+      );
+    if (bad) return { reason: 'second_column_groups_invalid' };
   }
   return undefined;
 }
@@ -896,6 +935,18 @@ function emitMechanism(
     // Absent means the branches are answers, which is what every stored template meant, so
     // omitting the field rather than writing `'answer'` keeps those recompiling byte-identically.
     ...(column.branchOn === 'parentClass' ? { branchOn: 'parentClass' as const } : {}),
+    // A product's own groups name their columns here, so every screen that draws the figures
+    // (the product page, a bank's wizard) reads the same words.
+    ...(column.groups !== undefined
+      ? {
+          branchLabels: Object.fromEntries(
+            column.groups.map((g) => [
+              g.key,
+              { labelEn: g.labelEn.trim(), labelAr: g.labelAr.trim() },
+            ]),
+          ),
+        }
+      : {}),
   });
   return pickId;
 }

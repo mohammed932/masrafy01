@@ -15,6 +15,8 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
   ArrowDownOutline,
   ArrowUpOutline,
+  BranchesOutline,
+  CalculatorOutline,
   CloseOutline,
   HolderOutline,
   LockOutline,
@@ -22,6 +24,7 @@ import {
 import { ruleCodes } from '@shared/questions/enabled-when';
 import type { ServedPage, ServedQuestion } from '@shared/questions/asked-questions.rules';
 import type { PageMove } from '@shared/questions/question-order';
+import { questionTypeLabel } from './question-type-label';
 
 /**
  * Why a served question is on the list, and so whether this program may drop it.
@@ -33,7 +36,7 @@ import type { PageMove } from '@shared/questions/question-order';
  *   - `added`: ticked for this program — removable (v32.0.0: the only removable kind; there is
  *     no loan-type list to skip a question from any more).
  */
-export type ServedRowState = 'fixed' | 'engine' | 'program' | 'gate' | 'added';
+export type ServedRowState = 'fixed' | 'engine' | 'program' | 'gate' | 'added' | 'calc';
 
 /** Which rows the list draws: every one, only the fixed ones, or only the rest. */
 export type ServedFilter = 'all' | 'fixed' | 'other';
@@ -93,6 +96,8 @@ interface PageView {
     provideNzIconsPatch([
       ArrowDownOutline,
       ArrowUpOutline,
+      BranchesOutline,
+      CalculatorOutline,
       CloseOutline,
       HolderOutline,
       LockOutline,
@@ -146,7 +151,10 @@ interface PageView {
                   <span class="text">
                     <span class="label">{{ row.label }}</span>
                     @if (row.gate) {
-                      <span class="gate" [attr.title]="row.gateFull">{{ row.gate }}</span>
+                      <span class="gate" [attr.title]="row.gateFull"
+                        ><span nz-icon nzType="branches" nzTheme="outline" aria-hidden="true"></span
+                        >{{ row.gate }}</span
+                      >
                     }
                   </span>
                   <span class="tail">
@@ -194,6 +202,9 @@ interface PageView {
                         </button>
                       </span>
                     } @else {
+                      @if (typeLabel(row.q.type); as kind) {
+                        <span class="tag is-type">{{ kind }}</span>
+                      }
                       @if (!row.q.isRequired) {
                         <span class="tag" i18n="@@srvp.tag_optional">Optional</span>
                       }
@@ -201,29 +212,45 @@ interface PageView {
                         @case ('fixed') {
                           @if (filter() !== 'fixed') {
                             <span
-                              class="tag is-lock is-fixed"
+                              class="tag is-fixed"
                               title="Asked on every program. Change it on Questionnaire."
                               i18n-title="@@srvp.fixed_hint"
                             >
-                              <span
-                                nz-icon
-                                nzType="lock"
-                                nzTheme="outline"
-                                aria-hidden="true"
-                              ></span>
                               <span i18n="@@srvp.tag_fixed">Fixed</span>
                             </span>
                           }
                         }
                         @case ('engine') {
-                          <span class="tag is-lock">
-                            <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+                          <span class="tag is-priced">
+                            <span
+                              nz-icon
+                              nzType="calculator"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
                             <span i18n="@@srvp.tag_engine">Every quote reads it</span>
                           </span>
                         }
+                        @case ('calc') {
+                          <!-- A no-payslip product's own calculation reads it (v36.1.0). -->
+                          <span class="tag is-priced">
+                            <span
+                              nz-icon
+                              nzType="calculator"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
+                            <span i18n="@@srvp.tag_calc">The calculation reads it</span>
+                          </span>
+                        }
                         @case ('program') {
-                          <span class="tag is-lock is-bank">
-                            <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+                          <span class="tag is-priced">
+                            <span
+                              nz-icon
+                              nzType="calculator"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
                             <span i18n="@@srvp.tag_bank">A bank here needs it</span>
                           </span>
                         }
@@ -371,19 +398,36 @@ interface PageView {
         padding-inline-start: var(--space-4);
         border-inline-start: 2px solid var(--border-default);
       }
+      /* The label and a follow-up's answer on ONE line, so every row is one height. */
       .text {
         display: flex;
-        flex-direction: column;
-        gap: 2px;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1) var(--space-2);
         min-inline-size: 0;
       }
       .label {
         color: var(--text-primary);
         overflow-wrap: anywhere;
       }
+      /* The question's type, in the Questions library's words: outlined, so it reads as a
+         fact about the question beside the status tags. */
+      .tag.is-type {
+        background: transparent;
+        border-color: var(--border-default);
+      }
       .gate {
-        font-size: var(--text-xs);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
         color: var(--text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        line-height: 1.4;
+        white-space: nowrap;
       }
       .tail {
         display: flex;
@@ -396,28 +440,30 @@ interface PageView {
         display: inline-flex;
         align-items: center;
         gap: var(--space-1);
-        padding: 2px var(--space-2);
+        padding: 1px var(--space-2);
+        border: 1px solid transparent;
         border-radius: var(--radius-pill);
         background: var(--bg-muted);
         color: var(--text-secondary);
         font-size: var(--text-xs);
         font-weight: var(--font-weight-medium);
-        line-height: 1.5;
+        line-height: 1.4;
         white-space: nowrap;
       }
       .tag [nz-icon] {
         font-size: 0.85em;
       }
-      /* Quiet on purpose: most rows are fixed, and seventeen loud chips would drown the one
-         row the admin changed. */
+      /* The same three looks as the Questions page: Fixed (tonal), what the quote reads
+         (outlined, calculator), added here (green). */
       .tag.is-fixed {
-        background: none;
-        color: var(--text-tertiary);
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent-ink);
+        font-weight: var(--font-semibold);
         cursor: help;
       }
-      .tag.is-bank {
-        background: var(--color-info-bg);
-        color: var(--color-info);
+      .tag.is-priced {
+        border-color: var(--border-default);
+        background: var(--bg-surface);
       }
       .tag.is-added {
         background: var(--color-success-bg);
@@ -529,6 +575,8 @@ interface PageView {
 export class ServedPagesComponent {
   readonly pages = input.required<readonly ServedPage[]>();
   readonly isAr = input(false);
+
+  protected readonly typeLabel = questionTypeLabel;
   /** Why each served question is here, by code. Null on an older server: no chip, no action. */
   readonly states = input<ReadonlyMap<string, ServedRowState> | null>(null);
   /** Draws the Remove buttons and the gate locks. Off while no bank sells the name. */
@@ -679,8 +727,8 @@ export class ServedPagesComponent {
     if (source === undefined) return null;
     const answers = this.gateAnswers(q, source);
     return q.enabledWhen?.operator === 'not_equals'
-      ? $localize`:@@srvp.gate_unless:Unless: ${answers}:ANSWERS:`
-      : $localize`:@@srvp.gate_if:If: ${answers}:ANSWERS:`;
+      ? $localize`:@@srvp.gate_unless:Not ${answers}:ANSWERS:`
+      : $localize`:@@srvp.gate_if:${answers}:ANSWERS:`;
   }
 
   /**

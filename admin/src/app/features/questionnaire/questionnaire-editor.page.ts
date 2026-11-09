@@ -32,11 +32,15 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzDrawerService, type NzDrawerRef } from 'ng-zorro-antd/drawer';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzPopoverModule } from 'ng-zorro-antd/popover';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
   ArrowDownOutline,
   ArrowUpOutline,
+  BranchesOutline,
+  CalculatorOutline,
   CheckCircleOutline,
   CloseOutline,
   DeleteOutline,
@@ -118,7 +122,7 @@ const TYPE_ORDER: readonly QuestionType[] = ['SINGLE_SELECT', 'MULTI_SELECT', 'N
  * Generous because the chips own a full-width line: nearly every question in the
  * pool fits entirely, so the count is a rare fallback rather than the norm.
  */
-const INLINE_OPTION_PREVIEW = 8;
+const INLINE_OPTION_PREVIEW = 5;
 
 /**
  * Questions rendered per page. The pool grows without bound, and every row can
@@ -192,6 +196,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
     NzPaginationModule,
     NzIconModule,
     NzSelectModule,
+    NzPopoverModule,
+    NzDropDownModule,
     NzToolTipModule,
     MoneyInputDirective,
     FormDrawerComponent,
@@ -204,6 +210,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
     provideNzIconsPatch([
       ArrowDownOutline,
       ArrowUpOutline,
+      BranchesOutline,
+      CalculatorOutline,
       CheckCircleOutline,
       CloseOutline,
       DeleteOutline,
@@ -231,8 +239,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             @if (published()) {
               <span
                 class="live-chip"
-                title="A version is published"
-                i18n-title="@@qedit.live_title"
+                title="Live — a change goes to the app as soon as it is saved"
+                i18n-title="@@qedit.live_title2"
               >
                 <span class="live-dot" aria-hidden="true"></span>
                 <span i18n="@@qedit.live">Live</span>
@@ -256,13 +264,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
               <span i18n="@@qedit.health_issues">{{ issueCount() }} to fix</span>
             </button>
-          } @else if (!loading() && rows().length > 0) {
-            <span class="health ok">
-              <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
-              <span i18n="@@qedit.health_ok">Ready to ask</span>
-            </span>
           }
-          <span class="autosave" i18n="@@qedit.autosave">Saves &amp; publishes automatically</span>
           <button nz-button nzType="primary" (click)="startCreate()">
             <span nz-icon nzType="plus" nzTheme="outline"></span>
             <span i18n="@@qedit.add_question">Question</span>
@@ -368,6 +370,35 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               }
             </div>
 
+            <!-- Facts about a question, not its type: toggles that combine with the type pick, on
+                 their own line under a label so they never read as more answer types. -->
+            <span class="tool-break" aria-hidden="true"></span>
+            <div class="facts" role="group" [attr.aria-label]="showOnlyLabel">
+              <span class="facts-label" i18n="@@qedit.show_only">Show only</span>
+              <button
+                type="button"
+                class="chip"
+                [class.on]="onlyFixed()"
+                [attr.aria-pressed]="onlyFixed()"
+                [disabled]="fixedCount() === 0"
+                (click)="setOnlyFixed(!onlyFixed())"
+              >
+                <span i18n="@@qedit.filter_fixed">Fixed</span>
+                <span class="chip-n">{{ fixedCount() }}</span>
+              </button>
+              <button
+                type="button"
+                class="chip"
+                [class.on]="onlyPriced()"
+                [attr.aria-pressed]="onlyPriced()"
+                [disabled]="pricedCount() === 0"
+                (click)="setOnlyPriced(!onlyPriced())"
+              >
+                <span i18n="@@qedit.filter_priced">Used in pricing</span>
+                <span class="chip-n">{{ pricedCount() }}</span>
+              </button>
+            </div>
+
             @if (incomplete().length > 0) {
               <button
                 type="button"
@@ -412,8 +443,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                   Clear
                 </button>
               } @else {
-                <span i18n="@@qedit.total"
-                  >{{ rows().length }} questions · {{ totalOptions() }} answers</span
+                <span i18n="@@qedit.total2"
+                  >{{ tree().roots.length }} questions · {{ followUpCount() }} follow-ups ·
+                  {{ totalOptions() }} answers</span
                 >
               }
             </p>
@@ -457,13 +489,6 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             <p class="drag-note" i18n="@@qedit.drag_disabled">
               Dragging is off while the list is filtered — the order you'd see isn't the order
               applicants get. Use the row menu to move a question, or clear the filter.
-            </p>
-          } @else if (pageCount() > 1) {
-            <!-- A drag cannot cross a page boundary, so the one move the list can't
-                 do is spelled out where the admin would otherwise try it. -->
-            <p class="drag-note" i18n="@@qedit.drag_page">
-              Dragging reorders within this page. To move a question to another page, open it and
-              use the arrows in the editor's header.
             </p>
           }
 
@@ -546,8 +571,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                  whose only state is "page 1 of 1" is chrome, not navigation. -->
             @if (pageCount() > 1) {
               <nav class="pager" aria-label="Question pages" i18n-aria-label="@@qedit.pager_aria">
-                <p class="pager-range" i18n="@@qedit.page_range">
-                  Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ pageUnits().length }}
+                <p class="pager-range" i18n="@@qedit.page_range2">
+                  Questions {{ rangeStart() }}–{{ rangeEnd() }} of {{ pageUnits().length }}
                 </p>
                 <nz-pagination
                   [nzPageIndex]="page()"
@@ -651,7 +676,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
              filtered, its number). The whole sentence is the tooltip. -->
         @if (gateOf(q); as gate) {
           <span class="gate-chip" nz-tooltip [nzTooltipTitle]="gate.full"
-            ><span aria-hidden="true">{{ gate.short }}</span
+            ><span nz-icon nzType="branches" nzTheme="outline" aria-hidden="true"></span
+            ><span class="gate-text" aria-hidden="true">{{ gate.short }}</span
             ><span class="sr-only">{{ gate.full }}</span></span
           >
         }
@@ -666,19 +692,29 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         <!-- The engine reads this answer, so the server refuses anything but
              its wording and answer order. Said on the row so the admin knows
              before opening it, not after a refused save. -->
+        <!-- The quote READS this answer (every quote, or a bank program) — fixed or not. What
+             that locks is in the tooltip; the word says what it is for. -->
         @if (engineLockOf(q); as lock) {
           <span class="lock-chip" nz-tooltip [nzTooltipTitle]="lockSummary(lock)"
-            ><span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span
+            ><span nz-icon nzType="calculator" nzTheme="outline" aria-hidden="true"></span
+            ><span i18n="@@qedit.priced_chip">Used in pricing</span
             ><span class="sr-only">{{ lockSummary(lock) }}</span></span
           >
         }
-        <span
-          class="type-chip"
-          [class.value-type]="!isChoice(q.type)"
-          nz-tooltip
-          [nzTooltipTitle]="typeHint(q.type)"
-          >{{ typeLabel(q.type) }}</span
-        >
+        <!-- An answer the admin set to move the offer (max loan, rate, term). -->
+        @if (hasOfferEffect(q)) {
+          <span class="effect-chip" nz-tooltip [nzTooltipTitle]="offerEffectTip"
+            ><span i18n="@@qedit.effect_chip">Changes the offer</span
+            ><span class="sr-only">{{ offerEffectTip }}</span></span
+          >
+        }
+        <!-- A choice question's type is its own fact; a Number / Text row already says it in
+             its rule line ("Number from 0 to …"), so a second tag only cost the title width. -->
+        @if (isChoice(q.type)) {
+          <span class="type-chip" nz-tooltip [nzTooltipTitle]="typeHint(q.type)">{{
+            typeLabel(q.type)
+          }}</span>
+        }
         <!-- Required is the DEFAULT, so 41 identical "required" chips
              said nothing. Only the exception is worth a chip. -->
         @if (!q.isRequired) {
@@ -693,21 +729,91 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         }
       </span>
 
-      <!-- Opens the editor, same as clicking the row. It used to open a
-           4-item dropdown; move/delete now live in the editor itself, so
-           there is nothing left for a menu to hold. -->
+      <!-- The row's actions, without opening it: the row itself opens the editor. -->
       <button
         type="button"
         class="kebab"
         nz-button
         nzType="text"
         nzShape="circle"
-        (click)="toggleRow(q)"
-        aria-label="Edit question"
-        i18n-aria-label="@@qedit.edit_question_aria"
+        nz-dropdown
+        [nzDropdownMenu]="rowMenu"
+        nzTrigger="click"
+        nzPlacement="bottomRight"
+        aria-label="Question actions"
+        i18n-aria-label="@@qedit.actions_aria"
       >
         <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
       </button>
+      <nz-dropdown-menu #rowMenu="nzDropdownMenu">
+        <ul nz-menu>
+          <li
+            nz-menu-item
+            tabindex="0"
+            (click)="openRowEditor(q)"
+            (keydown.enter)="openRowEditor(q)"
+          >
+            <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@qedit.menu_edit">Edit</span>
+          </li>
+          @if (isChoice(q.type) && q.options.length > 0) {
+            <li
+              nz-menu-item
+              tabindex="0"
+              (click)="startFollowUp(q)"
+              (keydown.enter)="startFollowUp(q)"
+            >
+              <span nz-icon nzType="branches" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@qedit.menu_follow_up">Add a follow-up</span>
+            </li>
+          }
+          <li nz-menu-divider></li>
+          <li
+            nz-menu-item
+            [nzDisabled]="!canMove(q, -1)"
+            tabindex="0"
+            (click)="moveBy(q, -1)"
+            (keydown.enter)="moveBy(q, -1)"
+          >
+            <span nz-icon nzType="arrow-up" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@qedit.move_up">Move up</span>
+          </li>
+          <li
+            nz-menu-item
+            [nzDisabled]="!canMove(q, 1)"
+            tabindex="0"
+            (click)="moveBy(q, 1)"
+            (keydown.enter)="moveBy(q, 1)"
+          >
+            <span nz-icon nzType="arrow-down" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@qedit.move_down">Move down</span>
+          </li>
+          <li nz-menu-divider></li>
+          @if (canDelete(q)) {
+            <li
+              nz-menu-item
+              nzDanger
+              tabindex="0"
+              (click)="deleteQuestion(q)"
+              (keydown.enter)="deleteQuestion(q)"
+            >
+              <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@qedit.delete_question">Delete question</span>
+            </li>
+          } @else {
+            <li
+              nz-menu-item
+              nzDisabled
+              nz-tooltip
+              [nzTooltipTitle]="deleteBlockedReason(q)"
+              nzTooltipPlacement="left"
+            >
+              <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@qedit.delete_question">Delete question</span>
+            </li>
+          }
+        </ul>
+      </nz-dropdown-menu>
     </ng-template>
 
     <!-- Answers get their own full-width line under the question. Squeezed
@@ -726,13 +832,41 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               }}</span>
             }
             @if (q.options.length > INLINE_OPTION_PREVIEW) {
-              <span
+              <!-- The rest opens as a numbered list, not one long run of text in a tooltip. -->
+              <button
+                type="button"
                 class="pill more"
-                nz-tooltip
-                [nzTooltipTitle]="allOptionLabels(q)"
+                nz-popover
+                nzPopoverTrigger="click"
+                nzPopoverPlacement="bottomLeft"
+                [nzPopoverTitle]="allAnswersHead"
+                [nzPopoverContent]="allAnswers"
+                nzPopoverOverlayClassName="answers-pop"
+                (click)="$event.stopPropagation()"
                 i18n="@@qedit.opt_more"
-                >+{{ q.options.length - INLINE_OPTION_PREVIEW }} more</span
               >
+                +{{ q.options.length - INLINE_OPTION_PREVIEW }} more
+              </button>
+              <ng-template #allAnswersHead>
+                <span class="answers-head">
+                  <span class="answers-q">{{ isAr ? q.questionAr : q.questionEn }}</span>
+                  <span class="answers-count">{{ allAnswersTitle(q) }}</span>
+                </span>
+              </ng-template>
+              <ng-template #allAnswers>
+                <ol
+                  class="answers-list"
+                  [dir]="isAr ? 'rtl' : 'ltr'"
+                  [style.grid-template-rows]="answerRows(q)"
+                >
+                  @for (o of q.options; track o.id; let i = $index) {
+                    <li>
+                      <span class="answer-n">{{ i + 1 }}</span>
+                      <span>{{ isAr ? o.labelAr : o.labelEn }}</span>
+                    </li>
+                  }
+                </ol>
+              </ng-template>
             }
           }
         </div>
@@ -830,53 +964,33 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         <!-- CREATING is three steps (operator: "make create new question on steps"): what is
              asked, how it is answered, who must answer it and when. Editing stays one column —
              a saved question is changed a part at a time, and a rail would only hide the rest. -->
-        @if (!editing()) {
-          <app-wizard-steps
-            class="qe-steps"
-            variant="plain"
-            [steps]="createSteps()"
-            [activeIndex]="createStep()"
-            [ariaLabel]="createStepsAria"
-            (stepSelect)="goToCreateStep($event)"
-          />
-        }
-        <!-- First, because it explains every control below that is greyed out. -->
+        <!-- Editing uses the same rail as free tabs: any part, in any order (one Save). -->
+        <app-wizard-steps
+          class="qe-steps"
+          variant="plain"
+          [steps]="editing() ? editSteps() : createSteps()"
+          [activeIndex]="createStep()"
+          [ariaLabel]="editing() ? editStepsAria : createStepsAria"
+          (stepSelect)="goToCreateStep($event)"
+        />
+        <!-- One line: what is locked. Each locked part below is shown as plain text, not as a
+             greyed control that looks broken. -->
         @if (editLock(); as lock) {
           <div class="lock-note" role="note">
             <span
               class="lock-ico"
               nz-icon
-              nzType="lock"
+              nzType="calculator"
               nzTheme="outline"
               aria-hidden="true"
             ></span>
             <div class="lock-text">
-              @if (lock.reason === 'program') {
-                <p class="lock-title" i18n="@@qedit.lock_title_program">
-                  Bank programs work out offers from this answer
-                </p>
-              } @else {
-                <p class="lock-title" i18n="@@qedit.lock_title_engine">
-                  The loan engine reads this answer
-                </p>
-              }
-              <!-- Said by what may still change, not by who reads it. A fixed one leaves out
-                   the delete: a super admin may still delete it, through the dialog that says
-                   what the engine loses. -->
-              @if (editingFixed()) {
-                <p class="lock-body" i18n="@@qedit.lock_body_fixed_q">
-                  Its answer type, unit, when-to-ask rule and answers stay as they are. Its wording,
-                  and whether it is required or fixed, can change.
-                </p>
-              } @else {
-                <p class="lock-body" i18n="@@qedit.lock_body_fixed">
-                  Its answer type, unit, when-to-ask rule and answers stay as they are, and it can't
-                  be deleted. Its wording, and whether it is required or fixed, can change.
-                </p>
-              }
-              <p class="lock-body" i18n="@@qedit.lock_numbers">
-                Keep the numbers in its wording as they are, in the question, the helper text and
-                the answers: applicants choose by them.
+              <p class="lock-title">
+                <span i18n="@@qedit.lock_short">Used in pricing</span>
+                <span class="lock-body" i18n="@@qedit.lock_short_body"
+                  >— its type, unit, answers and when-to-ask are locked. Keep the numbers in its
+                  wording.</span
+                >
               </p>
               @if (lock.reason === 'program') {
                 <p class="lock-who" i18n="@@qedit.lock_who">Read by {{ programNamesOf(lock) }}</p>
@@ -887,23 +1001,25 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
 
         @if (stepShown(0)) {
           <app-drawer-section [label]="secQuestion">
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.lang_en">English</span>
-              <input
-                nz-input
-                formControlName="questionEn"
-                placeholder="e.g. What is your monthly income?"
-              />
-            </label>
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.lang_ar">العربية</span>
-              <input
-                nz-input
-                formControlName="questionAr"
-                dir="rtl"
-                placeholder="مثال: ما هو دخلك الشهري؟"
-              />
-            </label>
+            <div class="lang-pair">
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.lang_en">English</span>
+                <input
+                  nz-input
+                  formControlName="questionEn"
+                  placeholder="e.g. What is your monthly income?"
+                />
+              </label>
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.lang_ar">العربية</span>
+                <input
+                  nz-input
+                  formControlName="questionAr"
+                  dir="rtl"
+                  placeholder="مثال: ما هو دخلك الشهري؟"
+                />
+              </label>
+            </div>
           </app-drawer-section>
 
           <!-- Optional sub-label. It carries the sentence that stops a figure being misread — the
@@ -915,23 +1031,25 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             [optionalLabel]="optionalLabel"
             [hint]="helperHint"
           >
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.lang_en">English</span>
-              <input
-                nz-input
-                formControlName="helperTextEn"
-                placeholder="e.g. Add up the limit on every card, not what you owe."
-              />
-            </label>
-            <label class="field">
-              <span class="lbl" i18n="@@qedit.lang_ar">العربية</span>
-              <input
-                nz-input
-                formControlName="helperTextAr"
-                dir="rtl"
-                placeholder="مثال: اجمع الحد الائتماني لكل بطاقة، وليس المبلغ المستخدم."
-              />
-            </label>
+            <div class="lang-pair">
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.lang_en">English</span>
+                <input
+                  nz-input
+                  formControlName="helperTextEn"
+                  placeholder="e.g. Add up the limit on every card, not what you owe."
+                />
+              </label>
+              <label class="field">
+                <span class="lbl" i18n="@@qedit.lang_ar">العربية</span>
+                <input
+                  nz-input
+                  formControlName="helperTextAr"
+                  dir="rtl"
+                  placeholder="مثال: اجمع الحد الائتماني لكل بطاقة، وليس المبلغ المستخدم."
+                />
+              </label>
+            </div>
           </app-drawer-section>
         }
 
@@ -940,31 +1058,31 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             <!-- Typed reactive control, not ngModel (Principle XXII / A16). A radiogroup rather
                than a dropdown: four options are worth showing at once, and the choice changes
                the rest of the form. -->
-            <div class="type-group" role="radiogroup" [attr.aria-label]="answerTypeLabel">
-              @for (t of types; track t) {
-                <button
-                  type="button"
-                  role="radio"
-                  class="type-btn"
-                  [class.on]="selectedType() === t"
-                  [attr.aria-checked]="selectedType() === t"
-                  [disabled]="typeLocked()"
-                  (click)="pickType(t)"
-                >
-                  {{ typeLabel(t) }}
-                </button>
-              }
-            </div>
-            <p class="hint">
-              {{ typeHint(selectedType()) }}
-              <!-- Every saved question is locked to its type; the lock note above already says so
-                 when the engine reads it. -->
-              @if (typeLocked() && !editLock()) {
-                <span i18n="@@qedit.type_locked_short"
-                  >It can't change once a question is saved — add a new question instead.</span
-                >
-              }
-            </p>
+            @if (typeLocked()) {
+              <p class="ro-value">
+                <span class="ro-key" i18n="@@qedit.ro_type">Answer type</span>
+                <span class="ro-val">{{ typeLabel(selectedType()) }}</span>
+                <span class="ro-note" i18n="@@qedit.ro_type_note">· can't change once saved</span>
+              </p>
+              <p class="hint">{{ typeHint(selectedType()) }}</p>
+            } @else {
+              <div class="type-group" role="radiogroup" [attr.aria-label]="answerTypeLabel">
+                @for (t of types; track t) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="type-btn"
+                    [class.on]="selectedType() === t"
+                    [attr.aria-checked]="selectedType() === t"
+                    [disabled]="typeLocked()"
+                    (click)="pickType(t)"
+                  >
+                    {{ typeLabel(t) }}
+                  </button>
+                }
+              </div>
+              <p class="hint">{{ typeHint(selectedType()) }}</p>
+            }
 
             <!-- Per-type rules. Only the owning type's block is rendered, so the form cannot
                express a combination the server rejects with QUESTION_TYPE_RULES_INVALID. -->
@@ -1003,24 +1121,30 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                     />
                   </label>
                 </div>
-                <div class="field-row">
-                  <label class="field grow">
-                    <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
-                    <input nz-input formControlName="unitEn" placeholder="EGP" />
-                  </label>
-                  <label class="field grow">
-                    <span class="lbl" i18n="@@qedit.num_unit_ar">الوحدة (عربي)</span>
-                    <input nz-input formControlName="unitAr" dir="rtl" placeholder="جنيه" />
-                  </label>
-                </div>
+                @if (editLock()) {
+                  <p class="ro-value">
+                    <span class="ro-key" i18n="@@qedit.ro_unit">Unit</span>
+                    <span class="ro-val">{{ unitText() }}</span>
+                  </p>
+                } @else {
+                  <div class="field-row">
+                    <label class="field grow">
+                      <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
+                      <input nz-input formControlName="unitEn" placeholder="EGP" />
+                    </label>
+                    <label class="field grow">
+                      <span class="lbl" i18n="@@qedit.num_unit_ar">الوحدة (عربي)</span>
+                      <input nz-input formControlName="unitAr" dir="rtl" placeholder="جنيه" />
+                    </label>
+                  </div>
+                }
                 @if (numericRangeInverted()) {
                   <p class="hint error" i18n="@@qedit.num_inverted">
                     The maximum must be greater than or equal to the minimum.
                   </p>
                 }
-                <p class="hint" i18n="@@qedit.num_hint">
-                  Bounds are inclusive, and the step counts up from the minimum. Leave a field empty
-                  for no limit.
+                <p class="hint" i18n="@@qedit.num_hint2">
+                  Inclusive. Leave a field empty for no limit.
                 </p>
               </div>
               <!-- What the NUMBER does to every offer (v31.3.0): ranges, on a FIXED number question
@@ -1032,10 +1156,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                       <span i18n="@@qedit.sec_ranges">Changes the offer</span>
                       <span class="count-pill">{{ rangesOf(eq).length }}</span>
                     </p>
-                    <p class="hint" i18n="@@qedit.ranges_hint2">
-                      When the applicant's number falls in a range, the offer of every program that
-                      asks it changes like this. Ranges can't overlap; a number in no range changes
-                      nothing.
+                    <p class="hint" i18n="@@qedit.ranges_hint3">
+                      A number inside a range changes every offer as shown. Ranges can't overlap.
                     </p>
                     <ul class="opt-list">
                       @for (r of rangesOf(eq); track $index) {
@@ -1268,7 +1390,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
             <!-- A non-choice answer has no option list, so nothing else on this form says what it
                is FOR: it is read by the money bindings and by a program's income rule. Not under
                a fixed number's ranges (v31.3.0), which already say what it does. -->
-            @if (!isChoice(selectedType()) && !editingFixedNumber()) {
+            @if (!isChoice(selectedType()) && !editingFixedNumber() && !editLock()) {
               <p class="hint" i18n="@@qedit.scoring_by_type">
                 A number or free text has no options to configure. Banks read this answer through
                 their money bindings and income rules.
@@ -1317,9 +1439,8 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
                     <label class="setting-title" for="qedit-fixed" i18n="@@qedit.fixed_label"
                       >Fixed question</label
                     >
-                    <p class="setting-desc" i18n="@@qedit.fixed_hint3">
-                      Every program on the side you pick asks it, and none of them can skip it. Its
-                      answers can change the offer.
+                    <p class="setting-desc" i18n="@@qedit.fixed_hint4">
+                      Every program on the chosen side asks it; its answers can change the offer.
                     </p>
                   </div>
                   <nz-switch
@@ -1371,168 +1492,174 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
              from "what does it accept", and because the source list depends on this question's
              POSITION, not on its type. -->
           <app-drawer-section [label]="secBranch">
-            <div formGroupName="enabledWhen" class="branch">
-              <!-- A locked question shows its (disabled) rule and why it is locked, even when
+            @if (lockedBranchText(); as t) {
+              <p class="ro-value">
+                <span class="ro-val plain">{{ t }}</span>
+              </p>
+            } @else {
+              <div formGroupName="enabledWhen" class="branch">
+                <!-- A locked question shows its (disabled) rule and why it is locked, even when
                  nothing earlier could be branched on: "nothing to branch on yet" would promise
                  an edit the server refuses. So does a rule already set, so it can still be read
                  and cleared. -->
-              @if (branchSources().length === 0 && !editLock() && !branchOn()) {
-                @if (fixedTicked()) {
-                  <p class="hint" i18n="@@qedit.branch_none_fixed">
-                    Nothing to branch on yet — a fixed question can only follow an earlier fixed
-                    question that offers options.
-                  </p>
-                } @else {
-                  <p class="hint" i18n="@@qedit.branch_none">
-                    Nothing to branch on yet — a rule reads an answer from an earlier question that
-                    offers options.
-                  </p>
-                }
-              } @else {
-                <!-- ONE sentence, read start to end. A span + aria-labelledby rather than a
-                   label/for pair: nz-select renders a div, not an input, so a wrapping label
-                   associates with nothing. -->
-                <div class="rule-line">
-                  <span class="rule-lead" id="branch-src-lbl" i18n="@@qedit.branch_source">
-                    Ask this only when the answer to
-                  </span>
-                  <nz-select
-                    formControlName="questionCode"
-                    class="select-comfy rule-grow"
-                    nzDropdownClassName="select-comfy-dropdown"
-                    [nzOptionHeightPx]="42"
-                    nzShowSearch
-                    [nzPlaceHolder]="branchPickSourceLabel"
-                    [attr.aria-labelledby]="'branch-src-lbl'"
-                    (ngModelChange)="onBranchSourceChange()"
-                  >
-                    @for (q of branchSources(); track q.id) {
-                      <nz-option
-                        [nzValue]="q.code"
-                        [nzLabel]="isAr ? q.questionAr : q.questionEn"
-                      ></nz-option>
-                    }
-                  </nz-select>
-                </div>
-                @if (branchOn()) {
-                  <div class="rule-line">
-                    <!-- role=radiogroup is the honest semantics for one-of-three, and it reuses
-                       the answer-type picker's segmented vocabulary. -->
-                    <span class="sr-only" id="branch-op-lbl" i18n="@@qedit.branch_compare">
-                      How the answer is compared
-                    </span>
-                    <div class="op-group" role="radiogroup" aria-labelledby="branch-op-lbl">
-                      @for (op of branchOperators; track op) {
-                        <button
-                          type="button"
-                          role="radio"
-                          class="op-btn"
-                          [class.on]="branchOperator() === op"
-                          [attr.aria-checked]="branchOperator() === op"
-                          [disabled]="editLock() !== null"
-                          (click)="pickBranchOperator(op)"
-                        >
-                          {{ branchOperatorLabel(op) }}
-                        </button>
-                      }
-                    </div>
-                    <!-- "is one of" names several answers, so its picker takes several: one
-                       select per comparison rather than one select whose mode flips. -->
-                    @if (branchOperator() === 'in') {
-                      <span class="sr-only" id="branch-opts-lbl" i18n="@@qedit.branch_options">
-                        The answers that turn this question on
-                      </span>
-                      <nz-select
-                        nzMode="multiple"
-                        formControlName="optionCodes"
-                        class="select-comfy rule-grow"
-                        nzDropdownClassName="select-comfy-dropdown"
-                        [nzOptionHeightPx]="42"
-                        [nzMaxMultipleCount]="50"
-                        [nzPlaceHolder]="branchPickOptionsLabel"
-                        [attr.aria-labelledby]="'branch-opts-lbl'"
-                      >
-                        @for (o of branchOptions(); track o.id) {
-                          <nz-option
-                            [nzValue]="o.code"
-                            [nzLabel]="isAr ? o.labelAr : o.labelEn"
-                          ></nz-option>
-                        }
-                      </nz-select>
-                    } @else {
-                      <span class="sr-only" id="branch-opt-lbl" i18n="@@qedit.branch_option">
-                        The answer that turns this question on
-                      </span>
-                      <nz-select
-                        formControlName="optionCode"
-                        class="select-comfy rule-grow"
-                        nzDropdownClassName="select-comfy-dropdown"
-                        [nzOptionHeightPx]="42"
-                        nzShowSearch
-                        [nzPlaceHolder]="branchPickOptionLabel"
-                        [attr.aria-labelledby]="'branch-opt-lbl'"
-                      >
-                        @for (o of branchOptions(); track o.id) {
-                          <nz-option
-                            [nzValue]="o.code"
-                            [nzLabel]="isAr ? o.labelAr : o.labelEn"
-                          ></nz-option>
-                        }
-                      </nz-select>
-                    }
-                  </div>
-                }
-                @if (editLock()) {
-                  <p class="hint" i18n="@@qedit.branch_locked">
-                    Locked because offers are worked out from this answer: changing when it is asked
-                    would change who answers it.
-                  </p>
-                } @else if (branchNotFixed()) {
-                  <!-- Fixed over a rule on an ordinary question: the server would refuse it
-                     (QUESTION_FIXED_GATE_NOT_FIXED), so it is said here, before Save. -->
-                  <p class="hint warn" i18n="@@qedit.branch_not_fixed">
-                    That question is not fixed, and a fixed question can only follow another fixed
-                    question. Pick a fixed one, or always ask this one.
-                  </p>
-                } @else if (branchIncomplete()) {
-                  @if (branchOperator() === 'in') {
-                    <p class="hint warn" i18n="@@qedit.branch_incomplete_in">
-                      Pick at least two answers. For a single answer, use “is” instead.
+                @if (branchSources().length === 0 && !editLock() && !branchOn()) {
+                  @if (fixedTicked()) {
+                    <p class="hint" i18n="@@qedit.branch_none_fixed">
+                      Nothing to branch on yet — a fixed question can only follow an earlier fixed
+                      question that offers options.
                     </p>
                   } @else {
-                    <p class="hint warn" i18n="@@qedit.branch_incomplete">
-                      Pick which answer turns this question on — a half-set rule hides nothing.
+                    <p class="hint" i18n="@@qedit.branch_none">
+                      Nothing to branch on yet — a rule reads an answer from an earlier question
+                      that offers options.
                     </p>
                   }
-                } @else if (branchSourceIsMulti()) {
-                  <p class="hint" i18n="@@qedit.branch_hint_multi">
-                    That question accepts several picks — any one of them matching is enough.
-                  </p>
-                } @else if (!branchOn()) {
-                  <p class="hint" i18n="@@qedit.branch_hint_off2">
-                    Asked of every applicant of the programs that ask this question.
-                  </p>
-                }
-                @if (fixedTicked() && !editLock() && !branchNotFixed()) {
-                  <p class="hint" i18n="@@qedit.branch_fixed_only">
-                    Only fixed questions are listed: a fixed question can only follow another fixed
-                    question.
-                  </p>
-                }
-                <!-- Undoes the whole rule, so it closes the section rather than sitting beside
+                } @else {
+                  <!-- ONE sentence, read start to end. A span + aria-labelledby rather than a
+                   label/for pair: nz-select renders a div, not an input, so a wrapping label
+                   associates with nothing. -->
+                  <div class="rule-line">
+                    <span class="rule-lead" id="branch-src-lbl" i18n="@@qedit.branch_source">
+                      Ask this only when the answer to
+                    </span>
+                    <nz-select
+                      formControlName="questionCode"
+                      class="select-comfy rule-grow"
+                      nzDropdownClassName="select-comfy-dropdown"
+                      [nzOptionHeightPx]="42"
+                      nzShowSearch
+                      [nzPlaceHolder]="branchPickSourceLabel"
+                      [attr.aria-labelledby]="'branch-src-lbl'"
+                      (ngModelChange)="onBranchSourceChange()"
+                    >
+                      @for (q of branchSources(); track q.id) {
+                        <nz-option
+                          [nzValue]="q.code"
+                          [nzLabel]="isAr ? q.questionAr : q.questionEn"
+                        ></nz-option>
+                      }
+                    </nz-select>
+                  </div>
+                  @if (branchOn()) {
+                    <div class="rule-line">
+                      <!-- role=radiogroup is the honest semantics for one-of-three, and it reuses
+                       the answer-type picker's segmented vocabulary. -->
+                      <span class="sr-only" id="branch-op-lbl" i18n="@@qedit.branch_compare">
+                        How the answer is compared
+                      </span>
+                      <div class="op-group" role="radiogroup" aria-labelledby="branch-op-lbl">
+                        @for (op of branchOperators; track op) {
+                          <button
+                            type="button"
+                            role="radio"
+                            class="op-btn"
+                            [class.on]="branchOperator() === op"
+                            [attr.aria-checked]="branchOperator() === op"
+                            [disabled]="editLock() !== null"
+                            (click)="pickBranchOperator(op)"
+                          >
+                            {{ branchOperatorLabel(op) }}
+                          </button>
+                        }
+                      </div>
+                      <!-- "is one of" names several answers, so its picker takes several: one
+                       select per comparison rather than one select whose mode flips. -->
+                      @if (branchOperator() === 'in') {
+                        <span class="sr-only" id="branch-opts-lbl" i18n="@@qedit.branch_options">
+                          The answers that turn this question on
+                        </span>
+                        <nz-select
+                          nzMode="multiple"
+                          formControlName="optionCodes"
+                          class="select-comfy rule-grow"
+                          nzDropdownClassName="select-comfy-dropdown"
+                          [nzOptionHeightPx]="42"
+                          [nzMaxMultipleCount]="50"
+                          [nzPlaceHolder]="branchPickOptionsLabel"
+                          [attr.aria-labelledby]="'branch-opts-lbl'"
+                        >
+                          @for (o of branchOptions(); track o.id) {
+                            <nz-option
+                              [nzValue]="o.code"
+                              [nzLabel]="isAr ? o.labelAr : o.labelEn"
+                            ></nz-option>
+                          }
+                        </nz-select>
+                      } @else {
+                        <span class="sr-only" id="branch-opt-lbl" i18n="@@qedit.branch_option">
+                          The answer that turns this question on
+                        </span>
+                        <nz-select
+                          formControlName="optionCode"
+                          class="select-comfy rule-grow"
+                          nzDropdownClassName="select-comfy-dropdown"
+                          [nzOptionHeightPx]="42"
+                          nzShowSearch
+                          [nzPlaceHolder]="branchPickOptionLabel"
+                          [attr.aria-labelledby]="'branch-opt-lbl'"
+                        >
+                          @for (o of branchOptions(); track o.id) {
+                            <nz-option
+                              [nzValue]="o.code"
+                              [nzLabel]="isAr ? o.labelAr : o.labelEn"
+                            ></nz-option>
+                          }
+                        </nz-select>
+                      }
+                    </div>
+                  }
+                  @if (editLock()) {
+                    <p class="hint" i18n="@@qedit.branch_locked">
+                      Locked because offers are worked out from this answer: changing when it is
+                      asked would change who answers it.
+                    </p>
+                  } @else if (branchNotFixed()) {
+                    <!-- Fixed over a rule on an ordinary question: the server would refuse it
+                     (QUESTION_FIXED_GATE_NOT_FIXED), so it is said here, before Save. -->
+                    <p class="hint warn" i18n="@@qedit.branch_not_fixed">
+                      That question is not fixed, and a fixed question can only follow another fixed
+                      question. Pick a fixed one, or always ask this one.
+                    </p>
+                  } @else if (branchIncomplete()) {
+                    @if (branchOperator() === 'in') {
+                      <p class="hint warn" i18n="@@qedit.branch_incomplete_in">
+                        Pick at least two answers. For a single answer, use “is” instead.
+                      </p>
+                    } @else {
+                      <p class="hint warn" i18n="@@qedit.branch_incomplete">
+                        Pick which answer turns this question on — a half-set rule hides nothing.
+                      </p>
+                    }
+                  } @else if (branchSourceIsMulti()) {
+                    <p class="hint" i18n="@@qedit.branch_hint_multi">
+                      That question accepts several picks — any one of them matching is enough.
+                    </p>
+                  } @else if (!branchOn()) {
+                    <p class="hint" i18n="@@qedit.branch_hint_off2">
+                      Asked of every applicant of the programs that ask this question.
+                    </p>
+                  }
+                  @if (fixedTicked() && !editLock() && !branchNotFixed()) {
+                    <p class="hint" i18n="@@qedit.branch_fixed_only">
+                      Only fixed questions are listed: a fixed question can only follow another
+                      fixed question.
+                    </p>
+                  }
+                  <!-- Undoes the whole rule, so it closes the section rather than sitting beside
                    the row it would clear. No icon: the label states the outcome. -->
-                @if (branchOn() && !editLock()) {
-                  <button
-                    type="button"
-                    class="clear-branch"
-                    (click)="clearBranch()"
-                    i18n="@@qedit.branch_clear"
-                  >
-                    Always ask instead
-                  </button>
+                  @if (branchOn() && !editLock()) {
+                    <button
+                      type="button"
+                      class="clear-branch"
+                      (click)="clearBranch()"
+                      i18n="@@qedit.branch_clear"
+                    >
+                      Always ask instead
+                    </button>
+                  }
                 }
-              }
-            </div>
+              </div>
+            }
           </app-drawer-section>
         }
 
@@ -1945,10 +2072,42 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         background: color-mix(in srgb, var(--color-warning, #c8893d) 14%, transparent);
         border-color: var(--color-warning, #c8893d);
       }
+      /* The count is a small rounded badge beside the label, not a faded number: it reads as
+         "how many", and on a selected filter it takes the chip's own colour. */
       .chip-n {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: 20px;
+        block-size: 18px;
+        padding-inline: 6px;
+        border-radius: var(--radius-pill, 999px);
+        background: var(--bg-subtle);
+        color: var(--text-secondary);
         font-size: 11px;
+        font-weight: var(--font-semibold, 600);
+        line-height: 1;
         font-variant-numeric: tabular-nums;
-        opacity: 0.75;
+      }
+      .chip.on .chip-n {
+        background: var(--cat);
+        color: var(--text-on-primary);
+      }
+      .tool-break {
+        flex-basis: 100%;
+        block-size: 0;
+      }
+      .facts {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .facts-label {
+        margin-inline-end: var(--space-1);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--qe-text-2);
       }
       .showing {
         margin: 0;
@@ -2101,8 +2260,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
          and centres the line inside it. */
       .row-main {
         display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
-        gap: var(--space-2, 8px);
+        gap: 2px var(--space-2, 8px);
         min-inline-size: 0;
         padding: 10px 0;
         border: 0;
@@ -2121,9 +2281,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       }
       .q-text {
         min-inline-size: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
       }
       .rule-line {
         flex-shrink: 0;
@@ -2162,8 +2320,67 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         font-weight: 500;
       }
       .pill.more {
+        cursor: pointer;
+        font-family: inherit;
         border-style: dashed;
         color: var(--qe-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .pill.more:hover,
+      .pill.more:focus-visible {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+      }
+      /* Every answer, numbered, in two columns read top to bottom, scrolling past ~12 rows. */
+      .answers-head {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-inline-size: 460px;
+      }
+      .answers-q {
+        font-size: var(--text-sm, 14px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--text-primary);
+        line-height: 1.4;
+      }
+      .answers-count {
+        font-size: var(--text-xs, 12px);
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+      .answers-list {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-columns: repeat(2, minmax(170px, 1fr));
+        column-gap: var(--space-2, 8px);
+        min-inline-size: 360px;
+        max-inline-size: 460px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        max-block-size: min(440px, 60vh);
+        overflow-y: auto;
+        font-size: var(--text-sm, 14px);
+        color: var(--text-primary);
+      }
+      .answers-list li {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2, 8px);
+        padding: 3px var(--space-2, 8px);
+        border-radius: var(--radius-sm, 6px);
+        line-height: 1.4;
+      }
+      .answers-list li:hover {
+        background: var(--bg-subtle);
+      }
+      .answer-n {
+        flex-shrink: 0;
+        min-inline-size: 2ch;
+        text-align: end;
+        font-size: var(--text-xs, 12px);
+        color: var(--text-tertiary);
         font-variant-numeric: tabular-nums;
       }
       .pill.warn {
@@ -2206,6 +2423,9 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         border: 1px dashed var(--qe-line-strong);
         padding: 1px 8px;
         border-radius: var(--radius-pill, 999px);
+      }
+      li[nz-menu-item] span[nz-icon] {
+        margin-inline-end: var(--space-2, 8px);
       }
       .kebab {
         flex-shrink: 0;
@@ -2260,15 +2480,22 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         flex-shrink: 1;
         min-inline-size: 0;
         max-inline-size: 28ch;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         font-size: 11px;
         font-weight: 600;
         color: var(--qe-text-2);
         background: var(--qe-surface-muted);
         padding: 1px 8px;
         border-radius: var(--radius-pill, 999px);
+      }
+
+      .gate-chip .gate-text {
+        min-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       /* Drag affordances. */
@@ -2407,6 +2634,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         flex-shrink: 0;
         display: inline-flex;
         align-items: center;
+        gap: var(--space-1);
         padding: 1px var(--space-2, 8px);
         border: 1px solid var(--qe-line-strong);
         border-radius: var(--radius-pill, 999px);
@@ -2415,11 +2643,48 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
         font-size: var(--text-xs, 12px);
         line-height: 1.4;
       }
+      .lang-pair {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-3, 12px);
+      }
+      @media (max-width: 560px) {
+        .lang-pair {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .ro-value {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2, 8px);
+        margin: 0;
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        border-radius: var(--radius-md, 8px);
+        background: var(--bg-subtle);
+        font-size: var(--text-sm, 14px);
+      }
+      .ro-key {
+        font-size: var(--text-xs, 12px);
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text-2);
+      }
+      .ro-val {
+        font-weight: var(--font-semibold, 600);
+        color: var(--qe-text);
+      }
+      .ro-val.plain {
+        font-weight: 500;
+      }
+      .ro-note {
+        font-size: var(--text-xs, 12px);
+        color: var(--qe-text-2);
+      }
       .lock-note {
         display: flex;
         align-items: flex-start;
         gap: var(--space-3, 12px);
-        padding: var(--space-3, 12px) var(--space-4, 16px);
+        padding: var(--space-2, 8px) var(--space-3, 12px);
         border: 1px solid var(--qe-line-strong);
         border-radius: var(--radius-md, 8px);
         background: color-mix(in srgb, var(--qe-text) 4%, var(--qe-surface));
@@ -2439,6 +2704,7 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       }
       .lock-title {
         margin: 0;
+        line-height: var(--leading-normal, 1.5);
         font-size: var(--text-sm, 14px);
         font-weight: var(--font-semibold, 600);
         color: var(--qe-text);
@@ -2453,10 +2719,25 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
       .lock-who {
         color: var(--qe-text);
       }
+      .lock-title .lock-body {
+        margin-inline-start: var(--space-1, 4px);
+      }
       /* ---- Fixed (v31.0.0) -----------------------------------------------
          A fact about where a question is asked, worded rather than drawn as a
          second padlock: accent INK on its own faint tint (the tonal pair keeps
          the ink above AA in both themes; the raw accent on its tint does not). */
+      .effect-chip {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        padding: 1px var(--space-2, 8px);
+        border-radius: var(--radius-pill, 999px);
+        background: var(--color-success-bg);
+        color: var(--color-success);
+        font-size: var(--text-xs, 12px);
+        font-weight: var(--font-semibold, 600);
+        line-height: 1.4;
+      }
       .fixed-chip {
         flex-shrink: 0;
         display: inline-flex;
@@ -3265,10 +3546,33 @@ export class QuestionnaireEditorPage implements OnInit {
    */
   readonly deletableQuestion = computed<QuestionRow | null>(() => {
     const q = this.editingQuestion();
-    if (q === null) return null;
-    if (isFixed(q)) return this.auth.role() === 'super_admin' ? q : null;
-    return engineLockOf(q) === null ? q : null;
+    return q !== null && this.canDelete(q) ? q : null;
   });
+
+  /** A fixed question is a super admin's to delete; an engine-read one that isn't fixed, no one's. */
+  canDelete(q: QuestionRow): boolean {
+    if (isFixed(q)) return this.auth.role() === 'super_admin';
+    return engineLockOf(q) === null;
+  }
+
+  deleteBlockedReason(q: QuestionRow): string {
+    return isFixed(q)
+      ? $localize`:@@qedit.delete_blocked_fixed:Only a super admin can delete a fixed question.`
+      : $localize`:@@qedit.delete_blocked_priced:Used in pricing, so it can't be deleted.`;
+  }
+
+  /** The menu's Edit: opens the sheet (never toggles it shut, unlike a click on the row). */
+  openRowEditor(q: QuestionRow): void {
+    if (this.expandedId() !== q.id) this.openRow(q);
+  }
+
+  /** A new question asked only after an answer to this one: the rule is set, the answer picked next. */
+  startFollowUp(q: QuestionRow): void {
+    this.startCreate();
+    const c = this.questionForm.controls.enabledWhen.controls;
+    c.questionCode.setValue(q.code);
+    this.onBranchSourceChange();
+  }
 
   readonly sheetTitle = computed(() =>
     this.editing()
@@ -3313,6 +3617,25 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly secSettings = $localize`:@@qedit.sec_settings:Settings`;
   readonly secBranch = $localize`:@@qedit.sec_branch:When to ask this`;
 
+  /** A locked number's unit, as text: "EGP · جنيه", or a dash when it has none. */
+  unitText(): string {
+    const { unitEn, unitAr } = this.questionForm.controls.numeric.getRawValue();
+    return [unitEn, unitAr].filter((u) => u.trim() !== '').join(' · ') || '—';
+  }
+
+  /**
+   * A locked question's when-to-ask rule, said as a sentence instead of greyed pickers. Null
+   * when it can't be put in words here (the pickers show, disabled, as before).
+   */
+  lockedBranchText(): string | null {
+    const eq = this.editingQuestion();
+    if (eq === null || this.editLock() === null) return null;
+    if (!this.branchOn()) {
+      return $localize`:@@qedit.branch_hint_off2:Asked of every applicant of the programs that ask this question.`;
+    }
+    return this.gateOf(eq)?.full ?? null;
+  }
+
   /** Mirrors the form's Fixed tick and its "Asked on" choice, for the template. */
   readonly fixedTicked = signal(false);
   readonly servedOnValue = signal<FixedServedOn>('every_name');
@@ -3338,10 +3661,19 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
   readonly typeFilter = signal<TypeFilter>('ALL');
   readonly onlyIncomplete = signal(false);
+  readonly onlyFixed = signal(false);
+  readonly onlyPriced = signal(false);
 
   readonly filtering = computed(
-    () => this.query().trim() !== '' || this.typeFilter() !== 'ALL' || this.onlyIncomplete(),
+    () =>
+      this.query().trim() !== '' ||
+      this.typeFilter() !== 'ALL' ||
+      this.onlyIncomplete() ||
+      this.onlyFixed() ||
+      this.onlyPriced(),
   );
+  readonly fixedCount = computed(() => this.rows().filter((q) => isFixed(q)).length);
+  readonly pricedCount = computed(() => this.rows().filter((q) => engineLockOf(q) !== null).length);
 
   /**
    * The library as a tree — a follow-up under the question whose answer opens it — and the
@@ -3359,6 +3691,8 @@ export class QuestionnaireEditorPage implements OnInit {
     return this.ordered().filter((q) => {
       if (type !== 'ALL' && q.type !== type) return false;
       if (incompleteOnly && !this.needsOptions(q)) return false;
+      if (this.onlyFixed() && !isFixed(q)) return false;
+      if (this.onlyPriced() && engineLockOf(q) === null) return false;
       if (needle === '') return true;
       return this.haystack(q).includes(needle);
     });
@@ -3398,6 +3732,8 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly incomplete = computed(() => this.rows().filter((q) => this.needsOptions(q)));
   readonly issueCount = computed(() => this.incomplete().length + this.bindingWarnings().length);
   readonly totalOptions = computed(() => this.rows().reduce((sum, q) => sum + q.options.length, 0));
+  /** Questions that hang under another — the rest of `rows()` beyond the top-level ones. */
+  readonly followUpCount = computed(() => this.rows().length - this.tree().roots.length);
 
   /**
    * Reordering is only offered on the unfiltered list: in a filtered view the
@@ -3489,6 +3825,7 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly createStep = signal(0);
   readonly lastCreateStep = 2;
   readonly createStepsAria = $localize`:@@qedit.steps_aria:Steps to add a question`;
+  readonly editStepsAria = $localize`:@@qedit.tabs_aria:Parts of the question`;
   /**
    * The answers typed while CREATING a choice question — sent with it in one request
    * (`createQuestionWithOptions`), so no version is ever published with fewer than two. Saved
@@ -3521,6 +3858,36 @@ export class QuestionnaireEditorPage implements OnInit {
       disabled: i > active && !this.stepsValidBefore(i),
     }));
   });
+
+  /**
+   * Editing: the same three parts as free tabs — every one reachable, and a part with
+   * something to fix says so, since Save sends them all.
+   */
+  readonly editTabs = computed<WizardStepItem[]>(() => {
+    this.formTick();
+    this.selectedType();
+    const labels = [this.secQuestion, this.secAnswer, this.secSettings];
+    return labels.map((label, i) => ({
+      id: `tab_${i}`,
+      label,
+      ...(this.editTabValid(i) ? {} : { status: 'invalid' as const }),
+    }));
+  });
+  editSteps(): WizardStepItem[] {
+    return this.editTabs();
+  }
+
+  /** A saved choice question edits its answers in place, so only the wording and bounds count. */
+  private editTabValid(tab: number): boolean {
+    const c = this.questionForm.controls;
+    if (tab === 0) return c.questionEn.valid && c.questionAr.valid;
+    if (tab === 1) {
+      const type = this.selectedType();
+      if (type === 'NUMERIC') return c.numeric.valid && !this.numericRangeInverted();
+      if (type === 'TEXT') return c.text.valid;
+    }
+    return true;
+  }
 
   constructor() {
     // A new search re-slices the list, so the page number the admin was on refers
@@ -3618,11 +3985,11 @@ export class QuestionnaireEditorPage implements OnInit {
         id,
         q.enabledWhen?.operator === 'not_equals'
           ? {
-              short: $localize`:@@srvp.gate_unless:Unless: ${answers}:ANSWERS:`,
+              short: $localize`:@@srvp.gate_unless:Not ${answers}:ANSWERS:`,
               full: $localize`:@@srvp.gate_not:Asked unless “${asked}:SOURCE:” is ${answers}:ANSWERS:`,
             }
           : {
-              short: $localize`:@@srvp.gate_if:If: ${answers}:ANSWERS:`,
+              short: $localize`:@@srvp.gate_if:${answers}:ANSWERS:`,
               full: $localize`:@@srvp.gate_is:Asked only when “${asked}:SOURCE:” is ${answers}:ANSWERS:`,
             },
       );
@@ -3655,12 +4022,30 @@ export class QuestionnaireEditorPage implements OnInit {
     }
   }
 
+  /** An answer (or a number range) the admin set to move the max loan, rate or term. */
+  hasOfferEffect(q: QuestionRow): boolean {
+    const onOption = q.options.some(
+      (o) =>
+        (o.effectMaxLoanPercent ?? null) !== null ||
+        (o.effectRatePoints ?? null) !== null ||
+        (o.effectMaxTenorMonths ?? null) !== null,
+    );
+    return onOption || (Array.isArray(q.numberEffects) && q.numberEffects.length > 0);
+  }
+  readonly showOnlyLabel = $localize`:@@qedit.show_only:Show only`;
+  readonly offerEffectTip = $localize`:@@qedit.effect_tip:Some answers change the max loan, the rate or the term on every offer`;
+
   previewOptions(q: QuestionRow): OptionRow[] {
     return q.options.slice(0, INLINE_OPTION_PREVIEW);
   }
 
-  allOptionLabels(q: QuestionRow): string {
-    return q.options.map((o) => (this.isAr ? o.labelAr : o.labelEn)).join(' · ');
+  /** Two columns read top to bottom: the first half, then the rest. */
+  answerRows(q: QuestionRow): string {
+    return `repeat(${Math.ceil(q.options.length / 2)}, auto)`;
+  }
+
+  allAnswersTitle(q: QuestionRow): string {
+    return $localize`:@@qedit.all_answers2:${q.options.length}:COUNT: answers`;
   }
 
   /** The row chip's tooltip, and its screen-reader text. */
@@ -3772,10 +4157,22 @@ export class QuestionnaireEditorPage implements OnInit {
     this.pageRequest.set(1);
   }
 
+  setOnlyFixed(only: boolean): void {
+    this.onlyFixed.set(only);
+    this.pageRequest.set(1);
+  }
+
+  setOnlyPriced(only: boolean): void {
+    this.onlyPriced.set(only);
+    this.pageRequest.set(1);
+  }
+
   clearFilters(): void {
     this.searchCtrl.setValue('');
     this.typeFilter.set('ALL');
     this.onlyIncomplete.set(false);
+    this.onlyFixed.set(false);
+    this.onlyPriced.set(false);
     this.pageRequest.set(1);
   }
 
@@ -3850,6 +4247,7 @@ export class QuestionnaireEditorPage implements OnInit {
     this.fixedTicked.set(isFixed(q));
     this.servedOnValue.set(q.fixedServedOn ?? 'every_name');
     this.applyLocks(q);
+    this.createStep.set(0);
     this.expandedId.set(q.id);
     this.openSheet();
   }
@@ -3913,9 +4311,9 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   // ---- Creating, in steps -------------------------------------------------------------------
-  /** Every section shows while editing; while creating, only the step on stage. */
+  /** One part on stage: a step while creating, a tab while editing. */
   stepShown(step: number): boolean {
-    return this.editing() || this.createStep() === step;
+    return this.createStep() === step;
   }
 
   /** Whether a step's own fields are complete — "can I leave it" (the rail's `commitStep`). */
@@ -3964,7 +4362,7 @@ export class QuestionnaireEditorPage implements OnInit {
    */
   goToCreateStep(step: number): void {
     if (step < 0 || step > this.lastCreateStep) return;
-    if (step > this.createStep() && !this.stepsValidBefore(step)) return;
+    if (!this.editing() && step > this.createStep() && !this.stepsValidBefore(step)) return;
     this.createStep.set(step);
     setTimeout(() => {
       const body = document.querySelector('.qe-sheet .ant-drawer-body, .ant-drawer-body');

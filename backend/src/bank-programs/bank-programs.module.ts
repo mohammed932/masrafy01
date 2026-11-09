@@ -18,6 +18,7 @@ import { SeedCompetitorController } from './seeds/seed-competitor.controller';
 import { BlueprintService } from './blueprints/blueprint.service';
 import { ProductAsksService } from './asks/product-asks.service';
 import { ProductAsksRepository } from './asks/product-asks.repository';
+import { SurrogateProductLifecycleService } from './products/surrogate-product-lifecycle.service';
 
 @Module({
   // `QuestionnaireModule` because building a predefined product creates the questions it
@@ -54,6 +55,7 @@ import { ProductAsksRepository } from './asks/product-asks.repository';
     // tests.
     ProductAsksService,
     ProductAsksRepository,
+    SurrogateProductLifecycleService,
   ],
   exports: [BankProgramsService, BankProgramRepository],
 })

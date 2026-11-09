@@ -458,6 +458,11 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
           <div class="title-block">
             <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
             <p class="page-subtitle">{{ subtitle() }}</p>
+            @if (!isEditMode() && copiedFrom(); as from) {
+              <p class="page-subtitle" i18n="@@bank_programs.form.copied_from">
+                A copy of {{ from }} — every step is filled in. Change what differs, then create it.
+              </p>
+            }
           </div>
           <!-- What was already decided BEFORE this form opened — the bank and
                the loan type. They belong to the whole program, not to a step,
@@ -7781,10 +7786,13 @@ export class BankProgramFormPage implements OnInit {
     void this.enums.refresh('program_name');
     void this.enums.refresh('surrogate_product');
 
-    void this.loadActiveBanks();
+    this.banksLoaded = this.loadActiveBanks();
 
+    const copyFrom = this.route.snapshot.queryParamMap.get('copy');
     if (this.isEditMode() && this.editProgramCode()) {
       void this.loadForEdit(this.editProgramCode());
+    } else if (copyFrom) {
+      void this.loadForCopy(copyFrom);
     } else {
       this.preselectCategoryFromQuery();
     }
@@ -7802,6 +7810,9 @@ export class BankProgramFormPage implements OnInit {
     const cat = this.route.snapshot.queryParamMap.get('category');
     this.form.controls.identity.controls.productCategory.setValue(isLoanCategory(cat) ? cat : '');
   }
+
+  /** Settles once the bank picker's list is in (a copy picks its source's bank from it). */
+  private banksLoaded: Promise<void> = Promise.resolve();
 
   private async loadActiveBanks(): Promise<void> {
     try {
@@ -8146,6 +8157,39 @@ export class BankProgramFormPage implements OnInit {
       this.handleError(err);
     }
   }
+
+  /**
+   * COPY (`?copy=<programCode>`): a new program with every step filled from another one, as a
+   * template — figures, tables, rules, documents. The admin changes what differs (usually the
+   * name, or the bank: `?bankId=` puts the copy at another bank) and Create saves it as a new
+   * program; the source is never touched. Nothing is grandfathered: the copy is a new row, so
+   * its name and loan type are checked like any other create.
+   */
+  private async loadForCopy(programCode: string): Promise<void> {
+    try {
+      const res = await this.api.getByCode(programCode);
+      this.applyInitial(res.data);
+      this.grandfatheredPair.set(null);
+      this.identityGroup.controls.programCode?.setValue('');
+      // The source's basis is an answer, as it is on edit.
+      this.basisPicked.set(basisOf(res.data.programType));
+      // `?bankId=` puts the copy at another bank; otherwise it starts at the source's, found
+      // by name — a program read carries the bank's name, not its id.
+      await this.banksLoaded;
+      const bankId =
+        this.route.snapshot.queryParamMap.get('bankId') ??
+        this.activeBanks().find((b) => b.nameEnglish === res.data.bankName)?.id ??
+        null;
+      if (bankId && !this.bankFromUrl()) this.onBankPicked(bankId);
+      this.copiedFrom.set(res.data.friendlyName);
+      this.autodetectToggles(res.data);
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
+
+  /** The program this one is being copied from — said under the title. */
+  protected readonly copiedFrom = signal<string | null>(null);
 
   /**
    * On edit the program already exists, so every step is reachable immediately —

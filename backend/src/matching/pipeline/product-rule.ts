@@ -174,6 +174,11 @@ export interface RuleStep {
    */
   branches?: string[];
   /**
+   * `pickByFact` over a product's OWN groups (v36.1.0): each branch's name, for screens only.
+   * The engine never reads it — which column is read is decided by `branches` alone.
+   */
+  branchLabels?: Readonly<Record<string, { labelEn: string; labelAr: string }>>;
+  /**
    * `pickByFact`: whether `branches` name the ANSWER's own option codes (the default) or
    * the CLASS each answer is filed under.
    *

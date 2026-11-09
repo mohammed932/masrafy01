@@ -16,6 +16,7 @@ import {
   I_SCORE_BAND_QUESTION_CODE,
   OTHER_INCOME_FACT_KEY,
   OTHER_INCOME_QUESTION_CODE,
+  PRIORITY_ANSWERS,
   RESIDENCE_GOVERNORATE_CODES,
   TRANSFER_ANSWERS,
 } from '../src/matching/pipeline/base-question-set';
@@ -30,6 +31,7 @@ import {
   MONEY_FIELD_BINDING_KEYS,
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
   OBLIGATION_ITEM_QUESTION_CODES,
+  PRIORITY_QUESTION_CODE,
 } from '../src/matching/pipeline/money-field-bindings';
 /** The four retail loan categories, as this seed's configs key them. */
 type SeedCategory = 'personal' | 'mortgage' | 'car' | 'business';
@@ -271,6 +273,18 @@ const BASE_WORDING: Readonly<Record<string, BaseWording>> = {
       above_625: { en: 'Above 625', ar: 'أكبر من 625' },
     },
   },
+  [PRIORITY_QUESTION_CODE]: {
+    en: 'What matters most to you in a loan?',
+    ar: 'ما أهم شيء لك في التمويل؟',
+    helperEn: 'Your offers are listed in this order.',
+    helperAr: 'نرتب لك العروض حسب اختيارك.',
+    options: {
+      lowest_monthly_installment: { en: 'The smallest payment each month', ar: 'أقل قسط شهري' },
+      lowest_interest_rate: { en: 'The lowest interest', ar: 'أقل سعر فائدة' },
+      fastest_approval: { en: 'The fastest answer', ar: 'أسرع موافقة' },
+      least_documentation_required: { en: 'The fewest papers', ar: 'أقل أوراق مطلوبة' },
+    },
+  },
 };
 
 /** The registry's governorate keys get their labels from the `governorate` list. */
@@ -319,6 +333,11 @@ const FIXED_FIRST_RUN_SHAPES: Readonly<Record<string, FixedFirstRunShape>> = {
     options: I_SCORE_BANDS.map((b) => b.code),
     gate: null,
   },
+  [PRIORITY_QUESTION_CODE]: {
+    type: 'SINGLE_SELECT',
+    options: PRIORITY_ANSWERS.map((a) => a.code),
+    gate: null,
+  },
 };
 
 /**
@@ -331,6 +350,8 @@ const FIXED_FIRST_RUN_SERVED_ON: Readonly<Record<string, 'every_name' | 'income_
   // A text answer: asked and saved for the record, and changes no offer (v31.3.0).
   residence_area: 'every_name',
   [I_SCORE_BAND_QUESTION_CODE]: 'every_name',
+  // Orders the offers on every program (2026-11-01), so asked on every name.
+  [PRIORITY_QUESTION_CODE]: 'every_name',
   [MONEY_FIELD_BINDINGS.tenor_months]: 'every_name',
   [DEBT_TYPES_QUESTION_CODE]: 'every_name',
   ...Object.fromEntries(
@@ -1105,6 +1126,17 @@ const I_SCORE_QUESTION: { groupCode: string; question: SeedQuestion } = {
 };
 
 /**
+ * "What matters most to you in a loan?" — the ORDER of the offers (`rankOffers`), back on
+ * 2026-11-01 after v31.0.0 retired it. Fixed on every name, and OPTIONAL: unanswered, offers
+ * are ordered partner bank first, then fewest documents (the engine's default). Its answers'
+ * meanings are `PRIORITY_ANSWERS` in `base-question-set.ts`.
+ */
+const PRIORITY_QUESTION: { groupCode: string; question: SeedQuestion } = {
+  groupCode: 'financing_info',
+  question: { ...baseSeedQuestion(PRIORITY_QUESTION_CODE), isRequired: false },
+};
+
+/**
  * The sources of income a bank may count BESIDE the basic figure, each as its own amount.
  *
  * Four questions and not one, because the bank weighs them differently: one live sheet counts
@@ -1837,11 +1869,10 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
   // Registered the same way and for the same reason as 1b — a question the engine reads
   // through a fact — but NOT `unshift`ed: it is the least important thing in its group and
   // belongs at the end of it, not in front of what the customer came to answer.
-  {
-    const { groupCode, question } = I_SCORE_QUESTION;
+  for (const { groupCode, question } of [I_SCORE_QUESTION, PRIORITY_QUESTION]) {
     if (!groupByCode.has(groupCode)) {
       throw new Error(
-        `seed-questionnaire: I-Score question targets unknown group '${groupCode}'`,
+        `seed-questionnaire: '${question.code}' targets unknown group '${groupCode}'`,
       );
     }
     questionByCode.set(question.code, {

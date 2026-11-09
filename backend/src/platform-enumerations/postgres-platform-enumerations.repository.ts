@@ -1346,7 +1346,88 @@ export class PostgresPlatformEnumerationsRepository
     // The shared I-Score table rides on the map, so every program that states none — and
     // whose product states none — quotes against it (`toBankProgramSnapshot`).
     const platformIScoreTiers = await this.platformIScoreTiers();
-    return Object.assign(resolved, platformIScoreTiers ? { platformIScoreTiers } : {});
+    // Each product's OWN groups (v36.1.0), handed to every name sold from it.
+    const ownByProduct = await this.productParentKeyMaps();
+    const productParentKeysByName = new Map<string, Readonly<Record<string, string>>>();
+    for (const row of rows) {
+      if (row.type !== 'program_name' || row.surrogateProductKey === null) continue;
+      const own = ownByProduct.get(row.surrogateProductKey);
+      if (own !== undefined) productParentKeysByName.set(row.key, own);
+    }
+    return Object.assign(
+      resolved,
+      platformIScoreTiers ? { platformIScoreTiers } : {},
+      productParentKeysByName.size > 0 ? { productParentKeysByName } : {},
+    );
+  }
+
+  /** Every product's own groups: product key → (value key → class key). */
+  async productParentKeyMaps(): Promise<Map<string, Record<string, string>>> {
+    const rows = await this.prisma.surrogateProductParentKey.findMany({
+      select: {
+        parentKey: true,
+        product: { select: { key: true } },
+        value: { select: { key: true } },
+      },
+    });
+    const out = new Map<string, Record<string, string>>();
+    for (const row of rows) {
+      const map = out.get(row.product.key) ?? {};
+      map[row.value.key] = row.parentKey;
+      out.set(row.product.key, map);
+    }
+    return out;
+  }
+
+  /** One product's own groups for one value list: value key → class key. */
+  async productParentKeys(productKey: string, valueType: string): Promise<Record<string, string>> {
+    const rows = await this.prisma.surrogateProductParentKey.findMany({
+      where: {
+        product: { type: 'surrogate_product', key: productKey },
+        value: { type: valueType },
+      },
+      select: { parentKey: true, value: { select: { key: true } } },
+    });
+    return Object.fromEntries(rows.map((r) => [r.value.key, r.parentKey]));
+  }
+
+  /** Every value one product files under a class of its own — what a copy carries across. */
+  async productParentKeyRows(productId: string): Promise<{ valueId: string; parentKey: string }[]> {
+    return this.prisma.surrogateProductParentKey.findMany({
+      where: { productId },
+      select: { valueId: true, parentKey: true },
+    });
+  }
+
+  /**
+   * File values in a class FOR ONE PRODUCT. `parentKey: null` drops the product's own row, so
+   * the value goes back to its shared class. One transaction; returns how many rows moved.
+   */
+  async setProductParentKeys(
+    productId: string,
+    assignments: readonly { valueId: string; parentKey: string | null }[],
+    actorId: string | null,
+  ): Promise<number> {
+    return this.prisma.$transaction(async (tx) => {
+      let moved = 0;
+      for (const a of assignments) {
+        if (a.parentKey === null) {
+          moved += (
+            await tx.surrogateProductParentKey.deleteMany({
+              where: { productId, valueId: a.valueId },
+            })
+          ).count;
+          continue;
+        }
+        await tx.surrogateProductParentKey.upsert({
+          where: { pk_surrogate_product_parent_key: { productId, valueId: a.valueId } },
+          create: { productId, valueId: a.valueId, parentKey: a.parentKey, updatedBy: actorId },
+          update: { parentKey: a.parentKey, updatedBy: actorId },
+        });
+        moved += 1;
+      }
+      return moved;
+    });
   }
 
   /**
@@ -1442,6 +1523,7 @@ export class PostgresPlatformEnumerationsRepository
     iScoreDefaults: true,
     valueSources: true,
     surrogateProductKey: true,
+    capOnly: true,
   } as const;
 
   async findProgramName(key: string): Promise<ProgramNameIncomeRuleRow | null> {
@@ -1455,6 +1537,14 @@ export class PostgresPlatformEnumerationsRepository
    */
   async findSurrogateProduct(key: string): Promise<ProgramNameIncomeRuleRow | null> {
     return this.findRuleRow('surrogate_product', key);
+  }
+
+  /** Mark a product cap-only (v33.1.0) — written once, by the lifecycle's cap start. */
+  async setSurrogateProductCapOnly(key: string, capOnly: boolean): Promise<void> {
+    await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: { capOnly },
+    });
   }
 
   private async findRuleRow(
@@ -1810,6 +1900,9 @@ export class PostgresPlatformEnumerationsRepository
           sortOrder: true,
           incomeRule: true,
           templateSpec: true,
+          capOnly: true,
+          createdAt: true,
+          updatedAt: true,
         },
       }),
       this.prisma.platformEnumeration.findMany({
@@ -1836,6 +1929,9 @@ export class PostgresPlatformEnumerationsRepository
       incomeRule: asIncomeRule(r.incomeRule) ?? null,
       templateSpec: asProductTemplate(r.templateSpec),
       usedBy: usedBy.get(r.key) ?? [],
+      capOnly: r.capOnly,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
     }));
   }
 
@@ -3008,6 +3104,7 @@ function toProgramNameIncomeRuleRow(row: {
   iScoreDefaults?: unknown;
   valueSources: unknown;
   surrogateProductKey?: string | null;
+  capOnly?: boolean;
 }): ProgramNameIncomeRuleRow {
   return {
     id: row.id,
@@ -3038,6 +3135,7 @@ function toProgramNameIncomeRuleRow(row: {
     iScoreDefaults: asIScoreTiers(row.iScoreDefaults) ?? null,
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
     surrogateProductKey: row.surrogateProductKey ?? null,
+    capOnly: row.capOnly ?? false,
   };
 }
 

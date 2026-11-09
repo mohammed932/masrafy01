@@ -125,9 +125,34 @@ async function main(): Promise<void> {
       return [asked.added, asked.missingFacts];
     };
 
+    // TOMBSTONES (v33.0.0): a product an operator deleted is never seeded back. The delete's
+    // own audit event is the record — append-only, so nothing can quietly lift it — and a
+    // product re-created under the same key afterwards is a live row, which `skip` covers.
+    const deleted = new Set(
+      (
+        await prisma.auditEvent.findMany({
+          where: {
+            eventType: 'PLATFORM_ENUMERATION_DELETED',
+            payload: { path: ['type'], equals: 'surrogate_product' },
+          },
+          select: { payload: true },
+        })
+      ).flatMap((event) => {
+        const key = (event.payload as { key?: unknown } | null)?.key;
+        return typeof key === 'string' ? [key] : [];
+      }),
+    );
+
     for (const blueprint of productBlueprints()) {
       current = blueprint;
       const row = await enums.findSurrogateProduct(blueprint.key);
+      if (row === null && deleted.has(blueprint.key)) {
+        tally.unchanged.push(blueprint.key);
+        console.log(
+          `${TAG} skip    ${pad(blueprint.key)} deleted by an operator — not seeded back`,
+        );
+        continue;
+      }
       const action = planSeedAction(
         blueprint,
         row === null ? null : { key: row.key, hasRule: row.incomeRule !== null },

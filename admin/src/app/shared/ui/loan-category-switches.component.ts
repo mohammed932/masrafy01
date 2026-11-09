@@ -63,9 +63,13 @@ import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-ca
       :host {
         display: block;
       }
+      /* ONE card size wherever the four loan types are picked (a program's page, Add program,
+         Sell it as a program): a fixed column width rather than one that stretches with
+         whatever panel holds it, and every row as tall as its tallest card. */
       .gates {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 300px));
+        grid-auto-rows: 1fr;
         gap: var(--space-3);
         margin: 0;
         padding: 0;
@@ -82,6 +86,13 @@ import { LOAN_CATEGORIES, categoryLabel, type LoanCategory } from '@core/loan-ca
       .gate.on {
         border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
         background: var(--bg-surface);
+      }
+      .gates > li {
+        display: flex;
+      }
+      .gate {
+        flex: 1 1 auto;
+        display: flex;
       }
       .switch {
         display: flex;

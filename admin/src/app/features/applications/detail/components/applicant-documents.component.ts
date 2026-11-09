@@ -122,6 +122,8 @@ interface SideView {
       .doc-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        /* Equal boxes in every row. */
+        grid-auto-rows: 1fr;
         gap: var(--space-3);
       }
       .doc-tile {

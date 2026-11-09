@@ -10,11 +10,17 @@ import { matchesRequestedScope } from '@/bank-programs/program-scope';
 import { ProgramNameScopeService } from '@/platform-enumerations/program-name-scope.service';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { quoteProgram } from '@/matching/pipeline/quote';
+import { failedMatchRules, hidesProgram, resolveGateIncome } from '@/matching/pipeline/match-gate';
 import { carInsuranceDisclosureOf } from '@/matching/pipeline/fees';
-import { carDetailsFrom } from '@/matching/pipeline/car-details';
+import {
+  CAR_DOWN_PAYMENT_FACT_KEY,
+  CAR_PRICE_FACT_KEY,
+  carDetailsFrom,
+} from '@/matching/pipeline/car-details';
 import {
   DEBT_TYPES_QUESTION_CODE,
   MONEY_FIELD_BINDINGS,
+  PRIORITY_QUESTION_CODE,
   resolveObligations,
   type ObligationsResolution,
 } from '@/matching/pipeline/money-field-bindings';
@@ -31,7 +37,9 @@ import {
   answerPicksFromMaps,
   type AnswerEffect,
 } from '@/matching/pipeline/answer-effects';
-import type { ApplicantProfile, Quote } from '@/matching/types';
+import type { ApplicantProfile, ApplicationPriority, Quote } from '@/matching/types';
+import { rankOffers } from '@/matching/pipeline/ranking';
+import { priorityFromAnswer } from '@/matching/pipeline/base-question-set';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { questionsAnsweredIn, readSubmittedAnswers, type Snapshot } from './answer-reading';
 import { narrowAskedQuestions } from '@/questionnaire/validation/question-scope';
@@ -114,10 +122,28 @@ export interface PreviewMatch {
 }
 
 /** The four bound money figures, once resolved. */
+/** A program the customer was not shown, and why — for the admin simulator. */
+interface HiddenProgram {
+  programCode: string;
+  bankName: string;
+  programFriendlyName: string;
+  /** `NOT_ELIGIBLE` (a rule failed — see `failedRules`) or the reason the figures refused. */
+  reason: string;
+  failedRules?: string[];
+  gateReasonCode?: string;
+  missingFactKeys?: string[];
+}
+
 interface MoneyInputs {
   requestedAmountEGP: Decimal;
   tenorMonths: number;
   monthlyIncomeEGP: Decimal;
+  /**
+   * False when no salary was answered. A no-payslip name never asks it — the product works the
+   * income out — so the figure is 0, exactly what the app's apply mapper sends; an income-proof
+   * program is still left unpriced until the salary is in (`MONEY_FIGURE_MISSING`).
+   */
+  incomeDeclared: boolean;
   /** Summed from the per-debt answers when the snapshot serves them. */
   existingObligationsEGP: Decimal;
   hasCurrentLoan: boolean;
@@ -167,6 +193,8 @@ export class MatchingPreviewService {
     age: number;
     programNameKey?: string;
     programType?: BankProgramType;
+    /** The admin simulator also wants what the customer was NOT shown, and why. */
+    includeHidden?: boolean;
   }) {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
@@ -185,6 +213,10 @@ export class MatchingPreviewService {
       args.programType ?? null,
       employment,
       answerEffects,
+      priorityFromAnswer(
+        args.answers.find((a) => a.questionCode === PRIORITY_QUESTION_CODE)?.optionCode,
+      ),
+      args.includeHidden === true,
     );
   }
 
@@ -303,14 +335,21 @@ export class MatchingPreviewService {
     numeric: Map<string, string>,
     obligations: ObligationsResolution | null,
   ): MoneyInputs | null {
-    const amount = numeric.get(MONEY_FIELD_BINDINGS.requested_amount);
+    // The amount, or — when it was not asked — the price minus the down payment, the same
+    // derivation the app's apply mapper makes (`apply_mapping.dart`): a no-payslip car name
+    // asks the two car figures and not the amount. Preview deriving it differently from apply
+    // is the drift A33 forbids, and it left every such program without figures here.
+    const amount = numeric.get(MONEY_FIELD_BINDINGS.requested_amount) ?? derivedCarAmount(numeric);
     const tenor = numeric.get(MONEY_FIELD_BINDINGS.tenor_months);
     const income = numeric.get(MONEY_FIELD_BINDINGS.monthly_income);
-    if (!amount || !tenor || !income || obligations === null) return null;
+    if (!amount || !tenor || obligations === null) return null;
     return {
       requestedAmountEGP: new Decimal(amount),
       tenorMonths: Math.floor(Number(tenor)),
-      monthlyIncomeEGP: new Decimal(income),
+      // No salary answered is 0, as apply receives it: a no-payslip product works the income
+      // out, and the loop below holds an income-proof program back until the salary is in.
+      monthlyIncomeEGP: new Decimal(income ?? '0'),
+      incomeDeclared: income !== undefined && income !== '',
       // The SUM is authoritative. A stated `current_installments` that disagrees
       // is ignored here rather than rejected: preview is an advisory read and the
       // admin simulator shares it, so exploring must never 422. Apply, the
@@ -337,6 +376,8 @@ export class MatchingPreviewService {
     programType: BankProgramType | null,
     employment: EmploymentInputs,
     answerEffects: AnswerEffect[],
+    priority: ApplicationPriority,
+    includeHidden: boolean,
   ) {
     const rows = (await this.programs.findAllActive()).filter((p) =>
       matchesRequestedScope(p, category, programNameKey, programType),
@@ -357,15 +398,49 @@ export class MatchingPreviewService {
     const parentKeyByValue = await this.enumerations.enumerationParentKeys();
 
     const matches: PreviewMatch[] = [];
+    // Constitution v36.0.0: the customer is shown only what they match (`match-gate.ts`, the
+    // same rules apply uses). What is left out goes to `hidden`, served to the admin only.
+    const hidden: HiddenProgram[] = [];
     for (const p of rows) {
-      const priced = profile
-        ? quoteProgram({
-            profile,
-            program: toBankProgramSnapshot(p, catalogRules),
-            parentKeyByValue,
-          })
-        : null;
+      // Mid-questionnaire on a payslip program: "the answers aren't in yet", as before.
+      const awaitsSalary = money !== null && !money.incomeDeclared && p.programType === 'income_proof';
+      const snapshot = toBankProgramSnapshot(p, catalogRules);
+      const gate =
+        profile && !awaitsSalary ? resolveGateIncome({ profile, program: snapshot, parentKeyByValue }) : null;
+      const failedRules = profile && gate ? failedMatchRules(profile, snapshot, gate.assumedIncome) : [];
+      if (failedRules.length > 0) {
+        hidden.push({
+          programCode: p.programCode,
+          bankName: p.bankName,
+          programFriendlyName: p.friendlyName,
+          reason: 'NOT_ELIGIBLE',
+          failedRules,
+        });
+        continue;
+      }
+      const priced =
+        profile && gate
+          ? quoteProgram({
+              profile,
+              program: snapshot,
+              incomeResolution: gate.incomeResolution,
+              parentKeyByValue,
+            })
+          : null;
       const quote = priced?.ok ? priced.quote : null;
+      if (priced && !priced.ok && hidesProgram(priced.unavailable.reason)) {
+        hidden.push({
+          programCode: p.programCode,
+          bankName: p.bankName,
+          programFriendlyName: p.friendlyName,
+          reason: priced.unavailable.reason,
+          ...(priced.unavailable.gateReasonCode ? { gateReasonCode: priced.unavailable.gateReasonCode } : {}),
+          ...(priced.unavailable.missingFactKeys?.length
+            ? { missingFactKeys: [...priced.unavailable.missingFactKeys] }
+            : {}),
+        });
+        continue;
+      }
       matches.push({
         bankProgramId: p.id,
         programCode: p.programCode,
@@ -397,29 +472,37 @@ export class MatchingPreviewService {
       });
     }
 
-    // Same key chain `rankOffers` uses for `lowest_installment`, which is the priority
-    // `buildProfile` states below — preview and apply deriving one order two ways is the
-    // drift A33 forbids, and preview persists nothing so it has no `rankIndex` to read.
+    // ORDER: the applicant's own "what matters most" answer, through `rankOffers` — the one
+    // function apply freezes its order with, so preview and apply cannot derive it two ways
+    // (A33). Preview persists nothing, so it has no `rankIndex` to read.
     //
     // Unquotable programs sort LAST rather than first: a null installment is "we could not
-    // price this yet", not "this one is free". The `programCode` tiebreak is new and
-    // load-bearing — without it equal-featured ties resolved by whatever order the
-    // repository happened to return.
-    matches.sort((a, b) => {
-      const ai = a.monthlyInstallmentEGP === null ? null : Number(a.monthlyInstallmentEGP);
-      const bi = b.monthlyInstallmentEGP === null ? null : Number(b.monthlyInstallmentEGP);
-      if (ai !== bi) {
-        if (ai === null) return 1;
-        if (bi === null) return -1;
-        return ai - bi;
-      }
-      return (
+    // price this yet", not "this one is free". They keep the featured-then-code tiebreak.
+    const quoted = matches.filter((m) => m.figures !== null && m.monthlyInstallmentEGP !== null);
+    const unquoted = matches.filter((m) => m.figures === null || m.monthlyInstallmentEGP === null);
+    const ranked = rankOffers(
+      quoted.map((m) => ({
+        match: m,
+        programCode: m.programCode,
+        bankIsFeatured: m.bankIsFeatured,
+        requiredDocuments: m.requiredDocuments,
+        monthlyInstallmentEGP: new Decimal(m.monthlyInstallmentEGP ?? '0'),
+        effectiveRatePercent: new Decimal(m.effectiveRatePercent ?? '0'),
+      })),
+      priority,
+    ).map((r) => r.match);
+    unquoted.sort(
+      (a, b) =>
         Number(b.bankIsFeatured) - Number(a.bankIsFeatured) ||
-        a.programCode.localeCompare(b.programCode)
-      );
-    });
+        a.programCode.localeCompare(b.programCode),
+    );
 
-    return { category, matches, suggestions: [] };
+    return {
+      category,
+      matches: [...ranked, ...unquoted],
+      suggestions: [],
+      ...(includeHidden ? { hidden } : {}),
+    };
   }
 
   /**
@@ -453,6 +536,10 @@ export class MatchingPreviewService {
         // `undefined` when the fact was not answered, which the resolver reports as
         // `SURROGATE_FACT_MISSING` rather than pricing a guess (FR-020).
         ...surrogateFacts.employment,
+      },
+      answered: {
+        monthsInJob: answered.monthsInJob !== undefined,
+        salaryTransfer: answered.salaryTransferType !== undefined,
       },
       obligations: {
         existingMonthlyObligationsEGP: money.existingObligationsEGP,
@@ -509,4 +596,17 @@ function toPreviewFigures(q: Quote): PreviewFigures {
       ...carInsuranceDisclosureOf(q.feesBreakdown),
     },
   };
+}
+
+/**
+ * The amount a car applicant was not asked: price minus down payment, when both are answered and
+ * the price is the larger — the app's own derivation (`apply_mapping.dart`), read off the
+ * questions bound to the two car facts, which carry the same codes.
+ */
+function derivedCarAmount(numeric: Map<string, string>): string | undefined {
+  const price = numeric.get(CAR_PRICE_FACT_KEY);
+  const down = numeric.get(CAR_DOWN_PAYMENT_FACT_KEY);
+  if (price === undefined || down === undefined) return undefined;
+  const amount = new Decimal(price).minus(down);
+  return amount.greaterThan(0) ? amount.toFixed(2) : undefined;
 }

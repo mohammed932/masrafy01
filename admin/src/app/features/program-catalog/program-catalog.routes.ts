@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { Router, type CanMatchFn, type Routes } from '@angular/router';
-import { CATALOG_BASE } from './program-catalog.paths';
+import { CATALOG_BASE, PRODUCT_BASE } from './program-catalog.paths';
 
 /**
  * Program catalog — everything this platform sells, and how each of them proves an income.
@@ -77,16 +77,12 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
     loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
   },
   {
-    // The library's old URL. A REDIRECT rather than a deletion because it has bookmarks and
-    // two legacy `/surrogate-products/*` aliases pointing at it — and without a route here
-    // Angular falls through to `**` and lands the operator on the DASHBOARD, which reads as
-    // the app losing their place rather than as a screen that moved.
-    //
-    // Still declared before `products/:key`, or it resolves as a product called "new".
+    // Step 1 of the product wizard, "Name and start" (v33.3.0) — what New product and
+    // Duplicate (`?copy=`) open. Declared before `products/:key`, or it resolves as a
+    // product called "new".
     path: 'products/new',
     pathMatch: 'full',
-    canMatch: [surrogateBoardMatchFn],
-    loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
+    loadComponent: () => import('./new-product.page').then((m) => m.NewProductPageComponent),
   },
   {
     // The anonymous shape picker's old URL. It needs a redirect for a reason deleting it did
@@ -99,8 +95,10 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
     loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
   },
   {
+    // The calculation builder is a STEP of the product page now (v33.1.0), rendered inline —
+    // one flow, one place. An old link lands on that step (1-based `?step=3`).
     path: 'products/:key/calculation',
-    loadComponent: () => import('./product-template.page').then((m) => m.ProductTemplatePage),
+    redirectTo: ({ params }) => `${PRODUCT_BASE}/${encodeURIComponent(params['key'] ?? '')}?step=3`,
   },
   {
     // The by-hand "add an ask" screen is gone: what a product asks is structure the seed
@@ -114,6 +112,8 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
     path: 'products/:key',
     loadComponent: () =>
       import('./surrogate-product-detail.page').then((m) => m.SurrogateProductDetailPage),
+    // Every change on the product page is held until Save (v33.2.0), so leaving asks first.
+    canDeactivate: [(page: { confirmLeave(): Promise<boolean> }) => page.confirmLeave()],
   },
 
   // --- Catalog names ------------------------------------------------------
