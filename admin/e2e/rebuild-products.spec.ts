@@ -165,7 +165,16 @@ const CASES: Case[] = [
     main: { fact: 'Car Down payment', way: 'The answer divided by a figure' },
     otherWay: { kind: 'dividedBy', fact: 'Total savings', waysAre: 'exclusive', combine: '' },
     strip: ['wayColumns'],
-    answers: [[{ factKey: 'car_down_payment', value: '360000' }]],
+    answers: [
+      [
+        { factKey: 'car_down_payment', value: '360000' },
+        { factKey: 'total_savings', value: '500000' },
+      ],
+      [
+        { factKey: 'car_down_payment', value: '120000' },
+        { factKey: 'total_savings', value: '900000' },
+      ],
+    ],
   },
 ];
 
@@ -241,7 +250,7 @@ async function build(page: Page, c: Case, name: string): Promise<string> {
   await page.locator('app-wizard-steps').getByText('Calculation').click();
   const main = page.locator('app-product-template-page select').first();
   await main.selectOption({ label: c.main.fact });
-  if (c.main.way) await page.getByLabel(c.main.way).check();
+  if (c.main.way) await page.getByRole('radio', { name: c.main.way }).check();
 
   if (c.column || c.groups || c.otherWay) {
     await page.locator('summary', { hasText: 'More options' }).click();

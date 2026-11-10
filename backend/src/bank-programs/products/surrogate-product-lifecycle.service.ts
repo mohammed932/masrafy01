@@ -234,23 +234,9 @@ export class SurrogateProductLifecycleService {
         actor,
       );
     }
-    if (source.incomeRule !== null) {
-      const rule: Partial<IncomeAssumptionConfig> & Record<string, unknown> = {
-        ...source.incomeRule,
-      };
-      if (source.templateSpec !== null) {
-        delete rule.steps;
-        delete rule.gates;
-        delete rule.output;
-      }
-      await this.programs.setSurrogateProductIncomeRule(
-        key,
-        { incomeRule: rule as never, valueSources: source.valueSources },
-        actor,
-      );
-    }
-
-    // The defaults it hands its programs, each through its own setter.
+    // The defaults it hands its programs, each through its own setter — BEFORE the figures:
+    // a figure's "team estimated" marker may point into the plan or I-Score tables, and the
+    // figures write refuses a marker whose table is not there yet.
     if (source.capDefaults !== null) {
       await this.programs.setSurrogateProductCapDefaults(
         key,
@@ -290,6 +276,22 @@ export class SurrogateProductLifecycleService {
       await this.programs.setSurrogateProductPlanDefaults(
         key,
         { plans: source.planDefaults } as never,
+        actor,
+      );
+    }
+
+    if (source.incomeRule !== null) {
+      const rule: Partial<IncomeAssumptionConfig> & Record<string, unknown> = {
+        ...source.incomeRule,
+      };
+      if (source.templateSpec !== null) {
+        delete rule.steps;
+        delete rule.gates;
+        delete rule.output;
+      }
+      await this.programs.setSurrogateProductIncomeRule(
+        key,
+        { incomeRule: rule as never, valueSources: source.valueSources },
         actor,
       );
     }
