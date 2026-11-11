@@ -133,30 +133,41 @@ export class SurrogateProductLifecycleService {
     }
 
     const adminActor: AdminActor = { staffId: actor.id, sourceIp: actor.sourceIp };
-    switch (dto.startFrom) {
-      case 'blank':
-        await this.enums.create(
-          { type: PRODUCT_TYPE, key, labelEn, labelAr },
-          adminActor,
-          PRODUCT_ADMIN_SOURCE,
-        );
-        break;
-      case 'cap':
-        // A CAP-ONLY product (v33.1.0): no calculation, ever. Its page asks for the one answer
-        // each bank caps its own maximum by; that answer is what makes it ready.
-        await this.enums.create(
-          { type: PRODUCT_TYPE, key, labelEn, labelAr },
-          adminActor,
-          PRODUCT_ADMIN_SOURCE,
-        );
-        await this.repo.setSurrogateProductCapOnly(key, true);
-        break;
-      case 'starter':
-        await this.createFromStarter(key, labelEn, labelAr, dto.blueprintKey, adminActor);
-        break;
-      case 'copy':
-        await this.createCopy(key, labelEn, labelAr, dto.sourceKey, actor);
-        break;
+    // A create is several writes. One that fails half-way takes its row back out, or the
+    // half-made product blocks the next try under the same name (ENUMERATION_KEY_DUPLICATE).
+    // Only a row this call made: a refused duplicate must never delete the product it hit.
+    const existed = (await this.repo.findSurrogateProduct(key)) !== null;
+    try {
+      switch (dto.startFrom) {
+        case 'blank':
+          await this.enums.create(
+            { type: PRODUCT_TYPE, key, labelEn, labelAr },
+            adminActor,
+            PRODUCT_ADMIN_SOURCE,
+          );
+          break;
+        case 'cap':
+          // A CAP-ONLY product (v33.1.0): no calculation, ever. Its page asks for the one answer
+          // each bank caps its own maximum by; that answer is what makes it ready.
+          await this.enums.create(
+            { type: PRODUCT_TYPE, key, labelEn, labelAr },
+            adminActor,
+            PRODUCT_ADMIN_SOURCE,
+          );
+          await this.repo.setSurrogateProductCapOnly(key, true);
+          break;
+        case 'starter':
+          await this.createFromStarter(key, labelEn, labelAr, dto.blueprintKey, adminActor);
+          break;
+        case 'copy':
+          await this.createCopy(key, labelEn, labelAr, dto.sourceKey, actor);
+          break;
+      }
+    } catch (error) {
+      if (!existed && (await this.repo.findSurrogateProduct(key)) !== null) {
+        await this.delete(key, actor);
+      }
+      throw error;
     }
 
     await this.switchOff(key, adminActor);
