@@ -4424,7 +4424,6 @@
       <trans-unit id="spd.step_figures2" datatype="html"><source>Figures</source><target>الأرقام</target></trans-unit>
       <trans-unit id="spd.step_live" datatype="html"><source>Check and go live</source><target>التجربة والتفعيل</target></trans-unit>
       <trans-unit id="spd.cap_live" datatype="html"><source>Try sample answers, then switch it on. Nothing you try is saved.</source><target>جرّب إجابات نموذجية ثم فعّله. لا يُحفظ شيء مما تجربه.</target></trans-unit>
-      <trans-unit id="spd.ready.ok_body4" datatype="html"><source> It has what it needs. Try it and go live on the last step, then sell it as a program. </source><target> لديه كل ما يحتاجه. جرّبه وفعّله في الخطوة الأخيرة، ثم بِعه كبرنامج. </target></trans-unit>
       <trans-unit id="np.hint2" datatype="html"><source> Next creates the product, switched off. Nothing reaches a customer until you go live on the last step. </source><target> «التالي» ينشئ المنتج متوقفًا. لا يصل شيء إلى العملاء حتى تفعّله في الخطوة الأخيرة. </target></trans-unit>
       <trans-unit id="spd.fixed.summary" datatype="html"><source>Also asked on every no-payslip program</source><target>يُسأل أيضًا في كل برنامج بدون إثبات دخل</target></trans-unit>
       <trans-unit id="spd.fixed.note2" datatype="html"><source> Fixed questions. They can&apos;t be removed here — change them on <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;linkish&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>Questionnaire<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>. </source><target> أسئلة ثابتة. لا يمكن حذفها من هنا — غيّرها من <x id="START_LINK" ctype="x-a" equiv-text="&lt;a class=&quot;linkish&quot; routerLink=&quot;/questionnaire/questions&quot;&gt;"/>الاستبيان<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>. </target></trans-unit>
@@ -4946,12 +4945,6 @@
       <trans-unit id="spd.life.copy" datatype="html"><source>Copy</source><target>نسخ</target></trans-unit>
       <trans-unit id="spd.life.delete" datatype="html"><source>Delete</source><target>حذف</target></trans-unit>
       <trans-unit id="spd.power.go_live" datatype="html"><source>Go live</source><target>تفعيل</target></trans-unit>
-      <trans-unit id="spd.ready.title" datatype="html"><source>Before this can go live</source><target>قبل أن يمكن تفعيله</target></trans-unit>
-      <trans-unit id="spd.ready.asks" datatype="html"><source>It asks the applicant nothing yet.</source><target>لا يسأل العميل أي شيء بعد.</target></trans-unit>
-      <trans-unit id="spd.ready.asks_go" datatype="html"><source> Add a question </source><target> أضف سؤالًا </target></trans-unit>
-      <trans-unit id="spd.ready.calc" datatype="html"><source>It has no calculation yet.</source><target>لا توجد طريقة حساب بعد.</target></trans-unit>
-      <trans-unit id="spd.ready.calc_go" datatype="html"><source>Build the calculation</source><target>ابنِ طريقة الحساب</target></trans-unit>
-      <trans-unit id="spd.ready.ok_title" datatype="html"><source>Ready to go live</source><target>جاهز للتفعيل</target></trans-unit>
       <trans-unit id="spd.step_try" datatype="html"><source>Try it</source><target>جرّبه</target></trans-unit>
       <trans-unit id="spd.cap_try" datatype="html"><source>Sample answers through this product&apos;s calculation and figures — nothing is saved.</source><target>إجابات تجريبية على طريقة حساب هذا المنتج وأرقامه — لا يُحفظ شيء.</target></trans-unit>
       <trans-unit id="pcn.payslip_only2" datatype="html"><source>Every program added here is sold against a payslip. To sell one without a payslip, open its product on the Surrogate tab and choose Sell it as a program.</source><target>كل برنامج يُضاف هنا يُباع مقابل إثبات دخل. لبيع برنامج بدون إثبات دخل، افتح منتجه في تبويب «بديل الدخل» واختر «بيعه كبرنامج».</target></trans-unit>
@@ -4984,7 +4977,7 @@
       <trans-unit id="spd.review.calc" datatype="html"><source>How it is worked out</source><target>طريقة الحساب</target></trans-unit>
       <trans-unit id="spd.review.sold" datatype="html"><source>Sold as</source><target>يُباع كـ</target></trans-unit>
       <trans-unit id="spd.review.unsaved" datatype="html"><source> You have changes that are not saved yet — save them before going live. </source><target> لديك تغييرات لم تُحفظ بعد — احفظها قبل التفعيل. </target></trans-unit>
-      <trans-unit id="spd.review.not_ready" datatype="html"><source> It can&apos;t go live yet — see “Before this can go live” above. </source><target> لا يمكن تفعيله بعد — راجع «قبل أن يمكن تفعيله» بالأعلى. </target></trans-unit>
+      <trans-unit id="spd.review.not_ready2" datatype="html"><source> It can&apos;t go live yet: it needs at least one question and a calculation. </source><target> لا يمكن تفعيله بعد: يحتاج إلى سؤال واحد على الأقل وطريقة حساب. </target></trans-unit>
       <trans-unit id="spd.review.uses" datatype="html"><source>Who uses it</source><target>من يستخدمه</target></trans-unit>
       <trans-unit id="spd.bar.discard" datatype="html"><source>Discard</source><target>تجاهل</target></trans-unit>
       <trans-unit id="spd.bar.save" datatype="html"><source>Save changes</source><target>حفظ التغييرات</target></trans-unit>

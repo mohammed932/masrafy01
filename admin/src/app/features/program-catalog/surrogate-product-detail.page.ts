@@ -374,50 +374,6 @@ interface ReadList {
             <app-page-header [title]="label(p)" [subtitle]="lede()" />
           </header>
 
-          <!-- READINESS (v33.0.0). A product an operator creates starts OFF and cannot go live
-               until it can work a figure out; this says what is missing and where to fix it,
-               instead of a disabled button that does not say why. -->
-          @if (!p.active && notReady().length > 0) {
-            <div class="ready-card" role="status">
-              <p class="ready-title" i18n="@@spd.ready.title">Before this can go live</p>
-              <ul class="ready-list">
-                @if (notReady().includes('asks_nothing')) {
-                  <li>
-                    <span i18n="@@spd.ready.asks">It asks the applicant nothing yet.</span>
-                    <button
-                      type="button"
-                      class="linkish"
-                      (click)="goToStep(1)"
-                      i18n="@@spd.ready.asks_go"
-                    >
-                      Add a question
-                    </button>
-                  </li>
-                }
-                @if (notReady().includes('no_calculation')) {
-                  <li>
-                    <span i18n="@@spd.ready.calc">It has no calculation yet.</span>
-                    <button
-                      type="button"
-                      class="linkish"
-                      (click)="goToStep(2)"
-                      i18n="@@spd.ready.calc_go"
-                    >
-                      Build the calculation
-                    </button>
-                  </li>
-                }
-              </ul>
-            </div>
-          } @else if (!p.active && isDraft()) {
-            <div class="ready-card is-ok" role="status">
-              <p class="ready-title" i18n="@@spd.ready.ok_title">Ready to go live</p>
-              <p class="ready-body" i18n="@@spd.ready.ok_body4">
-                It has what it needs. Try it and go live on the last step, then sell it as a
-                program.
-              </p>
-            </div>
-          }
 
           <app-wizard-steps
             [steps]="steps()"
@@ -1521,8 +1477,8 @@ interface ReadList {
                     You have changes that are not saved yet — save them before going live.
                   </p>
                 } @else if (!p.active && notReady().length > 0) {
-                  <p class="notice" role="status" i18n="@@spd.review.not_ready">
-                    It can't go live yet — see “Before this can go live” above.
+                  <p class="notice" role="status" i18n="@@spd.review.not_ready2">
+                    It can't go live yet: it needs at least one question and a calculation.
                   </p>
                 }
 
@@ -1932,38 +1888,6 @@ interface ReadList {
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-2);
-      }
-      /* Readiness: what a new product still needs before it can go live (v33.0.0). */
-      .ready-card {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        padding: var(--space-3) var(--space-4);
-        border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--color-border-default));
-        border-radius: var(--radius-md);
-        background: var(--bg-surface);
-      }
-      .ready-card.is-ok {
-        border-inline-start-color: var(--color-success);
-      }
-      .ready-title {
-        margin: 0;
-        font-weight: var(--font-semibold);
-        color: var(--text-primary);
-      }
-      .ready-body {
-        margin: 0;
-        font-size: var(--text-sm);
-        color: var(--text-secondary);
-      }
-      .ready-list {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        margin: 0;
-        padding-inline-start: var(--space-5);
-        font-size: var(--text-sm);
-        color: var(--text-secondary);
       }
       /* All four states on both buttons — the ghost had only a focus ring, so the
          everyday pointer gesture landed on a control that never acknowledged it. */
