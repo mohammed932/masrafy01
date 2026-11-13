@@ -247,6 +247,21 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                     }
                   </div>
                 }
+                @if (decidingHasClasses()) {
+                  <div class="ticks" role="radiogroup" [attr.aria-label]="choiceWayAria">
+                    @for (way of choiceWays; track way.kind) {
+                      <label class="tick">
+                        <input
+                          type="radio"
+                          name="choice-way"
+                          [checked]="form.controls.primaryKind.value === way.kind"
+                          (change)="setNumberWay(way.kind)"
+                        />
+                        <span>{{ way.label }}</span>
+                      </label>
+                    }
+                  </div>
+                }
                 @if (decidingFacts().length === 0) {
                   <span class="help is-warn" i18n="@@spt.q1.no_facts3"
                     >Add a choice or number question in the Questions tab first.</span
@@ -258,25 +273,6 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                 }
               </label>
 
-              @if (form.controls.outputKind.value === 'maxAmount') {
-                <label class="field is-inset">
-                  <span class="label" i18n="@@spt.q1.baseline"
-                    >This ceiling was worked out at a DBR of</span
-                  >
-                  <span class="affix">
-                    <input
-                      class="control is-narrow"
-                      type="text"
-                      formControlName="baselineDbrPercent"
-                    />
-                    <span class="unit" aria-hidden="true">%</span>
-                  </span>
-                  <span class="help" i18n="@@spt.q1.baseline.help"
-                    >The share of income the bank assumed when it decided that ceiling. Leave it
-                    blank to use the program's own cap.</span
-                  >
-                </label>
-              }
             </section>
           }
 
@@ -287,6 +283,49 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                 <span class="q" i18n="@@spt.more">More options</span>
                 <span class="more-note" i18n="@@spt.more_note">Optional</span>
               </summary>
+
+              <!-- ceiling: the figure is the most the customer may borrow, not an income -->
+              <div class="addon">
+                <label class="addon-head">
+                  <input
+                    class="addon-tick"
+                    type="checkbox"
+                    [checked]="form.controls.outputKind.value === 'maxAmount'"
+                    (change)="toggleCeiling(ceilingTick.checked)"
+                    #ceilingTick
+                  />
+                  <span class="addon-text">
+                    <span class="addon-name" i18n="@@spt.addon.ceiling"
+                      >It is a borrowing limit, not an income</span
+                    >
+                    <span class="addon-note" i18n="@@spt.addon.ceiling.note"
+                      >The figure is the most the customer may borrow, as on a compound or club
+                      sheet.</span
+                    >
+                  </span>
+                </label>
+                @if (form.controls.outputKind.value === 'maxAmount') {
+                  <div class="addon-body">
+                    <label class="field">
+                      <span class="label" i18n="@@spt.q1.baseline"
+                        >This ceiling was worked out at a DBR of</span
+                      >
+                      <span class="affix">
+                        <input
+                          class="control is-narrow"
+                          type="text"
+                          formControlName="baselineDbrPercent"
+                        />
+                        <span class="unit" aria-hidden="true">%</span>
+                      </span>
+                      <span class="help" i18n="@@spt.q1.baseline.help"
+                        >The share of income the bank assumed when it decided that ceiling. Leave it
+                        blank to use the program's own cap.</span
+                      >
+                    </label>
+                  </div>
+                }
+              </div>
 
               <!-- other ways -->
               <div class="addon">
@@ -1661,7 +1700,12 @@ export class ProductTemplatePage implements OnInit {
   protected hasExtras(): boolean {
     const v = this.form.getRawValue();
     return (
-      v.useAlternative || v.useSecondColumn || v.useUplift || v.iScore || this.conditions.length > 0
+      v.outputKind === 'maxAmount' ||
+      v.useAlternative ||
+      v.useSecondColumn ||
+      v.useUplift ||
+      v.iScore ||
+      this.conditions.length > 0
     );
   }
 
@@ -1777,13 +1821,31 @@ export class ProductTemplatePage implements OnInit {
     ),
   );
 
-  /** Built some other way (a percentage, a class, a ceiling…): kept until a question is picked. */
+  /** Built some other way (a flat figure…): kept until a question is picked. */
   protected keepsOtherWay(): boolean {
     const kind = this.form.controls.primaryKind.value;
-    return (
-      this.form.controls.outputKind.value === 'maxAmount' ||
-      (kind !== 'choiceTable' && !NUMBER_WAYS.includes(kind))
-    );
+    return kind !== 'choiceTable' && kind !== 'classTable' && !NUMBER_WAYS.includes(kind);
+  }
+
+  /** The picked choice question's answers are filed under classes: a figure per class is offered. */
+  protected decidingHasClasses(): boolean {
+    const key = this.decidingFact();
+    if (key === '') return false;
+    const question = this.allFacts().find((f) => f.key === key)?.question;
+    return question?.type === 'SINGLE_SELECT' && (question.parentOptions?.length ?? 0) > 0;
+  }
+
+  protected readonly choiceWayAria = $localize`:@@spt.choice_way.aria:One figure per answer or per class`;
+
+  protected readonly choiceWays: ReadonlyArray<{ kind: TemplateMechanismKind; label: string }> = [
+    { kind: 'choiceTable', label: $localize`:@@spt.mech.choice:One figure for each answer` },
+    { kind: 'classTable', label: $localize`:@@spt.mech.class:One figure for each class` },
+  ];
+
+  /** The ceiling tick: the figure is the most the customer may borrow instead of an income. */
+  protected toggleCeiling(on: boolean): void {
+    this.setOutputKind(on ? 'maxAmount' : 'monthlyIncome');
+    this.dirty.set(true);
   }
 
   /** The picked question is a number: the operator says how the income follows from it. */
@@ -1799,7 +1861,7 @@ export class ProductTemplatePage implements OnInit {
     { kind: 'dividedBy', label: $localize`:@@spt.way.divided:The answer divided by a figure` },
   ];
 
-  /** Another way for the same number question: the question stays picked. */
+  /** Another way for the same question (number ways, or answer ↔ class): the question stays picked. */
   protected setNumberWay(kind: TemplateMechanismKind): void {
     const fact = this.form.controls.primaryFact.value;
     this.setPrimary(kind);
@@ -1811,12 +1873,10 @@ export class ProductTemplatePage implements OnInit {
     return this.keepsOtherWay() ? '' : this.form.controls.primaryFact.value;
   }
 
-  /** The way follows the answer's type; the figure is an income (DBR always). */
+  /** The way follows the answer's type; a choice starts on a figure per answer. */
   protected pickDecidingFact(key: string): void {
     const fact = this.allFacts().find((f) => f.key === key);
     if (!fact) return;
-    if (this.form.controls.outputKind.value !== 'monthlyIncome')
-      this.setOutputKind('monthlyIncome');
     const current = this.form.controls.primaryKind.value;
     // A number keeps the way already chosen for a number; anything else starts on a range table.
     const kind =

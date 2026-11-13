@@ -2385,6 +2385,9 @@
       <trans-unit id="spt.addon.column.fact" datatype="html"><source>Which answer decides the column?</source><target>أي إجابة تحدد العمود؟</target></trans-unit>
       <trans-unit id="spt.addon.column.branches" datatype="html"><source>Which answers get their own column?</source><target>أي الإجابات لها عمود خاص؟</target></trans-unit>
       <trans-unit id="spt.addon.column.branches.help" datatype="html"><source>Pick at least two. The first one you pick is the standard column — the one a bank quotes when it sells no others.</source><target>اختر اثنتين على الأقل. أول ما تختاره هو العمود الأساسي، وهو ما يسعّر به البنك حين لا يبيع غيره.</target></trans-unit>
+      <trans-unit id="spt.addon.ceiling" datatype="html"><source>It is a borrowing limit, not an income</source><target>الرقم حد أقصى للقرض وليس دخلًا</target></trans-unit>
+      <trans-unit id="spt.addon.ceiling.note" datatype="html"><source>The figure is the most the customer may borrow, as on a compound or club sheet.</source><target>الرقم هو أقصى مبلغ يمكن للعميل اقتراضه، كما في جداول الكومباوندات أو النوادي.</target></trans-unit>
+      <trans-unit id="spt.choice_way.aria" datatype="html"><source>One figure per answer or per class</source><target>رقم لكل إجابة أو لكل فئة</target></trans-unit>
       <trans-unit id="spt.addon.uplift" datatype="html"><source>A bonus percentage when something is true</source><target>نسبة إضافية عند تحقق شرط</target></trans-unit>
       <trans-unit id="spt.addon.uplift.note" datatype="html"><source>Each bank states its own bonus. Any other answer earns none.</source><target>كل بنك يذكر نسبته الإضافية. وأي إجابة أخرى لا تستحق شيئًا.</target></trans-unit>
       <trans-unit id="spt.addon.uplift.fact" datatype="html"><source>Which answer?</source><target>أي إجابة؟</target></trans-unit>
