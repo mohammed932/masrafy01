@@ -1184,7 +1184,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
       }
       .amt,
       .edge {
-        inline-size: 8rem;
+        inline-size: 10rem;
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-sm);
         padding: var(--space-1-5) var(--space-2-5);
@@ -1195,10 +1195,10 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
         font-variant-numeric: tabular-nums;
       }
       .amt.sm {
-        inline-size: 6.5rem;
+        inline-size: 8rem;
       }
       .edge {
-        inline-size: 5.75rem;
+        inline-size: 7.5rem;
       }
       .amt::placeholder,
       .edge::placeholder {

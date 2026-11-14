@@ -618,7 +618,6 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
       .studio {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
-        max-inline-size: 72rem;
       }
       .main {
         display: flex;
@@ -995,9 +994,11 @@ export class ProductStudioPage {
       { key: 'name', label: $localize`:@@ps.step_name:Name` },
       { key: 'questions', label: $localize`:@@ps.step_questions:Questions` },
       { key: 'amount', label: $localize`:@@ps.step_amount:Amount` },
-      { key: 'rules', label: $localize`:@@ps.step_rules:Who can't get it` },
+      // "Who can't get it" is hidden for now (operator's call). Its rules stay stored and are
+      // saved back unchanged; the step returns by adding it here again:
+      // { key: 'rules', label: $localize`:@@ps.step_rules:Who can't get it` },
     ];
-    return this.product()?.capOnly ? all.slice(0, 3) : all;
+    return all;
   });
   protected readonly stepIndex = signal(this.initialStep());
   protected readonly step = computed<StepKey>(
@@ -1011,7 +1012,7 @@ export class ProductStudioPage {
   private initialStep(): number {
     const raw = Number(this.route.snapshot.queryParamMap.get('step'));
     // The create page sends ?step=2 meaning "the questions" on the page this replaced.
-    return Number.isFinite(raw) && raw >= 1 ? Math.min(raw - 1, 3) : 0;
+    return Number.isFinite(raw) && raw >= 1 ? Math.min(raw - 1, 2) : 0;
   }
 
   protected goTo(i: number): void {

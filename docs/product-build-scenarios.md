@@ -11,7 +11,7 @@ exactly what you click or see on screen.
 3. Pick **Blank**.
 4. Type the English name and the Arabic name. Use a name that isn't taken, e.g. "Compound Owner 2".
 5. Click **Create**. The product page opens. Its steps are along the top: **Name · Questions ·
-   Amount · Who can't get it**.
+   Amount**.
 
 Nothing is saved until you click **Save changes** (top right). Leave a duplicate as **Draft**.
 
@@ -112,24 +112,7 @@ The names were typed when you created it; change them here if needed.
 3. Click **+ Loan limits (optional) …**.
 4. In "A monthly payment can take up to … % of their income" type **50**.
 
-### Step 4 — Who can't get it
-
-1. Click **Who can't get it**.
-2. Click **+ Add a rule** five times, and set each rule:
-
-| # | First box (question) | Second box | Figure | Message (last box) | On / Off |
-| --- | --- | --- | --- | --- | --- |
-| 1 | How many months ago did you sign the contract? | is less than | 18 | the contract is too new | nothing to pick: turns **On** once you type the figure |
-| 2 | How much have you paid for the unit so far? | is less than a % of another answer | 30 % of **What is the contract price of the unit?** | paid is below the minimum | nothing to pick: turns **On** once you type the figure |
-| 3 | What is the contract price of the unit? | is less than | 1,000,000 | the unit price is below the minimum | nothing to pick: turns **On** once you type the figure |
-| 4 | How long has your business been running? | tick **Less than a year** and **One to two years** | — | the business is too new | **Off** |
-| 5 | Do you have a valid commercial register and tax card? | tick **No, or only one of them** | — | register and tax card needed | **Off** |
-
-A number rule has no switch. It reads **Off until a number is typed** and turns **On** by itself
-when you type the figure. Leave the figure empty to let each bank type its own. A rule with ticked
-answers (4 and 5) has an **On / Off** switch: set it as in the table.
-
-3. Click **Save changes**.
+Click **Save changes**.
 
 The live product's fifth method (down payment × %) was removed from the database on 2026-11-14: no
 bank used it and no sheet states a percentage. The seed (`product-blueprints.ts`) still lists it.
@@ -137,7 +120,7 @@ bank used it and no sheet states a percentage. The seed (`product-blueprints.ts`
 ## Doctors — In Practice
 
 One method: years in practice, by ranges. The live product stores **no amounts** (each bank types its
-own), one rule (government-hospital doctors are turned away, off by default), and asks four income
+own), and asks four income
 questions that the bank programs count as extra income.
 
 ### Step 1 — Name
@@ -178,15 +161,10 @@ Nothing to do: the names were typed when you created it.
 | 14 | 20 |
 | 20 | (leave empty = and up) |
 
-### Step 4 — Who can't get it
-
-1. Click **Who can't get it**.
-2. Click **+ Add a rule**.
-3. First box: **Do you work at a private hospital or a government one?**
-4. Tick **A government hospital** (the answer that is turned away).
-5. Leave the switch **Off** — on the live product each bank turns it on for itself.
-6. Message: **One of this program's conditions isn't met by your answers.**
-7. Click **Save changes**.
+Click **Save changes**.
 
 Each bank's own figures (its amounts, its highest loan) are set on its own program, not on the
 product.
+
+"Who can't get it" (the rules that turn a customer away) is hidden on the product page for now.
+The live products' rules stay stored and are not touched by a save.
