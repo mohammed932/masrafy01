@@ -33,6 +33,7 @@ import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { ArrowLeftOutline } from '@ant-design/icons-angular/icons';
 import { PageHeaderComponent, WizardStepsComponent, type WizardStepItem } from '@shared/ui';
 import { ErrorCodeService } from '@core/errors/error-code.service';
@@ -48,6 +49,7 @@ import { FIRST_BUILD_STEP_PARAM, productStepLabels } from './product-steps';
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
+    NzSelectModule,
     NzFormModule,
     NzIconModule,
     NzInputModule,
@@ -74,6 +76,81 @@ import { FIRST_BUILD_STEP_PARAM, productStepLabels } from './product-steps';
 
       <section class="panel" [attr.aria-label]="steps[0]?.label ?? ''">
         <form [formGroup]="form" (ngSubmit)="submit()" class="form">
+          <!-- How to start: from nothing, or from the product most like this one. -->
+          <div class="starts" role="radiogroup" [attr.aria-label]="startAria">
+            <button
+              type="button"
+              role="radio"
+              class="start"
+              [class.is-on]="start() === 'blank'"
+              [attr.aria-checked]="start() === 'blank'"
+              (click)="start.set('blank')"
+            >
+              <span class="dot" aria-hidden="true"></span>
+              <span class="start-text">
+                <span class="start-name" i18n="@@np.start_blank">Blank</span>
+                <span class="start-note" i18n="@@np.start_blank_note"
+                  >An empty product. You add the questions and the amounts.</span
+                >
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              class="start"
+              [class.is-on]="start() === 'copy'"
+              [attr.aria-checked]="start() === 'copy'"
+              (click)="start.set('copy')"
+            >
+              <span class="dot" aria-hidden="true"></span>
+              <span class="start-text">
+                <span class="start-name" i18n="@@np.start_copy">Copy a product like it</span>
+                <span class="start-note" i18n="@@np.start_copy_note"
+                  >Its questions, amounts and rules come with it. You change what is
+                  different.</span
+                >
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              class="start"
+              [class.is-on]="start() === 'cap'"
+              [attr.aria-checked]="start() === 'cap'"
+              (click)="start.set('cap')"
+            >
+              <span class="dot" aria-hidden="true"></span>
+              <span class="start-text">
+                <span class="start-name" i18n="@@np.start_cap">A cap on a payslip loan</span>
+                <span class="start-note" i18n="@@np.start_cap_note"
+                  >No amount is worked out. It asks one question, and each bank sets the biggest
+                  loan for each answer.</span
+                >
+              </span>
+            </button>
+          </div>
+
+          @if (start() === 'copy') {
+            <nz-form-item>
+              <nz-form-label nzFor="np-copy" nzRequired i18n="@@np.which_product"
+                >Which product?</nz-form-label
+              >
+              <nz-form-control>
+                <nz-select
+                  nzId="np-copy"
+                  nzShowSearch
+                  [nzPlaceHolder]="pickPlaceholder"
+                  [nzLoading]="loadingLists()"
+                  formControlName="copyKey"
+                >
+                  @for (p of sortedProducts(); track p.key) {
+                    <nz-option [nzValue]="p.key" [nzLabel]="productName(p)" />
+                  }
+                </nz-select>
+              </nz-form-control>
+            </nz-form-item>
+          }
+
           <div class="names">
             <nz-form-item>
               <nz-form-label nzFor="np-name-en" nzRequired i18n="@@pform.name_en"
@@ -107,12 +184,6 @@ import { FIRST_BUILD_STEP_PARAM, productStepLabels } from './product-steps';
               </nz-form-control>
             </nz-form-item>
           </div>
-
-          @if (copyOf) {
-            <p class="hint" i18n="@@np.copy_of">
-              A copy of {{ copyLabel() }} — its questions, calculation and figures come with it.
-            </p>
-          }
 
           <p class="hint" i18n="@@np.hint2">
             Next creates the product, switched off. Nothing reaches a customer until you go live on
@@ -175,6 +246,66 @@ import { FIRST_BUILD_STEP_PARAM, productStepLabels } from './product-steps';
         flex-direction: column;
         gap: var(--space-4);
       }
+      .starts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+        gap: var(--space-3);
+      }
+      .start {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+        font: inherit;
+        text-align: start;
+        cursor: pointer;
+        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .start:hover {
+        border-color: var(--border-strong);
+      }
+      .start:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .start.is-on {
+        border-color: var(--primary);
+        background: var(--primary-subtle);
+      }
+      .dot {
+        flex: none;
+        inline-size: 16px;
+        block-size: 16px;
+        margin-block-start: 2px;
+        border-radius: var(--radius-pill);
+        border: 1.5px solid var(--border-strong);
+      }
+      .start.is-on .dot {
+        border-color: var(--primary);
+        box-shadow: inset 0 0 0 4px var(--primary);
+      }
+      .start-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .start-name {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+      .start-note {
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .start {
+          transition: none;
+        }
+      }
       .names {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
@@ -218,22 +349,33 @@ export class NewProductPageComponent {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(120)],
     }),
+    /** The product to copy, when starting from one. */
+    copyKey: new FormControl<string>(this.copyOf ?? '', { nonNullable: true }),
   });
 
   private readonly value = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
   });
 
+  /** Blank, or a copy of the product picked below ("Duplicate" opens it on that product). */
+  protected readonly start = signal<'blank' | 'copy' | 'cap'>(this.copyOf ? 'copy' : 'blank');
+  protected readonly startAria = $localize`:@@np.start_aria:How to start`;
+  protected readonly pickPlaceholder = $localize`:@@np.pick_product:Choose a product…`;
+
   protected readonly canSubmit = computed(() => {
     const v = this.value();
+    if (this.start() === 'copy' && !v.copyKey) return false;
     return !this.saving() && !!v.labelEn?.trim() && !!v.labelAr?.trim();
   });
 
-  /** The product being copied, by name. */
-  protected readonly copyLabel = computed(() => {
-    const p = this.products().find((x) => x.key === this.copyOf);
-    return p ? (this.isAr ? p.labelAr : p.labelEn) : (this.copyOf ?? '');
-  });
+  /** Every product, by name. */
+  protected readonly sortedProducts = computed(() =>
+    [...this.products()].sort((a, b) => this.productName(a).localeCompare(this.productName(b))),
+  );
+
+  protected productName(p: SurrogateProductSummary): string {
+    return this.isAr ? p.labelAr : p.labelEn;
+  }
 
   /** The whole rail, so the operator sees where this goes; only this step is open. */
   protected readonly steps: WizardStepItem[] = productStepLabels().map((label, i) => ({
@@ -242,10 +384,8 @@ export class NewProductPageComponent {
     ...(i === 0 ? {} : { disabled: true }),
   }));
   protected readonly stepsAria = $localize`:@@spd.steps_aria:Surrogate product setup`;
-  protected readonly caption = $localize`:@@np.caption2:Name it. The rest opens once it exists.`;
-  protected readonly title = this.copyOf
-    ? $localize`:@@pform.title_copy:Duplicate product`
-    : $localize`:@@pform.title_new:New no-payslip product`;
+  protected readonly caption = $localize`:@@np.caption3:Start from nothing or from a product like it, and name it.`;
+  protected readonly title = $localize`:@@pform.title_new:New no-payslip product`;
   protected readonly subtitle = $localize`:@@pform.sub_new:A way to lend to someone who has no payslip — by a grade, an amount they own, or anything else they can show.`;
   constructor() {
     void this.loadLists();
@@ -273,9 +413,9 @@ export class NewProductPageComponent {
       const res = await this.api.createSurrogateProduct({
         labelEn: v.labelEn.trim(),
         labelAr: v.labelAr.trim(),
-        ...(this.copyOf
-          ? { startFrom: 'copy' as const, sourceKey: this.copyOf }
-          : { startFrom: 'blank' as const }),
+        ...(this.start() === 'copy'
+          ? { startFrom: 'copy' as const, sourceKey: v.copyKey }
+          : { startFrom: this.start() === 'cap' ? ('cap' as const) : ('blank' as const) }),
       });
       this.message.success(
         $localize`:@@pform.created:Product created — switched off until it is ready.`,

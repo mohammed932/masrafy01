@@ -38,6 +38,9 @@ import { questionTypeLabel } from './question-type-label';
  */
 export type ServedRowState = 'fixed' | 'engine' | 'program' | 'gate' | 'added' | 'calc';
 
+/** Which programs ask a question: payslip ones, no-payslip ones, or both. */
+export type QuestionBasis = 'both' | 'income_proof' | 'surrogate';
+
 /** Which rows the list draws: every one, only the fixed ones, or only the rest. */
 export type ServedFilter = 'all' | 'fixed' | 'other';
 
@@ -204,6 +207,35 @@ interface PageView {
                     } @else {
                       @if (typeLabel(row.q.type); as kind) {
                         <span class="tag is-type">{{ kind }}</span>
+                      }
+                      @switch (basis()?.get(row.q.code)) {
+                        @case ('both') {
+                          <span
+                            class="tag is-both"
+                            title="Asked on income-proof and no-payslip programs"
+                            i18n-title="@@srvp.basis_both_hint"
+                            i18n="@@srvp.basis_both"
+                            >Both</span
+                          >
+                        }
+                        @case ('income_proof') {
+                          <span
+                            class="tag is-proof"
+                            title="Asked on income-proof programs"
+                            i18n-title="@@srvp.basis_proof_hint"
+                            i18n="@@srvp.basis_proof"
+                            >Income proof</span
+                          >
+                        }
+                        @case ('surrogate') {
+                          <span
+                            class="tag is-surrogate"
+                            title="Asked on no-payslip programs"
+                            i18n-title="@@srvp.basis_sur_hint"
+                            i18n="@@srvp.basis_sur"
+                            >Surrogate</span
+                          >
+                        }
                       }
                       @if (!row.q.isRequired) {
                         <span class="tag" i18n="@@srvp.tag_optional">Optional</span>
@@ -469,6 +501,21 @@ interface PageView {
         background: var(--color-success-bg);
         color: var(--color-success);
       }
+      /* Where the question is asked: the income-basis colours the catalog already uses. */
+      .tag.is-both {
+        color: var(--text-primary);
+        font-weight: var(--font-semibold);
+      }
+      .tag.is-proof {
+        background: var(--color-info-bg);
+        color: var(--primary);
+        font-weight: var(--font-semibold);
+      }
+      .tag.is-surrogate {
+        background: var(--color-income-surrogate-bg);
+        color: var(--color-income-surrogate);
+        font-weight: var(--font-semibold);
+      }
       .remove {
         color: var(--text-secondary);
       }
@@ -583,6 +630,8 @@ export class ServedPagesComponent {
   readonly editable = input(false);
   /** Codes with a write in flight. */
   readonly busy = input<ReadonlySet<string>>(new Set<string>());
+  /** Where each question is asked, by code — a tag on the row. Null: no tag. */
+  readonly basis = input<ReadonlyMap<string, QuestionBasis> | null>(null);
   /** Which rows to draw. Numbers and page order stay the app's, so a filtered row keeps its place. */
   readonly filter = input<ServedFilter>('all');
   /** The order editor: handles and arrows instead of tags and Remove. The host forces `all`. */

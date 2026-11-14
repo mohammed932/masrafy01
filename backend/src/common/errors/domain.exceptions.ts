@@ -1244,6 +1244,16 @@ export class ProductTemplateOrphansFiguresException extends DomainException {
   }
 }
 
+/** A box a bank has filled would be read against a different calculation. */
+export class ProductTemplateRedefinesFiguresException extends DomainException {
+  constructor(meta: { programCodes: readonly string[]; keys: readonly string[] }) {
+    super(ERROR_CODES.PRODUCT_TEMPLATE_REDEFINES_FIGURES, {
+      ...meta,
+      count: meta.programCodes.length,
+    });
+  }
+}
+
 /** The calculation was authored by hand, so there is no form to open. */
 export class ProductTemplateNotEditableException extends DomainException {
   constructor(meta: { key: string }) {

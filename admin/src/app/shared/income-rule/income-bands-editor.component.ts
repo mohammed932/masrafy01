@@ -749,6 +749,8 @@ export class IncomeBandsEditorComponent {
    * false statement there. `null` keeps it, so nothing but a pipeline moves.
    */
   readonly valueLabel = input<string | null>(null);
+  /** A blank box is a default left for each bank, not an error (the product page's tables). */
+  readonly blanksAllowed = input(false);
 
   /**
    * More amount columns over the SAME ranges — a pick's other groups, drawn beside this
@@ -817,6 +819,10 @@ export class IncomeBandsEditorComponent {
     // An INHERITED table is the product's; a verdict on it would ask this bank to fix a
     // table it cannot edit, and the product screen is where that message belongs.
     if (this.inherited()) return null;
+    // A blank box means "each bank fills it in": an untouched open range is not an error.
+    if (this.blanksAllowed() && this.rows().every((r) => String(r.incomeEGP ?? '').trim() === '')) {
+      return null;
+    }
     const own = incomeBandsErrorFor(this.rows(), { coverAll: this.coverAll() });
     if (own !== null) return own;
     // A column beside the first is judged only once it HOLDS rows — the save gate's own rule

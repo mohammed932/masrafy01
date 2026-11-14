@@ -39,9 +39,8 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormPageComponent, WizardStepsComponent, type WizardStepItem } from '@shared/ui';
-import { ProductRuleEditorComponent } from '@shared/income-rule/product-rule-editor.component';
+import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.component';
+import { DERIVED_FACTS, derivedFactByKey } from '@core/surrogate-facts';
 import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
@@ -66,8 +65,6 @@ import {
   type TemplateMechanism,
   type TemplateMechanismKind,
 } from '@features/bank-programs/bank-programs.types';
-import { blueprintCopy } from './blueprint-copy';
-import { PRODUCT_BASE } from './program-catalog.paths';
 
 /** Which kind of answer a mechanism can read. `null` = it reads none. */
 const MECHANISM_FACT_TYPE: Readonly<
@@ -89,16 +86,6 @@ const MECHANISM_FACT_TYPE: Readonly<
  * Add button can withhold itself rather than teach the operator that Add is broken.
  */
 const MAX_ALTERNATIVES = 5;
-
-const MECHANISM_ORDER: readonly TemplateMechanismKind[] = [
-  'choiceTable',
-  'classTable',
-  'numberBand',
-  'shareOf',
-  'multipleOf',
-  'dividedBy',
-  'flatAmount',
-];
 
 /** The tests a condition can apply, in the order they are worth reading. */
 const CONDITION_OPS = [
@@ -125,53 +112,12 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
   selector: 'app-product-template-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    NgTemplateOutlet,
-    ReactiveFormsModule,
-    RouterLink,
-    FormPageComponent,
-    WizardStepsComponent,
-    ProductRuleEditorComponent,
-  ],
+  imports: [NgTemplateOutlet, ReactiveFormsModule, ParentClassBoardComponent],
   template: `
-    <!-- EMBEDDED (v33.1.0): the product page's Calculation step renders this screen inline —
-         no page chrome, no figures step (the product's Figures step owns those), and no Save
-         of its own: the product page's one Save bar saves it (v33.2.0). Standalone, the route
-         redirects to that step, so this branch is the one used. -->
-    @if (embedded()) {
-      <div class="embedded">
-        <ng-container [ngTemplateOutlet]="body" />
-        <!-- No button of its own (v33.2.0): the product page's one Save bar saves this with
-             everything else, through saveNow(). What would refuse it is said here. -->
-        @if (!advanced() && (saveError() || (dirty() && blockReason() !== null))) {
-          <div class="embed-actions">
-            @if (saveError(); as message) {
-              <p class="embed-error" role="alert">{{ message }}</p>
-            } @else {
-              <p class="embed-hint">{{ blockReason() }}</p>
-            }
-          </div>
-        }
-      </div>
-    } @else {
-      <app-form-page
-        [eyebrow]="eyebrow"
-        [title]="title()"
-        [subtitle]="subtitle()"
-        [backLabel]="backLabel()"
-        [hint]="hint()"
-        [blockReason]="blockReason()"
-        [submitLabel]="submitLabel"
-        [submitting]="saving()"
-        [submitDisabled]="!form.valid"
-        (cancelled)="leave()"
-        (submitted)="save()"
-      >
-        <ng-container [ngTemplateOutlet]="body" />
-      </app-form-page>
-    }
-
-    <ng-template #body>
+    <!-- The product page's Amount and "Who can't get it" steps (v36.2.0). One instance, mounted
+         once by the product page, so an edit survives moving between the two; the part input picks
+         which half is on screen. No Save of its own: the page's one Save bar calls saveNow(). -->
+    <div class="embedded">
       @if (advanced()) {
         <!-- No form to show, and saying so is the honest state. Offering an empty one would
              invite the operator to overwrite a live calculation with a blank shape. -->
@@ -181,657 +127,888 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
             still edit the steps on the product page.</span
           >
         </p>
+      } @else if (part() === 'amount') {
+        <ng-container [ngTemplateOutlet]="amountPart" />
       } @else {
-        <!-- The rail is NAVIGATION, not a flow: every step is reachable at any time and there
-             is one Save for all three, because this is a settings screen and the three
-             questions are not a sequence anybody completes once. What it buys is that a
-             refusal raised by a field two steps away shows up as "Needs attention" ON that
-             step, instead of as a sentence beside a button with nothing on screen to fix. -->
-        @if (!embedded()) {
-          <app-wizard-steps
-            variant="plain"
-            [steps]="railSteps()"
-            [activeIndex]="step()"
-            [ariaLabel]="railAria"
-            [caption]="railCaption"
-            (stepSelect)="goStep($event)"
-          />
-        }
+        <ng-container [ngTemplateOutlet]="rulesPart" />
+      }
+      @if (!advanced() && (saveError() || (dirty() && blockReason() !== null))) {
+        <div class="embed-actions">
+          @if (saveError(); as message) {
+            <p class="embed-error" role="alert">{{ message }}</p>
+          } @else {
+            <p class="embed-hint">{{ blockReason() }}</p>
+          }
+        </div>
+      }
+    </div>
 
-        <form [formGroup]="form" class="stack">
-          <!-- Embedded on the product page (v36.1.0) the two parts stand one under the other with
-               no rail of their own — one page, one Save; standalone, the rail picks one. -->
-          <!-- ① ---------------------------------------------------------- -->
-          @if (shows(0)) {
-            <section class="block">
-              <!-- ONE QUESTION (v36.1.0, operator: "DBR always … just a Q"). The figure is always an
-                   income the bank applies its DBR to, and the way follows from the answer's
-                   type: a choice gets a figure per answer, a number a figure per range. A product
-                   built another way keeps it, said in one line, until a question is picked here. -->
-              <h2 class="q" i18n="@@spt.q1c">Which question decides the income?</h2>
-              <p class="lede" i18n="@@spt.q1b.lede2">
-                A choice question gets a figure for each answer. For a number question, choose how
-                the income follows from it. The bank then applies its DBR.
-              </p>
-              @if (keepsOtherWay()) {
-                <p class="help" i18n="@@spt.kept_way">
-                  Today it is worked out as: {{ mechanismLabel(form.controls.primaryKind.value) }}.
-                  It stays as it is unless you pick a question below.
-                </p>
-              }
-              <label class="field">
-                <span class="label" i18n="@@spt.q1b.label">Question</span>
-                <select
-                  #deciding
-                  class="control"
-                  [value]="decidingFact()"
-                  (change)="pickDecidingFact(deciding.value)"
-                >
-                  <option value="" i18n="@@spt.choose">Choose…</option>
-                  @for (fact of decidingFacts(); track fact.key) {
-                    <option [value]="fact.key">{{ fact.label }}</option>
-                  }
-                </select>
-                @if (decidingIsNumber()) {
-                  <div class="ticks" role="radiogroup" [attr.aria-label]="numberWayAria">
-                    @for (way of numberWays; track way.kind) {
-                      <label class="tick">
-                        <input
-                          type="radio"
-                          name="number-way"
-                          [checked]="form.controls.primaryKind.value === way.kind"
-                          (change)="setNumberWay(way.kind)"
-                        />
-                        <span>{{ way.label }}</span>
-                      </label>
-                    }
-                  </div>
-                }
-                @if (decidingHasClasses()) {
-                  <div class="ticks" role="radiogroup" [attr.aria-label]="choiceWayAria">
-                    @for (way of choiceWays; track way.kind) {
-                      <label class="tick">
-                        <input
-                          type="radio"
-                          name="choice-way"
-                          [checked]="form.controls.primaryKind.value === way.kind"
-                          (change)="setNumberWay(way.kind)"
-                        />
-                        <span>{{ way.label }}</span>
-                      </label>
-                    }
-                  </div>
-                }
-                @if (decidingFacts().length === 0) {
-                  <span class="help is-warn" i18n="@@spt.q1.no_facts3"
-                    >Add a choice or number question in the Questions tab first.</span
-                  >
-                } @else {
-                  <span class="help" i18n="@@spt.q1b.from_tab"
-                    >Lists the questions in the Questions tab.</span
-                  >
-                }
-              </label>
+    <!-- ── Amount ─────────────────────────────────────────────────────────── -->
+    <ng-template #amountPart>
+      <form [formGroup]="form" class="stack">
+        <section class="block">
+          <h2 class="q" i18n="@@spt.v2.amount_is">The amount is</h2>
+          <div class="picks" role="radiogroup" [attr.aria-label]="amountIsAria">
+            <button
+              type="button"
+              role="radio"
+              class="pick"
+              [class.is-on]="form.controls.outputKind.value === 'monthlyIncome'"
+              [attr.aria-checked]="form.controls.outputKind.value === 'monthlyIncome'"
+              (click)="toggleCeiling(false)"
+            >
+              <span class="pick-dot" aria-hidden="true"></span>
+              <span i18n="@@spt.v2.income">Monthly income</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              class="pick"
+              [class.is-on]="form.controls.outputKind.value === 'maxAmount'"
+              [attr.aria-checked]="form.controls.outputKind.value === 'maxAmount'"
+              (click)="toggleCeiling(true)"
+            >
+              <span class="pick-dot" aria-hidden="true"></span>
+              <span i18n="@@spt.v2.limit">Most they can borrow</span>
+            </button>
+          </div>
+          @if (form.controls.outputKind.value === 'maxAmount') {
+            <p class="help" i18n="@@spt.v2.limit_help">
+              The amount is the biggest loan they can get.
+            </p>
+          } @else {
+            <p class="help" i18n="@@spt.v2.income_help">
+              The amount is a salary we count for them. Each bank then applies its own debt-burden
+              limit.
+            </p>
+          }
+        </section>
 
-            </section>
+        <section class="block">
+          @if (wayCount() > 1) {
+            <h2 class="q" i18n="@@spt.v2.ways_title2">
+              Banks price this in {{ wayCount() }} different ways
+            </h2>
+            <div class="picks" role="radiogroup" [attr.aria-label]="waysModeAria">
+              <button
+                type="button"
+                role="radio"
+                class="pick"
+                [class.is-on]="form.controls.waysAre.value === 'exclusive'"
+                [attr.aria-checked]="form.controls.waysAre.value === 'exclusive'"
+                (click)="setWaysMode('exclusive')"
+              >
+                <span class="pick-dot" aria-hidden="true"></span>
+                <span i18n="@@spt.v2.ways_pick2">Each bank uses one of them</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                class="pick"
+                [class.is-on]="form.controls.waysAre.value === 'combined'"
+                [attr.aria-checked]="form.controls.waysAre.value === 'combined'"
+                (click)="setWaysMode('combined')"
+              >
+                <span class="pick-dot" aria-hidden="true"></span>
+                <span i18n="@@spt.v2.ways_lowest2">Use all and take the lowest</span>
+              </button>
+            </div>
+          } @else {
+            <h2 class="q" i18n="@@spt.v2.worked_out">How it is worked out</h2>
           }
 
-          <!-- ② ---------------------------------------------------------- -->
-          @if (shows(1)) {
-            <details class="block more" [open]="hasExtras()">
-              <summary class="more-head">
-                <span class="q" i18n="@@spt.more">More options</span>
-                <span class="more-note" i18n="@@spt.more_note">Optional</span>
-              </summary>
-
-              <!-- ceiling: the figure is the most the customer may borrow, not an income -->
-              <div class="addon">
-                <label class="addon-head">
-                  <input
-                    class="addon-tick"
-                    type="checkbox"
-                    [checked]="form.controls.outputKind.value === 'maxAmount'"
-                    (change)="toggleCeiling(ceilingTick.checked)"
-                    #ceilingTick
-                  />
-                  <span class="addon-text">
-                    <span class="addon-name" i18n="@@spt.addon.ceiling"
-                      >It is a borrowing limit, not an income</span
-                    >
-                    <span class="addon-note" i18n="@@spt.addon.ceiling.note"
-                      >The figure is the most the customer may borrow, as on a compound or club
-                      sheet.</span
-                    >
-                  </span>
-                </label>
-                @if (form.controls.outputKind.value === 'maxAmount') {
-                  <div class="addon-body">
-                    <label class="field">
-                      <span class="label" i18n="@@spt.q1.baseline"
-                        >This ceiling was worked out at a DBR of</span
-                      >
-                      <span class="affix">
-                        <input
-                          class="control is-narrow"
-                          type="text"
-                          formControlName="baselineDbrPercent"
-                        />
-                        <span class="unit" aria-hidden="true">%</span>
-                      </span>
-                      <span class="help" i18n="@@spt.q1.baseline.help"
-                        >The share of income the bank assumed when it decided that ceiling. Leave it
-                        blank to use the program's own cap.</span
-                      >
-                    </label>
-                  </div>
+          <ol class="wcards" role="list">
+            @for (i of wayIndexes(); track i) {
+              <li class="wcard" [class.is-open]="wayIsOpen(i)">
+                @if (wayCount() > 1) {
+                  <button
+                    type="button"
+                    class="wcard-top"
+                    [attr.aria-expanded]="wayIsOpen(i)"
+                    (click)="toggleWay(i)"
+                  >
+                    <span class="wcard-n" aria-hidden="true">{{ i + 1 }}</span>
+                    <span class="wcard-t">
+                      <span class="wcard-title">{{ wayTitle(i) }}</span>
+                      @if (waySub(i); as sub) {
+                        <span class="wcard-sub">{{ sub }}</span>
+                      }
+                    </span>
+                    <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                      <path
+                        d="M4 6l4 4 4-4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
                 }
-              </div>
+                @if (wayIsOpen(i)) {
+                  <div class="wcard-body">
+                    <label class="field">
+                      <span class="label" i18n="@@spt.v2.from">Worked out from</span>
+                      <select
+                        #wayFactSel
+                        class="control"
+                        (change)="setWayFact(i, wayFactSel.value)"
+                      >
+                        <option
+                          value=""
+                          disabled
+                          [selected]="wayFactValue(i) === ''"
+                          i18n="@@spt.v2.pick_q"
+                        >
+                          Pick one of this product's questions…
+                        </option>
+                        @for (fact of decidingFacts(); track fact.key) {
+                          <option [value]="fact.key" [selected]="wayFactValue(i) === fact.key">
+                            {{ fact.label }}
+                          </option>
+                        }
+                        <option
+                          value="__flat__"
+                          [selected]="wayFactValue(i) === '__flat__'"
+                          i18n="@@spt.v2.flat"
+                        >
+                          No question: the same amount for everyone
+                        </option>
+                      </select>
+                      @if (decidingFacts().length === 0) {
+                        <span class="help is-warn" i18n="@@spt.q1.no_facts3"
+                          >Add a choice or number question in the Questions tab first.</span
+                        >
+                      }
+                    </label>
 
-              <!-- other ways -->
-              <div class="addon">
-                <label class="addon-head">
-                  <input class="addon-tick" type="checkbox" formControlName="useAlternative" />
-                  <span class="addon-text">
-                    <span class="addon-name" i18n="@@spt.addon.alt"
-                      >Other ways to reach the figure</span
-                    >
-                    <span class="addon-note" i18n="@@spt.addon.alt.note"
-                      >Each bank fills in only the ways it uses.</span
-                    >
-                  </span>
-                </label>
-                @if (form.controls.useAlternative.value) {
-                  <div class="addon-body">
-                    <!-- The ways are the only thing inside the formArrayName container. The
-                           combine select used to sit in here too, which resolved it against the
-                           ARRAY: Angular threw "Cannot find control with path:
-                           'alternatives -> combine'" and the select was never bound, so "take
-                           the lowest" could not be chosen at all. -->
-                    <div class="ways" formArrayName="alternatives">
-                      @for (way of alternatives.controls; track $index) {
-                        <!-- A ROW, not a second copy of the card grid. The cards on step 1 are
-                               where a shape is learned; repeating all six per way put the same
-                               control on screen twice and cost ~450px each. -->
-                        <div class="way" [formGroupName]="$index">
-                          <span class="way-n">{{ wayLabel($index) }}</span>
-                          <label class="way-f">
-                            <span class="label" i18n="@@spt.addon.alt.how">How</span>
-                            <select class="control" formControlName="kind">
-                              @for (kind of mechanisms; track kind) {
-                                <option [value]="kind">{{ mechanismLabel(kind) }}</option>
+                    @if (wayIsNumber(i)) {
+                      <div class="field is-wide">
+                        <span class="label" i18n="@@spt.v2.how">How</span>
+                        <div class="picks" role="radiogroup" [attr.aria-label]="numberWayAria">
+                          @for (w of numberWays; track w.kind) {
+                            <button
+                              type="button"
+                              role="radio"
+                              class="pick"
+                              [class.is-on]="wayKind(i) === w.kind"
+                              [attr.aria-checked]="wayKind(i) === w.kind"
+                              (click)="setWayKind(i, w.kind)"
+                            >
+                              <span class="pick-dot" aria-hidden="true"></span>
+                              <span>{{ w.label }}</span>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    } @else if (wayHasClasses(i)) {
+                      <div class="field is-wide">
+                        <span class="label" i18n="@@spt.v2.how">How</span>
+                        <div class="picks" role="radiogroup" [attr.aria-label]="choiceWayAria">
+                          <button
+                            type="button"
+                            role="radio"
+                            class="pick"
+                            [class.is-on]="wayKind(i) === 'choiceTable'"
+                            [attr.aria-checked]="wayKind(i) === 'choiceTable'"
+                            (click)="setWayKind(i, 'choiceTable')"
+                          >
+                            <span class="pick-dot" aria-hidden="true"></span>
+                            <span i18n="@@spt.v2.per_answer">One amount per answer</span>
+                          </button>
+                          <button
+                            type="button"
+                            role="radio"
+                            class="pick"
+                            [class.is-on]="wayKind(i) === 'classTable'"
+                            [attr.aria-checked]="wayKind(i) === 'classTable'"
+                            (click)="setWayKind(i, 'classTable')"
+                          >
+                            <span class="pick-dot" aria-hidden="true"></span>
+                            <span i18n="@@spt.v2.per_group">One amount per group</span>
+                          </button>
+                        </div>
+                      </div>
+                      @if (wayKind(i) === 'classTable' && classBoardFor(wayFactValue(i)); as b) {
+                        <details class="groups-box">
+                          <summary>
+                            <span class="groups-sum">{{ groupsLine(wayFactValue(i)) }}</span>
+                            <span class="groups-edit" i18n="@@spt.v2.move_groups"
+                              >Move answers between groups</span
+                            >
+                          </summary>
+                          <app-parent-class-board
+                            [childType]="b.child"
+                            [parentType]="b.parent"
+                            [productKey]="key"
+                            (changed)="refreshFacts()"
+                          />
+                        </details>
+                      }
+                    }
+
+                    @if (wayFactValue(i) !== '' && wayFactValue(i) !== '__flat__') {
+                      @if (wayColumn(i); as col) {
+                        <div class="field is-wide">
+                          <span class="label" i18n="@@spt.v2.split_by">Different amounts by</span>
+                          <div class="split-row">
+                            <select
+                              #colSel
+                              class="control"
+                              (change)="setColumnFact(i, colSel.value)"
+                            >
+                              <option value="" i18n="@@spt.v2.split_none">Nothing</option>
+                              @for (fact of columnChoices(i); track fact.key) {
+                                <option [value]="fact.key" [selected]="col.fact === fact.key">
+                                  {{ fact.label }}
+                                </option>
                               }
                             </select>
-                          </label>
-                          @if (wayNeedsFact($index)) {
-                            <label class="way-f">
-                              <span class="label" i18n="@@spt.q1.fact2"
-                                >Which question does it read?</span
+                            @if (columnGroupable(col.fact)) {
+                              <div
+                                class="picks"
+                                role="radiogroup"
+                                [attr.aria-label]="columnModeAria"
                               >
-                              <select class="control" formControlName="fact">
-                                <option value="" i18n="@@spt.choose">Choose…</option>
-                                @for (fact of wayFacts($index); track fact.key) {
-                                  <option [value]="fact.key">{{ fact.label }}</option>
+                                <button
+                                  type="button"
+                                  role="radio"
+                                  class="pick"
+                                  [class.is-on]="col.branchOn !== 'parentClass'"
+                                  [attr.aria-checked]="col.branchOn !== 'parentClass'"
+                                  (click)="setColumnMode(i, 'answer')"
+                                >
+                                  <span class="pick-dot" aria-hidden="true"></span>
+                                  <span i18n="@@spt.v2.col_answer">A column per answer</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  role="radio"
+                                  class="pick"
+                                  [class.is-on]="col.branchOn === 'parentClass'"
+                                  [attr.aria-checked]="col.branchOn === 'parentClass'"
+                                  (click)="setColumnMode(i, 'groups')"
+                                >
+                                  <span class="pick-dot" aria-hidden="true"></span>
+                                  <span i18n="@@spt.v2.col_group">A column per group</span>
+                                </button>
+                              </div>
+                            }
+                          </div>
+                          @if (col.groups) {
+                            <!-- THIS product's own groups: named here, one column each. -->
+                            <details class="groups-box" [open]="groupsOpen()">
+                              <summary>
+                                <span class="groups-sum">{{ ownGroupsLine(col) }}</span>
+                                <span class="groups-edit" i18n="@@spt.v2.edit_groups"
+                                  >Edit groups</span
+                                >
+                              </summary>
+                              <div class="groups-body">
+                                @for (g of col.groups; track g.key; let gi = $index) {
+                                  <div class="group-row">
+                                    <input
+                                      #gEn
+                                      class="control"
+                                      [value]="g.labelEn"
+                                      placeholder="Name in English"
+                                      i18n-placeholder="@@spt.groups.name_en"
+                                      [attr.aria-label]="groupNameLabel(gi)"
+                                      (input)="renameGroup(i, g.key, gEn.value, null)"
+                                    />
+                                    <input
+                                      #gAr
+                                      class="control"
+                                      dir="rtl"
+                                      [value]="g.labelAr"
+                                      placeholder="Name in Arabic"
+                                      i18n-placeholder="@@spt.groups.name_ar"
+                                      [attr.aria-label]="groupNameLabel(gi)"
+                                      (input)="renameGroup(i, g.key, null, gAr.value)"
+                                    />
+                                    <span class="group-n">{{ groupCountLabel(g.key) }}</span>
+                                    <button
+                                      type="button"
+                                      class="linkish is-danger"
+                                      [disabled]="col.groups.length <= 2"
+                                      (click)="removeGroup(i, g.key)"
+                                      i18n="@@spt.groups.remove"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                }
+                                <button
+                                  type="button"
+                                  class="linkish add-group"
+                                  (click)="addGroup(i)"
+                                  i18n="@@spt.groups.add"
+                                >
+                                  Add a group
+                                </button>
+                                <p class="label" i18n="@@spt.groups.place">
+                                  Which group is each answer in?
+                                </p>
+                                <div class="placements">
+                                  @for (option of optionsOf(col.fact); track option.code) {
+                                    <label class="placement">
+                                      <span>{{ optionLabel(option) }}</span>
+                                      <select
+                                        #placeSelect
+                                        class="control"
+                                        (change)="place(option.code, placeSelect.value)"
+                                      >
+                                        <option value="" i18n="@@spt.groups.none">No group</option>
+                                        @for (g of col.groups; track g.key) {
+                                          <option
+                                            [value]="g.key"
+                                            [selected]="placementOf(option.code) === g.key"
+                                          >
+                                            {{ groupName(g) }}
+                                          </option>
+                                        }
+                                      </select>
+                                    </label>
+                                  }
+                                </div>
+                                @if (unplacedCount(col) > 0) {
+                                  <p class="help is-warn" i18n="@@spt.v2.unplaced">
+                                    {{ unplacedCount(col) }} answer(s) in no group are priced on the
+                                    first group's column.
+                                  </p>
+                                }
+                              </div>
+                            </details>
+                          } @else if (col.branchOn === 'parentClass') {
+                            <p class="help">
+                              {{ groupsLine(col.fact) }}
+                              <button
+                                type="button"
+                                class="linkish"
+                                (click)="setColumnMode(i, 'own')"
+                                i18n="@@spt.v2.own_groups"
+                              >
+                                Make your own groups instead
+                              </button>
+                            </p>
+                          }
+                          @if (col.branches.length > 1) {
+                            <label class="sentence">
+                              <span i18n="@@spt.v2.no_answer_use">If they don't answer, use</span>
+                              <select
+                                #stdSel
+                                class="control"
+                                (change)="setStandardBranch(i, stdSel.value)"
+                              >
+                                @for (b of col.branches; track b) {
+                                  <option [value]="b" [selected]="b === col.branches[0]">
+                                    {{ branchName(col, b) }}
+                                  </option>
                                 }
                               </select>
                             </label>
                           }
-                          <!-- A column this WAY carries, set by the library and carried by
-                                 this form (there is no control for it here). Said on the row,
-                                 because a hidden field that decides slot ids is exactly the
-                                 kind of thing an operator should be able to see. -->
-                          @if (wayColumnLabel($index); as split) {
-                            <span class="help way-split">{{ split }}</span>
-                          }
-                          <button
-                            type="button"
-                            class="linkish is-danger way-x"
-                            (click)="removeWay($index)"
-                            [attr.aria-label]="wayRemoveLabel($index)"
-                          >
-                            <span i18n="@@spt.addon.alt.remove">Remove</span>
-                          </button>
                         </div>
+                      } @else if (columnFacts(i).length > 0) {
+                        <button type="button" class="linkish" (click)="startColumn(i)">
+                          <span i18n="@@spt.v2.add_split"
+                            >+ Different amounts for another answer</span
+                          >
+                        </button>
                       }
-                    </div>
-
-                    @if (canAddWay()) {
-                      <button type="button" class="way-add" (click)="addWay()">
-                        <span i18n="@@spt.addon.alt.add">Add another way</span>
-                      </button>
-                    } @else {
-                      <span class="help" i18n="@@spt.addon.alt.full"
-                        >That is as many ways as one product can offer.</span
-                      >
                     }
 
-                    <label class="field">
-                      <span class="label" i18n="@@spt.addon.alt.ways_are"
-                        >How a bank uses these ways</span
-                      >
-                      <select class="control" formControlName="waysAre">
-                        <option value="exclusive" i18n="@@spt.addon.alt.exclusive">
-                          Each bank picks one of them
-                        </option>
-                        <option value="combined" i18n="@@spt.addon.alt.combined">
-                          Every bank uses all of them
-                        </option>
-                      </select>
-                    </label>
-                    <label class="field">
-                      <span class="label" i18n="@@spt.addon.alt.both"
-                        >If a bank fills in more than one way</span
-                      >
-                      <select class="control" formControlName="combine">
-                        <option value="" i18n="@@spt.addon.alt.first">
-                          Use whichever it filled in first
-                        </option>
-                        <option value="lower" i18n="@@spt.addon.alt.lower">Take the lowest</option>
-                        <option value="higher" i18n="@@spt.addon.alt.higher">
-                          Take the highest
-                        </option>
-                      </select>
-                    </label>
-                  </div>
-                }
-              </div>
-
-              <!-- second column -->
-              <div class="addon">
-                <label class="addon-head">
-                  <input class="addon-tick" type="checkbox" formControlName="useSecondColumn" />
-                  <span class="addon-text">
-                    <span class="addon-name" i18n="@@spt.addon.column">A second column</span>
-                    <span class="addon-note" i18n="@@spt.addon.column.note"
-                      >One table per kind of customer — new to the bank, a city, an employment
-                      type.</span
-                    >
-                  </span>
-                </label>
-                @if (form.controls.useSecondColumn.value) {
-                  <div class="addon-body">
-                    <label class="field">
-                      <span class="label" i18n="@@spt.addon.column.fact2"
-                        >Which question splits the columns?</span
-                      >
-                      <select class="control" formControlName="columnFact">
-                        <option value="" i18n="@@spt.choose">Choose…</option>
-                        @for (fact of choiceFacts(); track fact.key) {
-                          <option [value]="fact.key">{{ fact.label }}</option>
-                        }
-                      </select>
-                    </label>
-                    @if (sharedClassColumn()) {
-                      <!-- A column over a SHARED list's classes (the seeded doctors' tiers): kept
-                           as it is; its values are moved on the Figures step. -->
-                      <p class="help" i18n="@@spt.addon.column.shared">
-                        Split by the shared groups: {{ sharedClassNames() }}. Move answers between
-                        them on the Figures step.
-                      </p>
-                    } @else if (columnOptions().length > 0 && groupable()) {
-                      <div class="ticks" role="radiogroup">
-                        <label class="tick">
-                          <input type="radio" value="answer" formControlName="columnMode" />
-                          <span i18n="@@spt.addon.column.mode_answer"
-                            >One column for each answer</span
-                          >
-                        </label>
-                        <label class="tick">
-                          <input type="radio" value="groups" formControlName="columnMode" />
-                          <span i18n="@@spt.addon.column.mode_groups"
-                            >Put the answers in groups</span
-                          >
-                        </label>
-                      </div>
-                    }
-                    @if (usesOwnGroups()) {
-                      <!-- THIS product's own groups: named here, one column each. -->
-                      <fieldset class="field is-wide">
-                        <legend class="label" i18n="@@spt.groups.title">Groups</legend>
-                        <div class="groups" formArrayName="columnGroups">
-                          @for (
-                            group of columnGroups.controls;
-                            track group.controls.key.value;
-                            let i = $index
-                          ) {
-                            <div class="group-row" [formGroupName]="i">
-                              <input
-                                class="control"
-                                formControlName="labelEn"
-                                placeholder="Name in English"
-                                i18n-placeholder="@@spt.groups.name_en"
-                                [attr.aria-label]="groupNameLabel(i)"
-                              />
-                              <input
-                                class="control"
-                                dir="rtl"
-                                formControlName="labelAr"
-                                placeholder="Name in Arabic"
-                                i18n-placeholder="@@spt.groups.name_ar"
-                                [attr.aria-label]="groupNameLabel(i)"
-                              />
-                              <button
-                                type="button"
-                                class="linkish is-danger"
-                                (click)="removeGroup(i)"
-                                i18n="@@spt.groups.remove"
-                              >
-                                Remove
-                              </button>
+                    <!-- The figures this way's choices made, right under them. -->
+                    @if (wayReady(i)) {
+                      <div class="figs">
+                        @switch (figShape(i)) {
+                          @case ('table') {
+                            <div class="ftable-wrap">
+                              <table class="ftable">
+                                <thead>
+                                  <tr>
+                                    <th scope="col">{{ rowHeader(i) }}</th>
+                                    @for (c of colsOf(i); track c.slot) {
+                                      <th scope="col" class="num">{{ c.label }}</th>
+                                    }
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  @for (r of rowsOf(i); track r.key) {
+                                    <tr>
+                                      <th scope="row">{{ r.label }}</th>
+                                      @for (c of colsOf(i); track c.slot) {
+                                        <td class="num">
+                                          <input
+                                            #cellIn
+                                            class="control is-amt"
+                                            inputmode="decimal"
+                                            placeholder="—"
+                                            [value]="cell(c.slot, r.key)"
+                                            [attr.aria-label]="r.label + ' · ' + c.label"
+                                            (input)="setCell(c.slot, r.key, cellIn.value)"
+                                          />
+                                        </td>
+                                      }
+                                    </tr>
+                                  }
+                                </tbody>
+                              </table>
                             </div>
                           }
-                        </div>
-                        <button
-                          type="button"
-                          class="linkish add-group"
-                          (click)="addGroup()"
-                          i18n="@@spt.groups.add"
-                        >
-                          Add a group
-                        </button>
-                        <span class="help" i18n="@@spt.groups.help"
-                          >At least two. The first group is the standard column: an answer in no
-                          group is priced on it.</span
-                        >
-                      </fieldset>
-                      @if (columnGroups.length > 0) {
-                        <fieldset class="field is-wide">
-                          <legend class="label" i18n="@@spt.groups.place">
-                            Which group is each answer in?
-                          </legend>
-                          <div class="placements">
-                            @for (option of columnOptions(); track option.code) {
-                              <label class="placement">
-                                <span>{{ optionLabel(option) }}</span>
-                                <select
-                                  #placeSelect
-                                  class="control"
-                                  [value]="placementOf(option.code)"
-                                  (change)="place(option.code, placeSelect.value)"
-                                >
-                                  <option value="" i18n="@@spt.groups.none">No group</option>
-                                  <!-- Only the groups the operator has named: a group is what
-                                       they created, never a code. -->
-                                  @for (group of namedGroups(); track group.key) {
-                                    <option [value]="group.key">{{ groupName(group) }}</option>
+                          @case ('ranges') {
+                            <div class="ftable-wrap">
+                              <table class="ftable">
+                                <thead>
+                                  <tr>
+                                    <th scope="col" i18n="@@spt.v2.from_col">From</th>
+                                    <th scope="col" i18n="@@spt.v2.to_col">Up to</th>
+                                    @for (c of colsOf(i); track c.slot) {
+                                      <th scope="col" class="num">{{ c.label }}</th>
+                                    }
+                                    <th scope="col">
+                                      <span class="sr-only" i18n="@@spt.v2.remove_col">Remove</span>
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  @for (b of rangesOf(i); track $index; let bi = $index) {
+                                    <tr>
+                                      <td>
+                                        <input
+                                          #fromIn
+                                          class="control is-edge"
+                                          inputmode="decimal"
+                                          [value]="fmt(b.fromInclusive)"
+                                          [attr.aria-label]="fromAria"
+                                          (input)="setEdge(i, bi, 'fromInclusive', fromIn.value)"
+                                        />
+                                      </td>
+                                      <td>
+                                        <input
+                                          #toIn
+                                          class="control is-edge"
+                                          inputmode="decimal"
+                                          placeholder="and above"
+                                          i18n-placeholder="@@spt.v2.and_above"
+                                          [value]="fmt(b.toExclusive ?? '')"
+                                          [attr.aria-label]="toAria"
+                                          (input)="setEdge(i, bi, 'toExclusive', toIn.value)"
+                                        />
+                                      </td>
+                                      @for (c of colsOf(i); track c.slot) {
+                                        <td class="num">
+                                          <input
+                                            #bandIn
+                                            class="control is-amt"
+                                            inputmode="decimal"
+                                            placeholder="—"
+                                            [value]="bandAmount(c.slot, bi)"
+                                            [attr.aria-label]="c.label"
+                                            (input)="setBandAmount(i, c.slot, bi, bandIn.value)"
+                                          />
+                                        </td>
+                                      }
+                                      <td>
+                                        <button
+                                          type="button"
+                                          class="linkish is-danger"
+                                          [disabled]="rangesOf(i).length < 2"
+                                          (click)="removeRange(i, bi)"
+                                          i18n="@@spt.cond.remove"
+                                        >
+                                          Remove
+                                        </button>
+                                      </td>
+                                    </tr>
                                   }
-                                </select>
-                              </label>
-                            }
-                          </div>
-                        </fieldset>
-                      }
-                    } @else if (!sharedClassColumn() && columnOptions().length > 0) {
-                      <fieldset class="field">
-                        <legend class="label" i18n="@@spt.addon.column.branches">
-                          Which answers get their own column?
-                        </legend>
-                        <div class="ticks">
-                          @for (option of columnOptions(); track option.code) {
-                            <label class="tick">
-                              <input
-                                type="checkbox"
-                                [checked]="branchOn(option.code)"
-                                (change)="toggleBranch(option.code)"
-                              />
-                              <span>{{ optionLabel(option) }}</span>
-                            </label>
+                                </tbody>
+                              </table>
+                            </div>
+                            <button type="button" class="linkish" (click)="addRange(i)">
+                              <span i18n="@@spt.v2.add_range">+ Add a range</span>
+                            </button>
                           }
-                        </div>
-                        <span class="help" i18n="@@spt.addon.column.branches.help"
-                          >Pick at least two. The first one you pick is the standard column — the
-                          one a bank quotes when it sells no others.</span
-                        >
-                      </fieldset>
+                          @case ('scalar') {
+                            @for (c of colsOf(i); track c.slot) {
+                              <p class="sentence">
+                                @if (colsOf(i).length > 1) {
+                                  <span class="sent-col">{{ c.label }}</span>
+                                }
+                                <span>{{ amountWord() }} = {{ factLabel(wayFactValue(i)) }}</span>
+                                <span class="op">{{ scalarSign(i) }}</span>
+                                <input
+                                  #scalIn
+                                  class="control is-fig"
+                                  inputmode="decimal"
+                                  placeholder="—"
+                                  [value]="scalarOf(c.slot)"
+                                  [attr.aria-label]="c.label"
+                                  (input)="setScalar(i, c.slot, scalIn.value)"
+                                />
+                                @if (wayKind(i) === 'shareOf') {
+                                  <span class="op">%</span>
+                                }
+                              </p>
+                            }
+                          }
+                          @case ('flat') {
+                            <p class="sentence">
+                              <span>{{ amountWord() }} =</span>
+                              <input
+                                #flatIn
+                                class="control is-amt"
+                                inputmode="decimal"
+                                placeholder="—"
+                                [value]="flatOf(i)"
+                                [attr.aria-label]="amountWord()"
+                                (input)="setFlat(i, flatIn.value)"
+                              />
+                            </p>
+                          }
+                        }
+                        <p class="help" i18n="@@spt.v2.empty_box">
+                          A box left empty is filled in by each bank.
+                        </p>
+                      </div>
+                    }
+
+                    @if (wayCount() > 1 && i > 0) {
+                      <button
+                        type="button"
+                        class="linkish is-danger way-remove"
+                        (click)="removeWay(i - 1)"
+                        [attr.aria-label]="wayRemoveLabel(i - 1)"
+                      >
+                        <span i18n="@@spt.v2.remove_way">Remove this way</span>
+                      </button>
                     }
                   </div>
                 }
-              </div>
+              </li>
+            }
+          </ol>
 
-              <!-- bonus -->
-              <div class="addon">
-                <label class="addon-head">
-                  <input class="addon-tick" type="checkbox" formControlName="useUplift" />
-                  <span class="addon-text">
-                    <span class="addon-name" i18n="@@spt.addon.uplift"
-                      >A bonus percentage when something is true</span
-                    >
-                    <span class="addon-note" i18n="@@spt.addon.uplift.note"
-                      >Each bank states its own bonus. Any other answer earns none.</span
-                    >
-                  </span>
+          @if (canAddWay()) {
+            <button type="button" class="way-add" (click)="addWay()">
+              <span i18n="@@spt.v2.add_way">+ Add another way</span>
+            </button>
+          }
+
+          @if (shareOn() || form.controls.shareFact.value !== '') {
+            <label class="field">
+              <span class="label" i18n="@@spt.v2.share">Then give only the part they own</span>
+              <select class="control" formControlName="shareFact">
+                <option value="" i18n="@@spt.v2.share_none">No</option>
+                @for (fact of numericFacts(); track fact.key) {
+                  <option [value]="fact.key">{{ fact.label }}</option>
+                }
+              </select>
+              <span class="help" i18n="@@spt.v2.share_help"
+                >Own 50% of the unit → they get half the amount.</span
+              >
+            </label>
+          } @else if (numericFacts().length > 0) {
+            <button type="button" class="linkish" (click)="shareOn.set(true)">
+              <span i18n="@@spt.v2.share_add">+ Give only the part they own (a % they type)</span>
+            </button>
+          }
+        </section>
+
+        <!-- Rare settings, folded: most products never need them. -->
+        <details class="block more" [open]="hasExtras()">
+          <summary class="more-head">
+            <span class="q" i18n="@@spt.v2.more_settings">More settings</span>
+            <span class="more-note" i18n="@@spt.more_note">Optional</span>
+          </summary>
+
+          @if (form.controls.outputKind.value === 'maxAmount') {
+            <div class="addon">
+              <label class="sentence dbr-line">
+                <span i18n="@@spt.v2.dbr_line">Worked out at a debt burden of</span>
+                <input
+                  class="control is-fig"
+                  inputmode="decimal"
+                  placeholder="—"
+                  formControlName="baselineDbrPercent"
+                />
+                <span class="op">%</span>
+              </label>
+              <p class="help" i18n="@@spt.v2.dbr_help">
+                Leave it as it is unless the bank's sheet says otherwise.
+              </p>
+            </div>
+          }
+
+          <div class="addon">
+            <label class="addon-head">
+              <input class="addon-tick" type="checkbox" formControlName="useUplift" />
+              <span class="addon-text">
+                <span class="addon-name" i18n="@@spt.addon.uplift"
+                  >A bonus percentage when something is true</span
+                >
+                <span class="addon-note" i18n="@@spt.addon.uplift.note"
+                  >Each bank states its own bonus. Any other answer earns none.</span
+                >
+              </span>
+            </label>
+            @if (form.controls.useUplift.value) {
+              <div class="addon-body">
+                <label class="field">
+                  <span class="label" i18n="@@spt.addon.uplift.fact2">Which question?</span>
+                  <select class="control" formControlName="upliftFact">
+                    <option value="" i18n="@@spt.choose">Choose…</option>
+                    @for (fact of choiceFacts(); track fact.key) {
+                      <option [value]="fact.key">{{ fact.label }}</option>
+                    }
+                  </select>
                 </label>
-                @if (form.controls.useUplift.value) {
-                  <div class="addon-body">
+                <fieldset class="scope">
+                  <legend class="label" i18n="@@spt.addon.uplift.scope">
+                    What does the bonus lift?
+                  </legend>
+                  <label class="radio">
+                    <input type="radio" formControlName="upliftScope" value="income" />
+                    <span i18n="@@spt.addon.uplift.scope.income"
+                      >The figure this calculation works out</span
+                    >
+                  </label>
+                  <label class="radio">
+                    <input type="radio" formControlName="upliftScope" value="maxLoan" />
+                    <span i18n="@@spt.addon.uplift.scope.max">The most the bank will lend</span>
+                  </label>
+                </fieldset>
+                @if (upliftOptions().length > 0) {
+                  <div class="pair">
                     <label class="field">
-                      <span class="label" i18n="@@spt.addon.uplift.fact2">Which question?</span>
-                      <select class="control" formControlName="upliftFact">
+                      <span class="label" i18n="@@spt.addon.uplift.when">Earns the bonus</span>
+                      <select class="control" formControlName="upliftWhen">
                         <option value="" i18n="@@spt.choose">Choose…</option>
-                        @for (fact of choiceFacts(); track fact.key) {
-                          <option [value]="fact.key">{{ fact.label }}</option>
+                        @for (option of upliftOptions(); track option.code) {
+                          <option [value]="option.code">{{ optionLabel(option) }}</option>
                         }
                       </select>
                     </label>
-                    <fieldset class="scope">
-                      <legend class="label" i18n="@@spt.addon.uplift.scope">
-                        What does the bonus lift?
-                      </legend>
-                      <label class="radio">
-                        <input type="radio" formControlName="upliftScope" value="income" />
-                        <span i18n="@@spt.addon.uplift.scope.income"
-                          >The figure this calculation works out</span
-                        >
-                      </label>
-                      <label class="radio">
-                        <input type="radio" formControlName="upliftScope" value="maxLoan" />
-                        <span i18n="@@spt.addon.uplift.scope.max">The most the bank will lend</span>
-                      </label>
-                      <p class="scope-note" i18n="@@spt.addon.uplift.scope.note">
-                        Read the sheet again if you are unsure: it is worth 300,000 on one
-                        applicant. A bonus on the loan amount is configured per bank, on the
-                        program's own ceiling — nothing is added to this calculation.
-                      </p>
-                    </fieldset>
-                    @if (upliftOptions().length > 0) {
-                      <div class="pair">
-                        <label class="field">
-                          <span class="label" i18n="@@spt.addon.uplift.when">Earns the bonus</span>
-                          <select class="control" formControlName="upliftWhen">
-                            <option value="" i18n="@@spt.choose">Choose…</option>
-                            @for (option of upliftOptions(); track option.code) {
-                              <option [value]="option.code">{{ optionLabel(option) }}</option>
-                            }
-                          </select>
-                        </label>
-                        <label class="field">
-                          <span class="label" i18n="@@spt.addon.uplift.else">Does not</span>
-                          <select class="control" formControlName="upliftOtherwise">
-                            <option value="" i18n="@@spt.choose">Choose…</option>
-                            @for (option of upliftOptions(); track option.code) {
-                              <option [value]="option.code">{{ optionLabel(option) }}</option>
-                            }
-                          </select>
-                        </label>
-                      </div>
-                    }
+                    <label class="field">
+                      <span class="label" i18n="@@spt.addon.uplift.else">Does not</span>
+                      <select class="control" formControlName="upliftOtherwise">
+                        <option value="" i18n="@@spt.choose">Choose…</option>
+                        @for (option of upliftOptions(); track option.code) {
+                          <option [value]="option.code">{{ optionLabel(option) }}</option>
+                        }
+                      </select>
+                    </label>
                   </div>
                 }
               </div>
+            }
+          </div>
 
-              <!-- I-Score -->
-              <div class="addon">
-                <label class="addon-head">
-                  <input class="addon-tick" type="checkbox" formControlName="iScore" />
-                  <span class="addon-text">
-                    <span class="addon-name" i18n="@@spt.addon.iscore">Adjust by I-Score</span>
-                    <span class="addon-note" i18n="@@spt.addon.iscore.note"
-                      >Each bank types its own multiplier per score band. Optional for the
-                      customer.</span
+          <div class="addon">
+            <label class="addon-head">
+              <input class="addon-tick" type="checkbox" formControlName="iScore" />
+              <span class="addon-text">
+                <span class="addon-name" i18n="@@spt.addon.iscore">Adjust by I-Score</span>
+                <span class="addon-note" i18n="@@spt.addon.iscore.note"
+                  >Each bank types its own multiplier per score band. Optional for the
+                  customer.</span
+                >
+              </span>
+            </label>
+          </div>
+        </details>
+      </form>
+    </ng-template>
+
+    <!-- ── Who can't get it ───────────────────────────────────────────────── -->
+    <ng-template #rulesPart>
+      <form [formGroup]="form" class="stack">
+        <section class="block">
+          @if (conditions.length === 0) {
+            <p class="notice" i18n="@@spt.v2.rules_none">
+              No rules: everyone can get this product.
+            </p>
+          } @else {
+            <ul class="conditions" role="list" formArrayName="conditions">
+              @for (row of conditions.controls; track row.value.id; let i = $index) {
+                <li class="rule" [formGroupName]="i">
+                  <span class="rl" i18n="@@spt.v2.turn_away">Turn away if</span>
+                  <select #measureSel class="control" (change)="setMeasure(i, measureSel.value)">
+                    <option
+                      value="__answer__"
+                      [selected]="row.value.measure === '__answer__'"
+                      i18n="@@spt.v2.measure_answer"
                     >
-                  </span>
-                </label>
-              </div>
+                      The amount worked out
+                    </option>
+                    @for (fact of allFacts(); track fact.key) {
+                      <option [value]="fact.key" [selected]="row.value.measure === fact.key">
+                        {{ fact.label }}
+                      </option>
+                    }
+                  </select>
 
-              <!-- conditions -->
-              <div class="addon">
-                <div class="addon-head is-static">
-                  <span class="addon-text">
-                    <span class="addon-name" i18n="@@spt.addon.conditions"
-                      >Conditions the customer must meet</span
-                    >
-                    <span class="addon-note" i18n="@@spt.addon.conditions.note2"
-                      >Each bank turns on the ones it applies. A customer who fails one is not shown
-                      the program; the admin sees why.</span
-                    >
-                  </span>
-                  <button type="button" class="linkish" (click)="addCondition()">
-                    <span i18n="@@spt.addon.conditions.add">Add a condition</span>
-                  </button>
-                </div>
-
-                @if (conditions.length > 0) {
-                  <ul class="conditions" role="list" formArrayName="conditions">
-                    @for (row of conditions.controls; track row.value.id; let i = $index) {
-                      <li class="condition" [formGroupName]="i">
-                        <div class="pair">
-                          <label class="field">
-                            <span class="label" i18n="@@spt.cond.measure">What is measured</span>
-                            <select class="control" formControlName="measure">
-                              <option value="__answer__" i18n="@@spt.cond.measure.answer">
-                                The figure this calculation arrives at
-                              </option>
-                              @for (fact of allFacts(); track fact.key) {
-                                <option [value]="fact.key">{{ fact.label }}</option>
-                              }
-                            </select>
-                          </label>
-                          <label class="field">
-                            <span class="label" i18n="@@spt.cond.test">Must be</span>
-                            <select class="control" formControlName="op">
-                              @for (op of conditionOps; track op) {
-                                <option [value]="op">{{ conditionOpLabel(op) }}</option>
-                              }
-                            </select>
-                          </label>
-                        </div>
-
-                        @if (row.value.op === 'atLeastShareOf') {
-                          <label class="field">
-                            <span class="label" i18n="@@spt.cond.share_of">A share of</span>
-                            <select class="control" formControlName="otherFact">
-                              <option value="" i18n="@@spt.choose">Choose…</option>
-                              @for (fact of numericFacts(); track fact.key) {
-                                <option [value]="fact.key">{{ fact.label }}</option>
-                              }
-                            </select>
-                          </label>
+                  @if (row.value.op === 'oneOf') {
+                    <span class="rl" i18n="@@spt.v2.is_any">is any of</span>
+                    <div class="checks">
+                      @for (option of optionsOf(row.value.measure ?? ''); track option.code) {
+                        <label class="check">
+                          <input
+                            type="checkbox"
+                            [checked]="!(row.value.expect ?? []).includes(option.code)"
+                            (change)="toggleTurnedAway(i, option.code)"
+                          />
+                          <span>{{ optionLabel(option) }}</span>
+                        </label>
+                      }
+                    </div>
+                  } @else {
+                    <span class="rl" aria-hidden="true"></span>
+                    <div class="inline">
+                      <select class="control" formControlName="op">
+                        @for (op of opsFor(row.value.measure ?? ''); track op) {
+                          <option [value]="op">{{ ruleOpLabel(op) }}</option>
                         }
-                        @if (
-                          row.value.op === 'atLeastPerAnswer' || row.value.op === 'atMostPerAnswer'
-                        ) {
-                          <label class="field">
-                            <span class="label" i18n="@@spt.cond.keyed_by"
-                              >The limit depends on</span
-                            >
-                            <select class="control" formControlName="otherFact">
-                              <option value="" i18n="@@spt.choose">Choose…</option>
-                              @for (fact of choiceFacts(); track fact.key) {
-                                <option [value]="fact.key">{{ fact.label }}</option>
-                              }
-                            </select>
-                          </label>
+                      </select>
+                      @switch (row.value.op) {
+                        @case ('atLeast') {
+                          <input
+                            #minIn
+                            class="control is-fig"
+                            inputmode="decimal"
+                            [value]="ruleFigure(row.value.id ?? '', 'minValue')"
+                            placeholder="—"
+                            [attr.aria-label]="figureAria"
+                            (input)="setRuleFigure(row.value.id ?? '', 'minValue', minIn.value)"
+                          />
                         }
-
-                        <label class="field">
-                          <span class="label" i18n="@@spt.cond.reason"
-                            >What the customer is told when they do not meet it</span
-                          >
-                          <select class="control" formControlName="reasonCode">
-                            @for (code of reasonCodes; track code) {
-                              <option [value]="code">{{ reasonLabel(code) }}</option>
+                        @case ('atMost') {
+                          <input
+                            #maxIn
+                            class="control is-fig"
+                            inputmode="decimal"
+                            [value]="ruleFigure(row.value.id ?? '', 'maxValue')"
+                            placeholder="—"
+                            [attr.aria-label]="figureAria"
+                            (input)="setRuleFigure(row.value.id ?? '', 'maxValue', maxIn.value)"
+                          />
+                        }
+                        @case ('between') {
+                          <input
+                            #lowIn
+                            class="control is-fig"
+                            inputmode="decimal"
+                            [value]="ruleFigure(row.value.id ?? '', 'minValue')"
+                            placeholder="—"
+                            [attr.aria-label]="figureAria"
+                            (input)="setRuleFigure(row.value.id ?? '', 'minValue', lowIn.value)"
+                          />
+                          <span class="unit" i18n="@@spt.v2.and">and</span>
+                          <input
+                            #highIn
+                            class="control is-fig"
+                            inputmode="decimal"
+                            [value]="ruleFigure(row.value.id ?? '', 'maxValue')"
+                            placeholder="—"
+                            [attr.aria-label]="figureAria"
+                            (input)="setRuleFigure(row.value.id ?? '', 'maxValue', highIn.value)"
+                          />
+                        }
+                        @case ('atLeastShareOf') {
+                          <span class="affix">
+                            <input
+                              #pctIn
+                              class="control is-fig"
+                              inputmode="decimal"
+                              [value]="ruleShare(row.value.id ?? '')"
+                              placeholder="—"
+                              [attr.aria-label]="figureAria"
+                              (input)="setRuleShare(row.value.id ?? '', pctIn.value)"
+                            />
+                            <span class="unit" i18n="@@spt.v2.pct_of2">% of</span>
+                          </span>
+                          <select class="control" formControlName="otherFact">
+                            <option value="" i18n="@@spt.choose">Choose…</option>
+                            @for (fact of numericFacts(); track fact.key) {
+                              <option [value]="fact.key">{{ fact.label }}</option>
                             }
                           </select>
-                        </label>
+                        }
+                        @default {
+                          <select class="control" formControlName="otherFact">
+                            <option value="" i18n="@@spt.choose">Choose…</option>
+                            @for (fact of choiceFacts(); track fact.key) {
+                              <option [value]="fact.key">{{ fact.label }}</option>
+                            }
+                          </select>
+                        }
+                      }
+                    </div>
+                  }
 
-                        <div class="condition-foot">
-                          <span class="mono">{{ row.value.id }}</span>
+                  <span class="rl" i18n="@@spt.v2.status">Status</span>
+                  <div class="inline">
+                    @switch (ruleState(row.value)) {
+                      @case ('on') {
+                        <span class="state is-on" i18n="@@spt.v2.state_on"
+                          >On — these customers are turned away</span
+                        >
+                        @if (row.value.op === 'oneOf') {
                           <button
                             type="button"
-                            class="linkish is-danger"
-                            (click)="removeCondition(i)"
+                            class="linkish"
+                            (click)="setRuleApplies(row.value.id ?? '')"
+                            i18n="@@spt.v2.turn_off"
                           >
-                            <span i18n="@@spt.cond.remove">Remove</span>
+                            Turn off
                           </button>
-                        </div>
-                      </li>
+                        }
+                      }
+                      @case ('offChoice') {
+                        <span class="state" i18n="@@spt.v2.state_off">Off</span>
+                        <button
+                          type="button"
+                          class="linkish"
+                          (click)="setRuleApplies(row.value.id ?? '')"
+                          i18n="@@spt.v2.turn_on"
+                        >
+                          Turn on
+                        </button>
+                      }
+                      @case ('offNumber') {
+                        <span class="state" i18n="@@spt.v2.state_off">Off</span>
+                        <span class="help" i18n="@@spt.v2.type_to_turn_on"
+                          >Type a number above to turn it on.</span
+                        >
+                      }
+                      @default {
+                        <span class="state" i18n="@@spt.v2.state_bank">Each bank sets it</span>
+                      }
                     }
-                  </ul>
-                }
-              </div>
-            </details>
+                  </div>
+
+                  <span class="rl" i18n="@@spt.v2.tell_them">Tell them</span>
+                  <div class="inline">
+                    <select class="control" formControlName="reasonCode">
+                      @for (code of reasonCodes; track code) {
+                        <option [value]="code">{{ reasonLabel(code) }}</option>
+                      }
+                    </select>
+                    <button type="button" class="linkish is-danger" (click)="removeCondition(i)">
+                      <span i18n="@@spt.cond.remove">Remove</span>
+                    </button>
+                  </div>
+                </li>
+              }
+            </ul>
           }
 
-          <!-- ③ ---------------------------------------------------------- -->
-          @if (shows(2)) {
-            <section class="block">
-              <h2 class="q" i18n="@@spt.q3">What are the numbers?</h2>
-              <!-- The generic lede is withheld when this product has its OWN sentence to
-                     say. Four prose blocks stacked before the first control, one of them
-                     repeating the group heading below it ("Amounts every bank starts from"),
-                     is a page an operator scrolls past rather than reads. -->
-              @if (sheetNote() === null) {
-                <p class="lede" i18n="@@spt.q3.lede">
-                  These are the figures every bank starts from. A bank that types its own replaces
-                  them; a bank that does not, quotes from here.
-                </p>
-              }
-
-              <!-- What the operator is filling in, said once at the top rather than beside
-                     every box: this product's mechanism, and what a published sheet puts here.
-                     The figures are an EXAMPLE and are never written — a default in the
-                     template layer becomes somebody's live table the first time nobody
-                     overwrites it. -->
-              @if (sheetNote(); as note) {
-                <aside class="sheet">
-                  <p class="sheet-mech">{{ note.mechanism }}</p>
-                  @if (note.example) {
-                    <p class="sheet-eg">
-                      <span class="sheet-eg-label" i18n="@@spt.sheet.eg">On a real sheet</span>
-                      {{ note.example }}
-                    </p>
-                  }
-                </aside>
-              }
-
-              @if (dirty()) {
-                <p class="notice" role="status">
-                  <span i18n="@@spt.q3.stale"
-                    >Save the answers above to see the tables that go with them.</span
-                  >
-                </p>
-              } @else if (compiledSteps().length === 0) {
-                <p class="notice" role="status">
-                  <span i18n="@@spt.q3.none"
-                    >Nothing to fill in yet — answer the first question and save.</span
-                  >
-                </p>
-              } @else {
-                <app-product-rule-editor
-                  variant="catalog"
-                  [hideConditions]="true"
-                  [steps]="compiledSteps()"
-                  [gates]="compiledGates()"
-                  [output]="compiledOutput()"
-                  [figures]="figures()"
-                  (figuresChange)="onFigures($event)"
-                  (figuresTouched)="markFiguresDirty()"
-                  [facts]="facts()"
-                  [suggestedBands]="suggestedBands()"
-                />
-              }
-            </section>
-          }
-        </form>
-      }
+          <button type="button" class="way-add" (click)="addCondition()">
+            <span i18n="@@spt.v2.add_rule">+ Add a rule</span>
+          </button>
+        </section>
+      </form>
     </ng-template>
   `,
   styles: [
@@ -1422,6 +1599,331 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
           animation: none;
         }
       }
+
+      /* ── the ways (v36.2.0): one card each, folded when there are several ───── */
+      .wcards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .wcard {
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+      }
+      .wcard-top {
+        inline-size: 100%;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        border: 0;
+        border-radius: var(--radius-lg);
+        background: none;
+        font: inherit;
+        text-align: start;
+        color: var(--color-text-primary);
+        cursor: pointer;
+        transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .wcard-top:hover {
+        background: var(--bg-subtle);
+      }
+      .wcard-top:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .wcard-n {
+        display: inline-grid;
+        place-items: center;
+        inline-size: 1.75rem;
+        block-size: 1.75rem;
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+      }
+      .wcard.is-open .wcard-n {
+        background: var(--primary);
+        color: var(--text-on-primary);
+      }
+      .wcard-t {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-inline-size: 0;
+      }
+      .wcard-title {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+      }
+      .wcard-sub {
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .chev {
+        color: var(--color-text-tertiary);
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .wcard.is-open .chev {
+        transform: rotate(180deg);
+      }
+      .wcard-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+        padding: var(--space-5);
+      }
+      .wcard-top + .wcard-body {
+        border-block-start: 1px solid var(--color-border-subtle);
+      }
+      .way-remove,
+      .wcard-body > .linkish,
+      .block > .linkish {
+        align-self: flex-start;
+      }
+      .split-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .split-row > .control {
+        flex: 1 1 16rem;
+        max-inline-size: 34rem;
+      }
+      .groups-box {
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+      }
+      .groups-box > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding: var(--space-2-5) var(--space-4);
+        font-size: var(--text-sm);
+        cursor: pointer;
+        list-style: none;
+      }
+      .groups-box > summary::-webkit-details-marker {
+        display: none;
+      }
+      .groups-box > summary:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .groups-sum {
+        min-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--color-text-primary);
+      }
+      .groups-edit {
+        flex: none;
+        color: var(--color-text-link);
+        font-weight: var(--font-semibold);
+      }
+      .groups-box[open] .groups-edit {
+        color: var(--color-text-secondary);
+      }
+      .groups-body,
+      .groups-box > app-parent-class-board {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: 0 var(--space-4) var(--space-4);
+      }
+      .group-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+      }
+      .group-n {
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+      }
+
+      /* ── who can't get it: one rule, three short lines ──────────────────── */
+      .rule {
+        display: grid;
+        grid-template-columns: 7rem minmax(0, 1fr);
+        align-items: center;
+        gap: var(--space-3) var(--space-4);
+        padding: var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+      }
+      .rule > .control {
+        max-inline-size: 34rem;
+      }
+      .rl {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-secondary);
+      }
+      .inline {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+      }
+      .control.is-fig {
+        inline-size: 9rem;
+        text-align: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .checks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      .check {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-pill);
+        background: var(--bg-surface);
+        font-size: var(--text-sm);
+        cursor: pointer;
+      }
+      .check:has(input:checked) {
+        border-color: var(--color-error);
+        background: var(--color-error-bg);
+      }
+      .check input {
+        accent-color: var(--color-error);
+      }
+      @media (max-width: 40rem) {
+        .rule {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .rl:empty {
+          display: none;
+        }
+        .group-row {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+      }
+
+      /* ── the figures: plain tables, one look for every way ─────────────── */
+      .figs {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        align-items: flex-start;
+      }
+      .ftable-wrap {
+        max-inline-size: 100%;
+        overflow-x: auto;
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+      }
+      .ftable {
+        border-collapse: collapse;
+        font-size: var(--text-sm);
+      }
+      .ftable th,
+      .ftable td {
+        padding: var(--space-2) var(--space-3);
+        border-block-end: 1px solid var(--color-border-subtle);
+        text-align: start;
+        vertical-align: middle;
+      }
+      .ftable tbody tr:last-child > * {
+        border-block-end: 0;
+      }
+      .ftable thead th {
+        background: var(--bg-subtle);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+      }
+      .ftable tbody th {
+        font-weight: var(--font-regular, 400);
+        color: var(--color-text-primary);
+        min-inline-size: 10rem;
+      }
+      .ftable .num {
+        text-align: end;
+      }
+      .control.is-amt {
+        inline-size: 10rem;
+        text-align: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .control.is-edge {
+        inline-size: 7rem;
+        text-align: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .sentence {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-primary);
+      }
+      .sent-col {
+        min-inline-size: 9rem;
+        font-weight: var(--font-semibold);
+      }
+      .sentence .op {
+        color: var(--color-text-secondary);
+      }
+      .dbr-line {
+        cursor: default;
+      }
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      /* "More options" is rare: a quiet fold at the foot, not a section heading. */
+      .more .more-head .q {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--color-text-secondary);
+      }
+      .figs > .linkish {
+        align-self: flex-start;
+      }
+
+      .state {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+      }
+      .state.is-on {
+        background: var(--color-success-bg);
+        color: var(--color-success);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .wcard-top,
+        .chev {
+          transition: none;
+        }
+      }
     `,
   ],
 })
@@ -1429,62 +1931,27 @@ export class ProductTemplatePage implements OnInit {
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly errors = inject(ErrorCodeService);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly lookups = inject(LookupsApiService);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  protected readonly mechanisms = MECHANISM_ORDER;
-  protected readonly conditionOps = CONDITION_OPS;
   protected readonly reasonCodes = GATE_REASON_CODES;
 
-  protected readonly eyebrow = $localize`:@@spt.form.eyebrow:Surrogate product`;
-  protected readonly submitLabel = $localize`:@@spt.form.save:Save the calculation`;
-
-  private key = '';
-
-  /**
-   * Set by the product page's Calculation step (v33.1.0): render inline for this product, with
-   * no page chrome and no figures step, and never touch the URL — the product page owns `?step=`.
-   */
+  /** The product this calculation belongs to. The product page always sets it. */
   readonly embeddedKey = input<string | null>(null);
-  /** Emitted after an embedded save, so the product page re-reads what was compiled. */
+  /** Which half is on screen: the Amount step, or "Who can't get it". */
+  readonly part = input<'amount' | 'rules'>('amount');
+  /** Emitted after a save, so the product page re-reads what was compiled. */
   readonly saved = output<void>();
-  protected readonly embedded = computed(() => this.embeddedKey() !== null);
+
+  protected key = '';
 
   protected readonly loading = signal(true);
   readonly saving = signal(false);
-  /**
-   * Which of the three questions is on stage.
-   *
-   * The signal is the truth and the URL mirrors it (`?step=`, `replaceUrl`) — the same
-   * convention `?loan=` and `?basis=` already follow on the catalog screens, so a reload and
-   * a pasted link both land where the operator was, and moving between steps does not fill
-   * the back button with navigation states.
-   */
-  protected readonly step = signal(0);
-
-  /** Whether part `index` is on screen: every part but the numbers when embedded, else the one picked. */
-  protected shows(index: number): boolean {
-    return this.embedded() ? index < 2 : this.step() === index;
-  }
   protected readonly advanced = signal(false);
-  /**
-   * The ANSWERS above are dirty — the tables below were compiled from an older shape.
-   *
-   * Deliberately NOT set by a figure edit. Section ③ is guarded on this signal, so a
-   * figure write that set it unmounted the editor the operator was typing into: one
-   * keystroke replaced the whole table with "save the answers above", and there was no
-   * way to give the product any figures at all from this screen.
-   */
+  /** Anything unsaved here: the shape, a figure, a group, a placement. */
   readonly dirty = signal(false);
-  /** A figure has been typed. Enables Save; never hides the editor it was typed into. */
-  protected readonly figuresDirty = signal(false);
-  /** Anything unsaved, of either kind — what the action bar's hint speaks about. */
-  protected readonly unsaved = computed(() => this.dirty() || this.figuresDirty());
   protected readonly saveError = signal<string | null>(null);
-  protected readonly label = signal<string | null>(null);
   protected readonly figures = signal<Record<string, StepFigures>>({});
 
   private readonly compiled = signal<{
@@ -1501,14 +1968,22 @@ export class ProductTemplatePage implements OnInit {
     registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
   );
   /**
-   * The question codes the product's Questions tab lists (embedded only). The calculation
-   * picks from what the product asks, never adds a question of its own; a fact it already
-   * reads stays listed so an older product reopens as it was.
+   * The question codes the product's Questions step lists. The calculation picks from what the
+   * product asks, never adds a question of its own; a fact it already reads stays listed so an
+   * older product reopens as it was.
    */
   readonly askedCodes = input<readonly string[] | null>(null);
   private readonly formRev = signal(0);
   /** Only a bound fact can be read. An unbound one has no answer to look anything up by. */
-  protected readonly allFacts = computed(() => {
+  protected readonly allFacts = computed(() => this.boundFacts().map((f) => this.asAsked(f)));
+
+  /** A fact named the way the customer is asked it, so every picker matches the Questions step. */
+  private asAsked(f: RegistryFact): RegistryFact {
+    const asked = f.question?.label?.trim();
+    return asked ? { ...f, label: asked } : f;
+  }
+
+  private readonly boundFacts = computed(() => {
     this.formRev();
     const bound = this.facts().filter((f) => f.question !== null);
     const asked = this.askedCodes();
@@ -1516,9 +1991,10 @@ export class ProductTemplatePage implements OnInit {
     const v = this.form.getRawValue();
     const used = new Set([
       v.primaryFact,
-      v.columnFact,
+      v.primaryColumn?.fact,
       v.upliftFact,
-      ...v.alternatives.map((a) => a.fact),
+      v.shareFact,
+      ...v.alternatives.flatMap((a) => [a.fact, a.column?.fact]),
       ...v.conditions.flatMap((c) => [c.measure, c.otherFact]),
     ]);
     return bound.filter((f) => asked.includes(f.question!.code) || used.has(f.key));
@@ -1529,23 +2005,26 @@ export class ProductTemplatePage implements OnInit {
   protected readonly numericFacts = computed(() =>
     this.allFacts().filter((f) => f.question?.type === 'NUMERIC'),
   );
+  /** Every choice or number answer this product can read — what "Worked out from" offers. */
+  protected readonly decidingFacts = computed(() =>
+    this.allFacts().filter(
+      (f) => f.question?.type === 'SINGLE_SELECT' || f.question?.type === 'NUMERIC',
+    ),
+  );
 
   readonly form = this.fb.nonNullable.group({
     outputKind: this.fb.nonNullable.control<'monthlyIncome' | 'maxAmount'>('monthlyIncome'),
     baselineDbrPercent: this.fb.nonNullable.control(''),
     primaryKind: this.fb.nonNullable.control<TemplateMechanismKind>('choiceTable'),
     primaryFact: this.fb.nonNullable.control(''),
-    useAlternative: this.fb.nonNullable.control(false),
+    /** The first way's own split into columns. */
+    primaryColumn: this.fb.control<TemplateColumn | null>(null),
     alternatives: this.fb.array<ReturnType<ProductTemplatePage['wayGroup']>>([]),
     combine: this.fb.nonNullable.control<'' | 'lower' | 'higher'>(''),
     /** Alternatives a bank picks one of, or terms every bank states (car cross-sell). */
     waysAre: this.fb.nonNullable.control<'exclusive' | 'combined'>('exclusive'),
-    useSecondColumn: this.fb.nonNullable.control(false),
-    columnFact: this.fb.nonNullable.control(''),
-    columnBranches: this.fb.nonNullable.control<string[]>([]),
-    /** `groups`: the answers are put in this product's own groups, one column per group. */
-    columnMode: this.fb.nonNullable.control<'answer' | 'groups'>('answer'),
-    columnGroups: this.fb.array<ReturnType<ProductTemplatePage['groupControl']>>([]),
+    /** The percentage of the thing the customer owns, when only their part is lent against. */
+    shareFact: this.fb.nonNullable.control(''),
     useUplift: this.fb.nonNullable.control(false),
     upliftFact: this.fb.nonNullable.control(''),
     upliftWhen: this.fb.nonNullable.control(''),
@@ -1563,486 +2042,447 @@ export class ProductTemplatePage implements OnInit {
     return this.form.controls.alternatives;
   }
 
-  /**
-   * One further way of reaching the figure.
-   *
-   * `flatAmount`, not `classTable`, is what a new row opens ON: `classTable` filters its
-   * picker to facts whose answers are filed under classes, so on a product with no such list
-   * it opened to an empty select with nothing saying why. `flatAmount` reads no fact at all,
-   * so it is the one kind that can never open empty.
-   */
+  /** One further way of reaching the figure, with its own split into columns. */
   private wayGroup(
-    kind: TemplateMechanismKind = 'flatAmount',
+    kind: TemplateMechanismKind = 'choiceTable',
     fact = '',
     column: TemplateColumn | null = null,
   ) {
-    const group = this.fb.nonNullable.group({
+    return this.fb.nonNullable.group({
       kind: this.fb.nonNullable.control<TemplateMechanismKind>(kind),
       fact: this.fb.nonNullable.control(fact),
-      // Carried, not edited: the way's own column travels WITH the row, so removing the way
-      // above it cannot hand its column to the wrong way (an index-keyed carry would).
       column: this.fb.control<TemplateColumn | null>(column),
     });
-    // The fact a table is keyed by and the fact a percentage reads are different KINDS of
-    // answer, so carrying the old pick across would leave a select showing a value that is
-    // no longer in its own list. Wired HERE rather than in a click handler because the shape
-    // is a bound `<select>` now: the row is seeded with both values before it is pushed, so
-    // this fires only on an operator's own change.
-    group.controls.kind.valueChanges.subscribe(() => group.controls.fact.setValue(''));
-    return group;
   }
 
   ngOnInit(): void {
-    this.key = this.embeddedKey() ?? this.route.snapshot.paramMap.get('key') ?? '';
-    // Read once from the snapshot, like `?loan=` and `?basis=`: the signal is the truth from
-    // here on, and re-reading a param this screen itself writes would fight its own mirror.
-    // Embedded, `?step=` is the product page's, never this one's.
-    const step = this.embedded() ? NaN : Number(this.route.snapshot.queryParamMap.get('step'));
-    if (Number.isInteger(step) && step >= 0 && step <= 2) this.step.set(step);
+    this.key = this.embeddedKey() ?? '';
     void this.enums.load('surrogate_fact');
     this.form.valueChanges.subscribe(() => {
       this.dirty.set(true);
       this.formRev.update((n) => n + 1);
-    });
-    // Ticking the addon with nothing under it would say a second way exists and save none,
-    // so the tick opens on one empty row — the state it describes.
-    this.form.controls.useAlternative.valueChanges.subscribe((on) => {
-      if (on && this.alternatives.length === 0) this.alternatives.push(this.wayGroup());
+      this.schedulePreview();
     });
     void this.load();
   }
 
-  /**
-   * The blueprint behind this product, fetched only when there IS one.
-   *
-   * One extra read on a screen that already makes one, and only for a product created from
-   * the library: a hand-shaped product pays nothing for a list it would not use.
-   */
+  /** The predefined product this form came from — for the brackets a band table is offered. */
+  protected readonly blueprint = signal<ProductBlueprint | null>(null);
+
   private async loadBlueprint(key: string): Promise<void> {
     try {
       const res = await this.api.listProductBlueprints();
       this.blueprint.set(res.data.find((blueprint) => blueprint.key === key) ?? null);
     } catch {
-      // The figures step works without it — it loses one grey sentence and the offer of a
-      // bracket list. Not worth a refusal on a screen whose job is the numbers.
       this.blueprint.set(null);
     }
   }
 
-  /** This product's mechanism and its worked example, when it came from the library. */
-  protected readonly sheetNote = computed(() => {
-    const blueprint = this.blueprint();
-    if (blueprint === null) return null;
-    const copy = blueprintCopy(blueprint.key, blueprint.labelEn);
-    if (copy.mechanism === '' && copy.example === '') return null;
-    return { mechanism: copy.mechanism, example: copy.example };
-  });
-
-  /**
-   * The brackets a published sheet prints, keyed by the box they belong in.
-   *
-   * The SLOT comes from the server, which owns slot naming: a slot this screen worked out for
-   * itself would be a second statement of the rule that decides where a bank's figures live,
-   * and it would disagree the day a way is added to the product.
-   */
+  /** The brackets a published sheet prints, keyed by the box they belong in (server slots). */
   protected readonly suggestedBands = computed<Record<string, IncomeBand[]>>(() => {
     const blueprint = this.blueprint();
     if (blueprint === null) return {};
     return suggestedBandsBySlot(blueprint.suggestedBands, this.compiledSteps());
   });
 
-  // --- the rail --------------------------------------------------------------
+  // --- live preview: the boxes always match the choices above them -----------
 
-  protected readonly railAria = $localize`:@@spt.rail.aria:The calculation, in three steps`;
-  protected readonly railCaption = $localize`:@@spt.rail.caption:Everything saves together, so move between the steps in any order.`;
-
-  /**
-   * The three steps, with the status each is actually IN.
-   *
-   * Step 1 reads `done` the moment nothing on it is refused, because there is exactly one
-   * thing it can be missing. Step 2 is `done` only when something on it is switched on:
-   * every add-on is optional, and a green tick on an untouched section would say a decision
-   * was made where none was. Step 3 never reports either way — the figures are a bank's to
-   * fill in, so "no numbers here" is a normal, finished state for a catalog product.
-   */
-  protected railSteps(): readonly WizardStepItem[] {
-    const s1 = this.step1Block();
-    const s2 = this.step2Block();
-    return [
-      {
-        id: 'calc',
-        label: $localize`:@@spt.step.1:The calculation`,
-        status: s1 !== null ? 'invalid' : 'done',
-      },
-      {
-        id: 'extras',
-        label: $localize`:@@spt.step.2:Extras`,
-        status: s2 !== null ? 'invalid' : this.hasExtras() ? 'done' : 'todo',
-      },
-      // Embedded, the product's own Figures step edits these: one place per thing.
-      ...(this.embedded() ? [] : [{ id: 'figures', label: $localize`:@@spt.step.3:The numbers` }]),
-    ];
-  }
-
-  protected goStep(index: number): void {
-    if (index === this.step()) return;
-    this.step.set(index);
-    if (this.embedded()) return;
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { step: index },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
-    });
-  }
-
-  /** Whether step 2 states anything at all — what tells its `done` from its `todo`. */
-  protected hasExtras(): boolean {
-    const v = this.form.getRawValue();
-    return (
-      v.outputKind === 'maxAmount' ||
-      v.useAlternative ||
-      v.useSecondColumn ||
-      v.useUplift ||
-      v.iScore ||
-      this.conditions.length > 0
-    );
-  }
-
-  // --- what the shell renders ------------------------------------------------
-
-  protected title(): string {
-    return this.label() ?? $localize`:@@spt.form.title_fallback:How the income is worked out`;
-  }
-
-  protected subtitle(): string {
-    return $localize`:@@spt.form.subtitle:Answer these and we build the calculation. Every bank selling this product fills in its own figures against the same shape.`;
-  }
-
-  protected hint(): string | null {
-    if (this.saving()) return null;
-    if (!this.unsaved())
-      return $localize`:@@spt.form.clean:Nothing to save — this is what is stored.`;
-    return $localize`:@@spt.form.next:Saving rebuilds the calculation every bank under this product quotes from.`;
-  }
+  protected readonly previewing = signal(false);
+  private previewTimer: ReturnType<typeof setTimeout> | null = null;
+  private previewSeq = 0;
 
   /**
-   * Why Save is refused, in the operator's words.
-   *
-   * Both halves are here rather than only the local one: the server's refusals on this screen
-   * are about OTHER banks' figures, which the operator cannot see, so the message has to be
-   * where the button is.
+   * Ask the server what the form compiles to — written nowhere — so a way's figure boxes
+   * appear the moment its choices are made. The server stays the one authority on slot ids;
+   * a form that cannot compile yet (a way with no question) just keeps the last good shape.
    */
-  protected blockReason(): string | null {
-    if (this.saveError()) return this.saveError();
-    if (this.advanced())
-      return $localize`:@@spt.form.block_advanced:This calculation was built by hand, so there is no form to save.`;
-    return this.step1Block() ?? this.step2Block();
+  private schedulePreview(): void {
+    if (this.loading() || this.advanced() || this.key === '') return;
+    if (this.previewTimer !== null) clearTimeout(this.previewTimer);
+    this.previewTimer = setTimeout(() => void this.preview(), 350);
   }
 
-  /** What step 1 refuses, or `null`. Named per step so the rail can point at the right one. */
-  private step1Block(): string | null {
-    if (this.primaryNeedsFact() && !this.form.controls.primaryFact.value) {
-      return $localize`:@@spt.form.block_fact:Choose which answer the calculation reads.`;
+  private async preview(): Promise<void> {
+    this.previewTimer = null;
+    if (this.localBlock() !== null) return;
+    const seq = ++this.previewSeq;
+    this.previewing.set(true);
+    try {
+      const res = await this.api.previewSurrogateProductTemplate(this.key, {
+        template: this.toTemplate(),
+        stepParams: cleanFigures(this.figures()),
+      });
+      if (seq !== this.previewSeq) return;
+      const rule = res.data.compiled as {
+        steps?: RuleStep[];
+        gates?: RuleGate[];
+        output?: ProductRuleOutput;
+      };
+      this.compiled.set({
+        steps: (rule.steps ?? []).map((s) => ({ ...s })),
+        gates: (rule.gates ?? []).map((g) => ({ ...g })),
+        output: rule.output ? { ...rule.output } : null,
+      });
+      this.seedPicked();
+    } catch {
+      // Kept as it was: Save names the problem.
+    } finally {
+      if (seq === this.previewSeq) this.previewing.set(false);
     }
-    return null;
   }
 
-  /** What step 2 refuses, or `null`. */
-  private step2Block(): string | null {
-    if (this.form.controls.useAlternative.value) {
-      const unnamed = this.alternatives.controls.findIndex(
-        (row, index) => this.wayNeedsFact(index) && !row.controls.fact.value,
-      );
-      if (unnamed !== -1) {
-        return $localize`:@@spt.form.block_alt_fact:Choose which answer way ${unnamed + 2}:index: reads.`;
-      }
-      const ways = this.alternatives.controls.map((row) => row.getRawValue());
-      const primary = this.form.getRawValue();
-      const identity = (kind: TemplateMechanismKind, fact: string): string =>
-        `${kind}|${MECHANISM_FACT_TYPE[kind] === null ? '' : fact}`;
-      const seen = new Set([identity(primary.primaryKind, primary.primaryFact)]);
-      for (const way of ways) {
-        const id = identity(way.kind, way.fact);
-        if (seen.has(id)) {
-          return $localize`:@@spt.form.block_alt_duplicate:Two ways read the same answer the same way. Remove one, or change what it reads.`;
-        }
-        seen.add(id);
-      }
-    }
-    if (this.usesOwnGroups()) {
-      const groups = this.columnGroups.getRawValue();
-      if (groups.length < 2) {
-        return $localize`:@@spt.form.block_groups:Add at least two groups.`;
-      }
-      if (groups.some((g) => g.labelEn.trim() === '' || g.labelAr.trim() === '')) {
-        return $localize`:@@spt.form.block_group_names:Give every group a name in English and Arabic.`;
-      }
-    } else if (
-      this.form.controls.useSecondColumn.value &&
-      !this.sharedClassColumn() &&
-      this.form.controls.columnBranches.value.length < 2
-    ) {
-      return $localize`:@@spt.form.block_columns:A second column needs at least two answers picked.`;
-    }
-    const uplift = this.form.getRawValue();
-    if (uplift.useUplift && (!uplift.upliftWhen || !uplift.upliftOtherwise)) {
-      return $localize`:@@spt.form.block_uplift:Say which answer earns the bonus and which does not.`;
-    }
-    if (uplift.useUplift && uplift.upliftWhen === uplift.upliftOtherwise) {
-      return $localize`:@@spt.form.block_uplift_same:The two bonus answers have to be different.`;
-    }
-    return null;
-  }
+  // --- the amount ------------------------------------------------------------
 
-  // --- ① ---------------------------------------------------------------------
-
-  protected mechanismLabel(kind: TemplateMechanismKind): string {
-    return MECHANISM_LABELS[kind]();
-  }
-
-  protected mechanismExample(kind: TemplateMechanismKind): string {
-    return MECHANISM_EXAMPLES[kind]();
-  }
-
-  protected primaryNeedsFact(): boolean {
-    return MECHANISM_FACT_TYPE[this.form.controls.primaryKind.value] !== null;
-  }
-
-  protected wayNeedsFact(index: number): boolean {
-    const kind = this.alternatives.at(index)?.controls.kind.value;
-    return kind !== undefined && MECHANISM_FACT_TYPE[kind] !== null;
-  }
-
-  /** Every choice or number answer this product can read — what "Which question" offers. */
-  protected readonly decidingFacts = computed(() =>
-    this.allFacts().filter(
-      (f) => f.question?.type === 'SINGLE_SELECT' || f.question?.type === 'NUMERIC',
-    ),
-  );
-
-  /** Built some other way (a flat figure…): kept until a question is picked. */
-  protected keepsOtherWay(): boolean {
-    const kind = this.form.controls.primaryKind.value;
-    return kind !== 'choiceTable' && kind !== 'classTable' && !NUMBER_WAYS.includes(kind);
-  }
-
-  /** The picked choice question's answers are filed under classes: a figure per class is offered. */
-  protected decidingHasClasses(): boolean {
-    const key = this.decidingFact();
-    if (key === '') return false;
-    const question = this.allFacts().find((f) => f.key === key)?.question;
-    return question?.type === 'SINGLE_SELECT' && (question.parentOptions?.length ?? 0) > 0;
-  }
-
+  protected readonly amountIsAria = $localize`:@@spt.v2.amount_is:The amount is`;
+  protected readonly waysModeAria = $localize`:@@spt.v2.ways_mode_aria:How banks use the ways`;
+  protected readonly columnModeAria = $localize`:@@spt.v2.col_mode_aria:A column per answer or per group`;
   protected readonly choiceWayAria = $localize`:@@spt.choice_way.aria:One figure per answer or per class`;
-
-  protected readonly choiceWays: ReadonlyArray<{ kind: TemplateMechanismKind; label: string }> = [
-    { kind: 'choiceTable', label: $localize`:@@spt.mech.choice:One figure for each answer` },
-    { kind: 'classTable', label: $localize`:@@spt.mech.class:One figure for each class` },
-  ];
-
-  /** The ceiling tick: the figure is the most the customer may borrow instead of an income. */
-  protected toggleCeiling(on: boolean): void {
-    this.setOutputKind(on ? 'maxAmount' : 'monthlyIncome');
-    this.dirty.set(true);
-  }
-
-  /** The picked question is a number: the operator says how the income follows from it. */
-  protected decidingIsNumber(): boolean {
-    const key = this.decidingFact();
-    return key !== '' && this.allFacts().find((f) => f.key === key)?.question?.type === 'NUMERIC';
-  }
+  protected readonly numberWayAria = $localize`:@@spt.way.aria:How the income follows from the number`;
+  protected readonly figureAria = $localize`:@@spt.v2.figure_aria:Figure`;
 
   protected readonly numberWays: ReadonlyArray<{ kind: TemplateMechanismKind; label: string }> = [
-    { kind: 'numberBand', label: $localize`:@@spt.way.band:A figure for each range` },
-    { kind: 'shareOf', label: $localize`:@@spt.way.share:A percentage of the answer` },
-    { kind: 'multipleOf', label: $localize`:@@spt.way.multiple:A multiple of the answer` },
-    { kind: 'dividedBy', label: $localize`:@@spt.way.divided:The answer divided by a figure` },
+    { kind: 'numberBand', label: $localize`:@@spt.v2.by_ranges:By ranges` },
+    { kind: 'shareOf', label: $localize`:@@spt.v2.pct_of_it:% of it` },
+    { kind: 'multipleOf', label: $localize`:@@spt.v2.times:Multiplied by` },
+    { kind: 'dividedBy', label: $localize`:@@spt.v2.divided:Divided by` },
   ];
 
-  /** Another way for the same question (number ways, or answer ↔ class): the question stays picked. */
-  protected setNumberWay(kind: TemplateMechanismKind): void {
-    const fact = this.form.controls.primaryFact.value;
-    this.setPrimary(kind);
-    this.form.controls.primaryFact.setValue(fact);
-  }
-
-  /** The question on screen — empty while the product keeps another way. */
-  protected decidingFact(): string {
-    return this.keepsOtherWay() ? '' : this.form.controls.primaryFact.value;
-  }
-
-  /** The way follows the answer's type; a choice starts on a figure per answer. */
-  protected pickDecidingFact(key: string): void {
-    const fact = this.allFacts().find((f) => f.key === key);
-    if (!fact) return;
-    const current = this.form.controls.primaryKind.value;
-    // A number keeps the way already chosen for a number; anything else starts on a range table.
-    const kind =
-      fact.question?.type === 'NUMERIC'
-        ? NUMBER_WAYS.includes(current)
-          ? current
-          : 'numberBand'
-        : 'choiceTable';
-    this.setPrimary(kind);
-    this.form.controls.primaryFact.setValue(key);
-  }
-
-  protected readonly numberWayAria = $localize`:@@spt.way.aria:How the income follows from the number`;
-
-  protected primaryFacts(): RegistryFact[] {
-    return this.factsFor(this.form.controls.primaryKind.value);
-  }
-
-  protected wayFacts(index: number): RegistryFact[] {
-    const kind = this.alternatives.at(index)?.controls.kind.value;
-    return kind === undefined ? [] : this.factsFor(kind);
-  }
-
-  protected setPrimary(kind: TemplateMechanismKind): void {
-    if (this.form.controls.primaryKind.value === kind) return;
-    this.form.controls.primaryKind.setValue(kind);
-    // The fact a table is keyed by and the fact a percentage reads are different KINDS of
-    // answer, so carrying the old pick across would leave a select showing a value that is
-    // no longer in its own list. Cleared unconditionally: the guard that used to sit here
-    // compared the new kind against the control it had just written, so it was never true.
-    this.form.controls.primaryFact.setValue('');
-  }
-
-  /**
-   * The ways may be ADDED to and REMOVED from, never reordered.
-   *
-   * The first two keep the slot ids they have always had (`primary`, `alt`) and every way
-   * after that is named by the fact it reads, so a bank's figures stay under the id they
-   * were typed against. Moving what is in the first row would rename `alt`, which is a
-   * number quietly becoming some other bank's — so there is no control that can.
-   */
-  protected addWay(): void {
-    if (!this.canAddWay()) return;
-    this.alternatives.push(this.wayGroup());
-    this.dirty.set(true);
-  }
-
-  protected removeWay(index: number): void {
-    this.alternatives.removeAt(index);
-    // The last way gone is the addon off: a ticked box over an empty list says a second way
-    // exists, and the save would state none.
-    if (this.alternatives.length === 0) this.form.controls.useAlternative.setValue(false);
-    this.dirty.set(true);
-  }
-
-  protected canAddWay(): boolean {
-    return this.alternatives.length < MAX_ALTERNATIVES;
-  }
-
-  /**
-   * Ways are numbered from the FIRST one, which is the section above this addon — so the
-   * first row here is way 2. Numbering these from one would put two "way 1"s on the screen.
-   */
-  protected wayLabel(index: number): string {
-    const n = index + 2;
-    return $localize`:@@spt.addon.alt.way:Way ${n}:index:`;
-  }
-
-  /** "Split into columns by <fact>" for a way carrying its own column, else `null`. */
-  protected wayColumnLabel(index: number): string | null {
-    const column = this.alternatives.at(index)?.controls.column.value;
-    if (!column) return null;
-    const fact = this.facts().find((f) => f.key === column.fact)?.label ?? column.fact;
-    return $localize`:@@spt.addon.alt.split_by:Split into columns by ${fact}:fact:`;
-  }
-
-  protected wayRemoveLabel(index: number): string {
-    const n = index + 2;
-    return $localize`:@@spt.addon.alt.remove_aria:Remove way ${n}:index:`;
-  }
-
-  protected setOutputKind(kind: 'monthlyIncome' | 'maxAmount'): void {
-    this.form.controls.outputKind.setValue(kind);
+  protected toggleCeiling(on: boolean): void {
+    this.form.controls.outputKind.setValue(on ? 'maxAmount' : 'monthlyIncome');
     // The baseline only means something for a ceiling. Left behind on an income product it
     // is refused at save, naming a field that is no longer on screen.
-    if (kind !== 'maxAmount') this.form.controls.baselineDbrPercent.setValue('');
+    if (!on) this.form.controls.baselineDbrPercent.setValue('');
   }
 
-  // --- ② ---------------------------------------------------------------------
-
-  // --- the product's own groups ----------------------------------------------
-
-  get columnGroups(): FormArray<ReturnType<ProductTemplatePage['groupControl']>> {
-    return this.form.controls.columnGroups;
+  protected wayCount(): number {
+    this.formRev();
+    return 1 + this.alternatives.length;
   }
 
-  private groupControl(group: TemplateGroup) {
-    return this.fb.nonNullable.group({
-      // Never edited: the figures of the group's column hang off it.
-      key: this.fb.nonNullable.control(group.key),
-      labelEn: this.fb.nonNullable.control(group.labelEn),
-      labelAr: this.fb.nonNullable.control(group.labelAr),
+  protected readonly wayIndexes = computed(() => {
+    this.formRev();
+    return Array.from({ length: 1 + this.alternatives.length }, (_, i) => i);
+  });
+
+  protected readonly openWay = signal(0);
+
+  protected wayIsOpen(i: number): boolean {
+    return this.wayCount() === 1 || this.openWay() === i;
+  }
+
+  protected toggleWay(i: number): void {
+    this.openWay.set(this.openWay() === i ? -1 : i);
+  }
+
+  protected wayKind(i: number): TemplateMechanismKind {
+    return i === 0
+      ? this.form.controls.primaryKind.value
+      : (this.alternatives.at(i - 1)?.controls.kind.value ?? 'choiceTable');
+  }
+
+  /** The question a way reads, `__flat__` for the same amount for everyone. */
+  protected wayFactValue(i: number): string {
+    if (this.wayKind(i) === 'flatAmount') return '__flat__';
+    return i === 0
+      ? this.form.controls.primaryFact.value
+      : (this.alternatives.at(i - 1)?.controls.fact.value ?? '');
+  }
+
+  private factOf(key: string): RegistryFact | undefined {
+    return this.allFacts().find((f) => f.key === key);
+  }
+
+  protected wayIsNumber(i: number): boolean {
+    return this.factOf(this.wayFactValue(i))?.question?.type === 'NUMERIC';
+  }
+
+  /** A choice whose answers are filed under shared groups: a figure per group is offered. */
+  protected wayHasClasses(i: number): boolean {
+    const q = this.factOf(this.wayFactValue(i))?.question;
+    return q?.type === 'SINGLE_SELECT' && (q.parentOptions?.length ?? 0) > 0;
+  }
+
+  /** The way follows the answer's type: a choice starts on a figure per answer, a number on ranges. */
+  protected setWayFact(i: number, key: string): void {
+    let kind: TemplateMechanismKind;
+    let fact = key;
+    if (key === '__flat__') {
+      kind = 'flatAmount';
+      fact = '';
+    } else {
+      const type = this.factOf(key)?.question?.type;
+      const current = this.wayKind(i);
+      kind =
+        type === 'NUMERIC'
+          ? NUMBER_WAYS.includes(current)
+            ? current
+            : 'numberBand'
+          : 'choiceTable';
+    }
+    this.writeWay(i, kind, fact);
+    this.toSeed.add(i);
+    // A way cannot be split by the answer it already reads.
+    if (this.wayColumn(i)?.fact === key || kind === 'flatAmount') this.setWayColumn(i, null);
+  }
+
+  protected setWayKind(i: number, kind: TemplateMechanismKind): void {
+    this.writeWay(i, kind, this.wayFactValue(i));
+    this.toSeed.add(i);
+  }
+
+  /** Ways whose question or split the operator just chose: their empty tables get a row each. */
+  private readonly toSeed = new Set<number>();
+
+  /**
+   * One empty row per answer (or one open range) in every table of a way the operator has just
+   * set up, so they type amounts instead of first building rows. A row left blank is dropped on
+   * save (`cleanFigures`), so it still means "each bank fills it in".
+   */
+  private seedPicked(): void {
+    if (this.toSeed.size === 0) return;
+    this.figures.set(this.withEveryRow(this.figures(), [...this.toSeed]));
+    this.toSeed.clear();
+  }
+
+  /**
+   * Every answer listed in each table of these ways — a missing one added as a blank row, in
+   * the list's own order after the rows already there — and one open range in an empty range
+   * table. Display only: `cleanFigures` drops every blank row before anything is sent.
+   */
+  private withEveryRow(
+    figures: Record<string, StepFigures>,
+    ways: readonly number[],
+  ): Record<string, StepFigures> {
+    const next = { ...figures };
+    for (const i of ways) {
+      const slots = this.waySlots(i);
+      const fact = this.wayFactValue(i);
+      for (const step of this.compiledSteps()) {
+        if (!slots.has(step.id)) continue;
+        if (step.op === 'factChoiceTable' || step.op === 'factParentTable') {
+          const keys =
+            step.op === 'factParentTable'
+              ? (this.factOf(fact)?.question?.parentOptions ?? []).map((o) => o.code)
+              : this.optionsOf(fact).map((o) => o.code);
+          const rows = [...(next[step.id]?.keyTable ?? [])];
+          const have = new Set(rows.map((r) => r.key));
+          for (const key of keys) if (!have.has(key)) rows.push({ key, incomeEGP: '' });
+          if (rows.length > 0) next[step.id] = { ...next[step.id], keyTable: rows };
+        } else if (step.op === 'bandTable' && (next[step.id]?.bands ?? []).length === 0) {
+          next[step.id] = {
+            ...next[step.id],
+            bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '' }],
+          };
+        }
+      }
+    }
+    return next;
+  }
+
+  private writeWay(i: number, kind: TemplateMechanismKind, fact: string): void {
+    if (i === 0) {
+      this.form.patchValue({ primaryKind: kind, primaryFact: fact });
+    } else {
+      this.alternatives.at(i - 1)?.patchValue({ kind, fact });
+    }
+  }
+
+  protected wayColumn(i: number): TemplateColumn | null {
+    this.formRev();
+    return i === 0
+      ? this.form.controls.primaryColumn.value
+      : (this.alternatives.at(i - 1)?.controls.column.value ?? null);
+  }
+
+  private setWayColumn(i: number, column: TemplateColumn | null): void {
+    this.toSeed.add(i);
+    if (i === 0) this.form.controls.primaryColumn.setValue(column);
+    else this.alternatives.at(i - 1)?.controls.column.setValue(column);
+  }
+
+  /** The choice questions a way may be split by — never the one it reads. */
+  protected columnFacts(i: number): RegistryFact[] {
+    const own = this.wayFactValue(i);
+    return this.choiceFacts().filter((f) => f.key !== own);
+  }
+
+  /** What "Different amounts by" offers: the choices, plus the one in use if it is not one. */
+  protected columnChoices(i: number): ReadonlyArray<{ key: string; label: string }> {
+    const list: Array<{ key: string; label: string }> = this.columnFacts(i).map((f) => ({
+      key: f.key,
+      label: f.label,
+    }));
+    // What we work out ourselves (a new loan or a top-up, …) splits a table as well as an answer.
+    for (const derived of DERIVED_FACTS) {
+      if (!list.some((f) => f.key === derived.key))
+        list.push({ key: derived.key, label: this.factLabel(derived.key) });
+    }
+    const current = this.wayColumn(i)?.fact;
+    if (current !== undefined && !list.some((f) => f.key === current)) {
+      list.push({ key: current, label: this.factLabel(current) });
+    }
+    return list;
+  }
+
+  /** A fact's name, bound to a question or not (new loan or top-up is worked out). */
+  protected factLabel(key: string): string {
+    const derived = derivedFactByKey(key);
+    if (derived !== undefined) {
+      return $localize`:@@spt.v2.worked_out_by_us:${derived.label}:NAME: (worked out by us, not asked)`;
+    }
+    const fact = this.facts().find((f) => f.key === key);
+    if (fact) return this.asAsked(fact).label;
+    return key;
+  }
+
+  /** Its answers come from a list, so they can be put in groups. */
+  protected columnGroupable(key: string): boolean {
+    const q = this.factOf(key)?.question;
+    // Groups pay off on a long list; two or three answers are simply a column each.
+    if ((q?.parentOptions?.length ?? 0) > 0) return true;
+    return q?.optionsEnumerationType !== undefined && (q.options?.length ?? 0) > 3;
+  }
+
+  protected startColumn(i: number): void {
+    const first = this.columnFacts(i)[0];
+    if (first) this.setColumnFact(i, first.key);
+  }
+
+  /** One column per answer, in the list's own order; the first is the standard column. */
+  protected setColumnFact(i: number, key: string): void {
+    if (key === '') {
+      this.setWayColumn(i, null);
+      return;
+    }
+    this.setWayColumn(i, { fact: key, branches: this.optionsOf(key).map((o) => o.code) });
+  }
+
+  protected setColumnMode(i: number, mode: 'answer' | 'groups' | 'own'): void {
+    const current = this.wayColumn(i);
+    if (current === null) return;
+    const fact = current.fact;
+    if (mode === 'answer') {
+      this.setWayColumn(i, { fact, branches: this.optionsOf(fact).map((o) => o.code) });
+      return;
+    }
+    const shared = this.factOf(fact)?.question?.parentOptions ?? [];
+    if (mode === 'groups' && shared.length > 0) {
+      // The list's own groups (the city tiers): a column each.
+      this.setWayColumn(i, { fact, branchOn: 'parentClass', branches: shared.map((o) => o.code) });
+      return;
+    }
+    // This product's own groups: two to start, every answer in the first.
+    const groups: TemplateGroup[] = [
+      { key: 'g1', labelEn: 'Group 1', labelAr: 'المجموعة 1' },
+      { key: 'g2', labelEn: 'Group 2', labelAr: 'المجموعة 2' },
+    ];
+    this.setWayColumn(i, {
+      fact,
+      branchOn: 'parentClass',
+      branches: groups.map((g) => g.key),
+      groups,
+    });
+    this.placements.set(Object.fromEntries(this.optionsOf(fact).map((o) => [o.code, 'g1'])));
+    this.groupsOpen.set(true);
+    void this.loadValueIds(fact);
+  }
+
+  protected readonly groupsOpen = signal(false);
+
+  protected branchName(column: TemplateColumn, branch: string): string {
+    return this.branchLabel(column, branch);
+  }
+
+  /**
+   * The column used when the customer gives no answer — the FIRST one, which keeps the way's
+   * bare slot. Moving another to the front moves every column's figures with it, so nothing a
+   * person typed is lost or swapped.
+   */
+  protected setStandardBranch(i: number, branch: string): void {
+    const column = this.wayColumn(i);
+    if (column === null || column.branches[0] === branch) return;
+    const head = this.headOf(i);
+    const slotOf = (b: string, branches: readonly string[]) =>
+      branches.indexOf(b) === 0 ? head : `${head}__${b}`;
+    const branches = [branch, ...column.branches.filter((b) => b !== branch)];
+    const before = this.figures();
+    const next = { ...before };
+    for (const b of column.branches) delete next[slotOf(b, column.branches)];
+    for (const b of column.branches) {
+      const figure = before[slotOf(b, column.branches)];
+      if (figure !== undefined) next[slotOf(b, branches)] = figure;
+    }
+    this.figures.set(next);
+    const groups = column.groups
+      ? branches.map((b) => column.groups!.find((g) => g.key === b)!).filter(Boolean)
+      : undefined;
+    this.setWayColumn(i, { ...column, branches, ...(groups ? { groups } : {}) });
+  }
+
+  /** "Groups: Class AA · Class AB · …" for a list's own groups. */
+  protected groupsLine(key: string): string {
+    const names = (this.factOf(key)?.question?.parentOptions ?? [])
+      .map((o) => this.optionLabel(o))
+      .join(' · ');
+    return $localize`:@@spt.v2.groups_line:Groups: ${names}:NAMES:`;
+  }
+
+  protected ownGroupsLine(column: TemplateColumn): string {
+    const names = (column.groups ?? []).map((g) => this.groupName(g)).join(' · ');
+    return $localize`:@@spt.v2.groups_line:Groups: ${names}:NAMES:`;
+  }
+
+  /** The board that moves a list's answers between its groups, for this product. */
+  protected classBoardFor(key: string): { child: string; parent: string } | null {
+    const q = this.factOf(key)?.question;
+    if (q?.optionsEnumerationType === undefined || q.parentEnumerationType === undefined) {
+      return null;
+    }
+    return { child: q.optionsEnumerationType, parent: q.parentEnumerationType };
+  }
+
+  /** A move on the board is written at once; re-read the lists so the group line follows. */
+  protected refreshFacts(): void {
+    void this.enums.refresh('surrogate_fact');
+  }
+
+  // --- this product's own groups (on a column) -------------------------------
+
+  private ownGroupsWay(): number {
+    return this.wayIndexes().findIndex((i) => this.wayColumn(i)?.groups !== undefined);
+  }
+
+  private mapGroups(i: number, change: (groups: TemplateGroup[]) => TemplateGroup[]): void {
+    const col = this.wayColumn(i);
+    if (col?.groups === undefined) return;
+    const groups = change(col.groups.map((g) => ({ ...g })));
+    this.setWayColumn(i, { ...col, branches: groups.map((g) => g.key), groups });
+  }
+
+  protected renameGroup(i: number, key: string, en: string | null, ar: string | null): void {
+    this.mapGroups(i, (groups) =>
+      groups.map((g) =>
+        g.key === key ? { ...g, labelEn: en ?? g.labelEn, labelAr: ar ?? g.labelAr } : g,
+      ),
+    );
+  }
+
+  protected addGroup(i: number): void {
+    this.mapGroups(i, (groups) => {
+      const taken = new Set(groups.map((g) => g.key));
+      let n = groups.length + 1;
+      // Never re-used: a key is a figures slot, and a recycled one would hand a new group the
+      // figures of a removed one.
+      while (taken.has(`g${n}`)) n += 1;
+      return [...groups, { key: `g${n}`, labelEn: `Group ${n}`, labelAr: `المجموعة ${n}` }];
     });
   }
 
-  /** Answers from a list can be filed under a group; a hand-typed answer set cannot. */
-  protected groupable(): boolean {
-    const fact = this.allFacts().find((f) => f.key === this.form.controls.columnFact.value);
-    return fact?.question?.optionsEnumerationType !== undefined;
-  }
-
-  /** A stored column over a SHARED list's classes, which this screen keeps as it is. */
-  protected sharedClassColumn(): boolean {
-    const stored = this.storedColumn();
-    return (
-      stored !== null &&
-      stored.branchOn === 'parentClass' &&
-      stored.groups === undefined &&
-      stored.fact === this.form.controls.columnFact.value
-    );
-  }
-
-  protected sharedClassNames(): string {
-    const fact = this.allFacts().find((f) => f.key === this.form.controls.columnFact.value);
-    return this.form.controls.columnBranches.value
-      .map((code) => {
-        const parent = fact?.question?.parentOptions.find((o) => o.code === code);
-        return parent ? this.optionLabel(parent) : code;
-      })
-      .join(' · ');
-  }
-
-  protected usesOwnGroups(): boolean {
-    const v = this.form.getRawValue();
-    return (
-      v.useSecondColumn &&
-      v.columnMode === 'groups' &&
-      v.columnFact !== '' &&
-      !this.sharedClassColumn() &&
-      this.groupable()
-    );
-  }
-
-  protected addGroup(): void {
-    const taken = new Set(this.columnGroups.getRawValue().map((g) => g.key));
-    let n = this.columnGroups.length + 1;
-    // Never re-used: a key is a figures slot, and a recycled one would hand a new group the
-    // figures of a removed one.
-    while (taken.has(`g${n}`)) n += 1;
-    this.columnGroups.push(this.groupControl({ key: `g${n}`, labelEn: '', labelAr: '' }));
-  }
-
-  protected removeGroup(index: number): void {
-    const key = this.columnGroups.at(index)?.getRawValue().key;
-    this.columnGroups.removeAt(index);
-    if (key === undefined) return;
+  protected removeGroup(i: number, key: string): void {
+    this.mapGroups(i, (groups) => groups.filter((g) => g.key !== key));
     const next = { ...this.placements() };
     for (const [code, group] of Object.entries(next)) if (group === key) delete next[code];
     this.placements.set(next);
-  }
-
-  /** The groups that have a name yet, in order. */
-  protected namedGroups(): TemplateGroup[] {
-    return this.columnGroups
-      .getRawValue()
-      .filter((g) => g.labelEn.trim() !== '' || g.labelAr.trim() !== '');
   }
 
   /** The name in the reading language, else the other one. */
@@ -2055,16 +2495,24 @@ export class ProductTemplatePage implements OnInit {
     return $localize`:@@spt.groups.name_aria:Name of group ${index + 1}:N:`;
   }
 
+  protected groupCountLabel(key: string): string {
+    const n = Object.values(this.placements()).filter((g) => g === key).length;
+    return $localize`:@@spt.v2.group_count:${n}:N: answer(s)`;
+  }
+
+  protected unplacedCount(column: TemplateColumn): number {
+    const keys = new Set((column.groups ?? []).map((g) => g.key));
+    return this.optionsOf(column.fact).filter((o) => !keys.has(this.placements()[o.code] ?? ''))
+      .length;
+  }
+
   /** Answer code to this product's group key, as on screen (held until Save). */
   private readonly placements = signal<Record<string, string>>({});
   /** Answer code to list row id, for the save. */
   private readonly valueIds = signal<Record<string, string>>({});
-  /** The column as stored, so a shared-class column is kept as it is. */
-  private readonly storedColumn = signal<TemplateColumn | null>(null);
 
   protected placementOf(code: string): string {
-    const key = this.placements()[code];
-    return key !== undefined && this.namedGroups().some((g) => g.key === key) ? key : '';
+    return this.placements()[code] ?? '';
   }
 
   protected place(code: string, groupKey: string): void {
@@ -2075,16 +2523,24 @@ export class ProductTemplatePage implements OnInit {
     this.dirty.set(true);
   }
 
-  private listTypeOfColumn(): string | null {
-    const fact = this.facts().find((f) => f.key === this.form.controls.columnFact.value);
-    return fact?.question?.optionsEnumerationType ?? null;
+  private listTypeOf(key: string): string | null {
+    return this.facts().find((f) => f.key === key)?.question?.optionsEnumerationType ?? null;
+  }
+
+  private async loadValueIds(key: string): Promise<void> {
+    const type = this.listTypeOf(key);
+    if (type === null) return;
+    const rows = await this.lookups.list(type);
+    this.valueIds.set(Object.fromEntries(rows.map((r) => [r.key, r.id])));
   }
 
   /** What this product files each answer under, and the list rows' ids for a save. */
   private async loadPlacements(): Promise<void> {
     await this.enums.load('surrogate_fact');
-    const type = this.listTypeOfColumn();
-    if (type === null || this.columnGroups.length === 0) {
+    const way = this.ownGroupsWay();
+    const column = way === -1 ? null : this.wayColumn(way);
+    const type = column === null ? null : this.listTypeOf(column.fact);
+    if (column === null || type === null) {
       this.placements.set({});
       return;
     }
@@ -2093,7 +2549,7 @@ export class ProductTemplatePage implements OnInit {
       this.lookups.list(type),
     ]);
     this.valueIds.set(Object.fromEntries(rows.map((r) => [r.key, r.id])));
-    const keys = new Set(this.columnGroups.getRawValue().map((g) => g.key));
+    const keys = new Set((column.groups ?? []).map((g) => g.key));
     this.placements.set(
       Object.fromEntries(Object.entries(own).filter(([, group]) => keys.has(group))),
     );
@@ -2101,7 +2557,10 @@ export class ProductTemplatePage implements OnInit {
 
   /** Every answer of the list: its group, or none (which drops a stale own row). */
   private async savePlacements(): Promise<void> {
-    const type = this.listTypeOfColumn();
+    const way = this.ownGroupsWay();
+    const column = way === -1 ? null : this.wayColumn(way);
+    if (column === null) return;
+    const type = this.listTypeOf(column.fact);
     if (type === null) return;
     let ids = this.valueIds();
     if (Object.keys(ids).length === 0) {
@@ -2110,14 +2569,103 @@ export class ProductTemplatePage implements OnInit {
       this.valueIds.set(ids);
     }
     const placed = this.placements();
-    const assignments = this.columnOptions()
+    const assignments = this.optionsOf(column.fact)
       .filter((o) => ids[o.code] !== undefined)
       .map((o) => ({ valueId: ids[o.code]!, parentKey: placed[o.code] ?? null }));
     if (assignments.length > 0) await this.lookups.setProductGroups(this.key, assignments);
   }
 
-  protected columnOptions(): ReadonlyArray<{ code: string; labelAr: string; labelEn: string }> {
-    return this.optionsOf(this.form.controls.columnFact.value);
+  // --- the ways ----------------------------------------------------------------
+
+  /**
+   * The slot ids one way's figures hang off — the same names the server's compiler gives
+   * (`waySlot`, `columnSlot`, `wayPickSlot`), so each way's editor shows only its own boxes.
+   */
+  private readonly slotSets = computed<ReadonlySet<string>[]>(() =>
+    this.wayIndexes().map((i) => {
+      const kind = this.wayKind(i);
+      const fact = this.wayFactValue(i);
+      const head =
+        i === 0 ? 'primary' : i === 1 ? 'alt' : `alt__${kind === 'flatAmount' ? 'flat' : fact}`;
+      const column = this.wayColumn(i);
+      if (column === null) return new Set([head]);
+      const pick = i === 0 ? 'primary_pick' : i === 1 ? 'alt_pick' : `${head}_pick`;
+      return new Set([
+        head,
+        pick,
+        ...column.branches.slice(1).map((branch) => `${head}__${branch}`),
+      ]);
+    }),
+  );
+
+  protected waySlots(i: number): ReadonlySet<string> {
+    return this.slotSets()[i] ?? new Set<string>();
+  }
+
+  protected wayHasSteps(i: number): boolean {
+    const slots = this.waySlots(i);
+    return this.compiledSteps().some((s) => slots.has(s.id));
+  }
+
+  /** A way whose question is picked (or that needs none) has figures to fill in. */
+  protected wayReady(i: number): boolean {
+    const fact = this.wayFactValue(i);
+    return fact !== '';
+  }
+
+  /** The card's first line: what the way reads. */
+  protected wayTitle(i: number): string {
+    const fact = this.wayFactValue(i);
+    if (fact === '') return $localize`:@@spt.v2.way_unset:Not set up yet`;
+    if (fact === '__flat__') return $localize`:@@spt.v2.way_flat:The same amount for everyone`;
+    return this.factLabel(fact);
+  }
+
+  /** The card's second line: how it reads it, and what splits it. */
+  protected waySub(i: number): string | null {
+    if (this.wayFactValue(i) === '' || this.wayFactValue(i) === '__flat__') return null;
+    const how = WAY_HOW[this.wayKind(i)]?.() ?? '';
+    const column = this.wayColumn(i);
+    if (column === null) return how;
+    const name = this.factLabel(column.fact);
+    return $localize`:@@spt.v2.way_how_split:${how}:HOW: · different amounts by ${name}:NAME:`;
+  }
+
+  /** Ways may be added and removed, never reordered: their slot ids are positional. */
+  protected addWay(): void {
+    if (!this.canAddWay()) return;
+    this.alternatives.push(this.wayGroup());
+    this.openWay.set(this.alternatives.length);
+  }
+
+  protected removeWay(index: number): void {
+    this.alternatives.removeAt(index);
+    this.openWay.set(0);
+  }
+
+  protected canAddWay(): boolean {
+    return this.alternatives.length < MAX_ALTERNATIVES;
+  }
+
+  protected wayRemoveLabel(index: number): string {
+    const n = index + 2;
+    return $localize`:@@spt.addon.alt.remove_aria:Remove way ${n}:index:`;
+  }
+
+  /** Each bank picks one, or every bank uses all of them and the lowest wins. */
+  protected setWaysMode(mode: 'exclusive' | 'combined'): void {
+    this.form.controls.waysAre.setValue(mode);
+    if (mode === 'combined' || this.form.controls.combine.value === '') {
+      this.form.controls.combine.setValue('lower');
+    }
+  }
+
+  protected readonly shareOn = signal(false);
+
+  /** Whether "More options" states anything — it opens itself when it does. */
+  protected hasExtras(): boolean {
+    const v = this.form.getRawValue();
+    return v.useUplift || v.iScore;
   }
 
   protected upliftOptions(): ReadonlyArray<{ code: string; labelAr: string; labelEn: string }> {
@@ -2128,37 +2676,25 @@ export class ProductTemplatePage implements OnInit {
     return this.isAr ? option.labelAr : option.labelEn;
   }
 
-  protected branchOn(code: string): boolean {
-    return this.form.controls.columnBranches.value.includes(code);
-  }
-
-  /**
-   * Order matters and is preserved: the FIRST branch is the standard column, the one a bank
-   * quotes when it sells no others, and it is the one that keeps the bare step id.
-   */
-  protected toggleBranch(code: string): void {
-    const current = this.form.controls.columnBranches.value;
-    this.form.controls.columnBranches.setValue(
-      current.includes(code) ? current.filter((c) => c !== code) : [...current, code],
-    );
-  }
-
-  // --- conditions ------------------------------------------------------------
+  // --- who can't get it ----------------------------------------------------------
 
   private conditionGroup(seed: {
     id: string;
     measure: string;
     op: ConditionOp;
     otherFact: string;
+    expect: string[];
     reasonCode: GateReasonCode;
   }) {
     return this.fb.nonNullable.group({
-      // Never edited. It is a `stepParams` key, so renaming it orphans whatever bound a bank
-      // has entered against it — which the server would then refuse.
+      // Never edited. It is a stepParams key, so renaming it orphans whatever figure a bank
+      // has entered against it.
       id: this.fb.nonNullable.control(seed.id),
       measure: this.fb.nonNullable.control(seed.measure, Validators.required),
       op: this.fb.nonNullable.control<ConditionOp>(seed.op),
       otherFact: this.fb.nonNullable.control(seed.otherFact),
+      /** `oneOf` only: the answers that may have it — every other answer is turned away. */
+      expect: this.fb.nonNullable.control<string[]>(seed.expect),
       reasonCode: this.fb.nonNullable.control<GateReasonCode>(seed.reasonCode),
     });
   }
@@ -2166,85 +2702,388 @@ export class ProductTemplatePage implements OnInit {
   protected addCondition(): void {
     const taken = new Set(this.conditions.controls.map((c) => c.getRawValue().id));
     let n = this.conditions.length + 1;
-    // Never re-used, even after a delete: an id is a figures key, and recycling one would
-    // hand a new condition the bound a bank had entered against the old one.
+    // Never re-used, even after a delete: an id is a figures key.
     while (taken.has(`c${n}`)) n += 1;
+    const first = this.numericFacts()[0]?.key ?? '__answer__';
     this.conditions.push(
       this.conditionGroup({
         id: `c${n}`,
-        measure: '__answer__',
+        measure: first,
         op: 'atLeast',
         otherFact: '',
+        expect: [],
         reasonCode: 'GATE_NOT_MET',
       }),
     );
-    this.dirty.set(true);
   }
 
   protected removeCondition(index: number): void {
     this.conditions.removeAt(index);
+  }
+
+  /** A choice is turned away by answer; anything else by a figure. */
+  protected setMeasure(index: number, measure: string): void {
+    const row = this.conditions.at(index);
+    if (!row) return;
+    const isChoice = this.factOf(measure)?.question?.type === 'SINGLE_SELECT';
+    if (isChoice) {
+      this.updateFigure(`cond__${row.controls.id.value}`, (f) => ({ ...f, applies: true }));
+    }
+    row.patchValue({
+      measure,
+      op: isChoice
+        ? 'oneOf'
+        : row.controls.op.value === 'oneOf'
+          ? 'atLeast'
+          : row.controls.op.value,
+      otherFact: '',
+      expect: isChoice ? this.optionsOf(measure).map((o) => o.code) : [],
+    });
+  }
+
+  protected opsFor(measure: string): readonly ConditionOp[] {
+    const base: ConditionOp[] = ['atLeast', 'atMost', 'between', 'atLeastShareOf'];
+    if (measure === '__answer__') return ['atLeast', 'atMost', 'between'];
+    return [...base, 'atLeastPerAnswer', 'atMostPerAnswer'];
+  }
+
+  protected ruleOpLabel(op: ConditionOp): string {
+    return RULE_OP_LABELS[op]();
+  }
+
+  protected toggleTurnedAway(index: number, code: string): void {
+    const row = this.conditions.at(index);
+    if (!row) return;
+    const allowed = row.controls.expect.value;
+    row.controls.expect.setValue(
+      allowed.includes(code) ? allowed.filter((c) => c !== code) : [...allowed, code],
+    );
+  }
+
+  private updateFigure(id: string, change: (f: StepFigures) => StepFigures): void {
+    const next = { ...this.figures() };
+    const updated = change({ ...(next[id] ?? {}) });
+    if (Object.keys(updated).length === 0) delete next[id];
+    else next[id] = updated;
+    this.figures.set(next);
     this.dirty.set(true);
   }
 
-  protected conditionOpLabel(op: ConditionOp): string {
-    return CONDITION_OP_LABELS[op]();
+  protected ruleFigure(id: string, field: 'minValue' | 'maxValue'): string {
+    return groupDigits(this.figures()[`cond__${id}`]?.[field] ?? '');
+  }
+
+  protected setRuleFigure(id: string, field: 'minValue' | 'maxValue', raw: string): void {
+    const value = raw.replace(/,/g, '').trim();
+    this.updateFigure(`cond__${id}`, (f) => {
+      if (value === '') delete f[field];
+      else f[field] = value;
+      return f;
+    });
+  }
+
+  protected ruleShare(id: string): string {
+    return this.figures()[`cond__${id}__bound`]?.scalar?.value ?? '';
+  }
+
+  protected setRuleShare(id: string, raw: string): void {
+    const value = raw.replace(/,/g, '').trim();
+    this.updateFigure(`cond__${id}__bound`, (f) => {
+      if (value === '') delete f.scalar;
+      else f.scalar = { value, unit: 'percent' };
+      return f;
+    });
   }
 
   /**
-   * The gate reason, in the words the CUSTOMER will read.
-   *
-   * The same dictionary the mobile app renders it from, deliberately: the operator is
-   * choosing the sentence somebody is going to be shown, so they should be choosing it by
-   * that sentence and not by a code.
-   *
-   * `GATE_`-PREFIXED, because that is the key the sentence is filed under — the engine
-   * raises `GATE_CONTRACT_TOO_NEW`, not `CONTRACT_TOO_NEW`, and both dictionaries agree
-   * with it. Looked up bare, every one of the nine reasons missed and fell back to
-   * `INTERNAL_ERROR`, so the picker offered nine options all reading "Something went wrong
-   * on our side" and the operator could not tell which sentence they were choosing.
-   *
-   * `GATE_NOT_MET` is the exception and is filed bare: it is the only reason whose own
-   * name already carries the prefix, in the engine and in the Flutter mapper as well as
-   * here. Prefixing it unconditionally would leave exactly one option still wrong, which
-   * is worse than the bug it replaced — a single broken row reads as a real sentence
-   * nobody checked.
+   * Whether a rule turns anyone away today. A rule on answers is on when it is switched on; a
+   * rule on a number is on once its number is typed; a per-answer rule is each bank's.
+   */
+  protected ruleState(row: {
+    id?: string;
+    op?: ConditionOp;
+  }): 'on' | 'offChoice' | 'offNumber' | 'bank' {
+    const id = row.id ?? '';
+    const f = this.figures()[`cond__${id}`];
+    switch (row.op) {
+      case 'oneOf':
+        return f?.applies === true ? 'on' : 'offChoice';
+      case 'atLeast':
+        return (f?.minValue ?? '') !== '' ? 'on' : 'offNumber';
+      case 'atMost':
+        return (f?.maxValue ?? '') !== '' ? 'on' : 'offNumber';
+      case 'between':
+        return (f?.minValue ?? '') !== '' || (f?.maxValue ?? '') !== '' ? 'on' : 'offNumber';
+      case 'atLeastShareOf':
+        return (this.figures()[`cond__${id}__bound`]?.scalar?.value ?? '') !== ''
+          ? 'on'
+          : 'offNumber';
+      default:
+        return 'bank';
+    }
+  }
+
+  /** A choice rule applies only where it is switched on; the catalog's default is this switch. */
+  protected ruleApplies(id: string): boolean {
+    return this.figures()[`cond__${id}`]?.applies === true;
+  }
+
+  protected setRuleApplies(id: string): void {
+    const on = !this.ruleApplies(id);
+    this.updateFigure(`cond__${id}`, (f) => {
+      if (on) f.applies = true;
+      else delete f.applies;
+      return f;
+    });
+  }
+
+  /**
+   * The gate reason, in the words the CUSTOMER will read — the same dictionary the app
+   * renders it from. Filed `GATE_`-prefixed, except `GATE_NOT_MET`, whose name carries it.
    */
   protected reasonLabel(code: GateReasonCode): string {
     const key = code.startsWith('GATE_') ? code : `GATE_${code}`;
     return this.errors.toLocalizedMessage(key as ErrorCode);
   }
 
-  // --- ③ ---------------------------------------------------------------------
+  // --- the plain figure tables (v36.2.0) --------------------------------------
+
+  protected readonly fromAria = $localize`:@@spt.v2.from_col:From`;
+  protected readonly toAria = $localize`:@@spt.v2.to_col:Up to`;
+  protected readonly fmt = groupDigits;
+
+  protected amountWord(): string {
+    return this.form.controls.outputKind.value === 'maxAmount'
+      ? $localize`:@@spt.v2.limit:Most they can borrow`
+      : $localize`:@@spt.v2.income:Monthly income`;
+  }
+
+  protected figShape(i: number): 'table' | 'ranges' | 'scalar' | 'flat' {
+    const kind = this.wayKind(i);
+    if (kind === 'flatAmount') return 'flat';
+    if (kind === 'numberBand') return 'ranges';
+    if (kind === 'choiceTable' || kind === 'classTable') return 'table';
+    return 'scalar';
+  }
+
+  private headOf(i: number): string {
+    const kind = this.wayKind(i);
+    return i === 0
+      ? 'primary'
+      : i === 1
+        ? 'alt'
+        : `alt__${kind === 'flatAmount' ? 'flat' : this.wayFactValue(i)}`;
+  }
+
+  /** One amount column per column of the way (or one), each with the slot its figure goes in. */
+  protected colsOf(i: number): ReadonlyArray<{ slot: string; label: string }> {
+    const head = this.headOf(i);
+    const column = this.wayColumn(i);
+    if (column === null) return [{ slot: head, label: this.amountWord() }];
+    return column.branches.map((branch, index) => ({
+      slot: index === 0 ? head : `${head}__${branch}`,
+      label: this.branchLabel(column, branch),
+    }));
+  }
+
+  private branchLabel(column: TemplateColumn, branch: string): string {
+    const own = column.groups?.find((g) => g.key === branch);
+    if (own) return this.groupName(own);
+    if (column.branchOn === 'parentClass') {
+      const cls = this.factOf(column.fact)?.question?.parentOptions.find((o) => o.code === branch);
+      if (cls) return this.optionLabel(cls);
+    }
+    const option = this.optionsOf(column.fact).find((o) => o.code === branch);
+    return option ? this.optionLabel(option) : branch;
+  }
+
+  protected rowHeader(i: number): string {
+    return this.wayKind(i) === 'classTable'
+      ? $localize`:@@spt.v2.group_col:Group`
+      : this.factLabel(this.wayFactValue(i));
+  }
+
+  protected rowsOf(i: number): ReadonlyArray<{ key: string; label: string }> {
+    const fact = this.wayFactValue(i);
+    const list =
+      this.wayKind(i) === 'classTable'
+        ? (this.factOf(fact)?.question?.parentOptions ?? [])
+        : this.optionsOf(fact);
+    return list.map((o) => ({ key: o.code, label: this.optionLabel(o) }));
+  }
+
+  protected cell(slot: string, key: string): string {
+    return groupDigits(this.figures()[slot]?.keyTable?.find((r) => r.key === key)?.incomeEGP ?? '');
+  }
+
+  protected setCell(slot: string, key: string, raw: string): void {
+    const value = raw.replace(/,/g, '').trim();
+    this.updateFigure(slot, (f) => {
+      const rows = [...(f.keyTable ?? [])];
+      const at = rows.findIndex((r) => r.key === key);
+      if (at === -1) rows.push({ key, incomeEGP: value });
+      else rows[at] = { ...rows[at]!, incomeEGP: value };
+      f.keyTable = rows;
+      return f;
+    });
+  }
+
+  /** The ranges, read off the first column; every column shares them. */
+  protected rangesOf(i: number): readonly IncomeBand[] {
+    return this.figures()[this.headOf(i)]?.bands ?? [];
+  }
+
+  /** Every column of the way carries the same ranges: an edge typed once moves in all of them. */
+  private eachColumnBands(
+    i: number,
+    change: (bands: IncomeBand[], slot: string) => IncomeBand[],
+  ): void {
+    const edges = this.rangesOf(i);
+    const next = { ...this.figures() };
+    for (const { slot } of this.colsOf(i)) {
+      const own = next[slot]?.bands ?? [];
+      const aligned: IncomeBand[] = edges.map((e, k) => ({
+        fromInclusive: e.fromInclusive,
+        toExclusive: e.toExclusive,
+        incomeEGP: own[k]?.incomeEGP ?? '',
+      }));
+      next[slot] = { ...(next[slot] ?? {}), bands: change(aligned, slot) };
+    }
+    this.figures.set(next);
+    this.dirty.set(true);
+  }
+
+  protected setEdge(
+    i: number,
+    index: number,
+    edge: 'fromInclusive' | 'toExclusive',
+    raw: string,
+  ): void {
+    const value = raw.replace(/,/g, '').trim();
+    this.eachColumnBands(i, (bands) =>
+      bands.map((b, k) =>
+        k === index ? { ...b, [edge]: edge === 'toExclusive' && value === '' ? null : value } : b,
+      ),
+    );
+  }
+
+  protected bandAmount(slot: string, index: number): string {
+    return groupDigits(this.figures()[slot]?.bands?.[index]?.incomeEGP ?? '');
+  }
+
+  protected setBandAmount(i: number, slot: string, index: number, raw: string): void {
+    const value = raw.replace(/,/g, '').trim();
+    this.eachColumnBands(i, (bands, s) =>
+      s === slot ? bands.map((b, k) => (k === index ? { ...b, incomeEGP: value } : b)) : bands,
+    );
+  }
+
+  protected addRange(i: number): void {
+    const last = this.rangesOf(i).at(-1);
+    const head = this.headOf(i);
+    const start = last?.toExclusive ?? '';
+    this.updateFigure(head, (f) => {
+      f.bands = [...(f.bands ?? []), { fromInclusive: start, toExclusive: null, incomeEGP: '' }];
+      return f;
+    });
+    this.eachColumnBands(i, (bands) => bands);
+  }
+
+  protected removeRange(i: number, index: number): void {
+    this.eachColumnBands(i, (bands) => bands.filter((_, k) => k !== index));
+  }
+
+  protected scalarSign(i: number): string {
+    return this.wayKind(i) === 'dividedBy' ? '÷' : '×';
+  }
+
+  protected scalarOf(slot: string): string {
+    return groupDigits(this.figures()[slot]?.scalar?.value ?? '');
+  }
+
+  protected setScalar(i: number, slot: string, raw: string): void {
+    const value = raw.replace(/,/g, '').trim();
+    const unit = this.wayKind(i) === 'shareOf' ? 'percent' : 'multiplier';
+    this.updateFigure(slot, (f) => {
+      if (value === '') delete f.scalar;
+      else f.scalar = { value, unit };
+      return f;
+    });
+  }
+
+  protected flatOf(i: number): string {
+    return groupDigits(this.figures()[this.headOf(i)]?.valueEGP ?? '');
+  }
+
+  protected setFlat(i: number, raw: string): void {
+    const value = raw.replace(/,/g, '').trim();
+    this.updateFigure(this.headOf(i), (f) => {
+      if (value === '') delete f.valueEGP;
+      else f.valueEGP = value;
+      return f;
+    });
+  }
+
+  // --- figures -----------------------------------------------------------------
 
   protected onFigures(figures: Record<string, StepFigures>): void {
     this.figures.set(figures);
   }
 
   protected markFiguresDirty(): void {
-    this.figuresDirty.set(true);
+    this.dirty.set(true);
   }
 
-  // --- save / load -----------------------------------------------------------
+  // --- save / load ---------------------------------------------------------------
 
-  /**
-   * Where "back" goes: the product's own page, always.
-   *
-   * It used to branch on a `?then=` return address, written by the Add-program-name flow when
-   * it had just created a PRODUCT and the calculation was the last thing it owed. That flow
-   * cannot create a product any more — the predefined ones are seeded — so nothing writes the
-   * param, and a branch on a param no caller sets is a second answer waiting to go wrong.
-   */
-  protected backLabel(): string {
-    return $localize`:@@spt.back_product:Back to the product`;
+  /** What refuses a save on this form, or `null` — checked before a preview too. */
+  private localBlock(): string | null {
+    const ways = this.wayIndexes();
+    const unnamed = ways.find((i) => this.wayFactValue(i) === '');
+    if (unnamed !== undefined) {
+      return unnamed === 0
+        ? $localize`:@@spt.form.block_fact:Choose which answer the calculation reads.`
+        : $localize`:@@spt.form.block_alt_fact:Choose which answer way ${unnamed + 1}:index: reads.`;
+    }
+    const seen = new Set<string>();
+    for (const i of ways) {
+      const kind = this.wayKind(i);
+      const id = `${kind}|${MECHANISM_FACT_TYPE[kind] === null ? '' : this.wayFactValue(i)}`;
+      if (seen.has(id)) {
+        return $localize`:@@spt.form.block_alt_duplicate:Two ways read the same answer the same way. Remove one, or change what it reads.`;
+      }
+      seen.add(id);
+    }
+    for (const i of ways) {
+      const column = this.wayColumn(i);
+      if (column === null) continue;
+      if (column.groups !== undefined) {
+        if (column.groups.length < 2) {
+          return $localize`:@@spt.form.block_groups:Add at least two groups.`;
+        }
+        if (column.groups.some((g) => g.labelEn.trim() === '' || g.labelAr.trim() === '')) {
+          return $localize`:@@spt.form.block_group_names:Give every group a name in English and Arabic.`;
+        }
+      } else if (column.branches.length < 2) {
+        return $localize`:@@spt.form.block_columns:A second column needs at least two answers picked.`;
+      }
+    }
+    const v = this.form.getRawValue();
+    if (v.useUplift && (!v.upliftWhen || !v.upliftOtherwise)) {
+      return $localize`:@@spt.form.block_uplift:Say which answer earns the bonus and which does not.`;
+    }
+    if (v.useUplift && v.upliftWhen === v.upliftOtherwise) {
+      return $localize`:@@spt.form.block_uplift_same:The two bonus answers have to be different.`;
+    }
+    return null;
   }
 
-  protected leave(): void {
-    void this.router.navigate([PRODUCT_BASE, this.key], { queryParams: { step: 2 } });
-  }
-
-  /** Fire-and-forget for the template: Angular's parser has no `void` operator. */
-  protected save(): void {
-    void this.doSave();
+  /** Why Save is refused, in the operator's words. */
+  protected blockReason(): string | null {
+    if (this.saveError()) return this.saveError();
+    if (this.advanced())
+      return $localize`:@@spt.form.block_advanced:This calculation was built by hand, so there is no form to save.`;
+    return this.localBlock();
   }
 
   private async doSave(): Promise<void> {
@@ -2256,16 +3095,16 @@ export class ProductTemplatePage implements OnInit {
         template: this.toTemplate(),
         // The figures travel WITH the shape: recompiling replaces the step list, so a
         // separate figures write would be writing against a shape that no longer exists.
-        stepParams: this.figures(),
+        stepParams: cleanFigures(this.figures()),
       });
       // Where each answer is filed, for this product only: after the template, which is what
       // makes the group keys this product's own.
-      if (this.usesOwnGroups()) await this.savePlacements();
+      if (this.ownGroupsWay() !== -1) await this.savePlacements();
       this.absorb(res.data.template, res.data.incomeRule);
       await this.loadPlacements();
+      this.figures.set(this.withEveryRow(this.figures(), this.wayIndexes()));
       this.dirty.set(false);
-      this.figuresDirty.set(false);
-      if (this.embedded()) this.saved.emit();
+      this.saved.emit();
     } catch (err) {
       const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })
         ?.error;
@@ -2281,40 +3120,19 @@ export class ProductTemplatePage implements OnInit {
   }
 
   /**
-   * Fields of the stored form this screen does NOT ask about, carried across a save.
-   *
-   * Written out because dropping them is silent and expensive. `blueprintKey` is what makes
-   * the form reopen as this product's own; `secondColumn.branchOn` is what makes a column read
-   * a CLASS rather than an answer; `share` is the joint-ownership halving. None of the three
-   * has a control here yet, and a save that re-emitted only what it can see would delete them
-   * while reporting success — the same failure `withStoredStructure` exists to prevent one
-   * level down, on the same object.
+   * Fields of the stored form this screen does NOT ask about, carried across a save — dropping
+   * them would be silent: `blueprintKey` makes the form reopen as this product's own.
    */
-  /**
-   * The predefined product this form came from, when it came from one.
-   *
-   * Read for two things and nothing else: the sentence at the top of the figures step that
-   * says what a published sheet puts in these boxes, and the brackets it offers to a band
-   * table. It never changes what is saved — `blueprintKey` is carried by `storedExtras` — so
-   * a product whose blueprint this bundle has no words for still saves exactly as it reads.
-   */
-  protected readonly blueprint = signal<ProductBlueprint | null>(null);
-
   private readonly storedExtras = signal<{
     blueprintKey?: string;
-    branchOn?: 'answer' | 'parentClass';
     share?: NonNullable<ProductTemplate['share']>;
-    /** The FIRST way's own column; the other ways carry theirs on their own row. */
-    primaryColumn?: TemplateColumn;
   }>({});
 
   /** The form, as the shape the server compiles. */
   private toTemplate(): ProductTemplate {
     const v = this.form.getRawValue();
     const extras = this.storedExtras();
-    // `column` is a way's OWN split, carried from the stored form — the library authors it,
-    // this screen has no control for it, and re-emitting the way without it would delete the
-    // cash-buyer column off the Suez Canal savings way while reporting success.
+    const single = v.alternatives.length === 0;
     const mechanism = (
       kind: TemplateMechanismKind,
       fact: string,
@@ -2336,10 +3154,25 @@ export class ProductTemplatePage implements OnInit {
           : c.op === 'atLeastPerAnswer' || c.op === 'atMostPerAnswer'
             ? ({ op: c.op, keyedBy: c.otherFact } as const)
             : c.op === 'oneOf'
-              ? ({ op: 'oneOf', expect: this.optionsOf(c.measure).map((o) => o.code) } as const)
+              ? ({
+                  op: 'oneOf',
+                  expect:
+                    c.expect.length > 0
+                      ? [...c.expect]
+                      : this.optionsOf(c.measure).map((o) => o.code),
+                } as const)
               : ({ op: c.op } as const);
       return { id: c.id, measure, test, reasonCode: c.reasonCode };
     });
+
+    const share =
+      v.shareFact === ''
+        ? undefined
+        : extras.share !== undefined && extras.share.fact === v.shareFact
+          ? extras.share
+          : ({ kind: 'statedPercent', fact: v.shareFact, scope: 'income' } as NonNullable<
+              ProductTemplate['share']
+            >);
 
     return {
       version: 1,
@@ -2347,64 +3180,33 @@ export class ProductTemplatePage implements OnInit {
       ...(v.outputKind === 'maxAmount' && v.baselineDbrPercent
         ? { baselineDbrPercent: v.baselineDbrPercent }
         : {}),
-      primary: mechanism(v.primaryKind, v.primaryFact, extras.primaryColumn),
-      ...(v.useAlternative && v.alternatives.length > 0
-        ? {
-            alternatives: v.alternatives.map((way) => mechanism(way.kind, way.fact, way.column)),
-          }
+      // ONE way: its split is stated on the product, which is how every one-way product was
+      // stored and compiles to the very same steps. Several: each way carries its own.
+      primary: mechanism(v.primaryKind, v.primaryFact, single ? null : v.primaryColumn),
+      ...(single && v.primaryColumn ? { secondColumn: v.primaryColumn } : {}),
+      ...(!single
+        ? { alternatives: v.alternatives.map((way) => mechanism(way.kind, way.fact, way.column)) }
         : {}),
-      ...(v.useAlternative && v.alternatives.length > 0 && v.combine ? { combine: v.combine } : {}),
-      ...(this.usesOwnGroups()
-        ? {
-            secondColumn: {
-              fact: v.columnFact,
-              branches: v.columnGroups.map((g) => g.key),
-              branchOn: 'parentClass' as const,
-              groups: v.columnGroups.map((g) => ({
-                key: g.key,
-                labelEn: g.labelEn.trim(),
-                labelAr: g.labelAr.trim(),
-              })),
-            },
-          }
-        : v.useSecondColumn && v.columnBranches.length >= 2
-          ? {
-              secondColumn: {
-                fact: v.columnFact,
-                branches: [...v.columnBranches],
-                // Carried, not asked about: which of the two a stored column reads is a
-                // property of the product, and re-emitting it as "the answer" would silently
-                // repoint a tier column at twenty-seven governorate codes it has no rows for.
-                ...(extras.branchOn !== undefined ? { branchOn: extras.branchOn } : {}),
-              },
-            }
-          : {}),
+      ...(!single && v.combine ? { combine: v.combine } : {}),
+      ...(!single ? { waysAre: v.waysAre } : {}),
       ...(v.useUplift && v.upliftWhen && v.upliftOtherwise
         ? {
             uplift: {
               fact: v.upliftFact,
               whenOption: v.upliftWhen,
               otherwiseOption: v.upliftOtherwise,
-              // The difference between two answers 300,000 apart on one applicant, so it is
-              // STATED on every save rather than left to the compiler's default.
               scope: v.upliftScope,
             },
           }
         : {}),
-      ...(extras.share !== undefined ? { share: extras.share } : {}),
-      // Stated whenever there are ways to choose between: dropping it turned car cross-sell's
-      // ways into alternatives on a save.
-      ...(v.useAlternative && v.alternatives.length > 0 ? { waysAre: v.waysAre } : {}),
+      ...(share !== undefined ? { share } : {}),
       ...(v.iScore ? { iScore: true } : {}),
       ...(extras.blueprintKey !== undefined ? { blueprintKey: extras.blueprintKey } : {}),
       conditions,
     };
   }
 
-  /**
-   * Embedded: save if there is anything to save, and say whether it landed (v33.2.0). The
-   * product page's Save bar calls this between the question changes and the figures.
-   */
+  /** The product page's Save bar: save if there is anything to save, and say whether it landed. */
   async saveNow(): Promise<boolean> {
     if (!this.dirty()) return true;
     if (!this.form.valid || this.blockReason() !== null) return false;
@@ -2412,13 +3214,13 @@ export class ProductTemplatePage implements OnInit {
     return !this.dirty() && this.saveError() === null;
   }
 
-  /** Embedded: throw away unsaved answers by re-reading what is stored. */
+  /** Throw away unsaved answers by re-reading what is stored. */
   async discard(): Promise<void> {
     this.saveError.set(null);
     await this.load();
   }
 
-  /** Embedded: what refuses a save right now, or `null`. */
+  /** What refuses a save right now, or `null`. */
   saveBlockReason(): string | null {
     if (!this.dirty()) return null;
     return this.form.valid ? this.blockReason() : (this.blockReason() ?? this.invalidLabel);
@@ -2429,30 +3231,15 @@ export class ProductTemplatePage implements OnInit {
     this.loading.set(true);
     try {
       const res = await this.api.getSurrogateProductTemplate(this.key);
-      this.label.set(this.isAr ? res.data.labelAr : res.data.labelEn);
       this.advanced.set(res.data.advanced);
       this.absorb(res.data.template, res.data.compiled);
       await this.loadPlacements();
-
-      // A product with no form opens a BLANK one, and that is all it can do now. It used to
-      // be seeded from `?from=` — the shapes ticked on a screen that created the product a
-      // moment earlier — and nothing creates a product from the admin any more, so nothing
-      // writes that param. A legacy product that predates the form still opens it empty.
+      this.figures.set(this.withEveryRow(this.figures(), this.wayIndexes()));
       const fromLibrary = res.data.template?.blueprintKey;
-      if (fromLibrary !== undefined) {
-        void this.loadBlueprint(fromLibrary);
-        // Open on the FIGURES, and only when the operator has not asked for a step. Every
-        // question above is already answered — the library answered them — so landing on the
-        // first one would ask them to re-read three screens of decisions they did not make
-        // and cannot improve. The rail still walks back to all of them.
-        if (!this.embedded() && this.route.snapshot.queryParamMap.get('step') === null) {
-          this.step.set(2);
-        }
-      }
-      this.dirty.set(false);
-      this.figuresDirty.set(false);
+      if (fromLibrary !== undefined) void this.loadBlueprint(fromLibrary);
     } finally {
       this.loading.set(false);
+      this.dirty.set(false);
     }
   }
 
@@ -2473,39 +3260,33 @@ export class ProductTemplatePage implements OnInit {
     this.figures.set({ ...(rule?.stepParams ?? {}) });
 
     if (template === null) {
-      this.storedColumn.set(null);
       this.storedExtras.set({});
       this.blueprint.set(null);
       return;
     }
 
-    this.storedColumn.set(template.secondColumn ?? null);
     this.storedExtras.set({
       ...(template.blueprintKey !== undefined ? { blueprintKey: template.blueprintKey } : {}),
-      ...(template.secondColumn?.branchOn !== undefined
-        ? { branchOn: template.secondColumn.branchOn }
-        : {}),
       ...(template.share !== undefined ? { share: template.share } : {}),
-      ...(template.primary.column !== undefined ? { primaryColumn: template.primary.column } : {}),
     });
 
-    // Both spellings of the ways list, read the one way the server reads them. `alternative`
-    // is what rows saved before the list existed carry, and it means a list of one.
+    // A product-wide split reaches every way — the same steps as each way carrying it.
+    const productColumn = template.secondColumn ?? null;
     const ways =
       template.alternatives ?? (template.alternative === undefined ? [] : [template.alternative]);
-    this.alternatives.clear();
+    this.alternatives.clear({ emitEvent: false });
     for (const way of ways) {
       this.alternatives.push(
-        this.wayGroup(way.kind, way.kind === 'flatAmount' ? '' : way.fact, way.column ?? null),
+        this.wayGroup(
+          way.kind,
+          way.kind === 'flatAmount' ? '' : way.fact,
+          way.column ?? productColumn,
+        ),
+        { emitEvent: false },
       );
     }
 
-    this.columnGroups.clear();
-    for (const group of template.secondColumn?.groups ?? []) {
-      this.columnGroups.push(this.groupControl(group));
-    }
-
-    this.conditions.clear();
+    this.conditions.clear({ emitEvent: false });
     for (const condition of template.conditions ?? []) {
       this.conditions.push(
         this.conditionGroup({
@@ -2518,109 +3299,91 @@ export class ProductTemplatePage implements OnInit {
               : condition.test.op === 'atLeastPerAnswer' || condition.test.op === 'atMostPerAnswer'
                 ? condition.test.keyedBy
                 : '',
+          expect: condition.test.op === 'oneOf' ? [...condition.test.expect] : [],
           reasonCode: condition.reasonCode,
         }),
+        { emitEvent: false },
       );
     }
 
-    this.form.patchValue({
-      outputKind: template.outputKind,
-      baselineDbrPercent: template.baselineDbrPercent ?? '',
-      primaryKind: template.primary.kind,
-      primaryFact: template.primary.kind === 'flatAmount' ? '' : template.primary.fact,
-      useAlternative: ways.length > 0,
-      combine: template.combine ?? '',
-      waysAre: template.waysAre ?? 'exclusive',
-      useSecondColumn: template.secondColumn !== undefined,
-      columnFact: template.secondColumn?.fact ?? '',
-      columnBranches: [...(template.secondColumn?.branches ?? [])],
-      columnMode: template.secondColumn?.groups !== undefined ? 'groups' : 'answer',
-      useUplift: template.uplift !== undefined,
-      upliftFact: template.uplift?.fact ?? '',
-      upliftWhen: template.uplift?.whenOption ?? '',
-      upliftOtherwise: template.uplift?.otherwiseOption ?? '',
-      // Absent reads as `income`, which is what every form stored before the field existed
-      // compiled to — so an old product recompiles to byte-identical steps.
-      upliftScope: template.uplift?.scope ?? 'income',
-      iScore: template.iScore === true,
-    });
+    this.form.patchValue(
+      {
+        outputKind: template.outputKind,
+        baselineDbrPercent: template.baselineDbrPercent ?? '',
+        primaryKind: template.primary.kind,
+        primaryFact: template.primary.kind === 'flatAmount' ? '' : template.primary.fact,
+        primaryColumn: template.primary.column ?? productColumn,
+        combine: template.combine ?? '',
+        waysAre: template.waysAre ?? 'exclusive',
+        shareFact: template.share?.fact ?? '',
+        useUplift: template.uplift !== undefined,
+        upliftFact: template.uplift?.fact ?? '',
+        upliftWhen: template.uplift?.whenOption ?? '',
+        upliftOtherwise: template.uplift?.otherwiseOption ?? '',
+        // Absent reads as income, which is what every form stored before the field compiled to.
+        upliftScope: template.uplift?.scope ?? 'income',
+        iScore: template.iScore === true,
+      },
+      { emitEvent: false },
+    );
+    this.formRev.update((n) => n + 1);
   }
 
   // --- shared -----------------------------------------------------------------
 
-  /**
-   * The facts a mechanism can actually read.
-   *
-   * Keyed by the MECHANISM, not by the question type, and that is the load-bearing part:
-   * `choiceTable` and `classTable` are both SINGLE_SELECT, so a type alone cannot tell them
-   * apart. Before this, picking "a table by the class it is filed under" offered every
-   * single-select fact including ones whose answers are filed under nothing — the template
-   * compiled cleanly to `factParentTable` and then answered `no_matching_row` for every
-   * applicant, which is FATAL rather than skippable.
-   *
-   * The predicate is `parentOptions.length > 0` and NOT `parentEnumerationType !== undefined`,
-   * because it has to match the downstream consumer: `product-rule-editor.keyOptionsFor()`
-   * keys a `factParentTable` off `parentOptions` regardless of whether the parent TYPE
-   * resolved. A stricter predicate here would hide a fact whose table works; a looser one
-   * would let through a fact whose table renders "the keys cannot be listed".
-   *
-   * `parentOptions` is now the axis the list DECLARES rather than the classes some answer
-   * happens to sit in, so a freshly authored list with nothing filed yet still qualifies.
-   */
-  private factsFor(kind: TemplateMechanismKind): RegistryFact[] {
-    const type = MECHANISM_FACT_TYPE[kind];
-    if (type === null) return [];
-    return this.allFacts().filter(
-      (f) =>
-        f.question?.type === type &&
-        (kind !== 'classTable' || (f.question?.parentOptions?.length ?? 0) > 0),
-    );
-  }
-
-  private optionsOf(
+  protected optionsOf(
     factKey: string,
   ): ReadonlyArray<{ code: string; labelAr: string; labelEn: string }> {
+    const derived = derivedFactByKey(factKey);
+    if (derived !== undefined) {
+      return derived.options.map((o) => ({ code: o.code, labelAr: o.label, labelEn: o.label }));
+    }
     return this.allFacts().find((f) => f.key === factKey)?.question?.options ?? [];
   }
 }
 
-/** Thunks — `$localize` resolves per call, so a frozen map would pin the first locale. */
-const MECHANISM_LABELS: Readonly<Record<TemplateMechanismKind, () => string>> = {
-  choiceTable: () => $localize`:@@spt.mech.choice:One figure for each answer`,
-  classTable: () => $localize`:@@spt.mech.class:One figure for each class`,
-  numberBand: () => $localize`:@@spt.mech.band:One figure for each range of a number`,
-  shareOf: () => $localize`:@@spt.mech.share:A percentage of a number the customer states`,
-  multipleOf: () => $localize`:@@spt.mech.multiple:A multiple of a number the customer states`,
-  dividedBy: () =>
-    $localize`:@@spt.mech.divided:A number the customer states, divided by a figure the bank states`,
-  flatAmount: () => $localize`:@@spt.mech.flat:The same figure for everyone`,
+/** The figures with every blank row taken out — a blank box means "each bank fills it in". */
+function cleanFigures(figures: Record<string, StepFigures>): Record<string, StepFigures> {
+  const out: Record<string, StepFigures> = {};
+  for (const [id, f] of Object.entries(figures)) {
+    const copy: StepFigures = { ...f };
+    if (copy.keyTable) {
+      copy.keyTable = copy.keyTable.filter((r) => String(r.incomeEGP ?? '').trim() !== '');
+      if (copy.keyTable.length === 0) delete copy.keyTable;
+    }
+    if (copy.bands) {
+      copy.bands = copy.bands.filter((b) => String(b.incomeEGP ?? '').trim() !== '');
+      if (copy.bands.length === 0) delete copy.bands;
+    }
+    if (Object.keys(copy).length > 0) out[id] = copy;
+  }
+  return out;
+}
+
+/** 1000000 → 1,000,000 for reading; anything not a plain number is shown as typed. */
+function groupDigits(raw: string): string {
+  return /^\d+(\.\d+)?$/.test(raw)
+    ? Number(raw).toLocaleString('en-US', { maximumFractionDigits: 4 })
+    : raw;
+}
+
+/** How a way reads its answer, as the card's second line says it. */
+const WAY_HOW: Partial<Record<TemplateMechanismKind, () => string>> = {
+  choiceTable: () => $localize`:@@spt.v2.per_answer:One amount per answer`,
+  classTable: () => $localize`:@@spt.v2.per_group:One amount per group`,
+  numberBand: () => $localize`:@@spt.v2.by_ranges:By ranges`,
+  shareOf: () => $localize`:@@spt.v2.how_pct:A percentage of it`,
+  multipleOf: () => $localize`:@@spt.v2.times:Multiplied by`,
+  dividedBy: () => $localize`:@@spt.v2.divided:Divided by`,
 };
 
-/**
- * One worked example per shape, in the same voice as the starter cards on
- * `/program-catalog/products/new` — a name says what the bank fills in, an example says what one
- * filled-in row looks like, and the pair is what tells a share from a multiple.
- */
-const MECHANISM_EXAMPLES: Readonly<Record<TemplateMechanismKind, () => string>> = {
-  choiceTable: () => $localize`:@@spt.mech.choice.eg:e.g. Colonel → 45,000 a month`,
-  classTable: () =>
-    $localize`:@@spt.mech.class.eg:e.g. Class AA → up to 6,000,000, whichever compound it is`,
-  numberBand: () => $localize`:@@spt.mech.band.eg:e.g. 8–12 years → 30,000 a month`,
-  shareOf: () => $localize`:@@spt.mech.share.eg:e.g. 30% of what they spend on their card`,
-  multipleOf: () => $localize`:@@spt.mech.multiple.eg:e.g. 3× their car instalment`,
-  dividedBy: () =>
-    $localize`:@@spt.mech.divided.eg:e.g. a 500,000 down payment ÷ 3.6 → 138,888.89 a month`,
-  flatAmount: () => $localize`:@@spt.mech.flat.eg:e.g. 15,000, nothing asked`,
-};
-
-const CONDITION_OP_LABELS: Readonly<Record<ConditionOp, () => string>> = {
-  atLeast: () => $localize`:@@spt.op.atLeast:At least what the bank states`,
-  atMost: () => $localize`:@@spt.op.atMost:At most what the bank states`,
-  between: () => $localize`:@@spt.op.between:Between the bank's two figures`,
-  atLeastShareOf: () => $localize`:@@spt.op.share:At least a percentage of another figure`,
-  oneOf: () => $localize`:@@spt.op.oneOf:One of the answers the bank accepts`,
-  atLeastPerAnswer: () =>
-    $localize`:@@spt.op.perAnswerMin:At least a figure that depends on another answer`,
-  atMostPerAnswer: () =>
-    $localize`:@@spt.op.perAnswerMax:At most a figure that depends on another answer`,
+/** "Turn away if … is less than …" — the condition read from the side of who is refused. */
+const RULE_OP_LABELS: Readonly<Record<ConditionOp, () => string>> = {
+  atLeast: () => $localize`:@@spt.v2.op_less:is less than`,
+  atMost: () => $localize`:@@spt.v2.op_more:is more than`,
+  between: () => $localize`:@@spt.v2.op_outside:is not between`,
+  atLeastShareOf: () => $localize`:@@spt.v2.op_less_share2:is less than a % of another answer`,
+  oneOf: () => $localize`:@@spt.v2.op_is:is`,
+  atLeastPerAnswer: () => $localize`:@@spt.v2.op_less_per:is less than a figure that depends on`,
+  atMostPerAnswer: () => $localize`:@@spt.v2.op_more_per:is more than a figure that depends on`,
 };

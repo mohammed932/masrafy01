@@ -5117,6 +5117,132 @@
       <trans-unit id="sim.needs_sum" datatype="html"><source><x id="COUNT" equiv-text="this.needsProgram().length"/> no-payslip programs need their own questions — pick one under Program above to quote it</source><target><x id="COUNT" equiv-text="this.needsProgram().length"/> برامج بلا قسيمة راتب تحتاج أسئلتها الخاصة — اختر أحدها من «البرنامج» بالأعلى لعرض أرقامه</target></trans-unit>
       <trans-unit id="program_catalog.card.created" datatype="html"><source>Created <x id="DATE" equiv-text="created"/></source><target>أُنشئ <x id="DATE" equiv-text="created"/></target></trans-unit>
       <trans-unit id="program_catalog.card.created_updated" datatype="html"><source>Created <x id="CREATED" equiv-text="created"/> · Updated <x id="UPDATED" equiv-text="updated"/></source><target>أُنشئ <x id="CREATED" equiv-text="created"/> · عُدّل <x id="UPDATED" equiv-text="updated"/></target></trans-unit>
+      <trans-unit id="spd.step_amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
+      <trans-unit id="spd.step_rules" datatype="html"><source>Who can&apos;t get it</source><target>مَن لا يحصل عليه</target></trans-unit>
+      <trans-unit id="spd.step_terms" datatype="html"><source>Loan terms</source><target>شروط القرض</target></trans-unit>
+      <trans-unit id="spd.step_golive" datatype="html"><source>Go live</source><target>التفعيل</target></trans-unit>
+      <trans-unit id="spt.v2.amount_is" datatype="html"><source>The amount is</source><target>المبلغ هو</target></trans-unit>
+      <trans-unit id="spt.v2.income" datatype="html"><source>Monthly income</source><target>دخل شهري</target></trans-unit>
+      <trans-unit id="spt.v2.limit" datatype="html"><source>Most they can borrow</source><target>أقصى ما يمكنه اقتراضه</target></trans-unit>
+      <trans-unit id="spt.v2.limit_help" datatype="html"><source> The amount is the biggest loan they can get. </source><target> المبلغ هو أكبر قرض يمكنه الحصول عليه. </target></trans-unit>
+      <trans-unit id="spt.v2.income_help" datatype="html"><source> The amount is a salary we count for them. Each bank then applies its own debt-burden limit. </source><target> المبلغ هو راتب نحسبه له. ثم يطبق كل بنك حدّه الخاص لعبء الدين. </target></trans-unit>
+      <trans-unit id="spt.v2.ways_title" datatype="html"><source> This product has <x id="INTERPOLATION" equiv-text="{{ wayCount() }}"/> ways to work it out </source><target> لهذا المنتج <x id="INTERPOLATION" equiv-text="{{ wayCount() }}"/> طرق لحسابه </target></trans-unit>
+      <trans-unit id="spt.v2.ways_pick" datatype="html"><source>Each bank picks one</source><target>كل بنك يختار طريقة واحدة</target></trans-unit>
+      <trans-unit id="spt.v2.ways_lowest" datatype="html"><source>Use all, the lowest wins</source><target>استخدم كل الطرق، والأقل يُعتمد</target></trans-unit>
+      <trans-unit id="spt.v2.worked_out" datatype="html"><source>How it is worked out</source><target>طريقة الحساب</target></trans-unit>
+      <trans-unit id="spt.v2.from" datatype="html"><source>Worked out from</source><target>يُحسب من</target></trans-unit>
+      <trans-unit id="spt.v2.pick_q" datatype="html"><source> Pick one of this product&apos;s questions… </source><target> اختر أحد أسئلة هذا المنتج… </target></trans-unit>
+      <trans-unit id="spt.v2.flat" datatype="html"><source> No question: the same amount for everyone </source><target> بلا سؤال: المبلغ نفسه للجميع </target></trans-unit>
+      <trans-unit id="spt.v2.how" datatype="html"><source>How</source><target>الطريقة</target></trans-unit>
+      <trans-unit id="spt.v2.per_answer" datatype="html"><source>One amount per answer</source><target>مبلغ لكل إجابة</target></trans-unit>
+      <trans-unit id="spt.v2.per_group" datatype="html"><source>One amount per group</source><target>مبلغ لكل مجموعة</target></trans-unit>
+      <trans-unit id="spt.v2.move_groups" datatype="html"><source>Move answers between groups</source><target>انقل الإجابات بين المجموعات</target></trans-unit>
+      <trans-unit id="spt.v2.split_by" datatype="html"><source>Different amounts by</source><target>مبالغ مختلفة حسب</target></trans-unit>
+      <trans-unit id="spt.v2.split_none" datatype="html"><source>Nothing</source><target>لا شيء</target></trans-unit>
+      <trans-unit id="spt.v2.col_answer" datatype="html"><source>A column per answer</source><target>عمود لكل إجابة</target></trans-unit>
+      <trans-unit id="spt.v2.col_group" datatype="html"><source>A column per group</source><target>عمود لكل مجموعة</target></trans-unit>
+      <trans-unit id="spt.v2.edit_groups" datatype="html"><source>Edit groups</source><target>تعديل المجموعات</target></trans-unit>
+      <trans-unit id="spt.v2.unplaced" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ unplacedCount(col) }}"/> answer(s) in no group are priced on the first group&apos;s column. </source><target> <x id="INTERPOLATION" equiv-text="{{ unplacedCount(col) }}"/> إجابة بلا مجموعة تُسعَّر على عمود المجموعة الأولى. </target></trans-unit>
+      <trans-unit id="spt.v2.add_split" datatype="html"><source>+ Different amounts for another answer</source><target>+ مبالغ مختلفة حسب إجابة أخرى</target></trans-unit>
+      <trans-unit id="spt.v2.updating" datatype="html"><source>Updating the table…</source><target>جارٍ تحديث الجدول…</target></trans-unit>
+      <trans-unit id="spt.v2.empty_box" datatype="html"><source> A box left empty is filled in by each bank. </source><target> الخانة الفارغة يملؤها كل بنك. </target></trans-unit>
+      <trans-unit id="spt.v2.remove_way" datatype="html"><source>Remove this way</source><target>احذف هذه الطريقة</target></trans-unit>
+      <trans-unit id="spt.v2.add_way" datatype="html"><source>+ Add another way</source><target>+ أضف طريقة أخرى</target></trans-unit>
+      <trans-unit id="spt.v2.share" datatype="html"><source>Then give only the part they own</source><target>ثم امنح فقط الجزء الذي يملكه</target></trans-unit>
+      <trans-unit id="spt.v2.share_none" datatype="html"><source>No</source><target>لا</target></trans-unit>
+      <trans-unit id="spt.v2.share_help" datatype="html"><source>Own 50% of the unit → they get half the amount.</source><target>يملك 50% من الوحدة ← يحصل على نصف المبلغ.</target></trans-unit>
+      <trans-unit id="spt.v2.share_add" datatype="html"><source>+ Give only the part they own (a % they type)</source><target>+ امنح فقط الجزء الذي يملكه (نسبة يكتبها)</target></trans-unit>
+      <trans-unit id="spt.v2.rules_none" datatype="html"><source> No rules: everyone can get this product. </source><target> لا قواعد: يمكن للجميع الحصول على هذا المنتج. </target></trans-unit>
+      <trans-unit id="spt.v2.turn_away" datatype="html"><source>Turn away if</source><target>ارفض إذا</target></trans-unit>
+      <trans-unit id="spt.v2.measure_answer" datatype="html"><source> The amount worked out </source><target> المبلغ المحسوب </target></trans-unit>
+      <trans-unit id="spt.v2.is_any" datatype="html"><source>is any of</source><target>أيٌّ من</target></trans-unit>
+      <trans-unit id="spt.v2.applies" datatype="html"><source>On for every bank unless it says otherwise</source><target>مُفعّلة لكل بنك ما لم يحدد غير ذلك</target></trans-unit>
+      <trans-unit id="spt.v2.and" datatype="html"><source>and</source><target>و</target></trans-unit>
+      <trans-unit id="spt.v2.pct_of" datatype="html"><source>% of</source><target>% من</target></trans-unit>
+      <trans-unit id="spt.v2.tell_them" datatype="html"><source>Tell them</source><target>أخبره</target></trans-unit>
+      <trans-unit id="spt.v2.add_rule" datatype="html"><source>+ Add a rule</source><target>+ أضف قاعدة</target></trans-unit>
+      <trans-unit id="spt.v2.ways_mode_aria" datatype="html"><source>How banks use the ways</source><target>كيف تستخدم البنوك الطرق</target></trans-unit>
+      <trans-unit id="spt.v2.col_mode_aria" datatype="html"><source>A column per answer or per group</source><target>عمود لكل إجابة أو لكل مجموعة</target></trans-unit>
+      <trans-unit id="spt.v2.figure_aria" datatype="html"><source>Figure</source><target>الرقم</target></trans-unit>
+      <trans-unit id="spt.v2.by_ranges" datatype="html"><source>By ranges</source><target>حسب النطاقات</target></trans-unit>
+      <trans-unit id="spt.v2.pct_of_it" datatype="html"><source>% of it</source><target>% منه</target></trans-unit>
+      <trans-unit id="spt.v2.times" datatype="html"><source>Multiplied by</source><target>مضروبًا في</target></trans-unit>
+      <trans-unit id="spt.v2.divided" datatype="html"><source>Divided by</source><target>مقسومًا على</target></trans-unit>
+      <trans-unit id="spt.v2.groups_line" datatype="html"><source>Groups: <x id="NAMES" equiv-text="names"/></source><target>المجموعات: <x id="NAMES" equiv-text="names"/></target></trans-unit>
+      <trans-unit id="spt.v2.group_count" datatype="html"><source><x id="N" equiv-text="n"/> answer(s)</source><target><x id="N" equiv-text="n"/> إجابة</target></trans-unit>
+      <trans-unit id="spt.v2.way_unset" datatype="html"><source>Not set up yet</source><target>لم تُضبط بعد</target></trans-unit>
+      <trans-unit id="spt.v2.way_flat" datatype="html"><source>The same amount for everyone</source><target>المبلغ نفسه للجميع</target></trans-unit>
+      <trans-unit id="spt.v2.way_how_split" datatype="html"><source><x id="HOW" equiv-text="how"/> · different amounts by <x id="NAME" equiv-text="name"/></source><target><x id="HOW" equiv-text="how"/> · مبالغ مختلفة حسب <x id="NAME" equiv-text="name"/></target></trans-unit>
+      <trans-unit id="spt.v2.how_pct" datatype="html"><source>A percentage of it</source><target>نسبة منه</target></trans-unit>
+      <trans-unit id="spt.v2.op_less" datatype="html"><source>is less than</source><target>أقل من</target></trans-unit>
+      <trans-unit id="spt.v2.op_more" datatype="html"><source>is more than</source><target>أكثر من</target></trans-unit>
+      <trans-unit id="spt.v2.op_outside" datatype="html"><source>is not between</source><target>ليس بين</target></trans-unit>
+      <trans-unit id="spt.v2.op_less_share" datatype="html"><source>is less than this % of</source><target>أقل من هذه النسبة من</target></trans-unit>
+      <trans-unit id="spt.v2.op_is" datatype="html"><source>is</source><target>هو</target></trans-unit>
+      <trans-unit id="spt.v2.op_less_per" datatype="html"><source>is less than a figure that depends on</source><target>أقل من رقم يعتمد على</target></trans-unit>
+      <trans-unit id="spt.v2.op_more_per" datatype="html"><source>is more than a figure that depends on</source><target>أكثر من رقم يعتمد على</target></trans-unit>
+      <trans-unit id="srvp.basis_both_hint" datatype="html"><source>Asked on income-proof and no-payslip programs</source><target>يُسأل في برامج إثبات الدخل وبرامج بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="srvp.basis_both" datatype="html"><source>Both</source><target>الاثنان</target></trans-unit>
+      <trans-unit id="srvp.basis_proof_hint" datatype="html"><source>Asked on income-proof programs</source><target>يُسأل في برامج إثبات الدخل</target></trans-unit>
+      <trans-unit id="srvp.basis_proof" datatype="html"><source>Income proof</source><target>إثبات دخل</target></trans-unit>
+      <trans-unit id="srvp.basis_sur_hint" datatype="html"><source>Asked on no-payslip programs</source><target>يُسأل في البرامج بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="srvp.basis_sur" datatype="html"><source>Surrogate</source><target>بديل</target></trans-unit>
+      <trans-unit id="spd.asktab_fixed_hint" datatype="html"><source>Asked on every program. Change them on Questionnaire.</source><target>تُسأل في كل البرامج. غيّرها من الاستبيان.</target></trans-unit>
+      <trans-unit id="spd.asktab_added_hint" datatype="html"><source>Asked only on this product. A question the calculation reads can&apos;t be removed.</source><target>تُسأل في هذا المنتج فقط. لا يمكن حذف سؤال يقرؤه الحساب.</target></trans-unit>
+      <trans-unit id="spd.asktab_added_empty" datatype="html"><source>No questions added yet.</source><target>لم تُضف أسئلة بعد.</target></trans-unit>
+      <trans-unit id="spd.rules.cap_only" datatype="html"><source> A cap-only product turns nobody away itself: each bank caps its own maximum by the one answer it asks. </source><target> منتج الحد فقط لا يرفض أحدًا بنفسه: كل بنك يحدد حدّه الأقصى حسب الإجابة الوحيدة التي يسألها. </target></trans-unit>
+      <trans-unit id="spd.try.unsaved" datatype="html"><source> This tries what is saved. Save your changes first to try them. </source><target> هذا يجرّب ما هو محفوظ. احفظ تغييراتك أولًا لتجربتها. </target></trans-unit>
+      <trans-unit id="spd.asktab_fixed_title" datatype="html"><source>Fixed questions</source><target>الأسئلة الثابتة</target></trans-unit>
+      <trans-unit id="spd.asktab_added_title" datatype="html"><source>Added for this product</source><target>مُضافة لهذا المنتج</target></trans-unit>
+      <trans-unit id="spd.asktabs_aria" datatype="html"><source>Which questions</source><target>أي الأسئلة</target></trans-unit>
+      <trans-unit id="spd.asktab_fixed" datatype="html"><source>Fixed</source><target>ثابتة</target></trans-unit>
+      <trans-unit id="spd.asktab_added" datatype="html"><source>Added</source><target>مُضافة</target></trans-unit>
+      <trans-unit id="spd.cap_amount" datatype="html"><source>How the customer&apos;s answers become an amount. Any box left empty is filled in by each bank.</source><target>كيف تتحول إجابات العميل إلى مبلغ. أي خانة تُترك فارغة يملؤها كل بنك.</target></trans-unit>
+      <trans-unit id="spd.cap_rules2" datatype="html"><source>One rule for each kind of customer this product turns away. Leave a figure empty and each bank sets its own.</source><target>قاعدة لكل نوع من العملاء يرفضه هذا المنتج. اترك الرقم فارغًا ليحدده كل بنك.</target></trans-unit>
+      <trans-unit id="spd.cap_terms" datatype="html"><source>The loan duration, size and plans every bank selling this product starts from.</source><target>مدة القرض وحجمه والخطط التي يبدأ منها كل بنك يبيع هذا المنتج.</target></trans-unit>
+      <trans-unit id="spd.cap_golive" datatype="html"><source>Switch it on, and see who sells it.</source><target>فعّله، واعرف من يبيعه.</target></trans-unit>
+      <trans-unit id="np.start_blank" datatype="html"><source>Blank</source><target>فارغ</target></trans-unit>
+      <trans-unit id="np.start_blank_note" datatype="html"><source>An empty product. You add the questions and the amounts.</source><target>منتج فارغ. تضيف الأسئلة والمبالغ بنفسك.</target></trans-unit>
+      <trans-unit id="np.start_copy" datatype="html"><source>Copy a product like it</source><target>انسخ منتجًا مشابهًا</target></trans-unit>
+      <trans-unit id="np.start_copy_note" datatype="html"><source>Its questions, amounts and rules come with it. You change what is different.</source><target>تأتي معه أسئلته ومبالغه وقواعده. وتغيّر ما يختلف.</target></trans-unit>
+      <trans-unit id="np.which_product" datatype="html"><source>Which product?</source><target>أي منتج؟</target></trans-unit>
+      <trans-unit id="np.start_aria" datatype="html"><source>How to start</source><target>كيف تبدأ</target></trans-unit>
+      <trans-unit id="np.pick_product" datatype="html"><source>Choose a product…</source><target>اختر منتجًا…</target></trans-unit>
+      <trans-unit id="np.caption3" datatype="html"><source>Start from nothing or from a product like it, and name it.</source><target>ابدأ من الصفر أو من منتج مشابه، وسمِّه.</target></trans-unit>
+      <trans-unit id="spd.terms_title" datatype="html"><source>Loan terms</source><target>شروط القرض</target></trans-unit>
+      <trans-unit id="spd.terms_note" datatype="html"><source>Optional — the loan duration, size and plans every bank starts from</source><target>اختياري — مدة القرض وحجمه والخطط التي يبدأ منها كل بنك</target></trans-unit>
+      <trans-unit id="spd.cap_try_live" datatype="html"><source>Answer as a customer would, then switch it on. Nothing you try is saved.</source><target>أجب كما سيجيب العميل، ثم فعّله. لا يُحفظ شيء مما تجربه.</target></trans-unit>
+      <trans-unit id="spd.step_try_live" datatype="html"><source>Try &amp; go live</source><target>جرّبه وفعّله</target></trans-unit>
+      <trans-unit id="spd.asktab_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="spd.asktab_all_title" datatype="html"><source>All questions</source><target>كل الأسئلة</target></trans-unit>
+      <trans-unit id="spd.asktab_all_hint" datatype="html"><source>Everything this product&apos;s customers are asked: the fixed questions, then the ones added here.</source><target> كل ما يُسأل عنه عملاء هذا المنتج: الأسئلة الثابتة، ثم المُضافة هنا. </target></trans-unit>
+      <trans-unit id="spt.v2.from_col" datatype="html"><source>From</source><target>من</target></trans-unit>
+      <trans-unit id="spt.v2.to_col" datatype="html"><source>Up to</source><target>حتى</target></trans-unit>
+      <trans-unit id="spt.v2.remove_col" datatype="html"><source>Remove</source><target>حذف</target></trans-unit>
+      <trans-unit id="spt.v2.and_above" datatype="html"><source>and above</source><target>فأكثر</target></trans-unit>
+      <trans-unit id="spt.v2.add_range" datatype="html"><source>+ Add a range</source><target>+ أضف نطاقًا</target></trans-unit>
+      <trans-unit id="spt.v2.dbr_line" datatype="html"><source>Worked out at a debt burden of</source><target>محسوب على نسبة عبء دين</target></trans-unit>
+      <trans-unit id="spt.v2.group_col" datatype="html"><source>Group</source><target>المجموعة</target></trans-unit>
+      <trans-unit id="spd.lists_shared_line" datatype="html"><source>shared lists, edited on</source><target>قوائم مشتركة، تُعدَّل من</target></trans-unit>
+      <trans-unit id="spt.v2.ways_title2" datatype="html"><source> Banks price this in <x id="INTERPOLATION" equiv-text="{{ wayCount() }}"/> different ways </source><target> تسعّر البنوك هذا المنتج بـ <x id="INTERPOLATION" equiv-text="{{ wayCount() }}"/> طرق مختلفة </target></trans-unit>
+      <trans-unit id="spt.v2.ways_pick2" datatype="html"><source>Each bank uses one of them</source><target>كل بنك يستخدم واحدة منها</target></trans-unit>
+      <trans-unit id="spt.v2.ways_lowest2" datatype="html"><source>Use all and take the lowest</source><target>استخدم الكل وخذ الأقل</target></trans-unit>
+      <trans-unit id="spt.v2.more_settings" datatype="html"><source>More settings</source><target>إعدادات أخرى</target></trans-unit>
+      <trans-unit id="spt.v2.dbr_help" datatype="html"><source> Leave it as it is unless the bank&apos;s sheet says otherwise. </source><target> اتركها كما هي ما لم تذكر ورقة البنك غير ذلك. </target></trans-unit>
+      <trans-unit id="spt.v2.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="spt.v2.state_on" datatype="html"><source>On — these customers are turned away</source><target>مفعّلة — يُرفض هؤلاء العملاء</target></trans-unit>
+      <trans-unit id="spt.v2.turn_off" datatype="html"><source> Turn off </source><target> أوقفها </target></trans-unit>
+      <trans-unit id="spt.v2.state_off" datatype="html"><source>Off</source><target>متوقفة</target></trans-unit>
+      <trans-unit id="spt.v2.turn_on" datatype="html"><source> Turn on </source><target> فعّلها </target></trans-unit>
+      <trans-unit id="spt.v2.type_to_turn_on" datatype="html"><source>Type a number above to turn it on.</source><target>اكتب رقمًا بالأعلى لتفعيلها.</target></trans-unit>
+      <trans-unit id="spt.v2.state_bank" datatype="html"><source>Each bank sets it</source><target>يحددها كل بنك</target></trans-unit>
+      <trans-unit id="spt.v2.pct_of2" datatype="html"><source>% of</source><target>% من</target></trans-unit>
+      <trans-unit id="spt.v2.op_less_share2" datatype="html"><source>is less than a % of another answer</source><target>أقل من نسبة من إجابة أخرى</target></trans-unit>
+      <trans-unit id="spt.v2.worked_out_by_us" datatype="html"><source><x id="NAME" equiv-text="derived.label"/> (worked out by us, not asked)</source><target><x id="NAME" equiv-text="derived.label"/> (نحسبه نحن، لا يُسأل)</target></trans-unit>
+      <trans-unit id="np.start_cap" datatype="html"><source>A cap on a payslip loan</source><target>حد أقصى على قرض بإثبات دخل</target></trans-unit>
+      <trans-unit id="np.start_cap_note" datatype="html"><source>No amount is worked out. It asks one question, and each bank sets the biggest loan for each answer.</source><target>لا يُحسب مبلغ. يسأل سؤالًا واحدًا، ويحدد كل بنك أكبر قرض لكل إجابة.</target></trans-unit>
+      <trans-unit id="spt.v2.own_groups" datatype="html"><source> Make your own groups instead </source><target> اصنع مجموعاتك الخاصة بدلًا من ذلك </target></trans-unit>
+      <trans-unit id="spt.v2.no_answer_use" datatype="html"><source>If they don&apos;t answer, use</source><target>إذا لم يُجب، استخدم</target></trans-unit>
     </body>
   </file>
 </xliff>

@@ -152,6 +152,25 @@ export class BankProgramsController {
     return ok(await this.service.getSurrogateProductTemplate(key));
   }
 
+  @Post('surrogate-products/:key/template/preview')
+  @HttpCode(200)
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: 'What the friendly form would compile to — nothing is saved',
+    description:
+      'The step list a save of this form would produce, carrying the figures sent (or the ' +
+      'stored ones) pruned to the steps it still has. The product page reads it after every ' +
+      'change so the figure boxes match the form before Save.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({ status: 422, description: 'PRODUCT_TEMPLATE_INVALID' })
+  async previewSurrogateProductTemplate(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductTemplateDto,
+  ) {
+    return ok(await this.service.previewSurrogateProductTemplate(key, body));
+  }
+
   @Put('surrogate-products/:key/template')
   @Roles('super_admin')
   @ApiOperation({

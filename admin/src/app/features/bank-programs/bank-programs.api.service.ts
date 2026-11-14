@@ -415,6 +415,20 @@ export class BankProgramsApiService {
     );
   }
 
+  /** What the form would compile to, with these figures pruned to it. Nothing is saved. */
+  async previewSurrogateProductTemplate(
+    key: string,
+    payload: { template: ProductTemplate; stepParams?: Record<string, unknown> },
+  ): Promise<
+    SuccessEnvelope<{ compiled: NonNullable<SurrogateProductTemplateResponse['compiled']> }>
+  > {
+    return firstValueFrom(
+      this.http.post<
+        SuccessEnvelope<{ compiled: NonNullable<SurrogateProductTemplateResponse['compiled']> }>
+      >(`${this.base}/surrogate-products/${encodeURIComponent(key)}/template/preview`, payload),
+    );
+  }
+
   async setSurrogateProductIncomeRule(
     key: string,
     payload: { incomeRule: IncomeAssumptionConfig | null; valueSources?: ValueSourceMap },

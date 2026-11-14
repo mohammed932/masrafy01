@@ -203,6 +203,7 @@
   "PRODUCT_BLUEPRINT_UNKNOWN": "There is no ready-made product by that name. Reload the page and try again.",
   "PRODUCT_TEMPLATE_INVALID": "This form can't be turned into a calculation yet: {reason}",
   "PRODUCT_TEMPLATE_ORPHANS_FIGURES": "Saving this would throw away figures {count} bank program(s) have already entered. Clear them first, or leave this part of the calculation in place.",
+  "PRODUCT_TEMPLATE_REDEFINES_FIGURES": "Saving this would make figures {count} bank program(s) have already entered count for a different calculation — usually because a way was removed from the middle, so the ways after it moved up. Remove the last way instead, or clear those figures first.",
   "PRODUCT_TEMPLATE_NOT_EDITABLE": "This product's calculation was built step by step, so there is no form to edit. Start again from a shape to get one.",
   "PRODUCT_RULE_GATE_FAILED": "This program has a condition your answers don't meet, so no figures can be shown.",
   "GATE_DOWN_PAYMENT_BELOW_MIN": "The amount you've already paid is below this bank's minimum for this program.",

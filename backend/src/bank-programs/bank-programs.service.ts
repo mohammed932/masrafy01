@@ -80,6 +80,7 @@ import {
   UnknownEnumerationKeyException,
   ProductTemplateInvalidException,
   ProductTemplateOrphansFiguresException,
+  ProductTemplateRedefinesFiguresException,
   ProductTemplateNotEditableException,
 } from '../common/errors/domain.exceptions';
 import { CreateBankProgramDto } from './dto/create-bank-program.dto';
@@ -1990,11 +1991,19 @@ export class BankProgramsService {
     ]);
     const capUsage = new Map<string, string[]>();
     const askCounts = new Map<string, number>();
+    // How many products ask each question: a bank capping by a question another product also
+    // asks is not held up by this one — deleting it leaves the question asked.
+    const askers = new Map<string, number>();
+    for (const asks of asksByProduct.values()) {
+      for (const k of new Set(asks.map((ask) => ask.factKey))) askers.set(k, (askers.get(k) ?? 0) + 1);
+    }
     for (const [productKey, asks] of asksByProduct) {
       askCounts.set(productKey, asks.length);
       const asked = new Set(asks.map((ask) => ask.factKey));
       const codes = capFacts
-        .filter((program) => program.factKeys.some((key) => asked.has(key)))
+        .filter((program) =>
+          program.factKeys.some((key) => asked.has(key) && (askers.get(key) ?? 0) <= 1),
+        )
         .map((program) => program.programCode)
         .sort();
       if (codes.length > 0) capUsage.set(productKey, codes);
@@ -2832,6 +2841,41 @@ export class BankProgramsService {
   }
 
   /**
+   * What a form WOULD compile to, written nowhere.
+   *
+   * The product page edits the calculation and its default figures on one screen, and a
+   * figure box only exists for a step the compile emits — so after every change to the form
+   * the screen needs the new step list before Save. This is that read: the same validation of
+   * the form, the same compile, the figures it was sent (or the stored ones) pruned to the
+   * ids the new shape still has. No orphan check and no rule validation: nothing is stored,
+   * and the save runs both.
+   */
+  async previewSurrogateProductTemplate(
+    key: string,
+    dto: SetSurrogateProductTemplateDto,
+  ): Promise<{ compiled: IncomeAssumptionConfig }> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+    const template = dto.template as unknown as ProductTemplate;
+    const shapeProblem = validateTemplate(template);
+    if (shapeProblem) {
+      throw new ProductTemplateInvalidException({
+        reason: shapeProblem.reason,
+        ...(shapeProblem.detail !== undefined ? { detail: shapeProblem.detail } : {}),
+      });
+    }
+    const figures = (dto.stepParams ?? row.incomeRule?.stepParams ?? null) as
+      | IncomeAssumptionConfig['stepParams']
+      | null;
+    return {
+      compiled: this.compiledWithStoredFigures(template, {
+        ...(row.incomeRule ?? {}),
+        stepParams: figures ?? undefined,
+      } as IncomeAssumptionConfig),
+    };
+  }
+
+  /**
    * The form's shape, carrying the product's own stored figures.
    *
    * Kept as its own function because the pruning is the load-bearing half and it is the same
@@ -2932,6 +2976,7 @@ export class BankProgramsService {
     if (violation) throw incomeRuleException(violation);
 
     await this.assertNoOrphanedFigures(key, compiled);
+    await this.assertNoRedefinedFigures(key, row.templateSpec, compiled);
 
     // Same two-hop proof-change refusal as the raw path: a bank's stored table is keyed by
     // the proof it was written against. A form always compiles to `steps`, so this only ever
@@ -3042,6 +3087,53 @@ export class BankProgramsService {
    * which new box a number belonged in, and guessing wrong here is a wrong quote frozen onto
    * an immutable offer (Principle I).
    */
+  /**
+   * Refuse a save that would read a bank's figures against a different calculation.
+   *
+   * The orphan check catches a box that disappears; this one catches a box that stays but
+   * changes meaning — a way removed from the middle (the next way inherits its slot), or a way
+   * re-pointed at another question or method. Compared step by step against what the STORED
+   * form compiles to, and only for boxes some bank program has actually filled.
+   */
+  private async assertNoRedefinedFigures(
+    key: string,
+    stored: ProductTemplate | null,
+    compiled: IncomeAssumptionConfig,
+  ): Promise<void> {
+    if (stored === null) return;
+    const meaning = (rule: unknown): Map<string, string> => {
+      const r = rule as { steps?: Array<Record<string, unknown>>; gates?: Array<Record<string, unknown>> };
+      const out = new Map<string, string>();
+      for (const item of [...(r.steps ?? []), ...(r.gates ?? [])]) {
+        const { id, reasonCode: _reason, ...rest } = item as { id: string; reasonCode?: unknown };
+        // Branch labels are names, not meaning: renaming a group keeps its figures right.
+        delete (rest as Record<string, unknown>).branchLabels;
+        out.set(id, JSON.stringify(rest, Object.keys(rest).sort()));
+      }
+      return out;
+    };
+    const before = meaning(compileTemplate(stored));
+    const after = meaning(compiled);
+    const changed = new Set(
+      [...after.keys()].filter((id) => before.has(id) && before.get(id) !== after.get(id)),
+    );
+    if (changed.size === 0) return;
+    const perProgram = await this.enums.programFigureKeysUnderProduct(key);
+    const programCodes: string[] = [];
+    const keys = new Set<string>();
+    for (const program of perProgram) {
+      const hit = program.keys.filter((k) => changed.has(k));
+      if (hit.length === 0) continue;
+      programCodes.push(program.programCode);
+      for (const k of hit) keys.add(k);
+    }
+    if (programCodes.length === 0) return;
+    throw new ProductTemplateRedefinesFiguresException({
+      programCodes,
+      keys: [...keys].sort(),
+    });
+  }
+
   private async assertNoOrphanedFigures(
     key: string,
     compiled: IncomeAssumptionConfig,

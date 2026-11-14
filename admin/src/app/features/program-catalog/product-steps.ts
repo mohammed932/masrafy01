@@ -5,14 +5,14 @@
  */
 export function productStepLabels(): string[] {
   // One or two words each (v36.1.0): the rail names a step only while every name fits, and
-  // the long names left the operator reading five bare numbers. "Try it" is part of the last
-  // step now, beside the switch it decides.
+  // the long names left the operator reading bare numbers. Amount and "Who can't get it" are
+  // the one calculation, split where an operator splits it (v36.2.0).
   return [
     $localize`:@@spd.step_name2:Name`,
     $localize`:@@spd.step_asks2:Questions`,
-    $localize`:@@spd.step_calc2:Calculation`,
-    $localize`:@@spd.step_figures2:Figures`,
-    $localize`:@@spd.step_live:Check and go live`,
+    $localize`:@@spd.step_amount:Amount`,
+    $localize`:@@spd.step_rules:Who can't get it`,
+    // Try & go live — hidden for now (operator, 2026-11-14).
   ];
 }
 

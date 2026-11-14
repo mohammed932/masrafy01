@@ -554,6 +554,7 @@ interface FlowLine {
                               [secondRows]="slot.secondId ? tableFor(slot.secondId) : null"
                               (secondRowsChange)="setSecondTable(slot.secondId, $event)"
                               [secondLabel]="slot.secondLabel"
+                              [blanksAllowed]="blanksAllowed()"
                             ></app-income-key-table>
                           }
                           @case ('bands') {
@@ -591,6 +592,7 @@ interface FlowLine {
                               [columnLabel]="slot.bandColumns[0]?.label ?? null"
                               [moreColumns]="moreBandColumnsFor(slot.id)"
                               (moreColumnChange)="setMoreBands(slot, $event)"
+                              [blanksAllowed]="blanksAllowed()"
                             ></app-income-bands-editor>
                           }
                           @case ('scalar') {
@@ -1527,6 +1529,16 @@ export class ProductRuleEditorComponent {
   readonly onlyKeyedBy = input<string | null>(null);
 
   /**
+   * Render only these slots (step and gate ids), or every one when `null`. The product page's
+   * Amount step mounts one editor per WAY, each showing that way's own boxes beside the
+   * choices that made them. Wins over `onlyKeyedBy`.
+   */
+  readonly onlySlots = input<ReadonlySet<string> | null>(null);
+
+  /** Blank boxes are defaults left for each bank; the host drops them before it saves. */
+  readonly blanksAllowed = input(false);
+
+  /**
    * `inline` drops the frame — the rail, the group hints, the lede, the list of answers the
    * rule reads and the read-only flow — and keeps the figures.
    *
@@ -1547,6 +1559,8 @@ export class ProductRuleEditorComponent {
    * product page's per-list mounts, so their behaviour is unchanged by construction.
    */
   private readonly shownSlotIds = computed<ReadonlySet<string> | null>(() => {
+    const slots = this.onlySlots();
+    if (slots !== null) return slots;
     const type = this.onlyKeyedBy();
     if (type === null) return null;
     const ids = new Set<string>();

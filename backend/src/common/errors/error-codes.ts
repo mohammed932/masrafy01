@@ -894,6 +894,14 @@ export const ERROR_CODES = {
    */
   PRODUCT_TEMPLATE_ORPHANS_FIGURES: 'PRODUCT_TEMPLATE_ORPHANS_FIGURES',
   /**
+   * The form would give a box a bank has already filled a DIFFERENT meaning — the quiet twin of
+   * `PRODUCT_TEMPLATE_ORPHANS_FIGURES`. A way's figures are filed by its position, so removing
+   * way 2 moves way 3 into way 2's place and way 2's figures would be read against way 3's
+   * calculation; changing what a way reads does the same in place. Refused, naming the
+   * programs (`meta.programCodes`) and the boxes (`meta.keys`).
+   */
+  PRODUCT_TEMPLATE_REDEFINES_FIGURES: 'PRODUCT_TEMPLATE_REDEFINES_FIGURES',
+  /**
    * This product's calculation was authored through the raw step editor, so there is no form
    * to edit.
    *
@@ -1341,6 +1349,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   PRODUCT_TEMPLATE_INVALID: 422,
   PRODUCT_BLUEPRINT_UNKNOWN: 422,
   PRODUCT_TEMPLATE_ORPHANS_FIGURES: 409,
+  PRODUCT_TEMPLATE_REDEFINES_FIGURES: 409,
   PRODUCT_TEMPLATE_NOT_EDITABLE: 409,
   PROGRAM_NAME_INCOME_PROOF_MISMATCH: 422,
   PROGRAM_NAME_INCOME_PROOF_MISSING: 422,

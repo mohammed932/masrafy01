@@ -451,6 +451,8 @@ export class IncomeKeyTableComponent {
    * false statement there. `null` keeps it, so nothing but a pipeline moves.
    */
   readonly valueLabel = input<string | null>(null);
+  /** A blank box is a default left for each bank, not an error (the product page's tables). */
+  readonly blanksAllowed = input(false);
 
   /**
    * An optional SECOND value column, keyed by the same answers as the first.
@@ -521,6 +523,18 @@ export class IncomeKeyTableComponent {
    * editor no longer renders as a row of its own.
    */
   readonly error = computed<IncomeKeyTableError>(() => {
+    if (this.blanksAllowed()) {
+      // A blank box means "each bank fills it in": only the typed figures are judged.
+      const typed = (rows: readonly IncomeKeyTableRow[]) =>
+        rows.filter((r) => String(r.incomeEGP ?? '').trim() !== '');
+      const primary = typed(this.rows());
+      const second = typed(this.secondRows() ?? []);
+      if (primary.length > 0) {
+        const err = incomeKeyTableErrorFor(primary);
+        if (err) return err;
+      }
+      return second.length > 0 ? incomeKeyTableErrorFor(second) : null;
+    }
     const second = this.secondRows();
     const hasSecond = second !== null && second.length > 0;
     const primary = incomeKeyTableErrorFor(this.rows());
