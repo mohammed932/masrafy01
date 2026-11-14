@@ -15,7 +15,6 @@
  *   Starter   — one of the library's income / ceiling products, under this name.
  *   Copy      — an existing product's questions, calculation, figures and defaults
  *               (what "Duplicate" opens, via `?copy=`).
- *   Cap       — cap-only: no calculation; it asks one answer each bank caps by.
  */
 import {
   ChangeDetectionStrategy,
@@ -108,23 +107,6 @@ import { FIRST_BUILD_STEP_PARAM, productStepLabels } from './product-steps';
                 <span class="start-note" i18n="@@np.start_copy_note"
                   >Its questions, amounts and rules come with it. You change what is
                   different.</span
-                >
-              </span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              class="start"
-              [class.is-on]="start() === 'cap'"
-              [attr.aria-checked]="start() === 'cap'"
-              (click)="start.set('cap')"
-            >
-              <span class="dot" aria-hidden="true"></span>
-              <span class="start-text">
-                <span class="start-name" i18n="@@np.start_cap">A cap on a payslip loan</span>
-                <span class="start-note" i18n="@@np.start_cap_note"
-                  >No amount is worked out. It asks one question, and each bank sets the biggest
-                  loan for each answer.</span
                 >
               </span>
             </button>
@@ -358,7 +340,7 @@ export class NewProductPageComponent {
   });
 
   /** Blank, or a copy of the product picked below ("Duplicate" opens it on that product). */
-  protected readonly start = signal<'blank' | 'copy' | 'cap'>(this.copyOf ? 'copy' : 'blank');
+  protected readonly start = signal<'blank' | 'copy'>(this.copyOf ? 'copy' : 'blank');
   protected readonly startAria = $localize`:@@np.start_aria:How to start`;
   protected readonly pickPlaceholder = $localize`:@@np.pick_product:Choose a product…`;
 
@@ -415,7 +397,7 @@ export class NewProductPageComponent {
         labelAr: v.labelAr.trim(),
         ...(this.start() === 'copy'
           ? { startFrom: 'copy' as const, sourceKey: v.copyKey }
-          : { startFrom: this.start() === 'cap' ? ('cap' as const) : ('blank' as const) }),
+          : { startFrom: 'blank' as const }),
       });
       this.message.success(
         $localize`:@@pform.created:Product created — switched off until it is ready.`,

@@ -3150,8 +3150,32 @@ export class ProductRuleEditorComponent {
     // carries it (`boundQuestion.parentOptions`), derived by walking `parentKey` server-side.
     // Absent means the walk found no parent list, and the table says so — an empty key list
     // used to render a seed button that could only ever produce zero rows.
+    if (step.op === 'factParentTable' && step.rowLabels) return this.ownRowsFor(step.rowLabels);
     if (step.op === 'factParentTable' && step.fact) return this.parentOptionsFor(step.fact);
     return null;
+  }
+
+  /**
+   * A product's OWN groups (v37.0.0) are the rows of its per-group table, named on the step.
+   * Cached by the labels object so a child gets the same array on every keystroke.
+   */
+  private readonly ownRows = new WeakMap<
+    object,
+    readonly { key: string; labelEn: string; labelAr: string }[]
+  >();
+  private ownRowsFor(
+    labels: Readonly<Record<string, { labelEn: string; labelAr: string }>>,
+  ): readonly { key: string; labelEn: string; labelAr: string }[] {
+    let rows = this.ownRows.get(labels);
+    if (rows === undefined) {
+      rows = Object.entries(labels).map(([key, l]) => ({
+        key,
+        labelEn: l.labelEn,
+        labelAr: l.labelAr,
+      }));
+      this.ownRows.set(labels, rows);
+    }
+    return rows;
   }
 
   private parentOptionsFor(

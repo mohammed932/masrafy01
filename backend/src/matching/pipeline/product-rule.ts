@@ -179,6 +179,11 @@ export interface RuleStep {
    */
   branchLabels?: Readonly<Record<string, { labelEn: string; labelAr: string }>>;
   /**
+   * `factParentTable` over a product's OWN groups (v37.0.0): each row's name, for screens
+   * only. The engine never reads it — the row is the group key the answer is filed under.
+   */
+  rowLabels?: Readonly<Record<string, { labelEn: string; labelAr: string }>>;
+  /**
    * `pickByFact`: whether `branches` name the ANSWER's own option codes (the default) or
    * the CLASS each answer is filed under.
    *

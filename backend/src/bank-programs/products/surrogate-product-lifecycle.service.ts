@@ -607,7 +607,7 @@ export class SurrogateProductLifecycleService {
   }
 }
 
-/** The keys of a product's own groups, on its column or on any way's own column. */
+/** The keys of a product's own groups: on its columns, and on any per-group table's rows. */
 function ownGroupKeys(template: ProductTemplate | null): Set<string> {
   const keys = new Set<string>();
   if (template === null) return keys;
@@ -618,6 +618,10 @@ function ownGroupKeys(template: ProductTemplate | null): Set<string> {
     ...ways.map((w) => w.column),
   ]) {
     for (const group of column?.groups ?? []) keys.add(group.key);
+  }
+  // A per-group table's own rows (v37.0.0) are groups too.
+  for (const way of [template.primary, ...ways]) {
+    if (way.kind === 'classTable') for (const group of way.groups ?? []) keys.add(group.key);
   }
   return keys;
 }

@@ -110,8 +110,7 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
   },
   {
     path: 'products/:key',
-    loadComponent: () =>
-      import('./surrogate-product-detail.page').then((m) => m.SurrogateProductDetailPage),
+    loadComponent: () => import('./product-studio.page').then((m) => m.ProductStudioPage),
     // Every change on the product page is held until Save (v33.2.0), so leaving asks first.
     canDeactivate: [(page: { confirmLeave(): Promise<boolean> }) => page.confirmLeave()],
   },

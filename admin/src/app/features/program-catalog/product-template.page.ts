@@ -29,6 +29,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  HostListener,
   LOCALE_ID,
   OnInit,
   computed,
@@ -39,7 +40,6 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.component';
 import { DERIVED_FACTS, derivedFactByKey } from '@core/surrogate-facts';
 import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
@@ -112,1817 +112,1223 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
   selector: 'app-product-template-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, ReactiveFormsModule, ParentClassBoardComponent],
+  imports: [NgTemplateOutlet, ReactiveFormsModule],
   template: `
-    <!-- The product page's Amount and "Who can't get it" steps (v36.2.0). One instance, mounted
-         once by the product page, so an edit survives moving between the two; the part input picks
-         which half is on screen. No Save of its own: the page's one Save bar calls saveNow(). -->
-    <div class="embedded">
-      @if (advanced()) {
-        <!-- No form to show, and saying so is the honest state. Offering an empty one would
-             invite the operator to overwrite a live calculation with a blank shape. -->
-        <p class="notice" role="status">
-          <span i18n="@@spt.advanced"
-            >This product's calculation was built step by step, so there is no form for it. You can
-            still edit the steps on the product page.</span
-          >
-        </p>
-      } @else if (part() === 'amount') {
-        <ng-container [ngTemplateOutlet]="amountPart" />
-      } @else {
-        <ng-container [ngTemplateOutlet]="rulesPart" />
-      }
-      @if (!advanced() && (saveError() || (dirty() && blockReason() !== null))) {
-        <div class="embed-actions">
-          @if (saveError(); as message) {
-            <p class="embed-error" role="alert">{{ message }}</p>
-          } @else {
-            <p class="embed-hint">{{ blockReason() }}</p>
-          }
-        </div>
-      }
-    </div>
+    <!-- The product page's Amount and "Who can't get it" steps (v37.0.0, the one-page rate sheet).
+         One instance, mounted once by the product page, so an edit survives moving between steps;
+         the part input picks which half is on screen. No Save of its own: the page's one Save calls
+         saveNow(). -->
+    @if (advanced()) {
+      <p class="notice" role="status">
+        <span i18n="@@spt.advanced"
+          >This product's calculation was built step by step, so there is no form for it. You can
+          still edit the steps on the product page.</span
+        >
+      </p>
+    } @else if (loading()) {
+      <p class="muted" i18n="@@ps.loading">Loading…</p>
+    } @else if (part() === 'amount') {
+      <section class="blk">
+        <h2 i18n="@@ps.decides">What decides the amount?</h2>
 
-    <!-- ── Amount ─────────────────────────────────────────────────────────── -->
-    <ng-template #amountPart>
-      <form [formGroup]="form" class="stack">
-        <section class="block">
-          <h2 class="q" i18n="@@spt.v2.amount_is">The amount is</h2>
-          <div class="picks" role="radiogroup" [attr.aria-label]="amountIsAria">
-            <button
-              type="button"
-              role="radio"
-              class="pick"
-              [class.is-on]="form.controls.outputKind.value === 'monthlyIncome'"
-              [attr.aria-checked]="form.controls.outputKind.value === 'monthlyIncome'"
-              (click)="toggleCeiling(false)"
-            >
-              <span class="pick-dot" aria-hidden="true"></span>
-              <span i18n="@@spt.v2.income">Monthly income</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              class="pick"
-              [class.is-on]="form.controls.outputKind.value === 'maxAmount'"
-              [attr.aria-checked]="form.controls.outputKind.value === 'maxAmount'"
-              (click)="toggleCeiling(true)"
-            >
-              <span class="pick-dot" aria-hidden="true"></span>
-              <span i18n="@@spt.v2.limit">Most they can borrow</span>
-            </button>
+        @if (wayCount() > 1) {
+          <div class="methods" role="tablist" [attr.aria-label]="methodsAria">
+            @for (i of wayIndexes(); track i) {
+              <button
+                type="button"
+                role="tab"
+                class="mtab"
+                [class.on]="shownWay() === i"
+                [attr.aria-selected]="shownWay() === i"
+                (click)="openWay.set(i)"
+              >
+                <b>{{ methodLabel(i) }}</b>
+                <span>{{ wayTitle(i) }}</span>
+              </button>
+            }
+            @if (canAddWay()) {
+              <button type="button" class="mtab add" (click)="addWay()">
+                <span i18n="@@ps.add_method_short">+ Method</span>
+              </button>
+            }
           </div>
-          @if (form.controls.outputKind.value === 'maxAmount') {
-            <p class="help" i18n="@@spt.v2.limit_help">
-              The amount is the biggest loan they can get.
-            </p>
-          } @else {
-            <p class="help" i18n="@@spt.v2.income_help">
-              The amount is a salary we count for them. Each bank then applies its own debt-burden
-              limit.
-            </p>
-          }
-        </section>
-
-        <section class="block">
-          @if (wayCount() > 1) {
-            <h2 class="q" i18n="@@spt.v2.ways_title2">
-              Banks price this in {{ wayCount() }} different ways
-            </h2>
-            <div class="picks" role="radiogroup" [attr.aria-label]="waysModeAria">
+          <div class="row">
+            <span class="muted" i18n="@@ps.banks_use">Banks use</span>
+            <div class="seg" role="radiogroup" [attr.aria-label]="waysModeAria">
               <button
                 type="button"
                 role="radio"
-                class="pick"
-                [class.is-on]="form.controls.waysAre.value === 'exclusive'"
                 [attr.aria-checked]="form.controls.waysAre.value === 'exclusive'"
                 (click)="setWaysMode('exclusive')"
+                i18n="@@ps.one_each"
               >
-                <span class="pick-dot" aria-hidden="true"></span>
-                <span i18n="@@spt.v2.ways_pick2">Each bank uses one of them</span>
+                one method each
               </button>
               <button
                 type="button"
                 role="radio"
-                class="pick"
-                [class.is-on]="form.controls.waysAre.value === 'combined'"
                 [attr.aria-checked]="form.controls.waysAre.value === 'combined'"
                 (click)="setWaysMode('combined')"
+                i18n="@@ps.lowest_wins"
               >
-                <span class="pick-dot" aria-hidden="true"></span>
-                <span i18n="@@spt.v2.ways_lowest2">Use all and take the lowest</span>
+                all methods, the lowest wins
               </button>
             </div>
-          } @else {
-            <h2 class="q" i18n="@@spt.v2.worked_out">How it is worked out</h2>
-          }
+          </div>
+        }
 
-          <ol class="wcards" role="list">
-            @for (i of wayIndexes(); track i) {
-              <li class="wcard" [class.is-open]="wayIsOpen(i)">
-                @if (wayCount() > 1) {
-                  <button
-                    type="button"
-                    class="wcard-top"
-                    [attr.aria-expanded]="wayIsOpen(i)"
-                    (click)="toggleWay(i)"
-                  >
-                    <span class="wcard-n" aria-hidden="true">{{ i + 1 }}</span>
-                    <span class="wcard-t">
-                      <span class="wcard-title">{{ wayTitle(i) }}</span>
-                      @if (waySub(i); as sub) {
-                        <span class="wcard-sub">{{ sub }}</span>
-                      }
-                    </span>
-                    <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                      <path
-                        d="M4 6l4 4 4-4"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </button>
-                }
-                @if (wayIsOpen(i)) {
-                  <div class="wcard-body">
-                    <label class="field">
-                      <span class="label" i18n="@@spt.v2.from">Worked out from</span>
-                      <select
-                        #wayFactSel
-                        class="control"
-                        (change)="setWayFact(i, wayFactSel.value)"
-                      >
-                        <option
-                          value=""
-                          disabled
-                          [selected]="wayFactValue(i) === ''"
-                          i18n="@@spt.v2.pick_q"
-                        >
-                          Pick one of this product's questions…
-                        </option>
-                        @for (fact of decidingFacts(); track fact.key) {
-                          <option [value]="fact.key" [selected]="wayFactValue(i) === fact.key">
-                            {{ fact.label }}
-                          </option>
-                        }
-                        <option
-                          value="__flat__"
-                          [selected]="wayFactValue(i) === '__flat__'"
-                          i18n="@@spt.v2.flat"
-                        >
-                          No question: the same amount for everyone
-                        </option>
-                      </select>
-                      @if (decidingFacts().length === 0) {
-                        <span class="help is-warn" i18n="@@spt.q1.no_facts3"
-                          >Add a choice or number question in the Questions tab first.</span
-                        >
-                      }
-                    </label>
-
-                    @if (wayIsNumber(i)) {
-                      <div class="field is-wide">
-                        <span class="label" i18n="@@spt.v2.how">How</span>
-                        <div class="picks" role="radiogroup" [attr.aria-label]="numberWayAria">
-                          @for (w of numberWays; track w.kind) {
-                            <button
-                              type="button"
-                              role="radio"
-                              class="pick"
-                              [class.is-on]="wayKind(i) === w.kind"
-                              [attr.aria-checked]="wayKind(i) === w.kind"
-                              (click)="setWayKind(i, w.kind)"
-                            >
-                              <span class="pick-dot" aria-hidden="true"></span>
-                              <span>{{ w.label }}</span>
-                            </button>
-                          }
-                        </div>
-                      </div>
-                    } @else if (wayHasClasses(i)) {
-                      <div class="field is-wide">
-                        <span class="label" i18n="@@spt.v2.how">How</span>
-                        <div class="picks" role="radiogroup" [attr.aria-label]="choiceWayAria">
-                          <button
-                            type="button"
-                            role="radio"
-                            class="pick"
-                            [class.is-on]="wayKind(i) === 'choiceTable'"
-                            [attr.aria-checked]="wayKind(i) === 'choiceTable'"
-                            (click)="setWayKind(i, 'choiceTable')"
-                          >
-                            <span class="pick-dot" aria-hidden="true"></span>
-                            <span i18n="@@spt.v2.per_answer">One amount per answer</span>
-                          </button>
-                          <button
-                            type="button"
-                            role="radio"
-                            class="pick"
-                            [class.is-on]="wayKind(i) === 'classTable'"
-                            [attr.aria-checked]="wayKind(i) === 'classTable'"
-                            (click)="setWayKind(i, 'classTable')"
-                          >
-                            <span class="pick-dot" aria-hidden="true"></span>
-                            <span i18n="@@spt.v2.per_group">One amount per group</span>
-                          </button>
-                        </div>
-                      </div>
-                      @if (wayKind(i) === 'classTable' && classBoardFor(wayFactValue(i)); as b) {
-                        <details class="groups-box">
-                          <summary>
-                            <span class="groups-sum">{{ groupsLine(wayFactValue(i)) }}</span>
-                            <span class="groups-edit" i18n="@@spt.v2.move_groups"
-                              >Move answers between groups</span
-                            >
-                          </summary>
-                          <app-parent-class-board
-                            [childType]="b.child"
-                            [parentType]="b.parent"
-                            [productKey]="key"
-                            (changed)="refreshFacts()"
-                          />
-                        </details>
-                      }
-                    }
-
-                    @if (wayFactValue(i) !== '' && wayFactValue(i) !== '__flat__') {
-                      @if (wayColumn(i); as col) {
-                        <div class="field is-wide">
-                          <span class="label" i18n="@@spt.v2.split_by">Different amounts by</span>
-                          <div class="split-row">
-                            <select
-                              #colSel
-                              class="control"
-                              (change)="setColumnFact(i, colSel.value)"
-                            >
-                              <option value="" i18n="@@spt.v2.split_none">Nothing</option>
-                              @for (fact of columnChoices(i); track fact.key) {
-                                <option [value]="fact.key" [selected]="col.fact === fact.key">
-                                  {{ fact.label }}
-                                </option>
-                              }
-                            </select>
-                            @if (columnGroupable(col.fact)) {
-                              <div
-                                class="picks"
-                                role="radiogroup"
-                                [attr.aria-label]="columnModeAria"
-                              >
-                                <button
-                                  type="button"
-                                  role="radio"
-                                  class="pick"
-                                  [class.is-on]="col.branchOn !== 'parentClass'"
-                                  [attr.aria-checked]="col.branchOn !== 'parentClass'"
-                                  (click)="setColumnMode(i, 'answer')"
-                                >
-                                  <span class="pick-dot" aria-hidden="true"></span>
-                                  <span i18n="@@spt.v2.col_answer">A column per answer</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  role="radio"
-                                  class="pick"
-                                  [class.is-on]="col.branchOn === 'parentClass'"
-                                  [attr.aria-checked]="col.branchOn === 'parentClass'"
-                                  (click)="setColumnMode(i, 'groups')"
-                                >
-                                  <span class="pick-dot" aria-hidden="true"></span>
-                                  <span i18n="@@spt.v2.col_group">A column per group</span>
-                                </button>
-                              </div>
-                            }
-                          </div>
-                          @if (col.groups) {
-                            <!-- THIS product's own groups: named here, one column each. -->
-                            <details class="groups-box" [open]="groupsOpen()">
-                              <summary>
-                                <span class="groups-sum">{{ ownGroupsLine(col) }}</span>
-                                <span class="groups-edit" i18n="@@spt.v2.edit_groups"
-                                  >Edit groups</span
-                                >
-                              </summary>
-                              <div class="groups-body">
-                                @for (g of col.groups; track g.key; let gi = $index) {
-                                  <div class="group-row">
-                                    <input
-                                      #gEn
-                                      class="control"
-                                      [value]="g.labelEn"
-                                      placeholder="Name in English"
-                                      i18n-placeholder="@@spt.groups.name_en"
-                                      [attr.aria-label]="groupNameLabel(gi)"
-                                      (input)="renameGroup(i, g.key, gEn.value, null)"
-                                    />
-                                    <input
-                                      #gAr
-                                      class="control"
-                                      dir="rtl"
-                                      [value]="g.labelAr"
-                                      placeholder="Name in Arabic"
-                                      i18n-placeholder="@@spt.groups.name_ar"
-                                      [attr.aria-label]="groupNameLabel(gi)"
-                                      (input)="renameGroup(i, g.key, null, gAr.value)"
-                                    />
-                                    <span class="group-n">{{ groupCountLabel(g.key) }}</span>
-                                    <button
-                                      type="button"
-                                      class="linkish is-danger"
-                                      [disabled]="col.groups.length <= 2"
-                                      (click)="removeGroup(i, g.key)"
-                                      i18n="@@spt.groups.remove"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                }
-                                <button
-                                  type="button"
-                                  class="linkish add-group"
-                                  (click)="addGroup(i)"
-                                  i18n="@@spt.groups.add"
-                                >
-                                  Add a group
-                                </button>
-                                <p class="label" i18n="@@spt.groups.place">
-                                  Which group is each answer in?
-                                </p>
-                                <div class="placements">
-                                  @for (option of optionsOf(col.fact); track option.code) {
-                                    <label class="placement">
-                                      <span>{{ optionLabel(option) }}</span>
-                                      <select
-                                        #placeSelect
-                                        class="control"
-                                        (change)="place(option.code, placeSelect.value)"
-                                      >
-                                        <option value="" i18n="@@spt.groups.none">No group</option>
-                                        @for (g of col.groups; track g.key) {
-                                          <option
-                                            [value]="g.key"
-                                            [selected]="placementOf(option.code) === g.key"
-                                          >
-                                            {{ groupName(g) }}
-                                          </option>
-                                        }
-                                      </select>
-                                    </label>
-                                  }
-                                </div>
-                                @if (unplacedCount(col) > 0) {
-                                  <p class="help is-warn" i18n="@@spt.v2.unplaced">
-                                    {{ unplacedCount(col) }} answer(s) in no group are priced on the
-                                    first group's column.
-                                  </p>
-                                }
-                              </div>
-                            </details>
-                          } @else if (col.branchOn === 'parentClass') {
-                            <p class="help">
-                              {{ groupsLine(col.fact) }}
-                              <button
-                                type="button"
-                                class="linkish"
-                                (click)="setColumnMode(i, 'own')"
-                                i18n="@@spt.v2.own_groups"
-                              >
-                                Make your own groups instead
-                              </button>
-                            </p>
-                          }
-                          @if (col.branches.length > 1) {
-                            <label class="sentence">
-                              <span i18n="@@spt.v2.no_answer_use">If they don't answer, use</span>
-                              <select
-                                #stdSel
-                                class="control"
-                                (change)="setStandardBranch(i, stdSel.value)"
-                              >
-                                @for (b of col.branches; track b) {
-                                  <option [value]="b" [selected]="b === col.branches[0]">
-                                    {{ branchName(col, b) }}
-                                  </option>
-                                }
-                              </select>
-                            </label>
-                          }
-                        </div>
-                      } @else if (columnFacts(i).length > 0) {
-                        <button type="button" class="linkish" (click)="startColumn(i)">
-                          <span i18n="@@spt.v2.add_split"
-                            >+ Different amounts for another answer</span
-                          >
-                        </button>
-                      }
-                    }
-
-                    <!-- The figures this way's choices made, right under them. -->
-                    @if (wayReady(i)) {
-                      <div class="figs">
-                        @switch (figShape(i)) {
-                          @case ('table') {
-                            <div class="ftable-wrap">
-                              <table class="ftable">
-                                <thead>
-                                  <tr>
-                                    <th scope="col">{{ rowHeader(i) }}</th>
-                                    @for (c of colsOf(i); track c.slot) {
-                                      <th scope="col" class="num">{{ c.label }}</th>
-                                    }
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  @for (r of rowsOf(i); track r.key) {
-                                    <tr>
-                                      <th scope="row">{{ r.label }}</th>
-                                      @for (c of colsOf(i); track c.slot) {
-                                        <td class="num">
-                                          <input
-                                            #cellIn
-                                            class="control is-amt"
-                                            inputmode="decimal"
-                                            placeholder="—"
-                                            [value]="cell(c.slot, r.key)"
-                                            [attr.aria-label]="r.label + ' · ' + c.label"
-                                            (input)="setCell(c.slot, r.key, cellIn.value)"
-                                          />
-                                        </td>
-                                      }
-                                    </tr>
-                                  }
-                                </tbody>
-                              </table>
-                            </div>
-                          }
-                          @case ('ranges') {
-                            <div class="ftable-wrap">
-                              <table class="ftable">
-                                <thead>
-                                  <tr>
-                                    <th scope="col" i18n="@@spt.v2.from_col">From</th>
-                                    <th scope="col" i18n="@@spt.v2.to_col">Up to</th>
-                                    @for (c of colsOf(i); track c.slot) {
-                                      <th scope="col" class="num">{{ c.label }}</th>
-                                    }
-                                    <th scope="col">
-                                      <span class="sr-only" i18n="@@spt.v2.remove_col">Remove</span>
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  @for (b of rangesOf(i); track $index; let bi = $index) {
-                                    <tr>
-                                      <td>
-                                        <input
-                                          #fromIn
-                                          class="control is-edge"
-                                          inputmode="decimal"
-                                          [value]="fmt(b.fromInclusive)"
-                                          [attr.aria-label]="fromAria"
-                                          (input)="setEdge(i, bi, 'fromInclusive', fromIn.value)"
-                                        />
-                                      </td>
-                                      <td>
-                                        <input
-                                          #toIn
-                                          class="control is-edge"
-                                          inputmode="decimal"
-                                          placeholder="and above"
-                                          i18n-placeholder="@@spt.v2.and_above"
-                                          [value]="fmt(b.toExclusive ?? '')"
-                                          [attr.aria-label]="toAria"
-                                          (input)="setEdge(i, bi, 'toExclusive', toIn.value)"
-                                        />
-                                      </td>
-                                      @for (c of colsOf(i); track c.slot) {
-                                        <td class="num">
-                                          <input
-                                            #bandIn
-                                            class="control is-amt"
-                                            inputmode="decimal"
-                                            placeholder="—"
-                                            [value]="bandAmount(c.slot, bi)"
-                                            [attr.aria-label]="c.label"
-                                            (input)="setBandAmount(i, c.slot, bi, bandIn.value)"
-                                          />
-                                        </td>
-                                      }
-                                      <td>
-                                        <button
-                                          type="button"
-                                          class="linkish is-danger"
-                                          [disabled]="rangesOf(i).length < 2"
-                                          (click)="removeRange(i, bi)"
-                                          i18n="@@spt.cond.remove"
-                                        >
-                                          Remove
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  }
-                                </tbody>
-                              </table>
-                            </div>
-                            <button type="button" class="linkish" (click)="addRange(i)">
-                              <span i18n="@@spt.v2.add_range">+ Add a range</span>
-                            </button>
-                          }
-                          @case ('scalar') {
-                            @for (c of colsOf(i); track c.slot) {
-                              <p class="sentence">
-                                @if (colsOf(i).length > 1) {
-                                  <span class="sent-col">{{ c.label }}</span>
-                                }
-                                <span>{{ amountWord() }} = {{ factLabel(wayFactValue(i)) }}</span>
-                                <span class="op">{{ scalarSign(i) }}</span>
-                                <input
-                                  #scalIn
-                                  class="control is-fig"
-                                  inputmode="decimal"
-                                  placeholder="—"
-                                  [value]="scalarOf(c.slot)"
-                                  [attr.aria-label]="c.label"
-                                  (input)="setScalar(i, c.slot, scalIn.value)"
-                                />
-                                @if (wayKind(i) === 'shareOf') {
-                                  <span class="op">%</span>
-                                }
-                              </p>
-                            }
-                          }
-                          @case ('flat') {
-                            <p class="sentence">
-                              <span>{{ amountWord() }} =</span>
-                              <input
-                                #flatIn
-                                class="control is-amt"
-                                inputmode="decimal"
-                                placeholder="—"
-                                [value]="flatOf(i)"
-                                [attr.aria-label]="amountWord()"
-                                (input)="setFlat(i, flatIn.value)"
-                              />
-                            </p>
-                          }
-                        }
-                        <p class="help" i18n="@@spt.v2.empty_box">
-                          A box left empty is filled in by each bank.
-                        </p>
-                      </div>
-                    }
-
-                    @if (wayCount() > 1 && i > 0) {
-                      <button
-                        type="button"
-                        class="linkish is-danger way-remove"
-                        (click)="removeWay(i - 1)"
-                        [attr.aria-label]="wayRemoveLabel(i - 1)"
-                      >
-                        <span i18n="@@spt.v2.remove_way">Remove this way</span>
-                      </button>
-                    }
-                  </div>
-                }
-              </li>
-            }
-          </ol>
-
-          @if (canAddWay()) {
-            <button type="button" class="way-add" (click)="addWay()">
-              <span i18n="@@spt.v2.add_way">+ Add another way</span>
-            </button>
-          }
-
-          @if (shareOn() || form.controls.shareFact.value !== '') {
-            <label class="field">
-              <span class="label" i18n="@@spt.v2.share">Then give only the part they own</span>
-              <select class="control" formControlName="shareFact">
-                <option value="" i18n="@@spt.v2.share_none">No</option>
-                @for (fact of numericFacts(); track fact.key) {
-                  <option [value]="fact.key">{{ fact.label }}</option>
-                }
-              </select>
-              <span class="help" i18n="@@spt.v2.share_help"
-                >Own 50% of the unit → they get half the amount.</span
+        @for (i of [shownWay()]; track i) {
+          <div class="deciders">
+            @if (wayFactValue(i) !== '' && wayFactValue(i) !== '__flat__') {
+              <span class="chip"
+                ><i>1</i>{{ shortLabel(wayFactValue(i)) }}
+                <button
+                  type="button"
+                  [attr.aria-label]="removeAria"
+                  (click)="toggleDecider(i, wayFactValue(i))"
+                >
+                  ✕
+                </button></span
               >
-            </label>
-          } @else if (numericFacts().length > 0) {
-            <button type="button" class="linkish" (click)="shareOn.set(true)">
-              <span i18n="@@spt.v2.share_add">+ Give only the part they own (a % they type)</span>
-            </button>
-          }
-        </section>
-
-        <!-- Rare settings, folded: most products never need them. -->
-        <details class="block more" [open]="hasExtras()">
-          <summary class="more-head">
-            <span class="q" i18n="@@spt.v2.more_settings">More settings</span>
-            <span class="more-note" i18n="@@spt.more_note">Optional</span>
-          </summary>
-
-          @if (form.controls.outputKind.value === 'maxAmount') {
-            <div class="addon">
-              <label class="sentence dbr-line">
-                <span i18n="@@spt.v2.dbr_line">Worked out at a debt burden of</span>
-                <input
-                  class="control is-fig"
-                  inputmode="decimal"
-                  placeholder="—"
-                  formControlName="baselineDbrPercent"
-                />
-                <span class="op">%</span>
-              </label>
-              <p class="help" i18n="@@spt.v2.dbr_help">
-                Leave it as it is unless the bank's sheet says otherwise.
-              </p>
-            </div>
-          }
-
-          <div class="addon">
-            <label class="addon-head">
-              <input class="addon-tick" type="checkbox" formControlName="useUplift" />
-              <span class="addon-text">
-                <span class="addon-name" i18n="@@spt.addon.uplift"
-                  >A bonus percentage when something is true</span
-                >
-                <span class="addon-note" i18n="@@spt.addon.uplift.note"
-                  >Each bank states its own bonus. Any other answer earns none.</span
-                >
-              </span>
-            </label>
-            @if (form.controls.useUplift.value) {
-              <div class="addon-body">
-                <label class="field">
-                  <span class="label" i18n="@@spt.addon.uplift.fact2">Which question?</span>
-                  <select class="control" formControlName="upliftFact">
-                    <option value="" i18n="@@spt.choose">Choose…</option>
-                    @for (fact of choiceFacts(); track fact.key) {
-                      <option [value]="fact.key">{{ fact.label }}</option>
-                    }
-                  </select>
-                </label>
-                <fieldset class="scope">
-                  <legend class="label" i18n="@@spt.addon.uplift.scope">
-                    What does the bonus lift?
-                  </legend>
-                  <label class="radio">
-                    <input type="radio" formControlName="upliftScope" value="income" />
-                    <span i18n="@@spt.addon.uplift.scope.income"
-                      >The figure this calculation works out</span
-                    >
-                  </label>
-                  <label class="radio">
-                    <input type="radio" formControlName="upliftScope" value="maxLoan" />
-                    <span i18n="@@spt.addon.uplift.scope.max">The most the bank will lend</span>
-                  </label>
-                </fieldset>
-                @if (upliftOptions().length > 0) {
-                  <div class="pair">
-                    <label class="field">
-                      <span class="label" i18n="@@spt.addon.uplift.when">Earns the bonus</span>
-                      <select class="control" formControlName="upliftWhen">
-                        <option value="" i18n="@@spt.choose">Choose…</option>
-                        @for (option of upliftOptions(); track option.code) {
-                          <option [value]="option.code">{{ optionLabel(option) }}</option>
-                        }
-                      </select>
-                    </label>
-                    <label class="field">
-                      <span class="label" i18n="@@spt.addon.uplift.else">Does not</span>
-                      <select class="control" formControlName="upliftOtherwise">
-                        <option value="" i18n="@@spt.choose">Choose…</option>
-                        @for (option of upliftOptions(); track option.code) {
-                          <option [value]="option.code">{{ optionLabel(option) }}</option>
-                        }
-                      </select>
-                    </label>
-                  </div>
-                }
-              </div>
             }
-          </div>
-
-          <div class="addon">
-            <label class="addon-head">
-              <input class="addon-tick" type="checkbox" formControlName="iScore" />
-              <span class="addon-text">
-                <span class="addon-name" i18n="@@spt.addon.iscore">Adjust by I-Score</span>
-                <span class="addon-note" i18n="@@spt.addon.iscore.note"
-                  >Each bank types its own multiplier per score band. Optional for the
-                  customer.</span
+            @if (wayColumn(i); as column) {
+              <span class="chip"
+                ><i>2</i>{{ shortLabel(column.fact) }}
+                <button
+                  type="button"
+                  [attr.aria-label]="removeAria"
+                  (click)="toggleDecider(i, column.fact)"
                 >
-              </span>
-            </label>
-          </div>
-        </details>
-      </form>
-    </ng-template>
-
-    <!-- ── Who can't get it ───────────────────────────────────────────────── -->
-    <ng-template #rulesPart>
-      <form [formGroup]="form" class="stack">
-        <section class="block">
-          @if (conditions.length === 0) {
-            <p class="notice" i18n="@@spt.v2.rules_none">
-              No rules: everyone can get this product.
-            </p>
-          } @else {
-            <ul class="conditions" role="list" formArrayName="conditions">
-              @for (row of conditions.controls; track row.value.id; let i = $index) {
-                <li class="rule" [formGroupName]="i">
-                  <span class="rl" i18n="@@spt.v2.turn_away">Turn away if</span>
-                  <select #measureSel class="control" (change)="setMeasure(i, measureSel.value)">
-                    <option
-                      value="__answer__"
-                      [selected]="row.value.measure === '__answer__'"
-                      i18n="@@spt.v2.measure_answer"
-                    >
-                      The amount worked out
-                    </option>
-                    @for (fact of allFacts(); track fact.key) {
-                      <option [value]="fact.key" [selected]="row.value.measure === fact.key">
-                        {{ fact.label }}
-                      </option>
+                  ✕
+                </button></span
+              >
+            }
+            <div class="picker">
+              <button
+                type="button"
+                class="add-q"
+                [attr.aria-expanded]="pickerFor() === i"
+                (click)="togglePicker(i)"
+              >
+                @if (tickedCount(i) > 0) {
+                  <span i18n="@@ps.change">Change</span>
+                } @else {
+                  <span i18n="@@ps.pick_questions">+ Pick questions</span>
+                }
+              </button>
+              @if (pickerFor() === i) {
+                <div class="pop" role="menu">
+                  <input
+                    class="pop-q"
+                    type="search"
+                    [value]="pickerQuery()"
+                    (input)="pickerQuery.set(val($event))"
+                    [attr.aria-label]="searchAria"
+                    [placeholder]="searchAria"
+                  />
+                  <div class="opts">
+                    @if (pickList(addedDeciders()).length > 0) {
+                      <p class="opt-h" i18n="@@ps.grp_own">This product's questions</p>
+                      @for (f of pickList(addedDeciders()); track f.key) {
+                        <ng-container
+                          *ngTemplateOutlet="
+                            opt;
+                            context: { $implicit: f.key, label: f.label, i: i }
+                          "
+                        />
+                      }
                     }
-                  </select>
-
-                  @if (row.value.op === 'oneOf') {
-                    <span class="rl" i18n="@@spt.v2.is_any">is any of</span>
-                    <div class="checks">
-                      @for (option of optionsOf(row.value.measure ?? ''); track option.code) {
-                        <label class="check">
-                          <input
-                            type="checkbox"
-                            [checked]="!(row.value.expect ?? []).includes(option.code)"
-                            (change)="toggleTurnedAway(i, option.code)"
-                          />
-                          <span>{{ optionLabel(option) }}</span>
-                        </label>
+                    @if (pickList(fixedDeciders()).length > 0) {
+                      <p class="opt-h" i18n="@@ps.grp_fixed">Asked of every customer</p>
+                      @for (f of pickList(fixedDeciders()); track f.key) {
+                        <ng-container
+                          *ngTemplateOutlet="
+                            opt;
+                            context: { $implicit: f.key, label: f.label, i: i }
+                          "
+                        />
                       }
-                    </div>
-                  } @else {
-                    <span class="rl" aria-hidden="true"></span>
-                    <div class="inline">
-                      <select class="control" formControlName="op">
-                        @for (op of opsFor(row.value.measure ?? ''); track op) {
-                          <option [value]="op">{{ ruleOpLabel(op) }}</option>
-                        }
-                      </select>
-                      @switch (row.value.op) {
-                        @case ('atLeast') {
-                          <input
-                            #minIn
-                            class="control is-fig"
-                            inputmode="decimal"
-                            [value]="ruleFigure(row.value.id ?? '', 'minValue')"
-                            placeholder="—"
-                            [attr.aria-label]="figureAria"
-                            (input)="setRuleFigure(row.value.id ?? '', 'minValue', minIn.value)"
-                          />
-                        }
-                        @case ('atMost') {
-                          <input
-                            #maxIn
-                            class="control is-fig"
-                            inputmode="decimal"
-                            [value]="ruleFigure(row.value.id ?? '', 'maxValue')"
-                            placeholder="—"
-                            [attr.aria-label]="figureAria"
-                            (input)="setRuleFigure(row.value.id ?? '', 'maxValue', maxIn.value)"
-                          />
-                        }
-                        @case ('between') {
-                          <input
-                            #lowIn
-                            class="control is-fig"
-                            inputmode="decimal"
-                            [value]="ruleFigure(row.value.id ?? '', 'minValue')"
-                            placeholder="—"
-                            [attr.aria-label]="figureAria"
-                            (input)="setRuleFigure(row.value.id ?? '', 'minValue', lowIn.value)"
-                          />
-                          <span class="unit" i18n="@@spt.v2.and">and</span>
-                          <input
-                            #highIn
-                            class="control is-fig"
-                            inputmode="decimal"
-                            [value]="ruleFigure(row.value.id ?? '', 'maxValue')"
-                            placeholder="—"
-                            [attr.aria-label]="figureAria"
-                            (input)="setRuleFigure(row.value.id ?? '', 'maxValue', highIn.value)"
-                          />
-                        }
-                        @case ('atLeastShareOf') {
-                          <span class="affix">
-                            <input
-                              #pctIn
-                              class="control is-fig"
-                              inputmode="decimal"
-                              [value]="ruleShare(row.value.id ?? '')"
-                              placeholder="—"
-                              [attr.aria-label]="figureAria"
-                              (input)="setRuleShare(row.value.id ?? '', pctIn.value)"
-                            />
-                            <span class="unit" i18n="@@spt.v2.pct_of2">% of</span>
-                          </span>
-                          <select class="control" formControlName="otherFact">
-                            <option value="" i18n="@@spt.choose">Choose…</option>
-                            @for (fact of numericFacts(); track fact.key) {
-                              <option [value]="fact.key">{{ fact.label }}</option>
-                            }
-                          </select>
-                        }
-                        @default {
-                          <select class="control" formControlName="otherFact">
-                            <option value="" i18n="@@spt.choose">Choose…</option>
-                            @for (fact of choiceFacts(); track fact.key) {
-                              <option [value]="fact.key">{{ fact.label }}</option>
-                            }
-                          </select>
-                        }
-                      }
-                    </div>
-                  }
-
-                  <span class="rl" i18n="@@spt.v2.status">Status</span>
-                  <div class="inline">
-                    @switch (ruleState(row.value)) {
-                      @case ('on') {
-                        <span class="state is-on" i18n="@@spt.v2.state_on"
-                          >On — these customers are turned away</span
-                        >
-                        @if (row.value.op === 'oneOf') {
-                          <button
-                            type="button"
-                            class="linkish"
-                            (click)="setRuleApplies(row.value.id ?? '')"
-                            i18n="@@spt.v2.turn_off"
-                          >
-                            Turn off
-                          </button>
-                        }
-                      }
-                      @case ('offChoice') {
-                        <span class="state" i18n="@@spt.v2.state_off">Off</span>
-                        <button
-                          type="button"
-                          class="linkish"
-                          (click)="setRuleApplies(row.value.id ?? '')"
-                          i18n="@@spt.v2.turn_on"
-                        >
-                          Turn on
-                        </button>
-                      }
-                      @case ('offNumber') {
-                        <span class="state" i18n="@@spt.v2.state_off">Off</span>
-                        <span class="help" i18n="@@spt.v2.type_to_turn_on"
-                          >Type a number above to turn it on.</span
-                        >
-                      }
-                      @default {
-                        <span class="state" i18n="@@spt.v2.state_bank">Each bank sets it</span>
+                    }
+                    @if (pickList(derivedDeciders()).length > 0) {
+                      <p class="opt-h" i18n="@@ps.grp_derived">We work these out ourselves</p>
+                      @for (f of pickList(derivedDeciders()); track f.key) {
+                        <ng-container
+                          *ngTemplateOutlet="
+                            opt;
+                            context: { $implicit: f.key, label: f.label, i: i }
+                          "
+                        />
                       }
                     }
                   </div>
-
-                  <span class="rl" i18n="@@spt.v2.tell_them">Tell them</span>
-                  <div class="inline">
-                    <select class="control" formControlName="reasonCode">
-                      @for (code of reasonCodes; track code) {
-                        <option [value]="code">{{ reasonLabel(code) }}</option>
-                      }
-                    </select>
-                    <button type="button" class="linkish is-danger" (click)="removeCondition(i)">
-                      <span i18n="@@spt.cond.remove">Remove</span>
+                  <div class="pop-f">
+                    <span class="muted" i18n="@@ps.ticked">{{ tickedCount(i) }} of 2 ticked</span>
+                    <button
+                      type="button"
+                      class="btn-sm"
+                      (click)="pickerFor.set(null)"
+                      i18n="@@ps.done"
+                    >
+                      Done
                     </button>
                   </div>
-                </li>
+                </div>
               }
-            </ul>
+            </div>
+          </div>
+
+          @if (wayColumn(i); as column) {
+            <p class="hint" i18n="@@ps.rows_cols">
+              Rows by {{ shortLabel(wayFactValue(i)) }}, columns by {{ shortLabel(column.fact) }}.
+            </p>
+          } @else if (wayReady(i) && wayFactValue(i) !== '__flat__') {
+            <p class="hint" i18n="@@ps.second_hint">
+              Tick a second question if the amount also depends on it.
+            </p>
+          } @else if (addedDeciders().length === 0) {
+            <p class="hint">
+              <span i18n="@@ps.only_fixed">Only the questions every customer answers so far.</span>
+              <button type="button" class="link" (click)="goQuestions.emit()" i18n="@@ps.add_own_q">
+                Add this product's questions
+              </button>
+            </p>
           }
 
-          <button type="button" class="way-add" (click)="addCondition()">
-            <span i18n="@@spt.v2.add_rule">+ Add a rule</span>
+          @if (wayIsNumber(i)) {
+            <div class="seg" role="radiogroup" [attr.aria-label]="numberWayAria">
+              @for (w of numberWays; track w.kind) {
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="wayKind(i) === w.kind"
+                  (click)="setWayKind(i, w.kind)"
+                >
+                  {{ w.label }}
+                </button>
+              }
+            </div>
+          }
+          @if (wayFactValue(i) !== '' && !wayIsNumber(i) && groupable(wayFactValue(i))) {
+            <div class="row">
+              <div class="seg" role="radiogroup" [attr.aria-label]="choiceWayAria">
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="wayKind(i) === 'choiceTable'"
+                  (click)="setWayKind(i, 'choiceTable')"
+                  i18n="@@spt.v2.per_answer"
+                >
+                  One amount per answer
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="wayKind(i) === 'classTable'"
+                  (click)="setWayKind(i, 'classTable')"
+                  i18n="@@spt.v2.per_group"
+                >
+                  One amount per group
+                </button>
+              </div>
+              @if (wayKind(i) === 'classTable') {
+                <button type="button" class="link" (click)="toggleEditor(i, 'row')">
+                  @if (editorOpen() === i + ':row') {
+                    <span i18n="@@ps.groups_done">Done with groups</span>
+                  } @else {
+                    <span i18n="@@ps.groups_edit">Edit groups</span>
+                  }
+                </button>
+              }
+            </div>
+            @if (wayKind(i) === 'classTable' && editorOpen() === i + ':row') {
+              <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'row' }" />
+            }
+          }
+          @if (wayColumn(i); as column) {
+            @if (groupable(column.fact)) {
+              <div class="row">
+                <span class="muted" i18n="@@ps.columns">Columns:</span>
+                <div class="seg" role="radiogroup" [attr.aria-label]="columnModeAria">
+                  <button
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="columnMode(column) === 'answer'"
+                    (click)="setColumnMode(i, 'answer')"
+                    i18n="@@ps.col_answer"
+                  >
+                    one per answer
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="columnMode(column) === 'groups'"
+                    (click)="setColumnMode(i, 'groups')"
+                    i18n="@@ps.col_groups"
+                  >
+                    one per group
+                  </button>
+                </div>
+                @if (columnMode(column) === 'groups') {
+                  <button type="button" class="link" (click)="toggleEditor(i, 'col')">
+                    @if (editorOpen() === i + ':col') {
+                      <span i18n="@@ps.groups_done">Done with groups</span>
+                    } @else {
+                      <span i18n="@@ps.groups_edit">Edit groups</span>
+                    }
+                  </button>
+                }
+              </div>
+              @if (columnMode(column) === 'groups' && editorOpen() === i + ':col') {
+                <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
+              }
+            }
+          }
+
+          @if (wayReady(i)) {
+            @switch (figShape(i)) {
+              @case ('table') {
+                <div class="sheet">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{{ rowHeader(i) }}</th>
+                        @for (c of colsOf(i); track c.slot) {
+                          <th class="n">{{ c.label }}</th>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (r of rowsOf(i); track r.key) {
+                        <tr>
+                          <td>{{ r.label }}</td>
+                          @for (c of colsOf(i); track c.slot) {
+                            <td class="n">
+                              <input
+                                class="amt"
+                                inputmode="decimal"
+                                [value]="cell(c.slot, r.key)"
+                                (change)="setCell(c.slot, r.key, val($event))"
+                                [placeholder]="bankSets"
+                                [attr.aria-label]="r.label + ' — ' + c.label"
+                              />
+                            </td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+              @case ('ranges') {
+                <div class="sheet">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{{ factLabel(wayFactValue(i)) }}</th>
+                        @for (c of colsOf(i); track c.slot) {
+                          <th class="n">{{ c.label }}</th>
+                        }
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (b of rangesOf(i); track $index; let k = $index) {
+                        <tr>
+                          <td>
+                            <div class="rng">
+                              <input
+                                class="edge"
+                                inputmode="decimal"
+                                [value]="fmt(b.fromInclusive ?? '')"
+                                (change)="setEdge(i, k, 'fromInclusive', val($event))"
+                                [attr.aria-label]="fromAria"
+                              />
+                              <span i18n="@@ps.to">to</span>
+                              <input
+                                class="edge"
+                                inputmode="decimal"
+                                [value]="fmt(b.toExclusive ?? '')"
+                                (change)="setEdge(i, k, 'toExclusive', val($event))"
+                                [placeholder]="andUp"
+                                [attr.aria-label]="toAria"
+                              />
+                            </div>
+                          </td>
+                          @for (c of colsOf(i); track c.slot) {
+                            <td class="n">
+                              <input
+                                class="amt"
+                                inputmode="decimal"
+                                [value]="bandAmount(c.slot, k)"
+                                (change)="setBandAmount(i, c.slot, k, val($event))"
+                                [placeholder]="bankSets"
+                                [attr.aria-label]="c.label"
+                              />
+                            </td>
+                          }
+                          <td>
+                            <button
+                              type="button"
+                              class="x"
+                              [attr.aria-label]="removeAria"
+                              (click)="removeRange(i, k)"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <button type="button" class="link" (click)="addRange(i)" i18n="@@ps.add_range">
+                  + Add a range
+                </button>
+              }
+              @case ('scalar') {
+                <div class="formula">
+                  @for (c of colsOf(i); track c.slot) {
+                    <p>
+                      @if (colsOf(i).length > 1) {
+                        <b>{{ c.label }}:</b>
+                      }
+                      <span
+                        >{{ amountWord() }} = {{ factLabel(wayFactValue(i)) }}
+                        {{ scalarSign(i) }}</span
+                      >
+                      <input
+                        class="amt sm"
+                        inputmode="decimal"
+                        [value]="scalarOf(c.slot)"
+                        (change)="setScalar(i, c.slot, val($event))"
+                        [placeholder]="bankSets"
+                        [attr.aria-label]="figureAria"
+                      />
+                      @if (wayKind(i) === 'shareOf') {
+                        <span>%</span>
+                      }
+                    </p>
+                  }
+                </div>
+              }
+              @case ('flat') {
+                <p class="formula-line">
+                  <span>{{ amountWord() }}</span>
+                  <input
+                    class="amt"
+                    inputmode="decimal"
+                    [value]="flatOf(i)"
+                    (change)="setFlat(i, val($event))"
+                    [placeholder]="bankSets"
+                    [attr.aria-label]="figureAria"
+                  />
+                </p>
+              }
+            }
+          }
+
+          @if (wayCount() === 1 && wayReady(0) && canAddWay()) {
+            <button type="button" class="link" (click)="addWay()" i18n="@@ps.add_method">
+              + Add another method (some banks work it out differently)
+            </button>
+          }
+          @if (wayCount() > 1 && i > 0) {
+            <button type="button" class="link danger" (click)="removeWay(i - 1)">
+              {{ removeMethodLabel(i) }}
+            </button>
+          }
+        }
+
+        @if (
+          form.controls.outputKind.value === 'maxAmount' || form.controls.shareFact.value !== ''
+        ) {
+          <div class="row">
+            <label class="check">
+              <input
+                type="checkbox"
+                [checked]="form.controls.shareFact.value !== ''"
+                (change)="toggleShare()"
+              />
+              <span i18n="@@ps.share">Pay only the share of the unit they own</span>
+            </label>
+            @if (form.controls.shareFact.value !== '') {
+              <span class="muted" i18n="@@ps.share_from">from</span>
+              <select
+                (change)="form.controls.shareFact.setValue(val($event))"
+                [attr.aria-label]="shareAria"
+              >
+                @for (f of numericFacts(); track f.key) {
+                  <option [value]="f.key" [selected]="f.key === form.controls.shareFact.value">
+                    {{ f.label }}
+                  </option>
+                }
+              </select>
+            }
+          </div>
+        }
+      </section>
+    } @else {
+      <section class="blk">
+        <h2 i18n="@@ps.who_cant">Who can't get it?</h2>
+        @if (conditions.length === 0) {
+          <p class="hint" i18n="@@ps.nobody">Nobody is turned away.</p>
+        }
+        @for (row of conditions.controls; track row.controls.id.value; let k = $index) {
+          @let v = row.getRawValue();
+          @let state = ruleState(v);
+          <div class="rule" [class.off]="state !== 'on' && state !== 'bank'">
+            <div class="rule-l">
+              <select
+                class="rule-q"
+                (change)="setMeasure(k, val($event))"
+                [attr.aria-label]="questionAria"
+              >
+                @for (f of ruleFacts(v.measure); track f.key) {
+                  <option [value]="f.key" [selected]="f.key === v.measure">{{ f.label }}</option>
+                }
+              </select>
+              @if (v.op === 'oneOf') {
+                <span i18n="@@ps.is">is</span>
+                <span class="ticks">
+                  @for (o of optionsOf(v.measure); track o.code) {
+                    <label [class.on]="!v.expect.includes(o.code)">
+                      <input
+                        type="checkbox"
+                        [checked]="!v.expect.includes(o.code)"
+                        (change)="toggleTurnedAway(k, o.code)"
+                      />{{ optionLabel(o) }}
+                    </label>
+                  }
+                </span>
+              } @else {
+                <select (change)="setOp(k, val($event))" [attr.aria-label]="ruleAria">
+                  @for (op of opsFor(v.measure); track op) {
+                    <option [value]="op" [selected]="op === v.op">{{ ruleOpLabel(op) }}</option>
+                  }
+                </select>
+                @switch (v.op) {
+                  @case ('atLeast') {
+                    <input
+                      class="amt sm"
+                      inputmode="decimal"
+                      [value]="ruleFigure(v.id, 'minValue')"
+                      (change)="setRuleFigure(v.id, 'minValue', val($event))"
+                      [placeholder]="bankSets"
+                      [attr.aria-label]="figureAria"
+                    />
+                  }
+                  @case ('atMost') {
+                    <input
+                      class="amt sm"
+                      inputmode="decimal"
+                      [value]="ruleFigure(v.id, 'maxValue')"
+                      (change)="setRuleFigure(v.id, 'maxValue', val($event))"
+                      [placeholder]="bankSets"
+                      [attr.aria-label]="figureAria"
+                    />
+                  }
+                  @case ('between') {
+                    <input
+                      class="amt sm"
+                      inputmode="decimal"
+                      [value]="ruleFigure(v.id, 'minValue')"
+                      (change)="setRuleFigure(v.id, 'minValue', val($event))"
+                      [placeholder]="bankSets"
+                      [attr.aria-label]="fromAria"
+                    />
+                    <span i18n="@@ps.and">and</span>
+                    <input
+                      class="amt sm"
+                      inputmode="decimal"
+                      [value]="ruleFigure(v.id, 'maxValue')"
+                      (change)="setRuleFigure(v.id, 'maxValue', val($event))"
+                      [placeholder]="bankSets"
+                      [attr.aria-label]="toAria"
+                    />
+                  }
+                  @case ('atLeastShareOf') {
+                    <input
+                      class="amt sm"
+                      inputmode="decimal"
+                      [value]="ruleShare(v.id)"
+                      (change)="setRuleShare(v.id, val($event))"
+                      [placeholder]="bankSets"
+                      [attr.aria-label]="figureAria"
+                    />
+                    <span i18n="@@ps.pct_of">% of</span>
+                    <select
+                      (change)="row.controls.otherFact.setValue(val($event))"
+                      [attr.aria-label]="questionAria"
+                    >
+                      <option value="" [selected]="v.otherFact === ''" i18n="@@ps.choose">
+                        Choose…
+                      </option>
+                      @for (f of numericFacts(); track f.key) {
+                        @if (f.key !== v.measure) {
+                          <option [value]="f.key" [selected]="f.key === v.otherFact">
+                            {{ f.label }}
+                          </option>
+                        }
+                      }
+                    </select>
+                  }
+                  @default {
+                    <select
+                      (change)="row.controls.otherFact.setValue(val($event))"
+                      [attr.aria-label]="questionAria"
+                    >
+                      <option value="" [selected]="v.otherFact === ''" i18n="@@ps.choose">
+                        Choose…
+                      </option>
+                      @for (f of choiceFacts(); track f.key) {
+                        <option [value]="f.key" [selected]="f.key === v.otherFact">
+                          {{ f.label }}
+                        </option>
+                      }
+                    </select>
+                    <span class="muted" i18n="@@ps.bank_figures"
+                      >(each bank types the figures)</span
+                    >
+                  }
+                }
+              }
+            </div>
+            <div class="rule-r">
+              @if (v.op === 'oneOf') {
+                <label class="sw">
+                  <input
+                    type="checkbox"
+                    [checked]="ruleApplies(v.id)"
+                    (change)="setRuleApplies(v.id)"
+                  />
+                  @if (ruleApplies(v.id)) {
+                    <span i18n="@@ps.on">On</span>
+                  } @else {
+                    <span i18n="@@ps.off">Off</span>
+                  }
+                </label>
+              } @else if (state === 'on') {
+                <span class="state on" i18n="@@ps.on">On</span>
+              } @else if (state === 'offNumber') {
+                <span class="state" i18n="@@ps.off_until">Off until a number is typed</span>
+              }
+              <select
+                class="rule-msg"
+                (change)="setReason(k, val($event))"
+                [attr.aria-label]="tellAria"
+              >
+                @for (code of reasonCodes; track code) {
+                  <option [value]="code" [selected]="code === v.reasonCode">
+                    {{ reasonLabel(code) }}
+                  </option>
+                }
+              </select>
+              <button
+                type="button"
+                class="x"
+                [attr.aria-label]="removeAria"
+                (click)="removeCondition(k)"
+              >
+                ✕
+              </button>
+            </div>
+            @if (
+              v.op === 'oneOf' &&
+              ruleApplies(v.id) &&
+              v.expect.length === optionsOf(v.measure).length
+            ) {
+              <p class="hint warn" i18n="@@ps.tick_away">Tick the answers to turn away.</p>
+            }
+          </div>
+        }
+        <button type="button" class="link" (click)="addCondition()" i18n="@@ps.add_rule">
+          + Add a rule
+        </button>
+      </section>
+    }
+
+    @if (saveError(); as err) {
+      <p class="err" role="alert">{{ err }}</p>
+    }
+
+    <ng-template #groupsEd let-i="i" let-axis="axis">
+      <div class="groups">
+        <p class="hint" i18n="@@ps.groups_own">These groups are this product's own.</p>
+        <div class="gnames">
+          @for (g of groupsOf(i, axis); track g.key; let gi = $index) {
+            <span class="gname">
+              <input
+                [value]="g.labelEn"
+                (change)="renameGroup(i, axis, g.key, val($event), null)"
+                [attr.aria-label]="groupNameLabel(gi)"
+                placeholder="English"
+              />
+              <input
+                dir="rtl"
+                [value]="g.labelAr"
+                (change)="renameGroup(i, axis, g.key, null, val($event))"
+                [attr.aria-label]="groupNameLabel(gi)"
+                placeholder="عربي"
+              />
+              @if (canRemoveGroup(i, axis)) {
+                <button
+                  type="button"
+                  class="x"
+                  [attr.aria-label]="removeAria"
+                  (click)="removeGroup(i, axis, g.key)"
+                >
+                  ✕
+                </button>
+              }
+            </span>
+          }
+          <button type="button" class="link" (click)="addGroup(i, axis)" i18n="@@ps.add_group">
+            + Group
           </button>
-        </section>
-      </form>
+        </div>
+        <div class="gplace">
+          @for (o of optionsOf(axisFact(i, axis)); track o.code) {
+            <label
+              >{{ optionLabel(o) }}
+              <select (change)="place(axisFact(i, axis), o.code, val($event))">
+                <option
+                  value=""
+                  [selected]="placementOf(axisFact(i, axis), o.code) === ''"
+                  i18n="@@ps.no_group"
+                >
+                  Not in a group
+                </option>
+                @for (g of groupsOf(i, axis); track g.key) {
+                  <option
+                    [value]="g.key"
+                    [selected]="placementOf(axisFact(i, axis), o.code) === g.key"
+                  >
+                    {{ groupName(g) }}
+                  </option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template #opt let-key let-label="label" let-i="i">
+      <button
+        type="button"
+        class="opt"
+        role="menuitemcheckbox"
+        [attr.aria-checked]="deciderRank(i, key) > 0"
+        [disabled]="!canPick(i, key)"
+        (click)="toggleDecider(i, key)"
+      >
+        <span class="box" aria-hidden="true">{{ deciderRank(i, key) > 0 ? '✓' : '' }}</span>
+        <span class="opt-t"
+          >{{ label }}
+          @if (pickBlock(i, key); as why) {
+            <em>{{ why }}</em>
+          }
+        </span>
+        <small>{{ factKindLabel(key) }}</small>
+      </button>
     </ng-template>
   `,
   styles: [
     `
       :host {
-        display: block;
-      }
-      .more-head {
-        display: flex;
-        align-items: baseline;
-        gap: var(--space-2);
-        cursor: pointer;
-      }
-      .more-head .q {
-        font-size: var(--text-base);
-      }
-      .more-note {
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-      }
-      .embedded {
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
+        min-width: 0;
       }
-      .embed-actions {
+      .blk {
+        background: var(--color-surface-default);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5) var(--space-5);
         display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        flex-wrap: wrap;
+        flex-direction: column;
         gap: var(--space-3);
-        padding-block-start: var(--space-3);
-        border-block-start: 1px solid var(--border-subtle);
+        align-items: flex-start;
+        min-width: 0;
       }
-      .embed-error,
-      .embed-hint {
+      .blk > * {
+        max-width: 100%;
+      }
+      h2 {
         margin: 0;
-        margin-inline-end: auto;
-        font-size: var(--text-sm);
-        color: var(--text-secondary);
+        font-size: var(--text-md);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
       }
-      .embed-error {
-        color: var(--error-strong);
-      }
-      /* The rail is the first thing on the page body, and it is chrome — a step's worth of
-         air below it, not the section gap the three questions use between themselves. */
-      app-wizard-steps {
-        display: block;
-        margin-block-end: var(--space-7);
-        padding-block-end: var(--space-5);
-        border-block-end: 1px solid var(--color-border-default);
-      }
-      .stack {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-7);
-      }
-
-      /* Sections are headings on the page ground, not boxes. A card here would be a card
-         inside the form page's own body, and the tables below already carry one. */
-      .block {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-5);
-      }
-      .q {
+      .hint,
+      .muted {
         margin: 0;
-        font-size: var(--text-xl);
-        font-weight: var(--font-bold);
-        line-height: var(--line-height-tight);
-        color: var(--color-text-primary);
-      }
-      .lede {
-        margin: calc(var(--space-4) * -1) 0 0;
-        max-inline-size: 52rem;
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-        line-height: var(--line-height-base);
-      }
-
-      /* ── picks: a short row of plain choices ───────────────────────────── */
-      .picks {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
-      }
-      .pick {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        min-block-size: var(--size-field);
-        padding-inline: var(--space-4);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-field);
-        background: var(--bg-surface);
-        color: var(--color-text-secondary);
-        font: inherit;
-        font-size: var(--text-sm);
-        cursor: pointer;
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .pick:hover {
-        border-color: var(--color-border-strong);
-        color: var(--color-text-primary);
-      }
-      /* An outline, and NOT a primary border. These two rules used to turn the border
-         primary on focus — the exact declaration the is-on selected state uses — so tabbing
-         across the shapes made every card look picked. The border was compliant on contrast
-         (5.37:1 on the card ground); what it was not is distinguishable from the state
-         sitting beside it. */
-      .pick:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-      .pick.is-on {
-        border-color: var(--primary);
-        background: var(--primary-subtle);
-        color: var(--color-text-primary);
-        font-weight: var(--font-semibold);
-      }
-
-      /* ── cards: the shape pick, the one real decision on step 1 ─────────── */
-      /* ONE LIST, a row per way (v36.1.0): seven equal boxes read as seven things to set up;
-         this is one choice, read top to bottom — the same list "Start from" uses. */
-      .cards {
-        display: flex;
-        flex-direction: column;
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-md);
-        background: var(--bg-surface);
-        overflow: hidden;
-      }
-      .card {
-        display: flex;
-        align-items: baseline;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        border: 0;
-        background: transparent;
-        text-align: start;
-        font: inherit;
-        cursor: pointer;
-        transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .card + .card {
-        border-block-start: 1px solid var(--color-border-subtle);
-      }
-      .card:hover {
-        background: var(--bg-subtle);
-      }
-      .card:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: calc(-1 * var(--focus-ring-width));
-      }
-      .card:active {
-        background: var(--bg-subtle);
-      }
-      .card.is-on {
-        background: var(--primary-subtle);
-      }
-      .card-text {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: var(--space-1) var(--space-3);
-        min-inline-size: 0;
-      }
-      .card-name {
-        font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-primary);
-        line-height: var(--line-height-base);
-      }
-      .card-eg {
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-        line-height: var(--line-height-base);
-      }
-      /* A circle, not a rounded square: a square teaches "as many as apply" before the
-         first click, and only one of these can be picked. */
-      .pick-dot {
-        flex: none;
-        inline-size: 14px;
-        block-size: 14px;
-        border-radius: var(--radius-pill);
-        border: 1.5px solid var(--color-border-strong);
-      }
-      /* Held on the NAME's optical line, not on the centre of a two-line card. */
-      .card .pick-dot {
-        margin-block-start: 3px;
-      }
-      .card.is-on .pick-dot,
-      .pick.is-on .pick-dot {
-        border-color: var(--primary);
-        box-shadow: inset 0 0 0 3px var(--primary);
-      }
-
-      /* ── fields ────────────────────────────────────────────────────────── */
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        max-inline-size: 34rem;
-      }
-      /* The card grid needs the body's whole width to hold three columns; the 34rem
-         reading measure is for a control, not for a set of choices. */
-      .field.is-wide {
-        max-inline-size: none;
-      }
-      .field.is-inset {
-        padding-inline-start: var(--space-4);
-        border-inline-start: var(--rule-width-accent) solid var(--color-border-default);
-      }
-      .label {
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-secondary);
-      }
-      .control {
-        min-block-size: var(--size-field);
-        padding-inline: var(--space-3);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-field);
-        background: var(--bg-subtle);
-        color: var(--color-text-primary);
-        font: inherit;
-        font-size: var(--text-sm);
-      }
-      .control:focus-visible {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: var(--focus-halo);
-      }
-      .control.is-narrow {
-        inline-size: 7rem;
-      }
-      .affix {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-      }
-      .unit {
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
       }
-      .help {
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-        line-height: var(--line-height-base);
-      }
-      .help.is-warn {
+      .hint.warn {
         color: var(--color-warning);
       }
-
-      /* ── add-ons ───────────────────────────────────────────────────────── */
-      .addon {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        padding-block: var(--space-4);
-        border-block-start: 1px solid var(--color-border-default);
-      }
-      /* Tick and text, with the note indented under the NAME rather than starting back at
-         the checkbox — five add-ons whose second line began further out than their first
-         made the whole section read as unaligned prose. */
-      .addon-head {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        align-items: start;
-        gap: var(--space-3);
-        cursor: pointer;
-      }
-      .addon-tick {
-        inline-size: 18px;
-        block-size: 18px;
-        margin-block-start: 2px;
-        accent-color: var(--primary);
-        cursor: pointer;
-      }
-      .addon-head.is-static {
-        cursor: default;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: baseline;
-      }
-      .addon-text {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        min-inline-size: 0;
-      }
-      .addon-name {
-        font-size: var(--text-base);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-primary);
-        line-height: var(--line-height-tight);
-      }
-      .addon-note {
-        max-inline-size: 52rem;
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-        line-height: var(--line-height-base);
-      }
-      .addon-body {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-4);
-        align-items: flex-start;
-        margin-block-start: var(--space-3);
-        /* Aligned with the add-on's own text column, so the body reads as belonging to the
-           line above it rather than to the section. */
-        margin-inline-start: calc(18px + var(--space-3));
-        /* Indented under its add-on — no coloured edge (v36.1.0). */
-        animation: spt-reveal var(--motion-duration-base) var(--motion-easing-standard);
-      }
-      .addon-body > .field,
-      .addon-body > .ways {
-        inline-size: 100%;
-      }
-      @keyframes spt-reveal {
-        from {
-          opacity: 0;
-          transform: translateY(-4px);
-        }
-      }
-
-      /* ── ways ──────────────────────────────────────────────────────────── */
-      .ways {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-      }
-      /* One line per way. The label sits on the controls' own baseline row, and Remove is
-         pushed to the end so the two selects stay adjacent — they are read together. */
-      .way {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        align-items: end;
-        gap: var(--space-3);
-        padding-block-end: var(--space-3);
-        border-block-end: 1px solid var(--color-border-default);
-      }
-      /* Full row under the selects: a sentence about the way, not a third control. */
-      .way-split {
-        grid-column: 1 / -1;
-      }
-      .way:last-of-type {
-        padding-block-end: 0;
-        border-block-end: 0;
-      }
-      .way-n {
-        padding-block-end: var(--space-2-5);
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-tertiary);
-        white-space: nowrap;
-      }
-      .way-f {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        min-inline-size: 0;
-      }
-      .way-x {
-        padding-block-end: var(--space-2-5);
-      }
-      @media (max-width: 40rem) {
-        .way {
-          grid-template-columns: minmax(0, 1fr);
-          align-items: stretch;
-        }
-        .way-n,
-        .way-x {
-          padding-block-end: 0;
-        }
-        .way-x {
-          justify-self: start;
-        }
-      }
-      .way-add {
-        align-self: flex-start;
-        padding: var(--space-2) var(--space-4);
-        border: 1px dashed var(--color-border-strong);
-        border-radius: var(--radius-field);
-        background: none;
-        font: inherit;
-        font-size: var(--text-sm);
-        font-weight: var(--font-medium);
-        color: var(--color-text-primary);
-        cursor: pointer;
-        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .way-add:hover {
-        border-color: var(--primary);
-        border-style: solid;
-      }
-      .way-add:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-
-      .add-group {
-        align-self: flex-start;
-      }
-      .groups {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-      }
-      .group-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-        gap: var(--space-2);
-        align-items: center;
-      }
-      .placements {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
-        gap: var(--space-2) var(--space-4);
-      }
-      .placement {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 10rem);
-        gap: var(--space-2);
-        align-items: center;
-        font-size: var(--text-sm);
-        color: var(--color-text-primary);
-      }
-      @media (max-width: 600px) {
-        .group-row {
-          grid-template-columns: minmax(0, 1fr);
-        }
-      }
-      .ticks {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-3);
-      }
-      .tick {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--text-sm);
-        color: var(--color-text-primary);
-        cursor: pointer;
-      }
-
-      /* The scope of an adjustment is a DECISION worth 300,000 on one applicant, so it reads
-         as a question with two answers rather than as a checkbox that defaults itself. */
-      .scope {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        margin: 0;
-        padding: 0;
-        border: 0;
-      }
-      .radio {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--text-sm);
-        color: var(--text-primary);
-        cursor: pointer;
-      }
-      .scope-note {
-        margin: 0;
-        margin-block-start: var(--space-1);
-        font-size: var(--text-xs);
-        line-height: var(--leading-normal);
-        color: var(--text-secondary);
-      }
-
-      .sheet {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        padding: var(--space-4);
-        background: var(--bg-subtle);
-        border-radius: var(--radius-md);
-        /* --primary, not --primary-subtle: the pale tint measured all but invisible against
-           this panel's own ground, and a rule nobody can see is a rule that is not there. */
-        border-inline-start: var(--rule-width-accent) solid var(--primary);
-      }
-      .sheet-mech {
-        margin: 0;
-        font-size: var(--text-sm);
-        line-height: var(--leading-normal);
-        color: var(--text-primary);
-      }
-      .sheet-eg {
-        margin: 0;
-        font-size: var(--text-sm);
-        line-height: var(--leading-normal);
-        color: var(--text-secondary);
-      }
-      /* Secondary for the same measured reason as the card's worked example: tertiary is
-         3.54:1 on this ground in light mode. A micro-label is small AND uppercase, which is
-         the worst case for it — and this one names where the figures beside it came from. */
-      .sheet-eg-label {
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--text-secondary);
-        margin-inline-end: var(--space-2);
-      }
-
-      .pair {
-        display: grid;
-        gap: var(--space-4);
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-        max-inline-size: 52rem;
-      }
-
-      .conditions {
-        list-style: none;
-        margin: var(--space-3) 0 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-4);
-      }
-      .condition {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-        padding: var(--space-4);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        background: var(--bg-surface);
-      }
-      .condition-foot {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3);
-      }
-      .mono {
-        font-family: var(--font-mono);
-        font-size: var(--text-xs);
-        color: var(--color-text-tertiary);
-      }
-
       .notice {
         margin: 0;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-2);
-        max-inline-size: 52rem;
         padding: var(--space-3) var(--space-4);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        background: var(--bg-subtle);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-        line-height: var(--line-height-base);
-      }
-
-      .linkish {
-        border: 0;
-        background: none;
-        padding: 0;
-        font: inherit;
-        font-size: var(--text-sm);
-        color: var(--color-text-link);
-        cursor: pointer;
-        text-decoration: underline;
-        text-underline-offset: 2px;
-      }
-      .linkish.is-danger {
-        color: var(--color-error);
-      }
-      .linkish:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .pick,
-        .card,
-        .way-add {
-          transition: none;
-        }
-        .addon-body {
-          animation: none;
-        }
-      }
-
-      /* ── the ways (v36.2.0): one card each, folded when there are several ───── */
-      .wcards {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-      }
-      .wcard {
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        background: var(--bg-surface);
-      }
-      .wcard-top {
-        inline-size: 100%;
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        border: 0;
-        border-radius: var(--radius-lg);
-        background: none;
-        font: inherit;
-        text-align: start;
+        border-radius: var(--radius-md);
+        background: var(--color-info-bg);
         color: var(--color-text-primary);
-        cursor: pointer;
-        transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .wcard-top:hover {
-        background: var(--bg-subtle);
-      }
-      .wcard-top:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-      .wcard-n {
-        display: inline-grid;
-        place-items: center;
-        inline-size: 1.75rem;
-        block-size: 1.75rem;
-        border-radius: var(--radius-pill);
-        background: var(--bg-muted);
-        color: var(--color-text-secondary);
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-      }
-      .wcard.is-open .wcard-n {
-        background: var(--primary);
-        color: var(--text-on-primary);
-      }
-      .wcard-t {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-inline-size: 0;
-      }
-      .wcard-title {
+      .err {
+        margin: 0;
+        color: var(--color-error);
         font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
       }
-      .wcard-sub {
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-      }
-      .chev {
-        color: var(--color-text-tertiary);
-        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .wcard.is-open .chev {
-        transform: rotate(180deg);
-      }
-      .wcard-body {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-5);
-        padding: var(--space-5);
-      }
-      .wcard-top + .wcard-body {
-        border-block-start: 1px solid var(--color-border-subtle);
-      }
-      .way-remove,
-      .wcard-body > .linkish,
-      .block > .linkish {
-        align-self: flex-start;
-      }
-      .split-row {
+      .row {
         display: flex;
         flex-wrap: wrap;
+        gap: var(--space-2) var(--space-3);
         align-items: center;
-        gap: var(--space-3);
       }
-      .split-row > .control {
-        flex: 1 1 16rem;
-        max-inline-size: 34rem;
-      }
-      .groups-box {
+      .seg {
+        display: inline-flex;
+        flex-wrap: wrap;
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-md);
-        background: var(--bg-subtle);
-      }
-      .groups-box > summary {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3);
-        padding: var(--space-2-5) var(--space-4);
-        font-size: var(--text-sm);
-        cursor: pointer;
-        list-style: none;
-      }
-      .groups-box > summary::-webkit-details-marker {
-        display: none;
-      }
-      .groups-box > summary:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-      .groups-sum {
-        min-inline-size: 0;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        background: var(--color-surface-default);
+      }
+      .seg button {
+        border: 0;
+        background: none;
+        padding: var(--space-1-5) var(--space-3);
+        cursor: pointer;
         color: var(--color-text-primary);
+        font: inherit;
       }
-      .groups-edit {
-        flex: none;
+      .seg button + button {
+        border-inline-start: 1px solid var(--color-border-default);
+      }
+      .seg button[aria-checked='true'] {
+        background: var(--color-brand-primary);
+        color: var(--color-text-on-brand);
+        font-weight: var(--font-weight-semibold);
+      }
+      .link {
+        border: 0;
+        background: none;
         color: var(--color-text-link);
-        font-weight: var(--font-semibold);
+        font: inherit;
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        padding: var(--space-0-5) 0;
       }
-      .groups-box[open] .groups-edit {
+      .link:hover {
+        color: var(--color-text-link-hover);
+      }
+      .link.danger {
+        color: var(--color-error);
+        font-weight: var(--font-weight-medium);
+      }
+      .x {
+        border: 0;
+        background: none;
         color: var(--color-text-secondary);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        padding: var(--space-0-5) var(--space-1-5);
+        font: inherit;
       }
-      .groups-body,
-      .groups-box > app-parent-class-board {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-        padding: 0 var(--space-4) var(--space-4);
-      }
-      .group-row {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
-      }
-      .group-n {
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-        white-space: nowrap;
-      }
-
-      /* ── who can't get it: one rule, three short lines ──────────────────── */
-      .rule {
-        display: grid;
-        grid-template-columns: 7rem minmax(0, 1fr);
-        align-items: center;
-        gap: var(--space-3) var(--space-4);
-        padding: var(--space-4);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        background: var(--bg-surface);
-      }
-      .rule > .control {
-        max-inline-size: 34rem;
-      }
-      .rl {
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-secondary);
-      }
-      .inline {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-2) var(--space-3);
-      }
-      .control.is-fig {
-        inline-size: 9rem;
-        text-align: end;
-        font-variant-numeric: tabular-nums;
-      }
-      .checks {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
+      .x:hover {
+        color: var(--color-error);
+        background: var(--color-error-bg);
       }
       .check {
         display: inline-flex;
-        align-items: center;
         gap: var(--space-2);
-        padding: var(--space-1) var(--space-3);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-pill);
-        background: var(--bg-surface);
-        font-size: var(--text-sm);
+        align-items: center;
         cursor: pointer;
       }
-      .check:has(input:checked) {
-        border-color: var(--color-error);
-        background: var(--color-error-bg);
+      .check input,
+      .sw input,
+      .ticks input {
+        accent-color: var(--color-brand-primary);
       }
-      .check input {
-        accent-color: var(--color-error);
+      select,
+      .pop-q,
+      .gnames input {
+        inline-size: auto;
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-sm);
+        padding: var(--space-1-5) var(--space-2-5);
+        background: var(--color-surface-default);
+        color: var(--color-text-primary);
+        font: inherit;
+        max-width: 100%;
       }
-      @media (max-width: 40rem) {
-        .rule {
-          grid-template-columns: minmax(0, 1fr);
-        }
-        .rl:empty {
-          display: none;
-        }
-        .group-row {
-          grid-template-columns: minmax(0, 1fr) auto;
-        }
+      /* methods */
+      .methods {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
       }
-
-      /* ── the figures: plain tables, one look for every way ─────────────── */
-      .figs {
+      .mtab {
+        border: 1px solid var(--color-border-default);
+        background: var(--color-surface-default);
+        border-radius: var(--radius-md);
+        padding: var(--space-1-5) var(--space-3);
+        text-align: start;
+        cursor: pointer;
         display: flex;
         flex-direction: column;
-        gap: var(--space-3);
-        align-items: flex-start;
+        max-width: 15rem;
+        font: inherit;
+        color: var(--color-text-primary);
       }
-      .ftable-wrap {
+      .mtab span {
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mtab.on {
+        border-color: var(--color-brand-primary);
+        background: var(--color-tonal-accent-bg);
+      }
+      .mtab.add {
+        color: var(--color-text-link);
+        font-weight: var(--font-weight-semibold);
+        justify-content: center;
+        border-style: dashed;
+      }
+      /* deciders */
+      .deciders {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        align-items: center;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        border: 1px solid var(--color-brand-primary);
+        background: var(--color-tonal-accent-bg);
+        border-radius: var(--radius-pill);
+        padding: var(--space-1) var(--space-1-5);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .chip i {
+        font-style: normal;
+        inline-size: 1.25rem;
+        block-size: 1.25rem;
+        border-radius: 50%;
+        background: var(--color-brand-primary);
+        color: var(--color-text-on-brand);
+        display: grid;
+        place-items: center;
+        font-size: var(--text-xxs);
+      }
+      .chip button {
+        border: 0;
+        background: none;
+        color: var(--color-tonal-accent-ink);
+        cursor: pointer;
+        padding: 0 var(--space-1);
+        font: inherit;
+      }
+      .picker {
+        position: relative;
+      }
+      .add-q {
+        border: 1px dashed var(--color-border-strong);
+        background: var(--color-surface-default);
+        border-radius: var(--radius-pill);
+        padding: var(--space-1-5) var(--space-3);
+        cursor: pointer;
+        font: inherit;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-link);
+      }
+      .pop {
+        position: absolute;
+        z-index: 20;
+        inset-inline-start: 0;
+        inset-block-start: calc(100% + var(--space-1-5));
+        inline-size: min(26rem, 80vw);
+        background: var(--color-surface-elevated);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        padding: var(--space-2);
+      }
+      .pop-q {
+        inline-size: 100%;
+      }
+      .opts {
+        max-block-size: 18rem;
+        overflow-y: auto;
+        margin-block-start: var(--space-1-5);
+      }
+      .opt-h {
+        margin: var(--space-2) var(--space-1-5) var(--space-0-5);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+      .opt {
+        inline-size: 100%;
+        text-align: start;
+        border: 0;
+        background: none;
+        padding: var(--space-1-5) var(--space-2);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2-5);
+        font: inherit;
+        color: var(--color-text-primary);
+      }
+      .opt:hover:not(:disabled) {
+        background: var(--color-surface-row-hover);
+      }
+      .opt:disabled {
+        cursor: not-allowed;
+        color: var(--color-text-secondary);
+      }
+      .opt:disabled .box {
+        opacity: 0.4;
+      }
+      .opt small {
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+      }
+      .opt-t {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .opt-t em {
+        font-style: normal;
+        font-size: var(--text-xxs);
+        color: var(--color-text-secondary);
+      }
+      .box {
+        flex: none;
+        inline-size: 1.125rem;
+        block-size: 1.125rem;
+        border: 1.5px solid var(--color-border-strong);
+        border-radius: var(--radius-sm);
+        display: grid;
+        place-items: center;
+        font-size: var(--text-xs);
+        color: var(--color-text-on-brand);
+      }
+      .opt[aria-checked='true'] .box {
+        background: var(--color-brand-primary);
+        border-color: var(--color-brand-primary);
+      }
+      .pop-f {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-block-start: 1px solid var(--color-border-default);
+        margin-block-start: var(--space-1-5);
+        padding: var(--space-2) var(--space-1) 0;
+        font-size: var(--text-sm);
+      }
+      .btn-sm {
+        border: 0;
+        border-radius: var(--radius-md);
+        background: var(--color-brand-primary);
+        color: var(--color-text-on-brand);
+        padding: var(--space-1) var(--space-3);
+        font: inherit;
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+      }
+      /* the rate sheet */
+      .sheet {
         max-inline-size: 100%;
         overflow-x: auto;
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-md);
       }
-      .ftable {
+      table {
         border-collapse: collapse;
-        font-size: var(--text-sm);
       }
-      .ftable th,
-      .ftable td {
-        padding: var(--space-2) var(--space-3);
-        border-block-end: 1px solid var(--color-border-subtle);
+      th,
+      td {
+        padding: var(--space-1-5) var(--space-3);
         text-align: start;
+        border-block-end: 1px solid var(--color-border-default);
         vertical-align: middle;
+        color: var(--color-text-primary);
       }
-      .ftable tbody tr:last-child > * {
+      tr:last-child td {
         border-block-end: 0;
       }
-      .ftable thead th {
-        background: var(--bg-subtle);
+      th {
+        background: var(--color-surface-muted);
         font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
+        font-weight: var(--font-weight-semibold);
         color: var(--color-text-secondary);
         white-space: nowrap;
       }
-      .ftable tbody th {
-        font-weight: var(--font-regular, 400);
+      th.n,
+      td.n {
+        text-align: end;
+      }
+      .amt,
+      .edge {
+        inline-size: 8rem;
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-sm);
+        padding: var(--space-1-5) var(--space-2-5);
+        text-align: end;
+        background: var(--color-surface-default);
         color: var(--color-text-primary);
-        min-inline-size: 10rem;
-      }
-      .ftable .num {
-        text-align: end;
-      }
-      .control.is-amt {
-        inline-size: 10rem;
-        text-align: end;
+        font: inherit;
         font-variant-numeric: tabular-nums;
       }
-      .control.is-edge {
-        inline-size: 7rem;
-        text-align: end;
-        font-variant-numeric: tabular-nums;
+      .amt.sm {
+        inline-size: 6.5rem;
       }
-      .sentence {
+      .edge {
+        inline-size: 5.75rem;
+      }
+      .amt::placeholder,
+      .edge::placeholder {
+        color: var(--color-text-tertiary);
+        font-size: var(--text-xs);
+      }
+      .rng {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        white-space: nowrap;
+        color: var(--color-text-secondary);
+      }
+      .formula {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .formula p,
+      .formula-line {
+        margin: 0;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: var(--space-2);
-        margin: 0;
+      }
+      input:focus-visible,
+      select:focus-visible,
+      button:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      /* own groups */
+      .groups {
+        inline-size: 100%;
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-muted);
+        padding: var(--space-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2-5);
+      }
+      .gnames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        align-items: center;
+      }
+      .gname {
+        display: inline-flex;
+        gap: var(--space-1);
+        align-items: center;
+      }
+      .gname input {
+        inline-size: 9rem;
+      }
+      .gplace {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+        gap: var(--space-1-5) var(--space-3);
+      }
+      .gplace label {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-2);
+        align-items: center;
         font-size: var(--text-sm);
-        color: var(--color-text-primary);
       }
-      .sent-col {
-        min-inline-size: 9rem;
-        font-weight: var(--font-semibold);
+      /* rules */
+      .rule {
+        inline-size: 100%;
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        padding: var(--space-2-5) var(--space-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
       }
-      .sentence .op {
-        color: var(--color-text-secondary);
+      .rule.off {
+        background: var(--color-surface-muted);
       }
-      .dbr-line {
-        cursor: default;
+      .rule-l,
+      .rule-r {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        align-items: center;
       }
-      .sr-only {
-        position: absolute;
-        inline-size: 1px;
-        block-size: 1px;
-        overflow: hidden;
-        clip: rect(0 0 0 0);
-        white-space: nowrap;
+      .rule-q {
+        max-inline-size: 30rem;
       }
-      /* "More options" is rare: a quiet fold at the foot, not a section heading. */
-      .more .more-head .q {
+      .rule-msg {
+        flex: 1 1 16rem;
+      }
+      .ticks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1-5);
+      }
+      .ticks label {
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-pill);
+        padding: var(--space-0-5) var(--space-2-5);
         font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
-        color: var(--color-text-secondary);
+        cursor: pointer;
+        display: inline-flex;
+        gap: var(--space-1-5);
+        align-items: center;
+        background: var(--color-surface-default);
       }
-      .figs > .linkish {
-        align-self: flex-start;
+      .ticks label.on {
+        border-color: var(--color-error);
+        background: var(--color-error-bg);
       }
-
-      .state {
+      .sw {
         display: inline-flex;
         align-items: center;
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-pill);
-        background: var(--bg-muted);
+        gap: var(--space-1-5);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+      }
+      .state {
+        font-size: var(--text-sm);
         color: var(--color-text-secondary);
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
       }
-      .state.is-on {
-        background: var(--color-success-bg);
+      .state.on {
         color: var(--color-success);
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .wcard-top,
-        .chev {
-          transition: none;
-        }
+        font-weight: var(--font-weight-semibold);
       }
     `,
   ],
@@ -1943,6 +1349,8 @@ export class ProductTemplatePage implements OnInit {
   readonly part = input<'amount' | 'rules'>('amount');
   /** Emitted after a save, so the product page re-reads what was compiled. */
   readonly saved = output<void>();
+  /** "Go to Questions" on an Amount step with nothing to pick from. */
+  readonly goQuestions = output<void>();
 
   protected key = '';
 
@@ -2019,6 +1427,8 @@ export class ProductTemplatePage implements OnInit {
     primaryFact: this.fb.nonNullable.control(''),
     /** The first way's own split into columns. */
     primaryColumn: this.fb.control<TemplateColumn | null>(null),
+    /** The first way's own row groups, when its amounts are per group. */
+    primaryGroups: this.fb.control<TemplateGroup[] | null>(null),
     alternatives: this.fb.array<ReturnType<ProductTemplatePage['wayGroup']>>([]),
     combine: this.fb.nonNullable.control<'' | 'lower' | 'higher'>(''),
     /** Alternatives a bank picks one of, or terms every bank states (car cross-sell). */
@@ -2047,11 +1457,13 @@ export class ProductTemplatePage implements OnInit {
     kind: TemplateMechanismKind = 'choiceTable',
     fact = '',
     column: TemplateColumn | null = null,
+    groups: TemplateGroup[] | null = null,
   ) {
     return this.fb.nonNullable.group({
       kind: this.fb.nonNullable.control<TemplateMechanismKind>(kind),
       fact: this.fb.nonNullable.control(fact),
       column: this.fb.control<TemplateColumn | null>(column),
+      groups: this.fb.control<TemplateGroup[] | null>(groups),
     });
   }
 
@@ -2073,6 +1485,8 @@ export class ProductTemplatePage implements OnInit {
     try {
       const res = await this.api.listProductBlueprints();
       this.blueprint.set(res.data.find((blueprint) => blueprint.key === key) ?? null);
+      // The sheet's ranges arrive after the figures: fill any range table still empty.
+      this.figures.set(this.withEveryRow(this.figures(), this.wayIndexes()));
     } catch {
       this.blueprint.set(null);
     }
@@ -2196,12 +1610,6 @@ export class ProductTemplatePage implements OnInit {
     return this.factOf(this.wayFactValue(i))?.question?.type === 'NUMERIC';
   }
 
-  /** A choice whose answers are filed under shared groups: a figure per group is offered. */
-  protected wayHasClasses(i: number): boolean {
-    const q = this.factOf(this.wayFactValue(i))?.question;
-    return q?.type === 'SINGLE_SELECT' && (q.parentOptions?.length ?? 0) > 0;
-  }
-
   /** The way follows the answer's type: a choice starts on a figure per answer, a number on ranges. */
   protected setWayFact(i: number, key: string): void {
     let kind: TemplateMechanismKind;
@@ -2228,6 +1636,10 @@ export class ProductTemplatePage implements OnInit {
   protected setWayKind(i: number, kind: TemplateMechanismKind): void {
     this.writeWay(i, kind, this.wayFactValue(i));
     this.toSeed.add(i);
+    if (kind === 'classTable' && this.rowGroups(i) === null) {
+      void this.seedGroups(i, 'row');
+    }
+    if (kind !== 'classTable') this.setRowGroups(i, null);
   }
 
   /** Ways whose question or split the operator just chose: their empty tables get a row each. */
@@ -2262,16 +1674,28 @@ export class ProductTemplatePage implements OnInit {
         if (step.op === 'factChoiceTable' || step.op === 'factParentTable') {
           const keys =
             step.op === 'factParentTable'
-              ? (this.factOf(fact)?.question?.parentOptions ?? []).map((o) => o.code)
+              ? (this.rowGroups(i)?.map((g) => g.key) ??
+                (this.factOf(fact)?.question?.parentOptions ?? []).map((o) => o.code))
               : this.optionsOf(fact).map((o) => o.code);
           const rows = [...(next[step.id]?.keyTable ?? [])];
           const have = new Set(rows.map((r) => r.key));
           for (const key of keys) if (!have.has(key)) rows.push({ key, incomeEGP: '' });
           if (rows.length > 0) next[step.id] = { ...next[step.id], keyTable: rows };
-        } else if (step.op === 'bandTable' && (next[step.id]?.bands ?? []).length === 0) {
+        } else if (step.op === 'bandTable' && blankBands(next[step.id]?.bands)) {
+          // The ranges the bank's sheet prints, when the product came from one; else one open
+          // range. Amounts stay empty, so nothing is saved until someone types one.
+          const head = this.headOf(i);
+          const sheet = this.suggestedBands()[step.id] ?? this.suggestedBands()[head];
           next[step.id] = {
             ...next[step.id],
-            bands: [{ fromInclusive: '0', toExclusive: null, incomeEGP: '' }],
+            bands:
+              sheet && sheet.length > 0
+                ? sheet.map((b) => ({
+                    fromInclusive: b.fromInclusive,
+                    toExclusive: b.toExclusive ?? null,
+                    incomeEGP: '',
+                  }))
+                : [{ fromInclusive: '0', toExclusive: null, incomeEGP: '' }],
           };
         }
       }
@@ -2306,6 +1730,95 @@ export class ProductTemplatePage implements OnInit {
     return this.choiceFacts().filter((f) => f.key !== own);
   }
 
+  /** The product's fixed questions (the page passes them), to group the picker. */
+  readonly fixedCodes = input<readonly string[]>([]);
+
+  private isFixedFact(f: RegistryFact): boolean {
+    return f.question !== null && this.fixedCodes().includes(f.question.code);
+  }
+
+  /** The questions added for this product, first in the picker. */
+  protected readonly addedDeciders = computed(() =>
+    this.decidingFacts().filter((f) => !this.isFixedFact(f)),
+  );
+
+  /** The fixed questions, then what we work out ourselves (a split only). */
+  protected readonly otherDeciders = computed<ReadonlyArray<{ key: string; label: string }>>(() => [
+    ...this.decidingFacts()
+      .filter((f) => this.isFixedFact(f))
+      .map((f) => ({ key: f.key, label: f.label })),
+    ...DERIVED_FACTS.map((d) => ({ key: d.key, label: this.factLabel(d.key) })),
+  ]);
+
+  protected otherPicked(i: number): boolean {
+    const picked = [this.wayFactValue(i), this.wayColumn(i)?.fact];
+    return this.otherDeciders().some((f) => picked.includes(f.key));
+  }
+
+  /** 1 for the answer that sets the rows, 2 for the one that sets the columns, else 0. */
+  protected deciderRank(i: number, key: string): number {
+    if (this.wayFactValue(i) === key) return 1;
+    if (this.wayColumn(i)?.fact === key) return 2;
+    return 0;
+  }
+
+  private isNumberFact(key: string): boolean {
+    return this.factOf(key)?.question?.type === 'NUMERIC';
+  }
+
+  private firstPick(i: number): string {
+    const v = this.wayFactValue(i);
+    return v === '__flat__' ? '' : v;
+  }
+
+  /** What may be ticked now: at most two, at most one number, a worked-out answer only second. */
+  protected canPick(i: number, key: string): boolean {
+    if (this.deciderRank(i, key) > 0) return true;
+    const first = this.firstPick(i);
+    const second = this.wayColumn(i)?.fact;
+    if (second !== undefined) return false;
+    if (first === '') return derivedFactByKey(key) === undefined;
+    return !(this.isNumberFact(key) && this.isNumberFact(first));
+  }
+
+  protected toggleDecider(i: number, key: string): void {
+    const first = this.firstPick(i);
+    const second = this.wayColumn(i)?.fact;
+    if (key === first) {
+      // The second moves up to rows if it can; else the way is empty again.
+      if (second !== undefined && derivedFactByKey(second) === undefined)
+        this.setWayFact(i, second);
+      else this.clearWay(i);
+      return;
+    }
+    if (key === second) {
+      this.setWayColumn(i, null);
+      return;
+    }
+    if (!this.canPick(i, key)) return;
+    if (first === '') {
+      this.setWayFact(i, key);
+      return;
+    }
+    // A number always sets the rows (ranges or a sum); a list beside it sets the columns.
+    if (this.isNumberFact(key)) {
+      this.setWayFact(i, key);
+      this.setColumnFact(i, first);
+      return;
+    }
+    this.setColumnFact(i, key);
+  }
+
+  protected clearWay(i: number): void {
+    this.writeWay(i, 'choiceTable', '');
+    this.setWayColumn(i, null);
+  }
+
+  protected columnsOfLabel(key: string): string {
+    const name = this.factLabel(key);
+    return $localize`:@@spt.v2.columns_of:Columns: ${name}:NAME:`;
+  }
+
   /** What "Different amounts by" offers: the choices, plus the one in use if it is not one. */
   protected columnChoices(i: number): ReadonlyArray<{ key: string; label: string }> {
     const list: Array<{ key: string; label: string }> = this.columnFacts(i).map((f) => ({
@@ -2335,14 +1848,6 @@ export class ProductTemplatePage implements OnInit {
     return key;
   }
 
-  /** Its answers come from a list, so they can be put in groups. */
-  protected columnGroupable(key: string): boolean {
-    const q = this.factOf(key)?.question;
-    // Groups pay off on a long list; two or three answers are simply a column each.
-    if ((q?.parentOptions?.length ?? 0) > 0) return true;
-    return q?.optionsEnumerationType !== undefined && (q.options?.length ?? 0) > 3;
-  }
-
   protected startColumn(i: number): void {
     const first = this.columnFacts(i)[0];
     if (first) this.setColumnFact(i, first.key);
@@ -2357,7 +1862,7 @@ export class ProductTemplatePage implements OnInit {
     this.setWayColumn(i, { fact: key, branches: this.optionsOf(key).map((o) => o.code) });
   }
 
-  protected setColumnMode(i: number, mode: 'answer' | 'groups' | 'own'): void {
+  protected setColumnMode(i: number, mode: 'answer' | 'groups'): void {
     const current = this.wayColumn(i);
     if (current === null) return;
     const fact = current.fact;
@@ -2365,26 +1870,7 @@ export class ProductTemplatePage implements OnInit {
       this.setWayColumn(i, { fact, branches: this.optionsOf(fact).map((o) => o.code) });
       return;
     }
-    const shared = this.factOf(fact)?.question?.parentOptions ?? [];
-    if (mode === 'groups' && shared.length > 0) {
-      // The list's own groups (the city tiers): a column each.
-      this.setWayColumn(i, { fact, branchOn: 'parentClass', branches: shared.map((o) => o.code) });
-      return;
-    }
-    // This product's own groups: two to start, every answer in the first.
-    const groups: TemplateGroup[] = [
-      { key: 'g1', labelEn: 'Group 1', labelAr: 'المجموعة 1' },
-      { key: 'g2', labelEn: 'Group 2', labelAr: 'المجموعة 2' },
-    ];
-    this.setWayColumn(i, {
-      fact,
-      branchOn: 'parentClass',
-      branches: groups.map((g) => g.key),
-      groups,
-    });
-    this.placements.set(Object.fromEntries(this.optionsOf(fact).map((o) => [o.code, 'g1'])));
-    this.groupsOpen.set(true);
-    void this.loadValueIds(fact);
+    if (current.groups === undefined) void this.seedGroups(i, 'col');
   }
 
   protected readonly groupsOpen = signal(false);
@@ -2419,70 +1905,153 @@ export class ProductTemplatePage implements OnInit {
     this.setWayColumn(i, { ...column, branches, ...(groups ? { groups } : {}) });
   }
 
-  /** "Groups: Class AA · Class AB · …" for a list's own groups. */
-  protected groupsLine(key: string): string {
-    const names = (this.factOf(key)?.question?.parentOptions ?? [])
-      .map((o) => this.optionLabel(o))
-      .join(' · ');
-    return $localize`:@@spt.v2.groups_line:Groups: ${names}:NAMES:`;
-  }
-
-  protected ownGroupsLine(column: TemplateColumn): string {
-    const names = (column.groups ?? []).map((g) => this.groupName(g)).join(' · ');
-    return $localize`:@@spt.v2.groups_line:Groups: ${names}:NAMES:`;
-  }
-
   /** The board that moves a list's answers between its groups, for this product. */
-  protected classBoardFor(key: string): { child: string; parent: string } | null {
-    const q = this.factOf(key)?.question;
-    if (q?.optionsEnumerationType === undefined || q.parentEnumerationType === undefined) {
-      return null;
-    }
-    return { child: q.optionsEnumerationType, parent: q.parentEnumerationType };
-  }
-
-  /** A move on the board is written at once; re-read the lists so the group line follows. */
   protected refreshFacts(): void {
     void this.enums.refresh('surrogate_fact');
   }
 
-  // --- this product's own groups (on a column) -------------------------------
+  // --- this product's own groups (v37.0.0): rows and columns alike ----------------
 
-  private ownGroupsWay(): number {
-    return this.wayIndexes().findIndex((i) => this.wayColumn(i)?.groups !== undefined);
+  /** Its answers come from a list long enough to group (or already grouped). */
+  protected groupable(key: string): boolean {
+    const q = this.factOf(key)?.question;
+    if (q?.type !== 'SINGLE_SELECT' || q.optionsEnumerationType === undefined) return false;
+    return (q.parentOptions?.length ?? 0) > 0 || (q.options?.length ?? 0) > 3;
   }
 
-  private mapGroups(i: number, change: (groups: TemplateGroup[]) => TemplateGroup[]): void {
+  protected columnMode(column: TemplateColumn): 'answer' | 'groups' {
+    return column.branchOn === 'parentClass' ? 'groups' : 'answer';
+  }
+
+  protected rowGroups(i: number): TemplateGroup[] | null {
+    this.formRev();
+    return i === 0
+      ? this.form.controls.primaryGroups.value
+      : (this.alternatives.at(i - 1)?.controls.groups.value ?? null);
+  }
+
+  private setRowGroups(i: number, groups: TemplateGroup[] | null): void {
+    if (i === 0) this.form.controls.primaryGroups.setValue(groups);
+    else this.alternatives.at(i - 1)?.controls.groups.setValue(groups);
+  }
+
+  protected groupsOf(i: number, axis: 'row' | 'col'): TemplateGroup[] {
+    return (axis === 'row' ? this.rowGroups(i) : this.wayColumn(i)?.groups) ?? [];
+  }
+
+  protected axisFact(i: number, axis: 'row' | 'col'): string {
+    return axis === 'row' ? this.wayFactValue(i) : (this.wayColumn(i)?.fact ?? '');
+  }
+
+  private setGroupsOf(i: number, axis: 'row' | 'col', groups: TemplateGroup[]): void {
+    if (axis === 'row') {
+      this.setRowGroups(i, groups);
+      return;
+    }
     const col = this.wayColumn(i);
-    if (col?.groups === undefined) return;
-    const groups = change(col.groups.map((g) => ({ ...g })));
-    this.setWayColumn(i, { ...col, branches: groups.map((g) => g.key), groups });
+    if (col === null) return;
+    this.setWayColumn(i, {
+      fact: col.fact,
+      branchOn: 'parentClass',
+      branches: groups.map((g) => g.key),
+      groups,
+    });
   }
 
-  protected renameGroup(i: number, key: string, en: string | null, ar: string | null): void {
-    this.mapGroups(i, (groups) =>
-      groups.map((g) =>
+  protected readonly editorOpen = signal<string | null>(null);
+
+  protected toggleEditor(i: number, axis: 'row' | 'col'): void {
+    const id = `${i}:${axis}`;
+    this.editorOpen.set(this.editorOpen() === id ? null : id);
+  }
+
+  /**
+   * Make a way's groups this product's own. A list that already has groups (compound classes,
+   * city tiers) is copied as it stands — same keys, so every figure stays where it is — with
+   * each answer where it is priced today; any other list starts with two groups.
+   */
+  private async seedGroups(i: number, axis: 'row' | 'col'): Promise<void> {
+    const fact = this.axisFact(i, axis);
+    const shared = this.factOf(fact)?.question?.parentOptions ?? [];
+    await this.ensureList(fact);
+    const groups: TemplateGroup[] =
+      shared.length > 0
+        ? shared.map((o) => ({ key: o.code, labelEn: o.labelEn, labelAr: o.labelAr }))
+        : [
+            { key: 'g1', labelEn: 'Group 1', labelAr: 'المجموعة 1' },
+            { key: 'g2', labelEn: 'Group 2', labelAr: 'المجموعة 2' },
+          ];
+    if (this.placements()[fact] === undefined) {
+      const keys = new Set(groups.map((g) => g.key));
+      const now = this.pricedIn()[fact] ?? {};
+      this.placements.set({
+        ...this.placements(),
+        [fact]: Object.fromEntries(
+          this.optionsOf(fact).map((o) => {
+            const at = now[o.code];
+            return [o.code, at !== undefined && keys.has(at) ? at : groups[0]!.key];
+          }),
+        ),
+      });
+    }
+    this.setGroupsOf(i, axis, groups);
+    this.editorOpen.set(`${i}:${axis}`);
+    this.dirty.set(true);
+  }
+
+  protected renameGroup(
+    i: number,
+    axis: 'row' | 'col',
+    key: string,
+    en: string | null,
+    ar: string | null,
+  ): void {
+    this.setGroupsOf(
+      i,
+      axis,
+      this.groupsOf(i, axis).map((g) =>
         g.key === key ? { ...g, labelEn: en ?? g.labelEn, labelAr: ar ?? g.labelAr } : g,
       ),
     );
   }
 
-  protected addGroup(i: number): void {
-    this.mapGroups(i, (groups) => {
-      const taken = new Set(groups.map((g) => g.key));
-      let n = groups.length + 1;
-      // Never re-used: a key is a figures slot, and a recycled one would hand a new group the
-      // figures of a removed one.
-      while (taken.has(`g${n}`)) n += 1;
-      return [...groups, { key: `g${n}`, labelEn: `Group ${n}`, labelAr: `المجموعة ${n}` }];
-    });
+  protected addGroup(i: number, axis: 'row' | 'col'): void {
+    const groups = this.groupsOf(i, axis);
+    const taken = new Set(groups.map((g) => g.key));
+    let n = groups.length + 1;
+    // Never re-used: a key is a figures row or slot, and a recycled one would hand a new
+    // group the figures of a removed one.
+    while (taken.has(`g${n}`)) n += 1;
+    this.setGroupsOf(i, axis, [
+      ...groups,
+      { key: `g${n}`, labelEn: `Group ${n}`, labelAr: `المجموعة ${n}` },
+    ]);
   }
 
-  protected removeGroup(i: number, key: string): void {
-    this.mapGroups(i, (groups) => groups.filter((g) => g.key !== key));
-    const next = { ...this.placements() };
-    for (const [code, group] of Object.entries(next)) if (group === key) delete next[code];
-    this.placements.set(next);
+  /** A row table keeps one group at least; a column split needs two. */
+  protected canRemoveGroup(i: number, axis: 'row' | 'col'): boolean {
+    return this.groupsOf(i, axis).length > (axis === 'row' ? 1 : 2);
+  }
+
+  protected removeGroup(i: number, axis: 'row' | 'col', key: string): void {
+    const fact = this.axisFact(i, axis);
+    this.setGroupsOf(
+      i,
+      axis,
+      this.groupsOf(i, axis).filter((g) => g.key !== key),
+    );
+    const mine = { ...(this.placements()[fact] ?? {}) };
+    for (const [code, group] of Object.entries(mine)) if (group === key) delete mine[code];
+    this.placements.set({ ...this.placements(), [fact]: mine });
+    if (axis === 'row') {
+      // Its figures go with it.
+      const next = { ...this.figures() };
+      for (const slot of this.waySlots(i)) {
+        const rows = next[slot]?.keyTable;
+        if (rows) next[slot] = { ...next[slot], keyTable: rows.filter((r) => r.key !== key) };
+      }
+      this.figures.set(next);
+    }
   }
 
   /** The name in the reading language, else the other one. */
@@ -2495,31 +2064,22 @@ export class ProductTemplatePage implements OnInit {
     return $localize`:@@spt.groups.name_aria:Name of group ${index + 1}:N:`;
   }
 
-  protected groupCountLabel(key: string): string {
-    const n = Object.values(this.placements()).filter((g) => g === key).length;
-    return $localize`:@@spt.v2.group_count:${n}:N: answer(s)`;
+  /** Per list (fact key): answer code → this product's group key, as on screen (held until Save). */
+  private readonly placements = signal<Record<string, Record<string, string>>>({});
+  /** Per list: answer code → list row id, for the save. */
+  private readonly valueIds = signal<Record<string, Record<string, string>>>({});
+  /** Per list: where each answer is priced today — this product's own over the shared list. */
+  private readonly pricedIn = signal<Record<string, Record<string, string>>>({});
+
+  protected placementOf(fact: string, code: string): string {
+    return this.placements()[fact]?.[code] ?? '';
   }
 
-  protected unplacedCount(column: TemplateColumn): number {
-    const keys = new Set((column.groups ?? []).map((g) => g.key));
-    return this.optionsOf(column.fact).filter((o) => !keys.has(this.placements()[o.code] ?? ''))
-      .length;
-  }
-
-  /** Answer code to this product's group key, as on screen (held until Save). */
-  private readonly placements = signal<Record<string, string>>({});
-  /** Answer code to list row id, for the save. */
-  private readonly valueIds = signal<Record<string, string>>({});
-
-  protected placementOf(code: string): string {
-    return this.placements()[code] ?? '';
-  }
-
-  protected place(code: string, groupKey: string): void {
-    const next = { ...this.placements() };
-    if (groupKey === '') delete next[code];
-    else next[code] = groupKey;
-    this.placements.set(next);
+  protected place(fact: string, code: string, groupKey: string): void {
+    const mine = { ...(this.placements()[fact] ?? {}) };
+    if (groupKey === '') delete mine[code];
+    else mine[code] = groupKey;
+    this.placements.set({ ...this.placements(), [fact]: mine });
     this.dirty.set(true);
   }
 
@@ -2527,51 +2087,94 @@ export class ProductTemplatePage implements OnInit {
     return this.facts().find((f) => f.key === key)?.question?.optionsEnumerationType ?? null;
   }
 
-  private async loadValueIds(key: string): Promise<void> {
-    const type = this.listTypeOf(key);
+  /** The list's row ids and where each answer is priced today, read once per list. */
+  private async ensureList(fact: string): Promise<void> {
+    if (this.valueIds()[fact] !== undefined) return;
+    const type = this.listTypeOf(fact);
     if (type === null) return;
-    const rows = await this.lookups.list(type);
-    this.valueIds.set(Object.fromEntries(rows.map((r) => [r.key, r.id])));
-  }
-
-  /** What this product files each answer under, and the list rows' ids for a save. */
-  private async loadPlacements(): Promise<void> {
-    await this.enums.load('surrogate_fact');
-    const way = this.ownGroupsWay();
-    const column = way === -1 ? null : this.wayColumn(way);
-    const type = column === null ? null : this.listTypeOf(column.fact);
-    if (column === null || type === null) {
-      this.placements.set({});
-      return;
-    }
     const [own, rows] = await Promise.all([
       this.lookups.productGroups(this.key, type),
       this.lookups.list(type),
     ]);
-    this.valueIds.set(Object.fromEntries(rows.map((r) => [r.key, r.id])));
-    const keys = new Set((column.groups ?? []).map((g) => g.key));
-    this.placements.set(
-      Object.fromEntries(Object.entries(own).filter(([, group]) => keys.has(group))),
-    );
+    this.valueIds.set({
+      ...this.valueIds(),
+      [fact]: Object.fromEntries(rows.map((r) => [r.key, r.id])),
+    });
+    const priced: Record<string, string> = {};
+    for (const r of rows) {
+      const at = own[r.key] ?? r.parentKey;
+      if (at) priced[r.key] = at;
+    }
+    this.pricedIn.set({ ...this.pricedIn(), [fact]: priced });
   }
 
-  /** Every answer of the list: its group, or none (which drops a stale own row). */
-  private async savePlacements(): Promise<void> {
-    const way = this.ownGroupsWay();
-    const column = way === -1 ? null : this.wayColumn(way);
-    if (column === null) return;
-    const type = this.listTypeOf(column.fact);
-    if (type === null) return;
-    let ids = this.valueIds();
-    if (Object.keys(ids).length === 0) {
-      const rows = await this.lookups.list(type);
-      ids = Object.fromEntries(rows.map((r) => [r.key, r.id]));
-      this.valueIds.set(ids);
+  /** Every way and column that is per group, as (way, axis). */
+  private groupedAxes(): Array<{ i: number; axis: 'row' | 'col' }> {
+    const out: Array<{ i: number; axis: 'row' | 'col' }> = [];
+    for (const i of this.wayIndexes()) {
+      if (this.wayKind(i) === 'classTable' && this.rowGroups(i) !== null)
+        out.push({ i, axis: 'row' });
+      if (this.wayColumn(i)?.groups !== undefined) out.push({ i, axis: 'col' });
     }
-    const placed = this.placements();
-    const assignments = this.optionsOf(column.fact)
-      .filter((o) => ids[o.code] !== undefined)
-      .map((o) => ({ valueId: ids[o.code]!, parentKey: placed[o.code] ?? null }));
+    return out;
+  }
+
+  /**
+   * After a load: a per-group way or column still on a SHARED list's groups is shown as this
+   * product's own — same keys, same names, each answer where it is priced today — so it can
+   * be edited here. Nothing is written until Save, and Save writes the same figures.
+   */
+  private async loadPlacements(): Promise<void> {
+    await this.enums.load('surrogate_fact');
+    for (const i of this.wayIndexes()) {
+      const fact = this.wayFactValue(i);
+      const shared = this.factOf(fact)?.question?.parentOptions ?? [];
+      if (this.wayKind(i) === 'classTable' && this.rowGroups(i) === null && shared.length > 0) {
+        const groups = shared.map((o) => ({ key: o.code, labelEn: o.labelEn, labelAr: o.labelAr }));
+        if (i === 0) this.form.controls.primaryGroups.setValue(groups, { emitEvent: false });
+        else this.alternatives.at(i - 1)?.controls.groups.setValue(groups, { emitEvent: false });
+      }
+      const col = this.wayColumn(i);
+      if (col && col.branchOn === 'parentClass' && col.groups === undefined) {
+        const options = this.factOf(col.fact)?.question?.parentOptions ?? [];
+        const groups = col.branches.map((b) => {
+          const o = options.find((x) => x.code === b);
+          return { key: b, labelEn: o?.labelEn ?? b, labelAr: o?.labelAr ?? b };
+        });
+        const next = { ...col, groups };
+        if (i === 0) this.form.controls.primaryColumn.setValue(next, { emitEvent: false });
+        else this.alternatives.at(i - 1)?.controls.column.setValue(next, { emitEvent: false });
+      }
+    }
+    this.formRev.update((n) => n + 1);
+    const placements: Record<string, Record<string, string>> = {};
+    for (const { i, axis } of this.groupedAxes()) {
+      const fact = this.axisFact(i, axis);
+      await this.ensureList(fact);
+      const keys = new Set(this.groupsOf(i, axis).map((g) => g.key));
+      placements[fact] = Object.fromEntries(
+        Object.entries(this.pricedIn()[fact] ?? {}).filter(([, g]) => keys.has(g)),
+      );
+    }
+    this.placements.set(placements);
+  }
+
+  /** Every answer of each grouped list: its group, or none (back to the shared list). */
+  private async savePlacements(): Promise<void> {
+    const assignments: Array<{ valueId: string; parentKey: string | null }> = [];
+    const done = new Set<string>();
+    for (const { i, axis } of this.groupedAxes()) {
+      const fact = this.axisFact(i, axis);
+      if (done.has(fact)) continue;
+      done.add(fact);
+      await this.ensureList(fact);
+      const ids = this.valueIds()[fact] ?? {};
+      const placed = this.placements()[fact] ?? {};
+      for (const o of this.optionsOf(fact)) {
+        const id = ids[o.code];
+        if (id !== undefined) assignments.push({ valueId: id, parentKey: placed[o.code] ?? null });
+      }
+    }
     if (assignments.length > 0) await this.lookups.setProductGroups(this.key, assignments);
   }
 
@@ -2665,7 +2268,7 @@ export class ProductTemplatePage implements OnInit {
   /** Whether "More options" states anything — it opens itself when it does. */
   protected hasExtras(): boolean {
     const v = this.form.getRawValue();
-    return v.useUplift || v.iScore;
+    return v.useUplift || v.iScore || v.shareFact !== '' || v.alternatives.length > 0;
   }
 
   protected upliftOptions(): ReadonlyArray<{ code: string; labelAr: string; labelEn: string }> {
@@ -2729,16 +2332,32 @@ export class ProductTemplatePage implements OnInit {
     if (isChoice) {
       this.updateFigure(`cond__${row.controls.id.value}`, (f) => ({ ...f, applies: true }));
     }
+    const op: ConditionOp = isChoice
+      ? 'oneOf'
+      : row.controls.op.value === 'oneOf'
+        ? 'atLeast'
+        : row.controls.op.value;
     row.patchValue({
       measure,
-      op: isChoice
-        ? 'oneOf'
-        : row.controls.op.value === 'oneOf'
-          ? 'atLeast'
-          : row.controls.op.value,
-      otherFact: '',
+      op,
+      otherFact: this.defaultOther(op, measure),
       expect: isChoice ? this.optionsOf(measure).map((o) => o.code) : [],
     });
+  }
+
+  /**
+   * The second answer a test needs, picked so a rule is never left half-stated: "a % of" the
+   * first OTHER number (a price, preferably), "depends on" the first choice.
+   */
+  private defaultOther(op: ConditionOp, measure: string): string {
+    if (op === 'atLeastShareOf') {
+      const others = this.numericFacts().filter((f) => f.key !== measure);
+      return (others.find((f) => /price|سعر/i.test(f.label)) ?? others[0])?.key ?? '';
+    }
+    if (op === 'atLeastPerAnswer' || op === 'atMostPerAnswer') {
+      return this.choiceFacts()[0]?.key ?? '';
+    }
+    return '';
   }
 
   protected opsFor(measure: string): readonly ConditionOp[] {
@@ -2905,11 +2524,15 @@ export class ProductTemplatePage implements OnInit {
 
   protected rowsOf(i: number): ReadonlyArray<{ key: string; label: string }> {
     const fact = this.wayFactValue(i);
-    const list =
-      this.wayKind(i) === 'classTable'
-        ? (this.factOf(fact)?.question?.parentOptions ?? [])
-        : this.optionsOf(fact);
-    return list.map((o) => ({ key: o.code, label: this.optionLabel(o) }));
+    if (this.wayKind(i) === 'classTable') {
+      const own = this.rowGroups(i);
+      if (own !== null) return own.map((g) => ({ key: g.key, label: this.groupName(g) }));
+      return (this.factOf(fact)?.question?.parentOptions ?? []).map((o) => ({
+        key: o.code,
+        label: this.optionLabel(o),
+      }));
+    }
+    return this.optionsOf(fact).map((o) => ({ key: o.code, label: this.optionLabel(o) }));
   }
 
   protected cell(slot: string, key: string): string {
@@ -3068,6 +2691,28 @@ export class ProductTemplatePage implements OnInit {
         return $localize`:@@spt.form.block_columns:A second column needs at least two answers picked.`;
       }
     }
+    for (const [k, control] of this.conditions.controls.entries()) {
+      const c = control.getRawValue();
+      const n = k + 1;
+      if (c.measure === '') return $localize`:@@ps.block_rule_q:Rule ${n}:N: — pick a question.`;
+      if (c.op === 'atLeastShareOf' && c.otherFact === '') {
+        return $localize`:@@ps.block_rule_pct:Rule ${n}:N: — pick the answer it is a % of.`;
+      }
+      if ((c.op === 'atLeastPerAnswer' || c.op === 'atMostPerAnswer') && c.otherFact === '') {
+        return $localize`:@@ps.block_rule_per:Rule ${n}:N: — pick what the figure depends on.`;
+      }
+      if (c.op === 'oneOf' && this.optionsOf(c.measure).length === 0) {
+        return $localize`:@@ps.block_rule_q:Rule ${n}:N: — pick a question.`;
+      }
+    }
+    for (const i of ways) {
+      const groups = this.wayKind(i) === 'classTable' ? this.rowGroups(i) : null;
+      if (groups === null) continue;
+      if (groups.length === 0) return $localize`:@@ps.block_no_group:Add at least one group.`;
+      if (groups.some((g) => g.labelEn.trim() === '' || g.labelAr.trim() === '')) {
+        return $localize`:@@spt.form.block_group_names:Give every group a name in English and Arabic.`;
+      }
+    }
     const v = this.form.getRawValue();
     if (v.useUplift && (!v.upliftWhen || !v.upliftOtherwise)) {
       return $localize`:@@spt.form.block_uplift:Say which answer earns the bonus and which does not.`;
@@ -3099,7 +2744,7 @@ export class ProductTemplatePage implements OnInit {
       });
       // Where each answer is filed, for this product only: after the template, which is what
       // makes the group keys this product's own.
-      if (this.ownGroupsWay() !== -1) await this.savePlacements();
+      if (this.groupedAxes().length > 0) await this.savePlacements();
       this.absorb(res.data.template, res.data.incomeRule);
       await this.loadPlacements();
       this.figures.set(this.withEveryRow(this.figures(), this.wayIndexes()));
@@ -3137,8 +2782,10 @@ export class ProductTemplatePage implements OnInit {
       kind: TemplateMechanismKind,
       fact: string,
       column?: TemplateColumn | null,
+      groups?: TemplateGroup[] | null,
     ): TemplateMechanism => ({
       ...(kind === 'flatAmount' ? { kind } : ({ kind, fact } as TemplateMechanism)),
+      ...(kind === 'classTable' && groups ? { groups } : {}),
       ...(column ? { column } : {}),
     });
 
@@ -3182,10 +2829,19 @@ export class ProductTemplatePage implements OnInit {
         : {}),
       // ONE way: its split is stated on the product, which is how every one-way product was
       // stored and compiles to the very same steps. Several: each way carries its own.
-      primary: mechanism(v.primaryKind, v.primaryFact, single ? null : v.primaryColumn),
+      primary: mechanism(
+        v.primaryKind,
+        v.primaryFact,
+        single ? null : v.primaryColumn,
+        v.primaryGroups,
+      ),
       ...(single && v.primaryColumn ? { secondColumn: v.primaryColumn } : {}),
       ...(!single
-        ? { alternatives: v.alternatives.map((way) => mechanism(way.kind, way.fact, way.column)) }
+        ? {
+            alternatives: v.alternatives.map((way) =>
+              mechanism(way.kind, way.fact, way.column, way.groups),
+            ),
+          }
         : {}),
       ...(!single && v.combine ? { combine: v.combine } : {}),
       ...(!single ? { waysAre: v.waysAre } : {}),
@@ -3260,6 +2916,7 @@ export class ProductTemplatePage implements OnInit {
     this.figures.set({ ...(rule?.stepParams ?? {}) });
 
     if (template === null) {
+      this.form.controls.primaryGroups.setValue(null, { emitEvent: false });
       this.storedExtras.set({});
       this.blueprint.set(null);
       return;
@@ -3281,6 +2938,7 @@ export class ProductTemplatePage implements OnInit {
           way.kind,
           way.kind === 'flatAmount' ? '' : way.fact,
           way.column ?? productColumn,
+          way.kind === 'classTable' ? (way.groups ?? null) : null,
         ),
         { emitEvent: false },
       );
@@ -3313,6 +2971,8 @@ export class ProductTemplatePage implements OnInit {
         primaryKind: template.primary.kind,
         primaryFact: template.primary.kind === 'flatAmount' ? '' : template.primary.fact,
         primaryColumn: template.primary.column ?? productColumn,
+        primaryGroups:
+          template.primary.kind === 'classTable' ? (template.primary.groups ?? null) : null,
         combine: template.combine ?? '',
         waysAre: template.waysAre ?? 'exclusive',
         shareFact: template.share?.fact ?? '',
@@ -3329,6 +2989,200 @@ export class ProductTemplatePage implements OnInit {
     this.formRev.update((n) => n + 1);
   }
 
+  // --- the one-page layout (v37.0.0) -------------------------------------------
+
+  protected readonly methodsAria = $localize`:@@ps.methods_aria:Methods`;
+  protected readonly removeAria = $localize`:@@ps.remove:Remove`;
+  protected readonly searchAria = $localize`:@@ps.search_q:Search questions…`;
+  protected readonly bankSets = $localize`:@@ps.bank_sets:bank sets`;
+  protected readonly andUp = $localize`:@@ps.and_up:and up`;
+  protected readonly shareAria = $localize`:@@ps.share_q:Which answer is the share`;
+  protected readonly questionAria = $localize`:@@ps.question:Question`;
+  protected readonly ruleAria = $localize`:@@ps.rule:Rule`;
+  protected readonly tellAria = $localize`:@@ps.tell:What the customer is told`;
+
+  /** The method on screen — never past the last one. */
+  protected shownWay(): number {
+    const n = this.wayCount();
+    return Math.min(Math.max(this.openWay(), 0), n - 1);
+  }
+
+  protected methodLabel(i: number): string {
+    const n = i + 1;
+    return $localize`:@@ps.method_n:Method ${n}:N:`;
+  }
+
+  protected removeMethodLabel(i: number): string {
+    const n = i + 1;
+    return $localize`:@@ps.remove_method:Remove method ${n}:N:`;
+  }
+
+  /** Which method's question picker is open, or null. */
+  protected readonly pickerFor = signal<number | null>(null);
+  protected readonly pickerQuery = signal('');
+
+  protected togglePicker(i: number): void {
+    this.pickerFor.set(this.pickerFor() === i ? null : i);
+    this.pickerQuery.set('');
+  }
+
+  /** A click anywhere outside the open picker closes it. */
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (this.pickerFor() === null) return;
+    // The path as it was when the click happened: a tick re-draws the list, so the button
+    // clicked may already be gone from the page by the time the click reaches the document.
+    const inPicker = event
+      .composedPath()
+      .some((el) => el instanceof HTMLElement && el.classList.contains('picker'));
+    if (!inPicker) this.pickerFor.set(null);
+  }
+
+  protected val(event: Event): string {
+    return (event.target as HTMLInputElement | HTMLSelectElement).value;
+  }
+
+  protected pickList(
+    list: ReadonlyArray<{ key: string; label: string }>,
+  ): ReadonlyArray<{ key: string; label: string }> {
+    const q = this.pickerQuery().trim().toLowerCase();
+    return q === '' ? list : list.filter((f) => f.label.toLowerCase().includes(q));
+  }
+
+  protected readonly fixedDeciders = computed(() =>
+    this.decidingFacts()
+      .filter((f) => this.isFixedFact(f))
+      .map((f) => ({ key: f.key, label: f.label })),
+  );
+
+  protected readonly derivedDeciders = computed(() =>
+    DERIVED_FACTS.map((d) => ({ key: d.key, label: d.label })),
+  );
+
+  /** Why a row of the picker can't be ticked right now, in words, or null. */
+  protected pickBlock(i: number, key: string): string | null {
+    if (this.canPick(i, key)) return null;
+    if (this.tickedCount(i) >= 2) return $localize`:@@ps.block_two:Untick one first — two at most`;
+    if (this.firstPick(i) === '' && derivedFactByKey(key) !== undefined) {
+      return $localize`:@@ps.block_derived:Tick a question above first — this one only adds columns`;
+    }
+    return $localize`:@@ps.block_numbers:Two numbers can't be used together`;
+  }
+
+  protected tickedCount(i: number): number {
+    const first = this.wayFactValue(i);
+    return (first !== '' && first !== '__flat__' ? 1 : 0) + (this.wayColumn(i) ? 1 : 0);
+  }
+
+  /** A worked-out answer's plain name, without the "(worked out by us)" note. */
+  protected shortLabel(key: string): string {
+    return derivedFactByKey(key)?.label ?? this.factLabel(key);
+  }
+
+  protected factKindLabel(key: string): string {
+    if (this.isNumberFact(key)) return $localize`:@@ps.kind_number:Number`;
+    const n = this.optionsOf(key).length;
+    return $localize`:@@ps.kind_answers:${n}:N: answers`;
+  }
+
+  /** "Pay only the share they own": on picks the answer that reads as a share, else the first number. */
+  protected toggleShare(): void {
+    const control = this.form.controls.shareFact;
+    if (control.value !== '') {
+      control.setValue('');
+      return;
+    }
+    const numbers = this.numericFacts();
+    const share = numbers.find((f) => /%|percent|share|نسبة/i.test(f.label)) ?? numbers[0];
+    if (share) control.setValue(share.key);
+  }
+
+  /** What a rule can be about: the product's answers, plus the one it already reads. */
+  protected ruleFacts(current: string): ReadonlyArray<{ key: string; label: string }> {
+    const list = this.decidingFacts().map((f) => ({ key: f.key, label: f.label }));
+    if (current !== '' && !list.some((f) => f.key === current)) {
+      list.unshift({
+        key: current,
+        label:
+          current === '__answer__'
+            ? $localize`:@@ps.the_amount:The amount we work out`
+            : this.factLabel(current),
+      });
+    }
+    return list;
+  }
+
+  protected setOp(index: number, op: string): void {
+    const row = this.conditions.at(index);
+    if (!row) return;
+    row.patchValue({
+      op: op as ConditionOp,
+      otherFact: this.defaultOther(op as ConditionOp, row.controls.measure.value),
+    });
+  }
+
+  protected setReason(index: number, code: string): void {
+    this.conditions.at(index)?.controls.reasonCode.setValue(code as GateReasonCode);
+  }
+
+  /**
+   * A question the product stops asking leaves the calculation too: out of every method (the
+   * method empties, or its second question moves up), out of the rules, out of the share.
+   */
+  dropFact(key: string): void {
+    for (const i of [...this.wayIndexes()].reverse()) {
+      if (this.wayColumn(i)?.fact === key) this.setWayColumn(i, null);
+      if (this.wayFactValue(i) === key) this.toggleDecider(i, key);
+    }
+    for (let k = this.conditions.length - 1; k >= 0; k -= 1) {
+      const c = this.conditions.at(k)?.getRawValue();
+      if (c && (c.measure === key || c.otherFact === key)) this.conditions.removeAt(k);
+    }
+    if (this.form.controls.shareFact.value === key) this.form.controls.shareFact.setValue('');
+    if (this.form.controls.upliftFact.value === key) {
+      this.form.patchValue({
+        useUplift: false,
+        upliftFact: '',
+        upliftWhen: '',
+        upliftOtherwise: '',
+      });
+    }
+  }
+
+  /** Every answer the calculation reads — what the page's "Try it" panel asks. */
+  readonly tryFacts = computed(() => {
+    this.formRev();
+    const v = this.form.getRawValue();
+    const keys = [
+      v.primaryFact,
+      v.primaryColumn?.fact,
+      ...v.alternatives.flatMap((a) => [a.fact, a.column?.fact]),
+      v.shareFact,
+      ...v.conditions.flatMap((c) => [c.measure, c.otherFact]),
+      v.useUplift ? v.upliftFact : '',
+    ].filter((k): k is string => !!k && k !== '__answer__');
+    const out: Array<{
+      key: string;
+      label: string;
+      type: 'choice' | 'number';
+      derived: boolean;
+      options: ReadonlyArray<{ code: string; label: string }>;
+    }> = [];
+    for (const key of new Set(keys)) {
+      const derived = derivedFactByKey(key);
+      const number = this.isNumberFact(key);
+      if (derived === undefined && !number && this.optionsOf(key).length === 0) continue;
+      out.push({
+        key,
+        label: derived !== undefined ? derived.label : this.factLabel(key),
+        type: number ? 'number' : 'choice',
+        derived: derived !== undefined,
+        options: this.optionsOf(key).map((o) => ({ code: o.code, label: this.optionLabel(o) })),
+      });
+    }
+    return out;
+  });
+
   // --- shared -----------------------------------------------------------------
 
   protected optionsOf(
@@ -3340,6 +3194,19 @@ export class ProductTemplatePage implements OnInit {
     }
     return this.allFacts().find((f) => f.key === factKey)?.question?.options ?? [];
   }
+}
+
+/** No ranges yet, or only the single open range an empty table is drawn with. */
+function blankBands(bands: readonly IncomeBand[] | undefined): boolean {
+  if (bands === undefined || bands.length === 0) return true;
+  const [only] = bands;
+  return (
+    bands.length === 1 &&
+    only !== undefined &&
+    String(only.incomeEGP ?? '').trim() === '' &&
+    (only.fromInclusive ?? '0') === '0' &&
+    (only.toExclusive ?? null) === null
+  );
 }
 
 /** The figures with every blank row taken out — a blank box means "each bank fills it in". */

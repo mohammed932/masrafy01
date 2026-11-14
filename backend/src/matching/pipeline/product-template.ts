@@ -132,8 +132,15 @@ const GROUP_KEY = /^[a-z][a-z0-9_]{0,39}$/;
 type MechanismShape =
   /** A table keyed by what the applicant picked — a grade, a rank, a unit type. */
   | { kind: 'choiceTable'; fact: string }
-  /** A table keyed by the CLASS the picked value is filed under, not the value itself. */
-  | { kind: 'classTable'; fact: string }
+  /**
+   * A table keyed by the CLASS the picked value is filed under, not the value itself.
+   *
+   * `groups` (v37.0.0): the product's OWN groups, named here — one row each. Each answer is
+   * filed under one of them for this product only (`surrogate_product_parent_key`), so the
+   * engine reads it exactly like a shared class; the names travel on the compiled step
+   * (`rowLabels`). Absent: the rows are the classes of the shared list.
+   */
+  | { kind: 'classTable'; fact: string; groups?: TemplateGroup[] }
   /** A table of ranges over a number the applicant states — years, an amount bracket. */
   | { kind: 'numberBand'; fact: string }
   /** A percentage of a number the applicant states. */
@@ -527,6 +534,7 @@ export const TEMPLATE_INVALID_REASONS = [
   'unknown_adjustment_scope',
   'second_column_branch_on_invalid',
   'second_column_groups_invalid',
+  'class_groups_invalid',
   'condition_id_invalid',
   'condition_duplicate_id',
   'unknown_condition_test',
@@ -741,6 +749,25 @@ function validateMechanism(mechanism: TemplateMechanism): TemplateViolation | un
   }
   if (mechanism.kind === 'flatAmount') return undefined;
   if (!mechanism.fact) return { reason: 'mechanism_needs_fact', detail: mechanism.kind };
+  if (mechanism.kind === 'classTable' && mechanism.groups !== undefined) {
+    // Own groups: at least one, unique keys a figure row can be filed under, both names.
+    const groups = mechanism.groups;
+    const bad =
+      !Array.isArray(groups) ||
+      groups.length === 0 ||
+      new Set(groups.map((g) => g.key)).size !== groups.length ||
+      groups.some(
+        (g) =>
+          !GROUP_KEY.test(g.key) ||
+          typeof g.labelEn !== 'string' ||
+          typeof g.labelAr !== 'string' ||
+          g.labelEn.trim() === '' ||
+          g.labelAr.trim() === '' ||
+          g.labelEn.length > 80 ||
+          g.labelAr.length > 80,
+      );
+    if (bad) return { reason: 'class_groups_invalid' };
+  }
   return undefined;
 }
 
@@ -957,7 +984,23 @@ function mechanismStep(mechanism: TemplateMechanism, id: string): RuleStep {
     case 'choiceTable':
       return { id, op: 'factChoiceTable', fact: mechanism.fact };
     case 'classTable':
-      return { id, op: 'factParentTable', fact: mechanism.fact };
+      return {
+        id,
+        op: 'factParentTable',
+        fact: mechanism.fact,
+        // The product's own groups name the rows here, so every screen that draws the figures
+        // reads the same words. The engine never reads it: the row is the answer's group key.
+        ...(mechanism.groups !== undefined
+          ? {
+              rowLabels: Object.fromEntries(
+                mechanism.groups.map((g) => [
+                  g.key,
+                  { labelEn: g.labelEn.trim(), labelAr: g.labelAr.trim() },
+                ]),
+              ),
+            }
+          : {}),
+      };
     case 'numberBand':
       return { id, op: 'bandTable', of: { step: sourceSlot(mechanism.fact) } };
     case 'shareOf':

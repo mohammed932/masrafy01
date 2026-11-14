@@ -637,6 +637,8 @@ export interface RuleStep {
   branchOn?: 'answer' | 'parentClass';
   /** A product's own groups name their columns here (v36.1.0); screens only. */
   branchLabels?: Readonly<Record<string, { labelEn: string; labelAr: string }>>;
+  /** A product's own groups name the rows of a `factParentTable` here (v37.0.0); screens only. */
+  rowLabels?: Readonly<Record<string, { labelEn: string; labelAr: string }>>;
 }
 
 export interface ProductRuleOutput {
@@ -1262,7 +1264,8 @@ export interface TemplateGroup {
 
 type MechanismShape =
   | { kind: 'choiceTable'; fact: string }
-  | { kind: 'classTable'; fact: string }
+  /** `groups`: the product's own groups, one row each (v37.0.0). */
+  | { kind: 'classTable'; fact: string; groups?: TemplateGroup[] }
   | { kind: 'numberBand'; fact: string }
   | { kind: 'shareOf'; fact: string }
   | { kind: 'multipleOf'; fact: string }

@@ -1,7 +1,7 @@
 /**
  * The no-payslip product wizard's steps, in order (v33.3.0) — ONE list for the two pages that
  * draw the rail: `new-product.page.ts` (step 1 only, the rest locked until the product exists)
- * and `surrogate-product-detail.page.ts` (every step, add and edit alike).
+ * and `product-studio.page.ts`.
  */
 export function productStepLabels(): string[] {
   // One or two words each (v36.1.0): the rail names a step only while every name fits, and

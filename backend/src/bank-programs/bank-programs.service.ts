@@ -3108,6 +3108,7 @@ export class BankProgramsService {
         const { id, reasonCode: _reason, ...rest } = item as { id: string; reasonCode?: unknown };
         // Branch labels are names, not meaning: renaming a group keeps its figures right.
         delete (rest as Record<string, unknown>).branchLabels;
+        delete (rest as Record<string, unknown>).rowLabels;
         out.set(id, JSON.stringify(rest, Object.keys(rest).sort()));
       }
       return out;

@@ -5243,6 +5243,140 @@
       <trans-unit id="np.start_cap_note" datatype="html"><source>No amount is worked out. It asks one question, and each bank sets the biggest loan for each answer.</source><target>لا يُحسب مبلغ. يسأل سؤالًا واحدًا، ويحدد كل بنك أكبر قرض لكل إجابة.</target></trans-unit>
       <trans-unit id="spt.v2.own_groups" datatype="html"><source> Make your own groups instead </source><target> اصنع مجموعاتك الخاصة بدلًا من ذلك </target></trans-unit>
       <trans-unit id="spt.v2.no_answer_use" datatype="html"><source>If they don&apos;t answer, use</source><target>إذا لم يُجب، استخدم</target></trans-unit>
+      <trans-unit id="spt.v2.decide_q" datatype="html"><source>Which answers decide the amount?</source><target>أي الإجابات تحدد المبلغ؟</target></trans-unit>
+      <trans-unit id="spt.v2.decide_help" datatype="html"><source>Tick one — or two if the amount also depends on a second answer. The first sets the rows, the second the columns.</source><target>اختر واحدة — أو اثنتين إذا كان المبلغ يعتمد أيضًا على إجابة ثانية. الأولى تحدد الصفوف، والثانية الأعمدة.</target></trans-unit>
+      <trans-unit id="spt.v2.no_added" datatype="html"><source>This product has no questions of its own yet — add them on the Questions step.</source><target>لا توجد أسئلة خاصة بهذا المنتج بعد — أضفها في خطوة الأسئلة.</target></trans-unit>
+      <trans-unit id="spt.v2.more_answers" datatype="html"><source> Fixed questions, and answers we work out ourselves </source><target> الأسئلة الثابتة، والإجابات التي نحسبها بأنفسنا </target></trans-unit>
+      <trans-unit id="spt.v2.flat_link" datatype="html"><source>No question — the same amount for everyone</source><target>بلا سؤال — المبلغ نفسه للجميع</target></trans-unit>
+      <trans-unit id="spt.v2.flat_on" datatype="html"><source>The same amount for everyone.</source><target>المبلغ نفسه للجميع.</target></trans-unit>
+      <trans-unit id="spt.v2.pick_instead" datatype="html"><source> Pick a question instead </source><target> اختر سؤالًا بدلًا من ذلك </target></trans-unit>
+      <trans-unit id="spt.v2.columns_of" datatype="html"><source>Columns: <x id="NAME" equiv-text="name"/></source><target>الأعمدة: <x id="NAME" equiv-text="name"/></target></trans-unit>
+      <trans-unit id="spt.v2.more" datatype="html"><source>More</source><target>المزيد</target></trans-unit>
+      <trans-unit id="spt.v2.more_list" datatype="html"><source>Another way · Only the part they own · Debt burden · Bonus · I-Score</source><target>طريقة أخرى · الجزء الذي يملكه فقط · عبء الدين · مكافأة · I-Score</target></trans-unit>
+      <trans-unit id="spt.v2.add_way_help" datatype="html"><source> Only when banks price this product in different ways. </source><target> فقط عندما تسعّر البنوك هذا المنتج بطرق مختلفة. </target></trans-unit>
+
+      <trans-unit id="spt.v2.add_first" datatype="html"><source>Add this product&apos;s questions first.</source><target>أضف أسئلة هذا المنتج أولًا.</target></trans-unit>
+      <trans-unit id="spt.v2.go_questions" datatype="html"><source>Go to Questions</source><target>اذهب إلى الأسئلة</target></trans-unit>
+      <trans-unit id="spt.v2.use_fixed" datatype="html"><source>Use a fixed question</source><target>استخدم سؤالًا ثابتًا</target></trans-unit>
+      <trans-unit id="ps.loading" datatype="html"><source>Loading…</source><target>جارٍ التحميل…</target></trans-unit>
+      <trans-unit id="ps.live" datatype="html"><source>Live</source><target>مفعّل</target></trans-unit>
+      <trans-unit id="ps.draft" datatype="html"><source>Draft</source><target>مسودة</target></trans-unit>
+      <trans-unit id="ps.discard" datatype="html"><source> Discard </source><target> تجاهل </target></trans-unit>
+      <trans-unit id="ps.saving" datatype="html"><source>Saving…</source><target>جارٍ الحفظ…</target></trans-unit>
+      <trans-unit id="ps.save" datatype="html"><source>Save changes</source><target>حفظ التغييرات</target></trans-unit>
+      <trans-unit id="ps.switch_off" datatype="html"><source>Switch off</source><target>إيقاف</target></trans-unit>
+      <trans-unit id="ps.go_live" datatype="html"><source> Go live </source><target> تفعيل </target></trans-unit>
+      <trans-unit id="ps.sell" datatype="html"><source> Sell it as a program </source><target> بيعه كبرنامج </target></trans-unit>
+      <trans-unit id="ps.delete" datatype="html"><source> Delete product </source><target> حذف المنتج </target></trans-unit>
+      <trans-unit id="ps.called" datatype="html"><source>What is it called?</source><target>ما اسمه؟</target></trans-unit>
+      <trans-unit id="ps.name_en" datatype="html"><source>Name in English</source><target>الاسم بالإنجليزية</target></trans-unit>
+      <trans-unit id="ps.name_ar" datatype="html"><source>Name in Arabic</source><target>الاسم بالعربية</target></trans-unit>
+      <trans-unit id="ps.means" datatype="html"><source>What does the amount mean?</source><target>ماذا يعني المبلغ؟</target></trans-unit>
+      <trans-unit id="ps.means_cap" datatype="html"><source> A limit on a payslip loan: customers bring a payslip, and each bank sets the biggest loan for each answer. </source><target> حدّ على قرض بمفردات مرتب: يقدّم العملاء مفردات مرتب، ويحدد كل بنك أكبر قرض لكل إجابة. </target></trans-unit>
+      <trans-unit id="ps.means_income" datatype="html"><source> A salary we count for them </source><target> راتب نحسبه له </target></trans-unit>
+      <trans-unit id="ps.means_limit" datatype="html"><source> The biggest loan they can get </source><target> أكبر قرض يمكنه الحصول عليه </target></trans-unit>
+      <trans-unit id="ps.means_limit_eg" datatype="html"><source> The loan itself: e.g. a Mivida owner can borrow up to EGP 6,000,000. </source><target> القرض نفسه: مثلًا مالك وحدة في ميفيدا يمكنه اقتراض حتى 6,000,000 جنيه. </target></trans-unit>
+      <trans-unit id="ps.means_income_eg" datatype="html"><source> Like a payslip: e.g. a Colonel counts as earning EGP 45,000 a month. Each bank then works out the loan from it. </source><target> مثل مفردات المرتب: مثلًا العقيد يُحسب له دخل 45,000 جنيه شهريًا، ثم يحسب كل بنك القرض منه. </target></trans-unit>
+      <trans-unit id="ps.asked_title" datatype="html"><source>What applicants are asked</source><target>ما يُسأل عنه المتقدمون</target></trans-unit>
+      <trans-unit id="ps.add_questions" datatype="html"><source> + Add questions </source><target> + إضافة أسئلة </target></trans-unit>
+      <trans-unit id="ps.asktab_all_hint" datatype="html"><source>Everything this product&apos;s customers are asked: the fixed questions, then the ones added here.</source><target>كل ما يُسأل عنه عملاء هذا المنتج: الأسئلة الثابتة، ثم المضافة هنا.</target></trans-unit>
+      <trans-unit id="ps.asktab_added_hint" datatype="html"><source>Asked only on this product. Removing one also takes it out of the amount and the rules.</source><target>تُسأل في هذا المنتج فقط. حذف أحدها يزيله أيضًا من المبلغ والقواعد.</target></trans-unit>
+      <trans-unit id="ps.cap_title" datatype="html"><source>Which answer sets the cap?</source><target>أي إجابة تحدد الحد؟</target></trans-unit>
+      <trans-unit id="ps.cap_body" datatype="html"><source> Each bank sets the biggest payslip loan for each answer of the questions this product asks, on its own program. </source><target> يحدد كل بنك أكبر قرض بمفردات مرتب لكل إجابة من أسئلة هذا المنتج، في برنامجه الخاص. </target></trans-unit>
+      <trans-unit id="ps.limits_add" datatype="html"><source> + Loan limits (optional): debt burden, duration, loan size, plans by down payment </source><target> + حدود القرض (اختياري): عبء الدين، المدة، حجم القرض، الخطط حسب الدفعة المقدمة </target></trans-unit>
+      <trans-unit id="ps.limits" datatype="html"><source>Loan limits</source><target>حدود القرض</target></trans-unit>
+      <trans-unit id="ps.limits_note" datatype="html"><source>optional — each bank starts from these</source><target>اختياري — يبدأ كل بنك منها</target></trans-unit>
+      <trans-unit id="ps.dbr_a" datatype="html"><source>A monthly payment can take up to</source><target>يمكن أن يصل القسط الشهري إلى</target></trans-unit>
+      <trans-unit id="ps.dbr_b" datatype="html"><source>% of their income</source><target>% من دخله</target></trans-unit>
+      <trans-unit id="ps.months_a" datatype="html"><source>Pay back over</source><target>السداد على مدى</target></trans-unit>
+      <trans-unit id="ps.to" datatype="html"><source>to</source><target>إلى</target></trans-unit>
+      <trans-unit id="ps.months_b" datatype="html"><source>months</source><target>شهرًا</target></trans-unit>
+      <trans-unit id="ps.lend_a" datatype="html"><source>Lend from EGP</source><target>إقراض من</target></trans-unit>
+      <trans-unit id="ps.plans" datatype="html"><source>Plans by down payment</source><target>الخطط حسب الدفعة المقدمة</target></trans-unit>
+      <trans-unit id="ps.plans_add" datatype="html"><source> + Plans by down payment (rate, longest term, share financed) </source><target> + خطط حسب الدفعة المقدمة (العائد، أطول مدة، نسبة التمويل) </target></trans-unit>
+      <trans-unit id="ps.plans_other" datatype="html"><source> This product&apos;s plan tables cannot be shown as one table here. </source><target> لا يمكن عرض جداول خطط هذا المنتج كجدول واحد هنا. </target></trans-unit>
+      <trans-unit id="ps.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
+      <trans-unit id="ps.not_found" datatype="html"><source>This product could not be found.</source><target>تعذّر العثور على هذا المنتج.</target></trans-unit>
+      <trans-unit id="ps.remove" datatype="html"><source>Remove</source><target>حذف</target></trans-unit>
+      <trans-unit id="ps.search_q" datatype="html"><source>Search questions…</source><target>ابحث في الأسئلة…</target></trans-unit>
+      <trans-unit id="ps.more" datatype="html"><source>More actions</source><target>إجراءات أخرى</target></trans-unit>
+      <trans-unit id="ps.bank_sets" datatype="html"><source>bank sets</source><target>يحدده البنك</target></trans-unit>
+      <trans-unit id="ps.dbr" datatype="html"><source>Debt burden</source><target>عبء الدين</target></trans-unit>
+      <trans-unit id="ps.step_name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="ps.step_questions" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
+      <trans-unit id="ps.step_amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
+      <trans-unit id="ps.step_rules" datatype="html"><source>Who can&apos;t get it</source><target>مَن لا يحصل عليه</target></trans-unit>
+      <trans-unit id="ps.next" datatype="html"><source>Next: <x id="STEP" equiv-text="next"/></source><target>التالي: <x id="STEP" equiv-text="next"/></target></trans-unit>
+      <trans-unit id="ps.add_questions_title" datatype="html"><source>Add questions</source><target>إضافة أسئلة</target></trans-unit>
+      <trans-unit id="ps.add_sheet_sub" datatype="html"><source>Asked of this product&apos;s applicants.</source><target>تُسأل لمتقدمي هذا المنتج.</target></trans-unit>
+      <trans-unit id="ps.term_both" datatype="html"><source>Type both ends, or leave both empty.</source><target>اكتب الطرفين، أو اتركهما فارغين.</target></trans-unit>
+      <trans-unit id="ps.need_names" datatype="html"><source>Give the product a name in English and Arabic.</source><target>أعطِ المنتج اسمًا بالإنجليزية والعربية.</target></trans-unit>
+      <trans-unit id="ps.plans_unfinished" datatype="html"><source>A plan by down payment is not finished.</source><target>إحدى الخطط حسب الدفعة المقدمة غير مكتملة.</target></trans-unit>
+      <trans-unit id="ps.calc_failed" datatype="html"><source>The amount was not saved — see the Amount step.</source><target>لم يُحفظ المبلغ — راجع خطوة المبلغ.</target></trans-unit>
+      <trans-unit id="ps.now_live" datatype="html"><source>The product is live.</source><target>المنتج مفعّل الآن.</target></trans-unit>
+      <trans-unit id="ps.now_off" datatype="html"><source>The product is switched off.</source><target>تم إيقاف المنتج.</target></trans-unit>
+      <trans-unit id="ps.off_title" datatype="html"><source>Switch this product off?</source><target>إيقاف هذا المنتج؟</target></trans-unit>
+      <trans-unit id="ps.off_body" datatype="html"><source><x id="N" equiv-text="programs"/> bank program(s) stop quoting it from the next quote. Nothing is deleted, and you can switch it back on.</source><target><x id="N" equiv-text="programs"/> برنامج بنكي سيتوقف عن التسعير به من العرض التالي. لا يُحذف شيء، ويمكنك إعادة تفعيله.</target></trans-unit>
+      <trans-unit id="ps.decides" datatype="html"><source>What decides the amount?</source><target>ما الذي يحدد المبلغ؟</target></trans-unit>
+      <trans-unit id="ps.add_method_short" datatype="html"><source>+ Method</source><target>+ طريقة</target></trans-unit>
+      <trans-unit id="ps.banks_use" datatype="html"><source>Banks use</source><target>تستخدم البنوك</target></trans-unit>
+      <trans-unit id="ps.one_each" datatype="html"><source> one method each </source><target> طريقة واحدة لكل بنك </target></trans-unit>
+      <trans-unit id="ps.lowest_wins" datatype="html"><source> all methods, the lowest wins </source><target> كل الطرق، والأقل يُعتمد </target></trans-unit>
+      <trans-unit id="ps.change" datatype="html"><source>Change</source><target>تغيير</target></trans-unit>
+      <trans-unit id="ps.pick_questions" datatype="html"><source>+ Pick questions</source><target>+ اختر الأسئلة</target></trans-unit>
+      <trans-unit id="ps.grp_own" datatype="html"><source>This product&apos;s questions</source><target>أسئلة هذا المنتج</target></trans-unit>
+      <trans-unit id="ps.grp_fixed" datatype="html"><source>Asked of every customer</source><target>تُسأل لكل عميل</target></trans-unit>
+      <trans-unit id="ps.grp_derived" datatype="html"><source>We work these out ourselves</source><target>نحسبها نحن</target></trans-unit>
+      <trans-unit id="ps.ticked" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ tickedCount(i) }}"/> of 2 ticked</source><target>تم اختيار <x id="INTERPOLATION" equiv-text="{{ tickedCount(i) }}"/> من 2</target></trans-unit>
+      <trans-unit id="ps.done" datatype="html"><source> Done </source><target> تم </target></trans-unit>
+      <trans-unit id="ps.rows_cols" datatype="html"><source> Rows by <x id="INTERPOLATION" equiv-text="{{ shortLabel(wayFactValue(i)) }}"/>, columns by <x id="INTERPOLATION_1" equiv-text="{{ shortLabel(column.fact) }}"/>. </source><target> الصفوف حسب <x id="INTERPOLATION" equiv-text="{{ shortLabel(wayFactValue(i)) }}"/>، والأعمدة حسب <x id="INTERPOLATION_1" equiv-text="{{ shortLabel(column.fact) }}"/>. </target></trans-unit>
+      <trans-unit id="ps.second_hint" datatype="html"><source> Tick a second question if the amount also depends on it. </source><target> اختر سؤالًا ثانيًا إذا كان المبلغ يعتمد عليه أيضًا. </target></trans-unit>
+      <trans-unit id="ps.only_fixed" datatype="html"><source>Only the questions every customer answers so far.</source><target>حتى الآن الأسئلة التي يجيبها كل عميل فقط.</target></trans-unit>
+      <trans-unit id="ps.add_own_q" datatype="html"><source> Add this product&apos;s questions </source><target> أضف أسئلة هذا المنتج </target></trans-unit>
+      <trans-unit id="ps.columns" datatype="html"><source>Columns:</source><target>الأعمدة:</target></trans-unit>
+      <trans-unit id="ps.col_answer" datatype="html"><source> one per answer </source><target> عمود لكل إجابة </target></trans-unit>
+      <trans-unit id="ps.col_groups" datatype="html"><source> one per group </source><target> عمود لكل مجموعة </target></trans-unit>
+      <trans-unit id="ps.col_own" datatype="html"><source> our own groups </source><target> مجموعاتنا الخاصة </target></trans-unit>
+      <trans-unit id="ps.groups_done" datatype="html"><source>Done with groups</source><target>انتهيت من المجموعات</target></trans-unit>
+      <trans-unit id="ps.groups_edit" datatype="html"><source>Edit groups</source><target>تعديل المجموعات</target></trans-unit>
+      <trans-unit id="ps.add_group" datatype="html"><source> + Group </source><target> + مجموعة </target></trans-unit>
+      <trans-unit id="ps.no_group" datatype="html"><source> Not in a group </source><target> بلا مجموعة </target></trans-unit>
+      <trans-unit id="ps.add_range" datatype="html"><source> + Add a range </source><target> + أضف نطاقًا </target></trans-unit>
+      <trans-unit id="ps.add_method" datatype="html"><source> + Add another method (some banks work it out differently) </source><target> + أضف طريقة أخرى (بعض البنوك تحسبه بشكل مختلف) </target></trans-unit>
+      <trans-unit id="ps.share" datatype="html"><source>Pay only the share of the unit they own</source><target>ادفع فقط حصة الوحدة التي يملكها</target></trans-unit>
+      <trans-unit id="ps.share_from" datatype="html"><source>from</source><target>من</target></trans-unit>
+      <trans-unit id="ps.who_cant" datatype="html"><source>Who can&apos;t get it?</source><target>مَن لا يحصل عليه؟</target></trans-unit>
+      <trans-unit id="ps.nobody" datatype="html"><source>Nobody is turned away.</source><target>لا يُرفض أحد.</target></trans-unit>
+      <trans-unit id="ps.is" datatype="html"><source>is</source><target>هو</target></trans-unit>
+      <trans-unit id="ps.and" datatype="html"><source>and</source><target>و</target></trans-unit>
+      <trans-unit id="ps.pct_of" datatype="html"><source>% of</source><target>% من</target></trans-unit>
+      <trans-unit id="ps.choose" datatype="html"><source>Choose…</source><target>اختر…</target></trans-unit>
+      <trans-unit id="ps.bank_figures" datatype="html"><source>(each bank types the figures)</source><target>(يكتب كل بنك الأرقام)</target></trans-unit>
+      <trans-unit id="ps.on" datatype="html"><source>On</source><target>مفعّلة</target></trans-unit>
+      <trans-unit id="ps.off" datatype="html"><source>Off</source><target>متوقفة</target></trans-unit>
+      <trans-unit id="ps.off_until" datatype="html"><source>Off until a number is typed</source><target>متوقفة حتى يُكتب رقم</target></trans-unit>
+      <trans-unit id="ps.tick_away" datatype="html"><source>Tick the answers to turn away.</source><target>اختر الإجابات المرفوضة.</target></trans-unit>
+      <trans-unit id="ps.add_rule" datatype="html"><source>+ Add a rule</source><target>+ أضف قاعدة</target></trans-unit>
+      <trans-unit id="ps.methods_aria" datatype="html"><source>Methods</source><target>الطرق</target></trans-unit>
+      <trans-unit id="ps.and_up" datatype="html"><source>and up</source><target>فأكثر</target></trans-unit>
+      <trans-unit id="ps.share_q" datatype="html"><source>Which answer is the share</source><target>أي إجابة هي الحصة</target></trans-unit>
+      <trans-unit id="ps.question" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="ps.rule" datatype="html"><source>Rule</source><target>القاعدة</target></trans-unit>
+      <trans-unit id="ps.tell" datatype="html"><source>What the customer is told</source><target>ما يُقال للعميل</target></trans-unit>
+      <trans-unit id="ps.method_n" datatype="html"><source>Method <x id="N" equiv-text="n"/></source><target>الطريقة <x id="N" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="ps.remove_method" datatype="html"><source>Remove method <x id="N" equiv-text="n"/></source><target>احذف الطريقة <x id="N" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="ps.kind_number" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
+      <trans-unit id="ps.kind_answers" datatype="html"><source><x id="N" equiv-text="n"/> answers</source><target><x id="N" equiv-text="n"/> إجابات</target></trans-unit>
+      <trans-unit id="ps.the_amount" datatype="html"><source>The amount we work out</source><target>المبلغ الذي نحسبه</target></trans-unit>
+      <trans-unit id="ps.block_two" datatype="html"><source>Untick one first — two at most</source><target>ألغِ اختيار واحد أولًا — اثنان على الأكثر</target></trans-unit>
+      <trans-unit id="ps.block_derived" datatype="html"><source>Tick a question above first — this one only adds columns</source><target>اختر سؤالًا من الأعلى أولًا — هذا يضيف أعمدة فقط</target></trans-unit>
+      <trans-unit id="ps.block_numbers" datatype="html"><source>Two numbers can&apos;t be used together</source><target>لا يمكن استخدام رقمين معًا</target></trans-unit>
+      <trans-unit id="ps.board_hint" datatype="html"><source> For this product only. Moves are saved straight away. </source><target> لهذا المنتج فقط. تُحفظ النقلات فورًا. </target></trans-unit>
+      <trans-unit id="ps.groups_own" datatype="html"><source>These groups are this product&apos;s own.</source><target>هذه المجموعات خاصة بهذا المنتج.</target></trans-unit>
+      <trans-unit id="ps.block_no_group" datatype="html"><source>Add at least one group.</source><target>أضف مجموعة واحدة على الأقل.</target></trans-unit>
+      <trans-unit id="ps.block_rule_q" datatype="html"><source>Rule <x id="N" equiv-text="n"/> — pick a question.</source><target>القاعدة <x id="N" equiv-text="n"/> — اختر سؤالًا.</target></trans-unit>
+      <trans-unit id="ps.block_rule_pct" datatype="html"><source>Rule <x id="N" equiv-text="n"/> — pick the answer it is a % of.</source><target>القاعدة <x id="N" equiv-text="n"/> — اختر الإجابة التي هي نسبة منها.</target></trans-unit>
+      <trans-unit id="ps.block_rule_per" datatype="html"><source>Rule <x id="N" equiv-text="n"/> — pick what the figure depends on.</source><target>القاعدة <x id="N" equiv-text="n"/> — اختر ما يعتمد عليه الرقم.</target></trans-unit>
     </body>
   </file>
 </xliff>
