@@ -1888,6 +1888,9 @@ model MethodTemplate {
   mechanism  Json
   /// Default figures by column: `''` = the first column, else the column's branch key.
   figures    Json      @default("{}")
+  /// Its own groups' members, per question: `{ fact: [{ valueId, code, group }] }`. Copied to
+  /// each linked product's own groups (`surrogate_product_parent_key`) on save.
+  placements Json      @default("{}")
   /// `seed` | `operator`.
   source     String    @db.VarChar(16)
   sortOrder  Int       @default(0)

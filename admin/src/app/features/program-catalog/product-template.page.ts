@@ -3343,7 +3343,15 @@ export class ProductTemplatePage implements OnInit {
     }
     this.figures.set(next);
     this.dirty.set(true);
-    // Groups of a shared list become this product's own, the same keys (no figure moves).
+    // The method's own groups come with their members; a shared list's groups become this
+    // product's own, the same keys (no figure moves).
+    for (const [fact, list] of Object.entries(m.placements ?? {})) {
+      this.placements.set({
+        ...this.placements(),
+        [fact]: Object.fromEntries(list.map((p) => [p.code, p.group])),
+      });
+      void this.ensureList(fact);
+    }
     if (mech.kind === 'classTable' && !mech.groups) void this.seedGroups(i, 'row');
     if (column && column.branchOn === 'parentClass' && !column.groups) {
       void this.seedGroups(i, 'col');

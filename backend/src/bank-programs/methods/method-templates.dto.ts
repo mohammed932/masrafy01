@@ -29,6 +29,14 @@ export class CreateMethodTemplateDto {
   @IsOptional()
   @IsObject()
   figures?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description: "Own groups' members per question: `{ fact: [{ valueId, code, group }] }`.",
+  })
+  @IsOptional()
+  @IsObject()
+  placements?: Record<string, unknown>;
 }
 
 /** An edit: any of the four, the key never changes. */
@@ -56,6 +64,11 @@ export class UpdateMethodTemplateDto {
   @IsOptional()
   @IsObject()
   figures?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  placements?: Record<string, unknown>;
 }
 
 export interface MethodTemplateDto {
@@ -64,6 +77,7 @@ export interface MethodTemplateDto {
   labelAr: string;
   mechanism: Record<string, unknown>;
   figures: Record<string, unknown>;
+  placements: Record<string, unknown>;
   source: string;
   sortOrder: number;
   updatedAt: string;

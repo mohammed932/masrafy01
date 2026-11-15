@@ -13,7 +13,9 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
@@ -45,7 +47,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
   selector: 'app-ready-method-edit-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ReactiveFormsModule],
+  imports: [RouterLink, ReactiveFormsModule, NgTemplateOutlet],
   template: `
     <section class="page">
       <a class="back" routerLink="/ready-methods"
@@ -96,18 +98,32 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
           </label>
 
           @if (factOf(fact()); as f) {
-            <div class="seg" role="radiogroup" [attr.aria-label]="howAria">
-              @for (k of kindsFor(f); track k) {
-                <button
-                  type="button"
-                  role="radio"
-                  [attr.aria-checked]="kind() === k"
-                  (click)="setKind(k)"
-                >
-                  {{ how(k) }}
+            <div class="row">
+              <div class="seg" role="radiogroup" [attr.aria-label]="howAria">
+                @for (k of kindsFor(f); track k) {
+                  <button
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="kind() === k"
+                    (click)="setKind(k)"
+                  >
+                    {{ how(k) }}
+                  </button>
+                }
+              </div>
+              @if (kind() === 'classTable') {
+                <button type="button" class="link" (click)="toggleEditor('row')">
+                  @if (editorOpen() === 'row') {
+                    <span i18n="@@ps.groups_done">Done with groups</span>
+                  } @else {
+                    <span i18n="@@ps.groups_edit">Edit groups</span>
+                  }
                 </button>
               }
             </div>
+            @if (kind() === 'classTable' && editorOpen() === 'row') {
+              <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'row' }" />
+            }
 
             <label class="fl"
               ><span i18n="@@rm.q2">Different amounts by a second answer (optional)</span>
@@ -119,27 +135,41 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
               </select>
             </label>
             @if (factOf(colFact()); as c) {
-              @if (c.groups.length > 0) {
-                <div class="seg" role="radiogroup" [attr.aria-label]="colAria">
-                  <button
-                    type="button"
-                    role="radio"
-                    [attr.aria-checked]="colMode() === 'answer'"
-                    (click)="setColMode('answer')"
-                    i18n="@@ps.col_answer"
-                  >
-                    one per answer
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    [attr.aria-checked]="colMode() === 'groups'"
-                    (click)="setColMode('groups')"
-                    i18n="@@ps.col_groups"
-                  >
-                    one per group
-                  </button>
+              @if (groupable(c)) {
+                <div class="row">
+                  <div class="seg" role="radiogroup" [attr.aria-label]="colAria">
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="colMode() === 'answer'"
+                      (click)="setColMode('answer')"
+                      i18n="@@ps.col_answer"
+                    >
+                      one per answer
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="colMode() === 'groups'"
+                      (click)="setColMode('groups')"
+                      i18n="@@ps.col_groups"
+                    >
+                      one per group
+                    </button>
+                  </div>
+                  @if (colMode() === 'groups') {
+                    <button type="button" class="link" (click)="toggleEditor('col')">
+                      @if (editorOpen() === 'col') {
+                        <span i18n="@@ps.groups_done">Done with groups</span>
+                      } @else {
+                        <span i18n="@@ps.groups_edit">Edit groups</span>
+                      }
+                    </button>
+                  }
                 </div>
+                @if (colMode() === 'groups' && editorOpen() === 'col') {
+                  <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'col' }" />
+                }
               }
             }
 
@@ -303,6 +333,63 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         </div>
       }
     </section>
+
+    <ng-template #groupsEd let-axis="axis">
+      <div class="groups">
+        <p class="hint" i18n="@@rm.groups_own">
+          These groups belong to this method, and are copied to every product that uses it.
+        </p>
+        <div class="gnames">
+          @for (g of groupsOf(axis); track g.key; let gi = $index) {
+            <span class="gname">
+              <input
+                [value]="g.labelEn"
+                (change)="renameGroup(axis, g.key, val($event), null)"
+                [attr.aria-label]="groupNameLabel(gi)"
+                placeholder="English"
+              />
+              <input
+                dir="rtl"
+                [value]="g.labelAr"
+                (change)="renameGroup(axis, g.key, null, val($event))"
+                [attr.aria-label]="groupNameLabel(gi)"
+                placeholder="عربي"
+              />
+              @if (groupsOf(axis).length > (axis === 'row' ? 1 : 2)) {
+                <button
+                  type="button"
+                  class="x"
+                  [attr.aria-label]="removeAria"
+                  (click)="removeGroup(axis, g.key)"
+                >
+                  ✕
+                </button>
+              }
+            </span>
+          }
+          <button type="button" class="link" (click)="addGroup(axis)" i18n="@@ps.add_group">
+            + Group
+          </button>
+        </div>
+        <div class="gplace">
+          @for (o of axisOptions(axis); track o.code) {
+            <label
+              >{{ o.label }}
+              <select (change)="place(axis, o.code, val($event))">
+                <option value="" [selected]="placeOf(axis, o.code) === ''" i18n="@@ps.no_group">
+                  Not in a group
+                </option>
+                @for (g of groupsOf(axis); track g.key) {
+                  <option [value]="g.key" [selected]="placeOf(axis, o.code) === g.key">
+                    {{ groupLabel(g) }}
+                  </option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+      </div>
+    </ng-template>
   `,
   styles: [
     `
@@ -393,6 +480,51 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       }
       select {
         min-inline-size: 18rem;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-3);
+        align-items: center;
+      }
+      .groups {
+        inline-size: 100%;
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-muted);
+        padding: var(--space-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2-5);
+      }
+      .gnames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        align-items: center;
+      }
+      .gname {
+        display: inline-flex;
+        gap: var(--space-1);
+        align-items: center;
+      }
+      .gname input {
+        inline-size: 9rem;
+      }
+      .gplace {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+        gap: var(--space-1-5) var(--space-3);
+      }
+      .gplace label {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-2);
+        align-items: center;
+        font-size: var(--text-sm);
+      }
+      .gplace select {
+        min-inline-size: 8rem;
       }
       .seg {
         display: inline-flex;
@@ -550,6 +682,7 @@ export class ReadyMethodEditPage {
   private readonly modal = inject(NzModalService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  private readonly lookups = inject(LookupsApiService);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   protected readonly key = inject(ActivatedRoute).snapshot.paramMap.get('key') ?? 'new';
@@ -577,8 +710,16 @@ export class ReadyMethodEditPage {
       .join(', ');
   }
 
-  /** A method's own row groups, kept as they were when it was opened. */
-  private readonly ownGroups = signal<TemplateGroup[] | undefined>(undefined);
+  /** The method's own groups: its rows (per group), its columns (one per group). */
+  protected readonly rowGroups = signal<TemplateGroup[] | undefined>(undefined);
+  protected readonly colGroups = signal<TemplateGroup[] | undefined>(undefined);
+  /** Per question: answer code → group key. */
+  private readonly placements = signal<Record<string, Record<string, string>>>({});
+  /** Per question: answer code → list row id (what a product's groups are filed by). */
+  private readonly valueIds = signal<Record<string, Record<string, string>>>({});
+  /** Per question: the group each answer sits in on the shared list. */
+  private readonly shared = signal<Record<string, Record<string, string>>>({});
+  protected readonly editorOpen = signal<'row' | 'col' | null>(null);
 
   protected readonly bankSets = $localize`:@@ps.bank_sets:bank sets`;
   protected readonly andUp = $localize`:@@ps.and_up:and up`;
@@ -617,7 +758,167 @@ export class ReadyMethodEditPage {
 
   protected kindsFor(f: MethodFact): readonly TemplateMechanismKind[] {
     if (f.type === 'number') return NUMBER_KINDS;
-    return f.groups.length > 0 ? ['choiceTable', 'classTable'] : ['choiceTable'];
+    return this.groupable(f) ? ['choiceTable', 'classTable'] : ['choiceTable'];
+  }
+
+  /** Its answers come from a list long enough to group, or already grouped. */
+  protected groupable(f: MethodFact): boolean {
+    return f.listType !== null && (f.groups.length > 0 || f.options.length > 3);
+  }
+
+  protected toggleEditor(axis: 'row' | 'col'): void {
+    if (this.editorOpen() === axis) {
+      this.editorOpen.set(null);
+      return;
+    }
+    if ((axis === 'row' ? this.rowGroups() : this.colGroups()) === undefined) {
+      void this.seedGroups(axis);
+      return;
+    }
+    this.editorOpen.set(axis);
+  }
+
+  private axisFact(axis: 'row' | 'col'): string {
+    return axis === 'row' ? this.fact() : this.colFact();
+  }
+
+  protected axisOptions(axis: 'row' | 'col'): readonly MethodOption[] {
+    return this.factOf(this.axisFact(axis))?.options ?? [];
+  }
+
+  protected groupsOf(axis: 'row' | 'col'): TemplateGroup[] {
+    return (axis === 'row' ? this.rowGroups() : this.colGroups()) ?? [];
+  }
+
+  private setGroups(axis: 'row' | 'col', groups: TemplateGroup[]): void {
+    if (axis === 'row') this.rowGroups.set(groups);
+    else {
+      this.colGroups.set(groups);
+      this.storedBranches.set(null);
+    }
+  }
+
+  protected groupLabel(g: TemplateGroup): string {
+    return (this.isAr ? g.labelAr : g.labelEn).trim() || g.labelEn || g.labelAr;
+  }
+
+  protected groupNameLabel(index: number): string {
+    return $localize`:@@spt.groups.name_aria:Name of group ${index + 1}:N:`;
+  }
+
+  /** The list's row ids and where each answer sits on the shared list, read once per question. */
+  private async ensureList(fact: string): Promise<void> {
+    const f = this.factOf(fact);
+    if (!f || f.listType === null || this.valueIds()[fact] !== undefined) return;
+    const rows = await this.lookups.list(f.listType);
+    this.valueIds.set({
+      ...this.valueIds(),
+      [fact]: Object.fromEntries(rows.map((r) => [r.key, r.id])),
+    });
+    this.shared.set({
+      ...this.shared(),
+      [fact]: Object.fromEntries(
+        rows.filter((r) => r.parentKey).map((r) => [r.key, r.parentKey as string]),
+      ),
+    });
+  }
+
+  /**
+   * Make the groups the method's own: a list that has groups is copied as it stands (same keys,
+   * each answer where it sits today); any other list starts with two groups.
+   */
+  private async seedGroups(axis: 'row' | 'col'): Promise<void> {
+    const fact = this.axisFact(axis);
+    const f = this.factOf(fact);
+    if (!f) return;
+    await this.ensureList(fact);
+    const groups: TemplateGroup[] =
+      f.groups.length > 0
+        ? f.groups.map((g) => ({ key: g.code, labelEn: g.label, labelAr: g.label }))
+        : [
+            { key: 'g1', labelEn: 'Group 1', labelAr: 'المجموعة 1' },
+            { key: 'g2', labelEn: 'Group 2', labelAr: 'المجموعة 2' },
+          ];
+    // Both names from the list when it carries them.
+    const enums = registryFacts(this.enums.membersFor('surrogate_fact')(), false);
+    const parents = enums.find((x) => x.key === fact)?.question?.parentOptions ?? [];
+    for (const g of groups) {
+      const p = parents.find((o) => o.code === g.key);
+      if (p) {
+        g.labelEn = p.labelEn;
+        g.labelAr = p.labelAr;
+      }
+    }
+    const keys = new Set(groups.map((g) => g.key));
+    const now = this.shared()[fact] ?? {};
+    this.placements.set({
+      ...this.placements(),
+      [fact]: Object.fromEntries(
+        f.options.map((o) => {
+          const at = now[o.code];
+          return [o.code, at !== undefined && keys.has(at) ? at : groups[0]!.key];
+        }),
+      ),
+    });
+    this.setGroups(axis, groups);
+    this.editorOpen.set(axis);
+  }
+
+  protected renameGroup(
+    axis: 'row' | 'col',
+    key: string,
+    en: string | null,
+    ar: string | null,
+  ): void {
+    this.setGroups(
+      axis,
+      this.groupsOf(axis).map((g) =>
+        g.key === key ? { ...g, labelEn: en ?? g.labelEn, labelAr: ar ?? g.labelAr } : g,
+      ),
+    );
+  }
+
+  protected addGroup(axis: 'row' | 'col'): void {
+    const groups = this.groupsOf(axis);
+    const taken = new Set(groups.map((g) => g.key));
+    let n = groups.length + 1;
+    while (taken.has(`g${n}`)) n += 1;
+    this.setGroups(axis, [
+      ...groups,
+      { key: `g${n}`, labelEn: `Group ${n}`, labelAr: `المجموعة ${n}` },
+    ]);
+  }
+
+  protected removeGroup(axis: 'row' | 'col', key: string): void {
+    const fact = this.axisFact(axis);
+    this.setGroups(
+      axis,
+      this.groupsOf(axis).filter((g) => g.key !== key),
+    );
+    const mine = { ...(this.placements()[fact] ?? {}) };
+    for (const [code, g] of Object.entries(mine)) if (g === key) delete mine[code];
+    this.placements.set({ ...this.placements(), [fact]: mine });
+    const next = { ...this.figures() };
+    if (axis === 'row') {
+      for (const [col, f] of Object.entries(next)) {
+        if (f.keyTable) next[col] = { ...f, keyTable: f.keyTable.filter((r) => r.key !== key) };
+      }
+    } else {
+      delete next[key];
+    }
+    this.figures.set(next);
+  }
+
+  protected placeOf(axis: 'row' | 'col', code: string): string {
+    return this.placements()[this.axisFact(axis)]?.[code] ?? '';
+  }
+
+  protected place(axis: 'row' | 'col', code: string, group: string): void {
+    const fact = this.axisFact(axis);
+    const mine = { ...(this.placements()[fact] ?? {}) };
+    if (group === '') delete mine[code];
+    else mine[code] = group;
+    this.placements.set({ ...this.placements(), [fact]: mine });
   }
 
   protected setFact(key: string): void {
@@ -627,19 +928,24 @@ export class ReadyMethodEditPage {
     if (this.colFact() === key) {
       this.colFact.set('');
       this.storedBranches.set(null);
+      this.colGroups.set(undefined);
     }
-    this.ownGroups.set(undefined);
+    this.rowGroups.set(undefined);
+    this.editorOpen.set(null);
     this.figures.set({});
   }
 
   protected setKind(k: TemplateMechanismKind): void {
     this.kind.set(k);
-    this.ownGroups.set(undefined);
+    this.rowGroups.set(undefined);
     this.figures.set({});
+    if (k === 'classTable') void this.seedGroups('row');
+    else this.editorOpen.set(null);
   }
 
   protected setColumn(key: string): void {
     this.storedBranches.set(null);
+    this.colGroups.set(undefined);
     this.colFact.set(key);
     this.colMode.set('answer');
     this.figures.set({});
@@ -647,8 +953,11 @@ export class ReadyMethodEditPage {
 
   protected setColMode(mode: ColMode): void {
     this.storedBranches.set(null);
+    this.colGroups.set(undefined);
     this.colMode.set(mode);
     this.figures.set({});
+    if (mode === 'groups') void this.seedGroups('col');
+    else if (this.editorOpen() === 'col') this.editorOpen.set(null);
   }
 
   protected readonly shape = computed<'table' | 'ranges' | 'scalar'>(() => {
@@ -666,7 +975,12 @@ export class ReadyMethodEditPage {
         ? $localize`:@@rm.col_value:Value`
         : $localize`:@@rm.col_amount:Amount`;
     if (!c) return [{ code: '', label: amount }];
-    const list = this.colMode() === 'groups' ? c.groups : c.options;
+    const own = this.colMode() === 'groups' ? this.colGroups() : undefined;
+    const list = own
+      ? own.map((g) => ({ code: g.key, label: this.groupLabel(g) }))
+      : this.colMode() === 'groups'
+        ? c.groups
+        : c.options;
     return this.branches().map((code, i) => ({
       code: i === 0 ? '' : code,
       label: list.find((o) => o.code === code)?.label ?? code,
@@ -674,6 +988,8 @@ export class ReadyMethodEditPage {
   });
 
   private branches(): string[] {
+    const own = this.colMode() === 'groups' ? this.colGroups() : undefined;
+    if (own) return own.map((g) => g.key);
     const stored = this.storedBranches();
     if (stored) return stored;
     const c = this.factOf(this.colFact());
@@ -685,10 +1001,8 @@ export class ReadyMethodEditPage {
     const f = this.factOf(this.fact());
     if (!f) return [];
     if (this.kind() === 'classTable') {
-      const own = this.ownGroups();
-      return own
-        ? own.map((g) => ({ code: g.key, label: this.isAr ? g.labelAr : g.labelEn }))
-        : f.groups;
+      const own = this.rowGroups();
+      return own ? own.map((g) => ({ code: g.key, label: this.groupLabel(g) })) : f.groups;
     }
     return f.options;
   });
@@ -809,7 +1123,8 @@ export class ReadyMethodEditPage {
 
   private mechanism(): TemplateMechanism {
     const branches = this.branches();
-    const own = this.ownGroups();
+    const own = this.rowGroups();
+    const cols = this.colMode() === 'groups' ? this.colGroups() : undefined;
     return {
       kind: this.kind(),
       fact: this.fact(),
@@ -820,10 +1135,30 @@ export class ReadyMethodEditPage {
               fact: this.colFact(),
               branches,
               ...(this.colMode() === 'groups' ? { branchOn: 'parentClass' as const } : {}),
+              ...(cols ? { groups: cols } : {}),
             },
           }
         : {}),
     } as TemplateMechanism;
+  }
+
+  /** Who sits in which of the method's own groups — by list row id, so products can file them. */
+  private async placementsBody(): Promise<
+    Record<string, Array<{ valueId: string; code: string; group: string }>>
+  > {
+    const out: Record<string, Array<{ valueId: string; code: string; group: string }>> = {};
+    const grouped: string[] = [];
+    if (this.kind() === 'classTable' && this.rowGroups()) grouped.push(this.fact());
+    if (this.colMode() === 'groups' && this.colGroups()) grouped.push(this.colFact());
+    for (const fact of grouped) {
+      await this.ensureList(fact);
+      const ids = this.valueIds()[fact] ?? {};
+      const placed = this.placements()[fact] ?? {};
+      out[fact] = Object.entries(placed)
+        .filter(([code]) => ids[code] !== undefined)
+        .map(([code, group]) => ({ valueId: ids[code]!, code, group }));
+    }
+    return out;
   }
 
   /** Blank rows out, and only the columns the method has. */
@@ -872,6 +1207,7 @@ export class ReadyMethodEditPage {
       labelAr: v.labelAr.trim(),
       mechanism: this.mechanism(),
       figures: this.cleanFigures(),
+      placements: await this.placementsBody(),
     };
     try {
       if (this.isNew) {
@@ -937,7 +1273,13 @@ export class ReadyMethodEditPage {
       const mech = m.mechanism;
       if (mech.kind !== 'flatAmount') this.fact.set(mech.fact);
       this.kind.set(mech.kind);
-      if (mech.kind === 'classTable' && mech.groups) this.ownGroups.set(mech.groups);
+      if (mech.kind === 'classTable' && mech.groups) this.rowGroups.set(mech.groups);
+      if (mech.column?.groups) this.colGroups.set(mech.column.groups);
+      const placed: Record<string, Record<string, string>> = {};
+      for (const [fact, list] of Object.entries(m.placements ?? {})) {
+        placed[fact] = Object.fromEntries(list.map((p) => [p.code, p.group]));
+      }
+      this.placements.set(placed);
       this.colFact.set(mech.column?.fact ?? '');
       this.colMode.set(mech.column?.branchOn === 'parentClass' ? 'groups' : 'answer');
       this.storedBranches.set(mech.column ? [...mech.column.branches] : null);

@@ -5426,6 +5426,7 @@
       <trans-unit id="ps.show_amounts" datatype="html"><source>Show amounts</source><target>عرض المبالغ</target></trans-unit>
       <trans-unit id="ps.hide_amounts" datatype="html"><source>Hide amounts</source><target>إخفاء المبالغ</target></trans-unit>
       <trans-unit id="ps.ready_method" datatype="html"><source>Ready method</source><target>الطريقة الجاهزة</target></trans-unit>
+      <trans-unit id="rm.groups_own" datatype="html"><source> These groups belong to this method, and are copied to every product that uses it. </source><target> هذه المجموعات تابعة لهذه الطريقة، وتُنسخ إلى كل منتج يستخدمها. </target></trans-unit>
     </body>
   </file>
 </xliff>

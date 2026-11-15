@@ -24,6 +24,8 @@ export interface MethodFact {
   options: readonly MethodOption[];
   /** The list's own groups (compound classes, city tiers), when it has them. */
   groups: readonly MethodOption[];
+  /** The value list its answers come from — what own groups are filed in. */
+  listType: string | null;
 }
 
 /** Every bound number or one-choice fact, then what the platform works out itself. */
@@ -45,6 +47,7 @@ export function methodFacts(facts: readonly RegistryFact[], isAr: boolean): Meth
         code: o.code,
         label: isAr ? o.labelAr : o.labelEn,
       })),
+      listType: q.optionsEnumerationType ?? null,
     });
   }
   for (const d of DERIVED_FACTS) {
@@ -55,6 +58,7 @@ export function methodFacts(facts: readonly RegistryFact[], isAr: boolean): Meth
       derived: true,
       options: d.options.map((o) => ({ code: o.code, label: o.label })),
       groups: [],
+      listType: null,
     });
   }
   return out;

@@ -9,6 +9,7 @@ export interface MethodTemplateRow {
   labelAr: string;
   mechanism: unknown;
   figures: unknown;
+  placements: unknown;
   source: string;
   sortOrder: number;
   deletedAt: Date | null;
@@ -21,6 +22,7 @@ const SELECT = {
   labelAr: true,
   mechanism: true,
   figures: true,
+  placements: true,
   source: true,
   sortOrder: true,
   deletedAt: true,
@@ -72,6 +74,7 @@ export class MethodTemplatesRepository {
     labelAr: string;
     mechanism: unknown;
     figures: unknown;
+    placements?: unknown;
     source: 'seed' | 'operator';
     sortOrder: number;
     updatedBy?: string;
@@ -81,6 +84,7 @@ export class MethodTemplatesRepository {
         ...data,
         mechanism: data.mechanism as Prisma.InputJsonValue,
         figures: data.figures as Prisma.InputJsonValue,
+        placements: (data.placements ?? {}) as Prisma.InputJsonValue,
       },
       select: SELECT,
     });
@@ -93,6 +97,7 @@ export class MethodTemplatesRepository {
       labelAr?: string;
       mechanism?: unknown;
       figures?: unknown;
+      placements?: unknown;
       updatedBy?: string;
     },
   ): Promise<MethodTemplateRow> {
@@ -105,6 +110,9 @@ export class MethodTemplatesRepository {
           ? { mechanism: data.mechanism as Prisma.InputJsonValue }
           : {}),
         ...(data.figures !== undefined ? { figures: data.figures as Prisma.InputJsonValue } : {}),
+        ...(data.placements !== undefined
+          ? { placements: data.placements as Prisma.InputJsonValue }
+          : {}),
         ...(data.updatedBy !== undefined ? { updatedBy: data.updatedBy } : {}),
       },
       select: SELECT,

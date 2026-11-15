@@ -1266,6 +1266,8 @@ export interface MethodTemplate {
   labelAr: string;
   mechanism: TemplateMechanism;
   figures: Record<string, StepFigures>;
+  /** Its own groups' members, per question. */
+  placements: Record<string, Array<{ valueId: string; code: string; group: string }>>;
   /** `seed` = shipped with the platform, `operator` = added on the dashboard. */
   source: string;
   sortOrder: number;
@@ -1287,6 +1289,7 @@ export interface MethodTemplateWrite {
   labelAr: string;
   mechanism: TemplateMechanism;
   figures: Record<string, StepFigures>;
+  placements?: Record<string, Array<{ valueId: string; code: string; group: string }>>;
 }
 
 export interface TemplateGroup {

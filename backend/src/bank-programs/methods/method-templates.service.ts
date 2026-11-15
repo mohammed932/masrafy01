@@ -22,6 +22,7 @@ import {
   type TemplateMechanism,
 } from '@/matching/pipeline/product-template';
 import { BankProgramsService } from '../bank-programs.service';
+import { SurrogateProductLifecycleService } from '../products/surrogate-product-lifecycle.service';
 import { MethodTemplatesRepository, type MethodTemplateRow } from './method-templates.repository';
 import type {
   CreateMethodTemplateDto,
@@ -53,6 +54,7 @@ export class MethodTemplatesService implements OnApplicationBootstrap {
   constructor(
     private readonly repo: MethodTemplatesRepository,
     private readonly programs: BankProgramsService,
+    private readonly lifecycle: SurrogateProductLifecycleService,
   ) {}
 
   /**
@@ -101,6 +103,7 @@ export class MethodTemplatesService implements OnApplicationBootstrap {
     }
     const mechanism = assertMechanism(dto.mechanism);
     const figures = assertFigures(dto.figures ?? {}, mechanism);
+    const placements = assertPlacements(dto.placements ?? {}, mechanism);
     const key = await this.freeKey(labelEn);
     const row = await this.repo.create({
       key,
@@ -108,6 +111,7 @@ export class MethodTemplatesService implements OnApplicationBootstrap {
       labelAr,
       mechanism,
       figures,
+      placements,
       source: 'operator',
       sortOrder: (await this.repo.maxSortOrder()) + 10,
       ...(actorId ? { updatedBy: actorId } : {}),
@@ -141,17 +145,22 @@ export class MethodTemplatesService implements OnApplicationBootstrap {
         : dto.mechanism !== undefined
           ? assertFigures(current.figures as Figures, mechanism, true)
           : (current.figures as Figures);
+    const placements =
+      dto.placements !== undefined
+        ? assertPlacements(dto.placements, mechanism)
+        : assertPlacements((current.placements ?? {}) as Figures, mechanism, true);
     const row = await this.repo.update(key, {
       ...(labelEn !== undefined ? { labelEn } : {}),
       ...(dto.labelAr !== undefined ? { labelAr: dto.labelAr.trim() } : {}),
       ...(dto.mechanism !== undefined ? { mechanism } : {}),
       ...(dto.figures !== undefined || dto.mechanism !== undefined ? { figures } : {}),
+      ...(dto.placements !== undefined || dto.mechanism !== undefined ? { placements } : {}),
       updatedBy: actor.id,
     });
 
     const updated: string[] = [];
     const refused: Array<{ key: string; code: string; meta?: Record<string, unknown> }> = [];
-    if (dto.mechanism !== undefined || dto.figures !== undefined) {
+    if (dto.mechanism !== undefined || dto.figures !== undefined || dto.placements !== undefined) {
       for (const product of await this.linkedProducts(key)) {
         const next = withMethod(product, key, mechanism, figures);
         try {
@@ -163,6 +172,14 @@ export class MethodTemplatesService implements OnApplicationBootstrap {
             },
             actor,
           );
+          // Then who sits in which of the method's own groups, for this product too. After the
+          // template: that save is what makes the group keys the product's own.
+          const assignments = Object.values(placements).flatMap((list) =>
+            (list as Placement[]).map((p) => ({ valueId: p.valueId, parentKey: p.group })),
+          );
+          if (assignments.length > 0) {
+            await this.lifecycle.setGroups(product.key, { assignments }, actor);
+          }
           updated.push(product.key);
         } catch (err) {
           const e = err as DomainException;
@@ -286,6 +303,7 @@ function toDto(row: MethodTemplateRow, linked: readonly LinkedProduct[]): Method
     labelAr: row.labelAr,
     mechanism: row.mechanism as Record<string, unknown>,
     figures: (row.figures ?? {}) as Record<string, unknown>,
+    placements: (row.placements ?? {}) as Record<string, unknown>,
     source: row.source,
     sortOrder: row.sortOrder,
     updatedAt: row.updatedAt.toISOString(),
@@ -293,6 +311,60 @@ function toDto(row: MethodTemplateRow, linked: readonly LinkedProduct[]): Method
       .filter((p) => waysOfTemplate(p.template).some((w) => w.methodKey === row.key))
       .map((p) => ({ key: p.key, labelEn: p.labelEn, labelAr: p.labelAr })),
   };
+}
+
+interface Placement {
+  valueId: string;
+  code: string;
+  group: string;
+}
+
+/**
+ * The members of the method's own groups: per question, each answer's group — only for a
+ * question the method groups (its rows, or its column), only into a group it has.
+ */
+function assertPlacements(
+  raw: Figures,
+  mechanism: TemplateMechanism,
+  prune = false,
+): Record<string, Placement[]> {
+  const groupsOf = new Map<string, Set<string>>();
+  if (mechanism.kind === 'classTable' && mechanism.groups) {
+    groupsOf.set(mechanism.fact, new Set(mechanism.groups.map((g) => g.key)));
+  }
+  if (mechanism.column?.groups) {
+    groupsOf.set(mechanism.column.fact, new Set(mechanism.column.groups.map((g) => g.key)));
+  }
+  const out: Record<string, Placement[]> = {};
+  for (const [fact, list] of Object.entries(raw)) {
+    const keys = groupsOf.get(fact);
+    if (!keys) {
+      if (prune) continue;
+      throw new ProductTemplateInvalidException({ reason: 'placements_invalid', detail: fact });
+    }
+    if (!Array.isArray(list)) {
+      throw new ProductTemplateInvalidException({ reason: 'placements_invalid', detail: fact });
+    }
+    const kept: Placement[] = [];
+    for (const item of list as unknown[]) {
+      const p = item as Partial<Placement>;
+      const ok =
+        typeof p.valueId === 'string' &&
+        p.valueId !== '' &&
+        typeof p.code === 'string' &&
+        typeof p.group === 'string';
+      if (!ok) {
+        throw new ProductTemplateInvalidException({ reason: 'placements_invalid', detail: fact });
+      }
+      if (!keys.has(p.group as string)) {
+        if (prune) continue;
+        throw new ProductTemplateInvalidException({ reason: 'placements_invalid', detail: fact });
+      }
+      kept.push({ valueId: p.valueId as string, code: p.code as string, group: p.group as string });
+    }
+    out[fact] = kept;
+  }
+  return out;
 }
 
 /** The way, checked by the same validator a product's form is — as that form's only way. */
