@@ -156,6 +156,15 @@ Fixed 2026-09-25 with `restart: unless-stopped`. If it recurs:
 ssh root@161.35.24.91 'docker ps -a --format "{{.Names}}\t{{.Status}}"'
 ssh root@161.35.24.91 'docker start nginx-proxy nginx-proxy-gen nginx-proxy-le'
 ```
+**`unless-stopped` is not enough.** It recurred 2026-10-23 → 2026-11-15 (23 days): Docker
+on the droplet is a **snap** (`snap list docker`), and a snap auto-refresh restarted
+dockerd mid-run. On restore it logged `error unmounting container … layer not mounted`
+for `nginx-proxy` and `nginx-proxy-gen`, left both `Exited (255)`, and never restarted
+them (`nginx-proxy-le` and the `masrafy_*` containers came back). Snap refreshes run
+~4×/day (`snap refresh --time`), so this can happen again until one of: a watchdog that
+`docker start`s the trio when not running, `snap refresh --hold docker` (then refresh by
+hand), or moving Docker off snap to apt `docker-ce`. Daemon log for a given restart:
+`journalctl -u snap.docker.dockerd --since "<time>"`.
 
 **Ports** (per app, localhost-only on the droplet for debugging; public traffic is
 443 via the proxy): backend `127.0.0.1:3000`, admin `127.0.0.1:8080`.
